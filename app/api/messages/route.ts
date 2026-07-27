@@ -41,11 +41,15 @@ export async function POST(request: NextRequest) {
   try {
     assertSameOriginAuthRequest(request);
     const input = (await request.json().catch(() => null)) as {
+      body?: unknown;
       messageId?: unknown;
     } | null;
     resolution = await resolveLiveRoomActor(request);
     const data = await startDirectConversation({
       actor: resolution.actor,
+      ...(input && Object.hasOwn(input, "body")
+        ? { body: input.body }
+        : {}),
       messageId: input?.messageId,
     });
     const response = NextResponse.json(

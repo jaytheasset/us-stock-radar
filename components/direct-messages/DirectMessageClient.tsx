@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, LockKeyhole, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Ban,
+  Check,
+  Flag,
+  LockKeyhole,
+  Send,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 import {
   type FormEvent,
   useCallback,
@@ -18,7 +28,9 @@ import {
 import type {
   DirectMessage,
   DirectMessageConversation,
+  DirectMessageReportReason,
 } from "@/lib/direct-messages/types";
+import { DIRECT_MESSAGE_REPORT_REASONS } from "@/lib/direct-messages/types";
 import { LiveRoomApiError } from "@/lib/live-room/apiRepository";
 import { LIVE_ROOM_MESSAGE_MAX_LENGTH } from "@/lib/live-room/moderation";
 import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
@@ -31,6 +43,7 @@ type DirectMessageClientProps = {
 export function DirectMessageClient({
   conversationId,
 }: DirectMessageClientProps) {
+  const router = useRouter();
   const [repository] = useState(
     () => new DirectMessageApiRepository(),
   );
@@ -44,6 +57,16 @@ export function DirectMessageClient({
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [requestAction, setRequestAction] = useState<
+    "accept" | "block" | "decline" | null
+  >(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(
+    null,
+  );
+  const [reportedMessageIds, setReportedMessageIds] = useState<
+    ReadonlySet<string>
+  >(new Set());
+  const [notice, setNotice] = useState("");
   const timelineRef = useRef<HTMLOListElement>(null);
 
   const refresh = useCallback(
@@ -104,6 +127,7 @@ export function DirectMessageClient({
   useEffect(() => {
     if (
       state !== "ready" ||
+      conversation?.status !== "accepted" ||
       !conversation?.messages.length ||
       document.visibilityState !== "visible"
     ) {
@@ -164,6 +188,42 @@ export function DirectMessageClient({
     }
   };
 
+  const handleRequestAction = async (
+    action: "accept" | "block" | "decline",
+  ) => {
+    if (requestAction) return;
+    setRequestAction(action);
+    setError(null);
+    try {
+      const result = await repository.respond(conversationId, action);
+      requestDirectMessageRefresh();
+      if (result.status === "accepted") {
+        setNotice("Message request accepted.");
+        await refresh({ quiet: true });
+      } else {
+        router.push("/");
+      }
+    } catch (caught) {
+      setError(toApiError(caught));
+    } finally {
+      setRequestAction(null);
+    }
+  };
+
+  const handleReport = async (
+    messageId: string,
+    reason: DirectMessageReportReason,
+  ) => {
+    try {
+      await repository.report(conversationId, messageId, reason);
+      setReportedMessageIds((current) => new Set(current).add(messageId));
+      setReportMessageId(null);
+      setNotice("Message reported for review.");
+    } catch (caught) {
+      setError(toApiError(caught));
+    }
+  };
+
   const handleLoadOlder = async () => {
     if (!conversation?.nextCursor || loadingOlder) return;
     setLoadingOlder(true);
@@ -216,9 +276,11 @@ export function DirectMessageClient({
                 {getPlanDisplayName(conversation.peer.plan)}
               </span>
               <span>
-                {conversation.mutualFollow
-                  ? "Mutual follow"
-                  : "Not mutual"}
+                {conversation.status === "pending"
+                  ? "Message request"
+                  : conversation.mutualFollow
+                    ? "Mutual follow"
+                    : "Accepted conversation"}
               </span>
             </div>
           ) : null}
@@ -266,18 +328,18 @@ export function DirectMessageClient({
                   ref={timelineRef}
                 >
                   {conversation.messages.map((message) => (
-                    <li
-                      className={
-                        message.isMine ? styles.mine : styles.theirs
+                    <DirectMessageBubble
+                      message={message}
+                      onReport={handleReport}
+                      onToggleReport={() =>
+                        setReportMessageId((current) =>
+                          current === message.id ? null : message.id,
+                        )
                       }
-                      data-message-id={message.id}
+                      reportOpen={reportMessageId === message.id}
+                      reported={reportedMessageIds.has(message.id)}
                       key={message.id}
-                    >
-                      <p>{message.body}</p>
-                      <time dateTime={message.createdAt}>
-                        {formatMessageTime(message.createdAt)}
-                      </time>
-                    </li>
+                    />
                   ))}
                 </ol>
               ) : (
@@ -290,6 +352,40 @@ export function DirectMessageClient({
           )}
         </div>
 
+        {conversation?.canRespond ? (
+          <div className={styles.requestActions}>
+            <div>
+              <strong>Review this message request</strong>
+              <span>
+                Accept to continue in this conversation, decline silently, or
+                block the member.
+              </span>
+            </div>
+            <div>
+              <button
+                disabled={requestAction !== null}
+                onClick={() => void handleRequestAction("accept")}
+                type="button"
+              >
+                <Check aria-hidden="true" size={15} /> Accept
+              </button>
+              <button
+                disabled={requestAction !== null}
+                onClick={() => void handleRequestAction("decline")}
+                type="button"
+              >
+                <X aria-hidden="true" size={15} /> Decline
+              </button>
+              <button
+                disabled={requestAction !== null}
+                onClick={() => void handleRequestAction("block")}
+                type="button"
+              >
+                <Ban aria-hidden="true" size={15} /> Block
+              </button>
+            </div>
+          </div>
+        ) : null}
         {conversation && !conversation.canSend ? (
           <p className={styles.readOnlyNotice}>
             <LockKeyhole aria-hidden="true" size={15} />
@@ -300,6 +396,11 @@ export function DirectMessageClient({
         {error && conversation ? (
           <p className={styles.inlineError} role="alert">
             {error.message}
+          </p>
+        ) : null}
+        {notice ? (
+          <p aria-live="polite" className={styles.inlineNotice}>
+            {notice}
           </p>
         ) : null}
 
@@ -316,7 +417,9 @@ export function DirectMessageClient({
               placeholder={
                 conversation?.canSend
                   ? "Write a private message"
-                  : "Messaging requires a mutual follow"
+                  : conversation?.requestRole === "sender"
+                    ? "Request pending"
+                    : "Accept the request to reply"
               }
               rows={2}
               value={body}
@@ -341,6 +444,76 @@ export function DirectMessageClient({
   );
 }
 
+function DirectMessageBubble({
+  message,
+  onReport,
+  onToggleReport,
+  reportOpen,
+  reported,
+}: {
+  message: DirectMessage;
+  onReport: (
+    messageId: string,
+    reason: DirectMessageReportReason,
+  ) => Promise<void>;
+  onToggleReport: () => void;
+  reportOpen: boolean;
+  reported: boolean;
+}) {
+  return (
+    <li
+      className={message.isMine ? styles.mine : styles.theirs}
+      data-message-id={message.id}
+    >
+      {message.kind === "request" ? (
+        <small className={styles.requestLabel}>Message request</small>
+      ) : null}
+      <p>{message.body}</p>
+      {!message.isMine && message.riskFlags.length ? (
+        <aside className={styles.riskWarning}>
+          <ShieldAlert aria-hidden="true" size={15} />
+          <span>
+            Safety warning: this message contains{" "}
+            {formatRiskFlags(message.riskFlags)}. Verify independently and
+            report suspicious requests.
+          </span>
+        </aside>
+      ) : null}
+      <div className={styles.messageMeta}>
+        <time dateTime={message.createdAt}>
+          {formatMessageTime(message.createdAt)}
+        </time>
+        {!message.isMine ? (
+          <div className={styles.reportControl}>
+            <button
+              aria-expanded={reportOpen}
+              disabled={reported}
+              onClick={onToggleReport}
+              type="button"
+            >
+              <Flag aria-hidden="true" size={12} />
+              {reported ? "Reported" : "Report"}
+            </button>
+            {reportOpen ? (
+              <div className={styles.reportMenu}>
+                {DIRECT_MESSAGE_REPORT_REASONS.map((reason) => (
+                  <button
+                    key={reason}
+                    onClick={() => void onReport(message.id, reason)}
+                    type="button"
+                  >
+                    {formatReportReason(reason)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 function mergeMessages(
   first: readonly DirectMessage[],
   second: readonly DirectMessage[],
@@ -351,6 +524,26 @@ function mergeMessages(
         Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
         left.id.localeCompare(right.id),
     );
+}
+
+function formatRiskFlags(flags: DirectMessage["riskFlags"]) {
+  const labels = flags.map((flag) => {
+    if (flag === "off_platform_contact") return "off-platform contact";
+    if (flag === "money_transfer") return "money-transfer language";
+    if (flag === "guaranteed_return") return "return guarantees";
+    if (flag === "paid_room") return "a paid or VIP room";
+    if (flag === "crypto_wallet") return "crypto transfer details";
+    return "repeated contact details";
+  });
+  return new Intl.ListFormat("en-US", {
+    style: "long",
+    type: "conjunction",
+  }).format(labels);
+}
+
+function formatReportReason(reason: DirectMessageReportReason) {
+  if (reason === "misinformation") return "Misinformation";
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
 }
 
 function formatMessageTime(value: string) {

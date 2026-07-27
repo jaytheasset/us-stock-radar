@@ -1,7 +1,6 @@
 import "server-only";
 
 import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
-import { evaluateLiveRoomMessage } from "@/lib/live-room/moderation";
 import {
   LiveRoomPolicyError,
   normalizeLiveRoomUuid,
@@ -9,12 +8,23 @@ import {
 } from "@/lib/live-room/policy";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import { evaluateDirectMessage } from "./moderation";
 import type {
   DirectMessage,
   DirectMessageConversation,
   DirectMessageConversationSummary,
   DirectMessageInbox,
   DirectMessagePeer,
+  DirectMessageReportReason,
+  DirectMessageRequestSummary,
+  DirectMessageSettings,
+  DirectMessageStartResult,
+} from "./types";
+import {
+  DIRECT_MESSAGE_RECEIVE_MODES,
+  DIRECT_MESSAGE_REPORT_REASONS,
+  DIRECT_MESSAGE_REQUEST_FILTERS,
+  DIRECT_MESSAGE_RISK_FLAGS,
 } from "./types";
 
 type DirectCursor = {
@@ -24,32 +34,41 @@ type DirectCursor = {
 
 export async function startDirectConversation({
   actor,
+  body,
   messageId,
 }: {
   actor: LiveRoomActor;
+  body?: unknown;
   messageId: unknown;
-}) {
+}): Promise<DirectMessageStartResult> {
   const member = requireMember(actor);
   await ensureUserBootstrap({ id: member.userId, email: member.email });
+  let normalizedBody: string | null = null;
+  if (body !== undefined) {
+    const recent = await getRecentDirectMessages(member.userId);
+    const decision = evaluateDirectMessage(
+      typeof body === "string" ? body : "",
+      {
+        history: recent,
+        now: new Date().toISOString(),
+        request: true,
+      },
+    );
+    assertModerationAllowed(decision);
+    normalizedBody = decision.normalizedBody;
+  }
   const result = await supabaseRpc(
     "start_live_room_direct_conversation",
     {
       p_requester_user_id: member.userId,
       p_source_message_id: normalizeLiveRoomUuid(messageId),
+      p_body: normalizedBody,
     },
   );
   if (!result.ok) {
     throw mapDirectMessageError(result.error, result.status);
   }
-  const conversationId = readScalarUuid(result.data);
-  if (!conversationId) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_DIRECT_UNAVAILABLE",
-      "The conversation could not be opened.",
-      502,
-    );
-  }
-  return { conversationId };
+  return mapStartResult(result.data);
 }
 export async function getDirectMessageInbox(
   actor: LiveRoomActor,
@@ -70,9 +89,21 @@ export async function getDirectMessageInbox(
         item,
       ): item is DirectMessageConversationSummary => item !== null,
     );
+  const incomingRequests = readRows(data?.incomingRequests)
+    .map(mapRequestSummary)
+    .filter((item): item is DirectMessageRequestSummary => item !== null);
+  const outgoingRequests = readRows(data?.outgoingRequests)
+    .map(mapRequestSummary)
+    .filter((item): item is DirectMessageRequestSummary => item !== null);
   return {
     conversations,
+    incomingRequests,
     isAuthenticated: true,
+    outgoingRequests,
+    pendingRequestCount: Math.max(
+      0,
+      Number(data?.pendingRequestCount ?? data?.pending_request_count) || 0,
+    ),
     totalUnreadCount: Math.max(
       0,
       Number(data?.totalUnreadCount ?? data?.total_unread_count) || 0,
@@ -121,21 +152,12 @@ export async function sendDirectMessage({
   const member = requireMember(actor);
   const rawBody = typeof body === "string" ? body : "";
   const recent = await getRecentDirectMessages(member.userId);
-  const decision = evaluateLiveRoomMessage(rawBody, {
+  const decision = evaluateDirectMessage(rawBody, {
     history: recent,
     now: new Date().toISOString(),
+    request: false,
   });
-  if (!decision.allowed) {
-    throw new LiveRoomPolicyError(
-      `LIVE_ROOM_${decision.reason.toUpperCase()}`,
-      decision.message,
-      decision.reason === "duplicate" ||
-        decision.reason === "rate_limit"
-        ? 429
-        : 400,
-      decision.retryAfterSeconds,
-    );
-  }
+  assertModerationAllowed(decision);
   const normalizedConversationId =
     normalizeLiveRoomUuid(conversationId);
   const result = await supabaseRpc(
@@ -173,6 +195,164 @@ export async function sendDirectMessage({
     );
   }
   return message;
+}
+
+export async function respondToDirectMessageRequest({
+  action,
+  actor,
+  conversationId,
+}: {
+  action: unknown;
+  actor: LiveRoomActor;
+  conversationId: unknown;
+}) {
+  const member = requireMember(actor);
+  const normalizedAction =
+    action === "accept" || action === "decline" || action === "block"
+      ? action
+      : null;
+  if (!normalizedAction) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_INVALID_ACTION",
+      "Choose Accept, Decline, or Block.",
+      400,
+    );
+  }
+  const result = await supabaseRpc(
+    "respond_live_room_direct_request",
+    {
+      p_requester_user_id: member.userId,
+      p_conversation_public_id: normalizeLiveRoomUuid(conversationId),
+      p_action: normalizedAction,
+    },
+  );
+  if (!result.ok) {
+    throw mapDirectMessageError(result.error, result.status);
+  }
+  const data = readRecord(result.data);
+  const status = readString(data?.status);
+  if (!["accepted", "blocked", "declined"].includes(status)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_UNAVAILABLE",
+      "The message request could not be updated.",
+      502,
+    );
+  }
+  return {
+    conversationId:
+      status === "accepted" ? readString(data?.conversationId) : null,
+    status: status as "accepted" | "blocked" | "declined",
+  };
+}
+
+export async function getDirectMessageSettings(
+  actor: LiveRoomActor,
+): Promise<DirectMessageSettings> {
+  const member = requireMember(actor);
+  await ensureUserBootstrap({ id: member.userId, email: member.email });
+  const result = await supabaseRpc(
+    "get_live_room_direct_message_settings",
+    { p_member_user_id: member.userId },
+  );
+  if (!result.ok) {
+    throw mapDirectMessageError(result.error, result.status);
+  }
+  return mapSettings(result.data);
+}
+
+export async function updateDirectMessageSettings({
+  actor,
+  receiveMode,
+  requestFilter,
+}: {
+  actor: LiveRoomActor;
+  receiveMode: unknown;
+  requestFilter: unknown;
+}): Promise<DirectMessageSettings> {
+  const member = requireMember(actor);
+  if (
+    typeof receiveMode !== "string" ||
+    !DIRECT_MESSAGE_RECEIVE_MODES.includes(
+      receiveMode as DirectMessageSettings["receiveMode"],
+    )
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_INVALID_RECEIVE_MODE",
+      "Choose who may send you message requests.",
+      400,
+    );
+  }
+  if (
+    typeof requestFilter !== "string" ||
+    !DIRECT_MESSAGE_REQUEST_FILTERS.includes(
+      requestFilter as DirectMessageSettings["requestFilter"],
+    )
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_INVALID_REQUEST_FILTER",
+      "Choose a message request filter.",
+      400,
+    );
+  }
+  const currentSettings = await getDirectMessageSettings(actor);
+  if (requestFilter !== "any" && !currentSettings.canUseSelectiveFilters) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN",
+      "Selective message request filters are available only to verified creators and active moderators.",
+      403,
+    );
+  }
+  const result = await supabaseRpc(
+    "set_live_room_direct_message_settings",
+    {
+      p_member_user_id: member.userId,
+      p_receive_mode: receiveMode,
+      p_request_filter: requestFilter,
+    },
+  );
+  if (!result.ok) {
+    throw mapDirectMessageError(result.error, result.status);
+  }
+  return mapSettings(result.data);
+}
+
+export async function reportDirectMessage({
+  actor,
+  conversationId,
+  messageId,
+  reason,
+}: {
+  actor: LiveRoomActor;
+  conversationId: unknown;
+  messageId: unknown;
+  reason: unknown;
+}) {
+  const member = requireMember(actor);
+  if (
+    typeof reason !== "string" ||
+    !DIRECT_MESSAGE_REPORT_REASONS.includes(
+      reason as DirectMessageReportReason,
+    )
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_INVALID_REPORT_REASON",
+      "Choose a report reason.",
+      400,
+    );
+  }
+  const result = await supabaseRpc(
+    "report_live_room_direct_message",
+    {
+      p_requester_user_id: member.userId,
+      p_conversation_public_id: normalizeLiveRoomUuid(conversationId),
+      p_message_id: normalizeLiveRoomUuid(messageId),
+      p_reason: reason,
+    },
+  );
+  if (!result.ok) {
+    throw mapDirectMessageError(result.error, result.status);
+  }
+  return { reported: result.data === true };
 }
 
 export async function markDirectConversationRead({
@@ -248,7 +428,14 @@ function mapConversation(value: unknown): DirectMessageConversation {
   const messages = readRows(data?.messages)
     .map(mapMessage)
     .filter((item): item is DirectMessage => item !== null);
+  const status = data?.status === "pending" ? "pending" : "accepted";
+  const requestRole =
+    status === "pending" &&
+    (data?.requestRole === "sender" || data?.requestRole === "recipient")
+      ? data.requestRole
+      : null;
   return {
+    canRespond: data?.canRespond === true,
     canSend: data?.canSend === true,
     conversationId,
     messages,
@@ -267,6 +454,8 @@ function mapConversation(value: unknown): DirectMessageConversation {
       typeof data?.readOnlyReason === "string"
         ? data.readOnlyReason.slice(0, 180)
         : null,
+    requestRole,
+    status,
   };
 }
 
@@ -289,7 +478,29 @@ function mapConversationSummary(
       emoji: readString(value.peerEmoji).slice(0, 16) || "💬",
       plan: normalizePlan(value.peerPlan),
     },
+    status: "accepted",
     unreadCount: Math.max(0, Number(value.unreadCount) || 0),
+  };
+}
+
+function mapRequestSummary(
+  value: Record<string, unknown>,
+): DirectMessageRequestSummary | null {
+  const conversationId = readString(value.conversationId);
+  if (!isUuid(conversationId)) return null;
+  const createdAt = readString(value.createdAt);
+  return {
+    bodyPreview: readString(value.bodyPreview).slice(0, 160),
+    conversationId,
+    createdAt: isIsoDate(createdAt) ? createdAt : null,
+    peer: {
+      displayName:
+        readString(value.peerDisplayName).slice(0, 24) || "Member",
+      emoji: readString(value.peerEmoji).slice(0, 16) || "💬",
+      plan: normalizePlan(value.peerPlan),
+    },
+    riskFlags: readRiskFlags(value.riskFlags),
+    riskScore: normalizeRiskScore(value.riskScore),
   };
 }
 
@@ -302,6 +513,9 @@ function mapMessage(value: Record<string, unknown>): DirectMessage | null {
     createdAt,
     id,
     isMine: value.isMine === true,
+    kind: value.kind === "request" ? "request" : "chat",
+    riskFlags: readRiskFlags(value.riskFlags),
+    riskScore: normalizeRiskScore(value.riskScore),
   };
 }
 
@@ -314,6 +528,70 @@ function mapPeer(value: unknown): DirectMessagePeer {
   };
 }
 
+function mapStartResult(value: unknown): DirectMessageStartResult {
+  const data = readRecord(value);
+  const mode = readString(data?.mode);
+  if (
+    mode !== "accepted" &&
+    mode !== "pending" &&
+    mode !== "request_required"
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_UNAVAILABLE",
+      "The conversation could not be opened.",
+      502,
+    );
+  }
+  const conversationId = readString(data?.conversationId);
+  if (mode !== "request_required" && !isUuid(conversationId)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_UNAVAILABLE",
+      "The conversation could not be opened.",
+      502,
+    );
+  }
+  const peer = mapPeer(data?.peer);
+  return {
+    conversationId: mode === "request_required" ? null : conversationId,
+    isRequestSender: data?.isRequestSender === true,
+    mode,
+    peer: {
+      displayName: peer.displayName,
+      emoji: peer.emoji,
+    },
+  };
+}
+
+function mapSettings(value: unknown): DirectMessageSettings {
+  const data = readRecord(value);
+  const canUseSelectiveFilters =
+    data?.canUseSelectiveFilters === true;
+  const receiveMode = readString(data?.receiveMode);
+  const requestFilter = readString(data?.requestFilter);
+  if (
+    !DIRECT_MESSAGE_RECEIVE_MODES.includes(
+      receiveMode as DirectMessageSettings["receiveMode"],
+    ) ||
+    !DIRECT_MESSAGE_REQUEST_FILTERS.includes(
+      requestFilter as DirectMessageSettings["requestFilter"],
+    )
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_UNAVAILABLE",
+      "Message privacy settings could not be loaded.",
+      502,
+    );
+  }
+  return {
+    canUseSelectiveFilters,
+    receiveMode: receiveMode as DirectMessageSettings["receiveMode"],
+    requestFilter:
+      canUseSelectiveFilters
+        ? (requestFilter as DirectMessageSettings["requestFilter"])
+        : "any",
+  };
+}
+
 function mapDirectMessageError(
   error: string | undefined,
   status: number,
@@ -322,10 +600,16 @@ function mapDirectMessageError(
   const mappings: Array<[string, string, number]> = [
     ["LIVE_ROOM_DIRECT_TARGET_NOT_FOUND", "That member message is no longer available.", 404],
     ["LIVE_ROOM_DIRECT_SELF", "You cannot message yourself.", 400],
-    ["LIVE_ROOM_DIRECT_MUTUAL_REQUIRED", "You can message a member after you follow each other.", 403],
+    ["LIVE_ROOM_DIRECT_REQUEST_UNAVAILABLE", "This member is not accepting message requests right now.", 403],
+    ["LIVE_ROOM_DIRECT_REQUEST_LINK", "Message requests cannot include links or contact URLs.", 400],
     ["LIVE_ROOM_DIRECT_BLOCKED", "This conversation is unavailable.", 404],
     ["LIVE_ROOM_DIRECT_NOT_FOUND", "This conversation is unavailable.", 404],
-    ["LIVE_ROOM_DIRECT_READ_ONLY", "This conversation is read-only until you follow each other again.", 403],
+    ["LIVE_ROOM_DIRECT_READ_ONLY", "This message request cannot receive another message.", 403],
+    ["LIVE_ROOM_DIRECT_INVALID_ACTION", "That request action is unavailable.", 400],
+    ["LIVE_ROOM_DIRECT_INVALID_RECEIVE_MODE", "Choose who may send you message requests.", 400],
+    ["LIVE_ROOM_DIRECT_INVALID_REQUEST_FILTER", "Choose a message request filter.", 400],
+    ["LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN", "Selective message request filters are available only to verified creators and active moderators.", 403],
+    ["LIVE_ROOM_DIRECT_INVALID_REPORT_REASON", "Choose a report reason.", 400],
     ["LIVE_ROOM_DIRECT_MESSAGE_NOT_FOUND", "That message is not part of this conversation.", 404],
     ["LIVE_ROOM_EMPTY", "Write a message before sending.", 400],
     ["LIVE_ROOM_MAX_LENGTH", "Messages can be up to 600 characters.", 400],
@@ -343,6 +627,50 @@ function mapDirectMessageError(
     "Messages are temporarily unavailable.",
     status || 502,
   );
+}
+
+function assertModerationAllowed(
+  decision: ReturnType<typeof evaluateDirectMessage>,
+): asserts decision is Extract<
+  ReturnType<typeof evaluateDirectMessage>,
+  { allowed: true }
+> {
+  if (decision.allowed) return;
+  const code =
+    decision.reason === "request_link"
+      ? "LIVE_ROOM_DIRECT_REQUEST_LINK"
+      : `LIVE_ROOM_${decision.reason.toUpperCase()}`;
+  throw new LiveRoomPolicyError(
+    code,
+    decision.message,
+    decision.reason === "duplicate" ||
+      decision.reason === "rate_limit"
+      ? 429
+      : 400,
+    decision.retryAfterSeconds,
+  );
+}
+
+function readRiskFlags(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [
+    ...new Set(
+      value.filter(
+        (item): item is (typeof DIRECT_MESSAGE_RISK_FLAGS)[number] =>
+          typeof item === "string" &&
+          DIRECT_MESSAGE_RISK_FLAGS.includes(
+            item as (typeof DIRECT_MESSAGE_RISK_FLAGS)[number],
+          ),
+      ),
+    ),
+  ];
+}
+
+function normalizeRiskScore(value: unknown) {
+  const score = Number(value);
+  return Number.isFinite(score)
+    ? Math.max(0, Math.min(100, Math.round(score)))
+    : 0;
 }
 
 function encodeCursor(cursor: DirectCursor) {

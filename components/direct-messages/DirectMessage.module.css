@@ -136,6 +136,97 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.requestLabel {
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+}
+
+.riskWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sr-space-2);
+  max-width: 520px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-relaxed);
+}
+
+.riskWarning svg {
+  flex: 0 0 auto;
+  color: var(--sr-color-product-accent);
+}
+
+.messageMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+}
+
+.mine .messageMeta {
+  justify-content: flex-end;
+}
+
+.reportControl {
+  position: relative;
+}
+
+.reportControl > button {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border: 0;
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1-5);
+  color: var(--sr-color-text-meta);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  cursor: pointer;
+}
+
+.reportControl > button:hover {
+  background: var(--sr-color-surface-control);
+}
+
+.reportMenu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + var(--sr-space-1));
+  left: 0;
+  display: grid;
+  width: 156px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-1);
+  background: var(--sr-color-surface-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.reportMenu button {
+  min-height: 30px;
+  border: 0;
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-control);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.reportMenu button:hover {
+  background: var(--sr-color-surface-control);
+}
+
 .mine {
   justify-self: end;
 }
@@ -189,7 +280,8 @@
 }
 
 .readOnlyNotice,
-.inlineError {
+.inlineError,
+.inlineNotice {
   display: flex;
   align-items: center;
   gap: var(--sr-space-2);
@@ -204,6 +296,62 @@
 
 .inlineError {
   color: var(--sr-color-state-danger-text);
+}
+
+.inlineNotice {
+  color: var(--sr-color-text-secondary);
+}
+
+.requestActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+  border-right: var(--sr-border-width) solid var(--sr-color-border);
+  border-left: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-3) var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
+}
+
+.requestActions > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.requestActions strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+}
+
+.requestActions span {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-relaxed);
+}
+
+.requestActions > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--sr-space-1-5);
+}
+
+.requestActions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1-5);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-control);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
 }
 
 .composer {
@@ -308,5 +456,20 @@
 
   .composer button span {
     display: none;
+  }
+
+  .requestActions {
+    display: grid;
+    padding: var(--sr-space-2-5);
+  }
+
+  .requestActions > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reportMenu {
+    left: auto;
+    right: 0;
   }
 }

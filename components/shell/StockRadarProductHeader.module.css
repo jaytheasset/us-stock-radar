@@ -536,6 +536,135 @@
   padding: var(--sr-space-1-5);
 }
 
+.directRequestSection {
+  display: grid;
+  gap: var(--sr-space-1-5);
+  border-bottom: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  padding: var(--sr-space-2);
+}
+
+.directRequestSection h3,
+.directConversationHeading {
+  margin: 0;
+  color: var(--sr-color-product-accent);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.directConversationHeading {
+  padding: var(--sr-space-2) var(--sr-space-2) var(--sr-space-1);
+}
+
+.directRequestCard {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2-5);
+  background: var(--sr-color-surface-product-menu);
+}
+
+.directRequestIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-2);
+}
+
+.directRequestIdentity > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+}
+
+.directRequestIdentity strong {
+  overflow: hidden;
+  color: var(--sr-color-text-product-brand);
+  font-size: var(--sr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directRequestIdentity time {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-product-navigation);
+  font-family: var(--sr-font-family-mono);
+  font-size: 10px;
+}
+
+.directRequestCard p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--sr-color-text-product-menu);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-relaxed);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.directRequestWarning {
+  color: var(--sr-color-product-accent);
+  font-size: 10px;
+  line-height: var(--sr-line-height-relaxed);
+}
+
+.directRequestActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sr-space-1);
+}
+
+.directRequestActions button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
+  border: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-product-menu);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.directRequestActions button:hover {
+  background: var(--sr-color-product-accent-menu);
+}
+
+.directRequestActions button:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.directOutgoingRequest {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--sr-space-2);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2);
+  color: var(--sr-color-text-product-menu);
+  text-decoration: none;
+}
+
+.directOutgoingRequest:hover {
+  background: var(--sr-color-product-accent-menu);
+}
+
 .liveRoomFollowedPeopleList {
   display: grid;
   max-height: min(300px, calc(100dvh - 270px));

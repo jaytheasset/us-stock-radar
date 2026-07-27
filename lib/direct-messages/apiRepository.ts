@@ -3,6 +3,9 @@ import type {
   DirectMessage,
   DirectMessageConversation,
   DirectMessageInbox,
+  DirectMessageReportReason,
+  DirectMessageSettings,
+  DirectMessageStartResult,
 } from "./types";
 
 export const DIRECT_MESSAGE_POLL_INTERVAL_MS = 12_000;
@@ -11,9 +14,16 @@ export const DIRECT_MESSAGE_REFRESH_EVENT =
 
 export class DirectMessageApiRepository {
   start(messageId: string) {
-    return requestJson<{ conversationId: string }>("/api/messages", {
+    return requestJson<DirectMessageStartResult>("/api/messages", {
       method: "POST",
       body: JSON.stringify({ messageId }),
+    });
+  }
+
+  request(messageId: string, body: string) {
+    return requestJson<DirectMessageStartResult>("/api/messages", {
+      method: "POST",
+      body: JSON.stringify({ body, messageId }),
     });
   }
 
@@ -48,6 +58,55 @@ export class DirectMessageApiRepository {
       {
         method: "PUT",
         body: JSON.stringify({ messageId: messageId || null }),
+      },
+    );
+  }
+
+  respond(
+    conversationId: string,
+    action: "accept" | "block" | "decline",
+  ) {
+    return requestJson<{
+      conversationId: string | null;
+      status: "accepted" | "blocked" | "declined";
+    }>(
+      `/api/messages/${encodeURIComponent(conversationId)}/request`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ action }),
+      },
+    );
+  }
+
+  report(
+    conversationId: string,
+    messageId: string,
+    reason: DirectMessageReportReason,
+  ) {
+    return requestJson<{ reported: boolean }>(
+      `/api/messages/${encodeURIComponent(conversationId)}/reports`,
+      {
+        method: "POST",
+        body: JSON.stringify({ messageId, reason }),
+      },
+    );
+  }
+
+  readSettings() {
+    return requestJson<DirectMessageSettings>(
+      "/api/account/message-settings",
+    );
+  }
+
+  writeSettings(settings: DirectMessageSettings) {
+    return requestJson<DirectMessageSettings>(
+      "/api/account/message-settings",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          receiveMode: settings.receiveMode,
+          requestFilter: settings.requestFilter,
+        }),
       },
     );
   }
