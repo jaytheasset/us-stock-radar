@@ -444,10 +444,6 @@ on table
   public.live_room_follows
 from public, anon, authenticated;
 
-revoke all privileges
-on all sequences in schema public
-from public, anon, authenticated;
-
 grant all privileges
 on table
   public.live_room_rooms,
@@ -456,10 +452,6 @@ on table
   public.live_room_guest_profiles,
   public.live_room_messages,
   public.live_room_follows
-to service_role;
-
-grant all privileges
-on all sequences in schema public
 to service_role;
 
 comment on table public.live_room_messages is

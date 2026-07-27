@@ -32,9 +32,11 @@ session design; using a public channel would remove private-channel
 authorization; and exposing a service/secret key is prohibited.
 
 Phase 1 therefore uses a replaceable `LiveRoomUpdateTransport` with a four
-second cursor-polling implementation. A future Broadcast adapter can replace it
-after a short-lived, room-scoped client-token design covers both members and
-guests.
+second cursor-polling implementation. This cadence is for phase-1 testing, not
+an operating-scale target. Before broader production rollout, evaluate private
+Realtime Broadcast and polling backoff/jitter. A future Broadcast adapter can
+replace polling after a short-lived, room-scoped client-token design covers
+both members and guests.
 
 Relevant current Supabase guidance:
 
@@ -69,10 +71,12 @@ across server instances. Both TypeScript and the database enforce:
 - no more than three messages within 20 seconds;
 - referenced event exists, belongs to the room ticker, and is not archived.
 
-Hidden and deleted message states are modeled but no administrator or
-hard-delete UI is included in this phase. Room deletion is restricted while
-messages exist. Account or expired guest-session cleanup can remove identity
-rows while message author/event snapshots preserve the conversation.
+Hidden and deleted message states are modeled, but message reporting and its
+UI, administrator hide/delete actions and UI, and user-to-user blocking are not
+implemented in this phase. No client hard-delete API is included. Room deletion
+is restricted while messages exist. Account or expired guest-session cleanup
+can remove identity rows while message author/event snapshots preserve the
+conversation.
 
 ## Production rollout checklist
 
@@ -91,5 +95,7 @@ rows while message author/event snapshots preserve the conversation.
    refresh, and cursor pagination.
 8. Verify blocked phrase, link, duplicate, burst, wrong-ticker event, and
    archived-event failures from the deployed API.
-9. Monitor API latency and request volume at the four-second polling interval
-   before widening rollout.
+9. Treat the four-second polling cadence as phase-1 testing only. Before
+   widening rollout, review API latency and volume and choose private Realtime
+   or a polling strategy with exponential backoff, jitter, and visibility-aware
+   suspension.

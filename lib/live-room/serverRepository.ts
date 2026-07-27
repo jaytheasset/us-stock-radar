@@ -11,6 +11,7 @@ import type { Plan } from "@/lib/subscriptionPolicy";
 import { evaluateLiveRoomMessage } from "./moderation";
 import {
   createServerOwnedAuthorSnapshot,
+  getDefaultLiveRoomDisplayName,
   getLiveRoomActorFilter,
   isLiveRoomMessageMine,
   LiveRoomPolicyError,
@@ -236,7 +237,7 @@ export async function getLiveRoomProfile(
       });
     }
     const defaults = {
-      display_name: getDefaultDisplayName(actor),
+      display_name: getDefaultLiveRoomDisplayName(actor),
       emoji: "👋",
       [key]: id,
     };
@@ -255,7 +256,8 @@ export async function getLiveRoomProfile(
   }
 
   return {
-    displayName: readString(row.display_name) || getDefaultDisplayName(actor),
+    displayName:
+      readString(row.display_name) || getDefaultLiveRoomDisplayName(actor),
     emoji: readString(row.emoji) || "👋",
     isGuest: actor.kind === "guest",
     plan:
@@ -647,11 +649,4 @@ function normalizeNotificationScope(
   return value === "all_room_messages"
     ? value
     : "company_updates_only";
-}
-
-function getDefaultDisplayName(actor: LiveRoomActor) {
-  if (actor.kind === "guest") return "Guest";
-  const prefix = actor.email?.split("@", 1)[0]?.trim() || "Member";
-  const sanitized = prefix.replace(/[\u0000-\u001f\u007f]/g, "").trim();
-  return sanitized.slice(0, 24) || "Member";
 }

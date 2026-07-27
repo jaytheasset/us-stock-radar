@@ -11,6 +11,8 @@ export const LIVE_ROOM_ALLOWED_EMOJIS = [
   "🌱",
 ] as const;
 
+export const LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS = 5 * 60 * 1_000;
+
 export type LiveRoomActor =
   | {
       kind: "member";
@@ -167,4 +169,21 @@ export function createServerOwnedAuthorSnapshot({
     emoji: profile.emoji,
     plan: profile.plan,
   };
+}
+
+export function shouldRefreshLiveRoomGuestLastSeen(
+  lastSeenAt: unknown,
+  now: Date = new Date(),
+) {
+  if (typeof lastSeenAt !== "string") return true;
+  const lastSeenTime = Date.parse(lastSeenAt);
+  if (!Number.isFinite(lastSeenTime)) return true;
+  return (
+    now.getTime() - lastSeenTime >=
+    LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS
+  );
+}
+
+export function getDefaultLiveRoomDisplayName(actor: LiveRoomActor) {
+  return actor.kind === "guest" ? "Guest" : "Member";
 }

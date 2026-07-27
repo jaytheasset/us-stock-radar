@@ -28,9 +28,12 @@ import {
 } from "./guestIdentity.ts";
 import {
   createServerOwnedAuthorSnapshot,
+  getDefaultLiveRoomDisplayName,
   isLiveRoomMessageMine,
+  LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
   LiveRoomPolicyError,
   normalizeLiveRoomProfileInput,
+  shouldRefreshLiveRoomGuestLastSeen,
   validateLiveRoomEventReference,
 } from "./policy.ts";
 import type { CompanyEvent } from "./types.ts";
@@ -319,6 +322,48 @@ test("server-owned actor identity prevents guest and member impersonation", () =
   );
 });
 
+test("guest last-seen writes are throttled to one update per five minutes", () => {
+  const now = new Date("2026-07-27T10:05:00.000Z");
+
+  assert.equal(LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS, 300_000);
+  assert.equal(
+    shouldRefreshLiveRoomGuestLastSeen(
+      "2026-07-27T10:00:01.000Z",
+      now,
+    ),
+    false,
+  );
+  assert.equal(
+    shouldRefreshLiveRoomGuestLastSeen(
+      "2026-07-27T10:00:00.000Z",
+      now,
+    ),
+    true,
+  );
+  assert.equal(
+    shouldRefreshLiveRoomGuestLastSeen("invalid", now),
+    true,
+  );
+});
+
+test("member default display names never derive from email addresses", () => {
+  assert.equal(
+    getDefaultLiveRoomDisplayName({
+      kind: "member",
+      userId: "22222222-2222-4222-8222-222222222222",
+      email: "private.local-part@example.com",
+    }),
+    "Member",
+  );
+  assert.equal(
+    getDefaultLiveRoomDisplayName({
+      kind: "guest",
+      guestSessionId: "11111111-1111-4111-8111-111111111111",
+    }),
+    "Guest",
+  );
+});
+
 test("profile policy rejects arbitrary emoji and control-character names", () => {
   assert.deepEqual(
     normalizeLiveRoomProfileInput({
@@ -397,7 +442,11 @@ test("Live Room API accepts only message content and event ID from the browser",
   assert.doesNotMatch(routeSource, /input\?\.author|input\?\.plan/);
   assert.match(repositorySource, /getEffectiveUserPlan\(actor\.userId\)/);
   assert.match(repositorySource, /createServerOwnedAuthorSnapshot/);
+  assert.match(repositorySource, /getDefaultLiveRoomDisplayName/);
+  assert.doesNotMatch(repositorySource, /\.split\(["']@/);
   assert.match(actorSource, /request\.cookies\.get\(LIVE_ROOM_GUEST_COOKIE\)/);
+  assert.match(actorSource, /select: "id,last_seen_at"/);
+  assert.match(actorSource, /shouldRefreshLiveRoomGuestLastSeen/);
   assert.match(actorSource, /httpOnly:\s*true/);
   assert.doesNotMatch(actorSource, /request\.json/);
   assert.doesNotMatch(clientSource, /SUPABASE_(?:SERVICE_ROLE|ANON)_KEY/);
@@ -452,4 +501,5 @@ test("Live Room migration is server-only, RLS-enabled, and atomically moderates 
   assert.match(migration, /LIVE_ROOM_RATE_LIMIT/);
   assert.match(migration, /LIVE_ROOM_INVALID_EVENT_REFERENCE/);
   assert.match(migration, /token_hash text not null unique/i);
+  assert.doesNotMatch(migration, /all sequences in schema public/i);
 });

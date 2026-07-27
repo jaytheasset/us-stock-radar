@@ -16,7 +16,11 @@ import {
   LIVE_ROOM_GUEST_COOKIE,
   LIVE_ROOM_GUEST_MAX_AGE_SECONDS,
 } from "./guestIdentity";
-import type { LiveRoomActor } from "./policy";
+import {
+  LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
+  shouldRefreshLiveRoomGuestLastSeen,
+  type LiveRoomActor,
+} from "./policy";
 
 type ActorResolution = {
   actor: LiveRoomActor;
@@ -49,22 +53,30 @@ export async function resolveLiveRoomActor(
     request.cookies.get(LIVE_ROOM_GUEST_COOKIE)?.value || "";
   if (isValidLiveRoomGuestToken(suppliedToken)) {
     const tokenHash = hashLiveRoomGuestToken(suppliedToken);
+    const now = new Date();
     const result = await supabaseSelect("live_room_guest_sessions", {
-      select: "id",
+      select: "id,last_seen_at",
       token_hash: `eq.${tokenHash}`,
-      expires_at: `gt.${new Date().toISOString()}`,
+      expires_at: `gt.${now.toISOString()}`,
       limit: "1",
     });
     const row = readFirstRow(result.data);
     const guestSessionId = readString(row?.id);
 
     if (result.ok && guestSessionId) {
-      await supabaseUpdate(
-        "live_room_guest_sessions",
-        { id: `eq.${guestSessionId}` },
-        { last_seen_at: new Date().toISOString() },
-        { prefer: "return=minimal" },
-      );
+      if (shouldRefreshLiveRoomGuestLastSeen(row?.last_seen_at, now)) {
+        await supabaseUpdate(
+          "live_room_guest_sessions",
+          {
+            id: `eq.${guestSessionId}`,
+            last_seen_at: `lte.${new Date(
+              now.getTime() - LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
+            ).toISOString()}`,
+          },
+          { last_seen_at: now.toISOString() },
+          { prefer: "return=minimal" },
+        );
+      }
       return {
         actor: { kind: "guest", guestSessionId },
         auth,
