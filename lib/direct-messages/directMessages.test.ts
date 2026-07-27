@@ -193,6 +193,50 @@ test("optional filters use only trusted moderator, verified, and active plan con
   );
 });
 
+test("DM inbox and conversation peer plans use the effective base-or-trial rank", () => {
+  const inboxFunction = between(
+    requestMigration,
+    "create or replace function public.get_live_room_direct_inbox",
+    "create or replace function public.get_live_room_direct_conversation",
+  );
+  const conversationFunction = between(
+    requestMigration,
+    "create or replace function public.get_live_room_direct_conversation",
+    "create or replace function public.mark_live_room_direct_conversation_read",
+  );
+
+  for (const functionBody of [inboxFunction, conversationFunction]) {
+    assert.match(
+      functionBody,
+      /subscription\.status = 'active'[\s\S]+case subscription\.plan[\s\S]+when 'ultimate' then 4[\s\S]+when 'advanced' then 3[\s\S]+when 'pro' then 2[\s\S]+when 'ad_free' then 1/i,
+    );
+    assert.match(
+      functionBody,
+      /subscription\.trial_plan in \('pro', 'advanced'\)[\s\S]+subscription\.trial_started_at is not null[\s\S]+subscription\.trial_ends_at is not null/i,
+    );
+    assert.match(
+      functionBody,
+      /case subscription\.trial_plan[\s\S]+when 'advanced' then 3[\s\S]+when 'pro' then 2/i,
+    );
+    assert.match(
+      functionBody,
+      /case greatest\([\s\S]+when 4 then 'ultimate'[\s\S]+when 3 then 'advanced'[\s\S]+when 2 then 'pro'[\s\S]+when 1 then 'ad_free'[\s\S]+else 'free'/i,
+    );
+  }
+  assert.match(
+    inboxFunction,
+    /subscription\.trial_ends_at > now\(\)/i,
+  );
+  assert.match(
+    conversationFunction,
+    /v_now timestamptz := now\(\)[\s\S]+subscription\.trial_ends_at > v_now/i,
+  );
+  assert.match(
+    effectivePlanContract,
+    /free: 0,[\s\S]+ad_free: 1,[\s\S]+pro: 2,[\s\S]+advanced: 3,[\s\S]+ultimate: 4/,
+  );
+});
+
 test("selective filters are available only to verified creators or active trusted moderators", () => {
   const startFunction = between(
     requestMigration,

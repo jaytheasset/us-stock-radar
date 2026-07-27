@@ -897,16 +897,36 @@ as $$
       visible.*,
       coalesce(profile.display_name, 'Member') as peer_display_name,
       coalesce(profile.emoji, '💬') as peer_emoji,
-      case
-        when subscription.status = 'active'
-          and subscription.plan in (
-            'free',
-            'ad_free',
-            'pro',
-            'advanced',
-            'ultimate'
-          )
-          then subscription.plan
+      case greatest(
+        case
+          when subscription.status = 'active' then
+            case subscription.plan
+              when 'ultimate' then 4
+              when 'advanced' then 3
+              when 'pro' then 2
+              when 'ad_free' then 1
+              else 0
+            end
+          else 0
+        end,
+        case
+          when subscription.trial_plan in ('pro', 'advanced')
+            and subscription.trial_started_at is not null
+            and subscription.trial_ends_at is not null
+            and subscription.trial_ends_at > now()
+          then
+            case subscription.trial_plan
+              when 'advanced' then 3
+              when 'pro' then 2
+              else 0
+            end
+          else 0
+        end
+      )
+        when 4 then 'ultimate'
+        when 3 then 'advanced'
+        when 2 then 'pro'
+        when 1 then 'ad_free'
         else 'free'
       end as peer_plan,
       latest.id as latest_message_id,
@@ -1129,6 +1149,7 @@ as $$
 declare
   v_conversation public.live_room_direct_conversations%rowtype;
   v_mutual_follow boolean;
+  v_now timestamptz := now();
   v_page_size integer := least(greatest(coalesce(p_limit, 50), 1), 50);
   v_peer_user_id uuid;
   v_result jsonb;
@@ -1232,16 +1253,36 @@ begin
         'displayName', coalesce(profile.display_name, 'Member'),
         'emoji', coalesce(profile.emoji, '💬'),
         'plan',
-          case
-            when subscription.status = 'active'
-              and subscription.plan in (
-                'free',
-                'ad_free',
-                'pro',
-                'advanced',
-                'ultimate'
-              )
-              then subscription.plan
+          case greatest(
+            case
+              when subscription.status = 'active' then
+                case subscription.plan
+                  when 'ultimate' then 4
+                  when 'advanced' then 3
+                  when 'pro' then 2
+                  when 'ad_free' then 1
+                  else 0
+                end
+              else 0
+            end,
+            case
+              when subscription.trial_plan in ('pro', 'advanced')
+                and subscription.trial_started_at is not null
+                and subscription.trial_ends_at is not null
+                and subscription.trial_ends_at > v_now
+              then
+                case subscription.trial_plan
+                  when 'advanced' then 3
+                  when 'pro' then 2
+                  else 0
+                end
+              else 0
+            end
+          )
+            when 4 then 'ultimate'
+            when 3 then 'advanced'
+            when 2 then 'pro'
+            when 1 then 'ad_free'
             else 'free'
           end
       ),
