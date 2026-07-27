@@ -6,7 +6,7 @@ const baseMigration = read(
   "supabase/migrations/20260727174043_live_room_mutual_direct_messages.sql",
 );
 const requestMigration = read(
-  "supabase/migrations/20260727192727_live_room_message_requests.sql",
+  "supabase/migrations/20260727202901_live_room_message_requests.sql",
 );
 const socialVerificationMigration = read(
   "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
