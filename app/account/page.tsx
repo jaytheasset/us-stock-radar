@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
-import { ArrowRight, BadgeCheck, Bell, Bookmark, CreditCard, KeyRound, MailCheck } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Bell,
+  Bookmark,
+  CreditCard,
+  KeyRound,
+  MailCheck,
+  MessageCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccountLogoutButton } from "@/components/account/AccountLogoutButton";
@@ -120,6 +129,12 @@ export default async function AccountPage() {
               </AccountLink>
               <AccountLink href="/account/creator" icon={<BadgeCheck size={16} />}>
                 Social account verification
+              </AccountLink>
+              <AccountLink
+                href="/account/messages"
+                icon={<MessageCircle size={16} />}
+              >
+                Message privacy
               </AccountLink>
               <AccountLink
                 href={`/forgot-password${authUser.email ? `?email=${encodeURIComponent(authUser.email)}` : ""}`}

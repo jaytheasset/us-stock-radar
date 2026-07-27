@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import {
   createCompanyRoomKey,
   getCompanyEventsApiHref,
@@ -125,6 +126,15 @@ export function LiveRoomClient({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
+  const [messageRequestTarget, setMessageRequestTarget] = useState<{
+    displayName: string;
+    emoji: string;
+    messageId: string;
+  } | null>(null);
+  const [messageRequestBusy, setMessageRequestBusy] = useState(false);
+  const [messageRequestError, setMessageRequestError] = useState<
+    string | null
+  >(null);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] =
     useState<string | null>(null);
@@ -827,9 +837,20 @@ export function LiveRoomClient({
     setRoomNotice(null);
     try {
       const result = await directMessageRepository.start(messageId);
-      router.push(
-        `/messages/${encodeURIComponent(result.conversationId)}`,
-      );
+      if (result.mode === "request_required") {
+        setMessageRequestError(null);
+        setMessageRequestTarget({
+          displayName: result.peer.displayName,
+          emoji: result.peer.emoji,
+          messageId,
+        });
+        return;
+      }
+      if (result.conversationId) {
+        router.push(
+          `/messages/${encodeURIComponent(result.conversationId)}`,
+        );
+      }
     } catch (error) {
       setRoomNotice(toLiveRoomApiError(error).message);
       throw error;
@@ -837,6 +858,35 @@ export function LiveRoomClient({
       setMessageActionId(null);
     }
   };
+
+  const handleSendMessageRequest = async (requestBody: string) => {
+    if (!messageRequestTarget || messageRequestBusy) return;
+    setMessageRequestBusy(true);
+    setMessageRequestError(null);
+    try {
+      const result = await directMessageRepository.request(
+        messageRequestTarget.messageId,
+        requestBody,
+      );
+      if (!result.conversationId) {
+        throw new Error("The message request could not be opened.");
+      }
+      setMessageRequestTarget(null);
+      router.push(
+        `/messages/${encodeURIComponent(result.conversationId)}`,
+      );
+    } catch (error) {
+      setMessageRequestError(toLiveRoomApiError(error).message);
+    } finally {
+      setMessageRequestBusy(false);
+    }
+  };
+
+  const handleCloseMessageRequest = useCallback(() => {
+    if (messageRequestBusy) return;
+    setMessageRequestError(null);
+    setMessageRequestTarget(null);
+  }, [messageRequestBusy]);
 
   const handleUnblock = async (blockId: string) => {
     setMessageActionId(blockId);
@@ -929,11 +979,12 @@ export function LiveRoomClient({
   };
 
   return (
-    <StockRadarAppShell
-      activeNavigationItem={null}
-      themeMode="user-selectable"
-    >
-      <div className={styles.page}>
+    <>
+      <StockRadarAppShell
+        activeNavigationItem={null}
+        themeMode="user-selectable"
+      >
+        <div className={styles.page}>
         <CompanyRoomHeader
           followed={followed}
           historyButtonRef={historyOpenerRef}
@@ -1158,8 +1209,18 @@ export function LiveRoomClient({
             titleId="live-room-history-title"
           />
         </BottomSheetShell>
-      </div>
-    </StockRadarAppShell>
+        </div>
+      </StockRadarAppShell>
+      {messageRequestTarget ? (
+        <DirectMessageRequestModal
+          busy={messageRequestBusy}
+          error={messageRequestError}
+          onCancel={handleCloseMessageRequest}
+          onSubmit={handleSendMessageRequest}
+          target={messageRequestTarget}
+        />
+      ) : null}
+    </>
   );
 }
 

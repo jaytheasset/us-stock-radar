@@ -1363,17 +1363,11 @@ async function mapMessageRows(
     );
   }
 
-  const [outgoing, incoming, blocks, socialBadges] = await Promise.all([
+  const [outgoing, blocks, socialBadges] = await Promise.all([
     supabaseSelect("live_room_member_follows", {
       select: "followed_user_id",
       follower_user_id: `eq.${actor.userId}`,
       followed_user_id: `in.(${targetUserIds.join(",")})`,
-      limit: String(targetUserIds.length),
-    }),
-    supabaseSelect("live_room_member_follows", {
-      select: "follower_user_id",
-      follower_user_id: `in.(${targetUserIds.join(",")})`,
-      followed_user_id: `eq.${actor.userId}`,
       limit: String(targetUserIds.length),
     }),
     supabaseSelect("live_room_actor_blocks", {
@@ -1385,24 +1379,18 @@ async function mapMessageRows(
     }),
     socialBadgePromise,
   ]);
-  if (!outgoing.ok || !incoming.ok || !blocks.ok) {
+  if (!outgoing.ok || !blocks.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_FOLLOW_STATE_UNAVAILABLE",
       outgoing.error ||
-        incoming.error ||
         blocks.error ||
         "Member follow state could not be loaded.",
-      outgoing.status || incoming.status || blocks.status || 502,
+      outgoing.status || blocks.status || 502,
     );
   }
   const followedUserIds = new Set(
     readRows(outgoing.data)
       .map((row) => readString(row.followed_user_id))
-      .filter(Boolean),
-  );
-  const followerUserIds = new Set(
-    readRows(incoming.data)
-      .map((row) => readString(row.follower_user_id))
       .filter(Boolean),
   );
   const blockedUserIds = new Set(
@@ -1414,10 +1402,7 @@ async function mapMessageRows(
   blockedUserIds.delete(actor.userId);
   const messageableUserIds = new Set(
     targetUserIds.filter(
-      (userId) =>
-        followedUserIds.has(userId) &&
-        followerUserIds.has(userId) &&
-        !blockedUserIds.has(userId),
+      (userId) => !blockedUserIds.has(userId),
     ),
   );
   return rows.map((row) =>

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  Ban,
+  Check,
   MessageSquareText,
   MoreHorizontal,
   UserMinus,
+  X,
 } from "lucide-react";
 import {
   useCallback,
@@ -23,6 +26,7 @@ import {
   DIRECT_MESSAGE_POLL_INTERVAL_MS,
   DIRECT_MESSAGE_REFRESH_EVENT,
   DirectMessageApiRepository,
+  requestDirectMessageRefresh,
 } from "@/lib/direct-messages/apiRepository";
 import type { DirectMessageInbox } from "@/lib/direct-messages/types";
 import type {
@@ -45,7 +49,10 @@ const emptySummary: LiveRoomUnreadSummary = {
 
 const emptyDirectInbox: DirectMessageInbox = {
   conversations: [],
+  incomingRequests: [],
   isAuthenticated: false,
+  outgoingRequests: [],
+  pendingRequestCount: 0,
   totalUnreadCount: 0,
 };
 
@@ -53,6 +60,7 @@ type InboxTab = "messages" | "people" | "rooms";
 
 export function LiveRoomUnreadMenu() {
   const pathname = usePathname();
+  const router = useRouter();
   const [summary, setSummary] =
     useState<LiveRoomUnreadSummary>(emptySummary);
   const [directInbox, setDirectInbox] =
@@ -222,6 +230,31 @@ export function LiveRoomUnreadMenu() {
     }
   };
 
+  const handleDirectRequest = async (
+    conversationId: string,
+    action: "accept" | "block" | "decline",
+  ) => {
+    setBusyActionId(conversationId);
+    try {
+      const result = await directRepository.respond(
+        conversationId,
+        action,
+      );
+      requestDirectMessageRefresh();
+      await refreshDirectInbox();
+      if (result.status === "accepted" && result.conversationId) {
+        setOpen(false);
+        router.push(
+          `/messages/${encodeURIComponent(result.conversationId)}`,
+        );
+      }
+    } catch {
+      setDirectState("error");
+    } finally {
+      setBusyActionId(null);
+    }
+  };
+
   const total =
     summary.totalUnreadCount + directInbox.totalUnreadCount;
   const countLabel = total > 99 ? "99+" : String(total);
@@ -271,7 +304,7 @@ export function LiveRoomUnreadMenu() {
             <div>
               <span>Live Room activity</span>
               <strong>
-                {total ? `${total} unread chats` : "All caught up"}
+                {total ? `${total} unread items` : "All caught up"}
               </strong>
             </div>
             <small>Rooms + People + Messages</small>
@@ -362,10 +395,12 @@ export function LiveRoomUnreadMenu() {
               />
             ) : (
               <MessagesPanel
+                busyActionId={busyActionId}
                 error={directState === "error"}
                 inbox={directInbox}
                 loading={directState === "loading"}
                 onNavigate={() => setOpen(false)}
+                onRespond={handleDirectRequest}
                 pathname={pathname}
                 signedIn={summary.isAuthenticated}
               />
@@ -378,24 +413,34 @@ export function LiveRoomUnreadMenu() {
 }
 
 function MessagesPanel({
+  busyActionId,
   error,
   inbox,
   loading,
   onNavigate,
+  onRespond,
   pathname,
   signedIn,
 }: {
+  busyActionId: string | null;
   error: boolean;
   inbox: DirectMessageInbox;
   loading: boolean;
   onNavigate: () => void;
+  onRespond: (
+    conversationId: string,
+    action: "accept" | "block" | "decline",
+  ) => Promise<void>;
   pathname: string;
   signedIn: boolean;
 }) {
   if (!signedIn) {
     return (
       <div className={styles.liveRoomInboxState}>
-        <span>Sign in to message members you follow mutually.</span>
+        <span>
+          Sign in to chat with mutual follows or review member message
+          requests.
+        </span>
         <Link
           className={styles.liveRoomInboxSignIn}
           href={`/login?next=${encodeURIComponent(pathname || "/")}`}
@@ -419,16 +464,116 @@ function MessagesPanel({
       </p>
     );
   }
-  if (!inbox.conversations.length) {
+  if (
+    !inbox.conversations.length &&
+    !inbox.incomingRequests.length &&
+    !inbox.outgoingRequests.length
+  ) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Mutually follow a member, then open their message menu to start
-        a conversation.
+        Open a registered member&apos;s Live Room message menu to start a
+        conversation or send one request.
       </p>
     );
   }
   return (
     <div className={styles.liveRoomPeopleList}>
+      {inbox.incomingRequests.length ? (
+        <section className={styles.directRequestSection}>
+          <h3>Message requests</h3>
+          {inbox.incomingRequests.map((request) => (
+            <article
+              className={styles.directRequestCard}
+              key={request.conversationId}
+            >
+              <div className={styles.directRequestIdentity}>
+                <span
+                  aria-hidden="true"
+                  className={styles.liveRoomPeopleEmoji}
+                >
+                  {request.peer.emoji}
+                </span>
+                <span>
+                  <strong>{request.peer.displayName}</strong>
+                  {request.createdAt ? (
+                    <time dateTime={request.createdAt}>
+                      {formatActivityTime(request.createdAt)}
+                    </time>
+                  ) : null}
+                </span>
+              </div>
+              <p>{request.bodyPreview}</p>
+              {request.riskFlags.length ? (
+                <small className={styles.directRequestWarning}>
+                  Safety warning: review off-platform, payment, or guarantee
+                  language carefully.
+                </small>
+              ) : null}
+              <div className={styles.directRequestActions}>
+                <button
+                  disabled={busyActionId === request.conversationId}
+                  onClick={() =>
+                    void onRespond(request.conversationId, "accept")
+                  }
+                  type="button"
+                >
+                  <Check aria-hidden="true" size={13} /> Accept
+                </button>
+                <button
+                  disabled={busyActionId === request.conversationId}
+                  onClick={() =>
+                    void onRespond(request.conversationId, "decline")
+                  }
+                  type="button"
+                >
+                  <X aria-hidden="true" size={13} /> Decline
+                </button>
+                <button
+                  disabled={busyActionId === request.conversationId}
+                  onClick={() =>
+                    void onRespond(request.conversationId, "block")
+                  }
+                  type="button"
+                >
+                  <Ban aria-hidden="true" size={13} /> Block
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
+      {inbox.outgoingRequests.length ? (
+        <section className={styles.directRequestSection}>
+          <h3>Sent requests</h3>
+          {inbox.outgoingRequests.map((request) => (
+            <Link
+              className={styles.directOutgoingRequest}
+              href={`/messages/${encodeURIComponent(
+                request.conversationId,
+              )}`}
+              key={request.conversationId}
+              onClick={onNavigate}
+            >
+              <span
+                aria-hidden="true"
+                className={styles.liveRoomPeopleEmoji}
+              >
+                {request.peer.emoji}
+              </span>
+              <span className={styles.liveRoomPeopleCopy}>
+                <span>
+                  <strong>{request.peer.displayName}</strong>
+                  <b>Pending</b>
+                </span>
+                <small>{request.bodyPreview}</small>
+              </span>
+            </Link>
+          ))}
+        </section>
+      ) : null}
+      {inbox.conversations.length ? (
+        <h3 className={styles.directConversationHeading}>Conversations</h3>
+      ) : null}
       {inbox.conversations.map((conversation) => (
         <div
           className={styles.liveRoomPeopleItem}
