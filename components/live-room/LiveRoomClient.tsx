@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
@@ -532,9 +533,17 @@ export function LiveRoomClient({
         />
 
         {followed ? (
-          <p className={styles.followNote}>
-            Follow is synced to this member or browser guest profile.
-          </p>
+          <div className={styles.followNote}>
+            <p>
+              Room saved. New company updates will appear here. To receive
+              push, Telegram, or email alerts, turn them on in Alerts.
+            </p>
+            <Link
+              href={`/alerts?ticker=${encodeURIComponent(ticker)}`}
+            >
+              Turn on alerts
+            </Link>
+          </div>
         ) : null}
 
         <section className={styles.latestSection}>

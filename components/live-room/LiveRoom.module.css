@@ -117,10 +117,30 @@
 }
 
 .followNote {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sr-space-1) var(--sr-space-3);
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
   text-align: right;
+}
+
+.followNote p {
+  margin: 0;
+}
+
+.followNote a {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-secondary);
+  font-weight: var(--sr-font-weight-semibold);
+  text-underline-offset: 2px;
+}
+
+.followNote a:hover {
+  color: var(--sr-color-text-heading);
 }
 
 .latestSection {
@@ -1008,6 +1028,7 @@
 }
 
 .roomActions button:focus-visible,
+.followNote a:focus-visible,
 .mockControls button:focus-visible,
 .mockControls select:focus-visible,
 .historyEventCard button:focus-visible,
@@ -1102,6 +1123,7 @@
   }
 
   .followNote {
+    justify-content: flex-start;
     text-align: left;
   }
 

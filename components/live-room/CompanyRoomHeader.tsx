@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  Bell,
-  BellOff,
+  Bookmark,
+  BookmarkCheck,
   Check,
   Copy,
   History,
@@ -49,9 +49,9 @@ export function CompanyRoomHeader({
           type="button"
         >
           {followed ? (
-            <BellOff aria-hidden="true" size={15} />
+            <BookmarkCheck aria-hidden="true" size={15} />
           ) : (
-            <Bell aria-hidden="true" size={15} />
+            <Bookmark aria-hidden="true" size={15} />
           )}
           {followed ? "Following" : "Follow"}
         </button>
