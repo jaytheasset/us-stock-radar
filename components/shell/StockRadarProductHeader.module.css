@@ -449,7 +449,7 @@
 }
 
 .liveRoomInboxHeading span,
-.liveRoomInboxHeading > small {
+.liveRoomInboxHeadingActions small {
   color: var(--sr-color-product-accent);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-display);
@@ -468,10 +468,30 @@
   white-space: nowrap;
 }
 
-.liveRoomInboxHeading > small {
+.liveRoomInboxHeadingActions {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: var(--sr-space-1);
+}
+
+.liveRoomInboxHeadingActions small {
   flex: 0 0 auto;
   color: var(--sr-color-text-product-navigation);
   font-weight: var(--sr-font-weight-strong);
+}
+
+.liveRoomInboxHeadingActions a {
+  color: var(--sr-color-text-product-navigation);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+  text-decoration: none;
+}
+
+.liveRoomInboxHeadingActions a:hover {
+  color: var(--sr-color-text-product-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .liveRoomInboxTabs {

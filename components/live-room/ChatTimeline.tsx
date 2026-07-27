@@ -22,8 +22,11 @@ import { formatEventTime } from "./CompanyEventCard";
 import styles from "./LiveRoom.module.css";
 
 type ChatTimelineProps = {
+  ariaLabel?: string;
   canModerate?: boolean;
   currentProfileName: string;
+  emptyDescription?: string;
+  emptyTitle?: string;
   highlightedMessageId?: string | null;
   items: readonly LiveRoomTimelineItem[];
   messageActionId?: string | null;
@@ -43,8 +46,11 @@ type ChatTimelineProps = {
 };
 
 export function ChatTimeline({
+  ariaLabel = "Live Room messages",
   canModerate = false,
   currentProfileName,
+  emptyDescription = "Mention an event or share the first view.",
+  emptyTitle = "Start this company discussion.",
   highlightedMessageId,
   items,
   messageActionId,
@@ -86,14 +92,14 @@ export function ChatTimeline({
     return (
       <div className={styles.timelineState}>
         <MessageCircle aria-hidden="true" size={22} />
-        <strong>Start this company discussion.</strong>
-        <span>Mention an event or share the first view.</span>
+        <strong>{emptyTitle}</strong>
+        <span>{emptyDescription}</span>
       </div>
     );
   }
 
   return (
-    <ol aria-label="Live Room messages" className={styles.timelineList}>
+    <ol aria-label={ariaLabel} className={styles.timelineList}>
       {items.map((item) => {
         if (item.kind === "company_update") {
           return (

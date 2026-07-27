@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import { getLiveRoomSocialBadgeMap } from "@/lib/social-verification/serverRepository";
+import { getCommunityRoomIdentity } from "./communityServerRepository";
 import { evaluateLiveRoomMessage } from "./moderation";
 import {
   createServerOwnedAuthorSnapshot,
@@ -50,7 +51,9 @@ type CursorValue = {
 
 type RoomRow = {
   id: string;
-  ticker: string;
+  kind: "company" | "community";
+  slug: string | null;
+  ticker: string | null;
 };
 
 type MessageRow = {
@@ -103,13 +106,15 @@ export async function getLiveRoomMessagePage({
   after,
   before,
   limit,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   after?: string | null;
   before?: string | null;
   limit?: number;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }): Promise<LiveRoomMessagePage> {
   if (after && before) {
     throw new LiveRoomPolicyError(
@@ -118,8 +123,7 @@ export async function getLiveRoomMessagePage({
     );
   }
 
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const latestChangeCursor = await getLatestRoomChangeCursor(room.id);
   const blockedActorIds = await getBlockedActorIds(actor);
   const pageSize = Math.max(
@@ -177,14 +181,15 @@ export async function getLiveRoomMessagePage({
 export async function getLiveRoomMessageAnchor({
   actor,
   messageId: rawMessageId,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   messageId: unknown;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }): Promise<LiveRoomChatMessage> {
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   const [result, blockedActorIds] = await Promise.all([
     supabaseSelect("live_room_messages", {
@@ -225,15 +230,16 @@ export async function getLiveRoomMessageChanges({
   actor,
   afterChange,
   limit,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   afterChange?: string | null;
   limit?: number;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }): Promise<LiveRoomMessageChanges> {
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const pageSize = Math.max(
     1,
     Math.min(Number(limit) || maxPageSize, maxPageSize),
@@ -302,15 +308,16 @@ export async function sendLiveRoomMessage({
   actor,
   body,
   eventId,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   body: string;
   eventId?: string | null;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }) {
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const profile = await getLiveRoomProfile(actor);
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
@@ -333,9 +340,16 @@ export async function sendLiveRoomMessage({
     );
   }
 
-  const reference = eventId
-    ? await getValidatedEventReference(ticker, eventId)
-    : null;
+  if (eventId && (room.kind !== "company" || !room.ticker)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_EVENT_REFERENCE",
+      "Community Room messages cannot attach company event cards.",
+    );
+  }
+  const reference =
+    eventId && room.ticker
+      ? await getValidatedEventReference(room.ticker, eventId)
+      : null;
   const author = createServerOwnedAuthorSnapshot({ actor, profile });
   const result = await supabaseRpc("insert_live_room_message", {
     p_room_id: room.id,
@@ -370,17 +384,18 @@ export async function reportLiveRoomMessage({
   actor,
   messageId: rawMessageId,
   reason: rawReason,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   messageId: unknown;
   reason: unknown;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }) {
-  const ticker = normalizeLiveRoomTicker(rawTicker);
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   const reason = normalizeLiveRoomReportReason(rawReason);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   await ensureMemberBootstrap(actor);
   const result = await supabaseRpc("report_live_room_message", {
     p_room_id: room.id,
@@ -406,15 +421,16 @@ export async function reportLiveRoomMessage({
 export async function blockLiveRoomMessageAuthor({
   actor,
   messageId: rawMessageId,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   messageId: unknown;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }): Promise<LiveRoomBlockResult> {
-  const ticker = normalizeLiveRoomTicker(rawTicker);
   const messageId = normalizeLiveRoomUuid(rawMessageId);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   await ensureMemberBootstrap(actor);
   const result = await supabaseRpc("block_live_room_message_author", {
     p_room_id: room.id,
@@ -517,11 +533,13 @@ export async function unblockLiveRoomActor(
 
 export async function listHiddenLiveRoomMessages(
   actor: LiveRoomActor,
-  rawTicker: string,
+  roomInput: string | { slug?: string; ticker?: string },
 ): Promise<LiveRoomModerationItem[]> {
   await assertLiveRoomModerator(actor);
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room =
+    typeof roomInput === "string"
+      ? await resolveLiveRoom({ ticker: roomInput })
+      : await resolveLiveRoom(roomInput);
   const result = await supabaseSelect("live_room_messages", {
     select:
       "id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,moderation_reason,hidden_at,created_at",
@@ -550,13 +568,15 @@ export async function moderateLiveRoomMessage({
   actor,
   messageId: rawMessageId,
   reason,
+  slug,
   ticker: rawTicker,
 }: {
   action: unknown;
   actor: LiveRoomActor;
   messageId: unknown;
   reason: unknown;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }) {
   await assertLiveRoomModerator(actor);
   if (actor.kind !== "member") {
@@ -572,8 +592,7 @@ export async function moderateLiveRoomMessage({
       "Choose hide or restore.",
     );
   }
-  const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   const moderationReason =
     typeof reason === "string" ? reason.trim().slice(0, 240) : "";
@@ -1234,8 +1253,9 @@ function mapBlockRow(row: BlockRow): LiveRoomBlockedActor {
 
 async function getOrCreateLiveRoom(ticker: string): Promise<RoomRow> {
   const selected = await supabaseSelect("live_room_rooms", {
-    select: "id,ticker",
+    select: "id,ticker,room_kind",
     ticker: `eq.${ticker}`,
+    room_kind: "eq.company",
     limit: "1",
   });
   let row = readSingleRow(selected.data);
@@ -1243,7 +1263,7 @@ async function getOrCreateLiveRoom(ticker: string): Promise<RoomRow> {
 
   const created = await supabaseUpsert(
     "live_room_rooms",
-    { ticker },
+    { room_kind: "company", ticker },
     {
       onConflict: "ticker",
       prefer: "resolution=merge-duplicates,return=representation",
@@ -1258,6 +1278,31 @@ async function getOrCreateLiveRoom(ticker: string): Promise<RoomRow> {
     );
   }
   return readRoom(row);
+}
+
+async function resolveLiveRoom({
+  slug,
+  ticker: rawTicker,
+}: {
+  slug?: string;
+  ticker?: string;
+}): Promise<RoomRow> {
+  if (rawTicker && !slug) {
+    return getOrCreateLiveRoom(normalizeLiveRoomTicker(rawTicker));
+  }
+  if (slug && !rawTicker) {
+    const room = await getCommunityRoomIdentity(slug);
+    return {
+      id: room.id,
+      kind: "community",
+      slug: room.slug,
+      ticker: null,
+    };
+  }
+  throw new LiveRoomPolicyError(
+    "LIVE_ROOM_INVALID_ROOM",
+    "Choose one valid Live Room.",
+  );
 }
 
 async function getRecentActorMessages(actor: LiveRoomActor) {
@@ -1631,7 +1676,20 @@ function readCursor(row: MessageRow): CursorValue {
 }
 
 function readRoom(row: Record<string, unknown>): RoomRow {
-  return { id: readString(row.id), ticker: readString(row.ticker) };
+  const ticker = readString(row.ticker);
+  if (!ticker || row.room_kind === "community") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_UNAVAILABLE",
+      "The company room is unavailable.",
+      502,
+    );
+  }
+  return {
+    id: readString(row.id),
+    kind: "company",
+    slug: null,
+    ticker,
+  };
 }
 
 function readRows(value: unknown): Array<Record<string, unknown>> {

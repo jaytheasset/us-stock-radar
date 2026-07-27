@@ -307,7 +307,15 @@ export function LiveRoomUnreadMenu() {
                 {total ? `${total} unread items` : "All caught up"}
               </strong>
             </div>
-            <small>Rooms + People + Messages</small>
+            <div className={styles.liveRoomInboxHeadingActions}>
+              <small>Rooms + People + Messages</small>
+              <Link
+                href="/live"
+                onClick={() => setOpen(false)}
+              >
+                Browse Community Rooms
+              </Link>
+            </div>
           </div>
 
           <div
