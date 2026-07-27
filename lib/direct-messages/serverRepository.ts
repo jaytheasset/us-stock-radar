@@ -294,7 +294,14 @@ export async function updateDirectMessageSettings({
       400,
     );
   }
-  await ensureUserBootstrap({ id: member.userId, email: member.email });
+  const currentSettings = await getDirectMessageSettings(actor);
+  if (requestFilter !== "any" && !currentSettings.canUseSelectiveFilters) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN",
+      "Selective message request filters are available only to verified creators and active moderators.",
+      403,
+    );
+  }
   const result = await supabaseRpc(
     "set_live_room_direct_message_settings",
     {
@@ -557,6 +564,8 @@ function mapStartResult(value: unknown): DirectMessageStartResult {
 
 function mapSettings(value: unknown): DirectMessageSettings {
   const data = readRecord(value);
+  const canUseSelectiveFilters =
+    data?.canUseSelectiveFilters === true;
   const receiveMode = readString(data?.receiveMode);
   const requestFilter = readString(data?.requestFilter);
   if (
@@ -574,9 +583,12 @@ function mapSettings(value: unknown): DirectMessageSettings {
     );
   }
   return {
+    canUseSelectiveFilters,
     receiveMode: receiveMode as DirectMessageSettings["receiveMode"],
     requestFilter:
-      requestFilter as DirectMessageSettings["requestFilter"],
+      canUseSelectiveFilters
+        ? (requestFilter as DirectMessageSettings["requestFilter"])
+        : "any",
   };
 }
 
@@ -596,6 +608,7 @@ function mapDirectMessageError(
     ["LIVE_ROOM_DIRECT_INVALID_ACTION", "That request action is unavailable.", 400],
     ["LIVE_ROOM_DIRECT_INVALID_RECEIVE_MODE", "Choose who may send you message requests.", 400],
     ["LIVE_ROOM_DIRECT_INVALID_REQUEST_FILTER", "Choose a message request filter.", 400],
+    ["LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN", "Selective message request filters are available only to verified creators and active moderators.", 403],
     ["LIVE_ROOM_DIRECT_INVALID_REPORT_REASON", "Choose a report reason.", 400],
     ["LIVE_ROOM_DIRECT_MESSAGE_NOT_FOUND", "That message is not part of this conversation.", 404],
     ["LIVE_ROOM_EMPTY", "Write a message before sending.", 400],

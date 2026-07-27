@@ -103,7 +103,10 @@ export class DirectMessageApiRepository {
       "/api/account/message-settings",
       {
         method: "PUT",
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          receiveMode: settings.receiveMode,
+          requestFilter: settings.requestFilter,
+        }),
       },
     );
   }

@@ -8,6 +8,10 @@ const baseMigration = read(
 const requestMigration = read(
   "supabase/migrations/20260727192727_live_room_message_requests.sql",
 );
+const socialVerificationMigration = read(
+  "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
+);
+const effectivePlanContract = read("lib/subscription/effectivePlan.ts");
 const migration = `${baseMigration}\n${requestMigration}`;
 const serverRepository = read("lib/direct-messages/serverRepository.ts");
 const apiRepository = read("lib/direct-messages/apiRepository.ts");
@@ -173,11 +177,135 @@ test("optional filters use only trusted moderator, verified, and active plan con
   );
   assert.match(
     requestMigration,
-    /subscription\.status = 'active'[\s\S]+subscription\.plan in \('pro', 'advanced', 'ultimate'\)/i,
+    /subscription\.status = 'active'[\s\S]+subscription\.plan in \('pro', 'advanced', 'ultimate'\)[\s\S]+subscription\.trial_plan in \('pro', 'advanced'\)[\s\S]+subscription\.trial_started_at is not null[\s\S]+subscription\.trial_ends_at is not null[\s\S]+subscription\.trial_ends_at > v_now/i,
+  );
+  assert.match(
+    effectivePlanContract,
+    /trialPlan === "pro" \|\| trialPlan === "advanced"/,
+  );
+  assert.match(
+    effectivePlanContract,
+    /startedAt && Number\.isFinite\(endsTime\) && endsTime > now\.getTime\(\)/,
   );
   assert.match(
     settingsClient,
     /spam controls[\s\S]+do not grant paid investment consulting\s+rights/i,
+  );
+});
+
+test("selective filters are available only to verified creators or active trusted moderators", () => {
+  const startFunction = between(
+    requestMigration,
+    "create function public.start_live_room_direct_conversation",
+    "create or replace function public.send_live_room_direct_message",
+  );
+  const getSettingsFunction = between(
+    requestMigration,
+    "create function public.get_live_room_direct_message_settings",
+    "create function public.set_live_room_direct_message_settings",
+  );
+  const setSettingsFunction = between(
+    requestMigration,
+    "create function public.set_live_room_direct_message_settings",
+    "create function public.report_live_room_direct_message",
+  );
+
+  for (const functionBody of [
+    startFunction,
+    getSettingsFunction,
+    setSettingsFunction,
+  ]) {
+    assert.match(
+      functionBody,
+      /live_room_social_verifications[\s\S]+status = 'verified'/i,
+    );
+    assert.match(
+      functionBody,
+      /live_room_moderators[\s\S]+active = true[\s\S]+role in \('moderator', 'admin'\)/i,
+    );
+  }
+  assert.match(
+    socialVerificationMigration,
+    /status = 'verified'/i,
+  );
+  assert.match(
+    getSettingsFunction,
+    /when eligibility\.can_use_selective_filters[\s\S]+coalesce\(setting\.request_filter, 'any'\)[\s\S]+else 'any'/i,
+  );
+  assert.match(
+    getSettingsFunction,
+    /'canUseSelectiveFilters',\s+eligibility\.can_use_selective_filters/i,
+  );
+  assert.match(
+    setSettingsFunction,
+    /p_request_filter <> 'any'[\s\S]+not v_can_use_selective_filters[\s\S]+LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN/i,
+  );
+  assert.match(
+    startFunction,
+    /if not v_recipient_can_use_selective_filters then\s+v_filter := 'any'/i,
+  );
+  assert.match(
+    serverRepository,
+    /requestFilter !== "any" && !currentSettings\.canUseSelectiveFilters[\s\S]+LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN/,
+  );
+  assert.match(
+    serverRepository,
+    /canUseSelectiveFilters[\s\S]+canUseSelectiveFilters[\s\S]+\?[\s\S]+requestFilter[\s\S]+: "any"/,
+  );
+  assert.match(publicTypes, /canUseSelectiveFilters: boolean/);
+  assert.match(
+    settingsClient,
+    /settings\.canUseSelectiveFilters \?[\s\S]+Optional request filter[\s\S]+approved social verification[\s\S]+active trusted/,
+  );
+  assert.match(
+    apiRepository,
+    /JSON\.stringify\(\{\s+receiveMode: settings\.receiveMode,\s+requestFilter: settings\.requestFilter/,
+  );
+});
+
+test("selective filters apply only after accepted and mutual conversation paths", () => {
+  const startFunction = between(
+    requestMigration,
+    "create function public.start_live_room_direct_conversation",
+    "create or replace function public.send_live_room_direct_message",
+  );
+  const acceptedIndex = startFunction.indexOf(
+    "v_conversation.status = 'accepted'",
+  );
+  const mutualIndex = startFunction.indexOf("if v_is_mutual then");
+  const settingsIndex = startFunction.indexOf(
+    "v_recipient_can_use_selective_filters :=",
+  );
+  const filterIndex = startFunction.indexOf("case v_filter");
+  assert.ok(acceptedIndex >= 0 && acceptedIndex < settingsIndex);
+  assert.ok(mutualIndex >= 0 && mutualIndex < settingsIndex);
+  assert.ok(settingsIndex >= 0 && settingsIndex < filterIndex);
+});
+
+test("send RPC uses one declared server timestamp for every time comparison and write", () => {
+  const sendFunction = between(
+    requestMigration,
+    "create or replace function public.send_live_room_direct_message",
+    "create or replace function public.get_live_room_direct_inbox",
+  );
+  assertNoUndeclaredPlpgsqlLocals(sendFunction);
+  assert.match(sendFunction, /v_now timestamptz := now\(\)/i);
+  assert.equal(sendFunction.match(/\bnow\(\)/gi)?.length, 1);
+  assert.match(
+    sendFunction,
+    /recent\.created_at >= v_now - interval '120 seconds'/i,
+  );
+  assert.match(
+    sendFunction,
+    /recent\.created_at >= v_now - interval '20 seconds'/i,
+  );
+  assert.match(
+    sendFunction,
+    /risk_score,\s+created_at[\s\S]+v_risk_score,\s+v_now/i,
+  );
+  assert.match(
+    sendFunction,
+    /set updated_at = v_now[\s\S]+last_read_at[\s\S]+v_now,\s+v_now/i,
   );
 });
 
@@ -465,6 +593,24 @@ function between(source: string, start: string, end: string) {
   const endIndex = source.indexOf(end, startIndex + start.length);
   assert.ok(startIndex >= 0 && endIndex > startIndex);
   return source.slice(startIndex, endIndex);
+}
+
+function assertNoUndeclaredPlpgsqlLocals(functionSql: string) {
+  const declaration = between(functionSql, "declare", "begin");
+  const declared = new Set(
+    [...declaration.matchAll(/^\s*(v_[a-z0-9_]+)\s+/gim)].map(
+      (match) => match[1]!.toLowerCase(),
+    ),
+  );
+  const referenced = new Set(
+    [...functionSql.matchAll(/\b(v_[a-z0-9_]+)\b/gi)].map(
+      (match) => match[1]!.toLowerCase(),
+    ),
+  );
+  assert.deepEqual(
+    [...referenced].filter((identifier) => !declared.has(identifier)),
+    [],
+  );
 }
 
 function read(path: string) {

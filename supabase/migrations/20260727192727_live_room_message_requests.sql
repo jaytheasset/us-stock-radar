@@ -206,6 +206,7 @@ declare
   v_now timestamptz := now();
   v_peer jsonb;
   v_peer_user_id uuid;
+  v_recipient_can_use_selective_filters boolean;
   v_receive_mode text;
   v_risk_flags text[] := '{}'::text[];
   v_risk_score smallint := 0;
@@ -370,6 +371,25 @@ begin
   left join public.live_room_direct_message_settings as setting
     on setting.member_user_id = v_peer_user_id;
 
+  v_recipient_can_use_selective_filters :=
+    exists (
+      select 1
+      from public.live_room_social_verifications as verification
+      where verification.member_user_id = v_peer_user_id
+        and verification.status = 'verified'
+    )
+    or exists (
+      select 1
+      from public.live_room_moderators as moderator
+      where moderator.user_id = v_peer_user_id
+        and moderator.active = true
+        and moderator.role in ('moderator', 'admin')
+    );
+
+  if not v_recipient_can_use_selective_filters then
+    v_filter := 'any';
+  end if;
+
   v_is_request_allowed := case v_receive_mode
     when 'people_i_follow' then exists (
       select 1
@@ -407,8 +427,18 @@ begin
         select 1
         from public.user_plan_subscriptions as subscription
         where subscription.user_id = p_requester_user_id
-          and subscription.status = 'active'
-          and subscription.plan in ('pro', 'advanced', 'ultimate')
+          and (
+            (
+              subscription.status = 'active'
+              and subscription.plan in ('pro', 'advanced', 'ultimate')
+            )
+            or (
+              subscription.trial_plan in ('pro', 'advanced')
+              and subscription.trial_started_at is not null
+              and subscription.trial_ends_at is not null
+              and subscription.trial_ends_at > v_now
+            )
+          )
       )
       else false
     end;
@@ -616,6 +646,7 @@ declare
   v_body text := btrim(coalesce(p_body, ''));
   v_conversation public.live_room_direct_conversations%rowtype;
   v_message_id uuid;
+  v_now timestamptz := now();
   v_peer_user_id uuid;
   v_risk_flags text[] := '{}'::text[];
   v_risk_score smallint := 0;
@@ -684,7 +715,7 @@ begin
     select 1
     from public.live_room_direct_messages as recent
     where recent.sender_user_id = p_requester_user_id
-      and recent.created_at >= now() - interval '120 seconds'
+      and recent.created_at >= v_now - interval '120 seconds'
       and lower(regexp_replace(recent.body, '[[:space:]]+', ' ', 'g'))
         = lower(regexp_replace(v_body, '[[:space:]]+', ' ', 'g'))
   ) then
@@ -695,7 +726,7 @@ begin
     select count(*)
     from public.live_room_direct_messages as recent
     where recent.sender_user_id = p_requester_user_id
-      and recent.created_at >= now() - interval '20 seconds'
+      and recent.created_at >= v_now - interval '20 seconds'
   ) >= 3 then
     raise exception 'LIVE_ROOM_RATE_LIMIT';
   end if;
@@ -766,7 +797,8 @@ begin
     body,
     message_kind,
     risk_flags,
-    risk_score
+    risk_score,
+    created_at
   )
   values (
     v_conversation.id,
@@ -774,12 +806,13 @@ begin
     v_body,
     'chat',
     v_risk_flags,
-    v_risk_score
+    v_risk_score,
+    v_now
   )
   returning id into v_message_id;
 
   update public.live_room_direct_conversations
-  set updated_at = now()
+  set updated_at = v_now
   where id = v_conversation.id;
 
   insert into public.live_room_direct_reads (
@@ -793,8 +826,8 @@ begin
     v_conversation.id,
     p_requester_user_id,
     v_message_id,
-    now(),
-    now()
+    v_now,
+    v_now
   )
   on conflict (conversation_id, member_user_id)
   do update set
@@ -1547,11 +1580,35 @@ stable
 security invoker
 set search_path = ''
 as $$
+  with eligibility as (
+    select
+      exists (
+        select 1
+        from public.live_room_social_verifications as verification
+        where verification.member_user_id = p_member_user_id
+          and verification.status = 'verified'
+      )
+      or exists (
+        select 1
+        from public.live_room_moderators as moderator
+        where moderator.user_id = p_member_user_id
+          and moderator.active = true
+          and moderator.role in ('moderator', 'admin')
+      ) as can_use_selective_filters
+  )
   select jsonb_build_object(
     'receiveMode', coalesce(setting.receive_mode, 'followers'),
-    'requestFilter', coalesce(setting.request_filter, 'any')
+    'requestFilter',
+      case
+        when eligibility.can_use_selective_filters
+          then coalesce(setting.request_filter, 'any')
+        else 'any'
+      end,
+    'canUseSelectiveFilters',
+      eligibility.can_use_selective_filters
   )
   from (select 1) as singleton
+  cross join eligibility
   left join public.live_room_direct_message_settings as setting
     on setting.member_user_id = p_member_user_id
 $$;
@@ -1566,6 +1623,8 @@ language plpgsql
 security invoker
 set search_path = ''
 as $$
+declare
+  v_can_use_selective_filters boolean;
 begin
   if p_receive_mode not in (
     'mutual_only',
@@ -1584,6 +1643,27 @@ begin
     'pro_members'
   ) then
     raise exception 'LIVE_ROOM_DIRECT_INVALID_REQUEST_FILTER';
+  end if;
+
+  v_can_use_selective_filters :=
+    exists (
+      select 1
+      from public.live_room_social_verifications as verification
+      where verification.member_user_id = p_member_user_id
+        and verification.status = 'verified'
+    )
+    or exists (
+      select 1
+      from public.live_room_moderators as moderator
+      where moderator.user_id = p_member_user_id
+        and moderator.active = true
+        and moderator.role in ('moderator', 'admin')
+    );
+
+  if p_request_filter <> 'any'
+    and not v_can_use_selective_filters
+  then
+    raise exception 'LIVE_ROOM_DIRECT_SELECTIVE_FILTER_FORBIDDEN';
   end if;
 
   insert into public.live_room_direct_message_settings (
@@ -1606,7 +1686,8 @@ begin
 
   return jsonb_build_object(
     'receiveMode', p_receive_mode,
-    'requestFilter', p_request_filter
+    'requestFilter', p_request_filter,
+    'canUseSelectiveFilters', v_can_use_selective_filters
   );
 end;
 $$;

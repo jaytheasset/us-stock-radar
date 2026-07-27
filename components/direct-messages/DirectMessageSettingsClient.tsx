@@ -162,40 +162,52 @@ export function DirectMessageSettingsClient() {
             </div>
           </fieldset>
 
-          <fieldset
-            disabled={
-              settings.receiveMode === "mutual_only" ||
-              settings.receiveMode === "nobody"
-            }
-          >
-            <legend>Optional request filter</legend>
-            <p className={styles.fieldHelp}>
-              This applies only to non-mutual requests that pass the
-              relationship setting.
-            </p>
-            <div className={styles.optionList}>
-              {filterOptions.map((option) => (
-                <label key={option.value}>
-                  <input
-                    checked={settings.requestFilter === option.value}
-                    name="request-filter"
-                    onChange={() =>
-                      setSettings((current) =>
-                        current
-                          ? { ...current, requestFilter: option.value }
-                          : current,
-                      )
-                    }
-                    type="radio"
-                  />
-                  <span>
-                    <strong>{option.label}</strong>
-                    <small>{option.description}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {settings.canUseSelectiveFilters ? (
+            <fieldset
+              disabled={
+                settings.receiveMode === "mutual_only" ||
+                settings.receiveMode === "nobody"
+              }
+            >
+              <legend>Optional request filter</legend>
+              <p className={styles.fieldHelp}>
+                This applies only to non-mutual requests that pass the
+                relationship setting.
+              </p>
+              <div className={styles.optionList}>
+                {filterOptions.map((option) => (
+                  <label key={option.value}>
+                    <input
+                      checked={settings.requestFilter === option.value}
+                      name="request-filter"
+                      onChange={() =>
+                        setSettings((current) =>
+                          current
+                            ? {
+                                ...current,
+                                requestFilter: option.value,
+                              }
+                            : current,
+                        )
+                      }
+                      type="radio"
+                    />
+                    <span>
+                      <strong>{option.label}</strong>
+                      <small>{option.description}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <aside className={styles.selectiveFilterNote}>
+              Selective request filters are available only to members with
+              an approved social verification or an active trusted
+              moderator/admin role. Your relationship setting above still
+              applies.
+            </aside>
+          )}
 
           <aside className={styles.safetyNote}>
             <ShieldCheck aria-hidden="true" size={18} />

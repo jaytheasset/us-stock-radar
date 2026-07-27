@@ -106,6 +106,7 @@ export type DirectMessageConversation = {
 };
 
 export type DirectMessageSettings = {
+  canUseSelectiveFilters: boolean;
   receiveMode: DirectMessageReceiveMode;
   requestFilter: DirectMessageRequestFilter;
 };

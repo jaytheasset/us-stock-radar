@@ -125,6 +125,17 @@
   opacity: var(--sr-opacity-disabled);
 }
 
+.selectiveFilterNote {
+  margin: 0;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-relaxed);
+}
+
 .safetyNote {
   display: flex;
   align-items: flex-start;
