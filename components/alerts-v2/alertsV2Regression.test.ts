@@ -23,6 +23,10 @@ const liveRoomHeaderSource = readFileSync(
   new URL("../live-room/CompanyRoomHeader.tsx", import.meta.url),
   "utf8",
 );
+const liveRoomInboxSource = readFileSync(
+  new URL("../shell/LiveRoomUnreadMenu.tsx", import.meta.url),
+  "utf8",
+);
 
 test("alerts uses the shared product shell and token-only visual contract", () => {
   assert.match(
@@ -111,6 +115,12 @@ test("Live Room Follow tracks chat unread state and stays separate from paid Ale
   );
   assert.doesNotMatch(liveRoomClientSource, /\/alerts\?ticker=/);
   assert.doesNotMatch(liveRoomClientSource, />\s*Turn on alerts\s*</);
+  assert.doesNotMatch(
+    liveRoomInboxSource,
+    /\/api\/alerts|\/alerts\?ticker=|Turn on alerts|Telegram|email/i,
+  );
+  assert.match(liveRoomInboxSource, /Rooms/);
+  assert.match(liveRoomInboxSource, /People/);
   assert.match(liveRoomClientSource, /15_000/);
   assert.match(liveRoomClientSource, /New company update/);
 });

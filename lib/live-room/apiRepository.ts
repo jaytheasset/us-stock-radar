@@ -193,9 +193,25 @@ export class LiveRoomApiRepository {
     );
   }
 
+  readMessageAnchor(messageId: string) {
+    return requestJson<LiveRoomChatMessage>(
+      `${this.roomApiPath()}/messages/${encodeURIComponent(messageId)}`,
+    );
+  }
+
   markRead(messageId: string | null) {
     return requestJson<{ markedRead: boolean }>(
       `${this.roomApiPath()}/read`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ messageId }),
+      },
+    );
+  }
+
+  markMemberActivityRead(messageId: string) {
+    return requestJson<{ markedRead: boolean; messageId: string }>(
+      `${this.roomApiPath()}/member-activity/read`,
       {
         method: "PUT",
         body: JSON.stringify({ messageId }),

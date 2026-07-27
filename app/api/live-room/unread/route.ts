@@ -18,6 +18,11 @@ import type { LiveRoomUnreadSummary } from "@/lib/live-room/types";
 export const dynamic = "force-dynamic";
 
 const emptySummary: LiveRoomUnreadSummary = {
+  followedPeople: [],
+  hasMemberFollows: false,
+  isAuthenticated: false,
+  people: [],
+  peopleUnreadCount: 0,
   rooms: [],
   totalUnreadCount: 0,
 };

@@ -24,6 +24,7 @@ import styles from "./LiveRoom.module.css";
 type ChatTimelineProps = {
   canModerate?: boolean;
   currentProfileName: string;
+  highlightedMessageId?: string | null;
   items: readonly LiveRoomTimelineItem[];
   messageActionId?: string | null;
   onBlock?: (messageId: string) => Promise<void>;
@@ -43,6 +44,7 @@ type ChatTimelineProps = {
 export function ChatTimeline({
   canModerate = false,
   currentProfileName,
+  highlightedMessageId,
   items,
   messageActionId,
   onBlock,
@@ -127,7 +129,12 @@ export function ChatTimeline({
             item.author.displayName === currentProfileName);
         return (
           <li
-            className={mine ? styles.myMessage : styles.otherMessage}
+            className={`${mine ? styles.myMessage : styles.otherMessage}${
+              highlightedMessageId === item.id
+                ? ` ${styles.highlightedMessage}`
+                : ""
+            }`}
+            id={`live-room-message-${item.id}`}
             key={item.id}
           >
             <div className={styles.messageAvatar} aria-hidden="true">

@@ -170,6 +170,53 @@ export async function getLiveRoomMessagePage({
   };
 }
 
+export async function getLiveRoomMessageAnchor({
+  actor,
+  messageId: rawMessageId,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  messageId: unknown;
+  ticker: string;
+}): Promise<LiveRoomChatMessage> {
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const messageId = normalizeLiveRoomUuid(rawMessageId);
+  const [result, blockedActorIds] = await Promise.all([
+    supabaseSelect("live_room_messages", {
+      select:
+        "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,created_at",
+      id: `eq.${messageId}`,
+      room_id: `eq.${room.id}`,
+      visibility_status: "eq.visible",
+      limit: "1",
+    }),
+    getBlockedActorIds(actor),
+  ]);
+  const row = readSingleRow(result.data) as MessageRow | null;
+  const rowActorId = readString(row?.actor_id);
+  if (
+    !result.ok ||
+    !row ||
+    (rowActorId && blockedActorIds.includes(rowActorId))
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MESSAGE_NOT_FOUND",
+      "That message is no longer available in this Live Room.",
+      404,
+    );
+  }
+  const [message] = await mapMessageRows([row], actor);
+  if (!message) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MESSAGE_NOT_FOUND",
+      "That message is no longer available in this Live Room.",
+      404,
+    );
+  }
+  return message;
+}
+
 export async function getLiveRoomMessageChanges({
   actor,
   afterChange,
@@ -780,28 +827,79 @@ export async function markLiveRoomRead(
 export async function getLiveRoomUnreadSummary(
   actor: LiveRoomActor,
 ): Promise<LiveRoomUnreadSummary> {
-  const result = await supabaseRpc("get_live_room_unread_summary", {
+  const result = await supabaseRpc("get_live_room_activity_summary", {
     p_actor_kind: actor.kind,
     p_member_user_id: actor.kind === "member" ? actor.userId : null,
     p_guest_session_id:
       actor.kind === "guest" ? actor.guestSessionId : null,
+    p_people_limit: 30,
   });
   if (!result.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_UNREAD_UNAVAILABLE",
-      result.error || "Live Room unread messages could not be loaded.",
+      result.error || "Live Room activity could not be loaded.",
       result.status || 502,
     );
   }
-  const rooms = readRows(result.data).map((row) => ({
-    ticker: normalizeLiveRoomTicker(readString(row.room_ticker)),
-    unreadCount: Math.max(0, Number(row.unread_count) || 0),
-  }));
-  return {
-    rooms,
-    totalUnreadCount: rooms.reduce(
-      (total, room) => total + room.unreadCount,
+  const summary = readSingleRow(result.data) || {};
+  const rooms = readRows(summary.rooms).map((row) => ({
+    ticker: normalizeLiveRoomTicker(
+      readString(row.ticker ?? row.room_ticker),
+    ),
+    unreadCount: Math.max(
       0,
+      Number(row.unreadCount ?? row.unread_count) || 0,
+    ),
+  }));
+  const followedPeople = readRows(summary.followedPeople)
+    .map((row) => ({
+      authorDisplayName: readString(
+        row.authorDisplayName ?? row.author_display_name,
+      ).slice(0, 24),
+      authorEmoji: readString(
+        row.authorEmoji ?? row.author_emoji,
+      ).slice(0, 16),
+      messageId: readString(row.messageId ?? row.message_id),
+      ticker: normalizeLiveRoomTicker(readString(row.ticker)),
+    }))
+    .filter(
+      (item) => isUuid(item.messageId) && Boolean(item.ticker),
+    );
+  const people = readRows(summary.people)
+    .map((row) => ({
+      authorDisplayName: readString(
+        row.authorDisplayName ?? row.author_display_name,
+      ).slice(0, 24),
+      authorEmoji: readString(
+        row.authorEmoji ?? row.author_emoji,
+      ).slice(0, 16),
+      bodyPreview: readString(
+        row.bodyPreview ?? row.body_preview,
+      ).slice(0, 160),
+      createdAt: readString(row.createdAt ?? row.created_at),
+      messageId: readString(row.messageId ?? row.message_id),
+      ticker: normalizeLiveRoomTicker(readString(row.ticker)),
+    }))
+    .filter(
+      (item) =>
+        isUuid(item.messageId) &&
+        Boolean(item.ticker) &&
+        Boolean(item.createdAt),
+    );
+  return {
+    followedPeople: actor.kind === "member" ? followedPeople : [],
+    hasMemberFollows:
+      actor.kind === "member" && summary.hasMemberFollows === true,
+    isAuthenticated: actor.kind === "member",
+    people,
+    peopleUnreadCount:
+      actor.kind === "member"
+        ? Math.max(0, Number(summary.peopleUnreadCount) || 0)
+        : 0,
+    rooms,
+    totalUnreadCount: Math.max(
+      0,
+      Number(summary.totalUnreadCount) || 0,
     ),
   };
 }
@@ -834,57 +932,60 @@ export async function updateLiveRoomMemberFollow({
   const room = await getOrCreateLiveRoom(ticker);
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   await ensureMemberBootstrap(actor);
-  const targetResult = await supabaseSelect("live_room_messages", {
-    select: "member_user_id,author_kind",
-    id: `eq.${messageId}`,
-    room_id: `eq.${room.id}`,
-    visibility_status: "eq.visible",
-    limit: "1",
+  const result = await supabaseRpc("set_live_room_member_follow", {
+    p_follower_user_id: actor.userId,
+    p_room_id: room.id,
+    p_message_id: messageId,
+    p_followed: followed,
   });
-  const target = readSingleRow(targetResult.data);
-  const targetUserId =
-    target?.author_kind === "member"
-      ? readString(target.member_user_id)
-      : "";
-  if (!targetResult.ok || !targetUserId) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_MEMBER_NOT_FOLLOWABLE",
-      "Only registered members can be followed.",
-      400,
-    );
-  }
-  if (targetUserId === actor.userId) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_CANNOT_FOLLOW_SELF",
-      "You cannot follow yourself.",
-      400,
-    );
-  }
-
-  const result = followed
-    ? await supabaseUpsert(
-        "live_room_member_follows",
-        {
-          follower_user_id: actor.userId,
-          followed_user_id: targetUserId,
-        },
-        {
-          onConflict: "follower_user_id,followed_user_id",
-          prefer: "resolution=ignore-duplicates,return=minimal",
-        },
-      )
-    : await supabaseDelete("live_room_member_follows", {
-        follower_user_id: `eq.${actor.userId}`,
-        followed_user_id: `eq.${targetUserId}`,
-      });
   if (!result.ok) {
-    throw new LiveRoomPolicyError(
+    throw mapLiveRoomActionError(
+      result.error,
+      result.status,
       "LIVE_ROOM_MEMBER_FOLLOW_UPDATE_FAILED",
-      result.error || "Member follow status could not be saved.",
-      result.status || 502,
+      "Member follow status could not be saved.",
     );
   }
   return { followed, messageId };
+}
+
+export async function markLiveRoomMemberActivityRead({
+  actor,
+  messageId: rawMessageId,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  messageId: unknown;
+  ticker: string;
+}) {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to read member activity.",
+      401,
+    );
+  }
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const messageId = normalizeLiveRoomUuid(rawMessageId);
+  await ensureMemberBootstrap(actor);
+  const result = await supabaseRpc(
+    "mark_live_room_member_activity_read",
+    {
+      p_follower_user_id: actor.userId,
+      p_room_id: room.id,
+      p_message_id: messageId,
+    },
+  );
+  if (!result.ok) {
+    throw mapLiveRoomActionError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_MEMBER_ACTIVITY_READ_FAILED",
+      "Member activity could not be marked as read.",
+    );
+  }
+  return { markedRead: result.data === true, messageId };
 }
 
 async function getLatestRoomChangeCursor(roomId: string) {
@@ -1253,6 +1354,16 @@ function mapLiveRoomActionError(
     LIVE_ROOM_CANNOT_BLOCK_SELF: [
       "LIVE_ROOM_CANNOT_BLOCK_SELF",
       "You cannot block your own messages.",
+      400,
+    ],
+    LIVE_ROOM_MEMBER_NOT_FOLLOWABLE: [
+      "LIVE_ROOM_MEMBER_NOT_FOLLOWABLE",
+      "Only visible messages from registered members can be followed.",
+      400,
+    ],
+    LIVE_ROOM_CANNOT_FOLLOW_SELF: [
+      "LIVE_ROOM_CANNOT_FOLLOW_SELF",
+      "You cannot follow yourself.",
       400,
     ],
     LIVE_ROOM_MODERATOR_REQUIRED: [

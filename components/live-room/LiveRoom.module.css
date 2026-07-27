@@ -472,6 +472,14 @@
   grid-template-columns: 34px minmax(0, 1fr);
   gap: var(--sr-space-2-5);
   align-items: start;
+  scroll-margin-block: calc(var(--sr-size-header) + var(--sr-space-6));
+}
+
+.highlightedMessage {
+  border-radius: var(--sr-radius-action);
+  outline: var(--sr-border-width-strong) solid
+    var(--sr-color-accent-border);
+  outline-offset: var(--sr-space-2);
 }
 
 .myMessage {

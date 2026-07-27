@@ -415,7 +415,7 @@
   z-index: var(--sr-z-mobile-menu);
   top: calc(100% + var(--sr-space-3));
   right: 0;
-  width: min(330px, calc(100vw - var(--sr-space-8)));
+  width: min(380px, calc(100vw - var(--sr-space-8)));
   overflow: hidden;
   border: var(--sr-border-width) solid var(--sr-color-border-product-menu);
   border-radius: var(--sr-radius-popover);
@@ -474,11 +474,269 @@
   font-weight: var(--sr-font-weight-strong);
 }
 
+.liveRoomInboxTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-1);
+  border-bottom: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  padding: var(--sr-space-1-5);
+}
+
+.liveRoomInboxTabs button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1-5);
+  border: 0;
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-product-navigation);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+  cursor: pointer;
+}
+
+.liveRoomInboxTabs button[aria-selected="true"] {
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-product-accent-menu);
+}
+
+.liveRoomInboxTabs button b {
+  display: inline-flex;
+  min-width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-surface-product-menu);
+  font-family: var(--sr-font-family-mono);
+  font-size: 10px;
+}
+
+.liveRoomInboxPanel {
+  min-width: 0;
+}
+
 .liveRoomInboxList {
   display: grid;
   max-height: min(360px, calc(100dvh - 150px));
   overflow-y: auto;
   padding: var(--sr-space-1-5);
+}
+
+.liveRoomPeopleList {
+  display: grid;
+  max-height: min(410px, calc(100dvh - 210px));
+  overflow-y: auto;
+  padding: var(--sr-space-1-5);
+}
+
+.liveRoomFollowedPeopleList {
+  display: grid;
+  max-height: min(300px, calc(100dvh - 270px));
+  overflow-y: auto;
+  padding: var(--sr-space-1-5);
+}
+
+.liveRoomFollowedPerson {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  gap: var(--sr-space-2-5);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2);
+}
+
+.liveRoomFollowedPerson:hover {
+  background: var(--sr-color-product-accent-menu);
+}
+
+.liveRoomFollowedPerson > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: var(--sr-space-1);
+}
+
+.liveRoomFollowedPerson strong {
+  overflow: hidden;
+  color: var(--sr-color-text-product-brand);
+  font-size: var(--sr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liveRoomFollowedPerson small {
+  color: var(--sr-color-text-product-navigation);
+  font-size: var(--sr-font-size-xs);
+}
+
+.liveRoomPeopleItem {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-radius: var(--sr-radius-action);
+}
+
+.liveRoomPeopleItem:hover {
+  background: var(--sr-color-product-accent-menu);
+}
+
+.liveRoomPeopleItem > a {
+  display: flex;
+  min-width: 0;
+  min-height: 72px;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: var(--sr-space-2-5);
+  padding: var(--sr-space-2-5) var(--sr-space-2);
+  color: var(--sr-color-text-product-menu);
+  text-decoration: none;
+}
+
+.liveRoomPeopleItem > a:focus-visible,
+.liveRoomPeopleActionTrigger:focus-visible,
+.liveRoomPeopleActionMenu button:focus-visible,
+.liveRoomInboxTabs button:focus-visible,
+.liveRoomInboxSignIn:focus-visible {
+  outline: var(--sr-focus-ring-width) solid
+    var(--sr-focus-ring-product-header);
+  outline-offset: calc(var(--sr-focus-ring-offset) * -1);
+}
+
+.liveRoomPeopleEmoji {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-surface-product-menu);
+  font-size: var(--sr-font-size-base);
+}
+
+.liveRoomPeopleCopy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: var(--sr-space-1);
+}
+
+.liveRoomPeopleCopy > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1-5);
+}
+
+.liveRoomPeopleCopy strong {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--sr-color-text-product-brand);
+  font-size: var(--sr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liveRoomPeopleCopy b {
+  flex: 0 0 auto;
+  color: var(--sr-color-product-accent);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+}
+
+.liveRoomPeopleCopy time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--sr-color-text-product-navigation);
+  font-family: var(--sr-font-family-mono);
+  font-size: 10px;
+}
+
+.liveRoomPeopleCopy > small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sr-color-text-product-navigation);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.liveRoomPeopleActions {
+  position: relative;
+  flex: 0 0 auto;
+  margin-right: var(--sr-space-1);
+}
+
+.liveRoomPeopleActionTrigger {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-product-navigation);
+  background: transparent;
+  cursor: pointer;
+}
+
+.liveRoomPeopleActionTrigger:hover,
+.liveRoomPeopleActionTrigger[aria-expanded="true"] {
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-surface-product-menu);
+}
+
+.liveRoomPeopleActionMenu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + var(--sr-space-1));
+  right: 0;
+  width: 158px;
+  border: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-1);
+  background: var(--sr-color-surface-product-menu);
+  box-shadow: var(--sr-shadow-product-menu);
+}
+
+.liveRoomPeopleActionMenu button {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border: 0;
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-product-menu);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  cursor: pointer;
+}
+
+.liveRoomPeopleActionMenu button:hover {
+  background: var(--sr-color-product-accent-menu);
+}
+
+.liveRoomPeopleActionMenu button:disabled,
+.liveRoomPeopleActionTrigger:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
 }
 
 .liveRoomInboxList a {
@@ -540,12 +798,36 @@
   min-height: 92px;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
+  gap: var(--sr-space-3);
   margin: 0;
   padding: var(--sr-space-4);
   color: var(--sr-color-text-product-navigation);
   font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-relaxed);
   text-align: center;
+}
+
+.liveRoomInboxStateCompact {
+  min-height: 70px;
+  border-bottom: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+}
+
+.liveRoomInboxSignIn {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid
+    var(--sr-color-border-product-menu);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-product-accent-menu);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+  text-decoration: none;
 }
 
 @keyframes stock-radar-menu-popover-in {
@@ -602,7 +884,7 @@
     position: fixed;
     top: calc(var(--sr-size-header) + var(--sr-space-2));
     right: var(--sr-space-3);
-    width: min(330px, calc(100vw - var(--sr-space-6)));
+    width: min(380px, calc(100vw - var(--sr-space-6)));
   }
 
   .actions .settingsButton {

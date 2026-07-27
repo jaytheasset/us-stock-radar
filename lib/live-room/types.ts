@@ -132,7 +132,24 @@ export type LiveRoomUnreadRoom = {
   unreadCount: number;
 };
 
+export type LiveRoomFollowedMember = {
+  authorDisplayName: string;
+  authorEmoji: string;
+  messageId: string;
+  ticker: string;
+};
+
+export type LiveRoomMemberActivity = LiveRoomFollowedMember & {
+  bodyPreview: string;
+  createdAt: string;
+};
+
 export type LiveRoomUnreadSummary = {
+  followedPeople: LiveRoomFollowedMember[];
+  hasMemberFollows: boolean;
+  isAuthenticated: boolean;
+  people: LiveRoomMemberActivity[];
+  peopleUnreadCount: number;
   rooms: LiveRoomUnreadRoom[];
   totalUnreadCount: number;
 };
