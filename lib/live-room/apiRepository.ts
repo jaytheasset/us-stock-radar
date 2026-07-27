@@ -1,8 +1,3 @@
-import {
-  createClient,
-  type RealtimeChannel,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
 import type {
   LiveRoomBlockedActor,
   LiveRoomBlockResult,
@@ -14,17 +9,19 @@ import type {
   LiveRoomReportReason,
   LiveRoomUnreadSummary,
 } from "./types";
+import {
+  getLiveRoomRealtimeClientRegistry,
+  type LiveRoomRealtimeChannelLease,
+  type LiveRoomRealtimeConfig,
+} from "./realtimeClient";
+
+export type { LiveRoomRealtimeConfig } from "./realtimeClient";
 
 export const LIVE_ROOM_FALLBACK_POLL_INTERVAL_MS = 45_000;
 export const LIVE_ROOM_UNREAD_POLL_INTERVAL_MS = 60_000;
 export const LIVE_ROOM_UNREAD_REFRESH_EVENT =
   "stock-radar:live-room-unread-refresh";
 export const LIVE_ROOM_SIGNAL_DEBOUNCE_MS = 750;
-
-export type LiveRoomRealtimeConfig = {
-  publishableKey: string;
-  url: string;
-};
 
 export type LiveRoomMessagePage = {
   items: LiveRoomChatMessage[];
@@ -280,8 +277,7 @@ class RealtimeLiveRoomUpdateTransport
     let signalTimer: number | null = null;
     let inFlight = false;
     let queued = false;
-    let client: SupabaseClient | null = null;
-    let channel: RealtimeChannel | null = null;
+    let realtimeLease: LiveRoomRealtimeChannelLease | null = null;
 
     const scheduleFallback = () => {
       if (!active) return;
@@ -346,43 +342,39 @@ class RealtimeLiveRoomUpdateTransport
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     if (isUsableRealtimeConfig(this.realtimeConfig)) {
-      client = createClient(
-        this.realtimeConfig.url,
-        this.realtimeConfig.publishableKey,
-        {
-          auth: {
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-            persistSession: false,
+      void getLiveRoomRealtimeClientRegistry()
+        .subscribe({
+          config: this.realtimeConfig,
+          onSignal: scheduleSignalSync,
+          onStatus: (status) => {
+            if (!active) return;
+            if (status === "SUBSCRIBED") {
+              void syncChanges();
+            } else if (
+              status === "CHANNEL_ERROR" ||
+              status === "TIMED_OUT" ||
+              status === "CLOSED"
+            ) {
+              onError(
+                new LiveRoomApiError(
+                  "LIVE_ROOM_REALTIME_DISCONNECTED",
+                  "Live updates disconnected; low-frequency retry is active.",
+                  0,
+                ),
+              );
+            }
           },
-        },
-      );
-      channel = client
-        .channel(`live-room:${this.ticker}`, {
-          config: { private: false },
+          topic: `live-room:${this.ticker}`,
         })
-        .on(
-          "broadcast",
-          { event: "live-room-changed" },
-          scheduleSignalSync,
-        )
-        .subscribe((status) => {
-          if (!active) return;
-          if (status === "SUBSCRIBED") {
-            void syncChanges();
-          } else if (
-            status === "CHANNEL_ERROR" ||
-            status === "TIMED_OUT" ||
-            status === "CLOSED"
-          ) {
-            onError(
-              new LiveRoomApiError(
-                "LIVE_ROOM_REALTIME_DISCONNECTED",
-                "Live updates disconnected; low-frequency retry is active.",
-                0,
-              ),
-            );
+        .then((lease) => {
+          if (active) {
+            realtimeLease = lease;
+          } else {
+            void lease.close();
           }
+        })
+        .catch((error) => {
+          if (active) onError(toLiveRoomApiError(error));
         });
     }
 
@@ -396,7 +388,7 @@ class RealtimeLiveRoomUpdateTransport
         );
         if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
         if (signalTimer !== null) window.clearTimeout(signalTimer);
-        if (client && channel) void client.removeChannel(channel);
+        if (realtimeLease) void realtimeLease.close();
       },
     };
   }

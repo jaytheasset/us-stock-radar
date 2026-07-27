@@ -49,6 +49,7 @@ import {
   removeLiveRoomTimelineItems,
   replaceLiveRoomTimeline,
 } from "./timeline.ts";
+import { LiveRoomRealtimeClientRegistry } from "./realtimeClient.ts";
 
 const events: CompanyEvent[] = [
   {
@@ -724,6 +725,9 @@ test("Realtime uses public metadata-only Broadcast with a change cursor and low-
     path.join("supabase", "migrations", migrationName),
   );
   const transport = readSource("lib/live-room/apiRepository.ts");
+  const realtimeClient = readSource(
+    "lib/live-room/realtimeClient.ts",
+  );
   const page = readSource("app/live/[ticker]/page.tsx");
   const broadcastFunction =
     migration.match(
@@ -744,12 +748,174 @@ test("Realtime uses public metadata-only Broadcast with a change cursor and low-
     /function private\.broadcast_live_room_message_change\(\)[\s\S]+from public, anon, authenticated/i,
   );
   assert.match(transport, /LIVE_ROOM_FALLBACK_POLL_INTERVAL_MS = 45_000/);
-  assert.match(transport, /config: \{ private: false \}/);
+  assert.match(realtimeClient, /config: \{ private: false \}/);
+  assert.match(realtimeClient, /persistSession: false/);
+  assert.match(realtimeClient, /autoRefreshToken: false/);
+  assert.match(realtimeClient, /detectSessionInUrl: false/);
   assert.match(transport, /mode:\s*"changes"/);
   assert.match(transport, /afterChange/);
   assert.match(transport, /status === "SUBSCRIBED"/);
   assert.match(page, /getLiveRoomRealtimeConfig\(\)/);
   assert.doesNotMatch(transport, /SERVICE_ROLE|service_role/);
+  assert.doesNotMatch(realtimeClient, /SERVICE_ROLE|service_role/);
+});
+
+test("Realtime reuses clients by config and closes only the released room channel", async () => {
+  type FakeChannel = {
+    on: (
+      type: "broadcast",
+      filter: { event: string },
+      callback: () => void,
+    ) => FakeChannel;
+    subscribe: (
+      callback: (
+        status:
+          | "CHANNEL_ERROR"
+          | "CLOSED"
+          | "SUBSCRIBED"
+          | "TIMED_OUT",
+      ) => void,
+    ) => FakeChannel;
+    topic: string;
+  };
+  const createdConfigs: string[] = [];
+  const clients: Array<{
+    channels: FakeChannel[];
+    removed: FakeChannel[];
+  }> = [];
+  const registry = new LiveRoomRealtimeClientRegistry((config) => {
+    createdConfigs.push(`${config.url}|${config.publishableKey}`);
+    const client = {
+      channels: [] as FakeChannel[],
+      removed: [] as FakeChannel[],
+    };
+    clients.push(client);
+    return {
+      channel(topic) {
+        const channel: FakeChannel = {
+          on() {
+            return channel;
+          },
+          subscribe() {
+            return channel;
+          },
+          topic,
+        };
+        client.channels.push(channel);
+        return channel;
+      },
+      removeChannel(channel) {
+        client.removed.push(channel as FakeChannel);
+      },
+    };
+  });
+  const sharedConfig = {
+    publishableKey: "publishable-a",
+    url: "https://project-a.supabase.co",
+  };
+
+  const aapl = await registry.subscribe({
+    config: sharedConfig,
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:AAPL",
+  });
+  const msft = await registry.subscribe({
+    config: sharedConfig,
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:MSFT",
+  });
+  assert.equal(createdConfigs.length, 1);
+  const secondKey = await registry.subscribe({
+    config: {
+      publishableKey: "publishable-b",
+      url: "https://project-a.supabase.co",
+    },
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:AAPL",
+  });
+  const secondProject = await registry.subscribe({
+    config: {
+      publishableKey: "publishable-a",
+      url: "https://project-b.supabase.co",
+    },
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:AAPL",
+  });
+
+  assert.equal(createdConfigs.length, 3);
+  assert.deepEqual(
+    clients[0]?.channels.map((channel) => channel.topic),
+    ["live-room:AAPL", "live-room:MSFT"],
+  );
+  await aapl.close();
+  await aapl.close();
+  assert.deepEqual(
+    clients[0]?.removed.map((channel) => channel.topic),
+    ["live-room:AAPL"],
+  );
+  assert.deepEqual(
+    clients[0]?.channels
+      .filter((channel) => !clients[0]?.removed.includes(channel))
+      .map((channel) => channel.topic),
+    ["live-room:MSFT"],
+  );
+
+  await Promise.all([
+    msft.close(),
+    secondKey.close(),
+    secondProject.close(),
+  ]);
+});
+
+test("Realtime shares one room channel until its final subscription closes", async () => {
+  const removedTopics: string[] = [];
+  let channelCount = 0;
+  const registry = new LiveRoomRealtimeClientRegistry(() => ({
+    channel(topic) {
+      channelCount += 1;
+      const channel = {
+        on() {
+          return channel;
+        },
+        subscribe() {
+          return channel;
+        },
+        topic,
+      };
+      return channel;
+    },
+    removeChannel(channel) {
+      removedTopics.push(
+        (channel as unknown as { topic: string }).topic,
+      );
+    },
+  }));
+  const config = {
+    publishableKey: "publishable",
+    url: "https://project.supabase.co",
+  };
+  const first = await registry.subscribe({
+    config,
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:AAPL",
+  });
+  const second = await registry.subscribe({
+    config,
+    onSignal() {},
+    onStatus() {},
+    topic: "live-room:AAPL",
+  });
+
+  assert.equal(channelCount, 1);
+  await first.close();
+  assert.deepEqual(removedTopics, []);
+  await second.close();
+  assert.deepEqual(removedTopics, ["live-room:AAPL"]);
 });
 
 test("reports, blocks, and moderator tables stay service-only and RLS default-deny", () => {
