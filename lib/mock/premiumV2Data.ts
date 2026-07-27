@@ -23,16 +23,6 @@ export type PremiumV2Plan = {
 };
 
 export type PremiumV2ComparisonRow = {
-  details?: Partial<
-    Record<
-      PremiumV2PlanKey,
-      readonly {
-        label: string;
-        tone: PremiumV2CategoryTone;
-      }[]
-    >
-  >;
-  emphasized?: boolean;
   feature: string;
   values: Record<PremiumV2PlanKey, string>;
 };
@@ -119,7 +109,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
       "Advanced filters",
       channels("advanced"),
     ],
-    cta: "Start Advanced Trial",
+    cta: "Start 14-day Advanced Trial",
     description: "Full-market risk and catalyst detection for active traders.",
     monthlyPrice: "$49",
     name: "Advanced",
@@ -200,7 +190,7 @@ const riskCoverageItems = RISK_CATALYST_ALERT_CATEGORIES.map((category) => ({
 
 export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
-    badge: "Pro and below",
+    badge: "Free–Pro",
     description: "Twelve Core event types available for market-wide Discovery.",
     items: coreCoverageItems,
     planKey: "pro",
@@ -214,8 +204,6 @@ export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGrou
     title: "Risk & Catalyst Events",
   },
 ];
-
-const riskDetails = riskCoverageItems;
 
 export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
@@ -239,11 +227,6 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
     },
   },
   {
-    details: {
-      advanced: riskDetails,
-      ultimate: riskDetails,
-    },
-    emphasized: true,
     feature: "Market-Wide Discovery",
     values: {
       free: "12 Core types",

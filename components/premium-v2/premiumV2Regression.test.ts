@@ -6,8 +6,16 @@ const componentSource = readFileSync(
   new URL("./StockRadarPremiumV2.tsx", import.meta.url),
   "utf8",
 );
+const comparisonSource = readFileSync(
+  new URL("./PremiumFeatureComparison.tsx", import.meta.url),
+  "utf8",
+);
 const dataSource = readFileSync(
   new URL("../../lib/mock/premiumV2Data.ts", import.meta.url),
+  "utf8",
+);
+const trialCtaSource = readFileSync(
+  new URL("../AdvancedTrialCta.tsx", import.meta.url),
   "utf8",
 );
 const styles = readFileSync(
@@ -30,7 +38,22 @@ test("keeps trial, current-plan, and preview-selection behavior visible in the s
   assert.match(componentSource, /accountState\.planSource === "trial"/);
   assert.match(componentSource, /<AdvancedTrialCta[\s\S]*guestMode/);
   assert.match(componentSource, /Start 14-day Advanced Trial/);
+  assert.doesNotMatch(componentSource, /Start Advanced Trial|Go Advanced/);
+  assert.doesNotMatch(dataSource, /cta: "Start Advanced Trial"/);
   assert.match(componentSource, /accountState\.trial\.used/);
+  assert.match(
+    componentSource,
+    /if \(!accountState\.authenticated\) \{[\s\S]*Start Free/,
+  );
+  assert.match(
+    componentSource,
+    /accountState\.currentPlan === "free"[\s\S]*Manage alerts/,
+  );
+  assert.match(componentSource, /Current: \{premiumV2Plans\[accountState\.currentPlan\]\.name\}/);
+  assert.match(
+    componentSource,
+    /accountState\.authenticated && planKey === accountState\.currentPlan/,
+  );
   assert.match(componentSource, /styles\.currentCard/);
   assert.match(componentSource, /data-current-plan=\{isCurrent \? "true" : undefined\}/);
   assert.match(
@@ -38,6 +61,28 @@ test("keeps trial, current-plan, and preview-selection behavior visible in the s
     /No checkout, payment, or account change was started\./,
   );
   assert.match(componentSource, /data-testid="premium-v2-upgrade-status"/);
+  assert.match(trialCtaSource, /Card required/);
+  assert.match(trialCtaSource, /Renews as monthly Advanced after 14 days/);
+  assert.match(trialCtaSource, /Checkout coming soon/);
+});
+
+test("keeps coverage labels concise and comparison values free of repeated event badges", () => {
+  assert.match(dataSource, /badge: "Free–Pro"/);
+  assert.match(dataSource, /badge: "Advanced\+"/);
+  assert.match(
+    dataSource,
+    /feature: "Market-Wide Discovery",[\s\S]*free: "12 Core types",[\s\S]*adFree: "12 Core types",[\s\S]*pro: "12 Core types",[\s\S]*advanced: "All 17 types",[\s\S]*ultimate: "All 17 types \+ rules"/,
+  );
+  assert.doesNotMatch(dataSource, /details:|emphasized:/);
+  assert.match(componentSource, /className=\{styles\.coverageTier\}>\{group\.badge\}/);
+  assert.doesNotMatch(componentSource, /<strong>\{group\.badge\}<\/strong>/);
+  assert.doesNotMatch(componentSource, /category-\$\{category\.tone\}/);
+  assert.doesNotMatch(comparisonSource, /\bBadge\b|detailItems|row\.details|row\.emphasized/);
+  assert.match(
+    styles,
+    /\.coverageGroups \{[\s\S]*grid-template-columns: minmax\(0, 1\.4fr\) minmax\(0, 0\.6fr\);/,
+  );
+  assert.doesNotMatch(styles, /\.comparisonRowEmphasized|\.comparisonDetailList/);
 });
 
 test("uses the shared product shell width, typography, panels, and responsive plan grid", () => {
@@ -60,6 +105,14 @@ test("uses the shared product shell width, typography, panels, and responsive pl
   assert.match(
     styles,
     /\.price strong \{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-variant-numeric: var\(--sr-font-variant-numeric\);/,
+  );
+  assert.match(
+    styles,
+    /\.actionRow \{[\s\S]*align-items: flex-start;[\s\S]*\.heroCopy \.actionRow \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*align-items: start;/,
+  );
+  assert.match(
+    styles,
+    /\.currentPlanAction \{[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*color: var\(--sr-color-text-control-strong\);[\s\S]*background: var\(--sr-color-surface-control\);/,
   );
   assert.match(
     styles,

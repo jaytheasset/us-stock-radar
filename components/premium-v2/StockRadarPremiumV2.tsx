@@ -42,6 +42,88 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
     );
   };
 
+  const renderPlanAwareSecondaryAction = () => {
+    if (!accountState.authenticated) {
+      return (
+        <button
+          className={styles.secondaryButton}
+          onClick={() => previewPlan("free")}
+          type="button"
+        >
+          Start Free
+        </button>
+      );
+    }
+
+    if (accountState.currentPlan === "free") {
+      return (
+        <Link className={styles.secondaryButton} href="/alerts">
+          Manage alerts
+        </Link>
+      );
+    }
+
+    return (
+      <Link className={styles.secondaryButton} href="/account">
+        Current: {premiumV2Plans[accountState.currentPlan].name}
+      </Link>
+    );
+  };
+
+  const renderAdvancedAction = ({
+    className,
+    includedClassName = className,
+    includedLabel = "Manage alerts",
+  }: {
+    className: string;
+    includedClassName?: string;
+    includedLabel?: string;
+  }) => {
+    if (!accountState.authenticated) {
+      return (
+        <AdvancedTrialCta
+          className={className}
+          guestLabel="Start 14-day Advanced Trial"
+          guestMode
+        />
+      );
+    }
+
+    if (
+      accountState.currentPlan === "advanced" ||
+      accountState.currentPlan === "ultimate" ||
+      accountState.basePlan === "advanced" ||
+      accountState.basePlan === "ultimate"
+    ) {
+      return (
+        <Link className={includedClassName} href="/alerts">
+          {includedLabel}
+        </Link>
+      );
+    }
+
+    if (accountState.trial.used) {
+      return (
+        <div className={styles.planActionGroup}>
+          <button
+            className={className}
+            onClick={() => previewPlan("advanced")}
+            type="button"
+          >
+            Upgrade to Advanced
+          </button>
+          <small className={styles.trialNote}>Your free trial has ended.</small>
+        </div>
+      );
+    }
+
+    return (
+      <AdvancedTrialCta className={className}>
+        Start 14-day Advanced Trial
+      </AdvancedTrialCta>
+    );
+  };
+
   const renderPlanAction = (
     planKey: PremiumV2PlanKey,
     isCurrent: boolean,
@@ -64,48 +146,11 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
     }
 
     if (planKey === "advanced") {
-      if (!accountState.authenticated) {
-        return (
-          <AdvancedTrialCta
-            className={isRecommended ? styles.primaryButton : styles.secondaryButton}
-            guestMode
-          >
-            Start 14-day Advanced Trial
-          </AdvancedTrialCta>
-        );
-      }
-
-      if (
-        accountState.basePlan === "advanced" ||
-        accountState.basePlan === "ultimate"
-      ) {
-        return (
-          <Link className={styles.currentPlanAction} href="/alerts">
-            Included in current plan
-          </Link>
-        );
-      }
-
-      if (accountState.trial.used) {
-        return (
-          <div className={styles.planActionGroup}>
-            <button
-              className={isRecommended ? styles.primaryButton : styles.secondaryButton}
-              onClick={() => previewPlan(planKey)}
-              type="button"
-            >
-              Upgrade to Advanced
-            </button>
-            <small className={styles.trialNote}>Your free trial has ended.</small>
-          </div>
-        );
-      }
-
-      return (
-        <AdvancedTrialCta className={isRecommended ? styles.primaryButton : styles.secondaryButton}>
-          Start 14-day Advanced Trial
-        </AdvancedTrialCta>
-      );
+      return renderAdvancedAction({
+        className: isRecommended ? styles.primaryButton : styles.secondaryButton,
+        includedClassName: styles.currentPlanAction,
+        includedLabel: "Included in current plan",
+      });
     }
 
     return (
@@ -139,15 +184,8 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
               coverage, stronger filters, and more ways to receive an alert.
             </p>
             <div className={styles.actionRow}>
-              <button className={styles.secondaryButton} onClick={() => previewPlan("free")} type="button">
-                Start Free
-              </button>
-              <AdvancedTrialCta
-                className={styles.primaryButton}
-                guestMode={!accountState.authenticated}
-              >
-                Start Advanced Trial
-              </AdvancedTrialCta>
+              {renderPlanAwareSecondaryAction()}
+              {renderAdvancedAction({ className: styles.primaryButton })}
             </div>
           </div>
 
@@ -187,7 +225,8 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
           <div className={styles.planGrid}>
             {premiumV2PlanOrder.map((planKey) => {
               const plan = premiumV2Plans[planKey];
-              const isCurrent = planKey === accountState.currentPlan;
+              const isCurrent =
+                accountState.authenticated && planKey === accountState.currentPlan;
               const isRecommended = planKey === premiumV2RecommendedPlan;
 
               return (
@@ -240,20 +279,14 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
               >
                 <header>
                   <div>
-                    <span className={styles.coverageTier}>
-                      {premiumV2Plans[group.planKey].name} lane
-                    </span>
+                    <span className={styles.coverageTier}>{group.badge}</span>
                     <h3>{group.title}</h3>
                     <p>{group.description}</p>
                   </div>
-                  <span className={styles.planState}>{group.badge}</span>
                 </header>
                 <div className={styles.categoryList}>
                   {group.items.map((category) => (
-                    <span className={styles[`category-${category.tone}`]} key={category.label}>
-                      <span>{category.label}</span>
-                      <strong>{group.badge}</strong>
-                    </span>
+                    <span key={category.label}>{category.label}</span>
                   ))}
                 </div>
               </article>
@@ -292,8 +325,8 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
             <p>Your ticker alerts cover what you're watching. Advanced finds high-impact risks across the market.</p>
           </div>
           <div className={styles.actionRow}>
-            <button className={styles.secondaryButton} onClick={() => previewPlan("free")} type="button">Start Free</button>
-            <button className={styles.primaryButton} onClick={() => previewPlan("advanced")} type="button">Go Advanced</button>
+            {renderPlanAwareSecondaryAction()}
+            {renderAdvancedAction({ className: styles.primaryButton })}
           </div>
         </section>
       </div>

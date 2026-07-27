@@ -94,6 +94,7 @@
 
 .actionRow {
   display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: var(--sr-space-2);
   margin-top: var(--sr-space-4);
@@ -101,8 +102,9 @@
 
 .heroCopy .actionRow {
   display: grid;
-  width: min(100%, 360px);
+  width: min(100%, 480px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .actionRow :global(.advanced-trial-cta-wrap) {
@@ -113,6 +115,13 @@
 
 .actionRow :global(.advanced-trial-cta-wrap) > button {
   width: 100%;
+}
+
+.actionRow :global(.advanced-trial-cta-wrap) > small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-body);
+  text-align: left;
 }
 
 .primaryButton,
@@ -356,7 +365,7 @@
   min-width: 0;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
-  padding: var(--sr-space-4);
+  padding: var(--sr-space-4-5);
   background: var(--sr-color-surface-panel);
   box-shadow: var(--sr-shadow-panel);
 }
@@ -454,7 +463,7 @@
 .benefitList {
   display: grid;
   align-content: start;
-  gap: var(--sr-space-2);
+  gap: var(--sr-space-2-5);
   margin: var(--sr-space-4) 0;
   padding: 0;
   list-style: none;
@@ -506,14 +515,14 @@
 }
 
 .currentPlanAction {
-  border-color: var(--sr-color-border-muted-action);
-  color: var(--sr-color-text-muted);
-  background: var(--sr-color-surface-muted-action);
+  border-color: var(--sr-color-border-control);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
 }
 
 .currentPlanAction:hover {
-  border-color: var(--sr-color-border-control);
-  color: var(--sr-color-text-control-strong);
+  border-color: var(--sr-color-accent-border);
+  color: var(--sr-color-accent-text);
   background: var(--sr-color-surface-table-hover);
 }
 
@@ -552,7 +561,7 @@
 
 .coverageGroups {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.6fr);
   gap: var(--sr-space-3);
 }
 
@@ -602,20 +611,6 @@
   text-transform: uppercase;
 }
 
-.coverageGroup-pro .coverageTier,
-.coverageGroup-pro .planState {
-  border-color: var(--sr-color-border-control);
-  color: var(--sr-color-text-secondary);
-  background: var(--sr-color-surface-control);
-}
-
-.coverageGroup-advanced .coverageTier,
-.coverageGroup-advanced .planState {
-  border-color: var(--sr-color-accent-border-premium);
-  color: var(--sr-color-accent-text-soft);
-  background: var(--sr-color-accent-active-soft);
-}
-
 .coverageGroup p {
   margin-top: var(--sr-space-1-5);
   color: var(--sr-color-text-meta);
@@ -632,7 +627,7 @@
 .categoryList {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sr-space-3);
+  gap: var(--sr-space-2);
 }
 
 .categoryList > span {
@@ -643,53 +638,11 @@
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
   font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-medium);
   line-height: var(--sr-line-height-control);
-}
-
-.categoryList > span > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.categoryList > span > strong {
-  flex: 0 0 auto;
-  color: var(--sr-color-text-strong);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-label);
-  line-height: var(--sr-line-height-none);
-  text-transform: uppercase;
-}
-
-.categoryList > .category-legal {
-  border-color: var(--sr-color-event-legal);
-  color: var(--sr-color-event-legal);
-  background: var(--sr-color-event-legal-surface);
-}
-
-.categoryList > .category-earnings {
-  border-color: var(--sr-color-event-earnings);
-  color: var(--sr-color-event-earnings);
-  background: var(--sr-color-event-earnings-surface);
-}
-
-.categoryList > .category-insider {
-  border-color: var(--sr-color-event-insider);
-  color: var(--sr-color-event-insider);
-  background: var(--sr-color-event-insider-surface);
-}
-
-.categoryList > .category-transaction {
-  border-color: var(--sr-color-event-transaction);
-  color: var(--sr-color-event-transaction);
-  background: var(--sr-color-event-transaction-surface);
-}
-
-.categoryList > .category-product {
-  border-color: var(--sr-color-event-product);
-  color: var(--sr-color-event-product);
-  background: var(--sr-color-event-product-surface);
 }
 
 .desktopComparison {
@@ -813,24 +766,6 @@
   gap: var(--sr-space-1);
 }
 
-.comparisonDetailList {
-  display: grid;
-  gap: var(--sr-space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.comparisonDetailBadge {
-  font-weight: var(--sr-font-weight-regular);
-}
-
-.desktopComparison tbody tr.comparisonRowEmphasized > th,
-.desktopComparison tbody tr.comparisonRowEmphasized > td {
-  padding-top: var(--sr-space-6);
-  padding-bottom: var(--sr-space-6);
-}
-
 .mobileComparison {
   display: none;
 }
@@ -896,7 +831,10 @@
 }
 
 .finalCta .actionRow {
-  flex: 0 0 auto;
+  display: grid;
+  width: min(100%, 480px);
+  flex: 0 1 480px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0;
 }
 
@@ -982,11 +920,6 @@
     gap: var(--sr-space-2);
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
     padding: var(--sr-space-2) var(--sr-space-3);
-  }
-
-  .mobileComparison details.comparisonRowEmphasized dl > div {
-    padding-top: var(--sr-space-5);
-    padding-bottom: var(--sr-space-5);
   }
 
   .mobileComparison dl > div:first-child {
@@ -1114,23 +1047,21 @@
     gap: var(--sr-space-3);
   }
 
-  .planCard,
   .coverageGroup {
     padding: var(--sr-space-4);
   }
 
+  .planCard {
+    padding: var(--sr-space-3-5);
+  }
+
   .benefitList {
     gap: var(--sr-space-2);
-    margin: var(--sr-space-4) 0;
+    margin: var(--sr-space-3) 0;
   }
 
   .mobileComparison dl > div {
     padding: var(--sr-space-4);
-  }
-
-  .mobileComparison details.comparisonRowEmphasized dl > div {
-    padding-top: var(--sr-space-5);
-    padding-bottom: var(--sr-space-5);
   }
 
   .planDescription {
@@ -1159,5 +1090,11 @@
 
   .finalCta .actionRow {
     width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .heroCopy .actionRow {
+    width: 100%;
+    grid-template-columns: 1fr;
   }
 }
