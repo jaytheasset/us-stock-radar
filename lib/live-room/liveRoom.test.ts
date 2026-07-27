@@ -42,7 +42,13 @@ import {
 import {
   LIVE_ROOM_REPORT_REASONS,
   type CompanyEvent,
+  type LiveRoomChatMessage,
 } from "./types.ts";
+import {
+  isCurrentLiveRoomTimelineGeneration,
+  removeLiveRoomTimelineItems,
+  replaceLiveRoomTimeline,
+} from "./timeline.ts";
 
 const events: CompanyEvent[] = [
   {
@@ -258,6 +264,99 @@ test("Live Room Invite keeps short result states and never copies the current me
   assert.match(client, /setInviteState\("idle"\)[\s\S]+2_000/);
   assert.doesNotMatch(client, /window\.location\.href/);
   assert.match(header, /"Copied"[\s\S]+"Shared"[\s\S]+"Share failed"/);
+});
+
+test("block removal, unblock replacement, and stale polling cannot hide restored messages", () => {
+  const memberMessage: LiveRoomChatMessage = {
+    author: {
+      displayName: "Member",
+      emoji: "M",
+      isGuest: false,
+      plan: "free",
+    },
+    body: "Member message",
+    createdAt: "2026-07-28T01:00:00.000Z",
+    eventReference: null,
+    id: "member-message",
+    kind: "message",
+  };
+  const guestMessage: LiveRoomChatMessage = {
+    author: {
+      displayName: "Guest",
+      emoji: "G",
+      isGuest: true,
+      plan: "free",
+    },
+    body: "Guest message",
+    createdAt: "2026-07-28T01:01:00.000Z",
+    eventReference: null,
+    id: "guest-message",
+    kind: "message",
+  };
+
+  const blockedTimeline = removeLiveRoomTimelineItems(
+    [memberMessage, guestMessage],
+    new Set([guestMessage.id]),
+  );
+  assert.deepEqual(
+    blockedTimeline.map((message) => message.id),
+    [memberMessage.id],
+  );
+
+  const stalePollingGeneration = 4;
+  const unblockGeneration = stalePollingGeneration + 1;
+  let restoredTimeline = replaceLiveRoomTimeline([
+    memberMessage,
+    guestMessage,
+  ]);
+  if (
+    isCurrentLiveRoomTimelineGeneration(
+      unblockGeneration,
+      stalePollingGeneration,
+    )
+  ) {
+    restoredTimeline = removeLiveRoomTimelineItems(
+      restoredTimeline,
+      new Set([guestMessage.id]),
+    );
+  }
+
+  assert.deepEqual(
+    restoredTimeline.map((message) => message.id),
+    [memberMessage.id, guestMessage.id],
+  );
+});
+
+test("unblock closes stale updates and initial member identity stays unresolved until loaded", () => {
+  const client = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const header = readSource(
+    "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const composer = readSource(
+    "components/live-room/MessageComposer.tsx",
+  );
+
+  assert.match(
+    client,
+    /useState<LiveRoomProfile \| null>\(null\)/,
+  );
+  assert.match(client, /useState<boolean \| null>\(null\)/);
+  assert.doesNotMatch(client, /defaultProfile/);
+  assert.match(
+    client,
+    /updatesSubscriptionRef\.current\?\.close\(\)[\s\S]+timelineGenerationRef\.current = refreshGeneration[\s\S]+replaceLiveRoomTimeline\(page\.items\)/,
+  );
+  assert.match(
+    client,
+    /profile === null[\s\S]+timelineState === "error"/,
+  );
+  assert.match(header, /disabled=\{followed === null\}/);
+  assert.match(header, /followed === null[\s\S]+"Loading…"/);
+  assert.match(composer, /profile: LiveRoomProfile \| null/);
+  assert.match(composer, /"Loading Live Room identity"/);
+  assert.match(composer, /<small>Checking session<\/small>/);
 });
 
 test("moderation accepts a normal message and trims outer whitespace", () => {

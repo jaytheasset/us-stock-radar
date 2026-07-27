@@ -23,7 +23,7 @@ type MessageComposerProps = {
   onClearReference: () => void;
   onProfileChange: (profile: LiveRoomProfile) => void;
   onSend: () => void;
-  profile: LiveRoomProfile;
+  profile: LiveRoomProfile | null;
   profileOpen: boolean;
   sending: boolean;
   setProfileOpen: (open: boolean) => void;
@@ -64,26 +64,52 @@ export function MessageComposer({
       <div className={styles.composerRow}>
         <div className={styles.profileControl}>
           <button
-            aria-label={`Edit Live Room profile: ${profile.displayName.trim() || "Guest"}`}
-            aria-expanded={profileOpen}
-            aria-haspopup="dialog"
+            aria-label={
+              profile
+                ? `Edit Live Room profile: ${
+                    profile.displayName.trim() ||
+                    (profile.isGuest ? "Guest" : "Member")
+                  }`
+                : "Loading Live Room identity"
+            }
+            aria-expanded={profile ? profileOpen : false}
+            aria-haspopup={profile ? "dialog" : undefined}
             className={styles.profileButton}
-            onClick={() => setProfileOpen(!profileOpen)}
+            disabled={!profile}
+            onClick={() => {
+              if (profile) setProfileOpen(!profileOpen);
+            }}
             type="button"
           >
-            <span aria-hidden="true">{profile.emoji}</span>
-            <span>
-              <strong>{profile.displayName}</strong>
-              <small>
-                {profile.isGuest ? "Guest" : "Member"} ·{" "}
-                {getPlanDisplayName(profile.plan)}
-              </small>
-            </span>
-            <UserRound aria-hidden="true" size={14} />
+            {profile ? (
+              <>
+                <span aria-hidden="true">{profile.emoji}</span>
+                <span>
+                  <strong>{profile.displayName}</strong>
+                  <small>
+                    {profile.isGuest ? "Guest" : "Member"} ·{" "}
+                    {getPlanDisplayName(profile.plan)}
+                  </small>
+                </span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">
+                  <UserRound size={18} />
+                </span>
+                <span>
+                  <strong>Loading…</strong>
+                  <small>Checking session</small>
+                </span>
+              </>
+            )}
+            {profile ? (
+              <UserRound aria-hidden="true" size={14} />
+            ) : null}
           </button>
-          {profileOpen ? (
+          {profile && profileOpen ? (
             <div
-              aria-label="Guest profile picker"
+              aria-label="Live Room profile picker"
               className={styles.profilePicker}
               role="dialog"
             >

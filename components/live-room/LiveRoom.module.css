@@ -112,6 +112,14 @@
   background: var(--sr-color-accent-selected);
 }
 
+.roomActions button:disabled,
+.profileButton:disabled {
+  color: var(--sr-color-state-disabled-text);
+  background: var(--sr-color-state-disabled-surface);
+  cursor: default;
+  opacity: var(--sr-opacity-disabled);
+}
+
 .historyTrigger {
   display: none !important;
 }

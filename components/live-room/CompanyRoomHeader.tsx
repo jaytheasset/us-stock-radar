@@ -5,6 +5,7 @@ import {
   BookmarkCheck,
   Check,
   History,
+  LoaderCircle,
   Share2,
 } from "lucide-react";
 import type { RefObject } from "react";
@@ -13,7 +14,7 @@ import type { CompanyRoomIdentity } from "@/lib/live-room/types";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
-  followed: boolean;
+  followed: boolean | null;
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
   inviteState: LiveRoomInviteUiState;
@@ -44,17 +45,24 @@ export function CompanyRoomHeader({
 
       <div className={styles.roomActions}>
         <button
-          aria-pressed={followed}
+          aria-pressed={followed ?? undefined}
           className={followed ? styles.followingButton : undefined}
+          disabled={followed === null}
           onClick={onToggleFollow}
           type="button"
         >
-          {followed ? (
+          {followed === null ? (
+            <LoaderCircle aria-hidden="true" size={15} />
+          ) : followed ? (
             <BookmarkCheck aria-hidden="true" size={15} />
           ) : (
             <Bookmark aria-hidden="true" size={15} />
           )}
-          {followed ? "Following" : "Follow"}
+          {followed === null
+            ? "Loading…"
+            : followed
+              ? "Following"
+              : "Follow"}
         </button>
         <button
           disabled={inviteState === "working"}
