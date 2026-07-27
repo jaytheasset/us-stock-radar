@@ -13,6 +13,7 @@ import {
 import {
   LiveRoomApiRepository,
   toLiveRoomApiError,
+  type LiveRoomRealtimeConfig,
 } from "@/lib/live-room/apiRepository";
 import {
   evaluateLiveRoomMessage,
@@ -24,8 +25,11 @@ import type {
   CompanyEventReference,
   CompanyEventSource,
   CompanyRoomIdentity,
+  LiveRoomBlockedActor,
   LiveRoomChatMessage,
+  LiveRoomModerationItem,
   LiveRoomProfile,
+  LiveRoomReportReason,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
 import {
@@ -40,26 +44,31 @@ import { MessageComposer } from "./MessageComposer";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
+  realtimeConfig: LiveRoomRealtimeConfig | null;
   ticker: string;
 };
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
 
 const defaultProfile: LiveRoomProfile = {
+  canModerate: false,
   displayName: "Guest",
   emoji: "👋",
   isGuest: true,
   plan: "free",
 };
 
-export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
+export function LiveRoomClient({
+  realtimeConfig,
+  ticker,
+}: LiveRoomClientProps) {
   const roomKey = useMemo(
     () => createCompanyRoomKey({ ticker }),
     [ticker],
   );
   const repository = useMemo(
-    () => new LiveRoomApiRepository(ticker),
-    [ticker],
+    () => new LiveRoomApiRepository(ticker, realtimeConfig),
+    [realtimeConfig, ticker],
   );
   const [identity, setIdentity] = useState<CompanyRoomIdentity>({
     companyName: ticker,
@@ -88,6 +97,14 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     useState<"copied" | "error" | "idle">("idle");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [blocks, setBlocks] = useState<LiveRoomBlockedActor[]>([]);
+  const [blocksOpen, setBlocksOpen] = useState(false);
+  const [hiddenMessages, setHiddenMessages] = useState<
+    LiveRoomModerationItem[]
+  >([]);
+  const [moderationOpen, setModerationOpen] = useState(false);
+  const [messageActionId, setMessageActionId] =
+    useState<string | null>(null);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const latestEventIdRef = useRef<string | null>(null);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
@@ -107,6 +124,8 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     setTimelineState("loading");
     setOlderCursor(null);
     setRoomNotice(null);
+    setBlocks([]);
+    setHiddenMessages([]);
 
     void (async () => {
       try {
@@ -117,22 +136,54 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
         if (!active) return;
         setProfile(nextProfile);
 
-        const [page, preference] = await Promise.all([
-          repository.list(),
-          repository.readFollow(),
-        ]);
+        const [page, preference, nextBlocks, nextHiddenMessages] =
+          await Promise.all([
+            repository.list(),
+            repository.readFollow(),
+            repository.listBlocks(),
+            nextProfile.canModerate
+              ? repository.listHiddenMessages()
+              : Promise.resolve([]),
+          ]);
         if (!active) return;
         setTimeline(page.items);
         setOlderCursor(page.nextCursor);
         setTimelineState(page.items.length ? "ready" : "empty");
         setFollowed(preference.followed);
+        setBlocks(nextBlocks);
+        setHiddenMessages(nextHiddenMessages);
         updates = repository.updates.subscribe({
-          after: page.latestCursor,
+          afterChange: page.latestChangeCursor,
           onMessages: (messages) => {
             if (!active) return;
             setTimeline((current) => mergeMessages(current, messages));
             setTimelineState("ready");
+          },
+          onRemoved: (messageIds) => {
+            if (!active || !messageIds.length) return;
+            const removed = new Set(messageIds);
+            setTimeline((current) => {
+              const next = current.filter((item) => !removed.has(item.id));
+              setTimelineState(next.length ? "ready" : "empty");
+              return next;
+            });
+          },
+          onSynced: () => {
+            if (!active) return;
             setRoomNotice(null);
+
+            if (nextProfile.canModerate) {
+              void repository
+                .listHiddenMessages()
+                .then((messages) => {
+                  if (active) setHiddenMessages(messages);
+                })
+                .catch((error) => {
+                  if (active) {
+                    setRoomNotice(toLiveRoomApiError(error).message);
+                  }
+                });
+            }
           },
           onError: (error) => {
             if (active) {
@@ -365,6 +416,105 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     }
   };
 
+  const handleReport = async (
+    messageId: string,
+    reason: LiveRoomReportReason,
+  ) => {
+    setMessageActionId(messageId);
+    setRoomNotice(null);
+    try {
+      await repository.report(messageId, reason);
+      setRoomNotice("Report received. Thank you for helping keep the room useful.");
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleBlock = async (messageId: string) => {
+    setMessageActionId(messageId);
+    setRoomNotice(null);
+    try {
+      const result = await repository.block(messageId);
+      const removed = new Set(result.removedMessageIds);
+      setTimeline((current) => {
+        const next = current.filter((item) => !removed.has(item.id));
+        setTimelineState(next.length ? "ready" : "empty");
+        return next;
+      });
+      setBlocks((current) => [
+        result.block,
+        ...current.filter((block) => block.id !== result.block.id),
+      ]);
+      setRoomNotice(`${result.block.displayName} is blocked.`);
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleUnblock = async (blockId: string) => {
+    setMessageActionId(blockId);
+    setRoomNotice(null);
+    try {
+      await repository.unblock(blockId);
+      setBlocks((current) =>
+        current.filter((block) => block.id !== blockId),
+      );
+      const page = await repository.list();
+      setTimeline((current) => mergeMessages(current, page.items));
+      setTimelineState(page.items.length ? "ready" : "empty");
+      setRoomNotice("Author unblocked.");
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleModerate = async (
+    messageId: string,
+    action: "hide" | "restore",
+  ) => {
+    setMessageActionId(messageId);
+    setRoomNotice(null);
+    try {
+      const result = await repository.moderate(
+        messageId,
+        action,
+        action === "hide"
+          ? "Hidden from the Live Room message menu"
+          : "Restored from the Live Room moderation panel",
+      );
+      if (action === "hide") {
+        setTimeline((current) => {
+          const next = current.filter((item) => item.id !== messageId);
+          setTimelineState(next.length ? "ready" : "empty");
+          return next;
+        });
+      } else if (result.message) {
+        setTimeline((current) =>
+          mergeMessages(current, [result.message as LiveRoomChatMessage]),
+        );
+        setTimelineState("ready");
+      }
+      const nextHiddenMessages = await repository.listHiddenMessages();
+      setHiddenMessages(nextHiddenMessages);
+      setRoomNotice(
+        action === "hide" ? "Message hidden." : "Message restored.",
+      );
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
   return (
     <StockRadarAppShell
       activeNavigationItem={null}
@@ -424,15 +574,93 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
             aria-label={`${ticker} company discussion`}
             className={styles.chatPanel}
           >
-            <div className={styles.chatHeading}>
+            <div className={styles.chatTop}>
+              <div className={styles.chatHeading}>
               <div>
                 <span>Company discussion</span>
                 <h2>{ticker} Live Room</h2>
               </div>
               <small>
-                Server-persisted messages · updates every few seconds
+                Realtime updates · 45-second polling fallback
                 {roomNotice ? ` · ${roomNotice}` : ""}
               </small>
+              </div>
+              <div className={styles.roomManagement}>
+              <button
+                aria-expanded={blocksOpen}
+                onClick={() => setBlocksOpen((value) => !value)}
+                type="button"
+              >
+                Blocked {blocks.length}
+              </button>
+              {profile.canModerate ? (
+                <button
+                  aria-expanded={moderationOpen}
+                  onClick={() =>
+                    setModerationOpen((value) => !value)
+                  }
+                  type="button"
+                >
+                  Hidden {hiddenMessages.length}
+                </button>
+              ) : null}
+              </div>
+              {blocksOpen ? (
+              <div
+                aria-label="Blocked Live Room authors"
+                className={styles.managementPanel}
+              >
+                {blocks.length ? (
+                  blocks.map((block) => (
+                    <div key={block.id}>
+                      <span aria-hidden="true">{block.emoji}</span>
+                      <strong>{block.displayName}</strong>
+                      <button
+                        disabled={messageActionId === block.id}
+                        onClick={() => void handleUnblock(block.id)}
+                        type="button"
+                      >
+                        Unblock
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p>No blocked authors.</p>
+                )}
+              </div>
+              ) : null}
+              {profile.canModerate && moderationOpen ? (
+              <div
+                aria-label="Hidden Live Room messages"
+                className={styles.managementPanel}
+              >
+                {hiddenMessages.length ? (
+                  hiddenMessages.map((message) => (
+                    <div key={message.id}>
+                      <span aria-hidden="true">
+                        {message.author.emoji}
+                      </span>
+                      <p>
+                        <strong>{message.author.displayName}</strong>
+                        {" · "}
+                        {message.body}
+                      </p>
+                      <button
+                        disabled={messageActionId === message.id}
+                        onClick={() =>
+                          void handleModerate(message.id, "restore")
+                        }
+                        type="button"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p>No hidden messages.</p>
+                )}
+              </div>
+              ) : null}
             </div>
             <div className={styles.timeline}>
               {olderCursor && timelineState === "ready" ? (
@@ -446,8 +674,15 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
                 </button>
               ) : null}
               <ChatTimeline
+                canModerate={profile.canModerate === true}
                 currentProfileName={profile.displayName.trim() || "Guest"}
                 items={timeline}
+                messageActionId={messageActionId}
+                onBlock={handleBlock}
+                onHide={(messageId) =>
+                  handleModerate(messageId, "hide")
+                }
+                onReport={handleReport}
                 onRetry={() => setReloadKey((value) => value + 1)}
                 state={timelineState}
               />

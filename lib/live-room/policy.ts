@@ -1,4 +1,9 @@
-import type { CompanyEventReference, LiveRoomProfile } from "./types.ts";
+import {
+  LIVE_ROOM_REPORT_REASONS,
+  type CompanyEventReference,
+  type LiveRoomProfile,
+  type LiveRoomReportReason,
+} from "./types.ts";
 
 export const LIVE_ROOM_ALLOWED_EMOJIS = [
   "👋",
@@ -63,6 +68,37 @@ export function normalizeLiveRoomTicker(value: unknown) {
     );
   }
   return ticker;
+}
+
+export function normalizeLiveRoomUuid(
+  value: unknown,
+  code = "LIVE_ROOM_INVALID_MESSAGE_ID",
+  message = "The Live Room message ID is invalid.",
+) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      normalized,
+    )
+  ) {
+    throw new LiveRoomPolicyError(code, message);
+  }
+  return normalized;
+}
+
+export function normalizeLiveRoomReportReason(
+  value: unknown,
+): LiveRoomReportReason {
+  if (
+    typeof value !== "string" ||
+    !LIVE_ROOM_REPORT_REASONS.includes(value as LiveRoomReportReason)
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_REPORT_REASON",
+      "Choose spam, harassment, misinformation, or other.",
+    );
+  }
+  return value as LiveRoomReportReason;
 }
 
 export function normalizeLiveRoomProfileInput(value: unknown) {

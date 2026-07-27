@@ -34,10 +34,15 @@ import {
   LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
   LiveRoomPolicyError,
   normalizeLiveRoomProfileInput,
+  normalizeLiveRoomReportReason,
+  normalizeLiveRoomUuid,
   shouldRefreshLiveRoomGuestLastSeen,
   validateLiveRoomEventReference,
 } from "./policy.ts";
-import type { CompanyEvent } from "./types.ts";
+import {
+  LIVE_ROOM_REPORT_REASONS,
+  type CompanyEvent,
+} from "./types.ts";
 
 const events: CompanyEvent[] = [
   {
@@ -535,4 +540,145 @@ test("Live Room hardening migration is encoding-safe and covers actor foreign ke
   assert.match(migration, /live_room_messages_guest_session_idx/i);
   assert.match(migration, /live_room_follows_member_user_idx/i);
   assert.match(migration, /live_room_follows_guest_session_idx/i);
+});
+
+test("report reasons and message IDs are closed allowlists", () => {
+  assert.deepEqual(LIVE_ROOM_REPORT_REASONS, [
+    "spam",
+    "harassment",
+    "misinformation",
+    "other",
+  ]);
+  LIVE_ROOM_REPORT_REASONS.forEach((reason) => {
+    assert.equal(normalizeLiveRoomReportReason(reason), reason);
+  });
+  assert.throws(
+    () => normalizeLiveRoomReportReason("financial_advice"),
+    (error) =>
+      error instanceof LiveRoomPolicyError &&
+      error.code === "LIVE_ROOM_INVALID_REPORT_REASON",
+  );
+  assert.equal(
+    normalizeLiveRoomUuid("11111111-1111-4111-8111-111111111111"),
+    "11111111-1111-4111-8111-111111111111",
+  );
+  assert.throws(() => normalizeLiveRoomUuid("message-from-client"));
+});
+
+test("Realtime uses public metadata-only Broadcast with a change cursor and low-frequency fallback", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
+  assert.ok(migrationName);
+  assert.ok(
+    migrationName > "20260727192326_live_room_foundation_hardening.sql",
+  );
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const transport = readSource("lib/live-room/apiRepository.ts");
+  const page = readSource("app/live/[ticker]/page.tsx");
+  const broadcastFunction =
+    migration.match(
+      /function private\.broadcast_live_room_message_change\(\)[\s\S]+?revoke all privileges/i,
+    )?.[0] || "";
+
+  assert.match(broadcastFunction, /security definer/i);
+  assert.match(broadcastFunction, /set search_path = ''/i);
+  assert.match(broadcastFunction, /realtime\.send\(/i);
+  assert.match(broadcastFunction, /'roomId'[\s\S]+'messageId'[\s\S]+'action'/i);
+  assert.match(broadcastFunction, /'live-room:' \|\| v_ticker[\s\S]+false/i);
+  assert.doesNotMatch(
+    broadcastFunction,
+    /author_display_name|member_user_id|guest_session_id|actor_id|'body'/i,
+  );
+  assert.match(
+    migration,
+    /function private\.broadcast_live_room_message_change\(\)[\s\S]+from public, anon, authenticated/i,
+  );
+  assert.match(transport, /LIVE_ROOM_FALLBACK_POLL_INTERVAL_MS = 45_000/);
+  assert.match(transport, /config: \{ private: false \}/);
+  assert.match(transport, /mode:\s*"changes"/);
+  assert.match(transport, /afterChange/);
+  assert.match(transport, /status === "SUBSCRIBED"/);
+  assert.match(page, /getLiveRoomRealtimeConfig\(\)/);
+  assert.doesNotMatch(transport, /SERVICE_ROLE|service_role/);
+});
+
+test("reports, blocks, and moderator tables stay service-only and RLS default-deny", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const tables = [
+    "live_room_message_reports",
+    "live_room_actor_blocks",
+    "live_room_moderators",
+    "live_room_moderation_actions",
+  ];
+  tables.forEach((table) => {
+    assert.match(
+      migration,
+      new RegExp(
+        `alter table public\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  });
+  assert.match(
+    migration,
+    /reason in \('spam', 'harassment', 'misinformation', 'other'\)/i,
+  );
+  assert.match(
+    migration,
+    /unique \(message_id, reporter_kind, reporter_actor_id\)/i,
+  );
+  assert.match(migration, /reporter_actor_id uuid not null/i);
+  assert.match(migration, /LIVE_ROOM_INVALID_REPORTER/);
+  assert.match(
+    migration,
+    /reporter_guest_session_id uuid[\s\S]{0,120}on delete set null/i,
+  );
+  assert.match(migration, /LIVE_ROOM_CANNOT_BLOCK_SELF/);
+  assert.match(
+    migration,
+    /create table if not exists public\.live_room_moderators/i,
+  );
+  assert.match(migration, /role in \('moderator', 'admin'\)/i);
+  assert.match(migration, /to service_role/i);
+  assert.match(migration, /from public, anon, authenticated/i);
+  assert.doesNotMatch(
+    migration,
+    /auth\.jwt\(\)[\s\S]{0,120}(?:user_metadata|raw_user_meta_data)/i,
+  );
+});
+
+test("message APIs resolve moderation targets server-side and never return actor IDs", () => {
+  const reportsRoute = readSource(
+    "app/api/live-room/[ticker]/reports/route.ts",
+  );
+  const blocksRoute = readSource(
+    "app/api/live-room/[ticker]/blocks/route.ts",
+  );
+  const moderationRoute = readSource(
+    "app/api/live-room/[ticker]/moderation/route.ts",
+  );
+  const repository = readSource("lib/live-room/serverRepository.ts");
+  const timeline = readSource("components/live-room/ChatTimeline.tsx");
+
+  assert.match(reportsRoute, /messageId\?: unknown/);
+  assert.match(reportsRoute, /reason\?: unknown/);
+  assert.match(reportsRoute, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(blocksRoute, /messageId\?: unknown/);
+  assert.doesNotMatch(blocksRoute, /memberUserId|guestSessionId|actorId/);
+  assert.match(moderationRoute, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(repository, /visibility_status:\s*"eq\.visible"/);
+  assert.match(repository, /isLiveRoomModerator\(actor\)/);
+  assert.match(timeline, /canBlock=\{!mine && Boolean\(onBlock\)\}/);
+  assert.match(timeline, />\s*Report\s*</);
+  assert.match(timeline, />\s*Block author\s*</);
+  assert.match(timeline, />\s*Hide\s*</);
 });

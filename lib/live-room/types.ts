@@ -40,6 +40,7 @@ export type CompanyEventSource =
   | "mock-simulation";
 
 export type LiveRoomProfile = {
+  canModerate?: boolean;
   displayName: string;
   emoji: string;
   isGuest: boolean;
@@ -66,6 +67,33 @@ export type LiveRoomSystemUpdate = {
 export type LiveRoomTimelineItem =
   | LiveRoomChatMessage
   | LiveRoomSystemUpdate;
+
+export const LIVE_ROOM_REPORT_REASONS = [
+  "spam",
+  "harassment",
+  "misinformation",
+  "other",
+] as const;
+
+export type LiveRoomReportReason =
+  (typeof LIVE_ROOM_REPORT_REASONS)[number];
+
+export type LiveRoomBlockedActor = {
+  blockedAt: string;
+  displayName: string;
+  emoji: string;
+  id: string;
+};
+
+export type LiveRoomBlockResult = {
+  block: LiveRoomBlockedActor;
+  removedMessageIds: string[];
+};
+
+export type LiveRoomModerationItem = LiveRoomChatMessage & {
+  hiddenAt: string;
+  moderationReason: string;
+};
 
 export type LiveRoomMessageDraft = {
   author: LiveRoomProfile;
