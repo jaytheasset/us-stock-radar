@@ -64,7 +64,7 @@ export function MessageComposer({
       <div className={styles.composerRow}>
         <div className={styles.profileControl}>
           <button
-            aria-label={`Edit Guest profile: ${profile.displayName.trim() || "Guest"}`}
+            aria-label={`Edit Live Room profile: ${profile.displayName.trim() || "Guest"}`}
             aria-expanded={profileOpen}
             aria-haspopup="dialog"
             className={styles.profileButton}
@@ -75,7 +75,8 @@ export function MessageComposer({
             <span>
               <strong>{profile.displayName}</strong>
               <small>
-                Guest · {getPlanDisplayName(profile.plan)}
+                {profile.isGuest ? "Guest" : "Member"} ·{" "}
+                {getPlanDisplayName(profile.plan)}
               </small>
             </span>
             <UserRound aria-hidden="true" size={14} />
@@ -86,7 +87,7 @@ export function MessageComposer({
               className={styles.profilePicker}
               role="dialog"
             >
-              <strong>Guest profile</strong>
+              <strong>Live Room profile</strong>
               <label>
                 Display name
                 <input
@@ -114,7 +115,11 @@ export function MessageComposer({
                   </button>
                 ))}
               </div>
-              <small>Saved only in this browser.</small>
+              <small>
+                {profile.isGuest
+                  ? "Saved to this browser’s secure guest session."
+                  : "Saved to your member profile."}
+              </small>
             </div>
           ) : null}
         </div>
@@ -165,7 +170,7 @@ export function MessageComposer({
         >
           {decision && !decision.allowed
             ? decision.message
-            : "Client-side Mock policy; server enforcement is not active."}
+            : "Server moderation is enforced when you send."}
         </span>
       </div>
     </div>

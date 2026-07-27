@@ -2,34 +2,29 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
+import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import {
   createCompanyRoomKey,
-  createEventReference,
   getCompanyEventsApiHref,
-  resolveCompanyEventSnapshot,
   selectLatestCompanyEvent,
   sortCompanyEvents,
   toCompanyEvent,
 } from "@/lib/live-room/adapters";
 import {
-  createMockCompanyUpdate,
-  getMockCompanyEvents,
-  getMockCompanyIdentity,
-} from "@/lib/live-room/mockData";
-import {
-  BrowserLiveRoomFollowRepository,
-  BrowserLiveRoomProfileRepository,
-  InMemoryLiveRoomMessageRepository,
-} from "@/lib/live-room/mockRepository";
+  LiveRoomApiRepository,
+  toLiveRoomApiError,
+} from "@/lib/live-room/apiRepository";
 import {
   evaluateLiveRoomMessage,
   type ModerationDecision,
+  type ModerationReason,
 } from "@/lib/live-room/moderation";
 import type {
   CompanyEvent,
   CompanyEventReference,
   CompanyEventSource,
   CompanyRoomIdentity,
+  LiveRoomChatMessage,
   LiveRoomProfile,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
@@ -37,7 +32,6 @@ import {
   mapStockOverviewEvents,
   mapStockOverviewProfile,
 } from "@/lib/watchlist/stockOverview";
-import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { ChatTimeline } from "./ChatTimeline";
 import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
@@ -49,7 +43,7 @@ type LiveRoomClientProps = {
   ticker: string;
 };
 
-type MockScenario = "empty" | "error" | "limited" | "loading" | "ready";
+type TimelineState = "empty" | "error" | "loading" | "ready";
 
 const defaultProfile: LiveRoomProfile = {
   displayName: "Guest",
@@ -58,26 +52,18 @@ const defaultProfile: LiveRoomProfile = {
   plan: "free",
 };
 
-const forcedLimitDecision: ModerationDecision = {
-  allowed: false,
-  message:
-    "Sending is paused in this Mock state. Choose Ready to continue.",
-  reason: "rate_limit",
-  retryAfterSeconds: 20,
-};
-
 export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
-  const fallbackCompany = useMemo(
-    () => getMockCompanyIdentity(ticker),
-    [ticker],
-  );
   const roomKey = useMemo(
     () => createCompanyRoomKey({ ticker }),
     [ticker],
   );
+  const repository = useMemo(
+    () => new LiveRoomApiRepository(ticker),
+    [ticker],
+  );
   const [identity, setIdentity] = useState<CompanyRoomIdentity>({
-    companyName: fallbackCompany.name,
-    exchange: fallbackCompany.exchange,
+    companyName: ticker,
+    exchange: "US",
     roomKey,
     ticker,
   });
@@ -85,7 +71,11 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
   const [eventSource, setEventSource] =
     useState<CompanyEventSource>("loading");
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
-  const [scenario, setScenario] = useState<MockScenario>("loading");
+  const [timelineState, setTimelineState] =
+    useState<TimelineState>("loading");
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [body, setBody] = useState("");
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
@@ -93,30 +83,15 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
   const [profile, setProfile] = useState(defaultProfile);
   const [profileOpen, setProfileOpen] = useState(false);
   const [followed, setFollowed] = useState(false);
+  const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [copyState, setCopyState] =
     useState<"copied" | "error" | "idle">("idle");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
-  const updateSequenceRef = useRef(0);
-  const mockSimulationActiveRef = useRef(false);
+  const latestEventIdRef = useRef<string | null>(null);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
-  const messageRepositoryRef =
-    useRef<InMemoryLiveRoomMessageRepository | null>(null);
-  const followRepositoryRef =
-    useRef<BrowserLiveRoomFollowRepository | null>(null);
-  const profileRepositoryRef =
-    useRef<BrowserLiveRoomProfileRepository | null>(null);
-
-  if (!messageRepositoryRef.current) {
-    messageRepositoryRef.current = new InMemoryLiveRoomMessageRepository();
-  }
-  if (!followRepositoryRef.current) {
-    followRepositoryRef.current = new BrowserLiveRoomFollowRepository();
-  }
-  if (!profileRepositoryRef.current) {
-    profileRepositoryRef.current = new BrowserLiveRoomProfileRepository();
-  }
+  const profileSaveTimerRef = useRef<number | null>(null);
 
   const latestEvent = selectLatestCompanyEvent(events);
   const historicalEvents = latestEvent
@@ -124,33 +99,69 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
     : events;
 
   useEffect(() => {
-    const repository = messageRepositoryRef.current;
-    if (!repository) return;
     let active = true;
-    const unsubscribe = repository.subscribe(roomKey, (items) => {
-      if (active) setTimeline(items);
-    });
+    let updates: ReturnType<
+      typeof repository.updates.subscribe
+    > | null = null;
+    setTimeline([]);
+    setTimelineState("loading");
+    setOlderCursor(null);
+    setRoomNotice(null);
 
-    void repository.list(roomKey).then((items) => {
-      if (active) {
-        setTimeline(items);
-        setScenario("ready");
+    void (async () => {
+      try {
+        // Resolve the member/guest profile first. For a new guest this lets the
+        // browser store the server-issued HttpOnly identity cookie before the
+        // room-scoped requests start.
+        const nextProfile = await repository.readProfile();
+        if (!active) return;
+        setProfile(nextProfile);
+
+        const [page, preference] = await Promise.all([
+          repository.list(),
+          repository.readFollow(),
+        ]);
+        if (!active) return;
+        setTimeline(page.items);
+        setOlderCursor(page.nextCursor);
+        setTimelineState(page.items.length ? "ready" : "empty");
+        setFollowed(preference.followed);
+        updates = repository.updates.subscribe({
+          after: page.latestCursor,
+          onMessages: (messages) => {
+            if (!active) return;
+            setTimeline((current) => mergeMessages(current, messages));
+            setTimelineState("ready");
+            setRoomNotice(null);
+          },
+          onError: (error) => {
+            if (active) {
+              setRoomNotice(
+                `${error.message} Automatic retry is still active.`,
+              );
+            }
+          },
+        });
+      } catch (error) {
+        if (!active) return;
+        setRoomNotice(toLiveRoomApiError(error).message);
+        setTimelineState("error");
       }
-    });
+    })();
 
     return () => {
       active = false;
-      unsubscribe();
+      updates?.close();
     };
-  }, [roomKey]);
+  }, [reloadKey, repository]);
 
   useEffect(() => {
-    const followRepository = followRepositoryRef.current;
-    const profileRepository = profileRepositoryRef.current;
-    if (!followRepository || !profileRepository) return;
-    setFollowed(followRepository.read(roomKey).followed);
-    setProfile(profileRepository.read());
-  }, [roomKey]);
+    return () => {
+      if (profileSaveTimerRef.current !== null) {
+        window.clearTimeout(profileSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -163,93 +174,119 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
         if (controller.signal.aborted) return;
         const mappedProfile = mapStockOverviewProfile(
           profilePayload,
-          fallbackCompany.name,
+          ticker,
         );
         setIdentity({
-          companyName: mappedProfile.companyName || fallbackCompany.name,
-          exchange: mappedProfile.exchange || fallbackCompany.exchange,
+          companyName: mappedProfile.companyName || ticker,
+          exchange: mappedProfile.exchange || "US",
           roomKey,
           ticker,
         });
       })
       .catch(() => {
-        // Company identity already has deterministic local fallback metadata.
+        // The ticker remains a deterministic fallback while profile data retries
+        // on the next navigation.
       });
     return () => controller.abort();
-  }, [
-    fallbackCompany.exchange,
-    fallbackCompany.name,
-    roomKey,
-    ticker,
-  ]);
+  }, [roomKey, ticker]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    mockSimulationActiveRef.current = false;
-    setEvents([]);
-    setEventSource("loading");
+    let active = true;
+    let controller: AbortController | null = null;
 
-    void fetch(getCompanyEventsApiHref(ticker), {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(readJsonResponse)
-      .then((eventsPayload) => {
+    const loadEvents = async (initial: boolean) => {
+      controller?.abort();
+      controller = new AbortController();
+      if (initial) {
+        setEvents([]);
+        setEventSource("loading");
+      }
+      try {
+        const eventsPayload = await fetch(
+          getCompanyEventsApiHref(ticker),
+          { cache: "no-store", signal: controller.signal },
+        ).then(readJsonResponse);
+        if (!active || controller.signal.aborted) return;
+        const nextEvents = sortCompanyEvents(
+          mapStockOverviewEvents(eventsPayload)
+            .filter((event) => event.ticker === ticker)
+            .map(toCompanyEvent),
+        );
+        const nextLatestId =
+          selectLatestCompanyEvent(nextEvents)?.eventId || null;
         if (
-          controller.signal.aborted ||
-          mockSimulationActiveRef.current
+          latestEventIdRef.current &&
+          nextLatestId &&
+          nextLatestId !== latestEventIdRef.current
         ) {
-          return;
+          setNewUpdateId(nextLatestId);
         }
-        const mappedEvents = mapStockOverviewEvents(eventsPayload)
-          .filter((event) => event.ticker === ticker)
-          .map(toCompanyEvent);
-        const snapshot = resolveCompanyEventSnapshot({
-          apiEvents: mappedEvents,
-          fallbackEvents: getMockCompanyEvents(ticker),
-          requestSucceeded: true,
-        });
-        setEvents(snapshot.events);
-        setEventSource(snapshot.source);
-      })
-      .catch(() => {
-        if (
-          controller.signal.aborted ||
-          mockSimulationActiveRef.current
-        ) {
-          return;
-        }
-        const snapshot = resolveCompanyEventSnapshot({
-          apiEvents: [],
-          fallbackEvents: getMockCompanyEvents(ticker),
-          requestSucceeded: false,
-        });
-        setEvents(snapshot.events);
-        setEventSource(snapshot.source);
-      });
-    return () => controller.abort();
+        latestEventIdRef.current = nextLatestId;
+        setEvents(nextEvents);
+        setEventSource("api");
+      } catch {
+        if (!active || controller.signal.aborted) return;
+        if (initial) setEvents([]);
+        setEventSource("error");
+      }
+    };
+
+    void loadEvents(true);
+    const timer = window.setInterval(() => {
+      void loadEvents(false);
+    }, 15_000);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.clearInterval(timer);
+    };
   }, [ticker]);
 
   const handleProfileChange = (nextProfile: LiveRoomProfile) => {
     setProfile(nextProfile);
-    profileRepositoryRef.current?.write(nextProfile);
+    setRoomNotice(null);
+    if (profileSaveTimerRef.current !== null) {
+      window.clearTimeout(profileSaveTimerRef.current);
+    }
+    profileSaveTimerRef.current = window.setTimeout(() => {
+      profileSaveTimerRef.current = null;
+      void repository
+        .writeProfile({
+          displayName: nextProfile.displayName,
+          emoji: nextProfile.emoji,
+        })
+        .then((saved) => {
+          setProfile(saved);
+          setRoomNotice(null);
+        })
+        .catch((error) => {
+          setRoomNotice(toLiveRoomApiError(error).message);
+        });
+    }, 500);
   };
 
-  const handleToggleFollow = () => {
-    const nextFollowed = !followed;
+  const handleToggleFollow = async () => {
+    const previous = followed;
+    const nextFollowed = !previous;
     setFollowed(nextFollowed);
-    followRepositoryRef.current?.write({
-      followed: nextFollowed,
-      notificationScope: "company_updates_only",
-      roomKey,
-    });
+    setRoomNotice(null);
+    try {
+      const saved = await repository.writeFollow({
+        followed: nextFollowed,
+        notificationScope: "company_updates_only",
+      });
+      setFollowed(saved.followed);
+    } catch (error) {
+      setFollowed(previous);
+      setRoomNotice(toLiveRoomApiError(error).message);
+    }
   };
 
   const handleCopyInvite = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopyState("copied");
-    } catch (_) {
+    } catch {
       setCopyState("error");
     }
     window.setTimeout(() => setCopyState("idle"), 2_000);
@@ -262,76 +299,71 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
   };
 
   const handleSend = async () => {
-    if (scenario === "limited") {
-      setDecision(forcedLimitDecision);
-      return;
-    }
-
-    const now = new Date().toISOString();
     const currentUserHistory = timeline
       .filter(
-        (item) =>
-          item.kind === "message" &&
-          item.author.isGuest &&
-          item.author.displayName === (profile.displayName.trim() || "Guest"),
+        (item): item is LiveRoomChatMessage =>
+          item.kind === "message" && item.isMine === true,
       )
       .map((item) => ({
-        body: item.kind === "message" ? item.body : "",
+        body: item.body,
         createdAt: item.createdAt,
       }));
-    const nextDecision = evaluateLiveRoomMessage(body, {
+    const clientDecision = evaluateLiveRoomMessage(body, {
       history: currentUserHistory,
-      now,
+      now: new Date().toISOString(),
     });
-    setDecision(nextDecision);
-    if (!nextDecision.allowed) return;
+    setDecision(clientDecision);
+    if (!clientDecision.allowed) return;
 
     setSending(true);
+    setRoomNotice(null);
     try {
-      await messageRepositoryRef.current?.send(roomKey, {
-        author: {
-          ...profile,
-          displayName: profile.displayName.trim() || "Guest",
-        },
-        body: nextDecision.normalizedBody,
-        eventReference: reference,
+      if (profileSaveTimerRef.current !== null) {
+        window.clearTimeout(profileSaveTimerRef.current);
+        profileSaveTimerRef.current = null;
+        const savedProfile = await repository.writeProfile({
+          displayName: profile.displayName,
+          emoji: profile.emoji,
+        });
+        setProfile(savedProfile);
+      }
+      const message = await repository.send({
+        body: clientDecision.normalizedBody,
+        eventId: reference?.eventId || null,
       });
+      setTimeline((current) => mergeMessages(current, [message]));
+      setTimelineState("ready");
       setBody("");
       setReference(null);
       setDecision(null);
       setProfileOpen(false);
+    } catch (error) {
+      const apiError = toLiveRoomApiError(error);
+      setDecision({
+        allowed: false,
+        message: apiError.message,
+        reason: getModerationReason(apiError.code),
+        retryAfterSeconds: apiError.retryAfterSeconds,
+      });
     } finally {
       setSending(false);
     }
   };
 
-  const handleNewUpdate = async () => {
-    updateSequenceRef.current += 1;
-    const update = createMockCompanyUpdate(
-      ticker,
-      updateSequenceRef.current,
-      latestEvent?.occurredAt,
-    );
-    mockSimulationActiveRef.current = true;
-    setEvents((current) => {
-      const mockBaseEvents =
-        eventSource === "api" || eventSource === "loading"
-          ? getMockCompanyEvents(ticker)
-          : current;
-      return sortCompanyEvents([update, ...mockBaseEvents]);
-    });
-    setEventSource("mock-simulation");
-    setNewUpdateId(update.eventId);
-    setScenario("ready");
-    await messageRepositoryRef.current?.publishCompanyUpdate(roomKey, update);
+  const handleLoadOlder = async () => {
+    if (!olderCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const page = await repository.list({ before: olderCursor });
+      setTimeline((current) => mergeMessages(page.items, current));
+      setOlderCursor(page.nextCursor);
+      setRoomNotice(null);
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setLoadingOlder(false);
+    }
   };
-
-  const visibleTimeline =
-    scenario === "empty" ? [] : timeline;
-  const timelineState =
-    scenario === "limited" ? "ready" : scenario;
-  const displayedDecision =
-    scenario === "limited" ? forcedLimitDecision : decision;
 
   return (
     <StockRadarAppShell
@@ -351,8 +383,7 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
 
         {followed ? (
           <p className={styles.followNote}>
-            Guest Follow is saved only in this browser. Account sync and
-            push/email notifications are a later step.
+            Follow is synced to this member or browser guest profile.
           </p>
         ) : null}
 
@@ -374,26 +405,6 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
                 {getEventSourceLabel(eventSource, events.length)}
               </small>
             </div>
-            <div className={styles.mockControls}>
-              <label>
-                Mock states
-                <select
-                  onChange={(event) =>
-                    setScenario(event.target.value as MockScenario)
-                  }
-                  value={scenario}
-                >
-                  <option value="ready">Ready</option>
-                  <option value="loading">Loading</option>
-                  <option value="error">Error</option>
-                  <option value="empty">Empty</option>
-                  <option value="limited">Send limited</option>
-                </select>
-              </label>
-              <button onClick={handleNewUpdate} type="button">
-                New company update
-              </button>
-            </div>
           </div>
           {latestEvent ? (
             <CompanyEventCard event={latestEvent} latest />
@@ -401,7 +412,9 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
             <p className={styles.panelEmpty}>
               {eventSource === "loading"
                 ? "Loading company events…"
-                : "No current company news or filing is available."}
+                : eventSource === "error"
+                  ? "Company events could not be loaded."
+                  : "No current company news or filing is available."}
             </p>
           )}
         </section>
@@ -417,21 +430,32 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
                 <h2>{ticker} Live Room</h2>
               </div>
               <small>
-                Mock messages reset on refresh. No database or realtime API is
-                connected.
+                Server-persisted messages · updates every few seconds
+                {roomNotice ? ` · ${roomNotice}` : ""}
               </small>
             </div>
             <div className={styles.timeline}>
+              {olderCursor && timelineState === "ready" ? (
+                <button
+                  className={styles.loadOlderButton}
+                  disabled={loadingOlder}
+                  onClick={handleLoadOlder}
+                  type="button"
+                >
+                  {loadingOlder ? "Loading…" : "Load older messages"}
+                </button>
+              ) : null}
               <ChatTimeline
                 currentProfileName={profile.displayName.trim() || "Guest"}
-                items={visibleTimeline}
+                items={timeline}
+                onRetry={() => setReloadKey((value) => value + 1)}
                 state={timelineState}
               />
             </div>
             <MessageComposer
               body={body}
-              decision={displayedDecision}
-              disabled={scenario === "error" || scenario === "loading"}
+              decision={decision}
+              disabled={timelineState === "error" || timelineState === "loading"}
               eventReference={reference}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
@@ -477,6 +501,21 @@ export function LiveRoomClient({ ticker }: LiveRoomClientProps) {
   );
 }
 
+function mergeMessages(
+  current: readonly LiveRoomTimelineItem[],
+  incoming: readonly LiveRoomTimelineItem[],
+) {
+  const byId = new Map(
+    current.map((item) => [item.id, item] as const),
+  );
+  incoming.forEach((item) => byId.set(item.id, item));
+  return [...byId.values()].sort(
+    (left, right) =>
+      Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
 async function readJsonResponse(response: Response) {
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json() as Promise<unknown>;
@@ -487,13 +526,17 @@ function getEventSourceLabel(
   eventCount: number,
 ) {
   if (source === "loading") return "Checking the company events API";
-  if (source === "mock-fallback") {
-    return "Development Mock fallback · events API unavailable";
-  }
-  if (source === "mock-simulation") {
-    return "Mock scenario · API events replaced, not combined";
-  }
+  if (source === "error") return "Company events API unavailable";
   return eventCount
     ? "Company events API"
     : "Company events API · no current events";
+}
+
+function getModerationReason(code: string): ModerationReason {
+  if (code.includes("DUPLICATE")) return "duplicate";
+  if (code.includes("RATE_LIMIT")) return "rate_limit";
+  if (code.includes("MAX_LENGTH")) return "max_length";
+  if (code.includes("EXCESSIVE_LINKS")) return "excessive_links";
+  if (code.includes("BLOCKED_WORD")) return "blocked_word";
+  return "empty";
 }
