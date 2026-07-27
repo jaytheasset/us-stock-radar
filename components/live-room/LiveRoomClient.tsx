@@ -41,6 +41,12 @@ import {
   mapStockOverviewEvents,
   mapStockOverviewProfile,
 } from "@/lib/watchlist/stockOverview";
+import {
+  isCurrentLiveRoomTimelineGeneration,
+  mergeLiveRoomTimeline,
+  removeLiveRoomTimelineItems,
+  replaceLiveRoomTimeline,
+} from "@/lib/live-room/timeline";
 import { ChatTimeline } from "./ChatTimeline";
 import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
@@ -55,14 +61,6 @@ type LiveRoomClientProps = {
 };
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
-
-const defaultProfile: LiveRoomProfile = {
-  canModerate: false,
-  displayName: "Guest",
-  emoji: "👋",
-  isGuest: true,
-  plan: "free",
-};
 
 export function LiveRoomClient({
   activityMessageId,
@@ -96,9 +94,9 @@ export function LiveRoomClient({
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
   const [decision, setDecision] = useState<ModerationDecision | null>(null);
-  const [profile, setProfile] = useState(defaultProfile);
+  const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [followed, setFollowed] = useState(false);
+  const [followed, setFollowed] = useState<boolean | null>(null);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
     useState<LiveRoomInviteUiState>("idle");
@@ -122,6 +120,11 @@ export function LiveRoomClient({
   const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
+  const loadedTickerRef = useRef<string | null>(null);
+  const timelineGenerationRef = useRef(0);
+  const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
+    null,
+  );
 
   const latestEvent = selectLatestCompanyEvent(events);
   const historicalEvents = latestEvent
@@ -139,15 +142,31 @@ export function LiveRoomClient({
 
   useEffect(() => {
     let active = true;
+    const generation = timelineGenerationRef.current + 1;
+    timelineGenerationRef.current = generation;
     let updates: ReturnType<
       typeof repository.updates.subscribe
     > | null = null;
-    setTimeline([]);
-    setTimelineState("loading");
-    setOlderCursor(null);
+    const isCurrent = () =>
+      active &&
+      isCurrentLiveRoomTimelineGeneration(
+        timelineGenerationRef.current,
+        generation,
+      );
+    const isNewRoom = loadedTickerRef.current !== ticker;
+    if (isNewRoom) {
+      setTimeline([]);
+      setTimelineState("loading");
+      setOlderCursor(null);
+      setProfile(null);
+      setProfileOpen(false);
+      setFollowed(null);
+    }
     setRoomNotice(null);
-    setBlocks([]);
-    setHiddenMessages([]);
+    if (isNewRoom) {
+      setBlocks([]);
+      setHiddenMessages([]);
+    }
     setHighlightedMessageId(null);
     markedActivityMessageRef.current = null;
 
@@ -157,7 +176,7 @@ export function LiveRoomClient({
         // browser store the server-issued HttpOnly identity cookie before the
         // room-scoped requests start.
         const nextProfile = await repository.readProfile();
-        if (!active) return;
+        if (!isCurrent()) return;
         setProfile(nextProfile);
 
         const [page, preference, nextBlocks, nextHiddenMessages] =
@@ -169,7 +188,7 @@ export function LiveRoomClient({
               ? repository.listHiddenMessages()
               : Promise.resolve([]),
           ]);
-        if (!active) return;
+        if (!isCurrent()) return;
         let initialItems: LiveRoomTimelineItem[] = page.items;
         if (activityMessageId) {
           try {
@@ -180,15 +199,16 @@ export function LiveRoomClient({
                   item.id === activityMessageId,
               ) ||
               (await repository.readMessageAnchor(activityMessageId));
-            if (!active) return;
-            initialItems = mergeMessages(initialItems, [anchor]);
+            if (!isCurrent()) return;
+            initialItems = mergeLiveRoomTimeline(initialItems, [anchor]);
             setHighlightedMessageId(anchor.id);
           } catch (error) {
-            if (!active) return;
+            if (!isCurrent()) return;
             setRoomNotice(toLiveRoomApiError(error).message);
           }
         }
-        setTimeline(initialItems);
+        loadedTickerRef.current = ticker;
+        setTimeline(replaceLiveRoomTimeline(initialItems));
         setOlderCursor(page.nextCursor);
         setTimelineState(initialItems.length ? "ready" : "empty");
         setFollowed(preference.followed);
@@ -207,8 +227,10 @@ export function LiveRoomClient({
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
           onMessages: (messages) => {
-            if (!active) return;
-            setTimeline((current) => mergeMessages(current, messages));
+            if (!isCurrent()) return;
+            setTimeline((current) =>
+              mergeLiveRoomTimeline(current, messages),
+            );
             setTimelineState("ready");
             if (followedRef.current) {
               if (markReadTimerRef.current !== null) {
@@ -226,41 +248,45 @@ export function LiveRoomClient({
             }
           },
           onRemoved: (messageIds) => {
-            if (!active || !messageIds.length) return;
+            if (!isCurrent() || !messageIds.length) return;
             const removed = new Set(messageIds);
             setTimeline((current) => {
-              const next = current.filter((item) => !removed.has(item.id));
+              const next = removeLiveRoomTimelineItems(
+                current,
+                removed,
+              );
               setTimelineState(next.length ? "ready" : "empty");
               return next;
             });
           },
           onSynced: () => {
-            if (!active) return;
+            if (!isCurrent()) return;
             setRoomNotice(null);
 
             if (nextProfile.canModerate) {
               void repository
                 .listHiddenMessages()
                 .then((messages) => {
-                  if (active) setHiddenMessages(messages);
+                  if (isCurrent()) setHiddenMessages(messages);
                 })
                 .catch((error) => {
-                  if (active) {
+                  if (isCurrent()) {
                     setRoomNotice(toLiveRoomApiError(error).message);
                   }
                 });
             }
           },
           onError: (error) => {
-            if (active) {
+            if (isCurrent()) {
               setRoomNotice(
                 `${error.message} Automatic retry is still active.`,
               );
             }
           },
         });
+        updatesSubscriptionRef.current = updates;
       } catch (error) {
-        if (!active) return;
+        if (!isCurrent()) return;
         setRoomNotice(toLiveRoomApiError(error).message);
         setTimelineState("error");
       }
@@ -269,17 +295,20 @@ export function LiveRoomClient({
     return () => {
       active = false;
       updates?.close();
+      if (updatesSubscriptionRef.current === updates) {
+        updatesSubscriptionRef.current = null;
+      }
       if (markReadTimerRef.current !== null) {
         window.clearTimeout(markReadTimerRef.current);
         markReadTimerRef.current = null;
       }
     };
-  }, [activityMessageId, reloadKey, repository]);
+  }, [activityMessageId, reloadKey, repository, ticker]);
 
   useEffect(() => {
     if (
       !highlightedMessageId ||
-      profile.isGuest ||
+      profile?.isGuest !== false ||
       markedActivityMessageRef.current === highlightedMessageId
     ) {
       return;
@@ -332,7 +361,7 @@ export function LiveRoomClient({
     };
   }, [
     highlightedMessageId,
-    profile.isGuest,
+    profile?.isGuest,
     repository,
     timeline,
   ]);
@@ -448,6 +477,7 @@ export function LiveRoomClient({
   };
 
   const handleToggleFollow = async () => {
+    if (followed === null) return;
     const previous = followed;
     const nextFollowed = !previous;
     setFollowed(nextFollowed);
@@ -496,6 +526,7 @@ export function LiveRoomClient({
   };
 
   const handleSend = async () => {
+    if (!profile) return;
     const currentUserHistory = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -528,7 +559,9 @@ export function LiveRoomClient({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
       });
-      setTimeline((current) => mergeMessages(current, [message]));
+      setTimeline((current) =>
+        mergeLiveRoomTimeline(current, [message]),
+      );
       setTimelineState("ready");
       setBody("");
       setReference(null);
@@ -552,7 +585,9 @@ export function LiveRoomClient({
     setLoadingOlder(true);
     try {
       const page = await repository.list({ before: olderCursor });
-      setTimeline((current) => mergeMessages(page.items, current));
+      setTimeline((current) =>
+        mergeLiveRoomTimeline(page.items, current),
+      );
       setOlderCursor(page.nextCursor);
       setRoomNotice(null);
     } catch (error) {
@@ -586,7 +621,7 @@ export function LiveRoomClient({
       const result = await repository.block(messageId);
       const removed = new Set(result.removedMessageIds);
       setTimeline((current) => {
-        const next = current.filter((item) => !removed.has(item.id));
+        const next = removeLiveRoomTimelineItems(current, removed);
         setTimelineState(next.length ? "ready" : "empty");
         return next;
       });
@@ -623,7 +658,7 @@ export function LiveRoomClient({
       );
       const refreshedPage = await repository.list();
       setTimeline((current) =>
-        mergeMessages(current, refreshedPage.items),
+        mergeLiveRoomTimeline(current, refreshedPage.items),
       );
       setRoomNotice(
         result.followed ? "Member followed." : "Member unfollowed.",
@@ -644,10 +679,37 @@ export function LiveRoomClient({
       setBlocks((current) =>
         current.filter((block) => block.id !== blockId),
       );
-      const page = await repository.list();
-      setTimeline((current) => mergeMessages(current, page.items));
-      setTimelineState(page.items.length ? "ready" : "empty");
-      setRoomNotice("Author unblocked.");
+      updatesSubscriptionRef.current?.close();
+      updatesSubscriptionRef.current = null;
+      const refreshGeneration = timelineGenerationRef.current + 1;
+      timelineGenerationRef.current = refreshGeneration;
+      try {
+        const page = await repository.list();
+        if (
+          !isCurrentLiveRoomTimelineGeneration(
+            timelineGenerationRef.current,
+            refreshGeneration,
+          )
+        ) {
+          return;
+        }
+        const refreshedTimeline = replaceLiveRoomTimeline(page.items);
+        setTimeline(refreshedTimeline);
+        setOlderCursor(page.nextCursor);
+        setTimelineState(
+          refreshedTimeline.length ? "ready" : "empty",
+        );
+        setRoomNotice("Author unblocked.");
+      } finally {
+        if (
+          isCurrentLiveRoomTimelineGeneration(
+            timelineGenerationRef.current,
+            refreshGeneration,
+          )
+        ) {
+          setReloadKey((value) => value + 1);
+        }
+      }
     } catch (error) {
       setRoomNotice(toLiveRoomApiError(error).message);
     } finally {
@@ -671,13 +733,18 @@ export function LiveRoomClient({
       );
       if (action === "hide") {
         setTimeline((current) => {
-          const next = current.filter((item) => item.id !== messageId);
+          const next = removeLiveRoomTimelineItems(
+            current,
+            new Set([messageId]),
+          );
           setTimelineState(next.length ? "ready" : "empty");
           return next;
         });
       } else if (result.message) {
         setTimeline((current) =>
-          mergeMessages(current, [result.message as LiveRoomChatMessage]),
+          mergeLiveRoomTimeline(current, [
+            result.message as LiveRoomChatMessage,
+          ]),
         );
         setTimelineState("ready");
       }
@@ -775,7 +842,7 @@ export function LiveRoomClient({
               >
                 Blocked {blocks.length}
               </button>
-              {profile.canModerate ? (
+              {profile?.canModerate ? (
                 <button
                   aria-expanded={moderationOpen}
                   onClick={() =>
@@ -811,7 +878,7 @@ export function LiveRoomClient({
                 )}
               </div>
               ) : null}
-              {profile.canModerate && moderationOpen ? (
+              {profile?.canModerate && moderationOpen ? (
               <div
                 aria-label="Hidden Live Room messages"
                 className={styles.managementPanel}
@@ -856,8 +923,8 @@ export function LiveRoomClient({
                 </button>
               ) : null}
               <ChatTimeline
-                canModerate={profile.canModerate === true}
-                currentProfileName={profile.displayName.trim() || "Guest"}
+                canModerate={profile?.canModerate === true}
+                currentProfileName={profile?.displayName.trim() || ""}
                 highlightedMessageId={highlightedMessageId}
                 items={timeline}
                 messageActionId={messageActionId}
@@ -874,7 +941,11 @@ export function LiveRoomClient({
             <MessageComposer
               body={body}
               decision={decision}
-              disabled={timelineState === "error" || timelineState === "loading"}
+              disabled={
+                profile === null ||
+                timelineState === "error" ||
+                timelineState === "loading"
+              }
               eventReference={reference}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
@@ -917,21 +988,6 @@ export function LiveRoomClient({
         </BottomSheetShell>
       </div>
     </StockRadarAppShell>
-  );
-}
-
-function mergeMessages(
-  current: readonly LiveRoomTimelineItem[],
-  incoming: readonly LiveRoomTimelineItem[],
-) {
-  const byId = new Map(
-    current.map((item) => [item.id, item] as const),
-  );
-  incoming.forEach((item) => byId.set(item.id, item));
-  return [...byId.values()].sort(
-    (left, right) =>
-      Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
-      left.id.localeCompare(right.id),
   );
 }
 
