@@ -147,6 +147,12 @@ export function ChatTimeline({
                 <strong>{item.author.displayName}</strong>
                 <span>{getPlanDisplayName(item.author.plan)}</span>
                 {item.author.isGuest ? <small>Guest</small> : null}
+                {item.isOnline === true && !item.author.isGuest ? (
+                  <span className={styles.onlineIndicator}>
+                    <i aria-hidden="true" />
+                    Online
+                  </span>
+                ) : null}
                 <time dateTime={item.createdAt}>
                   {formatMessageTime(item.createdAt)}
                 </time>

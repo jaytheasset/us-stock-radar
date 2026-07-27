@@ -17,6 +17,7 @@ import {
   isLiveRoomMessageMine,
   LiveRoomPolicyError,
   normalizeLiveRoomProfileInput,
+  normalizeLiveRoomPresenceTicker,
   normalizeLiveRoomReportReason,
   normalizeLiveRoomTicker,
   normalizeLiveRoomUuid,
@@ -33,6 +34,8 @@ import type {
   LiveRoomModerationItem,
   LiveRoomNotificationScope,
   LiveRoomProfile,
+  LiveRoomPresenceSetting,
+  LiveRoomPresenceSummary,
   LiveRoomUnreadSummary,
 } from "./types";
 
@@ -712,6 +715,128 @@ export async function updateLiveRoomProfile(
   return getLiveRoomProfile(actor);
 }
 
+export async function getLiveRoomPresenceSetting(
+  actor: LiveRoomActor,
+): Promise<LiveRoomPresenceSetting> {
+  assertLiveRoomPresenceMember(actor);
+  await getLiveRoomProfile(actor);
+  const result = await supabaseRpc("get_live_room_presence_setting", {
+    p_member_user_id: actor.userId,
+  });
+  if (!result.ok || typeof result.data !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PRESENCE_SETTING_UNAVAILABLE",
+      result.error || "The Live Room presence setting could not be loaded.",
+      result.status || 502,
+    );
+  }
+  return { isAuthenticated: true, showPresence: result.data };
+}
+
+export async function updateLiveRoomPresenceSetting(
+  actor: LiveRoomActor,
+  input: unknown,
+): Promise<LiveRoomPresenceSetting> {
+  assertLiveRoomPresenceMember(actor);
+  const data =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+  if (typeof data.showPresence !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_PRESENCE_SETTING",
+      "Choose whether to show when you are active in Live Rooms.",
+    );
+  }
+  await getLiveRoomProfile(actor);
+  const result = await supabaseRpc("set_live_room_presence_setting", {
+    p_member_user_id: actor.userId,
+    p_show_presence: data.showPresence,
+  });
+  if (!result.ok || typeof result.data !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PRESENCE_SETTING_UPDATE_FAILED",
+      result.error || "The Live Room presence setting could not be saved.",
+      result.status || 502,
+    );
+  }
+  return { isAuthenticated: true, showPresence: result.data };
+}
+
+export async function heartbeatLiveRoomPresence(
+  actor: LiveRoomActor,
+  rawTicker: string,
+) {
+  assertLiveRoomPresenceMember(actor);
+  const ticker = normalizeLiveRoomPresenceTicker(rawTicker);
+  const result = await supabaseRpc(
+    "set_live_room_member_presence_heartbeat",
+    {
+      p_member_user_id: actor.userId,
+      p_ticker: ticker,
+    },
+  );
+  if (!result.ok || typeof result.data !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PRESENCE_HEARTBEAT_FAILED",
+      result.error || "Live Room presence could not be updated.",
+      result.status || 502,
+    );
+  }
+  return { recorded: result.data };
+}
+
+export async function getLiveRoomPresenceSummary({
+  actor,
+  messageIds: rawMessageIds,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  messageIds: unknown;
+  ticker: string;
+}): Promise<LiveRoomPresenceSummary> {
+  assertLiveRoomPresenceMember(actor);
+  const ticker = normalizeLiveRoomPresenceTicker(rawTicker);
+  const messageIds = [
+    ...new Set(
+      (Array.isArray(rawMessageIds) ? rawMessageIds : [])
+        .slice(0, 50)
+        .map((messageId) => normalizeLiveRoomUuid(messageId)),
+    ),
+  ];
+  const result = await supabaseRpc(
+    "get_live_room_member_presence_summary",
+    {
+      p_member_user_id: actor.userId,
+      p_ticker: ticker,
+      p_message_ids: messageIds,
+      p_message_limit: 50,
+    },
+  );
+  const summary = readSingleRow(result.data);
+  if (!result.ok || !summary) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PRESENCE_UNAVAILABLE",
+      result.error || "Live Room presence could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const messages = readRows(summary.messages)
+    .map((row) => ({
+      isOnline: row.isOnline === true || row.is_online === true,
+      messageId: readString(row.messageId ?? row.message_id),
+    }))
+    .filter((message) => isUuid(message.messageId));
+  return {
+    messages,
+    onlineMemberCount: Math.max(
+      0,
+      Number(summary.onlineMemberCount ?? summary.online_member_count) ||
+        0,
+    ),
+  };
+}
+
 export async function getLiveRoomFollow(
   actor: LiveRoomActor,
   rawTicker: string,
@@ -1275,6 +1400,18 @@ async function mapMessageRows(
       messageableUserIds,
     ),
   );
+}
+
+function assertLiveRoomPresenceMember(
+  actor: LiveRoomActor,
+): asserts actor is Extract<LiveRoomActor, { kind: "member" }> {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to use Live Room presence.",
+      401,
+    );
+  }
 }
 
 function mapMessageRow(

@@ -70,6 +70,18 @@ export function normalizeLiveRoomTicker(value: unknown) {
   return ticker;
 }
 
+export function normalizeLiveRoomPresenceTicker(value: unknown) {
+  const ticker = normalizeLiveRoomTicker(value);
+  if (!/^[A-Z0-9][A-Z0-9.-]{0,9}$/.test(ticker)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PRESENCE_INVALID_TICKER",
+      "Presence is unavailable for this company room.",
+      400,
+    );
+  }
+  return ticker;
+}
+
 export function normalizeLiveRoomUuid(
   value: unknown,
   code = "LIVE_ROOM_INVALID_MESSAGE_ID",

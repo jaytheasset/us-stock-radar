@@ -22,11 +22,14 @@ type MessageComposerProps = {
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onProfileChange: (profile: LiveRoomProfile) => void;
+  onPresenceSettingChange: (showPresence: boolean) => void;
   onSend: () => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
+  presenceSettingBusy: boolean;
   sending: boolean;
   setProfileOpen: (open: boolean) => void;
+  showPresence: boolean | null;
 };
 
 export function MessageComposer({
@@ -37,11 +40,14 @@ export function MessageComposer({
   onBodyChange,
   onClearReference,
   onProfileChange,
+  onPresenceSettingChange,
   onSend,
   profile,
   profileOpen,
+  presenceSettingBusy,
   sending,
   setProfileOpen,
+  showPresence,
 }: MessageComposerProps) {
   return (
     <div className={styles.composer}>
@@ -141,6 +147,30 @@ export function MessageComposer({
                   </button>
                 ))}
               </div>
+              {!profile.isGuest && showPresence !== null ? (
+                <div className={styles.presenceSetting}>
+                  <span>
+                    <strong>Show when I&apos;m active in Live Rooms</strong>
+                    <small>
+                      Shows you online only in the company room you are
+                      currently viewing.
+                    </small>
+                  </span>
+                  <button
+                    aria-checked={showPresence}
+                    aria-label="Show when I am active in Live Rooms"
+                    className={styles.presenceSwitch}
+                    disabled={presenceSettingBusy}
+                    onClick={() =>
+                      onPresenceSettingChange(!showPresence)
+                    }
+                    role="switch"
+                    type="button"
+                  >
+                    <span />
+                  </button>
+                </div>
+              ) : null}
               <small>
                 {profile.isGuest
                   ? "Saved to this browser’s secure guest session."

@@ -66,6 +66,21 @@
   font-size: var(--sr-font-size-sm);
 }
 
+.roomIdentity > .onlineCount {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1-5);
+}
+
+.onlineCount > span,
+.onlineIndicator > i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-positive);
+}
+
 .roomActions {
   display: flex;
   flex: 0 0 auto;
@@ -548,6 +563,16 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.otherMessage header > .onlineIndicator,
+.myMessage header > .onlineIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border-color: transparent;
+  padding: 1px 0;
+  color: var(--sr-color-positive);
+}
+
 .messageActions {
   position: relative;
   flex: 0 0 auto;
@@ -909,6 +934,75 @@
 .emojiGrid button[aria-pressed="true"] {
   border-color: var(--sr-color-accent-border);
   background: var(--sr-color-accent-selected);
+}
+
+.presenceSetting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+  padding-top: var(--sr-space-3);
+}
+
+.presenceSetting > span {
+  min-width: 0;
+}
+
+.presenceSetting strong,
+.presenceSetting small {
+  display: block;
+}
+
+.presenceSetting strong {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.presenceSetting small {
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: 10px;
+  line-height: var(--sr-line-height-default);
+}
+
+.presenceSwitch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-pill);
+  padding: 0;
+  background: var(--sr-color-surface-control-strong);
+  cursor: pointer;
+}
+
+.presenceSwitch > span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-text-meta);
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+.presenceSwitch[aria-checked="true"] {
+  border-color: var(--sr-color-accent-border);
+  background: var(--sr-color-accent-selected);
+}
+
+.presenceSwitch[aria-checked="true"] > span {
+  background: var(--sr-color-accent-text);
+  transform: translateX(14px);
+}
+
+.presenceSwitch:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
 }
 
 .messageField {
