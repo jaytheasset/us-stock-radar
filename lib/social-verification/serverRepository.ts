@@ -2,6 +2,11 @@ import "server-only";
 
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import {
+  chunkLiveRoomSocialBadgeMessageIds,
+  mergeLiveRoomSocialBadgeEntries,
+  type LiveRoomSocialBadgeEntry,
+} from "./badgeBatch";
+import {
   normalizePublicRequestId,
   normalizeSocialHandle,
   normalizeSocialPlatform,
@@ -220,31 +225,44 @@ export async function getLiveRoomSocialBadgeMap({
     | { kind: "guest"; guestSessionId: string };
   messageIds: string[];
 }) {
-  const boundedIds = [...new Set(messageIds)].slice(0, 50);
-  if (!boundedIds.length) return new Map<string, LiveRoomSocialBadge[]>();
-  const result = await supabaseRpc("get_live_room_social_badges", {
-    p_actor_kind: actor.kind,
-    p_guest_session_id:
-      actor.kind === "guest" ? actor.guestSessionId : null,
-    p_member_user_id: actor.kind === "member" ? actor.userId : null,
-    p_message_ids: boundedIds,
-  });
-  if (!result.ok) throw repositoryError(result.error, result.status);
-  const map = new Map<string, LiveRoomSocialBadge[]>();
-  for (const row of readRows(result.data)) {
-    const messageId = readString(row.message_id);
-    const platform = readPlatform(row.platform);
-    const profileUrl = readString(row.profile_url);
-    if (!messageId || !platform || !profileUrl) continue;
-    const badges = map.get(messageId) || [];
-    badges.push({
-      label: socialBadgeLabel(platform),
-      platform,
-      profileUrl,
-    });
-    map.set(messageId, badges);
+  const chunks = chunkLiveRoomSocialBadgeMessageIds(messageIds);
+  if (!chunks.length) return new Map<string, LiveRoomSocialBadge[]>();
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabaseRpc("get_live_room_social_badges", {
+        p_actor_kind: actor.kind,
+        p_guest_session_id:
+          actor.kind === "guest" ? actor.guestSessionId : null,
+        p_member_user_id:
+          actor.kind === "member" ? actor.userId : null,
+        p_message_ids: chunk,
+      }),
+    ),
+  );
+  for (const result of results) {
+    if (!result.ok) throw repositoryError(result.error, result.status);
   }
-  return map;
+  const entryBatches = results.map((result) =>
+    readRows(result.data)
+      .map(mapSocialBadgeEntry)
+      .filter(
+        (entry): entry is LiveRoomSocialBadgeEntry => entry !== null,
+      ),
+  );
+  return mergeLiveRoomSocialBadgeEntries(entryBatches);
+}
+
+function mapSocialBadgeEntry(row: DataRow): LiveRoomSocialBadgeEntry | null {
+  const messageId = readString(row.message_id);
+  const platform = readPlatform(row.platform);
+  const profileUrl = readString(row.profile_url);
+  if (!messageId || !platform || !profileUrl) return null;
+  return {
+    label: socialBadgeLabel(platform),
+    messageId,
+    platform,
+    profileUrl,
+  };
 }
 
 async function getOwnedRequestPlatform(

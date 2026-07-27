@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  chunkLiveRoomSocialBadgeMessageIds,
+  mergeLiveRoomSocialBadgeEntries,
+} from "./badgeBatch.ts";
+import {
   normalizeSocialHandle,
   normalizeSocialPlatform,
   normalizeSocialUrl,
@@ -98,6 +102,13 @@ test("social URLs require HTTPS, exact allowlisted hosts, and no credentials", (
       "proof",
     ),
     "https://youtu.be/abc123",
+  );
+  assert.throws(() =>
+    normalizeSocialUrl(
+      "https://youtu.be/abc123",
+      "youtube",
+      "profile",
+    ),
   );
   assert.equal(
     normalizeSocialUrl(
@@ -289,7 +300,46 @@ test("public contracts do not expose member UUID, email, reviewer, or internal i
 });
 
 test("Live Room badge enrichment is bounded, bulk, visible-only, and block-aware", () => {
-  assert.match(repository, /slice\(0, 50\)/);
+  const messageIds = Array.from(
+    { length: 105 },
+    (_, index) => `message-${index + 1}`,
+  );
+  const chunks = chunkLiveRoomSocialBadgeMessageIds([
+    messageIds[0],
+    ...messageIds,
+  ]);
+  assert.deepEqual(chunks.map((chunk) => chunk.length), [50, 50]);
+  assert.equal(chunks[0][0], "message-1");
+  assert.equal(chunks[1][49], "message-100");
+  assert.equal(chunks.flat().includes("message-101"), false);
+
+  const badgeMap = mergeLiveRoomSocialBadgeEntries([
+    [
+      {
+        label: "Verified X",
+        messageId: "message-1",
+        platform: "x",
+        profileUrl: "https://x.com/member",
+      },
+    ],
+    [
+      {
+        label: "Verified YouTube",
+        messageId: "message-100",
+        platform: "youtube",
+        profileUrl: "https://www.youtube.com/@member",
+      },
+    ],
+  ]);
+  assert.equal(badgeMap.get("message-1")?.[0]?.platform, "x");
+  assert.equal(
+    badgeMap.get("message-100")?.[0]?.platform,
+    "youtube",
+  );
+
+  assert.match(repository, /Promise\.all\(/);
+  assert.match(repository, /chunks\.map\(\(chunk\)/);
+  assert.match(repository, /mergeLiveRoomSocialBadgeEntries\(entryBatches\)/);
   assert.match(repository, /supabaseRpc\("get_live_room_social_badges"/);
   assert.equal(
     (liveRoomRepository.match(/getLiveRoomSocialBadgeMap\(/g) || []).length,

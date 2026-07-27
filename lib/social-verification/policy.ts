@@ -3,10 +3,22 @@ import {
   type SocialVerificationPlatform,
 } from "./types.ts";
 
-const allowedHosts: Record<SocialVerificationPlatform, ReadonlySet<string>> = {
-  x: new Set(["x.com", "twitter.com"]),
-  youtube: new Set(["youtube.com", "www.youtube.com", "youtu.be"]),
-  instagram: new Set(["instagram.com", "www.instagram.com"]),
+const allowedHosts: Record<
+  SocialVerificationPlatform,
+  Record<"profile" | "proof", ReadonlySet<string>>
+> = {
+  x: {
+    profile: new Set(["x.com", "twitter.com"]),
+    proof: new Set(["x.com", "twitter.com"]),
+  },
+  youtube: {
+    profile: new Set(["youtube.com", "www.youtube.com"]),
+    proof: new Set(["youtube.com", "www.youtube.com", "youtu.be"]),
+  },
+  instagram: {
+    profile: new Set(["instagram.com", "www.instagram.com"]),
+    proof: new Set(["instagram.com", "www.instagram.com"]),
+  },
 };
 
 const handlePattern = /^[a-z0-9._-]{1,64}$/;
@@ -77,7 +89,7 @@ export function normalizeSocialUrl(
     url.username ||
     url.password ||
     url.port ||
-    !allowedHosts[platform].has(url.hostname.toLowerCase()) ||
+    !allowedHosts[platform][kind].has(url.hostname.toLowerCase()) ||
     url.pathname === "/"
   ) {
     throw invalidUrl(kind);
