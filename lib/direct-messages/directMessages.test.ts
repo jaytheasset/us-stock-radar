@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = read(
-  "supabase/migrations/20260728000000_live_room_mutual_direct_messages.sql",
+  "supabase/migrations/20260727174043_live_room_mutual_direct_messages.sql",
 );
 const serverRepository = read(
   "lib/direct-messages/serverRepository.ts",
