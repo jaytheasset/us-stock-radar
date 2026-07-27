@@ -9,6 +9,7 @@ import {
   supabaseUpsert,
 } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import { getLiveRoomSocialBadgeMap } from "@/lib/social-verification/serverRepository";
 import { evaluateLiveRoomMessage } from "./moderation";
 import {
   createServerOwnedAuthorSnapshot,
@@ -361,7 +362,8 @@ export async function sendLiveRoomMessage({
     );
   }
 
-  return mapMessageRow(row, actor);
+  const [message] = await mapMessageRows([row], actor);
+  return message;
 }
 
 export async function reportLiveRoomMessage({
@@ -591,10 +593,13 @@ export async function moderateLiveRoomMessage({
     );
   }
   const row = readSingleRow(result.data) as MessageRow | null;
+  const restored =
+    action === "restore" && row
+      ? (await mapMessageRows([row], actor))[0] || null
+      : null;
   return {
     action,
-    message:
-      action === "restore" && row ? mapMessageRow(row, actor) : null,
+    message: restored,
     messageId,
   };
 }
@@ -1316,8 +1321,21 @@ async function mapMessageRows(
   rows: MessageRow[],
   actor: LiveRoomActor,
 ) {
+  const socialBadgePromise = getLiveRoomSocialBadgeMap({
+    actor,
+    messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
+  });
   if (actor.kind !== "member") {
-    return rows.map((row) => mapMessageRow(row, actor));
+    const socialBadges = await socialBadgePromise;
+    return rows.map((row) =>
+      mapMessageRow(
+        row,
+        actor,
+        new Set(),
+        new Set(),
+        socialBadges,
+      ),
+    );
   }
 
   const targetUserIds = [
@@ -1333,10 +1351,19 @@ async function mapMessageRows(
     ),
   ];
   if (!targetUserIds.length) {
-    return rows.map((row) => mapMessageRow(row, actor));
+    const socialBadges = await socialBadgePromise;
+    return rows.map((row) =>
+      mapMessageRow(
+        row,
+        actor,
+        new Set(),
+        new Set(),
+        socialBadges,
+      ),
+    );
   }
 
-  const [outgoing, incoming, blocks] = await Promise.all([
+  const [outgoing, incoming, blocks, socialBadges] = await Promise.all([
     supabaseSelect("live_room_member_follows", {
       select: "followed_user_id",
       follower_user_id: `eq.${actor.userId}`,
@@ -1356,6 +1383,7 @@ async function mapMessageRows(
       or: `(and(blocker_member_user_id.eq.${actor.userId},blocked_member_user_id.in.(${targetUserIds.join(",")})),and(blocker_member_user_id.in.(${targetUserIds.join(",")}),blocked_member_user_id.eq.${actor.userId}))`,
       limit: String(targetUserIds.length * 2),
     }),
+    socialBadgePromise,
   ]);
   if (!outgoing.ok || !incoming.ok || !blocks.ok) {
     throw new LiveRoomPolicyError(
@@ -1398,6 +1426,7 @@ async function mapMessageRows(
       actor,
       followedUserIds,
       messageableUserIds,
+      socialBadges,
     ),
   );
 }
@@ -1419,6 +1448,10 @@ function mapMessageRow(
   actor: LiveRoomActor,
   followedUserIds: ReadonlySet<string> = new Set(),
   messageableUserIds: ReadonlySet<string> = new Set(),
+  socialBadgeMap: ReadonlyMap<
+    string,
+    LiveRoomProfile["socialBadges"]
+  > = new Map(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -1443,6 +1476,10 @@ function mapMessageRow(
       emoji: readString(row.author_emoji) || "👋",
       isGuest: row.author_kind === "guest",
       plan: normalizePlan(row.author_plan),
+      socialBadges:
+        row.author_kind === "member"
+          ? socialBadgeMap.get(readString(row.id)) || []
+          : [],
     },
     body: readString(row.body),
     canFollowMember,

@@ -1,4 +1,5 @@
 import type { Plan } from "../subscriptionPolicy.ts";
+import type { LiveRoomSocialBadge } from "../social-verification/types.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -45,6 +46,7 @@ export type LiveRoomProfile = {
   emoji: string;
   isGuest: boolean;
   plan: Plan;
+  socialBadges?: LiveRoomSocialBadge[];
 };
 
 export type LiveRoomChatMessage = {
