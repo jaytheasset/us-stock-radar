@@ -5,6 +5,7 @@ import {
   getLiveRoomHref,
   normalizeLiveRoomTicker,
 } from "@/lib/live-room/adapters";
+import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
 
 type LiveRoomPageProps = {
   params: Promise<{ ticker: string }>;
@@ -37,5 +38,10 @@ export default async function LiveRoomPage({ params }: LiveRoomPageProps) {
     redirect(getLiveRoomHref(ticker) as string);
   }
 
-  return <LiveRoomClient ticker={ticker} />;
+  return (
+    <LiveRoomClient
+      realtimeConfig={getLiveRoomRealtimeConfig()}
+      ticker={ticker}
+    />
+  );
 }

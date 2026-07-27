@@ -1,20 +1,47 @@
-import { MessageCircle, Sparkles } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import {
+  Ban,
+  EyeOff,
+  MessageCircle,
+  MoreHorizontal,
+  ShieldAlert,
+  Sparkles,
+} from "lucide-react";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
-import type { LiveRoomTimelineItem } from "@/lib/live-room/types";
+import {
+  LIVE_ROOM_REPORT_REASONS,
+  type LiveRoomReportReason,
+  type LiveRoomTimelineItem,
+} from "@/lib/live-room/types";
 import { formatEventTime } from "./CompanyEventCard";
 import styles from "./LiveRoom.module.css";
 
 type ChatTimelineProps = {
+  canModerate?: boolean;
   currentProfileName: string;
   items: readonly LiveRoomTimelineItem[];
+  messageActionId?: string | null;
+  onBlock?: (messageId: string) => Promise<void>;
+  onHide?: (messageId: string) => Promise<void>;
+  onReport?: (
+    messageId: string,
+    reason: LiveRoomReportReason,
+  ) => Promise<void>;
   onRetry?: () => void;
   state: "empty" | "error" | "loading" | "ready";
 };
 
 export function ChatTimeline({
+  canModerate = false,
   currentProfileName,
   items,
+  messageActionId,
+  onBlock,
+  onHide,
+  onReport,
   onRetry,
   state,
 }: ChatTimelineProps) {
@@ -107,6 +134,15 @@ export function ChatTimeline({
                 <time dateTime={item.createdAt}>
                   {formatMessageTime(item.createdAt)}
                 </time>
+                <MessageActions
+                  busy={messageActionId === item.id}
+                  canBlock={!mine && Boolean(onBlock)}
+                  canHide={canModerate && Boolean(onHide)}
+                  messageId={item.id}
+                  onBlock={onBlock}
+                  onHide={onHide}
+                  onReport={onReport}
+                />
               </header>
               {item.eventReference ? (
                 <div className={styles.messageReference}>
@@ -123,6 +159,121 @@ export function ChatTimeline({
       })}
     </ol>
   );
+}
+
+function MessageActions({
+  busy,
+  canBlock,
+  canHide,
+  messageId,
+  onBlock,
+  onHide,
+  onReport,
+}: {
+  busy: boolean;
+  canBlock: boolean;
+  canHide: boolean;
+  messageId: string;
+  onBlock?: (messageId: string) => Promise<void>;
+  onHide?: (messageId: string) => Promise<void>;
+  onReport?: (
+    messageId: string,
+    reason: LiveRoomReportReason,
+  ) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const run = async (action: () => Promise<void>) => {
+    try {
+      await action();
+      setOpen(false);
+      setReportOpen(false);
+    } catch {
+      // The room-level notice presents the server-owned error message.
+    }
+  };
+
+  return (
+    <div className={styles.messageActions}>
+      <button
+        aria-expanded={open}
+        aria-label="Message actions"
+        className={styles.messageActionsTrigger}
+        disabled={busy}
+        onClick={() => {
+          setOpen((value) => !value);
+          setReportOpen(false);
+        }}
+        type="button"
+      >
+        <MoreHorizontal aria-hidden="true" size={16} />
+      </button>
+      {open ? (
+        <div className={styles.messageActionsMenu} role="menu">
+          {onReport ? (
+            <>
+              <button
+                aria-expanded={reportOpen}
+                onClick={() => setReportOpen((value) => !value)}
+                role="menuitem"
+                type="button"
+              >
+                <ShieldAlert aria-hidden="true" size={14} />
+                Report
+              </button>
+              {reportOpen ? (
+                <div
+                  aria-label="Report reason"
+                  className={styles.reportReasons}
+                >
+                  {LIVE_ROOM_REPORT_REASONS.map((reason) => (
+                    <button
+                      disabled={busy}
+                      key={reason}
+                      onClick={() =>
+                        void run(() => onReport(messageId, reason))
+                      }
+                      type="button"
+                    >
+                      {formatReportReason(reason)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {canBlock && onBlock ? (
+            <button
+              disabled={busy}
+              onClick={() => void run(() => onBlock(messageId))}
+              role="menuitem"
+              type="button"
+            >
+              <Ban aria-hidden="true" size={14} />
+              Block author
+            </button>
+          ) : null}
+          {canHide && onHide ? (
+            <button
+              disabled={busy}
+              onClick={() => void run(() => onHide(messageId))}
+              role="menuitem"
+              type="button"
+            >
+              <EyeOff aria-hidden="true" size={14} />
+              Hide
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function formatReportReason(reason: LiveRoomReportReason) {
+  if (reason === "misinformation") return "Misinformation";
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
 }
 
 function formatMessageTime(value: string) {

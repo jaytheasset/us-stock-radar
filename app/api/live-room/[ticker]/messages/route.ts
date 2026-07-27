@@ -9,6 +9,7 @@ import {
   resolveLiveRoomActor,
 } from "@/lib/live-room/serverActor";
 import {
+  getLiveRoomMessageChanges,
   getLiveRoomMessagePage,
   sendLiveRoomMessage,
 } from "@/lib/live-room/serverRepository";
@@ -29,18 +30,32 @@ export async function GET(
   try {
     const { ticker } = await context.params;
     resolution = await resolveLiveRoomActor(request);
-    const page = await getLiveRoomMessagePage({
-      actor: resolution.actor,
-      ticker,
-      after: request.nextUrl.searchParams.get("after"),
-      before: request.nextUrl.searchParams.get("before"),
-      limit: Number(request.nextUrl.searchParams.get("limit") || 50),
-    });
+    const changesMode =
+      request.nextUrl.searchParams.get("mode") === "changes";
+    const page = changesMode
+      ? await getLiveRoomMessageChanges({
+          actor: resolution.actor,
+          ticker,
+          afterChange:
+            request.nextUrl.searchParams.get("changesAfter"),
+          limit: Number(
+            request.nextUrl.searchParams.get("limit") || 100,
+          ),
+        })
+      : await getLiveRoomMessagePage({
+          actor: resolution.actor,
+          ticker,
+          after: request.nextUrl.searchParams.get("after"),
+          before: request.nextUrl.searchParams.get("before"),
+          limit: Number(
+            request.nextUrl.searchParams.get("limit") || 50,
+          ),
+        });
     const response = NextResponse.json(
       {
         ok: true,
         data: page,
-        transport: "polling",
+        transport: "realtime-broadcast-with-polling-fallback",
       },
       { headers: LIVE_ROOM_PRIVATE_HEADERS },
     );

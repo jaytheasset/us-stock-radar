@@ -354,6 +354,65 @@
   text-align: right;
 }
 
+.chatTop {
+  min-width: 0;
+}
+
+.roomManagement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+  padding: 0 0 var(--sr-space-3);
+}
+
+.roomManagement button,
+.managementPanel button {
+  min-height: 30px;
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-2-5);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  cursor: pointer;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.managementPanel {
+  display: grid;
+  max-height: 180px;
+  overflow-y: auto;
+  gap: var(--sr-space-2);
+  margin-bottom: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2);
+  background: var(--sr-color-surface-elevated);
+}
+
+.managementPanel > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+}
+
+.managementPanel p {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.managementPanel button:disabled,
+.roomManagement button:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
 .timeline {
   min-height: 0;
   overflow-y: auto;
@@ -451,6 +510,78 @@
   color: var(--sr-color-text-meta);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
+}
+
+.messageActions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.messageActionsTrigger {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-meta);
+  background: transparent;
+  cursor: pointer;
+}
+
+.messageActionsTrigger:hover,
+.messageActionsTrigger[aria-expanded="true"] {
+  color: var(--sr-color-text-strong);
+  background: var(--sr-color-surface-control);
+}
+
+.messageActionsMenu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + var(--sr-space-1));
+  right: 0;
+  display: grid;
+  width: 168px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-1);
+  background: var(--sr-color-surface-elevated);
+  box-shadow: var(--sr-shadow-menu);
+}
+
+.messageActionsMenu > button,
+.reportReasons button {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border: 0;
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--sr-font-size-xs);
+  text-align: left;
+}
+
+.messageActionsMenu button:hover {
+  color: var(--sr-color-text-strong);
+  background: var(--sr-color-surface-control);
+}
+
+.messageActionsMenu button:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.reportReasons {
+  display: grid;
+  margin: var(--sr-space-1) 0;
+  border-left: var(--sr-border-width-strong) solid
+    var(--sr-color-accent-border);
+  padding-left: var(--sr-space-1);
 }
 
 .otherMessage article > p,
@@ -881,6 +1012,9 @@
 .mockControls select:focus-visible,
 .historyEventCard button:focus-visible,
 .historyEventCard a:focus-visible,
+.roomManagement button:focus-visible,
+.managementPanel button:focus-visible,
+.messageActions button:focus-visible,
 .composer button:focus-visible,
 .composer textarea:focus-visible,
 .composer input:focus-visible {
