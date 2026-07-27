@@ -19,6 +19,12 @@ import {
   LiveRoomApiRepository,
   readLiveRoomUnreadSummary,
 } from "@/lib/live-room/apiRepository";
+import {
+  DIRECT_MESSAGE_POLL_INTERVAL_MS,
+  DIRECT_MESSAGE_REFRESH_EVENT,
+  DirectMessageApiRepository,
+} from "@/lib/direct-messages/apiRepository";
+import type { DirectMessageInbox } from "@/lib/direct-messages/types";
 import type {
   LiveRoomFollowedMember,
   LiveRoomMemberActivity,
@@ -37,12 +43,20 @@ const emptySummary: LiveRoomUnreadSummary = {
   totalUnreadCount: 0,
 };
 
-type InboxTab = "people" | "rooms";
+const emptyDirectInbox: DirectMessageInbox = {
+  conversations: [],
+  isAuthenticated: false,
+  totalUnreadCount: 0,
+};
+
+type InboxTab = "messages" | "people" | "rooms";
 
 export function LiveRoomUnreadMenu() {
   const pathname = usePathname();
   const [summary, setSummary] =
     useState<LiveRoomUnreadSummary>(emptySummary);
+  const [directInbox, setDirectInbox] =
+    useState<DirectMessageInbox>(emptyDirectInbox);
   const [activeTab, setActiveTab] = useState<InboxTab>("rooms");
   const [open, setOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(
@@ -53,8 +67,14 @@ export function LiveRoomUnreadMenu() {
   );
   const [state, setState] =
     useState<"error" | "loading" | "ready">("loading");
+  const [directState, setDirectState] =
+    useState<"error" | "loading" | "ready">("loading");
   const containerRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
+  const directRequestIdRef = useRef(0);
+  const [directRepository] = useState(
+    () => new DirectMessageApiRepository(),
+  );
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -67,6 +87,20 @@ export function LiveRoomUnreadMenu() {
       if (requestId === requestIdRef.current) setState("error");
     }
   }, []);
+
+  const refreshDirectInbox = useCallback(async () => {
+    const requestId = ++directRequestIdRef.current;
+    try {
+      const nextInbox = await directRepository.inbox();
+      if (requestId !== directRequestIdRef.current) return;
+      setDirectInbox(nextInbox);
+      setDirectState("ready");
+    } catch {
+      if (requestId === directRequestIdRef.current) {
+        setDirectState("error");
+      }
+    }
+  }, [directRepository]);
 
   useEffect(() => {
     void refresh();
@@ -102,6 +136,49 @@ export function LiveRoomUnreadMenu() {
       );
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!summary.isAuthenticated) {
+      directRequestIdRef.current += 1;
+      setDirectInbox(emptyDirectInbox);
+      setDirectState("ready");
+      return;
+    }
+
+    void refreshDirectInbox();
+    const handleFocus = () => void refreshDirectInbox();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refreshDirectInbox();
+      }
+    };
+    const handleRequestedRefresh = () => void refreshDirectInbox();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshDirectInbox();
+      }
+    }, DIRECT_MESSAGE_POLL_INTERVAL_MS);
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener(
+      DIRECT_MESSAGE_REFRESH_EVENT,
+      handleRequestedRefresh,
+    );
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      directRequestIdRef.current += 1;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(
+        DIRECT_MESSAGE_REFRESH_EVENT,
+        handleRequestedRefresh,
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility,
+      );
+    };
+  }, [refreshDirectInbox, summary.isAuthenticated]);
 
   useEffect(() => {
     if (!open) return;
@@ -145,7 +222,8 @@ export function LiveRoomUnreadMenu() {
     }
   };
 
-  const total = summary.totalUnreadCount;
+  const total =
+    summary.totalUnreadCount + directInbox.totalUnreadCount;
   const countLabel = total > 99 ? "99+" : String(total);
   const roomsUnreadCount = summary.rooms.reduce(
     (count, room) => count + room.unreadCount,
@@ -167,6 +245,9 @@ export function LiveRoomUnreadMenu() {
           setOpen((value) => !value);
           setOpenActionId(null);
           if (!open) void refresh();
+          if (!open && summary.isAuthenticated) {
+            void refreshDirectInbox();
+          }
         }}
       >
         <MessageSquareText aria-hidden="true" size={18} />
@@ -193,7 +274,7 @@ export function LiveRoomUnreadMenu() {
                 {total ? `${total} unread chats` : "All caught up"}
               </strong>
             </div>
-            <small>Rooms + People</small>
+            <small>Rooms + People + Messages</small>
           </div>
 
           <div
@@ -229,6 +310,23 @@ export function LiveRoomUnreadMenu() {
                 </b>
               ) : null}
             </button>
+            <button
+              aria-controls="live-room-inbox-panel"
+              aria-selected={activeTab === "messages"}
+              id="live-room-inbox-tab-messages"
+              onClick={() => setActiveTab("messages")}
+              role="tab"
+              type="button"
+            >
+              Messages
+              {directInbox.totalUnreadCount ? (
+                <b>
+                  {formatUnreadCount(
+                    directInbox.totalUnreadCount,
+                  )}
+                </b>
+              ) : null}
+            </button>
           </div>
 
           <div
@@ -247,7 +345,7 @@ export function LiveRoomUnreadMenu() {
                 onNavigate={() => setOpen(false)}
                 summary={summary}
               />
-            ) : (
+            ) : activeTab === "people" ? (
               <PeoplePanel
                 busyActionId={busyActionId}
                 error={state === "error"}
@@ -262,10 +360,116 @@ export function LiveRoomUnreadMenu() {
                 pathname={pathname}
                 summary={summary}
               />
+            ) : (
+              <MessagesPanel
+                error={directState === "error"}
+                inbox={directInbox}
+                loading={directState === "loading"}
+                onNavigate={() => setOpen(false)}
+                pathname={pathname}
+                signedIn={summary.isAuthenticated}
+              />
             )}
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function MessagesPanel({
+  error,
+  inbox,
+  loading,
+  onNavigate,
+  pathname,
+  signedIn,
+}: {
+  error: boolean;
+  inbox: DirectMessageInbox;
+  loading: boolean;
+  onNavigate: () => void;
+  pathname: string;
+  signedIn: boolean;
+}) {
+  if (!signedIn) {
+    return (
+      <div className={styles.liveRoomInboxState}>
+        <span>Sign in to message members you follow mutually.</span>
+        <Link
+          className={styles.liveRoomInboxSignIn}
+          href={`/login?next=${encodeURIComponent(pathname || "/")}`}
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <p className={styles.liveRoomInboxState}>
+        Loading member messages…
+      </p>
+    );
+  }
+  if (error) {
+    return (
+      <p className={styles.liveRoomInboxState}>
+        Member messages could not be refreshed.
+      </p>
+    );
+  }
+  if (!inbox.conversations.length) {
+    return (
+      <p className={styles.liveRoomInboxState}>
+        Mutually follow a member, then open their message menu to start
+        a conversation.
+      </p>
+    );
+  }
+  return (
+    <div className={styles.liveRoomPeopleList}>
+      {inbox.conversations.map((conversation) => (
+        <div
+          className={styles.liveRoomPeopleItem}
+          key={conversation.conversationId}
+        >
+          <Link
+            href={`/messages/${encodeURIComponent(
+              conversation.conversationId,
+            )}`}
+            onClick={onNavigate}
+          >
+            <span
+              aria-hidden="true"
+              className={styles.liveRoomPeopleEmoji}
+            >
+              {conversation.peer.emoji}
+            </span>
+            <span className={styles.liveRoomPeopleCopy}>
+              <span>
+                <strong>{conversation.peer.displayName}</strong>
+                {conversation.latestCreatedAt ? (
+                  <time dateTime={conversation.latestCreatedAt}>
+                    {formatActivityTime(
+                      conversation.latestCreatedAt,
+                    )}
+                  </time>
+                ) : null}
+              </span>
+              <small>
+                {conversation.latestBodyPreview ||
+                  "Conversation ready"}
+              </small>
+            </span>
+            {conversation.unreadCount ? (
+              <b>
+                {formatUnreadCount(conversation.unreadCount)}
+              </b>
+            ) : null}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }

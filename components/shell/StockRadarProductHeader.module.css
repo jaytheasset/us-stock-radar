@@ -476,7 +476,7 @@
 
 .liveRoomInboxTabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid
     var(--sr-color-border-product-menu);
@@ -599,6 +599,21 @@
   padding: var(--sr-space-2-5) var(--sr-space-2);
   color: var(--sr-color-text-product-menu);
   text-decoration: none;
+}
+
+.liveRoomPeopleItem > a > b {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-product-brand);
+  background: var(--sr-color-product-accent-menu);
+  font-family: var(--sr-font-family-mono);
+  font-size: 10px;
 }
 
 .liveRoomPeopleItem > a:focus-visible,
