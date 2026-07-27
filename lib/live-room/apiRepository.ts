@@ -8,12 +8,17 @@ import type {
   LiveRoomBlockResult,
   LiveRoomChatMessage,
   LiveRoomFollowPreference,
+  LiveRoomMemberFollowResult,
   LiveRoomModerationItem,
   LiveRoomProfile,
   LiveRoomReportReason,
+  LiveRoomUnreadSummary,
 } from "./types";
 
 export const LIVE_ROOM_FALLBACK_POLL_INTERVAL_MS = 45_000;
+export const LIVE_ROOM_UNREAD_POLL_INTERVAL_MS = 60_000;
+export const LIVE_ROOM_UNREAD_REFRESH_EVENT =
+  "stock-radar:live-room-unread-refresh";
 export const LIVE_ROOM_SIGNAL_DEBOUNCE_MS = 750;
 
 export type LiveRoomRealtimeConfig = {
@@ -188,6 +193,29 @@ export class LiveRoomApiRepository {
     );
   }
 
+  markRead(messageId: string | null) {
+    return requestJson<{ markedRead: boolean }>(
+      `${this.roomApiPath()}/read`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ messageId }),
+      },
+    );
+  }
+
+  writeMemberFollow(input: {
+    followed: boolean;
+    messageId: string;
+  }) {
+    return requestJson<LiveRoomMemberFollowResult>(
+      `${this.roomApiPath()}/member-follow`,
+      {
+        method: "PUT",
+        body: JSON.stringify(input),
+      },
+    );
+  }
+
   readProfile() {
     return requestJson<LiveRoomProfile>("/api/live-room/profile");
   }
@@ -201,6 +229,16 @@ export class LiveRoomApiRepository {
 
   private roomApiPath() {
     return `/api/live-room/${encodeURIComponent(this.ticker)}`;
+  }
+}
+
+export function readLiveRoomUnreadSummary() {
+  return requestJson<LiveRoomUnreadSummary>("/api/live-room/unread");
+}
+
+export function requestLiveRoomUnreadRefresh() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(LIVE_ROOM_UNREAD_REFRESH_EVENT));
   }
 }
 

@@ -29,9 +29,11 @@ import type {
   LiveRoomBlockResult,
   LiveRoomChatMessage,
   LiveRoomFollowPreference,
+  LiveRoomMemberFollowResult,
   LiveRoomModerationItem,
   LiveRoomNotificationScope,
   LiveRoomProfile,
+  LiveRoomUnreadSummary,
 } from "./types";
 
 const defaultPageSize = 50;
@@ -153,9 +155,7 @@ export async function getLiveRoomMessagePage({
   const hasMore = fetchedRows.length > pageSize;
   const pageRows = fetchedRows.slice(0, pageSize);
   const chronologicalRows = ascending ? pageRows : [...pageRows].reverse();
-  const items = chronologicalRows.map((row) =>
-    mapMessageRow(row, actor),
-  );
+  const items = await mapMessageRows(chronologicalRows, actor);
   const oldest = chronologicalRows[0];
   const latest = chronologicalRows[chronologicalRows.length - 1];
 
@@ -216,7 +216,7 @@ export async function getLiveRoomMessageChanges({
   const hasMore = fetchedRows.length > pageSize;
   const pageRows = fetchedRows.slice(0, pageSize);
   const blocked = new Set(blockedActorIds);
-  const upserts: LiveRoomChatMessage[] = [];
+  const upsertRows: MessageRow[] = [];
   const removedIds: string[] = [];
 
   pageRows.forEach((row) => {
@@ -226,13 +226,14 @@ export async function getLiveRoomMessageChanges({
       row.visibility_status === "visible" &&
       (!actorId || !blocked.has(actorId))
     ) {
-      upserts.push(mapMessageRow(row, actor));
+      upsertRows.push(row);
     } else if (id) {
       removedIds.push(id);
     }
   });
 
   const latest = pageRows[pageRows.length - 1];
+  const upserts = await mapMessageRows(upsertRows, actor);
   return {
     hasMore,
     latestChangeCursor: latest
@@ -722,22 +723,14 @@ export async function updateLiveRoomFollow(
       email: actor.email,
     });
   }
-  const result = await supabaseUpsert(
-    "live_room_follows",
-    {
-      room_id: room.id,
-      actor_kind: actor.kind,
-      member_user_id: actor.kind === "member" ? actor.userId : null,
-      guest_session_id:
-        actor.kind === "guest" ? actor.guestSessionId : null,
-      followed: data.followed,
-      notification_scope: notificationScope,
-    },
-    {
-      onConflict: "room_id,actor_kind,actor_id",
-      prefer: "resolution=merge-duplicates,return=representation",
-    },
-  );
+  const result = await supabaseRpc("set_live_room_chat_follow", {
+    p_room_id: room.id,
+    p_actor_kind: actor.kind,
+    p_member_user_id: actor.kind === "member" ? actor.userId : null,
+    p_guest_session_id:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+    p_followed: data.followed,
+  });
 
   if (!result.ok) {
     throw new LiveRoomPolicyError(
@@ -752,6 +745,146 @@ export async function updateLiveRoomFollow(
     notificationScope,
     roomKey: { kind: "ticker_fallback" as const, value: ticker },
   };
+}
+
+export async function markLiveRoomRead(
+  actor: LiveRoomActor,
+  rawTicker: string,
+  rawMessageId: unknown,
+) {
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const messageId =
+    rawMessageId === null || rawMessageId === undefined
+      ? null
+      : normalizeLiveRoomUuid(rawMessageId);
+  const result = await supabaseRpc("mark_live_room_follow_read", {
+    p_room_id: room.id,
+    p_actor_kind: actor.kind,
+    p_member_user_id: actor.kind === "member" ? actor.userId : null,
+    p_guest_session_id:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+    p_message_id: messageId,
+  });
+  if (!result.ok) {
+    throw mapLiveRoomActionError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_MARK_READ_FAILED",
+      "The Live Room could not be marked as read.",
+    );
+  }
+  return { markedRead: result.data === true };
+}
+
+export async function getLiveRoomUnreadSummary(
+  actor: LiveRoomActor,
+): Promise<LiveRoomUnreadSummary> {
+  const result = await supabaseRpc("get_live_room_unread_summary", {
+    p_actor_kind: actor.kind,
+    p_member_user_id: actor.kind === "member" ? actor.userId : null,
+    p_guest_session_id:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_UNREAD_UNAVAILABLE",
+      result.error || "Live Room unread messages could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const rooms = readRows(result.data).map((row) => ({
+    ticker: normalizeLiveRoomTicker(readString(row.room_ticker)),
+    unreadCount: Math.max(0, Number(row.unread_count) || 0),
+  }));
+  return {
+    rooms,
+    totalUnreadCount: rooms.reduce(
+      (total, room) => total + room.unreadCount,
+      0,
+    ),
+  };
+}
+
+export async function updateLiveRoomMemberFollow({
+  actor,
+  followed,
+  messageId: rawMessageId,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  followed: unknown;
+  messageId: unknown;
+  ticker: string;
+}): Promise<LiveRoomMemberFollowResult> {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to follow members.",
+      401,
+    );
+  }
+  if (typeof followed !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_MEMBER_FOLLOW",
+      "Member follow status must be true or false.",
+    );
+  }
+  const ticker = normalizeLiveRoomTicker(rawTicker);
+  const room = await getOrCreateLiveRoom(ticker);
+  const messageId = normalizeLiveRoomUuid(rawMessageId);
+  await ensureMemberBootstrap(actor);
+  const targetResult = await supabaseSelect("live_room_messages", {
+    select: "member_user_id,author_kind",
+    id: `eq.${messageId}`,
+    room_id: `eq.${room.id}`,
+    visibility_status: "eq.visible",
+    limit: "1",
+  });
+  const target = readSingleRow(targetResult.data);
+  const targetUserId =
+    target?.author_kind === "member"
+      ? readString(target.member_user_id)
+      : "";
+  if (!targetResult.ok || !targetUserId) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_NOT_FOLLOWABLE",
+      "Only registered members can be followed.",
+      400,
+    );
+  }
+  if (targetUserId === actor.userId) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_CANNOT_FOLLOW_SELF",
+      "You cannot follow yourself.",
+      400,
+    );
+  }
+
+  const result = followed
+    ? await supabaseUpsert(
+        "live_room_member_follows",
+        {
+          follower_user_id: actor.userId,
+          followed_user_id: targetUserId,
+        },
+        {
+          onConflict: "follower_user_id,followed_user_id",
+          prefer: "resolution=ignore-duplicates,return=minimal",
+        },
+      )
+    : await supabaseDelete("live_room_member_follows", {
+        follower_user_id: `eq.${actor.userId}`,
+        followed_user_id: `eq.${targetUserId}`,
+      });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_FOLLOW_UPDATE_FAILED",
+      result.error || "Member follow status could not be saved.",
+      result.status || 502,
+    );
+  }
+  return { followed, messageId };
 }
 
 async function getLatestRoomChangeCursor(roomId: string) {
@@ -953,9 +1086,57 @@ async function getValidatedEventReference(
   });
 }
 
+async function mapMessageRows(
+  rows: MessageRow[],
+  actor: LiveRoomActor,
+) {
+  if (actor.kind !== "member") {
+    return rows.map((row) => mapMessageRow(row, actor));
+  }
+
+  const targetUserIds = [
+    ...new Set(
+      rows
+        .filter(
+          (row) =>
+            row.author_kind === "member" &&
+            readString(row.member_user_id) !== actor.userId,
+        )
+        .map((row) => readString(row.member_user_id))
+        .filter(Boolean),
+    ),
+  ];
+  if (!targetUserIds.length) {
+    return rows.map((row) => mapMessageRow(row, actor));
+  }
+
+  const result = await supabaseSelect("live_room_member_follows", {
+    select: "followed_user_id",
+    follower_user_id: `eq.${actor.userId}`,
+    followed_user_id: `in.(${targetUserIds.join(",")})`,
+    limit: String(targetUserIds.length),
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_FOLLOW_STATE_UNAVAILABLE",
+      result.error || "Member follow state could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const followedUserIds = new Set(
+    readRows(result.data)
+      .map((row) => readString(row.followed_user_id))
+      .filter(Boolean),
+  );
+  return rows.map((row) =>
+    mapMessageRow(row, actor, followedUserIds),
+  );
+}
+
 function mapMessageRow(
   row: MessageRow,
   actor: LiveRoomActor,
+  followedUserIds: ReadonlySet<string> = new Set(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -967,6 +1148,13 @@ function mapMessageRow(
       ? { eventId, kind: eventKind, title: eventTitle }
       : null;
 
+  const memberUserId = readString(row.member_user_id);
+  const canFollowMember =
+    actor.kind === "member" &&
+    row.author_kind === "member" &&
+    Boolean(memberUserId) &&
+    memberUserId !== actor.userId;
+
   return {
     author: {
       displayName: readString(row.author_display_name) || "Member",
@@ -975,9 +1163,12 @@ function mapMessageRow(
       plan: normalizePlan(row.author_plan),
     },
     body: readString(row.body),
+    canFollowMember,
     createdAt: readString(row.created_at),
     eventReference,
     id: readString(row.id),
+    isMemberFollowed:
+      canFollowMember && followedUserIds.has(memberUserId),
     isMine: isLiveRoomMessageMine(row, actor),
     kind: "message",
   };
@@ -1163,9 +1354,7 @@ function normalizePlan(value: unknown): Plan {
 }
 
 function normalizeNotificationScope(
-  value: unknown,
+  _value: unknown,
 ): LiveRoomNotificationScope {
-  return value === "all_room_messages"
-    ? value
-    : "company_updates_only";
+  return "new_chat_messages";
 }

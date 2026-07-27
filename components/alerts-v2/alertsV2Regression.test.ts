@@ -100,20 +100,17 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
   );
 });
 
-test("Live Room Follow is a saved-room action with a separate Alerts entry point", () => {
+test("Live Room Follow tracks chat unread state and stays separate from paid Alerts", () => {
   assert.match(liveRoomHeaderSource, /BookmarkCheck/);
   assert.match(liveRoomHeaderSource, /Bookmark/);
   assert.doesNotMatch(liveRoomHeaderSource, /Bell(?:Off)?/);
   assert.match(liveRoomClientSource, /Room saved\./);
   assert.match(
     liveRoomClientSource,
-    /push, Telegram, or email alerts, turn them on in Alerts\./,
+    /New chat messages from other people will be shown\s+as unread\./,
   );
-  assert.match(
-    liveRoomClientSource,
-    /href=\{`\/alerts\?ticker=\$\{encodeURIComponent\(ticker\)\}`\}/,
-  );
-  assert.match(liveRoomClientSource, />\s*Turn on alerts\s*</);
+  assert.doesNotMatch(liveRoomClientSource, /\/alerts\?ticker=/);
+  assert.doesNotMatch(liveRoomClientSource, />\s*Turn on alerts\s*</);
   assert.match(liveRoomClientSource, /15_000/);
   assert.match(liveRoomClientSource, /New company update/);
 });

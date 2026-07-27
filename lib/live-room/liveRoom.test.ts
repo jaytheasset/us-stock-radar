@@ -704,3 +704,177 @@ test("message APIs resolve moderation targets server-side and never return actor
   assert.match(timeline, />\s*Block author\s*</);
   assert.match(timeline, />\s*Hide\s*</);
 });
+
+test("chat follow migration resets legacy scope and stores an exact read baseline", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) =>
+    name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
+  );
+  assert.ok(migrationName);
+  assert.ok(
+    migrationName > "20260727211500_fix_live_room_block_moderation.sql",
+  );
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const setFollowFunction =
+    migration.match(
+      /function public\.set_live_room_chat_follow\([\s\S]+?\$\$;/i,
+    )?.[0] || "";
+
+  assert.match(
+    migration,
+    /update public\.live_room_follows[\s\S]+notification_scope = 'new_chat_messages'/i,
+  );
+  assert.match(
+    migration,
+    /check \(notification_scope = 'new_chat_messages'\)/i,
+  );
+  assert.doesNotMatch(migration, /company_updates_only/);
+  assert.match(migration, /last_read_at timestamptz not null default now\(\)/i);
+  assert.match(
+    migration,
+    /last_read_message_id uuid[\s\S]{0,100}references public\.live_room_messages\(id\)/i,
+  );
+  assert.match(
+    setFollowFunction,
+    /visibility_status = 'visible'[\s\S]+order by message\.created_at desc, message\.id desc[\s\S]+limit 1/i,
+  );
+  assert.match(
+    setFollowFunction,
+    /last_read_at[\s\S]+coalesce\(v_latest_message_at, now\(\)\)[\s\S]+last_read_message_id/i,
+  );
+  assert.match(setFollowFunction, /security invoker/i);
+  assert.match(setFollowFunction, /set search_path = ''/i);
+});
+
+test("unread and mark-read DB contracts exclude self messages and only advance displayed rooms", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) =>
+    name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
+  );
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const unreadFunction =
+    migration.match(
+      /function public\.get_live_room_unread_summary\([\s\S]+?\$\$;/i,
+    )?.[0] || "";
+  const markReadFunction =
+    migration.match(
+      /function public\.mark_live_room_follow_read\([\s\S]+?\$\$;/i,
+    )?.[0] || "";
+  const readRoute = readSource(
+    "app/api/live-room/[ticker]/read/route.ts",
+  );
+  const client = readSource("components/live-room/LiveRoomClient.tsx");
+
+  assert.match(unreadFunction, /message\.visibility_status = 'visible'/i);
+  assert.match(
+    unreadFunction,
+    /message\.created_at > follow\.last_read_at/i,
+  );
+  assert.match(
+    unreadFunction,
+    /message\.author_kind is distinct from follow\.actor_kind\s*or message\.actor_id is distinct from follow\.actor_id/i,
+  );
+  assert.match(
+    unreadFunction,
+    /follow\.notification_scope = 'new_chat_messages'/i,
+  );
+  assert.match(
+    markReadFunction,
+    /message\.id = p_message_id[\s\S]+message\.room_id = p_room_id[\s\S]+message\.visibility_status = 'visible'/i,
+  );
+  assert.match(
+    markReadFunction,
+    /last_read_at = greatest\(follow\.last_read_at, v_read_at\)/i,
+  );
+  assert.match(markReadFunction, /follow\.followed = true/i);
+  assert.match(readRoute, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(readRoute, /input\?\.messageId \?\? null/);
+  assert.match(client, /\.markRead\(latestMessageId\)/);
+  assert.match(client, /getLatestChatMessageId\(messages\)/);
+  assert.match(client, /800/);
+});
+
+test("member follows are service-only and message IDs resolve targets without UUID exposure or N+1 reads", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) =>
+    name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
+  );
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+  const route = readSource(
+    "app/api/live-room/[ticker]/member-follow/route.ts",
+  );
+  const repository = readSource("lib/live-room/serverRepository.ts");
+  const browserTypes = readSource("lib/live-room/types.ts");
+  const timeline = readSource("components/live-room/ChatTimeline.tsx");
+
+  assert.match(
+    migration,
+    /create table if not exists public\.live_room_member_follows/i,
+  );
+  assert.match(
+    migration,
+    /primary key \(follower_user_id, followed_user_id\)/i,
+  );
+  assert.match(migration, /check \(follower_user_id <> followed_user_id\)/i);
+  assert.match(
+    migration,
+    /alter table public\.live_room_member_follows enable row level security/i,
+  );
+  assert.match(
+    migration,
+    /on table public\.live_room_member_follows\s+from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /on table public\.live_room_member_follows\s+to service_role/i,
+  );
+  assert.match(route, /messageId\?: unknown/);
+  assert.match(route, /assertSameOriginAuthRequest\(request\)/);
+  assert.doesNotMatch(route, /memberUserId|followedUserId|authUserId/);
+  assert.match(repository, /actor\.kind !== "member"/);
+  assert.match(repository, /LIVE_ROOM_CANNOT_FOLLOW_SELF/);
+  assert.match(
+    repository,
+    /const targetUserIds =[\s\S]+supabaseSelect\("live_room_member_follows"[\s\S]+followed_user_id: `in\.\(\$\{targetUserIds\.join\(","\)\}\)`/,
+  );
+  assert.doesNotMatch(browserTypes, /memberUserId|followedUserId|authUserId/);
+  assert.match(
+    timeline,
+    /memberFollowed \? "Following" : "Follow member"/,
+  );
+});
+
+test("global Live Room inbox uses low-frequency visible polling plus focus refresh and stays distinct from Alerts", () => {
+  const inbox = readSource("components/shell/LiveRoomUnreadMenu.tsx");
+  const header = readSource(
+    "components/shell/StockRadarProductHeader.tsx",
+  );
+  const repository = readSource("lib/live-room/apiRepository.ts");
+  const unreadRoute = readSource("app/api/live-room/unread/route.ts");
+
+  assert.match(repository, /LIVE_ROOM_UNREAD_POLL_INTERVAL_MS = 60_000/);
+  assert.match(inbox, /document\.visibilityState === "visible"/);
+  assert.match(inbox, /window\.addEventListener\("focus"/);
+  assert.match(inbox, /LIVE_ROOM_UNREAD_REFRESH_EVENT/);
+  assert.match(inbox, /MessageSquareText/);
+  assert.match(inbox, /Followed Live Rooms/);
+  assert.match(inbox, /All caught up/);
+  assert.match(inbox, /Follow a company Live Room/);
+  assert.match(header, /<LiveRoomUnreadMenu \/>[\s\S]+aria-label="Alerts"/);
+  assert.match(header, /<Bell aria-hidden="true"/);
+  assert.match(
+    unreadRoute,
+    /if \(!hasExistingIdentity\)[\s\S]+emptySummary/,
+  );
+});

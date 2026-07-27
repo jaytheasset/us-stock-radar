@@ -108,7 +108,7 @@ export class BrowserLiveRoomFollowRepository
 
     return {
       followed: false,
-      notificationScope: "company_updates_only",
+      notificationScope: "new_chat_messages",
       roomKey,
     };
   }
