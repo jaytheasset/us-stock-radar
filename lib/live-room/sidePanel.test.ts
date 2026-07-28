@@ -131,7 +131,15 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(
     client,
-    /mobileSheet === "members"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+    /mobileSheet === "members"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+  );
+  assert.match(
+    client,
+    /const handleMobileMessageMember = async \(messageId: string\) => \{[\s\S]*setMobileSheet\(null\);[\s\S]*setActiveTab\("chat"\);[\s\S]*await handleMessageMember\(messageId\)/,
+  );
+  assert.equal(
+    client.match(/onMessageMember=\{handleMessageMember\}/g)?.length,
+    2,
   );
   assert.match(
     client,

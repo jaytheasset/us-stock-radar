@@ -1153,6 +1153,12 @@ export function LiveRoomClient({
     }
   };
 
+  const handleMobileMessageMember = async (messageId: string) => {
+    setMobileSheet(null);
+    setActiveTab("chat");
+    await handleMessageMember(messageId);
+  };
+
   const handleSendMessageRequest = async (requestBody: string) => {
     if (!messageRequestTarget || messageRequestBusy) return;
     setMessageRequestBusy(true);
@@ -1666,7 +1672,7 @@ export function LiveRoomClient({
               <LiveRoomMemberList
                 members={members}
                 messageActionId={messageActionId}
-                onMessageMember={handleMessageMember}
+                onMessageMember={handleMobileMessageMember}
                 onToggleMemberFollow={handleMemberFollow}
               />
             </div>

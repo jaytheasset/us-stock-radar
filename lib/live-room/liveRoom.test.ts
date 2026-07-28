@@ -427,6 +427,10 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
   assert.match(
     bottomSheetSource,
+    /const anotherModalIsOpen = document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\);[\s\S]*if \(!anotherModalIsOpen\) \{[\s\S]*restoreFocus\(opener\)/,
+  );
+  assert.match(
+    bottomSheetSource,
     /document\.body\.style\.overflow = "hidden"/,
   );
   assert.match(
@@ -442,6 +446,10 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     /data-mobile-members-open|\.membersPanel/,
   );
   assert.doesNotMatch(communitySource, /BottomSheetShell|mobileSheet/);
+  assert.match(
+    clientSource,
+    /mobileSheet === "members"[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*<\/BottomSheetShell>[\s\S]*\{messageRequestTarget \? \([\s\S]*<DirectMessageRequestModal/,
+  );
   assert.match(
     liveRoomStyles,
     /\.desktopTabPanel\s*\{[\s\S]*display:\s*none/,
