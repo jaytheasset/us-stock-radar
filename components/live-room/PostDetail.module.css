@@ -261,6 +261,221 @@
   background: var(--sr-color-surface-panel);
 }
 
+.comments {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.commentsHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commentsHeader h2 {
+  margin: 3px 0 0;
+  font-size: 1.25rem;
+}
+
+.commentsHeader > span,
+.commentsEyebrow {
+  color: var(--sr-color-text-meta);
+  font-size: 0.74rem;
+}
+
+.commentsEyebrow {
+  color: var(--sr-color-accent-text);
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.commentComposer {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+  padding: 14px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 12px;
+  background: var(--sr-color-surface-control);
+}
+
+.commentComposer textarea,
+.commentEdit textarea {
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sr-color-text-heading);
+  font: inherit;
+  line-height: 1.55;
+}
+
+.composerFooter,
+.replyContext,
+.commentMeta,
+.commentActions,
+.commentSignIn,
+.commentsState {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.composerFooter {
+  justify-content: space-between;
+  color: var(--sr-color-text-meta);
+  font-size: 0.73rem;
+}
+
+.composerFooter button,
+.commentSignIn a,
+.loadComments {
+  padding: 8px 12px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 8px;
+  background: var(--sr-color-surface-panel);
+  color: var(--sr-color-text-heading);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.composerFooter button:disabled,
+.loadComments:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.replyContext {
+  justify-content: space-between;
+  color: var(--sr-color-text-meta);
+  font-size: 0.76rem;
+}
+
+.replyContext button,
+.commentActions button,
+.commentActions summary,
+.commentEdit button {
+  border: 0;
+  background: transparent;
+  color: var(--sr-color-text-meta);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.commentSignIn,
+.commentsState {
+  margin-top: 18px;
+  padding: 14px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 10px;
+  color: var(--sr-color-text-meta);
+  font-size: 0.84rem;
+}
+
+.commentSignIn a {
+  margin-left: auto;
+  padding: 6px 10px;
+}
+
+.commentNotice {
+  margin: 12px 0 0;
+  color: var(--sr-color-text-meta);
+  font-size: 0.82rem;
+}
+
+.commentList {
+  display: grid;
+  margin-top: 10px;
+}
+
+.commentList article {
+  min-width: 0;
+  padding: 16px 0;
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.commentList article.reply {
+  margin-left: 34px;
+  padding-left: 14px;
+  border-left: 2px solid var(--sr-color-border);
+}
+
+.commentMeta {
+  flex-wrap: wrap;
+  color: var(--sr-color-text-meta);
+  font-size: 0.73rem;
+}
+
+.commentMeta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sr-color-text-heading);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.commentList article > p {
+  margin: 8px 0 0;
+  color: var(--sr-color-text-heading);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.commentActions {
+  margin-top: 9px;
+}
+
+.commentActions button:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.commentActions details {
+  position: relative;
+}
+
+.commentActions details > div {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  min-width: 140px;
+  padding: 7px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 8px;
+  background: var(--sr-color-surface-panel);
+}
+
+.commentEdit {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 9px;
+  background: var(--sr-color-surface-control);
+}
+
+.commentEdit > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.loadComments {
+  margin-top: 14px;
+}
+
 @media (max-width: 520px) {
   .page,
   .profilePage {
@@ -276,5 +491,14 @@
   .byline {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .commentList article.reply {
+    margin-left: 18px;
+  }
+
+  .commentSignIn {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }

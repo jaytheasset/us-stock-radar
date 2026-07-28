@@ -13,6 +13,7 @@ import type {
   LiveRoomPostDraft,
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
+import { PostComments } from "./PostComments";
 import styles from "./PostDetail.module.css";
 
 export function PostDetailClient({ postId }: { postId: string }) {
@@ -227,6 +228,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                 />
               </div>
             ) : null}
+            {!editing ? <PostComments postId={post.id} /> : null}
           </article>
         )}
       </main>

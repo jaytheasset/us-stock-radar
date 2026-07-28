@@ -20,12 +20,18 @@ import {
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy";
+import {
+  normalizeLiveRoomPostCommentDraft,
+  normalizeLiveRoomPostCommentPageLimit,
+} from "./commentPolicy";
 import { applyLiveRoomPostScopeAndCursorFilters } from "./postQuery";
 import type {
   CompanyEventReference,
   LiveRoomBlockResult,
   LiveRoomBlockedActor,
   LiveRoomPost,
+  LiveRoomPostComment,
+  LiveRoomPostCommentPage,
   LiveRoomPostDraft,
   LiveRoomPostPage,
   LiveRoomPostPreview,
@@ -56,6 +62,17 @@ export type PostRow = {
 type CursorValue = {
   createdAt: string;
   id: string;
+};
+
+type CommentRow = {
+  author_user_id?: unknown;
+  body?: unknown;
+  created_at?: unknown;
+  id?: unknown;
+  parent_comment_id?: unknown;
+  post_id?: unknown;
+  updated_at?: unknown;
+  visibility_status?: unknown;
 };
 
 export async function listLiveRoomPosts({
@@ -412,6 +429,214 @@ export async function blockLiveRoomPostAuthor({
   };
 }
 
+export async function listLiveRoomPostComments({
+  actor,
+  after,
+  limit,
+  postId: rawPostId,
+}: {
+  actor: LiveRoomActor;
+  after?: string | null;
+  limit?: number;
+  postId: unknown;
+}): Promise<LiveRoomPostCommentPage> {
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  await getLiveRoomPost(actor, postId);
+  const pageSize = normalizeLiveRoomPostCommentPageLimit(limit);
+  const cursor = decodeCommentCursor(after || null);
+  const blockedMemberIds = await getBlockedMemberIds(actor);
+  const search: Record<string, string> = {
+    select:
+      "id,post_id,author_user_id,parent_comment_id,body,visibility_status,created_at,updated_at",
+    post_id: `eq.${postId}`,
+    visibility_status: "eq.visible",
+    order: "created_at.asc,id.asc",
+    limit: String(pageSize + 1),
+  };
+  if (blockedMemberIds.length) {
+    search.author_user_id = `not.in.(${blockedMemberIds.join(",")})`;
+  }
+  if (cursor) {
+    search.or =
+      `(created_at.gt.${cursor.createdAt},` +
+      `and(created_at.eq.${cursor.createdAt},id.gt.${cursor.id}))`;
+  }
+  const result = await supabaseSelect("live_room_post_comments", search);
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_COMMENTS_UNAVAILABLE",
+      result.error || "Comments could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const fetchedRows = readRows(result.data) as CommentRow[];
+  const hasMore = fetchedRows.length > pageSize;
+  const rows = fetchedRows.slice(0, pageSize);
+  const items = await mapLiveRoomPostCommentRows(rows, actor);
+  const last = rows[rows.length - 1];
+  return {
+    canComment: actor.kind === "member",
+    items,
+    nextCursor:
+      hasMore && last ? encodePostCursor(readCommentCursor(last)) : null,
+  };
+}
+
+export async function createLiveRoomPostComment({
+  actor,
+  draft,
+  postId: rawPostId,
+}: {
+  actor: LiveRoomActor;
+  draft: unknown;
+  postId: unknown;
+}) {
+  assertMember(actor);
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  const normalized = normalizeLiveRoomPostCommentDraft(draft);
+  const parentCommentId = normalized.parentCommentId
+    ? normalizeLiveRoomUuid(
+        normalized.parentCommentId,
+        "LIVE_ROOM_COMMENT_INVALID_PARENT",
+        "Reply to a valid top-level comment.",
+      )
+    : null;
+  await ensureLiveRoomMember(actor);
+  const result = await supabaseRpc("create_live_room_post_comment", {
+    p_post_id: postId,
+    p_author_user_id: actor.userId,
+    p_body: normalized.body,
+    p_parent_comment_id: parentCommentId,
+  });
+  return mapCommentMutationResult(
+    result,
+    actor,
+    "LIVE_ROOM_COMMENT_CREATE_FAILED",
+  );
+}
+
+export async function updateLiveRoomPostComment({
+  actor,
+  commentId: rawCommentId,
+  draft,
+  postId: rawPostId,
+}: {
+  actor: LiveRoomActor;
+  commentId: unknown;
+  draft: unknown;
+  postId: unknown;
+}) {
+  assertMember(actor);
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  const commentId = normalizeLiveRoomUuid(
+    rawCommentId,
+    "LIVE_ROOM_INVALID_COMMENT_ID",
+    "The comment ID is invalid.",
+  );
+  await assertCommentBelongsToPost(commentId, postId);
+  const normalized = normalizeLiveRoomPostCommentDraft(draft);
+  const result = await supabaseRpc("update_live_room_post_comment", {
+    p_comment_id: commentId,
+    p_author_user_id: actor.userId,
+    p_body: normalized.body,
+  });
+  return mapCommentMutationResult(
+    result,
+    actor,
+    "LIVE_ROOM_COMMENT_UPDATE_FAILED",
+  );
+}
+
+export async function deleteLiveRoomPostComment({
+  actor,
+  commentId: rawCommentId,
+  postId: rawPostId,
+}: {
+  actor: LiveRoomActor;
+  commentId: unknown;
+  postId: unknown;
+}) {
+  assertMember(actor);
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  const commentId = normalizeLiveRoomUuid(
+    rawCommentId,
+    "LIVE_ROOM_INVALID_COMMENT_ID",
+    "The comment ID is invalid.",
+  );
+  await assertCommentBelongsToPost(commentId, postId);
+  const result = await supabaseRpc("delete_live_room_post_comment", {
+    p_comment_id: commentId,
+    p_author_user_id: actor.userId,
+  });
+  if (!result.ok || result.data !== true) {
+    throw mapCommentDatabaseError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_COMMENT_DELETE_FAILED",
+    );
+  }
+  return { commentId, deleted: true as const };
+}
+
+export async function reportLiveRoomPostComment({
+  actor,
+  commentId: rawCommentId,
+  postId: rawPostId,
+  reason: rawReason,
+}: {
+  actor: LiveRoomActor;
+  commentId: unknown;
+  postId: unknown;
+  reason: unknown;
+}) {
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  const commentId = normalizeLiveRoomUuid(
+    rawCommentId,
+    "LIVE_ROOM_INVALID_COMMENT_ID",
+    "The comment ID is invalid.",
+  );
+  await assertCommentBelongsToPost(commentId, postId);
+  const reason = normalizeLiveRoomReportReason(rawReason);
+  if (actor.kind === "member") await ensureLiveRoomMember(actor);
+  const result = await supabaseRpc("report_live_room_post_comment", {
+    p_comment_id: commentId,
+    p_reporter_kind: actor.kind,
+    p_reporter_member_user_id:
+      actor.kind === "member" ? actor.userId : null,
+    p_reporter_guest_session_id:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+    p_reason: reason,
+  });
+  if (!result.ok) {
+    throw mapCommentDatabaseError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_COMMENT_REPORT_FAILED",
+    );
+  }
+  return { reported: true as const };
+}
+
 export function toLiveRoomPostPreview(post: LiveRoomPost): LiveRoomPostPreview {
   return {
     author: post.author,
@@ -611,6 +836,49 @@ export async function mapLiveRoomPostRows(
   });
 }
 
+async function mapLiveRoomPostCommentRows(
+  rows: CommentRow[],
+  actor: LiveRoomActor,
+): Promise<LiveRoomPostComment[]> {
+  if (!rows.length) return [];
+  const authorIds = unique(rows.map((row) => readString(row.author_user_id)));
+  const profilesResult = await supabaseSelect("live_room_member_profiles", {
+    select: "user_id,public_profile_id,display_name,emoji",
+    user_id: `in.(${authorIds.join(",")})`,
+    limit: String(authorIds.length),
+  });
+  if (!profilesResult.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_COMMENTS_UNAVAILABLE",
+      "Comment authors could not be loaded safely.",
+      502,
+    );
+  }
+  const profiles = new Map(
+    readRows(profilesResult.data).map((row) => [
+      readString(row.user_id),
+      row,
+    ]),
+  );
+  return rows.map((row) => {
+    const authorUserId = readString(row.author_user_id);
+    const profile = profiles.get(authorUserId);
+    return {
+      author: {
+        displayName: readString(profile?.display_name) || "Member",
+        emoji: readString(profile?.emoji) || "?",
+        publicProfileId: readString(profile?.public_profile_id),
+      },
+      body: readString(row.body),
+      createdAt: readString(row.created_at),
+      id: readString(row.id),
+      isMine: actor.kind === "member" && actor.userId === authorUserId,
+      parentCommentId: readString(row.parent_comment_id) || null,
+      updatedAt: readString(row.updated_at),
+    };
+  });
+}
+
 async function mapMutationResult(
   result: Awaited<ReturnType<typeof supabaseRpc>>,
   actor: LiveRoomActor,
@@ -713,6 +981,26 @@ async function getBlockedMemberIds(actor: LiveRoomActor) {
     .filter(Boolean);
 }
 
+async function mapCommentMutationResult(
+  result: Awaited<ReturnType<typeof supabaseRpc>>,
+  actor: LiveRoomActor,
+  fallbackCode: string,
+) {
+  const row = readSingleRow(result.data) as CommentRow | null;
+  if (!result.ok || !row) {
+    throw mapCommentDatabaseError(result.error, result.status, fallbackCode);
+  }
+  const [comment] = await mapLiveRoomPostCommentRows([row], actor);
+  if (!comment) {
+    throw new LiveRoomPolicyError(
+      fallbackCode,
+      "The comment response was invalid.",
+      502,
+    );
+  }
+  return comment;
+}
+
 async function resolvePostRoom(postId: string): Promise<RoomIdentity> {
   const postResult = await supabaseSelect("live_room_posts", {
     select: "room_id",
@@ -754,6 +1042,26 @@ async function resolvePostRoom(postId: string): Promise<RoomIdentity> {
     slug: null,
     ticker,
   };
+}
+
+async function assertCommentBelongsToPost(
+  commentId: string,
+  postId: string,
+) {
+  const result = await supabaseSelect("live_room_post_comments", {
+    select: "id",
+    id: `eq.${commentId}`,
+    post_id: `eq.${postId}`,
+    visibility_status: "eq.visible",
+    limit: "1",
+  });
+  if (!result.ok || !readSingleRow(result.data)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_COMMENT_NOT_FOUND",
+      "That comment is no longer available.",
+      404,
+    );
+  }
 }
 
 async function validatePostRelatedTickers(
@@ -870,6 +1178,44 @@ function mapPostDatabaseError(
   );
 }
 
+function mapCommentDatabaseError(
+  error: string | undefined,
+  status: number,
+  fallbackCode: string,
+) {
+  const knownCode =
+    error?.match(
+      /LIVE_ROOM_(?:COMMENT_[A-Z_]+|POST_NOT_FOUND|MEMBER_REQUIRED|INVALID_REPORT_REASON)/,
+    )?.[0] || fallbackCode;
+  const messages: Record<string, string> = {
+    LIVE_ROOM_COMMENT_DUPLICATE:
+      "That comment was already posted.",
+    LIVE_ROOM_COMMENT_RATE_LIMIT:
+      "Too many comments were posted recently. Try again later.",
+    LIVE_ROOM_COMMENT_INVALID_PARENT:
+      "Reply to a valid top-level comment on this post.",
+    LIVE_ROOM_COMMENT_NOT_FOUND:
+      "That comment is no longer available.",
+    LIVE_ROOM_COMMENT_NOT_EDITABLE:
+      "Only a visible comment written by you can be changed.",
+    LIVE_ROOM_POST_NOT_FOUND:
+      "That post is no longer available.",
+    LIVE_ROOM_MEMBER_REQUIRED:
+      "Sign in to comment on Live Room posts.",
+    LIVE_ROOM_INVALID_REPORT_REASON:
+      "Choose a valid report reason.",
+  };
+  const unauthorized = knownCode === "LIVE_ROOM_MEMBER_REQUIRED";
+  const notFound =
+    knownCode === "LIVE_ROOM_COMMENT_NOT_FOUND" ||
+    knownCode === "LIVE_ROOM_POST_NOT_FOUND";
+  return new LiveRoomPolicyError(
+    knownCode,
+    messages[knownCode] || "The comment action could not be completed.",
+    unauthorized ? 401 : notFound ? 404 : status || 400,
+  );
+}
+
 function mapBlockRow(row: Record<string, unknown>): LiveRoomBlockedActor {
   return {
     blockedAt: readString(row.created_at),
@@ -907,6 +1253,17 @@ function decodePostCursor(value: string | null): CursorValue | null {
 }
 
 function readCursor(row: PostRow): CursorValue {
+  return {
+    createdAt: readString(row.created_at),
+    id: readString(row.id),
+  };
+}
+
+function decodeCommentCursor(value: string | null) {
+  return decodePostCursor(value);
+}
+
+function readCommentCursor(row: CommentRow): CursorValue {
   return {
     createdAt: readString(row.created_at),
     id: readString(row.id),
