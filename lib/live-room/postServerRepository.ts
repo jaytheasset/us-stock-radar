@@ -927,7 +927,12 @@ function readRows(value: unknown): Array<Record<string, unknown>> {
 }
 
 function readSingleRow(value: unknown): Record<string, unknown> | null {
-  return readRows(value)[0] || null;
+  if (Array.isArray(value)) {
+    return readRows(value)[0] || null;
+  }
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function readString(value: unknown) {

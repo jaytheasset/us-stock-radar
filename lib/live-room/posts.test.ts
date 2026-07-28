@@ -247,6 +247,19 @@ test("Live Room post RPCs repair schema-qualified COALESCE for PostgreSQL 17", (
   assert.doesNotMatch(migration, /security definer|grant execute|create policy/i);
 });
 
+test("post mutations accept PostgREST single-composite object responses", () => {
+  const repository = readSource("lib/live-room/postServerRepository.ts");
+
+  assert.match(
+    repository,
+    /function readSingleRow\(value: unknown\)[\s\S]+Array\.isArray\(value\)[\s\S]+typeof value === "object"/,
+  );
+  assert.match(
+    repository,
+    /const row = readSingleRow\(result\.data\) as PostRow \| null/,
+  );
+});
+
 test("post APIs derive actor and room context server-side without accepting owner IDs", () => {
   const companyRoute = readSource(
     "app/api/live-room/[ticker]/posts/route.ts",
