@@ -10,7 +10,7 @@ function readSource(relativePath: string) {
 }
 
 const migration = readSource(
-  "supabase/migrations/20260728094224_live_room_post_activity.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260728094224_live_room_post_activity.sql",
 );
 const unreadRoute = readSource("app/api/live-room/unread/route.ts");
 const readRoute = readSource(

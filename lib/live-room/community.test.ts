@@ -18,16 +18,16 @@ import {
 
 const root = process.cwd();
 const communityMigrationPath =
-  "supabase/migrations/20260727215804_live_room_community_rooms.sql";
+  "docs/db/migration-archive/pre-canonical-baseline/20260727215804_live_room_community_rooms.sql";
 const migration = read(communityMigrationPath);
 const discoveryMigrationPath =
-  "supabase/migrations/20260728034730_community_room_discovery_anchors.sql";
+  "docs/db/migration-archive/pre-canonical-baseline/20260728034730_community_room_discovery_anchors.sql";
 const discoveryMigration = read(discoveryMigrationPath);
 const foundationMigration = read(
-  "supabase/migrations/20260727101129_live_room_realtime_foundation.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727101129_live_room_realtime_foundation.sql",
 );
 const blockModerationMigration = read(
-  "supabase/migrations/20260727121025_fix_live_room_block_moderation.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727121025_fix_live_room_block_moderation.sql",
 );
 const communityRepository = read(
   "lib/live-room/communityServerRepository.ts",

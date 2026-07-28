@@ -3,16 +3,16 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const baseMigration = read(
-  "supabase/migrations/20260727174043_live_room_mutual_direct_messages.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727174043_live_room_mutual_direct_messages.sql",
 );
 const requestMigration = read(
-  "supabase/migrations/20260727202901_live_room_message_requests.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727202901_live_room_message_requests.sql",
 );
 const reportForeignKeyIndexMigration = read(
-  "supabase/migrations/20260727204014_add_direct_message_report_fk_index.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727204014_add_direct_message_report_fk_index.sql",
 );
 const socialVerificationMigration = read(
-  "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727185802_live_room_social_account_verification.sql",
 );
 const effectivePlanContract = read("lib/subscription/effectivePlan.ts");
 const migration = `${baseMigration}\n${requestMigration}`;

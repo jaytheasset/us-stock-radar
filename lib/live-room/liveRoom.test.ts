@@ -75,6 +75,19 @@ const events: CompanyEvent[] = [
 ];
 
 const projectRoot = process.cwd();
+const archivedMigrationDirectory = path.join(
+  projectRoot,
+  "docs",
+  "db",
+  "migration-archive",
+  "pre-canonical-baseline",
+);
+const archivedMigrationRelativeDirectory = path.join(
+  "docs",
+  "db",
+  "migration-archive",
+  "pre-canonical-baseline",
+);
 
 function readSource(relativePath: string) {
   return readFileSync(path.join(projectRoot, relativePath), "utf8");
@@ -226,11 +239,11 @@ test("public Live Room entry preserves the guest cookie actor contract without i
   );
   const serverActor = readSource("lib/live-room/serverActor.ts");
   const migrations = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   )
     .map((name) =>
       readFileSync(
-        path.join(projectRoot, "supabase", "migrations", name),
+        path.join(archivedMigrationDirectory, name),
         "utf8",
       ),
     )
@@ -625,11 +638,11 @@ test("Live Room API accepts only message content and event ID from the browser",
 
 test("Live Room migration is server-only, RLS-enabled, and atomically moderates writes", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) => name.endsWith("_live_room_realtime_foundation.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const tables = [
     "live_room_rooms",
@@ -676,11 +689,11 @@ test("Live Room migration is server-only, RLS-enabled, and atomically moderates 
 
 test("Live Room hardening migration is encoding-safe and covers actor foreign keys", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) => name.endsWith("_live_room_foundation_hardening.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
 
   assert.match(migration, /chr\(128075\)/);
@@ -715,14 +728,14 @@ test("report reasons and message IDs are closed allowlists", () => {
 
 test("Realtime uses public metadata-only Broadcast with a change cursor and low-frequency fallback", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
   assert.ok(migrationName);
   assert.ok(
     migrationName > "20260727102419_live_room_foundation_hardening.sql",
   );
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const transport = readSource("lib/live-room/apiRepository.ts");
   const realtimeClient = readSource(
@@ -920,11 +933,11 @@ test("Realtime shares one room channel until its final subscription closes", asy
 
 test("reports, blocks, and moderator tables stay service-only and RLS default-deny", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const tables = [
     "live_room_message_reports",
@@ -971,11 +984,11 @@ test("reports, blocks, and moderator tables stay service-only and RLS default-de
 
 test("Live Room block and moderation RPC correction uses SQL COALESCE and preserves service-only grants", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) => name.endsWith("_fix_live_room_block_moderation.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
 
   assert.match(
@@ -1020,7 +1033,7 @@ test("message APIs resolve moderation targets server-side and never return actor
 
 test("chat follow migration resets legacy scope and stores an exact read baseline", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
@@ -1029,7 +1042,7 @@ test("chat follow migration resets legacy scope and stores an exact read baselin
     migrationName > "20260727121025_fix_live_room_block_moderation.sql",
   );
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const setFollowFunction =
     migration.match(
@@ -1064,13 +1077,13 @@ test("chat follow migration resets legacy scope and stores an exact read baselin
 
 test("unread and mark-read DB contracts exclude self messages and only advance displayed rooms", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const unreadFunction =
     migration.match(
@@ -1116,13 +1129,13 @@ test("unread and mark-read DB contracts exclude self messages and only advance d
 
 test("member follows are service-only and message IDs resolve targets without UUID exposure or N+1 reads", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const route = readSource(
     "app/api/live-room/[ticker]/member-follow/route.ts",
@@ -1170,13 +1183,13 @@ test("member follows are service-only and message IDs resolve targets without UU
 
 test("member activity cursors exclude history, hidden messages, self, and blocked authors in one bounded RPC", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const setFollowFunction =
     migration.match(
@@ -1228,13 +1241,13 @@ test("member activity cursors exclude history, hidden messages, self, and blocke
 
 test("member activity migration only schema-qualifies real pg_catalog functions", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const qualifiedCatalogCalls = [
     ...migration.matchAll(/\bpg_catalog\.([a-z_][a-z0-9_]*)\s*\(/gi),
@@ -1258,13 +1271,13 @@ test("member activity migration only schema-qualifies real pg_catalog functions"
 
 test("member activity read and message anchors validate room ownership before advancing an exact follower cursor", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const readFunction =
     migration.match(
@@ -1301,13 +1314,13 @@ test("member activity read and message anchors validate room ownership before ad
 
 test("member activity API stays service-only, privacy-safe, and avoids per-author summary queries", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    archivedMigrationDirectory,
   ).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const repository = readSource("lib/live-room/serverRepository.ts");
   const browserTypes = readSource("lib/live-room/types.ts");

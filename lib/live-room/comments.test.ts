@@ -36,7 +36,7 @@ test("comment drafts are bounded and replies use an explicit parent ID", () => {
 
 test("comment migration is canonical, one-level, indexed, and service-only", () => {
   const migration = readSource(
-    "supabase/migrations/20260728082957_live_room_post_comments.sql",
+    "docs/db/migration-archive/pre-canonical-baseline/20260728082957_live_room_post_comments.sql",
   );
 
   assert.match(
