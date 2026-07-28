@@ -44,6 +44,8 @@ const SIDE_PANEL_TABS = [
 export function LiveRoomDesktopSidePanel({
   eventSource,
   events,
+  isGuest,
+  loginHref,
   messageActionId,
   onChangeMainTab,
   onMessageMember,
@@ -55,6 +57,8 @@ export function LiveRoomDesktopSidePanel({
 }: {
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
+  isGuest: boolean;
+  loginHref: string;
   messageActionId?: string | null;
   onChangeMainTab: (tab: CompanyLiveRoomTab) => void;
   onMessageMember: (messageId: string) => Promise<void>;
@@ -159,6 +163,8 @@ export function LiveRoomDesktopSidePanel({
           />
         ) : (
           <LiveRoomMemberList
+            isGuest={isGuest}
+            loginHref={loginHref}
             members={members}
             messageActionId={messageActionId}
             onMessageMember={onMessageMember}
@@ -293,11 +299,15 @@ function PostsPreview({
 }
 
 export function LiveRoomMemberList({
+  isGuest,
+  loginHref,
   members,
   messageActionId,
   onMessageMember,
   onToggleMemberFollow,
 }: {
+  isGuest: boolean;
+  loginHref: string;
   members: ReturnType<typeof selectLiveRoomSidePanelMembers>;
   messageActionId?: string | null;
   onMessageMember: (messageId: string) => Promise<void>;
@@ -345,14 +355,33 @@ export function LiveRoomMemberList({
                 </small>
               </span>
             </Link>
-            {sourceMessageId &&
-            (member.canFollowMember || member.canMessageMember) ? (
+            {isGuest ||
+            (sourceMessageId &&
+              (member.canFollowMember || member.canMessageMember)) ? (
               <div
                 aria-label={`Actions for ${member.displayName}`}
                 className={styles.sidePanelMemberActions}
                 role="group"
               >
-                {member.canFollowMember ? (
+                {isGuest ? (
+                  <>
+                    <Link
+                      aria-label={`Sign in to follow ${member.displayName}`}
+                      href={loginHref}
+                    >
+                      <UserPlus aria-hidden="true" size={14} />
+                      <span>Follow</span>
+                    </Link>
+                    <Link
+                      aria-label={`Sign in to message ${member.displayName}`}
+                      href={loginHref}
+                    >
+                      <MessageCircle aria-hidden="true" size={14} />
+                      <span>Message</span>
+                    </Link>
+                  </>
+                ) : null}
+                {!isGuest && member.canFollowMember && sourceMessageId ? (
                   <button
                     aria-label={
                       member.isMemberFollowed
@@ -380,7 +409,7 @@ export function LiveRoomMemberList({
                     </span>
                   </button>
                 ) : null}
-                {member.canMessageMember ? (
+                {!isGuest && member.canMessageMember && sourceMessageId ? (
                   <button
                     aria-label={`Message ${member.displayName}`}
                     disabled={busy}
