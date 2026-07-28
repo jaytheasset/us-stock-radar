@@ -51,6 +51,7 @@ import {
 } from "./timeline.ts";
 import {
   getLiveRoomTimelineDistanceFromBottom,
+  isLiveRoomTimelineNearBottom,
   preserveLiveRoomTimelinePrependPosition,
   shouldScrollLiveRoomTimelineToBottom,
 } from "./timelineScroll.ts";
@@ -388,23 +389,39 @@ test("Live Room timeline starts latest, sticks selectively, and preserves older 
   );
 
   assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("initial", 621),
+    shouldScrollLiveRoomTimelineToBottom("initial", false),
     true,
   );
   assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("own-send", 621),
+    shouldScrollLiveRoomTimelineToBottom("own-send", false),
     true,
   );
   assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", 80),
+    shouldScrollLiveRoomTimelineToBottom("incoming", true),
     true,
   );
   assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", 81),
+    shouldScrollLiveRoomTimelineToBottom("incoming", false),
     false,
   );
   assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("older-prepend", 0),
+    shouldScrollLiveRoomTimelineToBottom("older-prepend", true),
+    false,
+  );
+  assert.equal(isLiveRoomTimelineNearBottom(80), true);
+  assert.equal(isLiveRoomTimelineNearBottom(81), false);
+
+  const longIncomingPostCommitDistance = 180;
+  assert.equal(
+    isLiveRoomTimelineNearBottom(longIncomingPostCommitDistance),
+    false,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", true),
+    true,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", false),
     false,
   );
   assert.equal(
@@ -425,6 +442,10 @@ test("Live Room timeline starts latest, sticks selectively, and preserves older 
   );
   assert.match(clientSource, /ref=\{timelineElementRef\}/);
   assert.match(clientSource, /onScroll=\{handleTimelineScroll\}/);
+  assert.match(
+    clientSource,
+    /shouldScrollLiveRoomTimelineToBottom\(\s*reason,\s*timelineSticksToBottomRef\.current,\s*\)/,
+  );
   assert.match(
     clientSource,
     /forceOwnSendScrollRef\.current = true;[\s\S]*scheduleTimelineScroll/,

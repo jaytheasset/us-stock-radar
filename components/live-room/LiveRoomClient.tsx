@@ -58,6 +58,7 @@ import {
 } from "@/lib/live-room/timeline";
 import {
   getLiveRoomTimelineDistanceFromBottom,
+  isLiveRoomTimelineNearBottom,
   preserveLiveRoomTimelinePrependPosition,
   shouldScrollLiveRoomTimelineToBottom,
 } from "@/lib/live-room/timelineScroll";
@@ -230,11 +231,9 @@ export function LiveRoomClient({
   const handleTimelineScroll = useCallback(() => {
     const element = timelineElementRef.current;
     if (!element) return;
-    timelineSticksToBottomRef.current =
-      shouldScrollLiveRoomTimelineToBottom(
-        "incoming",
-        getLiveRoomTimelineDistanceFromBottom(element),
-      );
+    timelineSticksToBottomRef.current = isLiveRoomTimelineNearBottom(
+      getLiveRoomTimelineDistanceFromBottom(element),
+    );
   }, []);
 
   useEffect(
@@ -489,15 +488,9 @@ export function LiveRoomClient({
       : forcedByOwnSend
         ? "own-send"
         : "incoming";
-    const element = timelineElementRef.current;
-    const distanceFromBottom = element
-      ? getLiveRoomTimelineDistanceFromBottom(element)
-      : timelineSticksToBottomRef.current
-        ? 0
-        : Number.POSITIVE_INFINITY;
     const shouldScroll = shouldScrollLiveRoomTimelineToBottom(
       reason,
-      distanceFromBottom,
+      timelineSticksToBottomRef.current,
     );
 
     didInitialTimelineScrollRef.current = true;
@@ -533,11 +526,9 @@ export function LiveRoomClient({
         previousScrollHeight: pendingScroll.previousScrollHeight,
         previousScrollTop: pendingScroll.previousScrollTop,
       });
-      timelineSticksToBottomRef.current =
-        shouldScrollLiveRoomTimelineToBottom(
-          "incoming",
-          getLiveRoomTimelineDistanceFromBottom(element),
-        );
+      timelineSticksToBottomRef.current = isLiveRoomTimelineNearBottom(
+        getLiveRoomTimelineDistanceFromBottom(element),
+      );
     });
   }, [scheduleTimelineScroll, timeline]);
 

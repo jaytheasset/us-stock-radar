@@ -20,13 +20,17 @@ export function getLiveRoomTimelineDistanceFromBottom({
   return Math.max(0, scrollHeight - scrollTop - clientHeight);
 }
 
+export function isLiveRoomTimelineNearBottom(distanceFromBottom: number) {
+  return distanceFromBottom <= LIVE_ROOM_TIMELINE_STICKY_THRESHOLD_PX;
+}
+
 export function shouldScrollLiveRoomTimelineToBottom(
   reason: LiveRoomTimelineScrollReason,
-  distanceFromBottom: number,
+  wasStickingToBottom: boolean,
 ) {
   if (reason === "older-prepend") return false;
   if (reason === "initial" || reason === "own-send") return true;
-  return distanceFromBottom <= LIVE_ROOM_TIMELINE_STICKY_THRESHOLD_PX;
+  return wasStickingToBottom;
 }
 
 export function preserveLiveRoomTimelinePrependPosition({
