@@ -2,7 +2,6 @@
 
 import {
   Bookmark,
-  BookmarkCheck,
   Check,
   History,
   LoaderCircle,
@@ -47,34 +46,35 @@ export function CompanyRoomHeader({
   return (
     <header className={styles.roomHeader}>
       <div className={styles.roomIdentity}>
-        <span className={styles.roomEyebrow}>Company Live Room</span>
         <div className={styles.roomTitleLine}>
-          <strong>{identity.ticker}</strong>
+          <h1>{identity.ticker} Live Room</h1>
           {identity.companyName.trim().toUpperCase() !== identity.ticker ? (
-            <h1>{identity.companyName}</h1>
+            <strong className={styles.roomCompanyName}>
+              {identity.companyName}
+            </strong>
           ) : null}
         </div>
-        <small>{identity.exchange} · Company room</small>
-        {onlineMemberCount !== null && onlineMemberCount > 0 ? (
-          <small className={styles.onlineCount}>
-            <span aria-hidden="true" />
-            {onlineMemberCount} online
-          </small>
-        ) : null}
+        <div className={styles.roomMeta}>
+          <small>{identity.exchange}</small>
+          {onlineMemberCount !== null && onlineMemberCount > 0 ? (
+            <small className={styles.onlineCount}>
+              <span aria-hidden="true" />
+              {onlineMemberCount} online
+            </small>
+          ) : null}
+        </div>
       </div>
 
       <div
-        aria-label={`${identity.ticker} latest available quote`}
+        aria-label={`${identity.ticker} quote`}
         className={styles.marketSummary}
       >
-        <span>Market data</span>
         <div className={styles.marketSummaryValues}>
           <strong>{formatQuotePrice(quote.price)}</strong>
           <b data-tone={quoteTone}>
             {formatQuotePercent(quote.changePercent)}
           </b>
         </div>
-        <small>Latest available quote</small>
       </div>
 
       <div className={styles.roomActions}>
@@ -94,8 +94,6 @@ export function CompanyRoomHeader({
         >
           {followed === null ? (
             <LoaderCircle aria-hidden="true" size={15} />
-          ) : followed ? (
-            <BookmarkCheck aria-hidden="true" size={15} />
           ) : (
             <Bookmark aria-hidden="true" size={15} />
           )}

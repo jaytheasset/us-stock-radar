@@ -105,8 +105,8 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
 });
 
 test("Live Room Follow tracks chat unread state and stays separate from paid Alerts", () => {
-  assert.match(liveRoomHeaderSource, /BookmarkCheck/);
   assert.match(liveRoomHeaderSource, /Bookmark/);
+  assert.doesNotMatch(liveRoomHeaderSource, /BookmarkCheck/);
   assert.doesNotMatch(liveRoomHeaderSource, /Bell(?:Off)?/);
   assert.match(liveRoomClientSource, /Room saved\./);
   assert.match(

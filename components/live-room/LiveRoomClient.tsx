@@ -156,11 +156,9 @@ export function LiveRoomClient({
     useState<LiveRoomInviteUiState>("idle");
   const [sending, setSending] = useState(false);
   const [blocks, setBlocks] = useState<LiveRoomBlockedActor[]>([]);
-  const [blocksOpen, setBlocksOpen] = useState(false);
   const [hiddenMessages, setHiddenMessages] = useState<
     LiveRoomModerationItem[]
   >([]);
-  const [moderationOpen, setModerationOpen] = useState(false);
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
@@ -1202,93 +1200,12 @@ export function LiveRoomClient({
             aria-label={`${ticker} company discussion`}
             className={styles.chatPanel}
           >
-            <div className={styles.chatTop}>
-              <div className={styles.chatToolbar}>
-                <small>
-                  Realtime updates · 45-second polling fallback
-                  {roomNotice ? ` · ${roomNotice}` : ""}
-                </small>
-                <div className={styles.roomManagement}>
-                  <button
-                    aria-expanded={blocksOpen}
-                    onClick={() => setBlocksOpen((value) => !value)}
-                    type="button"
-                  >
-                    <span>Blocked</span>
-                    <b>{blocks.length}</b>
-                  </button>
-                  {profile?.canModerate ? (
-                    <button
-                      aria-expanded={moderationOpen}
-                      onClick={() =>
-                        setModerationOpen((value) => !value)
-                      }
-                      type="button"
-                    >
-                      <span>Hidden</span>
-                      <b>{hiddenMessages.length}</b>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              {blocksOpen ? (
-                <div
-                  aria-label="Blocked Live Room authors"
-                  className={styles.managementPanel}
-                >
-                  {blocks.length ? (
-                    blocks.map((block) => (
-                      <div key={block.id}>
-                        <span aria-hidden="true">{block.emoji}</span>
-                        <strong>{block.displayName}</strong>
-                        <button
-                          disabled={messageActionId === block.id}
-                          onClick={() => void handleUnblock(block.id)}
-                          type="button"
-                        >
-                          Unblock
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p>No blocked authors.</p>
-                  )}
-                </div>
-              ) : null}
-              {profile?.canModerate && moderationOpen ? (
-              <div
-                aria-label="Hidden Live Room messages"
-                className={styles.managementPanel}
-              >
-                {hiddenMessages.length ? (
-                  hiddenMessages.map((message) => (
-                    <div key={message.id}>
-                      <span aria-hidden="true">
-                        {message.author.emoji}
-                      </span>
-                      <p>
-                        <strong>{message.author.displayName}</strong>
-                        {" · "}
-                        {message.body}
-                      </p>
-                      <button
-                        disabled={messageActionId === message.id}
-                        onClick={() =>
-                          void handleModerate(message.id, "restore")
-                        }
-                        type="button"
-                      >
-                        Restore
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p>No hidden messages.</p>
-                )}
-              </div>
-              ) : null}
-            </div>
             <div className={styles.timeline}>
+              {roomNotice ? (
+                <p className={styles.roomNotice} role="status">
+                  {roomNotice}
+                </p>
+              ) : null}
               {eventSource === "loading" ? (
                 <div
                   aria-hidden="true"
