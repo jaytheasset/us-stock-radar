@@ -516,6 +516,7 @@ function InboxPanel({
       />
       {empty ? (
         <EmptyState
+          action={{ href: "/feed", label: "Browse Live Feed" }}
           description="Start from a registered member’s message menu in a Live Room."
           title="No member messages yet"
         />
