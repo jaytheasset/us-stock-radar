@@ -20,6 +20,24 @@ npx supabase --version
 
 The reported CLI version must be `2.110.0`.
 
+## Dedicated local ports
+
+Stock Radar uses the 56320-56329 range so it can run alongside other local
+Supabase projects without stopping them.
+
+| Service | Local address |
+| --- | --- |
+| API | `http://127.0.0.1:56321` |
+| Database | `127.0.0.1:56322` |
+| Studio | `http://127.0.0.1:56323` |
+| Mailpit | `http://127.0.0.1:56324` |
+
+The remaining reserved ports are shadow database 56320, optional Mailpit SMTP
+56325, optional Mailpit POP3 56326, analytics 56327, analytics vector ingest
+56328, and optional pooler 56329. The Edge Runtime inspector uses 56330.
+After startup, `npx supabase status` prints the active URLs and local
+development credentials.
+
 ## Local Auth callbacks
 
 The local Auth redirect allowlist supports `/auth/callback` over HTTP for both
@@ -31,7 +49,8 @@ enable `[auth.external.google]` separately and reference the client ID and
 secret through environment variables such as
 `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and
 `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`. Never hardcode or commit either
-value.
+value. Register `http://127.0.0.1:56321/auth/v1/callback` as the local Supabase
+Auth callback with Google.
 
 ## Local-only verification
 
