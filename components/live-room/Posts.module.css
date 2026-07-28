@@ -125,6 +125,10 @@
   font-weight: 500;
 }
 
+.form label .fieldHelp {
+  line-height: 1.45;
+}
+
 .form input,
 .form textarea,
 .form select {
@@ -165,6 +169,16 @@
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: 12px;
   background: var(--sr-color-surface-panel);
+}
+
+.crossPostSource {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--sr-color-accent-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-decoration: none;
 }
 
 .authorLine {

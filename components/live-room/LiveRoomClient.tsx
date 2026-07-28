@@ -1074,6 +1074,7 @@ export function LiveRoomClient({
             }}
             profile={profile}
             repository={repository}
+            currentTicker={ticker}
           />
         ) : null}
 
