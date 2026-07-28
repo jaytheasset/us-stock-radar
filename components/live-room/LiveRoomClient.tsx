@@ -35,6 +35,7 @@ import type {
   LiveRoomBlockedActor,
   LiveRoomChatMessage,
   LiveRoomModerationItem,
+  LiveRoomPost,
   LiveRoomProfile,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
@@ -61,6 +62,7 @@ import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { MessageComposer } from "./MessageComposer";
+import { LiveRoomDesktopSidePanel } from "./LiveRoomDesktopSidePanel";
 import { PostsPanel } from "./PostsPanel";
 import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
@@ -72,6 +74,7 @@ type LiveRoomClientProps = {
 };
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
+type PostsState = "error" | "loading" | "ready";
 
 export function LiveRoomClient({
   activityMessageId,
@@ -99,6 +102,10 @@ export function LiveRoomClient({
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
   const [timelineState, setTimelineState] =
     useState<TimelineState>("loading");
+  const [posts, setPosts] = useState<LiveRoomPost[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsState, setPostsState] =
+    useState<PostsState>("loading");
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -189,6 +196,9 @@ export function LiveRoomClient({
       setTimeline([]);
       setTimelineState("loading");
       setOlderCursor(null);
+      setPosts([]);
+      setPostsCursor(null);
+      setPostsState("loading");
       setProfile(null);
       setProfileOpen(false);
       setShowPresence(null);
@@ -215,12 +225,17 @@ export function LiveRoomClient({
         const presenceSettingPromise = nextProfile.isGuest
           ? Promise.resolve(null)
           : repository.readPresenceSetting().catch(() => null);
+        const postsPagePromise = repository
+          .listPosts()
+          .then((page) => ({ page }))
+          .catch(() => ({ page: null }));
         const [
           page,
           preference,
           nextBlocks,
           nextHiddenMessages,
           nextPresenceSetting,
+          nextPostsPage,
         ] =
           await Promise.all([
             repository.list(),
@@ -230,6 +245,7 @@ export function LiveRoomClient({
               ? repository.listHiddenMessages()
               : Promise.resolve([]),
             presenceSettingPromise,
+            postsPagePromise,
           ]);
         if (!isCurrent()) return;
         let initialItems: LiveRoomTimelineItem[] = page.items;
@@ -254,6 +270,15 @@ export function LiveRoomClient({
         setTimeline(replaceLiveRoomTimeline(initialItems));
         setOlderCursor(page.nextCursor);
         setTimelineState(initialItems.length ? "ready" : "empty");
+        if (nextPostsPage.page) {
+          setPosts(nextPostsPage.page.items);
+          setPostsCursor(nextPostsPage.page.nextCursor);
+          setPostsState("ready");
+        } else {
+          setPosts([]);
+          setPostsCursor(null);
+          setPostsState("error");
+        }
         setFollowed(preference.followed);
         setShowPresence(
           nextProfile.isGuest
@@ -337,6 +362,7 @@ export function LiveRoomClient({
         if (!isCurrent()) return;
         setRoomNotice(toLiveRoomApiError(error).message);
         setTimelineState("error");
+        setPostsState("error");
       }
     })();
 
@@ -979,6 +1005,32 @@ export function LiveRoomClient({
     }
   };
 
+  const handleLoadPosts = useCallback(
+    async (before?: string | null) => {
+      if (!before) setPostsState("loading");
+      try {
+        const page = await repository.listPosts(before);
+        setPosts((current) =>
+          before
+            ? [
+                ...current,
+                ...page.items.filter(
+                  (post) =>
+                    !current.some((item) => item.id === post.id),
+                ),
+              ]
+            : page.items,
+        );
+        setPostsCursor(page.nextCursor);
+        setPostsState("ready");
+      } catch (error) {
+        setPostsState("error");
+        throw error;
+      }
+    },
+    [repository],
+  );
+
   return (
     <>
       <StockRadarAppShell
@@ -1016,6 +1068,8 @@ export function LiveRoomClient({
           onChange={setActiveTab}
         />
 
+        <div className={styles.workspaceLayout}>
+          <div className={styles.primaryColumn}>
         <section
           aria-labelledby="live-room-events-tab"
           className={styles.latestSection}
@@ -1065,16 +1119,21 @@ export function LiveRoomClient({
 
         {activeTab === "posts" ? (
           <PostsPanel
+            cursor={postsCursor}
             events={events}
+            onLoad={handleLoadPosts}
+            onPostsChange={setPosts}
             onCreated={(preview) => {
               setTimeline((current) =>
                 mergeLiveRoomTimeline(current, [preview]),
               );
               setTimelineState("ready");
             }}
+            posts={posts}
             profile={profile}
             repository={repository}
             currentTicker={ticker}
+            state={postsState}
           />
         ) : null}
 
@@ -1231,6 +1290,19 @@ export function LiveRoomClient({
             />
           </section>
 
+        </div>
+          </div>
+          <LiveRoomDesktopSidePanel
+            eventSource={eventSource}
+            events={events}
+            onChangeMainTab={setActiveTab}
+            onRetryPosts={() => {
+              void handleLoadPosts().catch(() => undefined);
+            }}
+            posts={posts}
+            postsState={postsState}
+            timeline={timeline}
+          />
         </div>
 
         </div>
