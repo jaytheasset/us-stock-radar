@@ -8,16 +8,6 @@
   padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
 }
 
-.page {
-  --live-room-mobile-nav-height: 60px;
-  --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
-
-  width: min(100%, 1600px);
-  min-height: calc(100vh - var(--sr-size-header));
-  margin: 0 auto;
-  padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
-}
-
 .roomHeader {
   display: flex;
   min-width: 0;
