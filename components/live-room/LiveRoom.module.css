@@ -1,4 +1,4 @@
-﻿.page {
+.page {
   --live-room-mobile-nav-height: 60px;
   --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
 
