@@ -2,16 +2,16 @@
   width: min(100%, 1180px);
   min-height: calc(100dvh - var(--sr-size-header));
   margin: 0 auto;
-  padding: var(--sr-space-6) var(--sr-space-5) var(--sr-space-8);
+  padding: var(--sr-space-4) var(--sr-space-5) var(--sr-space-7);
 }
 
 .hero {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--sr-space-5);
+  gap: var(--sr-space-4);
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
-  padding-bottom: var(--sr-space-5);
+  padding-bottom: var(--sr-space-3);
 }
 
 .hero > div {
@@ -29,22 +29,41 @@
 }
 
 .hero h1 {
-  margin: var(--sr-space-1-5) 0 0;
+  margin: var(--sr-space-1) 0 0;
   color: var(--sr-color-text-heading);
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-size: clamp(1.65rem, 3vw, 2.1rem);
   line-height: var(--sr-line-height-snug);
 }
 
 .hero p,
 .panelHeading p {
   max-width: 700px;
-  margin: var(--sr-space-2) 0 0;
+  margin: var(--sr-space-1) 0 0;
   color: var(--sr-color-text-secondary);
-  font-size: var(--sr-font-size-md);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-default);
 }
 
-.settingsLink,
+.settingsLink {
+  display: inline-flex;
+  min-height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border-bottom: var(--sr-border-width) solid transparent;
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.settingsLink:hover {
+  border-bottom-color: var(--sr-color-accent);
+  color: var(--sr-color-accent-text);
+}
+
 .empty a {
   display: inline-flex;
   min-height: var(--sr-size-control);
@@ -62,7 +81,6 @@
   text-decoration: none;
 }
 
-.settingsLink:hover,
 .empty a:hover {
   color: var(--sr-color-accent-text);
   background: var(--sr-color-accent-selected);
@@ -70,15 +88,12 @@
 
 .separationNote {
   display: flex;
-  align-items: flex-start;
-  gap: var(--sr-space-2);
-  border: var(--sr-border-width) solid var(--sr-color-border);
-  border-radius: var(--sr-radius-base);
-  margin: var(--sr-space-4) 0;
-  padding: var(--sr-space-3);
+  align-items: center;
+  gap: var(--sr-space-1-5);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-2) 0;
   color: var(--sr-color-text-secondary);
-  background: var(--sr-color-surface-panel);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-xs);
   line-height: var(--sr-line-height-default);
 }
 
@@ -93,8 +108,7 @@
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
 }
@@ -102,7 +116,7 @@
 .tabs button,
 .subtabs button {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
   gap: var(--sr-space-2);
@@ -116,10 +130,27 @@
   cursor: pointer;
 }
 
+.tabs button {
+  position: relative;
+  min-width: 112px;
+  border-bottom: 0;
+  padding: 0 var(--sr-space-4);
+}
+
 .tabs button[aria-selected="true"] {
-  border-color: var(--sr-color-accent-text);
   color: var(--sr-color-text-heading);
-  background: var(--sr-color-accent-selected);
+  background: transparent;
+}
+
+.tabs button[aria-selected="true"]::after,
+.subtabs button[aria-selected="true"]::after {
+  position: absolute;
+  right: var(--sr-space-3);
+  bottom: 0;
+  left: var(--sr-space-3);
+  height: 2px;
+  background: var(--sr-color-accent);
+  content: "";
 }
 
 .tabs button b,
@@ -149,7 +180,7 @@
 }
 
 .panel {
-  min-height: 460px;
+  min-height: 260px;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-top: 0;
   border-radius: 0 0 var(--sr-radius-base) var(--sr-radius-base);
@@ -158,7 +189,7 @@
 
 .panelHeading {
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
-  padding: var(--sr-space-5);
+  padding: var(--sr-space-3) var(--sr-space-5);
 }
 
 .panelHeading h2 {
@@ -220,10 +251,10 @@
 .requestCard {
   display: grid;
   min-width: 0;
-  gap: var(--sr-space-3);
+  gap: var(--sr-space-2);
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
-  padding: var(--sr-space-4);
+  padding: var(--sr-space-3);
   background: var(--sr-color-surface-elevated);
 }
 
@@ -311,7 +342,7 @@
 .rowLink {
   display: grid;
   min-width: 0;
-  min-height: 72px;
+  min-height: 64px;
   grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr) auto;
   align-items: center;
   gap: var(--sr-space-4);
@@ -409,21 +440,22 @@
 
 .subtabs {
   display: flex;
-  gap: var(--sr-space-1);
+  gap: 0;
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
-  padding: var(--sr-space-2) var(--sr-space-5);
+  padding: 0 var(--sr-space-5);
 }
 
 .subtabs button {
+  position: relative;
   min-height: 36px;
   border: 0;
-  border-radius: var(--sr-radius-action);
+  border-radius: 0;
   padding: 0 var(--sr-space-3);
 }
 
 .subtabs button[aria-selected="true"] {
-  color: var(--sr-color-text-heading);
-  background: var(--sr-color-accent-selected);
+  color: var(--sr-color-accent-text);
+  background: transparent;
 }
 
 .peopleRows,
@@ -435,7 +467,7 @@
 .personRow {
   display: grid;
   min-width: 0;
-  min-height: 76px;
+  min-height: 68px;
   grid-template-columns: minmax(0, 1fr) auto minmax(190px, auto);
   align-items: center;
   gap: var(--sr-space-4);
@@ -475,7 +507,7 @@
 .roomRow {
   display: grid;
   min-width: 0;
-  min-height: 78px;
+  min-height: 68px;
   grid-template-columns: minmax(0, 1fr) minmax(130px, auto) auto auto;
   align-items: center;
   gap: var(--sr-space-4);
@@ -534,7 +566,7 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 78px;
+  min-height: 68px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sr-space-3);
@@ -602,12 +634,12 @@
 .state,
 .empty {
   display: flex;
-  min-height: 300px;
+  min-height: 180px;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: var(--sr-space-2);
-  padding: var(--sr-space-6);
+  padding: var(--sr-space-5);
   color: var(--sr-color-text-secondary);
   text-align: center;
 }
@@ -660,37 +692,55 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-4) var(--sr-space-3) var(--sr-space-7);
+    padding: var(--sr-space-3) var(--sr-space-3) var(--sr-space-6);
   }
 
   .hero {
     display: grid;
     align-items: start;
-    gap: var(--sr-space-3);
+    gap: var(--sr-space-1);
+    padding-bottom: var(--sr-space-2);
   }
 
   .settingsLink {
-    width: 100%;
+    min-height: 28px;
+    justify-self: start;
+    padding: 0;
+  }
+
+  .hero h1 {
+    font-size: 1.55rem;
+  }
+
+  .hero p {
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .separationNote {
+    align-items: flex-start;
+    padding: var(--sr-space-1-5) 0;
   }
 
   .tabs {
     overflow: hidden;
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .tabs button {
     min-width: 0;
+    min-height: 38px;
     gap: var(--sr-space-1);
     padding: 0 var(--sr-space-1);
     font-size: var(--sr-font-size-xs);
   }
 
   .panelHeading {
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-3);
   }
 
   .inboxSections > section {
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-3);
   }
 
   .requestGrid {
@@ -713,12 +763,15 @@
   }
 
   .subtabs {
-    overflow-x: auto;
-    padding: var(--sr-space-2) var(--sr-space-3);
+    display: grid;
+    overflow: hidden;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0 var(--sr-space-3);
   }
 
   .subtabs button {
-    flex: 0 0 auto;
+    min-width: 0;
+    padding: 0 var(--sr-space-1);
   }
 
   .peopleRows,
@@ -769,6 +822,16 @@
 
   .activityRow {
     align-items: flex-start;
+  }
+
+  .panel {
+    min-height: 0;
+  }
+
+  .state,
+  .empty {
+    min-height: 156px;
+    padding: var(--sr-space-4);
   }
 
   .activityMeta {
