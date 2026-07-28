@@ -5,13 +5,17 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { CommunityRoomCreateDialog } from "@/components/live-room/CommunityRoomCreateDialog";
 import {
   COMMUNITY_ROOM_FOCUS_TAGS,
+  COMMUNITY_ROOM_INDUSTRY_OPTIONS,
   COMMUNITY_ROOM_LANGUAGES,
   COMMUNITY_ROOM_SORTS,
   COMMUNITY_ROOM_STYLES,
   COMMUNITY_ROOM_TOPICS,
+  COMMUNITY_ROOM_THEME_OPTIONS,
   getCommunityFocusTagLabel,
   getCommunityLanguageLabel,
+  getCommunityRoomIndustryLabel,
   getCommunityRoomStyleLabel,
+  getCommunityRoomThemeLabel,
   getCommunityTopicLabel,
   normalizeCommunityRoomDirectoryFilters,
   type CommunityRoomDirectoryPage,
@@ -27,7 +31,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   alternates: { canonical: "/live" },
   description:
-    "Browse public member-created Community Rooms by topic, style, focus, and language.",
+    "Browse public member-created Community Rooms by ticker, market theme, industry, topic, style, focus, and language.",
   title: "Community Rooms | Stock Radar",
 };
 
@@ -42,11 +46,13 @@ export default async function CommunityRoomDirectoryPage({
   const requestedFilters = {
     cursor: readQuery(query.cursor),
     focusTag: readQuery(query.tag),
+    industry: readQuery(query.industry),
     language: readQuery(query.language),
     roomStyle: readQuery(query.style),
     search: readQuery(query.q),
     sort: readQuery(query.sort),
     topic: readQuery(query.topic),
+    theme: readQuery(query.theme),
   };
   let directoryUnavailable = false;
   let page: CommunityRoomDirectoryPage;
@@ -80,9 +86,9 @@ export default async function CommunityRoomDirectoryPage({
             <span>Public member-created discussions</span>
             <h1>Community Rooms</h1>
             <p>
-              Find focused conversations by topic, discussion style,
-              category, and language. Company rooms remain under each
-              ticker&apos;s Company Live Room.
+              Find focused conversations by ticker, market theme,
+              industry, discussion style, and language. Company rooms
+              remain under each ticker&apos;s Company Live Room.
             </p>
           </div>
           <CommunityRoomCreateDialog />
@@ -100,6 +106,62 @@ export default async function CommunityRoomDirectoryPage({
                 placeholder="Search name or introduction"
               />
             </div>
+          </label>
+          <label>
+            <span>Theme</span>
+            <select
+              defaultValue={page.filters.theme ?? ""}
+              name="theme"
+            >
+              <option value="">All themes</option>
+              {COMMUNITY_ROOM_THEME_OPTIONS.filter(
+                (option) => option.kind === "main",
+              ).map((mainTheme) => (
+                <optgroup
+                  key={mainTheme.value}
+                  label={mainTheme.groupLabel}
+                >
+                  {COMMUNITY_ROOM_THEME_OPTIONS.filter(
+                    (option) =>
+                      option.groupSlug === mainTheme.groupSlug,
+                  ).map((theme) => (
+                    <option key={theme.value} value={theme.value}>
+                      {theme.kind === "main" ? "MAIN — " : ""}
+                      {getCommunityRoomThemeLabel(theme.value)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Industry</span>
+            <select
+              defaultValue={page.filters.industry ?? ""}
+              name="industry"
+            >
+              <option value="">All industries</option>
+              {[
+                ...new Set(
+                  COMMUNITY_ROOM_INDUSTRY_OPTIONS.map(
+                    (option) => option.groupLabel,
+                  ),
+                ),
+              ].map((sector) => (
+                <optgroup key={sector} label={sector}>
+                  {COMMUNITY_ROOM_INDUSTRY_OPTIONS.filter(
+                    (option) => option.groupLabel === sector,
+                  ).map((industry) => (
+                    <option
+                      key={industry.value}
+                      value={industry.value}
+                    >
+                      {getCommunityRoomIndustryLabel(industry.value)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </label>
           <label>
             <span>Topic</span>
@@ -226,6 +288,24 @@ export default async function CommunityRoomDirectoryPage({
                       </span>
                     ))}
                   </div>
+                  {room.themes.length || room.industries.length ? (
+                    <div
+                      aria-label="Discovery themes and industries"
+                      className={styles.cardDiscovery}
+                    >
+                      {room.themes.map((theme) => (
+                        <span key={`theme:${theme}`}>
+                          Theme · {getCommunityRoomThemeLabel(theme)}
+                        </span>
+                      ))}
+                      {room.industries.map((industry) => (
+                        <span key={`industry:${industry}`}>
+                          Industry ·{" "}
+                          {getCommunityRoomIndustryLabel(industry)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   {room.relatedTickers.length ? (
                     <div className={styles.cardTickers}>
                       <small>Related</small>

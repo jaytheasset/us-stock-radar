@@ -2,6 +2,11 @@ import {
   LiveRoomPolicyError,
   normalizeLiveRoomTicker,
 } from "./policy.ts";
+import {
+  sectorMappings,
+  themeGroups,
+  themeSubThemes,
+} from "../taxonomyRegistry.ts";
 
 export const COMMUNITY_ROOM_TOPICS = [
   { label: "Market & macro", value: "market_macro" },
@@ -42,6 +47,34 @@ export const COMMUNITY_ROOM_SORTS = [
   { label: "Newest rooms", value: "newest" },
 ] as const;
 
+export const COMMUNITY_ROOM_THEME_OPTIONS = themeGroups.flatMap((group) => [
+  {
+    groupLabel: group.name,
+    groupSlug: group.slug,
+    kind: "main" as const,
+    label: group.name,
+    value: group.slug,
+  },
+  ...themeSubThemes
+    .filter((theme) => theme.themeGroupSlug === group.slug)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((theme) => ({
+      groupLabel: group.name,
+      groupSlug: group.slug,
+      kind: "specific" as const,
+      label: theme.name,
+      value: theme.slug,
+    })),
+]);
+
+export const COMMUNITY_ROOM_INDUSTRY_OPTIONS = sectorMappings.map(
+  (industry) => ({
+    groupLabel: industry.sector,
+    label: industry.subCategory,
+    value: industry.slug,
+  }),
+);
+
 export const COMMUNITY_ROOM_NAME_MIN_LENGTH = 4;
 export const COMMUNITY_ROOM_NAME_MAX_LENGTH = 60;
 export const COMMUNITY_ROOM_SUMMARY_MIN_LENGTH = 12;
@@ -59,10 +92,15 @@ export type CommunityRoomLanguage =
   (typeof COMMUNITY_ROOM_LANGUAGES)[number]["value"];
 export type CommunityRoomSort =
   (typeof COMMUNITY_ROOM_SORTS)[number]["value"];
+export type CommunityRoomTheme =
+  (typeof COMMUNITY_ROOM_THEME_OPTIONS)[number]["value"];
+export type CommunityRoomIndustry =
+  (typeof COMMUNITY_ROOM_INDUSTRY_OPTIONS)[number]["value"];
 
 export type CommunityRoom = {
   createdAt: string;
   focusTags: CommunityRoomFocusTag[];
+  industries: CommunityRoomIndustry[];
   language: CommunityRoomLanguage;
   lastActivityAt: string;
   name: string;
@@ -70,17 +108,20 @@ export type CommunityRoom = {
   roomStyle: CommunityRoomStyle;
   slug: string;
   summary: string;
+  themes: CommunityRoomTheme[];
   topic: CommunityRoomTopic;
 };
 
 export type CommunityRoomDirectoryFilters = {
   cursor: string | null;
   focusTag: CommunityRoomFocusTag | null;
+  industry: CommunityRoomIndustry | null;
   language: CommunityRoomLanguage | null;
   roomStyle: CommunityRoomStyle | null;
   search: string;
   sort: CommunityRoomSort;
   topic: CommunityRoomTopic | null;
+  theme: CommunityRoomTheme | null;
 };
 
 export type CommunityRoomDirectoryPage = {
@@ -91,11 +132,13 @@ export type CommunityRoomDirectoryPage = {
 
 export type CommunityRoomCreateInput = {
   focusTags: CommunityRoomFocusTag[];
+  industries: CommunityRoomIndustry[];
   language: CommunityRoomLanguage;
   name: string;
   relatedTickers: string[];
   roomStyle: CommunityRoomStyle;
   summary: string;
+  themes: CommunityRoomTheme[];
   topic: CommunityRoomTopic;
 };
 
@@ -151,6 +194,22 @@ export function normalizeCommunityRoomCreateInput(
       }),
     ),
   ];
+  const themes = readChoiceArray(
+    input.themes,
+    COMMUNITY_ROOM_THEME_OPTIONS,
+    0,
+    3,
+    "COMMUNITY_ROOM_INVALID_THEMES",
+    "Choose up to 3 canonical market themes.",
+  ) as CommunityRoomTheme[];
+  const industries = readChoiceArray(
+    input.industries,
+    COMMUNITY_ROOM_INDUSTRY_OPTIONS,
+    0,
+    3,
+    "COMMUNITY_ROOM_INVALID_INDUSTRIES",
+    "Choose up to 3 canonical industries.",
+  ) as CommunityRoomIndustry[];
 
   assertPlainRoomText(
     name,
@@ -172,14 +231,26 @@ export function normalizeCommunityRoomCreateInput(
       "Add up to 5 related tickers.",
     );
   }
+  if (
+    relatedTickers.length === 0 &&
+    themes.length === 0 &&
+    industries.length === 0
+  ) {
+    throw new LiveRoomPolicyError(
+      "COMMUNITY_ROOM_DISCOVERY_ANCHOR_REQUIRED",
+      "Choose at least one ticker, theme, or industry.",
+    );
+  }
 
   return {
     focusTags,
+    industries,
     language,
     name,
     relatedTickers,
     roomStyle,
     summary,
+    themes,
     topic,
   };
 }
@@ -203,6 +274,11 @@ export function normalizeCommunityRoomDirectoryFilters(
       COMMUNITY_ROOM_FOCUS_TAGS,
       "COMMUNITY_ROOM_INVALID_FOCUS_TAGS",
     ),
+    industry: readOptionalChoice(
+      input.industry,
+      COMMUNITY_ROOM_INDUSTRY_OPTIONS,
+      "COMMUNITY_ROOM_INVALID_INDUSTRIES",
+    ) as CommunityRoomIndustry | null,
     language: readOptionalChoice(
       input.language,
       COMMUNITY_ROOM_LANGUAGES,
@@ -225,6 +301,11 @@ export function normalizeCommunityRoomDirectoryFilters(
       COMMUNITY_ROOM_TOPICS,
       "COMMUNITY_ROOM_INVALID_TOPIC",
     ),
+    theme: readOptionalChoice(
+      input.theme,
+      COMMUNITY_ROOM_THEME_OPTIONS,
+      "COMMUNITY_ROOM_INVALID_THEMES",
+    ) as CommunityRoomTheme | null,
   };
 }
 
@@ -281,6 +362,16 @@ export function getCommunityRoomLanguageLabel(
   value: CommunityRoomLanguage,
 ) {
   return readLabel(COMMUNITY_ROOM_LANGUAGES, value);
+}
+
+export function getCommunityRoomThemeLabel(value: CommunityRoomTheme) {
+  return readLabel(COMMUNITY_ROOM_THEME_OPTIONS, value);
+}
+
+export function getCommunityRoomIndustryLabel(
+  value: CommunityRoomIndustry,
+) {
+  return readLabel(COMMUNITY_ROOM_INDUSTRY_OPTIONS, value);
 }
 
 export const getCommunityTopicLabel = getCommunityRoomTopicLabel;
