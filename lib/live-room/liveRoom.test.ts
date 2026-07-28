@@ -119,6 +119,42 @@ test("latest company event selection is deterministic and does not mutate input"
   );
 });
 
+test("company chat leads with one compact linked latest event without changing Community Room", () => {
+  const companyClient = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const communityClient = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+  const styles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const stripIndex = companyClient.indexOf(
+    "styles.latestChatEventStrip",
+  );
+  const timelineIndex = companyClient.indexOf("<ChatTimeline");
+
+  assert.ok(stripIndex > -1);
+  assert.ok(timelineIndex > stripIndex);
+  assert.match(
+    companyClient,
+    /latestEvent\?\.detailHref[\s\S]+href=\{latestEvent\.detailHref\}/,
+  );
+  assert.match(
+    companyClient,
+    /eventSource === "loading"[\s\S]+styles\.latestChatEventLoading/,
+  );
+  assert.doesNotMatch(communityClient, /latestChatEventStrip/);
+  assert.match(
+    styles,
+    /\.latestChatEventStrip,[\s\S]+\.latestChatEventLoading[\s\S]+min-height: 62px/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip[\s\S]+min-height: 58px/,
+  );
+});
+
 test("event references keep only compact structured identity", () => {
   assert.deepEqual(createEventReference(events[1]), {
     eventId: "latest",
