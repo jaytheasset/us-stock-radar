@@ -11,6 +11,7 @@ import {
 import type { RefObject } from "react";
 import type { LiveRoomInviteUiState } from "@/lib/live-room/inviteShare";
 import type { CompanyRoomIdentity } from "@/lib/live-room/types";
+import type { StockOverviewQuote } from "@/lib/watchlist/stockOverview";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
@@ -22,6 +23,7 @@ type CompanyRoomHeaderProps = {
   onInvite: () => void;
   onOpenHistory: () => void;
   onToggleFollow: () => void;
+  quote: StockOverviewQuote;
 };
 
 export function CompanyRoomHeader({
@@ -33,7 +35,15 @@ export function CompanyRoomHeader({
   onInvite,
   onOpenHistory,
   onToggleFollow,
+  quote,
 }: CompanyRoomHeaderProps) {
+  const quoteTone =
+    quote.changePercent === null || quote.changePercent === 0
+      ? "muted"
+      : quote.changePercent > 0
+        ? "positive"
+        : "negative";
+
   return (
     <header className={styles.roomHeader}>
       <div className={styles.roomIdentity}>
@@ -51,6 +61,20 @@ export function CompanyRoomHeader({
             {onlineMemberCount} online
           </small>
         ) : null}
+      </div>
+
+      <div
+        aria-label={`${identity.ticker} latest available quote`}
+        className={styles.marketSummary}
+      >
+        <span>Market data</span>
+        <div className={styles.marketSummaryValues}>
+          <strong>{formatQuotePrice(quote.price)}</strong>
+          <b data-tone={quoteTone}>
+            {formatQuotePercent(quote.changePercent)}
+          </b>
+        </div>
+        <small>Latest available quote</small>
       </div>
 
       <div className={styles.roomActions}>
@@ -120,4 +144,19 @@ export function CompanyRoomHeader({
       </div>
     </header>
   );
+}
+
+function formatQuotePrice(value: number | null) {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
+
+function formatQuotePercent(value: number | null) {
+  if (value === null) return "—";
+  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 }

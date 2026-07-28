@@ -17,6 +17,8 @@ export const adSenseInventories = [
   "dashboard-mobile-inline",
   "alerts-rail-300x250",
   "alerts-rail-300x600",
+  "live-room-rail-300x250",
+  "live-room-mobile-inline",
 ] as const;
 
 export type AdSenseInventory = (typeof adSenseInventories)[number];
@@ -83,6 +85,12 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "alerts-rail-300x600": normalize(
       input.slotIds?.["alerts-rail-300x600"],
     ),
+    "live-room-rail-300x250": normalize(
+      input.slotIds?.["live-room-rail-300x250"],
+    ),
+    "live-room-mobile-inline": normalize(
+      input.slotIds?.["live-room-mobile-inline"],
+    ),
   };
   const isProductionPublisher =
     input.nodeEnv === "production" && Boolean(publisherId);
@@ -126,6 +134,10 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["alerts-rail-300x250"]),
     "alerts-rail-300x600":
       isProductionPublisher && Boolean(slotIds["alerts-rail-300x600"]),
+    "live-room-rail-300x250":
+      isProductionPublisher && Boolean(slotIds["live-room-rail-300x250"]),
+    "live-room-mobile-inline":
+      isProductionPublisher && Boolean(slotIds["live-room-mobile-inline"]),
   };
 
   return {
@@ -179,5 +191,9 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X250_SLOT_ID,
     "alerts-rail-300x600":
       process.env.NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X600_SLOT_ID,
+    "live-room-rail-300x250":
+      process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_RAIL_300X250_SLOT_ID,
+    "live-room-mobile-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_MOBILE_INLINE_SLOT_ID,
   },
 });

@@ -6,6 +6,7 @@ import {
   normalizeLiveRoomTicker,
 } from "@/lib/live-room/adapters";
 import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 type LiveRoomPageProps = {
   params: Promise<{ ticker: string }>;
@@ -43,6 +44,8 @@ export default async function LiveRoomPage({
     redirect(getLiveRoomHref(ticker) as string);
   }
 
+  const viewerPlan = await getCurrentViewerPlan();
+
   return (
     <LiveRoomClient
       activityMessageId={
@@ -50,6 +53,7 @@ export default async function LiveRoomPage({
       }
       realtimeConfig={getLiveRoomRealtimeConfig()}
       ticker={ticker}
+      viewerPlan={viewerPlan}
     />
   );
 }
