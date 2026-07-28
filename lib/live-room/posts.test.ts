@@ -162,11 +162,23 @@ test("canonical-only timeline reads do not inherit company post cross-exposure",
 
 test("post migration is RLS default-deny, service-only, indexed, and invoker-only", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    path.join(
+      projectRoot,
+      "docs",
+      "db",
+      "migration-archive",
+      "pre-canonical-baseline",
+    ),
   ).find((name) => name.endsWith("_live_room_posts.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(
+      "docs",
+      "db",
+      "migration-archive",
+      "pre-canonical-baseline",
+      migrationName,
+    ),
   );
 
   for (const table of [
@@ -202,7 +214,7 @@ test("post migration is RLS default-deny, service-only, indexed, and invoker-onl
 
 test("cross-post migration adds a partial GIN index and server-only listed ticker guard", () => {
   const migration = readSource(
-    "supabase/migrations/20260728055733_live_room_post_cross_posts.sql",
+    "docs/db/migration-archive/pre-canonical-baseline/20260728055733_live_room_post_cross_posts.sql",
   );
 
   assert.match(
@@ -224,11 +236,23 @@ test("cross-post migration adds a partial GIN index and server-only listed ticke
 
 test("Live Room post RPCs repair schema-qualified COALESCE for PostgreSQL 17", () => {
   const migrationName = readdirSync(
-    path.join(projectRoot, "supabase", "migrations"),
+    path.join(
+      projectRoot,
+      "docs",
+      "db",
+      "migration-archive",
+      "pre-canonical-baseline",
+    ),
   ).find((name) => name.endsWith("_fix_live_room_pg17_coalesce.sql"));
   assert.ok(migrationName);
   const migration = readSource(
-    path.join("supabase", "migrations", migrationName),
+    path.join(
+      "docs",
+      "db",
+      "migration-archive",
+      "pre-canonical-baseline",
+      migrationName,
+    ),
   );
 
   for (const signature of [
@@ -378,7 +402,7 @@ test("hidden, deleted, and blocked posts disappear from room, profile, detail, a
 
 test("post originals remain canonical while Chat carries current ID-based previews", () => {
   const migration = readSource(
-    "supabase/migrations/20260728040409_live_room_posts.sql",
+    "docs/db/migration-archive/pre-canonical-baseline/20260728040409_live_room_posts.sql",
   );
   const timelineRepository = readSource(
     "lib/live-room/serverRepository.ts",

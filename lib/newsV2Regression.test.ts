@@ -475,7 +475,7 @@ test("product header switches to its mobile navigation before mid-width clipping
 test("news migration keeps page bounds, indexed search, real-time ET ranges, and service-only RPCs", () => {
   const migration = readFileSync(
     new URL(
-      "../supabase/migrations/20260725015421_news_v2_filtered_stats_and_search_indexes.sql",
+      "../docs/db/migration-archive/pre-canonical-baseline/20260725015421_news_v2_filtered_stats_and_search_indexes.sql",
       import.meta.url,
     ),
     "utf8",
@@ -520,7 +520,7 @@ test("news migration keeps page bounds, indexed search, real-time ET ranges, and
 test("News V2 market score policy is shared by rows, stats, and facets", () => {
   const migration = readFileSync(
     new URL(
-      "../supabase/migrations/20260725215634_news_v2_market_score_threshold.sql",
+      "../docs/db/migration-archive/pre-canonical-baseline/20260725215634_news_v2_market_score_threshold.sql",
       import.meta.url,
     ),
     "utf8",

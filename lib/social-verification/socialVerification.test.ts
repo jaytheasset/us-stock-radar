@@ -17,7 +17,7 @@ import { createSocialProofCode } from "./proofCode.ts";
 const root = process.cwd();
 const migrationPath = path.join(
   root,
-  "supabase/migrations/20260727185802_live_room_social_account_verification.sql",
+  "docs/db/migration-archive/pre-canonical-baseline/20260727185802_live_room_social_account_verification.sql",
 );
 const migration = readFileSync(migrationPath, "utf8");
 const repository = readFileSync(
