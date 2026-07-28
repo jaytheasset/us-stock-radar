@@ -19,22 +19,35 @@ import type {
 import styles from "./Posts.module.css";
 
 export function PostsPanel({
+  cursor: controlledCursor,
   currentTicker,
   events = [],
+  onLoad: controlledLoad,
+  onPostsChange: controlledPostsChange,
   onCreated,
+  posts: controlledPosts,
   profile,
   repository,
+  state: controlledState,
 }: {
+  cursor?: string | null;
   currentTicker?: string;
   events?: readonly CompanyEvent[];
+  onLoad?: (before?: string | null) => Promise<void>;
+  onPostsChange?: (
+    update: (current: LiveRoomPost[]) => LiveRoomPost[],
+  ) => void;
   onCreated?: (preview: LiveRoomPostPreview) => void;
+  posts?: readonly LiveRoomPost[];
   profile: LiveRoomProfile | null;
   repository: LiveRoomApiRepository;
+  state?: "error" | "loading" | "ready";
 }) {
   const postRepository = useMemo(() => new LiveRoomPostApiRepository(), []);
-  const [posts, setPosts] = useState<LiveRoomPost[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [state, setState] = useState<"error" | "loading" | "ready">("loading");
+  const [localPosts, setLocalPosts] = useState<LiveRoomPost[]>([]);
+  const [localCursor, setLocalCursor] = useState<string | null>(null);
+  const [localState, setLocalState] =
+    useState<"error" | "loading" | "ready">("loading");
   const [notice, setNotice] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -43,28 +56,42 @@ export function PostsPanel({
   const [eventId, setEventId] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
+  const posts = controlledPosts ?? localPosts;
+  const cursor =
+    controlledCursor === undefined ? localCursor : controlledCursor;
+  const state = controlledState ?? localState;
+  const onPostsChange = controlledPostsChange ?? setLocalPosts;
 
-  const load = async (before?: string | null) => {
+  const loadLocal = async (before?: string | null) => {
     try {
       const page = await repository.listPosts(before);
-      setPosts((current) =>
+      setLocalPosts((current) =>
         before
-          ? [...current, ...page.items.filter((post) => !current.some((item) => item.id === post.id))]
+          ? [
+              ...current,
+              ...page.items.filter(
+                (post) =>
+                  !current.some((item) => item.id === post.id),
+              ),
+            ]
           : page.items,
       );
-      setCursor(page.nextCursor);
-      setState("ready");
+      setLocalCursor(page.nextCursor);
+      setLocalState("ready");
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
-      setState("error");
+      setLocalState("error");
+      throw error;
     }
   };
+  const onLoad = controlledLoad ?? loadLocal;
 
   useEffect(() => {
-    void load();
+    if (controlledLoad) return;
+    void loadLocal().catch(() => undefined);
     // The repository is stable for the current room.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repository]);
+  }, [controlledLoad, repository]);
 
   const handleCreate = async () => {
     const relatedTickers = [
@@ -89,7 +116,7 @@ export function PostsPanel({
     setNotice(null);
     try {
       const post = await repository.createPost(draft);
-      setPosts((current) => [post, ...current]);
+      onPostsChange((current) => [post, ...current]);
       onCreated?.({
         author: post.author,
         createdAt: post.createdAt,
@@ -115,7 +142,9 @@ export function PostsPanel({
     setActionId(post.id);
     try {
       await postRepository.delete(post.id);
-      setPosts((current) => current.filter((item) => item.id !== post.id));
+      onPostsChange((current) =>
+        current.filter((item) => item.id !== post.id),
+      );
       setNotice("Post deleted.");
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
@@ -132,7 +161,9 @@ export function PostsPanel({
         "hide",
         "Hidden from the Live Room Posts list",
       );
-      setPosts((current) => current.filter((item) => item.id !== post.id));
+      onPostsChange((current) =>
+        current.filter((item) => item.id !== post.id),
+      );
       setNotice("Post hidden.");
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
@@ -160,7 +191,7 @@ export function PostsPanel({
     setActionId(post.id);
     try {
       await postRepository.block(post.id);
-      setPosts((current) =>
+      onPostsChange((current) =>
         current.filter(
           (item) =>
             item.author.publicProfileId !== post.author.publicProfileId,
@@ -281,7 +312,12 @@ export function PostsPanel({
       ) : state === "error" ? (
         <div className={styles.emptyState} role="alert">
           <strong>Posts could not be loaded.</strong>
-          <button onClick={() => void load()} type="button">Retry</button>
+          <button
+            onClick={() => void onLoad().catch(() => undefined)}
+            type="button"
+          >
+            Retry
+          </button>
         </div>
       ) : posts.length ? (
         <div className={styles.list}>
@@ -368,7 +404,11 @@ export function PostsPanel({
             </article>
           ))}
           {cursor ? (
-            <button className={styles.loadMore} onClick={() => void load(cursor)} type="button">
+            <button
+              className={styles.loadMore}
+              onClick={() => void onLoad(cursor).catch(() => undefined)}
+              type="button"
+            >
               Load older posts
             </button>
           ) : null}
