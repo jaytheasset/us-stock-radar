@@ -127,11 +127,11 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(panel, /<LiveRoomMemberList[\s\S]*members=\{members\}/);
   assert.match(
     client,
-    /\{ label: "Members", mobileOnly: true, value: "members" \}/,
+    /active=\{mobileMembersOpen \? "members" : activeTab\}[\s\S]*\{ label: "Members", value: "members" \}[\s\S]*visibility="mobile"/,
   );
   assert.match(
     client,
-    /activeTab === "members"[\s\S]*id="live-room-members-panel"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+    /mobileMembersOpen \? \([\s\S]*id="live-room-members-panel"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
   );
   assert.match(
     client,
@@ -146,10 +146,10 @@ test("desktop and mobile members share accessible links, status, and actions", (
     tabStyles,
     /\.tabs\.mobileDock\s*\{[\s\S]*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
   );
-  assert.match(tabStyles, /\.tabs \.mobileOnlyTab\s*\{[\s\S]*display:\s*none/);
+  assert.match(tabStyles, /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/);
   assert.match(
     tabStyles,
-    /\.tabs\.mobileDock \.mobileOnlyTab\s*\{[\s\S]*display:\s*block/,
+    /@media \(max-width: 760px\)[\s\S]*\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*grid/,
   );
   assert.match(
     styles,

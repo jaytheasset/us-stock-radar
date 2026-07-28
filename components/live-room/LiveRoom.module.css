@@ -452,6 +452,7 @@
 }
 
 .membersPanel {
+  display: none;
   min-width: 0;
   min-height: var(--live-room-workspace-height);
   height: var(--live-room-workspace-height);
@@ -1814,6 +1815,13 @@ button.messageReplyPreview:hover {
     --live-room-mobile-composer-error-height: 24px;
   }
 
+  .page[data-mobile-members-open="true"] {
+    --live-room-mobile-composer-control-height: 0px;
+    --live-room-mobile-composer-reference-height: 0px;
+    --live-room-mobile-composer-reply-height: 0px;
+    --live-room-mobile-composer-error-height: 0px;
+  }
+
   .page {
     display: grid;
     width: 100%;
@@ -1962,7 +1970,13 @@ button.messageReplyPreview:hover {
     overflow-y: auto;
   }
 
+  .primaryColumn[data-mobile-members-open="true"]
+    > :not(.membersPanel) {
+    display: none;
+  }
+
   .membersPanel {
+    display: block;
     border-radius: var(--sr-radius-action);
     padding: var(--sr-space-3);
   }

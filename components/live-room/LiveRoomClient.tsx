@@ -88,7 +88,10 @@ import {
   LiveRoomMemberList,
 } from "./LiveRoomDesktopSidePanel";
 import { PostsPanel } from "./PostsPanel";
-import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
+import {
+  RoomTabs,
+  type CompanyLiveRoomTab,
+} from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
@@ -188,7 +191,9 @@ export function LiveRoomClient({
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] =
     useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
+  const [activeTab, setActiveTab] =
+    useState<CompanyLiveRoomTab>("chat");
+  const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
@@ -1264,7 +1269,10 @@ export function LiveRoomClient({
         activeNavigationItem={null}
         themeMode="user-selectable"
       >
-        <div className={styles.page}>
+        <div
+          className={styles.page}
+          data-mobile-members-open={mobileMembersOpen}
+        >
         <CompanyRoomHeader
           followed={followed}
           historyButtonRef={historyOpenerRef}
@@ -1292,18 +1300,40 @@ export function LiveRoomClient({
 
         <RoomTabs
           active={activeTab}
-          dockOnMobile
           items={[
             { label: "Chat", value: "chat" },
             { label: "Posts", value: "posts" },
             { label: "Events", value: "events" },
-            { label: "Members", mobileOnly: true, value: "members" },
           ]}
           onChange={setActiveTab}
+          visibility="desktop"
+        />
+        <RoomTabs
+          active={mobileMembersOpen ? "members" : activeTab}
+          dockOnMobile
+          idPrefix="live-room-mobile"
+          items={[
+            { label: "Chat", value: "chat" },
+            { label: "Posts", value: "posts" },
+            { label: "Events", value: "events" },
+            { label: "Members", value: "members" },
+          ]}
+          onChange={(tab) => {
+            if (tab === "members") {
+              setMobileMembersOpen(true);
+              return;
+            }
+            setMobileMembersOpen(false);
+            setActiveTab(tab);
+          }}
+          visibility="mobile"
         />
 
         <div className={styles.workspaceLayout}>
-          <div className={styles.primaryColumn}>
+          <div
+            className={styles.primaryColumn}
+            data-mobile-members-open={mobileMembersOpen}
+          >
         <section
           aria-labelledby="live-room-events-tab"
           className={styles.latestSection}
@@ -1373,9 +1403,9 @@ export function LiveRoomClient({
           />
         ) : null}
 
-        {activeTab === "members" ? (
+        {mobileMembersOpen ? (
           <section
-            aria-labelledby="live-room-members-tab"
+            aria-labelledby="live-room-mobile-members-tab"
             className={styles.membersPanel}
             id="live-room-members-panel"
             role="tabpanel"

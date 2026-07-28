@@ -14,20 +14,27 @@ export type LiveRoomTab =
   | "members"
   | "posts";
 
-export function RoomTabs({
+export type CompanyLiveRoomTab = "chat" | "events" | "posts";
+
+type RoomTabsVisibility = "all" | "desktop" | "mobile";
+
+export function RoomTabs<T extends LiveRoomTab>({
   active,
   dockOnMobile = false,
+  idPrefix = "live-room",
   items,
   onChange,
+  visibility = "all",
 }: {
-  active: LiveRoomTab;
+  active: T;
   dockOnMobile?: boolean;
-  items: Array<{
+  idPrefix?: string;
+  items: ReadonlyArray<{
     label: string;
-    mobileOnly?: boolean;
-    value: LiveRoomTab;
+    value: T;
   }>;
-  onChange: (tab: LiveRoomTab) => void;
+  onChange: (tab: T) => void;
+  visibility?: RoomTabsVisibility;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -53,7 +60,14 @@ export function RoomTabs({
   return (
     <div
       aria-label="Live Room sections"
-      className={`${styles.tabs}${dockOnMobile ? ` ${styles.mobileDock}` : ""}`}
+      className={[
+        styles.tabs,
+        dockOnMobile ? styles.mobileDock : null,
+        visibility === "desktop" ? styles.desktopOnlyTabs : null,
+        visibility === "mobile" ? styles.mobileOnlyTabs : null,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="tablist"
       style={
         {
@@ -65,13 +79,8 @@ export function RoomTabs({
         <button
           aria-controls={`live-room-${item.value}-panel`}
           aria-selected={active === item.value}
-          className={[
-            active === item.value ? styles.activeTab : null,
-            item.mobileOnly ? styles.mobileOnlyTab : null,
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          id={`live-room-${item.value}-tab`}
+          className={active === item.value ? styles.activeTab : undefined}
+          id={`${idPrefix}-${item.value}-tab`}
           key={item.value}
           onClick={() => onChange(item.value)}
           onKeyDown={(event) => handleKeyDown(event, index)}

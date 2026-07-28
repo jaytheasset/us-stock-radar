@@ -315,13 +315,35 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
   const postStyles = readSource("components/live-room/Posts.module.css");
 
-  assert.match(clientSource, /<RoomTabs[\s\S]*dockOnMobile/);
-  assert.match(
-    clientSource,
-    /\{ label: "Members", mobileOnly: true, value: "members" \}/,
-  );
+  const desktopTabs =
+    clientSource.match(
+      /<RoomTabs\s+active=\{activeTab\}[\s\S]*?visibility="desktop"\s*\/>/,
+    )?.[0] ?? "";
+  const mobileTabs =
+    clientSource.match(
+      /<RoomTabs\s+active=\{mobileMembersOpen \? "members" : activeTab\}[\s\S]*?visibility="mobile"\s*\/>/,
+    )?.[0] ?? "";
+
+  assert.match(desktopTabs, /label: "Chat"/);
+  assert.match(desktopTabs, /label: "Posts"/);
+  assert.match(desktopTabs, /label: "Events"/);
+  assert.doesNotMatch(desktopTabs, /label: "Members"/);
+  assert.match(mobileTabs, /label: "Members"/);
+  assert.match(mobileTabs, /idPrefix="live-room-mobile"/);
+  assert.match(mobileTabs, /dockOnMobile/);
   assert.match(tabsSource, /dockOnMobile\?: boolean/);
   assert.match(tabsSource, /styles\.mobileDock/);
+  assert.match(tabsSource, /styles\.desktopOnlyTabs/);
+  assert.match(tabsSource, /styles\.mobileOnlyTabs/);
+  assert.match(
+    tabsSource,
+    /nextIndex = \(index \+ 1\) % items\.length/,
+  );
+  assert.match(
+    tabsSource,
+    /nextIndex = items\.length - 1/,
+  );
+  assert.doesNotMatch(tabsSource, /mobileOnly\?: boolean/);
   assert.match(
     tabsSource,
     /"--live-room-mobile-tab-count": items\.length/,
@@ -333,7 +355,28 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
   assert.match(
     postStyles,
+    /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/,
+  );
+  assert.match(
+    postStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.tabs\.desktopOnlyTabs\s*\{[\s\S]*display:\s*none[\s\S]*\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*grid/,
+  );
+  assert.doesNotMatch(postStyles, /\.mobileOnlyTab\s*\{/);
+  assert.match(
+    postStyles,
     /bottom:\s*calc\([\s\S]*var\(--live-room-mobile-composer-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
+  );
+  assert.match(
+    clientSource,
+    /useState<CompanyLiveRoomTab>\("chat"\)/,
+  );
+  assert.match(
+    clientSource,
+    /const \[mobileMembersOpen, setMobileMembersOpen\] = useState\(false\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.primaryColumn\[data-mobile-members-open="true"\][\s\S]*> :not\(\.membersPanel\)\s*\{[\s\S]*display:\s*none/,
   );
   assert.match(
     liveRoomStyles,

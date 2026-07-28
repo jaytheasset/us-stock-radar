@@ -28,7 +28,7 @@
   box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
 }
 
-.tabs .mobileOnlyTab {
+.tabs.mobileOnlyTabs {
   display: none;
 }
 
@@ -306,6 +306,10 @@
 }
 
 @media (max-width: 760px) {
+  .tabs.desktopOnlyTabs {
+    display: none;
+  }
+
   .tabs.mobileDock {
     position: fixed;
     z-index: calc(var(--sr-z-sticky-action) + 1);
@@ -333,8 +337,8 @@
     min-height: 46px;
   }
 
-  .tabs.mobileDock .mobileOnlyTab {
-    display: block;
+  .tabs.mobileOnlyTabs {
+    display: grid;
   }
 }
 
