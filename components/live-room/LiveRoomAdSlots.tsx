@@ -14,12 +14,12 @@ export function LiveRoomRailAdSlot({
     <div className={styles.desktopRailAd}>
       <AdSenseSlot
         enabledForViewer={enabledForViewer}
-        format="responsive"
+        format="fixed"
         height={250}
         inventory="live-room-rail-300x250"
         mediaQuery="(min-width: 1181px)"
-        placeholderSize="Responsive display"
-        width={336}
+        placeholderSize="300 × 250"
+        width={300}
       />
     </div>
   );
@@ -34,14 +34,15 @@ export function LiveRoomMobileInlineAdSlot({
     <div className={styles.mobileInlineAd}>
       <AdSenseSlot
         enabledForViewer={enabledForViewer}
-        format="responsive"
-        height={100}
+        format="fixed"
+        height={50}
         inventory="live-room-mobile-inline"
         mediaQuery="(max-width: 760px)"
-        mobileHeight={100}
+        mobileHeight={50}
         mobileWidth={320}
-        placeholderSize="Responsive display"
-        width={480}
+        placeholderSize="320 × 50"
+        showRemoveAdsLink={false}
+        width={320}
       />
     </div>
   );

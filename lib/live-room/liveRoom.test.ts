@@ -253,10 +253,14 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     headerSource,
     /Company room · \{identity\.ticker\}/,
   );
-  assert.match(styleSource, /width:\s*min\(100%,\s*1600px\)/);
   assert.match(
     styleSource,
-    /padding:\s*var\(--sr-space-4\)\s+var\(--sr-page-gutter-desktop\)/,
+    /width:\s*calc\(100%\s*-\s*\(2\s*\*\s*var\(--sr-page-gutter-desktop\)\)\)/,
+  );
+  assert.match(styleSource, /max-width:\s*1600px/);
+  assert.match(
+    styleSource,
+    /padding:\s*var\(--sr-space-4\)\s+0\s+var\(--sr-space-8\)/,
   );
   assert.match(
     styleSource,
@@ -301,7 +305,15 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   );
   assert.match(
     liveRoomStyles,
-    /\.composer\s*\{[\s\S]*position:\s*fixed[\s\S]*--live-room-mobile-nav-height[\s\S]*env\(safe-area-inset-bottom\)/,
+    /@media \(max-width: 760px\)[\s\S]*\.page\s*\{[\s\S]*height:\s*calc\(100dvh - var\(--sr-size-header\)\)[\s\S]*env\(safe-area-inset-bottom\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,240}position:\s*relative/,
+  );
+  assert.doesNotMatch(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed/,
   );
   assert.match(
     timelineSource,
@@ -314,7 +326,7 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   );
 });
 
-test("Live Room loads one cancellable quote and uses plan-aware responsive ads", () => {
+test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () => {
   const pageSource = readSource("app/live/[ticker]/page.tsx");
   const clientSource = readSource(
     "components/live-room/LiveRoomClient.tsx",
@@ -350,7 +362,23 @@ test("Live Room loads one cancellable quote and uses plan-aware responsive ads",
   assert.match(clientSource, /<LiveRoomRailAdSlot/);
   assert.match(adSource, /if \(!enabledForViewer\) return null/);
   assert.match(adSource, /inventory="live-room-rail-300x250"/);
+  assert.match(
+    adSource,
+    /format="fixed"[\s\S]*height=\{250\}[\s\S]*placeholderSize="300 × 250"[\s\S]*width=\{300\}/,
+  );
   assert.match(adSource, /inventory="live-room-mobile-inline"/);
+  assert.match(
+    adSource,
+    /format="fixed"[\s\S]*height=\{50\}[\s\S]*mobileHeight=\{50\}[\s\S]*mobileWidth=\{320\}[\s\S]*placeholderSize="320 × 50"[\s\S]*showRemoveAdsLink=\{false\}[\s\S]*width=\{320\}/,
+  );
+  assert.doesNotMatch(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed/,
+  );
+  assert.doesNotMatch(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.timeline\s*\{[\s\S]{0,150}132px/,
+  );
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.mobileInlineAd\s*\{[\s\S]*display:\s*block/,

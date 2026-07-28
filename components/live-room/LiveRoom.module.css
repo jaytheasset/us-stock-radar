@@ -2,10 +2,12 @@
   --live-room-mobile-nav-height: 60px;
   --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
 
-  width: min(100%, 1600px);
+  box-sizing: border-box;
+  width: calc(100% - (2 * var(--sr-page-gutter-desktop)));
+  max-width: 1600px;
   min-height: calc(100vh - var(--sr-size-header));
-  margin: 0 auto;
-  padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
+  margin-inline: auto;
+  padding: var(--sr-space-4) 0 var(--sr-space-8);
 }
 
 .roomHeader {
@@ -14,8 +16,11 @@
   min-width: 0;
   align-items: center;
   gap: var(--sr-space-6);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
-  padding-bottom: var(--sr-space-5);
+  margin: 0;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-popover);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
 }
 
 .roomIdentity {
@@ -416,7 +421,9 @@
 }
 
 .desktopRailAd {
+  display: flex;
   min-width: 0;
+  justify-content: center;
 }
 
 .mobileInlineAd {
@@ -906,7 +913,17 @@
 
 .otherMessage article,
 .myMessage article {
+  width: 100%;
+  max-width: min(760px, 86%);
   min-width: 0;
+}
+
+.otherMessage article {
+  justify-self: start;
+}
+
+.myMessage article {
+  justify-self: end;
 }
 
 .otherMessage article > header,
@@ -1457,8 +1474,12 @@
 }
 
 .composerMeta .moderationError {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--sr-color-negative);
   font-weight: var(--sr-font-weight-medium);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .historyRail {
@@ -1595,10 +1616,16 @@
 
 @media (max-width: 760px) {
   .page {
+    display: grid;
+    width: 100%;
+    height: calc(100dvh - var(--sr-size-header));
+    min-height: 0;
+    overflow: hidden;
+    grid-template-rows: auto auto minmax(0, 1fr);
     padding: var(--sr-space-2) var(--sr-page-gutter-mobile)
       calc(
         var(--live-room-mobile-nav-height) +
-          var(--sr-space-4) +
+          var(--sr-space-2) +
           env(safe-area-inset-bottom)
       );
   }
@@ -1608,7 +1635,8 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--sr-space-2);
-    padding-bottom: var(--sr-space-3);
+    margin: 0;
+    padding: var(--sr-space-3);
   }
 
   .marketSummary {
@@ -1636,7 +1664,7 @@
   .mobileInlineAd {
     display: block;
     min-width: 0;
-    margin-top: var(--sr-space-3);
+    margin: var(--sr-space-2) 0;
   }
 
   .roomTitleLine {
@@ -1691,9 +1719,7 @@
   }
 
   .followNote {
-    justify-content: flex-start;
-    margin-top: var(--sr-space-1);
-    text-align: left;
+    display: none;
   }
 
   .latestSection {
@@ -1723,19 +1749,24 @@
     font-size: var(--sr-font-size-lg);
   }
 
+  .workspaceLayout,
+  .primaryColumn,
   .roomLayout,
   .chatPanel {
-    min-height: calc(
-      100dvh -
-        var(--sr-size-header) -
-        var(--live-room-mobile-nav-height) -
-        env(safe-area-inset-bottom)
-    );
-    height: auto;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .workspaceLayout {
+    overflow: hidden;
+  }
+
+  .primaryColumn {
+    overflow-y: auto;
   }
 
   .chatPanel {
-    grid-template-rows: auto minmax(260px, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     border-radius: var(--sr-radius-action);
   }
 
@@ -1762,7 +1793,7 @@
   }
 
   .timeline {
-    padding: var(--sr-space-2) var(--sr-space-2) 132px;
+    padding: var(--sr-space-2);
   }
 
   .latestChatEventStrip {
@@ -1781,7 +1812,12 @@
   }
 
   .myMessage {
-    padding-left: var(--sr-space-5);
+    padding-left: 0;
+  }
+
+  .otherMessage article,
+  .myMessage article {
+    max-width: 100%;
   }
 
   .systemUpdate {
@@ -1790,17 +1826,11 @@
   }
 
   .composer {
-    position: fixed;
-    z-index: var(--sr-z-sticky-action);
-    right: var(--sr-page-gutter-mobile);
-    bottom: calc(
-      var(--live-room-mobile-nav-height) +
-        env(safe-area-inset-bottom)
-    );
-    left: var(--sr-page-gutter-mobile);
+    position: relative;
     padding: var(--sr-space-2) var(--sr-space-2) 0;
-    border: var(--sr-border-width) solid var(--sr-color-border);
-    border-radius: var(--sr-radius-action) var(--sr-radius-action) 0 0;
+    border: 0;
+    border-top: var(--sr-border-width) solid var(--sr-color-border);
+    border-radius: 0;
     background: var(--sr-color-surface-panel);
   }
 
@@ -1846,6 +1876,7 @@
   .composerMeta {
     display: grid;
     gap: var(--sr-space-1);
+    padding: var(--sr-space-1) 0 var(--sr-space-2);
   }
 
   .composerMeta > span:first-child {
