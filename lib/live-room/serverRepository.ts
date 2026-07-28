@@ -44,6 +44,8 @@ import type {
   LiveRoomProfile,
   LiveRoomPresenceSetting,
   LiveRoomPresenceSummary,
+  LiveRoomPostActivity,
+  LiveRoomPostActivityKind,
   LiveRoomTimelineItem,
   LiveRoomUnreadSummary,
 } from "./types";
@@ -1043,13 +1045,26 @@ export async function markLiveRoomRead(
 export async function getLiveRoomUnreadSummary(
   actor: LiveRoomActor,
 ): Promise<LiveRoomUnreadSummary> {
-  const result = await supabaseRpc("get_live_room_activity_summary", {
-    p_actor_kind: actor.kind,
-    p_member_user_id: actor.kind === "member" ? actor.userId : null,
-    p_guest_session_id:
-      actor.kind === "guest" ? actor.guestSessionId : null,
-    p_people_limit: 30,
-  });
+  const [result, postActivityResult] = await Promise.all([
+    supabaseRpc("get_live_room_activity_summary", {
+      p_actor_kind: actor.kind,
+      p_member_user_id: actor.kind === "member" ? actor.userId : null,
+      p_guest_session_id:
+        actor.kind === "guest" ? actor.guestSessionId : null,
+      p_people_limit: 30,
+    }),
+    actor.kind === "member"
+      ? supabaseRpc("get_live_room_post_activity_summary", {
+          p_recipient_user_id: actor.userId,
+          p_limit: 30,
+        })
+      : Promise.resolve({
+          data: null,
+          error: undefined,
+          ok: true,
+          status: 200,
+        }),
+  ]);
   if (!result.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_UNREAD_UNAVAILABLE",
@@ -1057,7 +1072,30 @@ export async function getLiveRoomUnreadSummary(
       result.status || 502,
     );
   }
+  if (!postActivityResult.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_ACTIVITY_UNAVAILABLE",
+      postActivityResult.error ||
+        "Live Room post activity could not be loaded.",
+      postActivityResult.status || 502,
+    );
+  }
   const summary = readSingleRow(result.data) || {};
+  const postActivitySummary =
+    readSingleRow(postActivityResult.data) || {};
+  const activity = readRows(postActivitySummary.items)
+    .map(mapLiveRoomPostActivity)
+    .filter((item): item is LiveRoomPostActivity => Boolean(item));
+  const activityUnreadCount =
+    actor.kind === "member"
+      ? Math.max(
+          0,
+          Number(
+            postActivitySummary.unreadCount ??
+              postActivitySummary.unread_count,
+          ) || 0,
+        )
+      : 0;
   const rooms = readRows(summary.rooms).map((row) => ({
     ticker: normalizeLiveRoomTicker(
       readString(row.ticker ?? row.room_ticker),
@@ -1103,6 +1141,8 @@ export async function getLiveRoomUnreadSummary(
         Boolean(item.createdAt),
     );
   return {
+    activity: actor.kind === "member" ? activity : [],
+    activityUnreadCount,
     followedPeople: actor.kind === "member" ? followedPeople : [],
     hasMemberFollows:
       actor.kind === "member" && summary.hasMemberFollows === true,
@@ -1116,8 +1156,45 @@ export async function getLiveRoomUnreadSummary(
     totalUnreadCount: Math.max(
       0,
       Number(summary.totalUnreadCount) || 0,
-    ),
+    ) + activityUnreadCount,
   };
+}
+
+export async function markLiveRoomPostActivityRead({
+  activityId: rawActivityId,
+  actor,
+}: {
+  activityId: unknown;
+  actor: LiveRoomActor;
+}) {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to read Live Room activity.",
+      401,
+    );
+  }
+  const activityId = normalizeLiveRoomUuid(
+    rawActivityId,
+    "LIVE_ROOM_INVALID_ACTIVITY_ID",
+    "The activity ID is invalid.",
+  );
+  const result = await supabaseRpc(
+    "mark_live_room_post_activity_read",
+    {
+      p_recipient_user_id: actor.userId,
+      p_activity_id: activityId,
+    },
+  );
+  if (!result.ok) {
+    throw mapLiveRoomActionError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_POST_ACTIVITY_READ_FAILED",
+      "Live Room activity could not be marked as read.",
+    );
+  }
+  return { activityId, markedRead: result.data === true };
 }
 
 export async function updateLiveRoomMemberFollow({
@@ -1778,6 +1855,57 @@ function readRoom(row: Record<string, unknown>): RoomRow {
     kind: "company",
     slug: null,
     ticker,
+  };
+}
+
+function mapLiveRoomPostActivity(
+  row: Record<string, unknown>,
+): LiveRoomPostActivity | null {
+  const activityId = readString(
+    row.activityId ?? row.activity_id,
+  );
+  const postId = readString(row.postId ?? row.post_id);
+  const createdAt = readString(row.createdAt ?? row.created_at);
+  const rawKind = readString(row.kind ?? row.activity_kind);
+  const allowedKinds: LiveRoomPostActivityKind[] = [
+    "comment_reply",
+    "followed_member_post",
+    "followed_room_post",
+    "post_comment",
+  ];
+  if (
+    !isUuid(activityId) ||
+    !isUuid(postId) ||
+    !Number.isFinite(Date.parse(createdAt)) ||
+    !allowedKinds.includes(rawKind as LiveRoomPostActivityKind)
+  ) {
+    return null;
+  }
+  const commentId =
+    readString(row.commentId ?? row.comment_id) || null;
+  if (commentId && !isUuid(commentId)) return null;
+  return {
+    activityId,
+    actorDisplayName:
+      readString(row.actorDisplayName ?? row.actor_display_name) ||
+      "Member",
+    actorEmoji:
+      readString(row.actorEmoji ?? row.actor_emoji) ||
+      String.fromCodePoint(128100),
+    bodyPreview: readString(
+      row.bodyPreview ?? row.body_preview,
+    ).slice(0, 160),
+    commentId,
+    createdAt,
+    isRead: row.isRead === true || row.is_read === true,
+    kind: rawKind as LiveRoomPostActivityKind,
+    postId,
+    postTitle: readString(
+      row.postTitle ?? row.post_title,
+    ).slice(0, 120),
+    roomLabel: readString(
+      row.roomLabel ?? row.room_label,
+    ).slice(0, 60),
   };
 }
 

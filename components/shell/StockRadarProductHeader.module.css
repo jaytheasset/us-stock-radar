@@ -496,7 +496,7 @@
 
 .liveRoomInboxTabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid
     var(--sr-color-border-product-menu);
@@ -736,6 +736,14 @@
 
 .liveRoomPeopleItem:hover {
   background: var(--sr-color-product-accent-menu);
+}
+
+.liveRoomActivityRead {
+  opacity: 0.68;
+}
+
+.liveRoomActivityRead:hover {
+  opacity: 1;
 }
 
 .liveRoomPeopleItem > a {

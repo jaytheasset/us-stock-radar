@@ -250,7 +250,29 @@ export type LiveRoomMemberActivity = LiveRoomFollowedMember & {
   createdAt: string;
 };
 
+export type LiveRoomPostActivityKind =
+  | "comment_reply"
+  | "followed_member_post"
+  | "followed_room_post"
+  | "post_comment";
+
+export type LiveRoomPostActivity = {
+  activityId: string;
+  actorDisplayName: string;
+  actorEmoji: string;
+  bodyPreview: string;
+  commentId: string | null;
+  createdAt: string;
+  isRead: boolean;
+  kind: LiveRoomPostActivityKind;
+  postId: string;
+  postTitle: string;
+  roomLabel: string;
+};
+
 export type LiveRoomUnreadSummary = {
+  activity: LiveRoomPostActivity[];
+  activityUnreadCount: number;
   followedPeople: LiveRoomFollowedMember[];
   hasMemberFollows: boolean;
   isAuthenticated: boolean;
