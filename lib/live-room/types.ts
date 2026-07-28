@@ -46,6 +46,7 @@ export type LiveRoomProfile = {
   emoji: string;
   isGuest: boolean;
   plan: Plan;
+  publicProfileId?: string;
   socialBadges?: LiveRoomSocialBadge[];
 };
 
@@ -85,9 +86,67 @@ export type LiveRoomSystemUpdate = {
   kind: "company_update";
 };
 
+export type LiveRoomPostRoom = {
+  href: string;
+  kind: "company" | "community";
+  label: string;
+};
+
+export type LiveRoomPostAuthor = {
+  displayName: string;
+  emoji: string;
+  publicProfileId: string;
+};
+
+export type LiveRoomPostPreview = {
+  author: LiveRoomPostAuthor;
+  createdAt: string;
+  id: string;
+  kind: "post_preview";
+  room: LiveRoomPostRoom;
+  title: string;
+};
+
 export type LiveRoomTimelineItem =
   | LiveRoomChatMessage
+  | LiveRoomPostPreview
   | LiveRoomSystemUpdate;
+
+export type LiveRoomPost = {
+  author: LiveRoomPostAuthor;
+  body: string;
+  canModerate: boolean;
+  createdAt: string;
+  eventReference: CompanyEventReference | null;
+  id: string;
+  isMine: boolean;
+  relatedTickers: string[];
+  room: LiveRoomPostRoom;
+  title: string;
+  updatedAt: string;
+};
+
+export type LiveRoomPostPage = {
+  items: LiveRoomPost[];
+  nextCursor: string | null;
+};
+
+export type LiveRoomPublicMember = {
+  displayName: string;
+  emoji: string;
+  publicProfileId: string;
+};
+
+export type LiveRoomPublicMemberPostPage = LiveRoomPostPage & {
+  member: LiveRoomPublicMember;
+};
+
+export type LiveRoomPostDraft = {
+  body: string;
+  eventId: string | null;
+  relatedTickers: string[];
+  title: string;
+};
 
 export const LIVE_ROOM_REPORT_REASONS = [
   "spam",

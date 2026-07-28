@@ -1,0 +1,325 @@
+﻿.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: min(520px, 100%);
+  margin: 18px 0;
+  padding: 4px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 12px;
+  background: var(--sr-color-surface-control);
+}
+
+.tabs button {
+  min-width: 0;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sr-color-text-meta);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabs .activeTab {
+  background: var(--sr-color-surface-panel);
+  color: var(--sr-color-text-heading);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
+}
+
+.panel {
+  width: 100%;
+  min-width: 0;
+  padding: 22px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 16px;
+  background: var(--sr-color-surface-panel);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.panelHeader span {
+  color: var(--sr-color-accent-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panelHeader h2 {
+  margin: 4px 0;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+}
+
+.panelHeader p {
+  margin: 0;
+  color: var(--sr-color-text-meta);
+}
+
+.panelHeader button,
+.form button,
+.emptyState button,
+.loadMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 9px;
+  background: var(--sr-color-surface-panel);
+  color: var(--sr-color-text-heading);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.signInNote,
+.notice,
+.emptyState {
+  margin-top: 18px;
+  padding: 16px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 12px;
+  background: var(--sr-color-surface-control);
+}
+
+.signInNote {
+  display: grid;
+  gap: 4px;
+}
+
+.signInNote span,
+.notice,
+.emptyState span {
+  color: var(--sr-color-text-meta);
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 12px;
+  background: var(--sr-color-surface-control);
+}
+
+.form label {
+  display: grid;
+  gap: 7px;
+  color: var(--sr-color-text-heading);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.form label small {
+  color: var(--sr-color-text-meta);
+  font-weight: 500;
+}
+
+.form input,
+.form textarea,
+.form select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 9px;
+  background: var(--sr-color-surface-panel);
+  color: var(--sr-color-text-heading);
+  font: inherit;
+}
+
+.form textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.formActions,
+.actions,
+.chips,
+.authorLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.card {
+  min-width: 0;
+  padding: 18px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 12px;
+  background: var(--sr-color-surface-panel);
+}
+
+.authorLine {
+  justify-content: space-between;
+  color: var(--sr-color-text-meta);
+  font-size: 0.8rem;
+}
+
+.authorLine a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--sr-color-text-heading);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.card h3 {
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+  font-size: 1.1rem;
+}
+
+.card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card > p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--sr-color-text-meta);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.chips {
+  margin-top: 12px;
+}
+
+.chips a,
+.eventReference {
+  padding: 4px 8px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 999px;
+  color: var(--sr-color-text-meta);
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+.eventReference {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  margin-top: 14px;
+}
+
+.actions > a,
+.actions button,
+.actions summary {
+  color: var(--sr-color-text-meta);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions button {
+  border: 0;
+  background: transparent;
+}
+
+.actions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  list-style: none;
+}
+
+.actions details {
+  position: relative;
+}
+
+.actions details > div {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  display: grid;
+  min-width: 150px;
+  padding: 7px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 9px;
+  background: var(--sr-color-surface-panel);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 15%);
+}
+
+.actions details button {
+  padding: 7px;
+  text-align: left;
+  text-transform: capitalize;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.loadMore {
+  justify-self: center;
+}
+
+@media (max-width: 640px) {
+  .tabs {
+    width: 100%;
+    margin: 14px 0;
+  }
+
+  .tabs button {
+    padding: 0 6px;
+    font-size: 0.82rem;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .panelHeader {
+    display: grid;
+  }
+
+  .panelHeader button {
+    width: 100%;
+  }
+
+  .form {
+    padding: 14px;
+  }
+
+  .card {
+    padding: 15px;
+  }
+
+  .authorLine {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -13,6 +13,12 @@ import { getLiveRoomSocialBadgeMap } from "@/lib/social-verification/serverRepos
 import { getCommunityRoomIdentity } from "./communityServerRepository";
 import { evaluateLiveRoomMessage } from "./moderation";
 import {
+  listLiveRoomPosts,
+  mapLiveRoomPostRows,
+  toLiveRoomPostPreview,
+  type PostRow,
+} from "./postServerRepository";
+import {
   createServerOwnedAuthorSnapshot,
   getDefaultLiveRoomDisplayName,
   getLiveRoomActorFilter,
@@ -38,6 +44,7 @@ import type {
   LiveRoomProfile,
   LiveRoomPresenceSetting,
   LiveRoomPresenceSummary,
+  LiveRoomTimelineItem,
   LiveRoomUnreadSummary,
 } from "./types";
 
@@ -88,7 +95,7 @@ type BlockRow = {
 };
 
 export type LiveRoomMessagePage = {
-  items: LiveRoomChatMessage[];
+  items: LiveRoomTimelineItem[];
   latestChangeCursor: string | null;
   latestCursor: string | null;
   nextCursor: string | null;
@@ -98,7 +105,7 @@ export type LiveRoomMessageChanges = {
   hasMore: boolean;
   latestChangeCursor: string | null;
   removedIds: string[];
-  upserts: LiveRoomChatMessage[];
+  upserts: LiveRoomTimelineItem[];
 };
 
 export async function getLiveRoomMessagePage({
@@ -150,7 +157,17 @@ export async function getLiveRoomMessagePage({
     blockedActorIds,
   );
 
-  const result = await supabaseSelect("live_room_messages", search);
+  const [result, postPage] = await Promise.all([
+    supabaseSelect("live_room_messages", search),
+    listLiveRoomPosts({
+      actor,
+      after,
+      before,
+      limit: pageSize,
+      slug,
+      ticker: rawTicker,
+    }),
+  ]);
   if (!result.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MESSAGES_UNAVAILABLE",
@@ -163,17 +180,28 @@ export async function getLiveRoomMessagePage({
   const hasMore = fetchedRows.length > pageSize;
   const pageRows = fetchedRows.slice(0, pageSize);
   const chronologicalRows = ascending ? pageRows : [...pageRows].reverse();
-  const items = await mapMessageRows(chronologicalRows, actor);
-  const oldest = chronologicalRows[0];
-  const latest = chronologicalRows[chronologicalRows.length - 1];
+  const messageItems = await mapMessageRows(chronologicalRows, actor);
+  const postItems = postPage.items.map(toLiveRoomPostPreview);
+  const combinedItems = [...messageItems, ...postItems].sort(compareTimeline);
+  const items = ascending
+    ? combinedItems.slice(0, pageSize)
+    : combinedItems.slice(-pageSize);
+  const oldest = items[0];
+  const latest = items[items.length - 1];
+  const combinedHasMore =
+    hasMore ||
+    Boolean(postPage.nextCursor) ||
+    combinedItems.length > pageSize;
 
   return {
     items,
     latestChangeCursor,
-    latestCursor: latest ? encodeMessageCursor(readCursor(latest)) : null,
+    latestCursor: latest
+      ? encodeMessageCursor({ createdAt: latest.createdAt, id: latest.id })
+      : null,
     nextCursor:
-      !ascending && hasMore && oldest
-        ? encodeMessageCursor(readCursor(oldest))
+      !ascending && combinedHasMore && oldest
+        ? encodeMessageCursor({ createdAt: oldest.createdAt, id: oldest.id })
         : null,
   };
 }
@@ -257,40 +285,78 @@ export async function getLiveRoomMessageChanges({
       `(updated_at.gt.${cursor.createdAt},and(updated_at.eq.${cursor.createdAt},id.gt.${cursor.id}))`;
   }
 
-  const [result, blockedActorIds] = await Promise.all([
+  const postSearch: Record<string, string> = {
+    select:
+      "id,room_id,author_user_id,title,body,related_tickers,referenced_event_id,visibility_status,created_at,updated_at",
+    room_id: `eq.${room.id}`,
+    order: "updated_at.asc,id.asc",
+    limit: String(pageSize + 1),
+  };
+  if (cursor) {
+    postSearch.or =
+      `(updated_at.gt.${cursor.createdAt},and(updated_at.eq.${cursor.createdAt},id.gt.${cursor.id}))`;
+  }
+
+  const [result, postResult, blockedActorIds] = await Promise.all([
     supabaseSelect("live_room_messages", search),
+    supabaseSelect("live_room_posts", postSearch),
     getBlockedActorIds(actor),
   ]);
-  if (!result.ok) {
+  if (!result.ok || !postResult.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_CHANGES_UNAVAILABLE",
-      result.error || "Live Room updates could not be loaded.",
-      result.status || 502,
+      result.error ||
+        postResult.error ||
+        "Live Room updates could not be loaded.",
+      result.status || postResult.status || 502,
     );
   }
 
-  const fetchedRows = readRows(result.data) as MessageRow[];
-  const hasMore = fetchedRows.length > pageSize;
-  const pageRows = fetchedRows.slice(0, pageSize);
+  const fetchedChanges = [
+    ...(readRows(result.data) as MessageRow[]).map((row) => ({
+      kind: "message" as const,
+      row,
+    })),
+    ...(readRows(postResult.data) as PostRow[]).map((row) => ({
+      kind: "post" as const,
+      row,
+    })),
+  ].sort((left, right) => {
+    const time =
+      Date.parse(readString(left.row.updated_at)) -
+      Date.parse(readString(right.row.updated_at));
+    return time || readString(left.row.id).localeCompare(readString(right.row.id));
+  });
+  const hasMore = fetchedChanges.length > pageSize;
+  const pageChanges = fetchedChanges.slice(0, pageSize);
   const blocked = new Set(blockedActorIds);
   const upsertRows: MessageRow[] = [];
+  const upsertPostRows: PostRow[] = [];
   const removedIds: string[] = [];
 
-  pageRows.forEach((row) => {
+  pageChanges.forEach(({ kind, row }) => {
     const id = readString(row.id);
-    const actorId = readString(row.actor_id);
-    if (
-      row.visibility_status === "visible" &&
-      (!actorId || !blocked.has(actorId))
-    ) {
-      upsertRows.push(row);
+    const actorId =
+      kind === "message"
+        ? readString((row as MessageRow).actor_id)
+        : readString((row as PostRow).author_user_id);
+    if (row.visibility_status === "visible" && !blocked.has(actorId)) {
+      if (kind === "message") upsertRows.push(row as MessageRow);
+      else upsertPostRows.push(row as PostRow);
     } else if (id) {
       removedIds.push(id);
     }
   });
 
-  const latest = pageRows[pageRows.length - 1];
-  const upserts = await mapMessageRows(upsertRows, actor);
+  const latest = pageChanges[pageChanges.length - 1]?.row;
+  const [messageUpserts, postUpserts] = await Promise.all([
+    mapMessageRows(upsertRows, actor),
+    mapLiveRoomPostRows(upsertPostRows, actor),
+  ]);
+  const upserts = [
+    ...messageUpserts,
+    ...postUpserts.map(toLiveRoomPostPreview),
+  ].sort(compareTimeline);
   return {
     hasMore,
     latestChangeCursor: latest
@@ -1138,20 +1204,42 @@ export async function markLiveRoomMemberActivityRead({
 }
 
 async function getLatestRoomChangeCursor(roomId: string) {
-  const result = await supabaseSelect("live_room_messages", {
-    select: "id,updated_at",
-    room_id: `eq.${roomId}`,
-    order: "updated_at.desc,id.desc",
-    limit: "1",
-  });
-  if (!result.ok) {
+  const [messageResult, postResult] = await Promise.all([
+    supabaseSelect("live_room_messages", {
+      select: "id,updated_at",
+      room_id: `eq.${roomId}`,
+      order: "updated_at.desc,id.desc",
+      limit: "1",
+    }),
+    supabaseSelect("live_room_posts", {
+      select: "id,updated_at",
+      room_id: `eq.${roomId}`,
+      order: "updated_at.desc,id.desc",
+      limit: "1",
+    }),
+  ]);
+  if (!messageResult.ok || !postResult.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_CHANGES_UNAVAILABLE",
-      result.error || "The Live Room change cursor is unavailable.",
-      result.status || 502,
+      messageResult.error ||
+        postResult.error ||
+        "The Live Room change cursor is unavailable.",
+      messageResult.status || postResult.status || 502,
     );
   }
-  const row = readSingleRow(result.data);
+  const row = [
+    readSingleRow(messageResult.data),
+    readSingleRow(postResult.data),
+  ]
+    .filter(
+      (item): item is Record<string, unknown> => Boolean(item),
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(readString(right.updated_at)) -
+          Date.parse(readString(left.updated_at)) ||
+        readString(right.id).localeCompare(readString(left.id)),
+    )[0];
   const id = readString(row?.id);
   const updatedAt = readString(row?.updated_at);
   return id && updatedAt
@@ -1710,6 +1798,16 @@ function readSingleRow(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function compareTimeline(
+  left: LiveRoomTimelineItem,
+  right: LiveRoomTimelineItem,
+) {
+  return (
+    Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
+    left.id.localeCompare(right.id)
+  );
 }
 
 function isUuid(value: string) {

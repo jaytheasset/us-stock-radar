@@ -766,3 +766,9 @@
     height: calc(100dvh - 130px);
   }
 }
+.communityChat[hidden],
+.metaList[hidden],
+.discoveryList[hidden],
+.tickerList[hidden] {
+  display: none;
+}
