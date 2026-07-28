@@ -31,7 +31,9 @@ import type {
 import {
   getCommunityFocusTagLabel,
   getCommunityLanguageLabel,
+  getCommunityRoomIndustryLabel,
   getCommunityRoomStyleLabel,
+  getCommunityRoomThemeLabel,
   getCommunityTopicLabel,
   type CommunityRoom,
 } from "@/lib/live-room/community";
@@ -403,6 +405,26 @@ export function CommunityRoomClient({
                 </span>
               ))}
             </div>
+            {room.themes.length || room.industries.length ? (
+              <div
+                aria-label="Room discovery themes and industries"
+                className={styles.discoveryList}
+              >
+                {room.themes.map((theme) => (
+                  <Link href={`/live?theme=${theme}`} key={`theme:${theme}`}>
+                    Theme · {getCommunityRoomThemeLabel(theme)}
+                  </Link>
+                ))}
+                {room.industries.map((industry) => (
+                  <Link
+                    href={`/live?industry=${industry}`}
+                    key={`industry:${industry}`}
+                  >
+                    Industry · {getCommunityRoomIndustryLabel(industry)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
             {room.relatedTickers.length ? (
               <div
                 aria-label="Related company tickers"

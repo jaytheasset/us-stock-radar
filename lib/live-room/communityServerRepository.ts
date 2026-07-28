@@ -6,9 +6,11 @@ import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import {
   COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE,
   COMMUNITY_ROOM_FOCUS_TAGS,
+  COMMUNITY_ROOM_INDUSTRY_OPTIONS,
   COMMUNITY_ROOM_LANGUAGES,
   COMMUNITY_ROOM_SORTS,
   COMMUNITY_ROOM_STYLES,
+  COMMUNITY_ROOM_THEME_OPTIONS,
   COMMUNITY_ROOM_TOPICS,
   createCommunityRoomSlug,
   normalizeCommunityRoomCreateInput,
@@ -20,8 +22,10 @@ import {
   type CommunityRoomDirectoryPage,
   type CommunityRoomFocusTag,
   type CommunityRoomLanguage,
+  type CommunityRoomIndustry,
   type CommunityRoomSort,
   type CommunityRoomStyle,
+  type CommunityRoomTheme,
   type CommunityRoomTopic,
 } from "./community";
 import {
@@ -59,6 +63,7 @@ export async function createCommunityRoom(
       "create_live_room_community_room",
       {
         p_focus_tags: input.focusTags,
+        p_industries: input.industries,
         p_language: input.language,
         p_name: input.name,
         p_owner_user_id: actor.userId,
@@ -66,6 +71,7 @@ export async function createCommunityRoom(
         p_room_style: input.roomStyle,
         p_slug: slug,
         p_summary: input.summary,
+        p_themes: input.themes,
         p_topic: input.topic,
       },
     );
@@ -140,12 +146,14 @@ export async function listCommunityRooms(
       p_after_at: cursor?.at ?? null,
       p_after_slug: cursor?.slug ?? null,
       p_focus_tag: filters.focusTag,
+      p_industry: filters.industry,
       p_language: filters.language,
       p_limit: COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE,
       p_room_style: filters.roomStyle,
       p_search: filters.search || null,
       p_sort: filters.sort,
       p_topic: filters.topic,
+      p_theme: filters.theme,
     },
   );
   if (!result.ok) {
@@ -184,6 +192,8 @@ export function communityFiltersToSearchParams(
   if (filters.topic) search.set("topic", filters.topic);
   if (filters.roomStyle) search.set("style", filters.roomStyle);
   if (filters.focusTag) search.set("tag", filters.focusTag);
+  if (filters.theme) search.set("theme", filters.theme);
+  if (filters.industry) search.set("industry", filters.industry);
   if (filters.language) search.set("language", filters.language);
   if (filters.search) search.set("q", filters.search);
   if (filters.sort !== "activity") search.set("sort", filters.sort);
@@ -214,6 +224,11 @@ function mapCommunityRoomDatabaseError(
       "Choose one room language.",
       400,
     ],
+    COMMUNITY_ROOM_INVALID_INDUSTRIES: [
+      "COMMUNITY_ROOM_INVALID_INDUSTRIES",
+      "Choose up to 3 canonical industries.",
+      400,
+    ],
     COMMUNITY_ROOM_INVALID_NAME: [
       "COMMUNITY_ROOM_INVALID_NAME",
       "Enter a plain-text room name without links or HTML.",
@@ -222,6 +237,16 @@ function mapCommunityRoomDatabaseError(
     COMMUNITY_ROOM_INVALID_RELATED_TICKERS: [
       "COMMUNITY_ROOM_INVALID_RELATED_TICKERS",
       "Add up to 5 valid related tickers.",
+      400,
+    ],
+    COMMUNITY_ROOM_INVALID_THEMES: [
+      "COMMUNITY_ROOM_INVALID_THEMES",
+      "Choose up to 3 canonical market themes.",
+      400,
+    ],
+    COMMUNITY_ROOM_DISCOVERY_ANCHOR_REQUIRED: [
+      "COMMUNITY_ROOM_DISCOVERY_ANCHOR_REQUIRED",
+      "Choose at least one ticker, theme, or industry.",
       400,
     ],
     COMMUNITY_ROOM_INVALID_SEARCH: [
@@ -304,6 +329,14 @@ function mapCommunityRoom(value: unknown): CommunityRoom {
     .map(readString)
     .filter((ticker) => /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(ticker))
     .slice(0, 5);
+  const themes = readChoiceArray(
+    row.themes,
+    COMMUNITY_ROOM_THEME_OPTIONS,
+  ).slice(0, 3) as CommunityRoomTheme[];
+  const industries = readChoiceArray(
+    row.industries,
+    COMMUNITY_ROOM_INDUSTRY_OPTIONS,
+  ).slice(0, 3) as CommunityRoomIndustry[];
 
   if (!name || !summary || !createdAt || !lastActivityAt) {
     throw new LiveRoomPolicyError(
@@ -316,6 +349,7 @@ function mapCommunityRoom(value: unknown): CommunityRoom {
   return {
     createdAt,
     focusTags,
+    industries,
     language,
     lastActivityAt,
     name,
@@ -323,6 +357,7 @@ function mapCommunityRoom(value: unknown): CommunityRoom {
     roomStyle,
     slug,
     summary,
+    themes,
     topic,
   };
 }

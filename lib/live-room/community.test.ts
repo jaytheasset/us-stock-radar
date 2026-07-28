@@ -5,9 +5,11 @@ import test from "node:test";
 import {
   COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE,
   COMMUNITY_ROOM_FOCUS_TAGS,
+  COMMUNITY_ROOM_INDUSTRY_OPTIONS,
   COMMUNITY_ROOM_LANGUAGES,
   COMMUNITY_ROOM_STYLES,
   COMMUNITY_ROOM_TOPICS,
+  COMMUNITY_ROOM_THEME_OPTIONS,
   createCommunityRoomSlug,
   getCommunityRoomSlugOrNull,
   normalizeCommunityRoomCreateInput,
@@ -18,6 +20,9 @@ const root = process.cwd();
 const communityMigrationPath =
   "supabase/migrations/20260727231500_live_room_community_rooms.sql";
 const migration = read(communityMigrationPath);
+const discoveryMigrationPath =
+  "supabase/migrations/20260728032258_community_room_discovery_anchors.sql";
+const discoveryMigration = read(discoveryMigrationPath);
 const foundationMigration = read(
   "supabase/migrations/20260727081914_live_room_realtime_foundation.sql",
 );
@@ -95,20 +100,24 @@ test("create validation requires structure, trims copy, and canonicalizes ticker
   assert.deepEqual(
     normalizeCommunityRoomCreateInput({
       focusTags: ["earnings", "macro_policy"],
+      industries: ["capital_markets_exchanges"],
       language: "en",
       name: "  Earnings desk  ",
       relatedTickers: [" aapl ", "MSFT", "AAPL"],
       roomStyle: "deep_research",
       summary: "  Compare earnings quality across large caps.  ",
+      themes: ["ai_data_center", "quantum_computing"],
       topic: "events_catalysts",
     }),
     {
       focusTags: ["earnings", "macro_policy"],
+      industries: ["capital_markets_exchanges"],
       language: "en",
       name: "Earnings desk",
       relatedTickers: ["AAPL", "MSFT"],
       roomStyle: "deep_research",
       summary: "Compare earnings quality across large caps.",
+      themes: ["ai_data_center", "quantum_computing"],
       topic: "events_catalysts",
     },
   );
@@ -116,11 +125,13 @@ test("create validation requires structure, trims copy, and canonicalizes ticker
   for (const missing of ["topic", "roomStyle", "language"] as const) {
     const input: Record<string, unknown> = {
       focusTags: ["earnings"],
+      industries: [],
       language: "en",
       name: "Earnings desk",
       relatedTickers: [],
       roomStyle: "deep_research",
       summary: "Compare earnings quality across large caps.",
+      themes: ["ai_data_center"],
       topic: "events_catalysts",
     };
     delete input[missing];
@@ -131,11 +142,13 @@ test("create validation requires structure, trims copy, and canonicalizes ticker
 test("create validation rejects free tags, cardinality overflow, links, HTML, and multiline copy", () => {
   const valid = {
     focusTags: ["earnings"],
+    industries: [],
     language: "en",
     name: "Earnings desk",
     relatedTickers: [],
     roomStyle: "deep_research",
     summary: "Compare earnings quality across large caps.",
+    themes: ["ai_data_center"],
     topic: "events_catalysts",
   };
   assert.throws(() =>
@@ -197,6 +210,77 @@ test("create validation rejects free tags, cardinality overflow, links, HTML, an
       relatedTickers: ["A", "B", "C", "D", "E", "F"],
     }),
   );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      themes: ["ai_data_center", "bitcoin", "inflation", "short_squeeze"],
+    }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomCreateInput({
+      ...valid,
+      industries: [
+        "software_cloud",
+        "biotechnology",
+        "banks",
+        "oil_gas_refining",
+      ],
+    }),
+  );
+});
+
+test("discovery anchors use canonical themes and industry slugs", () => {
+  assert.equal(
+    COMMUNITY_ROOM_THEME_OPTIONS.some(
+      (option) =>
+        option.value === "quantum_computing" &&
+        option.kind === "specific" &&
+        option.groupSlug === "retail_momentum_flows",
+    ),
+    true,
+  );
+  assert.equal(
+    COMMUNITY_ROOM_THEME_OPTIONS.some(
+      (option) => option.value === "oil_supply_refining_margins",
+    ),
+    true,
+  );
+  assert.equal(
+    COMMUNITY_ROOM_INDUSTRY_OPTIONS.some(
+      (option) =>
+        option.value === "oil_gas_refining" &&
+        option.label === "Oil, Gas & Refining",
+    ),
+    true,
+  );
+  assert.doesNotThrow(() =>
+    normalizeCommunityRoomCreateInput({
+      focusTags: ["company_news"],
+      industries: [],
+      language: "en",
+      name: "Quantum watch",
+      relatedTickers: [],
+      roomStyle: "live_reaction",
+      summary: "Track quantum computing catalysts and market moves.",
+      themes: ["quantum_computing"],
+      topic: "sector_industry",
+    }),
+  );
+  assert.throws(
+    () =>
+      normalizeCommunityRoomCreateInput({
+        focusTags: ["company_news"],
+        industries: [],
+        language: "en",
+        name: "Anchorless room",
+        relatedTickers: [],
+        roomStyle: "live_reaction",
+        summary: "This room deliberately has no discovery anchor.",
+        themes: [],
+        topic: "sector_industry",
+      }),
+    /Choose at least one ticker, theme, or industry/,
+  );
 });
 
 test("slugs are opaque canonical room identity rather than ticker identity", () => {
@@ -219,16 +303,20 @@ test("directory filters are closed, shareable, and page size is bounded to 20", 
       style: "open_discussion",
       tag: "macro_policy",
       language: "ko",
+      industry: "oil_gas_refining",
+      theme: "oil_supply_refining_margins",
       topic: "market_macro",
     }),
     {
       cursor: null,
       focusTag: "macro_policy",
+      industry: "oil_gas_refining",
       language: "ko",
       roomStyle: "open_discussion",
       search: "macro data",
       sort: "newest",
       topic: "market_macro",
+      theme: "oil_supply_refining_margins",
     },
   );
   assert.throws(() =>
@@ -236,6 +324,12 @@ test("directory filters are closed, shareable, and page size is bounded to 20", 
   );
   assert.throws(() =>
     normalizeCommunityRoomDirectoryFilters({ sort: "popular" }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomDirectoryFilters({ theme: "quantum" }),
+  );
+  assert.throws(() =>
+    normalizeCommunityRoomDirectoryFilters({ industry: "oil" }),
   );
 });
 
@@ -344,6 +438,80 @@ test("Community Room metadata is default-deny with owner FK and covering indexes
   );
 });
 
+test("discovery migration preserves old rooms and validates new canonical arrays", () => {
+  assert.match(
+    discoveryMigration,
+    /add column if not exists themes text\[\] not null default array\[\]::text\[\]/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /add column if not exists industries text\[\] not null default array\[\]::text\[\]/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /cardinality\(p_values\) between 0 and 3/gi,
+  );
+  assert.deepEqual(
+    readSqlAllowlist("live_room_community_themes_valid").sort(),
+    COMMUNITY_ROOM_THEME_OPTIONS.map((option) => option.value).sort(),
+  );
+  assert.deepEqual(
+    readSqlAllowlist("live_room_community_industries_valid").sort(),
+    COMMUNITY_ROOM_INDUSTRY_OPTIONS.map((option) => option.value).sort(),
+  );
+  assert.match(
+    discoveryMigration,
+    /live_room_community_rooms_themes_check[\s\S]*not valid/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /live_room_community_rooms_industries_check[\s\S]*not valid/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /cardinality\(v_related_tickers\) = 0[\s\S]*cardinality\(v_themes\) = 0[\s\S]*cardinality\(v_industries\) = 0[\s\S]*COMMUNITY_ROOM_DISCOVERY_ANCHOR_REQUIRED/i,
+  );
+  assert.doesNotMatch(
+    discoveryMigration,
+    /add constraint\s+\w*discovery\w*/i,
+  );
+});
+
+test("discovery migration filters through GIN indexes and keeps RPCs service-role only", () => {
+  assert.match(
+    discoveryMigration,
+    /live_room_community_rooms_themes_gin_idx[\s\S]*using gin \(themes\)/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /live_room_community_rooms_industries_gin_idx[\s\S]*using gin \(industries\)/i,
+  );
+  assert.equal(
+    (
+      discoveryMigration.match(
+        /room\.themes @> array\[p_theme\]::text\[\]/gi,
+      ) ?? []
+    ).length,
+    2,
+  );
+  assert.equal(
+    (
+      discoveryMigration.match(
+        /room\.industries @> array\[p_industry\]::text\[\]/gi,
+      ) ?? []
+    ).length,
+    2,
+  );
+  assert.match(
+    discoveryMigration,
+    /revoke all privileges[\s\S]*create_live_room_community_room\([\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(
+    discoveryMigration,
+    /grant execute[\s\S]*list_live_room_community_rooms\([\s\S]*to service_role/i,
+  );
+});
+
 test("migration validates tag/ticker cardinality and plain text again inside PostgreSQL", () => {
   assert.match(migration, /cardinality\(p_values\) between 1 and 3/i);
   assert.match(migration, /cardinality\(p_values\) between 0 and 5/i);
@@ -384,6 +552,8 @@ test("directory query uses FTS, stable cursors, filters, and a bounded one-query
   assert.match(directoryPage, /name="style"/);
   assert.match(directoryPage, /name="tag"/);
   assert.match(directoryPage, /name="language"/);
+  assert.match(directoryPage, /name="theme"/);
+  assert.match(directoryPage, /name="industry"/);
   assert.match(directoryPage, /name="sort"/);
 });
 
@@ -441,6 +611,13 @@ test("public API presentation omits owner and internal room identifiers", () => 
     migration,
     /'slug', v_slug[\s\S]*'createdAt', v_now/,
   );
+  const discoveryPublicFunctions = discoveryMigration.match(
+    /create function public\.create_live_room_community_room[\s\S]*?create or replace function public\.get_live_room_community_room[\s\S]*?create function public\.list_live_room_community_rooms/,
+  )?.[0] ?? "";
+  assert.doesNotMatch(
+    discoveryPublicFunctions,
+    /'ownerUserId'|'owner_user_id'|'roomId'|'room_id'/,
+  );
 });
 
 test("directory creation UI enforces required fields without free-form tags", () => {
@@ -452,6 +629,14 @@ test("directory creation UI enforces required fields without free-form tags", ()
   assert.match(createDialog, /Focus tags/);
   assert.match(createDialog, /Free-form tags are not supported/);
   assert.match(createDialog, /Up to 5 tickers/);
+  assert.match(createDialog, /Market themes/);
+  assert.match(createDialog, /Industries/);
+  assert.match(
+    createDialog,
+    /Choose at least one ticker, theme, or industry/,
+  );
+  assert.match(createDialog, /aria-pressed/);
+  assert.match(createDialog, /MAIN theme/);
   assert.match(createDialog, /required/);
 });
 
@@ -505,4 +690,20 @@ test("public pg_catalog qualifications are actual functions, not SQL syntax elem
 
 function read(relativePath: string) {
   return readFileSync(path.join(root, relativePath), "utf8");
+}
+
+function readSqlAllowlist(functionName: string) {
+  const body =
+    discoveryMigration.match(
+      new RegExp(
+        `function public\\.${functionName}\\([\\s\\S]+?\\$\\$;`,
+        "i",
+      ),
+    )?.[0] ?? "";
+  const arrayBody =
+    body.match(/p_values <@ array\[([\s\S]+?)\]::text\[\]/i)?.[1] ??
+    "";
+  return [...arrayBody.matchAll(/'([^']+)'/g)].map(
+    (match) => match[1],
+  );
 }

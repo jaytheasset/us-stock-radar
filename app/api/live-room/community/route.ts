@@ -20,11 +20,13 @@ export async function GET(request: NextRequest) {
     const page = await listCommunityRooms({
       cursor: request.nextUrl.searchParams.get("cursor"),
       focusTag: request.nextUrl.searchParams.get("tag"),
+      industry: request.nextUrl.searchParams.get("industry"),
       language: request.nextUrl.searchParams.get("language"),
       roomStyle: request.nextUrl.searchParams.get("style"),
       search: request.nextUrl.searchParams.get("q"),
       sort: request.nextUrl.searchParams.get("sort"),
       topic: request.nextUrl.searchParams.get("topic"),
+      theme: request.nextUrl.searchParams.get("theme"),
     });
     return NextResponse.json(
       { ok: true, data: page },

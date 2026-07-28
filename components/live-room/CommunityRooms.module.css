@@ -93,7 +93,7 @@
 
 .directoryFilters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.65fr) repeat(5, minmax(125px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sr-space-3);
   align-items: end;
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
@@ -144,6 +144,10 @@
   padding-left: var(--sr-space-2-5);
   color: var(--sr-color-text-meta);
   background: var(--sr-color-surface-control);
+}
+
+.searchField {
+  grid-column: span 2;
 }
 
 .searchField > div input {
@@ -242,8 +246,10 @@
 
 .cardPrimaryMeta,
 .cardTags,
+.cardDiscovery,
 .cardTickers,
 .metaList,
+.discoveryList,
 .tickerList {
   display: flex;
   min-width: 0;
@@ -272,6 +278,24 @@
 
 .cardTags span {
   color: var(--sr-color-accent-text);
+}
+
+.cardDiscovery {
+  margin-top: var(--sr-space-2);
+}
+
+.cardDiscovery span,
+.discoveryList a {
+  display: inline-flex;
+  align-items: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-pill);
+  padding: 3px var(--sr-space-2);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-selected);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-control);
+  text-decoration: none;
 }
 
 .cardTickers {
@@ -433,6 +457,118 @@
   background: var(--sr-color-accent-selected);
 }
 
+.discoveryAnchorNotice {
+  display: grid;
+  gap: var(--sr-space-1);
+  border-left: 3px solid var(--sr-color-accent-border);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-accent-selected);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.discoveryAnchorNotice strong {
+  color: var(--sr-color-text-heading);
+}
+
+.taxonomyPicker {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.taxonomyPicker legend {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.taxonomyPicker legend small,
+.taxonomyPicker > p {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
+}
+
+.taxonomyPicker > p {
+  margin: var(--sr-space-1) 0 var(--sr-space-2);
+}
+
+.taxonomyOptions {
+  display: grid;
+  max-height: 250px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  gap: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-3);
+  background: var(--sr-color-surface-base);
+}
+
+.taxonomyOptions section {
+  min-width: 0;
+}
+
+.taxonomyGroupHeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+  margin-bottom: var(--sr-space-1-5);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.taxonomyGroupHeading span {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-meta);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.taxonomyOptions section > div:last-child {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--sr-space-1-5);
+}
+
+.taxonomyOptions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-2-5);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  cursor: pointer;
+}
+
+.taxonomyOptions button > span {
+  color: var(--sr-color-text-meta);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.taxonomyOptions button[aria-pressed="true"] {
+  border-color: var(--sr-color-accent-border);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-selected);
+}
+
+.taxonomyOptions button:disabled {
+  opacity: var(--sr-opacity-disabled);
+  cursor: default;
+}
+
 .formError {
   margin: 0;
   color: var(--sr-color-negative);
@@ -483,6 +619,10 @@
   margin-top: var(--sr-space-3);
 }
 
+.discoveryList {
+  margin-top: var(--sr-space-3);
+}
+
 .tickerList a {
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-action);
@@ -509,6 +649,11 @@
 .createDialog textarea:focus-visible,
 .createDialog select:focus-visible,
 .backLink:focus-visible {
+  outline: 2px solid var(--sr-color-accent-text);
+  outline-offset: 2px;
+}
+
+.discoveryList a:focus-visible {
   outline: 2px solid var(--sr-color-accent-text);
   outline-offset: 2px;
 }
@@ -591,6 +736,10 @@
 
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .taxonomyOptions {
+    max-height: 210px;
   }
 
   .createForm footer {

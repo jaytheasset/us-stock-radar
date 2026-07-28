@@ -5,15 +5,21 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import {
   COMMUNITY_ROOM_FOCUS_TAGS,
+  COMMUNITY_ROOM_INDUSTRY_OPTIONS,
   COMMUNITY_ROOM_LANGUAGES,
   COMMUNITY_ROOM_STYLES,
   COMMUNITY_ROOM_TOPICS,
+  COMMUNITY_ROOM_THEME_OPTIONS,
   getCommunityFocusTagLabel,
   getCommunityLanguageLabel,
+  getCommunityRoomIndustryLabel,
   getCommunityRoomStyleLabel,
+  getCommunityRoomThemeLabel,
   getCommunityTopicLabel,
   type CommunityRoom,
   type CommunityRoomFocusTag,
+  type CommunityRoomIndustry,
+  type CommunityRoomTheme,
 } from "@/lib/live-room/community";
 import {
   requestJson,
@@ -23,21 +29,25 @@ import styles from "./CommunityRooms.module.css";
 
 type FormState = {
   focusTags: CommunityRoomFocusTag[];
+  industries: CommunityRoomIndustry[];
   language: string;
   name: string;
   relatedTickers: string;
   roomStyle: string;
   summary: string;
+  themes: CommunityRoomTheme[];
   topic: string;
 };
 
 const initialForm: FormState = {
   focusTags: [],
+  industries: [],
   language: "",
   name: "",
   relatedTickers: "",
   roomStyle: "",
   summary: "",
+  themes: [],
   topic: "",
 };
 
@@ -110,6 +120,47 @@ export function CommunityRoomCreateDialog() {
     });
   };
 
+  const toggleTheme = (theme: CommunityRoomTheme) => {
+    setError(null);
+    setForm((current) => {
+      const selected = current.themes.includes(theme);
+      if (selected) {
+        return {
+          ...current,
+          themes: current.themes.filter((value) => value !== theme),
+        };
+      }
+      if (current.themes.length >= 3) return current;
+      return { ...current, themes: [...current.themes, theme] };
+    });
+  };
+
+  const toggleIndustry = (industry: CommunityRoomIndustry) => {
+    setError(null);
+    setForm((current) => {
+      const selected = current.industries.includes(industry);
+      if (selected) {
+        return {
+          ...current,
+          industries: current.industries.filter(
+            (value) => value !== industry,
+          ),
+        };
+      }
+      if (current.industries.length >= 3) return current;
+      return {
+        ...current,
+        industries: [...current.industries, industry],
+      };
+    });
+  };
+
+  const relatedTickers = parseTickerInput(form.relatedTickers);
+  const hasDiscoveryAnchor =
+    relatedTickers.length > 0 ||
+    form.themes.length > 0 ||
+    form.industries.length > 0;
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
@@ -122,10 +173,7 @@ export function CommunityRoomCreateDialog() {
           method: "POST",
           body: JSON.stringify({
             ...form,
-            relatedTickers: form.relatedTickers
-              .split(/[,\s]+/)
-              .map((value) => value.trim())
-              .filter(Boolean),
+            relatedTickers,
           }),
         },
       );
@@ -295,9 +343,126 @@ export function CommunityRoomCreateDialog() {
                   ))}
                 </div>
               </fieldset>
+              <div
+                className={styles.discoveryAnchorNotice}
+                id="community-room-discovery-anchor-help"
+              >
+                <strong>
+                  Choose at least one ticker, theme, or industry.
+                </strong>
+                <span>
+                  Related tickers are optional when a market theme or
+                  industry is selected.
+                </span>
+              </div>
+              <fieldset
+                aria-describedby="community-room-discovery-anchor-help"
+                className={styles.taxonomyPicker}
+              >
+                <legend>
+                  Market themes{" "}
+                  <small>{form.themes.length}/3 selected</small>
+                </legend>
+                <p>
+                  Choose a broad MAIN theme or a more specific theme.
+                </p>
+                <div className={styles.taxonomyOptions}>
+                  {COMMUNITY_ROOM_THEME_OPTIONS.filter(
+                    (option) => option.kind === "main",
+                  ).map((mainTheme) => (
+                    <section key={mainTheme.value}>
+                      <div className={styles.taxonomyGroupHeading}>
+                        <strong>{mainTheme.groupLabel}</strong>
+                        <span>MAIN theme</span>
+                      </div>
+                      <div>
+                        {COMMUNITY_ROOM_THEME_OPTIONS.filter(
+                          (option) =>
+                            option.groupSlug === mainTheme.groupSlug,
+                        ).map((theme) => {
+                          const selected = form.themes.includes(
+                            theme.value,
+                          );
+                          return (
+                            <button
+                              aria-pressed={selected}
+                              disabled={
+                                !selected && form.themes.length >= 3
+                              }
+                              key={theme.value}
+                              onClick={() => toggleTheme(theme.value)}
+                              type="button"
+                            >
+                              {theme.kind === "main" ? (
+                                <span>MAIN</span>
+                              ) : null}
+                              {getCommunityRoomThemeLabel(theme.value)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset
+                aria-describedby="community-room-discovery-anchor-help"
+                className={styles.taxonomyPicker}
+              >
+                <legend>
+                  Industries{" "}
+                  <small>{form.industries.length}/3 selected</small>
+                </legend>
+                <p>
+                  Industry labels use the canonical market taxonomy.
+                </p>
+                <div className={styles.taxonomyOptions}>
+                  {[
+                    ...new Set(
+                      COMMUNITY_ROOM_INDUSTRY_OPTIONS.map(
+                        (option) => option.groupLabel,
+                      ),
+                    ),
+                  ].map((sector) => (
+                    <section key={sector}>
+                      <div className={styles.taxonomyGroupHeading}>
+                        <strong>{sector}</strong>
+                      </div>
+                      <div>
+                        {COMMUNITY_ROOM_INDUSTRY_OPTIONS.filter(
+                          (option) => option.groupLabel === sector,
+                        ).map((industry) => {
+                          const selected = form.industries.includes(
+                            industry.value,
+                          );
+                          return (
+                            <button
+                              aria-pressed={selected}
+                              disabled={
+                                !selected &&
+                                form.industries.length >= 3
+                              }
+                              key={industry.value}
+                              onClick={() =>
+                                toggleIndustry(industry.value)
+                              }
+                              type="button"
+                            >
+                              {getCommunityRoomIndustryLabel(
+                                industry.value,
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </fieldset>
               <label>
                 <span>Related tickers <small>Optional</small></span>
                 <input
+                  aria-describedby="community-room-discovery-anchor-help"
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
@@ -308,8 +473,8 @@ export function CommunityRoomCreateDialog() {
                   value={form.relatedTickers}
                 />
                 <small>
-                  Up to 5 tickers. These do not turn this into a Company
-                  Live Room.
+                  Up to 5 tickers ({relatedTickers.length}/5 entered).
+                  These do not turn this into a Company Live Room.
                 </small>
               </label>
               {error ? (
@@ -327,7 +492,11 @@ export function CommunityRoomCreateDialog() {
                 </button>
                 <button
                   className={styles.submitButton}
-                  disabled={busy || form.focusTags.length < 1}
+                  disabled={
+                    busy ||
+                    form.focusTags.length < 1 ||
+                    !hasDiscoveryAnchor
+                  }
                   type="submit"
                 >
                   {busy ? "Creating…" : "Create Community Room"}
@@ -339,4 +508,15 @@ export function CommunityRoomCreateDialog() {
       ) : null}
     </>
   );
+}
+
+function parseTickerInput(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/[,\s]+/)
+        .map((ticker) => ticker.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
