@@ -40,7 +40,9 @@ export function CompanyRoomHeader({
         <span className={styles.roomEyebrow}>Company Live Room</span>
         <div className={styles.roomTitleLine}>
           <strong>{identity.ticker}</strong>
-          <h1>{identity.companyName}</h1>
+          {identity.companyName.trim().toUpperCase() !== identity.ticker ? (
+            <h1>{identity.companyName}</h1>
+          ) : null}
         </div>
         <small>{identity.exchange} · Company room</small>
         {onlineMemberCount !== null && onlineMemberCount > 0 ? (
@@ -53,6 +55,13 @@ export function CompanyRoomHeader({
 
       <div className={styles.roomActions}>
         <button
+          aria-label={
+            followed === null
+              ? "Loading room follow status"
+              : followed
+                ? "Unfollow company room"
+                : "Follow company room"
+          }
           aria-pressed={followed ?? undefined}
           className={followed ? styles.followingButton : undefined}
           disabled={followed === null}
@@ -66,13 +75,16 @@ export function CompanyRoomHeader({
           ) : (
             <Bookmark aria-hidden="true" size={15} />
           )}
-          {followed === null
-            ? "Loading…"
-            : followed
-              ? "Following"
-              : "Follow"}
+          <span className={styles.actionLabel}>
+            {followed === null
+              ? "Loading…"
+              : followed
+                ? "Following"
+                : "Follow"}
+          </span>
         </button>
         <button
+          aria-label="Invite people to this company room"
           disabled={inviteState === "working"}
           onClick={onInvite}
           type="button"
@@ -82,7 +94,7 @@ export function CompanyRoomHeader({
           ) : (
             <Share2 aria-hidden="true" size={15} />
           )}
-          <span aria-live="polite">
+          <span aria-live="polite" className={styles.actionLabel}>
             {inviteState === "copied"
               ? "Copied"
               : inviteState === "shared"
@@ -96,13 +108,14 @@ export function CompanyRoomHeader({
         </button>
         <button
           aria-controls="live-room-history-sheet"
+          aria-label="Open past company events"
           className={styles.historyTrigger}
           onClick={onOpenHistory}
           ref={historyButtonRef}
           type="button"
         >
           <History aria-hidden="true" size={15} />
-          Past events
+          <span className={styles.actionLabel}>Past events</span>
         </button>
       </div>
     </header>

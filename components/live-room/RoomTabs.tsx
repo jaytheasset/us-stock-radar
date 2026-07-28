@@ -7,10 +7,12 @@ export type LiveRoomTab = "about" | "chat" | "events" | "posts";
 
 export function RoomTabs({
   active,
+  dockOnMobile = false,
   items,
   onChange,
 }: {
   active: LiveRoomTab;
+  dockOnMobile?: boolean;
   items: Array<{ label: string; value: LiveRoomTab }>;
   onChange: (tab: LiveRoomTab) => void;
 }) {
@@ -36,7 +38,11 @@ export function RoomTabs({
   };
 
   return (
-    <div aria-label="Live Room sections" className={styles.tabs} role="tablist">
+    <div
+      aria-label="Live Room sections"
+      className={`${styles.tabs}${dockOnMobile ? ` ${styles.mobileDock}` : ""}`}
+      role="tablist"
+    >
       {items.map((item, index) => (
         <button
           aria-controls={`live-room-${item.value}-panel`}

@@ -95,8 +95,9 @@ export function MessageComposer({
                 <span>
                   <strong>{profile.displayName}</strong>
                   <small>
-                    {profile.isGuest ? "Guest" : "Member"} ·{" "}
-                    {getPlanDisplayName(profile.plan)}
+                    {profile.isGuest
+                      ? "Guest session"
+                      : getPlanDisplayName(profile.plan)}
                   </small>
                 </span>
               </>

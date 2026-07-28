@@ -1,4 +1,7 @@
 ﻿.page {
+  --live-room-mobile-nav-height: 60px;
+  --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
+
   width: min(100%, 1600px);
   min-height: calc(100vh - var(--sr-size-header));
   margin: 0 auto;
@@ -355,27 +358,30 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   min-width: 0;
-  align-items: start;
+  align-items: stretch;
+  gap: var(--sr-space-4);
 }
 
 .primaryColumn {
   min-width: 0;
-  padding-right: var(--sr-space-6);
 }
 
 .roomLayout {
   min-width: 0;
-  min-height: 630px;
-  height: clamp(630px, calc(100dvh - 310px), 780px);
-  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  min-height: var(--live-room-workspace-height);
+  height: var(--live-room-workspace-height);
 }
 
 .chatPanel {
   display: grid;
   min-width: 0;
-  min-height: 630px;
+  min-height: var(--live-room-workspace-height);
   height: 100%;
-  grid-template-rows: auto minmax(320px, 1fr) auto;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-popover);
+  background: var(--sr-color-surface-panel);
 }
 
 .desktopSidePanel {
@@ -383,11 +389,12 @@
   top: calc(var(--sr-size-header) + var(--sr-space-4));
   display: grid;
   min-width: 0;
-  max-height: calc(100dvh - var(--sr-size-header) - var(--sr-space-8));
+  height: var(--live-room-workspace-height);
   overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border-left: var(--sr-border-width) solid var(--sr-color-border);
-  padding: var(--sr-space-4) 0 0 var(--sr-space-6);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-popover);
+  background: var(--sr-color-surface-panel);
 }
 
 .sidePanelTabs {
@@ -395,6 +402,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-2) var(--sr-space-2) 0;
 }
 
 .sidePanelTabs button {
@@ -419,7 +427,7 @@
 .sidePanelBody {
   min-width: 0;
   overflow-y: auto;
-  padding: var(--sr-space-3) 0;
+  padding: var(--sr-space-3);
 }
 
 .sidePanelList {
@@ -535,8 +543,8 @@
 }
 
 .sidePanelViewAll {
-  width: 100%;
-  margin-top: var(--sr-space-2);
+  width: calc(100% - (var(--sr-space-3) * 2));
+  margin: var(--sr-space-2) var(--sr-space-3) var(--sr-space-3);
 }
 
 .sidePanelTabs button:focus-visible,
@@ -580,11 +588,32 @@
   min-width: 0;
 }
 
+.chatToolbar {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-2) var(--sr-space-3);
+}
+
+.chatToolbar > small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .roomManagement {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: var(--sr-space-2);
-  padding: 0 0 var(--sr-space-3);
 }
 
 .roomManagement button,
@@ -600,12 +629,24 @@
   font-weight: var(--sr-font-weight-semibold);
 }
 
+.roomManagement button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1-5);
+}
+
+.roomManagement button b {
+  color: var(--sr-color-text-heading);
+  font: inherit;
+  font-family: var(--sr-font-family-mono);
+}
+
 .managementPanel {
   display: grid;
   max-height: 180px;
   overflow-y: auto;
   gap: var(--sr-space-2);
-  margin-bottom: var(--sr-space-3);
+  margin: var(--sr-space-2) var(--sr-space-3);
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-action);
   padding: var(--sr-space-2);
@@ -639,8 +680,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-top: var(--sr-border-width) solid var(--sr-color-divider);
-  padding: var(--sr-space-3) var(--sr-space-2) var(--sr-space-5) 0;
+  padding: var(--sr-space-3);
 }
 
 .latestChatEventStrip,
@@ -1018,7 +1058,7 @@
 
 .timelineState {
   display: flex;
-  min-height: 300px;
+  min-height: 240px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1055,8 +1095,8 @@
 .composer {
   position: relative;
   border-top: var(--sr-border-width) solid var(--sr-color-border);
-  padding: var(--sr-space-3) 0 0;
-  background: var(--sr-color-page-background);
+  padding: var(--sr-space-3) var(--sr-space-3) 0;
+  background: var(--sr-color-surface-panel);
 }
 
 .composerReference {
@@ -1493,41 +1533,76 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-8);
+    padding: var(--sr-space-2) var(--sr-page-gutter-mobile)
+      calc(
+        var(--live-room-mobile-nav-height) +
+          var(--sr-space-4) +
+          env(safe-area-inset-bottom)
+      );
   }
 
   .roomHeader {
     display: grid;
-    gap: var(--sr-space-4);
-    padding-bottom: var(--sr-space-4);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sr-space-2);
+    padding-bottom: var(--sr-space-3);
   }
 
   .roomTitleLine {
-    display: grid;
-    gap: var(--sr-space-1);
+    gap: var(--sr-space-2);
+    margin-top: var(--sr-space-1);
   }
 
   .roomTitleLine > strong {
-    font-size: var(--sr-font-size-heading-sm);
+    font-size: var(--sr-font-size-lg);
   }
 
   .roomTitleLine h1 {
-    font-size: var(--sr-font-size-xl);
+    overflow: hidden;
+    font-size: var(--sr-font-size-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .roomEyebrow {
+    font-size: 0.65rem;
+  }
+
+  .roomIdentity > small {
+    display: inline-flex;
+    margin-top: var(--sr-space-1);
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .roomIdentity > .onlineCount {
+    margin-left: var(--sr-space-2);
   }
 
   .roomActions {
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    width: auto;
+    gap: var(--sr-space-1);
   }
 
   .roomActions button {
-    min-width: 0;
-    padding: 0 var(--sr-space-2);
+    width: var(--sr-size-control);
+    min-width: var(--sr-size-control);
+    padding: 0;
+  }
+
+  .roomActions .actionLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .followNote {
     justify-content: flex-start;
+    margin-top: var(--sr-space-1);
     text-align: left;
   }
 
@@ -1560,26 +1635,44 @@
 
   .roomLayout,
   .chatPanel {
-    min-height: calc(100dvh - var(--sr-size-header));
+    min-height: calc(
+      100dvh -
+        var(--sr-size-header) -
+        var(--live-room-mobile-nav-height) -
+        env(safe-area-inset-bottom)
+    );
     height: auto;
   }
 
   .chatPanel {
-    grid-template-rows: auto minmax(300px, 1fr) auto;
+    grid-template-rows: auto minmax(260px, 1fr) auto;
+    border-radius: var(--sr-radius-action);
   }
 
-  .chatHeading {
-    display: grid;
-    padding: var(--sr-space-3) 0;
+  .chatToolbar {
+    min-height: 42px;
+    padding: var(--sr-space-1-5) var(--sr-space-2);
   }
 
-  .chatHeading small {
-    max-width: none;
-    text-align: left;
+  .chatToolbar > small {
+    font-size: 0.65rem;
+  }
+
+  .roomManagement {
+    gap: var(--sr-space-1);
+  }
+
+  .roomManagement button {
+    min-height: 28px;
+    padding: 0 var(--sr-space-2);
+  }
+
+  .roomManagement button > span {
+    display: none;
   }
 
   .timeline {
-    padding-right: 0;
+    padding: var(--sr-space-2) var(--sr-space-2) 132px;
   }
 
   .latestChatEventStrip {
@@ -1607,11 +1700,18 @@
   }
 
   .composer {
-    position: sticky;
+    position: fixed;
     z-index: var(--sr-z-sticky-action);
-    bottom: 0;
-    padding-top: var(--sr-space-2);
-    background: var(--sr-color-page-background);
+    right: var(--sr-page-gutter-mobile);
+    bottom: calc(
+      var(--live-room-mobile-nav-height) +
+        env(safe-area-inset-bottom)
+    );
+    left: var(--sr-page-gutter-mobile);
+    padding: var(--sr-space-2) var(--sr-space-2) 0;
+    border: var(--sr-border-width) solid var(--sr-color-border);
+    border-radius: var(--sr-radius-action) var(--sr-radius-action) 0 0;
+    background: var(--sr-color-surface-panel);
   }
 
   .composerRow {
@@ -1691,7 +1791,6 @@
 @media (max-width: 420px) {
   .roomActions button {
     gap: var(--sr-space-1);
-    font-size: var(--sr-font-size-xs);
   }
 
   .mockControls button {
