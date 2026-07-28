@@ -1,9 +1,18 @@
 "use client";
 
-import { useRef, type KeyboardEvent } from "react";
+import {
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import styles from "./Posts.module.css";
 
-export type LiveRoomTab = "about" | "chat" | "events" | "posts";
+export type LiveRoomTab =
+  | "about"
+  | "chat"
+  | "events"
+  | "members"
+  | "posts";
 
 export function RoomTabs({
   active,
@@ -13,7 +22,11 @@ export function RoomTabs({
 }: {
   active: LiveRoomTab;
   dockOnMobile?: boolean;
-  items: Array<{ label: string; value: LiveRoomTab }>;
+  items: Array<{
+    label: string;
+    mobileOnly?: boolean;
+    value: LiveRoomTab;
+  }>;
   onChange: (tab: LiveRoomTab) => void;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -42,12 +55,22 @@ export function RoomTabs({
       aria-label="Live Room sections"
       className={`${styles.tabs}${dockOnMobile ? ` ${styles.mobileDock}` : ""}`}
       role="tablist"
+      style={
+        {
+          "--live-room-mobile-tab-count": items.length,
+        } as CSSProperties
+      }
     >
       {items.map((item, index) => (
         <button
           aria-controls={`live-room-${item.value}-panel`}
           aria-selected={active === item.value}
-          className={active === item.value ? styles.activeTab : undefined}
+          className={[
+            active === item.value ? styles.activeTab : null,
+            item.mobileOnly ? styles.mobileOnlyTab : null,
+          ]
+            .filter(Boolean)
+            .join(" ")}
           id={`live-room-${item.value}-tab`}
           key={item.value}
           onClick={() => onChange(item.value)}

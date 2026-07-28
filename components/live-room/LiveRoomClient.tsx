@@ -70,6 +70,7 @@ import {
   LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
   shouldRunLiveRoomPresence,
 } from "@/lib/live-room/presence";
+import { selectLiveRoomSidePanelMembers } from "@/lib/live-room/sidePanel";
 import { ChatTimeline } from "./ChatTimeline";
 import {
   CompanyEventCard,
@@ -82,7 +83,10 @@ import {
   LiveRoomMobileInlineAdSlot,
   LiveRoomRailAdSlot,
 } from "./LiveRoomAdSlots";
-import { LiveRoomDesktopSidePanel } from "./LiveRoomDesktopSidePanel";
+import {
+  LiveRoomDesktopSidePanel,
+  LiveRoomMemberList,
+} from "./LiveRoomDesktopSidePanel";
 import { PostsPanel } from "./PostsPanel";
 import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
@@ -217,6 +221,10 @@ export function LiveRoomClient({
   const historicalEvents = latestEvent
     ? events.filter((event) => event.eventId !== latestEvent.eventId)
     : events;
+  const members = useMemo(
+    () => selectLiveRoomSidePanelMembers({ posts, timeline }),
+    [posts, timeline],
+  );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
   const scheduleTimelineScroll = useCallback(
@@ -1289,6 +1297,7 @@ export function LiveRoomClient({
             { label: "Chat", value: "chat" },
             { label: "Posts", value: "posts" },
             { label: "Events", value: "events" },
+            { label: "Members", mobileOnly: true, value: "members" },
           ]}
           onChange={setActiveTab}
         />
@@ -1362,6 +1371,30 @@ export function LiveRoomClient({
             currentTicker={ticker}
             state={postsState}
           />
+        ) : null}
+
+        {activeTab === "members" ? (
+          <section
+            aria-labelledby="live-room-members-tab"
+            className={styles.membersPanel}
+            id="live-room-members-panel"
+            role="tabpanel"
+          >
+            <div className={styles.membersPanelHeading}>
+              <span>Room members</span>
+              <h2>Members</h2>
+              <p>
+                Follow public members or start a conversation from their
+                latest visible activity.
+              </p>
+            </div>
+            <LiveRoomMemberList
+              members={members}
+              messageActionId={messageActionId}
+              onMessageMember={handleMessageMember}
+              onToggleMemberFollow={handleMemberFollow}
+            />
+          </section>
         ) : null}
 
         <div

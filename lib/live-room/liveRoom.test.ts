@@ -316,9 +316,21 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   const postStyles = readSource("components/live-room/Posts.module.css");
 
   assert.match(clientSource, /<RoomTabs[\s\S]*dockOnMobile/);
+  assert.match(
+    clientSource,
+    /\{ label: "Members", mobileOnly: true, value: "members" \}/,
+  );
   assert.match(tabsSource, /dockOnMobile\?: boolean/);
   assert.match(tabsSource, /styles\.mobileDock/);
+  assert.match(
+    tabsSource,
+    /"--live-room-mobile-tab-count": items\.length/,
+  );
   assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
+  assert.match(
+    postStyles,
+    /\.tabs\.mobileDock\s*\{[\s\S]*grid-template-columns:\s*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
+  );
   assert.match(
     postStyles,
     /bottom:\s*calc\([\s\S]*var\(--live-room-mobile-composer-height\)[\s\S]*env\(safe-area-inset-bottom\)/,

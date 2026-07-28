@@ -158,7 +158,7 @@ export function LiveRoomDesktopSidePanel({
             state={postsState}
           />
         ) : (
-          <MembersPreview
+          <LiveRoomMemberList
             members={members}
             messageActionId={messageActionId}
             onMessageMember={onMessageMember}
@@ -292,7 +292,7 @@ function PostsPreview({
   );
 }
 
-function MembersPreview({
+export function LiveRoomMemberList({
   members,
   messageActionId,
   onMessageMember,

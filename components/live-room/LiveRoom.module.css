@@ -451,6 +451,51 @@
   min-width: 0;
 }
 
+.membersPanel {
+  min-width: 0;
+  min-height: var(--live-room-workspace-height);
+  height: var(--live-room-workspace-height);
+  overflow-y: auto;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-popover);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
+}
+
+.membersPanelHeading {
+  display: grid;
+  gap: var(--sr-space-1);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding-bottom: var(--sr-space-3);
+}
+
+.membersPanelHeading span {
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.membersPanelHeading h2,
+.membersPanelHeading p {
+  margin: 0;
+}
+
+.membersPanelHeading h2 {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-lg);
+}
+
+.membersPanelHeading p {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.membersPanel .sidePanelList {
+  margin-top: var(--sr-space-2);
+}
+
 .roomLayout {
   min-width: 0;
   min-height: var(--live-room-workspace-height);
@@ -1902,6 +1947,7 @@ button.messageReplyPreview:hover {
 
   .workspaceLayout,
   .primaryColumn,
+  .membersPanel,
   .roomLayout,
   .chatPanel {
     min-height: 0;
@@ -1914,6 +1960,11 @@ button.messageReplyPreview:hover {
 
   .primaryColumn {
     overflow-y: auto;
+  }
+
+  .membersPanel {
+    border-radius: var(--sr-radius-action);
+    padding: var(--sr-space-3);
   }
 
   .chatPanel {
@@ -2073,6 +2124,21 @@ button.messageReplyPreview:hover {
 }
 
 @media (max-width: 420px) {
+  .sidePanelMember {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .sidePanelMemberActions {
+    min-width: 0;
+    padding: 0 var(--sr-space-1) var(--sr-space-2) 42px;
+  }
+
+  .sidePanelMemberActions button {
+    flex: 1 1 auto;
+  }
+
   .roomActions button {
     gap: var(--sr-space-1);
   }
