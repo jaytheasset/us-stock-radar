@@ -183,7 +183,10 @@ export function MessageComposer({
           ) : null}
         </div>
 
-        <label className={styles.messageField}>
+        <label
+          className={styles.messageField}
+          data-has-value={body.length > 0}
+        >
           <span className={styles.visuallyHidden}>Message</span>
           <textarea
             disabled={disabled}
@@ -200,7 +203,7 @@ export function MessageComposer({
               }
             }}
             placeholder={placeholder}
-            rows={2}
+            rows={1}
             value={body}
           />
           <small>
@@ -221,16 +224,15 @@ export function MessageComposer({
 
       <div className={styles.composerMeta}>
         <span>Enter to send · Shift+Enter for a new line</span>
-        <span
-          aria-live="polite"
-          className={
-            decision && !decision.allowed ? styles.moderationError : undefined
-          }
-        >
-          {decision && !decision.allowed
-            ? decision.message
-            : "Server moderation is enforced when you send."}
-        </span>
+        {decision && !decision.allowed ? (
+          <span
+            aria-live="polite"
+            className={styles.moderationError}
+            role="alert"
+          >
+            {decision.message}
+          </span>
+        ) : null}
       </div>
     </div>
   );

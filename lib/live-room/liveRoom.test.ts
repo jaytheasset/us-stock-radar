@@ -247,17 +247,18 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   assert.equal(styleSource.startsWith("\uFEFF"), false);
   assert.match(
     styleSource,
-    /\.page\s*\{[\s\S]*--live-room-mobile-nav-height:\s*60px/,
+    /\.page\s*\{[\s\S]*--live-room-mobile-tabs-height:\s*60px/,
   );
   assert.match(clientSource, /activeNavigationItem=\{null\}/);
   assert.match(
     headerSource,
-    /<small>\{identity\.exchange\} · Company room<\/small>/,
+    /<h1>\{identity\.ticker\} Live Room<\/h1>/,
   );
-  assert.doesNotMatch(
+  assert.match(
     headerSource,
-    /Company room · \{identity\.ticker\}/,
+    /className=\{styles\.roomCompanyName\}[\s\S]*\{identity\.companyName\}/,
   );
+  assert.doesNotMatch(headerSource, /Company Live Room|Company room/);
   assert.match(
     styleSource,
     /width:\s*calc\(100%\s*-\s*\(2\s*\*\s*var\(--sr-page-gutter-desktop\)\)\)/,
@@ -284,7 +285,7 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
 });
 
-test("Live Room keeps a thumb-reachable mobile dock and one identity badge per author", () => {
+test("Live Room stacks its mobile tabs above the compact composer and keeps one identity badge per author", () => {
   const clientSource = readSource(
     "components/live-room/LiveRoomClient.tsx",
   );
@@ -294,6 +295,9 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   );
   const headerSource = readSource(
     "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const composerSource = readSource(
+    "components/live-room/MessageComposer.tsx",
   );
   const liveRoomStyles = readSource(
     "components/live-room/LiveRoom.module.css",
@@ -306,7 +310,7 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
   assert.match(
     postStyles,
-    /env\(safe-area-inset-bottom\)/,
+    /bottom:\s*calc\([\s\S]*var\(--live-room-mobile-composer-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
   );
   assert.match(
     liveRoomStyles,
@@ -314,11 +318,28 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,240}position:\s*relative/,
+    /\.page:has\(\.roomLayout:not\(\[hidden\]\) \.composer:focus-within\)\s*\{[\s\S]*--live-room-mobile-composer-control-height:\s*89px/,
   );
-  assert.doesNotMatch(
+  assert.match(
     liveRoomStyles,
     /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.messageField textarea\s*\{[\s\S]*height:\s*42px;[\s\S]*max-height:\s*74px/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.messageField textarea:focus\s*\{[\s\S]*height:\s*74px/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.otherMessage article,[\s\S]*\.myMessage article\s*\{[\s\S]*max-width:\s*85%/,
+  );
+  assert.match(composerSource, /rows=\{1\}/);
+  assert.doesNotMatch(
+    composerSource,
+    /Server moderation is enforced when you send\./,
   );
   assert.match(
     timelineSource,
@@ -328,6 +349,31 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   assert.match(
     headerSource,
     /identity\.companyName\.trim\(\)\.toUpperCase\(\)\s*!==\s*identity\.ticker/,
+  );
+  assert.doesNotMatch(headerSource, /Market data|Latest available quote/);
+  assert.doesNotMatch(clientSource, /Realtime updates · 45-second polling fallback/);
+  assert.doesNotMatch(clientSource, /styles\.chatToolbar/);
+  assert.doesNotMatch(clientSource, /aria-label="Blocked Live Room authors"/);
+  assert.doesNotMatch(clientSource, /aria-label="Hidden Live Room messages"/);
+  assert.match(
+    liveRoomStyles,
+    /\.roomActions \.followingButton\s*\{[\s\S]*color:\s*var\(--sr-color-warning\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.roomActions button\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*transparent/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.roomActions \.followingButton svg\s*\{[\s\S]*fill:\s*currentColor/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.otherMessage article\s*\{[\s\S]*background:\s*var\(--sr-color-surface-control\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.myMessage article\s*\{[\s\S]*background:\s*var\(--sr-color-accent-selected\)/,
   );
 });
 
@@ -358,8 +404,8 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
     /const controller = new AbortController\(\)[\s\S]*controller\.signal\.aborted[\s\S]*return \(\) => controller\.abort\(\)/,
   );
   assert.doesNotMatch(clientSource, /quote[\s\S]{0,120}setInterval/);
-  assert.match(headerSource, /Market data/);
-  assert.match(headerSource, /Latest available quote/);
+  assert.doesNotMatch(headerSource, /Market data/);
+  assert.doesNotMatch(headerSource, /Latest available quote/);
   assert.match(headerSource, /formatQuotePrice\(quote\.price\)/);
   assert.match(headerSource, /formatQuotePercent\(quote\.changePercent\)/);
   assert.match(clientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
@@ -376,7 +422,7 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
     adSource,
     /format="fixed"[\s\S]*height=\{50\}[\s\S]*mobileHeight=\{50\}[\s\S]*mobileWidth=\{320\}[\s\S]*placeholderSize="320 × 50"[\s\S]*showRemoveAdsLink=\{false\}[\s\S]*width=\{320\}/,
   );
-  assert.doesNotMatch(
+  assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed/,
   );
