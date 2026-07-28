@@ -369,7 +369,7 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
   assert.match(
     liveRoomStyles,
-    /\.otherMessage article\s*\{[\s\S]*background:\s*var\(--sr-color-surface-control\)/,
+    /\.otherMessage article\s*\{[\s\S]*border:\s*var\(--sr-border-width\) solid var\(--sr-color-border-section\);[\s\S]*background:\s*var\(--sr-color-surface-elevated\)/,
   );
   assert.match(
     liveRoomStyles,

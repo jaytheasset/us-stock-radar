@@ -1071,7 +1071,8 @@
 }
 
 .otherMessage article {
-  background: var(--sr-color-surface-control);
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  background: var(--sr-color-surface-elevated);
   border-top-left-radius: var(--sr-radius-sm);
 }
 
