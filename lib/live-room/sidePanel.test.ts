@@ -115,7 +115,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
     styles,
     /\.sidePanelMemberProfile small i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
   );
-  assert.match(client, /onChangeMainTab=\{setActiveTab\}/);
+  assert.match(client, /onChangeMainTab=\{handleDesktopTabChange\}/);
   assert.match(panel, /className=\{styles\.sidePanelMemberProfile\}/);
   assert.match(panel, /className=\{styles\.sidePanelMemberActions\}/);
   assert.match(panel, /onToggleMemberFollow\([\s\S]*?sourceMessageId/);
@@ -127,11 +127,19 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(panel, /<LiveRoomMemberList[\s\S]*members=\{members\}/);
   assert.match(
     client,
-    /active=\{mobileMembersOpen \? "members" : activeTab\}[\s\S]*\{ label: "Members", value: "members" \}[\s\S]*visibility="mobile"/,
+    /active=\{mobileSheet \?\? "chat"\}[\s\S]*controlsId: "live-room-members-sheet"[\s\S]*label: "Members"[\s\S]*value: "members"[\s\S]*visibility="mobile"/,
   );
   assert.match(
     client,
-    /mobileMembersOpen \? \([\s\S]*id="live-room-members-panel"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+    /mobileSheet === "members"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+  );
+  assert.match(
+    client,
+    /const handleMobileMessageMember = async \(messageId: string\) => \{[\s\S]*setMobileSheet\(null\);[\s\S]*setActiveTab\("chat"\);[\s\S]*await handleMessageMember\(messageId\)/,
+  );
+  assert.equal(
+    client.match(/onMessageMember=\{handleMessageMember\}/g)?.length,
+    2,
   );
   assert.match(
     client,

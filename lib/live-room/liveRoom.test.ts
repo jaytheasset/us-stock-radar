@@ -296,9 +296,18 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
 });
 
-test("Live Room stacks its mobile tabs above the compact composer and keeps one identity badge per author", () => {
+test("Live Room keeps Chat above the composer and bottom nav while secondary mobile tabs use one sheet", () => {
   const clientSource = readSource(
     "components/live-room/LiveRoomClient.tsx",
+  );
+  const bottomSheetSource = readSource(
+    "components/ui/BottomSheetShell.tsx",
+  );
+  const bottomSheetStyles = readSource(
+    "components/ui/BottomSheetShell.module.css",
+  );
+  const communitySource = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
   );
   const tabsSource = readSource("components/live-room/RoomTabs.tsx");
   const timelineSource = readSource(
@@ -321,7 +330,7 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
     )?.[0] ?? "";
   const mobileTabs =
     clientSource.match(
-      /<RoomTabs\s+active=\{mobileMembersOpen \? "members" : activeTab\}[\s\S]*?visibility="mobile"\s*\/>/,
+      /<RoomTabs\s+active=\{mobileSheet \?\? "chat"\}[\s\S]*?visibility="mobile"\s*\/>/,
     )?.[0] ?? "";
 
   assert.match(desktopTabs, /label: "Chat"/);
@@ -329,8 +338,12 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   assert.match(desktopTabs, /label: "Events"/);
   assert.doesNotMatch(desktopTabs, /label: "Members"/);
   assert.match(mobileTabs, /label: "Members"/);
+  assert.match(mobileTabs, /controlsId: "live-room-posts-sheet"/);
+  assert.match(mobileTabs, /controlsId: "live-room-events-sheet"/);
+  assert.match(mobileTabs, /controlsId: "live-room-members-sheet"/);
   assert.match(mobileTabs, /idPrefix="live-room-mobile"/);
   assert.match(mobileTabs, /dockOnMobile/);
+  assert.match(mobileTabs, /onItemElementChange=\{handleMobileTabElementChange\}/);
   assert.match(tabsSource, /dockOnMobile\?: boolean/);
   assert.match(tabsSource, /styles\.mobileDock/);
   assert.match(tabsSource, /styles\.desktopOnlyTabs/);
@@ -364,7 +377,11 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   assert.doesNotMatch(postStyles, /\.mobileOnlyTab\s*\{/);
   assert.match(
     postStyles,
-    /bottom:\s*calc\([\s\S]*var\(--live-room-mobile-composer-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
+    /\.tabs\.mobileDock\s*\{[\s\S]*bottom:\s*0/,
+  );
+  assert.match(
+    postStyles,
+    /\.tabs\.mobileDock\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*height:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
   );
   assert.match(
     clientSource,
@@ -372,11 +389,74 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
   assert.match(
     clientSource,
-    /const \[mobileMembersOpen, setMobileMembersOpen\] = useState\(false\)/,
+    /useState<MobileLiveRoomSheet \| null>\(null\)/,
+  );
+  assert.match(
+    clientSource,
+    /import \{ BottomSheetShell \} from "@\/components\/ui\/BottomSheetShell"/,
+  );
+  assert.match(
+    clientSource,
+    /<BottomSheetShell[\s\S]*id=\{`live-room-\$\{mobileSheet\}-sheet`\}[\s\S]*layout="full-scroll"[\s\S]*viewport="mobile"/,
+  );
+  assert.match(
+    clientSource,
+    /mobileSheet === "posts"[\s\S]*<PostsPanel[\s\S]*mobileSheet === "events"[\s\S]*<EventHistoryPanel[\s\S]*mobileSheet === "members"[\s\S]*<LiveRoomMemberList/,
+  );
+  assert.match(
+    clientSource,
+    /onDismiss=\{\(\) => \{[\s\S]*setMobileSheet\(null\);[\s\S]*setActiveTab\("chat"\)/,
+  );
+  assert.match(
+    clientSource,
+    /onChange=\{\(tab\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*tab === "chat"[\s\S]*setMobileSheet\(null\)/,
+  );
+  assert.match(clientSource, /mobilePostsOpenerRef/);
+  assert.match(clientSource, /mobileEventsOpenerRef/);
+  assert.match(clientSource, /mobileMembersOpenerRef/);
+  assert.match(
+    clientSource,
+    /tab === "events"[\s\S]*mobileEventsOpenerRef\.current = element[\s\S]*tab === "members"[\s\S]*mobileMembersOpenerRef\.current = element[\s\S]*tab === "posts"[\s\S]*mobilePostsOpenerRef\.current = element/,
+  );
+  assert.match(
+    tabsSource,
+    /onItemElementChange\?\.\(item\.value, element\)/,
+  );
+  assert.match(bottomSheetSource, /event\.key === "Escape"/);
+  assert.match(bottomSheetSource, /role="dialog"/);
+  assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
+  assert.match(
+    bottomSheetSource,
+    /const anotherModalIsOpen = document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\);[\s\S]*if \(!anotherModalIsOpen\) \{[\s\S]*restoreFocus\(opener\)/,
+  );
+  assert.match(
+    bottomSheetSource,
+    /document\.body\.style\.overflow = "hidden"/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.fullScrollRoot\s*\{[\s\S]*z-index:\s*var\(--sr-z-sheet-full-scroll\)/,
+  );
+  assert.doesNotMatch(
+    clientSource,
+    /mobileMembersOpen\b|data-mobile-members-open|styles\.membersPanel/,
+  );
+  assert.doesNotMatch(
+    liveRoomStyles,
+    /data-mobile-members-open|\.membersPanel/,
+  );
+  assert.doesNotMatch(communitySource, /BottomSheetShell|mobileSheet/);
+  assert.match(
+    clientSource,
+    /mobileSheet === "members"[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*<\/BottomSheetShell>[\s\S]*\{messageRequestTarget \? \([\s\S]*<DirectMessageRequestModal/,
   );
   assert.match(
     liveRoomStyles,
-    /\.primaryColumn\[data-mobile-members-open="true"\][\s\S]*> :not\(\.membersPanel\)\s*\{[\s\S]*display:\s*none/,
+    /\.desktopTabPanel\s*\{[\s\S]*display:\s*none/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.roomLayout\[data-desktop-hidden="true"\]\s*\{[\s\S]*display:\s*block/,
   );
   assert.match(
     liveRoomStyles,
@@ -388,7 +468,7 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed/,
+    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed[\s\S]{0,300}bottom:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
   );
   assert.match(
     liveRoomStyles,
