@@ -115,14 +115,57 @@ export function CreatorVerificationClient() {
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Ownership proof</span>
-            <h1>Social account verification</h1>
+            <h1>Creator verification</h1>
           </div>
         </div>
         <p className={styles.intro}>
-          Verify that you control a public X, YouTube, or Instagram account.
-          This does not verify investing experience, performance, or financial
-          advice.
+          Verify ownership of a public Instagram, X, or YouTube account. This
+          does not verify investing experience, performance, or financial advice.
         </p>
+        <section
+          aria-labelledby="creator-verification-steps-title"
+          className={styles.verificationSteps}
+        >
+          <h2 id="creator-verification-steps-title">How verification works</h2>
+          <ol>
+            <li>
+              <span aria-hidden="true">1</span>
+              <div>
+                <strong>Add a public profile</strong>
+                <p>
+                  Choose Instagram, X, or YouTube and enter the public profile.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden="true">2</span>
+              <div>
+                <strong>Create a proof code</strong>
+                <p>Generate a proof code that remains valid for 24 hours.</p>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden="true">3</span>
+              <div>
+                <strong>Publish the code</strong>
+                <p>
+                  Add it to a public bio, post, or video description, then enter
+                  that public URL.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span aria-hidden="true">4</span>
+              <div>
+                <strong>Submit for review</strong>
+                <p>
+                  An administrator checks the account and code. After approval,
+                  a verified social badge appears on your Live Room profile.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </section>
         <form className={styles.form} onSubmit={createRequest}>
           <label>
             Platform

@@ -88,6 +88,71 @@
   padding: 0 var(--sr-space-4);
 }
 
+.verificationSteps {
+  margin-top: var(--sr-space-4);
+  border-top: 1px solid var(--sr-color-border);
+  border-bottom: 1px solid var(--sr-color-border);
+  padding: var(--sr-space-4);
+}
+
+.verificationSteps h2 {
+  margin: 0 0 var(--sr-space-3);
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-lg);
+}
+
+.verificationSteps ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verificationSteps li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sr-space-2);
+  border: 1px solid var(--sr-color-border);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-3);
+  background: var(--sr-color-surface-elevated);
+}
+
+.verificationSteps li > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-accent-selected);
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+}
+
+.verificationSteps li > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.verificationSteps strong {
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-sm);
+}
+
+.verificationSteps p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  line-height: 1.45;
+}
+
 .form {
   display: grid;
   grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
@@ -382,6 +447,7 @@
   }
 
   .form,
+  .verificationSteps ol,
   .reviewCard dl {
     grid-template-columns: 1fr;
   }
@@ -393,6 +459,7 @@
   .requestCard,
   .reviewCard,
   .panelHeader,
+  .verificationSteps,
   .form {
     padding-left: var(--sr-space-3);
     padding-right: var(--sr-space-3);

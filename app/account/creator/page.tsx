@@ -10,8 +10,8 @@ import { getOptionalCurrentUserId } from "@/lib/currentUser";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Social account verification | Stock Radar",
-  description: "Verify ownership of a public social account.",
+  title: "Creator verification | Stock Radar",
+  description: "Verify ownership of a public Instagram, X, or YouTube account.",
   robots: { index: false, follow: false },
 };
 

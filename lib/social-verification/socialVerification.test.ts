@@ -72,6 +72,18 @@ const timelineUi = readFileSync(
   path.join(root, "components/live-room/ChatTimeline.tsx"),
   "utf8",
 );
+const composerUi = readFileSync(
+  path.join(root, "components/live-room/MessageComposer.tsx"),
+  "utf8",
+);
+const creatorPage = readFileSync(
+  path.join(root, "app/account/creator/page.tsx"),
+  "utf8",
+);
+const adminPage = readFileSync(
+  path.join(root, "app/admin/creator-verifications/page.tsx"),
+  "utf8",
+);
 
 test("platform and handle validation use closed normalized values", () => {
   assert.equal(normalizeSocialPlatform(" X "), "x");
@@ -368,4 +380,39 @@ test("badge language describes social ownership without endorsement wording", ()
   }
   assert.match(timelineUi, /rel="noopener noreferrer"/);
   assert.match(timelineUi, /target="_blank"/);
+});
+
+test("creator verification entry and guidance describe the existing ownership review", () => {
+  assert.match(composerUi, /import Link from "next\/link"/);
+  assert.match(composerUi, /BadgeCheck/);
+  assert.match(
+    composerUi,
+    /profile\.isGuest[\s\S]*"\/login\?next=%2Faccount%2Fcreator"[\s\S]*"\/account\/creator"/,
+  );
+  assert.match(composerUi, /Sign in to apply/);
+  assert.match(composerUi, /Apply for creator verification/);
+  assert.match(composerUi, /Instagram · X · YouTube/);
+
+  assert.match(memberUi, /<h1>Creator verification<\/h1>/);
+  assert.match(memberUi, /How verification works/);
+  assert.match(memberUi, /Instagram, X, or YouTube/);
+  assert.match(memberUi, /valid for 24 hours/);
+  assert.match(memberUi, /public bio, post, or video description/);
+  assert.match(memberUi, /Submit for review/);
+  assert.match(memberUi, /administrator checks the account and code/i);
+  assert.match(memberUi, /verified social badge/);
+  assert.match(
+    memberUi,
+    /does not verify investing experience, performance, or financial advice/i,
+  );
+
+  assert.match(
+    creatorPage,
+    /title: "Creator verification \| Stock Radar"/,
+  );
+  assert.match(
+    creatorPage,
+    /redirect\("\/login\?next=%2Faccount%2Fcreator"\)/,
+  );
+  assert.match(adminPage, /AdminVerificationClient/);
 });
