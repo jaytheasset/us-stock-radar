@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Ban,
   EyeOff,
+  FileText,
   MessageCircle,
   MoreHorizontal,
   ShieldAlert,
@@ -126,6 +128,25 @@ export function ChatTimeline({
                 ·{" "}
                 {formatEventTime(item.event.occurredAt)}
               </small>
+            </li>
+          );
+        }
+
+        if (item.kind === "post_preview") {
+          return (
+            <li className={styles.postPreview} key={item.id}>
+              <FileText aria-hidden="true" size={15} />
+              <span>POST</span>
+              <Link href={`/live/posts/${item.id}`}>{item.title}</Link>
+              <span aria-hidden="true">·</span>
+              <Link href={`/live/members/${item.author.publicProfileId}`}>
+                <span aria-hidden="true">{item.author.emoji}</span>
+                {item.author.displayName}
+              </Link>
+              <span aria-hidden="true">·</span>
+              <time dateTime={item.createdAt}>
+                {formatMessageTime(item.createdAt)}
+              </time>
             </li>
           );
         }

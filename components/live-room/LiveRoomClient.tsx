@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import {
@@ -62,6 +61,8 @@ import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { MessageComposer } from "./MessageComposer";
+import { PostsPanel } from "./PostsPanel";
+import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
@@ -116,7 +117,6 @@ export function LiveRoomClient({
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
     useState<LiveRoomInviteUiState>("idle");
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [blocks, setBlocks] = useState<LiveRoomBlockedActor[]>([]);
   const [blocksOpen, setBlocksOpen] = useState(false);
@@ -138,6 +138,7 @@ export function LiveRoomClient({
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] =
     useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
@@ -683,7 +684,7 @@ export function LiveRoomClient({
   const handleMention = (nextReference: CompanyEventReference) => {
     setReference(nextReference);
     setDecision(null);
-    setHistoryOpen(false);
+    setActiveTab("chat");
   };
 
   const handleSend = async () => {
@@ -992,7 +993,7 @@ export function LiveRoomClient({
           inviteState={inviteState}
           onlineMemberCount={onlineMemberCount}
           onInvite={handleInvite}
-          onOpenHistory={() => setHistoryOpen(true)}
+          onOpenHistory={() => setActiveTab("events")}
           onToggleFollow={handleToggleFollow}
         />
 
@@ -1005,7 +1006,23 @@ export function LiveRoomClient({
           </div>
         ) : null}
 
-        <section className={styles.latestSection}>
+        <RoomTabs
+          active={activeTab}
+          items={[
+            { label: "Chat", value: "chat" },
+            { label: "Posts", value: "posts" },
+            { label: "Events", value: "events" },
+          ]}
+          onChange={setActiveTab}
+        />
+
+        <section
+          aria-labelledby="live-room-events-tab"
+          className={styles.latestSection}
+          hidden={activeTab !== "events"}
+          id="live-room-events-panel"
+          role="tabpanel"
+        >
           <div className={styles.latestHeading}>
             <div>
               <span>
@@ -1037,7 +1054,36 @@ export function LiveRoomClient({
           )}
         </section>
 
-        <div className={styles.roomLayout}>
+        {activeTab === "events" ? (
+          <section className={styles.latestSection}>
+            <EventHistoryPanel
+              events={historicalEvents}
+              onMention={handleMention}
+            />
+          </section>
+        ) : null}
+
+        {activeTab === "posts" ? (
+          <PostsPanel
+            events={events}
+            onCreated={(preview) => {
+              setTimeline((current) =>
+                mergeLiveRoomTimeline(current, [preview]),
+              );
+              setTimelineState("ready");
+            }}
+            profile={profile}
+            repository={repository}
+          />
+        ) : null}
+
+        <div
+          aria-labelledby="live-room-chat-tab"
+          className={styles.roomLayout}
+          hidden={activeTab !== "chat"}
+          id="live-room-chat-panel"
+          role="tabpanel"
+        >
           <section
             aria-label={`${ticker} company discussion`}
             className={styles.chatPanel}
@@ -1184,31 +1230,8 @@ export function LiveRoomClient({
             />
           </section>
 
-          <aside className={styles.historyRail}>
-            <EventHistoryPanel
-              events={historicalEvents}
-              onMention={handleMention}
-            />
-          </aside>
         </div>
 
-        <BottomSheetShell
-          aria-labelledby="live-room-history-title"
-          closeLabel="Close past events"
-          id="live-room-history-sheet"
-          isOpen={historyOpen}
-          layout="full-scroll"
-          onDismiss={() => setHistoryOpen(false)}
-          openerRef={historyOpenerRef}
-          overlayLabel="Close past events"
-          viewport="tablet"
-        >
-          <EventHistoryPanel
-            events={historicalEvents}
-            onMention={handleMention}
-            titleId="live-room-history-title"
-          />
-        </BottomSheetShell>
         </div>
       </StockRadarAppShell>
       {messageRequestTarget ? (

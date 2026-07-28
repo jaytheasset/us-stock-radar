@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   width: min(100%, 1600px);
   min-height: calc(100vh - var(--sr-size-header));
   margin: 0 auto;
@@ -1408,7 +1408,7 @@
   min-height: 20px;
   max-width: 170px;
   overflow: hidden;
-  border: 1px solid var(--sr-color-border);
+  border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-1-5);
   color: var(--sr-color-text-secondary);
@@ -1424,4 +1424,45 @@
 .socialVerificationBadge:focus-visible {
   border-color: var(--sr-color-product-accent-border);
   color: var(--sr-color-product-accent);
+}
+
+.postPreview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 11px 13px;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: 10px;
+  background: var(--sr-color-surface-control);
+  color: var(--sr-color-text-meta);
+  font-size: 0.79rem;
+}
+
+.postPreview > span:first-of-type {
+  color: var(--sr-color-accent-text);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.postPreview a {
+  min-width: 0;
+  color: var(--sr-color-text-heading);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.postPreview a:nth-of-type(2) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sr-color-text-meta);
+  font-weight: 650;
+}
+
+.roomLayout[hidden],
+.latestSection[hidden] {
+  display: none;
 }

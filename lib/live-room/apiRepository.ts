@@ -5,10 +5,15 @@ import type {
   LiveRoomFollowPreference,
   LiveRoomMemberFollowResult,
   LiveRoomModerationItem,
+  LiveRoomPost,
+  LiveRoomPostDraft,
+  LiveRoomPostPage,
   LiveRoomProfile,
   LiveRoomPresenceSetting,
   LiveRoomPresenceSummary,
+  LiveRoomPublicMemberPostPage,
   LiveRoomReportReason,
+  LiveRoomTimelineItem,
   LiveRoomUnreadSummary,
 } from "./types";
 import {
@@ -26,7 +31,7 @@ export const LIVE_ROOM_UNREAD_REFRESH_EVENT =
 export const LIVE_ROOM_SIGNAL_DEBOUNCE_MS = 750;
 
 export type LiveRoomMessagePage = {
-  items: LiveRoomChatMessage[];
+  items: LiveRoomTimelineItem[];
   latestChangeCursor: string | null;
   latestCursor: string | null;
   nextCursor: string | null;
@@ -36,7 +41,7 @@ export type LiveRoomMessageChanges = {
   hasMore: boolean;
   latestChangeCursor: string | null;
   removedIds: string[];
-  upserts: LiveRoomChatMessage[];
+  upserts: LiveRoomTimelineItem[];
 };
 
 export type LiveRoomUpdateSubscription = {
@@ -52,7 +57,7 @@ export interface LiveRoomUpdateTransport {
   subscribe(options: {
     afterChange: string | null;
     onError: (error: LiveRoomApiError) => void;
-    onMessages: (messages: LiveRoomChatMessage[]) => void;
+    onMessages: (messages: LiveRoomTimelineItem[]) => void;
     onRemoved: (messageIds: string[]) => void;
     onSynced: () => void;
   }): LiveRoomUpdateSubscription;
@@ -134,6 +139,21 @@ export class LiveRoomApiRepository {
         }),
       },
     );
+  }
+
+  listPosts(before?: string | null) {
+    const search = new URLSearchParams({ limit: "20" });
+    if (before) search.set("before", before);
+    return requestJson<LiveRoomPostPage>(
+      `${this.roomApiPath()}/posts?${search}`,
+    );
+  }
+
+  createPost(input: LiveRoomPostDraft) {
+    return requestJson<LiveRoomPost>(`${this.roomApiPath()}/posts`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   report(messageId: string, reason: LiveRoomReportReason) {
@@ -297,6 +317,68 @@ export class LiveRoomApiRepository {
 
   private roomApiPath() {
     return this.apiPath;
+  }
+}
+
+export class LiveRoomPostApiRepository {
+  read(postId: string) {
+    return requestJson<LiveRoomPost>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+    );
+  }
+
+  update(postId: string, input: LiveRoomPostDraft) {
+    return requestJson<LiveRoomPost>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    );
+  }
+
+  delete(postId: string) {
+    return requestJson<{ deleted: true; postId: string }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  report(postId: string, reason: LiveRoomReportReason) {
+    return requestJson<{ reported: true }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/reports`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    );
+  }
+
+  block(postId: string) {
+    return requestJson<LiveRoomBlockResult>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/blocks`,
+      { method: "POST" },
+    );
+  }
+
+  moderate(
+    postId: string,
+    action: "hide" | "restore",
+    reason?: string,
+  ) {
+    return requestJson<{
+      action: "hide" | "restore";
+      post: LiveRoomPost;
+      postId: string;
+    }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/moderation`,
+      {
+        method: "POST",
+        body: JSON.stringify({ action, reason: reason || "" }),
+      },
+    );
+  }
+
+  listMemberPosts(publicProfileId: string, before?: string | null) {
+    const search = new URLSearchParams({ limit: "20" });
+    if (before) search.set("before", before);
+    return requestJson<LiveRoomPublicMemberPostPage>(
+      `/api/live-room/members/${encodeURIComponent(publicProfileId)}/posts?${search}`,
+    );
   }
 }
 

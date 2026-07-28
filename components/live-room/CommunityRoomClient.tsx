@@ -39,6 +39,8 @@ import {
 } from "@/lib/live-room/community";
 import { ChatTimeline } from "./ChatTimeline";
 import { MessageComposer } from "./MessageComposer";
+import { PostsPanel } from "./PostsPanel";
+import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
 import roomStyles from "./LiveRoom.module.css";
 import styles from "./CommunityRooms.module.css";
 
@@ -79,6 +81,7 @@ export function CommunityRoomClient({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
   const profileSaveTimerRef = useRef<number | null>(null);
   const timelineGenerationRef = useRef(0);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
@@ -394,7 +397,7 @@ export function CommunityRoomClient({
             <span className={styles.eyebrow}>Community Room</span>
             <h1>{room.name}</h1>
             <p>{room.summary}</p>
-            <div className={styles.metaList}>
+            <div className={styles.metaList} hidden={activeTab !== "about"}>
               <span>{getCommunityTopicLabel(room.topic)}</span>
               <span>{getCommunityRoomStyleLabel(room.roomStyle)}</span>
               <span>{getCommunityLanguageLabel(room.language)}</span>
@@ -409,6 +412,7 @@ export function CommunityRoomClient({
               <div
                 aria-label="Room discovery themes and industries"
                 className={styles.discoveryList}
+                hidden={activeTab !== "about"}
               >
                 {room.themes.map((theme) => (
                   <Link href={`/live?theme=${theme}`} key={`theme:${theme}`}>
@@ -429,6 +433,7 @@ export function CommunityRoomClient({
               <div
                 aria-label="Related company tickers"
                 className={styles.tickerList}
+                hidden={activeTab !== "about"}
               >
                 {room.relatedTickers.map((ticker) => (
                   <Link href={`/live/${ticker}`} key={ticker}>
@@ -440,9 +445,51 @@ export function CommunityRoomClient({
           </div>
         </header>
 
+        <RoomTabs
+          active={activeTab}
+          items={[
+            { label: "Chat", value: "chat" },
+            { label: "Posts", value: "posts" },
+            { label: "About", value: "about" },
+          ]}
+          onChange={setActiveTab}
+        />
+
+        {activeTab === "about" ? (
+          <section
+            aria-labelledby="live-room-about-tab"
+            className={`${roomStyles.chatPanel} ${styles.communityChat}`}
+            id="live-room-about-panel"
+            role="tabpanel"
+          >
+            <h2>About this room</h2>
+            <p>{room.summary}</p>
+            <small>
+              Created {new Date(room.createdAt).toLocaleDateString("en-US")}
+            </small>
+          </section>
+        ) : null}
+
+        {activeTab === "posts" ? (
+          <PostsPanel
+            onCreated={(preview) => {
+              setTimeline((current) =>
+                mergeLiveRoomTimeline(current, [preview]),
+              );
+              setTimelineState("ready");
+            }}
+            profile={profile}
+            repository={repository}
+          />
+        ) : null}
+
         <section
           aria-label={`${room.name} Community Room discussion`}
+          aria-labelledby="live-room-chat-tab"
           className={`${roomStyles.chatPanel} ${styles.communityChat}`}
+          hidden={activeTab !== "chat"}
+          id="live-room-chat-panel"
+          role="tabpanel"
         >
           <div className={roomStyles.chatTop}>
             <div className={roomStyles.chatHeading}>
