@@ -57,7 +57,7 @@ create table if not exists public.live_room_member_profiles (
       and display_name = btrim(display_name)
     ),
   emoji text not null
-    check (emoji in ('👋', '🦊', '🐻', '🦉', '🚀', '🧭', '📊', '🌱')),
+    check (emoji in ('?몝', '?쫲', '?맶', '?쫱', '??', '?㎛', '?뱤', '?뙮')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -71,7 +71,7 @@ create table if not exists public.live_room_guest_profiles (
       and display_name = btrim(display_name)
     ),
   emoji text not null
-    check (emoji in ('👋', '🦊', '🐻', '🦉', '🚀', '🧭', '📊', '🌱')),
+    check (emoji in ('?몝', '?쫲', '?맶', '?쫱', '??', '?㎛', '?뱤', '?뙮')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -94,7 +94,7 @@ create table if not exists public.live_room_messages (
   author_display_name text not null
     check (char_length(author_display_name) between 1 and 24),
   author_emoji text not null
-    check (author_emoji in ('👋', '🦊', '🐻', '🦉', '🚀', '🧭', '📊', '🌱')),
+    check (author_emoji in ('?몝', '?쫲', '?맶', '?쫱', '??', '?㎛', '?뱤', '?뙮')),
   author_plan text not null
     check (author_plan in ('free', 'ad_free', 'pro', 'advanced', 'ultimate')),
   body text not null
@@ -459,3 +459,5 @@ comment on table public.live_room_messages is
 
 comment on table public.live_room_guest_sessions is
   'Server-issued guest identities. Expired sessions may be pruned; message author snapshots survive via ON DELETE SET NULL.';
+
+;

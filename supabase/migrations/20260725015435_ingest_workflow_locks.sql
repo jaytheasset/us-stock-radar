@@ -115,3 +115,5 @@ grant execute on function public.renew_ingest_workflow_lock(text, text, integer)
 to service_role;
 grant execute on function public.release_ingest_workflow_lock(text, text)
 to service_role;
+
+;

@@ -475,7 +475,7 @@ test("product header switches to its mobile navigation before mid-width clipping
 test("news migration keeps page bounds, indexed search, real-time ET ranges, and service-only RPCs", () => {
   const migration = readFileSync(
     new URL(
-      "../supabase/migrations/20260724202810_news_v2_filtered_stats_and_search_indexes.sql",
+      "../supabase/migrations/20260725015421_news_v2_filtered_stats_and_search_indexes.sql",
       import.meta.url,
     ),
     "utf8",

@@ -27,7 +27,7 @@ snapshot is stored with the message.
 
 ## Realtime Broadcast and fallback
 
-`20260727200000_live_room_realtime_moderation.sql` replaces the four-second
+`20260727115223_live_room_realtime_moderation.sql` replaces the four-second
 message polling loop with a database-triggered Broadcast signal. The hardened
 private trigger function calls:
 
@@ -121,9 +121,9 @@ This branch contains migration files and application code only. It does not
 apply anything to an operating database.
 
 1. Review both Live Room foundation migrations and the new
-   `20260727200000_live_room_realtime_moderation.sql`.
-2. Confirm `20260727200000` runs after the already-applied
-   `20260727192326` hardening migration.
+   `20260727115223_live_room_realtime_moderation.sql`.
+2. Confirm `20260727115223` runs after the already-applied
+   `20260727102419` hardening migration.
 3. Apply through the controlled migration pipeline, never from the browser.
 4. Confirm all ten Live Room tables report RLS enabled.
 5. Confirm `anon` and `authenticated` have no table/RPC privileges.

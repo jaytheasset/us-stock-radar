@@ -434,78 +434,34 @@ as $$
 $$;
 
 revoke all privileges
-on function public.set_live_room_member_follow(
-  uuid,
-  uuid,
-  uuid,
-  boolean
-)
+on function public.set_live_room_member_follow(uuid,uuid,uuid,boolean)
 from public, anon, authenticated;
-
 revoke all privileges
-on function public.mark_live_room_member_activity_read(
-  uuid,
-  uuid,
-  uuid
-)
+on function public.mark_live_room_member_activity_read(uuid,uuid,uuid)
 from public, anon, authenticated;
-
 revoke all privileges
-on function public.get_live_room_activity_summary(
-  text,
-  uuid,
-  uuid,
-  integer
-)
+on function public.get_live_room_activity_summary(text,uuid,uuid,integer)
 from public, anon, authenticated;
-
 grant execute
-on function public.set_live_room_member_follow(
-  uuid,
-  uuid,
-  uuid,
-  boolean
-)
+on function public.set_live_room_member_follow(uuid,uuid,uuid,boolean)
 to service_role;
-
 grant execute
-on function public.mark_live_room_member_activity_read(
-  uuid,
-  uuid,
-  uuid
-)
+on function public.mark_live_room_member_activity_read(uuid,uuid,uuid)
 to service_role;
-
 grant execute
-on function public.get_live_room_activity_summary(
-  text,
-  uuid,
-  uuid,
-  integer
-)
+on function public.get_live_room_activity_summary(text,uuid,uuid,integer)
 to service_role;
-
 revoke all privileges
 on table public.live_room_member_follows
 from public, anon, authenticated;
-
 revoke all privileges
 on table public.live_room_member_follows
 from service_role;
-
 grant select, insert, update, delete
 on table public.live_room_member_follows
 to service_role;
-
 comment on column public.live_room_member_follows.last_read_at is
   'Per-follow member activity cursor; unrelated to room unread and paid Alerts.';
-
-comment on function public.get_live_room_activity_summary(
-  text,
-  uuid,
-  uuid,
-  integer
-) is
+comment on function public.get_live_room_activity_summary(text,uuid,uuid,integer) is
   'Service-only bounded Live Room Rooms/People inbox summary with distinct cross-channel unread count.';
-
 commit;

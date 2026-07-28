@@ -231,3 +231,5 @@ on function public.moderate_live_room_message(
 to service_role;
 
 commit;
+
+;

@@ -585,3 +585,5 @@ revoke all on function public.get_news_v2_facets()
 from public, anon, authenticated;
 grant execute on function public.get_news_v2_facets()
 to service_role;
+
+;

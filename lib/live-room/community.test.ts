@@ -18,16 +18,16 @@ import {
 
 const root = process.cwd();
 const communityMigrationPath =
-  "supabase/migrations/20260727231500_live_room_community_rooms.sql";
+  "supabase/migrations/20260727215804_live_room_community_rooms.sql";
 const migration = read(communityMigrationPath);
 const discoveryMigrationPath =
-  "supabase/migrations/20260728032258_community_room_discovery_anchors.sql";
+  "supabase/migrations/20260728034730_community_room_discovery_anchors.sql";
 const discoveryMigration = read(discoveryMigrationPath);
 const foundationMigration = read(
-  "supabase/migrations/20260727081914_live_room_realtime_foundation.sql",
+  "supabase/migrations/20260727101129_live_room_realtime_foundation.sql",
 );
 const blockModerationMigration = read(
-  "supabase/migrations/20260727211500_fix_live_room_block_moderation.sql",
+  "supabase/migrations/20260727121025_fix_live_room_block_moderation.sql",
 );
 const communityRepository = read(
   "lib/live-room/communityServerRepository.ts",
@@ -354,9 +354,9 @@ test("migration preserves company ticker uniqueness while adding nullable commun
 test("Community migration runs after the existing Live Room function migrations", () => {
   const migrationName = path.basename(communityMigrationPath);
   for (const priorMigration of [
-    "20260727211500_fix_live_room_block_moderation.sql",
-    "20260727220000_live_room_chat_follows_and_member_follows.sql",
-    "20260727230000_live_room_member_activity.sql",
+    "20260727121025_fix_live_room_block_moderation.sql",
+    "20260727151010_live_room_chat_follows_and_member_follows.sql",
+    "20260727152803_live_room_member_activity.sql",
   ]) {
     assert.equal(
       migrationName > priorMigration,

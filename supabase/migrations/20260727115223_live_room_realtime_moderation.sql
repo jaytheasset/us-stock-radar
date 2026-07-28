@@ -587,3 +587,5 @@ comment on function private.broadcast_live_room_message_change() is
   'Public Realtime refresh hint only. Payload must never include body or actor identifiers.';
 
 commit;
+
+;

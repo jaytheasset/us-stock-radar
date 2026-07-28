@@ -1,22 +1,17 @@
 begin;
-
 -- Public member routes use a stable identifier that is intentionally
 -- different from auth.users/user_profiles IDs.
 alter table public.live_room_member_profiles
   add column if not exists public_profile_id uuid;
-
 update public.live_room_member_profiles
 set public_profile_id = gen_random_uuid()
 where public_profile_id is null;
-
 alter table public.live_room_member_profiles
   alter column public_profile_id set default gen_random_uuid(),
   alter column public_profile_id set not null;
-
 create unique index if not exists
   live_room_member_profiles_public_profile_id_idx
   on public.live_room_member_profiles (public_profile_id);
-
 create table public.live_room_posts (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null
@@ -49,22 +44,17 @@ create table public.live_room_posts (
       public.live_room_community_tickers_valid(related_tickers)
     )
 );
-
 create index live_room_posts_room_created_idx
   on public.live_room_posts (room_id, created_at desc, id desc)
   where visibility_status = 'visible';
-
 create index live_room_posts_author_created_idx
   on public.live_room_posts (author_user_id, created_at desc, id desc)
   where visibility_status = 'visible';
-
 create index live_room_posts_room_updated_idx
   on public.live_room_posts (room_id, updated_at asc, id asc);
-
 create index live_room_posts_event_idx
   on public.live_room_posts (referenced_event_id)
   where referenced_event_id is not null;
-
 create table public.live_room_post_reports (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null
@@ -81,18 +71,14 @@ create table public.live_room_post_reports (
   created_at timestamptz not null default now(),
   unique (post_id, reporter_kind, reporter_actor_id)
 );
-
 create index live_room_post_reports_post_idx
   on public.live_room_post_reports (post_id, created_at desc);
-
 create index live_room_post_reports_member_idx
   on public.live_room_post_reports (reporter_member_user_id)
   where reporter_member_user_id is not null;
-
 create index live_room_post_reports_guest_idx
   on public.live_room_post_reports (reporter_guest_session_id)
   where reporter_guest_session_id is not null;
-
 create table public.live_room_post_moderation_actions (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null
@@ -111,28 +97,23 @@ create table public.live_room_post_moderation_actions (
     check (char_length(reason) between 1 and 240),
   created_at timestamptz not null default now()
 );
-
 create index live_room_post_moderation_actions_post_idx
   on public.live_room_post_moderation_actions
     (post_id, created_at desc);
-
 create index live_room_post_moderation_actions_moderator_idx
   on public.live_room_post_moderation_actions
     (moderator_user_id, created_at desc)
   where moderator_user_id is not null;
-
 drop trigger if exists live_room_posts_set_updated_at
   on public.live_room_posts;
 create trigger live_room_posts_set_updated_at
 before update on public.live_room_posts
 for each row execute function private.set_live_room_updated_at();
-
 drop trigger if exists live_room_posts_touch_community_activity
   on public.live_room_posts;
 create trigger live_room_posts_touch_community_activity
 after insert on public.live_room_posts
 for each row execute function private.touch_live_room_community_activity();
-
 create function public.create_live_room_post(
   p_room_id uuid,
   p_author_user_id uuid,
@@ -275,7 +256,6 @@ begin
   return v_post;
 end
 $$;
-
 create function public.update_live_room_post(
   p_post_id uuid,
   p_author_user_id uuid,
@@ -370,7 +350,6 @@ begin
   return v_result;
 end
 $$;
-
 create function public.delete_live_room_post(
   p_post_id uuid,
   p_author_user_id uuid
@@ -398,7 +377,6 @@ begin
   return true;
 end
 $$;
-
 create function public.report_live_room_post(
   p_post_id uuid,
   p_reporter_kind text,
@@ -480,7 +458,6 @@ begin
   return v_report_id;
 end
 $$;
-
 create function public.moderate_live_room_post(
   p_post_id uuid,
   p_moderator_user_id uuid,
@@ -575,7 +552,6 @@ begin
   return v_result;
 end
 $$;
-
 create function public.block_live_room_post_author(
   p_post_id uuid,
   p_blocker_kind text,
@@ -661,26 +637,22 @@ begin
   return v_block;
 end
 $$;
-
 alter table public.live_room_posts enable row level security;
 alter table public.live_room_post_reports enable row level security;
 alter table public.live_room_post_moderation_actions
   enable row level security;
-
 revoke all privileges
 on table
   public.live_room_posts,
   public.live_room_post_reports,
   public.live_room_post_moderation_actions
 from public, anon, authenticated;
-
 grant select, insert, update, delete
 on table
   public.live_room_posts,
   public.live_room_post_reports,
   public.live_room_post_moderation_actions
 to service_role;
-
 revoke all privileges
 on function public.create_live_room_post(
   uuid, uuid, text, text, text[], uuid
@@ -707,7 +679,6 @@ on function public.block_live_room_post_author(
   uuid, text, uuid, uuid
 )
 from public, anon, authenticated;
-
 grant execute
 on function public.create_live_room_post(
   uuid, uuid, text, text, text[], uuid
@@ -734,10 +705,8 @@ on function public.block_live_room_post_author(
   uuid, text, uuid, uuid
 )
 to service_role;
-
 comment on column public.live_room_member_profiles.public_profile_id is
   'Opaque public route identifier. Never reuse the auth/user_profiles UUID.';
 comment on table public.live_room_posts is
   'Canonical Live Room post originals. Room/profile/chat surfaces reference these rows; they do not copy title or body.';
-
 commit;

@@ -719,7 +719,7 @@ test("Realtime uses public metadata-only Broadcast with a change cursor and low-
   ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
   assert.ok(migrationName);
   assert.ok(
-    migrationName > "20260727192326_live_room_foundation_hardening.sql",
+    migrationName > "20260727102419_live_room_foundation_hardening.sql",
   );
   const migration = readSource(
     path.join("supabase", "migrations", migrationName),
@@ -1026,7 +1026,7 @@ test("chat follow migration resets legacy scope and stores an exact read baselin
   );
   assert.ok(migrationName);
   assert.ok(
-    migrationName > "20260727211500_fix_live_room_block_moderation.sql",
+    migrationName > "20260727121025_fix_live_room_block_moderation.sql",
   );
   const migration = readSource(
     path.join("supabase", "migrations", migrationName),

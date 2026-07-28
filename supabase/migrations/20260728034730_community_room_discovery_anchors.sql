@@ -774,3 +774,4 @@ comment on column public.live_room_community_rooms.industries is
   'Canonical sectorMappings subCategory slugs, maximum three.';
 
 commit;
+;

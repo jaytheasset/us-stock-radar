@@ -6,7 +6,6 @@ create index if not exists live_room_posts_related_tickers_gin_idx
   on public.live_room_posts
   using gin (related_tickers)
   where visibility_status = 'visible';
-
 create or replace function public.validate_live_room_post_cross_targets()
 returns trigger
 language plpgsql
@@ -58,18 +57,14 @@ begin
   return new;
 end
 $$;
-
 revoke all privileges
 on function public.validate_live_room_post_cross_targets()
 from public, anon, authenticated;
-
 grant execute
 on function public.validate_live_room_post_cross_targets()
 to service_role;
-
 drop trigger if exists live_room_post_cross_targets_guard
 on public.live_room_posts;
-
 create trigger live_room_post_cross_targets_guard
 before insert or update of room_id, related_tickers
 on public.live_room_posts

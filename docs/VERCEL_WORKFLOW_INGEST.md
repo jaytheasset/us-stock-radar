@@ -70,7 +70,7 @@ Washington, D.C. 리전 `iad1`을 사용한다.
 
 Cron 중복 호출과 장시간 중첩 실행은
 `public.ingest_workflow_locks`의 원자적 lease로 막는다. migration
-`20260725050000_ingest_workflow_locks.sql`을 먼저 적용해야 한다.
+`20260725015435_ingest_workflow_locks.sql`을 먼저 적용해야 한다.
 lease는 step retry 사이에 workflow 제어가 돌아오지 않는 Workflow 4.x 의미를
 고려해 2시간으로 잡는다. 안정 Vercel의
 [최대 800초 함수 실행](https://examples.vercel.com/kb/guide/what-can-i-do-about-vercel-serverless-functions-timing-out)이
