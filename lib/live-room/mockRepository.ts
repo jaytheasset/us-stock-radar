@@ -45,6 +45,7 @@ export class InMemoryLiveRoomMessageRepository
       eventReference: draft.eventReference,
       id: createId("message"),
       kind: "message",
+      replyPreview: null,
     };
     this.append(roomKey, message);
     return message;
@@ -192,6 +193,7 @@ function createSeedMessages(
       eventReference: null,
       id: "seed-message-1",
       kind: "message",
+      replyPreview: null,
     },
     {
       author: {
@@ -205,6 +207,7 @@ function createSeedMessages(
       eventReference: null,
       id: "seed-message-2",
       kind: "message",
+      replyPreview: null,
     },
   ];
 }

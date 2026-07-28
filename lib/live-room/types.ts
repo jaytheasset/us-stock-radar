@@ -50,6 +50,13 @@ export type LiveRoomProfile = {
   socialBadges?: LiveRoomSocialBadge[];
 };
 
+export type LiveRoomReplyPreview = {
+  authorDisplayName: string;
+  authorEmoji: string;
+  bodyPreview: string;
+  messageId: string;
+};
+
 export type LiveRoomChatMessage = {
   author: LiveRoomProfile;
   body: string;
@@ -62,6 +69,7 @@ export type LiveRoomChatMessage = {
   isMemberFollowed?: boolean;
   isMine?: boolean;
   kind: "message";
+  replyPreview: LiveRoomReplyPreview | null;
 };
 
 export type LiveRoomPresenceMessage = {

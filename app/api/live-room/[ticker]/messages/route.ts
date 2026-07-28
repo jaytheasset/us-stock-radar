@@ -13,6 +13,7 @@ import {
   getLiveRoomMessagePage,
   sendLiveRoomMessage,
 } from "@/lib/live-room/serverRepository";
+import { normalizeOptionalLiveRoomReplyMessageId } from "@/lib/live-room/policy";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,7 @@ export async function POST(
     const input = (await request.json().catch(() => null)) as {
       body?: unknown;
       eventId?: unknown;
+      replyToMessageId?: unknown;
     } | null;
     resolution = await resolveLiveRoomActor(request);
     const message = await sendLiveRoomMessage({
@@ -89,6 +91,9 @@ export async function POST(
       body: typeof input?.body === "string" ? input.body : "",
       eventId:
         typeof input?.eventId === "string" ? input.eventId : null,
+      replyToMessageId: normalizeOptionalLiveRoomReplyMessageId(
+        input?.replyToMessageId,
+      ),
     });
     const response = NextResponse.json(
       { ok: true, data: message },

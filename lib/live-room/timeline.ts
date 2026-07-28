@@ -15,7 +15,15 @@ export function removeLiveRoomTimelineItems(
   current: readonly LiveRoomTimelineItem[],
   removedIds: ReadonlySet<string>,
 ) {
-  return current.filter((item) => !removedIds.has(item.id));
+  return current
+    .filter((item) => !removedIds.has(item.id))
+    .map((item) =>
+      item.kind === "message" &&
+      item.replyPreview &&
+      removedIds.has(item.replyPreview.messageId)
+        ? { ...item, replyPreview: null }
+        : item,
+    );
 }
 
 export function replaceLiveRoomTimeline(

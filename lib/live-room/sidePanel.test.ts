@@ -19,6 +19,8 @@ test("side panel members use only real public member authors and deduplicate the
       createdAt: "2026-07-28T10:00:00.000Z",
       displayName: "Ada",
       id: "message-1",
+      canFollowMember: true,
+      isMemberFollowed: true,
       isOnline: false,
       publicProfileId: "member-a",
     }),
@@ -26,6 +28,7 @@ test("side panel members use only real public member authors and deduplicate the
       createdAt: "2026-07-28T09:00:00.000Z",
       displayName: "Ada",
       id: "message-2",
+      canMessageMember: true,
       isOnline: true,
       publicProfileId: "member-a",
     }),
@@ -60,16 +63,24 @@ test("side panel members use only real public member authors and deduplicate the
     selectLiveRoomSidePanelMembers({ posts, timeline }),
     [
       {
+        canFollowMember: false,
+        canMessageMember: false,
         displayName: "Grace",
         emoji: "📈",
+        isMemberFollowed: false,
         isOnline: false,
         publicProfileId: "member-b",
+        sourceMessageId: null,
       },
       {
+        canFollowMember: true,
+        canMessageMember: true,
         displayName: "Ada",
         emoji: "🛰️",
+        isMemberFollowed: true,
         isOnline: true,
         publicProfileId: "member-a",
+        sourceMessageId: "message-1",
       },
     ],
   );
@@ -100,25 +111,38 @@ test("side panel has accessible tabs, canonical links, and a desktop-only contra
   );
   assert.match(
     styles,
-    /\.sidePanelMember small i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
+    /\.sidePanelMemberProfile small i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
   );
   assert.match(client, /onChangeMainTab=\{setActiveTab\}/);
+  assert.match(panel, /className=\{styles\.sidePanelMemberProfile\}/);
+  assert.match(panel, /className=\{styles\.sidePanelMemberActions\}/);
+  assert.match(panel, /onToggleMemberFollow\([\s\S]*?sourceMessageId/);
+  assert.match(panel, /onMessageMember\(sourceMessageId\)/);
+  assert.match(panel, /aria-pressed=\{member\.isMemberFollowed\}/);
+  assert.match(client, /onMessageMember=\{handleMessageMember\}/);
+  assert.match(client, /onToggleMemberFollow=\{handleMemberFollow\}/);
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
   assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);
 });
 
 function message({
+  canFollowMember = false,
+  canMessageMember = false,
   createdAt,
   displayName,
   id,
   isGuest = false,
+  isMemberFollowed = false,
   isOnline,
   publicProfileId,
 }: {
+  canFollowMember?: boolean;
+  canMessageMember?: boolean;
   createdAt: string;
   displayName: string;
   id: string;
   isGuest?: boolean;
+  isMemberFollowed?: boolean;
   isOnline?: boolean;
   publicProfileId?: string;
 }): LiveRoomChatMessage {
@@ -131,11 +155,15 @@ function message({
       publicProfileId,
     },
     body: "Side panel test",
+    canFollowMember,
+    canMessageMember,
     createdAt,
     eventReference: null,
     id,
+    isMemberFollowed,
     isOnline,
     kind: "message",
+    replyPreview: null,
   };
 }
 
