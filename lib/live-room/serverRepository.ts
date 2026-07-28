@@ -163,6 +163,7 @@ export async function getLiveRoomMessagePage({
       actor,
       after,
       before,
+      includeMentionedCompanyPosts: false,
       limit: pageSize,
       slug,
       ticker: rawTicker,

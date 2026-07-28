@@ -86,11 +86,18 @@ export type LiveRoomSystemUpdate = {
   kind: "company_update";
 };
 
-export type LiveRoomPostRoom = {
-  href: string;
-  kind: "company" | "community";
-  label: string;
-};
+export type LiveRoomPostRoom =
+  | {
+      href: string;
+      kind: "company";
+      label: string;
+      ticker: string;
+    }
+  | {
+      href: string;
+      kind: "community";
+      label: string;
+    };
 
 export type LiveRoomPostAuthor = {
   displayName: string;

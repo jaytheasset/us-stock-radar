@@ -16,9 +16,11 @@ import {
   type LiveRoomActor,
 } from "./policy";
 import {
+  assertLiveRoomPostMentionTargets,
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy";
+import { applyLiveRoomPostScopeAndCursorFilters } from "./postQuery";
 import type {
   CompanyEventReference,
   LiveRoomBlockResult,
@@ -64,6 +66,7 @@ export async function listLiveRoomPosts({
   publicProfileId,
   slug,
   ticker,
+  includeMentionedCompanyPosts = true,
   visibility = "visible",
 }: {
   actor: LiveRoomActor;
@@ -73,6 +76,7 @@ export async function listLiveRoomPosts({
   publicProfileId?: string;
   slug?: string;
   ticker?: string;
+  includeMentionedCompanyPosts?: boolean;
   visibility?: "hidden" | "visible";
 }): Promise<LiveRoomPostPage> {
   if (after && before) {
@@ -115,14 +119,19 @@ export async function listLiveRoomPosts({
       : "created_at.desc,id.desc",
     limit: String(pageSize + 1),
   };
-  if (room) search.room_id = `eq.${room.id}`;
   if (authorUserId) search.author_user_id = `eq.${authorUserId}`;
   if (blockedMemberIds.length) {
     search.author_user_id = authorUserId
       ? search.author_user_id
       : `not.in.(${blockedMemberIds.join(",")})`;
   }
-  applyCursor(search, cursor, ascending);
+  applyLiveRoomPostScopeAndCursorFilters({
+    ascending,
+    cursor,
+    includeMentionedCompanyPosts,
+    room,
+    search,
+  });
 
   const result = await supabaseSelect("live_room_posts", search);
   if (!result.ok) {
@@ -225,6 +234,7 @@ export async function createLiveRoomPost({
   assertMember(actor);
   const normalized = normalizeLiveRoomPostDraft(draft);
   const room = await resolveRoom({ slug, ticker });
+  await validatePostRelatedTickers(normalized.relatedTickers, room);
   await ensureLiveRoomMember(actor);
   const result = await supabaseRpc("create_live_room_post", {
     p_room_id: room.id,
@@ -253,6 +263,8 @@ export async function updateLiveRoomPost({
     "The post ID is invalid.",
   );
   const normalized = normalizeLiveRoomPostDraft(draft);
+  const room = await resolvePostRoom(postId);
+  await validatePostRelatedTickers(normalized.relatedTickers, room);
   const result = await supabaseRpc("update_live_room_post", {
     p_post_id: postId,
     p_author_user_id: actor.userId,
@@ -591,6 +603,7 @@ export async function mapLiveRoomPostRows(
             href: `/live/${encodeURIComponent(ticker)}`,
             kind: "company" as const,
             label: `${ticker} Company Room`,
+            ticker,
           },
       title: readString(row.title),
       updatedAt: readString(row.updated_at),
@@ -700,6 +713,90 @@ async function getBlockedMemberIds(actor: LiveRoomActor) {
     .filter(Boolean);
 }
 
+async function resolvePostRoom(postId: string): Promise<RoomIdentity> {
+  const postResult = await supabaseSelect("live_room_posts", {
+    select: "room_id",
+    id: `eq.${postId}`,
+    limit: "1",
+  });
+  const post = readSingleRow(postResult.data);
+  const roomId = readString(post?.room_id);
+  if (!postResult.ok || !roomId) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_NOT_FOUND",
+      "That post is no longer available.",
+      404,
+    );
+  }
+  const roomResult = await supabaseSelect("live_room_rooms", {
+    select: "id,room_kind,ticker",
+    id: `eq.${roomId}`,
+    limit: "1",
+  });
+  const room = readSingleRow(roomResult.data);
+  const kind = readString(room?.room_kind);
+  if (
+    !roomResult.ok ||
+    !room ||
+    (kind !== "company" && kind !== "community")
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_UNAVAILABLE",
+      "The post room is unavailable.",
+      502,
+    );
+  }
+  const ticker = readString(room.ticker) || null;
+  return {
+    id: roomId,
+    kind,
+    label: ticker ? `${ticker} Company Room` : "Community Room",
+    slug: null,
+    ticker,
+  };
+}
+
+async function validatePostRelatedTickers(
+  relatedTickers: string[],
+  room: RoomIdentity,
+) {
+  if (!relatedTickers.length) return;
+  assertLiveRoomPostMentionTargets(
+    relatedTickers,
+    room.kind === "company" ? room.ticker : null,
+  );
+
+  const result = await supabaseSelect("tickers", {
+    select: "symbol",
+    symbol: `in.(${relatedTickers.join(",")})`,
+    is_active: "eq.true",
+    limit: String(Math.max(20, relatedTickers.length * 8)),
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_TICKERS_UNAVAILABLE",
+      "Mentioned tickers could not be verified.",
+      result.status || 502,
+    );
+  }
+  const activeSymbols = new Set(
+    readRows(result.data)
+      .map((row) => readString(row.symbol).trim().toUpperCase())
+      .filter(Boolean),
+  );
+  const invalid = relatedTickers.filter(
+    (ticker) => !activeSymbols.has(ticker),
+  );
+  if (invalid.length) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_TICKERS",
+      `Use active listed tickers only: ${invalid
+        .map((ticker) => `$${ticker}`)
+        .join(", ")}.`,
+    );
+  }
+}
+
 async function isLiveRoomModerator(actor: LiveRoomActor) {
   if (actor.kind !== "member") return false;
   const result = await supabaseSelect("live_room_moderators", {
@@ -750,6 +847,10 @@ function mapPostDatabaseError(
     LIVE_ROOM_POST_NOT_FOUND: "That post is no longer available.",
     LIVE_ROOM_POST_NOT_EDITABLE:
       "Only a visible post written by you can be changed.",
+    LIVE_ROOM_POST_INVALID_TICKERS:
+      "Use active listed tickers and do not repeat the current room ticker.",
+    LIVE_ROOM_POST_PRIMARY_TICKER_DUPLICATE:
+      "Do not repeat the current room ticker in mentioned tickers.",
     LIVE_ROOM_POST_FORBIDDEN: "You cannot edit this post.",
     LIVE_ROOM_INVALID_EVENT_REFERENCE:
       "That event cannot be attached to this room.",
@@ -776,17 +877,6 @@ function mapBlockRow(row: Record<string, unknown>): LiveRoomBlockedActor {
     emoji: readString(row.blocked_emoji) || "👋",
     id: readString(row.id),
   };
-}
-
-function applyCursor(
-  search: Record<string, string>,
-  cursor: CursorValue | null,
-  ascending: boolean,
-) {
-  if (!cursor) return;
-  search.or = ascending
-    ? `(created_at.gt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.gt.${cursor.id}))`
-    : `(created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id}))`;
 }
 
 function encodePostCursor(value: CursorValue) {

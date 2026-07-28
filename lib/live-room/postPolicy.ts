@@ -6,6 +6,23 @@ export const LIVE_ROOM_POST_TICKER_LIMIT = 5;
 export const LIVE_ROOM_POST_PAGE_SIZE = 20;
 export const LIVE_ROOM_POST_MAX_PAGE_SIZE = 50;
 
+export function normalizeLiveRoomMentionedTicker(value: unknown) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  return normalizeLiveRoomTicker(raw.startsWith("$") ? raw.slice(1) : raw);
+}
+
+export function assertLiveRoomPostMentionTargets(
+  relatedTickers: readonly string[],
+  primaryTicker?: string | null,
+) {
+  if (primaryTicker && relatedTickers.includes(primaryTicker)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_TICKERS",
+      `Do not mention $${primaryTicker}; this post already belongs to that company room.`,
+    );
+  }
+}
+
 export function normalizeLiveRoomPostDraft(value: unknown) {
   const input =
     value && typeof value === "object"
@@ -49,7 +66,9 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
   }
 
   const relatedTickers = [
-    ...new Set(rawTickers.map((ticker) => normalizeLiveRoomTicker(ticker))),
+    ...new Set(
+      rawTickers.map((ticker) => normalizeLiveRoomMentionedTicker(ticker)),
+    ),
   ];
   if (relatedTickers.length !== rawTickers.length) {
     throw new LiveRoomPolicyError(

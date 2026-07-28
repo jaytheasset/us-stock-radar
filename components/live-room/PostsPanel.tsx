@@ -19,11 +19,13 @@ import type {
 import styles from "./Posts.module.css";
 
 export function PostsPanel({
+  currentTicker,
   events = [],
   onCreated,
   profile,
   repository,
 }: {
+  currentTicker?: string;
   events?: readonly CompanyEvent[];
   onCreated?: (preview: LiveRoomPostPreview) => void;
   profile: LiveRoomProfile | null;
@@ -69,7 +71,9 @@ export function PostsPanel({
       ...new Set(
         tickers
           .split(/[\s,]+/)
-          .map((ticker) => ticker.trim().toUpperCase())
+          .map((ticker) =>
+            ticker.trim().replace(/^\$/, "").toUpperCase(),
+          )
           .filter(Boolean),
       ),
     ];
@@ -228,12 +232,16 @@ export function PostsPanel({
             />
           </label>
           <label>
-            Related tickers <small>Optional, up to 5</small>
+            Mentioned tickers <small>Optional, up to 5</small>
             <input
               onChange={(event) => setTickers(event.target.value)}
-              placeholder="NVDA, AMD"
+              placeholder="$NVDA, $AMD"
               value={tickers}
             />
+            <small className={styles.fieldHelp}>
+              This same post will also appear in each mentioned company
+              room. Your current room is added automatically.
+            </small>
           </label>
           {events.length > 0 ? (
             <label>
@@ -279,6 +287,13 @@ export function PostsPanel({
         <div className={styles.list}>
           {posts.map((post) => (
             <article className={styles.card} key={post.id}>
+              {currentTicker &&
+              post.room.kind === "company" &&
+              post.room.ticker !== currentTicker ? (
+                <Link className={styles.crossPostSource} href={post.room.href}>
+                  Cross-posted from ${post.room.ticker}
+                </Link>
+              ) : null}
               <div className={styles.authorLine}>
                 <Link href={`/live/members/${post.author.publicProfileId}`}>
                   <span aria-hidden="true">{post.author.emoji}</span>
@@ -293,7 +308,7 @@ export function PostsPanel({
               {post.relatedTickers.length ? (
                 <div className={styles.chips}>
                   {post.relatedTickers.map((ticker) => (
-                    <Link href={`/live/${ticker}`} key={ticker}>{ticker}</Link>
+                    <Link href={`/live/${ticker}`} key={ticker}>${ticker}</Link>
                   ))}
                 </div>
               ) : null}
