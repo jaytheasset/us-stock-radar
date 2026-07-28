@@ -448,7 +448,7 @@ test("Live Room timeline starts latest, sticks selectively, and preserves older 
   );
   assert.match(
     clientSource,
-    /forceOwnSendScrollRef\.current = true;[\s\S]*scheduleTimelineScroll/,
+    /forceOwnTimelineScrollRef\.current = true;[\s\S]*scheduleTimelineScroll/,
   );
   assert.match(
     clientSource,

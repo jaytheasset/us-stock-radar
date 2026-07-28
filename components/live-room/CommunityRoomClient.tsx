@@ -558,6 +558,7 @@ export function CommunityRoomClient({
                 mergeLiveRoomTimeline(current, [preview]),
               );
               setTimelineState("ready");
+              setActiveTab("chat");
             }}
             profile={profile}
             repository={repository}

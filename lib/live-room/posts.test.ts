@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import {
   assertLiveRoomPostMentionTargets,
+  createLiveRoomPostBodyPreview,
+  LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH,
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy.ts";
@@ -54,6 +56,21 @@ test("post drafts enforce bounded title, body, and unique canonical tickers", ()
   );
   assert.equal(normalizeLiveRoomPostPageLimit(500), 50);
   assert.equal(normalizeLiveRoomPostPageLimit(0), 1);
+});
+
+test("post body previews normalize whitespace and truncate to a safe compact length", () => {
+  assert.equal(
+    createLiveRoomPostBodyPreview(
+      "  First line\n\nSecond\tline   with spacing.  ",
+    ),
+    "First line Second line with spacing.",
+  );
+
+  const preview = createLiveRoomPostBodyPreview(
+    "A".repeat(LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH + 40),
+  );
+  assert.equal(preview.length, LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH);
+  assert.equal(preview.endsWith("…"), true);
 });
 
 test("company posts appear once in their canonical and mentioned rooms only", () => {
@@ -314,6 +331,16 @@ test("room, detail, and public profile surfaces keep posts separate from events 
     "components/live-room/CommunityRoomClient.tsx",
   );
   const timeline = readSource("components/live-room/ChatTimeline.tsx");
+  const timelineStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const postsPanel = readSource("components/live-room/PostsPanel.tsx");
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
+  const timelineRepository = readSource(
+    "lib/live-room/serverRepository.ts",
+  );
   const profile = readSource(
     "components/live-room/PublicMemberProfileClient.tsx",
   );
@@ -323,6 +350,48 @@ test("room, detail, and public profile surfaces keep posts separate from events 
   assert.match(timeline, /item\.kind === "post_preview"/);
   assert.match(timeline, /POST/);
   assert.match(timeline, /\/live\/posts\/\$\{item\.id\}/);
+  assert.match(timeline, /\{item\.bodyPreview\}/);
+  assert.match(timeline, /postPreviewTitle/);
+  assert.match(timeline, /postPreviewExcerpt/);
+  assert.match(timeline, /postPreviewMeta/);
+  assert.doesNotMatch(
+    timeline,
+    /item\.kind === "post_preview"[\s\S]{0,1200}dangerouslySetInnerHTML/,
+  );
+  assert.match(
+    timelineStyles,
+    /\.postPreviewExcerpt\s*\{[\s\S]*?-webkit-line-clamp:\s*2/,
+  );
+  assert.match(
+    timelineStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.postPreviewTitle,\s*\.postPreviewExcerpt\s*\{[\s\S]*?-webkit-line-clamp:\s*1/,
+  );
+  assert.match(
+    postRepository,
+    /bodyPreview:\s*createLiveRoomPostBodyPreview\(post\.body\)/,
+  );
+  assert.match(
+    postsPanel,
+    /bodyPreview:\s*createLiveRoomPostBodyPreview\(post\.body\)/,
+  );
+  assert.match(
+    timelineRepository,
+    /postPage\.items\.map\(toLiveRoomPostPreview\)/,
+  );
+  assert.match(
+    timelineRepository,
+    /postUpserts\.map\(toLiveRoomPostPreview\)/,
+  );
+  assert.match(
+    company,
+    /onCreated=\{\(preview\) => \{[\s\S]*?forceOwnTimelineScrollRef\.current = true;[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setActiveTab\("chat"\)/,
+  );
+  assert.match(
+    community,
+    /onCreated=\{\(preview\) => \{[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setActiveTab\("chat"\)/,
+  );
+  assert.match(postsPanel, /setNotice\("Post published\."\)/);
+  assert.doesNotMatch(postsPanel, /compact preview/i);
   assert.match(profile, /Public posts only/);
   assert.doesNotMatch(profile, /ChatTimeline|live_room_messages/);
 });

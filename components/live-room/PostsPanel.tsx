@@ -8,6 +8,7 @@ import {
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
+import { createLiveRoomPostBodyPreview } from "@/lib/live-room/postPolicy";
 import type {
   CompanyEvent,
   LiveRoomPost,
@@ -119,6 +120,7 @@ export function PostsPanel({
       onPostsChange((current) => [post, ...current]);
       onCreated?.({
         author: post.author,
+        bodyPreview: createLiveRoomPostBodyPreview(post.body),
         createdAt: post.createdAt,
         id: post.id,
         kind: "post_preview",
@@ -130,7 +132,7 @@ export function PostsPanel({
       setTickers("");
       setEventId("");
       setFormOpen(false);
-      setNotice("Post published. A compact preview was added to Chat.");
+      setNotice("Post published.");
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
     } finally {

@@ -17,6 +17,7 @@ import {
 } from "./policy";
 import {
   assertLiveRoomPostMentionTargets,
+  createLiveRoomPostBodyPreview,
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy";
@@ -640,6 +641,7 @@ export async function reportLiveRoomPostComment({
 export function toLiveRoomPostPreview(post: LiveRoomPost): LiveRoomPostPreview {
   return {
     author: post.author,
+    bodyPreview: createLiveRoomPostBodyPreview(post.body),
     createdAt: post.createdAt,
     id: post.id,
     kind: "post_preview",
