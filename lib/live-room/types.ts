@@ -155,6 +155,27 @@ export type LiveRoomPostDraft = {
   title: string;
 };
 
+export type LiveRoomPostComment = {
+  author: LiveRoomPostAuthor;
+  body: string;
+  createdAt: string;
+  id: string;
+  isMine: boolean;
+  parentCommentId: string | null;
+  updatedAt: string;
+};
+
+export type LiveRoomPostCommentDraft = {
+  body: string;
+  parentCommentId: string | null;
+};
+
+export type LiveRoomPostCommentPage = {
+  canComment: boolean;
+  items: LiveRoomPostComment[];
+  nextCursor: string | null;
+};
+
 export const LIVE_ROOM_REPORT_REASONS = [
   "spam",
   "harassment",

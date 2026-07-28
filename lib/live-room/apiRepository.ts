@@ -6,6 +6,9 @@ import type {
   LiveRoomMemberFollowResult,
   LiveRoomModerationItem,
   LiveRoomPost,
+  LiveRoomPostComment,
+  LiveRoomPostCommentDraft,
+  LiveRoomPostCommentPage,
   LiveRoomPostDraft,
   LiveRoomPostPage,
   LiveRoomProfile,
@@ -378,6 +381,50 @@ export class LiveRoomPostApiRepository {
     if (before) search.set("before", before);
     return requestJson<LiveRoomPublicMemberPostPage>(
       `/api/live-room/members/${encodeURIComponent(publicProfileId)}/posts?${search}`,
+    );
+  }
+
+  listComments(postId: string, after?: string | null) {
+    const search = new URLSearchParams({ limit: "50" });
+    if (after) search.set("after", after);
+    return requestJson<LiveRoomPostCommentPage>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/comments?${search}`,
+    );
+  }
+
+  createComment(postId: string, input: LiveRoomPostCommentDraft) {
+    return requestJson<LiveRoomPostComment>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/comments`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  updateComment(
+    postId: string,
+    commentId: string,
+    input: LiveRoomPostCommentDraft,
+  ) {
+    return requestJson<LiveRoomPostComment>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    );
+  }
+
+  deleteComment(postId: string, commentId: string) {
+    return requestJson<{ commentId: string; deleted: true }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  reportComment(
+    postId: string,
+    commentId: string,
+    reason: LiveRoomReportReason,
+  ) {
+    return requestJson<{ reported: true }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/reports`,
+      { method: "POST", body: JSON.stringify({ reason }) },
     );
   }
 }
