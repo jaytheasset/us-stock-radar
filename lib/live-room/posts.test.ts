@@ -222,6 +222,31 @@ test("cross-post migration adds a partial GIN index and server-only listed ticke
   assert.doesNotMatch(migration, /create policy|security definer/i);
 });
 
+test("Live Room post RPCs repair schema-qualified COALESCE for PostgreSQL 17", () => {
+  const migrationName = readdirSync(
+    path.join(projectRoot, "supabase", "migrations"),
+  ).find((name) => name.endsWith("_fix_live_room_pg17_coalesce.sql"));
+  assert.ok(migrationName);
+  const migration = readSource(
+    path.join("supabase", "migrations", migrationName),
+  );
+
+  for (const signature of [
+    "public.create_live_room_post(uuid,uuid,text,text,text[],uuid)",
+    "public.update_live_room_post(uuid,uuid,text,text,text[],uuid)",
+    "public.moderate_live_room_post(uuid,uuid,text,text)",
+    "public.validate_live_room_post_cross_targets()",
+  ]) {
+    assert.match(migration, new RegExp(signature.replace(/[()[\]]/g, "\\$&")));
+  }
+  assert.match(migration, /pg_catalog\.pg_get_functiondef\(v_signature\)/);
+  assert.match(
+    migration,
+    /'pg_catalog\.coalesce\(',[\s\S]+?'coalesce\('/,
+  );
+  assert.doesNotMatch(migration, /security definer|grant execute|create policy/i);
+});
+
 test("post APIs derive actor and room context server-side without accepting owner IDs", () => {
   const companyRoute = readSource(
     "app/api/live-room/[ticker]/posts/route.ts",
