@@ -1,20 +1,40 @@
 "use client";
 
-import { useRef, type KeyboardEvent } from "react";
+import {
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import styles from "./Posts.module.css";
 
-export type LiveRoomTab = "about" | "chat" | "events" | "posts";
+export type LiveRoomTab =
+  | "about"
+  | "chat"
+  | "events"
+  | "members"
+  | "posts";
 
-export function RoomTabs({
+export type CompanyLiveRoomTab = "chat" | "events" | "posts";
+
+type RoomTabsVisibility = "all" | "desktop" | "mobile";
+
+export function RoomTabs<T extends LiveRoomTab>({
   active,
   dockOnMobile = false,
+  idPrefix = "live-room",
   items,
   onChange,
+  visibility = "all",
 }: {
-  active: LiveRoomTab;
+  active: T;
   dockOnMobile?: boolean;
-  items: Array<{ label: string; value: LiveRoomTab }>;
-  onChange: (tab: LiveRoomTab) => void;
+  idPrefix?: string;
+  items: ReadonlyArray<{
+    label: string;
+    value: T;
+  }>;
+  onChange: (tab: T) => void;
+  visibility?: RoomTabsVisibility;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -40,15 +60,27 @@ export function RoomTabs({
   return (
     <div
       aria-label="Live Room sections"
-      className={`${styles.tabs}${dockOnMobile ? ` ${styles.mobileDock}` : ""}`}
+      className={[
+        styles.tabs,
+        dockOnMobile ? styles.mobileDock : null,
+        visibility === "desktop" ? styles.desktopOnlyTabs : null,
+        visibility === "mobile" ? styles.mobileOnlyTabs : null,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="tablist"
+      style={
+        {
+          "--live-room-mobile-tab-count": items.length,
+        } as CSSProperties
+      }
     >
       {items.map((item, index) => (
         <button
           aria-controls={`live-room-${item.value}-panel`}
           aria-selected={active === item.value}
           className={active === item.value ? styles.activeTab : undefined}
-          id={`live-room-${item.value}-tab`}
+          id={`${idPrefix}-${item.value}-tab`}
           key={item.value}
           onClick={() => onChange(item.value)}
           onKeyDown={(event) => handleKeyDown(event, index)}

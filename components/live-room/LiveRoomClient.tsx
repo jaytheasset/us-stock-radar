@@ -70,6 +70,7 @@ import {
   LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
   shouldRunLiveRoomPresence,
 } from "@/lib/live-room/presence";
+import { selectLiveRoomSidePanelMembers } from "@/lib/live-room/sidePanel";
 import { ChatTimeline } from "./ChatTimeline";
 import {
   CompanyEventCard,
@@ -82,9 +83,15 @@ import {
   LiveRoomMobileInlineAdSlot,
   LiveRoomRailAdSlot,
 } from "./LiveRoomAdSlots";
-import { LiveRoomDesktopSidePanel } from "./LiveRoomDesktopSidePanel";
+import {
+  LiveRoomDesktopSidePanel,
+  LiveRoomMemberList,
+} from "./LiveRoomDesktopSidePanel";
 import { PostsPanel } from "./PostsPanel";
-import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
+import {
+  RoomTabs,
+  type CompanyLiveRoomTab,
+} from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
@@ -184,7 +191,9 @@ export function LiveRoomClient({
   const [newUpdateId, setNewUpdateId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] =
     useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
+  const [activeTab, setActiveTab] =
+    useState<CompanyLiveRoomTab>("chat");
+  const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
@@ -217,6 +226,10 @@ export function LiveRoomClient({
   const historicalEvents = latestEvent
     ? events.filter((event) => event.eventId !== latestEvent.eventId)
     : events;
+  const members = useMemo(
+    () => selectLiveRoomSidePanelMembers({ posts, timeline }),
+    [posts, timeline],
+  );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
   const scheduleTimelineScroll = useCallback(
@@ -1256,7 +1269,10 @@ export function LiveRoomClient({
         activeNavigationItem={null}
         themeMode="user-selectable"
       >
-        <div className={styles.page}>
+        <div
+          className={styles.page}
+          data-mobile-members-open={mobileMembersOpen}
+        >
         <CompanyRoomHeader
           followed={followed}
           historyButtonRef={historyOpenerRef}
@@ -1284,17 +1300,40 @@ export function LiveRoomClient({
 
         <RoomTabs
           active={activeTab}
-          dockOnMobile
           items={[
             { label: "Chat", value: "chat" },
             { label: "Posts", value: "posts" },
             { label: "Events", value: "events" },
           ]}
           onChange={setActiveTab}
+          visibility="desktop"
+        />
+        <RoomTabs
+          active={mobileMembersOpen ? "members" : activeTab}
+          dockOnMobile
+          idPrefix="live-room-mobile"
+          items={[
+            { label: "Chat", value: "chat" },
+            { label: "Posts", value: "posts" },
+            { label: "Events", value: "events" },
+            { label: "Members", value: "members" },
+          ]}
+          onChange={(tab) => {
+            if (tab === "members") {
+              setMobileMembersOpen(true);
+              return;
+            }
+            setMobileMembersOpen(false);
+            setActiveTab(tab);
+          }}
+          visibility="mobile"
         />
 
         <div className={styles.workspaceLayout}>
-          <div className={styles.primaryColumn}>
+          <div
+            className={styles.primaryColumn}
+            data-mobile-members-open={mobileMembersOpen}
+          >
         <section
           aria-labelledby="live-room-events-tab"
           className={styles.latestSection}
@@ -1362,6 +1401,30 @@ export function LiveRoomClient({
             currentTicker={ticker}
             state={postsState}
           />
+        ) : null}
+
+        {mobileMembersOpen ? (
+          <section
+            aria-labelledby="live-room-mobile-members-tab"
+            className={styles.membersPanel}
+            id="live-room-members-panel"
+            role="tabpanel"
+          >
+            <div className={styles.membersPanelHeading}>
+              <span>Room members</span>
+              <h2>Members</h2>
+              <p>
+                Follow public members or start a conversation from their
+                latest visible activity.
+              </p>
+            </div>
+            <LiveRoomMemberList
+              members={members}
+              messageActionId={messageActionId}
+              onMessageMember={handleMessageMember}
+              onToggleMemberFollow={handleMemberFollow}
+            />
+          </section>
         ) : null}
 
         <div

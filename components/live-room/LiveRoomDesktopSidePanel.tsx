@@ -26,7 +26,7 @@ import type {
   LiveRoomPost,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
-import type { LiveRoomTab } from "./RoomTabs";
+import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
 type SidePanelTab = "members" | "posts" | "updates";
@@ -56,7 +56,7 @@ export function LiveRoomDesktopSidePanel({
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
   messageActionId?: string | null;
-  onChangeMainTab: (tab: LiveRoomTab) => void;
+  onChangeMainTab: (tab: CompanyLiveRoomTab) => void;
   onMessageMember: (messageId: string) => Promise<void>;
   onRetryPosts: () => void;
   onToggleMemberFollow: (
@@ -100,7 +100,7 @@ export function LiveRoomDesktopSidePanel({
     tabRefs.current[nextIndex]?.focus();
   };
 
-  const viewAllTab: LiveRoomTab =
+  const viewAllTab: CompanyLiveRoomTab =
     activeTab === "posts"
       ? "posts"
       : activeTab === "updates"
@@ -158,7 +158,7 @@ export function LiveRoomDesktopSidePanel({
             state={postsState}
           />
         ) : (
-          <MembersPreview
+          <LiveRoomMemberList
             members={members}
             messageActionId={messageActionId}
             onMessageMember={onMessageMember}
@@ -292,7 +292,7 @@ function PostsPreview({
   );
 }
 
-function MembersPreview({
+export function LiveRoomMemberList({
   members,
   messageActionId,
   onMessageMember,

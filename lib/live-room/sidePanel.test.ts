@@ -86,7 +86,7 @@ test("side panel members use only real public member authors and deduplicate the
   );
 });
 
-test("side panel has accessible tabs, canonical links, and a desktop-only contract", () => {
+test("desktop and mobile members share accessible links, status, and actions", () => {
   const panel = read(
     "components/live-room/LiveRoomDesktopSidePanel.tsx",
   );
@@ -95,6 +95,8 @@ test("side panel has accessible tabs, canonical links, and a desktop-only contra
     "components/live-room/CommunityRoomClient.tsx",
   );
   const styles = read("components/live-room/LiveRoom.module.css");
+  const tabStyles = read("components/live-room/Posts.module.css");
+  const tabs = read("components/live-room/RoomTabs.tsx");
 
   assert.match(panel, /role="tablist"/);
   assert.match(panel, /aria-selected=\{activeTab === tab\.value\}/);
@@ -121,8 +123,45 @@ test("side panel has accessible tabs, canonical links, and a desktop-only contra
   assert.match(panel, /aria-pressed=\{member\.isMemberFollowed\}/);
   assert.match(client, /onMessageMember=\{handleMessageMember\}/);
   assert.match(client, /onToggleMemberFollow=\{handleMemberFollow\}/);
+  assert.match(panel, /export function LiveRoomMemberList/);
+  assert.match(panel, /<LiveRoomMemberList[\s\S]*members=\{members\}/);
+  assert.match(
+    client,
+    /active=\{mobileMembersOpen \? "members" : activeTab\}[\s\S]*\{ label: "Members", value: "members" \}[\s\S]*visibility="mobile"/,
+  );
+  assert.match(
+    client,
+    /mobileMembersOpen \? \([\s\S]*id="live-room-members-panel"[\s\S]*<LiveRoomMemberList[\s\S]*members=\{members\}[\s\S]*onMessageMember=\{handleMessageMember\}[\s\S]*onToggleMemberFollow=\{handleMemberFollow\}/,
+  );
+  assert.match(
+    client,
+    /selectLiveRoomSidePanelMembers\(\{ posts, timeline \}\)/,
+  );
+  assert.match(
+    panel,
+    /<\/Link>\s*\{sourceMessageId &&\s*\(member\.canFollowMember \|\| member\.canMessageMember\)/,
+  );
+  assert.match(tabs, /"--live-room-mobile-tab-count": items\.length/);
+  assert.match(
+    tabStyles,
+    /\.tabs\.mobileDock\s*\{[\s\S]*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
+  );
+  assert.match(tabStyles, /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/);
+  assert.match(
+    tabStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*grid/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 420px\)[\s\S]*\.sidePanelMember\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 420px\)[\s\S]*\.sidePanelMemberActions\s*\{[\s\S]*min-width:\s*0/,
+  );
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
   assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);
+  assert.doesNotMatch(community, /label: "Members"/);
 });
 
 function message({
