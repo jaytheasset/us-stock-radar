@@ -75,7 +75,9 @@ export function PostsPanel({
     ];
     const draft: LiveRoomPostDraft = {
       body,
-      eventId: eventId || null,
+      eventId: events.some((event) => event.eventId === eventId)
+        ? eventId
+        : null,
       relatedTickers,
       title,
     };
@@ -233,7 +235,7 @@ export function PostsPanel({
               value={tickers}
             />
           </label>
-          {events.length ? (
+          {events.length > 0 ? (
             <label>
               News or filing <small>Optional</small>
               <select
@@ -248,16 +250,7 @@ export function PostsPanel({
                 ))}
               </select>
             </label>
-          ) : (
-            <label>
-              News or filing event ID <small>Optional; must match a related room ticker</small>
-              <input
-                onChange={(event) => setEventId(event.target.value)}
-                placeholder="Event UUID"
-                value={eventId}
-              />
-            </label>
-          )}
+          ) : null}
           <div className={styles.formActions}>
             <button disabled={busy} type="submit">
               {busy ? <LoaderCircle aria-hidden="true" size={16} /> : null}

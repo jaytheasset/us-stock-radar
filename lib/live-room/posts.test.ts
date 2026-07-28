@@ -128,6 +128,18 @@ test("room, detail, and public profile surfaces keep posts separate from events 
   assert.doesNotMatch(profile, /ChatTimeline|live_room_messages/);
 });
 
+test("post composer exposes event linking only through real event choices", () => {
+  const postsPanel = readSource("components/live-room/PostsPanel.tsx");
+
+  assert.match(postsPanel, /events\.length > 0 \? \(/);
+  assert.match(postsPanel, /<option value="">No event attached<\/option>/);
+  assert.match(
+    postsPanel,
+    /events\.some\(\(event\) => event\.eventId === eventId\)[\s\S]+eventId[\s\S]+null/,
+  );
+  assert.doesNotMatch(postsPanel, /News or filing event ID|Event UUID/);
+});
+
 test("public post history keeps the database's newest-first cursor order", () => {
   const repository = readSource("lib/live-room/postServerRepository.ts");
 
