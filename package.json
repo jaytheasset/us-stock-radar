@@ -6,6 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "supabase:start": "supabase start",
+    "supabase:db:reset": "supabase db reset --local",
+    "supabase:db:lint": "supabase db lint --local --level error --fail-on error",
+    "supabase:test:db": "supabase test db --local",
     "refresh:market-snapshots": "node scripts/refresh-market-group-snapshots.js",
     "sync:market-universe": "node scripts/sync-fmp-universe.js",
     "sync:etf-universe": "node scripts/sync-fmp-universe.js --asset-type=etf --exchanges=NASDAQ,NYSE,AMEX,CBOE",
@@ -79,6 +83,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/sanitize-html": "2.16.1",
     "pg": "^8.20.0",
+    "supabase": "2.110.0",
     "typescript": "^5.9.0"
   },
   "engines": {
