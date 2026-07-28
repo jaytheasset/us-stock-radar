@@ -1,6 +1,7 @@
 "use client";
 
-import { Send, UserRound, X } from "lucide-react";
+import { BadgeCheck, Send, UserRound, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
@@ -203,6 +204,26 @@ export function MessageComposer({
                   </button>
                 </div>
               ) : null}
+              <Link
+                className={styles.creatorVerificationLink}
+                href={
+                  profile.isGuest
+                    ? "/login?next=%2Faccount%2Fcreator"
+                    : "/account/creator"
+                }
+              >
+                <BadgeCheck aria-hidden="true" size={18} />
+                <span>
+                  <strong>
+                    {profile.isGuest
+                      ? "Sign in to apply"
+                      : "Apply for creator verification"}
+                  </strong>
+                  <small>
+                    Verify ownership of Instagram · X · YouTube.
+                  </small>
+                </span>
+              </Link>
               <small>
                 {profile.isGuest
                   ? "Saved to this browser’s secure guest session."

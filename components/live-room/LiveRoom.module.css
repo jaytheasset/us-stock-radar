@@ -1477,6 +1477,57 @@ button.messageReplyPreview:hover {
   font-size: var(--sr-font-size-xs);
 }
 
+.creatorVerificationLink {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sr-space-2);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+  padding-top: var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  text-decoration: none;
+}
+
+.creatorVerificationLink > svg {
+  flex: 0 0 auto;
+  color: var(--sr-color-accent-text);
+}
+
+.creatorVerificationLink > span {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.creatorVerificationLink strong,
+.creatorVerificationLink small {
+  overflow-wrap: anywhere;
+}
+
+.creatorVerificationLink strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.creatorVerificationLink small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.creatorVerificationLink:hover strong,
+.creatorVerificationLink:focus-visible strong {
+  color: var(--sr-color-accent-text);
+}
+
+.creatorVerificationLink:focus-visible {
+  border-radius: var(--sr-radius-control);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .emojiGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2035,6 +2086,8 @@ button.messageReplyPreview:hover {
 
   .profilePicker {
     width: min(280px, calc(100vw - 24px));
+    max-height: 70dvh;
+    overflow-y: auto;
   }
 
   .messageField textarea {
