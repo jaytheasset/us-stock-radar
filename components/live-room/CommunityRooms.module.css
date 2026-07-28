@@ -602,6 +602,40 @@
   display: block;
 }
 
+.communityFollowButton {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  float: right;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.communityFollowButton:hover:not(:disabled) {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.communityFollowingButton {
+  border-color: var(--sr-color-accent-border);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-selected);
+}
+
+.communityFollowButton:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
 .backLink {
   min-height: 30px;
   margin-bottom: var(--sr-space-4);
@@ -639,6 +673,7 @@
 }
 
 .createButton:focus-visible,
+.communityFollowButton:focus-visible,
 .directoryFilters input:focus-visible,
 .directoryFilters select:focus-visible,
 .directoryFilters button:focus-visible,
@@ -759,6 +794,12 @@
 
   .communityHeader h1 {
     overflow-wrap: anywhere;
+  }
+
+  .communityFollowButton {
+    float: none;
+    width: 100%;
+    margin-bottom: var(--sr-space-4);
   }
 
   .communityChat {

@@ -227,14 +227,21 @@ export interface LiveRoomMessageRepository {
 
 export type LiveRoomNotificationScope = "new_chat_messages";
 
+export type LiveRoomFollowRoomKey =
+  | CompanyRoomKey
+  | { kind: "community_slug"; value: string };
+
 export type LiveRoomFollowPreference = {
   followed: boolean;
   notificationScope: LiveRoomNotificationScope;
-  roomKey: CompanyRoomKey;
+  roomKey: LiveRoomFollowRoomKey;
 };
 
 export type LiveRoomUnreadRoom = {
-  ticker: string;
+  href: string;
+  kind: "community" | "company";
+  label: string;
+  ticker: string | null;
   unreadCount: number;
 };
 

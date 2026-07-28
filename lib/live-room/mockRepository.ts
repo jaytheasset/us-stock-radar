@@ -114,7 +114,10 @@ export class BrowserLiveRoomFollowRepository
   }
 
   write(preference: LiveRoomFollowPreference) {
-    const key = serializeCompanyRoomKey(preference.roomKey);
+    const key =
+      preference.roomKey.kind === "community_slug"
+        ? `community:${preference.roomKey.value}`
+        : serializeCompanyRoomKey(preference.roomKey);
     try {
       const stored = JSON.parse(
         localStorage.getItem(followStorageKey) ?? "{}",
