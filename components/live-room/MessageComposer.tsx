@@ -1,6 +1,7 @@
 "use client";
 
 import { Send, UserRound, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import {
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
   type ModerationDecision,
@@ -9,6 +10,7 @@ import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import type {
   CompanyEventReference,
   LiveRoomProfile,
+  LiveRoomReplyPreview,
 } from "@/lib/live-room/types";
 import styles from "./LiveRoom.module.css";
 
@@ -19,13 +21,16 @@ type MessageComposerProps = {
   decision: ModerationDecision | null;
   disabled: boolean;
   eventReference: CompanyEventReference | null;
+  focusRequestId?: number;
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
+  onCancelReply: () => void;
   onProfileChange: (profile: LiveRoomProfile) => void;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onSend: () => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
+  replyPreview: LiveRoomReplyPreview | null;
   placeholder?: string;
   presenceSettingBusy: boolean;
   sending: boolean;
@@ -38,19 +43,28 @@ export function MessageComposer({
   decision,
   disabled,
   eventReference,
+  focusRequestId = 0,
   onBodyChange,
   onClearReference,
+  onCancelReply,
   onProfileChange,
   onPresenceSettingChange,
   onSend,
   profile,
   profileOpen,
+  replyPreview,
   placeholder = "Share a company view…",
   presenceSettingBusy,
   sending,
   setProfileOpen,
   showPresence,
 }: MessageComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (focusRequestId > 0) textareaRef.current?.focus();
+  }, [focusRequestId]);
+
   return (
     <div className={styles.composer}>
       {eventReference ? (
@@ -62,6 +76,21 @@ export function MessageComposer({
           <button
             aria-label="Remove event mention"
             onClick={onClearReference}
+            type="button"
+          >
+            <X aria-hidden="true" size={14} />
+          </button>
+        </div>
+      ) : null}
+      {replyPreview ? (
+        <div className={styles.composerReply}>
+          <span>
+            Replying to {replyPreview.authorDisplayName}
+          </span>
+          <strong>{replyPreview.bodyPreview}</strong>
+          <button
+            aria-label="Cancel reply"
+            onClick={onCancelReply}
             type="button"
           >
             <X aria-hidden="true" size={14} />
@@ -202,7 +231,12 @@ export function MessageComposer({
                 onSend();
               }
             }}
-            placeholder={placeholder}
+            placeholder={
+              replyPreview
+                ? `Reply to ${replyPreview.authorDisplayName}…`
+                : placeholder
+            }
+            ref={textareaRef}
             rows={1}
             value={body}
           />

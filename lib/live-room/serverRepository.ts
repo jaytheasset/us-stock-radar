@@ -30,9 +30,11 @@ import {
   normalizeLiveRoomReportReason,
   normalizeLiveRoomTicker,
   normalizeLiveRoomUuid,
+  normalizeOptionalLiveRoomReplyMessageId,
   validateLiveRoomEventReference,
   type LiveRoomActor,
 } from "./policy";
+import { createLiveRoomReplyBodyPreview } from "./replyPolicy";
 import type {
   CompanyEventReference,
   LiveRoomBlockedActor,
@@ -47,6 +49,7 @@ import type {
   LiveRoomPresenceSummary,
   LiveRoomPostActivity,
   LiveRoomPostActivityKind,
+  LiveRoomReplyPreview,
   LiveRoomTimelineItem,
   LiveRoomUnreadSummary,
 } from "./types";
@@ -79,6 +82,7 @@ type MessageRow = {
   referenced_event_id?: unknown;
   referenced_event_kind?: unknown;
   referenced_event_title?: unknown;
+  reply_to_message_id?: unknown;
   visibility_status?: unknown;
   moderation_reason?: unknown;
   hidden_at?: unknown;
@@ -144,7 +148,7 @@ export async function getLiveRoomMessagePage({
   const ascending = Boolean(after);
   const search: Record<string, string> = {
     select:
-      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,created_at",
+      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,created_at",
     room_id: `eq.${room.id}`,
     visibility_status: "eq.visible",
     order: ascending
@@ -226,7 +230,7 @@ export async function getLiveRoomMessageAnchor({
   const [result, blockedActorIds] = await Promise.all([
     supabaseSelect("live_room_messages", {
       select:
-        "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,created_at",
+        "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,created_at",
       id: `eq.${messageId}`,
       room_id: `eq.${room.id}`,
       visibility_status: "eq.visible",
@@ -279,7 +283,7 @@ export async function getLiveRoomMessageChanges({
   const cursor = decodeMessageCursor(afterChange || null);
   const search: Record<string, string> = {
     select:
-      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,visibility_status,created_at,updated_at",
+      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,visibility_status,created_at,updated_at",
     room_id: `eq.${room.id}`,
     order: "updated_at.asc,id.asc",
     limit: String(pageSize + 1),
@@ -378,16 +382,20 @@ export async function sendLiveRoomMessage({
   actor,
   body,
   eventId,
+  replyToMessageId: rawReplyToMessageId,
   slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   body: string;
   eventId?: string | null;
+  replyToMessageId?: unknown;
   slug?: string;
   ticker?: string;
 }) {
   const room = await resolveLiveRoom({ slug, ticker: rawTicker });
+  const replyToMessageId =
+    normalizeOptionalLiveRoomReplyMessageId(rawReplyToMessageId);
   const profile = await getLiveRoomProfile(actor);
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
@@ -431,6 +439,7 @@ export async function sendLiveRoomMessage({
     p_author_plan: author.plan,
     p_body: decision.normalizedBody,
     p_referenced_event_id: reference?.eventId || null,
+    p_reply_to_message_id: replyToMessageId,
   });
 
   if (!result.ok) {
@@ -1641,12 +1650,26 @@ async function mapMessageRows(
   rows: MessageRow[],
   actor: LiveRoomActor,
 ) {
-  const socialBadgePromise = getLiveRoomSocialBadgeMap({
-    actor,
-    messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
-  });
+  const memberUserIds = [
+    ...new Set(
+      rows
+        .filter((row) => row.author_kind === "member")
+        .map((row) => readString(row.member_user_id))
+        .filter(Boolean),
+    ),
+  ];
+  const enrichmentPromise = Promise.all([
+      getLiveRoomSocialBadgeMap({
+        actor,
+        messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
+      }),
+      getLiveRoomPublicProfileIdMap(memberUserIds),
+      getLiveRoomReplyPreviewMap(rows, actor),
+    ]);
+
   if (actor.kind !== "member") {
-    const socialBadges = await socialBadgePromise;
+    const [socialBadges, publicProfileIds, replyPreviews] =
+      await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
         row,
@@ -1654,24 +1677,20 @@ async function mapMessageRows(
         new Set(),
         new Set(),
         socialBadges,
+        publicProfileIds,
+        replyPreviews,
       ),
     );
   }
 
   const targetUserIds = [
     ...new Set(
-      rows
-        .filter(
-          (row) =>
-            row.author_kind === "member" &&
-            readString(row.member_user_id) !== actor.userId,
-        )
-        .map((row) => readString(row.member_user_id))
-        .filter(Boolean),
+      memberUserIds.filter((userId) => userId !== actor.userId),
     ),
   ];
   if (!targetUserIds.length) {
-    const socialBadges = await socialBadgePromise;
+    const [socialBadges, publicProfileIds, replyPreviews] =
+      await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
         row,
@@ -1679,11 +1698,15 @@ async function mapMessageRows(
         new Set(),
         new Set(),
         socialBadges,
+        publicProfileIds,
+        replyPreviews,
       ),
     );
   }
 
-  const [outgoing, blocks, socialBadges] = await Promise.all([
+  const [[socialBadges, publicProfileIds, replyPreviews], outgoing, blocks] =
+    await Promise.all([
+      enrichmentPromise,
     supabaseSelect("live_room_member_follows", {
       select: "followed_user_id",
       follower_user_id: `eq.${actor.userId}`,
@@ -1697,8 +1720,7 @@ async function mapMessageRows(
       or: `(and(blocker_member_user_id.eq.${actor.userId},blocked_member_user_id.in.(${targetUserIds.join(",")})),and(blocker_member_user_id.in.(${targetUserIds.join(",")}),blocked_member_user_id.eq.${actor.userId}))`,
       limit: String(targetUserIds.length * 2),
     }),
-    socialBadgePromise,
-  ]);
+    ]);
   if (!outgoing.ok || !blocks.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_FOLLOW_STATE_UNAVAILABLE",
@@ -1732,7 +1754,95 @@ async function mapMessageRows(
       followedUserIds,
       messageableUserIds,
       socialBadges,
+      publicProfileIds,
+      replyPreviews,
     ),
+  );
+}
+
+async function getLiveRoomPublicProfileIdMap(
+  memberUserIds: readonly string[],
+) {
+  if (!memberUserIds.length) return new Map<string, string>();
+  const result = await supabaseSelect("live_room_member_profiles", {
+    select: "user_id,public_profile_id",
+    user_id: `in.(${memberUserIds.join(",")})`,
+    limit: String(memberUserIds.length),
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_PROFILES_UNAVAILABLE",
+      result.error || "Member profiles could not be loaded.",
+      result.status || 502,
+    );
+  }
+  return new Map(
+    readRows(result.data)
+      .map(
+        (row) =>
+          [
+            readString(row.user_id),
+            readString(row.public_profile_id),
+          ] as const,
+      )
+      .filter(([userId, publicProfileId]) =>
+        Boolean(userId && publicProfileId),
+      ),
+  );
+}
+
+async function getLiveRoomReplyPreviewMap(
+  rows: readonly MessageRow[],
+  actor: LiveRoomActor,
+) {
+  const replyMessageIds = [
+    ...new Set(
+      rows
+        .map((row) => readString(row.reply_to_message_id))
+        .filter(Boolean),
+    ),
+  ];
+  if (!replyMessageIds.length) {
+    return new Map<string, LiveRoomReplyPreview>();
+  }
+
+  const [result, blockedActorIds] = await Promise.all([
+    supabaseSelect("live_room_messages", {
+      select:
+        "id,actor_id,author_display_name,author_emoji,body,visibility_status",
+      id: `in.(${replyMessageIds.join(",")})`,
+      visibility_status: "eq.visible",
+      limit: String(replyMessageIds.length),
+    }),
+    getBlockedActorIds(actor),
+  ]);
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_REPLY_PREVIEWS_UNAVAILABLE",
+      result.error || "Reply previews could not be loaded.",
+      result.status || 502,
+    );
+  }
+
+  const blocked = new Set(blockedActorIds);
+  return new Map(
+    (readRows(result.data) as MessageRow[])
+      .filter((row) => !blocked.has(readString(row.actor_id)))
+      .map((row) => {
+        const messageId = readString(row.id);
+        return [
+          messageId,
+          {
+            authorDisplayName:
+              readString(row.author_display_name) || "Member",
+            authorEmoji: readString(row.author_emoji) || "👋",
+            bodyPreview: createLiveRoomReplyBodyPreview(
+              readString(row.body),
+            ),
+            messageId,
+          },
+        ] as const;
+      }),
   );
 }
 
@@ -1757,6 +1867,8 @@ function mapMessageRow(
     string,
     LiveRoomProfile["socialBadges"]
   > = new Map(),
+  publicProfileIdMap: ReadonlyMap<string, string> = new Map(),
+  replyPreviewMap: ReadonlyMap<string, LiveRoomReplyPreview> = new Map(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -1781,6 +1893,10 @@ function mapMessageRow(
       emoji: readString(row.author_emoji) || "👋",
       isGuest: row.author_kind === "guest",
       plan: normalizePlan(row.author_plan),
+      publicProfileId:
+        row.author_kind === "member"
+          ? publicProfileIdMap.get(memberUserId)
+          : undefined,
       socialBadges:
         row.author_kind === "member"
           ? socialBadgeMap.get(readString(row.id)) || []
@@ -1797,6 +1913,8 @@ function mapMessageRow(
       canFollowMember && followedUserIds.has(memberUserId),
     isMine: isLiveRoomMessageMine(row, actor),
     kind: "message",
+    replyPreview:
+      replyPreviewMap.get(readString(row.reply_to_message_id)) || null,
   };
 }
 
@@ -1836,6 +1954,11 @@ function mapDatabaseModerationError(error: string | undefined, status: number) {
     LIVE_ROOM_INVALID_EVENT_REFERENCE: [
       "LIVE_ROOM_INVALID_EVENT_REFERENCE",
       "That event cannot be mentioned in this company room.",
+      400,
+    ],
+    LIVE_ROOM_INVALID_REPLY_TARGET: [
+      "LIVE_ROOM_INVALID_REPLY_TARGET",
+      "That message is not available to reply to.",
       400,
     ],
   };

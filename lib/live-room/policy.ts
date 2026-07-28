@@ -98,6 +98,15 @@ export function normalizeLiveRoomUuid(
   return normalized;
 }
 
+export function normalizeOptionalLiveRoomReplyMessageId(value: unknown) {
+  if (value === null || value === undefined) return null;
+  return normalizeLiveRoomUuid(
+    value,
+    "LIVE_ROOM_INVALID_REPLY_TARGET",
+    "That message is not available to reply to.",
+  );
+}
+
 export function normalizeLiveRoomReportReason(
   value: unknown,
 ): LiveRoomReportReason {

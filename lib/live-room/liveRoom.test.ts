@@ -36,9 +36,14 @@ import {
   normalizeLiveRoomProfileInput,
   normalizeLiveRoomReportReason,
   normalizeLiveRoomUuid,
+  normalizeOptionalLiveRoomReplyMessageId,
   shouldRefreshLiveRoomGuestLastSeen,
   validateLiveRoomEventReference,
 } from "./policy.ts";
+import {
+  createLiveRoomReplyBodyPreview,
+  LIVE_ROOM_REPLY_PREVIEW_MAX_LENGTH,
+} from "./replyPolicy.ts";
 import {
   LIVE_ROOM_REPORT_REASONS,
   type CompanyEvent,
@@ -592,6 +597,7 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
     eventReference: null,
     id: "member-message",
     kind: "message",
+    replyPreview: null,
   };
   const guestMessage: LiveRoomChatMessage = {
     author: {
@@ -605,6 +611,7 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
     eventReference: null,
     id: "guest-message",
     kind: "message",
+    replyPreview: null,
   };
 
   const blockedTimeline = removeLiveRoomTimelineItems(
@@ -908,7 +915,7 @@ test("event mentions must belong to the room and cannot reference archive events
   );
 });
 
-test("Live Room API accepts only message content and event ID from the browser", () => {
+test("Live Room API accepts only message content, event ID, and a closed reply target from the browser", () => {
   const routeSource = readSource(
     "app/api/live-room/[ticker]/messages/route.ts",
   );
@@ -920,6 +927,11 @@ test("Live Room API accepts only message content and event ID from the browser",
 
   assert.match(routeSource, /body\?: unknown/);
   assert.match(routeSource, /eventId\?: unknown/);
+  assert.match(routeSource, /replyToMessageId\?: unknown/);
+  assert.match(
+    routeSource,
+    /normalizeOptionalLiveRoomReplyMessageId\(\s*input\?\.replyToMessageId/,
+  );
   assert.match(routeSource, /assertSameOriginAuthRequest\(request\)/);
   assert.doesNotMatch(routeSource, /input\?\.author|input\?\.plan/);
   assert.match(repositorySource, /getEffectiveUserPlan\(actor\.userId\)/);
@@ -933,6 +945,119 @@ test("Live Room API accepts only message content and event ID from the browser",
   assert.doesNotMatch(actorSource, /request\.json/);
   assert.doesNotMatch(clientSource, /SUPABASE_(?:SERVICE_ROLE|ANON)_KEY/);
   assert.match(clientSource, /transport interface|LiveRoomUpdateTransport/i);
+});
+
+test("reply previews are compact and optional reply IDs validate closed", () => {
+  assert.equal(
+    createLiveRoomReplyBodyPreview("  First line\n\tsecond   line  "),
+    "First line second line",
+  );
+  const long = "x".repeat(LIVE_ROOM_REPLY_PREVIEW_MAX_LENGTH + 40);
+  const preview = createLiveRoomReplyBodyPreview(long);
+  assert.equal(preview.length, LIVE_ROOM_REPLY_PREVIEW_MAX_LENGTH);
+  assert.ok(preview.endsWith("…"));
+
+  assert.equal(normalizeOptionalLiveRoomReplyMessageId(undefined), null);
+  assert.equal(normalizeOptionalLiveRoomReplyMessageId(null), null);
+  assert.equal(
+    normalizeOptionalLiveRoomReplyMessageId(
+      "123e4567-e89b-42d3-a456-426614174000",
+    ),
+    "123e4567-e89b-42d3-a456-426614174000",
+  );
+  assert.throws(
+    () => normalizeOptionalLiveRoomReplyMessageId("not-a-uuid"),
+    (error) =>
+      error instanceof LiveRoomPolicyError &&
+      error.code === "LIVE_ROOM_INVALID_REPLY_TARGET",
+  );
+});
+
+test("message replies are same-room, visible, indexed, invoker-only, and service-only", () => {
+  const migration = readSource(
+    "supabase/migrations/20260728194310_live_room_message_replies.sql",
+  );
+  assert.match(
+    migration,
+    /add column reply_to_message_id uuid/i,
+  );
+  assert.match(
+    migration,
+    /unique\s*\(room_id,\s*id\)/i,
+  );
+  assert.match(
+    migration,
+    /foreign key\s*\(room_id,\s*reply_to_message_id\)[\s\S]*?references public\.live_room_messages\s*\(room_id,\s*id\)[\s\S]*?on delete restrict/i,
+  );
+  assert.match(
+    migration,
+    /create index live_room_messages_room_reply_idx[\s\S]*?\(room_id,\s*reply_to_message_id\)/i,
+  );
+  assert.match(
+    migration,
+    /drop function if exists public\.insert_live_room_message\(\s*uuid,\s*text,\s*uuid,\s*uuid,\s*text,\s*text,\s*text,\s*text,\s*uuid\s*\)/i,
+  );
+  assert.match(migration, /p_reply_to_message_id uuid default null/i);
+  assert.match(
+    migration,
+    /target\.id = p_reply_to_message_id[\s\S]*?target\.room_id = p_room_id[\s\S]*?target\.visibility_status = 'visible'/i,
+  );
+  assert.match(migration, /LIVE_ROOM_INVALID_REPLY_TARGET/);
+  assert.doesNotMatch(migration, /security\s+definer/i);
+  assert.match(
+    migration,
+    /revoke all on function public\.insert_live_room_message\([\s\S]*?\) from public/i,
+  );
+  assert.match(
+    migration,
+    /grant all on function public\.insert_live_room_message\([\s\S]*?\) to service_role/i,
+  );
+});
+
+test("message reads bulk-enrich opaque profiles and safe reply previews without N+1", () => {
+  const repository = readSource("lib/live-room/serverRepository.ts");
+  const timeline = readSource("lib/live-room/timeline.ts");
+  const chat = readSource("components/live-room/ChatTimeline.tsx");
+  const composer = readSource(
+    "components/live-room/MessageComposer.tsx",
+  );
+  const client = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+
+  assert.match(
+    repository,
+    /supabaseSelect\("live_room_member_profiles",\s*\{[\s\S]*?select: "user_id,public_profile_id"[\s\S]*?user_id: `in\.\(\$\{memberUserIds\.join\(","\)\}\)`/,
+  );
+  assert.match(
+    repository,
+    /publicProfileId:[\s\S]*?publicProfileIdMap\.get\(memberUserId\)/,
+  );
+  assert.match(
+    repository,
+    /function getLiveRoomReplyPreviewMap[\s\S]*?id: `in\.\(\$\{replyMessageIds\.join\(","\)\}\)`[\s\S]*?visibility_status: "eq\.visible"/,
+  );
+  assert.match(
+    repository,
+    /getBlockedActorIds\(actor\)[\s\S]*?blocked\.has\(readString\(row\.actor_id\)\)/,
+  );
+  assert.ok(
+    (repository.match(/reply_to_message_id/g) || []).length >= 6,
+  );
+  assert.match(
+    timeline,
+    /removedIds\.has\(item\.replyPreview\.messageId\)[\s\S]*?replyPreview: null/,
+  );
+  assert.match(chat, /aria-label=\{`Reply to \$\{item\.author\.displayName\}`\}/);
+  assert.match(chat, /className=\{styles\.messageReplyPreview\}/);
+  assert.match(composer, /Replying to \{replyPreview\.authorDisplayName\}/);
+  assert.match(composer, /aria-label="Cancel reply"/);
+  assert.match(composer, /`Reply to \$\{replyPreview\.authorDisplayName\}…`/);
+  assert.match(client, /replyToMessageId: replyingTo\?\.id \|\| null/);
+  assert.match(
+    client,
+    /setBody\(""\);[\s\S]*?setReference\(null\);[\s\S]*?setReplyingTo\(null\)/,
+  );
 });
 
 test("Live Room migration is server-only, RLS-enabled, and atomically moderates writes", () => {

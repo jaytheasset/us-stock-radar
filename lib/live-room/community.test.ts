@@ -562,6 +562,11 @@ test("Community messages reuse message moderation, report, and block server cont
   assert.match(communityMessagesRoute, /getLiveRoomMessageChanges/);
   assert.match(communityMessagesRoute, /sendLiveRoomMessage/);
   assert.match(communityMessagesRoute, /eventId: null/);
+  assert.match(communityMessagesRoute, /replyToMessageId\?: unknown/);
+  assert.match(
+    communityMessagesRoute,
+    /normalizeOptionalLiveRoomReplyMessageId\(\s*input\?\.replyToMessageId/,
+  );
   assert.match(communityReportsRoute, /reportLiveRoomMessage/);
   assert.match(communityBlocksRoute, /blockLiveRoomMessageAuthor/);
   assert.match(
@@ -572,6 +577,15 @@ test("Community messages reuse message moderation, report, and block server cont
   assert.match(communityClient, /evaluateLiveRoomMessage/);
   assert.match(communityClient, /repository\.report/);
   assert.match(communityClient, /repository\.block/);
+  assert.match(
+    communityClient,
+    /replyToMessageId: replyingTo\?\.id \|\| null/,
+  );
+  assert.match(communityClient, /onReply=\{handleReply\}/);
+  assert.match(
+    communityClient,
+    /setBody\(""\);[\s\S]*?setReplyingTo\(null\)/,
+  );
   assert.match(
     liveRoomRepository,
     /Community Room messages cannot attach company event cards/,

@@ -25,6 +25,7 @@ import {
   type ModerationDecision,
   type ModerationReason,
 } from "@/lib/live-room/moderation";
+import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import {
   shareLiveRoomInvite,
   type LiveRoomInviteUiState,
@@ -148,6 +149,10 @@ export function LiveRoomClient({
   const [body, setBody] = useState("");
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
+  const [replyingTo, setReplyingTo] =
+    useState<LiveRoomChatMessage | null>(null);
+  const [composerFocusRequestId, setComposerFocusRequestId] =
+    useState(0);
   const [decision, setDecision] = useState<ModerationDecision | null>(null);
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -917,6 +922,7 @@ export function LiveRoomClient({
       const message = await repository.send({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
+        replyToMessageId: replyingTo?.id || null,
       });
       forceOwnTimelineScrollRef.current = true;
       setTimeline((current) =>
@@ -934,6 +940,7 @@ export function LiveRoomClient({
       });
       setBody("");
       setReference(null);
+      setReplyingTo(null);
       setDecision(null);
       setProfileOpen(false);
     } catch (error) {
@@ -971,6 +978,30 @@ export function LiveRoomClient({
     } finally {
       setLoadingOlder(false);
     }
+  };
+
+  const handleReply = (message: LiveRoomChatMessage) => {
+    setReplyingTo(message);
+    setActiveTab("chat");
+    setDecision(null);
+    setComposerFocusRequestId((value) => value + 1);
+  };
+
+  const handleOpenReplyTarget = (messageId: string) => {
+    if (
+      !timeline.some(
+        (item) => item.kind === "message" && item.id === messageId,
+      )
+    ) {
+      return;
+    }
+    setActiveTab("chat");
+    setHighlightedMessageId(messageId);
+    scheduleTimelineScroll(() => {
+      document
+        .getElementById(`live-room-message-${messageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   };
 
   const handleReport = async (
@@ -1405,6 +1436,8 @@ export function LiveRoomClient({
                   handleModerate(messageId, "hide")
                 }
                 onMessageMember={handleMessageMember}
+                onOpenReplyTarget={handleOpenReplyTarget}
+                onReply={handleReply}
                 onReport={handleReport}
                 onToggleMemberFollow={handleMemberFollow}
                 onRetry={() => setReloadKey((value) => value + 1)}
@@ -1420,16 +1453,30 @@ export function LiveRoomClient({
                 timelineState === "loading"
               }
               eventReference={reference}
+              focusRequestId={composerFocusRequestId}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
                 setDecision(null);
               }}
               onClearReference={() => setReference(null)}
+              onCancelReply={() => setReplyingTo(null)}
               onProfileChange={handleProfileChange}
               onPresenceSettingChange={handlePresenceSettingChange}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
+              replyPreview={
+                replyingTo
+                  ? {
+                      authorDisplayName: replyingTo.author.displayName,
+                      authorEmoji: replyingTo.author.emoji,
+                      bodyPreview: createLiveRoomReplyBodyPreview(
+                        replyingTo.body,
+                      ),
+                      messageId: replyingTo.id,
+                    }
+                  : null
+              }
               presenceSettingBusy={presenceSettingBusy}
               sending={sending}
               setProfileOpen={setProfileOpen}
@@ -1443,10 +1490,13 @@ export function LiveRoomClient({
             <LiveRoomDesktopSidePanel
               eventSource={eventSource}
               events={events}
+              messageActionId={messageActionId}
               onChangeMainTab={setActiveTab}
+              onMessageMember={handleMessageMember}
               onRetryPosts={() => {
                 void handleLoadPosts().catch(() => undefined);
               }}
+              onToggleMemberFollow={handleMemberFollow}
               posts={posts}
               postsState={postsState}
               timeline={timeline}

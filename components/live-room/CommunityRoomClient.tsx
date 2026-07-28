@@ -21,6 +21,7 @@ import {
   type ModerationDecision,
   type ModerationReason,
 } from "@/lib/live-room/moderation";
+import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import {
   isCurrentLiveRoomTimelineGeneration,
   mergeLiveRoomTimeline,
@@ -77,6 +78,12 @@ export function CommunityRoomClient({
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [body, setBody] = useState("");
+  const [replyingTo, setReplyingTo] =
+    useState<LiveRoomChatMessage | null>(null);
+  const [composerFocusRequestId, setComposerFocusRequestId] =
+    useState(0);
+  const [highlightedMessageId, setHighlightedMessageId] =
+    useState<string | null>(null);
   const [decision, setDecision] = useState<ModerationDecision | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -93,6 +100,7 @@ export function CommunityRoomClient({
   const [followBusy, setFollowBusy] = useState(false);
   const profileSaveTimerRef = useRef<number | null>(null);
   const followedRef = useRef(false);
+  const replyScrollFrameRef = useRef<number | null>(null);
   const timelineGenerationRef = useRef(0);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
@@ -202,6 +210,9 @@ export function CommunityRoomClient({
       if (profileSaveTimerRef.current !== null) {
         window.clearTimeout(profileSaveTimerRef.current);
       }
+      if (replyScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(replyScrollFrameRef.current);
+      }
     },
     [],
   );
@@ -256,12 +267,14 @@ export function CommunityRoomClient({
       }
       const message = await repository.send({
         body: nextDecision.normalizedBody,
+        replyToMessageId: replyingTo?.id || null,
       });
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
       );
       setTimelineState("ready");
       setBody("");
+      setReplyingTo(null);
       setDecision(null);
       setProfileOpen(false);
     } catch (error) {
@@ -304,6 +317,34 @@ export function CommunityRoomClient({
     } finally {
       setFollowBusy(false);
     }
+  };
+
+  const handleReply = (message: LiveRoomChatMessage) => {
+    setReplyingTo(message);
+    setActiveTab("chat");
+    setDecision(null);
+    setComposerFocusRequestId((value) => value + 1);
+  };
+
+  const handleOpenReplyTarget = (messageId: string) => {
+    if (
+      !timeline.some(
+        (item) => item.kind === "message" && item.id === messageId,
+      )
+    ) {
+      return;
+    }
+    setActiveTab("chat");
+    setHighlightedMessageId(messageId);
+    if (replyScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(replyScrollFrameRef.current);
+    }
+    replyScrollFrameRef.current = window.requestAnimationFrame(() => {
+      replyScrollFrameRef.current = null;
+      document
+        .getElementById(`live-room-message-${messageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   };
 
   const handleLoadOlder = async () => {
@@ -679,12 +720,15 @@ export function CommunityRoomClient({
               currentProfileName={profile?.displayName.trim() || ""}
               emptyDescription="Share the first useful thought with the room."
               emptyTitle="Start this community discussion."
+              highlightedMessageId={highlightedMessageId}
               items={timeline}
               messageActionId={messageActionId}
               onBlock={handleBlock}
               onHide={(messageId) =>
                 handleModerate(messageId, "hide")
               }
+              onOpenReplyTarget={handleOpenReplyTarget}
+              onReply={handleReply}
               onReport={handleReport}
               onRetry={() => setReloadKey((value) => value + 1)}
               state={timelineState}
@@ -700,11 +744,13 @@ export function CommunityRoomClient({
               timelineState === "loading"
             }
             eventReference={null}
+            focusRequestId={composerFocusRequestId}
             onBodyChange={(nextBody) => {
               setBody(nextBody);
               setDecision(null);
             }}
             onClearReference={() => undefined}
+            onCancelReply={() => setReplyingTo(null)}
             onPresenceSettingChange={() => undefined}
             onProfileChange={handleProfileChange}
             onSend={handleSend}
@@ -712,6 +758,18 @@ export function CommunityRoomClient({
             presenceSettingBusy={false}
             profile={profile}
             profileOpen={profileOpen}
+            replyPreview={
+              replyingTo
+                ? {
+                    authorDisplayName: replyingTo.author.displayName,
+                    authorEmoji: replyingTo.author.emoji,
+                    bodyPreview: createLiveRoomReplyBodyPreview(
+                      replyingTo.body,
+                    ),
+                    messageId: replyingTo.id,
+                  }
+                : null
+            }
             sending={sending}
             setProfileOpen={setProfileOpen}
             showPresence={null}

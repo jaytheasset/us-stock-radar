@@ -4,7 +4,10 @@ import Link from "next/link";
 import {
   ArrowRight,
   FileText,
+  MessageCircle,
   Newspaper,
+  UserCheck,
+  UserPlus,
   Users,
 } from "lucide-react";
 import {
@@ -41,16 +44,25 @@ const SIDE_PANEL_TABS = [
 export function LiveRoomDesktopSidePanel({
   eventSource,
   events,
+  messageActionId,
   onChangeMainTab,
+  onMessageMember,
   onRetryPosts,
+  onToggleMemberFollow,
   posts,
   postsState,
   timeline,
 }: {
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
+  messageActionId?: string | null;
   onChangeMainTab: (tab: LiveRoomTab) => void;
+  onMessageMember: (messageId: string) => Promise<void>;
   onRetryPosts: () => void;
+  onToggleMemberFollow: (
+    messageId: string,
+    followed: boolean,
+  ) => Promise<void>;
   posts: readonly LiveRoomPost[];
   postsState: PostState;
   timeline: readonly LiveRoomTimelineItem[];
@@ -146,7 +158,12 @@ export function LiveRoomDesktopSidePanel({
             state={postsState}
           />
         ) : (
-          <MembersPreview members={members} />
+          <MembersPreview
+            members={members}
+            messageActionId={messageActionId}
+            onMessageMember={onMessageMember}
+            onToggleMemberFollow={onToggleMemberFollow}
+          />
         )}
       </div>
 
@@ -277,8 +294,17 @@ function PostsPreview({
 
 function MembersPreview({
   members,
+  messageActionId,
+  onMessageMember,
+  onToggleMemberFollow,
 }: {
   members: ReturnType<typeof selectLiveRoomSidePanelMembers>;
+  messageActionId?: string | null;
+  onMessageMember: (messageId: string) => Promise<void>;
+  onToggleMemberFollow: (
+    messageId: string,
+    followed: boolean,
+  ) => Promise<void>;
 }) {
   if (!members.length) {
     return (
@@ -288,30 +314,92 @@ function MembersPreview({
 
   return (
     <div className={styles.sidePanelList}>
-      {members.map((member) => (
-        <Link
-          className={styles.sidePanelMember}
-          href={`/live/members/${member.publicProfileId}`}
-          key={member.publicProfileId}
-        >
-          <span aria-hidden="true" className={styles.sidePanelAvatar}>
-            {member.emoji}
-          </span>
-          <span>
-            <strong>{member.displayName}</strong>
-            <small>
-              {member.isOnline ? (
-                <>
-                  <i aria-hidden="true" />
-                  Online
-                </>
-              ) : (
-                "Member"
-              )}
-            </small>
-          </span>
-        </Link>
-      ))}
+      {members.map((member) => {
+        const sourceMessageId = member.sourceMessageId;
+        const busy =
+          Boolean(sourceMessageId) &&
+          messageActionId === sourceMessageId;
+        return (
+          <div
+            className={styles.sidePanelMember}
+            key={member.publicProfileId}
+          >
+            <Link
+              className={styles.sidePanelMemberProfile}
+              href={`/live/members/${member.publicProfileId}`}
+            >
+              <span aria-hidden="true" className={styles.sidePanelAvatar}>
+                {member.emoji}
+              </span>
+              <span>
+                <strong>{member.displayName}</strong>
+                <small>
+                  {member.isOnline ? (
+                    <>
+                      <i aria-hidden="true" />
+                      Online
+                    </>
+                  ) : (
+                    "Member"
+                  )}
+                </small>
+              </span>
+            </Link>
+            {sourceMessageId &&
+            (member.canFollowMember || member.canMessageMember) ? (
+              <div
+                aria-label={`Actions for ${member.displayName}`}
+                className={styles.sidePanelMemberActions}
+                role="group"
+              >
+                {member.canFollowMember ? (
+                  <button
+                    aria-label={
+                      member.isMemberFollowed
+                        ? `Unfollow ${member.displayName}`
+                        : `Follow ${member.displayName}`
+                    }
+                    aria-pressed={member.isMemberFollowed}
+                    data-followed={member.isMemberFollowed}
+                    disabled={busy}
+                    onClick={() =>
+                      void onToggleMemberFollow(
+                        sourceMessageId,
+                        !member.isMemberFollowed,
+                      ).catch(() => undefined)
+                    }
+                    type="button"
+                  >
+                    {member.isMemberFollowed ? (
+                      <UserCheck aria-hidden="true" size={14} />
+                    ) : (
+                      <UserPlus aria-hidden="true" size={14} />
+                    )}
+                    <span>
+                      {member.isMemberFollowed ? "Following" : "Follow"}
+                    </span>
+                  </button>
+                ) : null}
+                {member.canMessageMember ? (
+                  <button
+                    aria-label={`Message ${member.displayName}`}
+                    disabled={busy}
+                    onClick={() =>
+                      void onMessageMember(sourceMessageId).catch(
+                        () => undefined,
+                      )
+                    }
+                    type="button"
+                  >
+                    <MessageCircle aria-hidden="true" size={14} />
+                    <span>Message</span>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

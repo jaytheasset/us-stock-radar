@@ -131,7 +131,11 @@ export class LiveRoomApiRepository {
     );
   }
 
-  send(input: { body: string; eventId?: string | null }) {
+  send(input: {
+    body: string;
+    eventId?: string | null;
+    replyToMessageId?: string | null;
+  }) {
     return requestJson<LiveRoomChatMessage>(
       `${this.roomApiPath()}/messages`,
       {
@@ -139,6 +143,7 @@ export class LiveRoomApiRepository {
         body: JSON.stringify({
           body: input.body,
           eventId: input.eventId || null,
+          replyToMessageId: input.replyToMessageId || null,
         }),
       },
     );

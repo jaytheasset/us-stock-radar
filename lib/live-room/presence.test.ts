@@ -334,6 +334,7 @@ function message(id: string, isGuest: boolean): LiveRoomChatMessage {
     eventReference: null,
     id,
     kind: "message",
+    replyPreview: null,
   };
 }
 

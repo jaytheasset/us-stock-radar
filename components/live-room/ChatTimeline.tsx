@@ -8,6 +8,7 @@ import {
   FileText,
   MessageCircle,
   MoreHorizontal,
+  Reply as ReplyIcon,
   ShieldAlert,
   Sparkles,
   UserCheck,
@@ -17,6 +18,7 @@ import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import {
   LIVE_ROOM_REPORT_REASONS,
+  type LiveRoomChatMessage,
   type LiveRoomReportReason,
   type LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
@@ -35,6 +37,8 @@ type ChatTimelineProps = {
   onBlock?: (messageId: string) => Promise<void>;
   onHide?: (messageId: string) => Promise<void>;
   onMessageMember?: (messageId: string) => Promise<void>;
+  onOpenReplyTarget?: (messageId: string) => void;
+  onReply?: (message: LiveRoomChatMessage) => void;
   onReport?: (
     messageId: string,
     reason: LiveRoomReportReason,
@@ -59,6 +63,8 @@ export function ChatTimeline({
   onBlock,
   onHide,
   onMessageMember,
+  onOpenReplyTarget,
+  onReply,
   onReport,
   onToggleMemberFollow,
   onRetry,
@@ -99,6 +105,12 @@ export function ChatTimeline({
       </div>
     );
   }
+
+  const visibleMessageIds = new Set(
+    items
+      .filter((item) => item.kind === "message")
+      .map((item) => item.id),
+  );
 
   return (
     <ol aria-label={ariaLabel} className={styles.timelineList}>
@@ -205,6 +217,16 @@ export function ChatTimeline({
                     {badge.label}
                   </a>
                 ))}
+                {onReply ? (
+                  <button
+                    aria-label={`Reply to ${item.author.displayName}`}
+                    className={styles.messageReplyButton}
+                    onClick={() => onReply(item)}
+                    type="button"
+                  >
+                    <ReplyIcon aria-hidden="true" size={15} />
+                  </button>
+                ) : null}
                 <MessageActions
                   busy={messageActionId === item.id}
                   canBlock={!mine && Boolean(onBlock)}
@@ -233,6 +255,37 @@ export function ChatTimeline({
                   </span>
                   <strong>{item.eventReference.title}</strong>
                 </div>
+              ) : null}
+              {item.replyPreview ? (
+                visibleMessageIds.has(item.replyPreview.messageId) &&
+                onOpenReplyTarget ? (
+                  <button
+                    aria-label={`Go to message from ${item.replyPreview.authorDisplayName}`}
+                    className={styles.messageReplyPreview}
+                    onClick={() =>
+                      onOpenReplyTarget(item.replyPreview!.messageId)
+                    }
+                    type="button"
+                  >
+                    <strong>
+                      <span aria-hidden="true">
+                        {item.replyPreview.authorEmoji}
+                      </span>
+                      {item.replyPreview.authorDisplayName}
+                    </strong>
+                    <span>{item.replyPreview.bodyPreview}</span>
+                  </button>
+                ) : (
+                  <div className={styles.messageReplyPreview}>
+                    <strong>
+                      <span aria-hidden="true">
+                        {item.replyPreview.authorEmoji}
+                      </span>
+                      {item.replyPreview.authorDisplayName}
+                    </strong>
+                    <span>{item.replyPreview.bodyPreview}</span>
+                  </div>
+                )
               ) : null}
               <p>{item.body}</p>
             </article>
