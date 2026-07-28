@@ -166,6 +166,7 @@ const manualPlacementSources = await Promise.all(
     "../components/feed-v2/FeedInlineAdSlots.tsx",
     "../components/feed-v2/FeedRailAdSlot.tsx",
     "../components/alerts-v2/StockRadarAlertsV2.tsx",
+    "../components/live-room/LiveRoomAdSlots.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const analysisCompanionSource = await readFile(

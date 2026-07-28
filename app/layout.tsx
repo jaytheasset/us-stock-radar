@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { AdSensePublisherLoader } from "@/components/ads/AdSensePublisherLoader";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import {
   isPrelaunchMode,
   prelaunchRobotsMetadata,
@@ -35,11 +37,13 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const viewerPlan = await getCurrentViewerPlan();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -50,8 +54,9 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {/* Anchor is disabled by configuration. Add a viewer-aware boundary before enabling it. */}
-        <AdSensePublisherLoader enabledForViewer />
+        <AdSensePublisherLoader
+          enabledForViewer={areAdsEnabledForPlan(viewerPlan)}
+        />
         {children}
         <ThemeToggle />
       </body>

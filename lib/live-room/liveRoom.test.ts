@@ -314,6 +314,53 @@ test("Live Room keeps a thumb-reachable mobile dock and one identity badge per a
   );
 });
 
+test("Live Room loads one cancellable quote and uses plan-aware responsive ads", () => {
+  const pageSource = readSource("app/live/[ticker]/page.tsx");
+  const clientSource = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const headerSource = readSource(
+    "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const adSource = readSource(
+    "components/live-room/LiveRoomAdSlots.tsx",
+  );
+  const styleSource = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+
+  assert.match(pageSource, /await getCurrentViewerPlan\(\)/);
+  assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
+  assert.match(
+    clientSource,
+    /\/api\/market\/fmp\/quote\?symbol=\$\{encodeURIComponent\(ticker\)\}/,
+  );
+  assert.match(clientSource, /mapStockOverviewQuote\(quotePayload\)/);
+  assert.match(
+    clientSource,
+    /const controller = new AbortController\(\)[\s\S]*controller\.signal\.aborted[\s\S]*return \(\) => controller\.abort\(\)/,
+  );
+  assert.doesNotMatch(clientSource, /quote[\s\S]{0,120}setInterval/);
+  assert.match(headerSource, /Market data/);
+  assert.match(headerSource, /Latest available quote/);
+  assert.match(headerSource, /formatQuotePrice\(quote\.price\)/);
+  assert.match(headerSource, /formatQuotePercent\(quote\.changePercent\)/);
+  assert.match(clientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(clientSource, /<LiveRoomMobileInlineAdSlot/);
+  assert.match(clientSource, /<LiveRoomRailAdSlot/);
+  assert.match(adSource, /if \(!enabledForViewer\) return null/);
+  assert.match(adSource, /inventory="live-room-rail-300x250"/);
+  assert.match(adSource, /inventory="live-room-mobile-inline"/);
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileInlineAd\s*\{[\s\S]*display:\s*block/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 1180px\)[\s\S]*\.desktopRail,[\s\S]*\.desktopSidePanel\s*\{[\s\S]*display:\s*none/,
+  );
+});
+
 test("public Live Room entry preserves the guest cookie actor contract without invite tokens", () => {
   const page = readSource("app/live/[ticker]/page.tsx");
   const messagesRoute = readSource(

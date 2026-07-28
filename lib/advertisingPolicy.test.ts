@@ -122,6 +122,9 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   const filingsListSource = read("../components/filings-v2/FilingsV2List.tsx");
   const filingsRailSource = read("../components/filings-v2/StockRadarFilingsV2.tsx");
   const filingsDetailSource = read("../components/filings-v2/FilingsV2Detail.tsx");
+  const liveRoomRouteSource = read("../app/live/[ticker]/page.tsx");
+  const liveRoomClientSource = read("../components/live-room/LiveRoomClient.tsx");
+  const liveRoomAdSource = read("../components/live-room/LiveRoomAdSlots.tsx");
   const companionSource = read(
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
   );
@@ -153,9 +156,20 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(newsAdapterSource, /allowAds=\{allowAds\}/);
   assert.match(newsRouteSource, /<NewsAnalysisAdapter[\s\S]*allowAds=\{allowAds\}/);
   assert.match(filingRouteSource, /<GenericFilingAnalysis[\s\S]*allowAds=\{allowAds\}/);
-  assert.match(rootLayoutSource, /<AdSensePublisherLoader enabledForViewer \/>/);
-  assert.doesNotMatch(rootLayoutSource, /getCurrentViewerPlan|areAdsEnabledForPlan/);
-  assert.match(rootLayoutSource, /viewer-aware boundary before enabling it/i);
+  assert.match(rootLayoutSource, /const viewerPlan = await getCurrentViewerPlan\(\)/);
+  assert.match(
+    rootLayoutSource,
+    /enabledForViewer=\{areAdsEnabledForPlan\(viewerPlan\)\}/,
+  );
+  assert.match(liveRoomRouteSource, /const viewerPlan = await getCurrentViewerPlan\(\)/);
+  assert.match(liveRoomRouteSource, /viewerPlan=\{viewerPlan\}/);
+  assert.match(liveRoomClientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(liveRoomClientSource, /<LiveRoomMobileInlineAdSlot/);
+  assert.match(liveRoomClientSource, /<LiveRoomRailAdSlot/);
+  assert.match(liveRoomAdSource, /inventory="live-room-rail-300x250"/);
+  assert.match(liveRoomAdSource, /mediaQuery="\(min-width: 1181px\)"/);
+  assert.match(liveRoomAdSource, /inventory="live-room-mobile-inline"/);
+  assert.match(liveRoomAdSource, /mediaQuery="\(max-width: 760px\)"/);
   assert.match(newsListSource, /viewerPlan === "free" &&[\s\S]*shouldInsertDesktopInlineAd/);
   assert.match(newsRailSource, /viewerPlan === "free" \? <NewsV2InsightInlineAd \/> : null/);
   assert.match(filingsListSource, /viewerPlan === "free" && showInlineAd/);

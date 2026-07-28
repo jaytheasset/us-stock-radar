@@ -45,7 +45,11 @@ import type {
 import {
   mapStockOverviewEvents,
   mapStockOverviewProfile,
+  mapStockOverviewQuote,
+  type StockOverviewQuote,
 } from "@/lib/watchlist/stockOverview";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import {
   isCurrentLiveRoomTimelineGeneration,
   mergeLiveRoomTimeline,
@@ -67,6 +71,10 @@ import {
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { MessageComposer } from "./MessageComposer";
+import {
+  LiveRoomMobileInlineAdSlot,
+  LiveRoomRailAdSlot,
+} from "./LiveRoomAdSlots";
 import { LiveRoomDesktopSidePanel } from "./LiveRoomDesktopSidePanel";
 import { PostsPanel } from "./PostsPanel";
 import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
@@ -76,17 +84,33 @@ type LiveRoomClientProps = {
   activityMessageId: string | null;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   ticker: string;
+  viewerPlan: Plan;
 };
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
 
+const EMPTY_QUOTE: StockOverviewQuote = {
+  change: null,
+  changePercent: null,
+  dayHigh: null,
+  dayLow: null,
+  open: null,
+  previousClose: null,
+  price: null,
+  volume: null,
+  yearHigh: null,
+  yearLow: null,
+};
+
 export function LiveRoomClient({
   activityMessageId,
   realtimeConfig,
   ticker,
+  viewerPlan,
 }: LiveRoomClientProps) {
   const router = useRouter();
+  const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
   const roomKey = useMemo(
     () => createCompanyRoomKey({ ticker }),
     [ticker],
@@ -102,6 +126,7 @@ export function LiveRoomClient({
     ticker,
   });
   const [events, setEvents] = useState<CompanyEvent[]>([]);
+  const [quote, setQuote] = useState<StockOverviewQuote>(EMPTY_QUOTE);
   const [eventSource, setEventSource] =
     useState<CompanyEventSource>("loading");
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
@@ -569,6 +594,24 @@ export function LiveRoomClient({
       });
     return () => controller.abort();
   }, [roomKey, ticker]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setQuote(EMPTY_QUOTE);
+    void fetch(
+      `/api/market/fmp/quote?symbol=${encodeURIComponent(ticker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readJsonResponse)
+      .then((quotePayload) => {
+        if (controller.signal.aborted) return;
+        setQuote(mapStockOverviewQuote(quotePayload));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setQuote(EMPTY_QUOTE);
+      });
+    return () => controller.abort();
+  }, [ticker]);
 
   useEffect(() => {
     let active = true;
@@ -1052,6 +1095,11 @@ export function LiveRoomClient({
           onInvite={handleInvite}
           onOpenHistory={() => setActiveTab("events")}
           onToggleFollow={handleToggleFollow}
+          quote={quote}
+        />
+
+        <LiveRoomMobileInlineAdSlot
+          enabledForViewer={adsEnabledForViewer}
         />
 
         {followed ? (
@@ -1326,17 +1374,22 @@ export function LiveRoomClient({
 
         </div>
           </div>
-          <LiveRoomDesktopSidePanel
-            eventSource={eventSource}
-            events={events}
-            onChangeMainTab={setActiveTab}
-            onRetryPosts={() => {
-              void handleLoadPosts().catch(() => undefined);
-            }}
-            posts={posts}
-            postsState={postsState}
-            timeline={timeline}
-          />
+          <div className={styles.desktopRail}>
+            <LiveRoomDesktopSidePanel
+              eventSource={eventSource}
+              events={events}
+              onChangeMainTab={setActiveTab}
+              onRetryPosts={() => {
+                void handleLoadPosts().catch(() => undefined);
+              }}
+              posts={posts}
+              postsState={postsState}
+              timeline={timeline}
+            />
+            <LiveRoomRailAdSlot
+              enabledForViewer={adsEnabledForViewer}
+            />
+          </div>
         </div>
 
         </div>
