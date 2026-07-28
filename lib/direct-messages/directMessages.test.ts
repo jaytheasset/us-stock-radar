@@ -627,7 +627,8 @@ test("every new FK and inbox/status access path has a covering index", () => {
 });
 
 test("Messages remains in Live Room activity and separate from paid Alerts", () => {
-  assert.match(inboxComponent, /Rooms \+ People \+ Messages/);
+  assert.match(inboxComponent, /Community \+ Messages/);
+  assert.match(inboxComponent, />\s*Activity\s*/);
   assert.match(
     inboxComponent,
     /summary\.totalUnreadCount \+ directInbox\.totalUnreadCount/,

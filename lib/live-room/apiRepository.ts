@@ -433,6 +433,13 @@ export function readLiveRoomUnreadSummary() {
   return requestJson<LiveRoomUnreadSummary>("/api/live-room/unread");
 }
 
+export function markLiveRoomPostActivityRead(activityId: string) {
+  return requestJson<{ activityId: string; markedRead: boolean }>(
+    `/api/live-room/activity/${encodeURIComponent(activityId)}/read`,
+    { method: "PUT" },
+  );
+}
+
 export function requestLiveRoomUnreadRefresh() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(LIVE_ROOM_UNREAD_REFRESH_EVENT));

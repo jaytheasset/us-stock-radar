@@ -20,6 +20,7 @@ import {
   LIVE_ROOM_UNREAD_POLL_INTERVAL_MS,
   LIVE_ROOM_UNREAD_REFRESH_EVENT,
   LiveRoomApiRepository,
+  markLiveRoomPostActivityRead,
   readLiveRoomUnreadSummary,
 } from "@/lib/live-room/apiRepository";
 import {
@@ -32,12 +33,15 @@ import type { DirectMessageInbox } from "@/lib/direct-messages/types";
 import type {
   LiveRoomFollowedMember,
   LiveRoomMemberActivity,
+  LiveRoomPostActivity,
   LiveRoomUnreadSummary,
 } from "@/lib/live-room/types";
 import { IconButton } from "@/components/ui/IconButton";
 import styles from "./StockRadarProductHeader.module.css";
 
 const emptySummary: LiveRoomUnreadSummary = {
+  activity: [],
+  activityUnreadCount: 0,
   followedPeople: [],
   hasMemberFollows: false,
   isAuthenticated: false,
@@ -56,7 +60,7 @@ const emptyDirectInbox: DirectMessageInbox = {
   totalUnreadCount: 0,
 };
 
-type InboxTab = "messages" | "people" | "rooms";
+type InboxTab = "activity" | "messages" | "people" | "rooms";
 
 export function LiveRoomUnreadMenu() {
   const pathname = usePathname();
@@ -65,7 +69,8 @@ export function LiveRoomUnreadMenu() {
     useState<LiveRoomUnreadSummary>(emptySummary);
   const [directInbox, setDirectInbox] =
     useState<DirectMessageInbox>(emptyDirectInbox);
-  const [activeTab, setActiveTab] = useState<InboxTab>("rooms");
+  const [activeTab, setActiveTab] =
+    useState<InboxTab>("activity");
   const [open, setOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(
     null,
@@ -255,6 +260,40 @@ export function LiveRoomUnreadMenu() {
     }
   };
 
+  const handlePostActivityNavigate = async (
+    activity: LiveRoomPostActivity,
+  ) => {
+    setOpen(false);
+    setSummary((current) => {
+      if (activity.isRead) return current;
+      return {
+        ...current,
+        activity: current.activity.map((item) =>
+          item.activityId === activity.activityId
+            ? { ...item, isRead: true }
+            : item,
+        ),
+        activityUnreadCount: Math.max(
+          0,
+          current.activityUnreadCount - 1,
+        ),
+        totalUnreadCount: Math.max(
+          0,
+          current.totalUnreadCount - 1,
+        ),
+      };
+    });
+    try {
+      await markLiveRoomPostActivityRead(activity.activityId);
+    } catch {
+      setState("error");
+    } finally {
+      router.push(
+        `/live/posts/${encodeURIComponent(activity.postId)}#comments`,
+      );
+    }
+  };
+
   const total =
     summary.totalUnreadCount + directInbox.totalUnreadCount;
   const countLabel = total > 99 ? "99+" : String(total);
@@ -308,7 +347,7 @@ export function LiveRoomUnreadMenu() {
               </strong>
             </div>
             <div className={styles.liveRoomInboxHeadingActions}>
-              <small>Rooms + People + Messages</small>
+              <small>Community + Messages</small>
               <Link
                 href="/live"
                 onClick={() => setOpen(false)}
@@ -323,6 +362,23 @@ export function LiveRoomUnreadMenu() {
             className={styles.liveRoomInboxTabs}
             role="tablist"
           >
+            <button
+              aria-controls="live-room-inbox-panel"
+              aria-selected={activeTab === "activity"}
+              id="live-room-inbox-tab-activity"
+              onClick={() => setActiveTab("activity")}
+              role="tab"
+              type="button"
+            >
+              Activity
+              {summary.activityUnreadCount ? (
+                <b>
+                  {formatUnreadCount(
+                    summary.activityUnreadCount,
+                  )}
+                </b>
+              ) : null}
+            </button>
             <button
               aria-controls="live-room-inbox-panel"
               aria-selected={activeTab === "rooms"}
@@ -378,8 +434,15 @@ export function LiveRoomUnreadMenu() {
           >
             {state === "loading" ? (
               <p className={styles.liveRoomInboxState}>
-                Loading Live Room activity…
+                Loading Live Room activity...
               </p>
+            ) : activeTab === "activity" ? (
+              <ActivityPanel
+                error={state === "error"}
+                onNavigate={handlePostActivityNavigate}
+                pathname={pathname}
+                summary={summary}
+              />
             ) : activeTab === "rooms" ? (
               <RoomsPanel
                 error={state === "error"}
@@ -416,6 +479,91 @@ export function LiveRoomUnreadMenu() {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ActivityPanel({
+  error,
+  onNavigate,
+  pathname,
+  summary,
+}: {
+  error: boolean;
+  onNavigate: (activity: LiveRoomPostActivity) => Promise<void>;
+  pathname: string;
+  summary: LiveRoomUnreadSummary;
+}) {
+  if (!summary.isAuthenticated) {
+    return (
+      <div className={styles.liveRoomInboxState}>
+        <span>
+          Sign in to see replies and new posts from people or rooms you
+          follow.
+        </span>
+        <Link
+          className={styles.liveRoomInboxSignIn}
+          href={`/login?next=${encodeURIComponent(pathname || "/")}`}
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <p className={styles.liveRoomInboxState}>
+        Community activity could not be refreshed.
+      </p>
+    );
+  }
+  if (!summary.activity.length) {
+    return (
+      <p className={styles.liveRoomInboxState}>
+        New comments, replies, and followed posts will appear here.
+      </p>
+    );
+  }
+  return (
+    <div className={styles.liveRoomPeopleList}>
+      {summary.activity.map((activity) => (
+        <div
+          className={`${styles.liveRoomPeopleItem} ${
+            activity.isRead ? styles.liveRoomActivityRead : ""
+          }`}
+          key={activity.activityId}
+        >
+          <Link
+            href={`/live/posts/${encodeURIComponent(
+              activity.postId,
+            )}#comments`}
+            onClick={(event) => {
+              event.preventDefault();
+              void onNavigate(activity);
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className={styles.liveRoomPeopleEmoji}
+            >
+              {activity.actorEmoji}
+            </span>
+            <span className={styles.liveRoomPeopleCopy}>
+              <span>
+                <strong>{activity.actorDisplayName}</strong>
+                <b>{formatPostActivityKind(activity.kind)}</b>
+                <time dateTime={activity.createdAt}>
+                  {formatActivityTime(activity.createdAt)}
+                </time>
+              </span>
+              <small>
+                {activity.roomLabel} {"\u00b7"}{" "}
+                {activity.bodyPreview || activity.postTitle}
+              </small>
+            </span>
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }
@@ -868,6 +1016,18 @@ function formatActivityTime(value: string) {
     month: "short",
     timeZone: "America/New_York",
   }).format(date);
+}
+
+function formatPostActivityKind(
+  kind: LiveRoomPostActivity["kind"],
+) {
+  const labels: Record<LiveRoomPostActivity["kind"], string> = {
+    comment_reply: "replied",
+    followed_member_post: "new post",
+    followed_room_post: "room post",
+    post_comment: "commented",
+  };
+  return labels[kind];
 }
 
 function formatUnreadCount(value: number) {
