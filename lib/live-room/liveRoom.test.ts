@@ -244,6 +244,11 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     "components/live-room/LiveRoom.module.css",
   );
 
+  assert.equal(styleSource.startsWith("\uFEFF"), false);
+  assert.match(
+    styleSource,
+    /\.page\s*\{[\s\S]*--live-room-mobile-nav-height:\s*60px/,
+  );
   assert.match(clientSource, /activeNavigationItem=\{null\}/);
   assert.match(
     headerSource,
