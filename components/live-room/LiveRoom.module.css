@@ -428,6 +428,9 @@
 .desktopRail {
   display: grid;
   min-width: 0;
+  min-height: 0;
+  height: var(--live-room-workspace-height);
+  grid-template-rows: minmax(0, 1fr) auto;
   align-self: start;
   gap: var(--sr-space-4);
 }
@@ -436,6 +439,7 @@
   display: flex;
   min-width: 0;
   justify-content: center;
+  padding-bottom: var(--sr-space-4);
 }
 
 .mobileInlineAd {
@@ -469,7 +473,8 @@
   top: calc(var(--sr-size-header) + var(--sr-space-4));
   display: grid;
   min-width: 0;
-  height: var(--live-room-workspace-height);
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border: var(--sr-border-width) solid var(--sr-color-border);

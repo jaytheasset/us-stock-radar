@@ -57,6 +57,11 @@ import {
   replaceLiveRoomTimeline,
 } from "@/lib/live-room/timeline";
 import {
+  getLiveRoomTimelineDistanceFromBottom,
+  preserveLiveRoomTimelinePrependPosition,
+  shouldScrollLiveRoomTimelineToBottom,
+} from "@/lib/live-room/timelineScroll";
+import {
   applyLiveRoomPresence,
   clearLiveRoomPresence,
   getLiveRoomPresenceMessageIds,
@@ -183,6 +188,16 @@ export function LiveRoomClient({
   const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
+  const timelineElementRef = useRef<HTMLDivElement>(null);
+  const timelineScrollFrameRef = useRef<number | null>(null);
+  const timelineSticksToBottomRef = useRef(true);
+  const didInitialTimelineScrollRef = useRef(false);
+  const forceOwnSendScrollRef = useRef(false);
+  const previousTimelineTailIdRef = useRef<string | null>(null);
+  const pendingOlderScrollRef = useRef<{
+    previousScrollHeight: number;
+    previousScrollTop: number;
+  } | null>(null);
   const presenceMessageIdsRef = useRef<string[]>([]);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
@@ -196,11 +211,45 @@ export function LiveRoomClient({
   const historicalEvents = latestEvent
     ? events.filter((event) => event.eventId !== latestEvent.eventId)
     : events;
+  const timelineTailId = timeline.at(-1)?.id ?? null;
+
+  const scheduleTimelineScroll = useCallback(
+    (scroll: (element: HTMLDivElement) => void) => {
+      if (timelineScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(timelineScrollFrameRef.current);
+      }
+      timelineScrollFrameRef.current = window.requestAnimationFrame(() => {
+        timelineScrollFrameRef.current = null;
+        const element = timelineElementRef.current;
+        if (element) scroll(element);
+      });
+    },
+    [],
+  );
+
+  const handleTimelineScroll = useCallback(() => {
+    const element = timelineElementRef.current;
+    if (!element) return;
+    timelineSticksToBottomRef.current =
+      shouldScrollLiveRoomTimelineToBottom(
+        "incoming",
+        getLiveRoomTimelineDistanceFromBottom(element),
+      );
+  }, []);
 
   useEffect(
     () => () => {
       if (inviteResetTimerRef.current !== null) {
         window.clearTimeout(inviteResetTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      if (timelineScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(timelineScrollFrameRef.current);
       }
     },
     [],
@@ -221,6 +270,15 @@ export function LiveRoomClient({
       );
     const isNewRoom = loadedTickerRef.current !== ticker;
     if (isNewRoom) {
+      if (timelineScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(timelineScrollFrameRef.current);
+        timelineScrollFrameRef.current = null;
+      }
+      didInitialTimelineScrollRef.current = false;
+      forceOwnSendScrollRef.current = false;
+      previousTimelineTailIdRef.current = null;
+      pendingOlderScrollRef.current = null;
+      timelineSticksToBottomRef.current = true;
       setTimeline([]);
       setTimelineState("loading");
       setOlderCursor(null);
@@ -406,6 +464,82 @@ export function LiveRoomClient({
       }
     };
   }, [activityMessageId, reloadKey, repository, ticker]);
+
+  useEffect(() => {
+    if (timelineState !== "ready" || !timelineTailId) return;
+
+    const initial = !didInitialTimelineScrollRef.current;
+    const forcedByOwnSend = forceOwnSendScrollRef.current;
+    if (
+      previousTimelineTailIdRef.current === timelineTailId &&
+      !forcedByOwnSend
+    ) {
+      return;
+    }
+    previousTimelineTailIdRef.current = timelineTailId;
+
+    if (initial && highlightedMessageId) {
+      didInitialTimelineScrollRef.current = true;
+      forceOwnSendScrollRef.current = false;
+      return;
+    }
+
+    const reason = initial
+      ? "initial"
+      : forcedByOwnSend
+        ? "own-send"
+        : "incoming";
+    const element = timelineElementRef.current;
+    const distanceFromBottom = element
+      ? getLiveRoomTimelineDistanceFromBottom(element)
+      : timelineSticksToBottomRef.current
+        ? 0
+        : Number.POSITIVE_INFINITY;
+    const shouldScroll = shouldScrollLiveRoomTimelineToBottom(
+      reason,
+      distanceFromBottom,
+    );
+
+    didInitialTimelineScrollRef.current = true;
+    if (!shouldScroll) {
+      forceOwnSendScrollRef.current = false;
+      return;
+    }
+
+    scheduleTimelineScroll((currentElement) => {
+      currentElement.scrollTo({
+        behavior: reason === "incoming" ? "smooth" : "auto",
+        top: currentElement.scrollHeight,
+      });
+      forceOwnSendScrollRef.current = false;
+      timelineSticksToBottomRef.current = true;
+    });
+  }, [
+    highlightedMessageId,
+    scheduleTimelineScroll,
+    timelineState,
+    timelineTailId,
+  ]);
+
+  useEffect(() => {
+    const pendingScroll = pendingOlderScrollRef.current;
+    if (!pendingScroll) return;
+    pendingOlderScrollRef.current = null;
+    if (forceOwnSendScrollRef.current) return;
+
+    scheduleTimelineScroll((element) => {
+      element.scrollTop = preserveLiveRoomTimelinePrependPosition({
+        nextScrollHeight: element.scrollHeight,
+        previousScrollHeight: pendingScroll.previousScrollHeight,
+        previousScrollTop: pendingScroll.previousScrollTop,
+      });
+      timelineSticksToBottomRef.current =
+        shouldScrollLiveRoomTimelineToBottom(
+          "incoming",
+          getLiveRoomTimelineDistanceFromBottom(element),
+        );
+    });
+  }, [scheduleTimelineScroll, timeline]);
 
   useEffect(() => {
     presenceMessageIdsRef.current =
@@ -793,10 +927,20 @@ export function LiveRoomClient({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
       });
+      forceOwnSendScrollRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
       );
       setTimelineState("ready");
+      scheduleTimelineScroll((element) => {
+        element.scrollTo({
+          behavior: "smooth",
+          top: element.scrollHeight,
+        });
+        didInitialTimelineScrollRef.current = true;
+        forceOwnSendScrollRef.current = false;
+        timelineSticksToBottomRef.current = true;
+      });
       setBody("");
       setReference(null);
       setDecision(null);
@@ -819,6 +963,13 @@ export function LiveRoomClient({
     setLoadingOlder(true);
     try {
       const page = await repository.list({ before: olderCursor });
+      const timelineElement = timelineElementRef.current;
+      pendingOlderScrollRef.current = timelineElement
+        ? {
+            previousScrollHeight: timelineElement.scrollHeight,
+            previousScrollTop: timelineElement.scrollTop,
+          }
+        : null;
       setTimeline((current) =>
         mergeLiveRoomTimeline(page.items, current),
       );
@@ -1200,7 +1351,11 @@ export function LiveRoomClient({
             aria-label={`${ticker} company discussion`}
             className={styles.chatPanel}
           >
-            <div className={styles.timeline}>
+            <div
+              className={styles.timeline}
+              onScroll={handleTimelineScroll}
+              ref={timelineElementRef}
+            >
               {roomNotice ? (
                 <p className={styles.roomNotice} role="status">
                   {roomNotice}
