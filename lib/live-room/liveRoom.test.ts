@@ -49,6 +49,12 @@ import {
   removeLiveRoomTimelineItems,
   replaceLiveRoomTimeline,
 } from "./timeline.ts";
+import {
+  getLiveRoomTimelineDistanceFromBottom,
+  isLiveRoomTimelineNearBottom,
+  preserveLiveRoomTimelinePrependPosition,
+  shouldScrollLiveRoomTimelineToBottom,
+} from "./timelineScroll.ts";
 import { LiveRoomRealtimeClientRegistry } from "./realtimeClient.ts";
 
 const events: CompanyEvent[] = [
@@ -377,6 +383,79 @@ test("Live Room stacks its mobile tabs above the compact composer and keeps one 
   );
 });
 
+test("Live Room timeline starts latest, sticks selectively, and preserves older prepends", () => {
+  const clientSource = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("initial", false),
+    true,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("own-send", false),
+    true,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", true),
+    true,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", false),
+    false,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("older-prepend", true),
+    false,
+  );
+  assert.equal(isLiveRoomTimelineNearBottom(80), true);
+  assert.equal(isLiveRoomTimelineNearBottom(81), false);
+
+  const longIncomingPostCommitDistance = 180;
+  assert.equal(
+    isLiveRoomTimelineNearBottom(longIncomingPostCommitDistance),
+    false,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", true),
+    true,
+  );
+  assert.equal(
+    shouldScrollLiveRoomTimelineToBottom("incoming", false),
+    false,
+  );
+  assert.equal(
+    getLiveRoomTimelineDistanceFromBottom({
+      clientHeight: 500,
+      scrollHeight: 1_200,
+      scrollTop: 700,
+    }),
+    0,
+  );
+  assert.equal(
+    preserveLiveRoomTimelinePrependPosition({
+      nextScrollHeight: 1_600,
+      previousScrollHeight: 1_200,
+      previousScrollTop: 120,
+    }),
+    520,
+  );
+  assert.match(clientSource, /ref=\{timelineElementRef\}/);
+  assert.match(clientSource, /onScroll=\{handleTimelineScroll\}/);
+  assert.match(
+    clientSource,
+    /shouldScrollLiveRoomTimelineToBottom\(\s*reason,\s*timelineSticksToBottomRef\.current,\s*\)/,
+  );
+  assert.match(
+    clientSource,
+    /forceOwnSendScrollRef\.current = true;[\s\S]*scheduleTimelineScroll/,
+  );
+  assert.match(
+    clientSource,
+    /pendingOlderScrollRef\.current = timelineElement[\s\S]*previousScrollHeight:[\s\S]*previousScrollTop:/,
+  );
+});
+
 test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () => {
   const pageSource = readSource("app/live/[ticker]/page.tsx");
   const clientSource = readSource(
@@ -411,6 +490,18 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   assert.match(clientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
   assert.match(clientSource, /<LiveRoomMobileInlineAdSlot/);
   assert.match(clientSource, /<LiveRoomRailAdSlot/);
+  assert.match(
+    styleSource,
+    /\.desktopRail\s*\{[\s\S]*height:\s*var\(--live-room-workspace-height\);[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto/,
+  );
+  assert.match(
+    styleSource,
+    /\.desktopSidePanel\s*\{[\s\S]*min-height:\s*0;[\s\S]*height:\s*100%;[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    styleSource,
+    /\.desktopRailAd\s*\{[\s\S]*padding-bottom:\s*var\(--sr-space-4\)/,
+  );
   assert.match(adSource, /if \(!enabledForViewer\) return null/);
   assert.match(adSource, /inventory="live-room-rail-300x250"/);
   assert.match(
