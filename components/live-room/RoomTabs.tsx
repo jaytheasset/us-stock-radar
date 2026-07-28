@@ -24,16 +24,22 @@ export function RoomTabs<T extends LiveRoomTab>({
   idPrefix = "live-room",
   items,
   onChange,
+  onItemElementChange,
   visibility = "all",
 }: {
   active: T;
   dockOnMobile?: boolean;
   idPrefix?: string;
   items: ReadonlyArray<{
+    controlsId?: string;
     label: string;
     value: T;
   }>;
   onChange: (tab: T) => void;
+  onItemElementChange?: (
+    tab: T,
+    element: HTMLButtonElement | null,
+  ) => void;
   visibility?: RoomTabsVisibility;
 }) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -77,7 +83,9 @@ export function RoomTabs<T extends LiveRoomTab>({
     >
       {items.map((item, index) => (
         <button
-          aria-controls={`live-room-${item.value}-panel`}
+          aria-controls={
+            item.controlsId ?? `live-room-${item.value}-panel`
+          }
           aria-selected={active === item.value}
           className={active === item.value ? styles.activeTab : undefined}
           id={`${idPrefix}-${item.value}-tab`}
@@ -86,6 +94,7 @@ export function RoomTabs<T extends LiveRoomTab>({
           onKeyDown={(event) => handleKeyDown(event, index)}
           ref={(element) => {
             tabRefs.current[index] = element;
+            onItemElementChange?.(item.value, element);
           }}
           role="tab"
           tabIndex={active === item.value ? 0 : -1}

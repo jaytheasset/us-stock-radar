@@ -384,7 +384,11 @@ test("room, detail, and public profile surfaces keep posts separate from events 
   );
   assert.match(
     company,
-    /onCreated=\{\(preview\) => \{[\s\S]*?forceOwnTimelineScrollRef\.current = true;[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setActiveTab\("chat"\)/,
+    /const handlePostCreated = \(preview: LiveRoomPostPreview\) => \{[\s\S]*?forceOwnTimelineScrollRef\.current = true;[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setMobileSheet\(null\);[\s\S]*?setActiveTab\("chat"\)/,
+  );
+  assert.equal(
+    company.match(/onCreated=\{handlePostCreated\}/g)?.length,
+    2,
   );
   assert.match(
     community,

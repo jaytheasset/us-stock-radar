@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
+import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
   createCompanyRoomKey,
   getCompanyEventsApiHref,
@@ -39,6 +40,7 @@ import type {
   LiveRoomChatMessage,
   LiveRoomModerationItem,
   LiveRoomPost,
+  LiveRoomPostPreview,
   LiveRoomProfile,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
@@ -103,6 +105,7 @@ type LiveRoomClientProps = {
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
+type MobileLiveRoomSheet = "events" | "members" | "posts";
 
 const EMPTY_QUOTE: StockOverviewQuote = {
   change: null,
@@ -193,10 +196,14 @@ export function LiveRoomClient({
     useState<string | null>(null);
   const [activeTab, setActiveTab] =
     useState<CompanyLiveRoomTab>("chat");
-  const [mobileMembersOpen, setMobileMembersOpen] = useState(false);
+  const [mobileSheet, setMobileSheet] =
+    useState<MobileLiveRoomSheet | null>(null);
   const latestEventIdRef = useRef<string | null>(null);
   const followedRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileEventsOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
   const inviteResetTimerRef = useRef<number | null>(null);
   const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
@@ -899,8 +906,36 @@ export function LiveRoomClient({
   const handleMention = (nextReference: CompanyEventReference) => {
     setReference(nextReference);
     setDecision(null);
+    setMobileSheet(null);
     setActiveTab("chat");
   };
+
+  const handlePostCreated = (preview: LiveRoomPostPreview) => {
+    forceOwnTimelineScrollRef.current = true;
+    setTimeline((current) =>
+      mergeLiveRoomTimeline(current, [preview]),
+    );
+    setTimelineState("ready");
+    setMobileSheet(null);
+    setActiveTab("chat");
+  };
+
+  const handleDesktopTabChange = (tab: CompanyLiveRoomTab) => {
+    setMobileSheet(null);
+    setActiveTab(tab);
+  };
+
+  const handleMobileTabElementChange = useCallback(
+    (
+      tab: "chat" | MobileLiveRoomSheet,
+      element: HTMLButtonElement | null,
+    ) => {
+      if (tab === "events") mobileEventsOpenerRef.current = element;
+      if (tab === "members") mobileMembersOpenerRef.current = element;
+      if (tab === "posts") mobilePostsOpenerRef.current = element;
+    },
+    [],
+  );
 
   const handleSend = async () => {
     if (!profile) return;
@@ -1269,10 +1304,7 @@ export function LiveRoomClient({
         activeNavigationItem={null}
         themeMode="user-selectable"
       >
-        <div
-          className={styles.page}
-          data-mobile-members-open={mobileMembersOpen}
-        >
+        <div className={styles.page}>
         <CompanyRoomHeader
           followed={followed}
           historyButtonRef={historyOpenerRef}
@@ -1280,7 +1312,7 @@ export function LiveRoomClient({
           inviteState={inviteState}
           onlineMemberCount={onlineMemberCount}
           onInvite={handleInvite}
-          onOpenHistory={() => setActiveTab("events")}
+          onOpenHistory={() => handleDesktopTabChange("events")}
           onToggleFollow={handleToggleFollow}
           quote={quote}
         />
@@ -1305,38 +1337,48 @@ export function LiveRoomClient({
             { label: "Posts", value: "posts" },
             { label: "Events", value: "events" },
           ]}
-          onChange={setActiveTab}
+          onChange={handleDesktopTabChange}
           visibility="desktop"
         />
         <RoomTabs
-          active={mobileMembersOpen ? "members" : activeTab}
+          active={mobileSheet ?? "chat"}
           dockOnMobile
           idPrefix="live-room-mobile"
           items={[
             { label: "Chat", value: "chat" },
-            { label: "Posts", value: "posts" },
-            { label: "Events", value: "events" },
-            { label: "Members", value: "members" },
+            {
+              controlsId: "live-room-posts-sheet",
+              label: "Posts",
+              value: "posts",
+            },
+            {
+              controlsId: "live-room-events-sheet",
+              label: "Events",
+              value: "events",
+            },
+            {
+              controlsId: "live-room-members-sheet",
+              label: "Members",
+              value: "members",
+            },
           ]}
           onChange={(tab) => {
-            if (tab === "members") {
-              setMobileMembersOpen(true);
+            setActiveTab("chat");
+            if (tab === "chat") {
+              setMobileSheet(null);
               return;
             }
-            setMobileMembersOpen(false);
-            setActiveTab(tab);
+            setMobileSheet(tab);
           }}
+          onItemElementChange={handleMobileTabElementChange}
           visibility="mobile"
         />
 
         <div className={styles.workspaceLayout}>
-          <div
-            className={styles.primaryColumn}
-            data-mobile-members-open={mobileMembersOpen}
-          >
+          <div className={styles.primaryColumn}>
         <section
           aria-labelledby="live-room-events-tab"
-          className={styles.latestSection}
+          className={`${styles.latestSection} ${styles.desktopTabPanel}`}
           hidden={activeTab !== "events"}
           id="live-room-events-panel"
           role="tabpanel"
@@ -1373,7 +1415,9 @@ export function LiveRoomClient({
         </section>
 
         {activeTab === "events" ? (
-          <section className={styles.latestSection}>
+          <section
+            className={`${styles.latestSection} ${styles.desktopTabPanel}`}
+          >
             <EventHistoryPanel
               events={historicalEvents}
               onMention={handleMention}
@@ -1382,55 +1426,26 @@ export function LiveRoomClient({
         ) : null}
 
         {activeTab === "posts" ? (
+          <div className={styles.desktopTabPanel}>
           <PostsPanel
             cursor={postsCursor}
             events={events}
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
-            onCreated={(preview) => {
-              forceOwnTimelineScrollRef.current = true;
-              setTimeline((current) =>
-                mergeLiveRoomTimeline(current, [preview]),
-              );
-              setTimelineState("ready");
-              setActiveTab("chat");
-            }}
+            onCreated={handlePostCreated}
             posts={posts}
             profile={profile}
             repository={repository}
             currentTicker={ticker}
             state={postsState}
           />
-        ) : null}
-
-        {mobileMembersOpen ? (
-          <section
-            aria-labelledby="live-room-mobile-members-tab"
-            className={styles.membersPanel}
-            id="live-room-members-panel"
-            role="tabpanel"
-          >
-            <div className={styles.membersPanelHeading}>
-              <span>Room members</span>
-              <h2>Members</h2>
-              <p>
-                Follow public members or start a conversation from their
-                latest visible activity.
-              </p>
-            </div>
-            <LiveRoomMemberList
-              members={members}
-              messageActionId={messageActionId}
-              onMessageMember={handleMessageMember}
-              onToggleMemberFollow={handleMemberFollow}
-            />
-          </section>
+          </div>
         ) : null}
 
         <div
           aria-labelledby="live-room-chat-tab"
           className={styles.roomLayout}
-          hidden={activeTab !== "chat"}
+          data-desktop-hidden={activeTab !== "chat"}
           id="live-room-chat-panel"
           role="tabpanel"
         >
@@ -1554,7 +1569,7 @@ export function LiveRoomClient({
               eventSource={eventSource}
               events={events}
               messageActionId={messageActionId}
-              onChangeMainTab={setActiveTab}
+              onChangeMainTab={handleDesktopTabChange}
               onMessageMember={handleMessageMember}
               onRetryPosts={() => {
                 void handleLoadPosts().catch(() => undefined);
@@ -1572,6 +1587,92 @@ export function LiveRoomClient({
 
         </div>
       </StockRadarAppShell>
+      {mobileSheet ? (
+        <BottomSheetShell
+          aria-label={
+            mobileSheet === "posts"
+              ? "Posts"
+              : mobileSheet === "events"
+                ? "Events"
+                : "Members"
+          }
+          closeLabel={`Close ${mobileSheet}`}
+          id={`live-room-${mobileSheet}-sheet`}
+          isOpen
+          layout="full-scroll"
+          onDismiss={() => {
+            setMobileSheet(null);
+            setActiveTab("chat");
+          }}
+          openerRef={
+            mobileSheet === "posts"
+              ? mobilePostsOpenerRef
+              : mobileSheet === "events"
+                ? mobileEventsOpenerRef
+                : mobileMembersOpenerRef
+          }
+          overlayLabel={`Close ${mobileSheet}`}
+          viewport="mobile"
+        >
+          {mobileSheet === "posts" ? (
+            <div className={styles.mobileSheetContent}>
+              <PostsPanel
+                cursor={postsCursor}
+                currentTicker={ticker}
+                events={events}
+                onCreated={handlePostCreated}
+                onLoad={handleLoadPosts}
+                onPostsChange={setPosts}
+                posts={posts}
+                profile={profile}
+                repository={repository}
+                state={postsState}
+              />
+            </div>
+          ) : null}
+          {mobileSheet === "events" ? (
+            <div className={styles.mobileSheetContent}>
+              <header className={styles.mobileSheetHeading}>
+                <h2>Events</h2>
+              </header>
+              <div className={styles.mobileEventsContent}>
+                {latestEvent ? (
+                  <CompanyEventCard event={latestEvent} latest />
+                ) : (
+                  <p className={styles.panelEmpty}>
+                    {eventSource === "loading"
+                      ? "Loading company events..."
+                      : eventSource === "error"
+                        ? "Company events could not be loaded."
+                        : "No current company news or filing is available."}
+                  </p>
+                )}
+                <EventHistoryPanel
+                  events={historicalEvents}
+                  onMention={handleMention}
+                />
+              </div>
+            </div>
+          ) : null}
+          {mobileSheet === "members" ? (
+            <div className={styles.mobileSheetContent}>
+              <header className={styles.mobileSheetHeading}>
+                <h2>Members</h2>
+                <p>
+                  Follow public members or start a conversation from their
+                  latest visible activity.
+                </p>
+              </header>
+              <LiveRoomMemberList
+                members={members}
+                messageActionId={messageActionId}
+                onMessageMember={handleMessageMember}
+                onToggleMemberFollow={handleMemberFollow}
+              />
+            </div>
+          ) : null}
+        </BottomSheetShell>
+      ) : null}
       {messageRequestTarget ? (
         <DirectMessageRequestModal
           busy={messageRequestBusy}
