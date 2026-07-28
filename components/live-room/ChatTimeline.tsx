@@ -190,12 +190,9 @@ export function ChatTimeline({
                 {!item.author.isGuest ? (
                   <span>{getPlanDisplayName(item.author.plan)}</span>
                 ) : null}
-                {item.isOnline === true && !item.author.isGuest ? (
-                  <span className={styles.onlineIndicator}>
-                    <i aria-hidden="true" />
-                    Online
-                  </span>
-                ) : null}
+                <time dateTime={item.createdAt}>
+                  {formatMessageTime(item.createdAt)}
+                </time>
                 {item.author.socialBadges?.map((badge) => (
                   <a
                     aria-label={`${badge.label} profile for ${item.author.displayName}`}
@@ -208,9 +205,6 @@ export function ChatTimeline({
                     {badge.label}
                   </a>
                 ))}
-                <time dateTime={item.createdAt}>
-                  {formatMessageTime(item.createdAt)}
-                </time>
                 <MessageActions
                   busy={messageActionId === item.id}
                   canBlock={!mine && Boolean(onBlock)}

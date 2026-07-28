@@ -26,6 +26,7 @@ const migration = read(
 const client = read("components/live-room/LiveRoomClient.tsx");
 const composer = read("components/live-room/MessageComposer.tsx");
 const timeline = read("components/live-room/ChatTimeline.tsx");
+const timelineStyles = read("components/live-room/LiveRoom.module.css");
 const serverRepository = read("lib/live-room/serverRepository.ts");
 const browserTypes = read("lib/live-room/types.ts");
 const presenceRoute = read(
@@ -294,15 +295,29 @@ test("presence lifecycle is member-only, opt-in, visible, bounded, and cleaned u
   assert.match(client, /removeEventListener\("focus"/);
 });
 
-test("presence UI remains subordinate and explains the room-scoped privacy setting", () => {
+test("presence stays available without appearing in chat message headers", () => {
   assert.match(composer, /Show when I&apos;m active in Live Rooms/);
   assert.match(
     composer,
     /only in the company room you are\s+currently viewing/,
   );
   assert.match(composer, /role="switch"/);
-  assert.match(timeline, /item\.isOnline === true/);
-  assert.match(timeline, />\s*Online\s*</);
+  assert.doesNotMatch(timeline, /item\.isOnline|onlineIndicator/);
+  assert.doesNotMatch(timeline, />\s*Online\s*</);
+  assert.doesNotMatch(timelineStyles, /\.onlineIndicator/);
+  assert.match(timelineStyles, /\.onlineCount > span\s*\{/);
+  assert.match(
+    timeline,
+    /<strong>\{item\.author\.displayName\}<\/strong>[\s\S]*?getPlanDisplayName\(item\.author\.plan\)[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
+  );
+  assert.match(
+    timelineStyles,
+    /\.otherMessage article > header,[\s\S]*?gap:\s*var\(--sr-space-1-5\)/,
+  );
+  assert.doesNotMatch(
+    timelineStyles,
+    /(?:\.otherMessage header > time|\.myMessage header > time)[\s\S]{0,180}margin-left:\s*auto/,
+  );
   assert.match(client, /onlineMemberCount=\{onlineMemberCount\}/);
 });
 

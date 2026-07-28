@@ -94,6 +94,14 @@ test("side panel has accessible tabs, canonical links, and a desktop-only contra
     panel,
     /\/live\/members\/\$\{member\.publicProfileId\}/,
   );
+  assert.match(
+    panel,
+    /member\.isOnline \? \([\s\S]*?Online[\s\S]*?: \([\s\S]*?"Member"/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelMember small i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
+  );
   assert.match(client, /onChangeMainTab=\{setActiveTab\}/);
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
   assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);
