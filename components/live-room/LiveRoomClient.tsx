@@ -26,6 +26,7 @@ import {
   type ModerationDecision,
   type ModerationReason,
 } from "@/lib/live-room/moderation";
+import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import {
   shareLiveRoomInvite,
@@ -236,6 +237,9 @@ export function LiveRoomClient({
   const members = useMemo(
     () => selectLiveRoomSidePanelMembers({ posts, timeline }),
     [posts, timeline],
+  );
+  const roomLoginHref = createLiveRoomMemberLoginHref(
+    `/live/${ticker}`,
   );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
@@ -1574,6 +1578,8 @@ export function LiveRoomClient({
             <LiveRoomDesktopSidePanel
               eventSource={eventSource}
               events={events}
+              isGuest={profile?.isGuest === true}
+              loginHref={roomLoginHref}
               messageActionId={messageActionId}
               onChangeMainTab={handleDesktopTabChange}
               onMessageMember={handleMessageMember}
@@ -1670,6 +1676,8 @@ export function LiveRoomClient({
                 </p>
               </header>
               <LiveRoomMemberList
+                isGuest={profile?.isGuest === true}
+                loginHref={roomLoginHref}
                 members={members}
                 messageActionId={messageActionId}
                 onMessageMember={handleMobileMessageMember}

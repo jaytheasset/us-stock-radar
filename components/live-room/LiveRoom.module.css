@@ -653,6 +653,7 @@
   gap: var(--sr-space-1);
 }
 
+.sidePanelMemberActions a,
 .sidePanelMemberActions button {
   display: inline-flex;
   min-width: 32px;
@@ -669,6 +670,7 @@
   font: inherit;
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
 }
 
 .sidePanelMemberActions button[data-followed="true"] {
@@ -677,6 +679,7 @@
   background: var(--sr-color-accent-selected);
 }
 
+.sidePanelMemberActions a:hover,
 .sidePanelMemberActions button:hover {
   color: var(--sr-color-text-strong);
   background: var(--sr-color-surface-control-strong);
@@ -728,6 +731,7 @@
 .sidePanelBody:focus-visible,
 .sidePanelItem:focus-visible,
 .sidePanelMemberProfile:focus-visible,
+.sidePanelMemberActions a:focus-visible,
 .sidePanelMemberActions button:focus-visible,
 .sidePanelStatus button:focus-visible,
 .sidePanelViewAll:focus-visible {
@@ -2179,6 +2183,7 @@ button.messageReplyPreview:hover {
     padding: 0 var(--sr-space-1) var(--sr-space-2) 42px;
   }
 
+  .sidePanelMemberActions a,
   .sidePanelMemberActions button {
     flex: 1 1 auto;
   }

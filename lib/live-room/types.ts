@@ -153,6 +153,20 @@ export type LiveRoomPublicMember = {
   publicProfileId: string;
 };
 
+export type LiveRoomPublicMemberActions = {
+  canFollow: boolean;
+  canMessage: boolean;
+  isFollowing: boolean;
+  isGuest: boolean;
+  isSelf: boolean;
+  sourceMessageId: string | null;
+};
+
+export type LiveRoomPublicMemberFollowResult = {
+  followed: boolean;
+  publicProfileId: string;
+};
+
 export type LiveRoomPublicMemberPostPage = LiveRoomPostPage & {
   member: LiveRoomPublicMember;
 };

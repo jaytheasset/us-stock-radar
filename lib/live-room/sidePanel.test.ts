@@ -147,7 +147,35 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(
     panel,
-    /<\/Link>\s*\{sourceMessageId &&\s*\(member\.canFollowMember \|\| member\.canMessageMember\)/,
+    /<\/Link>\s*\{isGuest \|\|\s*\(sourceMessageId &&\s*\(member\.canFollowMember \|\| member\.canMessageMember\)\)/,
+  );
+  assert.match(
+    panel,
+    /isGuest \? \([\s\S]*href=\{loginHref\}[\s\S]*Follow[\s\S]*href=\{loginHref\}[\s\S]*Message/,
+  );
+  assert.match(
+    panel,
+    /!isGuest && member\.canFollowMember && sourceMessageId/,
+  );
+  assert.match(
+    panel,
+    /!isGuest && member\.canMessageMember && sourceMessageId/,
+  );
+  assert.match(
+    client,
+    /const roomLoginHref = createLiveRoomMemberLoginHref\(\s*`\/live\/\$\{ticker\}`/,
+  );
+  assert.equal(
+    client.match(/isGuest=\{profile\?\.isGuest === true\}/g)?.length,
+    2,
+  );
+  assert.equal(
+    client.match(/loginHref=\{roomLoginHref\}/g)?.length,
+    2,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelMemberActions a,\s*\.sidePanelMemberActions button\s*\{/,
   );
   assert.match(tabs, /"--live-room-mobile-tab-count": items\.length/);
   assert.match(

@@ -14,6 +14,8 @@ import type {
   LiveRoomProfile,
   LiveRoomPresenceSetting,
   LiveRoomPresenceSummary,
+  LiveRoomPublicMemberActions,
+  LiveRoomPublicMemberFollowResult,
   LiveRoomPublicMemberPostPage,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
@@ -386,6 +388,22 @@ export class LiveRoomPostApiRepository {
     if (before) search.set("before", before);
     return requestJson<LiveRoomPublicMemberPostPage>(
       `/api/live-room/members/${encodeURIComponent(publicProfileId)}/posts?${search}`,
+    );
+  }
+
+  readMemberActions(publicProfileId: string) {
+    return requestJson<LiveRoomPublicMemberActions>(
+      `/api/live-room/members/${encodeURIComponent(publicProfileId)}/actions`,
+    );
+  }
+
+  writeMemberFollow(publicProfileId: string, followed: boolean) {
+    return requestJson<LiveRoomPublicMemberFollowResult>(
+      `/api/live-room/members/${encodeURIComponent(publicProfileId)}/actions`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ followed }),
+      },
     );
   }
 

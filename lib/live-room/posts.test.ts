@@ -13,6 +13,7 @@ import {
   applyLiveRoomPostScopeAndCursorFilters,
   shouldExposeLiveRoomCompanyPost,
 } from "./postQuery.ts";
+import { createLiveRoomMemberLoginHref } from "./memberActions.ts";
 
 const projectRoot = process.cwd();
 
@@ -398,6 +399,98 @@ test("room, detail, and public profile surfaces keep posts separate from events 
   assert.doesNotMatch(postsPanel, /compact preview/i);
   assert.match(profile, /Public posts only/);
   assert.doesNotMatch(profile, /ChatTimeline|live_room_messages/);
+});
+
+test("member action login links preserve one safe encoded return path", () => {
+  assert.equal(
+    createLiveRoomMemberLoginHref(
+      "/live/members/6dd07aa8-9df8-4e78-8dde-90678c476021",
+    ),
+    "/login?next=%2Flive%2Fmembers%2F6dd07aa8-9df8-4e78-8dde-90678c476021",
+  );
+  assert.equal(
+    createLiveRoomMemberLoginHref("/live/BBLG"),
+    "/login?next=%2Flive%2FBBLG",
+  );
+  assert.equal(createLiveRoomMemberLoginHref("//external.test"), "/login?next=%2F");
+});
+
+test("public member actions resolve safe server targets and reuse follow and DM flows", () => {
+  const route = readSource(
+    "app/api/live-room/members/[publicProfileId]/actions/route.ts",
+  );
+  const repository = readSource(
+    "lib/live-room/memberActionServerRepository.ts",
+  );
+  const apiRepository = readSource("lib/live-room/apiRepository.ts");
+  const browserTypes = readSource("lib/live-room/types.ts");
+  const profile = readSource(
+    "components/live-room/PublicMemberProfileClient.tsx",
+  );
+  const actionType = browserTypes.match(
+    /export type LiveRoomPublicMemberActions = \{[\s\S]*?\};/,
+  )?.[0];
+  const followResultType = browserTypes.match(
+    /export type LiveRoomPublicMemberFollowResult = \{[\s\S]*?\};/,
+  )?.[0];
+
+  assert.match(route, /export async function GET/);
+  assert.match(route, /export async function PATCH/);
+  assert.match(route, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(
+    route,
+    /const input =[\s\S]*followed\?: unknown[\s\S]*updateLiveRoomPublicMemberFollow/,
+  );
+  assert.doesNotMatch(route, /input\?\.(?:messageId|roomId|userId)/);
+
+  assert.match(
+    repository,
+    /normalizeLiveRoomUuid\([\s\S]*LIVE_ROOM_INVALID_PUBLIC_PROFILE_ID/,
+  );
+  assert.match(
+    repository,
+    /supabaseSelect\(\s*"live_room_member_profiles"[\s\S]*public_profile_id: `eq\.\$\{publicProfileId\}`/,
+  );
+  assert.match(
+    repository,
+    /supabaseSelect\("live_room_messages"[\s\S]*member_user_id: `eq\.\$\{userId\}`[\s\S]*visibility_status: "eq\.visible"[\s\S]*order: "created_at\.desc,id\.desc"/,
+  );
+  assert.match(
+    repository,
+    /supabaseRpc\("set_live_room_member_follow", \{[\s\S]*p_room_id: target\.roomId[\s\S]*p_message_id: target\.sourceMessageId/,
+  );
+  assert.match(
+    repository,
+    /blocker_member_user_id\.eq\.\$\{requesterUserId\}[\s\S]*blocked_member_user_id\.eq\.\$\{targetUserId\}[\s\S]*blocker_member_user_id\.eq\.\$\{targetUserId\}[\s\S]*blocked_member_user_id\.eq\.\$\{requesterUserId\}/,
+  );
+  assert.match(repository, /actor\.userId === target\.userId/);
+  assert.match(repository, /!target\.sourceMessageId \|\| !target\.roomId/);
+  assert.match(
+    repository,
+    /actor\.kind === "guest"[\s\S]*isGuest: true[\s\S]*sourceMessageId: null/,
+  );
+
+  assert.ok(actionType);
+  assert.ok(followResultType);
+  assert.doesNotMatch(
+    `${actionType}${followResultType}`,
+    /\b(?:userId|roomId|email)\b/,
+  );
+  assert.match(apiRepository, /readMemberActions\(publicProfileId: string\)/);
+  assert.match(
+    apiRepository,
+    /writeMemberFollow\(publicProfileId: string, followed: boolean\)/,
+  );
+  assert.match(profile, /DirectMessageRequestModal/);
+  assert.match(profile, /directMessageRepository\.start/);
+  assert.match(profile, /directMessageRepository\.request/);
+  assert.match(profile, /result\.mode === "request_required"/);
+  assert.match(
+    profile,
+    /createLiveRoomMemberLoginHref\(profilePath\)/,
+  );
+  assert.match(profile, /aria-pressed=\{actions\.isFollowing\}/);
+  assert.match(profile, /actions\.isSelf/);
 });
 
 test("post composer exposes event linking only through real event choices", () => {
