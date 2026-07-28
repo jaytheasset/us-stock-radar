@@ -107,6 +107,7 @@ export type LiveRoomPostAuthor = {
 
 export type LiveRoomPostPreview = {
   author: LiveRoomPostAuthor;
+  bodyPreview: string;
   createdAt: string;
   id: string;
   kind: "post_preview";

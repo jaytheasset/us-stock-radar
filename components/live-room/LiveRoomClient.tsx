@@ -193,7 +193,7 @@ export function LiveRoomClient({
   const timelineScrollFrameRef = useRef<number | null>(null);
   const timelineSticksToBottomRef = useRef(true);
   const didInitialTimelineScrollRef = useRef(false);
-  const forceOwnSendScrollRef = useRef(false);
+  const forceOwnTimelineScrollRef = useRef(false);
   const previousTimelineTailIdRef = useRef<string | null>(null);
   const pendingOlderScrollRef = useRef<{
     previousScrollHeight: number;
@@ -274,7 +274,7 @@ export function LiveRoomClient({
         timelineScrollFrameRef.current = null;
       }
       didInitialTimelineScrollRef.current = false;
-      forceOwnSendScrollRef.current = false;
+      forceOwnTimelineScrollRef.current = false;
       previousTimelineTailIdRef.current = null;
       pendingOlderScrollRef.current = null;
       timelineSticksToBottomRef.current = true;
@@ -468,7 +468,7 @@ export function LiveRoomClient({
     if (timelineState !== "ready" || !timelineTailId) return;
 
     const initial = !didInitialTimelineScrollRef.current;
-    const forcedByOwnSend = forceOwnSendScrollRef.current;
+    const forcedByOwnSend = forceOwnTimelineScrollRef.current;
     if (
       previousTimelineTailIdRef.current === timelineTailId &&
       !forcedByOwnSend
@@ -479,7 +479,7 @@ export function LiveRoomClient({
 
     if (initial && highlightedMessageId) {
       didInitialTimelineScrollRef.current = true;
-      forceOwnSendScrollRef.current = false;
+      forceOwnTimelineScrollRef.current = false;
       return;
     }
 
@@ -495,7 +495,7 @@ export function LiveRoomClient({
 
     didInitialTimelineScrollRef.current = true;
     if (!shouldScroll) {
-      forceOwnSendScrollRef.current = false;
+      forceOwnTimelineScrollRef.current = false;
       return;
     }
 
@@ -504,7 +504,7 @@ export function LiveRoomClient({
         behavior: reason === "incoming" ? "smooth" : "auto",
         top: currentElement.scrollHeight,
       });
-      forceOwnSendScrollRef.current = false;
+      forceOwnTimelineScrollRef.current = false;
       timelineSticksToBottomRef.current = true;
     });
   }, [
@@ -518,7 +518,7 @@ export function LiveRoomClient({
     const pendingScroll = pendingOlderScrollRef.current;
     if (!pendingScroll) return;
     pendingOlderScrollRef.current = null;
-    if (forceOwnSendScrollRef.current) return;
+    if (forceOwnTimelineScrollRef.current) return;
 
     scheduleTimelineScroll((element) => {
       element.scrollTop = preserveLiveRoomTimelinePrependPosition({
@@ -918,7 +918,7 @@ export function LiveRoomClient({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
       });
-      forceOwnSendScrollRef.current = true;
+      forceOwnTimelineScrollRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
       );
@@ -929,7 +929,7 @@ export function LiveRoomClient({
           top: element.scrollHeight,
         });
         didInitialTimelineScrollRef.current = true;
-        forceOwnSendScrollRef.current = false;
+        forceOwnTimelineScrollRef.current = false;
         timelineSticksToBottomRef.current = true;
       });
       setBody("");
@@ -1318,10 +1318,12 @@ export function LiveRoomClient({
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={(preview) => {
+              forceOwnTimelineScrollRef.current = true;
               setTimeline((current) =>
                 mergeLiveRoomTimeline(current, [preview]),
               );
               setTimelineState("ready");
+              setActiveTab("chat");
             }}
             posts={posts}
             profile={profile}

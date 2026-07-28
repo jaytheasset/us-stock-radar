@@ -2,9 +2,20 @@ import { LiveRoomPolicyError, normalizeLiveRoomTicker } from "./policy.ts";
 
 export const LIVE_ROOM_POST_TITLE_MAX_LENGTH = 120;
 export const LIVE_ROOM_POST_BODY_MAX_LENGTH = 10_000;
+export const LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH = 220;
 export const LIVE_ROOM_POST_TICKER_LIMIT = 5;
 export const LIVE_ROOM_POST_PAGE_SIZE = 20;
 export const LIVE_ROOM_POST_MAX_PAGE_SIZE = 50;
+
+export function createLiveRoomPostBodyPreview(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH) {
+    return normalized;
+  }
+  return `${normalized
+    .slice(0, LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH - 1)
+    .trimEnd()}…`;
+}
 
 export function normalizeLiveRoomMentionedTicker(value: unknown) {
   const raw = typeof value === "string" ? value.trim() : "";

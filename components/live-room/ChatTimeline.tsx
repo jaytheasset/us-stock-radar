@@ -135,18 +135,33 @@ export function ChatTimeline({
         if (item.kind === "post_preview") {
           return (
             <li className={styles.postPreview} key={item.id}>
-              <FileText aria-hidden="true" size={15} />
-              <span>POST</span>
-              <Link href={`/live/posts/${item.id}`}>{item.title}</Link>
-              <span aria-hidden="true">·</span>
-              <Link href={`/live/members/${item.author.publicProfileId}`}>
-                <span aria-hidden="true">{item.author.emoji}</span>
-                {item.author.displayName}
-              </Link>
-              <span aria-hidden="true">·</span>
-              <time dateTime={item.createdAt}>
-                {formatMessageTime(item.createdAt)}
-              </time>
+              <div className={styles.postPreviewIcon}>
+                <FileText aria-hidden="true" size={17} />
+              </div>
+              <div className={styles.postPreviewContent}>
+                <span className={styles.postPreviewLabel}>POST</span>
+                <Link
+                  className={styles.postPreviewTitle}
+                  href={`/live/posts/${item.id}`}
+                >
+                  {item.title}
+                </Link>
+                <p className={styles.postPreviewExcerpt}>
+                  {item.bodyPreview}
+                </p>
+                <div className={styles.postPreviewMeta}>
+                  <Link
+                    className={styles.postPreviewAuthor}
+                    href={`/live/members/${item.author.publicProfileId}`}
+                  >
+                    <span aria-hidden="true">{item.author.emoji}</span>
+                    <span>{item.author.displayName}</span>
+                  </Link>
+                  <time dateTime={item.createdAt}>
+                    {formatMessageTime(item.createdAt)}
+                  </time>
+                </div>
+              </div>
             </li>
           );
         }
