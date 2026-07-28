@@ -260,11 +260,57 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
   assert.match(
     styleSource,
-    /padding:\s*var\(--sr-space-3\)\s+var\(--sr-page-gutter-mobile\)/,
+    /padding:\s*var\(--sr-space-2\)\s+var\(--sr-page-gutter-mobile\)/,
+  );
+  assert.doesNotMatch(clientSource, /Company discussion/);
+  assert.doesNotMatch(clientSource, /\{ticker\} Live Room<\/h2>/);
+  assert.match(clientSource, /dockOnMobile/);
+  assert.match(
+    styleSource,
+    /height:\s*var\(--live-room-workspace-height\)/,
   );
   assert.doesNotMatch(
     clientSource,
     /InMemoryLiveRoomMessageRepository|BrowserLiveRoomFollowRepository|Mock states/,
+  );
+});
+
+test("Live Room keeps a thumb-reachable mobile dock and one identity badge per author", () => {
+  const clientSource = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const tabsSource = readSource("components/live-room/RoomTabs.tsx");
+  const timelineSource = readSource(
+    "components/live-room/ChatTimeline.tsx",
+  );
+  const headerSource = readSource(
+    "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const liveRoomStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const postStyles = readSource("components/live-room/Posts.module.css");
+
+  assert.match(clientSource, /<RoomTabs[\s\S]*dockOnMobile/);
+  assert.match(tabsSource, /dockOnMobile\?: boolean/);
+  assert.match(tabsSource, /styles\.mobileDock/);
+  assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
+  assert.match(
+    postStyles,
+    /env\(safe-area-inset-bottom\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.composer\s*\{[\s\S]*position:\s*fixed[\s\S]*--live-room-mobile-nav-height[\s\S]*env\(safe-area-inset-bottom\)/,
+  );
+  assert.match(
+    timelineSource,
+    /!item\.author\.isGuest[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
+  );
+  assert.doesNotMatch(timelineSource, /<small>Guest<\/small>/);
+  assert.match(
+    headerSource,
+    /identity\.companyName\.trim\(\)\.toUpperCase\(\)\s*!==\s*identity\.ticker/,
   );
 });
 

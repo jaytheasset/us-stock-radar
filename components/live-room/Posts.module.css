@@ -301,6 +301,31 @@
   justify-self: center;
 }
 
+@media (max-width: 760px) {
+  .tabs.mobileDock {
+    position: fixed;
+    z-index: calc(var(--sr-z-sticky-action) + 1);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sr-space-1);
+    margin: 0;
+    padding: var(--sr-space-1) var(--sr-page-gutter-mobile)
+      calc(var(--sr-space-1) + env(safe-area-inset-bottom));
+    border-width: var(--sr-border-width) 0 0;
+    border-radius: 0;
+    background: var(--sr-color-surface-panel);
+    box-shadow: var(--sr-shadow-menu);
+  }
+
+  .tabs.mobileDock button {
+    min-height: 46px;
+  }
+}
+
 @media (max-width: 640px) {
   .tabs {
     width: 100%;

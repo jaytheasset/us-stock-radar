@@ -1065,6 +1065,7 @@ export function LiveRoomClient({
 
         <RoomTabs
           active={activeTab}
+          dockOnMobile
           items={[
             { label: "Chat", value: "chat" },
             { label: "Posts", value: "posts" },
@@ -1154,59 +1155,57 @@ export function LiveRoomClient({
             className={styles.chatPanel}
           >
             <div className={styles.chatTop}>
-              <div className={styles.chatHeading}>
-              <div>
-                <span>Company discussion</span>
-                <h2>{ticker} Live Room</h2>
-              </div>
-              <small>
-                Realtime updates · 45-second polling fallback
-                {roomNotice ? ` · ${roomNotice}` : ""}
-              </small>
-              </div>
-              <div className={styles.roomManagement}>
-              <button
-                aria-expanded={blocksOpen}
-                onClick={() => setBlocksOpen((value) => !value)}
-                type="button"
-              >
-                Blocked {blocks.length}
-              </button>
-              {profile?.canModerate ? (
-                <button
-                  aria-expanded={moderationOpen}
-                  onClick={() =>
-                    setModerationOpen((value) => !value)
-                  }
-                  type="button"
-                >
-                  Hidden {hiddenMessages.length}
-                </button>
-              ) : null}
+              <div className={styles.chatToolbar}>
+                <small>
+                  Realtime updates · 45-second polling fallback
+                  {roomNotice ? ` · ${roomNotice}` : ""}
+                </small>
+                <div className={styles.roomManagement}>
+                  <button
+                    aria-expanded={blocksOpen}
+                    onClick={() => setBlocksOpen((value) => !value)}
+                    type="button"
+                  >
+                    <span>Blocked</span>
+                    <b>{blocks.length}</b>
+                  </button>
+                  {profile?.canModerate ? (
+                    <button
+                      aria-expanded={moderationOpen}
+                      onClick={() =>
+                        setModerationOpen((value) => !value)
+                      }
+                      type="button"
+                    >
+                      <span>Hidden</span>
+                      <b>{hiddenMessages.length}</b>
+                    </button>
+                  ) : null}
+                </div>
               </div>
               {blocksOpen ? (
-              <div
-                aria-label="Blocked Live Room authors"
-                className={styles.managementPanel}
-              >
-                {blocks.length ? (
-                  blocks.map((block) => (
-                    <div key={block.id}>
-                      <span aria-hidden="true">{block.emoji}</span>
-                      <strong>{block.displayName}</strong>
-                      <button
-                        disabled={messageActionId === block.id}
-                        onClick={() => void handleUnblock(block.id)}
-                        type="button"
-                      >
-                        Unblock
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p>No blocked authors.</p>
-                )}
-              </div>
+                <div
+                  aria-label="Blocked Live Room authors"
+                  className={styles.managementPanel}
+                >
+                  {blocks.length ? (
+                    blocks.map((block) => (
+                      <div key={block.id}>
+                        <span aria-hidden="true">{block.emoji}</span>
+                        <strong>{block.displayName}</strong>
+                        <button
+                          disabled={messageActionId === block.id}
+                          onClick={() => void handleUnblock(block.id)}
+                          type="button"
+                        >
+                          Unblock
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p>No blocked authors.</p>
+                  )}
+                </div>
               ) : null}
               {profile?.canModerate && moderationOpen ? (
               <div
