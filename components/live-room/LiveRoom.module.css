@@ -128,8 +128,7 @@
   color: var(--sr-color-negative);
 }
 
-.onlineCount > span,
-.onlineIndicator > i {
+.onlineCount > span {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
@@ -977,20 +976,9 @@
 
 .otherMessage header > time,
 .myMessage header > time {
-  margin-left: auto;
   color: var(--sr-color-text-meta);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
-}
-
-.otherMessage header > .onlineIndicator,
-.myMessage header > .onlineIndicator {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sr-space-1);
-  border-color: transparent;
-  padding: 1px 0;
-  color: var(--sr-color-positive);
 }
 
 .messageActions {
