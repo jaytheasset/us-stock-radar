@@ -314,6 +314,13 @@ export function LiveRoomUnreadMenu() {
         }
         className={styles.liveRoomInboxButton}
         onClick={() => {
+          if (
+            window.matchMedia("(max-width: 760px)").matches
+          ) {
+            setOpen(false);
+            router.push("/community");
+            return;
+          }
           setOpen((value) => !value);
           setOpenActionId(null);
           if (!open) void refresh();
@@ -349,10 +356,10 @@ export function LiveRoomUnreadMenu() {
             <div className={styles.liveRoomInboxHeadingActions}>
               <small>Community + Messages</small>
               <Link
-                href="/live"
+                href="/community"
                 onClick={() => setOpen(false)}
               >
-                Browse Community Rooms
+                View all Community
               </Link>
             </div>
           </div>
@@ -786,24 +793,39 @@ function RoomsPanel({
 }) {
   if (!summary.rooms.length) {
     return (
-      <p className={styles.liveRoomInboxState}>
-        {error
-          ? "Live Room chats could not be refreshed."
-          : "Follow a company Live Room to see new chats here."}
-      </p>
+      <div className={styles.liveRoomInboxState}>
+        <span>
+          {error
+            ? "Live Room chats could not be refreshed."
+            : "Follow a company Live Room or Community Room to see new chats here."}
+        </span>
+        {!error ? (
+          <Link
+            className={styles.liveRoomInboxSignIn}
+            href="/live"
+            onClick={onNavigate}
+          >
+            Browse Community Rooms
+          </Link>
+        ) : null}
+      </div>
     );
   }
   return (
     <div className={styles.liveRoomInboxList}>
       {summary.rooms.map((room) => (
         <Link
-          href={`/live/${encodeURIComponent(room.ticker)}`}
-          key={room.ticker}
+          href={room.href}
+          key={room.href}
           onClick={onNavigate}
         >
           <span>
-            <strong>{room.ticker}</strong>
-            <small>Company Live Room</small>
+            <strong>{room.label}</strong>
+            <small>
+              {room.kind === "company"
+                ? "Company Live Room"
+                : "Community room"}
+            </small>
           </span>
           {room.unreadCount ? (
             <b>{room.unreadCount}</b>

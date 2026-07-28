@@ -2,10 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Hash } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  Hash,
+  LoaderCircle,
+} from "lucide-react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import {
   LiveRoomApiRepository,
+  requestLiveRoomUnreadRefresh,
   toLiveRoomApiError,
   type LiveRoomRealtimeConfig,
 } from "@/lib/live-room/apiRepository";
@@ -82,7 +89,10 @@ export function CommunityRoomClient({
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
+  const [followed, setFollowed] = useState<boolean | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
   const profileSaveTimerRef = useRef<number | null>(null);
+  const followedRef = useRef(false);
   const timelineGenerationRef = useRef(0);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
@@ -110,12 +120,13 @@ export function CommunityRoomClient({
         const nextProfile = await repository.readProfile();
         if (!isCurrent()) return;
         setProfile(nextProfile);
-        const [page, nextBlocks, nextHiddenMessages] = await Promise.all([
+        const [page, nextBlocks, nextHiddenMessages, follow] = await Promise.all([
           repository.list(),
           repository.listBlocks(),
           nextProfile.canModerate
             ? repository.listHiddenMessages()
             : Promise.resolve([]),
+          repository.readFollow(),
         ]);
         if (!isCurrent()) return;
         setTimeline(replaceLiveRoomTimeline(page.items));
@@ -123,6 +134,14 @@ export function CommunityRoomClient({
         setOlderCursor(page.nextCursor);
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
+        setFollowed(follow.followed);
+        followedRef.current = follow.followed;
+        if (follow.followed) {
+          void repository
+            .markRead(null)
+            .then(requestLiveRoomUnreadRefresh)
+            .catch(() => undefined);
+        }
 
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
@@ -139,6 +158,12 @@ export function CommunityRoomClient({
               mergeLiveRoomTimeline(current, messages),
             );
             setTimelineState("ready");
+            if (followedRef.current) {
+              void repository
+                .markRead(null)
+                .then(requestLiveRoomUnreadRefresh)
+                .catch(() => undefined);
+            }
           },
           onRemoved: (messageIds) => {
             if (!isCurrent() || !messageIds.length) return;
@@ -249,6 +274,35 @@ export function CommunityRoomClient({
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleToggleFollow = async () => {
+    if (followed === null || followBusy) return;
+    const previous = followed;
+    const next = !previous;
+    setFollowBusy(true);
+    setFollowed(next);
+    followedRef.current = next;
+    try {
+      const saved = await repository.writeFollow({
+        followed: next,
+        notificationScope: "new_chat_messages",
+      });
+      setFollowed(saved.followed);
+      followedRef.current = saved.followed;
+      requestLiveRoomUnreadRefresh();
+      setNotice(
+        saved.followed
+          ? "Community Room followed."
+          : "Community Room unfollowed.",
+      );
+    } catch (error) {
+      setFollowed(previous);
+      followedRef.current = previous;
+      setNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setFollowBusy(false);
     }
   };
 
@@ -394,6 +448,33 @@ export function CommunityRoomClient({
               <ArrowLeft aria-hidden="true" size={15} />
               Community Rooms
             </Link>
+            <button
+              aria-label={
+                followed
+                  ? `Unfollow ${room.name}`
+                  : `Follow ${room.name}`
+              }
+              aria-pressed={followed ?? undefined}
+              className={`${styles.communityFollowButton} ${
+                followed ? styles.communityFollowingButton : ""
+              }`}
+              disabled={followed === null || followBusy}
+              onClick={() => void handleToggleFollow()}
+              type="button"
+            >
+              {followed === null || followBusy ? (
+                <LoaderCircle aria-hidden="true" size={15} />
+              ) : followed ? (
+                <BookmarkCheck aria-hidden="true" size={15} />
+              ) : (
+                <Bookmark aria-hidden="true" size={15} />
+              )}
+              {followed === null
+                ? "Loading"
+                : followed
+                  ? "Following"
+                  : "Follow room"}
+            </button>
             <span className={styles.eyebrow}>Community Room</span>
             <h1>{room.name}</h1>
             <p>{room.summary}</p>
