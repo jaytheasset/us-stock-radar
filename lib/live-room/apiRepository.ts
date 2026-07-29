@@ -3,6 +3,7 @@ import type {
   LiveRoomBlockResult,
   LiveRoomChatMessage,
   LiveRoomMemberFollowResult,
+  LiveRoomMemberSummaryList,
   LiveRoomMembershipList,
   LiveRoomMembershipState,
   LiveRoomModerationItem,
@@ -338,6 +339,16 @@ export class LiveRoomApiRepository {
     );
     return requestJson<LiveRoomMembershipList>(
       `/api/live-room/memberships?limit=${boundedLimit}`,
+    );
+  }
+
+  listMemberSummaries(publicProfileIds: readonly string[]) {
+    const search = new URLSearchParams();
+    for (const publicProfileId of publicProfileIds.slice(0, 12)) {
+      search.append("publicProfileId", publicProfileId);
+    }
+    return requestJson<LiveRoomMemberSummaryList>(
+      `${this.roomApiPath()}/members?${search.toString()}`,
     );
   }
 

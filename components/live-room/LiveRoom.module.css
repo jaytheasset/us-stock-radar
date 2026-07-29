@@ -801,14 +801,130 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--sr-space-2);
+  gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
   padding: var(--sr-space-1) 0;
 }
 
 .sidePanelMemberProfile {
+  min-width: 0;
   flex: 1 1 auto;
+  gap: var(--sr-space-2);
   border-bottom: 0;
+  padding: var(--sr-space-2) var(--sr-space-1);
+}
+
+.sidePanelMemberProfile .sidePanelAvatar {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+
+.sidePanelMemberSummary {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.sidePanelMemberIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1);
+  overflow: hidden;
+}
+
+.sidePanelMemberIdentity strong {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sidePanelVerified {
+  flex: 0 0 auto;
+  color: var(--sr-color-accent-text);
+}
+
+.sidePanelPlanBadge {
+  --live-room-plan-color: var(--sr-color-plan-free);
+  --live-room-plan-surface: var(--sr-color-plan-free-surface);
+  display: inline-flex;
+  min-height: 18px;
+  flex: 0 0 auto;
+  align-items: center;
+  border: var(--sr-border-width) solid var(--live-room-plan-color);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-1);
+  color: var(--live-room-plan-color);
+  background: var(--live-room-plan-surface);
+  font-size: 0.625rem;
+  font-weight: var(--sr-font-weight-strong);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sidePanelPlanBadge[data-plan="free"] {
+  --live-room-plan-color: var(--sr-color-plan-free);
+  --live-room-plan-surface: var(--sr-color-plan-free-surface);
+}
+
+.sidePanelPlanBadge[data-plan="ad_free"] {
+  --live-room-plan-color: var(--sr-color-plan-ad-free);
+  --live-room-plan-surface: var(--sr-color-plan-ad-free-surface);
+}
+
+.sidePanelPlanBadge[data-plan="pro"] {
+  --live-room-plan-color: var(--sr-color-plan-pro);
+  --live-room-plan-surface: var(--sr-color-plan-pro-surface);
+}
+
+.sidePanelPlanBadge[data-plan="advanced"] {
+  --live-room-plan-color: var(--sr-color-plan-advanced);
+  --live-room-plan-surface: var(--sr-color-plan-advanced-surface);
+}
+
+.sidePanelPlanBadge[data-plan="ultimate"] {
+  --live-room-plan-color: var(--sr-color-plan-ultimate);
+  --live-room-plan-surface: var(--sr-color-plan-ultimate-surface);
+}
+
+.sidePanelOnline {
+  display: inline-flex;
+  width: 10px;
+  height: 18px;
+  flex: 0 0 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidePanelOnline i {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--sr-radius-pill);
+  background: var(--sr-color-positive);
+}
+
+.sidePanelMemberStats {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-2);
+  overflow: hidden;
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-size: 0.625rem;
+  line-height: var(--sr-line-height-default);
+  white-space: nowrap;
+}
+
+.sidePanelMemberStats > span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-0-5);
+}
+
+.sidePanelMemberStats svg {
+  flex: 0 0 auto;
 }
 
 .sidePanelMemberActions {
@@ -821,14 +937,14 @@
 .sidePanelMemberActions a,
 .sidePanelMemberActions button {
   display: inline-flex;
-  min-width: 32px;
-  height: 32px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
   align-items: center;
   justify-content: center;
-  gap: var(--sr-space-1);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-action);
-  padding: 0 var(--sr-space-2);
+  padding: 0;
   color: var(--sr-color-text-secondary);
   background: var(--sr-color-surface-control);
   cursor: pointer;
@@ -2616,10 +2732,11 @@ button.messageReplyPreview:hover {
 
   .sidePanelMemberActions a,
   .sidePanelMemberActions button {
+    width: 28px;
+    min-width: 28px;
     height: 28px;
     flex: 0 0 auto;
-    gap: var(--sr-space-1);
-    padding: 0 var(--sr-space-1-5);
+    padding: 0;
   }
 
   .roomActions button {

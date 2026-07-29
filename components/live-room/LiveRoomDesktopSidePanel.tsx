@@ -3,7 +3,9 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BadgeCheck,
   FileText,
+  Heart,
   MessageCircle,
   Newspaper,
   UserCheck,
@@ -16,6 +18,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import {
   LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT,
   selectLiveRoomSidePanelMembers,
@@ -25,6 +28,7 @@ import type {
   CompanyEventSource,
   LiveRoomPost,
   LiveRoomMembershipList,
+  LiveRoomMemberSummary,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
@@ -45,6 +49,12 @@ const SIDE_PANEL_TABS = [
   value: SidePanelTab;
 }>;
 
+const compactCountFormatter = new Intl.NumberFormat("en-US", {
+  compactDisplay: "short",
+  maximumFractionDigits: 1,
+  notation: "compact",
+});
+
 export function LiveRoomDesktopSidePanel({
   eventSource,
   events,
@@ -53,6 +63,7 @@ export function LiveRoomDesktopSidePanel({
   joinedRoomsError,
   joinedRoomsLoading,
   loginHref,
+  memberSummaries,
   messageActionId,
   onChangeMainTab,
   onMessageMember,
@@ -70,6 +81,7 @@ export function LiveRoomDesktopSidePanel({
   joinedRoomsError: string | null;
   joinedRoomsLoading: boolean;
   loginHref: string;
+  memberSummaries: readonly LiveRoomMemberSummary[] | null;
   messageActionId?: string | null;
   onChangeMainTab: (tab: CompanyLiveRoomTab) => void;
   onMessageMember: (messageId: string) => Promise<void>;
@@ -178,6 +190,7 @@ export function LiveRoomDesktopSidePanel({
             isGuest={isGuest}
             loginHref={loginHref}
             members={members}
+            memberSummaries={memberSummaries}
             messageActionId={messageActionId}
             onMessageMember={onMessageMember}
             onToggleMemberFollow={onToggleMemberFollow}
@@ -344,6 +357,7 @@ export function LiveRoomMemberList({
   isGuest,
   loginHref,
   members,
+  memberSummaries,
   messageActionId,
   onMessageMember,
   onToggleMemberFollow,
@@ -351,6 +365,7 @@ export function LiveRoomMemberList({
   isGuest: boolean;
   loginHref: string;
   members: ReturnType<typeof selectLiveRoomSidePanelMembers>;
+  memberSummaries: readonly LiveRoomMemberSummary[] | null;
   messageActionId?: string | null;
   onMessageMember: (messageId: string) => Promise<void>;
   onToggleMemberFollow: (
@@ -363,10 +378,31 @@ export function LiveRoomMemberList({
       <PreviewStatus label="No public member activity is available yet." />
     );
   }
+  if (memberSummaries === null) {
+    return <PreviewStatus label="Loading public member summaries…" />;
+  }
+  const summaries = new Map(
+    memberSummaries.map((summary) => [
+      summary.publicProfileId,
+      summary,
+    ]),
+  );
+  const visibleMembers = members.flatMap((member) => {
+    const summary = summaries.get(member.publicProfileId);
+    return summary ? [{ member, summary }] : [];
+  });
+  if (!visibleMembers.length) {
+    return (
+      <PreviewStatus label="No public member activity is available yet." />
+    );
+  }
 
   return (
     <div className={styles.sidePanelList}>
-      {members.map((member) => {
+      {visibleMembers.map(({ member, summary }) => {
+        const socialBadges = summary.socialBadges;
+        const displayName = summary.displayName;
+        const emoji = summary.emoji;
         const sourceMessageId = member.sourceMessageId;
         const busy =
           Boolean(sourceMessageId) &&
@@ -381,45 +417,89 @@ export function LiveRoomMemberList({
               href={`/live/members/${member.publicProfileId}`}
             >
               <span aria-hidden="true" className={styles.sidePanelAvatar}>
-                {member.emoji}
+                {emoji}
               </span>
-              <span>
-                <strong>{member.displayName}</strong>
-                <small>
-                  {member.isOnline ? (
-                    <>
+              <span className={styles.sidePanelMemberSummary}>
+                <span className={styles.sidePanelMemberIdentity}>
+                  <strong>{displayName}</strong>
+                  {socialBadges.length ? (
+                    <BadgeCheck
+                      aria-label={`Verified creator: ${socialBadges
+                        .map((badge) => badge.label.replace("Verified ", ""))
+                        .join(", ")}`}
+                      className={styles.sidePanelVerified}
+                      size={13}
+                    />
+                  ) : null}
+                  <span
+                    className={styles.sidePanelPlanBadge}
+                    data-plan={summary.plan}
+                  >
+                    {getPlanDisplayName(summary.plan)}
+                  </span>
+                  {summary.isOnline ? (
+                    <span
+                      aria-label="Online"
+                      className={styles.sidePanelOnline}
+                      title="Online"
+                    >
                       <i aria-hidden="true" />
-                      Online
-                    </>
-                  ) : (
-                    "Member"
-                  )}
-                </small>
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  aria-label={`${summary.followerCount} followers, ${summary.postCount} posts, ${summary.receivedLikeCount} received likes`}
+                  className={styles.sidePanelMemberStats}
+                >
+                  <span title="Followers">
+                    <Users aria-hidden="true" size={11} />
+                    {formatMemberCount(summary.followerCount)}
+                    <span className={styles.visuallyHidden}>
+                      {" "}
+                      followers
+                    </span>
+                  </span>
+                  <span title="Posts">
+                    <FileText aria-hidden="true" size={11} />
+                    {formatMemberCount(summary.postCount)}
+                    <span className={styles.visuallyHidden}> posts</span>
+                  </span>
+                  <span title="Received likes">
+                    <Heart aria-hidden="true" size={11} />
+                    {formatMemberCount(summary.receivedLikeCount)}
+                    <span className={styles.visuallyHidden}>
+                      {" "}
+                      received likes
+                    </span>
+                  </span>
+                </span>
               </span>
             </Link>
             {isGuest ||
             (sourceMessageId &&
               (member.canFollowMember || member.canMessageMember)) ? (
               <div
-                aria-label={`Actions for ${member.displayName}`}
+                aria-label={`Actions for ${displayName}`}
                 className={styles.sidePanelMemberActions}
                 role="group"
               >
                 {isGuest ? (
                   <>
                     <Link
-                      aria-label={`Sign in to follow ${member.displayName}`}
+                      aria-label={`Sign in to follow ${displayName}`}
                       href={loginHref}
+                      title="Follow"
                     >
                       <UserPlus aria-hidden="true" size={14} />
-                      <span>Follow</span>
+                      <span className={styles.visuallyHidden}>Follow</span>
                     </Link>
                     <Link
-                      aria-label={`Sign in to message ${member.displayName}`}
+                      aria-label={`Sign in to message ${displayName}`}
                       href={loginHref}
+                      title="Message"
                     >
                       <MessageCircle aria-hidden="true" size={14} />
-                      <span>Message</span>
+                      <span className={styles.visuallyHidden}>Message</span>
                     </Link>
                   </>
                 ) : null}
@@ -427,8 +507,8 @@ export function LiveRoomMemberList({
                   <button
                     aria-label={
                       member.isMemberFollowed
-                        ? `Unfollow ${member.displayName}`
-                        : `Follow ${member.displayName}`
+                        ? `Unfollow ${displayName}`
+                        : `Follow ${displayName}`
                     }
                     aria-pressed={member.isMemberFollowed}
                     data-followed={member.isMemberFollowed}
@@ -439,6 +519,7 @@ export function LiveRoomMemberList({
                         !member.isMemberFollowed,
                       ).catch(() => undefined)
                     }
+                    title={member.isMemberFollowed ? "Following" : "Follow"}
                     type="button"
                   >
                     {member.isMemberFollowed ? (
@@ -446,24 +527,25 @@ export function LiveRoomMemberList({
                     ) : (
                       <UserPlus aria-hidden="true" size={14} />
                     )}
-                    <span>
+                    <span className={styles.visuallyHidden}>
                       {member.isMemberFollowed ? "Following" : "Follow"}
                     </span>
                   </button>
                 ) : null}
                 {!isGuest && member.canMessageMember && sourceMessageId ? (
                   <button
-                    aria-label={`Message ${member.displayName}`}
+                    aria-label={`Message ${displayName}`}
                     disabled={busy}
                     onClick={() =>
                       void onMessageMember(sourceMessageId).catch(
                         () => undefined,
                       )
                     }
+                    title="Message"
                     type="button"
                   >
                     <MessageCircle aria-hidden="true" size={14} />
-                    <span>Message</span>
+                    <span className={styles.visuallyHidden}>Message</span>
                   </button>
                 ) : null}
               </div>
@@ -491,4 +573,9 @@ function formatPreviewDate(value: string) {
     day: "numeric",
     month: "short",
   }).format(date);
+}
+
+function formatMemberCount(value: number) {
+  const count = Math.max(0, Math.trunc(value));
+  return count < 1_000 ? String(count) : compactCountFormatter.format(count);
 }

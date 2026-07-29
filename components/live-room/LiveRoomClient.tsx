@@ -38,6 +38,7 @@ import type {
   CompanyRoomIdentity,
   LiveRoomBlockedActor,
   LiveRoomChatMessage,
+  LiveRoomMemberSummary,
   LiveRoomModerationItem,
   LiveRoomMembershipList,
   LiveRoomPost,
@@ -182,6 +183,9 @@ export function LiveRoomClient({
   const [joinedRoomsError, setJoinedRoomsError] =
     useState<string | null>(null);
   const [joinedRoomsLoading, setJoinedRoomsLoading] = useState(true);
+  const [memberSummaries, setMemberSummaries] = useState<
+    LiveRoomMemberSummary[] | null
+  >(null);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
     useState<LiveRoomInviteUiState>("idle");
@@ -247,6 +251,10 @@ export function LiveRoomClient({
   const members = useMemo(
     () => selectLiveRoomSidePanelMembers({ posts, timeline }),
     [posts, timeline],
+  );
+  const memberSummaryKey = useMemo(
+    () => members.map((member) => member.publicProfileId).join(","),
+    [members],
   );
   const roomLoginHref = createLiveRoomMemberLoginHref(
     `/live/${ticker}`,
@@ -595,8 +603,15 @@ export function LiveRoomClient({
   }, [timeline]);
 
   useEffect(() => {
+    setMemberSummaries(null);
+  }, [memberSummaryKey, repository]);
+
+  useEffect(() => {
     const canReadCounts =
       timelineState === "ready" || timelineState === "empty";
+    const memberPublicProfileIds = memberSummaryKey
+      ? memberSummaryKey.split(",")
+      : [];
     const canHeartbeatMember =
       canReadCounts &&
       shouldRunLiveRoomPresence({
@@ -606,6 +621,7 @@ export function LiveRoomClient({
       });
     if (!canReadCounts) {
       setRoomCounts(null);
+      setMemberSummaries(null);
       setTimeline((current) => clearLiveRoomPresence(current));
       return;
     }
@@ -632,9 +648,14 @@ export function LiveRoomClient({
             setShowPresence(false);
           }
         }
-        const summary = await repository.readPresence(
-          presenceMessageIdsRef.current,
-        );
+        const [summary, nextMemberSummaries] = await Promise.all([
+          repository.readPresence(presenceMessageIdsRef.current),
+          memberPublicProfileIds.length
+            ? repository
+                .listMemberSummaries(memberPublicProfileIds)
+                .catch(() => ({ items: [] }))
+            : Promise.resolve({ items: [] }),
+        ]);
         if (!active || document.visibilityState !== "visible") return;
         setRoomCounts({
           memberCount: summary.memberCount,
@@ -647,6 +668,7 @@ export function LiveRoomClient({
             applyLiveRoomPresence(current, summary),
           );
         }
+        setMemberSummaries(nextMemberSummaries.items);
       } catch {
         if (active) {
           setRoomCounts(null);
@@ -687,6 +709,7 @@ export function LiveRoomClient({
     };
   }, [
     profile?.isGuest,
+    memberSummaryKey,
     repository,
     showPresence,
     timelineState,
@@ -1662,6 +1685,7 @@ export function LiveRoomClient({
               joinedRoomsError={joinedRoomsError}
               joinedRoomsLoading={joinedRoomsLoading}
               loginHref={roomLoginHref}
+              memberSummaries={memberSummaries}
               messageActionId={messageActionId}
               onChangeMainTab={handleDesktopTabChange}
               onMessageMember={handleMessageMember}
@@ -1766,6 +1790,7 @@ export function LiveRoomClient({
                 isGuest={profile?.isGuest === true}
                 loginHref={roomLoginHref}
                 members={members}
+                memberSummaries={memberSummaries}
                 messageActionId={messageActionId}
                 onMessageMember={handleMobileMessageMember}
                 onToggleMemberFollow={handleMemberFollow}
