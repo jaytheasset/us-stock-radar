@@ -891,45 +891,50 @@
   color: var(--sr-color-accent-text);
 }
 
-.sidePanelPlanBadge {
-  --live-room-plan-color: var(--sr-color-plan-free);
-  --live-room-plan-surface: var(--sr-color-plan-free-surface);
+.planBadge {
+  --live-room-plan-color: var(--sr-color-text-meta);
+  --live-room-plan-surface: var(--sr-color-surface-control-strong);
   display: inline-flex;
-  min-height: 18px;
+  height: var(--sr-space-4-5);
   flex: 0 0 auto;
   align-items: center;
   border: var(--sr-border-width) solid var(--live-room-plan-color);
-  border-radius: var(--sr-radius-control);
+  border-radius: var(--sr-radius-chat-control);
   padding: 0 var(--sr-space-1);
   color: var(--live-room-plan-color);
   background: var(--live-room-plan-surface);
-  font-size: 0.625rem;
+  font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-strong);
   line-height: 1;
   white-space: nowrap;
 }
 
-.sidePanelPlanBadge[data-plan="free"] {
+.planBadge[data-plan="visitor"] {
+  --live-room-plan-color: var(--sr-color-text-meta);
+  --live-room-plan-surface: var(--sr-color-surface-control-strong);
+}
+
+.planBadge[data-plan="free"] {
   --live-room-plan-color: var(--sr-color-plan-free);
   --live-room-plan-surface: var(--sr-color-plan-free-surface);
 }
 
-.sidePanelPlanBadge[data-plan="ad_free"] {
+.planBadge[data-plan="ad_free"] {
   --live-room-plan-color: var(--sr-color-plan-ad-free);
   --live-room-plan-surface: var(--sr-color-plan-ad-free-surface);
 }
 
-.sidePanelPlanBadge[data-plan="pro"] {
+.planBadge[data-plan="pro"] {
   --live-room-plan-color: var(--sr-color-plan-pro);
   --live-room-plan-surface: var(--sr-color-plan-pro-surface);
 }
 
-.sidePanelPlanBadge[data-plan="advanced"] {
+.planBadge[data-plan="advanced"] {
   --live-room-plan-color: var(--sr-color-plan-advanced);
   --live-room-plan-surface: var(--sr-color-plan-advanced-surface);
 }
 
-.sidePanelPlanBadge[data-plan="ultimate"] {
+.planBadge[data-plan="ultimate"] {
   --live-room-plan-color: var(--sr-color-plan-ultimate);
   --live-room-plan-surface: var(--sr-color-plan-ultimate-surface);
 }
@@ -1572,19 +1577,6 @@
   border-radius: var(--sr-radius-action);
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
-}
-
-.otherMessage header > span,
-.myMessage header > span,
-.otherMessage header > small,
-.myMessage header > small {
-  border: var(--sr-border-width) solid var(--sr-color-border-section);
-  border-radius: var(--sr-radius-chat-control);
-  padding: 1px var(--sr-space-1);
-  color: var(--sr-color-text-subtle);
-  font-size: 9px;
-  font-weight: var(--sr-font-weight-semibold);
-  line-height: var(--sr-line-height-control);
 }
 
 .otherMessage header > time,
