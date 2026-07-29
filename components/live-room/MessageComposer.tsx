@@ -3,11 +3,11 @@
 import { BadgeCheck, Send, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import {
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
   type ModerationDecision,
 } from "@/lib/live-room/moderation";
-import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import type {
   CompanyEventReference,
   LiveRoomProfile,
@@ -126,11 +126,9 @@ export function MessageComposer({
                 <span aria-hidden="true">{profile.emoji}</span>
                 <span>
                   <strong>{profile.displayName}</strong>
-                  <small>
-                    {profile.isGuest
-                      ? "Guest session"
-                      : getPlanDisplayName(profile.plan)}
-                  </small>
+                  <MemberPlanBadge
+                    plan={profile.isGuest ? "visitor" : profile.plan}
+                  />
                 </span>
               </>
             ) : (

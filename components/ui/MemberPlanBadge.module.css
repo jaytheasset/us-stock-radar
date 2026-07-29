@@ -1,0 +1,65 @@
+.badge {
+  display: inline-flex;
+  height: var(--sr-space-4-5);
+  flex: 0 0 auto;
+  align-items: center;
+  border: var(--sr-border-width) solid var(--sr-color-text-meta);
+  border-radius: var(--sr-radius-chat-control);
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  background: var(--sr-color-surface-control-strong);
+  font-size: var(--sr-font-size-plan-badge);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: var(--sr-line-height-none);
+  white-space: nowrap;
+}
+
+.badge[data-plan="free"],
+.badge[data-plan="ad_free"],
+.badge[data-plan="pro"],
+.badge[data-plan="advanced"],
+.badge[data-plan="ultimate"] {
+  border-color: var(--member-plan-border);
+  color: var(--member-plan-text);
+  background: linear-gradient(
+    to bottom,
+    var(--member-plan-gradient-start),
+    var(--member-plan-gradient-end)
+  );
+  box-shadow: var(--sr-shadow-plan-badge-highlight);
+}
+
+.badge[data-plan="free"] {
+  --member-plan-gradient-start: var(--sr-color-plan-free-gradient-start);
+  --member-plan-gradient-end: var(--sr-color-plan-free-gradient-end);
+  --member-plan-border: var(--sr-color-plan-free-border);
+  --member-plan-text: var(--sr-color-plan-free-text);
+}
+
+.badge[data-plan="ad_free"] {
+  --member-plan-gradient-start: var(--sr-color-plan-ad-free-gradient-start);
+  --member-plan-gradient-end: var(--sr-color-plan-ad-free-gradient-end);
+  --member-plan-border: var(--sr-color-plan-ad-free-border);
+  --member-plan-text: var(--sr-color-plan-ad-free-text);
+}
+
+.badge[data-plan="pro"] {
+  --member-plan-gradient-start: var(--sr-color-plan-pro-gradient-start);
+  --member-plan-gradient-end: var(--sr-color-plan-pro-gradient-end);
+  --member-plan-border: var(--sr-color-plan-pro-border);
+  --member-plan-text: var(--sr-color-plan-pro-text);
+}
+
+.badge[data-plan="advanced"] {
+  --member-plan-gradient-start: var(--sr-color-plan-advanced-gradient-start);
+  --member-plan-gradient-end: var(--sr-color-plan-advanced-gradient-end);
+  --member-plan-border: var(--sr-color-plan-advanced-border);
+  --member-plan-text: var(--sr-color-plan-advanced-text);
+}
+
+.badge[data-plan="ultimate"] {
+  --member-plan-gradient-start: var(--sr-color-plan-ultimate-gradient-start);
+  --member-plan-gradient-end: var(--sr-color-plan-ultimate-gradient-end);
+  --member-plan-border: var(--sr-color-plan-ultimate-border);
+  --member-plan-text: var(--sr-color-plan-ultimate-text);
+}

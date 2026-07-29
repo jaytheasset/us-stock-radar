@@ -593,7 +593,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     timelineSource,
-    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan[\s\S]*item\.author\.isGuest[\s\S]*\? "Visitor"[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
+    /<MemberPlanBadge[\s\S]*plan=\{item\.author\.isGuest \? "visitor" : item\.author\.plan\}/,
   );
   assert.match(
     headerSource,
@@ -633,6 +633,9 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
   );
   const styles = readSource(
     "components/live-room/LiveRoom.module.css",
+  );
+  const planBadgeStyles = readSource(
+    "components/ui/MemberPlanBadge.module.css",
   );
   const darkTokens = tokens.slice(
     0,
@@ -701,8 +704,8 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
     /\.myMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-mine-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
   );
   assert.match(
-    styles,
-    /\.planBadge\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+    planBadgeStyles,
+    /\.badge\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
   );
   assert.doesNotMatch(
     styles,
@@ -1098,22 +1101,22 @@ test("mobile company header uses three compact rows without changing desktop str
   );
   assert.match(
     mobileHeader,
-    /grid-template-columns:\s*minmax\(0, 1fr\) auto;/,
+    /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto;/,
   );
   assert.match(mobileHeader, /grid-template-rows:\s*auto auto auto;/);
   assert.match(mobileHeader, /padding:\s*var\(--sr-space-3\);/);
   assert.doesNotMatch(mobileHeader, /\bheight:/);
   assert.match(mobileIdentity, /display:\s*contents;/);
   assert.match(mobileTitleLine, /display:\s*contents;/);
-  assert.match(mobileTitlePrimary, /grid-column:\s*1;/);
+  assert.match(mobileTitlePrimary, /grid-column:\s*1 \/ 3;/);
   assert.match(mobileTitlePrimary, /grid-row:\s*1;/);
-  assert.match(mobileCompanyName, /grid-column:\s*1;/);
+  assert.match(mobileCompanyName, /grid-column:\s*1 \/ 3;/);
   assert.match(mobileCompanyName, /grid-row:\s*2;/);
   assert.match(mobileCompanyName, /text-overflow:\s*ellipsis;/);
-  assert.match(mobileMeta, /grid-column:\s*1;/);
+  assert.match(mobileMeta, /grid-column:\s*1 \/ 2;/);
   assert.match(mobileMeta, /grid-row:\s*3;/);
   assert.match(mobileMeta, /flex-wrap:\s*nowrap;/);
-  assert.match(mobileMarket, /grid-column:\s*2;/);
+  assert.match(mobileMarket, /grid-column:\s*3;/);
   assert.match(mobileMarket, /grid-row:\s*1;/);
   assert.match(mobileMarket, /justify-self:\s*end;/);
   assert.match(mobileMarket, /border-top:\s*0;/);
@@ -1124,7 +1127,7 @@ test("mobile company header uses three compact rows without changing desktop str
     mobileStyles,
     /\.marketSummaryValues strong\s*\{[^}]*font-size:\s*var\(--sr-font-size-lg\);/,
   );
-  assert.match(mobileActions, /grid-column:\s*2;/);
+  assert.match(mobileActions, /grid-column:\s*2 \/ 4;/);
   assert.match(mobileActions, /grid-row:\s*3;/);
   assert.match(mobileActions, /justify-self:\s*end;/);
   assert.match(

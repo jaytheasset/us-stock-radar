@@ -146,11 +146,7 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
   );
   assert.match(
     panel,
-    /BadgeCheck[\s\S]*Verified creator:[\s\S]*getPlanDisplayName\(summary\.plan\)[\s\S]*summary\.isOnline/,
-  );
-  assert.match(
-    panel,
-    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{summary\.plan\}/,
+    /BadgeCheck[\s\S]*Verified creator:[\s\S]*<MemberPlanBadge plan=\{summary\.plan\}[\s\S]*summary\.isOnline/,
   );
   assert.match(
     panel,
@@ -198,77 +194,80 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
   );
 });
 
-test("message and member badges share six semantic plan treatments", () => {
+test("actual member-grade surfaces share one compact six-plan badge contract", () => {
   const timeline = read("components/live-room/ChatTimeline.tsx");
   const panel = read(
     "components/live-room/LiveRoomDesktopSidePanel.tsx",
   );
-  const styles = read("components/live-room/LiveRoom.module.css");
-  const tokens = read("app/stock-radar-tokens.css");
-  const lightTokens = tokens.slice(
-    tokens.indexOf('[data-sr-theme="light"]'),
+  const composer = read("components/live-room/MessageComposer.tsx");
+  const directMessage = read(
+    "components/direct-messages/DirectMessageClient.tsx",
   );
+  const community = read("components/community/CommunityHubClient.tsx");
+  const account = read("app/account/page.tsx");
+  const badge = read("components/ui/MemberPlanBadge.tsx");
+  const styles = read("components/ui/MemberPlanBadge.module.css");
+  const tokens = read("app/stock-radar-tokens.css");
 
   const planContracts = [
-    ["free", "free"],
-    ["ad_free", "ad-free"],
-    ["pro", "pro"],
-    ["advanced", "advanced"],
-    ["ultimate", "ultimate"],
+    ["free", "free", "#fafbfc", "#e7ebf0", "#c9d0d9", "#5f6875"],
+    ["ad_free", "ad-free", "#ecfbf8", "#d0f0e9", "#83ccbe", "#21796d"],
+    ["pro", "pro", "#eff5ff", "#d3e2ff", "#7fa8ea", "#315f9f"],
+    ["advanced", "advanced", "#fff4e5", "#ffd39c", "#f2a34a", "#b85a08"],
+    ["ultimate", "ultimate", "#f6efff", "#dec9ff", "#a982e4", "#7042af"],
   ] as const;
 
   assert.match(
     styles,
-    /\.planBadge\s*\{[\s\S]*height:\s*var\(--sr-space-4-5\);[\s\S]*border:[\s\S]*var\(--live-room-plan-color\);[\s\S]*border-radius:\s*var\(--sr-radius-chat-control\);[\s\S]*color:\s*var\(--live-room-plan-color\);[\s\S]*background:\s*var\(--live-room-plan-surface\);[\s\S]*font-size:\s*var\(--sr-font-size-xs\);/,
+    /\.badge\s*\{[\s\S]*height:\s*var\(--sr-space-4-5\);[\s\S]*border:[\s\S]*var\(--sr-color-text-meta\);[\s\S]*border-radius:\s*var\(--sr-radius-chat-control\);[\s\S]*color:\s*var\(--sr-color-text-meta\);[\s\S]*background:\s*var\(--sr-color-surface-control-strong\);[\s\S]*font-size:\s*var\(--sr-font-size-plan-badge\);/,
   );
+  assert.match(badge, /data-plan=\{plan\}/);
+  assert.match(badge, /plan === "visitor" \? "Visitor" : getPlanDisplayName\(plan\)/);
   assert.match(
     timeline,
-    /className=\{styles\.planBadge\}[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan[\s\S]*\? "Visitor"[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
+    /<MemberPlanBadge[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan/,
+  );
+  assert.match(panel, /<MemberPlanBadge plan=\{summary\.plan\}/);
+  assert.match(
+    composer,
+    /<MemberPlanBadge[\s\S]*profile\.isGuest \? "visitor" : profile\.plan/,
   );
   assert.match(
-    panel,
-    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{summary\.plan\}[\s\S]*getPlanDisplayName\(summary\.plan\)/,
+    directMessage,
+    /<MemberPlanBadge plan=\{conversation\.peer\.plan\}/,
   );
+  assert.match(community, /<MemberPlanBadge plan=\{plan\}/);
   assert.match(
-    styles,
-    /\.planBadge\[data-plan="visitor"\]\s*\{[\s\S]*--live-room-plan-color:\s*var\(--sr-color-text-meta\);[\s\S]*--live-room-plan-surface:\s*var\(--sr-color-surface-control-strong\);/,
+    account,
+    /<MemberPlanBadge[\s\S]*className=\{styles\.accountPlanBadge\}[\s\S]*plan=\{plan\.effectivePlan\}[\s\S]*suffix=\{plan\.planSource === "trial" \? " trial" : ""\}/,
   );
-  for (const [plan, token] of planContracts) {
+  for (const [plan, token, start, end, border, text] of planContracts) {
     assert.match(
       styles,
       new RegExp(
-        `\\.planBadge\\[data-plan="${plan}"\\] \\{[\\s\\S]*--live-room-plan-color:\\s*var\\(--sr-color-plan-${token}\\);[\\s\\S]*--live-room-plan-surface:\\s*var\\(--sr-color-plan-${token}-surface\\);`,
+        `\\.badge\\[data-plan="${plan}"\\] \\{[\\s\\S]*--member-plan-gradient-start:\\s*var\\(--sr-color-plan-${token}-gradient-start\\);[\\s\\S]*--member-plan-gradient-end:\\s*var\\(--sr-color-plan-${token}-gradient-end\\);[\\s\\S]*--member-plan-border:\\s*var\\(--sr-color-plan-${token}-border\\);[\\s\\S]*--member-plan-text:\\s*var\\(--sr-color-plan-${token}-text\\);`,
       ),
     );
+    for (const [suffix, value] of [
+      ["gradient-start", start],
+      ["gradient-end", end],
+      ["border", border],
+      ["text", text],
+    ] as const) {
+      assert.match(
+        tokens,
+        new RegExp(
+          `--sr-color-plan-${token}-${suffix}:\\s*${value}`,
+          "i",
+        ),
+      );
+    }
   }
-  for (const [, token] of planContracts) {
-    assert.match(
-      tokens,
-      new RegExp(
-        `--sr-color-plan-${token}:\\s*var\\(--sr-color-event-[a-z-]+\\);[\\s\\S]*--sr-color-plan-${token}-surface:\\s*var\\(--sr-color-event-[a-z-]+-surface\\);`,
-      ),
-    );
-  }
-  for (const [plan, event, color] of [
-    ["free", "neutral", "#596678"],
-    ["ad-free", "earnings", "#066b61"],
-    ["pro", "transaction", "#2563a6"],
-    ["advanced", "insider", "#7c3db2"],
-    ["ultimate", "product", "#7a5000"],
-  ] as const) {
-    assert.match(
-      lightTokens,
-      new RegExp(`--sr-color-event-${event}:\\s*${color}`, "i"),
-    );
-    assert.match(
-      lightTokens,
-      new RegExp(
-        `--sr-color-plan-${plan}:\\s*var\\(--sr-color-event-${event}\\);[\\s\\S]*--sr-color-plan-${plan}-surface:\\s*var\\(--sr-color-event-${event}-surface\\);`,
-      ),
-    );
-  }
+  assert.match(styles, /background:\s*linear-gradient\(/);
+  assert.match(styles, /box-shadow:\s*var\(--sr-shadow-plan-badge-highlight\)/);
+  assert.match(tokens, /--sr-font-size-plan-badge:\s*10px/);
   assert.doesNotMatch(
-    styles.match(/\.planBadge\s*\{([^}]*)\}/)?.[1] || "",
+    styles,
     /#[\da-f]{3,8}|font-size:\s*\d/i,
   );
 });

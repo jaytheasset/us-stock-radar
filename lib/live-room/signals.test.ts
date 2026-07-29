@@ -393,14 +393,104 @@ test("chat post preview is capped and left-aligned on desktop, then fills mobile
   assert.match(desktopRule, /justify-self:\s*start/);
   assert.match(
     desktopRule,
-    /background-color:\s*var\(--sr-color-event-neutral-surface\)/,
+    /background:\s*var\(--post-direction-surface\)/,
   );
   assert.match(
     desktopRule,
-    /border:[^;]*var\(--sr-color-event-neutral\)/,
+    /border:[^;]*var\(--post-direction-border\)/,
   );
   assert.match(
     styles,
     /@media \(max-width: 760px\)[\s\S]*?\.postPreview\s*\{[\s\S]*?width:\s*100%/,
+  );
+});
+
+test("compact post cards share direction surfaces and preserve an explicit unspecified fallback", () => {
+  const timeline = readSource("components/live-room/ChatTimeline.tsx");
+  const sidePanel = readSource(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
+  const postsPanel = readSource("components/live-room/PostsPanel.tsx");
+  const directionStyles = readSource(
+    "components/live-room/PostDirectionSurface.module.css",
+  );
+  const liveRoomStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const postsStyles = readSource(
+    "components/live-room/Posts.module.css",
+  );
+
+  for (const [source, value] of [
+    [timeline, "item.direction"],
+    [sidePanel, "post.direction"],
+    [postsPanel, "post.direction"],
+  ] as const) {
+    assert.match(source, /directionSurfaceStyles\.surface/);
+    assert.match(
+      source,
+      new RegExp(`data-direction=\\{${value.replace(".", "\\.")} \\?\\? "unspecified"\\}`),
+    );
+  }
+  for (const [direction, accent, surface] of [
+    ["bullish", "positive", "event-earnings-surface"],
+    ["bearish", "negative", "event-legal-surface"],
+    ["volatile", "warning", "event-product-surface"],
+    ["neutral", "event-neutral", "event-neutral-surface"],
+  ] as const) {
+    assert.match(
+      directionStyles,
+      new RegExp(
+        `\\.surface\\[data-direction="${direction}"\\] \\{[\\s\\S]*--post-direction-accent:\\s*var\\(--sr-color-${accent}\\);[\\s\\S]*--post-direction-border:[\\s\\S]*--post-direction-surface:\\s*var\\(--sr-color-${surface}\\);`,
+      ),
+    );
+  }
+  assert.match(
+    directionStyles,
+    /\.surface\s*\{[\s\S]*--post-direction-accent:\s*var\(--sr-color-accent-text\);[\s\S]*--post-direction-border:\s*var\(--sr-color-border\);[\s\S]*--post-direction-line:\s*var\(--sr-color-border\);[\s\S]*--post-direction-surface:\s*var\(--sr-color-surface-panel\);/,
+  );
+  assert.match(
+    directionStyles,
+    /box-shadow:\s*inset var\(--sr-border-width-strong\) 0 0[\s\S]*var\(--post-direction-line\)/,
+  );
+  assert.doesNotMatch(directionStyles, /#[\da-f]{3,8}|rgba?\(/i);
+  assert.match(
+    liveRoomStyles,
+    /\.postPreviewIcon\s*\{[\s\S]*color:\s*var\(--post-direction-accent\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.postPreviewLabel\s*\{[\s\S]*color:\s*var\(--post-direction-accent\)/,
+  );
+  assert.match(
+    postsStyles,
+    /\.card\s*\{[\s\S]*border:[^;]*var\(--post-direction-border\)[\s\S]*background:\s*var\(--post-direction-surface\)/,
+  );
+});
+
+test("post direction and footer actions use compact token typography without resizing controls", () => {
+  const signalStyles = readSource(
+    "components/live-room/PostSignals.module.css",
+  );
+  const postsStyles = readSource(
+    "components/live-room/Posts.module.css",
+  );
+  const directionRule =
+    signalStyles.match(
+      /\.directionSelector \.directionOptions button\s*\{([\s\S]*?)\}/,
+    )?.[1] ?? "";
+  const footerRule =
+    postsStyles.match(
+      /\.form \.formActions button\s*\{([\s\S]*?)\}/,
+    )?.[1] ?? "";
+
+  for (const rule of [directionRule, footerRule]) {
+    assert.match(rule, /font-size:\s*var\(--sr-font-size-xs\)/);
+    assert.match(rule, /font-weight:\s*var\(--sr-font-weight-semibold\)/);
+    assert.match(rule, /line-height:\s*var\(--sr-line-height-control\)/);
+  }
+  assert.doesNotMatch(
+    footerRule,
+    /(?:^|\n)\s*(?:height|width|padding|margin):/,
   );
 });

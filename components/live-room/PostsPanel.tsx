@@ -59,6 +59,7 @@ import {
   PostSignalChips,
   PostSignalSelector,
 } from "./PostSignals";
+import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import styles from "./Posts.module.css";
 
 export function PostsPanel({
@@ -558,7 +559,11 @@ export function PostsPanel({
       ) : posts.length ? (
         <div className={styles.list}>
           {posts.map((post) => (
-            <article className={styles.card} key={post.id}>
+            <article
+              className={`${styles.card} ${directionSurfaceStyles.surface}`}
+              data-direction={post.direction ?? "unspecified"}
+              key={post.id}
+            >
               {currentTicker &&
               post.room.kind === "company" &&
               post.room.ticker !== currentTicker ? (

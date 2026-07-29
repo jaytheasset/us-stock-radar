@@ -99,7 +99,7 @@
   gap: var(--sr-space-1);
 }
 
-.directionOptions button {
+.directionSelector .directionOptions button {
   display: inline-flex;
   min-width: 0;
   min-height: 30px;
@@ -112,34 +112,35 @@
   background: var(--sr-color-surface-panel);
   color: var(--direction-color);
   font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-strong);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
 }
 
-.directionOptions button[data-direction="bullish"] {
+.directionSelector .directionOptions button[data-direction="bullish"] {
   --direction-color: var(--sr-color-positive);
   --direction-surface: var(--sr-color-event-earnings-surface);
 }
 
-.directionOptions button[data-direction="bearish"] {
+.directionSelector .directionOptions button[data-direction="bearish"] {
   --direction-color: var(--sr-color-negative);
   --direction-surface: var(--sr-color-event-legal-surface);
 }
 
-.directionOptions button[data-direction="volatile"] {
+.directionSelector .directionOptions button[data-direction="volatile"] {
   --direction-color: var(--sr-color-warning);
   --direction-surface: var(--sr-color-event-product-surface);
 }
 
-.directionOptions button[data-direction="neutral"] {
+.directionSelector .directionOptions button[data-direction="neutral"] {
   --direction-color: var(--sr-color-event-neutral);
   --direction-surface: var(--sr-color-event-neutral-surface);
 }
 
-.directionOptions button[data-selected="true"] {
+.directionSelector .directionOptions button[data-selected="true"] {
   background: var(--direction-surface);
 }
 
-.directionOptions button:focus-visible {
+.directionSelector .directionOptions button:focus-visible {
   outline: var(--sr-border-width-strong) solid var(--direction-color);
   outline-offset: var(--sr-space-0-5);
 }

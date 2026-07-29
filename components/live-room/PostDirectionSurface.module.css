@@ -1,0 +1,38 @@
+.surface {
+  --post-direction-accent: var(--sr-color-accent-text);
+  --post-direction-border: var(--sr-color-border);
+  --post-direction-line: var(--sr-color-border);
+  --post-direction-surface: var(--sr-color-surface-panel);
+  border-color: var(--post-direction-border);
+  background: var(--post-direction-surface);
+  box-shadow: inset var(--sr-border-width-strong) 0 0
+    var(--post-direction-line);
+}
+
+.surface[data-direction="bullish"] {
+  --post-direction-accent: var(--sr-color-positive);
+  --post-direction-border: var(--sr-color-positive);
+  --post-direction-line: var(--sr-color-positive);
+  --post-direction-surface: var(--sr-color-event-earnings-surface);
+}
+
+.surface[data-direction="bearish"] {
+  --post-direction-accent: var(--sr-color-negative);
+  --post-direction-border: var(--sr-color-negative);
+  --post-direction-line: var(--sr-color-negative);
+  --post-direction-surface: var(--sr-color-event-legal-surface);
+}
+
+.surface[data-direction="volatile"] {
+  --post-direction-accent: var(--sr-color-warning);
+  --post-direction-border: var(--sr-color-warning);
+  --post-direction-line: var(--sr-color-warning);
+  --post-direction-surface: var(--sr-color-event-product-surface);
+}
+
+.surface[data-direction="neutral"] {
+  --post-direction-accent: var(--sr-color-event-neutral);
+  --post-direction-border: var(--sr-color-event-neutral);
+  --post-direction-line: var(--sr-color-event-neutral);
+  --post-direction-surface: var(--sr-color-event-neutral-surface);
+}

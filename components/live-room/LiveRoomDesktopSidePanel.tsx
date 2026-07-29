@@ -18,7 +18,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import {
   LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT,
   selectLiveRoomSidePanelMembers,
@@ -37,6 +37,7 @@ import {
   PostDirectionBadge,
   PostSignalChips,
 } from "./PostSignals";
+import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
@@ -337,7 +338,8 @@ function PostsPreview({
         .slice(0, LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT)
         .map((post) => (
           <Link
-            className={styles.sidePanelItem}
+            className={`${styles.sidePanelItem} ${directionSurfaceStyles.surface}`}
+            data-direction={post.direction ?? "unspecified"}
             href={`/live/posts/${post.id}`}
             key={post.id}
           >
@@ -469,12 +471,7 @@ export function LiveRoomMemberList({
                       size={13}
                     />
                   ) : null}
-                  <span
-                    className={styles.planBadge}
-                    data-plan={summary.plan}
-                  >
-                    {getPlanDisplayName(summary.plan)}
-                  </span>
+                  <MemberPlanBadge plan={summary.plan} />
                   {summary.isOnline ? (
                     <span
                       aria-label="Online"
