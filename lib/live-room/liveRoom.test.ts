@@ -444,24 +444,9 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     bottomSheetStyles,
     /\.fullScrollRoot\s*\{[\s\S]*z-index:\s*var\(--sr-z-sheet-full-scroll\)/,
   );
-  assert.match(clientSource, /fixedAction=\{<StockRadarThemeToggle labeled \/>\}/);
-  assert.match(bottomSheetSource, /fixedAction\?: ReactNode/);
-  assert.match(
-    bottomSheetSource,
-    /styles\.fixedActionScrollRegion[\s\S]*styles\.fixedAction/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.surfaceWithFixedAction\s*\{[\s\S]*overflow:\s*hidden/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.fixedActionScrollRegion\s*\{[\s\S]*overflow-y:\s*auto[\s\S]*padding-bottom:\s*calc\([\s\S]*var\(--sr-size-control\)[\s\S]*env\(safe-area-inset-bottom\)/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.fixedAction\s*\{[\s\S]*position:\s*absolute[\s\S]*right:\s*max\(var\(--sr-space-4\), env\(safe-area-inset-right\)\)[\s\S]*bottom:\s*calc\(var\(--sr-space-4\) \+ env\(safe-area-inset-bottom\)\)/,
-  );
+  assert.doesNotMatch(clientSource, /StockRadarThemeToggle|fixedAction=/);
+  assert.doesNotMatch(bottomSheetSource, /fixedAction/);
+  assert.doesNotMatch(bottomSheetStyles, /fixedAction|surfaceWithFixedAction/);
   assert.match(
     bottomSheetStyles,
     /\.root,\s*\.root \*\s*\{[\s\S]*box-sizing:\s*border-box/,
@@ -473,6 +458,10 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   assert.match(
     bottomSheetStyles,
     /\.fullScrollSurface\s*\{[\s\S]*overflow-x:\s*hidden/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.mobileSheetContent\s*\{[\s\S]*padding:\s*var\(--sr-space-8\) var\(--sr-space-4\)[\s\S]*calc\(var\(--sr-space-6\) \+ env\(safe-area-inset-bottom\)\)/,
   );
   const appShellCloseIndex = clientSource.lastIndexOf("</StockRadarAppShell>");
   const mobileSheetIndex = clientSource.indexOf("<BottomSheetShell");
