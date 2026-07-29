@@ -1186,11 +1186,24 @@
   cursor: pointer;
 }
 
+.messageActionsTrigger {
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border-radius: var(--sr-radius-sm);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+}
+
 .messageReplyButton:hover,
-.messageActionsTrigger:hover,
-.messageActionsTrigger[aria-expanded="true"] {
+.messageActionsTrigger:hover {
   color: var(--sr-color-text-strong);
   background: var(--sr-color-surface-control);
+}
+
+.messageActionsTrigger:hover,
+.messageActionsTrigger[aria-expanded="true"] {
+  border-color: var(--sr-color-border-control);
+  color: var(--sr-color-text-strong);
+  background: var(--sr-color-surface-control-strong);
 }
 
 .messageActionsMenu {
