@@ -86,7 +86,11 @@ test("new admin tables are service-only, RLS-enabled, and audit logs are append-
   );
   assert.match(
     migration,
-    /revoke all on table public\.admin_audit_logs from public, anon, authenticated/i,
+    /revoke all on table public\.admin_role_assignments\s+from public, anon, authenticated, service_role/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on table public\.admin_audit_logs\s+from public, anon, authenticated, service_role/i,
   );
   assert.match(
     migration,

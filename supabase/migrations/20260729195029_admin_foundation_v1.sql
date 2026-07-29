@@ -37,7 +37,8 @@ create trigger admin_role_assignments_set_updated_at
   for each row execute function private.set_live_room_updated_at();
 
 alter table public.admin_role_assignments enable row level security;
-revoke all on table public.admin_role_assignments from public, anon, authenticated;
+revoke all on table public.admin_role_assignments
+  from public, anon, authenticated, service_role;
 grant select, insert, update, delete on table public.admin_role_assignments to service_role;
 
 insert into public.admin_role_assignments (
@@ -118,7 +119,8 @@ create index if not exists admin_audit_logs_target_created_at_idx
   on public.admin_audit_logs (target_type, target_id, created_at desc);
 
 alter table public.admin_audit_logs enable row level security;
-revoke all on table public.admin_audit_logs from public, anon, authenticated;
+revoke all on table public.admin_audit_logs
+  from public, anon, authenticated, service_role;
 grant select, insert on table public.admin_audit_logs to service_role;
 
 create or replace function public.list_live_room_social_verification_reviews(
