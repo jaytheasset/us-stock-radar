@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 export default async function CreatorVerificationAdminPage() {
   await requireAdminPermission("verifications.read");
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <AdminVerificationClient />
-    </main>
+    </div>
   );
 }

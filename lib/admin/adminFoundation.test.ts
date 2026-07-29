@@ -22,6 +22,18 @@ const adminListApi = read("app/api/admin/creator-verifications/route.ts");
 const adminMutationApi = read(
   "app/api/admin/creator-verifications/[requestId]/route.ts",
 );
+const adminShell = read("components/admin/AdminShell.tsx");
+const legacyAdminPages = [
+  "app/admin/creator-verifications/page.tsx",
+  "app/admin/db/page.tsx",
+  "app/admin/event-types/page.tsx",
+  "app/admin/integrations/page.tsx",
+  "app/admin/news-ingest/page.tsx",
+  "app/admin/prompts/page.tsx",
+  "app/admin/prompts/news-event-test/page.tsx",
+  "app/admin/sources/page.tsx",
+  "app/admin/taxonomy/page.tsx",
+].map(read);
 
 test("anonymous users and ordinary members are rejected before admin content renders", () => {
   assert.match(adminLayout, /requireAdminPageAccess\(\)/);
@@ -108,4 +120,12 @@ test("admin routes are dynamic and excluded from indexing", () => {
   assert.match(adminLayout, /revalidate = 0/);
   assert.match(adminLayout, /index: false/);
   assert.match(adminLayout, /nocache: true/);
+});
+
+test("AdminShell owns the only admin main landmark", () => {
+  assert.equal((adminShell.match(/<main\b/g) || []).length, 1);
+  assert.equal((adminShell.match(/<\/main>/g) || []).length, 1);
+  for (const page of legacyAdminPages) {
+    assert.doesNotMatch(page, /<\/?main\b/);
+  }
 });

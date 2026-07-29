@@ -7,7 +7,7 @@ const categories = Array.from(new Set(eventTypeDefinitions.map((definition) => d
 
 export default function AdminEventTypesPage() {
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>Event Type Registry</h1>
@@ -126,7 +126,7 @@ export default function AdminEventTypesPage() {
           );
         })}
       </section>
-    </main>
+    </div>
   );
 }
 

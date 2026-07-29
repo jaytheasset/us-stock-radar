@@ -16,7 +16,7 @@ const subThemeCounts = themeSubThemes.reduce<Record<string, number>>((counts, su
 
 export default function AdminTaxonomyPage() {
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>Taxonomy Read-Out</h1>
@@ -166,6 +166,6 @@ export default function AdminTaxonomyPage() {
           );
         })}
       </section>
-    </main>
+    </div>
   );
 }
