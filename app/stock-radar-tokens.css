@@ -459,6 +459,18 @@ html [data-event-emphasis="dilution"] {
   --sr-color-event-neutral: #596678;
   --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
 
+  /* Color: registered membership plans */
+  --sr-color-plan-free: var(--sr-color-event-neutral);
+  --sr-color-plan-free-surface: var(--sr-color-event-neutral-surface);
+  --sr-color-plan-ad-free: var(--sr-color-event-earnings);
+  --sr-color-plan-ad-free-surface: var(--sr-color-event-earnings-surface);
+  --sr-color-plan-pro: var(--sr-color-event-transaction);
+  --sr-color-plan-pro-surface: var(--sr-color-event-transaction-surface);
+  --sr-color-plan-advanced: var(--sr-color-event-insider);
+  --sr-color-plan-advanced-surface: var(--sr-color-event-insider-surface);
+  --sr-color-plan-ultimate: var(--sr-color-event-product);
+  --sr-color-plan-ultimate-surface: var(--sr-color-event-product-surface);
+
   /* Color: financial chat */
   --sr-color-chat-timeline-background: #f7f9fb;
   --sr-color-chat-bubble-other-background: #ffffff;

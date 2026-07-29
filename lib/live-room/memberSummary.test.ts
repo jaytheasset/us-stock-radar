@@ -205,6 +205,9 @@ test("message and member badges share six semantic plan treatments", () => {
   );
   const styles = read("components/live-room/LiveRoom.module.css");
   const tokens = read("app/stock-radar-tokens.css");
+  const lightTokens = tokens.slice(
+    tokens.indexOf('[data-sr-theme="light"]'),
+  );
 
   const planContracts = [
     ["free", "free"],
@@ -243,6 +246,24 @@ test("message and member badges share six semantic plan treatments", () => {
       tokens,
       new RegExp(
         `--sr-color-plan-${token}:\\s*var\\(--sr-color-event-[a-z-]+\\);[\\s\\S]*--sr-color-plan-${token}-surface:\\s*var\\(--sr-color-event-[a-z-]+-surface\\);`,
+      ),
+    );
+  }
+  for (const [plan, event, color] of [
+    ["free", "neutral", "#596678"],
+    ["ad-free", "earnings", "#066b61"],
+    ["pro", "transaction", "#2563a6"],
+    ["advanced", "insider", "#7c3db2"],
+    ["ultimate", "product", "#7a5000"],
+  ] as const) {
+    assert.match(
+      lightTokens,
+      new RegExp(`--sr-color-event-${event}:\\s*${color}`, "i"),
+    );
+    assert.match(
+      lightTokens,
+      new RegExp(
+        `--sr-color-plan-${plan}:\\s*var\\(--sr-color-event-${event}\\);[\\s\\S]*--sr-color-plan-${plan}-surface:\\s*var\\(--sr-color-event-${event}-surface\\);`,
       ),
     );
   }
