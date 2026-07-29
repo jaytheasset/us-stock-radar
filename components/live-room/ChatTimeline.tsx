@@ -183,6 +183,12 @@ export function ChatTimeline({
           (item.isMine === undefined &&
             item.author.isGuest &&
             item.author.displayName === currentProfileName);
+        const publicProfileHref =
+          !item.author.isGuest && item.author.publicProfileId
+            ? `/live/members/${encodeURIComponent(
+                item.author.publicProfileId,
+              )}`
+            : null;
         return (
           <li
             className={`${mine ? styles.myMessage : styles.otherMessage}${
@@ -193,12 +199,31 @@ export function ChatTimeline({
             id={`live-room-message-${item.id}`}
             key={item.id}
           >
-            <div className={styles.messageAvatar} aria-hidden="true">
-              {item.author.emoji}
-            </div>
+            {publicProfileHref ? (
+              <Link
+                aria-label={`View ${item.author.displayName}'s public profile`}
+                className={`${styles.messageAvatar} ${styles.messageAvatarLink}`}
+                href={publicProfileHref}
+              >
+                <span aria-hidden="true">{item.author.emoji}</span>
+              </Link>
+            ) : (
+              <div className={styles.messageAvatar} aria-hidden="true">
+                {item.author.emoji}
+              </div>
+            )}
             <article>
               <header>
-                <strong>{item.author.displayName}</strong>
+                {publicProfileHref ? (
+                  <Link
+                    className={styles.messageAuthorLink}
+                    href={publicProfileHref}
+                  >
+                    {item.author.displayName}
+                  </Link>
+                ) : (
+                  <strong>{item.author.displayName}</strong>
+                )}
                 {!item.author.isGuest ? (
                   <span>{getPlanDisplayName(item.author.plan)}</span>
                 ) : null}
