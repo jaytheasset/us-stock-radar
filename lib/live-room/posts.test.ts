@@ -12,6 +12,13 @@ import {
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy.ts";
 import {
+  getLiveRoomPostTickerInputContext,
+  LIVE_ROOM_POST_TICKER_SUGGESTION_LIMIT,
+  parseLiveRoomPostMentionedTickers,
+  replaceLiveRoomPostTickerInputToken,
+  selectLiveRoomPostTickerSuggestions,
+} from "./postTickerAutocomplete.ts";
+import {
   applyLiveRoomPostScopeAndCursorFilters,
   shouldExposeLiveRoomCompanyPost,
 } from "./postQuery.ts";
@@ -61,6 +68,74 @@ test("post drafts enforce bounded title, body, and unique canonical tickers", ()
   );
   assert.equal(normalizeLiveRoomPostPageLimit(500), 50);
   assert.equal(normalizeLiveRoomPostPageLimit(0), 1);
+});
+
+test("post ticker autocomplete parses and replaces only the active token", () => {
+  assert.deepEqual(getLiveRoomPostTickerInputContext("$am"), {
+    atLimit: false,
+    query: "AM",
+    selectedTickers: [],
+    tokenStart: 0,
+  });
+  assert.deepEqual(getLiveRoomPostTickerInputContext("$AMD, nv"), {
+    atLimit: false,
+    query: "NV",
+    selectedTickers: ["AMD"],
+    tokenStart: 6,
+  });
+  assert.deepEqual(getLiveRoomPostTickerInputContext("AMD NV"), {
+    atLimit: false,
+    query: "NV",
+    selectedTickers: ["AMD"],
+    tokenStart: 4,
+  });
+  assert.equal(
+    replaceLiveRoomPostTickerInputToken("$AMD, $nv", "nvda"),
+    "$AMD, $NVDA, ",
+  );
+  assert.deepEqual(
+    parseLiveRoomPostMentionedTickers("$amd, NVDA amd invalid/ticker"),
+    ["AMD", "NVDA", "INVALID/TICKER"],
+  );
+});
+
+test("post ticker autocomplete excludes duplicates, current room, and stops at five", () => {
+  const results = [
+    { ticker: "AMD" },
+    { ticker: "BBLG" },
+    { ticker: "NVDA" },
+    { ticker: "NVDA" },
+    { ticker: "AAPL" },
+    { ticker: "MSFT" },
+    { ticker: "META" },
+    { ticker: "GOOG" },
+    { ticker: "TSLA" },
+    { ticker: "INTC" },
+  ];
+  const context = getLiveRoomPostTickerInputContext("$AMD, $n");
+  const suggestions = selectLiveRoomPostTickerSuggestions(
+    results,
+    context,
+    "BBLG",
+  );
+
+  assert.deepEqual(
+    suggestions.map((result) => result.ticker),
+    ["NVDA", "AAPL", "MSFT", "META", "GOOG", "TSLA"],
+  );
+  assert.equal(
+    suggestions.length,
+    LIVE_ROOM_POST_TICKER_SUGGESTION_LIMIT,
+  );
+
+  const atLimit = getLiveRoomPostTickerInputContext(
+    "$AMD, $NVDA, $AAPL, $MSFT, $META, $t",
+  );
+  assert.equal(atLimit.atLimit, true);
+  assert.deepEqual(
+    selectLiveRoomPostTickerSuggestions(results, atLimit, "BBLG"),
+    [],
+  );
 });
 
 test("post body previews normalize whitespace and truncate to a safe compact length", () => {
@@ -532,6 +607,7 @@ test("public member actions resolve safe server targets and reuse follow and DM 
 
 test("post composer exposes event linking only through real event choices", () => {
   const postsPanel = readSource("components/live-room/PostsPanel.tsx");
+  const postsStyles = readSource("components/live-room/Posts.module.css");
 
   assert.match(postsPanel, /events\.length > 0 \? \(/);
   assert.match(postsPanel, /<option value="">No event attached<\/option>/);
@@ -546,6 +622,28 @@ test("post composer exposes event linking only through real event choices", () =
   );
   assert.doesNotMatch(postsPanel, /News or filing event ID|Event UUID/);
   assert.match(postsPanel, /Mentioned tickers/);
+  assert.match(
+    postsPanel,
+    /\/api\/tickers\/search\?q=\$\{encodeURIComponent\([\s\S]*tickerInputContext\.query/,
+  );
+  assert.match(postsPanel, /mapTickerSearchResults\(payload\)/);
+  assert.match(postsPanel, /moveTickerSearchIndex\(/);
+  assert.match(postsPanel, /}, 220\)/);
+  assert.match(postsPanel, /new AbortController\(\)/);
+  assert.match(postsPanel, /role="combobox"/);
+  assert.match(postsPanel, /role="listbox"/);
+  assert.match(postsPanel, /role="option"/);
+  assert.match(postsPanel, /aria-activedescendant=/);
+  assert.match(postsPanel, /aria-expanded=\{tickerSearchOpen\}/);
+  assert.match(postsPanel, /onPointerDown=\{\(event\) =>/);
+  assert.match(
+    postsPanel,
+    /replaceLiveRoomPostTickerInputToken\([\s\S]*input\?\.focus\(\{ preventScroll: true \}\)/,
+  );
+  assert.match(
+    postsStyles,
+    /\.tickerSuggestions\s*\{[\s\S]*max-width:\s*100%;[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*auto;/,
+  );
   assert.match(postsPanel, /Cross-posted from \$\{post\.room\.ticker\}/);
   assert.match(postsPanel, />\$\{ticker\}<\/Link>/);
 });
