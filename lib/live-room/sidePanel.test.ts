@@ -189,11 +189,19 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(
     styles,
-    /@media \(max-width: 420px\)[\s\S]*\.sidePanelMember\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMember\s*\{\s*display:\s*flex;\s*align-items:\s*center;\s*gap:\s*var\(--sr-space-1-5\);/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 420px\)[\s\S]*\.sidePanelMemberActions\s*\{[\s\S]*min-width:\s*0/,
+    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberProfile\s*\{\s*min-width:\s*0;\s*flex:\s*1 1 auto;\s*gap:\s*var\(--sr-space-2\);\s*padding:\s*var\(--sr-space-1-5\) var\(--sr-space-1\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberActions\s*\{\s*min-width:\s*0;\s*flex:\s*0 0 auto;\s*gap:\s*var\(--sr-space-1\);\s*padding:\s*0 var\(--sr-space-1\) 0 0;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberActions a,\s*\.sidePanelMemberActions button\s*\{\s*height:\s*28px;\s*flex:\s*0 0 auto;\s*gap:\s*var\(--sr-space-1\);\s*padding:\s*0 var\(--sr-space-1-5\);/,
   );
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
   assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);
