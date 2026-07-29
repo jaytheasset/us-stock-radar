@@ -70,7 +70,7 @@ const getRequiredAdminAccess = cache(async (): Promise<AdminAccess> => {
   if (!userId) redirect("/login?next=%2Fadmin");
 
   const access = await getAdminAccessForUser(userId);
-  if (!access) redirect("/");
+  if (!access) redirect("/login?next=%2Fadmin&reason=admin_required");
   return access;
 });
 

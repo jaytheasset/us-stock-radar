@@ -38,8 +38,20 @@ const legacyAdminPages = [
 test("anonymous users and ordinary members are rejected before admin content renders", () => {
   assert.match(adminLayout, /requireAdminPageAccess\(\)/);
   assert.match(adminServer, /redirect\("\/login\?next=%2Fadmin"\)/);
-  assert.match(adminServer, /if \(!access\) redirect\("\/"\)/);
+  assert.match(
+    adminServer,
+    /if \(!access\) redirect\("\/login\?next=%2Fadmin&reason=admin_required"\)/,
+  );
+  assert.doesNotMatch(adminServer, /redirect\("\/"\)/);
   assert.doesNotMatch(adminServer, /user_metadata|app_metadata/);
+});
+
+test("admin exit links return to the current markets dashboard", () => {
+  assert.equal(
+    (adminShell.match(/href="\/dashboard-v2"/g) || []).length,
+    2,
+  );
+  assert.doesNotMatch(adminShell, /href="\/"/);
 });
 
 test("legacy active admins retain access during RBAC migration", () => {
