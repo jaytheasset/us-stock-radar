@@ -58,8 +58,10 @@ export function CalendarEventDetail({
             onWatchlistToggle={() => onWatchlistToggle(desktopEvent)}
             titleId={desktopTitleId}
             watchlisted={
-              watchlistOverrides[desktopEvent.id] ??
-              desktopEvent.isWatchlisted
+              desktopEvent.ticker
+                ? watchlistOverrides[desktopEvent.ticker] ??
+                  desktopEvent.isWatchlisted
+                : false
             }
           />
         </DetailPanelShell>
@@ -83,8 +85,10 @@ export function CalendarEventDetail({
               onWatchlistToggle={() => onWatchlistToggle(sheetEvent)}
               titleId={mobileTitleId}
               watchlisted={
-                watchlistOverrides[sheetEvent.id] ??
-                sheetEvent.isWatchlisted
+                sheetEvent.ticker
+                  ? watchlistOverrides[sheetEvent.ticker] ??
+                    sheetEvent.isWatchlisted
+                  : false
               }
             />
           </div>
@@ -111,6 +115,17 @@ function CalendarEventDetailContent({
 }) {
   const stockHref = getStockRouteHref(event.ticker);
   const eventDate = parseDateOnly(event.eventDate);
+  const watchLabel = watchlisted
+    ? `Watching ${event.ticker}`
+    : "Watch Stock";
+  const watchActionLabel = event.ticker
+    ? watchlisted
+      ? `Remove ${event.ticker} from Stock Radar Watchlist`
+      : `Add ${event.ticker} to Stock Radar Watchlist`
+    : "No ticker to watch";
+  const followActionLabel = followed
+    ? `Unfollow ${event.title} event`
+    : `Follow ${event.title} event`;
 
   return (
     <div className={styles.detailContent}>
@@ -152,15 +167,56 @@ function CalendarEventDetailContent({
         </dl>
       </section>
 
-      <div className={styles.detailToggles}>
-        <button aria-pressed={watchlisted} onClick={onWatchlistToggle} type="button">
-          {watchlisted ? <BookmarkCheck aria-hidden="true" size={16} /> : <Bookmark aria-hidden="true" size={16} />}
-          {watchlisted ? "Watching" : "Add to Watchlist"}
-        </button>
-        <button aria-pressed={followed} onClick={onFollowToggle} type="button">
-          {followed ? <BellOff aria-hidden="true" size={16} /> : <Bell aria-hidden="true" size={16} />}
-          {followed ? "Unfollow Event" : "Follow Event"}
-        </button>
+      <div className={styles.detailActions}>
+        <div className={styles.detailAction}>
+          <div>
+            <strong>Stock watchlist</strong>
+            <span>Track this ticker across Stock Radar.</span>
+          </div>
+          <button
+            aria-label={watchActionLabel}
+            aria-pressed={event.ticker ? watchlisted : undefined}
+            disabled={!event.ticker}
+            onClick={onWatchlistToggle}
+            title={
+              event.ticker
+                ? watchActionLabel
+                : "Watch Stock unavailable because this event has no ticker."
+            }
+            type="button"
+          >
+            {watchlisted ? (
+              <BookmarkCheck aria-hidden="true" size={16} />
+            ) : (
+              <Bookmark aria-hidden="true" size={16} />
+            )}
+            {event.ticker ? watchLabel : "No ticker to watch"}
+          </button>
+        </div>
+        <div className={styles.detailAction}>
+          <div>
+            <strong>Event alert</strong>
+            <span>Follow this event&apos;s schedule and reminders.</span>
+          </div>
+          <button
+            aria-label={followActionLabel}
+            aria-pressed={followed}
+            onClick={onFollowToggle}
+            title={
+              followed
+                ? "Stop following this event's schedule and reminders."
+                : "Follow this event's schedule and reminders."
+            }
+            type="button"
+          >
+            {followed ? (
+              <BellOff aria-hidden="true" size={16} />
+            ) : (
+              <Bell aria-hidden="true" size={16} />
+            )}
+            {followed ? "Event Followed" : "Follow Event"}
+          </button>
+        </div>
       </div>
 
       <div className={styles.detailLinks}>
@@ -183,7 +239,10 @@ function CalendarEventDetailContent({
           ticker={event.ticker ?? undefined}
         />
       </div>
-      <p className={styles.mockNotice}>Watchlist and follow changes are local mock state for this preview.</p>
+      <p className={styles.mockNotice}>
+        Preview only. Changes are local mock state. Alert delivery is not
+        connected yet.
+      </p>
     </div>
   );
 }

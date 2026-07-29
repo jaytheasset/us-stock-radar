@@ -782,7 +782,6 @@
   text-transform: uppercase;
 }
 
-.detailToggles,
 .detailLinks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -790,7 +789,6 @@
   margin-top: var(--sr-space-4);
 }
 
-.detailToggles button,
 .detailLinks > a,
 .detailLinks > span {
   display: flex;
@@ -809,10 +807,73 @@
   text-decoration: none;
 }
 
-.detailToggles button[aria-pressed="true"] {
+.detailActions {
+  display: grid;
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-4);
+}
+
+.detailAction {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(128px, auto);
+  align-items: center;
+  gap: var(--sr-space-3);
+}
+
+.detailAction > div {
+  min-width: 0;
+}
+
+.detailAction strong,
+.detailAction span {
+  display: block;
+}
+
+.detailAction strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+}
+
+.detailAction span {
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-body);
+}
+
+.detailAction button {
+  display: flex;
+  min-width: 0;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.detailAction button[aria-pressed="true"] {
   border-color: var(--sr-color-accent-border-active);
   color: var(--sr-color-accent);
   background: var(--sr-color-accent-active-soft);
+}
+
+.detailAction button:disabled {
+  border-color: var(--sr-color-border-control);
+  color: var(--sr-color-state-disabled-text);
+  background: var(--sr-color-state-disabled-surface);
+  cursor: not-allowed;
 }
 
 .detailLinks > span {
