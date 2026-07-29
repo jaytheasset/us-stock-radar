@@ -40,10 +40,14 @@ export const LIVE_ROOM_UNREAD_REFRESH_EVENT =
 export const LIVE_ROOM_SIGNAL_DEBOUNCE_MS = 750;
 
 export type LiveRoomMessagePage = {
+  firstUnreadMessageId: string | null;
+  initialMode: "latest" | "resume";
+  isLatest: boolean;
   items: LiveRoomTimelineItem[];
   latestChangeCursor: string | null;
   latestCursor: string | null;
   nextCursor: string | null;
+  unreadCount: number;
 };
 
 export type LiveRoomMessageChanges = {
@@ -120,10 +124,17 @@ export class LiveRoomApiRepository {
     );
   }
 
-  list(options: { after?: string | null; before?: string | null } = {}) {
+  list(
+    options: {
+      after?: string | null;
+      before?: string | null;
+      resume?: boolean;
+    } = {},
+  ) {
     const search = new URLSearchParams({ limit: "50" });
     if (options.after) search.set("after", options.after);
     if (options.before) search.set("before", options.before);
+    if (options.resume) search.set("resume", "true");
     return requestJson<LiveRoomMessagePage>(
       `${this.roomApiPath()}/messages?${search}`,
     );

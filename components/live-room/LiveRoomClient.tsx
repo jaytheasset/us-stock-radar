@@ -81,6 +81,7 @@ import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { JoinedRoomsList } from "./JoinedRoomsList";
+import { LiveRoomLatestButton } from "./LiveRoomLatestButton";
 import { MessageComposer } from "./MessageComposer";
 import {
   LiveRoomHeaderAdSlot,
@@ -96,6 +97,7 @@ import {
   RoomTabs,
   type CompanyLiveRoomTab,
 } from "./RoomTabs";
+import { useLiveRoomReadPosition } from "./useLiveRoomReadPosition";
 import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
@@ -234,6 +236,7 @@ export function LiveRoomClient({
     useState<CompanyLiveRoomTab>("chat");
   const [mobileSheet, setMobileSheet] =
     useState<MobileLiveRoomSheet | null>(null);
+  const [loadingLatest, setLoadingLatest] = useState(false);
   const latestEventIdRef = useRef<string | null>(null);
   const membershipRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
@@ -241,15 +244,12 @@ export function LiveRoomClient({
   const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
   const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
-  const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
   const messageLikeIdsRef = useRef<Set<string>>(new Set());
-  const timelineElementRef = useRef<HTMLDivElement>(null);
   const timelineScrollFrameRef = useRef<number | null>(null);
-  const timelineSticksToBottomRef = useRef(true);
   const didInitialTimelineScrollRef = useRef(false);
   const forceOwnTimelineScrollRef = useRef(false);
   const previousTimelineTailIdRef = useRef<string | null>(null);
@@ -261,6 +261,24 @@ export function LiveRoomClient({
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
   );
+  const {
+    firstUnreadMessageId,
+    handleTimelineScroll,
+    initializeReadPosition,
+    isLatestLoaded,
+    markLatestLoaded,
+    nearBottom,
+    pendingUnreadCount,
+    recordIncomingMessages,
+    resetReadPosition,
+    scheduleVisibleRead,
+    timelineElementRef,
+    timelineSticksToBottomRef,
+  } = useLiveRoomReadPosition({
+    membershipJoined,
+    repository,
+    timeline,
+  });
   const directMessageRepository = useMemo(
     () => new DirectMessageApiRepository(),
     [],
@@ -297,14 +315,6 @@ export function LiveRoomClient({
     [],
   );
 
-  const handleTimelineScroll = useCallback(() => {
-    const element = timelineElementRef.current;
-    if (!element) return;
-    timelineSticksToBottomRef.current = isLiveRoomTimelineNearBottom(
-      getLiveRoomTimelineDistanceFromBottom(element),
-    );
-  }, []);
-
   useEffect(
     () => () => {
       if (timelineScrollFrameRef.current !== null) {
@@ -338,6 +348,7 @@ export function LiveRoomClient({
       previousTimelineTailIdRef.current = null;
       pendingOlderScrollRef.current = null;
       timelineSticksToBottomRef.current = true;
+      resetReadPosition();
       setTimeline([]);
       setTimelineState("loading");
       setOlderCursor(null);
@@ -398,7 +409,7 @@ export function LiveRoomClient({
           nextJoinedRooms,
         ] =
           await Promise.all([
-            repository.list(),
+            repository.list({ resume: !activityMessageId }),
             repository.readMembership(),
             repository.listBlocks(),
             nextProfile.canModerate
@@ -428,6 +439,7 @@ export function LiveRoomClient({
           }
         }
         loadedTickerRef.current = ticker;
+        initializeReadPosition(page);
         setTimeline(replaceLiveRoomTimeline(initialItems));
         setOlderCursor(page.nextCursor);
         setTimelineState(initialItems.length ? "ready" : "empty");
@@ -452,15 +464,6 @@ export function LiveRoomClient({
         membershipRef.current = membership.joined;
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
-        if (membership.joined) {
-          const latestMessageId = getLatestChatMessageId(page.items);
-          void repository
-            .markRead(latestMessageId)
-            .then(requestLiveRoomUnreadRefresh)
-            .catch(() => {
-              // The next focus/poll refresh retries unread reconciliation.
-            });
-        }
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
           onMessages: (messages) => {
@@ -469,20 +472,7 @@ export function LiveRoomClient({
               mergeLiveRoomTimeline(current, messages),
             );
             setTimelineState("ready");
-            if (membershipRef.current) {
-              if (markReadTimerRef.current !== null) {
-                window.clearTimeout(markReadTimerRef.current);
-              }
-              markReadTimerRef.current = window.setTimeout(() => {
-                markReadTimerRef.current = null;
-                void repository
-                  .markRead(getLatestChatMessageId(messages))
-                  .then(requestLiveRoomUnreadRefresh)
-                  .catch(() => {
-                    // The next focus/poll refresh retries unread reconciliation.
-                  });
-              }, 800);
-            }
+            recordIncomingMessages(messages);
           },
           onRemoved: (messageIds) => {
             if (!isCurrent() || !messageIds.length) return;
@@ -537,12 +527,17 @@ export function LiveRoomClient({
       if (updatesSubscriptionRef.current === updates) {
         updatesSubscriptionRef.current = null;
       }
-      if (markReadTimerRef.current !== null) {
-        window.clearTimeout(markReadTimerRef.current);
-        markReadTimerRef.current = null;
-      }
     };
-  }, [activityMessageId, reloadKey, repository, ticker]);
+  }, [
+    activityMessageId,
+    initializeReadPosition,
+    recordIncomingMessages,
+    reloadKey,
+    repository,
+    resetReadPosition,
+    ticker,
+    timelineSticksToBottomRef,
+  ]);
 
   useEffect(() => {
     if (timelineState !== "ready" || !timelineTailId) return;
@@ -556,6 +551,27 @@ export function LiveRoomClient({
       return;
     }
     previousTimelineTailIdRef.current = timelineTailId;
+
+    if (initial && firstUnreadMessageId) {
+      didInitialTimelineScrollRef.current = true;
+      forceOwnTimelineScrollRef.current = false;
+      scheduleTimelineScroll((element) => {
+        const target = document.getElementById(
+          `live-room-message-${firstUnreadMessageId}`,
+        );
+        if (target && element.contains(target)) {
+          const viewport = element.getBoundingClientRect();
+          const bounds = target.getBoundingClientRect();
+          element.scrollTop +=
+            bounds.top -
+            viewport.top -
+            Math.min(element.clientHeight / 4, 96);
+        }
+        handleTimelineScroll();
+        scheduleVisibleRead();
+      });
+      return;
+    }
 
     if (initial && highlightedMessageId) {
       didInitialTimelineScrollRef.current = true;
@@ -586,12 +602,17 @@ export function LiveRoomClient({
       });
       forceOwnTimelineScrollRef.current = false;
       timelineSticksToBottomRef.current = true;
+      scheduleVisibleRead();
     });
   }, [
+    firstUnreadMessageId,
+    handleTimelineScroll,
     highlightedMessageId,
     scheduleTimelineScroll,
+    scheduleVisibleRead,
     timelineState,
     timelineTailId,
+    timelineSticksToBottomRef,
   ]);
 
   useEffect(() => {
@@ -1076,6 +1097,7 @@ export function LiveRoomClient({
       setMembershipJoined(true);
       membershipRef.current = true;
       void refreshJoinedRooms();
+      markLatestLoaded();
       forceOwnTimelineScrollRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
@@ -1105,6 +1127,24 @@ export function LiveRoomClient({
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleLatest = async () => {
+    if (loadingLatest) return;
+    setLoadingLatest(true);
+    setRoomNotice(null);
+    try {
+      const page = await repository.list();
+      markLatestLoaded();
+      forceOwnTimelineScrollRef.current = true;
+      setTimeline(replaceLiveRoomTimeline(page.items));
+      setOlderCursor(page.nextCursor);
+      setTimelineState(page.items.length ? "ready" : "empty");
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setLoadingLatest(false);
     }
   };
 
@@ -1603,11 +1643,12 @@ export function LiveRoomClient({
             aria-label={`${ticker} company discussion`}
             className={styles.chatPanel}
           >
-            <div
-              className={styles.timeline}
-              onScroll={handleTimelineScroll}
-              ref={timelineElementRef}
-            >
+            <div className={styles.timelineViewport}>
+              <div
+                className={styles.timeline}
+                onScroll={handleTimelineScroll}
+                ref={timelineElementRef}
+              >
               {roomNotice ? (
                 <p className={styles.roomNotice} role="status">
                   {roomNotice}
@@ -1637,6 +1678,7 @@ export function LiveRoomClient({
               <ChatTimeline
                 canModerate={profile?.canModerate === true}
                 currentProfileName={profile?.displayName.trim() || ""}
+                firstUnreadMessageId={firstUnreadMessageId}
                 highlightedMessageId={highlightedMessageId}
                 items={timeline}
                 loginHref={roomLoginHref}
@@ -1656,6 +1698,17 @@ export function LiveRoomClient({
                 state={timelineState}
                 viewerIsGuest={profile?.isGuest !== false}
               />
+              </div>
+              {timelineState === "ready" &&
+              (!nearBottom ||
+                pendingUnreadCount > 0 ||
+                !isLatestLoaded) ? (
+                <LiveRoomLatestButton
+                  busy={loadingLatest}
+                  onClick={() => void handleLatest()}
+                  unreadCount={pendingUnreadCount}
+                />
+              ) : null}
             </div>
             <MessageComposer
               body={body}
@@ -1902,14 +1955,4 @@ function getModerationReason(code: string): ModerationReason {
   if (code.includes("EXCESSIVE_LINKS")) return "excessive_links";
   if (code.includes("BLOCKED_WORD")) return "blocked_word";
   return "empty";
-}
-
-function getLatestChatMessageId(
-  items: readonly LiveRoomTimelineItem[],
-) {
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    const item = items[index];
-    if (item?.kind === "message") return item.id;
-  }
-  return null;
 }

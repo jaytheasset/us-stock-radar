@@ -109,10 +109,14 @@ type BlockRow = {
 };
 
 export type LiveRoomMessagePage = {
+  firstUnreadMessageId: string | null;
+  initialMode: "latest" | "resume";
+  isLatest: boolean;
   items: LiveRoomTimelineItem[];
   latestChangeCursor: string | null;
   latestCursor: string | null;
   nextCursor: string | null;
+  unreadCount: number;
 };
 
 export type LiveRoomMessageChanges = {
@@ -127,6 +131,7 @@ export async function getLiveRoomMessagePage({
   after,
   before,
   limit,
+  resume = false,
   slug,
   ticker: rawTicker,
 }: {
@@ -134,6 +139,7 @@ export async function getLiveRoomMessagePage({
   after?: string | null;
   before?: string | null;
   limit?: number;
+  resume?: boolean;
   slug?: string;
   ticker?: string;
 }): Promise<LiveRoomMessagePage> {
@@ -151,8 +157,27 @@ export async function getLiveRoomMessagePage({
     1,
     Math.min(Number(limit) || defaultPageSize, maxPageSize),
   );
-  const cursor = decodeMessageCursor(after || before || null);
-  const ascending = Boolean(after);
+  const resumeState =
+    resume && !after && !before && actor.kind === "member"
+      ? await getLiveRoomResumeState(room.id, actor.userId)
+      : null;
+  const activeResumeState =
+    resumeState?.unreadCount &&
+    resumeState.firstUnreadMessageId &&
+    resumeState.startMessageId &&
+    resumeState.startCreatedAt
+      ? resumeState
+      : null;
+  const resumed = activeResumeState !== null;
+  const resumeCursor = activeResumeState
+    ? encodeMessageCursor({
+        createdAt: activeResumeState.startCreatedAt,
+        id: activeResumeState.startMessageId,
+      })
+    : null;
+  const effectiveAfter = after || resumeCursor;
+  const cursor = decodeMessageCursor(effectiveAfter || before || null);
+  const ascending = Boolean(effectiveAfter);
   const search: Record<string, string> = {
     select:
       "id,room_id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,created_at",
@@ -171,30 +196,65 @@ export async function getLiveRoomMessagePage({
     blockedActorIds,
   );
 
-  const [result, postPage] = await Promise.all([
+  const [result, postPage, resumeAnchorResult] = await Promise.all([
     supabaseSelect("live_room_messages", search),
     listLiveRoomPosts({
       actor,
-      after,
+      after: effectiveAfter,
       before,
       includeMentionedCompanyPosts: false,
       limit: pageSize,
       slug,
       ticker: rawTicker,
     }),
+    activeResumeState
+      ? supabaseSelect("live_room_messages", {
+          select:
+            "id,room_id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,created_at",
+          id: `in.(${[
+            activeResumeState.startMessageId,
+            activeResumeState.firstUnreadMessageId,
+          ]
+            .filter((id, index, ids) => ids.indexOf(id) === index)
+            .join(",")})`,
+          room_id: `eq.${room.id}`,
+          visibility_status: "eq.visible",
+          limit: "2",
+        })
+      : Promise.resolve({
+          data: [],
+          error: undefined,
+          ok: true,
+          status: 200,
+        }),
   ]);
-  if (!result.ok) {
+  if (!result.ok || !resumeAnchorResult.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MESSAGES_UNAVAILABLE",
-      result.error || "Messages could not be loaded.",
-      result.status || 502,
+      result.error ||
+        resumeAnchorResult.error ||
+        "Messages could not be loaded.",
+      result.status || resumeAnchorResult.status || 502,
     );
   }
 
   const fetchedRows = readRows(result.data) as MessageRow[];
   const hasMore = fetchedRows.length > pageSize;
   const pageRows = fetchedRows.slice(0, pageSize);
-  const chronologicalRows = ascending ? pageRows : [...pageRows].reverse();
+  const resumeAnchorRows = readRows(
+    resumeAnchorResult.data,
+  ) as MessageRow[];
+  const chronologicalRowsWithDuplicates = ascending
+    ? [...resumeAnchorRows, ...pageRows]
+    : [...pageRows].reverse();
+  const chronologicalRows = [
+    ...new Map(
+      chronologicalRowsWithDuplicates.map((row) => [
+        readString(row.id),
+        row,
+      ]),
+    ).values(),
+  ].filter((row) => readString(row.id));
   const messageItems = await mapMessageRows(
     chronologicalRows,
     actor,
@@ -202,9 +262,30 @@ export async function getLiveRoomMessagePage({
   );
   const postItems = postPage.items.map(toLiveRoomPostPreview);
   const combinedItems = [...messageItems, ...postItems].sort(compareTimeline);
-  const items = ascending
+  let items = ascending
     ? combinedItems.slice(0, pageSize)
     : combinedItems.slice(-pageSize);
+  if (activeResumeState) {
+    const requiredIds = new Set([
+      activeResumeState.startMessageId,
+      activeResumeState.firstUnreadMessageId,
+    ]);
+    for (const requiredId of requiredIds) {
+      if (items.some((item) => item.id === requiredId)) continue;
+      const requiredItem = combinedItems.find(
+        (item) => item.id === requiredId,
+      );
+      if (requiredItem) items.push(requiredItem);
+    }
+    while (items.length > pageSize) {
+      const removableIndex = items.findLastIndex(
+        (item) => !requiredIds.has(item.id),
+      );
+      if (removableIndex < 0) break;
+      items.splice(removableIndex, 1);
+    }
+    items.sort(compareTimeline);
+  }
   const oldest = items[0];
   const latest = items[items.length - 1];
   const combinedHasMore =
@@ -213,15 +294,79 @@ export async function getLiveRoomMessagePage({
     combinedItems.length > pageSize;
 
   return {
+    firstUnreadMessageId: activeResumeState
+      ? activeResumeState.firstUnreadMessageId
+      : null,
+    initialMode: resumed ? "resume" : "latest",
+    isLatest: resumed ? !combinedHasMore : !after && !before,
     items,
     latestChangeCursor,
     latestCursor: latest
       ? encodeMessageCursor({ createdAt: latest.createdAt, id: latest.id })
       : null,
     nextCursor:
-      !ascending && combinedHasMore && oldest
-        ? encodeMessageCursor({ createdAt: oldest.createdAt, id: oldest.id })
+      ((resumed && oldest) ||
+        (!ascending && combinedHasMore && oldest))
+        ? encodeMessageCursor({
+            createdAt: oldest!.createdAt,
+            id: oldest!.id,
+          })
         : null,
+    unreadCount: activeResumeState
+      ? activeResumeState.unreadCount
+      : 0,
+  };
+}
+
+type LiveRoomResumeState = {
+  firstUnreadMessageId: string;
+  startCreatedAt: string;
+  startMessageId: string;
+  unreadCount: number;
+};
+
+async function getLiveRoomResumeState(
+  roomId: string,
+  memberUserId: string,
+): Promise<LiveRoomResumeState | null> {
+  const result = await supabaseRpc("get_live_room_resume_state", {
+    p_member_user_id: memberUserId,
+    p_room_id: roomId,
+  });
+  const row = readSingleRow(result.data);
+  if (!result.ok || !row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_RESUME_UNAVAILABLE",
+      result.error || "The saved reading position could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const firstUnreadMessageId = readString(
+    row.firstUnreadMessageId ?? row.first_unread_message_id,
+  );
+  const startMessageId = readString(
+    row.startMessageId ?? row.start_message_id,
+  );
+  const startCreatedAt = readString(
+    row.startCreatedAt ?? row.start_created_at,
+  );
+  const unreadCount = readNonnegativeCount(
+    row.unreadCount ?? row.unread_count,
+  );
+  if (
+    row.joined !== true ||
+    unreadCount < 1 ||
+    !isUuid(firstUnreadMessageId) ||
+    !isUuid(startMessageId) ||
+    !Number.isFinite(Date.parse(startCreatedAt))
+  ) {
+    return null;
+  }
+  return {
+    firstUnreadMessageId,
+    startCreatedAt,
+    startMessageId,
+    unreadCount,
   };
 }
 
@@ -2236,6 +2381,12 @@ function mapMembershipListItem(
     joinedAt,
     kind,
     label,
+    onlineCount: readNonnegativeCount(
+      row.onlineCount ?? row.online_count,
+    ),
+    participantCount: readNonnegativeCount(
+      row.participantCount ?? row.participant_count,
+    ),
     recentActivityAt,
     ticker,
     unreadCount: readNonnegativeCount(

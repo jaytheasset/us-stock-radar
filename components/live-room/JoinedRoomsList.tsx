@@ -68,11 +68,19 @@ function JoinedRoomRow({
         )}
       </span>
       <span>
-        <strong>{room.label}</strong>
-        <small>
-          {room.kind === "company" ? "Company" : "Community"}
-          {" · "}
-          {current ? "Current room" : formatRecent(room.recentActivityAt)}
+        <span className={styles.joinedRoomTitle}>
+          {room.kind === "company" && room.ticker ? (
+            <b>{room.ticker}</b>
+          ) : null}
+          <strong>{room.label}</strong>
+        </span>
+        <small className={styles.joinedRoomMeta}>
+          <span>
+            {room.participantCount} participants · {room.onlineCount} online
+          </span>
+          <span>
+            {current ? "Current room" : formatRecent(room.recentActivityAt)}
+          </span>
         </small>
       </span>
       {room.unreadCount > 0 ? (
@@ -81,11 +89,15 @@ function JoinedRoomRow({
           className={styles.joinedRoomUnread}
         >
           <MessageCircle aria-hidden="true" size={12} />
-          {room.unreadCount}
+          {formatUnreadCount(room.unreadCount)}
         </span>
       ) : null}
     </Link>
   );
+}
+
+function formatUnreadCount(value: number) {
+  return value > 99 ? "99+" : String(value);
 }
 
 function formatRecent(value: string) {

@@ -51,6 +51,8 @@ export async function GET(
           limit: Number(
             request.nextUrl.searchParams.get("limit") || 50,
           ),
+          resume:
+            request.nextUrl.searchParams.get("resume") === "true",
         });
     const response = NextResponse.json(
       {

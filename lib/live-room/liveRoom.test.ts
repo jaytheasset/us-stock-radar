@@ -45,6 +45,10 @@ import {
   LIVE_ROOM_REPLY_PREVIEW_MAX_LENGTH,
 } from "./replyPolicy.ts";
 import {
+  countIncomingUnreadMessages,
+  getUnreadMessageIdsThrough,
+} from "./readPosition.ts";
+import {
   LIVE_ROOM_REPORT_REASONS,
   type CompanyEvent,
   type LiveRoomChatMessage,
@@ -854,6 +858,79 @@ test("Live Room timeline starts latest, sticks selectively, and preserves older 
   assert.match(
     clientSource,
     /pendingOlderScrollRef\.current = timelineElement[\s\S]*previousScrollHeight:[\s\S]*previousScrollTop:/,
+  );
+});
+
+test("read position counts only ordinary non-self messages through the visible cursor", () => {
+  const message = (
+    id: string,
+    createdAt: string,
+    isMine: boolean,
+  ): LiveRoomChatMessage => ({
+    author: {
+      displayName: isMine ? "Me" : "Member",
+      emoji: isMine ? "M" : "R",
+      isGuest: false,
+      plan: "free",
+    },
+    body: id,
+    createdAt,
+    eventReference: null,
+    id,
+    isLiked: false,
+    isMine,
+    kind: "message",
+    likeCount: 0,
+    replyCount: 0,
+    replyPreview: null,
+  });
+  const timeline = [
+    message("context", "2026-07-29T10:00:00.000Z", false),
+    message("first-unread", "2026-07-29T10:01:00.000Z", false),
+    {
+      author: {
+        displayName: "Writer",
+        emoji: "W",
+        publicProfileId: "profile",
+      },
+      bodyPreview: "A post preview",
+      canLike: true,
+      commentCount: 0,
+      createdAt: "2026-07-29T10:01:30.000Z",
+      id: "post-preview",
+      isLiked: false,
+      kind: "post_preview" as const,
+      likeCount: 0,
+      listedTickers: [],
+      room: {
+        href: "/live/BBLG",
+        kind: "company" as const,
+        label: "BBLG",
+        ticker: "BBLG",
+      },
+      signalLabels: [],
+      title: "Preview",
+    },
+    message("mine", "2026-07-29T10:02:00.000Z", true),
+    message("visible-unread", "2026-07-29T10:03:00.000Z", false),
+    message("offscreen-unread", "2026-07-29T10:04:00.000Z", false),
+  ];
+
+  assert.deepEqual(
+    getUnreadMessageIdsThrough(
+      timeline,
+      "first-unread",
+      "visible-unread",
+    ),
+    ["first-unread", "visible-unread"],
+  );
+  assert.equal(countIncomingUnreadMessages(timeline), 4);
+  assert.equal(
+    countIncomingUnreadMessages([
+      timeline[2],
+      message("own-incoming", "2026-07-29T10:05:00.000Z", true),
+    ]),
+    0,
   );
 });
 
@@ -2047,9 +2124,16 @@ test("unread and mark-read DB contracts exclude self messages and only advance d
   assert.match(markReadFunction, /follow\.followed = true/i);
   assert.match(readRoute, /assertSameOriginAuthRequest\(request\)/);
   assert.match(readRoute, /input\?\.messageId \?\? null/);
-  assert.match(client, /\.markRead\(latestMessageId\)/);
-  assert.match(client, /getLatestChatMessageId\(messages\)/);
-  assert.match(client, /800/);
+  assert.doesNotMatch(client, /\.markRead\(latestMessageId\)/);
+  assert.doesNotMatch(client, /getLatestChatMessageId\(messages\)/);
+  const readHook = readSource(
+    "components/live-room/useLiveRoomReadPosition.ts",
+  );
+  assert.match(
+    readHook,
+    /getLatestVisibleLiveRoomMessageId[\s\S]*repository\.markRead\(latestVisibleMessageId\)/,
+  );
+  assert.match(readHook, /LIVE_ROOM_MARK_READ_THROTTLE_MS = 800/);
 });
 
 test("member follows are service-only and message IDs resolve targets without UUID exposure or N+1 reads", () => {
