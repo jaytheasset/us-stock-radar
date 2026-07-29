@@ -83,6 +83,7 @@ import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { MessageComposer } from "./MessageComposer";
 import {
+  LiveRoomHeaderAdSlot,
   LiveRoomMobileInlineAdSlot,
   LiveRoomRailAdSlot,
 } from "./LiveRoomAdSlots";
@@ -1315,17 +1316,25 @@ export function LiveRoomClient({
         themeMode="user-selectable"
       >
         <div className={styles.page}>
-        <CompanyRoomHeader
-          followed={followed}
-          historyButtonRef={historyOpenerRef}
-          identity={identity}
-          inviteState={inviteState}
-          onlineMemberCount={onlineMemberCount}
-          onInvite={handleInvite}
-          onOpenHistory={() => handleDesktopTabChange("events")}
-          onToggleFollow={handleToggleFollow}
-          quote={quote}
-        />
+        <div
+          className={styles.roomHeaderRow}
+          data-ad-enabled={adsEnabledForViewer ? "true" : undefined}
+        >
+          <CompanyRoomHeader
+            followed={followed}
+            historyButtonRef={historyOpenerRef}
+            identity={identity}
+            inviteState={inviteState}
+            onlineMemberCount={onlineMemberCount}
+            onInvite={handleInvite}
+            onOpenHistory={() => handleDesktopTabChange("events")}
+            onToggleFollow={handleToggleFollow}
+            quote={quote}
+          />
+          <LiveRoomHeaderAdSlot
+            enabledForViewer={adsEnabledForViewer}
+          />
+        </div>
 
         <LiveRoomMobileInlineAdSlot
           enabledForViewer={adsEnabledForViewer}

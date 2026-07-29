@@ -20,6 +20,10 @@
   padding: var(--sr-space-4) 0 var(--sr-space-8);
 }
 
+.roomHeaderRow {
+  min-width: 0;
+}
+
 .roomHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -441,6 +445,10 @@
   min-width: 0;
   justify-content: center;
   padding-bottom: var(--sr-space-4);
+}
+
+.desktopHeaderAd {
+  display: none;
 }
 
 .mobileInlineAd {
@@ -1812,6 +1820,42 @@ button.messageReplyPreview:hover {
 .composer input:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
+}
+
+@media (min-width: 761px) {
+  .marketSummaryValues strong {
+    font-size: var(--sr-font-size-lg);
+  }
+}
+
+@media (min-width: 1480px) {
+  .roomHeaderRow[data-ad-enabled="true"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 728px;
+    align-items: center;
+    gap: var(--sr-space-4);
+  }
+
+  .roomHeaderRow[data-ad-enabled="true"] .roomHeader {
+    gap: var(--sr-space-4);
+  }
+
+  .roomHeaderRow[data-ad-enabled="true"] .marketSummary {
+    min-width: 130px;
+    padding-left: var(--sr-space-4);
+  }
+
+  .roomHeaderRow[data-ad-enabled="true"] .roomActions {
+    gap: var(--sr-space-1);
+  }
+
+  .desktopHeaderAd {
+    display: flex;
+    width: 728px;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 1180px) {

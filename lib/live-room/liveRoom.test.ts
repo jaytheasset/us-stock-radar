@@ -709,8 +709,41 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   assert.match(headerSource, /formatQuotePrice\(quote\.price\)/);
   assert.match(headerSource, /formatQuotePercent\(quote\.changePercent\)/);
   assert.match(clientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(
+    clientSource,
+    /className=\{styles\.roomHeaderRow\}[\s\S]*data-ad-enabled=\{adsEnabledForViewer \? "true" : undefined\}[\s\S]*<CompanyRoomHeader[\s\S]*<LiveRoomHeaderAdSlot/,
+  );
   assert.match(clientSource, /<LiveRoomMobileInlineAdSlot/);
   assert.match(clientSource, /<LiveRoomRailAdSlot/);
+  assert.match(adSource, /inventory="live-room-header-728x90"/);
+  assert.match(
+    adSource,
+    /format="fixed"[\s\S]*height=\{90\}[\s\S]*mediaQuery="\(min-width: 1480px\)"[\s\S]*placeholderSize="728 × 90"[\s\S]*showRemoveAdsLink=\{false\}[\s\S]*width=\{728\}/,
+  );
+  assert.match(
+    styleSource,
+    /\.desktopHeaderAd\s*\{\s*display:\s*none;[\s\S]*@media \(min-width: 1480px\)[\s\S]*\.roomHeaderRow\[data-ad-enabled="true"\]\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) 728px;[\s\S]*gap:\s*var\(--sr-space-4\)/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 1480px\)[\s\S]*\.roomHeaderRow\[data-ad-enabled="true"\] \.roomHeader\s*\{[\s\S]*gap:\s*var\(--sr-space-4\)/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 1480px\)[\s\S]*\.roomHeaderRow\[data-ad-enabled="true"\] \.marketSummary\s*\{[\s\S]*min-width:\s*130px;[\s\S]*padding-left:\s*var\(--sr-space-4\)/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 1480px\)[\s\S]*\.roomHeaderRow\[data-ad-enabled="true"\] \.roomActions\s*\{[\s\S]*gap:\s*var\(--sr-space-1\)/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 1480px\)[\s\S]*\.desktopHeaderAd\s*\{[\s\S]*display:\s*flex;[\s\S]*width:\s*728px;[\s\S]*justify-content:\s*center/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(min-width: 761px\)[\s\S]*\.marketSummaryValues strong\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-lg\)/,
+  );
   assert.match(
     styleSource,
     /\.desktopRail\s*\{[\s\S]*height:\s*var\(--live-room-workspace-height\);[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto/,
