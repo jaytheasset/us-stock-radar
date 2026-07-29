@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -34,6 +40,12 @@ import {
   replaceLiveRoomTimeline,
   updateLiveRoomMessageEngagement,
 } from "@/lib/live-room/timeline";
+import {
+  getLiveRoomTimelineDistanceFromBottom,
+  isLiveRoomTimelineNearBottom,
+  preserveLiveRoomTimelinePrependPosition,
+  shouldScrollLiveRoomTimelineToBottom,
+} from "@/lib/live-room/timelineScroll";
 import type {
   LiveRoomBlockedActor,
   LiveRoomChatMessage,
@@ -54,19 +66,23 @@ import {
 } from "@/lib/live-room/community";
 import { ChatTimeline } from "./ChatTimeline";
 import { LiveRoomInviteMenu } from "./LiveRoomInviteMenu";
+import { LiveRoomLatestButton } from "./LiveRoomLatestButton";
 import { MessageComposer } from "./MessageComposer";
 import { PostsPanel } from "./PostsPanel";
 import { RoomMembershipControl } from "./RoomMembershipControl";
 import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
+import { useLiveRoomReadPosition } from "./useLiveRoomReadPosition";
 import roomStyles from "./LiveRoom.module.css";
 import styles from "./CommunityRooms.module.css";
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
 
 export function CommunityRoomClient({
+  activityMessageId,
   realtimeConfig,
   room,
 }: {
+  activityMessageId: string | null;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   room: CommunityRoom;
 }) {
@@ -86,6 +102,7 @@ export function CommunityRoomClient({
     useState<TimelineState>("loading");
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [loadingLatest, setLoadingLatest] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -121,10 +138,51 @@ export function CommunityRoomClient({
   const membershipRef = useRef(false);
   const presenceMessageIdsRef = useRef<string[]>([]);
   const replyScrollFrameRef = useRef<number | null>(null);
+  const timelineScrollFrameRef = useRef<number | null>(null);
+  const didInitialTimelineScrollRef = useRef(false);
+  const forceOwnTimelineScrollRef = useRef(false);
+  const previousTimelineTailIdRef = useRef<string | null>(null);
+  const pendingOlderScrollRef = useRef<{
+    previousScrollHeight: number;
+    previousScrollTop: number;
+  } | null>(null);
   const timelineGenerationRef = useRef(0);
   const messageLikeIdsRef = useRef<Set<string>>(new Set());
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
+  );
+  const {
+    firstUnreadMessageId,
+    handleTimelineScroll,
+    initializeReadPosition,
+    isLatestLoaded,
+    markLatestLoaded,
+    nearBottom,
+    pendingUnreadCount,
+    recordIncomingMessages,
+    resetReadPosition,
+    scheduleVisibleRead,
+    timelineElementRef,
+    timelineSticksToBottomRef,
+  } = useLiveRoomReadPosition({
+    membershipJoined,
+    repository,
+    timeline,
+  });
+  const timelineTailId = timeline.at(-1)?.id ?? null;
+
+  const scheduleTimelineScroll = useCallback(
+    (scroll: (element: HTMLDivElement) => void) => {
+      if (timelineScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(timelineScrollFrameRef.current);
+      }
+      timelineScrollFrameRef.current = window.requestAnimationFrame(() => {
+        timelineScrollFrameRef.current = null;
+        const element = timelineElementRef.current;
+        if (element) scroll(element);
+      });
+    },
+    [timelineElementRef],
   );
 
   useEffect(() => {
@@ -143,6 +201,12 @@ export function CommunityRoomClient({
     setTimelineState("loading");
     setOlderCursor(null);
     setNotice(null);
+    setHighlightedMessageId(null);
+    didInitialTimelineScrollRef.current = false;
+    forceOwnTimelineScrollRef.current = false;
+    previousTimelineTailIdRef.current = null;
+    pendingOlderScrollRef.current = null;
+    resetReadPosition();
 
     void (async () => {
       try {
@@ -159,7 +223,7 @@ export function CommunityRoomClient({
           membership,
           nextPresenceSetting,
         ] = await Promise.all([
-          repository.list(),
+          repository.list({ resume: !activityMessageId }),
           repository.listBlocks(),
           nextProfile.canModerate
             ? repository.listHiddenMessages()
@@ -168,8 +232,27 @@ export function CommunityRoomClient({
           presenceSettingPromise,
         ]);
         if (!isCurrent()) return;
-        setTimeline(replaceLiveRoomTimeline(page.items));
-        setTimelineState(page.items.length ? "ready" : "empty");
+        let initialItems = page.items;
+        if (activityMessageId) {
+          try {
+            const anchor =
+              page.items.find(
+                (item) =>
+                  item.kind === "message" &&
+                  item.id === activityMessageId,
+              ) ||
+              (await repository.readMessageAnchor(activityMessageId));
+            if (!isCurrent()) return;
+            initialItems = mergeLiveRoomTimeline(initialItems, [anchor]);
+            setHighlightedMessageId(anchor.id);
+          } catch (error) {
+            if (!isCurrent()) return;
+            setNotice(toLiveRoomApiError(error).message);
+          }
+        }
+        initializeReadPosition(page);
+        setTimeline(replaceLiveRoomTimeline(initialItems));
+        setTimelineState(initialItems.length ? "ready" : "empty");
         setOlderCursor(page.nextCursor);
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
@@ -181,13 +264,6 @@ export function CommunityRoomClient({
             ? false
             : nextPresenceSetting?.showPresence ?? null,
         );
-        if (membership.joined) {
-          void repository
-            .markRead(null)
-            .then(requestLiveRoomUnreadRefresh)
-            .catch(() => undefined);
-        }
-
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
           onError: (error) => {
@@ -203,12 +279,7 @@ export function CommunityRoomClient({
               mergeLiveRoomTimeline(current, messages),
             );
             setTimelineState("ready");
-            if (membershipRef.current) {
-              void repository
-                .markRead(null)
-                .then(requestLiveRoomUnreadRefresh)
-                .catch(() => undefined);
-            }
+            recordIncomingMessages(messages);
           },
           onRemoved: (messageIds) => {
             if (!isCurrent() || !messageIds.length) return;
@@ -240,7 +311,131 @@ export function CommunityRoomClient({
         updatesSubscriptionRef.current = null;
       }
     };
-  }, [reloadKey, repository]);
+  }, [
+    activityMessageId,
+    initializeReadPosition,
+    recordIncomingMessages,
+    reloadKey,
+    repository,
+    resetReadPosition,
+  ]);
+
+  useEffect(() => {
+    if (timelineState !== "ready" || !timelineTailId) return;
+    const initial = !didInitialTimelineScrollRef.current;
+    const forcedByOwnSend = forceOwnTimelineScrollRef.current;
+    if (
+      previousTimelineTailIdRef.current === timelineTailId &&
+      !forcedByOwnSend
+    ) {
+      return;
+    }
+    previousTimelineTailIdRef.current = timelineTailId;
+
+    if (initial && firstUnreadMessageId) {
+      didInitialTimelineScrollRef.current = true;
+      forceOwnTimelineScrollRef.current = false;
+      scheduleTimelineScroll((element) => {
+        const target = document.getElementById(
+          `live-room-message-${firstUnreadMessageId}`,
+        );
+        if (target && element.contains(target)) {
+          const viewport = element.getBoundingClientRect();
+          const bounds = target.getBoundingClientRect();
+          element.scrollTop +=
+            bounds.top -
+            viewport.top -
+            Math.min(element.clientHeight / 4, 96);
+        }
+        handleTimelineScroll();
+        scheduleVisibleRead();
+      });
+      return;
+    }
+
+    if (initial && highlightedMessageId) {
+      didInitialTimelineScrollRef.current = true;
+      forceOwnTimelineScrollRef.current = false;
+      scheduleTimelineScroll((element) => {
+        const target = document.getElementById(
+          `live-room-message-${highlightedMessageId}`,
+        );
+        if (target && element.contains(target)) {
+          const viewport = element.getBoundingClientRect();
+          const bounds = target.getBoundingClientRect();
+          element.scrollTo({
+            behavior: "auto",
+            top: Math.max(
+              0,
+              element.scrollTop +
+                bounds.top -
+                viewport.top -
+                (element.clientHeight - bounds.height) / 2,
+            ),
+          });
+        }
+        handleTimelineScroll();
+        scheduleVisibleRead();
+      });
+      return;
+    }
+
+    const reason = initial
+      ? "initial"
+      : forcedByOwnSend
+        ? "own-send"
+        : "incoming";
+    const shouldScroll = shouldScrollLiveRoomTimelineToBottom(
+      reason,
+      timelineSticksToBottomRef.current,
+    );
+    didInitialTimelineScrollRef.current = true;
+    if (!shouldScroll) {
+      forceOwnTimelineScrollRef.current = false;
+      return;
+    }
+    scheduleTimelineScroll((element) => {
+      element.scrollTo({
+        behavior: reason === "incoming" ? "smooth" : "auto",
+        top: element.scrollHeight,
+      });
+      forceOwnTimelineScrollRef.current = false;
+      timelineSticksToBottomRef.current = true;
+      scheduleVisibleRead();
+    });
+  }, [
+    firstUnreadMessageId,
+    handleTimelineScroll,
+    highlightedMessageId,
+    scheduleTimelineScroll,
+    scheduleVisibleRead,
+    timelineState,
+    timelineTailId,
+    timelineSticksToBottomRef,
+  ]);
+
+  useEffect(() => {
+    const pendingScroll = pendingOlderScrollRef.current;
+    if (!pendingScroll) return;
+    pendingOlderScrollRef.current = null;
+    if (forceOwnTimelineScrollRef.current) return;
+    scheduleTimelineScroll((element) => {
+      element.scrollTop = preserveLiveRoomTimelinePrependPosition({
+        nextScrollHeight: element.scrollHeight,
+        previousScrollHeight: pendingScroll.previousScrollHeight,
+        previousScrollTop: pendingScroll.previousScrollTop,
+      });
+      timelineSticksToBottomRef.current = isLiveRoomTimelineNearBottom(
+        getLiveRoomTimelineDistanceFromBottom(element),
+      );
+      scheduleVisibleRead();
+    });
+  }, [
+    scheduleTimelineScroll,
+    scheduleVisibleRead,
+    timeline,
+    timelineSticksToBottomRef,
+  ]);
 
   useEffect(() => {
     presenceMessageIdsRef.current =
@@ -331,6 +526,9 @@ export function CommunityRoomClient({
       if (replyScrollFrameRef.current !== null) {
         window.cancelAnimationFrame(replyScrollFrameRef.current);
       }
+      if (timelineScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(timelineScrollFrameRef.current);
+      }
     },
     [],
   );
@@ -389,10 +587,22 @@ export function CommunityRoomClient({
       });
       setMembershipJoined(true);
       membershipRef.current = true;
+      markLatestLoaded();
+      forceOwnTimelineScrollRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
       );
       setTimelineState("ready");
+      scheduleTimelineScroll((element) => {
+        element.scrollTo({
+          behavior: "smooth",
+          top: element.scrollHeight,
+        });
+        didInitialTimelineScrollRef.current = true;
+        forceOwnTimelineScrollRef.current = false;
+        timelineSticksToBottomRef.current = true;
+        scheduleVisibleRead();
+      });
       setBody("");
       setReplyingTo(null);
       setDecision(null);
@@ -557,6 +767,13 @@ export function CommunityRoomClient({
     setLoadingOlder(true);
     try {
       const page = await repository.list({ before: olderCursor });
+      const timelineElement = timelineElementRef.current;
+      pendingOlderScrollRef.current = timelineElement
+        ? {
+            previousScrollHeight: timelineElement.scrollHeight,
+            previousScrollTop: timelineElement.scrollTop,
+          }
+        : null;
       setTimeline((current) =>
         mergeLiveRoomTimeline(page.items, current),
       );
@@ -566,6 +783,24 @@ export function CommunityRoomClient({
       setNotice(toLiveRoomApiError(error).message);
     } finally {
       setLoadingOlder(false);
+    }
+  };
+
+  const handleLatest = async () => {
+    if (loadingLatest) return;
+    setLoadingLatest(true);
+    setNotice(null);
+    try {
+      const page = await repository.list();
+      markLatestLoaded();
+      forceOwnTimelineScrollRef.current = true;
+      setTimeline(replaceLiveRoomTimeline(page.items));
+      setOlderCursor(page.nextCursor);
+      setTimelineState(page.items.length ? "ready" : "empty");
+    } catch (error) {
+      setNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setLoadingLatest(false);
     }
   };
 
@@ -912,7 +1147,12 @@ export function CommunityRoomClient({
             ) : null}
           </div>
 
-          <div className={roomStyles.timeline}>
+          <div className={roomStyles.timelineViewport}>
+            <div
+              className={roomStyles.timeline}
+              onScroll={handleTimelineScroll}
+              ref={timelineElementRef}
+            >
             {olderCursor && timelineState === "ready" ? (
               <button
                 className={roomStyles.loadOlderButton}
@@ -929,6 +1169,7 @@ export function CommunityRoomClient({
               currentProfileName={profile?.displayName.trim() || ""}
               emptyDescription="Share the first useful thought with the room."
               emptyTitle="Start this community discussion."
+              firstUnreadMessageId={firstUnreadMessageId}
               highlightedMessageId={highlightedMessageId}
               items={timeline}
               loginHref={roomLoginHref}
@@ -946,6 +1187,17 @@ export function CommunityRoomClient({
               state={timelineState}
               viewerIsGuest={profile?.isGuest !== false}
             />
+            </div>
+            {timelineState === "ready" &&
+            (!nearBottom ||
+              pendingUnreadCount > 0 ||
+              !isLatestLoaded) ? (
+              <LiveRoomLatestButton
+                busy={loadingLatest}
+                onClick={() => void handleLatest()}
+                unreadCount={pendingUnreadCount}
+              />
+            ) : null}
           </div>
 
           <MessageComposer

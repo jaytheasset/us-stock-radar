@@ -1095,6 +1095,23 @@
   gap: var(--sr-space-1);
 }
 
+.joinedRoomTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-2);
+}
+
+.joinedRoomTitle > b {
+  flex: 0 0 auto;
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-0-5) var(--sr-space-1-5);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-xs);
+}
+
 .joinedRoomItem strong,
 .joinedRoomItem small {
   overflow: hidden;
@@ -1110,6 +1127,24 @@
 .joinedRoomItem small {
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
+}
+
+.joinedRoomMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+}
+
+.joinedRoomMeta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joinedRoomMeta > span:last-child {
+  flex: 0 0 auto;
 }
 
 .joinedRoomUnread {
@@ -1288,7 +1323,14 @@
   opacity: var(--sr-opacity-disabled);
 }
 
+.timelineViewport {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .timeline {
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1644,6 +1686,57 @@
   font-size: var(--sr-font-size-base);
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.newMessagesDivider {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.newMessagesDivider::before,
+.newMessagesDivider::after {
+  height: var(--sr-border-width);
+  flex: 1 1 auto;
+  background: var(--sr-color-accent-border);
+  content: "";
+}
+
+.latestMessagesButton {
+  position: absolute;
+  z-index: var(--sr-z-sticky-action);
+  right: var(--sr-space-3);
+  bottom: var(--sr-space-3);
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  gap: var(--sr-space-1-5);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-elevated);
+  box-shadow: var(--sr-shadow-menu);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.latestMessagesButton:hover {
+  background: var(--sr-color-surface-control-strong);
+}
+
+.latestMessagesButton:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.latestMessagesButton b {
+  color: var(--sr-color-accent-text);
 }
 
 .messageEngagement {
@@ -2322,6 +2415,7 @@ button.messageReplyPreview:hover {
 .historyEventCard a:focus-visible,
 .roomManagement button:focus-visible,
 .managementPanel button:focus-visible,
+.latestMessagesButton:focus-visible,
 .messageEngagementControl:focus-visible,
 .messageReplyPreview:focus-visible,
 .messageActions button:focus-visible,

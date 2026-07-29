@@ -10,6 +10,7 @@ import { LiveRoomPolicyError } from "@/lib/live-room/policy";
 
 type CommunityRoomPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ message?: string | string[] }>;
 };
 
 export async function generateMetadata({
@@ -38,8 +39,10 @@ export async function generateMetadata({
 
 export default async function CommunityRoomPage({
   params,
+  searchParams,
 }: CommunityRoomPageProps) {
   const { slug: rawSlug } = await params;
+  const query = await searchParams;
   const slug = getCommunityRoomSlugOrNull(rawSlug);
   if (!slug) notFound();
   if (rawSlug !== slug) redirect(`/live/community/${slug}`);
@@ -48,6 +51,9 @@ export default async function CommunityRoomPage({
     const room = await getCommunityRoom(slug);
     return (
       <CommunityRoomClient
+        activityMessageId={
+          typeof query.message === "string" ? query.message : null
+        }
         realtimeConfig={getLiveRoomRealtimeConfig()}
         room={room}
       />

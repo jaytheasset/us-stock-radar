@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -38,6 +38,7 @@ type ChatTimelineProps = {
   currentProfileName: string;
   emptyDescription?: string;
   emptyTitle?: string;
+  firstUnreadMessageId?: string | null;
   highlightedMessageId?: string | null;
   items: readonly LiveRoomTimelineItem[];
   loginHref: string;
@@ -106,6 +107,7 @@ export function ChatTimeline({
   currentProfileName,
   emptyDescription = "Mention an event or share the first view.",
   emptyTitle = "Start this company discussion.",
+  firstUnreadMessageId = null,
   highlightedMessageId,
   items,
   loginHref,
@@ -168,9 +170,21 @@ export function ChatTimeline({
   return (
     <ol aria-label={ariaLabel} className={styles.timelineList}>
       {items.map((item) => {
+        const unreadDivider =
+          item.kind === "message" &&
+          item.id === firstUnreadMessageId ? (
+            <li
+              aria-label="New messages"
+              className={styles.newMessagesDivider}
+            >
+              <span>New messages</span>
+            </li>
+          ) : null;
         if (item.kind === "company_update") {
           return (
-            <li className={styles.systemUpdate} key={item.id}>
+            <Fragment key={item.id}>
+              {unreadDivider}
+              <li className={styles.systemUpdate}>
               <div>
                 <Sparkles aria-hidden="true" size={14} />
                 <strong>New company update</strong>
@@ -193,13 +207,16 @@ export function ChatTimeline({
                 ·{" "}
                 {formatEventTime(item.event.occurredAt)}
               </small>
-            </li>
+              </li>
+            </Fragment>
           );
         }
 
         if (item.kind === "post_preview") {
           return (
-            <li className={styles.postPreview} key={item.id}>
+            <Fragment key={item.id}>
+              {unreadDivider}
+              <li className={styles.postPreview}>
               <div className={styles.postPreviewIcon}>
                 <FileText aria-hidden="true" size={17} />
               </div>
@@ -250,7 +267,8 @@ export function ChatTimeline({
                   </span>
                 </div>
               </div>
-            </li>
+              </li>
+            </Fragment>
           );
         }
 
@@ -266,15 +284,16 @@ export function ChatTimeline({
               )}`
             : null;
         return (
-          <li
-            className={`${mine ? styles.myMessage : styles.otherMessage}${
-              highlightedMessageId === item.id
-                ? ` ${styles.highlightedMessage}`
-                : ""
-            }`}
-            id={`live-room-message-${item.id}`}
-            key={item.id}
-          >
+          <Fragment key={item.id}>
+            {unreadDivider}
+            <li
+              className={`${mine ? styles.myMessage : styles.otherMessage}${
+                highlightedMessageId === item.id
+                  ? ` ${styles.highlightedMessage}`
+                  : ""
+              }`}
+              id={`live-room-message-${item.id}`}
+            >
             {publicProfileHref ? (
               <Link
                 aria-label={`View ${item.author.displayName}'s public profile`}
@@ -388,7 +407,8 @@ export function ChatTimeline({
                 viewerIsGuest={viewerIsGuest}
               />
             </article>
-          </li>
+            </li>
+          </Fragment>
         );
       })}
     </ol>

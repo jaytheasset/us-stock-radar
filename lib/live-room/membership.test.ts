@@ -10,6 +10,9 @@ const read = (file: string) =>
 const migration = read(
   "supabase/migrations/20260729073253_live_room_persistent_membership.sql",
 );
+const resumeMigration = read(
+  "supabase/migrations/20260729135952_live_room_resume_and_membership_counts.sql",
+);
 const privateSchemaGrantMigration = read(
   "supabase/migrations/20260729084500_live_room_private_schema_service_role.sql",
 );
@@ -261,8 +264,8 @@ test("room UI exposes one Join state, safe guest return, Leave confirmation, and
 
 test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile, and the directory", () => {
   const listFunction =
-    migration.match(
-      /create function public\.list_live_room_memberships\([\s\S]+?\$\$;/i,
+    resumeMigration.match(
+      /create or replace function public\.list_live_room_memberships\([\s\S]+?\$\$;/i,
     )?.[0] ?? "";
   assert.match(
     listFunction,
@@ -278,7 +281,15 @@ test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile,
   );
   assert.match(
     listFunction,
-    /'recentActivityAt'[\s\S]*'unreadCount'/i,
+    /'recentActivityAt'[\s\S]*'participantCount'[\s\S]*'onlineCount'[\s\S]*'unreadCount'/i,
+  );
+  assert.match(
+    listFunction,
+    /public_members[\s\S]*online_members[\s\S]*online_member_visitors[\s\S]*online_guests[\s\S]*group by member\.room_id/i,
+  );
+  assert.doesNotMatch(
+    listFunction,
+    /get_live_room_room_state|foreach|for\s+\w+\s+in/i,
   );
   assert.match(
     listFunction,
@@ -302,9 +313,117 @@ test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile,
   );
   assert.match(
     joinedList,
-    /room\.kind === "company"[\s\S]*room\.recentActivityAt[\s\S]*room\.unreadCount/,
+    /room\.kind === "company"[\s\S]*room\.ticker[\s\S]*room\.participantCount\} participants[\s\S]*room\.onlineCount\} online[\s\S]*room\.recentActivityAt[\s\S]*formatUnreadCount\(room\.unreadCount\)/,
+  );
+  assert.match(joinedList, /value > 99 \? "99\+" : String\(value\)/);
+  assert.match(
+    types,
+    /LiveRoomMembershipListItem[\s\S]*onlineCount: number;[\s\S]*participantCount: number;/,
+  );
+  assert.match(
+    server,
+    /mapMembershipListItem[\s\S]*onlineCount: readNonnegativeCount[\s\S]*participantCount: readNonnegativeCount/,
   );
   assert.doesNotMatch(joinedList, /Leave room|onLeave/);
+});
+
+test("joined room resume reuses the canonical read cursor with visible block-safe fallback", () => {
+  const resumeFunction =
+    resumeMigration.match(
+      /create function public\.get_live_room_resume_state\([\s\S]+?\$\$;/i,
+    )?.[0] ?? "";
+  const companyMessagesRoute = read(
+    "app/api/live-room/[ticker]/messages/route.ts",
+  );
+  const communityMessagesRoute = read(
+    "app/api/live-room/community/[slug]/messages/route.ts",
+  );
+  const communityPage = read(
+    "app/live/community/[slug]/page.tsx",
+  );
+  const readHook = read(
+    "components/live-room/useLiveRoomReadPosition.ts",
+  );
+  const latestButton = read(
+    "components/live-room/LiveRoomLatestButton.tsx",
+  );
+
+  assert.match(
+    resumeFunction,
+    /join public\.live_room_follows[\s\S]*last_read_at[\s\S]*last_read_message_id/i,
+  );
+  assert.match(
+    resumeFunction,
+    /message\.visibility_status = 'visible'[\s\S]*message\.member_user_id is distinct from p_member_user_id/i,
+  );
+  assert.match(
+    resumeFunction,
+    /block\.blocker_member_user_id = p_member_user_id[\s\S]*block\.blocked_actor_id = message\.actor_id[\s\S]*block\.blocker_actor_id = message\.actor_id[\s\S]*block\.blocked_member_user_id = p_member_user_id/i,
+  );
+  assert.match(
+    resumeFunction,
+    /first_unread[\s\S]*context_message[\s\S]*order by message\.created_at desc, message\.id desc[\s\S]*limit 1/i,
+  );
+  assert.match(resumeFunction, /security invoker[\s\S]*set search_path = ''/i);
+  assert.match(
+    resumeMigration,
+    /revoke all on function public\.get_live_room_resume_state\(uuid, uuid\)\s+from public, anon, authenticated[\s\S]*grant execute on function public\.get_live_room_resume_state\(uuid, uuid\)\s+to service_role/i,
+  );
+  assert.match(
+    server,
+    /supabaseRpc\("get_live_room_resume_state"[\s\S]*p_member_user_id: memberUserId[\s\S]*p_room_id: roomId/,
+  );
+  assert.match(
+    api,
+    /if \(options\.resume\) search\.set\("resume", "true"\)/,
+  );
+  assert.match(companyMessagesRoute, /searchParams\.get\("resume"\) === "true"/);
+  assert.match(
+    communityMessagesRoute,
+    /searchParams\.get\("resume"\) === "true"/,
+  );
+  assert.match(
+    companyClient,
+    /repository\.list\(\{ resume: !activityMessageId \}\)/,
+  );
+  assert.match(
+    communityClient,
+    /repository\.list\(\{ resume: !activityMessageId \}\)/,
+  );
+  assert.match(
+    communityClient,
+    /if \(initial && highlightedMessageId\)[\s\S]*scheduleTimelineScroll\(\(element\) => \{[\s\S]*live-room-message-\$\{highlightedMessageId\}[\s\S]*element\.contains\(target\)[\s\S]*element\.scrollTo\(\{[\s\S]*\(element\.clientHeight - bounds\.height\) \/ 2[\s\S]*handleTimelineScroll\(\);[\s\S]*scheduleVisibleRead\(\);/,
+  );
+  assert.doesNotMatch(
+    communityClient,
+    /markMemberActivityRead/,
+  );
+  assert.match(
+    communityPage,
+    /searchParams[\s\S]*activityMessageId=\{[\s\S]*query\.message/,
+  );
+  assert.doesNotMatch(companyClient, /\.markRead\(latestMessageId\)/);
+  assert.doesNotMatch(communityClient, /\.markRead\(null\)/);
+  assert.match(
+    readHook,
+    /getLatestVisibleLiveRoomMessageId[\s\S]*repository\.markRead\(latestVisibleMessageId\)[\s\S]*LIVE_ROOM_MARK_READ_THROTTLE_MS/,
+  );
+  assert.match(
+    readHook,
+    /item\.kind === "message"\s*&&\s*item\.isMine !== true/,
+  );
+  assert.match(
+    companyClient,
+    /firstUnreadMessageId=\{firstUnreadMessageId\}[\s\S]*<LiveRoomLatestButton/,
+  );
+  assert.match(
+    communityClient,
+    /firstUnreadMessageId=\{firstUnreadMessageId\}[\s\S]*<LiveRoomLatestButton/,
+  );
+  assert.match(
+    latestButton,
+    /Go to latest messages[\s\S]*<span>Latest<\/span>[\s\S]*unreadCount > 99 \? "99\+"/,
+  );
 });
 
 test("membership controls and five-tab mobile navigation remain compact without arbitrary tokens", () => {

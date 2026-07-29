@@ -124,6 +124,8 @@ export type LiveRoomMembershipListItem = {
   joinedAt: string;
   kind: "community" | "company";
   label: string;
+  onlineCount: number;
+  participantCount: number;
   recentActivityAt: string;
   ticker: string | null;
   unreadCount: number;
