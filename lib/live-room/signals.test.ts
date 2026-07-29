@@ -4,9 +4,13 @@ import path from "node:path";
 import test from "node:test";
 import { normalizeLiveRoomPostDraft } from "./postPolicy.ts";
 import {
+  LIVE_ROOM_POST_DIRECTIONS,
+  LIVE_ROOM_POST_DIRECTION_TAGS,
   LIVE_ROOM_POST_SIGNAL_GROUPS,
   LIVE_ROOM_POST_SIGNAL_VALUES,
+  encodeLiveRoomPostMetadataTags,
   getLiveRoomPostSignalLabel,
+  readLiveRoomPostDirection,
 } from "./postSignals.ts";
 
 const projectRoot = process.cwd();
@@ -29,6 +33,8 @@ test("post signal taxonomy is canonical, grouped, and user-facing", () => {
       "mergers_and_acquisitions",
       "buyback",
       "insider_activity",
+      "stock_split",
+      "reverse_split",
       "regulatory_fda",
       "contract_partnership",
       "positive_catalyst",
@@ -54,9 +60,14 @@ test("post signal taxonomy is canonical, grouped, and user-facing", () => {
     getLiveRoomPostSignalLabel("regulatory_fda"),
     "Regulatory / FDA",
   );
+  assert.equal(getLiveRoomPostSignalLabel("stock_split"), "Stock split");
+  assert.equal(
+    getLiveRoomPostSignalLabel("reverse_split"),
+    "Reverse split",
+  );
 });
 
-test("post draft normalization defaults signals and accepts at most three canonical values", () => {
+test("post draft normalization keeps signals optional and direction optional and exclusive", () => {
   const baseDraft = {
     body: "A durable thesis with enough detail for a Live Room post.",
     eventId: null,
@@ -65,6 +76,7 @@ test("post draft normalization defaults signals and accepts at most three canoni
   };
 
   assert.deepEqual(normalizeLiveRoomPostDraft(baseDraft).signalLabels, []);
+  assert.equal(normalizeLiveRoomPostDraft(baseDraft).direction, null);
   assert.deepEqual(
     normalizeLiveRoomPostDraft({
       ...baseDraft,
@@ -76,6 +88,15 @@ test("post draft normalization defaults signals and accepts at most three canoni
     }).signalLabels,
     ["earnings_beat", "guidance_raised", "positive_catalyst"],
   );
+  for (const direction of LIVE_ROOM_POST_DIRECTIONS) {
+    assert.equal(
+      normalizeLiveRoomPostDraft({
+        ...baseDraft,
+        direction: direction.value,
+      }).direction,
+      direction.value,
+    );
+  }
   assert.throws(
     () =>
       normalizeLiveRoomPostDraft({
@@ -105,6 +126,30 @@ test("post draft normalization defaults signals and accepts at most three canoni
       }),
     /must be unique/,
   );
+  assert.throws(
+    () =>
+      normalizeLiveRoomPostDraft({
+        ...baseDraft,
+        direction: "strongly_bullish",
+      }),
+    /available list/,
+  );
+});
+
+test("direction round-trips through the existing metadata tag array without consuming a signal slot", () => {
+  const signals = [
+    "stock_split",
+    "earnings_beat",
+    "positive_catalyst",
+  ] as const;
+  const encoded = encodeLiveRoomPostMetadataTags(signals, "bullish");
+
+  assert.deepEqual(encoded, [
+    ...signals,
+    LIVE_ROOM_POST_DIRECTION_TAGS.bullish,
+  ]);
+  assert.equal(readLiveRoomPostDirection(encoded), "bullish");
+  assert.equal(readLiveRoomPostDirection(signals), null);
 });
 
 test("signal migration is bounded, indexed, backward compatible, and service-only", () => {
@@ -164,6 +209,41 @@ test("signal migration is bounded, indexed, backward compatible, and service-onl
   assert.doesNotMatch(migration, /security definer/i);
 });
 
+test("split and direction metadata migration extends the enum and preserves independent limits", () => {
+  const migration = readSource(
+    "supabase/migrations/20260729153617_live_room_post_split_direction.sql",
+  );
+
+  for (const value of [
+    "stock_split",
+    "reverse_split",
+    ...Object.values(LIVE_ROOM_POST_DIRECTION_TAGS),
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(`add value if not exists '${value}'`, "i"),
+    );
+  }
+  assert.match(migration, /cardinality\(p_values\) <= 4/i);
+  assert.match(
+    migration,
+    /where signal::text not in \([\s\S]*'direction_bullish'[\s\S]*\)\s*<= 3/i,
+  );
+  assert.match(
+    migration,
+    /where signal::text in \([\s\S]*'direction_neutral'[\s\S]*\)\s*<= 1/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.live_room_post_signals_valid\([\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.live_room_post_signals_valid\([\s\S]*to service_role/i,
+  );
+  assert.doesNotMatch(migration, /security definer/i);
+});
+
 test("signals flow through server selection, mutation, mapping, and browser drafts", () => {
   const repository = readSource("lib/live-room/postServerRepository.ts");
   const timelineRepository = readSource(
@@ -175,10 +255,19 @@ test("signals flow through server selection, mutation, mapping, and browser draf
   );
 
   assert.match(repository, /select:[\s\S]*signal_labels/);
-  assert.match(repository, /p_signal_labels:\s*normalized\.signalLabels/g);
+  assert.equal(
+    repository.match(
+      /p_signal_labels:\s*encodeLiveRoomPostMetadataTags\([\s\S]*?normalized\.direction,[\s\S]*?\)/g,
+    )?.length,
+    2,
+  );
   assert.match(
     repository,
     /signalLabels:\s*Array\.isArray\(row\.signal_labels\)[\s\S]*filter\(isLiveRoomPostSignal\)/,
+  );
+  assert.match(
+    repository,
+    /direction:\s*Array\.isArray\(row\.signal_labels\)[\s\S]*readLiveRoomPostDirection\(row\.signal_labels\)/,
   );
   assert.match(timelineRepository, /signal_labels/);
   assert.match(
@@ -217,6 +306,18 @@ test("signal UI explains grouped selection and uses the requested display limits
   assert.match(signalUi, /disabled=\{!checked && atLimit\}/);
   assert.match(
     signalUi,
+    /LIVE_ROOM_POST_DIRECTIONS\.map[\s\S]*aria-pressed=\{selected\}[\s\S]*onChange\(selected \? null : option\.value\)/,
+  );
+  for (const direction of LIVE_ROOM_POST_DIRECTIONS) {
+    assert.match(
+      signalStyles,
+      new RegExp(
+        `\\[data-direction="${direction.value}"\\][\\s\\S]*var\\(--sr-color-`,
+      ),
+    );
+  }
+  assert.match(
+    signalUi,
     /LIVE_ROOM_POST_SIGNAL_ICONS\[signal\][\s\S]*<SignalIcon aria-hidden="true"/,
   );
   assert.match(
@@ -238,16 +339,32 @@ test("signal UI explains grouped selection and uses the requested display limits
   assert.match(postsPanel, /<PostSignalSelector[\s\S]*value=\{signalLabels\}/);
   assert.match(
     postsPanel,
-    /<PostSignalChips maxVisible=\{2\} signals=\{post\.signalLabels\}/,
+    /<PostDirectionSelector[\s\S]*onChange=\{setDirection\}[\s\S]*value=\{direction\}/,
+  );
+  assert.match(
+    postsPanel,
+    /direction:\s*post\.direction[\s\S]*signalLabels:\s*post\.signalLabels/,
+  );
+  assert.match(
+    postsPanel,
+    /<PostSignalChips[\s\S]*maxVisible=\{2\}[\s\S]*signals=\{post\.signalLabels\}/,
   );
   assert.match(
     detail,
     /<PostSignalSelector[\s\S]*value=\{draft\.signalLabels\}/,
   );
+  assert.match(
+    detail,
+    /<PostDirectionSelector[\s\S]*value=\{draft\.direction\}/,
+  );
+  assert.match(
+    detail,
+    /<PostDirectionBadge direction=\{post\.direction\}/,
+  );
   assert.match(detail, /<PostSignalChips signals=\{post\.signalLabels\}/);
   assert.match(
     timeline,
-    /<PostSignalChips[\s\S]*maxVisible=\{1\}[\s\S]*showOverflow=\{false\}[\s\S]*signals=\{item\.signalLabels\}/,
+    /<PostDirectionBadge direction=\{item\.direction\}[\s\S]*<PostSignalChips[\s\S]*maxVisible=\{1\}[\s\S]*showOverflow=\{false\}[\s\S]*signals=\{item\.signalLabels\}/,
   );
   assert.match(postsStyles, /\.form > label > input/);
   assert.match(detailStyles, /\.editForm > label > input/);

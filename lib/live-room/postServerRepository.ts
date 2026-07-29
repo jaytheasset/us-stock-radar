@@ -21,7 +21,11 @@ import {
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy";
-import { isLiveRoomPostSignal } from "./postSignals";
+import {
+  encodeLiveRoomPostMetadataTags,
+  isLiveRoomPostSignal,
+  readLiveRoomPostDirection,
+} from "./postSignals";
 import {
   normalizeLiveRoomPostCommentDraft,
   normalizeLiveRoomPostCommentPageLimit,
@@ -266,7 +270,10 @@ export async function createLiveRoomPost({
     p_body: normalized.body,
     p_related_tickers: normalized.relatedTickers,
     p_referenced_event_id: normalized.eventId,
-    p_signal_labels: normalized.signalLabels,
+    p_signal_labels: encodeLiveRoomPostMetadataTags(
+      normalized.signalLabels,
+      normalized.direction,
+    ),
   });
   return mapMutationResult(result, actor, "LIVE_ROOM_POST_CREATE_FAILED");
 }
@@ -296,7 +303,10 @@ export async function updateLiveRoomPost({
     p_body: normalized.body,
     p_related_tickers: normalized.relatedTickers,
     p_referenced_event_id: normalized.eventId,
-    p_signal_labels: normalized.signalLabels,
+    p_signal_labels: encodeLiveRoomPostMetadataTags(
+      normalized.signalLabels,
+      normalized.direction,
+    ),
   });
   return mapMutationResult(result, actor, "LIVE_ROOM_POST_UPDATE_FAILED");
 }
@@ -685,6 +695,7 @@ export function toLiveRoomPostPreview(post: LiveRoomPost): LiveRoomPostPreview {
     canLike: post.canLike,
     commentCount: post.commentCount,
     createdAt: post.createdAt,
+    direction: post.direction,
     id: post.id,
     isLiked: post.isLiked,
     kind: "post_preview",
@@ -882,6 +893,9 @@ export async function mapLiveRoomPostRows(
       canModerate: moderator,
       commentCount: readNonnegativeCount(row.visible_comment_count),
       createdAt: readString(row.created_at),
+      direction: Array.isArray(row.signal_labels)
+        ? readLiveRoomPostDirection(row.signal_labels)
+        : null,
       eventReference,
       id: readString(row.id),
       isLiked: likedPostIds.has(readString(row.id)),

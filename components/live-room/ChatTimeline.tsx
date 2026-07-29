@@ -26,7 +26,10 @@ import {
 } from "@/lib/live-room/types";
 import { formatEventTime } from "./CompanyEventCard";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
-import { PostSignalChips } from "./PostSignals";
+import {
+  PostDirectionBadge,
+  PostSignalChips,
+} from "./PostSignals";
 import styles from "./LiveRoom.module.css";
 
 const EMPTY_MESSAGE_LIKE_IDS: ReadonlySet<string> = new Set();
@@ -221,11 +224,16 @@ export function ChatTimeline({
               </div>
               <div className={styles.postPreviewContent}>
                 <span className={styles.postPreviewLabel}>POST</span>
-                <PostSignalChips
-                  maxVisible={1}
-                  showOverflow={false}
-                  signals={item.signalLabels}
-                />
+                {item.direction || item.signalLabels.length ? (
+                  <div className={styles.postPreviewTaxonomy}>
+                    <PostDirectionBadge direction={item.direction} />
+                    <PostSignalChips
+                      maxVisible={1}
+                      showOverflow={false}
+                      signals={item.signalLabels}
+                    />
+                  </div>
+                ) : null}
                 <Link
                   className={styles.postPreviewTitle}
                   href={`/live/posts/${item.id}`}

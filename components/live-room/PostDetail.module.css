@@ -67,6 +67,15 @@
   margin-top: 20px;
 }
 
+.postMetadata {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sr-space-1);
+  margin-top: var(--sr-space-5);
+}
+
 .chips a {
   padding: 5px 9px;
   border: var(--sr-border-width) solid var(--sr-color-border);

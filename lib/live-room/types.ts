@@ -1,6 +1,9 @@
 import type { Plan } from "../subscriptionPolicy.ts";
 import type { LiveRoomSocialBadge } from "../social-verification/types.ts";
-import type { LiveRoomPostSignal } from "./postSignals.ts";
+import type {
+  LiveRoomPostDirection,
+  LiveRoomPostSignal,
+} from "./postSignals.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -184,6 +187,7 @@ export type LiveRoomPostPreview = {
   canLike: boolean;
   commentCount: number;
   createdAt: string;
+  direction: LiveRoomPostDirection | null;
   id: string;
   isLiked: boolean;
   kind: "post_preview";
@@ -205,6 +209,7 @@ export type LiveRoomPost = {
   canModerate: boolean;
   commentCount: number;
   createdAt: string;
+  direction: LiveRoomPostDirection | null;
   eventReference: CompanyEventReference | null;
   id: string;
   isLiked: boolean;
@@ -255,6 +260,7 @@ export type LiveRoomPublicMemberPostPage = LiveRoomPostPage & {
 
 export type LiveRoomPostDraft = {
   body: string;
+  direction: LiveRoomPostDirection | null;
   eventId: string | null;
   relatedTickers: string[];
   signalLabels: LiveRoomPostSignal[];

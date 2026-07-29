@@ -233,6 +233,15 @@
   margin-top: 12px;
 }
 
+.postMetadata {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sr-space-1);
+  margin-top: var(--sr-space-3);
+}
+
 .chips a,
 .eventReference {
   padding: 4px 8px;

@@ -32,6 +32,7 @@ test("post drafts enforce bounded title, body, and unique canonical tickers", ()
     {
       title: "AI infrastructure demand",
       body: "A durable thesis with enough detail for a Live Room post.",
+      direction: null,
       relatedTickers: ["NVDA", "AMD"],
       eventId: null,
       signalLabels: [],

@@ -33,7 +33,10 @@ import type {
 } from "@/lib/live-room/types";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import { JoinedRoomsList } from "./JoinedRoomsList";
-import { PostSignalChips } from "./PostSignals";
+import {
+  PostDirectionBadge,
+  PostSignalChips,
+} from "./PostSignals";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
@@ -348,8 +351,9 @@ function PostsPreview({
                 {formatPreviewDate(post.createdAt)}
               </small>
               <div className={styles.sidePanelPostMeta}>
-                {post.signalLabels.length ? (
+                {post.direction || post.signalLabels.length ? (
                   <div className={styles.sidePanelPostSignals}>
+                    <PostDirectionBadge direction={post.direction} />
                     <PostSignalChips
                       maxVisible={1}
                       signals={post.signalLabels}
