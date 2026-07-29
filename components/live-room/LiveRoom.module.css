@@ -1251,8 +1251,8 @@ button.messageReplyPreview:hover {
 }
 
 .otherMessage article {
-  border: var(--sr-border-width) solid var(--sr-color-border-section);
-  background: var(--sr-color-surface-elevated);
+  border: var(--sr-border-width) solid var(--sr-color-accent-subtle);
+  background: var(--sr-color-accent-subtle);
   border-top-left-radius: var(--sr-radius-sm);
 }
 
