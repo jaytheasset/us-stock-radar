@@ -5,7 +5,9 @@ import test from "node:test";
 import {
   assertLiveRoomPostMentionTargets,
   createLiveRoomPostBodyPreview,
+  createLiveRoomPostEventOptionLabel,
   LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH,
+  LIVE_ROOM_POST_EVENT_OPTION_MAX_LENGTH,
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy.ts";
@@ -74,6 +76,39 @@ test("post body previews normalize whitespace and truncate to a safe compact len
   );
   assert.equal(preview.length, LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH);
   assert.equal(preview.endsWith("…"), true);
+});
+
+test("post event option labels stay deterministic and native-popup safe", () => {
+  const filing = createLiveRoomPostEventOptionLabel({
+    kind: "filing",
+    occurredAt: "2026-07-17T14:30:00.000Z",
+    title:
+      "Bone Biologics Corporation Announces an Exceptionally Long Filing Title",
+  });
+  const news = createLiveRoomPostEventOptionLabel({
+    kind: "news",
+    occurredAt: "not-a-date",
+    title:
+      "  A very long   company announcement with normalized whitespace and more detail  ",
+  });
+  const untitled = createLiveRoomPostEventOptionLabel({
+    kind: "filing",
+    occurredAt: null,
+    title: "   ",
+  });
+
+  assert.match(filing, /^Filing · Jul 17 · Bone Biologics/);
+  assert.equal(filing.endsWith("…"), true);
+  assert.equal(
+    Array.from(filing).length,
+    LIVE_ROOM_POST_EVENT_OPTION_MAX_LENGTH,
+  );
+  assert.match(news, /^News · A very long company announcement/);
+  assert.equal(news.includes("not-a-date"), false);
+  assert.ok(
+    Array.from(news).length <= LIVE_ROOM_POST_EVENT_OPTION_MAX_LENGTH,
+  );
+  assert.equal(untitled, "Filing · Untitled event");
 });
 
 test("company posts appear once in their canonical and mentioned rooms only", () => {
@@ -500,6 +535,11 @@ test("post composer exposes event linking only through real event choices", () =
 
   assert.match(postsPanel, /events\.length > 0 \? \(/);
   assert.match(postsPanel, /<option value="">No event attached<\/option>/);
+  assert.match(
+    postsPanel,
+    /\{createLiveRoomPostEventOptionLabel\(event\)\}/,
+  );
+  assert.match(postsPanel, /title=\{selectedEvent\?\.title\}/);
   assert.match(
     postsPanel,
     /events\.some\(\(event\) => event\.eventId === eventId\)[\s\S]+eventId[\s\S]+null/,

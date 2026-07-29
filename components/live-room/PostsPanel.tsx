@@ -16,7 +16,10 @@ import {
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
-import { createLiveRoomPostBodyPreview } from "@/lib/live-room/postPolicy";
+import {
+  createLiveRoomPostBodyPreview,
+  createLiveRoomPostEventOptionLabel,
+} from "@/lib/live-room/postPolicy";
 import type {
   LiveRoomPostDirection,
   LiveRoomPostSignal,
@@ -87,6 +90,7 @@ export function PostsPanel({
     controlledCursor === undefined ? localCursor : controlledCursor;
   const state = controlledState ?? localState;
   const onPostsChange = controlledPostsChange ?? setLocalPosts;
+  const selectedEvent = events.find((event) => event.eventId === eventId);
 
   const loadLocal = async (before?: string | null) => {
     try {
@@ -317,12 +321,13 @@ export function PostsPanel({
               News or filing <small>Optional</small>
               <select
                 onChange={(event) => setEventId(event.target.value)}
+                title={selectedEvent?.title}
                 value={eventId}
               >
                 <option value="">No event attached</option>
                 {events.slice(0, 30).map((event) => (
                   <option key={event.eventId} value={event.eventId}>
-                    {event.kind === "filing" ? "Filing" : "News"} · {event.title}
+                    {createLiveRoomPostEventOptionLabel(event)}
                   </option>
                 ))}
               </select>

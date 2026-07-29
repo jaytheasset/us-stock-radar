@@ -13,6 +13,51 @@ export const LIVE_ROOM_POST_TICKER_LIMIT = 5;
 export const LIVE_ROOM_POST_SIGNAL_LIMIT = 3;
 export const LIVE_ROOM_POST_PAGE_SIZE = 20;
 export const LIVE_ROOM_POST_MAX_PAGE_SIZE = 50;
+export const LIVE_ROOM_POST_EVENT_OPTION_MAX_LENGTH = 40;
+
+const LIVE_ROOM_POST_EVENT_DATE_FORMATTER = new Intl.DateTimeFormat(
+  "en-US",
+  {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/New_York",
+  },
+);
+
+export function createLiveRoomPostEventOptionLabel(event: {
+  kind: "filing" | "news";
+  occurredAt?: string | null;
+  title?: string | null;
+}) {
+  const kind = event.kind === "filing" ? "Filing" : "News";
+  const date = event.occurredAt ? new Date(event.occurredAt) : null;
+  const dateLabel =
+    date && !Number.isNaN(date.getTime())
+      ? LIVE_ROOM_POST_EVENT_DATE_FORMATTER.format(date)
+      : null;
+  const normalizedTitle =
+    typeof event.title === "string"
+      ? event.title.replace(/\s+/g, " ").trim()
+      : "";
+  const title = normalizedTitle || "Untitled event";
+  const prefix = dateLabel ? `${kind} · ${dateLabel}` : kind;
+  const availableTitleLength =
+    LIVE_ROOM_POST_EVENT_OPTION_MAX_LENGTH - prefix.length - 3;
+
+  return `${prefix} · ${truncateLiveRoomPostEventTitle(
+    title,
+    availableTitleLength,
+  )}`;
+}
+
+function truncateLiveRoomPostEventTitle(
+  value: string,
+  maxLength: number,
+) {
+  const characters = Array.from(value);
+  if (characters.length <= maxLength) return value;
+  return `${characters.slice(0, Math.max(maxLength - 1, 0)).join("")}…`;
+}
 
 export function createLiveRoomPostBodyPreview(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
