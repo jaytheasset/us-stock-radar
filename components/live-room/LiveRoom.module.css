@@ -1824,7 +1824,11 @@ button.messageReplyPreview:hover {
 
 @media (min-width: 761px) {
   .marketSummaryValues strong {
-    font-size: var(--sr-font-size-lg);
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .marketSummaryValues b {
+    font-size: var(--sr-font-size-md);
   }
 }
 
