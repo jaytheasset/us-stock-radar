@@ -26,6 +26,7 @@ import type {
   LiveRoomPost,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
+import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
@@ -222,6 +223,10 @@ function UpdatesPreview({
                   {event.kind === "filing" ? "Filing" : "News"} ·{" "}
                   {formatPreviewDate(event.occurredAt)}
                 </small>
+                <CompanyEventSignalScore
+                  score={event.score}
+                  signal={event.signal}
+                />
               </span>
             </Link>
           ) : (
@@ -238,6 +243,10 @@ function UpdatesPreview({
                   Analysis unavailable ·{" "}
                   {formatPreviewDate(event.occurredAt)}
                 </small>
+                <CompanyEventSignalScore
+                  score={event.score}
+                  signal={event.signal}
+                />
               </span>
             </div>
           ),
