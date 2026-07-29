@@ -900,6 +900,7 @@ test("read position counts only ordinary non-self messages through the visible c
       canLike: true,
       commentCount: 0,
       createdAt: "2026-07-29T10:01:30.000Z",
+      direction: null,
       id: "post-preview",
       isLiked: false,
       kind: "post_preview" as const,

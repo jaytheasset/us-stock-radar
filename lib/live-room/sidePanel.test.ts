@@ -231,14 +231,17 @@ test("desktop Posts preview reuses signal chips and exposes compact activity cou
   const styles = read("components/live-room/LiveRoom.module.css");
   const postsPanel = read("components/live-room/PostsPanel.tsx");
 
-  assert.match(panel, /import \{ PostSignalChips \} from "\.\/PostSignals"/);
+  assert.match(
+    panel,
+    /import \{[\s\S]*PostDirectionBadge,[\s\S]*PostSignalChips,[\s\S]*\} from "\.\/PostSignals"/,
+  );
   assert.match(
     panel,
     /href=\{`\/live\/posts\/\$\{post\.id\}`\}[\s\S]*className=\{styles\.sidePanelPostContent\}[\s\S]*className=\{styles\.sidePanelPostMeta\}[\s\S]*<\/Link>/,
   );
   assert.match(
     panel,
-    /post\.signalLabels\.length \? \([\s\S]*<PostSignalChips[\s\S]*maxVisible=\{1\}[\s\S]*signals=\{post\.signalLabels\}/,
+    /post\.direction \|\| post\.signalLabels\.length \? \([\s\S]*<PostDirectionBadge direction=\{post\.direction\}[\s\S]*<PostSignalChips[\s\S]*maxVisible=\{1\}[\s\S]*signals=\{post\.signalLabels\}/,
   );
   assert.match(
     panel,
@@ -263,7 +266,7 @@ test("desktop Posts preview reuses signal chips and exposes compact activity cou
   assert.doesNotMatch(activityStyles[1], /font-size:\s*\d/);
   assert.match(
     postsPanel,
-    /<PostSignalChips maxVisible=\{2\} signals=\{post\.signalLabels\} \/>/,
+    /<PostSignalChips[\s\S]*maxVisible=\{2\}[\s\S]*signals=\{post\.signalLabels\}/,
   );
 });
 
@@ -334,6 +337,7 @@ function post({
     canModerate: false,
     commentCount: 0,
     createdAt,
+    direction: null,
     eventReference: null,
     id,
     isLiked: false,

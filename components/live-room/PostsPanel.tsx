@@ -17,7 +17,10 @@ import {
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
 import { createLiveRoomPostBodyPreview } from "@/lib/live-room/postPolicy";
-import type { LiveRoomPostSignal } from "@/lib/live-room/postSignals";
+import type {
+  LiveRoomPostDirection,
+  LiveRoomPostSignal,
+} from "@/lib/live-room/postSignals";
 import type {
   CompanyEvent,
   LiveRoomPost,
@@ -27,6 +30,8 @@ import type {
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
 import {
+  PostDirectionBadge,
+  PostDirectionSelector,
   PostSignalChips,
   PostSignalSelector,
 } from "./PostSignals";
@@ -70,6 +75,8 @@ export function PostsPanel({
   const [body, setBody] = useState("");
   const [tickers, setTickers] = useState("");
   const [eventId, setEventId] = useState("");
+  const [direction, setDirection] =
+    useState<LiveRoomPostDirection | null>(null);
   const [signalLabels, setSignalLabels] = useState<
     LiveRoomPostSignal[]
   >([]);
@@ -125,6 +132,7 @@ export function PostsPanel({
     ];
     const draft: LiveRoomPostDraft = {
       body,
+      direction,
       eventId: events.some((event) => event.eventId === eventId)
         ? eventId
         : null,
@@ -143,6 +151,7 @@ export function PostsPanel({
         canLike: post.canLike,
         commentCount: post.commentCount,
         createdAt: post.createdAt,
+        direction: post.direction,
         id: post.id,
         isLiked: post.isLiked,
         kind: "post_preview",
@@ -155,6 +164,7 @@ export function PostsPanel({
       setBody("");
       setTickers("");
       setEventId("");
+      setDirection(null);
       setSignalLabels([]);
       setFormOpen(false);
       setNotice("Post published.");
@@ -323,6 +333,10 @@ export function PostsPanel({
             onChange={setSignalLabels}
             value={signalLabels}
           />
+          <PostDirectionSelector
+            onChange={setDirection}
+            value={direction}
+          />
           <div className={styles.formActions}>
             <button disabled={busy} type="submit">
               {busy ? <LoaderCircle aria-hidden="true" size={16} /> : null}
@@ -374,7 +388,15 @@ export function PostsPanel({
                 <Link href={`/live/posts/${post.id}`}>{post.title}</Link>
               </h3>
               <p>{post.body}</p>
-              <PostSignalChips maxVisible={2} signals={post.signalLabels} />
+              {post.direction || post.signalLabels.length ? (
+                <div className={styles.postMetadata}>
+                  <PostDirectionBadge direction={post.direction} />
+                  <PostSignalChips
+                    maxVisible={2}
+                    signals={post.signalLabels}
+                  />
+                </div>
+              ) : null}
               {post.relatedTickers.length ? (
                 <div className={styles.chips}>
                   {post.relatedTickers.map((ticker) => (

@@ -777,8 +777,11 @@
 }
 
 .sidePanelPostSignals {
+  display: flex;
   min-width: 0;
   flex: 1 1 0;
+  align-items: center;
+  gap: var(--sr-space-1);
   overflow: hidden;
 }
 
@@ -3097,6 +3100,14 @@ button.messageReplyPreview:hover {
   font-weight: var(--sr-font-weight-heavy);
   line-height: var(--sr-line-height-none);
   letter-spacing: 0.08em;
+}
+
+.postPreviewTaxonomy {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sr-space-1);
 }
 
 .postPreviewTitle {

@@ -21,6 +21,8 @@ import type {
 } from "@/lib/live-room/types";
 import { PostComments } from "./PostComments";
 import {
+  PostDirectionBadge,
+  PostDirectionSelector,
   PostSignalChips,
   PostSignalSelector,
 } from "./PostSignals";
@@ -132,6 +134,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   }
                   value={draft.signalLabels}
                 />
+                <PostDirectionSelector
+                  onChange={(direction) =>
+                    setDraft({ ...draft, direction })
+                  }
+                  value={draft.direction}
+                />
                 <div className={styles.actions}>
                   <button disabled={busy} type="submit">Save changes</button>
                   <button onClick={() => setEditing(false)} type="button">Cancel</button>
@@ -148,7 +156,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                   {post.updatedAt !== post.createdAt ? <span>Updated</span> : null}
                 </div>
-                <PostSignalChips signals={post.signalLabels} />
+                {post.direction || post.signalLabels.length ? (
+                  <div className={styles.postMetadata}>
+                    <PostDirectionBadge direction={post.direction} />
+                    <PostSignalChips signals={post.signalLabels} />
+                  </div>
+                ) : null}
                 {post.relatedTickers.length ? (
                   <div className={styles.chips}>
                     {post.relatedTickers.map((ticker) => (
@@ -226,6 +239,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                       onClick={() => {
                         setDraft({
                           body: post.body,
+                          direction: post.direction,
                           eventId: post.eventReference?.eventId || null,
                           relatedTickers: post.relatedTickers,
                           signalLabels: post.signalLabels,

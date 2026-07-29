@@ -19,6 +19,8 @@ export const LIVE_ROOM_POST_SIGNAL_GROUPS = [
       { label: "M&A", value: "mergers_and_acquisitions" },
       { label: "Buyback", value: "buyback" },
       { label: "Insider activity", value: "insider_activity" },
+      { label: "Stock split", value: "stock_split" },
+      { label: "Reverse split", value: "reverse_split" },
     ],
   },
   {
@@ -52,6 +54,33 @@ export const LIVE_ROOM_POST_SIGNAL_VALUES =
 export type LiveRoomPostSignal =
   (typeof LIVE_ROOM_POST_SIGNAL_VALUES)[number];
 
+export const LIVE_ROOM_POST_DIRECTIONS = [
+  { label: "Bullish", value: "bullish" },
+  { label: "Bearish", value: "bearish" },
+  { label: "Volatile", value: "volatile" },
+  { label: "Neutral", value: "neutral" },
+] as const;
+
+export type LiveRoomPostDirection =
+  (typeof LIVE_ROOM_POST_DIRECTIONS)[number]["value"];
+
+export const LIVE_ROOM_POST_DIRECTION_TAGS = {
+  bearish: "direction_bearish",
+  bullish: "direction_bullish",
+  neutral: "direction_neutral",
+  volatile: "direction_volatile",
+} as const satisfies Record<
+  LiveRoomPostDirection,
+  `direction_${LiveRoomPostDirection}`
+>;
+
+export type LiveRoomPostDirectionTag =
+  (typeof LIVE_ROOM_POST_DIRECTION_TAGS)[LiveRoomPostDirection];
+
+export type LiveRoomPostMetadataTag =
+  | LiveRoomPostDirectionTag
+  | LiveRoomPostSignal;
+
 const LIVE_ROOM_POST_SIGNAL_LABELS = new Map<
   LiveRoomPostSignal,
   string
@@ -74,4 +103,32 @@ export function getLiveRoomPostSignalLabel(
   value: LiveRoomPostSignal,
 ) {
   return LIVE_ROOM_POST_SIGNAL_LABELS.get(value) || value;
+}
+
+export function isLiveRoomPostDirection(
+  value: unknown,
+): value is LiveRoomPostDirection {
+  return LIVE_ROOM_POST_DIRECTIONS.some(
+    (direction) => direction.value === value,
+  );
+}
+
+export function encodeLiveRoomPostMetadataTags(
+  signalLabels: readonly LiveRoomPostSignal[],
+  direction: LiveRoomPostDirection | null,
+): LiveRoomPostMetadataTag[] {
+  return direction
+    ? [...signalLabels, LIVE_ROOM_POST_DIRECTION_TAGS[direction]]
+    : [...signalLabels];
+}
+
+export function readLiveRoomPostDirection(
+  values: readonly unknown[],
+): LiveRoomPostDirection | null {
+  for (const direction of LIVE_ROOM_POST_DIRECTIONS) {
+    if (values.includes(LIVE_ROOM_POST_DIRECTION_TAGS[direction.value])) {
+      return direction.value;
+    }
+  }
+  return null;
 }

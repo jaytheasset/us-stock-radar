@@ -1,13 +1,89 @@
 "use client";
 
-import { Tags } from "lucide-react";
 import {
+  Activity,
+  Minus,
+  Tags,
+  TrendingDown,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  LIVE_ROOM_POST_DIRECTIONS,
   LIVE_ROOM_POST_SIGNAL_GROUPS,
   getLiveRoomPostSignalLabel,
+  type LiveRoomPostDirection,
   type LiveRoomPostSignal,
 } from "@/lib/live-room/postSignals";
 import { LIVE_ROOM_POST_SIGNAL_ICONS } from "./postSignalIcons";
 import styles from "./PostSignals.module.css";
+
+const LIVE_ROOM_POST_DIRECTION_ICONS = {
+  bearish: TrendingDown,
+  bullish: TrendingUp,
+  neutral: Minus,
+  volatile: Activity,
+} satisfies Record<LiveRoomPostDirection, LucideIcon>;
+
+export function PostDirectionBadge({
+  direction,
+}: {
+  direction: LiveRoomPostDirection | null;
+}) {
+  if (!direction) return null;
+  const option = LIVE_ROOM_POST_DIRECTIONS.find(
+    (candidate) => candidate.value === direction,
+  );
+  if (!option) return null;
+  const DirectionIcon = LIVE_ROOM_POST_DIRECTION_ICONS[direction];
+
+  return (
+    <span
+      className={styles.directionBadge}
+      data-direction={direction}
+    >
+      <DirectionIcon aria-hidden="true" size={12} />
+      {option.label}
+    </span>
+  );
+}
+
+export function PostDirectionSelector({
+  onChange,
+  value,
+}: {
+  onChange: (value: LiveRoomPostDirection | null) => void;
+  value: LiveRoomPostDirection | null;
+}) {
+  return (
+    <fieldset className={styles.directionSelector}>
+      <legend>
+        Post direction <small>Optional, choose one</small>
+      </legend>
+      <p>Describe the expected market direction without changing the post signal.</p>
+      <div className={styles.directionOptions}>
+        {LIVE_ROOM_POST_DIRECTIONS.map((option) => {
+          const selected = value === option.value;
+          const DirectionIcon =
+            LIVE_ROOM_POST_DIRECTION_ICONS[option.value];
+          return (
+            <button
+              aria-pressed={selected}
+              data-direction={option.value}
+              data-selected={selected}
+              key={option.value}
+              onClick={() => onChange(selected ? null : option.value)}
+              type="button"
+            >
+              <DirectionIcon aria-hidden="true" size={13} />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
 
 export function PostSignalChips({
   maxVisible,

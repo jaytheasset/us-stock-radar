@@ -1,6 +1,8 @@
 import { LiveRoomPolicyError, normalizeLiveRoomTicker } from "./policy.ts";
 import {
+  isLiveRoomPostDirection,
   isLiveRoomPostSignal,
+  type LiveRoomPostDirection,
   type LiveRoomPostSignal,
 } from "./postSignals.ts";
 
@@ -56,6 +58,7 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
   const rawSignalLabels = Array.isArray(input.signalLabels)
     ? input.signalLabels
     : [];
+  const rawDirection = input.direction;
 
   if (
     title.length < 4 ||
@@ -89,6 +92,17 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
       `Choose up to ${LIVE_ROOM_POST_SIGNAL_LIMIT} post signals.`,
     );
   }
+  if (
+    rawDirection !== undefined &&
+    rawDirection !== null &&
+    rawDirection !== "" &&
+    !isLiveRoomPostDirection(rawDirection)
+  ) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_DIRECTION",
+      "Choose a post direction from the available list.",
+    );
+  }
 
   const relatedTickers = [
     ...new Set(
@@ -111,6 +125,10 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
   const signalLabels = [
     ...new Set(rawSignalLabels as LiveRoomPostSignal[]),
   ];
+  const direction =
+    rawDirection === undefined || rawDirection === null || rawDirection === ""
+      ? null
+      : (rawDirection as LiveRoomPostDirection);
   if (signalLabels.length !== rawSignalLabels.length) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_POST_INVALID_SIGNALS",
@@ -118,7 +136,14 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
     );
   }
 
-  return { body, eventId, relatedTickers, signalLabels, title };
+  return {
+    body,
+    direction,
+    eventId,
+    relatedTickers,
+    signalLabels,
+    title,
+  };
 }
 
 export function normalizeLiveRoomPostPageLimit(value: unknown) {

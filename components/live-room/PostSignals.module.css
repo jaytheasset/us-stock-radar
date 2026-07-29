@@ -7,7 +7,8 @@
 }
 
 .chip,
-.overflow {
+.overflow,
+.directionBadge {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
@@ -29,7 +30,32 @@
   color: var(--sr-color-text-meta);
 }
 
-.selector {
+.directionBadge[data-direction="bullish"] {
+  border-color: var(--sr-color-positive);
+  background: var(--sr-color-event-earnings-surface);
+  color: var(--sr-color-positive);
+}
+
+.directionBadge[data-direction="bearish"] {
+  border-color: var(--sr-color-negative);
+  background: var(--sr-color-event-legal-surface);
+  color: var(--sr-color-negative);
+}
+
+.directionBadge[data-direction="volatile"] {
+  border-color: var(--sr-color-warning);
+  background: var(--sr-color-event-product-surface);
+  color: var(--sr-color-warning);
+}
+
+.directionBadge[data-direction="neutral"] {
+  border-color: var(--sr-color-event-neutral);
+  background: var(--sr-color-event-neutral-surface);
+  color: var(--sr-color-text-secondary);
+}
+
+.selector,
+.directionSelector {
   display: grid;
   min-width: 0;
   gap: var(--sr-space-2);
@@ -40,7 +66,8 @@
   background: var(--sr-color-surface-elevated);
 }
 
-.selector > legend {
+.selector > legend,
+.directionSelector > legend {
   display: inline-flex;
   align-items: center;
   gap: var(--sr-space-1-5);
@@ -50,18 +77,71 @@
   font-weight: var(--sr-font-weight-strong);
 }
 
-.selector > legend small {
+.selector > legend small,
+.directionSelector > legend small {
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-medium);
 }
 
 .selector > p,
+.directionSelector > p,
 .group > p {
   margin: 0;
   color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
   line-height: var(--sr-line-height-body);
+}
+
+.directionOptions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sr-space-1);
+}
+
+.directionOptions button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
+  border: var(--sr-border-width) solid var(--direction-color);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  background: var(--sr-color-surface-panel);
+  color: var(--direction-color);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+}
+
+.directionOptions button[data-direction="bullish"] {
+  --direction-color: var(--sr-color-positive);
+  --direction-surface: var(--sr-color-event-earnings-surface);
+}
+
+.directionOptions button[data-direction="bearish"] {
+  --direction-color: var(--sr-color-negative);
+  --direction-surface: var(--sr-color-event-legal-surface);
+}
+
+.directionOptions button[data-direction="volatile"] {
+  --direction-color: var(--sr-color-warning);
+  --direction-surface: var(--sr-color-event-product-surface);
+}
+
+.directionOptions button[data-direction="neutral"] {
+  --direction-color: var(--sr-color-event-neutral);
+  --direction-surface: var(--sr-color-event-neutral-surface);
+}
+
+.directionOptions button[data-selected="true"] {
+  background: var(--direction-surface);
+}
+
+.directionOptions button:focus-visible {
+  outline: var(--sr-border-width-strong) solid var(--direction-color);
+  outline-offset: var(--sr-space-0-5);
 }
 
 .selectionCount {
@@ -149,5 +229,15 @@
 
   .selector {
     padding: var(--sr-space-2-5);
+  }
+
+  .directionSelector {
+    padding: var(--sr-space-2-5);
+  }
+}
+
+@media (max-width: 390px) {
+  .directionOptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
