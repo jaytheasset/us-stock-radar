@@ -10,7 +10,14 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   LiveRoomApiRepository,
   LiveRoomPostApiRepository,
@@ -20,10 +27,24 @@ import {
   createLiveRoomPostBodyPreview,
   createLiveRoomPostEventOptionLabel,
 } from "@/lib/live-room/postPolicy";
+import {
+  getLiveRoomPostTickerInputContext,
+  parseLiveRoomPostMentionedTickers,
+  replaceLiveRoomPostTickerInputToken,
+  selectLiveRoomPostTickerSuggestions,
+} from "@/lib/live-room/postTickerAutocomplete";
 import type {
   LiveRoomPostDirection,
   LiveRoomPostSignal,
 } from "@/lib/live-room/postSignals";
+import {
+  mapTickerSearchResults,
+  type TickerSearchResult,
+} from "@/lib/watchlist/stockOverview";
+import {
+  moveTickerSearchIndex,
+  type TickerSearchArrowKey,
+} from "@/lib/tickerSearchNavigation";
 import type {
   CompanyEvent,
   LiveRoomPost,
@@ -77,6 +98,11 @@ export function PostsPanel({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tickers, setTickers] = useState("");
+  const [tickerResults, setTickerResults] = useState<TickerSearchResult[]>([]);
+  const [tickerSearchState, setTickerSearchState] =
+    useState<"idle" | "loading" | "ready">("idle");
+  const [tickerActiveIndex, setTickerActiveIndex] = useState(-1);
+  const [tickerInputFocused, setTickerInputFocused] = useState(false);
   const [eventId, setEventId] = useState("");
   const [direction, setDirection] =
     useState<LiveRoomPostDirection | null>(null);
@@ -91,6 +117,17 @@ export function PostsPanel({
   const state = controlledState ?? localState;
   const onPostsChange = controlledPostsChange ?? setLocalPosts;
   const selectedEvent = events.find((event) => event.eventId === eventId);
+  const tickerInputRef = useRef<HTMLInputElement>(null);
+  const tickerListboxId = `live-room-post-ticker-results-${useId()}`;
+  const tickerInputContext = useMemo(
+    () => getLiveRoomPostTickerInputContext(tickers),
+    [tickers],
+  );
+  const tickerSearchOpen =
+    tickerInputFocused &&
+    !tickerInputContext.atLimit &&
+    Boolean(tickerInputContext.query) &&
+    (tickerSearchState === "loading" || tickerResults.length > 0);
 
   const loadLocal = async (before?: string | null) => {
     try {
@@ -123,17 +160,106 @@ export function PostsPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlledLoad, repository]);
 
+  useEffect(() => {
+    if (
+      !formOpen ||
+      tickerInputContext.atLimit ||
+      !tickerInputContext.query
+    ) {
+      setTickerResults([]);
+      setTickerSearchState("idle");
+      setTickerActiveIndex(-1);
+      return;
+    }
+
+    const controller = new AbortController();
+    setTickerResults([]);
+    setTickerSearchState("idle");
+    setTickerActiveIndex(-1);
+    const timeout = window.setTimeout(() => {
+      setTickerSearchState("loading");
+      void fetch(
+        `/api/tickers/search?q=${encodeURIComponent(
+          tickerInputContext.query,
+        )}`,
+        { cache: "no-store", signal: controller.signal },
+      )
+        .then(readTickerSearchResponse)
+        .then((payload) => {
+          if (controller.signal.aborted) return;
+          const nextResults = selectLiveRoomPostTickerSuggestions(
+            mapTickerSearchResults(payload),
+            tickerInputContext,
+            currentTicker,
+          );
+          setTickerResults(nextResults);
+          setTickerActiveIndex(nextResults.length ? 0 : -1);
+          setTickerSearchState("ready");
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          setTickerResults([]);
+          setTickerActiveIndex(-1);
+          setTickerSearchState("idle");
+        });
+    }, 220);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [currentTicker, formOpen, tickerInputContext]);
+
+  const closeTickerSearch = () => {
+    setTickerResults([]);
+    setTickerActiveIndex(-1);
+    setTickerSearchState("idle");
+  };
+
+  const selectTicker = (result: TickerSearchResult) => {
+    const nextValue = replaceLiveRoomPostTickerInputToken(
+      tickers,
+      result.ticker,
+    );
+    setTickers(nextValue);
+    closeTickerSearch();
+    requestAnimationFrame(() => {
+      const input = tickerInputRef.current;
+      input?.focus({ preventScroll: true });
+      input?.setSelectionRange(nextValue.length, nextValue.length);
+    });
+  };
+
+  const handleTickerKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key === "Escape") {
+      if (tickerSearchOpen) event.preventDefault();
+      closeTickerSearch();
+      return;
+    }
+    if (
+      (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+      tickerResults.length
+    ) {
+      event.preventDefault();
+      const key: TickerSearchArrowKey = event.key;
+      setTickerActiveIndex((current) =>
+        moveTickerSearchIndex(current, tickerResults.length, key),
+      );
+      return;
+    }
+    if (event.key === "Enter" && tickerSearchOpen) {
+      const result =
+        tickerResults[tickerActiveIndex] ?? tickerResults[0];
+      if (!result) return;
+      event.preventDefault();
+      selectTicker(result);
+    }
+  };
+
   const handleCreate = async () => {
-    const relatedTickers = [
-      ...new Set(
-        tickers
-          .split(/[\s,]+/)
-          .map((ticker) =>
-            ticker.trim().replace(/^\$/, "").toUpperCase(),
-          )
-          .filter(Boolean),
-      ),
-    ];
+    const relatedTickers = parseLiveRoomPostMentionedTickers(tickers);
     const draft: LiveRoomPostDraft = {
       body,
       direction,
@@ -306,11 +432,69 @@ export function PostsPanel({
           </label>
           <label>
             Mentioned tickers <small>Optional, up to 5</small>
-            <input
-              onChange={(event) => setTickers(event.target.value)}
-              placeholder="$NVDA, $AMD"
-              value={tickers}
-            />
+            <div className={styles.tickerAutocomplete}>
+              <input
+                aria-activedescendant={
+                  tickerSearchOpen && tickerActiveIndex >= 0
+                    ? `${tickerListboxId}-option-${tickerActiveIndex}`
+                    : undefined
+                }
+                aria-autocomplete="list"
+                aria-controls={tickerListboxId}
+                aria-expanded={tickerSearchOpen}
+                autoCapitalize="characters"
+                onBlur={() => setTickerInputFocused(false)}
+                onChange={(event) => {
+                  setTickers(event.target.value);
+                  setTickerInputFocused(true);
+                }}
+                onFocus={() => setTickerInputFocused(true)}
+                onKeyDown={handleTickerKeyDown}
+                placeholder="$NVDA, $AMD"
+                ref={tickerInputRef}
+                role="combobox"
+                value={tickers}
+              />
+              {tickerSearchOpen ? (
+                <div
+                  aria-label="Ticker suggestions"
+                  className={styles.tickerSuggestions}
+                  id={tickerListboxId}
+                  role="listbox"
+                >
+                  {tickerSearchState === "loading" ? (
+                    <p className={styles.tickerSearchStatus} role="status">
+                      Searching tickers...
+                    </p>
+                  ) : (
+                    tickerResults.map((result, index) => (
+                      <div
+                        aria-label={`$${result.ticker}, ${
+                          result.companyName
+                        }${
+                          result.exchange ? `, ${result.exchange}` : ""
+                        }`}
+                        aria-selected={tickerActiveIndex === index}
+                        className={styles.tickerSuggestion}
+                        data-active={tickerActiveIndex === index}
+                        id={`${tickerListboxId}-option-${index}`}
+                        key={result.ticker}
+                        onMouseEnter={() => setTickerActiveIndex(index)}
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          selectTicker(result);
+                        }}
+                        role="option"
+                      >
+                        <strong>${result.ticker}</strong>
+                        <small>{result.exchange || "Listed"}</small>
+                        <span>{result.companyName}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
             <small className={styles.fieldHelp}>
               This same post will also appear in each mentioned company
               room. Your current room is added automatically.
@@ -506,4 +690,12 @@ function formatPostDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+async function readTickerSearchResponse(response: Response) {
+  const payload = await response.json();
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.message || "Ticker search failed.");
+  }
+  return payload;
 }

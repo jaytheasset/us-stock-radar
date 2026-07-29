@@ -141,6 +141,7 @@
 }
 
 .form > label > input,
+.form > label > .tickerAutocomplete > input,
 .form > label > textarea,
 .form > label > select {
   width: 100%;
@@ -151,6 +152,90 @@
   background: var(--sr-color-surface-panel);
   color: var(--sr-color-text-heading);
   font: inherit;
+}
+
+.tickerAutocomplete {
+  position: relative;
+  min-width: 0;
+}
+
+.tickerSuggestions {
+  position: absolute;
+  z-index: var(--sr-z-sheet-handle);
+  top: calc(100% + var(--sr-space-1));
+  right: 0;
+  left: 0;
+  display: grid;
+  max-width: 100%;
+  max-height: calc(var(--sr-size-mobile-list-row) * 5);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-overlay);
+  box-shadow: var(--sr-shadow-menu);
+}
+
+.tickerSuggestion {
+  display: grid;
+  min-width: 0;
+  min-height: var(--sr-size-mobile-list-row);
+  cursor: pointer;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "ticker exchange"
+    "company company";
+  align-content: center;
+  column-gap: var(--sr-space-2);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-1-5) var(--sr-space-3);
+  background: var(--sr-color-surface-overlay);
+}
+
+.tickerSuggestion:last-child {
+  border-bottom: 0;
+}
+
+.tickerSuggestion[data-active="true"] {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.tickerSuggestion strong,
+.tickerSuggestion span,
+.tickerSuggestion small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tickerSuggestion strong {
+  grid-area: ticker;
+  color: var(--sr-color-text-ticker);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+}
+
+.tickerSuggestion span {
+  grid-area: company;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-medium);
+}
+
+.tickerSuggestion small {
+  grid-area: exchange;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-medium);
+}
+
+.tickerSearchStatus {
+  margin: 0;
+  padding: var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-medium);
 }
 
 .form > label > textarea {

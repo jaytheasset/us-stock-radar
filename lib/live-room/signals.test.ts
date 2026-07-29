@@ -370,6 +370,18 @@ test("signal UI explains grouped selection and uses the requested display limits
   assert.match(detailStyles, /\.editForm > label > input/);
   assert.doesNotMatch(postsStyles, /\.form input,/);
   assert.doesNotMatch(detailStyles, /\.editForm input,/);
+  assert.match(
+    signalStyles,
+    /\.options label\s*\{[\s\S]*position:\s*relative;/,
+  );
+  assert.match(
+    signalStyles,
+    /\.options input\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;[\s\S]*width:\s*100%;[\s\S]*height:\s*100%;[\s\S]*opacity:\s*0;/,
+  );
+  assert.doesNotMatch(
+    signalStyles,
+    /\.options input\s*\{[\s\S]*clip(?:-path)?:/,
+  );
 });
 
 test("chat post preview is capped and left-aligned on desktop, then fills mobile width", () => {
