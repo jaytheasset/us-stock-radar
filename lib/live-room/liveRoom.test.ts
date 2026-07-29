@@ -576,7 +576,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*var\(--sr-space-5\);\s*height:\s*var\(--sr-space-5\);\s*\}[\s\S]*?\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*var\(--sr-space-5\);\s*height:\s*var\(--sr-space-5\);\s*\}[\s\S]*?\.messageEngagementControl\[data-action="like"\]\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
   );
   assert.match(
     liveRoomStyles,
@@ -1046,7 +1046,7 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   );
 });
 
-test("mobile company header compacts into two columns without changing desktop structure", () => {
+test("mobile company header uses three compact rows without changing desktop structure", () => {
   const headerSource = readSource(
     "components/live-room/CompanyRoomHeader.tsx",
   );
@@ -1063,6 +1063,14 @@ test("mobile company header compacts into two columns without changing desktop s
     mobileStyles.match(/\.roomHeader\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileIdentity =
     mobileStyles.match(/\.roomIdentity\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileTitleLine =
+    mobileStyles.match(/\.roomTitleLine\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileTitlePrimary =
+    mobileStyles.match(/\.roomTitlePrimary\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileCompanyName =
+    mobileStyles.match(/\.roomCompanyName\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileMeta =
+    mobileStyles.match(/\.roomMeta\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileMarket =
     mobileStyles.match(/\.marketSummary\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileActions =
@@ -1073,6 +1081,18 @@ test("mobile company header compacts into two columns without changing desktop s
     /className=\{styles\.roomIdentity\}[\s\S]*className=\{styles\.marketSummary\}[\s\S]*className=\{styles\.roomActions\}/,
   );
   assert.match(
+    headerSource,
+    /className=\{styles\.roomTitlePrimary\}[\s\S]*className=\{styles\.mobileExchange\}[\s\S]*identity\.exchange/,
+  );
+  assert.match(
+    headerSource,
+    /className=\{styles\.desktopExchange\}[\s\S]*className=\{`\$\{styles\.roomCounts\} \$\{styles\.desktopRoomCounts\}`\}/,
+  );
+  assert.match(
+    headerSource,
+    /className=\{`\$\{styles\.roomCounts\} \$\{styles\.mobileRoomCounts\}`\}[\s\S]*roomCounts\.participantCount\} participants[\s\S]*roomCounts\.onlineCount\} online/,
+  );
+  assert.match(
     styleSource,
     /^\.roomHeader\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto auto;/m,
   );
@@ -1080,11 +1100,19 @@ test("mobile company header compacts into two columns without changing desktop s
     mobileHeader,
     /grid-template-columns:\s*minmax\(0, 1fr\) auto;/,
   );
-  assert.match(mobileHeader, /grid-template-rows:\s*auto auto;/);
+  assert.match(mobileHeader, /grid-template-rows:\s*auto auto auto;/);
   assert.match(mobileHeader, /padding:\s*var\(--sr-space-3\);/);
   assert.doesNotMatch(mobileHeader, /\bheight:/);
-  assert.match(mobileIdentity, /grid-column:\s*1;/);
-  assert.match(mobileIdentity, /grid-row:\s*1 \/ span 2;/);
+  assert.match(mobileIdentity, /display:\s*contents;/);
+  assert.match(mobileTitleLine, /display:\s*contents;/);
+  assert.match(mobileTitlePrimary, /grid-column:\s*1;/);
+  assert.match(mobileTitlePrimary, /grid-row:\s*1;/);
+  assert.match(mobileCompanyName, /grid-column:\s*1;/);
+  assert.match(mobileCompanyName, /grid-row:\s*2;/);
+  assert.match(mobileCompanyName, /text-overflow:\s*ellipsis;/);
+  assert.match(mobileMeta, /grid-column:\s*1;/);
+  assert.match(mobileMeta, /grid-row:\s*3;/);
+  assert.match(mobileMeta, /flex-wrap:\s*nowrap;/);
   assert.match(mobileMarket, /grid-column:\s*2;/);
   assert.match(mobileMarket, /grid-row:\s*1;/);
   assert.match(mobileMarket, /justify-self:\s*end;/);
@@ -1097,8 +1125,20 @@ test("mobile company header compacts into two columns without changing desktop s
     /\.marketSummaryValues strong\s*\{[^}]*font-size:\s*var\(--sr-font-size-lg\);/,
   );
   assert.match(mobileActions, /grid-column:\s*2;/);
-  assert.match(mobileActions, /grid-row:\s*2;/);
+  assert.match(mobileActions, /grid-row:\s*3;/);
   assert.match(mobileActions, /justify-self:\s*end;/);
+  assert.match(
+    mobileStyles,
+    /\.mobileExchange\s*\{[\s\S]*display:\s*inline-flex !important;[\s\S]*border-left:\s*var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*color:\s*var\(--sr-color-text-meta\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.desktopExchange,[\s\S]*\.desktopRoomCounts\s*\{[\s\S]*display:\s*none !important;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.roomMeta \.mobileRoomCounts\s*\{[\s\S]*display:\s*inline-flex !important;[\s\S]*flex-wrap:\s*nowrap;[\s\S]*white-space:\s*nowrap;/,
+  );
 });
 
 test("public Live Room entry preserves the guest cookie actor contract without invite tokens", () => {

@@ -49,7 +49,12 @@ export function CompanyRoomHeader({
     <header className={styles.roomHeader}>
       <div className={styles.roomIdentity}>
         <div className={styles.roomTitleLine}>
-          <h1>{identity.ticker} Live Room</h1>
+          <div className={styles.roomTitlePrimary}>
+            <h1>{identity.ticker} Live Room</h1>
+            <small className={styles.mobileExchange}>
+              {identity.exchange}
+            </small>
+          </div>
           {identity.companyName.trim().toUpperCase() !== identity.ticker ? (
             <strong className={styles.roomCompanyName}>
               {identity.companyName}
@@ -57,22 +62,40 @@ export function CompanyRoomHeader({
           ) : null}
         </div>
         <div className={styles.roomMeta}>
-          <small>{identity.exchange}</small>
+          <small className={styles.desktopExchange}>
+            {identity.exchange}
+          </small>
           {roomCounts ? (
-            <small className={styles.roomCounts}>
-              <strong>{roomCounts.memberCount} members</strong>
-              {roomCounts.visitorCount > 0 ? (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>{roomCounts.visitorCount} visitors</span>
-                </>
-              ) : null}
-              <span aria-hidden="true">·</span>
-              <span className={styles.onlineCount}>
-                <i aria-hidden="true" />
-                {roomCounts.onlineCount} online
-              </span>
-            </small>
+            <>
+              <small
+                className={`${styles.roomCounts} ${styles.desktopRoomCounts}`}
+              >
+                <strong>{roomCounts.memberCount} members</strong>
+                {roomCounts.visitorCount > 0 ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{roomCounts.visitorCount} visitors</span>
+                  </>
+                ) : null}
+                <span aria-hidden="true">·</span>
+                <span className={styles.onlineCount}>
+                  <i aria-hidden="true" />
+                  {roomCounts.onlineCount} online
+                </span>
+              </small>
+              <small
+                className={`${styles.roomCounts} ${styles.mobileRoomCounts}`}
+              >
+                <strong>
+                  {roomCounts.participantCount} participants
+                </strong>
+                <span aria-hidden="true">·</span>
+                <span className={styles.onlineCount}>
+                  <i aria-hidden="true" />
+                  {roomCounts.onlineCount} online
+                </span>
+              </small>
+            </>
           ) : null}
         </div>
       </div>

@@ -482,6 +482,7 @@ function MessageEngagement({
         <Link
           aria-label={likeLabel}
           className={styles.messageEngagementControl}
+          data-action="like"
           data-has-count={item.likeCount > 0}
           href={loginHref}
           title="Like"
@@ -493,6 +494,7 @@ function MessageEngagement({
           aria-busy={busy}
           aria-label={likeLabel}
           className={styles.messageEngagementControl}
+          data-action="like"
           data-has-count={item.likeCount > 0}
           disabled={busy}
           onClick={() => void onToggleLike?.(item, !item.isLiked)}
@@ -506,6 +508,7 @@ function MessageEngagement({
         <Link
           aria-label={replyLabel}
           className={styles.messageEngagementControl}
+          data-action="reply"
           data-has-count={item.replyCount > 0}
           href={loginHref}
           title="Reply"
@@ -516,6 +519,7 @@ function MessageEngagement({
         <button
           aria-label={replyLabel}
           className={styles.messageEngagementControl}
+          data-action="reply"
           data-has-count={item.replyCount > 0}
           onClick={() => onReply?.(item)}
           title="Reply"
