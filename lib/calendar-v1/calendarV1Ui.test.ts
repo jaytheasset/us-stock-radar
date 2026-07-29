@@ -118,6 +118,41 @@ test("calendar UI reuses shared filters, segmented controls, detail panel, and b
   assert.match(detail, /getStockRouteHref/);
 });
 
+test("stock watching is ticker-scoped while event following remains event-scoped", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+  const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+  const watchActionStart = detail.indexOf("<strong>Stock watchlist</strong>");
+  const followActionStart = detail.indexOf("<strong>Event alert</strong>");
+  const watchAction = detail.slice(watchActionStart, followActionStart);
+  const followAction = detail.slice(followActionStart, detail.indexOf("detailLinks"));
+
+  assert.match(workspace, /watchlistOverrides\[event\.ticker\]/);
+  assert.match(workspace, /const ticker = event\.ticker/);
+  assert.match(workspace, /\[ticker\]: !\(current\[ticker\]/);
+  assert.doesNotMatch(workspace, /\[event\.id\]: !\(current\[event\.id\][\s\S]*isWatchlisted/);
+  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(detail, /watchlistOverrides\[desktopEvent\.ticker\]/);
+  assert.match(detail, /followedEvents\[desktopEvent\.id\]/);
+
+  assert.match(watchAction, /Track this ticker across Stock Radar\./);
+  assert.match(watchAction, /disabled=\{!event\.ticker\}/);
+  assert.match(watchAction, /No ticker to watch/);
+  assert.match(watchAction, /Watch Stock/);
+  assert.match(detail, /Watching \$\{event\.ticker\}/);
+  assert.doesNotMatch(followAction, /disabled=/);
+  assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
+  assert.match(followAction, /Follow Event/);
+  assert.match(followAction, /Event Followed/);
+  assert.match(detail, /Preview only\./);
+  assert.match(detail, /Alert delivery is not\s+connected yet\./);
+  assert.match(
+    styles,
+    /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
+  );
+  assert.match(styles, /\.detailAction button:disabled/);
+});
+
 test("event rows keep their full-row detail trigger separate from internal links", async () => {
   const views = await read("components/calendar-v1/CalendarViews.tsx");
   const rowStart = views.indexOf("function CalendarEventRow");

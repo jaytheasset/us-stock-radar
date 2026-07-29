@@ -72,7 +72,9 @@ export function StockRadarCalendarV1({
     () =>
       sourceEvents.map((event) => ({
         ...event,
-        isWatchlisted: watchlistOverrides[event.id] ?? event.isWatchlisted,
+        isWatchlisted: event.ticker
+          ? watchlistOverrides[event.ticker] ?? event.isWatchlisted
+          : event.isWatchlisted,
       })) as CalendarEvent[],
     [sourceEvents, watchlistOverrides],
   );
@@ -300,9 +302,11 @@ export function StockRadarCalendarV1({
           }}
           onSheetDismiss={dismissSheet}
           onWatchlistToggle={(event) => {
+            if (!event.ticker) return;
+            const ticker = event.ticker;
             setWatchlistOverrides((current) => ({
               ...current,
-              [event.id]: !(current[event.id] ?? event.isWatchlisted),
+              [ticker]: !(current[ticker] ?? event.isWatchlisted),
             }));
           }}
           openerRef={detailOpenerRef}
