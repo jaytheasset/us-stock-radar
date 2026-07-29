@@ -32,6 +32,7 @@ import {
   mergeLiveRoomTimeline,
   removeLiveRoomTimelineItems,
   replaceLiveRoomTimeline,
+  updateLiveRoomMessageEngagement,
 } from "@/lib/live-room/timeline";
 import type {
   LiveRoomBlockedActor,
@@ -105,6 +106,8 @@ export function CommunityRoomClient({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
+  const [messageLikeIds, setMessageLikeIds] =
+    useState<ReadonlySet<string>>(() => new Set());
   const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
   const [membershipJoined, setMembershipJoined] =
     useState<boolean | null>(null);
@@ -118,6 +121,7 @@ export function CommunityRoomClient({
   const presenceMessageIdsRef = useRef<string[]>([]);
   const replyScrollFrameRef = useRef<number | null>(null);
   const timelineGenerationRef = useRef(0);
+  const messageLikeIdsRef = useRef<Set<string>>(new Set());
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
     null,
   );
@@ -471,6 +475,59 @@ export function CommunityRoomClient({
     setActiveTab("chat");
     setDecision(null);
     setComposerFocusRequestId((value) => value + 1);
+  };
+
+  const handleToggleMessageLike = async (
+    message: LiveRoomChatMessage,
+    liked: boolean,
+  ) => {
+    if (profile?.isGuest !== false) {
+      window.location.assign(roomLoginHref);
+      return;
+    }
+    if (messageLikeIdsRef.current.has(message.id)) return;
+
+    const previous = {
+      isLiked: message.isLiked,
+      likeCount: message.likeCount,
+    };
+    messageLikeIdsRef.current.add(message.id);
+    setMessageLikeIds(new Set(messageLikeIdsRef.current));
+    setTimeline((current) =>
+      updateLiveRoomMessageEngagement(current, message.id, {
+        isLiked: liked,
+        likeCount: Math.max(
+          0,
+          message.likeCount + (liked ? 1 : -1),
+        ),
+      }),
+    );
+    setNotice(null);
+
+    try {
+      const result = await repository.setMessageLike(
+        message.id,
+        liked,
+      );
+      setTimeline((current) =>
+        updateLiveRoomMessageEngagement(current, result.messageId, {
+          isLiked: result.liked,
+          likeCount: result.likeCount,
+        }),
+      );
+    } catch (error) {
+      setTimeline((current) =>
+        updateLiveRoomMessageEngagement(
+          current,
+          message.id,
+          previous,
+        ),
+      );
+      setNotice(toLiveRoomApiError(error).message);
+    } finally {
+      messageLikeIdsRef.current.delete(message.id);
+      setMessageLikeIds(new Set(messageLikeIdsRef.current));
+    }
   };
 
   const handleOpenReplyTarget = (messageId: string) => {
@@ -865,7 +922,9 @@ export function CommunityRoomClient({
               emptyTitle="Start this community discussion."
               highlightedMessageId={highlightedMessageId}
               items={timeline}
+              loginHref={roomLoginHref}
               messageActionId={messageActionId}
+              messageLikeIds={messageLikeIds}
               onBlock={handleBlock}
               onHide={(messageId) =>
                 handleModerate(messageId, "hide")
@@ -873,8 +932,10 @@ export function CommunityRoomClient({
               onOpenReplyTarget={handleOpenReplyTarget}
               onReply={handleReply}
               onReport={handleReport}
+              onToggleMessageLike={handleToggleMessageLike}
               onRetry={() => setReloadKey((value) => value + 1)}
               state={timelineState}
+              viewerIsGuest={profile?.isGuest !== false}
             />
           </div>
 

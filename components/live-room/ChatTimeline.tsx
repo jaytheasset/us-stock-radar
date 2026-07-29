@@ -30,6 +30,8 @@ import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import { PostSignalChips } from "./PostSignals";
 import styles from "./LiveRoom.module.css";
 
+const EMPTY_MESSAGE_LIKE_IDS: ReadonlySet<string> = new Set();
+
 type ChatTimelineProps = {
   ariaLabel?: string;
   canModerate?: boolean;
@@ -38,7 +40,9 @@ type ChatTimelineProps = {
   emptyTitle?: string;
   highlightedMessageId?: string | null;
   items: readonly LiveRoomTimelineItem[];
+  loginHref: string;
   messageActionId?: string | null;
+  messageLikeIds?: ReadonlySet<string>;
   onBlock?: (messageId: string) => Promise<void>;
   onHide?: (messageId: string) => Promise<void>;
   onMessageMember?: (messageId: string) => Promise<void>;
@@ -52,8 +56,13 @@ type ChatTimelineProps = {
     messageId: string,
     followed: boolean,
   ) => Promise<void>;
+  onToggleMessageLike?: (
+    message: LiveRoomChatMessage,
+    liked: boolean,
+  ) => Promise<void>;
   onRetry?: () => void;
   state: "empty" | "error" | "loading" | "ready";
+  viewerIsGuest: boolean;
 };
 
 export function LatestChatEventStrip({ event }: { event: CompanyEvent }) {
@@ -99,7 +108,9 @@ export function ChatTimeline({
   emptyTitle = "Start this company discussion.",
   highlightedMessageId,
   items,
+  loginHref,
   messageActionId,
+  messageLikeIds = EMPTY_MESSAGE_LIKE_IDS,
   onBlock,
   onHide,
   onMessageMember,
@@ -107,8 +118,10 @@ export function ChatTimeline({
   onReply,
   onReport,
   onToggleMemberFollow,
+  onToggleMessageLike,
   onRetry,
   state,
+  viewerIsGuest,
 }: ChatTimelineProps) {
   if (state === "loading") {
     return (
@@ -305,16 +318,6 @@ export function ChatTimeline({
                     {badge.label}
                   </a>
                 ))}
-                {onReply ? (
-                  <button
-                    aria-label={`Reply to ${item.author.displayName}`}
-                    className={styles.messageReplyButton}
-                    onClick={() => onReply(item)}
-                    type="button"
-                  >
-                    <ReplyIcon aria-hidden="true" size={15} />
-                  </button>
-                ) : null}
                 <MessageActions
                   busy={messageActionId === item.id}
                   canBlock={!mine && Boolean(onBlock)}
@@ -376,11 +379,116 @@ export function ChatTimeline({
                 )
               ) : null}
               <p>{item.body}</p>
+              <MessageEngagement
+                busy={messageLikeIds.has(item.id)}
+                item={item}
+                loginHref={loginHref}
+                onReply={onReply}
+                onToggleLike={onToggleMessageLike}
+                viewerIsGuest={viewerIsGuest}
+              />
             </article>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function MessageEngagement({
+  busy,
+  item,
+  loginHref,
+  onReply,
+  onToggleLike,
+  viewerIsGuest,
+}: {
+  busy: boolean;
+  item: LiveRoomChatMessage;
+  loginHref: string;
+  onReply?: (message: LiveRoomChatMessage) => void;
+  onToggleLike?: (
+    message: LiveRoomChatMessage,
+    liked: boolean,
+  ) => Promise<void>;
+  viewerIsGuest: boolean;
+}) {
+  const likeLabel = viewerIsGuest
+    ? `${item.likeCount} likes. Sign in to like this message`
+    : `${item.likeCount} likes. ${
+        item.isLiked ? "Unlike" : "Like"
+      } message from ${item.author.displayName}`;
+  const replyLabel = viewerIsGuest
+    ? `${item.replyCount} replies. Sign in to reply to ${item.author.displayName}`
+    : `${item.replyCount} replies. Reply to ${item.author.displayName}`;
+  const likeContent = (
+    <>
+      <Heart
+        aria-hidden="true"
+        fill={item.isLiked ? "currentColor" : "none"}
+      />
+      {item.likeCount > 0 ? <span>{item.likeCount}</span> : null}
+    </>
+  );
+  const replyContent = (
+    <>
+      <ReplyIcon aria-hidden="true" />
+      {item.replyCount > 0 ? <span>{item.replyCount}</span> : null}
+    </>
+  );
+
+  return (
+    <div
+      aria-label="Message engagement"
+      className={styles.messageEngagement}
+    >
+      {viewerIsGuest ? (
+        <Link
+          aria-label={likeLabel}
+          className={styles.messageEngagementControl}
+          data-has-count={item.likeCount > 0}
+          href={loginHref}
+          title="Like"
+        >
+          {likeContent}
+        </Link>
+      ) : (
+        <button
+          aria-busy={busy}
+          aria-label={likeLabel}
+          className={styles.messageEngagementControl}
+          data-has-count={item.likeCount > 0}
+          disabled={busy}
+          onClick={() => void onToggleLike?.(item, !item.isLiked)}
+          title={item.isLiked ? "Unlike" : "Like"}
+          type="button"
+        >
+          {likeContent}
+        </button>
+      )}
+      {viewerIsGuest ? (
+        <Link
+          aria-label={replyLabel}
+          className={styles.messageEngagementControl}
+          data-has-count={item.replyCount > 0}
+          href={loginHref}
+          title="Reply"
+        >
+          {replyContent}
+        </Link>
+      ) : (
+        <button
+          aria-label={replyLabel}
+          className={styles.messageEngagementControl}
+          data-has-count={item.replyCount > 0}
+          onClick={() => onReply?.(item)}
+          title="Reply"
+          type="button"
+        >
+          {replyContent}
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -6,6 +6,7 @@ import type {
   LiveRoomMemberSummaryList,
   LiveRoomMembershipList,
   LiveRoomMembershipState,
+  LiveRoomMessageLikeResult,
   LiveRoomModerationItem,
   LiveRoomPost,
   LiveRoomPostComment,
@@ -150,6 +151,16 @@ export class LiveRoomApiRepository {
           eventId: input.eventId || null,
           replyToMessageId: input.replyToMessageId || null,
         }),
+      },
+    );
+  }
+
+  setMessageLike(messageId: string, liked: boolean) {
+    return requestJson<LiveRoomMessageLikeResult>(
+      `${this.roomApiPath()}/messages/${encodeURIComponent(messageId)}/like`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ liked }),
       },
     );
   }

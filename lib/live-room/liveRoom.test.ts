@@ -572,7 +572,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageReplyButton,\s*\.messageActionsTrigger\s*\{\s*width:\s*24px;\s*height:\s*24px;\s*\}/,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*24px;\s*height:\s*24px;\s*\}[\s\S]*?\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
   );
   assert.match(
     liveRoomStyles,
@@ -703,7 +703,7 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
   );
   assert.match(
     styles,
-    /\.messageReplyButton,\s*\.messageActionsTrigger\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+    /\.messageEngagementControl\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
   );
   assert.match(
     styles,
@@ -1080,7 +1080,10 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
     createdAt: "2026-07-28T01:00:00.000Z",
     eventReference: null,
     id: "member-message",
+    isLiked: false,
     kind: "message",
+    likeCount: 0,
+    replyCount: 0,
     replyPreview: null,
   };
   const guestMessage: LiveRoomChatMessage = {
@@ -1094,7 +1097,10 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
     createdAt: "2026-07-28T01:01:00.000Z",
     eventReference: null,
     id: "guest-message",
+    isLiked: false,
     kind: "message",
+    likeCount: 0,
+    replyCount: 0,
     replyPreview: null,
   };
 
@@ -1528,7 +1534,7 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
   );
   assert.match(
     repository,
-    /getBlockedActorIds\(actor\)[\s\S]*?blocked\.has\(readString\(row\.actor_id\)\)/,
+    /const blockedActorIds = knownBlockedActorIds[\s\S]*?getLiveRoomReplyPreviewMap\(rows, blockedActorIds\)[\s\S]*?blocked\.has\(readString\(row\.actor_id\)\)/,
   );
   assert.ok(
     (repository.match(/reply_to_message_id/g) || []).length >= 6,
@@ -1537,7 +1543,11 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
     timeline,
     /removedIds\.has\(item\.replyPreview\.messageId\)[\s\S]*?replyPreview: null/,
   );
-  assert.match(chat, /aria-label=\{`Reply to \$\{item\.author\.displayName\}`\}/);
+  assert.match(
+    chat,
+    /`\$\{item\.replyCount\} replies\. Reply to \$\{item\.author\.displayName\}`/,
+  );
+  assert.doesNotMatch(chat, /className=\{styles\.messageReplyButton\}/);
   assert.match(chat, /className=\{styles\.messageReplyPreview\}/);
   assert.match(composer, /Replying to \{replyPreview\.authorDisplayName\}/);
   assert.match(composer, /aria-label="Cancel reply"/);

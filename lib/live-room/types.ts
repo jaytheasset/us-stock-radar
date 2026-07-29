@@ -66,11 +66,20 @@ export type LiveRoomChatMessage = {
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;
+  isLiked: boolean;
   isOnline?: boolean;
   isMemberFollowed?: boolean;
   isMine?: boolean;
   kind: "message";
+  likeCount: number;
+  replyCount: number;
   replyPreview: LiveRoomReplyPreview | null;
+};
+
+export type LiveRoomMessageLikeResult = {
+  liked: boolean;
+  likeCount: number;
+  messageId: string;
 };
 
 export type LiveRoomPresenceMessage = {

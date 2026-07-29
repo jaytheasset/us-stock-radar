@@ -47,6 +47,7 @@ import type {
   LiveRoomMembershipList,
   LiveRoomMembershipListItem,
   LiveRoomMembershipState,
+  LiveRoomMessageLikeResult,
   LiveRoomModerationItem,
   LiveRoomProfile,
   LiveRoomPresenceSetting,
@@ -75,6 +76,7 @@ type RoomRow = {
 
 type MessageRow = {
   id?: unknown;
+  room_id?: unknown;
   actor_id?: unknown;
   author_kind?: unknown;
   member_user_id?: unknown;
@@ -87,6 +89,7 @@ type MessageRow = {
   referenced_event_kind?: unknown;
   referenced_event_title?: unknown;
   reply_to_message_id?: unknown;
+  like_count?: unknown;
   visibility_status?: unknown;
   moderation_reason?: unknown;
   hidden_at?: unknown;
@@ -152,7 +155,7 @@ export async function getLiveRoomMessagePage({
   const ascending = Boolean(after);
   const search: Record<string, string> = {
     select:
-      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,created_at",
+      "id,room_id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,created_at",
     room_id: `eq.${room.id}`,
     visibility_status: "eq.visible",
     order: ascending
@@ -192,7 +195,11 @@ export async function getLiveRoomMessagePage({
   const hasMore = fetchedRows.length > pageSize;
   const pageRows = fetchedRows.slice(0, pageSize);
   const chronologicalRows = ascending ? pageRows : [...pageRows].reverse();
-  const messageItems = await mapMessageRows(chronologicalRows, actor);
+  const messageItems = await mapMessageRows(
+    chronologicalRows,
+    actor,
+    blockedActorIds,
+  );
   const postItems = postPage.items.map(toLiveRoomPostPreview);
   const combinedItems = [...messageItems, ...postItems].sort(compareTimeline);
   const items = ascending
@@ -234,7 +241,7 @@ export async function getLiveRoomMessageAnchor({
   const [result, blockedActorIds] = await Promise.all([
     supabaseSelect("live_room_messages", {
       select:
-        "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,created_at",
+        "id,room_id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,created_at",
       id: `eq.${messageId}`,
       room_id: `eq.${room.id}`,
       visibility_status: "eq.visible",
@@ -255,7 +262,11 @@ export async function getLiveRoomMessageAnchor({
       404,
     );
   }
-  const [message] = await mapMessageRows([row], actor);
+  const [message] = await mapMessageRows(
+    [row],
+    actor,
+    blockedActorIds,
+  );
   if (!message) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MESSAGE_NOT_FOUND",
@@ -287,7 +298,7 @@ export async function getLiveRoomMessageChanges({
   const cursor = decodeMessageCursor(afterChange || null);
   const search: Record<string, string> = {
     select:
-      "id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,visibility_status,created_at,updated_at",
+      "id,room_id,actor_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,visibility_status,created_at,updated_at",
     room_id: `eq.${room.id}`,
     order: "updated_at.asc,id.asc",
     limit: String(pageSize + 1),
@@ -362,7 +373,7 @@ export async function getLiveRoomMessageChanges({
 
   const latest = pageChanges[pageChanges.length - 1]?.row;
   const [messageUpserts, postUpserts] = await Promise.all([
-    mapMessageRows(upsertRows, actor),
+    mapMessageRows(upsertRows, actor, blockedActorIds),
     mapLiveRoomPostRows(upsertPostRows, actor),
   ]);
   const upserts = [
@@ -461,6 +472,55 @@ export async function sendLiveRoomMessage({
 
   const [message] = await mapMessageRows([row], actor);
   return message;
+}
+
+export async function setLiveRoomMessageLike({
+  actor,
+  liked,
+  messageId: rawMessageId,
+  slug,
+  ticker: rawTicker,
+}: {
+  actor: LiveRoomActor;
+  liked: unknown;
+  messageId: unknown;
+  slug?: string;
+  ticker?: string;
+}): Promise<LiveRoomMessageLikeResult> {
+  assertLiveRoomEngagementMember(actor);
+  if (typeof liked !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_MESSAGE_LIKE",
+      "Choose whether this message is liked.",
+    );
+  }
+  const room = await resolveLiveRoom({ slug, ticker: rawTicker });
+  const messageId = normalizeLiveRoomUuid(rawMessageId);
+  await ensureMemberBootstrap(actor);
+  const result = await supabaseRpc("set_live_room_message_like", {
+    p_room_id: room.id,
+    p_message_id: messageId,
+    p_actor_user_id: actor.userId,
+    p_liked: liked,
+  });
+  const row = readSingleRow(result.data);
+  if (
+    !result.ok ||
+    !row ||
+    typeof row.liked !== "boolean"
+  ) {
+    throw mapLiveRoomActionError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_MESSAGE_LIKE_FAILED",
+      "The message like could not be saved.",
+    );
+  }
+  return {
+    liked: row.liked,
+    likeCount: readNonnegativeCount(row.like_count),
+    messageId: readString(row.message_id) || messageId,
+  };
 }
 
 export async function reportLiveRoomMessage({
@@ -625,7 +685,7 @@ export async function listHiddenLiveRoomMessages(
       : await resolveLiveRoom(roomInput);
   const result = await supabaseSelect("live_room_messages", {
     select:
-      "id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,moderation_reason,hidden_at,created_at",
+      "id,room_id,author_kind,member_user_id,guest_session_id,author_display_name,author_emoji,author_plan,body,referenced_event_id,referenced_event_kind,referenced_event_title,reply_to_message_id,like_count,moderation_reason,hidden_at,created_at",
     room_id: `eq.${room.id}`,
     visibility_status: "eq.hidden",
     order: "hidden_at.desc",
@@ -1812,7 +1872,11 @@ async function getValidatedEventReference(
 async function mapMessageRows(
   rows: MessageRow[],
   actor: LiveRoomActor,
+  knownBlockedActorIds?: readonly string[],
 ) {
+  const blockedActorIds = knownBlockedActorIds
+    ? [...knownBlockedActorIds]
+    : await getBlockedActorIds(actor);
   const memberUserIds = [
     ...new Set(
       rows
@@ -1822,16 +1886,17 @@ async function mapMessageRows(
     ),
   ];
   const enrichmentPromise = Promise.all([
-      getLiveRoomSocialBadgeMap({
-        actor,
-        messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
-      }),
-      getLiveRoomPublicProfileIdMap(memberUserIds),
-      getLiveRoomReplyPreviewMap(rows, actor),
-    ]);
+    getLiveRoomSocialBadgeMap({
+      actor,
+      messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
+    }),
+    getLiveRoomPublicProfileIdMap(memberUserIds),
+    getLiveRoomReplyPreviewMap(rows, blockedActorIds),
+    getLiveRoomMessageEngagement(rows, actor, blockedActorIds),
+  ]);
 
   if (actor.kind !== "member") {
-    const [socialBadges, publicProfileIds, replyPreviews] =
+    const [socialBadges, publicProfileIds, replyPreviews, engagement] =
       await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
@@ -1842,6 +1907,8 @@ async function mapMessageRows(
         socialBadges,
         publicProfileIds,
         replyPreviews,
+        engagement.likedMessageIds,
+        engagement.replyCounts,
       ),
     );
   }
@@ -1852,7 +1919,7 @@ async function mapMessageRows(
     ),
   ];
   if (!targetUserIds.length) {
-    const [socialBadges, publicProfileIds, replyPreviews] =
+    const [socialBadges, publicProfileIds, replyPreviews, engagement] =
       await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
@@ -1863,13 +1930,18 @@ async function mapMessageRows(
         socialBadges,
         publicProfileIds,
         replyPreviews,
+        engagement.likedMessageIds,
+        engagement.replyCounts,
       ),
     );
   }
 
-  const [[socialBadges, publicProfileIds, replyPreviews], outgoing, blocks] =
-    await Promise.all([
-      enrichmentPromise,
+  const [
+    [socialBadges, publicProfileIds, replyPreviews, engagement],
+    outgoing,
+    blocks,
+  ] = await Promise.all([
+    enrichmentPromise,
     supabaseSelect("live_room_member_follows", {
       select: "followed_user_id",
       follower_user_id: `eq.${actor.userId}`,
@@ -1883,7 +1955,7 @@ async function mapMessageRows(
       or: `(and(blocker_member_user_id.eq.${actor.userId},blocked_member_user_id.in.(${targetUserIds.join(",")})),and(blocker_member_user_id.in.(${targetUserIds.join(",")}),blocked_member_user_id.eq.${actor.userId}))`,
       limit: String(targetUserIds.length * 2),
     }),
-    ]);
+  ]);
   if (!outgoing.ok || !blocks.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_FOLLOW_STATE_UNAVAILABLE",
@@ -1919,6 +1991,8 @@ async function mapMessageRows(
       socialBadges,
       publicProfileIds,
       replyPreviews,
+      engagement.likedMessageIds,
+      engagement.replyCounts,
     ),
   );
 }
@@ -1956,7 +2030,7 @@ async function getLiveRoomPublicProfileIdMap(
 
 async function getLiveRoomReplyPreviewMap(
   rows: readonly MessageRow[],
-  actor: LiveRoomActor,
+  blockedActorIds: readonly string[],
 ) {
   const replyMessageIds = [
     ...new Set(
@@ -1969,16 +2043,13 @@ async function getLiveRoomReplyPreviewMap(
     return new Map<string, LiveRoomReplyPreview>();
   }
 
-  const [result, blockedActorIds] = await Promise.all([
-    supabaseSelect("live_room_messages", {
-      select:
-        "id,actor_id,author_display_name,author_emoji,body,visibility_status",
-      id: `in.(${replyMessageIds.join(",")})`,
-      visibility_status: "eq.visible",
-      limit: String(replyMessageIds.length),
-    }),
-    getBlockedActorIds(actor),
-  ]);
+  const result = await supabaseSelect("live_room_messages", {
+    select:
+      "id,actor_id,author_display_name,author_emoji,body,visibility_status",
+    id: `in.(${replyMessageIds.join(",")})`,
+    visibility_status: "eq.visible",
+    limit: String(replyMessageIds.length),
+  });
   if (!result.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_REPLY_PREVIEWS_UNAVAILABLE",
@@ -2009,6 +2080,74 @@ async function getLiveRoomReplyPreviewMap(
   );
 }
 
+async function getLiveRoomMessageEngagement(
+  rows: readonly MessageRow[],
+  actor: LiveRoomActor,
+  blockedActorIds: readonly string[],
+) {
+  const messageIds = [
+    ...new Set(
+      rows.map((row) => readString(row.id)).filter(Boolean),
+    ),
+  ];
+  const roomId = readString(rows[0]?.room_id);
+  if (!messageIds.length || !roomId) {
+    return {
+      likedMessageIds: new Set<string>(),
+      replyCounts: new Map<string, number>(),
+    };
+  }
+
+  const [replyResult, likeResult] = await Promise.all([
+    supabaseRpc("get_live_room_message_reply_counts", {
+      p_room_id: roomId,
+      p_message_ids: messageIds,
+      p_blocked_actor_ids: blockedActorIds,
+    }),
+    actor.kind === "member"
+      ? supabaseSelect("live_room_message_likes", {
+          select: "message_id",
+          actor_user_id: `eq.${actor.userId}`,
+          message_id: `in.(${messageIds.join(",")})`,
+          limit: String(messageIds.length),
+        })
+      : Promise.resolve({
+          data: [],
+          error: undefined,
+          ok: true,
+          status: 200,
+        }),
+  ]);
+  if (!replyResult.ok || !likeResult.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MESSAGE_ENGAGEMENT_UNAVAILABLE",
+      replyResult.error ||
+        likeResult.error ||
+        "Message engagement could not be loaded.",
+      replyResult.status || likeResult.status || 502,
+    );
+  }
+
+  return {
+    likedMessageIds: new Set(
+      readRows(likeResult.data)
+        .map((row) => readString(row.message_id))
+        .filter(Boolean),
+    ),
+    replyCounts: new Map(
+      readRows(replyResult.data)
+        .map(
+          (row) =>
+            [
+              readString(row.message_id),
+              readNonnegativeCount(row.reply_count),
+            ] as const,
+        )
+        .filter(([messageId]) => Boolean(messageId)),
+    ),
+  };
+}
+
 function assertLiveRoomPresenceMember(
   actor: LiveRoomActor,
 ): asserts actor is Extract<LiveRoomActor, { kind: "member" }> {
@@ -2016,6 +2155,18 @@ function assertLiveRoomPresenceMember(
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_REQUIRED",
       "Sign in to use Live Room presence.",
+      401,
+    );
+  }
+}
+
+function assertLiveRoomEngagementMember(
+  actor: LiveRoomActor,
+): asserts actor is Extract<LiveRoomActor, { kind: "member" }> {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to like Live Room messages.",
       401,
     );
   }
@@ -2155,6 +2306,8 @@ function mapMessageRow(
   > = new Map(),
   publicProfileIdMap: ReadonlyMap<string, string> = new Map(),
   replyPreviewMap: ReadonlyMap<string, LiveRoomReplyPreview> = new Map(),
+  likedMessageIds: ReadonlySet<string> = new Set(),
+  replyCountMap: ReadonlyMap<string, number> = new Map(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -2167,6 +2320,7 @@ function mapMessageRow(
       : null;
 
   const memberUserId = readString(row.member_user_id);
+  const messageId = readString(row.id);
   const canFollowMember =
     actor.kind === "member" &&
     row.author_kind === "member" &&
@@ -2194,11 +2348,14 @@ function mapMessageRow(
       canFollowMember && messageableUserIds.has(memberUserId),
     createdAt: readString(row.created_at),
     eventReference,
-    id: readString(row.id),
+    id: messageId,
+    isLiked: likedMessageIds.has(messageId),
     isMemberFollowed:
       canFollowMember && followedUserIds.has(memberUserId),
     isMine: isLiveRoomMessageMine(row, actor),
     kind: "message",
+    likeCount: readNonnegativeCount(row.like_count),
+    replyCount: replyCountMap.get(messageId) || 0,
     replyPreview:
       replyPreviewMap.get(readString(row.reply_to_message_id)) || null,
   };
