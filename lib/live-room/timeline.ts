@@ -32,6 +32,18 @@ export function replaceLiveRoomTimeline(
   return sortLiveRoomTimeline([...items]);
 }
 
+export function updateLiveRoomMessageEngagement(
+  items: readonly LiveRoomTimelineItem[],
+  messageId: string,
+  engagement: { isLiked: boolean; likeCount: number },
+) {
+  return items.map((item) =>
+    item.kind === "message" && item.id === messageId
+      ? { ...item, ...engagement }
+      : item,
+  );
+}
+
 export function isCurrentLiveRoomTimelineGeneration(
   currentGeneration: number,
   responseGeneration: number,

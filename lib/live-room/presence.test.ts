@@ -453,7 +453,10 @@ function message(id: string, isGuest: boolean): LiveRoomChatMessage {
     createdAt: "2026-07-28T00:00:00.000Z",
     eventReference: null,
     id,
+    isLiked: false,
     kind: "message",
+    likeCount: 0,
+    replyCount: 0,
     replyPreview: null,
   };
 }

@@ -302,9 +302,12 @@ function message({
     createdAt,
     eventReference: null,
     id,
+    isLiked: false,
     isMemberFollowed,
     isOnline,
     kind: "message",
+    likeCount: 0,
+    replyCount: 0,
     replyPreview: null,
   };
 }

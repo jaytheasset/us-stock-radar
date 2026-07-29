@@ -1556,7 +1556,6 @@
   flex: 0 0 auto;
 }
 
-.messageReplyButton,
 .messageActionsTrigger {
   display: inline-flex;
   width: 28px;
@@ -1577,7 +1576,6 @@
   background: var(--sr-color-surface-control);
 }
 
-.messageReplyButton:hover,
 .messageActionsTrigger:hover {
   color: var(--sr-color-text-strong);
   background: var(--sr-color-surface-control);
@@ -1646,6 +1644,66 @@
   font-size: var(--sr-font-size-base);
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.messageEngagement {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sr-space-1);
+  margin-top: var(--sr-space-1);
+}
+
+.messageEngagementControl {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-0-5);
+  border: 0;
+  border-radius: var(--sr-radius-chat-control);
+  padding: var(--sr-space-0-5) var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  background: transparent;
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-control);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.messageEngagementControl svg {
+  width: var(--sr-font-size-sm);
+  height: var(--sr-font-size-sm);
+  flex: 0 0 auto;
+}
+
+.messageEngagementControl[data-has-count="false"] {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.otherMessage article:hover
+  .messageEngagementControl[data-has-count="false"],
+.myMessage article:hover
+  .messageEngagementControl[data-has-count="false"],
+.otherMessage article:focus-within
+  .messageEngagementControl[data-has-count="false"],
+.myMessage article:focus-within
+  .messageEngagementControl[data-has-count="false"] {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.messageEngagementControl:hover {
+  color: var(--sr-color-text-strong);
+  background: var(--sr-color-surface-control);
+}
+
+.messageEngagementControl:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
 }
 
 .messageReplyPreview {
@@ -2264,7 +2322,7 @@ button.messageReplyPreview:hover {
 .historyEventCard a:focus-visible,
 .roomManagement button:focus-visible,
 .managementPanel button:focus-visible,
-.messageReplyButton:focus-visible,
+.messageEngagementControl:focus-visible,
 .messageReplyPreview:focus-visible,
 .messageActions button:focus-visible,
 .composer button:focus-visible,
@@ -2626,10 +2684,14 @@ button.messageReplyPreview:hover {
     gap: var(--sr-space-1);
   }
 
-  .messageReplyButton,
   .messageActionsTrigger {
     width: 24px;
     height: 24px;
+  }
+
+  .messageEngagementControl[data-has-count="false"] {
+    pointer-events: auto;
+    opacity: 1;
   }
 
   .otherMessage article > p,

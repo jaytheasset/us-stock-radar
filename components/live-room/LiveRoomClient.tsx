@@ -61,6 +61,7 @@ import {
   mergeLiveRoomTimeline,
   removeLiveRoomTimelineItems,
   replaceLiveRoomTimeline,
+  updateLiveRoomMessageEngagement,
 } from "@/lib/live-room/timeline";
 import {
   getLiveRoomTimelineDistanceFromBottom,
@@ -221,6 +222,8 @@ export function LiveRoomClient({
   >([]);
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
+  const [messageLikeIds, setMessageLikeIds] =
+    useState<ReadonlySet<string>>(() => new Set());
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
     displayName: string;
     emoji: string;
@@ -250,6 +253,7 @@ export function LiveRoomClient({
   const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
+  const messageLikeIdsRef = useRef<Set<string>>(new Set());
   const timelineElementRef = useRef<HTMLDivElement>(null);
   const timelineScrollFrameRef = useRef<number | null>(null);
   const timelineSticksToBottomRef = useRef(true);
@@ -364,6 +368,8 @@ export function LiveRoomClient({
       setJoinedRooms(null);
       setJoinedRoomsError(null);
       setJoinedRoomsLoading(true);
+      messageLikeIdsRef.current.clear();
+      setMessageLikeIds(new Set());
     }
     setRoomNotice(null);
     if (isNewRoom) {
@@ -1170,6 +1176,59 @@ export function LiveRoomClient({
     setComposerFocusRequestId((value) => value + 1);
   };
 
+  const handleToggleMessageLike = async (
+    message: LiveRoomChatMessage,
+    liked: boolean,
+  ) => {
+    if (profile?.isGuest !== false) {
+      window.location.assign(roomLoginHref);
+      return;
+    }
+    if (messageLikeIdsRef.current.has(message.id)) return;
+
+    const previous = {
+      isLiked: message.isLiked,
+      likeCount: message.likeCount,
+    };
+    messageLikeIdsRef.current.add(message.id);
+    setMessageLikeIds(new Set(messageLikeIdsRef.current));
+    setTimeline((current) =>
+      updateLiveRoomMessageEngagement(current, message.id, {
+        isLiked: liked,
+        likeCount: Math.max(
+          0,
+          message.likeCount + (liked ? 1 : -1),
+        ),
+      }),
+    );
+    setRoomNotice(null);
+
+    try {
+      const result = await repository.setMessageLike(
+        message.id,
+        liked,
+      );
+      setTimeline((current) =>
+        updateLiveRoomMessageEngagement(current, result.messageId, {
+          isLiked: result.liked,
+          likeCount: result.likeCount,
+        }),
+      );
+    } catch (error) {
+      setTimeline((current) =>
+        updateLiveRoomMessageEngagement(
+          current,
+          message.id,
+          previous,
+        ),
+      );
+      setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      messageLikeIdsRef.current.delete(message.id);
+      setMessageLikeIds(new Set(messageLikeIdsRef.current));
+    }
+  };
+
   const handleOpenReplyTarget = (messageId: string) => {
     if (
       !timeline.some(
@@ -1619,7 +1678,9 @@ export function LiveRoomClient({
                 currentProfileName={profile?.displayName.trim() || ""}
                 highlightedMessageId={highlightedMessageId}
                 items={timeline}
+                loginHref={roomLoginHref}
                 messageActionId={messageActionId}
+                messageLikeIds={messageLikeIds}
                 onBlock={handleBlock}
                 onHide={(messageId) =>
                   handleModerate(messageId, "hide")
@@ -1629,8 +1690,10 @@ export function LiveRoomClient({
                 onReply={handleReply}
                 onReport={handleReport}
                 onToggleMemberFollow={handleMemberFollow}
+                onToggleMessageLike={handleToggleMessageLike}
                 onRetry={() => setReloadKey((value) => value + 1)}
                 state={timelineState}
+                viewerIsGuest={profile?.isGuest !== false}
               />
             </div>
             <MessageComposer

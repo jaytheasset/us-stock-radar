@@ -44,7 +44,10 @@ export class InMemoryLiveRoomMessageRepository
       createdAt: new Date().toISOString(),
       eventReference: draft.eventReference,
       id: createId("message"),
+      isLiked: false,
       kind: "message",
+      likeCount: 0,
+      replyCount: 0,
       replyPreview: null,
     };
     this.append(roomKey, message);
@@ -192,7 +195,10 @@ function createSeedMessages(
       createdAt: "2026-07-27T00:12:00.000Z",
       eventReference: null,
       id: "seed-message-1",
+      isLiked: false,
       kind: "message",
+      likeCount: 0,
+      replyCount: 0,
       replyPreview: null,
     },
     {
@@ -206,7 +212,10 @@ function createSeedMessages(
       createdAt: "2026-07-27T00:18:00.000Z",
       eventReference: null,
       id: "seed-message-2",
+      isLiked: false,
       kind: "message",
+      likeCount: 0,
+      replyCount: 0,
       replyPreview: null,
     },
   ];
