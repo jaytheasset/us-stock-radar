@@ -540,6 +540,7 @@
   min-height: var(--sr-size-control);
   border: 0;
   border-bottom: 2px solid transparent;
+  border-radius: 0;
   padding: 0 var(--sr-space-1);
   color: var(--sr-color-text-meta);
   background: transparent;
