@@ -12,12 +12,17 @@ import {
 import {
   eventStatusLabels,
   eventTypeLabels,
+  impactLevelLabels,
   marketSessionShortLabels,
   type CalendarDateRange,
   type CalendarEvent,
 } from "@/lib/calendar-v1/model";
 import {
+  formatCalendarEventTime,
   formatEventCount,
+  getCalendarCompactIdentity,
+  getCalendarEventContext,
+  getCalendarEventIdentity,
   selectUpcomingCalendarEvents,
 } from "@/lib/calendar-v1/presentation";
 import { getLiveRoomHref } from "@/lib/live-room/adapters";
@@ -89,7 +94,7 @@ export function CalendarView({
               <span className={styles.dayEvents}>
                 {dayEvents.slice(0, 3).map((event) => (
                   <span key={event.id}>
-                    <b>{event.ticker ?? "TBA"}</b>
+                    <b>{getCalendarCompactIdentity(event)}</b>
                     <CalendarEventTypeBadge eventType={event.eventType} />
                   </span>
                 ))}
@@ -198,8 +203,9 @@ function CalendarEventRow({
   isSelected: boolean;
   onOpenEvent: OpenEvent;
 }) {
-  const liveRoomHref = getLiveRoomHref(event.ticker);
-  const stockHref = getStockRouteHref(event.ticker);
+  const identity = getCalendarEventIdentity(event);
+  const liveRoomHref = getLiveRoomHref(identity.primaryTicker);
+  const stockHref = getStockRouteHref(identity.primaryTicker);
   return (
     <article
       className={styles.eventRow}
@@ -207,32 +213,38 @@ function CalendarEventRow({
       data-selected={isSelected}
     >
       <button
-        aria-label={`Open ${event.companyName} ${eventTypeLabels[event.eventType]} details`}
+        aria-label={`Open ${identity.secondaryLabel} ${eventTypeLabels[event.eventType]} details`}
         className={styles.eventRowOpen}
         onClick={(clickEvent) => onOpenEvent(event, clickEvent.currentTarget)}
         type="button"
       />
       <div className={styles.eventIdentity}>
-        <strong>{event.ticker ?? "TBA"}</strong>
-        <span>{event.companyName}</span>
-        {event.isWatchlisted ? <Bookmark aria-label="In mock watchlist" fill="currentColor" size={13} /> : null}
+        <strong>{identity.primaryLabel}</strong>
+        <span>{identity.secondaryLabel}</span>
+        {event.category === "company" && event.isWatchlisted ? (
+          <Bookmark aria-label="In mock watchlist" fill="currentColor" size={13} />
+        ) : null}
       </div>
       <div className={styles.eventDescription}>
         <CalendarEventTypeBadge eventType={event.eventType} />
         <strong>{event.title}</strong>
+        <small>{getCalendarEventContext(event)}</small>
       </div>
       <div className={styles.eventMeta}>
-        <span>{marketSessionShortLabels[event.marketSession]}</span>
+        <span>
+          {formatCalendarEventTime(event)} · {marketSessionShortLabels[event.marketSession]}
+        </span>
         <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
+        <small>{impactLevelLabels[event.impactLevel]}</small>
       </div>
       <div className={styles.eventActions}>
         {liveRoomHref ? (
-          <Link aria-label={`Open ${event.ticker} Live Room`} href={liveRoomHref}>
+          <Link aria-label={`Open ${identity.primaryTicker} Live Room`} href={liveRoomHref}>
             <MessageCircle aria-hidden="true" size={15} />
           </Link>
         ) : null}
         {stockHref ? (
-          <Link aria-label={`Open ${event.ticker} stock overview`} href={stockHref}>
+          <Link aria-label={`Open ${identity.primaryTicker} stock overview`} href={stockHref}>
             <ChevronRight aria-hidden="true" size={16} />
           </Link>
         ) : null}
@@ -291,6 +303,7 @@ function UpcomingEventRow({
   onOpenEvent: OpenEvent;
 }) {
   const date = parseDateOnly(event.eventDate);
+  const identity = getCalendarEventIdentity(event);
 
   return (
     <article
@@ -299,7 +312,7 @@ function UpcomingEventRow({
       data-selected={isSelected}
     >
       <button
-        aria-label={`Open upcoming ${event.companyName} ${eventTypeLabels[event.eventType]} details`}
+        aria-label={`Open upcoming ${identity.secondaryLabel} ${eventTypeLabels[event.eventType]} details`}
         className={styles.upcomingRowOpen}
         onClick={(clickEvent) => onOpenEvent(event, clickEvent.currentTarget)}
         type="button"
@@ -311,16 +324,18 @@ function UpcomingEventRow({
         </strong>
       </time>
       <div className={styles.upcomingIdentity}>
-        <strong>{event.ticker ?? "TBA"}</strong>
-        <span>{event.companyName}</span>
+        <strong>{identity.primaryLabel}</strong>
+        <span>{identity.secondaryLabel}</span>
       </div>
       <div className={styles.upcomingDescription}>
         <CalendarEventTypeBadge eventType={event.eventType} />
         <strong>{event.title}</strong>
+        <small>{getCalendarEventContext(event)}</small>
       </div>
       <div className={styles.upcomingMeta}>
-        <span>{marketSessionShortLabels[event.marketSession]}</span>
+        <span>{formatCalendarEventTime(event)}</span>
         <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
+        <small>{impactLevelLabels[event.impactLevel]}</small>
       </div>
     </article>
   );

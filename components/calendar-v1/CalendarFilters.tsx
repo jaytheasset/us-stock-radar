@@ -14,17 +14,21 @@ import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import {
+  CALENDAR_CATEGORIES,
   CALENDAR_EVENT_STATUSES,
-  CALENDAR_EVENT_TYPES,
   CALENDAR_MARKET_SESSIONS,
+  calendarCategoryLabels,
+  calendarEventTypeGroups,
   eventStatusLabels,
   eventTypeLabels,
   marketSessionLabels,
+  type CalendarCategory,
   type CalendarEventStatus,
   type CalendarEventType,
   type CalendarFilters as CalendarFilterState,
   type CalendarMarketSession,
 } from "@/lib/calendar-v1/model";
+import { updateCalendarCategoryFilter } from "@/lib/calendar-v1/dateUtils";
 import styles from "./CalendarV1.module.css";
 
 type CalendarFiltersProps = {
@@ -37,10 +41,17 @@ type CalendarFiltersProps = {
   setFilters: Dispatch<SetStateAction<CalendarFilterState>>;
 };
 
-const eventTypeItems = [
+const categoryItems = [
   { label: "All", value: "all" },
-  ...CALENDAR_EVENT_TYPES.map((value) => ({ label: eventTypeLabels[value], value })),
+  ...CALENDAR_CATEGORIES.map((value) => ({
+    label: calendarCategoryLabels[value],
+    value,
+  })),
 ] as const;
+
+function getVisibleTypeGroups(category: CalendarCategory | "all") {
+  return category === "all" ? CALENDAR_CATEGORIES : [category];
+}
 
 export function CalendarFilters({
   activeCount,
@@ -56,12 +67,15 @@ export function CalendarFilters({
       <div className={styles.searchAndMobileFilters}>
         <label className={styles.searchField}>
           <Search aria-hidden="true" size={17} />
-          <span className={styles.visuallyHidden}>Search ticker or company</span>
+          <span className={styles.visuallyHidden}>
+            Search events, agencies, industries, or tickers
+          </span>
           <input
             onChange={(event) =>
               setFilters((current) => ({ ...current, query: event.target.value }))
             }
-            placeholder="Search ticker or company"
+            aria-label="Search events, agencies, industries, or tickers"
+            placeholder="Search events, agencies, industries, tickers"
             type="search"
             value={filters.query}
           />
@@ -82,12 +96,23 @@ export function CalendarFilters({
 
       <div className={styles.desktopFilters}>
         <SegmentedControl
-          ariaLabel="Event type"
-          className={styles.eventTypeControl}
-          items={eventTypeItems}
-          onValueChange={(eventType) => setFilters((current) => ({ ...current, eventType }))}
-          value={filters.eventType}
+          ariaLabel="Event category"
+          className={styles.categoryControl}
+          items={categoryItems}
+          onValueChange={(category) =>
+            setFilters((current) =>
+              updateCalendarCategoryFilter(current, category),
+            )
+          }
+          value={filters.category}
           variant="compact"
+        />
+        <EventTypeFilterMenu
+          category={filters.category}
+          onChange={(eventType) =>
+            setFilters((current) => ({ ...current, eventType }))
+          }
+          value={filters.eventType}
         />
         <button
           aria-pressed={filters.watchlistOnly}
@@ -143,6 +168,83 @@ export function CalendarFilters({
         setFilters={setFilters}
       />
     </section>
+  );
+}
+
+function EventTypeFilterMenu({
+  category,
+  onChange,
+  value,
+}: {
+  category: CalendarCategory | "all";
+  onChange: (value: CalendarEventType | "all") => void;
+  value: CalendarEventType | "all";
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = value === "all" ? "All types" : eventTypeLabels[value];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className={styles.filterMenu} ref={rootRef}>
+      <FilterTrigger
+        active={value !== "all"}
+        aria-controls="calendar-type-options"
+        expanded={open}
+        label="Type"
+        onClick={() => setOpen((current) => !current)}
+        trailingIcon={<ChevronDown aria-hidden="true" size={14} />}
+        value={selectedLabel}
+      />
+      {open ? (
+        <div
+          aria-label="Event type options"
+          className={`${styles.filterMenuOptions} ${styles.typeMenuOptions}`}
+          id="calendar-type-options"
+          role="group"
+        >
+          <FilterOption
+            label="All types"
+            onClick={() => {
+              onChange("all");
+              setOpen(false);
+            }}
+            selected={value === "all"}
+          />
+          {getVisibleTypeGroups(category).map((group) => (
+            <section className={styles.typeOptionGroup} key={group}>
+              <h3>{calendarCategoryLabels[group]}</h3>
+              {calendarEventTypeGroups[group].map((eventType) => (
+                <FilterOption
+                  key={eventType}
+                  label={eventTypeLabels[eventType]}
+                  onClick={() => {
+                    onChange(eventType);
+                    setOpen(false);
+                  }}
+                  selected={value === eventType}
+                />
+              ))}
+            </section>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 type FilterMenuOption<Value extends string> = { label: string; value: Value };
@@ -248,16 +350,48 @@ function MobileCalendarFilterSheet({
           <p>All filters apply to both calendar and list views.</p>
         </header>
         <MobileFilterGroup
-          label="Event type"
-          onChange={(eventType) =>
-            setFilters((current) => ({
-              ...current,
-              eventType: eventType as CalendarEventType | "all",
-            }))
+          label="Category"
+          onChange={(category) =>
+            setFilters((current) =>
+              updateCalendarCategoryFilter(
+                current,
+                category as CalendarCategory | "all",
+              ),
+            )
           }
-          options={eventTypeItems}
-          value={filters.eventType}
+          options={categoryItems}
+          value={filters.category}
         />
+        <section className={styles.mobileFilterGroup}>
+          <h3>Event type</h3>
+          <div>
+            <FilterOption
+              label="All types"
+              onClick={() =>
+                setFilters((current) => ({ ...current, eventType: "all" }))
+              }
+              selected={filters.eventType === "all"}
+            />
+            {getVisibleTypeGroups(filters.category).map((group) => (
+              <div className={styles.mobileTypeOptionGroup} key={group}>
+                <h4>{calendarCategoryLabels[group]}</h4>
+                {calendarEventTypeGroups[group].map((eventType) => (
+                  <FilterOption
+                    key={eventType}
+                    label={eventTypeLabels[eventType]}
+                    onClick={() =>
+                      setFilters((current) => ({
+                        ...current,
+                        eventType,
+                      }))
+                    }
+                    selected={filters.eventType === eventType}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
         <section className={styles.mobileFilterGroup}>
           <h3>Watchlist</h3>
           <div>

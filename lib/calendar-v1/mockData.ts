@@ -1,23 +1,48 @@
 import { addDateOnlyDays } from "./dateUtils.ts";
-import type { CalendarEvent } from "./model.ts";
+import { createMacroPolicyMockEvents } from "./macroPolicyMockData.ts";
+import type { CompanyCalendarEvent, CalendarEvent } from "./model.ts";
+
+export const CALENDAR_MOCK_WATCHLIST_TICKERS = [
+  "AAPL",
+  "TSLA",
+  "NVDA",
+  "MSFT",
+  "AVGO",
+  "AMZN",
+  "MRNA",
+] as const;
 
 export function createCalendarMockEvents(today: string): CalendarEvent[] {
   const date = (offset: number) => addDateOnlyDays(today, offset);
   const common = (
     id: string,
     offset: number,
-    overrides: Partial<CalendarEvent> = {},
+    overrides: Partial<CompanyCalendarEvent> = {},
   ) => ({
     id,
     provider: "mock" as const,
     providerEventKey: `mock:${id}`,
+    category: "company" as const,
     eventDate: date(offset),
+    eventEndDate: null,
+    timezone: "America/New_York" as const,
+    timeStatus: "exact" as const,
+    lifecycleStatus: "scheduled" as const,
+    scheduleConfidence: "confirmed" as const,
+    impactLevel: "medium" as const,
+    impactScope: "company" as const,
+    sourceAgency: "Mock market calendar",
+    sourceName: "Company event fixture",
+    sourceUrl: null,
+    sourceEventKey: `company:${id}`,
+    affectedSectors: [],
+    relatedTickers: [],
     source: "Mock market calendar",
     lastUpdatedAt: `${date(Math.min(offset, 0))}T14:30:00-04:00`,
     ...overrides,
   });
 
-  const events: CalendarEvent[] = [
+  const events: CompanyCalendarEvent[] = [
     {
       ...common("earn-nvda-confirmed", 0),
       eventType: "earnings",
@@ -320,5 +345,18 @@ export function createCalendarMockEvents(today: string): CalendarEvent[] {
     },
   ];
 
-  return events;
+  const companyEvents = events.map((event) => ({
+    ...event,
+    timeStatus: event.eventTime ? "exact" as const : "time-not-announced" as const,
+    lifecycleStatus:
+      event.status === "completed" ? "released" as const : "scheduled" as const,
+    scheduleConfidence:
+      event.status === "estimated" ? "tentative" as const : "confirmed" as const,
+    relatedTickers: event.ticker ? [event.ticker] : [],
+  }));
+
+  return [
+    ...companyEvents,
+    ...createMacroPolicyMockEvents(today),
+  ] satisfies CalendarEvent[];
 }

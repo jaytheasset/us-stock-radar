@@ -28,7 +28,10 @@ import {
   rangeContainsDate,
   shiftDateRange,
 } from "@/lib/calendar-v1/dateUtils";
-import { createCalendarMockEvents } from "@/lib/calendar-v1/mockData";
+import {
+  CALENDAR_MOCK_WATCHLIST_TICKERS,
+  createCalendarMockEvents,
+} from "@/lib/calendar-v1/mockData";
 import {
   DEFAULT_CALENDAR_FILTERS,
   type CalendarDateRange,
@@ -38,6 +41,7 @@ import {
 } from "@/lib/calendar-v1/model";
 import {
   formatEventCount,
+  getCalendarEventIdentity,
   selectCalendarPreviewEvent,
 } from "@/lib/calendar-v1/presentation";
 import type { Plan } from "@/lib/subscriptionPolicy";
@@ -73,17 +77,37 @@ export function StockRadarCalendarV1({
   );
   const events = useMemo(
     () =>
-      sourceEvents.map((event) => ({
-        ...event,
-        isWatchlisted: event.ticker
-          ? watchlistOverrides[event.ticker] ?? event.isWatchlisted
-          : event.isWatchlisted,
-      })) as CalendarEvent[],
+      sourceEvents.map((event) =>
+        event.category === "company"
+          ? {
+              ...event,
+              isWatchlisted: event.ticker
+                ? watchlistOverrides[event.ticker] ?? event.isWatchlisted
+                : event.isWatchlisted,
+            }
+          : event,
+      ),
     [sourceEvents, watchlistOverrides],
   );
+  const watchlistTickers = useMemo(() => {
+    const tickers = new Set<string>();
+    for (const ticker of CALENDAR_MOCK_WATCHLIST_TICKERS) {
+      if (watchlistOverrides[ticker] ?? true) tickers.add(ticker);
+    }
+    for (const event of events) {
+      if (
+        event.category === "company" &&
+        event.ticker &&
+        event.isWatchlisted
+      ) {
+        tickers.add(event.ticker);
+      }
+    }
+    return tickers;
+  }, [events, watchlistOverrides]);
   const filteredEvents = useMemo(
-    () => filterCalendarEvents(events, range, filters),
-    [events, filters, range],
+    () => filterCalendarEvents(events, range, filters, watchlistTickers),
+    [events, filters, range, watchlistTickers],
   );
   const activeFilterCount = countActiveCalendarFilters(filters);
   const canShowPreview =
@@ -312,16 +336,16 @@ export function StockRadarCalendarV1({
             }}
             onSheetDismiss={dismissSheet}
             onWatchlistToggle={(event) => {
-              if (!event.ticker) return;
-              const ticker = event.ticker;
+              const ticker = getCalendarEventIdentity(event).primaryTicker;
+              if (!ticker) return;
               setWatchlistOverrides((current) => ({
                 ...current,
-                [ticker]: !(current[ticker] ?? event.isWatchlisted),
+                [ticker]: !(current[ticker] ?? watchlistTickers.has(ticker)),
               }));
             }}
             openerRef={detailOpenerRef}
             sheetEvent={sheetEvent}
-            watchlistOverrides={watchlistOverrides}
+            watchlistTickers={watchlistTickers}
           />
         </CalendarDesktopRail>
       </div>

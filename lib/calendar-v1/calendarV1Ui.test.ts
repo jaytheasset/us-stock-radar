@@ -107,7 +107,7 @@ test("Calendar typography, day alignment, and conditional upcoming panel use loc
   );
   assert.match(
     styles,
-    /\.page \.viewControl > button,[\s\S]*\.page \.rangeControl > button,[\s\S]*\.page \.eventTypeControl > button\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-md\);[\s\S]*font-weight:\s*var\(--sr-font-weight-semibold\);/,
+    /\.page \.viewControl > button,[\s\S]*\.page \.rangeControl > button,[\s\S]*\.page \.categoryControl > button\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-md\);[\s\S]*font-weight:\s*var\(--sr-font-weight-semibold\);/,
   );
   assert.match(
     styles,
@@ -184,18 +184,18 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   const followAction = detail.slice(followActionStart, detail.indexOf("detailLinks"));
 
   assert.match(workspace, /watchlistOverrides\[event\.ticker\]/);
-  assert.match(workspace, /const ticker = event\.ticker/);
+  assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
   assert.match(workspace, /\[ticker\]: !\(current\[ticker\]/);
   assert.doesNotMatch(workspace, /\[event\.id\]: !\(current\[event\.id\][\s\S]*isWatchlisted/);
   assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
-  assert.match(detail, /watchlistOverrides\[desktopEvent\.ticker\]/);
-  assert.match(detail, /followedEvents\[desktopEvent\.id\]/);
+  assert.match(detail, /watchlistTickers\.has\(ticker\)/);
+  assert.match(detail, /followedEvents\[event\.id\]/);
 
   assert.match(watchAction, /Track this ticker across Stock Radar\./);
-  assert.match(watchAction, /disabled=\{!event\.ticker\}/);
+  assert.match(watchAction, /disabled=\{!ticker\}/);
   assert.match(watchAction, /No ticker to watch/);
   assert.match(watchAction, /Watch Stock/);
-  assert.match(detail, /Watching \$\{event\.ticker\}/);
+  assert.match(detail, /Watching \$\{ticker\}/);
   assert.doesNotMatch(followAction, /disabled=/);
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
@@ -207,6 +207,107 @@ test("stock watching is ticker-scoped while event following remains event-scoped
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
   );
   assert.match(styles, /\.detailAction button:disabled/);
+});
+
+test("category and grouped Type filters share a contradiction-free desktop and mobile contract", async () => {
+  const filters = await read("components/calendar-v1/CalendarFilters.tsx");
+  const model = await read("lib/calendar-v1/model.ts");
+  const selector = await read("lib/calendar-v1/dateUtils.ts");
+
+  assert.match(filters, /ariaLabel="Event category"/);
+  assert.match(filters, /className=\{styles\.categoryControl\}/);
+  assert.match(filters, /label="Type"/);
+  assert.match(filters, /All types/);
+  assert.match(filters, /calendarEventTypeGroups\[group\]/);
+  assert.match(filters, /calendarCategoryLabels\[group\]/);
+  assert.match(filters, /label="Category"/);
+  assert.match(filters, /<h3>Event type<\/h3>/);
+  assert.match(filters, /updateCalendarCategoryFilter/);
+  assert.match(
+    filters,
+    /Search events, agencies, industries, tickers/,
+  );
+  assert.match(model, /company:\s*COMPANY_EVENT_TYPES/);
+  assert.match(model, /macro:\s*MACRO_EVENT_TYPES/);
+  assert.match(model, /policy:\s*POLICY_EVENT_TYPES/);
+  assert.match(selector, /eventTypeCategories\[filters\.eventType\] === category/);
+});
+
+test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and category detail renderers", async () => {
+  const views = await read("components/calendar-v1/CalendarViews.tsx");
+  const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
+  const presentation = await read("lib/calendar-v1/presentation.ts");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+
+  assert.match(views, /getCalendarCompactIdentity\(event\)/);
+  assert.match(views, /getCalendarEventIdentity\(event\)/);
+  assert.match(views, /formatCalendarEventTime\(event\)/);
+  assert.match(views, /impactLevelLabels\[event\.impactLevel\]/);
+  assert.match(presentation, /event\.category === "company"/);
+  assert.match(presentation, /event\.category === "macro"/);
+  assert.match(presentation, /Time Not Announced/);
+  assert.match(presentation, /`\$\{formatClockTime\(event\.eventTime\)\} ET`/);
+
+  assert.match(detail, /event\.category === "company"/);
+  assert.match(detail, /event\.category === "macro"/);
+  assert.match(detail, /function MacroDetails/);
+  assert.match(detail, /function renderPolicyDetails/);
+  assert.match(detail, /Economic release metrics/);
+  assert.match(detail, /Not released/);
+  assert.match(detail, /sourceAgency/);
+  assert.match(detail, /sourceEventKey/);
+  assert.match(detail, /value="Mock"/);
+  assert.match(styles, /\.macroMetrics\s*\{/);
+  assert.match(styles, /grid-template-columns:\s*minmax\(84px/);
+});
+
+test("Calendar event badge tones cover every Company, Macro, and Policy type without a new Badge API", async () => {
+  const badge = await read("components/calendar-v1/CalendarEventTypeBadge.tsx");
+  const sharedBadge = await read("components/ui/Badge.tsx");
+
+  for (const eventType of [
+    "cpi",
+    "ppi",
+    "pce",
+    "employment-situation",
+    "jolts",
+    "gdp-advance",
+    "retail-sales",
+    "fomc-decision",
+    "fomc-minutes",
+    "fed-chair-testimony",
+    "treasury-borrowing-estimate",
+    "treasury-refunding",
+    "treasury-auction-10y",
+    "treasury-auction-30y",
+    "sec-open-meeting",
+    "sec-rule-milestone",
+    "trade-policy-action",
+    "fda-advisory-committee",
+  ]) {
+    assert.ok(badge.includes(`${JSON.stringify(eventType)}:`) || badge.includes(`${eventType}:`));
+  }
+  assert.match(badge, /satisfies Record<CalendarEventType, BadgeTone>/);
+  assert.doesNotMatch(sharedBadge, /macro|policy|treasury|fomc/i);
+});
+
+test("primary ticker gates stock actions while Follow Event stays event-scoped for every category", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+  const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
+
+  assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
+  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(detail, /const ticker = identity\.primaryTicker/);
+  assert.match(detail, /disabled=\{!ticker\}/);
+  assert.match(detail, /\{ticker \? \(\s*<div className=\{styles\.detailLinks\}>/);
+  assert.match(detail, /onFollowToggle/);
+  assert.doesNotMatch(
+    detail.slice(
+      detail.indexOf("<strong>Event alert</strong>"),
+      detail.indexOf("{ticker ? ("),
+    ),
+    /disabled=/,
+  );
 });
 
 test("event rows keep their full-row detail trigger separate from internal links", async () => {

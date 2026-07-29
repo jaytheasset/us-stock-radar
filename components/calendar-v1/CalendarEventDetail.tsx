@@ -10,9 +10,18 @@ import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
   eventStatusLabels,
+  impactLevelLabels,
   marketSessionLabels,
   type CalendarEvent,
+  type CompanyCalendarEvent,
+  type MacroCalendarEvent,
+  type PolicyCalendarEvent,
 } from "@/lib/calendar-v1/model";
+import {
+  formatCalendarEventTime,
+  formatMacroMetricValue,
+  getCalendarEventIdentity,
+} from "@/lib/calendar-v1/presentation";
 import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import styles from "./CalendarV1.module.css";
 
@@ -24,7 +33,7 @@ type CalendarEventDetailProps = {
   onWatchlistToggle: (event: CalendarEvent) => void;
   openerRef: RefObject<HTMLElement | null>;
   sheetEvent: CalendarEvent | null;
-  watchlistOverrides: Readonly<Record<string, boolean>>;
+  watchlistTickers: ReadonlySet<string>;
 };
 
 export function CalendarEventDetail({
@@ -35,7 +44,7 @@ export function CalendarEventDetail({
   onWatchlistToggle,
   openerRef,
   sheetEvent,
-  watchlistOverrides,
+  watchlistTickers,
 }: CalendarEventDetailProps) {
   const desktopTitleId = desktopEvent
     ? `calendar-desktop-detail-title-${desktopEvent.id}`
@@ -44,6 +53,20 @@ export function CalendarEventDetail({
     ? `calendar-mobile-detail-title-${sheetEvent.id}`
     : "calendar-mobile-detail-title";
 
+  const renderContent = (event: CalendarEvent, titleId: string) => {
+    const ticker = getCalendarEventIdentity(event).primaryTicker;
+    return (
+      <CalendarEventDetailContent
+        event={event}
+        followed={Boolean(followedEvents[event.id])}
+        onFollowToggle={() => onFollowToggle(event)}
+        onWatchlistToggle={() => onWatchlistToggle(event)}
+        titleId={titleId}
+        watchlisted={ticker ? watchlistTickers.has(ticker) : false}
+      />
+    );
+  };
+
   return (
     <>
       {desktopEvent ? (
@@ -51,19 +74,7 @@ export function CalendarEventDetail({
           aria-labelledby={desktopTitleId}
           className={styles.desktopDetailPanel}
         >
-          <CalendarEventDetailContent
-            event={desktopEvent}
-            followed={Boolean(followedEvents[desktopEvent.id])}
-            onFollowToggle={() => onFollowToggle(desktopEvent)}
-            onWatchlistToggle={() => onWatchlistToggle(desktopEvent)}
-            titleId={desktopTitleId}
-            watchlisted={
-              desktopEvent.ticker
-                ? watchlistOverrides[desktopEvent.ticker] ??
-                  desktopEvent.isWatchlisted
-                : false
-            }
-          />
+          {renderContent(desktopEvent, desktopTitleId)}
         </DetailPanelShell>
       ) : null}
       <BottomSheetShell
@@ -78,19 +89,7 @@ export function CalendarEventDetail({
       >
         {sheetEvent ? (
           <div className={styles.mobileDetailContent}>
-            <CalendarEventDetailContent
-              event={sheetEvent}
-              followed={Boolean(followedEvents[sheetEvent.id])}
-              onFollowToggle={() => onFollowToggle(sheetEvent)}
-              onWatchlistToggle={() => onWatchlistToggle(sheetEvent)}
-              titleId={mobileTitleId}
-              watchlisted={
-                sheetEvent.ticker
-                  ? watchlistOverrides[sheetEvent.ticker] ??
-                    sheetEvent.isWatchlisted
-                  : false
-              }
-            />
+            {renderContent(sheetEvent, mobileTitleId)}
           </div>
         ) : null}
       </BottomSheetShell>
@@ -113,15 +112,15 @@ function CalendarEventDetailContent({
   titleId: string;
   watchlisted: boolean;
 }) {
-  const stockHref = getStockRouteHref(event.ticker);
+  const identity = getCalendarEventIdentity(event);
+  const ticker = identity.primaryTicker;
+  const stockHref = getStockRouteHref(ticker);
   const eventDate = parseDateOnly(event.eventDate);
-  const watchLabel = watchlisted
-    ? `Watching ${event.ticker}`
-    : "Watch Stock";
-  const watchActionLabel = event.ticker
+  const watchLabel = watchlisted ? `Watching ${ticker}` : "Watch Stock";
+  const watchActionLabel = ticker
     ? watchlisted
-      ? `Remove ${event.ticker} from Stock Radar Watchlist`
-      : `Add ${event.ticker} to Stock Radar Watchlist`
+      ? `Remove ${ticker} from Stock Radar Watchlist`
+      : `Add ${ticker} to Stock Radar Watchlist`
     : "No ticker to watch";
   const followActionLabel = followed
     ? `Unfollow ${event.title} event`
@@ -132,11 +131,11 @@ function CalendarEventDetailContent({
       <header className={styles.detailHeader}>
         <CalendarEventTypeBadge eventType={event.eventType} size="small" />
         <div>
-          <strong>{event.ticker ?? "TBA"}</strong>
+          <strong>{identity.primaryLabel}</strong>
           <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
         </div>
         <h2 id={titleId}>{event.title}</h2>
-        <p>{event.companyName}</p>
+        <p>{identity.secondaryLabel}</p>
       </header>
 
       <dl className={styles.detailSummary}>
@@ -150,19 +149,24 @@ function CalendarEventDetailContent({
           })}
         />
         <DetailValue label="Session" value={marketSessionLabels[event.marketSession]} />
-        <DetailValue label="Time" value={formatTime(event.eventTime)} />
+        <DetailValue label="Time" value={formatCalendarEventTime(event)} />
         <DetailValue label="Status" value={eventStatusLabels[event.status]} />
+        <DetailValue label="Impact" value={impactLevelLabels[event.impactLevel]} />
+        <DetailValue label="Scope" value={titleCase(event.impactScope)} />
       </dl>
 
       <section className={styles.detailSection}>
         <h3>Event data</h3>
-        <dl>{renderEventDetails(event)}</dl>
+        {renderEventDetails(event)}
       </section>
 
       <section className={styles.detailSection}>
         <h3>Data provenance</h3>
         <dl>
-          <DetailValue label="Source" value={event.source} />
+          <DetailValue label="Agency" value={event.sourceAgency} />
+          <DetailValue label="Source" value={event.sourceName} />
+          <DetailValue label="Provider" value="Mock" />
+          <DetailValue label="Source key" value={event.sourceEventKey} />
           <DetailValue label="Updated" value={formatUpdatedAt(event.lastUpdatedAt)} />
         </dl>
       </section>
@@ -175,11 +179,11 @@ function CalendarEventDetailContent({
           </div>
           <button
             aria-label={watchActionLabel}
-            aria-pressed={event.ticker ? watchlisted : undefined}
-            disabled={!event.ticker}
+            aria-pressed={ticker ? watchlisted : undefined}
+            disabled={!ticker}
             onClick={onWatchlistToggle}
             title={
-              event.ticker
+              ticker
                 ? watchActionLabel
                 : "Watch Stock unavailable because this event has no ticker."
             }
@@ -190,7 +194,7 @@ function CalendarEventDetailContent({
             ) : (
               <Bookmark aria-hidden="true" size={16} />
             )}
-            {event.ticker ? watchLabel : "No ticker to watch"}
+            {ticker ? watchLabel : "No ticker to watch"}
           </button>
         </div>
         <div className={styles.detailAction}>
@@ -219,26 +223,24 @@ function CalendarEventDetailContent({
         </div>
       </div>
 
-      <div className={styles.detailLinks}>
-        {stockHref ? (
-          <Link href={stockHref}>
+      {ticker ? (
+        <div className={styles.detailLinks}>
+          <Link href={stockHref!}>
             Stock overview
             <ExternalLink aria-hidden="true" size={14} />
           </Link>
-        ) : (
-          <span aria-disabled="true">Stock overview unavailable</span>
-        )}
-        <LiveRoomEntryButton
-          event={{
-            id: event.id,
-            source: event.source,
-            title: event.title,
-            type: event.eventType,
-          }}
-          issuer={event.companyName}
-          ticker={event.ticker ?? undefined}
-        />
-      </div>
+          <LiveRoomEntryButton
+            event={{
+              id: event.id,
+              source: event.source,
+              title: event.title,
+              type: event.eventType,
+            }}
+            issuer={identity.secondaryLabel}
+            ticker={ticker}
+          />
+        </div>
+      ) : null}
       <p className={styles.mockNotice}>
         Preview only. Changes are local mock state. Alert delivery is not
         connected yet.
@@ -248,6 +250,16 @@ function CalendarEventDetailContent({
 }
 
 function renderEventDetails(event: CalendarEvent) {
+  if (event.category === "company") {
+    return <dl>{renderCompanyDetails(event)}</dl>;
+  }
+  if (event.category === "macro") {
+    return <MacroDetails event={event} />;
+  }
+  return <dl>{renderPolicyDetails(event)}</dl>;
+}
+
+function renderCompanyDetails(event: CompanyCalendarEvent) {
   if (event.eventType === "earnings") {
     return (
       <>
@@ -260,7 +272,6 @@ function renderEventDetails(event: CalendarEvent) {
       </>
     );
   }
-
   if (event.eventType === "dividend") {
     return (
       <>
@@ -279,7 +290,6 @@ function renderEventDetails(event: CalendarEvent) {
       </>
     );
   }
-
   if (event.eventType === "split") {
     return (
       <>
@@ -290,7 +300,6 @@ function renderEventDetails(event: CalendarEvent) {
       </>
     );
   }
-
   return (
     <>
       <DetailValue label="Exchange" value={event.details.exchange} />
@@ -312,6 +321,142 @@ function renderEventDetails(event: CalendarEvent) {
   );
 }
 
+function MacroDetails({ event }: { event: MacroCalendarEvent }) {
+  return (
+    <>
+      <dl>
+        <DetailValue label="Reference period" value={event.details.referencePeriod} />
+        <DetailValue label="Release note" value={event.details.releaseNote} />
+      </dl>
+      <div className={styles.macroMetrics} role="table" aria-label="Economic release metrics">
+        <div role="row">
+          <b role="columnheader">Metric</b>
+          <b role="columnheader">Actual</b>
+          <b role="columnheader">Consensus</b>
+          <b role="columnheader">Previous</b>
+        </div>
+        {event.details.metrics.map((metric) => (
+          <div key={metric.name} role="row">
+            <strong role="cell">{metric.name}</strong>
+            <span role="cell">
+              {metric.released
+                ? formatMacroMetricValue(metric.actual, metric.unit)
+                : "Not released"}
+            </span>
+            <span role="cell">{formatMacroMetricValue(metric.consensus, metric.unit)}</span>
+            <span role="cell">{formatMacroMetricValue(metric.previous, metric.unit)}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function renderPolicyDetails(event: PolicyCalendarEvent) {
+  const common = (
+    <>
+      <DetailValue label="Policy area" value={titleCase(event.policySubcategory)} />
+      <DetailValue label="Affected sectors" value={joinValues(event.affectedSectors)} />
+      <DetailValue label="Related tickers" value={joinValues(event.relatedTickers)} />
+    </>
+  );
+  if (event.eventType === "fomc-decision") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Decision time" value={formatExactEt(event.details.decisionTime)} />
+        <DetailValue label="Press conference" value={formatExactEt(event.details.pressConferenceTime)} />
+        <DetailValue label="SEP included" value={event.details.includesSep ? "Yes" : "No"} />
+        <DetailValue
+          label="Target range"
+          value={
+            event.details.targetRangeLower === null || event.details.targetRangeUpper === null
+              ? null
+              : `${event.details.targetRangeLower.toFixed(2)}% – ${event.details.targetRangeUpper.toFixed(2)}%`
+          }
+        />
+      </>
+    );
+  }
+  if (event.eventType === "fomc-minutes") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Meeting period" value={event.details.meetingPeriod} />
+        <DetailValue label="Document" value={event.details.documentTitle} />
+      </>
+    );
+  }
+  if (event.eventType === "fed-chair-testimony") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Witness" value={event.details.witness} />
+        <DetailValue label="Committee" value={event.details.committee} />
+        <DetailValue label="Topic" value={event.details.topic} />
+      </>
+    );
+  }
+  if (
+    event.eventType === "treasury-borrowing-estimate" ||
+    event.eventType === "treasury-refunding" ||
+    event.eventType === "treasury-auction-10y" ||
+    event.eventType === "treasury-auction-30y"
+  ) {
+    return (
+      <>
+        {common}
+        <DetailValue label="Kind" value={titleCase(event.details.kind)} />
+        <DetailValue label="Maturity" value={event.details.maturity} />
+        <DetailValue
+          label="Amount"
+          value={event.details.amountBillions === null ? null : `$${event.details.amountBillions}B`}
+        />
+        <DetailValue label="Result" value={event.details.result} />
+      </>
+    );
+  }
+  if (event.eventType === "sec-open-meeting" || event.eventType === "sec-rule-milestone") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Stage" value={titleCase(event.details.milestone)} />
+        <DetailValue label="Title" value={event.details.ruleOrMeetingTitle} />
+        <DetailValue label="Agenda" value={joinValues(event.details.agenda)} />
+        <DetailValue label="Document / docket" value={event.details.documentOrDocket} />
+      </>
+    );
+  }
+  if (event.eventType === "trade-policy-action") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Action" value={titleCase(event.details.actionType)} />
+        <DetailValue label="Date stage" value={titleCase(event.details.actionDateKind)} />
+        <DetailValue label="Target countries" value={joinValues(event.details.targetCountries)} />
+        <DetailValue label="Industries" value={joinValues(event.details.affectedIndustries)} />
+        <DetailValue label="Tariff / restriction" value={event.details.tariffOrRestriction} />
+      </>
+    );
+  }
+  if (event.eventType === "fda-advisory-committee") {
+    return (
+      <>
+        {common}
+        <DetailValue label="Committee" value={event.details.committee} />
+        <DetailValue label="Product" value={event.details.product} />
+        <DetailValue label="Sponsor" value={event.details.sponsor} />
+        <DetailValue label="Indication" value={event.details.indication} />
+        <DetailValue
+          label="Meeting dates"
+          value={`${formatDetailDate(event.details.meetingStartDate)} – ${formatDetailDate(event.details.meetingEndDate)}`}
+        />
+      </>
+    );
+  }
+  return null;
+}
+
 function DetailValue({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
@@ -330,24 +475,27 @@ function formatDetailDate(value: string | null) {
   });
 }
 
-function formatTime(value: string | null) {
+function formatExactEt(value: string | null) {
   if (!value) return null;
   const [hour, minute] = value.split(":").map(Number);
-  const date = new Date(2000, 0, 1, hour, minute);
-  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${new Date(2000, 0, 1, hour, minute).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  })} ET`;
 }
 
 function formatUpdatedAt(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "Not available"
-    : date.toLocaleString("en-US", {
+    : `${date.toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
         hour: "numeric",
         minute: "2-digit",
-      });
+        timeZone: "America/New_York",
+      })} ET`;
 }
 
 function formatNumber(value: number | null) {
@@ -362,6 +510,10 @@ function formatMoney(value: number | null) {
     notation: "compact",
     style: "currency",
   }).format(value);
+}
+
+function joinValues(values: readonly string[]) {
+  return values.length ? values.join(", ") : null;
 }
 
 function titleCase(value: string) {
