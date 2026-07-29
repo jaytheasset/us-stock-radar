@@ -5,12 +5,11 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Ban,
-  Ellipsis,
+  EllipsisVertical,
   EyeOff,
   FileText,
   Heart,
   MessageCircle,
-  Reply as ReplyIcon,
   ShieldAlert,
   Sparkles,
   UserCheck,
@@ -337,6 +336,14 @@ export function ChatTimeline({
                     {badge.label}
                   </a>
                 ))}
+                <MessageEngagement
+                  busy={messageLikeIds.has(item.id)}
+                  item={item}
+                  loginHref={loginHref}
+                  onReply={onReply}
+                  onToggleLike={onToggleMessageLike}
+                  viewerIsGuest={viewerIsGuest}
+                />
                 <MessageActions
                   busy={messageActionId === item.id}
                   canBlock={!mine && Boolean(onBlock)}
@@ -398,14 +405,6 @@ export function ChatTimeline({
                 )
               ) : null}
               <p>{item.body}</p>
-              <MessageEngagement
-                busy={messageLikeIds.has(item.id)}
-                item={item}
-                loginHref={loginHref}
-                onReply={onReply}
-                onToggleLike={onToggleMessageLike}
-                viewerIsGuest={viewerIsGuest}
-              />
             </article>
             </li>
           </Fragment>
@@ -452,7 +451,7 @@ function MessageEngagement({
   );
   const replyContent = (
     <>
-      <ReplyIcon aria-hidden="true" />
+      <MessageCircle aria-hidden="true" />
       {item.replyCount > 0 ? <span>{item.replyCount}</span> : null}
     </>
   );
@@ -545,6 +544,13 @@ function MessageActions({
     reason: LiveRoomReportReason,
   ) => Promise<void>;
 }) {
+  const hasActions = Boolean(
+    onReport ||
+      (canBlock && onBlock) ||
+      (canFollowMember && onMemberFollow) ||
+      (canMessageMember && onMessageMember) ||
+      (canHide && onHide),
+  );
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -581,6 +587,8 @@ function MessageActions({
     }
   };
 
+  if (!hasActions) return null;
+
   return (
     <div className={styles.messageActions} ref={actionsRef}>
       <button
@@ -594,10 +602,10 @@ function MessageActions({
         }}
         type="button"
       >
-        <Ellipsis
+        <EllipsisVertical
           aria-hidden="true"
           size={18}
-          strokeWidth={2.5}
+          strokeWidth={2.4}
         />
       </button>
       {open ? (
@@ -610,7 +618,11 @@ function MessageActions({
                 role="menuitem"
                 type="button"
               >
-                <ShieldAlert aria-hidden="true" size={14} />
+                <ShieldAlert
+                  aria-hidden="true"
+                  size={16}
+                  strokeWidth={2.25}
+                />
                 Report
               </button>
               {reportOpen ? (
@@ -641,7 +653,11 @@ function MessageActions({
               role="menuitem"
               type="button"
             >
-              <Ban aria-hidden="true" size={14} />
+              <Ban
+                aria-hidden="true"
+                size={16}
+                strokeWidth={2.25}
+              />
               Block author
             </button>
           ) : null}
@@ -657,9 +673,17 @@ function MessageActions({
               type="button"
             >
               {memberFollowed ? (
-                <UserCheck aria-hidden="true" size={14} />
+                <UserCheck
+                  aria-hidden="true"
+                  size={16}
+                  strokeWidth={2.25}
+                />
               ) : (
-                <UserPlus aria-hidden="true" size={14} />
+                <UserPlus
+                  aria-hidden="true"
+                  size={16}
+                  strokeWidth={2.25}
+                />
               )}
               {memberFollowed ? "Following" : "Follow member"}
             </button>
@@ -673,7 +697,11 @@ function MessageActions({
               role="menuitem"
               type="button"
             >
-              <MessageCircle aria-hidden="true" size={14} />
+              <MessageCircle
+                aria-hidden="true"
+                size={16}
+                strokeWidth={2.25}
+              />
               Message member
             </button>
           ) : null}
@@ -684,7 +712,11 @@ function MessageActions({
               role="menuitem"
               type="button"
             >
-              <EyeOff aria-hidden="true" size={14} />
+              <EyeOff
+                aria-hidden="true"
+                size={16}
+                strokeWidth={2.25}
+              />
               Hide
             </button>
           ) : null}

@@ -1530,6 +1530,7 @@
 
 .otherMessage article,
 .myMessage article {
+  position: relative;
   width: fit-content;
   max-width: min(720px, calc(100% - 46px));
   min-width: 0;
@@ -1544,6 +1545,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sr-space-1-5);
+  padding-right: calc(var(--sr-space-6) + var(--sr-space-1));
 }
 
 .otherMessage header > strong,
@@ -1594,14 +1596,16 @@
 }
 
 .messageActions {
-  position: relative;
-  flex: 0 0 auto;
+  position: absolute;
+  z-index: var(--sr-z-sticky-action);
+  top: var(--sr-space-1);
+  right: var(--sr-space-1);
 }
 
 .messageActionsTrigger {
   display: inline-flex;
-  width: 28px;
-  height: 28px;
+  width: var(--sr-space-6);
+  height: var(--sr-space-6);
   align-items: center;
   justify-content: center;
   border: 0;
@@ -1611,21 +1615,9 @@
   cursor: pointer;
 }
 
-.messageActionsTrigger {
-  border: var(--sr-border-width) solid var(--sr-color-border-section);
-  border-radius: var(--sr-radius-sm);
-  color: var(--sr-color-text-secondary);
-  background: var(--sr-color-surface-control);
-}
-
-.messageActionsTrigger:hover {
-  color: var(--sr-color-text-strong);
-  background: var(--sr-color-surface-control);
-}
-
 .messageActionsTrigger:hover,
+.messageActionsTrigger:focus-visible,
 .messageActionsTrigger[aria-expanded="true"] {
-  border-color: var(--sr-color-border-control);
   color: var(--sr-color-text-strong);
   background: var(--sr-color-surface-control-strong);
 }
@@ -1637,6 +1629,7 @@
   right: 0;
   display: grid;
   width: 168px;
+  max-width: calc(100vw - var(--sr-space-6));
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-action);
   padding: var(--sr-space-1);
@@ -1688,6 +1681,15 @@
   white-space: pre-wrap;
 }
 
+.messageActionsMenu svg {
+  width: var(--sr-space-4);
+  height: var(--sr-space-4);
+  flex: 0 0 auto;
+  color: currentColor;
+  stroke: currentColor;
+  stroke-width: 2.25;
+}
+
 .newMessagesDivider {
   display: flex;
   align-items: center;
@@ -1711,18 +1713,16 @@
   right: var(--sr-space-3);
   bottom: var(--sr-space-3);
   display: inline-flex;
-  min-height: var(--sr-size-control);
+  width: calc(var(--sr-size-icon-button) + var(--sr-space-0-5));
+  height: calc(var(--sr-size-icon-button) + var(--sr-space-0-5));
   align-items: center;
-  gap: var(--sr-space-1-5);
+  justify-content: center;
   border: var(--sr-border-width) solid var(--sr-color-accent-border);
-  border-radius: var(--sr-radius-action);
-  padding: 0 var(--sr-space-3);
+  border-radius: var(--sr-radius-pill);
+  padding: 0;
   color: var(--sr-color-text-control-strong);
   background: var(--sr-color-surface-elevated);
   box-shadow: var(--sr-shadow-menu);
-  font: inherit;
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-semibold);
   cursor: pointer;
 }
 
@@ -1735,17 +1735,33 @@
   opacity: var(--sr-opacity-disabled);
 }
 
-.latestMessagesButton b {
+.latestMessagesBadge {
+  position: absolute;
+  top: calc(-1 * var(--sr-space-1));
+  right: calc(-1 * var(--sr-space-1));
+  display: inline-flex;
+  min-width: var(--sr-space-4-5);
+  height: var(--sr-space-4-5);
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-1);
   color: var(--sr-color-accent-text);
+  background: var(--sr-color-surface-elevated);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  line-height: 1;
 }
 
 .messageEngagement {
   display: flex;
   min-width: 0;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sr-space-1);
-  margin-top: var(--sr-space-1);
+  margin-left: auto;
 }
 
 .messageEngagementControl {
@@ -2779,8 +2795,13 @@ button.messageReplyPreview:hover {
   }
 
   .messageActionsTrigger {
-    width: 24px;
-    height: 24px;
+    width: var(--sr-space-6);
+    height: var(--sr-space-6);
+  }
+
+  .latestMessagesButton {
+    width: var(--sr-size-icon-button);
+    height: var(--sr-size-icon-button);
   }
 
   .messageEngagementControl[data-has-count="false"] {
