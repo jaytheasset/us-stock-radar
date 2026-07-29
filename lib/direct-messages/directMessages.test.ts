@@ -23,6 +23,13 @@ const inboxComponent = read("components/shell/LiveRoomUnreadMenu.tsx");
 const conversationClient = read(
   "components/direct-messages/DirectMessageClient.tsx",
 );
+const conversationStyles = read(
+  "components/direct-messages/DirectMessage.module.css",
+);
+const liveRoomStyles = read(
+  "components/live-room/LiveRoom.module.css",
+);
+const themeTokens = read("app/stock-radar-tokens.css");
 const settingsClient = read(
   "components/direct-messages/DirectMessageSettingsClient.tsx",
 );
@@ -643,6 +650,125 @@ test("Messages remains in Live Room activity and separate from paid Alerts", () 
       settingsRoute,
     ].join("\n"),
     /alert_preferences|alert_deliver|premium entitlement/i,
+  );
+});
+
+test("direct-message bubbles share the financial-chat colors, radii, and responsive bounds", () => {
+  assert.match(
+    conversationClient,
+    /className=\{message\.isMine \? styles\.mine : styles\.theirs\}[\s\S]*?<p>\{message\.body\}<\/p>/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.conversation\s*\{[\s\S]*?background:\s*var\(--sr-color-chat-timeline-background\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.timeline li\s*\{[\s\S]*?width:\s*fit-content[\s\S]*?max-width:\s*min\(72%, 620px\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.timeline p\s*\{[\s\S]*?overflow-wrap:\s*anywhere[\s\S]*?var\(--sr-color-chat-bubble-other-border\)[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)[\s\S]*?background:\s*var\(--sr-color-chat-bubble-other-background\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.mine p\s*\{[\s\S]*?border-color:\s*var\(--sr-color-chat-bubble-mine-border\)[\s\S]*?background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.requestLabel\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.reportControl > button\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /\.composer button\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /@media \(max-width: 720px\)[\s\S]*?\.timeline\s*\{[\s\S]*?padding:\s*var\(--sr-space-3\)[\s\S]*?\.timeline li\s*\{[\s\S]*?max-width:\s*86%/,
+  );
+  assert.doesNotMatch(
+    conversationStyles,
+    /#(?:ffffff|fff1e6|f6cba8|f6f8fa)/i,
+  );
+});
+
+test("Live Room and direct messages consume the exact shared financial-chat token contract", () => {
+  const darkTokens = themeTokens.slice(
+    0,
+    themeTokens.indexOf('[data-sr-theme="light"]'),
+  );
+  const lightTokens = themeTokens.slice(
+    themeTokens.indexOf('[data-sr-theme="light"]'),
+  );
+
+  assert.match(themeTokens, /--sr-radius-chat-message:\s*8px/);
+  assert.match(themeTokens, /--sr-radius-chat-control:\s*6px/);
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-timeline-background:\s*var\(--sr-color-page-background\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-other-background:\s*var\(--sr-color-surface-panel\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-background:\s*var\(--sr-color-accent-selected\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-border:\s*var\(--sr-color-accent-border\)/,
+  );
+  for (const [token, value] of [
+    ["timeline-background", "#f6f8fa"],
+    ["bubble-other-background", "#ffffff"],
+    ["bubble-mine-background", "#fff1e6"],
+    ["bubble-mine-border", "#f6cba8"],
+  ]) {
+    assert.match(
+      lightTokens,
+      new RegExp(`--sr-color-chat-${token}:\\s*${value}`, "i"),
+    );
+  }
+
+  for (const styles of [liveRoomStyles, conversationStyles]) {
+    assert.match(
+      styles,
+      /background:\s*var\(--sr-color-chat-timeline-background\)/,
+    );
+    assert.match(
+      styles,
+      /border-radius:\s*var\(--sr-radius-chat-message\)/,
+    );
+    assert.match(
+      styles,
+      /var\(--sr-color-chat-bubble-other-background\)/,
+    );
+    assert.match(
+      styles,
+      /var\(--sr-color-chat-bubble-mine-background\)/,
+    );
+    assert.match(
+      styles,
+      /var\(--sr-color-chat-bubble-mine-border\)/,
+    );
+    assert.match(
+      styles,
+      /border-radius:\s*var\(--sr-radius-chat-control\)/,
+    );
+  }
+
+  assert.match(
+    liveRoomStyles,
+    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?min-width:\s*0[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?max-width:\s*85%/,
   );
 });
 

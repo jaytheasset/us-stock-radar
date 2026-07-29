@@ -547,15 +547,107 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     liveRoomStyles,
-    /\.otherMessage article\s*\{[^}]*border:\s*var\(--sr-border-width\) solid var\(--sr-color-event-transaction-surface\);[^}]*background:\s*var\(--sr-color-event-transaction-surface\)/,
-  );
-  assert.doesNotMatch(
-    liveRoomStyles,
-    /\.otherMessage article\s*\{[^}]*(?:var\(--sr-color-border-section\)|var\(--sr-color-surface-elevated\))/,
+    /\.otherMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-other-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-other-background\)/,
   );
   assert.match(
     liveRoomStyles,
-    /\.myMessage article\s*\{[^}]*background:\s*var\(--sr-color-accent-selected\)/,
+    /\.myMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-mine-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
+  );
+});
+
+test("Live Room message bubbles use the shared financial-chat color and radius contract", () => {
+  const tokens = readSource("app/stock-radar-tokens.css");
+  const timeline = readSource(
+    "components/live-room/ChatTimeline.tsx",
+  );
+  const styles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const darkTokens = tokens.slice(
+    0,
+    tokens.indexOf('[data-sr-theme="light"]'),
+  );
+  const lightTokens = tokens.slice(
+    tokens.indexOf('[data-sr-theme="light"]'),
+  );
+
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-timeline-background:\s*var\(--sr-color-page-background\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-other-background:\s*var\(--sr-color-surface-panel\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-background:\s*var\(--sr-color-accent-selected\)/,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-border:\s*var\(--sr-color-accent-border\)/,
+  );
+  assert.match(tokens, /--sr-radius-chat-message:\s*8px/);
+  assert.match(tokens, /--sr-radius-chat-control:\s*6px/);
+
+  for (const [token, value] of [
+    ["timeline-background", "#f6f8fa"],
+    ["bubble-other-background", "#ffffff"],
+    ["bubble-mine-background", "#fff1e6"],
+    ["bubble-mine-border", "#f6cba8"],
+  ]) {
+    assert.match(
+      lightTokens,
+      new RegExp(
+        `--sr-color-chat-${token}:\\s*${value}`,
+        "i",
+      ),
+    );
+  }
+
+  assert.match(
+    timeline,
+    /mine \? styles\.myMessage : styles\.otherMessage/,
+  );
+  assert.match(
+    styles,
+    /\.timeline\s*\{[\s\S]*?background:\s*var\(--sr-color-chat-timeline-background\)/,
+  );
+  assert.match(
+    styles,
+    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?max-width:\s*min\(720px, calc\(100% - 46px\)\)[\s\S]*?min-width:\s*0[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
+  );
+  assert.match(
+    styles,
+    /\.otherMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-other-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-other-background\)/,
+  );
+  assert.match(
+    styles,
+    /\.myMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-mine-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
+  );
+  assert.match(
+    styles,
+    /\.otherMessage header > span,[\s\S]*?\.myMessage header > small\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.match(
+    styles,
+    /\.messageReplyButton,\s*\.messageActionsTrigger\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.match(
+    styles,
+    /\.sendButton\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.otherMessage article\s*\{[^}]*border-top-left-radius|\.myMessage article\s*\{[^}]*border-top-right-radius/,
+  );
+  const systemUpdateRule =
+    styles.match(/\.systemUpdate\s*\{([^}]*)\}/)?.[1] ?? "";
+  const postPreviewRule =
+    styles.match(/\.postPreview\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.doesNotMatch(
+    `${systemUpdateRule}\n${postPreviewRule}`,
+    /--sr-color-chat-bubble|--sr-radius-chat-message/,
   );
 });
 
