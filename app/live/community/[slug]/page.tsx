@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CommunityRoomClient } from "@/components/live-room/CommunityRoomClient";
-import {
-  getCommunityRoom,
-} from "@/lib/live-room/communityServerRepository";
+import { getCommunityRoom } from "@/lib/live-room/communityServerRepository";
 import { getCommunityRoomSlugOrNull } from "@/lib/live-room/community";
 import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
 import { LiveRoomPolicyError } from "@/lib/live-room/policy";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 type CommunityRoomPageProps = {
   params: Promise<{ slug: string }>;
@@ -48,7 +47,10 @@ export default async function CommunityRoomPage({
   if (rawSlug !== slug) redirect(`/live/community/${slug}`);
 
   try {
-    const room = await getCommunityRoom(slug);
+    const [room, viewerPlan] = await Promise.all([
+      getCommunityRoom(slug),
+      getCurrentViewerPlan(),
+    ]);
     return (
       <CommunityRoomClient
         activityMessageId={
@@ -56,13 +58,11 @@ export default async function CommunityRoomPage({
         }
         realtimeConfig={getLiveRoomRealtimeConfig()}
         room={room}
+        viewerPlan={viewerPlan}
       />
     );
   } catch (error) {
-    if (
-      error instanceof LiveRoomPolicyError &&
-      error.status === 404
-    ) {
+    if (error instanceof LiveRoomPolicyError && error.status === 404) {
       notFound();
     }
     throw error;

@@ -12,10 +12,7 @@ import {
   selectLatestCompanyEvent,
   sortCompanyEvents,
 } from "./adapters.ts";
-import {
-  createMockCompanyUpdate,
-  getMockCompanyEvents,
-} from "./mockData.ts";
+import { createMockCompanyUpdate, getMockCompanyEvents } from "./mockData.ts";
 import {
   evaluateLiveRoomMessage,
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
@@ -135,18 +132,12 @@ test("latest company event selection is deterministic and does not mutate input"
 });
 
 test("company chat leads with one compact linked latest event without changing Community Room", () => {
-  const companyClient = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const chatTimeline = readSource(
-    "components/live-room/ChatTimeline.tsx",
-  );
+  const companyClient = readSource("components/live-room/LiveRoomClient.tsx");
+  const chatTimeline = readSource("components/live-room/ChatTimeline.tsx");
   const communityClient = readSource(
     "components/live-room/CommunityRoomClient.tsx",
   );
-  const styles = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const styles = readSource("components/live-room/LiveRoom.module.css");
   const stripIndex = companyClient.indexOf("<LatestChatEventStrip");
   const timelineIndex = companyClient.indexOf("<ChatTimeline");
 
@@ -157,9 +148,7 @@ test("company chat leads with one compact linked latest event without changing C
     /export function LatestChatEventStrip[\s\S]+if \(!event\.detailHref\)[\s\S]+<Link[\s\S]+className=\{styles\.latestChatEventStrip\}[\s\S]+href=\{event\.detailHref\}/,
   );
   assert.equal(
-    chatTimeline.match(
-      /className=\{styles\.latestChatEventStrip\}/g,
-    )?.length,
+    chatTimeline.match(/className=\{styles\.latestChatEventStrip\}/g)?.length,
     1,
   );
   assert.match(
@@ -233,10 +222,7 @@ test("Live Room Mock scores follow the 0 to 100 directional score contract", () 
 
   assert.equal(
     mockEvents.every(
-      (event) =>
-        event.score !== null &&
-        event.score >= 0 &&
-        event.score <= 100,
+      (event) => event.score !== null && event.score >= 0 && event.score <= 100,
     ),
     true,
   );
@@ -246,25 +232,15 @@ test("Live Room Mock scores follow the 0 to 100 directional score contract", () 
 });
 
 test("a simulated company update is always newer than the current latest event", () => {
-  const update = createMockCompanyUpdate(
-    "AAPL",
-    1,
-    events[1].occurredAt,
-  );
+  const update = createMockCompanyUpdate("AAPL", 1, events[1].occurredAt);
 
   assert.equal(selectLatestCompanyEvent([...events, update]), update);
 });
 
 test("Live Room uses the shared wide shell and no selected product navigation", () => {
-  const clientSource = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const headerSource = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
-  const styleSource = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
+  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const styleSource = readSource("components/live-room/LiveRoom.module.css");
 
   assert.equal(styleSource.startsWith("\uFEFF"), false);
   assert.match(
@@ -272,10 +248,7 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     /\.page\s*\{[\s\S]*--live-room-mobile-tabs-height:\s*60px/,
   );
   assert.match(clientSource, /activeNavigationItem=\{null\}/);
-  assert.match(
-    headerSource,
-    /<h1>\{identity\.ticker\} Live Room<\/h1>/,
-  );
+  assert.match(headerSource, /<h1>\{identity\.ticker\} Live Room<\/h1>/);
   assert.match(
     headerSource,
     /className=\{styles\.roomCompanyName\}[\s\S]*\{identity\.companyName\}/,
@@ -297,10 +270,7 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   assert.doesNotMatch(clientSource, /Company discussion/);
   assert.doesNotMatch(clientSource, /\{ticker\} Live Room<\/h2>/);
   assert.match(clientSource, /dockOnMobile/);
-  assert.match(
-    styleSource,
-    /height:\s*var\(--live-room-workspace-height\)/,
-  );
+  assert.match(styleSource, /height:\s*var\(--live-room-workspace-height\)/);
   assert.doesNotMatch(
     clientSource,
     /InMemoryLiveRoomMessageRepository|BrowserLiveRoomFollowRepository|Mock states/,
@@ -308,12 +278,8 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
 });
 
 test("Live Room keeps Chat above the composer and bottom nav while secondary mobile tabs use one sheet", () => {
-  const clientSource = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const bottomSheetSource = readSource(
-    "components/ui/BottomSheetShell.tsx",
-  );
+  const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
+  const bottomSheetSource = readSource("components/ui/BottomSheetShell.tsx");
   const bottomSheetStyles = readSource(
     "components/ui/BottomSheetShell.module.css",
   );
@@ -321,18 +287,10 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     "components/live-room/CommunityRoomClient.tsx",
   );
   const tabsSource = readSource("components/live-room/RoomTabs.tsx");
-  const timelineSource = readSource(
-    "components/live-room/ChatTimeline.tsx",
-  );
-  const headerSource = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
-  const composerSource = readSource(
-    "components/live-room/MessageComposer.tsx",
-  );
-  const liveRoomStyles = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const timelineSource = readSource("components/live-room/ChatTimeline.tsx");
+  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const composerSource = readSource("components/live-room/MessageComposer.tsx");
+  const liveRoomStyles = readSource("components/live-room/LiveRoom.module.css");
   const postStyles = readSource("components/live-room/Posts.module.css");
 
   const desktopTabs =
@@ -365,26 +323,20 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   assert.match(mobileTabs, /dockOnMobile/);
   assert.match(mobileTabs, /items=\{mobileLiveRoomTabs\}/);
   assert.match(mobileTabs, /onChange=\{handleMobileTabChange\}/);
-  assert.match(mobileTabs, /onItemElementChange=\{handleMobileTabElementChange\}/);
+  assert.match(
+    mobileTabs,
+    /onItemElementChange=\{handleMobileTabElementChange\}/,
+  );
   assert.match(tabsSource, /dockInMobileSheet\?: boolean/);
   assert.match(tabsSource, /dockOnMobile\?: boolean/);
   assert.match(tabsSource, /styles\.mobileDock/);
   assert.match(tabsSource, /styles\.mobileSheetDock/);
   assert.match(tabsSource, /styles\.desktopOnlyTabs/);
   assert.match(tabsSource, /styles\.mobileOnlyTabs/);
-  assert.match(
-    tabsSource,
-    /nextIndex = \(index \+ 1\) % items\.length/,
-  );
-  assert.match(
-    tabsSource,
-    /nextIndex = items\.length - 1/,
-  );
+  assert.match(tabsSource, /nextIndex = \(index \+ 1\) % items\.length/);
+  assert.match(tabsSource, /nextIndex = items\.length - 1/);
   assert.doesNotMatch(tabsSource, /mobileOnly\?: boolean/);
-  assert.match(
-    tabsSource,
-    /"--live-room-mobile-tab-count": items\.length/,
-  );
+  assert.match(tabsSource, /"--live-room-mobile-tab-count": items\.length/);
   assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
   assert.match(
     postStyles,
@@ -394,31 +346,19 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     postStyles,
     /\.tabs\.mobileSheetDock\s*\{[\s\S]*position:\s*relative/,
   );
-  assert.match(
-    postStyles,
-    /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/,
-  );
+  assert.match(postStyles, /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/);
   assert.match(
     postStyles,
     /@media \(max-width: 760px\)[\s\S]*\.tabs\.desktopOnlyTabs\s*\{[\s\S]*display:\s*none[\s\S]*\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*grid/,
   );
   assert.doesNotMatch(postStyles, /\.mobileOnlyTab\s*\{/);
-  assert.match(
-    postStyles,
-    /\.tabs\.mobileDock\s*\{[\s\S]*bottom:\s*0/,
-  );
+  assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*bottom:\s*0/);
   assert.match(
     postStyles,
     /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*height:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
   );
-  assert.match(
-    clientSource,
-    /useState<CompanyLiveRoomTab>\("chat"\)/,
-  );
-  assert.match(
-    clientSource,
-    /useState<MobileLiveRoomSheet \| null>\(null\)/,
-  );
+  assert.match(clientSource, /useState<CompanyLiveRoomTab>\("chat"\)/);
+  assert.match(clientSource, /useState<MobileLiveRoomSheet \| null>\(null\)/);
   assert.match(
     clientSource,
     /import \{ BottomSheetShell \} from "@\/components\/ui\/BottomSheetShell"/,
@@ -446,10 +386,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     clientSource,
     /tab === "events"[\s\S]*mobileEventsOpenerRef\.current = element[\s\S]*tab === "members"[\s\S]*mobileMembersOpenerRef\.current = element[\s\S]*tab === "posts"[\s\S]*mobilePostsOpenerRef\.current = element/,
   );
-  assert.match(
-    tabsSource,
-    /onItemElementChange\?\.\(item\.value, element\)/,
-  );
+  assert.match(tabsSource, /onItemElementChange\?\.\(item\.value, element\)/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
@@ -457,10 +394,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     bottomSheetSource,
     /const anotherModalIsOpen = document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\);[\s\S]*if \(!anotherModalIsOpen\) \{[\s\S]*restoreFocus\(opener\)/,
   );
-  assert.match(
-    bottomSheetSource,
-    /document\.body\.style\.overflow = "hidden"/,
-  );
+  assert.match(bottomSheetSource, /document\.body\.style\.overflow = "hidden"/);
   assert.match(
     bottomSheetStyles,
     /\.fullScrollRoot\s*\{[\s\S]*z-index:\s*var\(--sr-z-sheet-full-scroll\)/,
@@ -481,10 +415,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     bottomSheetStyles,
     /\.footerScrollRegion\s*\{[\s\S]*overflow-y:\s*auto/,
   );
-  assert.match(
-    bottomSheetStyles,
-    /\.fixedFooter\s*\{[\s\S]*flex:\s*0 0 auto/,
-  );
+  assert.match(bottomSheetStyles, /\.fixedFooter\s*\{[\s\S]*flex:\s*0 0 auto/);
   assert.match(
     clientSource,
     /fixedFooter=\{\s*<RoomTabs[\s\S]*active=\{mobileSheet\}[\s\S]*dockInMobileSheet[\s\S]*idPrefix="live-room-sheet"[\s\S]*items=\{mobileLiveRoomTabs\}[\s\S]*onChange=\{handleMobileTabChange\}[\s\S]*visibility="mobile"/,
@@ -533,15 +464,19 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     liveRoomStyles,
     /data-mobile-members-open|\.membersPanel/,
   );
-  assert.doesNotMatch(communitySource, /BottomSheetShell|mobileSheet/);
+  assert.match(
+    communitySource,
+    /<BottomSheetShell[\s\S]*fixedFooter=\{[\s\S]*dockInMobileSheet[\s\S]*items=\{communityMobileTabs\}/,
+  );
+  assert.match(
+    communitySource,
+    /mobileSheet === "posts"[\s\S]*mobileSheet === "about"[\s\S]*mobileSheet === "members"[\s\S]*mobileSheet === "rooms"/,
+  );
   assert.match(
     clientSource,
     /mobileSheet === "members"[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*<\/BottomSheetShell>[\s\S]*\{messageRequestTarget \? \([\s\S]*<DirectMessageRequestModal/,
   );
-  assert.match(
-    liveRoomStyles,
-    /\.desktopTabPanel\s*\{[\s\S]*display:\s*none/,
-  );
+  assert.match(liveRoomStyles, /\.desktopTabPanel\s*\{[\s\S]*display:\s*none/);
   assert.match(
     liveRoomStyles,
     /\.roomLayout\[data-desktop-hidden="true"\]\s*\{[\s\S]*display:\s*block/,
@@ -616,7 +551,10 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     /identity\.companyName\.trim\(\)\.toUpperCase\(\)\s*!==\s*identity\.ticker/,
   );
   assert.doesNotMatch(headerSource, /Market data|Latest available quote/);
-  assert.doesNotMatch(clientSource, /Realtime updates · 45-second polling fallback/);
+  assert.doesNotMatch(
+    clientSource,
+    /Realtime updates · 45-second polling fallback/,
+  );
   assert.doesNotMatch(clientSource, /styles\.chatToolbar/);
   assert.doesNotMatch(clientSource, /aria-label="Blocked Live Room authors"/);
   assert.doesNotMatch(clientSource, /aria-label="Hidden Live Room messages"/);
@@ -644,43 +582,25 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
 
 test("Live Room message bubbles use the shared financial-chat color and radius contract", () => {
   const tokens = readSource("app/stock-radar-tokens.css");
-  const timeline = readSource(
-    "components/live-room/ChatTimeline.tsx",
-  );
-  const styles = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const timeline = readSource("components/live-room/ChatTimeline.tsx");
+  const styles = readSource("components/live-room/LiveRoom.module.css");
   const planBadgeStyles = readSource(
     "components/ui/MemberPlanBadge.module.css",
   );
-  const darkTokens = tokens.slice(
-    0,
-    tokens.indexOf('[data-sr-theme="light"]'),
-  );
-  const lightTokens = tokens.slice(
-    tokens.indexOf('[data-sr-theme="light"]'),
-  );
+  const darkTokens = tokens.slice(0, tokens.indexOf('[data-sr-theme="light"]'));
+  const lightTokens = tokens.slice(tokens.indexOf('[data-sr-theme="light"]'));
 
-  assert.match(
-    darkTokens,
-    /--sr-color-chat-timeline-background:\s*#08111a/i,
-  );
+  assert.match(darkTokens, /--sr-color-chat-timeline-background:\s*#08111a/i);
   assert.match(
     darkTokens,
     /--sr-color-chat-bubble-other-background:\s*#131f2b/i,
   );
-  assert.match(
-    darkTokens,
-    /--sr-color-chat-bubble-other-border:\s*#2a3a4a/i,
-  );
+  assert.match(darkTokens, /--sr-color-chat-bubble-other-border:\s*#2a3a4a/i);
   assert.match(
     darkTokens,
     /--sr-color-chat-bubble-mine-background:\s*#2b171a/i,
   );
-  assert.match(
-    darkTokens,
-    /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i,
-  );
+  assert.match(darkTokens, /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i);
   assert.match(tokens, /--sr-radius-chat-message:\s*6px/);
   assert.match(tokens, /--sr-radius-chat-control:\s*4px/);
 
@@ -692,17 +612,11 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
   ]) {
     assert.match(
       lightTokens,
-      new RegExp(
-        `--sr-color-chat-${token}:\\s*${value}`,
-        "i",
-      ),
+      new RegExp(`--sr-color-chat-${token}:\\s*${value}`, "i"),
     );
   }
 
-  assert.match(
-    timeline,
-    /mine \? styles\.myMessage : styles\.otherMessage/,
-  );
+  assert.match(timeline, /mine \? styles\.myMessage : styles\.otherMessage/);
   assert.match(
     styles,
     /\.timeline\s*\{[\s\S]*?background:\s*var\(--sr-color-chat-timeline-background\)/,
@@ -751,15 +665,9 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
 
 test("registered chat author avatar and name open the safe public profile", () => {
   const timeline = readSource("components/live-room/ChatTimeline.tsx");
-  const styles = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
-  const company = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const community = readSource(
-    "components/live-room/CommunityRoomClient.tsx",
-  );
+  const styles = readSource("components/live-room/LiveRoom.module.css");
+  const company = readSource("components/live-room/LiveRoomClient.tsx");
+  const community = readSource("components/live-room/CommunityRoomClient.tsx");
 
   assert.match(company, /<ChatTimeline/);
   assert.match(community, /<ChatTimeline/);
@@ -767,10 +675,7 @@ test("registered chat author avatar and name open the safe public profile", () =
     timeline,
     /!item\.author\.isGuest && item\.author\.publicProfileId[\s\S]*encodeURIComponent\(\s*item\.author\.publicProfileId/,
   );
-  assert.equal(
-    timeline.match(/href=\{publicProfileHref\}/g)?.length,
-    2,
-  );
+  assert.equal(timeline.match(/href=\{publicProfileHref\}/g)?.length, 2);
   assert.match(
     timeline,
     /aria-label=\{`View \$\{item\.author\.displayName\}'s public profile`\}[\s\S]*messageAvatarLink/,
@@ -811,26 +716,12 @@ test("registered chat author avatar and name open the safe public profile", () =
 });
 
 test("Live Room timeline starts latest, sticks selectively, and preserves older prepends", () => {
-  const clientSource = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
+  const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
 
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("initial", false),
-    true,
-  );
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("own-send", false),
-    true,
-  );
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", true),
-    true,
-  );
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", false),
-    false,
-  );
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("initial", false), true);
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("own-send", false), true);
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("incoming", true), true);
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("incoming", false), false);
   assert.equal(
     shouldScrollLiveRoomTimelineToBottom("older-prepend", true),
     false,
@@ -843,14 +734,8 @@ test("Live Room timeline starts latest, sticks selectively, and preserves older 
     isLiveRoomTimelineNearBottom(longIncomingPostCommitDistance),
     false,
   );
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", true),
-    true,
-  );
-  assert.equal(
-    shouldScrollLiveRoomTimelineToBottom("incoming", false),
-    false,
-  );
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("incoming", true), true);
+  assert.equal(shouldScrollLiveRoomTimelineToBottom("incoming", false), false);
   assert.equal(
     getLiveRoomTimelineDistanceFromBottom({
       clientHeight: 500,
@@ -940,11 +825,7 @@ test("read position counts only ordinary non-self messages through the visible c
   ];
 
   assert.deepEqual(
-    getUnreadMessageIdsThrough(
-      timeline,
-      "first-unread",
-      "visible-unread",
-    ),
+    getUnreadMessageIdsThrough(timeline, "first-unread", "visible-unread"),
     ["first-unread", "visible-unread"],
   );
   assert.equal(countIncomingUnreadMessages(timeline), 4);
@@ -959,18 +840,10 @@ test("read position counts only ordinary non-self messages through the visible c
 
 test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () => {
   const pageSource = readSource("app/live/[ticker]/page.tsx");
-  const clientSource = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const headerSource = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
-  const adSource = readSource(
-    "components/live-room/LiveRoomAdSlots.tsx",
-  );
-  const styleSource = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
+  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const adSource = readSource("components/live-room/LiveRoomAdSlots.tsx");
+  const styleSource = readSource("components/live-room/LiveRoom.module.css");
 
   assert.match(pageSource, /await getCurrentViewerPlan\(\)/);
   assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
@@ -1066,12 +939,8 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
 });
 
 test("mobile company header uses three compact rows without changing desktop structure", () => {
-  const headerSource = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
-  const styleSource = readSource(
-    "components/live-room/LiveRoom.module.css",
-  );
+  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const styleSource = readSource("components/live-room/LiveRoom.module.css");
   const mobileStart = styleSource.indexOf("@media (max-width: 760px)");
   const mobileEnd = styleSource.indexOf(
     "@media (max-width: 420px)",
@@ -1088,8 +957,7 @@ test("mobile company header uses three compact rows without changing desktop str
     mobileStyles.match(/\.roomTitlePrimary\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileCompanyName =
     mobileStyles.match(/\.roomCompanyName\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileMeta =
-    mobileStyles.match(/\.roomMeta\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileMeta = mobileStyles.match(/\.roomMeta\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileMarket =
     mobileStyles.match(/\.marketSummary\s*\{([^}]*)\}/)?.[1] ?? "";
   const mobileActions =
@@ -1166,14 +1034,9 @@ test("public Live Room entry preserves the guest cookie actor contract without i
     "app/api/live-room/[ticker]/messages/route.ts",
   );
   const serverActor = readSource("lib/live-room/serverActor.ts");
-  const migrations = readdirSync(
-    archivedMigrationDirectory,
-  )
+  const migrations = readdirSync(archivedMigrationDirectory)
     .map((name) =>
-      readFileSync(
-        path.join(archivedMigrationDirectory, name),
-        "utf8",
-      ),
+      readFileSync(path.join(archivedMigrationDirectory, name), "utf8"),
     )
     .join("\n");
 
@@ -1195,12 +1058,8 @@ test("public Live Room entry preserves the guest cookie actor contract without i
 });
 
 test("Live Room Invite keeps its header label and delegates sharing to the shared sheet", () => {
-  const client = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const header = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
+  const client = readSource("components/live-room/LiveRoomClient.tsx");
+  const header = readSource("components/live-room/CompanyRoomHeader.tsx");
 
   assert.doesNotMatch(client, /inviteState|shareLiveRoomInvite/);
   assert.match(
@@ -1257,10 +1116,7 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
 
   const stalePollingGeneration = 4;
   const unblockGeneration = stalePollingGeneration + 1;
-  let restoredTimeline = replaceLiveRoomTimeline([
-    memberMessage,
-    guestMessage,
-  ]);
+  let restoredTimeline = replaceLiveRoomTimeline([memberMessage, guestMessage]);
   if (
     isCurrentLiveRoomTimelineGeneration(
       unblockGeneration,
@@ -1280,33 +1136,21 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
 });
 
 test("unblock closes stale updates and initial member identity and room membership stay unresolved until loaded", () => {
-  const client = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const header = readSource(
-    "components/live-room/CompanyRoomHeader.tsx",
-  );
+  const client = readSource("components/live-room/LiveRoomClient.tsx");
+  const header = readSource("components/live-room/CompanyRoomHeader.tsx");
   const membership = readSource(
     "components/live-room/RoomMembershipControl.tsx",
   );
-  const composer = readSource(
-    "components/live-room/MessageComposer.tsx",
-  );
+  const composer = readSource("components/live-room/MessageComposer.tsx");
 
-  assert.match(
-    client,
-    /useState<LiveRoomProfile \| null>\(null\)/,
-  );
+  assert.match(client, /useState<LiveRoomProfile \| null>\(null\)/);
   assert.match(client, /useState<boolean \| null>\(null\)/);
   assert.doesNotMatch(client, /defaultProfile/);
   assert.match(
     client,
     /updatesSubscriptionRef\.current\?\.close\(\)[\s\S]+timelineGenerationRef\.current = refreshGeneration[\s\S]+replaceLiveRoomTimeline\(page\.items\)/,
   );
-  assert.match(
-    client,
-    /profile === null[\s\S]+timelineState === "error"/,
-  );
+  assert.match(client, /profile === null[\s\S]+timelineState === "error"/);
   assert.match(header, /joined=\{membershipJoined\}/);
   assert.match(membership, /joined === null && !isGuest/);
   assert.match(membership, /aria-label="Loading room membership"/);
@@ -1337,10 +1181,10 @@ test("moderation explains every required client-side block result", () => {
     history: [{ body: "Same   view", createdAt: "2026-07-27T10:00:00.000Z" }],
     now,
   });
-  const blockedWord = evaluateLiveRoomMessage(
-    "This is a guaranteed return",
-    { history: [], now },
-  );
+  const blockedWord = evaluateLiveRoomMessage("This is a guaranteed return", {
+    history: [],
+    now,
+  });
   const tooManyLinks = evaluateLiveRoomMessage(
     "https://a.test https://b.test https://c.test",
     { history: [], now },
@@ -1357,10 +1201,7 @@ test("moderation explains every required client-side block result", () => {
   assert.equal(empty.allowed ? null : empty.reason, "empty");
   assert.equal(tooLong.allowed ? null : tooLong.reason, "max_length");
   assert.equal(duplicate.allowed ? null : duplicate.reason, "duplicate");
-  assert.equal(
-    blockedWord.allowed ? null : blockedWord.reason,
-    "blocked_word",
-  );
+  assert.equal(blockedWord.allowed ? null : blockedWord.reason, "blocked_word");
   assert.equal(
     tooManyLinks.allowed ? null : tooManyLinks.reason,
     "excessive_links",
@@ -1399,17 +1240,14 @@ test("server-owned actor identity prevents guest and member impersonation", () =
     plan: "free" as const,
   };
 
-  assert.deepEqual(
-    createServerOwnedAuthorSnapshot({ actor: guest, profile }),
-    {
-      actorKind: "guest",
-      memberUserId: null,
-      guestSessionId: guest.guestSessionId,
-      displayName: "Server profile",
-      emoji: "🧭",
-      plan: "free",
-    },
-  );
+  assert.deepEqual(createServerOwnedAuthorSnapshot({ actor: guest, profile }), {
+    actorKind: "guest",
+    memberUserId: null,
+    guestSessionId: guest.guestSessionId,
+    displayName: "Server profile",
+    emoji: "🧭",
+    plan: "free",
+  });
   assert.equal(
     isLiveRoomMessageMine(
       {
@@ -1453,23 +1291,14 @@ test("guest last-seen writes are throttled to one update per five minutes", () =
 
   assert.equal(LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS, 300_000);
   assert.equal(
-    shouldRefreshLiveRoomGuestLastSeen(
-      "2026-07-27T10:00:01.000Z",
-      now,
-    ),
+    shouldRefreshLiveRoomGuestLastSeen("2026-07-27T10:00:01.000Z", now),
     false,
   );
   assert.equal(
-    shouldRefreshLiveRoomGuestLastSeen(
-      "2026-07-27T10:00:00.000Z",
-      now,
-    ),
+    shouldRefreshLiveRoomGuestLastSeen("2026-07-27T10:00:00.000Z", now),
     true,
   );
-  assert.equal(
-    shouldRefreshLiveRoomGuestLastSeen("invalid", now),
-    true,
-  );
+  assert.equal(shouldRefreshLiveRoomGuestLastSeen("invalid", now), true);
 });
 
 test("member default display names never derive from email addresses", () => {
@@ -1556,9 +1385,7 @@ test("Live Room API accepts only message content, event ID, and a closed reply t
   const routeSource = readSource(
     "app/api/live-room/[ticker]/messages/route.ts",
   );
-  const repositorySource = readSource(
-    "lib/live-room/serverRepository.ts",
-  );
+  const repositorySource = readSource("lib/live-room/serverRepository.ts");
   const actorSource = readSource("lib/live-room/serverActor.ts");
   const clientSource = readSource("lib/live-room/apiRepository.ts");
 
@@ -1614,14 +1441,8 @@ test("message replies are same-room, visible, indexed, invoker-only, and service
   const migration = readSource(
     "supabase/migrations/20260728194310_live_room_message_replies.sql",
   );
-  assert.match(
-    migration,
-    /add column reply_to_message_id uuid/i,
-  );
-  assert.match(
-    migration,
-    /unique\s*\(room_id,\s*id\)/i,
-  );
+  assert.match(migration, /add column reply_to_message_id uuid/i);
+  assert.match(migration, /unique\s*\(room_id,\s*id\)/i);
   assert.match(
     migration,
     /foreign key\s*\(room_id,\s*reply_to_message_id\)[\s\S]*?references public\.live_room_messages\s*\(room_id,\s*id\)[\s\S]*?on delete restrict/i,
@@ -1655,12 +1476,8 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
   const repository = readSource("lib/live-room/serverRepository.ts");
   const timeline = readSource("lib/live-room/timeline.ts");
   const chat = readSource("components/live-room/ChatTimeline.tsx");
-  const composer = readSource(
-    "components/live-room/MessageComposer.tsx",
-  );
-  const client = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
+  const composer = readSource("components/live-room/MessageComposer.tsx");
+  const client = readSource("components/live-room/LiveRoomClient.tsx");
 
   assert.match(
     repository,
@@ -1678,9 +1495,7 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
     repository,
     /const blockedActorIds = knownBlockedActorIds[\s\S]*?getLiveRoomReplyPreviewMap\(rows, blockedActorIds\)[\s\S]*?blocked\.has\(readString\(row\.actor_id\)\)/,
   );
-  assert.ok(
-    (repository.match(/reply_to_message_id/g) || []).length >= 6,
-  );
+  assert.ok((repository.match(/reply_to_message_id/g) || []).length >= 6);
   assert.match(
     timeline,
     /removedIds\.has\(item\.replyPreview\.messageId\)[\s\S]*?replyPreview: null/,
@@ -1702,9 +1517,9 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
 });
 
 test("Live Room migration is server-only, RLS-enabled, and atomically moderates writes", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) => name.endsWith("_live_room_realtime_foundation.sql"));
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
+    name.endsWith("_live_room_realtime_foundation.sql"),
+  );
   assert.ok(migrationName);
   const migration = readSource(
     path.join(archivedMigrationRelativeDirectory, migrationName),
@@ -1727,10 +1542,7 @@ test("Live Room migration is server-only, RLS-enabled, and atomically moderates 
       ),
     );
   });
-  assert.match(
-    migration,
-    /from public, anon, authenticated/i,
-  );
+  assert.match(migration, /from public, anon, authenticated/i);
   assert.match(migration, /to service_role/i);
   assert.match(
     migration,
@@ -1753,9 +1565,9 @@ test("Live Room migration is server-only, RLS-enabled, and atomically moderates 
 });
 
 test("Live Room hardening migration is encoding-safe and covers actor foreign keys", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) => name.endsWith("_live_room_foundation_hardening.sql"));
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
+    name.endsWith("_live_room_foundation_hardening.sql"),
+  );
   assert.ok(migrationName);
   const migration = readSource(
     path.join(archivedMigrationRelativeDirectory, migrationName),
@@ -1792,9 +1604,9 @@ test("report reasons and message IDs are closed allowlists", () => {
 });
 
 test("Realtime uses public metadata-only Broadcast with a change cursor and low-frequency fallback", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
+    name.endsWith("_live_room_realtime_moderation.sql"),
+  );
   assert.ok(migrationName);
   assert.ok(
     migrationName > "20260727102419_live_room_foundation_hardening.sql",
@@ -1803,9 +1615,7 @@ test("Realtime uses public metadata-only Broadcast with a change cursor and low-
     path.join(archivedMigrationRelativeDirectory, migrationName),
   );
   const transport = readSource("lib/live-room/apiRepository.ts");
-  const realtimeClient = readSource(
-    "lib/live-room/realtimeClient.ts",
-  );
+  const realtimeClient = readSource("lib/live-room/realtimeClient.ts");
   const page = readSource("app/live/[ticker]/page.tsx");
   const broadcastFunction =
     migration.match(
@@ -1847,11 +1657,7 @@ test("Realtime reuses clients by config and closes only the released room channe
     ) => FakeChannel;
     subscribe: (
       callback: (
-        status:
-          | "CHANNEL_ERROR"
-          | "CLOSED"
-          | "SUBSCRIBED"
-          | "TIMED_OUT",
+        status: "CHANNEL_ERROR" | "CLOSED" | "SUBSCRIBED" | "TIMED_OUT",
       ) => void,
     ) => FakeChannel;
     topic: string;
@@ -1942,11 +1748,7 @@ test("Realtime reuses clients by config and closes only the released room channe
     ["live-room:MSFT"],
   );
 
-  await Promise.all([
-    msft.close(),
-    secondKey.close(),
-    secondProject.close(),
-  ]);
+  await Promise.all([msft.close(), secondKey.close(), secondProject.close()]);
 });
 
 test("Realtime shares one room channel until its final subscription closes", async () => {
@@ -1967,9 +1769,7 @@ test("Realtime shares one room channel until its final subscription closes", asy
       return channel;
     },
     removeChannel(channel) {
-      removedTopics.push(
-        (channel as unknown as { topic: string }).topic,
-      );
+      removedTopics.push((channel as unknown as { topic: string }).topic);
     },
   }));
   const config = {
@@ -1997,9 +1797,9 @@ test("Realtime shares one room channel until its final subscription closes", asy
 });
 
 test("reports, blocks, and moderator tables stay service-only and RLS default-deny", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) => name.endsWith("_live_room_realtime_moderation.sql"));
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
+    name.endsWith("_live_room_realtime_moderation.sql"),
+  );
   assert.ok(migrationName);
   const migration = readSource(
     path.join(archivedMigrationRelativeDirectory, migrationName),
@@ -2048,9 +1848,9 @@ test("reports, blocks, and moderator tables stay service-only and RLS default-de
 });
 
 test("Live Room block and moderation RPC correction uses SQL COALESCE and preserves service-only grants", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) => name.endsWith("_fix_live_room_block_moderation.sql"));
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
+    name.endsWith("_fix_live_room_block_moderation.sql"),
+  );
   assert.ok(migrationName);
   const migration = readSource(
     path.join(archivedMigrationRelativeDirectory, migrationName),
@@ -2073,9 +1873,7 @@ test("message APIs resolve moderation targets server-side and never return actor
   const reportsRoute = readSource(
     "app/api/live-room/[ticker]/reports/route.ts",
   );
-  const blocksRoute = readSource(
-    "app/api/live-room/[ticker]/blocks/route.ts",
-  );
+  const blocksRoute = readSource("app/api/live-room/[ticker]/blocks/route.ts");
   const moderationRoute = readSource(
     "app/api/live-room/[ticker]/moderation/route.ts",
   );
@@ -2097,9 +1895,7 @@ test("message APIs resolve moderation targets server-side and never return actor
 });
 
 test("chat follow migration resets legacy scope and stores an exact read baseline", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
   assert.ok(migrationName);
@@ -2141,9 +1937,7 @@ test("chat follow migration resets legacy scope and stores an exact read baselin
 });
 
 test("unread and mark-read DB contracts exclude self messages and only advance displayed rooms", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
   assert.ok(migrationName);
@@ -2158,16 +1952,11 @@ test("unread and mark-read DB contracts exclude self messages and only advance d
     migration.match(
       /function public\.mark_live_room_follow_read\([\s\S]+?\$\$;/i,
     )?.[0] || "";
-  const readRoute = readSource(
-    "app/api/live-room/[ticker]/read/route.ts",
-  );
+  const readRoute = readSource("app/api/live-room/[ticker]/read/route.ts");
   const client = readSource("components/live-room/LiveRoomClient.tsx");
 
   assert.match(unreadFunction, /message\.visibility_status = 'visible'/i);
-  assert.match(
-    unreadFunction,
-    /message\.created_at > follow\.last_read_at/i,
-  );
+  assert.match(unreadFunction, /message\.created_at > follow\.last_read_at/i);
   assert.match(
     unreadFunction,
     /message\.author_kind is distinct from follow\.actor_kind\s*or message\.actor_id is distinct from follow\.actor_id/i,
@@ -2200,18 +1989,14 @@ test("unread and mark-read DB contracts exclude self messages and only advance d
 });
 
 test("member follows are service-only and message IDs resolve targets without UUID exposure or N+1 reads", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_chat_follows_and_member_follows.sql"),
   );
   assert.ok(migrationName);
   const migration = readSource(
     path.join(archivedMigrationRelativeDirectory, migrationName),
   );
-  const route = readSource(
-    "app/api/live-room/[ticker]/member-follow/route.ts",
-  );
+  const route = readSource("app/api/live-room/[ticker]/member-follow/route.ts");
   const repository = readSource("lib/live-room/serverRepository.ts");
   const browserTypes = readSource("lib/live-room/types.ts");
   const timeline = readSource("components/live-room/ChatTimeline.tsx");
@@ -2247,16 +2032,11 @@ test("member follows are service-only and message IDs resolve targets without UU
     /const targetUserIds =[\s\S]+supabaseSelect\("live_room_member_follows"[\s\S]+followed_user_id: `in\.\(\$\{targetUserIds\.join\(","\)\}\)`/,
   );
   assert.doesNotMatch(browserTypes, /memberUserId|followedUserId|authUserId/);
-  assert.match(
-    timeline,
-    /memberFollowed \? "Following" : "Follow member"/,
-  );
+  assert.match(timeline, /memberFollowed \? "Following" : "Follow member"/);
 });
 
 test("member activity cursors exclude history, hidden messages, self, and blocked authors in one bounded RPC", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
@@ -2289,10 +2069,7 @@ test("member activity cursors exclude history, hidden messages, self, and blocke
     /v_followed_user_id = p_follower_user_id[\s\S]+LIVE_ROOM_CANNOT_FOLLOW_SELF/i,
   );
   assert.match(activityFunction, /message\.visibility_status = 'visible'/i);
-  assert.match(
-    activityFunction,
-    /message\.created_at > follow\.last_read_at/i,
-  );
+  assert.match(activityFunction, /message\.created_at > follow\.last_read_at/i);
   assert.match(
     activityFunction,
     /live_room_actor_blocks[\s\S]+block\.blocked_member_user_id = follow\.followed_user_id/i,
@@ -2312,9 +2089,7 @@ test("member activity cursors exclude history, hidden messages, self, and blocke
 });
 
 test("member activity migration only schema-qualifies real pg_catalog functions", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
@@ -2329,22 +2104,17 @@ test("member activity migration only schema-qualifies real pg_catalog functions"
     migration,
     /\bpg_catalog\.(?:coalesce|greatest|least|nullif)\s*\(/i,
   );
-  assert.deepEqual(
-    [...new Set(qualifiedCatalogCalls)].sort(),
-    [
-      "count",
-      "jsonb_agg",
-      "jsonb_build_object",
-      "left",
-      "regexp_replace",
-    ],
-  );
+  assert.deepEqual([...new Set(qualifiedCatalogCalls)].sort(), [
+    "count",
+    "jsonb_agg",
+    "jsonb_build_object",
+    "left",
+    "regexp_replace",
+  ]);
 });
 
 test("member activity read and message anchors validate room ownership before advancing an exact follower cursor", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
@@ -2378,16 +2148,11 @@ test("member activity read and message anchors validate room ownership before ad
   assert.match(client, /readMessageAnchor\(activityMessageId\)/);
   assert.match(client, /IntersectionObserver/);
   assert.match(client, /markMemberActivityRead\(highlightedMessageId\)/);
-  assert.match(
-    timeline,
-    /id=\{`live-room-message-\$\{item\.id\}`\}/,
-  );
+  assert.match(timeline, /id=\{`live-room-message-\$\{item\.id\}`\}/);
 });
 
 test("member activity API stays service-only, privacy-safe, and avoids per-author summary queries", () => {
-  const migrationName = readdirSync(
-    archivedMigrationDirectory,
-  ).find((name) =>
+  const migrationName = readdirSync(archivedMigrationDirectory).find((name) =>
     name.endsWith("_live_room_member_activity.sql"),
   );
   assert.ok(migrationName);
@@ -2417,10 +2182,7 @@ test("member activity API stays service-only, privacy-safe, and avoids per-autho
   assert.match(migration, /security invoker/gi);
   assert.doesNotMatch(migration, /security definer/i);
   assert.match(migration, /set search_path = ''/gi);
-  assert.match(
-    repository,
-    /supabaseRpc\("get_live_room_activity_summary"/,
-  );
+  assert.match(repository, /supabaseRpc\("get_live_room_activity_summary"/);
   assert.doesNotMatch(
     browserTypes,
     /followerUserId|followedUserId|memberUserId|authUserId|email/,
@@ -2429,14 +2191,15 @@ test("member activity API stays service-only, privacy-safe, and avoids per-autho
     inbox,
     /followerUserId|followedUserId|memberUserId|authUserId|email/,
   );
-  assert.match(inbox, /message=\$\{encodeURIComponent\(activity\.messageId\)\}/);
+  assert.match(
+    inbox,
+    /message=\$\{encodeURIComponent\(activity\.messageId\)\}/,
+  );
 });
 
 test("global Live Room inbox uses low-frequency visible polling plus focus refresh and stays distinct from Alerts", () => {
   const inbox = readSource("components/shell/LiveRoomUnreadMenu.tsx");
-  const header = readSource(
-    "components/shell/StockRadarProductHeader.tsx",
-  );
+  const header = readSource("components/shell/StockRadarProductHeader.tsx");
   const repository = readSource("lib/live-room/apiRepository.ts");
   const unreadRoute = readSource("app/api/live-room/unread/route.ts");
 
@@ -2454,8 +2217,5 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /Follow a company Live Room/);
   assert.match(header, /<LiveRoomUnreadMenu \/>[\s\S]+aria-label="Alerts"/);
   assert.match(header, /<Bell aria-hidden="true"/);
-  assert.match(
-    unreadRoute,
-    /if \(!hasExistingIdentity\)[\s\S]+emptySummary/,
-  );
+  assert.match(unreadRoute, /if \(!hasExistingIdentity\)[\s\S]+emptySummary/);
 });

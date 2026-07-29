@@ -505,7 +505,11 @@ test("room, detail, and public profile surfaces keep posts separate from events 
   );
   assert.match(
     community,
-    /onCreated=\{\(preview\) => \{[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setActiveTab\("chat"\)/,
+    /const handlePostCreated = \(preview: LiveRoomPostPreview\) => \{[\s\S]*?mergeLiveRoomTimeline\(current, \[preview\]\)[\s\S]*?setMobileSheet\(null\);[\s\S]*?setActiveTab\("chat"\)/,
+  );
+  assert.equal(
+    community.match(/onCreated=\{handlePostCreated\}/g)?.length,
+    2,
   );
   assert.match(postsPanel, /setNotice\("Post published\."\)/);
   assert.doesNotMatch(postsPanel, /compact preview/i);
