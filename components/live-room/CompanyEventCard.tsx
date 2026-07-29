@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowUpRight, Newspaper, ScrollText } from "lucide-react";
-import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type {
   CompanyEvent,
   CompanyEventReference,
 } from "@/lib/live-room/types";
+import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import styles from "./LiveRoom.module.css";
 
 type CompanyEventCardProps = {
@@ -37,12 +37,10 @@ export function CompanyEventCard({
         <time dateTime={event.occurredAt}>
           {formatEventTime(event.occurredAt)}
         </time>
-        <span data-signal={event.signal}>
-          {event.signal}{" "}
-          <b data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
-            {event.score === null ? "—" : event.score}
-          </b>
-        </span>
+        <CompanyEventSignalScore
+          score={event.score}
+          signal={event.signal}
+        />
       </div>
       <h2>{event.title}</h2>
       <footer>

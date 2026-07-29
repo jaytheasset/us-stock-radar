@@ -358,40 +358,73 @@
   background: var(--sr-color-event-insider-surface);
 }
 
-.eventMeta > span[data-signal="bullish"] {
+.eventSignalDirection[data-signal="bullish"] {
   color: var(--sr-color-positive);
 }
 
-.eventMeta > span[data-signal="bearish"] {
+.eventSignalDirection[data-signal="bearish"] {
   color: var(--sr-color-negative);
 }
 
-.eventMeta > span[data-signal="volatile"] {
+.eventSignalDirection[data-signal="volatile"] {
   color: var(--sr-color-warning);
 }
 
-.eventMeta b,
+.eventSignalDirection[data-signal="neutral"] {
+  color: var(--sr-color-event-neutral);
+}
+
+.eventSignalScore {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--sr-space-1);
+  overflow: hidden;
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  white-space: nowrap;
+}
+
+.eventSignalDirection,
+.eventScore {
+  flex: 0 0 auto;
+}
+
+.eventSignalDirection {
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.eventScore b {
+  color: var(--sr-color-text-secondary);
+  font: inherit;
+  font-weight: var(--sr-font-weight-semibold);
+}
+
 .systemUpdate small b {
   color: var(--sr-color-text-heading);
   font: inherit;
 }
 
-.eventMeta b[data-score-tone="bullish"],
+.eventScore b[data-score-tone="bullish"],
 .systemUpdate small b[data-score-tone="bullish"] {
   color: var(--sr-color-positive);
 }
 
-.eventMeta b[data-score-tone="bearish"],
+.eventScore b[data-score-tone="bearish"],
 .systemUpdate small b[data-score-tone="bearish"] {
   color: var(--sr-color-negative);
 }
 
-.eventMeta b[data-score-tone="volatile"],
+.eventScore b[data-score-tone="volatile"],
 .systemUpdate small b[data-score-tone="volatile"] {
   color: var(--sr-color-warning);
 }
 
-.eventMeta b[data-score-tone="neutral"],
+.eventScore b[data-score-tone="neutral"],
 .systemUpdate small b[data-score-tone="neutral"] {
   color: var(--sr-color-event-neutral);
 }
