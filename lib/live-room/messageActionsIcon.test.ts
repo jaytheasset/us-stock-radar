@@ -29,7 +29,11 @@ test("Live Room message actions use a visible card-corner Lucide menu", () => {
   );
   assert.match(
     styles,
-    /\.messageActionsTrigger\s*\{[\s\S]*?width:\s*var\(--sr-space-6\);[\s\S]*?height:\s*var\(--sr-space-6\);[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/,
+    /\.messageActionsTrigger\s*\{[\s\S]*?width:\s*var\(--sr-space-6\);[\s\S]*?height:\s*var\(--sr-space-6\);[\s\S]*?border:\s*0;[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;/,
+  );
+  assert.match(
+    styles,
+    /\.messageActionsTrigger > svg\s*\{[\s\S]*?width:\s*var\(--sr-space-4-5\);[\s\S]*?height:\s*var\(--sr-space-4-5\);[\s\S]*?flex:\s*0 0 auto;[\s\S]*?color:\s*currentColor;[\s\S]*?stroke:\s*currentColor;/,
   );
   assert.match(
     styles,
