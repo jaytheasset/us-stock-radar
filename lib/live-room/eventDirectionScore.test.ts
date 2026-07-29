@@ -151,3 +151,40 @@ test("latest event meta wraps the score instead of shrinking it to zero", () => 
     /\.eventMeta \.eventSignalScore\s*\{[\s\S]*?flex:\s*0 1 auto/,
   );
 });
+
+test("ChatTimeline latest update strip renders shared signal score without mobile overflow", () => {
+  const timeline = readSource(
+    "components/live-room/ChatTimeline.tsx",
+  );
+  const room = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const styles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+
+  assert.match(
+    timeline,
+    /export function LatestChatEventStrip[\s\S]*?className=\{styles\.latestChatEventStrip\}[\s\S]*?<CompanyEventSignalScore[\s\S]*?score=\{event\.score\}[\s\S]*?signal=\{event\.signal\}[\s\S]*?<time dateTime=\{event\.occurredAt\}/,
+  );
+  assert.match(
+    room,
+    /<LatestChatEventStrip event=\{latestEvent\} \/>/,
+  );
+  assert.match(
+    styles,
+    /\.latestChatEventStrip\s*\{[\s\S]*?grid-template-columns:\s*auto minmax\(0, 1fr\) auto/,
+  );
+  assert.match(
+    styles,
+    /\.latestChatEventDetails\s*\{[\s\S]*?min-width:\s*0[\s\S]*?flex-wrap:\s*wrap/,
+  );
+  assert.match(
+    styles,
+    /\.latestChatEventCopy strong\s*\{[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*?\.latestChatEventStrip time\s*\{[\s\S]*?display:\s*none/,
+  );
+});

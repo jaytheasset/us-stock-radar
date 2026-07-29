@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
@@ -74,11 +73,11 @@ import {
   shouldRunLiveRoomPresence,
 } from "@/lib/live-room/presence";
 import { selectLiveRoomSidePanelMembers } from "@/lib/live-room/sidePanel";
-import { ChatTimeline } from "./ChatTimeline";
 import {
-  CompanyEventCard,
-  formatEventTime,
-} from "./CompanyEventCard";
+  ChatTimeline,
+  LatestChatEventStrip,
+} from "./ChatTimeline";
+import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { MessageComposer } from "./MessageComposer";
@@ -1491,26 +1490,7 @@ export function LiveRoomClient({
                   <span />
                 </div>
               ) : latestEvent?.detailHref ? (
-                <Link
-                  aria-label={`Open analysis for latest company update: ${latestEvent.title}`}
-                  className={styles.latestChatEventStrip}
-                  href={latestEvent.detailHref}
-                >
-                  <span
-                    className={styles.latestChatEventKind}
-                    data-kind={latestEvent.kind}
-                  >
-                    {latestEvent.kind === "filing" ? "Filing" : "News"}
-                  </span>
-                  <span className={styles.latestChatEventCopy}>
-                    <small>Latest company update</small>
-                    <strong>{latestEvent.title}</strong>
-                  </span>
-                  <time dateTime={latestEvent.occurredAt}>
-                    {formatEventTime(latestEvent.occurredAt)}
-                  </time>
-                  <ArrowUpRight aria-hidden="true" size={14} />
-                </Link>
+                <LatestChatEventStrip event={latestEvent} />
               ) : null}
               {olderCursor && timelineState === "ready" ? (
                 <button

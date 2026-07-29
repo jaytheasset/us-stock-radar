@@ -933,7 +933,7 @@
 .latestChatEventStrip {
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sr-space-2-5);
   padding: var(--sr-space-2-5) var(--sr-space-3);
@@ -991,7 +991,16 @@
   white-space: nowrap;
 }
 
+.latestChatEventDetails {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sr-space-1) var(--sr-space-2);
+}
+
 .latestChatEventStrip time {
+  flex: 0 0 auto;
   color: var(--sr-color-text-secondary);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
@@ -2143,10 +2152,6 @@ button.messageReplyPreview:hover {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--sr-space-2);
     padding: var(--sr-space-2) var(--sr-space-2-5);
-  }
-
-  .latestChatEventStrip time {
-    display: none;
   }
 
   .latestChatEventCopy small {
