@@ -505,6 +505,22 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     liveRoomStyles,
     /\.mobileSheetContent\s*\{[\s\S]*padding:\s*var\(--sr-space-8\) var\(--sr-space-4\)[\s\S]*calc\(var\(--sr-space-6\) \+ env\(safe-area-inset-bottom\)\)/,
   );
+  assert.equal(
+    (clientSource.match(/mobileMembersSheetContent/g) || []).length,
+    1,
+  );
+  assert.match(
+    clientSource,
+    /mobileSheet === "members"[\s\S]*className=\{`\$\{styles\.mobileSheetContent\} \$\{styles\.mobileMembersSheetContent\}`\}[\s\S]*<LiveRoomMemberList/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.mobileSheetHeading\s*\{[\s\S]*margin-bottom:\s*var\(--sr-space-3\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.mobileMembersSheetContent \.mobileSheetHeading\s*\{[\s\S]*margin-bottom:\s*var\(--sr-space-1\)/,
+  );
   const appShellCloseIndex = clientSource.lastIndexOf("</StockRadarAppShell>");
   const mobileSheetIndex = clientSource.indexOf("<BottomSheetShell");
   assert.ok(mobileSheetIndex > 0);

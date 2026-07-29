@@ -439,3 +439,59 @@ test("ordinary messages keep compact accessible engagement in the header", () =>
     );
   }
 });
+
+test("post and message hearts use the negative token while comments stay neutral", () => {
+  const timeline = readSource(
+    "components/live-room/ChatTimeline.tsx",
+  );
+  const sidePanel = readSource(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
+  const posts = readSource("components/live-room/PostsPanel.tsx");
+  const detail = readSource(
+    "components/live-room/PostDetailClient.tsx",
+  );
+  const liveRoomStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const postsStyles = readSource(
+    "components/live-room/Posts.module.css",
+  );
+  const detailStyles = readSource(
+    "components/live-room/PostDetail.module.css",
+  );
+
+  assert.match(
+    liveRoomStyles,
+    /\.messageEngagementControl\[data-action="like"\],[\s\S]*:hover,[\s\S]*:focus-visible\s*\{[\s\S]*color:\s*var\(--sr-color-negative\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.postPreviewActivity\[data-kind="like"\]\s*\{[\s\S]*color:\s*var\(--sr-color-negative\)/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /\.sidePanelPostActivity > span\[data-kind="like"\]\s*\{[\s\S]*color:\s*var\(--sr-color-negative\)/,
+  );
+  assert.match(
+    postsStyles,
+    /\.activity span\[data-kind="like"\]\s*\{[\s\S]*color:\s*var\(--sr-color-negative\)/,
+  );
+  assert.match(
+    detailStyles,
+    /\.engagementAction\[data-kind="like"\],[\s\S]*:hover,[\s\S]*:focus-visible\s*\{[\s\S]*color:\s*var\(--sr-color-negative\)/,
+  );
+
+  for (const source of [timeline, sidePanel, posts, detail]) {
+    assert.match(source, /data-kind="like"/);
+    assert.match(source, /data-kind="comment"/);
+  }
+  assert.match(
+    `${timeline}${sidePanel}${posts}`,
+    /fill=\{(?:item|post)\.isLiked \? "currentColor" : "none"\}/,
+  );
+  assert.doesNotMatch(
+    `${liveRoomStyles}${postsStyles}${detailStyles}`,
+    /\[data-kind="comment"\][^{]*\{[^}]*--sr-color-negative/,
+  );
+});

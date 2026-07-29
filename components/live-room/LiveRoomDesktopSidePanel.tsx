@@ -368,6 +368,7 @@ function PostsPreview({
                 >
                   <span
                     aria-label={`${post.likeCount} likes`}
+                    data-kind="like"
                     title="Likes"
                   >
                     <Heart
@@ -379,6 +380,7 @@ function PostsPreview({
                   </span>
                   <span
                     aria-label={`${post.commentCount} comments`}
+                    data-kind="comment"
                     title="Comments"
                   >
                     <MessageCircle aria-hidden="true" size={12} />

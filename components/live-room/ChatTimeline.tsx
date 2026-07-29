@@ -261,6 +261,7 @@ export function ChatTimeline({
                   <span
                     aria-label={`${item.likeCount} likes`}
                     className={styles.postPreviewActivity}
+                    data-kind="like"
                   >
                     <Heart
                       aria-hidden="true"
@@ -272,6 +273,7 @@ export function ChatTimeline({
                   <span
                     aria-label={`${item.commentCount} comments`}
                     className={styles.postPreviewActivity}
+                    data-kind="comment"
                   >
                     <MessageCircle aria-hidden="true" size={12} />
                     {item.commentCount}

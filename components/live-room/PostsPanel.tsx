@@ -604,7 +604,10 @@ export function PostsPanel({
                 </div>
               ) : null}
               <div aria-label="Post activity" className={styles.activity}>
-                <span aria-label={`${post.likeCount} likes`}>
+                <span
+                  aria-label={`${post.likeCount} likes`}
+                  data-kind="like"
+                >
                   <Heart
                     aria-hidden="true"
                     fill={post.isLiked ? "currentColor" : "none"}
@@ -612,7 +615,10 @@ export function PostsPanel({
                   />
                   {post.likeCount}
                 </span>
-                <span aria-label={`${post.commentCount} comments`}>
+                <span
+                  aria-label={`${post.commentCount} comments`}
+                  data-kind="comment"
+                >
                   <MessageCircle aria-hidden="true" size={14} />
                   {post.commentCount}
                 </span>

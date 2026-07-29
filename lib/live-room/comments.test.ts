@@ -115,3 +115,26 @@ test("comment reads preserve canonical cross-post discussion and safety filters"
   assert.match(comments, /Sign in to join this post discussion/);
   assert.match(comments, /repository\.reportComment/);
 });
+
+test("mobile post detail keeps a symmetric ten pixel page gutter", () => {
+  const styles = readSource(
+    "components/live-room/PostDetail.module.css",
+  );
+  const mobileStyles =
+    styles.match(/@media \(max-width: 520px\) \{([\s\S]*)\}\s*$/)?.[1] ??
+    "";
+
+  assert.match(
+    mobileStyles,
+    /\.page\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*width:\s*100%;[\s\S]*padding:\s*16px 10px 64px;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.article\s*\{[\s\S]*width:\s*100%;[\s\S]*padding:\s*18px;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.profilePage\s*\{[\s\S]*width:\s*min\(100% - 20px, 1120px\);[\s\S]*padding-top:\s*16px;/,
+  );
+  assert.doesNotMatch(mobileStyles, /\.page,\s*\.profilePage/);
+});

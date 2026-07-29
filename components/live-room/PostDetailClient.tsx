@@ -188,6 +188,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                     aria-label={post.isLiked ? "Unlike post" : "Like post"}
                     aria-pressed={post.isLiked}
                     className={styles.engagementAction}
+                    data-kind="like"
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
@@ -216,6 +217,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   <Link
                     aria-label="Sign in to like this post"
                     className={styles.engagementAction}
+                    data-kind="like"
                     href={createLiveRoomMemberLoginHref(
                       `/live/posts/${post.id}`,
                     )}
@@ -227,6 +229,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                 <span
                   aria-label={`${post.commentCount} comments`}
                   className={styles.engagementCount}
+                  data-kind="comment"
                 >
                   <MessageCircle aria-hidden="true" size={15} />
                   {post.commentCount}
