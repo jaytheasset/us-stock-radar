@@ -226,6 +226,105 @@
   background: transparent;
 }
 
+.membershipButton,
+.membershipLeaveButton,
+.membershipDialog button {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.membershipButton:hover:not(:disabled),
+.membershipLeaveButton:hover:not(:disabled),
+.membershipDialog button:hover:not(:disabled) {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.membershipButton:disabled,
+.membershipLeaveButton:disabled,
+.membershipDialog button:disabled {
+  cursor: wait;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.membershipJoinedGroup {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.membershipJoinedStatus {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  gap: var(--sr-space-1);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.roomActions .membershipLeaveButton {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.membershipDialogBackdrop {
+  position: fixed;
+  z-index: var(--sr-z-modal);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sr-space-4);
+  background: var(--sr-color-overlay-full-scroll);
+}
+
+.membershipDialog {
+  width: min(100%, 430px);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-popover);
+  padding: var(--sr-space-5);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-elevated);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.membershipDialog strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-lg);
+}
+
+.membershipDialog p {
+  margin: var(--sr-space-3) 0 var(--sr-space-5);
+  line-height: var(--sr-line-height-default);
+}
+
+.membershipDialog > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
+.membershipDialog .membershipConfirmLeave {
+  border: var(--sr-border-width) solid var(--sr-color-negative);
+  color: var(--sr-color-negative);
+  background: var(--sr-color-surface-control);
+}
+
 .historyTrigger {
   display: none !important;
 }
@@ -586,7 +685,7 @@
 
 .sidePanelTabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sr-space-1);
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
   padding: var(--sr-space-2) var(--sr-space-2) 0;
@@ -791,6 +890,103 @@
 .sidePanelViewAll {
   width: calc(100% - (var(--sr-space-3) * 2));
   margin: var(--sr-space-2) var(--sr-space-3) var(--sr-space-3);
+  text-decoration: none;
+}
+
+.joinedRoomsList {
+  display: grid;
+  min-width: 0;
+}
+
+.joinedRoomItem {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  padding: var(--sr-space-3) var(--sr-space-1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.joinedRoomItem:hover,
+.joinedRoomItem[aria-current="page"] {
+  background: var(--sr-color-surface-control);
+}
+
+.joinedRoomIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-surface-control);
+}
+
+.joinedRoomItem > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.joinedRoomItem strong,
+.joinedRoomItem small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joinedRoomItem strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+}
+
+.joinedRoomItem small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.joinedRoomUnread {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border-radius: var(--sr-radius-chat-control);
+  padding: var(--sr-space-1) var(--sr-space-2);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-selected);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.joinedRoomsStatus {
+  margin: 0;
+  padding: var(--sr-space-5) var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+  text-align: center;
+}
+
+.joinedRoomsStatus a {
+  color: var(--sr-color-accent-text);
+}
+
+.mobileRoomsViewAll {
+  display: flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
 }
 
 .sidePanelTabs button:focus-visible,
@@ -800,7 +996,12 @@
 .sidePanelMemberActions a:focus-visible,
 .sidePanelMemberActions button:focus-visible,
 .sidePanelStatus button:focus-visible,
-.sidePanelViewAll:focus-visible {
+.sidePanelViewAll:focus-visible,
+.joinedRoomItem:focus-visible,
+.mobileRoomsViewAll:focus-visible,
+.membershipButton:focus-visible,
+.membershipLeaveButton:focus-visible,
+.membershipDialog button:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
 }
@@ -2113,6 +2314,25 @@ button.messageReplyPreview:hover {
     width: var(--sr-size-control);
     min-width: var(--sr-size-control);
     padding: 0;
+  }
+
+  .roomActions .membershipButton,
+  .roomActions .membershipLeaveButton,
+  .roomActions .membershipDialog button {
+    width: auto;
+    min-width: 0;
+    padding: 0 var(--sr-space-2);
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .membershipJoinedGroup {
+    gap: var(--sr-space-0-5);
+  }
+
+  .membershipJoinedStatus {
+    min-height: var(--sr-size-control);
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-xs);
   }
 
   .roomActions .actionLabel {

@@ -23,6 +23,14 @@
   min-width: 0;
 }
 
+.directoryHeroActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
 .directoryHero span,
 .communityHeader .eyebrow,
 .createDialog header span,
@@ -64,6 +72,8 @@
 .backLink,
 .createForm footer button,
 .closeButton,
+.directoryHeroActions > a,
+.joinedRoomsDirectory > header a,
 .eligibilityActions a,
 .eligibilityActions button {
   display: inline-flex;
@@ -90,6 +100,8 @@
 .openCompanyRoomLink:hover,
 .pagination a:hover,
 .directoryEmpty a:hover,
+.directoryHeroActions > a:hover,
+.joinedRoomsDirectory > header a:hover,
 .createForm footer button:hover,
 .eligibilityActions a:hover,
 .eligibilityActions button:hover {
@@ -719,38 +731,19 @@
   display: block;
 }
 
-.communityFollowButton {
-  display: inline-flex;
-  min-height: var(--sr-size-control);
+.communityMembershipControl {
   float: right;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sr-space-2);
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-action);
-  padding: 0 var(--sr-space-3);
-  color: var(--sr-color-text-control-strong);
-  background: var(--sr-color-surface-control);
-  font: inherit;
-  font-size: var(--sr-font-size-sm);
-  font-weight: var(--sr-font-weight-semibold);
-  cursor: pointer;
+  margin-bottom: var(--sr-space-2);
 }
 
-.communityFollowButton:hover:not(:disabled) {
-  color: var(--sr-color-text-heading);
-  background: var(--sr-color-surface-control-strong);
-}
-
-.communityFollowingButton {
-  border-color: var(--sr-color-accent-border);
-  color: var(--sr-color-accent-text);
-  background: var(--sr-color-accent-selected);
-}
-
-.communityFollowButton:disabled {
-  cursor: wait;
-  opacity: var(--sr-opacity-disabled);
+.communityRoomCounts {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--sr-space-1) var(--sr-space-3);
+  margin-top: var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
 }
 
 .backLink {
@@ -790,7 +783,8 @@
 }
 
 .createButton:focus-visible,
-.communityFollowButton:focus-visible,
+.directoryHeroActions > a:focus-visible,
+.joinedRoomsDirectory > header a:focus-visible,
 .directoryFilters input:focus-visible,
 .directoryFilters select:focus-visible,
 .directoryFilters button:focus-visible,
@@ -811,6 +805,33 @@
 .discoveryList a:focus-visible {
   outline: 2px solid var(--sr-color-accent-text);
   outline-offset: 2px;
+}
+
+.joinedRoomsDirectory {
+  padding-top: var(--sr-space-5);
+}
+
+.joinedRoomsDirectory > header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  margin-bottom: var(--sr-space-3);
+}
+
+.joinedRoomsDirectory h2 {
+  margin: 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-heading-sm);
+}
+
+.joinedRoomsDirectory > header p,
+.joinedRoomsDirectory > p {
+  margin: var(--sr-space-1-5) 0 0;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
 }
 
 @media (max-width: 1100px) {
@@ -938,10 +959,27 @@
     overflow-wrap: anywhere;
   }
 
-  .communityFollowButton {
+  .communityMembershipControl {
     float: none;
-    width: 100%;
     margin-bottom: var(--sr-space-4);
+  }
+
+  .directoryHeroActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .directoryHeroActions > a,
+  .directoryHeroActions > button {
+    flex: 1 1 0;
+  }
+
+  .joinedRoomsDirectory > header {
+    display: grid;
+  }
+
+  .joinedRoomsDirectory > header a {
+    width: 100%;
   }
 
   .communityChat {

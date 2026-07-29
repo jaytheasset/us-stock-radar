@@ -4,10 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Bookmark,
-  BookmarkCheck,
   Hash,
-  LoaderCircle,
 } from "lucide-react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import {
@@ -24,6 +21,13 @@ import {
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import {
+  applyLiveRoomPresence,
+  clearLiveRoomPresence,
+  getLiveRoomPresenceMessageIds,
+  LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
+  shouldRunLiveRoomPresence,
+} from "@/lib/live-room/presence";
+import {
   isCurrentLiveRoomTimelineGeneration,
   mergeLiveRoomTimeline,
   removeLiveRoomTimelineItems,
@@ -34,6 +38,7 @@ import type {
   LiveRoomChatMessage,
   LiveRoomModerationItem,
   LiveRoomProfile,
+  LiveRoomPublicRoomCounts,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
@@ -49,6 +54,7 @@ import {
 import { ChatTimeline } from "./ChatTimeline";
 import { MessageComposer } from "./MessageComposer";
 import { PostsPanel } from "./PostsPanel";
+import { RoomMembershipControl } from "./RoomMembershipControl";
 import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
 import roomStyles from "./LiveRoom.module.css";
 import styles from "./CommunityRooms.module.css";
@@ -100,10 +106,16 @@ export function CommunityRoomClient({
   const [messageActionId, setMessageActionId] =
     useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
-  const [followed, setFollowed] = useState<boolean | null>(null);
-  const [followBusy, setFollowBusy] = useState(false);
+  const [membershipJoined, setMembershipJoined] =
+    useState<boolean | null>(null);
+  const [membershipBusy, setMembershipBusy] = useState(false);
+  const [showPresence, setShowPresence] = useState<boolean | null>(null);
+  const [presenceSettingBusy, setPresenceSettingBusy] = useState(false);
+  const [roomCounts, setRoomCounts] =
+    useState<LiveRoomPublicRoomCounts | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
-  const followedRef = useRef(false);
+  const membershipRef = useRef(false);
+  const presenceMessageIdsRef = useRef<string[]>([]);
   const replyScrollFrameRef = useRef<number | null>(null);
   const timelineGenerationRef = useRef(0);
   const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
@@ -132,13 +144,23 @@ export function CommunityRoomClient({
         const nextProfile = await repository.readProfile();
         if (!isCurrent()) return;
         setProfile(nextProfile);
-        const [page, nextBlocks, nextHiddenMessages, follow] = await Promise.all([
+        const presenceSettingPromise = nextProfile.isGuest
+          ? Promise.resolve(null)
+          : repository.readPresenceSetting().catch(() => null);
+        const [
+          page,
+          nextBlocks,
+          nextHiddenMessages,
+          membership,
+          nextPresenceSetting,
+        ] = await Promise.all([
           repository.list(),
           repository.listBlocks(),
           nextProfile.canModerate
             ? repository.listHiddenMessages()
             : Promise.resolve([]),
-          repository.readFollow(),
+          repository.readMembership(),
+          presenceSettingPromise,
         ]);
         if (!isCurrent()) return;
         setTimeline(replaceLiveRoomTimeline(page.items));
@@ -146,9 +168,15 @@ export function CommunityRoomClient({
         setOlderCursor(page.nextCursor);
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
-        setFollowed(follow.followed);
-        followedRef.current = follow.followed;
-        if (follow.followed) {
+        setMembershipJoined(membership.joined);
+        membershipRef.current = membership.joined;
+        setRoomCounts(membership);
+        setShowPresence(
+          nextProfile.isGuest
+            ? false
+            : nextPresenceSetting?.showPresence ?? null,
+        );
+        if (membership.joined) {
           void repository
             .markRead(null)
             .then(requestLiveRoomUnreadRefresh)
@@ -170,7 +198,7 @@ export function CommunityRoomClient({
               mergeLiveRoomTimeline(current, messages),
             );
             setTimelineState("ready");
-            if (followedRef.current) {
+            if (membershipRef.current) {
               void repository
                 .markRead(null)
                 .then(requestLiveRoomUnreadRefresh)
@@ -208,6 +236,87 @@ export function CommunityRoomClient({
       }
     };
   }, [reloadKey, repository]);
+
+  useEffect(() => {
+    presenceMessageIdsRef.current =
+      getLiveRoomPresenceMessageIds(timeline);
+  }, [timeline]);
+
+  useEffect(() => {
+    const canReadCounts =
+      timelineState === "ready" || timelineState === "empty";
+    const canHeartbeatMember =
+      canReadCounts &&
+      shouldRunLiveRoomPresence({
+        documentVisible: true,
+        isGuest: profile?.isGuest ?? null,
+        showPresence,
+      });
+    if (!canReadCounts) return;
+    if (!canHeartbeatMember) {
+      setTimeline((current) => clearLiveRoomPresence(current));
+    }
+
+    let active = true;
+    let requestInFlight = false;
+    const refreshPresence = async () => {
+      if (
+        !active ||
+        requestInFlight ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+      requestInFlight = true;
+      try {
+        if (canHeartbeatMember) {
+          const heartbeat = await repository.heartbeatPresence();
+          if (!active) return;
+          if (!heartbeat.recorded) setShowPresence(false);
+        }
+        const summary = await repository.readPresence(
+          presenceMessageIdsRef.current,
+        );
+        if (!active) return;
+        setRoomCounts({
+          memberCount: summary.memberCount,
+          onlineCount: summary.onlineCount,
+          participantCount: summary.participantCount,
+          visitorCount: summary.visitorCount,
+        });
+        if (canHeartbeatMember) {
+          setTimeline((current) =>
+            applyLiveRoomPresence(current, summary),
+          );
+        }
+      } catch {
+        if (active) setRoomCounts(null);
+      } finally {
+        requestInFlight = false;
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshPresence();
+      }
+    };
+    void refreshPresence();
+    const timer = window.setInterval(
+      () => void refreshPresence(),
+      LIVE_ROOM_PRESENCE_POLL_INTERVAL_MS,
+    );
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshWhenVisible,
+      );
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
+  }, [profile?.isGuest, repository, showPresence, timelineState]);
 
   useEffect(
     () => () => {
@@ -273,6 +382,8 @@ export function CommunityRoomClient({
         body: nextDecision.normalizedBody,
         replyToMessageId: replyingTo?.id || null,
       });
+      setMembershipJoined(true);
+      membershipRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
       );
@@ -294,32 +405,64 @@ export function CommunityRoomClient({
     }
   };
 
-  const handleToggleFollow = async () => {
-    if (followed === null || followBusy) return;
-    const previous = followed;
-    const next = !previous;
-    setFollowBusy(true);
-    setFollowed(next);
-    followedRef.current = next;
+  const handleJoinRoom = async () => {
+    if (membershipBusy || profile?.isGuest !== false) return;
+    setMembershipBusy(true);
+    setNotice(null);
     try {
-      const saved = await repository.writeFollow({
-        followed: next,
-        notificationScope: "new_chat_messages",
-      });
-      setFollowed(saved.followed);
-      followedRef.current = saved.followed;
+      const state = await repository.joinRoom();
+      setMembershipJoined(state.joined);
+      membershipRef.current = state.joined;
+      setRoomCounts(state);
       requestLiveRoomUnreadRefresh();
-      setNotice(
-        saved.followed
-          ? "Community Room followed."
-          : "Community Room unfollowed.",
-      );
     } catch (error) {
-      setFollowed(previous);
-      followedRef.current = previous;
       setNotice(toLiveRoomApiError(error).message);
     } finally {
-      setFollowBusy(false);
+      setMembershipBusy(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (membershipBusy || profile?.isGuest !== false) return;
+    setMembershipBusy(true);
+    setNotice(null);
+    try {
+      const state = await repository.leaveRoom();
+      setMembershipJoined(state.joined);
+      membershipRef.current = state.joined;
+      setRoomCounts(state);
+      requestLiveRoomUnreadRefresh();
+      setNotice(
+        "You left the room. Reading stays available; contributing again joins the room.",
+      );
+    } catch (error) {
+      setNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMembershipBusy(false);
+    }
+  };
+
+  const handlePresenceSettingChange = async (
+    nextShowPresence: boolean,
+  ) => {
+    if (presenceSettingBusy || profile?.isGuest !== false) return;
+    const previous = showPresence;
+    setPresenceSettingBusy(true);
+    setNotice(null);
+    try {
+      const setting = await repository.writePresenceSetting(
+        nextShowPresence,
+      );
+      setShowPresence(setting.showPresence);
+      if (!setting.showPresence) {
+        setTimeline((current) => clearLiveRoomPresence(current));
+      }
+    } catch (error) {
+      setShowPresence(previous);
+      setNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setPresenceSettingBusy(false);
     }
   };
 
@@ -493,36 +636,29 @@ export function CommunityRoomClient({
               <ArrowLeft aria-hidden="true" size={15} />
               Community Rooms
             </Link>
-            <button
-              aria-label={
-                followed
-                  ? `Unfollow ${room.name}`
-                  : `Follow ${room.name}`
-              }
-              aria-pressed={followed ?? undefined}
-              className={`${styles.communityFollowButton} ${
-                followed ? styles.communityFollowingButton : ""
-              }`}
-              disabled={followed === null || followBusy}
-              onClick={() => void handleToggleFollow()}
-              type="button"
-            >
-              {followed === null || followBusy ? (
-                <LoaderCircle aria-hidden="true" size={15} />
-              ) : followed ? (
-                <BookmarkCheck aria-hidden="true" size={15} />
-              ) : (
-                <Bookmark aria-hidden="true" size={15} />
-              )}
-              {followed === null
-                ? "Loading"
-                : followed
-                  ? "Following"
-                  : "Follow room"}
-            </button>
+            <div className={styles.communityMembershipControl}>
+              <RoomMembershipControl
+                busy={membershipBusy}
+                isGuest={profile?.isGuest === true}
+                joined={membershipJoined}
+                loginHref={roomLoginHref}
+                onJoin={handleJoinRoom}
+                onLeave={handleLeaveRoom}
+                roomLabel={room.name}
+              />
+            </div>
             <span className={styles.eyebrow}>Community Room</span>
             <h1>{room.name}</h1>
             <p>{room.summary}</p>
+            {roomCounts ? (
+              <div className={styles.communityRoomCounts}>
+                <strong>{roomCounts.memberCount} members</strong>
+                {roomCounts.visitorCount > 0 ? (
+                  <span>{roomCounts.visitorCount} visitors</span>
+                ) : null}
+                <span>{roomCounts.onlineCount} online</span>
+              </div>
+            ) : null}
             <div className={styles.metaList} hidden={activeTab !== "about"}>
               <span>{getCommunityTopicLabel(room.topic)}</span>
               <span>{getCommunityRoomStyleLabel(room.roomStyle)}</span>
@@ -600,6 +736,8 @@ export function CommunityRoomClient({
           <PostsPanel
             loginHref={roomLoginHref}
             onCreated={(preview) => {
+              setMembershipJoined(true);
+              membershipRef.current = true;
               setTimeline((current) =>
                 mergeLiveRoomTimeline(current, [preview]),
               );
@@ -757,11 +895,11 @@ export function CommunityRoomClient({
             }}
             onClearReference={() => undefined}
             onCancelReply={() => setReplyingTo(null)}
-            onPresenceSettingChange={() => undefined}
+            onPresenceSettingChange={handlePresenceSettingChange}
             onProfileChange={handleProfileChange}
             onSend={handleSend}
             placeholder="Share a useful view with this community…"
-            presenceSettingBusy={false}
+            presenceSettingBusy={presenceSettingBusy}
             profile={profile}
             profileOpen={profileOpen}
             replyPreview={
@@ -778,7 +916,7 @@ export function CommunityRoomClient({
             }
             sending={sending}
             setProfileOpen={setProfileOpen}
-            showPresence={null}
+            showPresence={showPresence}
           />
         </section>
       </main>

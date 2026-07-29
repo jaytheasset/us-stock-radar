@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Community | Stock Radar",
   description:
-    "Manage member messages, people, followed rooms, and Community activity.",
+    "Manage member messages, people, joined rooms, and Community activity.",
   robots: {
     index: false,
     follow: false,

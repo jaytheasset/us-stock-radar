@@ -42,8 +42,10 @@ import type {
   LiveRoomChatMessage,
   LiveRoomFollowPreference,
   LiveRoomMemberFollowResult,
+  LiveRoomMembershipList,
+  LiveRoomMembershipListItem,
+  LiveRoomMembershipState,
   LiveRoomModerationItem,
-  LiveRoomNotificationScope,
   LiveRoomProfile,
   LiveRoomPresenceSetting,
   LiveRoomPresenceSummary,
@@ -868,15 +870,22 @@ export async function updateLiveRoomPresenceSetting(
 
 export async function heartbeatLiveRoomPresence(
   actor: LiveRoomActor,
-  rawTicker: string,
+  location:
+    | string
+    | { slug?: string; ticker?: string },
 ) {
   assertLiveRoomPresenceMember(actor);
-  const ticker = normalizeLiveRoomPresenceTicker(rawTicker);
+  const room =
+    typeof location === "string"
+      ? await resolveLiveRoom({
+          ticker: normalizeLiveRoomPresenceTicker(location),
+        })
+      : await resolveLiveRoom(location);
   const result = await supabaseRpc(
-    "set_live_room_member_presence_heartbeat",
+    "set_live_room_room_presence_heartbeat",
     {
       p_member_user_id: actor.userId,
-      p_ticker: ticker,
+      p_room_id: room.id,
     },
   );
   if (!result.ok || typeof result.data !== "boolean") {
@@ -892,13 +901,20 @@ export async function heartbeatLiveRoomPresence(
 export async function getLiveRoomPresenceSummary({
   actor,
   messageIds: rawMessageIds,
+  slug,
   ticker: rawTicker,
 }: {
   actor: LiveRoomActor;
   messageIds: unknown;
-  ticker: string;
+  slug?: string;
+  ticker?: string;
 }): Promise<LiveRoomPresenceSummary> {
-  const ticker = normalizeLiveRoomPresenceTicker(rawTicker);
+  const room = await resolveLiveRoom({
+    slug,
+    ticker: rawTicker
+      ? normalizeLiveRoomPresenceTicker(rawTicker)
+      : undefined,
+  });
   const messageIds = [
     ...new Set(
       (Array.isArray(rawMessageIds) ? rawMessageIds : [])
@@ -909,10 +925,10 @@ export async function getLiveRoomPresenceSummary({
 
   if (actor.kind === "guest") {
     const heartbeat = await supabaseRpc(
-      "set_live_room_guest_presence_heartbeat",
+      "set_live_room_guest_presence_for_room",
       {
         p_guest_session_id: actor.guestSessionId,
-        p_ticker: ticker,
+        p_room_id: room.id,
       },
     );
     if (!heartbeat.ok || heartbeat.data !== true) {
@@ -926,13 +942,15 @@ export async function getLiveRoomPresenceSummary({
   }
 
   const [countsResult, memberResult] = await Promise.all([
-    supabaseRpc("get_live_room_public_counts", {
-      p_ticker: ticker,
+    supabaseRpc("get_live_room_room_state", {
+      p_room_id: room.id,
+      p_member_user_id:
+        actor.kind === "member" ? actor.userId : null,
     }),
     actor.kind === "member"
-      ? supabaseRpc("get_live_room_member_presence_summary", {
+      ? supabaseRpc("get_live_room_presence_summary_for_room", {
           p_member_user_id: actor.userId,
-          p_ticker: ticker,
+          p_room_id: room.id,
           p_message_ids: messageIds,
           p_message_limit: 50,
         })
@@ -965,7 +983,16 @@ export async function getLiveRoomPresenceSummary({
     0,
     Number(counts.onlineCount ?? counts.online_count) || 0,
   );
+  const memberCount = Math.max(
+    0,
+    Number(counts.memberCount ?? counts.member_count) || 0,
+  );
+  const visitorCount = Math.max(
+    0,
+    Number(counts.visitorCount ?? counts.visitor_count) || 0,
+  );
   return {
+    memberCount,
     messages,
     onlineCount,
     participantCount: Math.max(
@@ -974,6 +1001,108 @@ export async function getLiveRoomPresenceSummary({
         counts.participantCount ?? counts.participant_count,
       ) || 0,
     ),
+    visitorCount,
+  };
+}
+
+export async function getLiveRoomMembership({
+  actor,
+  slug,
+  ticker,
+}: {
+  actor: LiveRoomActor;
+  slug?: string;
+  ticker?: string;
+}): Promise<LiveRoomMembershipState> {
+  const room = await resolveLiveRoom({ slug, ticker });
+  if (actor.kind === "member") {
+    await getLiveRoomProfile(actor);
+  }
+  const result = await supabaseRpc("get_live_room_room_state", {
+    p_room_id: room.id,
+    p_member_user_id:
+      actor.kind === "member" ? actor.userId : null,
+  });
+  const row = readSingleRow(result.data);
+  if (!result.ok || !row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBERSHIP_UNAVAILABLE",
+      result.error || "Room membership could not be loaded.",
+      result.status || 502,
+    );
+  }
+  return mapMembershipState(row);
+}
+
+export async function updateLiveRoomMembership({
+  actor,
+  joined,
+  slug,
+  ticker,
+}: {
+  actor: LiveRoomActor;
+  joined: unknown;
+  slug?: string;
+  ticker?: string;
+}): Promise<LiveRoomMembershipState> {
+  assertLiveRoomMembershipMember(actor);
+  if (typeof joined !== "boolean") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_INVALID_MEMBERSHIP",
+      "Choose Join room or Leave room.",
+    );
+  }
+  const room = await resolveLiveRoom({ slug, ticker });
+  await getLiveRoomProfile(actor);
+  const result = await supabaseRpc("set_live_room_membership", {
+    p_joined: joined,
+    p_member_user_id: actor.userId,
+    p_room_id: room.id,
+  });
+  if (!result.ok || result.data !== joined) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBERSHIP_UPDATE_FAILED",
+      result.error || "Room membership could not be updated.",
+      result.status || 502,
+    );
+  }
+  return getLiveRoomMembership({ actor, slug, ticker });
+}
+
+export async function listLiveRoomMemberships(
+  actor: LiveRoomActor,
+  rawLimit: unknown,
+): Promise<LiveRoomMembershipList> {
+  assertLiveRoomMembershipMember(actor);
+  await getLiveRoomProfile(actor);
+  const parsedLimit = Number(rawLimit);
+  const limit = Math.max(
+    1,
+    Math.min(
+      Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 20,
+      100,
+    ),
+  );
+  const result = await supabaseRpc("list_live_room_memberships", {
+    p_limit: limit,
+    p_member_user_id: actor.userId,
+  });
+  const row = readSingleRow(result.data);
+  if (!result.ok || !row) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBERSHIPS_UNAVAILABLE",
+      result.error || "Joined rooms could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const items = readRows(row.items)
+    .map(mapMembershipListItem)
+    .filter(
+      (item): item is LiveRoomMembershipListItem => item !== null,
+    );
+  return {
+    hasMore: row.hasMore === true || row.has_more === true,
+    items,
   };
 }
 
@@ -982,11 +1111,12 @@ export async function getLiveRoomFollow(
   rawTicker: string,
 ): Promise<LiveRoomFollowPreference> {
   const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
-  return getLiveRoomFollowByIdentity(actor, room.id, {
-    kind: "ticker_fallback",
-    value: ticker,
-  });
+  const membership = await getLiveRoomMembership({ actor, ticker });
+  return {
+    followed: membership.joined,
+    notificationScope: "new_chat_messages",
+    roomKey: { kind: "ticker_fallback", value: ticker },
+  };
 }
 
 export async function getCommunityRoomFollow(
@@ -994,39 +1124,14 @@ export async function getCommunityRoomFollow(
   rawSlug: string,
 ): Promise<LiveRoomFollowPreference> {
   const room = await getCommunityRoomIdentity(rawSlug);
-  return getLiveRoomFollowByIdentity(actor, room.id, {
-    kind: "community_slug",
-    value: room.slug,
+  const membership = await getLiveRoomMembership({
+    actor,
+    slug: room.slug,
   });
-}
-
-async function getLiveRoomFollowByIdentity(
-  actor: LiveRoomActor,
-  roomId: string,
-  roomKey: LiveRoomFollowPreference["roomKey"],
-): Promise<LiveRoomFollowPreference> {
-  const result = await supabaseSelect("live_room_follows", {
-    select: "followed,notification_scope",
-    room_id: `eq.${roomId}`,
-    ...getLiveRoomActorFilter(actor),
-    limit: "1",
-  });
-
-  if (!result.ok) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_FOLLOW_UNAVAILABLE",
-      result.error || "Follow status could not be loaded.",
-      result.status || 502,
-    );
-  }
-
-  const row = readSingleRow(result.data);
   return {
-    followed: row?.followed === true,
-    notificationScope: normalizeNotificationScope(
-      row?.notification_scope,
-    ),
-    roomKey,
+    followed: membership.joined,
+    notificationScope: "new_chat_messages",
+    roomKey: { kind: "community_slug", value: room.slug },
   };
 }
 
@@ -1042,18 +1147,21 @@ export async function updateLiveRoomFollow(
   if (typeof data.followed !== "boolean") {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_INVALID_FOLLOW",
-      "Follow status must be true or false.",
+      "Room membership state must be true or false.",
     );
   }
 
   const ticker = normalizeLiveRoomTicker(rawTicker);
-  const room = await getOrCreateLiveRoom(ticker);
-  return updateLiveRoomFollowByIdentity(
+  const membership = await updateLiveRoomMembership({
     actor,
-    room.id,
-    { kind: "ticker_fallback", value: ticker },
-    data,
-  );
+    joined: data.followed,
+    ticker,
+  });
+  return {
+    followed: membership.joined,
+    notificationScope: "new_chat_messages" as const,
+    roomKey: { kind: "ticker_fallback" as const, value: ticker },
+  };
 }
 
 export async function updateCommunityRoomFollow(
@@ -1068,55 +1176,23 @@ export async function updateCommunityRoomFollow(
   if (typeof data.followed !== "boolean") {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_INVALID_FOLLOW",
-      "Follow status must be true or false.",
+      "Room membership state must be true or false.",
     );
   }
 
   const room = await getCommunityRoomIdentity(rawSlug);
-  return updateLiveRoomFollowByIdentity(
+  const membership = await updateLiveRoomMembership({
     actor,
-    room.id,
-    { kind: "community_slug", value: room.slug },
-    data,
-  );
-}
-
-async function updateLiveRoomFollowByIdentity(
-  actor: LiveRoomActor,
-  roomId: string,
-  roomKey: LiveRoomFollowPreference["roomKey"],
-  data: Record<string, unknown>,
-) {
-  const notificationScope = normalizeNotificationScope(
-    data.notificationScope,
-  );
-  if (actor.kind === "member") {
-    await ensureUserBootstrap({
-      id: actor.userId,
-      email: actor.email,
-    });
-  }
-  const result = await supabaseRpc("set_live_room_chat_follow", {
-    p_room_id: roomId,
-    p_actor_kind: actor.kind,
-    p_member_user_id: actor.kind === "member" ? actor.userId : null,
-    p_guest_session_id:
-      actor.kind === "guest" ? actor.guestSessionId : null,
-    p_followed: data.followed,
+    joined: data.followed,
+    slug: room.slug,
   });
-
-  if (!result.ok) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_FOLLOW_UPDATE_FAILED",
-      result.error || "Follow status could not be saved.",
-      result.status || 502,
-    );
-  }
-
   return {
-    followed: data.followed,
-    notificationScope,
-    roomKey,
+    followed: membership.joined,
+    notificationScope: "new_chat_messages" as const,
+    roomKey: {
+      kind: "community_slug" as const,
+      value: room.slug,
+    },
   };
 }
 
@@ -1895,6 +1971,78 @@ function assertLiveRoomPresenceMember(
   }
 }
 
+function assertLiveRoomMembershipMember(
+  actor: LiveRoomActor,
+): asserts actor is Extract<LiveRoomActor, { kind: "member" }> {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to join this room.",
+      401,
+    );
+  }
+}
+
+function mapMembershipState(
+  row: Record<string, unknown>,
+): LiveRoomMembershipState {
+  const onlineCount = readNonnegativeCount(
+    row.onlineCount ?? row.online_count,
+  );
+  const memberCount = readNonnegativeCount(
+    row.memberCount ?? row.member_count,
+  );
+  const visitorCount = readNonnegativeCount(
+    row.visitorCount ?? row.visitor_count,
+  );
+  return {
+    joined: row.joined === true,
+    memberCount,
+    onlineCount,
+    participantCount: Math.max(
+      onlineCount,
+      readNonnegativeCount(
+        row.participantCount ?? row.participant_count,
+      ),
+    ),
+    visitorCount,
+  };
+}
+
+function mapMembershipListItem(
+  row: Record<string, unknown>,
+): LiveRoomMembershipListItem | null {
+  const kind = readString(row.kind ?? row.room_kind);
+  const href = readString(row.href);
+  const label = readString(row.label);
+  const ticker = readString(row.ticker) || null;
+  const joinedAt = readString(row.joinedAt ?? row.joined_at);
+  const recentActivityAt = readString(
+    row.recentActivityAt ?? row.recent_activity_at,
+  );
+  if (
+    (kind !== "company" && kind !== "community") ||
+    !href.startsWith("/live/") ||
+    href.startsWith("//") ||
+    !label ||
+    !joinedAt ||
+    !recentActivityAt
+  ) {
+    return null;
+  }
+  return {
+    href,
+    joinedAt,
+    kind,
+    label,
+    recentActivityAt,
+    ticker,
+    unreadCount: readNonnegativeCount(
+      row.unreadCount ?? row.unread_count,
+    ),
+  };
+}
+
 function mapMessageRow(
   row: MessageRow,
   actor: LiveRoomActor,
@@ -2198,6 +2346,13 @@ function readString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function readNonnegativeCount(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.max(0, Math.trunc(number))
+    : 0;
+}
+
 function compareTimeline(
   left: LiveRoomTimelineItem,
   right: LiveRoomTimelineItem,
@@ -2221,10 +2376,4 @@ function normalizePlan(value: unknown): Plan {
     value === "ultimate"
     ? value
     : "free";
-}
-
-function normalizeNotificationScope(
-  _value: unknown,
-): LiveRoomNotificationScope {
-  return "new_chat_messages";
 }

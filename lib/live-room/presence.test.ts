@@ -26,6 +26,9 @@ const migration = read(
 const guestPresenceMigration = read(
   "supabase/migrations/20260729062946_live_room_guest_presence_counts.sql",
 );
+const membershipMigration = read(
+  "supabase/migrations/20260729073253_live_room_persistent_membership.sql",
+);
 const client = read("components/live-room/LiveRoomClient.tsx");
 const header = read("components/live-room/CompanyRoomHeader.tsx");
 const composer = read("components/live-room/MessageComposer.tsx");
@@ -148,8 +151,8 @@ test("presence ticker validation is stricter than general room routing", () => {
 
 test("presence summary bulk-enriches bounded visible room messages and hides bilateral blocks", () => {
   const summaryFunction =
-    migration.match(
-      /function public\.get_live_room_member_presence_summary\([\s\S]+?\$\$;/i,
+    membershipMigration.match(
+      /function public\.get_live_room_presence_summary_for_room\([\s\S]+?\$\$;/i,
     )?.[0] || "";
   assert.match(
     summaryFunction,
@@ -157,7 +160,7 @@ test("presence summary bulk-enriches bounded visible room messages and hides bil
   );
   assert.match(
     summaryFunction,
-    /greatest\(1, least\(coalesce\(p_message_limit, 50\), 50\)\)/i,
+    /greatest\(\s*1,\s*least\(coalesce\(p_message_limit, 50\), 50\)\s*\)/i,
   );
   assert.match(
     summaryFunction,
@@ -165,15 +168,15 @@ test("presence summary bulk-enriches bounded visible room messages and hides bil
   );
   assert.match(
     summaryFunction,
-    /room\.ticker = p_ticker/i,
+    /message\.room_id = p_room_id/i,
   );
   assert.match(
     summaryFunction,
-    /block\.blocker_member_user_id = p_member_user_id[\s\S]+block\.blocked_member_user_id = message\.member_user_id[\s\S]+block\.blocker_member_user_id = message\.member_user_id[\s\S]+block\.blocked_member_user_id = p_member_user_id/i,
+    /block\.blocker_member_user_id\s*=\s*p_member_user_id[\s\S]+block\.blocked_member_user_id\s*=\s*message\.member_user_id[\s\S]+block\.blocker_member_user_id\s*=\s*message\.member_user_id[\s\S]+block\.blocked_member_user_id\s*=\s*p_member_user_id/i,
   );
   assert.match(
     serverRepository,
-    /supabaseRpc\(\s*"get_live_room_member_presence_summary"/,
+    /supabaseRpc\(\s*"get_live_room_presence_summary_for_room"/,
   );
   assert.doesNotMatch(
     serverRepository,
@@ -211,15 +214,15 @@ test("guests receive aggregate counts while member-only mutations remain protect
   );
   assert.match(
     serverRepository,
-    /actor\.kind === "guest"[\s\S]*"set_live_room_guest_presence_heartbeat"[\s\S]*p_guest_session_id:\s*actor\.guestSessionId/,
+    /actor\.kind === "guest"[\s\S]*"set_live_room_guest_presence_for_room"[\s\S]*p_guest_session_id:\s*actor\.guestSessionId[\s\S]*p_room_id:\s*room\.id/,
   );
   assert.match(
     serverRepository,
-    /"get_live_room_public_counts"[\s\S]*p_ticker:\s*ticker/,
+    /"get_live_room_room_state"[\s\S]*p_room_id:\s*room\.id/,
   );
   assert.match(
     serverRepository,
-    /actor\.kind === "member"[\s\S]*"get_live_room_member_presence_summary"[\s\S]*:\s*Promise\.resolve\(null\)/,
+    /actor\.kind === "member"[\s\S]*"get_live_room_presence_summary_for_room"[\s\S]*:\s*Promise\.resolve\(null\)/,
   );
   assert.match(
     presenceRoute,
@@ -324,7 +327,7 @@ test("presence lifecycle is member-only, opt-in, visible, bounded, and cleaned u
   );
 });
 
-test("header shows participant total before aggregate online count for every actor", () => {
+test("header distinguishes joined members and visitors before aggregate online count", () => {
   assert.match(composer, /Show when I&apos;m active in Live Rooms/);
   assert.match(
     composer,
@@ -350,7 +353,7 @@ test("header shows participant total before aggregate online count for every act
   assert.match(client, /roomCounts=\{roomCounts\}/);
   assert.match(
     header,
-    /roomCounts\.participantCount\} participants[\s\S]*?<span aria-hidden="true">·<\/span>[\s\S]*?roomCounts\.onlineCount\} online/,
+    /roomCounts\.memberCount\} members[\s\S]*?roomCounts\.visitorCount\} visitors[\s\S]*?<span aria-hidden="true">·<\/span>[\s\S]*?roomCounts\.onlineCount\} online/,
   );
   assert.doesNotMatch(header, /onlineCount\s*!==|onlineCount\s*>\s*0/);
   assert.match(
