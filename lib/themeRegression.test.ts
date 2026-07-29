@@ -66,3 +66,21 @@ test("both theme controls preserve the shared persistence and accessible toggle 
     /window\.localStorage\.setItem\(legacyStorageKey, nextTheme\)/,
   );
 });
+
+test("labeled shell theme control remains provider-driven and token-only", () => {
+  const shellToggleSource = readSource(
+    "components/shell/StockRadarThemeToggle.tsx",
+  );
+  const shellToggleStyles = readSource(
+    "components/shell/StockRadarThemeToggle.module.css",
+  );
+
+  assert.match(shellToggleSource, /labeled\?: boolean/);
+  assert.match(shellToggleSource, /<span>\{nextTheme === "light" \? "Light" : "Dark"\}<\/span>/);
+  assert.match(shellToggleSource, /onClick=\{toggleTheme\}/);
+  assert.match(shellToggleStyles, /var\(--sr-color-border-control\)/);
+  assert.match(shellToggleStyles, /var\(--sr-color-surface-overlay-control\)/);
+  assert.match(shellToggleStyles, /var\(--sr-color-text-control-strong\)/);
+  assert.doesNotMatch(shellToggleStyles, /#[0-9a-f]{3,8}\b/i);
+  assert.doesNotMatch(shellToggleStyles, /\brgba?\(/i);
+});

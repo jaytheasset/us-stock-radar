@@ -2,6 +2,11 @@
   display: none;
 }
 
+.root,
+.root * {
+  box-sizing: border-box;
+}
+
 @keyframes sheetSlideUp {
   from {
     opacity: 0.72;
@@ -56,6 +61,8 @@
     right: 0;
     bottom: 0;
     left: 0;
+    width: 100%;
+    max-width: 100vw;
     border: var(--sr-border-width) solid var(--sr-color-border-overlay);
     border-bottom: 0;
     border-radius: var(--sr-radius-sheet) var(--sr-radius-sheet) 0 0;
@@ -75,6 +82,7 @@
 
   .fullScrollSurface {
     height: min(90dvh, calc(100dvh - 28px));
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     background:
@@ -82,6 +90,36 @@
       var(--sr-color-surface-overlay);
     box-shadow: var(--sr-shadow-sheet-full-scroll);
     scrollbar-gutter: stable both-edges;
+  }
+
+  .surfaceWithFixedAction {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .fixedActionScrollRegion {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: calc(
+      var(--sr-size-control) + var(--sr-space-8) +
+        env(safe-area-inset-bottom)
+    );
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .fixedAction {
+    position: absolute;
+    z-index: var(--sr-z-sheet-close);
+    right: max(var(--sr-space-4), env(safe-area-inset-right));
+    bottom: calc(var(--sr-space-4) + env(safe-area-inset-bottom));
+    display: flex;
   }
 
   .fullScrollSurface:focus {
