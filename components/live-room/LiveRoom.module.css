@@ -2291,19 +2291,31 @@ button.messageReplyPreview:hover {
 
 @media (max-width: 420px) {
   .sidePanelMember {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sr-space-1-5);
+  }
+
+  .sidePanelMemberProfile {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: var(--sr-space-2);
+    padding: var(--sr-space-1-5) var(--sr-space-1);
   }
 
   .sidePanelMemberActions {
     min-width: 0;
-    padding: 0 var(--sr-space-1) var(--sr-space-2) 42px;
+    flex: 0 0 auto;
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1) 0 0;
   }
 
   .sidePanelMemberActions a,
   .sidePanelMemberActions button {
-    flex: 1 1 auto;
+    height: 28px;
+    flex: 0 0 auto;
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1-5);
   }
 
   .roomActions button {
