@@ -177,9 +177,13 @@ test("desktop and mobile members share accessible links, status, and actions", (
     client.match(/isGuest=\{profile\?\.isGuest === true\}/g)?.length,
     2,
   );
-  assert.equal(
-    client.match(/loginHref=\{roomLoginHref\}/g)?.length,
-    2,
+  assert.match(
+    client,
+    /<LiveRoomDesktopSidePanel[\s\S]*?loginHref=\{roomLoginHref\}[\s\S]*?\/>/,
+  );
+  assert.match(
+    client,
+    /mobileSheet === "members"[\s\S]*?<LiveRoomMemberList[\s\S]*?loginHref=\{roomLoginHref\}[\s\S]*?\/>/,
   );
   assert.match(
     styles,

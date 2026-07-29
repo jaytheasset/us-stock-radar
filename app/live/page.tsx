@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Building2, Search } from "lucide-react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { CommunityRoomCreateDialog } from "@/components/live-room/CommunityRoomCreateDialog";
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/lib/live-room/community";
 import {
   communityFiltersToSearchParams,
+  findCompanyLiveRoomDirectoryResult,
   listCommunityRooms,
 } from "@/lib/live-room/communityServerRepository";
 import styles from "@/components/live-room/CommunityRooms.module.css";
@@ -56,9 +57,13 @@ export default async function CommunityRoomDirectoryPage({
   };
   let directoryUnavailable = false;
   let page: CommunityRoomDirectoryPage;
-  try {
-    page = await listCommunityRooms(requestedFilters);
-  } catch {
+  const [directoryResult, companyResult] = await Promise.allSettled([
+    listCommunityRooms(requestedFilters),
+    findCompanyLiveRoomDirectoryResult(requestedFilters.search),
+  ]);
+  if (directoryResult.status === "fulfilled") {
+    page = directoryResult.value;
+  } else {
     directoryUnavailable = true;
     let filters: CommunityRoomDirectoryPage["filters"];
     try {
@@ -70,10 +75,14 @@ export default async function CommunityRoomDirectoryPage({
     }
     page = { filters, items: [], nextCursor: null };
   }
+  const companyRoom =
+    companyResult.status === "fulfilled" ? companyResult.value : null;
+  const companyLookupUnavailable = companyResult.status === "rejected";
   const nextFilters = page.nextCursor
     ? { ...page.filters, cursor: page.nextCursor }
     : null;
   const resetHref = "/live";
+  const openCreateOnLoad = readQuery(query.create) === "room";
 
   return (
     <StockRadarAppShell
@@ -91,7 +100,7 @@ export default async function CommunityRoomDirectoryPage({
               remain under each ticker&apos;s Company Live Room.
             </p>
           </div>
-          <CommunityRoomCreateDialog />
+          <CommunityRoomCreateDialog openOnLoad={openCreateOnLoad} />
         </header>
 
         <form className={styles.directoryFilters} method="get">
@@ -240,13 +249,56 @@ export default async function CommunityRoomDirectoryPage({
             <div>
               <span>Directory</span>
               <h2>
-                {page.items.length
-                  ? `${page.items.length} rooms on this page`
-                  : "No rooms found"}
+                {companyRoom
+                  ? `${companyRoom.ticker} Company Room${
+                      page.items.length
+                        ? ` · ${page.items.length} Community Rooms`
+                        : ""
+                    }`
+                  : page.items.length
+                    ? `${page.items.length} Community Rooms on this page`
+                    : "No rooms found"}
               </h2>
             </div>
             <small>20 rooms per page · server-filtered</small>
           </div>
+          {companyRoom ? (
+            <article className={styles.companyRoomResult}>
+              <div className={styles.companyRoomIcon}>
+                <Building2 aria-hidden="true" size={20} />
+              </div>
+              <div>
+                <span>Company Live Room</span>
+                <h3>
+                  <Link href={`/live/${companyRoom.ticker}`}>
+                    {companyRoom.ticker} Company Live Room
+                  </Link>
+                </h3>
+                <p>
+                  {companyRoom.companyName}
+                  {companyRoom.exchange
+                    ? ` · ${companyRoom.exchange}`
+                    : ""}
+                  . This ticker-scoped Company Room is separate from
+                  member-created Community Rooms.
+                </p>
+              </div>
+              <Link
+                aria-label={`Open ${companyRoom.ticker} Company Live Room`}
+                className={styles.openCompanyRoomLink}
+                href={`/live/${companyRoom.ticker}`}
+              >
+                Open Company Room
+                <ArrowRight aria-hidden="true" size={15} />
+              </Link>
+            </article>
+          ) : null}
+          {companyLookupUnavailable ? (
+            <p className={styles.companyLookupNotice} role="status">
+              The Company Live Room match could not be checked right now.
+              Community results are still shown below.
+            </p>
+          ) : null}
           {directoryUnavailable ? (
             <div className={styles.directoryEmpty} role="alert">
               <strong>Community Rooms are temporarily unavailable.</strong>
@@ -325,13 +377,16 @@ export default async function CommunityRoomDirectoryPage({
                 </article>
               ))}
             </div>
-          ) : (
+          ) : !companyRoom && !companyLookupUnavailable ? (
             <div className={styles.directoryEmpty}>
               <strong>No Community Rooms match these filters.</strong>
-              <p>Try a broader search or reset one of the filters.</p>
+              <p>
+                No member-created Community Room or matching Company Live
+                Room was found. Try a broader search or reset a filter.
+              </p>
               <Link href={resetHref}>Clear filters</Link>
             </div>
-          )}
+          ) : null}
           {nextFilters ? (
             <div className={styles.pagination}>
               <Link

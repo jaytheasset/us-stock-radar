@@ -106,6 +106,13 @@
   color: var(--sr-color-text-meta);
 }
 
+.signInNote a {
+  width: fit-content;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-accent-text);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
 .form {
   display: grid;
   gap: 14px;

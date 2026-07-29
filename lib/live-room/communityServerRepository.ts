@@ -3,6 +3,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
+import { normalizeLiveRoomTicker } from "./adapters";
 import {
   COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE,
   COMMUNITY_ROOM_FOCUS_TAGS,
@@ -29,6 +30,11 @@ import {
   type CommunityRoomTopic,
 } from "./community";
 import {
+  COMMUNITY_ROOM_CREATE_WINDOW_MS,
+  resolveCommunityRoomCreateEligibility,
+  type CommunityRoomCreateEligibility,
+} from "./communityCreateEligibility";
+import {
   LiveRoomPolicyError,
   type LiveRoomActor,
 } from "./policy";
@@ -38,6 +44,82 @@ type CommunityCursor = {
   slug: string;
   sort: CommunityRoomSort;
 };
+
+export type CompanyLiveRoomDirectoryResult = {
+  companyName: string;
+  exchange: string | null;
+  ticker: string;
+};
+
+export async function getCommunityRoomCreateEligibility(
+  actor: LiveRoomActor,
+): Promise<CommunityRoomCreateEligibility> {
+  if (actor.kind !== "member") {
+    return resolveCommunityRoomCreateEligibility({
+      history: [],
+      isMember: false,
+    });
+  }
+
+  await ensureUserBootstrap({ id: actor.userId, email: actor.email });
+  const now = new Date();
+  const result = await supabaseSelect("live_room_community_rooms", {
+    select: "slug,created_at",
+    owner_user_id: `eq.${actor.userId}`,
+    created_at: `gte.${new Date(
+      now.getTime() - COMMUNITY_ROOM_CREATE_WINDOW_MS,
+    ).toISOString()}`,
+    order: "created_at.desc",
+    limit: "6",
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "COMMUNITY_ROOM_ELIGIBILITY_UNAVAILABLE",
+      "Room-creation eligibility is temporarily unavailable.",
+      result.status || 502,
+    );
+  }
+
+  return resolveCommunityRoomCreateEligibility({
+    history: readRows(result.data).map((row) => ({
+      createdAt: readDate(row.created_at),
+      slug: readString(row.slug),
+    })),
+    isMember: true,
+    now,
+  });
+}
+
+export async function findCompanyLiveRoomDirectoryResult(
+  rawSearch: unknown,
+): Promise<CompanyLiveRoomDirectoryResult | null> {
+  const ticker = normalizeLiveRoomTicker(rawSearch);
+  if (!ticker) return null;
+
+  const result = await supabaseSelect("tickers", {
+    select: "symbol,name,exchange",
+    symbol: `eq.${ticker}`,
+    is_active: "eq.true",
+    limit: "1",
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "COMMUNITY_ROOM_COMPANY_LOOKUP_UNAVAILABLE",
+      "The matching Company Live Room could not be checked.",
+      result.status || 502,
+    );
+  }
+
+  const row = readRecord(result.data);
+  const symbol = normalizeLiveRoomTicker(row?.symbol);
+  if (!row || symbol !== ticker) return null;
+
+  return {
+    companyName: readString(row.name) || `${ticker} company`,
+    exchange: readString(row.exchange) || null,
+    ticker,
+  };
+}
 
 export async function createCommunityRoom(
   actor: LiveRoomActor,
