@@ -80,14 +80,20 @@ export type LiveRoomPresenceMessage = {
 
 export type LiveRoomPublicRoomCounts = {
   /**
-   * Display total: distinct visible authenticated authors plus current
-   * opt-in member and anonymous visitors. This is not durable membership.
+   * Distinct room memberships and visible authenticated contributors.
+   */
+  memberCount: number;
+  /**
+   * Current opt-in authenticated nonmembers plus opaque guest visitors.
+   * Visitors never become room members merely by being online.
+   */
+  visitorCount: number;
+  /**
+   * Backward-compatible aggregate display total: memberCount plus current
+   * anonymous visitors. It is always at least onlineCount.
    */
   participantCount: number;
-  /**
-   * Current aggregate visitors: opt-in authenticated presence plus opaque
-   * guest-session presence. No visitor identities are exposed.
-   */
+  /** Current opt-in authenticated and opaque guest visitors. */
   onlineCount: number;
 };
 
@@ -98,6 +104,25 @@ export type LiveRoomPresenceSummary = LiveRoomPublicRoomCounts & {
 export type LiveRoomPresenceSetting = {
   isAuthenticated: true;
   showPresence: boolean;
+};
+
+export type LiveRoomMembershipState = LiveRoomPublicRoomCounts & {
+  joined: boolean;
+};
+
+export type LiveRoomMembershipListItem = {
+  href: string;
+  joinedAt: string;
+  kind: "community" | "company";
+  label: string;
+  recentActivityAt: string;
+  ticker: string | null;
+  unreadCount: number;
+};
+
+export type LiveRoomMembershipList = {
+  hasMore: boolean;
+  items: LiveRoomMembershipListItem[];
 };
 
 export type LiveRoomSystemUpdate = {

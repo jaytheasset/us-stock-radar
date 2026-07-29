@@ -736,7 +736,7 @@ test("every company Live Room sign-in CTA preserves the exact ticker room return
   );
   assert.equal(
     liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length,
-    5,
+    6,
   );
   assert.match(
     productHeader,

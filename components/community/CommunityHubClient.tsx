@@ -319,30 +319,7 @@ export function CommunityHubClient() {
         items: [...current.items, ...next.items],
       }));
     } catch {
-      setNotice("More followed rooms could not be loaded.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleRoomUnfollow = async (room: CommunityHubRoom) => {
-    setBusyId(room.href);
-    setNotice(null);
-    try {
-      const repository = new LiveRoomApiRepository(
-        room.kind === "company"
-          ? { kind: "company", ticker: room.ticker! }
-          : { kind: "community", slug: room.slug! },
-      );
-      await repository.writeFollow({
-        followed: false,
-        notificationScope: "new_chat_messages",
-      });
-      await refreshRooms();
-      requestLiveRoomUnreadRefresh();
-      setNotice(`${room.label} unfollowed.`);
-    } catch {
-      setNotice("The room follow could not be updated.");
+      setNotice("More joined rooms could not be loaded.");
     } finally {
       setBusyId(null);
     }
@@ -373,7 +350,7 @@ export function CommunityHubClient() {
           <span>Community</span>
           <h1>Community &amp; Messages</h1>
           <p>
-            Manage member conversations, people, followed rooms, and
+            Manage member conversations, people, joined rooms, and
             community activity in one place.
           </p>
         </div>
@@ -463,7 +440,6 @@ export function CommunityHubClient() {
               setRoomsState("loading");
               void refreshRooms();
             }}
-            onUnfollow={handleRoomUnfollow}
             page={roomsPage}
             state={roomsState}
           />
@@ -718,7 +694,7 @@ function PeoplePanel({
       <PanelHeading
         eyebrow="People"
         title="Member relationships"
-        description="Following and follower lists are separate from followed company and Community rooms."
+        description="Following and follower lists are separate from joined company and Community rooms."
       />
       <div
         aria-label="People relationship"
@@ -843,7 +819,6 @@ function RoomsPanel({
   onLoadMore,
   onOpen,
   onRetry,
-  onUnfollow,
   page,
   state,
 }: {
@@ -851,7 +826,6 @@ function RoomsPanel({
   onLoadMore: () => Promise<void>;
   onOpen: (room: CommunityHubRoom) => Promise<void>;
   onRetry: () => void;
-  onUnfollow: (room: CommunityHubRoom) => Promise<void>;
   page: CommunityHubRoomsPage;
   state: LoadState;
 }) {
@@ -862,14 +836,14 @@ function RoomsPanel({
     <>
       <PanelHeading
         eyebrow="Rooms"
-        title="Followed rooms"
-        description="Company Live Rooms and member-created Community rooms stay distinct from followed people."
+        title="Joined rooms"
+        description="Room membership stays separate from following people."
       />
       {!page.items.length ? (
         <EmptyState
           action={{ href: "/live", label: "Browse Community rooms" }}
-          description="Follow a company Live Room or Community room to keep it here."
-          title="No followed rooms"
+          description="Join a company Live Room or Community room to keep it here."
+          title="No joined rooms"
         />
       ) : (
         <>
@@ -899,8 +873,8 @@ function RoomsPanel({
                   </span>
                 </button>
                 <span className={styles.roomScope}>
-                  <b>Following</b>
-                  <small>New chat messages</small>
+                  <b>Joined</b>
+                  <small>Room activity</small>
                 </span>
                 {room.unreadCount ? (
                   <b className={styles.unreadBadge}>
@@ -909,16 +883,6 @@ function RoomsPanel({
                 ) : (
                   <span className={styles.readLabel}>Read</span>
                 )}
-                <button
-                  aria-label={`Unfollow ${room.label}`}
-                  className={styles.secondaryAction}
-                  disabled={busyId === room.href}
-                  onClick={() => void onUnfollow(room)}
-                  type="button"
-                >
-                  <UserMinus aria-hidden="true" size={14} />
-                  Unfollow
-                </button>
               </article>
             ))}
           </div>
@@ -957,7 +921,7 @@ function ActivityPanel({
       <PanelHeading
         eyebrow="Activity"
         title="Community activity"
-        description="Comments, replies, and new posts from members or rooms you follow."
+        description="Comments, replies, and new posts from members or rooms you joined."
       />
       {!summary.activity.length ? (
         <EmptyState

@@ -175,7 +175,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.equal(
     client.match(/isGuest=\{profile\?\.isGuest === true\}/g)?.length,
-    2,
+    3,
   );
   assert.match(
     client,

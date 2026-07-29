@@ -39,6 +39,7 @@ import type {
   LiveRoomBlockedActor,
   LiveRoomChatMessage,
   LiveRoomModerationItem,
+  LiveRoomMembershipList,
   LiveRoomPost,
   LiveRoomPostPreview,
   LiveRoomProfile,
@@ -81,6 +82,7 @@ import {
 import { CompanyEventCard } from "./CompanyEventCard";
 import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
+import { JoinedRoomsList } from "./JoinedRoomsList";
 import { MessageComposer } from "./MessageComposer";
 import {
   LiveRoomHeaderAdSlot,
@@ -107,7 +109,7 @@ type LiveRoomClientProps = {
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
-type MobileLiveRoomSheet = "events" | "members" | "posts";
+type MobileLiveRoomSheet = "events" | "members" | "posts" | "rooms";
 
 const EMPTY_QUOTE: StockOverviewQuote = {
   change: null,
@@ -172,7 +174,14 @@ export function LiveRoomClient({
   const [presenceSettingBusy, setPresenceSettingBusy] = useState(false);
   const [roomCounts, setRoomCounts] =
     useState<LiveRoomPublicRoomCounts | null>(null);
-  const [followed, setFollowed] = useState<boolean | null>(null);
+  const [membershipJoined, setMembershipJoined] =
+    useState<boolean | null>(null);
+  const [membershipBusy, setMembershipBusy] = useState(false);
+  const [joinedRooms, setJoinedRooms] =
+    useState<LiveRoomMembershipList | null>(null);
+  const [joinedRoomsError, setJoinedRoomsError] =
+    useState<string | null>(null);
+  const [joinedRoomsLoading, setJoinedRoomsLoading] = useState(true);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
     useState<LiveRoomInviteUiState>("idle");
@@ -200,11 +209,12 @@ export function LiveRoomClient({
   const [mobileSheet, setMobileSheet] =
     useState<MobileLiveRoomSheet | null>(null);
   const latestEventIdRef = useRef<string | null>(null);
-  const followedRef = useRef(false);
+  const membershipRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileEventsOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
   const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
   const inviteResetTimerRef = useRef<number | null>(null);
   const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
@@ -317,7 +327,10 @@ export function LiveRoomClient({
       setProfileOpen(false);
       setShowPresence(null);
       setRoomCounts(null);
-      setFollowed(null);
+      setMembershipJoined(null);
+      setJoinedRooms(null);
+      setJoinedRoomsError(null);
+      setJoinedRoomsLoading(true);
     }
     setRoomNotice(null);
     if (isNewRoom) {
@@ -343,23 +356,34 @@ export function LiveRoomClient({
           .listPosts()
           .then((page) => ({ page }))
           .catch(() => ({ page: null }));
+        const joinedRoomsPromise = nextProfile.isGuest
+          ? Promise.resolve({ data: null, error: null })
+          : repository
+              .listJoinedRooms(8)
+              .then((data) => ({ data, error: null }))
+              .catch((error) => ({
+                data: null,
+                error: toLiveRoomApiError(error).message,
+              }));
         const [
           page,
-          preference,
+          membership,
           nextBlocks,
           nextHiddenMessages,
           nextPresenceSetting,
           nextPostsPage,
+          nextJoinedRooms,
         ] =
           await Promise.all([
             repository.list(),
-            repository.readFollow(),
+            repository.readMembership(),
             repository.listBlocks(),
             nextProfile.canModerate
               ? repository.listHiddenMessages()
               : Promise.resolve([]),
             presenceSettingPromise,
             postsPagePromise,
+            joinedRoomsPromise,
           ]);
         if (!isCurrent()) return;
         let initialItems: LiveRoomTimelineItem[] = page.items;
@@ -393,16 +417,19 @@ export function LiveRoomClient({
           setPostsCursor(null);
           setPostsState("error");
         }
-        setFollowed(preference.followed);
+        setMembershipJoined(membership.joined);
+        setJoinedRooms(nextJoinedRooms.data);
+        setJoinedRoomsError(nextJoinedRooms.error);
+        setJoinedRoomsLoading(false);
         setShowPresence(
           nextProfile.isGuest
             ? false
             : nextPresenceSetting?.showPresence ?? null,
         );
-        followedRef.current = preference.followed;
+        membershipRef.current = membership.joined;
         setBlocks(nextBlocks);
         setHiddenMessages(nextHiddenMessages);
-        if (preference.followed) {
+        if (membership.joined) {
           const latestMessageId = getLatestChatMessageId(page.items);
           void repository
             .markRead(latestMessageId)
@@ -419,7 +446,7 @@ export function LiveRoomClient({
               mergeLiveRoomTimeline(current, messages),
             );
             setTimelineState("ready");
-            if (followedRef.current) {
+            if (membershipRef.current) {
               if (markReadTimerRef.current !== null) {
                 window.clearTimeout(markReadTimerRef.current);
               }
@@ -477,6 +504,7 @@ export function LiveRoomClient({
         setRoomNotice(toLiveRoomApiError(error).message);
         setTimelineState("error");
         setPostsState("error");
+        setJoinedRoomsLoading(false);
       }
     })();
 
@@ -609,8 +637,10 @@ export function LiveRoomClient({
         );
         if (!active || document.visibilityState !== "visible") return;
         setRoomCounts({
+          memberCount: summary.memberCount,
           onlineCount: summary.onlineCount,
           participantCount: summary.participantCount,
+          visitorCount: summary.visitorCount,
         });
         if (canHeartbeatMember) {
           setTimeline((current) =>
@@ -851,25 +881,56 @@ export function LiveRoomClient({
     }, 500);
   };
 
-  const handleToggleFollow = async () => {
-    if (followed === null) return;
-    const previous = followed;
-    const nextFollowed = !previous;
-    setFollowed(nextFollowed);
-    followedRef.current = nextFollowed;
+  const refreshJoinedRooms = async () => {
+    if (profile?.isGuest !== false) return;
+    setJoinedRoomsLoading(true);
+    setJoinedRoomsError(null);
+    try {
+      setJoinedRooms(await repository.listJoinedRooms(8));
+    } catch (error) {
+      setJoinedRoomsError(toLiveRoomApiError(error).message);
+    } finally {
+      setJoinedRoomsLoading(false);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (membershipBusy || profile?.isGuest !== false) return;
+    setMembershipBusy(true);
     setRoomNotice(null);
     try {
-      const saved = await repository.writeFollow({
-        followed: nextFollowed,
-        notificationScope: "new_chat_messages",
-      });
-      setFollowed(saved.followed);
-      followedRef.current = saved.followed;
+      const state = await repository.joinRoom();
+      setMembershipJoined(state.joined);
+      membershipRef.current = state.joined;
+      setRoomCounts(state);
+      await refreshJoinedRooms();
       requestLiveRoomUnreadRefresh();
     } catch (error) {
-      setFollowed(previous);
-      followedRef.current = previous;
       setRoomNotice(toLiveRoomApiError(error).message);
+    } finally {
+      setMembershipBusy(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (membershipBusy || profile?.isGuest !== false) return;
+    setMembershipBusy(true);
+    setRoomNotice(null);
+    try {
+      const state = await repository.leaveRoom();
+      setMembershipJoined(state.joined);
+      membershipRef.current = state.joined;
+      setRoomCounts(state);
+      await refreshJoinedRooms();
+      requestLiveRoomUnreadRefresh();
+      setRoomNotice(
+        "You left the room. Reading stays available; contributing again joins the room.",
+      );
+    } catch (error) {
+      setRoomNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMembershipBusy(false);
     }
   };
 
@@ -925,6 +986,9 @@ export function LiveRoomClient({
   };
 
   const handlePostCreated = (preview: LiveRoomPostPreview) => {
+    setMembershipJoined(true);
+    membershipRef.current = true;
+    void refreshJoinedRooms();
     forceOwnTimelineScrollRef.current = true;
     setTimeline((current) =>
       mergeLiveRoomTimeline(current, [preview]),
@@ -947,6 +1011,7 @@ export function LiveRoomClient({
       if (tab === "events") mobileEventsOpenerRef.current = element;
       if (tab === "members") mobileMembersOpenerRef.current = element;
       if (tab === "posts") mobilePostsOpenerRef.current = element;
+      if (tab === "rooms") mobileRoomsOpenerRef.current = element;
     },
     [],
   );
@@ -986,6 +1051,9 @@ export function LiveRoomClient({
         eventId: reference?.eventId || null,
         replyToMessageId: replyingTo?.id || null,
       });
+      setMembershipJoined(true);
+      membershipRef.current = true;
+      void refreshJoinedRooms();
       forceOwnTimelineScrollRef.current = true;
       setTimeline((current) =>
         mergeLiveRoomTimeline(current, [message]),
@@ -1330,13 +1398,17 @@ export function LiveRoomClient({
           data-ad-enabled={adsEnabledForViewer ? "true" : undefined}
         >
           <CompanyRoomHeader
-            followed={followed}
             historyButtonRef={historyOpenerRef}
             identity={identity}
             inviteState={inviteState}
+            isGuest={profile?.isGuest === true}
+            loginHref={roomLoginHref}
+            membershipBusy={membershipBusy}
+            membershipJoined={membershipJoined}
             onInvite={handleInvite}
+            onJoin={handleJoinRoom}
+            onLeave={handleLeaveRoom}
             onOpenHistory={() => handleDesktopTabChange("events")}
-            onToggleFollow={handleToggleFollow}
             quote={quote}
             roomCounts={roomCounts}
           />
@@ -1349,11 +1421,11 @@ export function LiveRoomClient({
           enabledForViewer={adsEnabledForViewer}
         />
 
-        {followed ? (
+        {membershipJoined ? (
           <div className={styles.followNote}>
             <p>
-              Room saved. New chat messages from other people will be shown
-              as unread.
+              Joined. This room stays in My Rooms and tracks unread
+              activity until you choose Leave room.
             </p>
           </div>
         ) : null}
@@ -1388,6 +1460,11 @@ export function LiveRoomClient({
               controlsId: "live-room-members-sheet",
               label: "Members",
               value: "members",
+            },
+            {
+              controlsId: "live-room-rooms-sheet",
+              label: "Rooms",
+              value: "rooms",
             },
           ]}
           onChange={(tab) => {
@@ -1577,9 +1654,13 @@ export function LiveRoomClient({
           </div>
           <div className={styles.desktopRail}>
             <LiveRoomDesktopSidePanel
+              currentRoomHref={`/live/${ticker}`}
               eventSource={eventSource}
               events={events}
               isGuest={profile?.isGuest === true}
+              joinedRooms={joinedRooms}
+              joinedRoomsError={joinedRoomsError}
+              joinedRoomsLoading={joinedRoomsLoading}
               loginHref={roomLoginHref}
               messageActionId={messageActionId}
               onChangeMainTab={handleDesktopTabChange}
@@ -1607,7 +1688,9 @@ export function LiveRoomClient({
               ? "Posts"
               : mobileSheet === "events"
                 ? "Events"
-                : "Members"
+                : mobileSheet === "members"
+                  ? "Members"
+                  : "My Rooms"
           }
           closeLabel={`Close ${mobileSheet}`}
           id={`live-room-${mobileSheet}-sheet`}
@@ -1622,7 +1705,9 @@ export function LiveRoomClient({
               ? mobilePostsOpenerRef
               : mobileSheet === "events"
                 ? mobileEventsOpenerRef
-                : mobileMembersOpenerRef
+                : mobileSheet === "members"
+                  ? mobileMembersOpenerRef
+                  : mobileRoomsOpenerRef
           }
           overlayLabel={`Close ${mobileSheet}`}
           viewport="mobile"
@@ -1685,6 +1770,38 @@ export function LiveRoomClient({
                 onMessageMember={handleMobileMessageMember}
                 onToggleMemberFollow={handleMemberFollow}
               />
+            </div>
+          ) : null}
+          {mobileSheet === "rooms" ? (
+            <div className={styles.mobileSheetContent}>
+              <header className={styles.mobileSheetHeading}>
+                <h2>My Rooms</h2>
+                <p>Only rooms you have joined appear here.</p>
+              </header>
+              {profile?.isGuest ? (
+                <div className={styles.joinedRoomsStatus}>
+                  <Link href={roomLoginHref}>
+                    Sign in to view My Rooms
+                  </Link>
+                </div>
+              ) : (
+                <JoinedRoomsList
+                  currentHref={`/live/${ticker}`}
+                  data={joinedRooms}
+                  error={joinedRoomsError}
+                  loading={joinedRoomsLoading}
+                />
+              )}
+              <Link
+                className={styles.mobileRoomsViewAll}
+                href={
+                  profile?.isGuest
+                    ? roomLoginHref
+                    : "/live?view=joined"
+                }
+              >
+                View all joined rooms
+              </Link>
             </div>
           ) : null}
         </BottomSheetShell>

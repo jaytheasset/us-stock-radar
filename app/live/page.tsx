@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Building2, Search } from "lucide-react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { CommunityRoomCreateDialog } from "@/components/live-room/CommunityRoomCreateDialog";
+import { JoinedRoomsDirectory } from "@/components/live-room/JoinedRoomsDirectory";
 import {
   COMMUNITY_ROOM_FOCUS_TAGS,
   COMMUNITY_ROOM_INDUSTRY_OPTIONS,
@@ -44,6 +45,32 @@ export default async function CommunityRoomDirectoryPage({
   searchParams,
 }: DirectoryPageProps) {
   const query = await searchParams;
+  const joinedView = readQuery(query.view) === "joined";
+  if (joinedView) {
+    return (
+      <StockRadarAppShell
+        activeNavigationItem={null}
+        themeMode="user-selectable"
+      >
+        <main className={styles.directoryPage}>
+          <header className={styles.directoryHero}>
+            <div>
+              <span>Room membership</span>
+              <h1>My Rooms</h1>
+              <p>
+                Find every company and Community Room you have joined.
+              </p>
+            </div>
+            <div className={styles.directoryHeroActions}>
+              <Link href="/live">Browse rooms</Link>
+              <CommunityRoomCreateDialog />
+            </div>
+          </header>
+          <JoinedRoomsDirectory />
+        </main>
+      </StockRadarAppShell>
+    );
+  }
   const requestedFilters = {
     cursor: readQuery(query.cursor),
     focusTag: readQuery(query.tag),
@@ -100,7 +127,10 @@ export default async function CommunityRoomDirectoryPage({
               remain under each ticker&apos;s Company Live Room.
             </p>
           </div>
-          <CommunityRoomCreateDialog openOnLoad={openCreateOnLoad} />
+          <div className={styles.directoryHeroActions}>
+            <Link href="/live?view=joined">Joined rooms</Link>
+            <CommunityRoomCreateDialog openOnLoad={openCreateOnLoad} />
+          </div>
         </header>
 
         <form className={styles.directoryFilters} method="get">

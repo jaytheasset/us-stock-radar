@@ -24,19 +24,22 @@ import type {
   CompanyEvent,
   CompanyEventSource,
   LiveRoomPost,
+  LiveRoomMembershipList,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
+import { JoinedRoomsList } from "./JoinedRoomsList";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
-type SidePanelTab = "members" | "posts" | "updates";
+type SidePanelTab = "members" | "posts" | "rooms" | "updates";
 type PostState = "error" | "loading" | "ready";
 
 const SIDE_PANEL_TABS = [
   { label: "Updates", value: "updates" },
   { label: "Posts", value: "posts" },
   { label: "Members", value: "members" },
+  { label: "My Rooms", value: "rooms" },
 ] as const satisfies ReadonlyArray<{
   label: string;
   value: SidePanelTab;
@@ -46,6 +49,9 @@ export function LiveRoomDesktopSidePanel({
   eventSource,
   events,
   isGuest,
+  joinedRooms,
+  joinedRoomsError,
+  joinedRoomsLoading,
   loginHref,
   messageActionId,
   onChangeMainTab,
@@ -55,10 +61,14 @@ export function LiveRoomDesktopSidePanel({
   posts,
   postsState,
   timeline,
+  currentRoomHref,
 }: {
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
   isGuest: boolean;
+  joinedRooms: LiveRoomMembershipList | null;
+  joinedRoomsError: string | null;
+  joinedRoomsLoading: boolean;
   loginHref: string;
   messageActionId?: string | null;
   onChangeMainTab: (tab: CompanyLiveRoomTab) => void;
@@ -71,6 +81,7 @@ export function LiveRoomDesktopSidePanel({
   posts: readonly LiveRoomPost[];
   postsState: PostState;
   timeline: readonly LiveRoomTimelineItem[];
+  currentRoomHref: string;
 }) {
   const [activeTab, setActiveTab] =
     useState<SidePanelTab>("updates");
@@ -162,7 +173,7 @@ export function LiveRoomDesktopSidePanel({
             posts={posts}
             state={postsState}
           />
-        ) : (
+        ) : activeTab === "members" ? (
           <LiveRoomMemberList
             isGuest={isGuest}
             loginHref={loginHref}
@@ -171,17 +182,39 @@ export function LiveRoomDesktopSidePanel({
             onMessageMember={onMessageMember}
             onToggleMemberFollow={onToggleMemberFollow}
           />
+        ) : isGuest ? (
+          <div className={styles.sidePanelStatus}>
+            <Users aria-hidden="true" size={17} />
+            <Link href={loginHref}>Sign in to view My Rooms</Link>
+          </div>
+        ) : (
+          <JoinedRoomsList
+            currentHref={currentRoomHref}
+            data={joinedRooms}
+            error={joinedRoomsError}
+            loading={joinedRoomsLoading}
+          />
         )}
       </div>
 
-      <button
-        className={styles.sidePanelViewAll}
-        onClick={() => onChangeMainTab(viewAllTab)}
-        type="button"
-      >
-        {activeTab === "members" ? "View in chat" : "View all"}
-        <ArrowRight aria-hidden="true" size={14} />
-      </button>
+      {activeTab === "rooms" ? (
+        <Link
+          className={styles.sidePanelViewAll}
+          href={isGuest ? loginHref : "/live?view=joined"}
+        >
+          View all
+          <ArrowRight aria-hidden="true" size={14} />
+        </Link>
+      ) : (
+        <button
+          className={styles.sidePanelViewAll}
+          onClick={() => onChangeMainTab(viewAllTab)}
+          type="button"
+        >
+          {activeTab === "members" ? "View in chat" : "View all"}
+          <ArrowRight aria-hidden="true" size={14} />
+        </button>
+      )}
     </aside>
   );
 }

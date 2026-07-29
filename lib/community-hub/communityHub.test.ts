@@ -126,7 +126,12 @@ test("Rooms contract includes company and Community rooms with bounded unread st
   );
   assert.match(hub, /Company Live Room/);
   assert.match(hub, /Community room/);
-  assert.match(hub, /New chat messages/);
+  assert.match(hub, /title="Joined rooms"/);
+  assert.match(hub, />\s*Room activity\s*</);
+  assert.doesNotMatch(
+    hub,
+    /title="Followed rooms"|Unfollow \$\{room\.label\}|Leave \$\{room\.label\}|repository\.writeFollow/,
+  );
 });
 
 test("desktop popup and mobile header lead to the full Community hub without top-nav changes", () => {

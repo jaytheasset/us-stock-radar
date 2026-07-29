@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Bookmark,
-  Check,
-  History,
-  LoaderCircle,
-  Share2,
-} from "lucide-react";
+import { Check, History, Share2 } from "lucide-react";
 import type { RefObject } from "react";
 import type { LiveRoomInviteUiState } from "@/lib/live-room/inviteShare";
 import type {
@@ -14,28 +8,37 @@ import type {
   LiveRoomPublicRoomCounts,
 } from "@/lib/live-room/types";
 import type { StockOverviewQuote } from "@/lib/watchlist/stockOverview";
+import { RoomMembershipControl } from "./RoomMembershipControl";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
-  followed: boolean | null;
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
   inviteState: LiveRoomInviteUiState;
+  isGuest: boolean;
+  loginHref: string;
+  membershipBusy: boolean;
+  membershipJoined: boolean | null;
   onInvite: () => void;
+  onJoin: () => Promise<void>;
+  onLeave: () => Promise<void>;
   onOpenHistory: () => void;
-  onToggleFollow: () => void;
   quote: StockOverviewQuote;
   roomCounts: LiveRoomPublicRoomCounts | null;
 };
 
 export function CompanyRoomHeader({
-  followed,
   historyButtonRef,
   identity,
   inviteState,
+  isGuest,
+  loginHref,
+  membershipBusy,
+  membershipJoined,
   onInvite,
+  onJoin,
+  onLeave,
   onOpenHistory,
-  onToggleFollow,
   quote,
   roomCounts,
 }: CompanyRoomHeaderProps) {
@@ -61,9 +64,13 @@ export function CompanyRoomHeader({
           <small>{identity.exchange}</small>
           {roomCounts ? (
             <small className={styles.roomCounts}>
-              <strong>
-                {roomCounts.participantCount} participants
-              </strong>
+              <strong>{roomCounts.memberCount} members</strong>
+              {roomCounts.visitorCount > 0 ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{roomCounts.visitorCount} visitors</span>
+                </>
+              ) : null}
               <span aria-hidden="true">·</span>
               <span className={styles.onlineCount}>
                 <i aria-hidden="true" />
@@ -87,33 +94,15 @@ export function CompanyRoomHeader({
       </div>
 
       <div className={styles.roomActions}>
-        <button
-          aria-label={
-            followed === null
-              ? "Loading room follow status"
-              : followed
-                ? "Unfollow company room"
-                : "Follow company room"
-          }
-          aria-pressed={followed ?? undefined}
-          className={followed ? styles.followingButton : undefined}
-          disabled={followed === null}
-          onClick={onToggleFollow}
-          type="button"
-        >
-          {followed === null ? (
-            <LoaderCircle aria-hidden="true" size={15} />
-          ) : (
-            <Bookmark aria-hidden="true" size={15} />
-          )}
-          <span className={styles.actionLabel}>
-            {followed === null
-              ? "Loading…"
-              : followed
-                ? "Following"
-                : "Follow"}
-          </span>
-        </button>
+        <RoomMembershipControl
+          busy={membershipBusy}
+          isGuest={isGuest}
+          joined={membershipJoined}
+          loginHref={loginHref}
+          onJoin={onJoin}
+          onLeave={onLeave}
+          roomLabel={`${identity.ticker} Live Room`}
+        />
         <button
           aria-label="Invite people to this company room"
           disabled={inviteState === "working"}

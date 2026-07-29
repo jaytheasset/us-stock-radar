@@ -2,8 +2,9 @@ import type {
   LiveRoomBlockedActor,
   LiveRoomBlockResult,
   LiveRoomChatMessage,
-  LiveRoomFollowPreference,
   LiveRoomMemberFollowResult,
+  LiveRoomMembershipList,
+  LiveRoomMembershipState,
   LiveRoomModerationItem,
   LiveRoomPost,
   LiveRoomPostComment,
@@ -224,25 +225,6 @@ export class LiveRoomApiRepository {
     );
   }
 
-  readFollow() {
-    return requestJson<LiveRoomFollowPreference>(
-      `${this.roomApiPath()}/follow`,
-    );
-  }
-
-  writeFollow(input: {
-    followed: boolean;
-    notificationScope: LiveRoomFollowPreference["notificationScope"];
-  }) {
-    return requestJson<LiveRoomFollowPreference>(
-      `${this.roomApiPath()}/follow`,
-      {
-        method: "PUT",
-        body: JSON.stringify(input),
-      },
-    );
-  }
-
   readMessageAnchor(messageId: string) {
     return requestJson<LiveRoomChatMessage>(
       `${this.roomApiPath()}/messages/${encodeURIComponent(messageId)}`,
@@ -349,6 +331,39 @@ export class LiveRoomPostApiRepository {
     return requestJson<{ deleted: true; postId: string }>(
       `/api/live-room/posts/${encodeURIComponent(postId)}`,
       { method: "DELETE" },
+    );
+  }
+
+  readMembership() {
+    return requestJson<LiveRoomMembershipState>(
+      `${this.roomApiPath()}/membership`,
+    );
+  }
+
+  joinRoom() {
+    return requestJson<LiveRoomMembershipState>(
+      `${this.roomApiPath()}/membership`,
+      { method: "PUT" },
+    );
+  }
+
+  leaveRoom() {
+    return requestJson<LiveRoomMembershipState>(
+      `${this.roomApiPath()}/membership`,
+      { method: "DELETE" },
+    );
+  }
+
+  listJoinedRooms(limit = 8) {
+    const boundedLimit = Math.max(
+      1,
+      Math.min(
+        Number.isFinite(limit) ? Math.trunc(limit) : 8,
+        100,
+      ),
+    );
+    return requestJson<LiveRoomMembershipList>(
+      `/api/live-room/memberships?limit=${boundedLimit}`,
     );
   }
 
