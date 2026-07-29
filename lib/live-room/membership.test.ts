@@ -10,6 +10,9 @@ const read = (file: string) =>
 const migration = read(
   "supabase/migrations/20260729073253_live_room_persistent_membership.sql",
 );
+const privateSchemaGrantMigration = read(
+  "supabase/migrations/20260729084500_live_room_private_schema_service_role.sql",
+);
 const server = read("lib/live-room/serverRepository.ts");
 const api = read("lib/live-room/apiRepository.ts");
 const types = read("lib/live-room/types.ts");
@@ -79,6 +82,10 @@ test("room membership storage is default-deny, service-only, and backfills saved
   assert.match(
     migration,
     /insert into public\.live_room_memberships[\s\S]*from public\.live_room_follows[\s\S]*follow\.actor_kind = 'member'[\s\S]*follow\.followed = true/i,
+  );
+  assert.match(
+    privateSchemaGrantMigration,
+    /grant usage on schema private to service_role/i,
   );
 });
 

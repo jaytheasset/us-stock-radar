@@ -1015,12 +1015,15 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
   );
 });
 
-test("unblock closes stale updates and initial member identity stays unresolved until loaded", () => {
+test("unblock closes stale updates and initial member identity and room membership stay unresolved until loaded", () => {
   const client = readSource(
     "components/live-room/LiveRoomClient.tsx",
   );
   const header = readSource(
     "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const membership = readSource(
+    "components/live-room/RoomMembershipControl.tsx",
   );
   const composer = readSource(
     "components/live-room/MessageComposer.tsx",
@@ -1040,8 +1043,10 @@ test("unblock closes stale updates and initial member identity stays unresolved 
     client,
     /profile === null[\s\S]+timelineState === "error"/,
   );
-  assert.match(header, /disabled=\{followed === null\}/);
-  assert.match(header, /followed === null[\s\S]+"Loading…"/);
+  assert.match(header, /joined=\{membershipJoined\}/);
+  assert.match(membership, /joined === null && !isGuest/);
+  assert.match(membership, /aria-label="Loading room membership"/);
+  assert.match(membership, /disabled[\s\S]+Loading/);
   assert.match(composer, /profile: LiveRoomProfile \| null/);
   assert.match(composer, /"Loading Live Room identity"/);
   assert.match(composer, /<small>Checking session<\/small>/);

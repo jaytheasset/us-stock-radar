@@ -12,7 +12,8 @@ export type LiveRoomTab =
   | "chat"
   | "events"
   | "members"
-  | "posts";
+  | "posts"
+  | "rooms";
 
 export type CompanyLiveRoomTab = "chat" | "events" | "posts";
 

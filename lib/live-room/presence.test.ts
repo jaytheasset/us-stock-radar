@@ -246,8 +246,10 @@ test("presence state maps a page in one pass without marking guests online", () 
     message("00000000-0000-4000-8000-000000000003", false),
   ];
   const mapped = applyLiveRoomPresence(items, {
+    memberCount: 2,
     onlineCount: 2,
     participantCount: 3,
+    visitorCount: 1,
     messages: [
       {
         isOnline: true,

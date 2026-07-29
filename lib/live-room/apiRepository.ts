@@ -308,32 +308,6 @@ export class LiveRoomApiRepository {
     );
   }
 
-  private roomApiPath() {
-    return this.apiPath;
-  }
-}
-
-export class LiveRoomPostApiRepository {
-  read(postId: string) {
-    return requestJson<LiveRoomPost>(
-      `/api/live-room/posts/${encodeURIComponent(postId)}`,
-    );
-  }
-
-  update(postId: string, input: LiveRoomPostDraft) {
-    return requestJson<LiveRoomPost>(
-      `/api/live-room/posts/${encodeURIComponent(postId)}`,
-      { method: "PATCH", body: JSON.stringify(input) },
-    );
-  }
-
-  delete(postId: string) {
-    return requestJson<{ deleted: true; postId: string }>(
-      `/api/live-room/posts/${encodeURIComponent(postId)}`,
-      { method: "DELETE" },
-    );
-  }
-
   readMembership() {
     return requestJson<LiveRoomMembershipState>(
       `${this.roomApiPath()}/membership`,
@@ -364,6 +338,32 @@ export class LiveRoomPostApiRepository {
     );
     return requestJson<LiveRoomMembershipList>(
       `/api/live-room/memberships?limit=${boundedLimit}`,
+    );
+  }
+
+  private roomApiPath() {
+    return this.apiPath;
+  }
+}
+
+export class LiveRoomPostApiRepository {
+  read(postId: string) {
+    return requestJson<LiveRoomPost>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+    );
+  }
+
+  update(postId: string, input: LiveRoomPostDraft) {
+    return requestJson<LiveRoomPost>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    );
+  }
+
+  delete(postId: string) {
+    return requestJson<{ deleted: true; postId: string }>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}`,
+      { method: "DELETE" },
     );
   }
 
