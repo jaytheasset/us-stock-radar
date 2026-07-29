@@ -148,11 +148,11 @@
   --sr-color-event-neutral-surface: rgba(203, 209, 217, 0.08);
 
   /* Color: financial chat */
-  --sr-color-chat-timeline-background: var(--sr-color-page-background);
-  --sr-color-chat-bubble-other-background: var(--sr-color-surface-panel);
-  --sr-color-chat-bubble-other-border: var(--sr-color-border);
-  --sr-color-chat-bubble-mine-background: var(--sr-color-accent-selected);
-  --sr-color-chat-bubble-mine-border: var(--sr-color-accent-border);
+  --sr-color-chat-timeline-background: #08111a;
+  --sr-color-chat-bubble-other-background: #131f2b;
+  --sr-color-chat-bubble-other-border: #2a3a4a;
+  --sr-color-chat-bubble-mine-background: #2b171a;
+  --sr-color-chat-bubble-mine-border: #8c4a32;
 
   /* Color: chart */
   --sr-color-chart-bullish: #3dd985;
