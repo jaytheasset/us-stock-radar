@@ -9,7 +9,14 @@ declare global {
   }
 }
 
-export function loadAdSenseScript(publisherId: string) {
+type LoadAdSenseScriptOptions = {
+  bottomAnchorEnabled?: boolean;
+};
+
+export function loadAdSenseScript(
+  publisherId: string,
+  { bottomAnchorEnabled = false }: LoadAdSenseScriptOptions = {},
+) {
   if (
     !publisherId ||
     typeof window === "undefined" ||
@@ -18,15 +25,18 @@ export function loadAdSenseScript(publisherId: string) {
     return Promise.reject(new Error("AdSense publisher configuration is unavailable."));
   }
 
+  const existingScript = document.getElementById(
+    ADSENSE_SCRIPT_ID,
+  ) as HTMLScriptElement | null;
+  if (bottomAnchorEnabled && existingScript) {
+    existingScript.dataset.overlays = "bottom";
+  }
+
   if (window.__stockRadarAdSenseScriptPromise) {
     return window.__stockRadarAdSenseScriptPromise;
   }
 
   const scriptPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.getElementById(
-      ADSENSE_SCRIPT_ID,
-    ) as HTMLScriptElement | null;
-
     if (existingScript) {
       if (
         window.adsbygoogle ||
@@ -50,6 +60,9 @@ export function loadAdSenseScript(publisherId: string) {
     script.async = true;
     script.crossOrigin = "anonymous";
     script.src = `${ADSENSE_SCRIPT_ORIGIN}?client=${encodeURIComponent(publisherId)}`;
+    if (bottomAnchorEnabled) {
+      script.dataset.overlays = "bottom";
+    }
     script.addEventListener(
       "load",
       () => {

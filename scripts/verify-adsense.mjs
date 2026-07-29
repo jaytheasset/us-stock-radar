@@ -62,8 +62,25 @@ const scenarios = {
     nodeEnv: "production",
     publisherId: "ca-pub-test",
     slotIds: {
-      "calendar-desktop-inline": "calendar-desktop-slot",
+      "calendar-rail-top": "calendar-rail-top-slot",
+      "calendar-rail-bottom": "calendar-rail-bottom-slot",
       "calendar-mobile-inline": "calendar-mobile-slot",
+    },
+  }),
+  I: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "calendar-rail-top": "calendar-rail-top-slot",
+    },
+  }),
+  J: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "calendar-rail-bottom": "calendar-rail-bottom-slot",
     },
   }),
 };
@@ -119,28 +136,53 @@ assert.equal(
 );
 assert.equal(scenarios.H.publisherScriptEnabled, true);
 assert.equal(scenarios.H.anchorEnabled, false);
-assert.equal(scenarios.H.manualSlotEnabled["calendar-desktop-inline"], true);
+assert.equal(scenarios.H.manualSlotEnabled["calendar-rail-top"], true);
+assert.equal(scenarios.H.manualSlotEnabled["calendar-rail-bottom"], true);
 assert.equal(scenarios.H.manualSlotEnabled["calendar-mobile-inline"], true);
 assert.equal(
   Object.values(scenarios.H.manualSlotEnabled).filter(Boolean).length,
-  2,
+  3,
+);
+assert.equal(scenarios.I.manualSlotEnabled["calendar-rail-top"], true);
+assert.equal(scenarios.I.manualSlotEnabled["calendar-rail-bottom"], false);
+assert.equal(
+  Object.values(scenarios.I.manualSlotEnabled).filter(Boolean).length,
+  1,
+);
+assert.equal(scenarios.J.manualSlotEnabled["calendar-rail-top"], false);
+assert.equal(scenarios.J.manualSlotEnabled["calendar-rail-bottom"], true);
+assert.equal(
+  Object.values(scenarios.J.manualSlotEnabled).filter(Boolean).length,
+  1,
 );
 
 const scriptCounts = {};
 
-for (const scenarioName of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
+for (const scenarioName of Object.keys(scenarios)) {
   const fakeDom = installFakeDom();
   const scenario = scenarios[scenarioName];
   const loaderCalls = [];
 
-  if (scenario.anchorEnabled) {
-    loaderCalls.push(loadAdSenseScript(scenario.publisherId));
-  }
   for (const inventory of adSenseInventories) {
     if (scenario.manualSlotEnabled[inventory]) {
-      loaderCalls.push(loadAdSenseScript(scenario.publisherId));
-      loaderCalls.push(loadAdSenseScript(scenario.publisherId));
+      loaderCalls.push(
+        loadAdSenseScript(scenario.publisherId, {
+          bottomAnchorEnabled: scenario.anchorEnabled,
+        }),
+      );
+      loaderCalls.push(
+        loadAdSenseScript(scenario.publisherId, {
+          bottomAnchorEnabled: scenario.anchorEnabled,
+        }),
+      );
     }
+  }
+  if (scenario.anchorEnabled) {
+    loaderCalls.push(
+      loadAdSenseScript(scenario.publisherId, {
+        bottomAnchorEnabled: true,
+      }),
+    );
   }
 
   await Promise.all(loaderCalls);
@@ -163,6 +205,11 @@ for (const scenarioName of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
       script.src,
       `${ADSENSE_SCRIPT_ORIGIN}?client=ca-pub-test`,
       `scenario ${scenarioName} script source`,
+    );
+    assert.equal(
+      script.dataset.overlays,
+      scenario.anchorEnabled ? "bottom" : undefined,
+      `scenario ${scenarioName} bottom-only overlay`,
     );
   }
   uninstallFakeDom();
@@ -230,6 +277,18 @@ assert.match(slotSource, /hasPushedRef\.current/);
 assert.doesNotMatch(advertisingSource, /setInterval|auto.?refresh/i);
 assert.doesNotMatch(publisherLoaderSource, /<ins|data-ad-slot|position:\s*fixed/i);
 assert.match(publisherLoaderSource, /return null/);
+assert.match(
+  publisherLoaderSource,
+  /bottomAnchorEnabled:\s*adsenseConfig\.anchorEnabled/,
+);
+assert.match(
+  slotSource,
+  /bottomAnchorEnabled:\s*adsenseConfig\.anchorEnabled/,
+);
+assert.match(
+  scriptLoaderSource,
+  /bottomAnchorEnabled[\s\S]*dataset\.overlays = "bottom"/,
+);
 assert.match(slotSource, /import Link from "next\/link"/);
 assert.match(slotSource, /removeAdsHref = "\/premium"/);
 assert.match(slotSource, /showRemoveAdsLink = true/);
@@ -286,6 +345,10 @@ console.log(
     F: summarize(scenarios.F),
     G: summarize(scenarios.G),
     H: summarize(scenarios.H),
+    I: summarize(scenarios.I),
+    J: summarize(scenarios.J),
+    anchorBottomOnly: "passed",
+    anchorManualFirstOrder: "passed",
     duplicateScriptGuard: "passed",
     manualFooterBoundary: "passed",
     manualFooterPremiumHref: "/premium",

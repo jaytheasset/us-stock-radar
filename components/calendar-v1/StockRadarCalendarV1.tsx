@@ -10,7 +10,10 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
-import { CalendarAdSlots } from "@/components/calendar-v1/CalendarAdSlots";
+import {
+  CalendarDesktopRail,
+  CalendarMobileAdSlot,
+} from "@/components/calendar-v1/CalendarAdSlots";
 import { CalendarFilters } from "@/components/calendar-v1/CalendarFilters";
 import { CalendarEventDetail } from "@/components/calendar-v1/CalendarEventDetail";
 import { CalendarView, ListView } from "@/components/calendar-v1/CalendarViews";
@@ -281,9 +284,13 @@ export function StockRadarCalendarV1({
         setFilters={setFilters}
       />
 
-      <CalendarAdSlots enabledForViewer={adsEnabledForViewer} />
+      <CalendarMobileAdSlot enabledForViewer={adsEnabledForViewer} />
 
-      <div className={styles.workspace} data-detail-open={Boolean(desktopPreviewEvent)}>
+      <div
+        className={styles.workspace}
+        data-detail-open={Boolean(desktopPreviewEvent)}
+        data-rail-ads={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+      >
         <section className={styles.results} aria-label="Calendar results">
           <div className={styles.resultsSummary} aria-live="polite">
             <span>{formatEventCount(filteredEvents.length)}</span>
@@ -291,28 +298,32 @@ export function StockRadarCalendarV1({
           </div>
           {content}
         </section>
-        <CalendarEventDetail
-          desktopEvent={desktopPreviewEvent}
-          followedEvents={followedEvents}
-          onFollowToggle={(event) => {
-            setFollowedEvents((current) => ({
-              ...current,
-              [event.id]: !current[event.id],
-            }));
-          }}
-          onSheetDismiss={dismissSheet}
-          onWatchlistToggle={(event) => {
-            if (!event.ticker) return;
-            const ticker = event.ticker;
-            setWatchlistOverrides((current) => ({
-              ...current,
-              [ticker]: !(current[ticker] ?? event.isWatchlisted),
-            }));
-          }}
-          openerRef={detailOpenerRef}
-          sheetEvent={sheetEvent}
-          watchlistOverrides={watchlistOverrides}
-        />
+        <CalendarDesktopRail
+          enabledForViewer={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+        >
+          <CalendarEventDetail
+            desktopEvent={desktopPreviewEvent}
+            followedEvents={followedEvents}
+            onFollowToggle={(event) => {
+              setFollowedEvents((current) => ({
+                ...current,
+                [event.id]: !current[event.id],
+              }));
+            }}
+            onSheetDismiss={dismissSheet}
+            onWatchlistToggle={(event) => {
+              if (!event.ticker) return;
+              const ticker = event.ticker;
+              setWatchlistOverrides((current) => ({
+                ...current,
+                [ticker]: !(current[ticker] ?? event.isWatchlisted),
+              }));
+            }}
+            openerRef={detailOpenerRef}
+            sheetEvent={sheetEvent}
+            watchlistOverrides={watchlistOverrides}
+          />
+        </CalendarDesktopRail>
       </div>
     </div>
   );

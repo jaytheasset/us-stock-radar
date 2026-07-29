@@ -20,7 +20,8 @@ export const adSenseInventories = [
   "live-room-header-728x90",
   "live-room-rail-300x250",
   "live-room-mobile-inline",
-  "calendar-desktop-inline",
+  "calendar-rail-top",
+  "calendar-rail-bottom",
   "calendar-mobile-inline",
 ] as const;
 
@@ -97,8 +98,11 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "live-room-mobile-inline": normalize(
       input.slotIds?.["live-room-mobile-inline"],
     ),
-    "calendar-desktop-inline": normalize(
-      input.slotIds?.["calendar-desktop-inline"],
+    "calendar-rail-top": normalize(
+      input.slotIds?.["calendar-rail-top"],
+    ),
+    "calendar-rail-bottom": normalize(
+      input.slotIds?.["calendar-rail-bottom"],
     ),
     "calendar-mobile-inline": normalize(
       input.slotIds?.["calendar-mobile-inline"],
@@ -152,8 +156,10 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["live-room-rail-300x250"]),
     "live-room-mobile-inline":
       isProductionPublisher && Boolean(slotIds["live-room-mobile-inline"]),
-    "calendar-desktop-inline":
-      isProductionPublisher && Boolean(slotIds["calendar-desktop-inline"]),
+    "calendar-rail-top":
+      isProductionPublisher && Boolean(slotIds["calendar-rail-top"]),
+    "calendar-rail-bottom":
+      isProductionPublisher && Boolean(slotIds["calendar-rail-bottom"]),
     "calendar-mobile-inline":
       isProductionPublisher && Boolean(slotIds["calendar-mobile-inline"]),
   };
@@ -215,8 +221,10 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_RAIL_300X250_SLOT_ID,
     "live-room-mobile-inline":
       process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_MOBILE_INLINE_SLOT_ID,
-    "calendar-desktop-inline":
-      process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID,
+    "calendar-rail-top":
+      process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_TOP_SLOT_ID,
+    "calendar-rail-bottom":
+      process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_BOTTOM_SLOT_ID,
     "calendar-mobile-inline":
       process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID,
   },

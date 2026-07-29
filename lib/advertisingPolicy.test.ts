@@ -75,7 +75,7 @@ test("all ad-free and paid plans disable advertising", () => {
   }
 });
 
-test("Calendar resolves free-only ads on the server and owns both inventories", () => {
+test("Calendar resolves free-only ads and owns independent rail and mobile inventories", () => {
   const pageSource = read("../app/calendar/page.tsx");
   const workspaceSource = read(
     "../components/calendar-v1/StockRadarCalendarV1.tsx",
@@ -93,13 +93,19 @@ test("Calendar resolves free-only ads on the server and owns both inventories", 
   assert.match(pageSource, /getCurrentViewerPlan\(\)/);
   assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
   assert.match(workspaceSource, /areAdsEnabledForPlan\(viewerPlan\)/);
-  assert.match(placementSource, /inventory="calendar-desktop-inline"/);
+  assert.match(placementSource, /calendar-rail-top/);
+  assert.match(placementSource, /calendar-rail-bottom/);
   assert.match(placementSource, /inventory="calendar-mobile-inline"/);
-  assert.match(configSource, /"calendar-desktop-inline"/);
+  assert.match(configSource, /"calendar-rail-top"/);
+  assert.match(configSource, /"calendar-rail-bottom"/);
   assert.match(configSource, /"calendar-mobile-inline"/);
   assert.match(
     configSource,
-    /NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID/,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_TOP_SLOT_ID/,
+  );
+  assert.match(
+    configSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_BOTTOM_SLOT_ID/,
   );
   assert.match(
     configSource,
@@ -107,11 +113,23 @@ test("Calendar resolves free-only ads on the server and owns both inventories", 
   );
   assert.match(
     envSource,
-    /NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID=/,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_TOP_SLOT_ID=/,
+  );
+  assert.match(
+    envSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_BOTTOM_SLOT_ID=/,
   );
   assert.match(
     envSource,
     /NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID=/,
+  );
+  assert.match(
+    envSource,
+    /^NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED=true$/m,
+  );
+  assert.doesNotMatch(
+    `${placementSource}\n${configSource}\n${envSource}`,
+    new RegExp(["calendar", "desktop", "inline"].join("-"), "i"),
   );
 });
 

@@ -667,6 +667,14 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
+@media (min-width: 1181px) {
+  .workspace[data-rail-ads="true"] .desktopDetailPanel {
+    position: static;
+    overflow-y: visible;
+    max-height: none;
+  }
+}
+
 .detailContent {
   min-width: 0;
   padding: var(--sr-space-5);
