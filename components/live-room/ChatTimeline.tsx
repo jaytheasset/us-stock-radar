@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowUpRight,
   Ban,
   EyeOff,
   FileText,
@@ -19,11 +20,13 @@ import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import {
   LIVE_ROOM_REPORT_REASONS,
+  type CompanyEvent,
   type LiveRoomChatMessage,
   type LiveRoomReportReason,
   type LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
 import { formatEventTime } from "./CompanyEventCard";
+import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import { PostSignalChips } from "./PostSignals";
 import styles from "./LiveRoom.module.css";
 
@@ -52,6 +55,41 @@ type ChatTimelineProps = {
   onRetry?: () => void;
   state: "empty" | "error" | "loading" | "ready";
 };
+
+export function LatestChatEventStrip({ event }: { event: CompanyEvent }) {
+  if (!event.detailHref) {
+    return null;
+  }
+
+  return (
+    <Link
+      aria-label={`Open analysis for latest company update: ${event.title}`}
+      className={styles.latestChatEventStrip}
+      href={event.detailHref}
+    >
+      <span
+        className={styles.latestChatEventKind}
+        data-kind={event.kind}
+      >
+        {event.kind === "filing" ? "Filing" : "News"}
+      </span>
+      <span className={styles.latestChatEventCopy}>
+        <small>Latest company update</small>
+        <strong>{event.title}</strong>
+        <span className={styles.latestChatEventDetails}>
+          <CompanyEventSignalScore
+            score={event.score}
+            signal={event.signal}
+          />
+          <time dateTime={event.occurredAt}>
+            {formatEventTime(event.occurredAt)}
+          </time>
+        </span>
+      </span>
+      <ArrowUpRight aria-hidden="true" size={14} />
+    </Link>
+  );
+}
 
 export function ChatTimeline({
   ariaLabel = "Live Room messages",
