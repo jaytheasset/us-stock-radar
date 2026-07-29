@@ -134,26 +134,33 @@ test("company chat leads with one compact linked latest event without changing C
   const companyClient = readSource(
     "components/live-room/LiveRoomClient.tsx",
   );
+  const chatTimeline = readSource(
+    "components/live-room/ChatTimeline.tsx",
+  );
   const communityClient = readSource(
     "components/live-room/CommunityRoomClient.tsx",
   );
   const styles = readSource(
     "components/live-room/LiveRoom.module.css",
   );
-  const stripIndex = companyClient.indexOf(
-    "styles.latestChatEventStrip",
-  );
+  const stripIndex = companyClient.indexOf("<LatestChatEventStrip");
   const timelineIndex = companyClient.indexOf("<ChatTimeline");
 
   assert.ok(stripIndex > -1);
   assert.ok(timelineIndex > stripIndex);
   assert.match(
-    companyClient,
-    /latestEvent\?\.detailHref[\s\S]+href=\{latestEvent\.detailHref\}/,
+    chatTimeline,
+    /export function LatestChatEventStrip[\s\S]+if \(!event\.detailHref\)[\s\S]+<Link[\s\S]+className=\{styles\.latestChatEventStrip\}[\s\S]+href=\{event\.detailHref\}/,
+  );
+  assert.equal(
+    chatTimeline.match(
+      /className=\{styles\.latestChatEventStrip\}/g,
+    )?.length,
+    1,
   );
   assert.match(
     companyClient,
-    /eventSource === "loading"[\s\S]+styles\.latestChatEventLoading/,
+    /eventSource === "loading"[\s\S]+styles\.latestChatEventLoading[\s\S]+latestEvent\?\.detailHref[\s\S]+<LatestChatEventStrip event=\{latestEvent\} \/>/,
   );
   assert.doesNotMatch(communityClient, /latestChatEventStrip/);
   assert.match(
