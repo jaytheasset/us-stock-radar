@@ -512,6 +512,24 @@
   color: var(--sr-color-text-meta);
 }
 
+.eligibilityProgress {
+  display: grid;
+  gap: var(--sr-space-1);
+  margin-top: var(--sr-space-3);
+}
+
+.eligibilityProgress progress {
+  width: 100%;
+  height: var(--sr-space-2);
+  accent-color: var(--sr-color-accent);
+}
+
+.eligibilityProgress span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+}
+
 .eligibilityActions {
   display: flex;
   flex-wrap: wrap;

@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import { normalizeLiveRoomTicker } from "./adapters";
 import {
@@ -56,6 +57,7 @@ export async function getCommunityRoomCreateEligibility(
 ): Promise<CommunityRoomCreateEligibility> {
   if (actor.kind !== "member") {
     return resolveCommunityRoomCreateEligibility({
+      effectivePlan: null,
       history: [],
       isMember: false,
     });
@@ -63,25 +65,45 @@ export async function getCommunityRoomCreateEligibility(
 
   await ensureUserBootstrap({ id: actor.userId, email: actor.email });
   const now = new Date();
-  const result = await supabaseSelect("live_room_community_rooms", {
-    select: "slug,created_at",
-    owner_user_id: `eq.${actor.userId}`,
-    created_at: `gte.${new Date(
-      now.getTime() - COMMUNITY_ROOM_CREATE_WINDOW_MS,
-    ).toISOString()}`,
-    order: "created_at.desc",
-    limit: "6",
-  });
-  if (!result.ok) {
+  const [stateResult, historyResult] = await Promise.all([
+    supabaseRpc("get_live_room_community_creator_eligibility", {
+      p_owner_user_id: actor.userId,
+    }),
+    supabaseSelect("live_room_community_rooms", {
+      select: "slug,created_at",
+      owner_user_id: `eq.${actor.userId}`,
+      created_at: `gte.${new Date(
+        now.getTime() - COMMUNITY_ROOM_CREATE_WINDOW_MS,
+      ).toISOString()}`,
+      order: "created_at.desc",
+      limit: "6",
+    }),
+  ]);
+  if (!stateResult.ok || !historyResult.ok) {
     throw new LiveRoomPolicyError(
       "COMMUNITY_ROOM_ELIGIBILITY_UNAVAILABLE",
       "Room-creation eligibility is temporarily unavailable.",
-      result.status || 502,
+      stateResult.status || historyResult.status || 502,
+    );
+  }
+  const state = readRecord(stateResult.data);
+  const effectivePlan = readPlan(
+    state?.effectivePlan ?? state?.effective_plan,
+  );
+  if (!state || !effectivePlan) {
+    throw new LiveRoomPolicyError(
+      "COMMUNITY_ROOM_ELIGIBILITY_UNAVAILABLE",
+      "Room-creation eligibility is temporarily unavailable.",
+      502,
     );
   }
 
   return resolveCommunityRoomCreateEligibility({
-    history: readRows(result.data).map((row) => ({
+    effectivePlan,
+    followerCount: readNonnegativeCount(
+      state.followerCount ?? state.follower_count,
+    ),
+    history: readRows(historyResult.data).map((row) => ({
       createdAt: readDate(row.created_at),
       slug: readString(row.slug),
     })),
@@ -133,9 +155,21 @@ export async function createCommunityRoom(
     );
   }
 
-  const input = normalizeCommunityRoomCreateInput(rawInput);
-  await ensureUserBootstrap({ id: actor.userId, email: actor.email });
+  const eligibility = await getCommunityRoomCreateEligibility(actor);
+  if (!eligibility.canCreate) {
+    throw new LiveRoomPolicyError(
+      eligibility.reason || "COMMUNITY_ROOM_UNAVAILABLE",
+      eligibility.message,
+      eligibility.reason === "COMMUNITY_ROOM_MEMBER_REQUIRED"
+        ? 401
+        : eligibility.reason === "COMMUNITY_ROOM_CREATE_COOLDOWN" ||
+            eligibility.reason === "COMMUNITY_ROOM_CREATE_DAILY_LIMIT"
+          ? 429
+          : 403,
+    );
+  }
 
+  const input = normalizeCommunityRoomCreateInput(rawInput);
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const slug = createCommunityRoomSlug(
       input.name,
@@ -291,6 +325,11 @@ function mapCommunityRoomDatabaseError(
 ) {
   const value = error || "";
   const mappings: Record<string, [string, string, number]> = {
+    COMMUNITY_ROOM_ADVANCED_REQUIRED: [
+      "COMMUNITY_ROOM_ADVANCED_REQUIRED",
+      "Creating a Community Room requires an Advanced or Ultimate plan.",
+      403,
+    ],
     COMMUNITY_ROOM_CREATE_RATE_LIMIT: [
       "COMMUNITY_ROOM_CREATE_RATE_LIMIT",
       "Too many rooms were created recently. Try again later.",
@@ -355,6 +394,11 @@ function mapCommunityRoomDatabaseError(
       "COMMUNITY_ROOM_MEMBER_REQUIRED",
       "Sign in to create a Community Room.",
       401,
+    ],
+    COMMUNITY_ROOM_FOLLOWERS_REQUIRED: [
+      "COMMUNITY_ROOM_FOLLOWERS_REQUIRED",
+      "At least 100 active member followers are required to create a Community Room.",
+      403,
     ],
   };
   const match = Object.entries(mappings).find(([code]) =>
@@ -549,6 +593,23 @@ function readRows(value: unknown) {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function readNonnegativeCount(value: unknown) {
+  const count =
+    typeof value === "number" ? value : Number.parseInt(readString(value), 10);
+  return Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0;
+}
+
+function readPlan(value: unknown): Plan | null {
+  const plan = readString(value);
+  return plan === "free" ||
+    plan === "ad_free" ||
+    plan === "pro" ||
+    plan === "advanced" ||
+    plan === "ultimate"
+    ? plan
+    : null;
 }
 
 function isUuid(value: string) {
