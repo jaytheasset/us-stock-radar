@@ -30,6 +30,9 @@ const discoveryMigration = read(discoveryMigrationPath);
 const creatorMembershipMigration = read(
   "supabase/migrations/20260729190400_community_room_creator_membership.sql",
 );
+const creatorEligibilityMigration = read(
+  "supabase/migrations/20260729194138_community_room_creator_eligibility.sql",
+);
 const foundationMigration = read(
   "docs/db/migration-archive/pre-canonical-baseline/20260727101129_live_room_realtime_foundation.sql",
 );
@@ -583,6 +586,7 @@ test("community room creation atomically joins the creator", () => {
 
 test("create entry routes guests through one safe login return without exposing owner input", () => {
   const guest = resolveCommunityRoomCreateEligibility({
+    effectivePlan: null,
     history: [],
     isMember: false,
     now: new Date("2026-07-29T12:00:00.000Z"),
@@ -610,9 +614,85 @@ test("create entry routes guests through one safe login return without exposing 
   );
 });
 
+test("creator eligibility requires Advanced or Ultimate and 100 canonical followers", () => {
+  for (const effectivePlan of ["free", "ad_free", "pro"] as const) {
+    const eligibility = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 250,
+      history: [],
+      isMember: true,
+    });
+    assert.equal(
+      eligibility.reason,
+      "COMMUNITY_ROOM_ADVANCED_REQUIRED",
+    );
+    assert.equal(eligibility.canCreate, false);
+    assert.equal(eligibility.nextActionHref, "/premium");
+  }
+
+  for (const effectivePlan of ["advanced", "ultimate"] as const) {
+    const belowBoundary = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 99,
+      history: [],
+      isMember: true,
+    });
+    const atBoundary = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 100,
+      history: [],
+      isMember: true,
+    });
+    assert.equal(
+      belowBoundary.reason,
+      "COMMUNITY_ROOM_FOLLOWERS_REQUIRED",
+    );
+    assert.equal(belowBoundary.followerRequirement, 100);
+    assert.equal(atBoundary.canCreate, true);
+    assert.equal(atBoundary.planEligible, true);
+  }
+
+  assert.match(
+    creatorEligibilityMigration,
+    /subscription\.status = 'active'[\s\S]*subscription\.trial_plan in \('pro', 'advanced'\)[\s\S]*trial_ends_at > pg_catalog\.now\(\)/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /count\(distinct follow\.follower_user_id\)[\s\S]*join public\.user_profiles as follower[\s\S]*not exists \([\s\S]*live_room_actor_blocks/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /create trigger assert_live_room_community_creator_eligibility[\s\S]*before insert on public\.live_room_community_rooms/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /COMMUNITY_ROOM_ADVANCED_REQUIRED[\s\S]*COMMUNITY_ROOM_FOLLOWERS_REQUIRED/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /security invoker[\s\S]*set search_path = ''[\s\S]*revoke all on function public\.get_live_room_community_creator_eligibility[\s\S]*from public, anon, authenticated[\s\S]*grant execute[\s\S]*to service_role/i,
+  );
+  assert.match(
+    communityRepository,
+    /getCommunityRoomCreateEligibility\(actor\)[\s\S]*if \(!eligibility\.canCreate\)[\s\S]*create_live_room_community_room/,
+  );
+  assert.match(createDialog, /Advanced plan required/);
+  assert.match(createDialog, /100 followers required/);
+  assert.match(
+    createDialog,
+    /<progress[\s\S]*followerCount[\s\S]*followerRequirement/,
+  );
+  assert.match(
+    communityStyles,
+    /\.eligibilityProgress progress\s*\{[\s\S]*accent-color:\s*var\(--sr-color-accent\)/,
+  );
+});
+
 test("signed-in ineligible members receive the exact cooldown or rolling-day condition", () => {
   const now = new Date("2026-07-29T12:00:00.000Z");
   const cooldown = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "advanced",
+    followerCount: 100,
     history: [
       {
         createdAt: "2026-07-29T11:58:00.000Z",
@@ -623,6 +703,8 @@ test("signed-in ineligible members receive the exact cooldown or rolling-day con
     now,
   });
   const dailyLimit = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "ultimate",
+    followerCount: 101,
     history: Array.from({ length: 5 }, (_, index) => ({
       createdAt: new Date(
         now.getTime() - (index + 1) * 60 * 60 * 1_000,
@@ -651,6 +733,8 @@ test("signed-in ineligible members receive the exact cooldown or rolling-day con
 
 test("eligible members receive the canonical form and success enters the new room", () => {
   const eligible = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "advanced",
+    followerCount: 100,
     history: [
       {
         createdAt: "2026-07-29T11:00:00.000Z",

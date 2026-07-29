@@ -30,6 +30,7 @@ import {
   requestJson,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
+import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import styles from "./CommunityRooms.module.css";
 
 type FormState = {
@@ -575,13 +576,39 @@ export function CommunityRoomCreateDialog({
                       : eligibility?.reason ===
                           "COMMUNITY_ROOM_CREATE_DAILY_LIMIT"
                         ? "24-hour creation limit reached"
-                        : "Creation cooldown is active"}
+                        : eligibility?.reason ===
+                            "COMMUNITY_ROOM_ADVANCED_REQUIRED"
+                          ? "Advanced plan required"
+                          : eligibility?.reason ===
+                              "COMMUNITY_ROOM_FOLLOWERS_REQUIRED"
+                            ? "100 followers required"
+                            : "Creation cooldown is active"}
                   </strong>
                   <p>
                     {eligibilityError ||
                       eligibility?.message ||
                       "Room creation is temporarily unavailable."}
                   </p>
+                  {eligibility?.effectivePlan ? (
+                    <small>
+                      Current plan:{" "}
+                      {getPlanDisplayName(eligibility.effectivePlan)}
+                    </small>
+                  ) : null}
+                  {eligibility?.reason ===
+                  "COMMUNITY_ROOM_FOLLOWERS_REQUIRED" ? (
+                    <div className={styles.eligibilityProgress}>
+                      <progress
+                        aria-label={`${eligibility.followerCount} of ${eligibility.followerRequirement} followers`}
+                        max={eligibility.followerRequirement}
+                        value={eligibility.followerCount}
+                      />
+                      <span>
+                        {eligibility.followerCount}/
+                        {eligibility.followerRequirement} followers
+                      </span>
+                    </div>
+                  ) : null}
                   {eligibility?.retryAt ? (
                     <small>
                       Try again after{" "}
