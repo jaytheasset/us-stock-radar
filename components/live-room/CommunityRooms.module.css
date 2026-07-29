@@ -731,8 +731,11 @@
   display: block;
 }
 
-.communityMembershipControl {
+.communityHeaderActions {
+  display: flex;
   float: right;
+  align-items: center;
+  gap: var(--sr-space-2);
   margin-bottom: var(--sr-space-2);
 }
 
@@ -959,8 +962,10 @@
     overflow-wrap: anywhere;
   }
 
-  .communityMembershipControl {
+  .communityHeaderActions {
+    width: 100%;
     float: none;
+    justify-content: flex-start;
     margin-bottom: var(--sr-space-4);
   }
 

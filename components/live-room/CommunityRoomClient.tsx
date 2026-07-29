@@ -53,6 +53,7 @@ import {
   type CommunityRoom,
 } from "@/lib/live-room/community";
 import { ChatTimeline } from "./ChatTimeline";
+import { LiveRoomInviteMenu } from "./LiveRoomInviteMenu";
 import { MessageComposer } from "./MessageComposer";
 import { PostsPanel } from "./PostsPanel";
 import { RoomMembershipControl } from "./RoomMembershipControl";
@@ -693,7 +694,7 @@ export function CommunityRoomClient({
               <ArrowLeft aria-hidden="true" size={15} />
               Community Rooms
             </Link>
-            <div className={styles.communityMembershipControl}>
+            <div className={styles.communityHeaderActions}>
               <RoomMembershipControl
                 busy={membershipBusy}
                 isGuest={profile?.isGuest === true}
@@ -702,6 +703,14 @@ export function CommunityRoomClient({
                 onJoin={handleJoinRoom}
                 onLeave={handleLeaveRoom}
                 roomLabel={room.name}
+              />
+              <LiveRoomInviteMenu
+                ariaLabel="Invite people to this Community Room"
+                room={{
+                  kind: "community",
+                  name: room.name,
+                  slug: room.slug,
+                }}
               />
             </div>
             <span className={styles.eyebrow}>Community Room</span>

@@ -27,10 +27,6 @@ import {
 } from "@/lib/live-room/moderation";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
-import {
-  shareLiveRoomInvite,
-  type LiveRoomInviteUiState,
-} from "@/lib/live-room/inviteShare";
 import type {
   CompanyEvent,
   CompanyEventReference,
@@ -213,8 +209,6 @@ export function LiveRoomClient({
     LiveRoomMemberSummary[] | null
   >(null);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
-  const [inviteState, setInviteState] =
-    useState<LiveRoomInviteUiState>("idle");
   const [sending, setSending] = useState(false);
   const [blocks, setBlocks] = useState<LiveRoomBlockedActor[]>([]);
   const [hiddenMessages, setHiddenMessages] = useState<
@@ -247,7 +241,6 @@ export function LiveRoomClient({
   const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
   const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
-  const inviteResetTimerRef = useRef<number | null>(null);
   const markReadTimerRef = useRef<number | null>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const profileSaveTimerRef = useRef<number | null>(null);
@@ -311,15 +304,6 @@ export function LiveRoomClient({
       getLiveRoomTimelineDistanceFromBottom(element),
     );
   }, []);
-
-  useEffect(
-    () => () => {
-      if (inviteResetTimerRef.current !== null) {
-        window.clearTimeout(inviteResetTimerRef.current);
-      }
-    },
-    [],
-  );
 
   useEffect(
     () => () => {
@@ -1011,27 +995,6 @@ export function LiveRoomClient({
     }
   };
 
-  const handleInvite = async () => {
-    if (inviteState === "working") return;
-    if (inviteResetTimerRef.current !== null) {
-      window.clearTimeout(inviteResetTimerRef.current);
-      inviteResetTimerRef.current = null;
-    }
-
-    setInviteState("working");
-    const result = await shareLiveRoomInvite({ identity });
-    if (result === "cancelled") {
-      setInviteState("idle");
-      return;
-    }
-
-    setInviteState(result);
-    inviteResetTimerRef.current = window.setTimeout(() => {
-      setInviteState("idle");
-      inviteResetTimerRef.current = null;
-    }, 2_000);
-  };
-
   const handleMention = (nextReference: CompanyEventReference) => {
     setReference(nextReference);
     setDecision(null);
@@ -1512,12 +1475,10 @@ export function LiveRoomClient({
           <CompanyRoomHeader
             historyButtonRef={historyOpenerRef}
             identity={identity}
-            inviteState={inviteState}
             isGuest={profile?.isGuest === true}
             loginHref={roomLoginHref}
             membershipBusy={membershipBusy}
             membershipJoined={membershipJoined}
-            onInvite={handleInvite}
             onJoin={handleJoinRoom}
             onLeave={handleLeaveRoom}
             onOpenHistory={() => handleDesktopTabChange("events")}
