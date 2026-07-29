@@ -116,7 +116,7 @@
   background: var(--sr-color-surface-control);
 }
 
-.form label {
+.form > label {
   display: grid;
   gap: 7px;
   color: var(--sr-color-text-heading);
@@ -124,18 +124,18 @@
   font-weight: 750;
 }
 
-.form label small {
+.form > label small {
   color: var(--sr-color-text-meta);
   font-weight: 500;
 }
 
-.form label .fieldHelp {
+.form > label .fieldHelp {
   line-height: 1.45;
 }
 
-.form input,
-.form textarea,
-.form select {
+.form > label > input,
+.form > label > textarea,
+.form > label > select {
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
@@ -146,7 +146,7 @@
   font: inherit;
 }
 
-.form textarea {
+.form > label > textarea {
   resize: vertical;
   line-height: 1.6;
 }
@@ -243,6 +243,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.activity {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.activity span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
 }
 
 .actions {

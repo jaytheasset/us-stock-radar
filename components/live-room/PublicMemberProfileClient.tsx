@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Heart,
   LoaderCircle,
   MessageCircle,
   UserCheck,
@@ -247,6 +248,10 @@ export function PublicMemberProfileClient({
                   <div>
                     <small>Live Room member</small>
                     <h1>{member.displayName}</h1>
+                    <span className={styles.profileReceivedLikes}>
+                      <Heart aria-hidden="true" size={14} />
+                      Received likes {member.receivedLikeCount}
+                    </span>
                   </div>
                 </div>
                 {showActions ? (

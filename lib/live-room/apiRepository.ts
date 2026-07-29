@@ -10,6 +10,7 @@ import type {
   LiveRoomPostCommentDraft,
   LiveRoomPostCommentPage,
   LiveRoomPostDraft,
+  LiveRoomPostLikeResult,
   LiveRoomPostPage,
   LiveRoomProfile,
   LiveRoomPresenceSetting,
@@ -348,6 +349,13 @@ export class LiveRoomPostApiRepository {
     return requestJson<{ deleted: true; postId: string }>(
       `/api/live-room/posts/${encodeURIComponent(postId)}`,
       { method: "DELETE" },
+    );
+  }
+
+  toggleLike(postId: string) {
+    return requestJson<LiveRoomPostLikeResult>(
+      `/api/live-room/posts/${encodeURIComponent(postId)}/like`,
+      { method: "POST" },
     );
   }
 

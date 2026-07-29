@@ -1,5 +1,6 @@
 import type { Plan } from "../subscriptionPolicy.ts";
 import type { LiveRoomSocialBadge } from "../social-verification/types.ts";
+import type { LiveRoomPostSignal } from "./postSignals.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -116,10 +117,15 @@ export type LiveRoomPostAuthor = {
 export type LiveRoomPostPreview = {
   author: LiveRoomPostAuthor;
   bodyPreview: string;
+  canLike: boolean;
+  commentCount: number;
   createdAt: string;
   id: string;
+  isLiked: boolean;
   kind: "post_preview";
+  likeCount: number;
   room: LiveRoomPostRoom;
+  signalLabels: LiveRoomPostSignal[];
   title: string;
 };
 
@@ -131,15 +137,26 @@ export type LiveRoomTimelineItem =
 export type LiveRoomPost = {
   author: LiveRoomPostAuthor;
   body: string;
+  canLike: boolean;
   canModerate: boolean;
+  commentCount: number;
   createdAt: string;
   eventReference: CompanyEventReference | null;
   id: string;
+  isLiked: boolean;
   isMine: boolean;
+  likeCount: number;
   relatedTickers: string[];
   room: LiveRoomPostRoom;
+  signalLabels: LiveRoomPostSignal[];
   title: string;
   updatedAt: string;
+};
+
+export type LiveRoomPostLikeResult = {
+  liked: boolean;
+  likeCount: number;
+  postId: string;
 };
 
 export type LiveRoomPostPage = {
@@ -151,6 +168,7 @@ export type LiveRoomPublicMember = {
   displayName: string;
   emoji: string;
   publicProfileId: string;
+  receivedLikeCount: number;
 };
 
 export type LiveRoomPublicMemberActions = {
@@ -175,6 +193,7 @@ export type LiveRoomPostDraft = {
   body: string;
   eventId: string | null;
   relatedTickers: string[];
+  signalLabels: LiveRoomPostSignal[];
   title: string;
 };
 

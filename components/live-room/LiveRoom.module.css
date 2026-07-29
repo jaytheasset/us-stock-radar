@@ -2366,15 +2366,18 @@ button.messageReplyPreview:hover {
 
 .postPreview {
   display: grid;
+  width: min(100%, 680px);
   min-width: 0;
+  max-width: 100%;
   grid-template-columns: 32px minmax(0, 1fr);
   align-items: start;
+  justify-self: start;
   gap: var(--sr-space-3);
   overflow: hidden;
-  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border: var(--sr-border-width) solid var(--sr-color-event-neutral);
   border-radius: var(--sr-radius-popover);
   padding: var(--sr-space-3-5);
-  background: var(--sr-color-surface-elevated);
+  background-color: var(--sr-color-event-neutral-surface);
   color: var(--sr-color-text-meta);
 }
 
@@ -2464,6 +2467,13 @@ button.messageReplyPreview:hover {
   font-family: var(--sr-font-family-mono);
 }
 
+.postPreviewActivity {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-0-5);
+}
+
 .postPreviewTitle:hover,
 .postPreviewTitle:focus-visible,
 .postPreviewAuthor:hover,
@@ -2483,6 +2493,7 @@ button.messageReplyPreview:hover {
 
 @media (max-width: 760px) {
   .postPreview {
+    width: 100%;
     grid-template-columns: 28px minmax(0, 1fr);
     gap: var(--sr-space-2);
     padding: var(--sr-space-2-5);

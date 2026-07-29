@@ -276,11 +276,15 @@ function post({
       publicProfileId,
     },
     body: "A sufficiently detailed public post body.",
+    canLike: true,
     canModerate: false,
+    commentCount: 0,
     createdAt,
     eventReference: null,
     id,
+    isLiked: false,
     isMine: false,
+    likeCount: 0,
     relatedTickers: [],
     room: {
       href: "/live/NVDA",
@@ -288,6 +292,7 @@ function post({
       label: "NVDA",
       ticker: "NVDA",
     },
+    signalLabels: [],
     title: "Public member post",
     updatedAt: createdAt,
   };
