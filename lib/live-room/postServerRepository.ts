@@ -1,6 +1,11 @@
 import "server-only";
 
 import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
+import { getBrokerageConfig } from "@/lib/brokerage/config";
+import {
+  getBrokerageProofMapForPosts,
+  hasActiveBrokerageConnection,
+} from "@/lib/brokerage/serverRepository";
 import {
   supabaseRpc,
   supabaseSelect,
@@ -263,7 +268,7 @@ export async function createLiveRoomPost({
   const room = await resolveRoom({ slug, ticker });
   await validatePostRelatedTickers(normalized.relatedTickers, room);
   await ensureLiveRoomMember(actor);
-  const result = await supabaseRpc("create_live_room_post", {
+  const result = await supabaseRpc("create_live_room_post_with_proof", {
     p_room_id: room.id,
     p_author_user_id: actor.userId,
     p_title: normalized.title,
@@ -274,6 +279,8 @@ export async function createLiveRoomPost({
       normalized.signalLabels,
       normalized.direction,
     ),
+    p_proof_id: normalized.proofId,
+    p_public_sharing_enabled: getBrokerageConfig().publicProofsEnabled,
   });
   return mapMutationResult(result, actor, "LIVE_ROOM_POST_CREATE_FAILED");
 }
@@ -692,6 +699,7 @@ export function toLiveRoomPostPreview(post: LiveRoomPost): LiveRoomPostPreview {
   return {
     author: post.author,
     bodyPreview: createLiveRoomPostBodyPreview(post.body),
+    brokerageProof: post.brokerageProof,
     canLike: post.canLike,
     commentCount: post.commentCount,
     createdAt: post.createdAt,
@@ -788,6 +796,7 @@ export async function mapLiveRoomPostRows(
     eventsResult,
     likedPostsResult,
     moderator,
+    brokerageProofs,
   ] = await Promise.all([
       supabaseSelect("live_room_member_profiles", {
         select: "user_id,public_profile_id,display_name,emoji",
@@ -820,6 +829,7 @@ export async function mapLiveRoomPostRows(
           })
         : Promise.resolve({ ok: true, status: 200, data: [] }),
       isLiveRoomModerator(actor),
+      getBrokerageProofMapForPosts(postIds),
     ]);
   if (
     !profilesResult.ok ||
@@ -889,6 +899,7 @@ export async function mapLiveRoomPostRows(
         publicProfileId: readString(profile?.public_profile_id),
       },
       body: readString(row.body),
+      brokerageProof: brokerageProofs.get(readString(row.id)) || null,
       canLike: actor.kind === "member",
       canModerate: moderator,
       commentCount: readNonnegativeCount(row.visible_comment_count),
@@ -1039,10 +1050,12 @@ async function getPublicMember(rawPublicProfileId: unknown) {
     );
   }
   const userId = readString(row.user_id);
-  const receivedLikesResult = await supabaseRpc(
-    "get_live_room_member_received_like_count",
-    { p_member_user_id: userId },
-  );
+  const [receivedLikesResult, brokerageConnected] = await Promise.all([
+    supabaseRpc("get_live_room_member_received_like_count", {
+      p_member_user_id: userId,
+    }),
+    hasActiveBrokerageConnection(userId),
+  ]);
   if (!receivedLikesResult.ok) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_PUBLIC_PROFILE_UNAVAILABLE",
@@ -1052,6 +1065,7 @@ async function getPublicMember(rawPublicProfileId: unknown) {
   }
   return {
     member: {
+      brokerageConnected,
       displayName: readString(row.display_name) || "Member",
       emoji: readString(row.emoji) || "👋",
       publicProfileId: readString(row.public_profile_id),
@@ -1247,7 +1261,7 @@ function mapPostDatabaseError(
 ) {
   const knownCode =
     error?.match(
-      /LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF)/,
+      /(?:LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF)|BROKERAGE_(?:PUBLIC_SHARING_DISABLED|PLAN_REQUIRED|PROOF_NOT_ATTACHABLE))/,
     )?.[0] || fallbackCode;
   const messages: Record<string, string> = {
     LIVE_ROOM_POST_DUPLICATE:
@@ -1269,16 +1283,31 @@ function mapPostDatabaseError(
     LIVE_ROOM_MEMBER_REQUIRED: "Sign in to write Live Room posts.",
     LIVE_ROOM_MODERATOR_REQUIRED: "Moderator access is required.",
     LIVE_ROOM_CANNOT_BLOCK_SELF: "You cannot block yourself.",
+    BROKERAGE_PUBLIC_SHARING_DISABLED:
+      "Public sharing is pending provider approval.",
+    BROKERAGE_PLAN_REQUIRED:
+      "A Pro, Advanced, or Ultimate plan is required.",
+    BROKERAGE_PROOF_NOT_ATTACHABLE:
+      "That brokerage proof cannot be attached.",
   };
   const forbidden =
     knownCode === "LIVE_ROOM_POST_FORBIDDEN" ||
     knownCode === "LIVE_ROOM_MODERATOR_REQUIRED";
   const notFound = knownCode === "LIVE_ROOM_POST_NOT_FOUND";
   const unauthorized = knownCode === "LIVE_ROOM_MEMBER_REQUIRED";
+  const brokerageForbidden =
+    knownCode === "BROKERAGE_PUBLIC_SHARING_DISABLED" ||
+    knownCode === "BROKERAGE_PLAN_REQUIRED";
   return new LiveRoomPolicyError(
     knownCode,
     messages[knownCode] || "The post action could not be completed.",
-    unauthorized ? 401 : forbidden ? 403 : notFound ? 404 : status || 400,
+    unauthorized
+      ? 401
+      : forbidden || brokerageForbidden
+        ? 403
+        : notFound
+          ? 404
+          : status || 400,
   );
 }
 

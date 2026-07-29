@@ -44,6 +44,7 @@ test("post drafts enforce bounded title, body, and unique canonical tickers", ()
       direction: null,
       relatedTickers: ["NVDA", "AMD"],
       eventId: null,
+      proofId: null,
       signalLabels: [],
     },
   );

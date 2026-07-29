@@ -84,6 +84,7 @@ export async function POST(
     const input = (await request.json().catch(() => null)) as {
       body?: unknown;
       eventId?: unknown;
+      proofId?: unknown;
       replyToMessageId?: unknown;
     } | null;
     resolution = await resolveLiveRoomActor(request);
@@ -93,6 +94,7 @@ export async function POST(
       body: typeof input?.body === "string" ? input.body : "",
       eventId:
         typeof input?.eventId === "string" ? input.eventId : null,
+      proofId: input?.proofId,
       replyToMessageId: normalizeOptionalLiveRoomReplyMessageId(
         input?.replyToMessageId,
       ),

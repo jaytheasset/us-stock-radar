@@ -20,6 +20,7 @@ import {
   type ReactNode,
 } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import {
   LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT,
   selectLiveRoomSidePanelMembers,
@@ -360,6 +361,9 @@ function PostsPreview({
           </span>
           <div className={styles.sidePanelPostContent}>
             <strong>{post.title}</strong>
+            {post.brokerageProof ? (
+              <BrokerageProofCard compact proof={post.brokerageProof} />
+            ) : null}
             <small>
               {post.author.emoji} {post.author.displayName} ·{" "}
               {formatPreviewDate(post.createdAt)}

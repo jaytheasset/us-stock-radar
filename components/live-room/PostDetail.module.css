@@ -272,6 +272,20 @@
   font-weight: var(--sr-font-weight-semibold);
 }
 
+.profileBrokerageBadge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 20px;
+  align-items: center;
+  border: 1px solid var(--sr-color-product-accent-border);
+  border-radius: var(--sr-radius-control);
+  padding-inline: var(--sr-space-2);
+  color: var(--sr-color-product-accent);
+  background: var(--sr-color-product-accent-selected);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+}
+
 .profileActions {
   display: flex;
   min-width: 0;

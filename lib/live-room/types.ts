@@ -4,6 +4,7 @@ import type {
   LiveRoomPostDirection,
   LiveRoomPostSignal,
 } from "./postSignals.ts";
+import type { BrokerageProofSummary } from "../brokerage/types.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -64,6 +65,7 @@ export type LiveRoomReplyPreview = {
 export type LiveRoomChatMessage = {
   author: LiveRoomProfile;
   body: string;
+  brokerageProof?: BrokerageProofSummary | null;
   canFollowMember?: boolean;
   canMessageMember?: boolean;
   createdAt: string;
@@ -184,6 +186,7 @@ export type LiveRoomPostAuthor = {
 export type LiveRoomPostPreview = {
   author: LiveRoomPostAuthor;
   bodyPreview: string;
+  brokerageProof?: BrokerageProofSummary | null;
   canLike: boolean;
   commentCount: number;
   createdAt: string;
@@ -205,6 +208,7 @@ export type LiveRoomTimelineItem =
 export type LiveRoomPost = {
   author: LiveRoomPostAuthor;
   body: string;
+  brokerageProof?: BrokerageProofSummary | null;
   canLike: boolean;
   canModerate: boolean;
   commentCount: number;
@@ -234,6 +238,7 @@ export type LiveRoomPostPage = {
 };
 
 export type LiveRoomPublicMember = {
+  brokerageConnected: boolean;
   displayName: string;
   emoji: string;
   publicProfileId: string;
@@ -262,6 +267,7 @@ export type LiveRoomPostDraft = {
   body: string;
   direction: LiveRoomPostDirection | null;
   eventId: string | null;
+  proofId: string | null;
   relatedTickers: string[];
   signalLabels: LiveRoomPostSignal[];
   title: string;
