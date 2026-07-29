@@ -2071,9 +2071,30 @@ button.messageReplyPreview:hover {
     padding-left: 0;
   }
 
+  .timelineList {
+    gap: var(--sr-space-2-5);
+  }
+
+  .otherMessage,
+  .myMessage {
+    gap: var(--sr-space-2);
+  }
+
   .otherMessage article,
   .myMessage article {
     max-width: 85%;
+    padding: var(--sr-space-2) var(--sr-space-2-5);
+  }
+
+  .otherMessage article > p,
+  .myMessage article > p {
+    margin-top: var(--sr-space-1);
+  }
+
+  .messageReplyPreview {
+    gap: var(--sr-space-0-5);
+    margin-top: var(--sr-space-1-5);
+    padding: var(--sr-space-1) var(--sr-space-1-5);
   }
 
   .systemUpdate {
