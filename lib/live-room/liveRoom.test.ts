@@ -593,9 +593,8 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     timelineSource,
-    /!item\.author\.isGuest[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
+    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan[\s\S]*item\.author\.isGuest[\s\S]*\? "Visitor"[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
   );
-  assert.doesNotMatch(timelineSource, /<small>Guest<\/small>/);
   assert.match(
     headerSource,
     /identity\.companyName\.trim\(\)\.toUpperCase\(\)\s*!==\s*identity\.ticker/,
@@ -703,7 +702,11 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
   );
   assert.match(
     styles,
-    /\.otherMessage header > span,[\s\S]*?\.myMessage header > small\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+    /\.planBadge\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.otherMessage header > (?:span|small)|\.myMessage header > (?:span|small)/,
   );
   assert.match(
     styles,

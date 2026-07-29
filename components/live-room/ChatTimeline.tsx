@@ -318,9 +318,16 @@ export function ChatTimeline({
                 ) : (
                   <strong>{item.author.displayName}</strong>
                 )}
-                {!item.author.isGuest ? (
-                  <span>{getPlanDisplayName(item.author.plan)}</span>
-                ) : null}
+                <span
+                  className={styles.planBadge}
+                  data-plan={
+                    item.author.isGuest ? "visitor" : item.author.plan
+                  }
+                >
+                  {item.author.isGuest
+                    ? "Visitor"
+                    : getPlanDisplayName(item.author.plan)}
+                </span>
                 <time dateTime={item.createdAt}>
                   {formatMessageTime(item.createdAt)}
                 </time>

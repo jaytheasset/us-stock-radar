@@ -466,7 +466,7 @@ export function LiveRoomMemberList({
                     />
                   ) : null}
                   <span
-                    className={styles.sidePanelPlanBadge}
+                    className={styles.planBadge}
                     data-plan={summary.plan}
                   >
                     {getPlanDisplayName(summary.plan)}

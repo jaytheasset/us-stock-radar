@@ -150,7 +150,7 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
   );
   assert.match(
     panel,
-    /className=\{styles\.sidePanelPlanBadge\}[\s\S]*data-plan=\{summary\.plan\}/,
+    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{summary\.plan\}/,
   );
   assert.match(
     panel,
@@ -198,7 +198,11 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
   );
 });
 
-test("registered member badges use distinct semantic site tokens for every plan", () => {
+test("message and member badges share six semantic plan treatments", () => {
+  const timeline = read("components/live-room/ChatTimeline.tsx");
+  const panel = read(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
   const styles = read("components/live-room/LiveRoom.module.css");
   const tokens = read("app/stock-radar-tokens.css");
 
@@ -212,13 +216,25 @@ test("registered member badges use distinct semantic site tokens for every plan"
 
   assert.match(
     styles,
-    /\.sidePanelPlanBadge\s*\{[\s\S]*--live-room-plan-color:\s*var\(--sr-color-plan-free\);[\s\S]*--live-room-plan-surface:\s*var\(--sr-color-plan-free-surface\);[\s\S]*border:[\s\S]*var\(--live-room-plan-color\);[\s\S]*color:\s*var\(--live-room-plan-color\);[\s\S]*background:\s*var\(--live-room-plan-surface\);/,
+    /\.planBadge\s*\{[\s\S]*height:\s*var\(--sr-space-4-5\);[\s\S]*border:[\s\S]*var\(--live-room-plan-color\);[\s\S]*border-radius:\s*var\(--sr-radius-chat-control\);[\s\S]*color:\s*var\(--live-room-plan-color\);[\s\S]*background:\s*var\(--live-room-plan-surface\);[\s\S]*font-size:\s*var\(--sr-font-size-xs\);/,
+  );
+  assert.match(
+    timeline,
+    /className=\{styles\.planBadge\}[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan[\s\S]*\? "Visitor"[\s\S]*getPlanDisplayName\(item\.author\.plan\)/,
+  );
+  assert.match(
+    panel,
+    /className=\{styles\.planBadge\}[\s\S]*data-plan=\{summary\.plan\}[\s\S]*getPlanDisplayName\(summary\.plan\)/,
+  );
+  assert.match(
+    styles,
+    /\.planBadge\[data-plan="visitor"\]\s*\{[\s\S]*--live-room-plan-color:\s*var\(--sr-color-text-meta\);[\s\S]*--live-room-plan-surface:\s*var\(--sr-color-surface-control-strong\);/,
   );
   for (const [plan, token] of planContracts) {
     assert.match(
       styles,
       new RegExp(
-        `\\.sidePanelPlanBadge\\[data-plan="${plan}"\\] \\{[\\s\\S]*--live-room-plan-color:\\s*var\\(--sr-color-plan-${token}\\);[\\s\\S]*--live-room-plan-surface:\\s*var\\(--sr-color-plan-${token}-surface\\);`,
+        `\\.planBadge\\[data-plan="${plan}"\\] \\{[\\s\\S]*--live-room-plan-color:\\s*var\\(--sr-color-plan-${token}\\);[\\s\\S]*--live-room-plan-surface:\\s*var\\(--sr-color-plan-${token}-surface\\);`,
       ),
     );
   }
@@ -230,7 +246,10 @@ test("registered member badges use distinct semantic site tokens for every plan"
       ),
     );
   }
-  assert.doesNotMatch(styles, /data-plan="visitor"/);
+  assert.doesNotMatch(
+    styles.match(/\.planBadge\s*\{([^}]*)\}/)?.[1] || "",
+    /#[\da-f]{3,8}|font-size:\s*\d/i,
+  );
 });
 
 function read(relativePath: string) {
