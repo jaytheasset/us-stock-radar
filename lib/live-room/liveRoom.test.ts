@@ -482,6 +482,26 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     liveRoomStyles,
     /@media \(max-width: 760px\)[\s\S]*\.otherMessage article,[\s\S]*\.myMessage article\s*\{[\s\S]*max-width:\s*85%/,
   );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.timelineList\s*\{\s*gap:\s*var\(--sr-space-2-5\);\s*\}/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage,\s*\.myMessage\s*\{\s*gap:\s*var\(--sr-space-2\);\s*\}/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?padding:\s*var\(--sr-space-2\) var\(--sr-space-2-5\);/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > p,\s*\.myMessage article > p\s*\{\s*margin-top:\s*var\(--sr-space-1\);\s*\}/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageReplyPreview\s*\{\s*gap:\s*var\(--sr-space-0-5\);\s*margin-top:\s*var\(--sr-space-1-5\);\s*padding:\s*var\(--sr-space-1\) var\(--sr-space-1-5\);\s*\}/,
+  );
   assert.match(composerSource, /rows=\{1\}/);
   assert.doesNotMatch(
     composerSource,
