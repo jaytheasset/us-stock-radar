@@ -56,6 +56,7 @@
     "verify:source-preexisting": "node --test --experimental-strip-types lib/sourcePreexistingIngestPlan.test.ts",
     "verify:workflows": "workflow validate --strict --dir workflows",
     "verify:calendar": "node --test --experimental-strip-types lib/calendar-v1/calendarV1.test.ts lib/calendar-v1/calendarV1Ui.test.ts",
+    "verify:calendar-db": "node --no-warnings --experimental-strip-types scripts/verify-calendar-schema.mjs",
     "verify:nasdaq-trader-parser": "node --experimental-strip-types scripts/verify-nasdaq-trader-parser.mjs",
     "verify:ofac-parser": "node --experimental-strip-types scripts/verify-ofac-parser.mjs",
     "verify:prnewswire-parser": "node --experimental-strip-types scripts/verify-prnewswire-parser.mjs",
