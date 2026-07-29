@@ -101,6 +101,14 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(panel, /role="tablist"/);
   assert.match(panel, /aria-selected=\{activeTab === tab\.value\}/);
   assert.match(panel, /role="tabpanel"/);
+  assert.match(
+    styles,
+    /\.sidePanelTabs button\s*\{[^}]*border-bottom:\s*2px solid transparent;[^}]*border-radius:\s*0;/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelTabs \.activeSidePanelTab\s*\{[^}]*border-bottom-color:\s*var\(--sr-color-accent-text\);/,
+  );
   assert.match(panel, /event\.detailHref/);
   assert.match(panel, /\/live\/posts\/\$\{post\.id\}/);
   assert.match(
