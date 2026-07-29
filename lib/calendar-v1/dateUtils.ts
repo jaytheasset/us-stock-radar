@@ -1,9 +1,16 @@
 import type {
+  CalendarCategory,
   CalendarDateRange,
   CalendarEvent,
   CalendarFilters,
   CalendarRangePreset,
 } from "./model.ts";
+import { eventTypeCategories } from "./model.ts";
+import {
+  getCalendarEventIdentity,
+  getCalendarEventSearchText,
+  isCalendarEventWatchlistMatch,
+} from "./presentation.ts";
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -92,14 +99,20 @@ export function filterCalendarEvents(
   events: readonly CalendarEvent[],
   range: CalendarDateRange,
   filters: CalendarFilters,
+  watchlistTickers: ReadonlySet<string> = new Set(),
 ): CalendarEvent[] {
   const normalizedRange = normalizeDateRange(range);
   const query = filters.query.trim().toLocaleLowerCase("en-US");
 
   return events
     .filter((event) => event.eventDate >= normalizedRange.from && event.eventDate <= normalizedRange.to)
+    .filter((event) => filters.category === "all" || event.category === filters.category)
     .filter((event) => filters.eventType === "all" || event.eventType === filters.eventType)
-    .filter((event) => !filters.watchlistOnly || event.isWatchlisted)
+    .filter(
+      (event) =>
+        !filters.watchlistOnly ||
+        isCalendarEventWatchlistMatch(event, watchlistTickers),
+    )
     .filter(
       (event) =>
         filters.marketSession === "all" || event.marketSession === filters.marketSession,
@@ -107,7 +120,7 @@ export function filterCalendarEvents(
     .filter((event) => filters.status === "all" || event.status === filters.status)
     .filter((event) => {
       if (!query) return true;
-      return `${event.ticker ?? ""} ${event.companyName}`.toLocaleLowerCase("en-US").includes(query);
+      return getCalendarEventSearchText(event).includes(query);
     })
     .sort(compareCalendarEvents);
 }
@@ -126,12 +139,26 @@ export function groupCalendarEventsByDate(
 
 export function countActiveCalendarFilters(filters: CalendarFilters): number {
   return [
+    filters.category !== "all",
     filters.eventType !== "all",
     filters.watchlistOnly,
     filters.marketSession !== "all",
     filters.status !== "all",
     Boolean(filters.query.trim()),
   ].filter(Boolean).length;
+}
+
+export function updateCalendarCategoryFilter(
+  filters: CalendarFilters,
+  category: CalendarCategory | "all",
+): CalendarFilters {
+  const eventType =
+    filters.eventType === "all" ||
+    category === "all" ||
+    eventTypeCategories[filters.eventType] === category
+      ? filters.eventType
+      : "all";
+  return { ...filters, category, eventType };
 }
 
 export function formatRangeLabel(range: CalendarDateRange): string {
@@ -171,6 +198,8 @@ function compareCalendarEvents(a: CalendarEvent, b: CalendarEvent): number {
   return (
     a.eventDate.localeCompare(b.eventDate) ||
     (a.eventTime ?? "99:99").localeCompare(b.eventTime ?? "99:99") ||
-    (a.ticker ?? a.companyName).localeCompare(b.ticker ?? b.companyName)
+    getCalendarEventIdentity(a).primaryLabel.localeCompare(
+      getCalendarEventIdentity(b).primaryLabel,
+    )
   );
 }

@@ -9,11 +9,27 @@ import {
   normalizeDateRange,
   parseDateOnly,
   shiftDateRange,
+  updateCalendarCategoryFilter,
 } from "./dateUtils.ts";
-import { createCalendarMockEvents } from "./mockData.ts";
-import { DEFAULT_CALENDAR_FILTERS } from "./model.ts";
 import {
+  CALENDAR_MOCK_WATCHLIST_TICKERS,
+  createCalendarMockEvents,
+} from "./mockData.ts";
+import {
+  CALENDAR_CATEGORIES,
+  COMPANY_EVENT_TYPES,
+  DEFAULT_CALENDAR_FILTERS,
+  MACRO_EVENT_TYPES,
+  POLICY_EVENT_TYPES,
+  POLICY_SUBCATEGORIES,
+  calendarEventTypeGroups,
+  eventTypeCategories,
+} from "./model.ts";
+import {
+  formatCalendarEventTime,
   formatEventCount,
+  getCalendarEventIdentity,
+  isCalendarEventWatchlistMatch,
   selectCalendarPreviewEvent,
   selectUpcomingCalendarEvents,
 } from "./presentation.ts";
@@ -68,7 +84,12 @@ test("the shared selector applies range, type, session, status, watchlist, and q
     { from: "2026-07-27", to: "2026-08-02" },
     { ...DEFAULT_CALENDAR_FILTERS, query: "msFT" },
   );
-  assert.deepEqual(tickerResult.map((event) => event.ticker), ["MSFT"]);
+  assert.deepEqual(
+    tickerResult.map((event) =>
+      event.category === "company" ? event.ticker : null,
+    ),
+    ["MSFT"],
+  );
 });
 
 test("grouping is date ordered, retains crowded dates, and does not invent missing values", () => {
@@ -90,7 +111,10 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
   }
 
   const unknownIpo = events.find((event) => event.id === "ipo-unknown-ticker");
-  assert.equal(unknownIpo?.ticker, null);
+  assert.equal(
+    unknownIpo?.category === "company" ? unknownIpo.ticker : undefined,
+    null,
+  );
   assert.equal(unknownIpo?.eventTime, null);
 });
 
@@ -210,4 +234,196 @@ test("upcoming events are conditional, stable, selected-date exclusive, and capp
     selectUpcomingCalendarEvents(noLaterEvents, selectedDate),
     [],
   );
+});
+
+test("calendar category, event type, and policy subcategory contracts are closed and grouped", () => {
+  assert.deepEqual(CALENDAR_CATEGORIES, ["company", "macro", "policy"]);
+  assert.equal(COMPANY_EVENT_TYPES.length, 4);
+  assert.equal(MACRO_EVENT_TYPES.length, 7);
+  assert.equal(POLICY_EVENT_TYPES.length, 11);
+  assert.deepEqual(POLICY_SUBCATEGORIES, [
+    "monetary-policy",
+    "treasury",
+    "sec-regulation",
+    "trade-policy",
+    "industry-regulation",
+  ]);
+  assert.deepEqual(calendarEventTypeGroups.company, COMPANY_EVENT_TYPES);
+  assert.deepEqual(calendarEventTypeGroups.macro, MACRO_EVENT_TYPES);
+  assert.deepEqual(calendarEventTypeGroups.policy, POLICY_EVENT_TYPES);
+  for (const eventType of MACRO_EVENT_TYPES) {
+    assert.equal(eventTypeCategories[eventType], "macro");
+  }
+  for (const eventType of POLICY_EVENT_TYPES) {
+    assert.equal(eventTypeCategories[eventType], "policy");
+  }
+});
+
+test("all 18 Macro and Policy types have mock-only fixtures while Company fixtures stay intact", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const company = events.filter((event) => event.category === "company");
+  const macro = events.filter((event) => event.category === "macro");
+  const policy = events.filter((event) => event.category === "policy");
+
+  assert.equal(company.length, 16);
+  assert.deepEqual(
+    new Set(macro.map((event) => event.eventType)),
+    new Set(MACRO_EVENT_TYPES),
+  );
+  assert.deepEqual(
+    new Set(policy.map((event) => event.eventType)),
+    new Set(POLICY_EVENT_TYPES),
+  );
+  assert.ok(events.every((event) => event.provider === "mock"));
+  assert.ok(events.every((event) => event.timezone === "America/New_York"));
+  assert.ok(events.every((event) => event.sourceAgency && event.sourceName));
+
+  const nvda = company.find((event) => event.id === "earn-nvda-confirmed");
+  assert.equal(nvda?.eventType, "earnings");
+  if (nvda?.eventType === "earnings") {
+    assert.equal(nvda.ticker, "NVDA");
+    assert.equal(nvda.details.epsEstimate, 1.12);
+    assert.equal(nvda.details.revenueEstimate, 45_200_000_000);
+  }
+  assert.ok(company.some((event) => event.id === "ipo-unknown-ticker"));
+});
+
+test("category updates reset incompatible event types and the selector never creates contradictory states", () => {
+  const companyCpi = {
+    ...DEFAULT_CALENDAR_FILTERS,
+    category: "company" as const,
+    eventType: "earnings" as const,
+  };
+  assert.deepEqual(updateCalendarCategoryFilter(companyCpi, "macro"), {
+    ...companyCpi,
+    category: "macro",
+    eventType: "all",
+  });
+  assert.equal(
+    updateCalendarCategoryFilter(
+      { ...DEFAULT_CALENDAR_FILTERS, eventType: "cpi" },
+      "macro",
+    ).eventType,
+    "cpi",
+  );
+
+  const events = createCalendarMockEvents("2026-07-29");
+  const result = filterCalendarEvents(
+    events,
+    { from: "2026-07-01", to: "2026-08-31" },
+    { ...DEFAULT_CALENDAR_FILTERS, category: "macro", eventType: "cpi" },
+  );
+  assert.deepEqual(result.map((event) => event.id), ["macro-cpi-release"]);
+});
+
+test("search covers titles, agencies, industries, related tickers, and Company identity", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const range = { from: "2026-07-01", to: "2026-08-31" };
+  const search = (query: string) =>
+    filterCalendarEvents(events, range, {
+      ...DEFAULT_CALENDAR_FILTERS,
+      query,
+    }).map((event) => event.id);
+
+  assert.ok(search("Consumer Price Index").includes("macro-cpi-release"));
+  assert.ok(search("Federal Reserve").includes("policy-fomc-decision"));
+  assert.ok(search("semiconductor").includes("policy-trade-postponed"));
+  assert.ok(search("MRNA").includes("policy-fda-advisory"));
+  assert.ok(search("Microsoft Corporation").includes("earn-msft-estimated"));
+});
+
+test("Watchlist Only preserves Company meaning, excludes Macro, and includes only overlapping Policy tickers", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const range = { from: "2026-07-01", to: "2026-08-31" };
+  const watchlist = new Set<string>(CALENDAR_MOCK_WATCHLIST_TICKERS);
+  const macro = filterCalendarEvents(
+    events,
+    range,
+    {
+      ...DEFAULT_CALENDAR_FILTERS,
+      category: "macro",
+      watchlistOnly: true,
+    },
+    watchlist,
+  );
+  assert.deepEqual(macro, []);
+
+  const policy = filterCalendarEvents(
+    events,
+    range,
+    {
+      ...DEFAULT_CALENDAR_FILTERS,
+      category: "policy",
+      watchlistOnly: true,
+    },
+    watchlist,
+  );
+  assert.ok(policy.some((event) => event.id === "policy-fda-advisory"));
+  assert.ok(policy.some((event) => event.id === "policy-trade-postponed"));
+  assert.ok(policy.every((event) => event.category === "policy"));
+  assert.ok(
+    policy.every((event) => isCalendarEventWatchlistMatch(event, watchlist)),
+  );
+
+  const noOverlap = filterCalendarEvents(
+    events,
+    range,
+    {
+      ...DEFAULT_CALENDAR_FILTERS,
+      category: "policy",
+      watchlistOnly: true,
+    },
+    new Set(["ZZZZ"]),
+  );
+  assert.deepEqual(noOverlap, []);
+});
+
+test("duplicate-prevention fixtures keep combined releases and related milestones explicit", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const byType = (eventType: string) =>
+    events.filter((event) => event.eventType === eventType);
+
+  assert.equal(byType("fomc-decision").length, 1);
+  const fomc = byType("fomc-decision")[0];
+  assert.equal(fomc?.category, "policy");
+  if (fomc?.eventType === "fomc-decision") {
+    assert.ok(fomc.details.decisionTime);
+    assert.ok(fomc.details.pressConferenceTime);
+    assert.equal(fomc.details.includesSep, true);
+  }
+
+  const cpi = byType("cpi")[0];
+  assert.equal(cpi?.category, "macro");
+  if (cpi?.category === "macro") assert.equal(cpi.details.metrics.length, 2);
+  const employment = byType("employment-situation")[0];
+  if (employment?.category === "macro") {
+    assert.equal(employment.details.metrics.length, 3);
+  }
+  assert.equal(byType("sec-open-meeting").length, 1);
+  const milestones = byType("sec-rule-milestone");
+  assert.equal(milestones.length, 2);
+  assert.equal(milestones[0]?.sourceEventKey, milestones[1]?.sourceEventKey);
+  assert.notEqual(milestones[0]?.eventDate, milestones[1]?.eventDate);
+  assert.equal(byType("treasury-auction-10y").length, 1);
+  assert.equal(byType("treasury-auction-30y").length, 1);
+});
+
+test("lifecycle status, exact ET, TNA, and category identity remain distinct presentation concepts", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const trade = events.find((event) => event.id === "policy-trade-postponed");
+  const auction = events.find((event) => event.id === "policy-treasury-auction-30y");
+  const employment = events.find((event) => event.id === "macro-employment-situation");
+  assert.equal(trade?.lifecycleStatus, "postponed");
+  assert.equal(trade?.status, "postponed");
+  assert.equal(auction?.lifecycleStatus, "cancelled");
+  assert.equal(auction?.status, "cancelled");
+  assert.match(
+    formatCalendarEventTime(events.find((event) => event.id === "macro-cpi-release")!),
+    /ET$/,
+  );
+  assert.equal(formatCalendarEventTime(employment!), "8:30 AM ET");
+  const testimony = events.find((event) => event.id === "policy-fed-chair-testimony")!;
+  assert.equal(formatCalendarEventTime(testimony), "Time Not Announced");
+  assert.equal(getCalendarEventIdentity(testimony).primaryTicker, null);
+  assert.equal(getCalendarEventIdentity(testimony).secondaryLabel, "Federal Reserve");
 });

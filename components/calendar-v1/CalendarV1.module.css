@@ -81,7 +81,7 @@
 
 .page .viewControl > button,
 .page .rangeControl > button,
-.page .eventTypeControl > button {
+.page .categoryControl > button {
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
 }
@@ -200,9 +200,9 @@
   margin-top: var(--sr-space-3);
 }
 
-.eventTypeControl {
-  grid-template-columns: repeat(5, minmax(82px, 1fr));
-  width: min(510px, 100%);
+.categoryControl {
+  grid-template-columns: repeat(4, minmax(82px, 1fr));
+  width: min(400px, 100%);
 }
 
 .watchlistFilter,
@@ -258,6 +258,29 @@
   padding: var(--sr-space-3);
   background: var(--sr-color-surface-overlay);
   box-shadow: var(--sr-shadow-menu);
+}
+
+.typeMenuOptions {
+  overflow-y: auto;
+  width: min(360px, calc(100vw - var(--sr-space-8)));
+  max-height: min(560px, calc(100vh - 180px));
+}
+
+.typeOptionGroup {
+  display: grid;
+  gap: var(--sr-space-1);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-2);
+}
+
+.typeOptionGroup h3,
+.mobileTypeOptionGroup h4 {
+  margin: 0;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-heavy);
+  letter-spacing: var(--sr-letter-spacing-wide);
+  text-transform: uppercase;
 }
 
 .mobileFilterTrigger {
@@ -565,7 +588,8 @@
 }
 
 .upcomingIdentity span,
-.upcomingDescription > strong {
+.upcomingDescription > strong,
+.upcomingDescription > small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -586,12 +610,24 @@
   font-size: var(--sr-font-size-sm);
 }
 
+.upcomingDescription > small,
+.eventDescription > small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
 .upcomingMeta {
   justify-items: start;
 }
 
 .upcomingMeta b {
   color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.upcomingMeta small,
+.eventMeta small {
+  color: var(--sr-color-text-meta);
   font-size: var(--sr-font-size-xs);
 }
 
@@ -717,7 +753,8 @@
 }
 
 .eventIdentity span,
-.eventDescription strong {
+.eventDescription strong,
+.eventDescription small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -944,6 +981,44 @@
   text-transform: uppercase;
 }
 
+.macroMetrics {
+  display: grid;
+  min-width: 0;
+  margin-top: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.macroMetrics > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(84px, 1.2fr) repeat(3, minmax(58px, 0.8fr));
+  gap: var(--sr-space-2);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) 0;
+}
+
+.macroMetrics b,
+.macroMetrics strong,
+.macroMetrics span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--sr-font-size-xs);
+}
+
+.macroMetrics b {
+  color: var(--sr-color-text-meta);
+  text-transform: uppercase;
+}
+
+.macroMetrics strong {
+  color: var(--sr-color-text-heading);
+}
+
+.macroMetrics span {
+  color: var(--sr-color-text-secondary);
+  font-family: var(--sr-font-family-mono);
+}
+
 .detailLinks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1154,6 +1229,20 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sr-space-2);
+}
+
+.mobileTypeOptionGroup {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+  min-width: 0;
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-2);
+}
+
+.mobileTypeOptionGroup h4 {
+  flex: 1 0 100%;
 }
 
 .mobileFilterActions {
