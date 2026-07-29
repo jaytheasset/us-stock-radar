@@ -1876,7 +1876,9 @@ export function LiveRoomClient({
             </div>
           ) : null}
           {mobileSheet === "members" ? (
-            <div className={styles.mobileSheetContent}>
+            <div
+              className={`${styles.mobileSheetContent} ${styles.mobileMembersSheetContent}`}
+            >
               <header className={styles.mobileSheetHeading}>
                 <h2>Members</h2>
                 <p>

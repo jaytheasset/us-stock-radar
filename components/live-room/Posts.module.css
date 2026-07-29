@@ -368,6 +368,10 @@
   gap: var(--sr-space-1);
 }
 
+.activity span[data-kind="like"] {
+  color: var(--sr-color-negative);
+}
+
 .actions {
   margin-top: 14px;
 }

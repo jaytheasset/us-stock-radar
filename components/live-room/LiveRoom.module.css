@@ -640,6 +640,10 @@
   padding: 0 var(--sr-space-1) var(--sr-space-3);
 }
 
+.mobileMembersSheetContent .mobileSheetHeading {
+  margin-bottom: var(--sr-space-1);
+}
+
 .mobileSheetHeading h2,
 .mobileSheetHeading p {
   margin: 0;
@@ -821,6 +825,10 @@
   min-width: 0;
   align-items: center;
   gap: var(--sr-space-0-5);
+}
+
+.sidePanelPostActivity > span[data-kind="like"] {
+  color: var(--sr-color-negative);
 }
 
 .sidePanelPostActivity svg {
@@ -1793,6 +1801,12 @@
 .messageEngagementControl:hover {
   color: var(--sr-color-text-strong);
   background: var(--sr-color-surface-control);
+}
+
+.messageEngagementControl[data-action="like"],
+.messageEngagementControl[data-action="like"]:hover,
+.messageEngagementControl[data-action="like"]:focus-visible {
+  color: var(--sr-color-negative);
 }
 
 .messageEngagementControl:disabled {
@@ -3197,6 +3211,10 @@ button.messageReplyPreview:hover {
   flex: 0 0 auto;
   align-items: center;
   gap: var(--sr-space-0-5);
+}
+
+.postPreviewActivity[data-kind="like"] {
+  color: var(--sr-color-negative);
 }
 
 .postPreviewTitle:hover,
