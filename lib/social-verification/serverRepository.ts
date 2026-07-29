@@ -1,5 +1,6 @@
 import "server-only";
 
+import { userHasAdminPermission } from "@/lib/admin/server";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import {
   chunkLiveRoomSocialBadgeMessageIds,
@@ -124,14 +125,7 @@ export async function mutateSocialVerificationRequest({
 }
 
 export async function isSocialVerificationAdmin(userId: string) {
-  const result = await supabaseSelect("live_room_moderators", {
-    select: "user_id",
-    user_id: `eq.${userId}`,
-    role: "eq.admin",
-    active: "eq.true",
-    limit: "1",
-  });
-  return result.ok && readRows(result.data).length === 1;
+  return userHasAdminPermission(userId, "verifications.read");
 }
 
 export async function assertSocialVerificationAdmin(userId: string) {

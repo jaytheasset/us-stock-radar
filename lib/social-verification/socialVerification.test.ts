@@ -298,7 +298,7 @@ test("member and admin APIs enforce session, same-origin mutations, ownership, a
   assert.match(repository, /member_user_id: `eq\.\$\{userId\}`/);
   assert.match(adminRoute, /listSocialVerificationReviews/);
   assert.match(adminMutationRoute, /assertSameOriginAuthRequest\(request\)/);
-  assert.match(repository, /role: "eq\.admin"/);
+  assert.match(repository, /userHasAdminPermission\(userId, "verifications\.read"\)/);
   assert.match(
     migration,
     /moderator\.active = true[\s\S]*moderator\.role = 'admin'/i,
