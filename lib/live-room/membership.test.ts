@@ -347,6 +347,14 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
   const latestButton = read(
     "components/live-room/LiveRoomLatestButton.tsx",
   );
+  const companyLatestHandler =
+    companyClient.match(
+      /const handleLatest = async \(\) => \{[\s\S]+?\n  \};/,
+    )?.[0] ?? "";
+  const communityLatestHandler =
+    communityClient.match(
+      /const handleLatest = async \(\) => \{[\s\S]+?\n  \};/,
+    )?.[0] ?? "";
 
   assert.match(
     resumeFunction,
@@ -424,6 +432,15 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
     latestButton,
     /Go to latest messages[\s\S]*<span>Latest<\/span>[\s\S]*unreadCount > 99 \? "99\+"/,
   );
+  for (const latestHandler of [
+    companyLatestHandler,
+    communityLatestHandler,
+  ]) {
+    assert.match(
+      latestHandler,
+      /repository\.list\(\)[\s\S]*setTimeline\(replaceLiveRoomTimeline\(page\.items\)\)[\s\S]*scheduleTimelineScroll\(\(element\) => \{[\s\S]*top: element\.scrollHeight[\s\S]*timelineSticksToBottomRef\.current = true[\s\S]*handleTimelineScroll\(\);[\s\S]*scheduleVisibleRead\(\);/,
+    );
+  }
 });
 
 test("membership controls and five-tab mobile navigation remain compact without arbitrary tokens", () => {

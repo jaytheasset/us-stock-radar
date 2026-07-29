@@ -797,6 +797,17 @@ export function CommunityRoomClient({
       setTimeline(replaceLiveRoomTimeline(page.items));
       setOlderCursor(page.nextCursor);
       setTimelineState(page.items.length ? "ready" : "empty");
+      scheduleTimelineScroll((element) => {
+        element.scrollTo({
+          behavior: "auto",
+          top: element.scrollHeight,
+        });
+        didInitialTimelineScrollRef.current = true;
+        forceOwnTimelineScrollRef.current = false;
+        timelineSticksToBottomRef.current = true;
+        handleTimelineScroll();
+        scheduleVisibleRead();
+      });
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
     } finally {
