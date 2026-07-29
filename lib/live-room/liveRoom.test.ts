@@ -573,19 +573,23 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
 
   assert.match(
     darkTokens,
-    /--sr-color-chat-timeline-background:\s*var\(--sr-color-page-background\)/,
+    /--sr-color-chat-timeline-background:\s*#08111a/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-other-background:\s*var\(--sr-color-surface-panel\)/,
+    /--sr-color-chat-bubble-other-background:\s*#131f2b/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-mine-background:\s*var\(--sr-color-accent-selected\)/,
+    /--sr-color-chat-bubble-other-border:\s*#2a3a4a/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-mine-border:\s*var\(--sr-color-accent-border\)/,
+    /--sr-color-chat-bubble-mine-background:\s*#2b171a/i,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i,
   );
   assert.match(tokens, /--sr-radius-chat-message:\s*8px/);
   assert.match(tokens, /--sr-radius-chat-control:\s*6px/);

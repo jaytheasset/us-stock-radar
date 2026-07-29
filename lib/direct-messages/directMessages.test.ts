@@ -709,19 +709,23 @@ test("Live Room and direct messages consume the exact shared financial-chat toke
   assert.match(themeTokens, /--sr-radius-chat-control:\s*6px/);
   assert.match(
     darkTokens,
-    /--sr-color-chat-timeline-background:\s*var\(--sr-color-page-background\)/,
+    /--sr-color-chat-timeline-background:\s*#08111a/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-other-background:\s*var\(--sr-color-surface-panel\)/,
+    /--sr-color-chat-bubble-other-background:\s*#131f2b/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-mine-background:\s*var\(--sr-color-accent-selected\)/,
+    /--sr-color-chat-bubble-other-border:\s*#2a3a4a/i,
   );
   assert.match(
     darkTokens,
-    /--sr-color-chat-bubble-mine-border:\s*var\(--sr-color-accent-border\)/,
+    /--sr-color-chat-bubble-mine-background:\s*#2b171a/i,
+  );
+  assert.match(
+    darkTokens,
+    /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i,
   );
   for (const [token, value] of [
     ["timeline-background", "#f6f8fa"],
@@ -732,6 +736,17 @@ test("Live Room and direct messages consume the exact shared financial-chat toke
     assert.match(
       lightTokens,
       new RegExp(`--sr-color-chat-${token}:\\s*${value}`, "i"),
+    );
+  }
+
+  for (const background of ["#08111a", "#131f2b", "#2b171a"]) {
+    assert.ok(
+      contrastRatio(background, "#d7dbe0") >= 4.5,
+      `${background} must preserve body text contrast`,
+    );
+    assert.ok(
+      contrastRatio(background, "#8a929d") >= 4.5,
+      `${background} must preserve metadata contrast`,
     );
   }
 
@@ -794,6 +809,32 @@ function assertNoUndeclaredPlpgsqlLocals(functionSql: string) {
   assert.deepEqual(
     [...referenced].filter((identifier) => !declared.has(identifier)),
     [],
+  );
+}
+
+function contrastRatio(first: string, second: string) {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (
+    (Math.max(firstLuminance, secondLuminance) + 0.05) /
+    (Math.min(firstLuminance, secondLuminance) + 0.05)
+  );
+}
+
+function relativeLuminance(color: string) {
+  const channels = color
+    .slice(1)
+    .match(/.{2}/g)!
+    .map((channel) => Number.parseInt(channel, 16) / 255)
+    .map((channel) =>
+      channel <= 0.04045
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4,
+    );
+  return (
+    0.2126 * channels[0]! +
+    0.7152 * channels[1]! +
+    0.0722 * channels[2]!
   );
 }
 
