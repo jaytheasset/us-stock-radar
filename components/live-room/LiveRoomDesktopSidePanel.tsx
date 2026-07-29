@@ -431,7 +431,10 @@ export function LiveRoomMemberList({
                       size={13}
                     />
                   ) : null}
-                  <span className={styles.sidePanelPlanBadge}>
+                  <span
+                    className={styles.sidePanelPlanBadge}
+                    data-plan={summary.plan}
+                  >
                     {getPlanDisplayName(summary.plan)}
                   </span>
                   {summary.isOnline ? (

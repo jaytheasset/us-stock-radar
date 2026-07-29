@@ -150,6 +150,10 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
   );
   assert.match(
     panel,
+    /className=\{styles\.sidePanelPlanBadge\}[\s\S]*data-plan=\{summary\.plan\}/,
+  );
+  assert.match(
+    panel,
     /visibleMembers = members\.flatMap\([\s\S]*summaries\.get\(member\.publicProfileId\)[\s\S]*return summary \? \[\{ member, summary \}\] : \[\]/,
   );
   assert.match(
@@ -192,6 +196,41 @@ test("desktop and mobile share compact 340px-safe member rows", () => {
     styles,
     /\.sidePanelMemberStats\s*\{[\s\S]*min-width:\s*0;[\s\S]*overflow:\s*hidden;[\s\S]*white-space:\s*nowrap;/,
   );
+});
+
+test("registered member badges use distinct semantic site tokens for every plan", () => {
+  const styles = read("components/live-room/LiveRoom.module.css");
+  const tokens = read("app/stock-radar-tokens.css");
+
+  const planContracts = [
+    ["free", "free"],
+    ["ad_free", "ad-free"],
+    ["pro", "pro"],
+    ["advanced", "advanced"],
+    ["ultimate", "ultimate"],
+  ] as const;
+
+  assert.match(
+    styles,
+    /\.sidePanelPlanBadge\s*\{[\s\S]*--live-room-plan-color:\s*var\(--sr-color-plan-free\);[\s\S]*--live-room-plan-surface:\s*var\(--sr-color-plan-free-surface\);[\s\S]*border:[\s\S]*var\(--live-room-plan-color\);[\s\S]*color:\s*var\(--live-room-plan-color\);[\s\S]*background:\s*var\(--live-room-plan-surface\);/,
+  );
+  for (const [plan, token] of planContracts) {
+    assert.match(
+      styles,
+      new RegExp(
+        `\\.sidePanelPlanBadge\\[data-plan="${plan}"\\] \\{[\\s\\S]*--live-room-plan-color:\\s*var\\(--sr-color-plan-${token}\\);[\\s\\S]*--live-room-plan-surface:\\s*var\\(--sr-color-plan-${token}-surface\\);`,
+      ),
+    );
+  }
+  for (const [, token] of planContracts) {
+    assert.match(
+      tokens,
+      new RegExp(
+        `--sr-color-plan-${token}:\\s*var\\(--sr-color-event-[a-z-]+\\);[\\s\\S]*--sr-color-plan-${token}-surface:\\s*var\\(--sr-color-event-[a-z-]+-surface\\);`,
+      ),
+    );
+  }
+  assert.doesNotMatch(styles, /data-plan="visitor"/);
 });
 
 function read(relativePath: string) {

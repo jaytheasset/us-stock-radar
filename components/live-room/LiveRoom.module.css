@@ -845,20 +845,46 @@
 }
 
 .sidePanelPlanBadge {
+  --live-room-plan-color: var(--sr-color-plan-free);
+  --live-room-plan-surface: var(--sr-color-plan-free-surface);
   display: inline-flex;
   min-height: 18px;
   flex: 0 0 auto;
   align-items: center;
-  border: var(--sr-border-width) solid
-    var(--sr-color-product-accent-border);
+  border: var(--sr-border-width) solid var(--live-room-plan-color);
   border-radius: var(--sr-radius-control);
   padding: 0 var(--sr-space-1);
-  color: var(--sr-color-product-accent);
-  background: var(--sr-color-product-accent-selected);
+  color: var(--live-room-plan-color);
+  background: var(--live-room-plan-surface);
   font-size: 0.625rem;
   font-weight: var(--sr-font-weight-strong);
   line-height: 1;
   white-space: nowrap;
+}
+
+.sidePanelPlanBadge[data-plan="free"] {
+  --live-room-plan-color: var(--sr-color-plan-free);
+  --live-room-plan-surface: var(--sr-color-plan-free-surface);
+}
+
+.sidePanelPlanBadge[data-plan="ad_free"] {
+  --live-room-plan-color: var(--sr-color-plan-ad-free);
+  --live-room-plan-surface: var(--sr-color-plan-ad-free-surface);
+}
+
+.sidePanelPlanBadge[data-plan="pro"] {
+  --live-room-plan-color: var(--sr-color-plan-pro);
+  --live-room-plan-surface: var(--sr-color-plan-pro-surface);
+}
+
+.sidePanelPlanBadge[data-plan="advanced"] {
+  --live-room-plan-color: var(--sr-color-plan-advanced);
+  --live-room-plan-surface: var(--sr-color-plan-advanced-surface);
+}
+
+.sidePanelPlanBadge[data-plan="ultimate"] {
+  --live-room-plan-color: var(--sr-color-plan-ultimate);
+  --live-room-plan-surface: var(--sr-color-plan-ultimate-surface);
 }
 
 .sidePanelOnline {
