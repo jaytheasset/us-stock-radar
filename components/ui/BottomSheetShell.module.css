@@ -92,6 +92,30 @@
     scrollbar-gutter: stable both-edges;
   }
 
+  .surfaceWithFixedFooter {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .footerScrollRegion {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .fixedFooter {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
   .fullScrollSurface:focus {
     outline: 0;
   }
