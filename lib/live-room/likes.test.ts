@@ -379,7 +379,11 @@ test("ordinary messages keep compact accessible engagement in the header", () =>
   );
   assert.match(
     styles,
-    /\.messageEngagement\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*margin-left:\s*auto;/,
+    /\.messageHeaderControls\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*margin-left:\s*auto;/,
+  );
+  assert.match(
+    styles,
+    /\.messageEngagement\s*\{[\s\S]*flex:\s*0 0 auto;/,
   );
   assert.doesNotMatch(
     styles.match(/\.messageEngagement\s*\{([^}]*)\}/)?.[1] || "",

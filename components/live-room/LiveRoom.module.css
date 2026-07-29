@@ -1545,7 +1545,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sr-space-1-5);
-  padding-right: calc(var(--sr-space-6) + var(--sr-space-1));
 }
 
 .otherMessage header > strong,
@@ -1595,17 +1594,25 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.messageHeaderControls {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-0-5);
+  margin-left: auto;
+}
+
 .messageActions {
-  position: absolute;
+  position: relative;
   z-index: var(--sr-z-sticky-action);
-  top: var(--sr-space-1);
-  right: var(--sr-space-1);
+  flex: 0 0 auto;
 }
 
 .messageActionsTrigger {
   display: inline-flex;
-  width: var(--sr-space-6);
-  height: var(--sr-space-6);
+  width: var(--sr-space-5);
+  height: var(--sr-space-5);
   align-items: center;
   justify-content: center;
   border: 0;
@@ -1617,8 +1624,8 @@
 }
 
 .messageActionsTrigger > svg {
-  width: var(--sr-space-4-5);
-  height: var(--sr-space-4-5);
+  width: var(--sr-font-size-sm);
+  height: var(--sr-font-size-sm);
   flex: 0 0 auto;
   color: currentColor;
   stroke: currentColor;
@@ -1770,7 +1777,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--sr-space-1);
-  margin-left: auto;
 }
 
 .messageEngagementControl {
@@ -2804,8 +2810,8 @@ button.messageReplyPreview:hover {
   }
 
   .messageActionsTrigger {
-    width: var(--sr-space-6);
-    height: var(--sr-space-6);
+    width: var(--sr-space-5);
+    height: var(--sr-space-5);
   }
 
   .latestMessagesButton {

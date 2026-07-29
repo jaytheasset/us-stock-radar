@@ -336,34 +336,36 @@ export function ChatTimeline({
                     {badge.label}
                   </a>
                 ))}
-                <MessageEngagement
-                  busy={messageLikeIds.has(item.id)}
-                  item={item}
-                  loginHref={loginHref}
-                  onReply={onReply}
-                  onToggleLike={onToggleMessageLike}
-                  viewerIsGuest={viewerIsGuest}
-                />
-                <MessageActions
-                  busy={messageActionId === item.id}
-                  canBlock={!mine && Boolean(onBlock)}
-                  canFollowMember={
-                    item.canFollowMember === true &&
-                    Boolean(onToggleMemberFollow)
-                  }
-                  canHide={canModerate && Boolean(onHide)}
-                  canMessageMember={
-                    item.canMessageMember === true &&
-                    Boolean(onMessageMember)
-                  }
-                  memberFollowed={item.isMemberFollowed === true}
-                  messageId={item.id}
-                  onBlock={onBlock}
-                  onMemberFollow={onToggleMemberFollow}
-                  onHide={onHide}
-                  onMessageMember={onMessageMember}
-                  onReport={onReport}
-                />
+                <div className={styles.messageHeaderControls}>
+                  <MessageEngagement
+                    busy={messageLikeIds.has(item.id)}
+                    item={item}
+                    loginHref={loginHref}
+                    onReply={onReply}
+                    onToggleLike={onToggleMessageLike}
+                    viewerIsGuest={viewerIsGuest}
+                  />
+                  <MessageActions
+                    busy={messageActionId === item.id}
+                    canBlock={!mine && Boolean(onBlock)}
+                    canFollowMember={
+                      item.canFollowMember === true &&
+                      Boolean(onToggleMemberFollow)
+                    }
+                    canHide={canModerate && Boolean(onHide)}
+                    canMessageMember={
+                      item.canMessageMember === true &&
+                      Boolean(onMessageMember)
+                    }
+                    memberFollowed={item.isMemberFollowed === true}
+                    messageId={item.id}
+                    onBlock={onBlock}
+                    onMemberFollow={onToggleMemberFollow}
+                    onHide={onHide}
+                    onMessageMember={onMessageMember}
+                    onReport={onReport}
+                  />
+                </div>
               </header>
               {item.eventReference ? (
                 <div className={styles.messageReference}>
@@ -604,8 +606,8 @@ function MessageActions({
       >
         <EllipsisVertical
           aria-hidden="true"
-          size={18}
-          strokeWidth={2.4}
+          size={12}
+          strokeWidth={2}
         />
       </button>
       {open ? (
