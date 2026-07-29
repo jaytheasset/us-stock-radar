@@ -5,11 +5,11 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Ban,
+  Ellipsis,
   EyeOff,
   FileText,
   Heart,
   MessageCircle,
-  MoreHorizontal,
   Reply as ReplyIcon,
   ShieldAlert,
   Sparkles,
@@ -466,7 +466,11 @@ function MessageActions({
         }}
         type="button"
       >
-        <MoreHorizontal aria-hidden="true" size={16} />
+        <Ellipsis
+          aria-hidden="true"
+          size={18}
+          strokeWidth={2.5}
+        />
       </button>
       {open ? (
         <div className={styles.messageActionsMenu} role="menu">
