@@ -22,6 +22,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { CommunityHubApiRepository } from "@/lib/community-hub/apiRepository";
 import type {
   CommunityHubPeopleFilter,
@@ -45,7 +46,6 @@ import type {
   LiveRoomPostActivity,
   LiveRoomUnreadSummary,
 } from "@/lib/live-room/types";
-import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import styles from "./CommunityHub.module.css";
 
 type HubTab = "activity" | "inbox" | "people" | "rooms";
@@ -1014,7 +1014,7 @@ function Identity({
             />
           ) : null}
         </strong>
-        <small>{getPlanDisplayName(plan)}</small>
+        <MemberPlanBadge plan={plan} />
       </span>
     </span>
   );

@@ -84,7 +84,7 @@
   gap: var(--sr-space-1-5);
 }
 
-.relationship span {
+.relationshipState {
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-pill);
   padding: var(--sr-space-1) var(--sr-space-2);

@@ -388,11 +388,6 @@
   white-space: nowrap;
 }
 
-.identity small {
-  color: var(--sr-color-text-meta);
-  font-size: var(--sr-font-size-xs);
-}
-
 .avatar,
 .roomIcon {
   display: inline-flex;

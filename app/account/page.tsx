@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { AccountLogoutButton } from "@/components/account/AccountLogoutButton";
 import styles from "@/components/account/AccountPage.module.css";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { getAuthAccessTokenFromCookies } from "@/lib/auth/sessionCookies";
 import { getSupabaseAuthUser } from "@/lib/auth/supabaseAuth";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -63,10 +64,11 @@ export default async function AccountPage() {
               Review your sign-in status, current plan, and shortcuts to the market tools saved to this account.
             </p>
           </div>
-          <span className={styles.planBadge}>
-            {getPlanDisplayName(plan.effectivePlan)}
-            {plan.planSource === "trial" ? " trial" : ""}
-          </span>
+          <MemberPlanBadge
+            className={styles.accountPlanBadge}
+            plan={plan.effectivePlan}
+            suffix={plan.planSource === "trial" ? " trial" : ""}
+          />
         </header>
 
         <div className={styles.grid}>

@@ -253,6 +253,12 @@
   gap: 9px;
 }
 
+.form .formActions button {
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
+}
+
 .list {
   display: grid;
   gap: 14px;
@@ -262,9 +268,9 @@
 .card {
   min-width: 0;
   padding: 18px;
-  border: var(--sr-border-width) solid var(--sr-color-border);
+  border: var(--sr-border-width) solid var(--post-direction-border);
   border-radius: 12px;
-  background: var(--sr-color-surface-panel);
+  background: var(--post-direction-surface);
 }
 
 .crossPostSource {

@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import {
   DIRECT_MESSAGE_POLL_INTERVAL_MS,
   DirectMessageApiRepository,
@@ -33,7 +34,6 @@ import type {
 import { DIRECT_MESSAGE_REPORT_REASONS } from "@/lib/direct-messages/types";
 import { LiveRoomApiError } from "@/lib/live-room/apiRepository";
 import { LIVE_ROOM_MESSAGE_MAX_LENGTH } from "@/lib/live-room/moderation";
-import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import styles from "./DirectMessage.module.css";
 
 type DirectMessageClientProps = {
@@ -272,10 +272,8 @@ export function DirectMessageClient({
           </div>
           {conversation ? (
             <div className={styles.relationship}>
-              <span>
-                {getPlanDisplayName(conversation.peer.plan)}
-              </span>
-              <span>
+              <MemberPlanBadge plan={conversation.peer.plan} />
+              <span className={styles.relationshipState}>
                 {conversation.status === "pending"
                   ? "Message request"
                   : conversation.mutualFollow

@@ -342,7 +342,7 @@ test("header distinguishes joined members and visitors before aggregate online c
   assert.match(timelineStyles, /\.onlineCount > i\s*\{/);
   assert.match(
     timeline,
-    /<strong>\{item\.author\.displayName\}<\/strong>[\s\S]*?getPlanDisplayName\(item\.author\.plan\)[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
+    /<strong>\{item\.author\.displayName\}<\/strong>[\s\S]*?<MemberPlanBadge[\s\S]*?item\.author\.plan[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
   );
   assert.match(
     timelineStyles,

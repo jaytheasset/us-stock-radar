@@ -158,6 +158,26 @@
   --sr-color-plan-advanced-surface: var(--sr-color-event-insider-surface);
   --sr-color-plan-ultimate: var(--sr-color-event-product);
   --sr-color-plan-ultimate-surface: var(--sr-color-event-product-surface);
+  --sr-color-plan-free-gradient-start: #fafbfc;
+  --sr-color-plan-free-gradient-end: #e7ebf0;
+  --sr-color-plan-free-border: #c9d0d9;
+  --sr-color-plan-free-text: #5f6875;
+  --sr-color-plan-ad-free-gradient-start: #ecfbf8;
+  --sr-color-plan-ad-free-gradient-end: #d0f0e9;
+  --sr-color-plan-ad-free-border: #83ccbe;
+  --sr-color-plan-ad-free-text: #21796d;
+  --sr-color-plan-pro-gradient-start: #eff5ff;
+  --sr-color-plan-pro-gradient-end: #d3e2ff;
+  --sr-color-plan-pro-border: #7fa8ea;
+  --sr-color-plan-pro-text: #315f9f;
+  --sr-color-plan-advanced-gradient-start: #fff4e5;
+  --sr-color-plan-advanced-gradient-end: #ffd39c;
+  --sr-color-plan-advanced-border: #f2a34a;
+  --sr-color-plan-advanced-text: #b85a08;
+  --sr-color-plan-ultimate-gradient-start: #f6efff;
+  --sr-color-plan-ultimate-gradient-end: #dec9ff;
+  --sr-color-plan-ultimate-border: #a982e4;
+  --sr-color-plan-ultimate-text: #7042af;
 
   /* Color: financial chat */
   --sr-color-chat-timeline-background: #08111a;
@@ -190,6 +210,7 @@
   --sr-font-family-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sr-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --sr-font-variant-numeric: tabular-nums;
+  --sr-font-size-plan-badge: 10px;
   --sr-font-size-xs: 11px;
   --sr-font-size-xs-plus: 11.5px;
   --sr-font-size-sm: 12px;
@@ -300,6 +321,7 @@
   --sr-shadow-sheet-content-footer: 0 -22px 48px rgba(0, 0, 0, 0.44);
   --sr-shadow-sheet-full-scroll: 0 -28px 70px rgba(0, 0, 0, 0.56);
   --sr-shadow-cta: inset 0 0 0 1px rgba(255, 122, 26, 0.18), 0 0 22px rgba(255, 122, 26, 0.08);
+  --sr-shadow-plan-badge-highlight: inset 0 var(--sr-border-width) 0 rgba(255, 255, 255, 0.58);
   --sr-focus-ring-width: 2px;
   --sr-focus-ring-color: rgba(255, 122, 26, 0.65);
   --sr-focus-ring-product-header: rgba(255, 122, 26, 0.65);

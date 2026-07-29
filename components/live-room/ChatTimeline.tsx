@@ -15,8 +15,8 @@ import {
   UserCheck,
   UserPlus,
 } from "lucide-react";
+import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
-import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 import {
   LIVE_ROOM_REPORT_REASONS,
   type CompanyEvent,
@@ -30,6 +30,7 @@ import {
   PostDirectionBadge,
   PostSignalChips,
 } from "./PostSignals";
+import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import styles from "./LiveRoom.module.css";
 
 const EMPTY_MESSAGE_LIKE_IDS: ReadonlySet<string> = new Set();
@@ -218,7 +219,10 @@ export function ChatTimeline({
           return (
             <Fragment key={item.id}>
               {unreadDivider}
-              <li className={styles.postPreview}>
+              <li
+                className={`${styles.postPreview} ${directionSurfaceStyles.surface}`}
+                data-direction={item.direction ?? "unspecified"}
+              >
               <div className={styles.postPreviewIcon}>
                 <FileText aria-hidden="true" size={17} />
               </div>
@@ -326,16 +330,9 @@ export function ChatTimeline({
                 ) : (
                   <strong>{item.author.displayName}</strong>
                 )}
-                <span
-                  className={styles.planBadge}
-                  data-plan={
-                    item.author.isGuest ? "visitor" : item.author.plan
-                  }
-                >
-                  {item.author.isGuest
-                    ? "Visitor"
-                    : getPlanDisplayName(item.author.plan)}
-                </span>
+                <MemberPlanBadge
+                  plan={item.author.isGuest ? "visitor" : item.author.plan}
+                />
                 <time dateTime={item.createdAt}>
                   {formatMessageTime(item.createdAt)}
                 </time>
