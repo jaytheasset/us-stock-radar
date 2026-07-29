@@ -117,11 +117,11 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(
     panel,
-    /member\.isOnline \? \([\s\S]*?Online[\s\S]*?: \([\s\S]*?"Member"/,
+    /summary\.isOnline \? \([\s\S]*?aria-label="Online"/,
   );
   assert.match(
     styles,
-    /\.sidePanelMemberProfile small i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
+    /\.sidePanelOnline i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
   );
   assert.match(client, /onChangeMainTab=\{handleDesktopTabChange\}/);
   assert.match(panel, /className=\{styles\.sidePanelMemberProfile\}/);
@@ -213,7 +213,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(
     styles,
-    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberActions a,\s*\.sidePanelMemberActions button\s*\{\s*height:\s*28px;\s*flex:\s*0 0 auto;\s*gap:\s*var\(--sr-space-1\);\s*padding:\s*0 var\(--sr-space-1-5\);/,
+    /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberActions a,\s*\.sidePanelMemberActions button\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?flex:\s*0 0 auto;[\s\S]*?padding:\s*0;/,
   );
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
   assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);

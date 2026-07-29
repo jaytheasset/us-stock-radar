@@ -125,6 +125,22 @@ export type LiveRoomMembershipList = {
   items: LiveRoomMembershipListItem[];
 };
 
+export type LiveRoomMemberSummary = {
+  displayName: string;
+  emoji: string;
+  followerCount: number;
+  isOnline: boolean;
+  plan: Plan;
+  postCount: number;
+  publicProfileId: string;
+  receivedLikeCount: number;
+  socialBadges: LiveRoomSocialBadge[];
+};
+
+export type LiveRoomMemberSummaryList = {
+  items: LiveRoomMemberSummary[];
+};
+
 export type LiveRoomSystemUpdate = {
   createdAt: string;
   event: CompanyEvent;

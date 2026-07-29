@@ -42,6 +42,8 @@ import type {
   LiveRoomChatMessage,
   LiveRoomFollowPreference,
   LiveRoomMemberFollowResult,
+  LiveRoomMemberSummary,
+  LiveRoomMemberSummaryList,
   LiveRoomMembershipList,
   LiveRoomMembershipListItem,
   LiveRoomMembershipState,
@@ -1032,6 +1034,54 @@ export async function getLiveRoomMembership({
     );
   }
   return mapMembershipState(row);
+}
+
+export async function listLiveRoomMemberSummaries({
+  actor,
+  publicProfileIds: rawPublicProfileIds,
+  slug,
+  ticker,
+}: {
+  actor: LiveRoomActor;
+  publicProfileIds: unknown;
+  slug?: string;
+  ticker?: string;
+}): Promise<LiveRoomMemberSummaryList> {
+  const room = await resolveLiveRoom({ slug, ticker });
+  const publicProfileIds = [
+    ...new Set(
+      (Array.isArray(rawPublicProfileIds) ? rawPublicProfileIds : [])
+        .slice(0, 12)
+        .map((value) => normalizeLiveRoomUuid(value)),
+    ),
+  ];
+  if (!publicProfileIds.length) return { items: [] };
+
+  const result = await supabaseRpc("get_live_room_member_summaries", {
+    p_limit: 12,
+    p_public_profile_ids: publicProfileIds,
+    p_requester_guest_session_id:
+      actor.kind === "guest" ? actor.guestSessionId : null,
+    p_requester_kind: actor.kind,
+    p_requester_member_user_id:
+      actor.kind === "member" ? actor.userId : null,
+    p_room_id: room.id,
+  });
+  const payload = readSingleRow(result.data);
+  if (!result.ok || !payload) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_SUMMARIES_UNAVAILABLE",
+      result.error || "Public member summaries could not be loaded.",
+      result.status || 502,
+    );
+  }
+  return {
+    items: readRows(payload.items)
+      .map(mapLiveRoomMemberSummary)
+      .filter(
+        (item): item is LiveRoomMemberSummary => item !== null,
+      ),
+  };
 }
 
 export async function updateLiveRoomMembership({
@@ -2040,6 +2090,57 @@ function mapMembershipListItem(
     unreadCount: readNonnegativeCount(
       row.unreadCount ?? row.unread_count,
     ),
+  };
+}
+
+function mapLiveRoomMemberSummary(
+  row: Record<string, unknown>,
+): LiveRoomMemberSummary | null {
+  const publicProfileId = readString(
+    row.publicProfileId ?? row.public_profile_id,
+  );
+  if (!isUuid(publicProfileId)) return null;
+  const socialBadges = readRows(
+    row.socialBadges ?? row.social_badges,
+  ).flatMap<LiveRoomMemberSummary["socialBadges"][number]>((badge) => {
+    const platform = readString(badge.platform);
+    const socialPlatform:
+      | "x"
+      | "youtube"
+      | "instagram"
+      | null =
+      platform === "x" ||
+      platform === "youtube" ||
+      platform === "instagram"
+        ? platform
+        : null;
+    const profileUrl = readString(
+      badge.profileUrl ?? badge.profile_url,
+    );
+    const label = readString(badge.label);
+    if (!socialPlatform || !profileUrl || !label) {
+      return [];
+    }
+    return [{ label, platform: socialPlatform, profileUrl }];
+  });
+  return {
+    displayName:
+      readString(row.displayName ?? row.display_name) || "Member",
+    emoji:
+      readString(row.emoji) || String.fromCodePoint(128100),
+    followerCount: readNonnegativeCount(
+      row.followerCount ?? row.follower_count,
+    ),
+    isOnline: row.isOnline === true || row.is_online === true,
+    plan: normalizePlan(row.plan),
+    postCount: readNonnegativeCount(
+      row.postCount ?? row.post_count,
+    ),
+    publicProfileId,
+    receivedLikeCount: readNonnegativeCount(
+      row.receivedLikeCount ?? row.received_like_count,
+    ),
+    socialBadges,
   };
 }
 
