@@ -49,6 +49,14 @@ const scenarios = {
       "analysis-collapsed-rail-inline": "analysis-collapsed-rail-slot",
     },
   }),
+  G: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "live-room-header-728x90": "live-room-header-slot",
+    },
+  }),
 };
 
 assert.equal(scenarios.A.publisherScriptEnabled, false);
@@ -90,10 +98,20 @@ assert.equal(
   Object.values(scenarios.F.manualSlotEnabled).filter(Boolean).length,
   1,
 );
+assert.equal(scenarios.G.publisherScriptEnabled, true);
+assert.equal(scenarios.G.anchorEnabled, false);
+assert.equal(
+  scenarios.G.manualSlotEnabled["live-room-header-728x90"],
+  true,
+);
+assert.equal(
+  Object.values(scenarios.G.manualSlotEnabled).filter(Boolean).length,
+  1,
+);
 
 const scriptCounts = {};
 
-for (const scenarioName of ["A", "B", "C", "D", "E", "F"]) {
+for (const scenarioName of ["A", "B", "C", "D", "E", "F", "G"]) {
   const fakeDom = installFakeDom();
   const scenario = scenarios[scenarioName];
   const loaderCalls = [];
@@ -248,6 +266,7 @@ console.log(
     D: summarize(scenarios.D),
     E: summarize(scenarios.E),
     F: summarize(scenarios.F),
+    G: summarize(scenarios.G),
     duplicateScriptGuard: "passed",
     manualFooterBoundary: "passed",
     manualFooterPremiumHref: "/premium",

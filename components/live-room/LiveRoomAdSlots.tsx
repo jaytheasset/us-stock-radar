@@ -5,6 +5,27 @@ type LiveRoomAdSlotProps = {
   enabledForViewer: boolean;
 };
 
+export function LiveRoomHeaderAdSlot({
+  enabledForViewer,
+}: LiveRoomAdSlotProps) {
+  if (!enabledForViewer) return null;
+
+  return (
+    <div className={styles.desktopHeaderAd}>
+      <AdSenseSlot
+        enabledForViewer={enabledForViewer}
+        format="fixed"
+        height={90}
+        inventory="live-room-header-728x90"
+        mediaQuery="(min-width: 1480px)"
+        placeholderSize="728 × 90"
+        showRemoveAdsLink={false}
+        width={728}
+      />
+    </div>
+  );
+}
+
 export function LiveRoomRailAdSlot({
   enabledForViewer,
 }: LiveRoomAdSlotProps) {

@@ -125,6 +125,7 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   const liveRoomRouteSource = read("../app/live/[ticker]/page.tsx");
   const liveRoomClientSource = read("../components/live-room/LiveRoomClient.tsx");
   const liveRoomAdSource = read("../components/live-room/LiveRoomAdSlots.tsx");
+  const adSenseConfigSource = read("../components/ads/adsenseConfig.ts");
   const companionSource = read(
     "../components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx",
   );
@@ -164,8 +165,16 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(liveRoomRouteSource, /const viewerPlan = await getCurrentViewerPlan\(\)/);
   assert.match(liveRoomRouteSource, /viewerPlan=\{viewerPlan\}/);
   assert.match(liveRoomClientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(liveRoomClientSource, /<LiveRoomHeaderAdSlot/);
   assert.match(liveRoomClientSource, /<LiveRoomMobileInlineAdSlot/);
   assert.match(liveRoomClientSource, /<LiveRoomRailAdSlot/);
+  assert.match(liveRoomAdSource, /inventory="live-room-header-728x90"/);
+  assert.match(liveRoomAdSource, /mediaQuery="\(min-width: 1480px\)"/);
+  assert.match(adSenseConfigSource, /"live-room-header-728x90"/);
+  assert.match(
+    adSenseConfigSource,
+    /NEXT_PUBLIC_ADSENSE_LIVE_ROOM_HEADER_728X90_SLOT_ID/,
+  );
   assert.match(liveRoomAdSource, /inventory="live-room-rail-300x250"/);
   assert.match(liveRoomAdSource, /mediaQuery="\(min-width: 1181px\)"/);
   assert.match(liveRoomAdSource, /inventory="live-room-mobile-inline"/);
