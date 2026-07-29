@@ -27,6 +27,9 @@ const migration = read(communityMigrationPath);
 const discoveryMigrationPath =
   "docs/db/migration-archive/pre-canonical-baseline/20260728034730_community_room_discovery_anchors.sql";
 const discoveryMigration = read(discoveryMigrationPath);
+const creatorMembershipMigration = read(
+  "supabase/migrations/20260729190400_community_room_creator_membership.sql",
+);
 const foundationMigration = read(
   "docs/db/migration-archive/pre-canonical-baseline/20260727101129_live_room_realtime_foundation.sql",
 );
@@ -557,6 +560,25 @@ test("creation is member-only, transactionally rate-limited, and collision-safe"
   assert.match(migration, /when unique_violation[\s\S]*COMMUNITY_ROOM_SLUG_TAKEN/i);
   assert.match(communityRepository, /attempt < 4/);
   assert.doesNotMatch(communityRepository, /ownerUserId|owner_user_id[^:]/);
+});
+
+test("community room creation atomically joins the creator", () => {
+  assert.match(
+    creatorMembershipMigration,
+    /create function private\.join_live_room_community_room_owner\(\)[\s\S]*perform private\.ensure_live_room_membership\([\s\S]*new\.room_id,[\s\S]*new\.owner_user_id/i,
+  );
+  assert.match(
+    creatorMembershipMigration,
+    /create trigger join_live_room_community_room_owner[\s\S]*after insert on public\.live_room_community_rooms/i,
+  );
+  assert.match(
+    creatorMembershipMigration,
+    /where not exists \([\s\S]*public\.live_room_memberships[\s\S]*perform private\.ensure_live_room_membership/i,
+  );
+  assert.match(
+    creatorMembershipMigration,
+    /revoke all on function private\.join_live_room_community_room_owner\(\)[\s\S]*from public, anon, authenticated/i,
+  );
 });
 
 test("create entry routes guests through one safe login return without exposing owner input", () => {
