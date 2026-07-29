@@ -705,8 +705,8 @@ test("Live Room and direct messages consume the exact shared financial-chat toke
     themeTokens.indexOf('[data-sr-theme="light"]'),
   );
 
-  assert.match(themeTokens, /--sr-radius-chat-message:\s*8px/);
-  assert.match(themeTokens, /--sr-radius-chat-control:\s*6px/);
+  assert.match(themeTokens, /--sr-radius-chat-message:\s*6px/);
+  assert.match(themeTokens, /--sr-radius-chat-control:\s*4px/);
   assert.match(
     darkTokens,
     /--sr-color-chat-timeline-background:\s*#08111a/i,

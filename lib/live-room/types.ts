@@ -78,9 +78,21 @@ export type LiveRoomPresenceMessage = {
   messageId: string;
 };
 
-export type LiveRoomPresenceSummary = {
+export type LiveRoomPublicRoomCounts = {
+  /**
+   * Display total: distinct visible authenticated authors plus current
+   * opt-in member and anonymous visitors. This is not durable membership.
+   */
+  participantCount: number;
+  /**
+   * Current aggregate visitors: opt-in authenticated presence plus opaque
+   * guest-session presence. No visitor identities are exposed.
+   */
+  onlineCount: number;
+};
+
+export type LiveRoomPresenceSummary = LiveRoomPublicRoomCounts & {
   messages: LiveRoomPresenceMessage[];
-  onlineMemberCount: number;
 };
 
 export type LiveRoomPresenceSetting = {

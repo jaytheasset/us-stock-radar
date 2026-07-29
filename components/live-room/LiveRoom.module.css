@@ -94,10 +94,30 @@
   font-size: var(--sr-font-size-sm);
 }
 
+.roomMeta .roomCounts,
 .roomMeta .onlineCount {
   display: inline-flex;
   align-items: center;
   gap: var(--sr-space-1-5);
+}
+
+.roomCounts {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.roomCounts > strong {
+  color: var(--sr-color-text-primary);
+  font: inherit;
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.roomCounts > span[aria-hidden="true"] {
+  color: var(--sr-color-text-meta);
+}
+
+.onlineCount {
+  color: var(--sr-color-text-meta);
 }
 
 .marketSummary {
@@ -134,7 +154,7 @@
   color: var(--sr-color-negative);
 }
 
-.onlineCount > span {
+.onlineCount > i {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;

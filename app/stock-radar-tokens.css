@@ -272,8 +272,8 @@
   --sr-radius-base: 6px;
   --sr-radius-mobile-control: 7px;
   --sr-radius-action: 8px;
-  --sr-radius-chat-message: 8px;
-  --sr-radius-chat-control: 6px;
+  --sr-radius-chat-message: 6px;
+  --sr-radius-chat-control: 4px;
   --sr-radius-popover: 12px;
   --sr-radius-sheet: 22px;
   --sr-radius-pill: 999px;

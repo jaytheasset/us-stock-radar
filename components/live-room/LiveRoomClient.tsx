@@ -42,6 +42,7 @@ import type {
   LiveRoomPost,
   LiveRoomPostPreview,
   LiveRoomProfile,
+  LiveRoomPublicRoomCounts,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
@@ -169,9 +170,8 @@ export function LiveRoomClient({
   const [profileOpen, setProfileOpen] = useState(false);
   const [showPresence, setShowPresence] = useState<boolean | null>(null);
   const [presenceSettingBusy, setPresenceSettingBusy] = useState(false);
-  const [onlineMemberCount, setOnlineMemberCount] = useState<
-    number | null
-  >(null);
+  const [roomCounts, setRoomCounts] =
+    useState<LiveRoomPublicRoomCounts | null>(null);
   const [followed, setFollowed] = useState<boolean | null>(null);
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [inviteState, setInviteState] =
@@ -316,7 +316,7 @@ export function LiveRoomClient({
       setProfile(null);
       setProfileOpen(false);
       setShowPresence(null);
-      setOnlineMemberCount(null);
+      setRoomCounts(null);
       setFollowed(null);
     }
     setRoomNotice(null);
@@ -567,17 +567,22 @@ export function LiveRoomClient({
   }, [timeline]);
 
   useEffect(() => {
-    const canRun =
-      (timelineState === "ready" || timelineState === "empty") &&
+    const canReadCounts =
+      timelineState === "ready" || timelineState === "empty";
+    const canHeartbeatMember =
+      canReadCounts &&
       shouldRunLiveRoomPresence({
         documentVisible: true,
         isGuest: profile?.isGuest ?? null,
         showPresence,
       });
-    if (!canRun) {
-      setOnlineMemberCount(null);
+    if (!canReadCounts) {
+      setRoomCounts(null);
       setTimeline((current) => clearLiveRoomPresence(current));
       return;
+    }
+    if (!canHeartbeatMember) {
+      setTimeline((current) => clearLiveRoomPresence(current));
     }
 
     let active = true;
@@ -592,23 +597,29 @@ export function LiveRoomClient({
       }
       requestInFlight = true;
       try {
-        const heartbeat = await repository.heartbeatPresence();
-        if (!active) return;
-        if (!heartbeat.recorded) {
-          setShowPresence(false);
-          return;
+        if (canHeartbeatMember) {
+          const heartbeat = await repository.heartbeatPresence();
+          if (!active) return;
+          if (!heartbeat.recorded) {
+            setShowPresence(false);
+          }
         }
         const summary = await repository.readPresence(
           presenceMessageIdsRef.current,
         );
         if (!active || document.visibilityState !== "visible") return;
-        setOnlineMemberCount(summary.onlineMemberCount);
-        setTimeline((current) =>
-          applyLiveRoomPresence(current, summary),
-        );
+        setRoomCounts({
+          onlineCount: summary.onlineCount,
+          participantCount: summary.participantCount,
+        });
+        if (canHeartbeatMember) {
+          setTimeline((current) =>
+            applyLiveRoomPresence(current, summary),
+          );
+        }
       } catch {
         if (active) {
-          setOnlineMemberCount(null);
+          setRoomCounts(null);
           setTimeline((current) => clearLiveRoomPresence(current));
         }
       } finally {
@@ -875,7 +886,6 @@ export function LiveRoomClient({
       );
       setShowPresence(setting.showPresence);
       if (!setting.showPresence) {
-        setOnlineMemberCount(null);
         setTimeline((current) => clearLiveRoomPresence(current));
       }
     } catch (error) {
@@ -1324,11 +1334,11 @@ export function LiveRoomClient({
             historyButtonRef={historyOpenerRef}
             identity={identity}
             inviteState={inviteState}
-            onlineMemberCount={onlineMemberCount}
             onInvite={handleInvite}
             onOpenHistory={() => handleDesktopTabChange("events")}
             onToggleFollow={handleToggleFollow}
             quote={quote}
+            roomCounts={roomCounts}
           />
           <LiveRoomHeaderAdSlot
             enabledForViewer={adsEnabledForViewer}

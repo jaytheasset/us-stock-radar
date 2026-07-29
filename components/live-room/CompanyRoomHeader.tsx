@@ -9,7 +9,10 @@ import {
 } from "lucide-react";
 import type { RefObject } from "react";
 import type { LiveRoomInviteUiState } from "@/lib/live-room/inviteShare";
-import type { CompanyRoomIdentity } from "@/lib/live-room/types";
+import type {
+  CompanyRoomIdentity,
+  LiveRoomPublicRoomCounts,
+} from "@/lib/live-room/types";
 import type { StockOverviewQuote } from "@/lib/watchlist/stockOverview";
 import styles from "./LiveRoom.module.css";
 
@@ -18,11 +21,11 @@ type CompanyRoomHeaderProps = {
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
   inviteState: LiveRoomInviteUiState;
-  onlineMemberCount: number | null;
   onInvite: () => void;
   onOpenHistory: () => void;
   onToggleFollow: () => void;
   quote: StockOverviewQuote;
+  roomCounts: LiveRoomPublicRoomCounts | null;
 };
 
 export function CompanyRoomHeader({
@@ -30,11 +33,11 @@ export function CompanyRoomHeader({
   historyButtonRef,
   identity,
   inviteState,
-  onlineMemberCount,
   onInvite,
   onOpenHistory,
   onToggleFollow,
   quote,
+  roomCounts,
 }: CompanyRoomHeaderProps) {
   const quoteTone =
     quote.changePercent === null || quote.changePercent === 0
@@ -56,10 +59,16 @@ export function CompanyRoomHeader({
         </div>
         <div className={styles.roomMeta}>
           <small>{identity.exchange}</small>
-          {onlineMemberCount !== null && onlineMemberCount > 0 ? (
-            <small className={styles.onlineCount}>
-              <span aria-hidden="true" />
-              {onlineMemberCount} online
+          {roomCounts ? (
+            <small className={styles.roomCounts}>
+              <strong>
+                {roomCounts.participantCount} participants
+              </strong>
+              <span aria-hidden="true">·</span>
+              <span className={styles.onlineCount}>
+                <i aria-hidden="true" />
+                {roomCounts.onlineCount} online
+              </span>
             </small>
           ) : null}
         </div>
