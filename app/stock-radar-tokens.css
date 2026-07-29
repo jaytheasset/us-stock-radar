@@ -460,7 +460,7 @@ html [data-event-emphasis="dilution"] {
   --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
 
   /* Color: financial chat */
-  --sr-color-chat-timeline-background: #f6f8fa;
+  --sr-color-chat-timeline-background: #f7f9fb;
   --sr-color-chat-bubble-other-background: #ffffff;
   --sr-color-chat-bubble-other-border: var(--sr-color-border);
   --sr-color-chat-bubble-mine-background: #fff1e6;

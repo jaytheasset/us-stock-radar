@@ -692,7 +692,7 @@ test("direct-message bubbles share the financial-chat colors, radii, and respons
   );
   assert.doesNotMatch(
     conversationStyles,
-    /#(?:ffffff|fff1e6|f6cba8|f6f8fa)/i,
+    /#(?:ffffff|fff1e6|f6cba8|f7f9fb)/i,
   );
 });
 
@@ -728,7 +728,7 @@ test("Live Room and direct messages consume the exact shared financial-chat toke
     /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i,
   );
   for (const [token, value] of [
-    ["timeline-background", "#f6f8fa"],
+    ["timeline-background", "#f7f9fb"],
     ["bubble-other-background", "#ffffff"],
     ["bubble-mine-background", "#fff1e6"],
     ["bubble-mine-border", "#f6cba8"],
