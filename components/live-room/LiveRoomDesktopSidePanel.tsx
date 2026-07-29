@@ -33,6 +33,7 @@ import type {
 } from "@/lib/live-room/types";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import { JoinedRoomsList } from "./JoinedRoomsList";
+import { PostSignalChips } from "./PostSignals";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
@@ -340,13 +341,46 @@ function PostsPreview({
             <span className={styles.sidePanelItemIcon}>
               <FileText aria-hidden="true" size={14} />
             </span>
-            <span>
+            <div className={styles.sidePanelPostContent}>
               <strong>{post.title}</strong>
               <small>
                 {post.author.emoji} {post.author.displayName} ·{" "}
                 {formatPreviewDate(post.createdAt)}
               </small>
-            </span>
+              <div className={styles.sidePanelPostMeta}>
+                {post.signalLabels.length ? (
+                  <div className={styles.sidePanelPostSignals}>
+                    <PostSignalChips
+                      maxVisible={1}
+                      signals={post.signalLabels}
+                    />
+                  </div>
+                ) : null}
+                <span
+                  aria-label="Post activity"
+                  className={styles.sidePanelPostActivity}
+                >
+                  <span
+                    aria-label={`${post.likeCount} likes`}
+                    title="Likes"
+                  >
+                    <Heart
+                      aria-hidden="true"
+                      fill={post.isLiked ? "currentColor" : "none"}
+                      size={12}
+                    />
+                    {post.likeCount}
+                  </span>
+                  <span
+                    aria-label={`${post.commentCount} comments`}
+                    title="Comments"
+                  >
+                    <MessageCircle aria-hidden="true" size={12} />
+                    {post.commentCount}
+                  </span>
+                </span>
+              </div>
+            </div>
           </Link>
         ))}
     </div>

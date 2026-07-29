@@ -224,6 +224,49 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.doesNotMatch(community, /label: "Members"/);
 });
 
+test("desktop Posts preview reuses signal chips and exposes compact activity counts", () => {
+  const panel = read(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
+  const styles = read("components/live-room/LiveRoom.module.css");
+  const postsPanel = read("components/live-room/PostsPanel.tsx");
+
+  assert.match(panel, /import \{ PostSignalChips \} from "\.\/PostSignals"/);
+  assert.match(
+    panel,
+    /href=\{`\/live\/posts\/\$\{post\.id\}`\}[\s\S]*className=\{styles\.sidePanelPostContent\}[\s\S]*className=\{styles\.sidePanelPostMeta\}[\s\S]*<\/Link>/,
+  );
+  assert.match(
+    panel,
+    /post\.signalLabels\.length \? \([\s\S]*<PostSignalChips[\s\S]*maxVisible=\{1\}[\s\S]*signals=\{post\.signalLabels\}/,
+  );
+  assert.match(
+    panel,
+    /aria-label="Post activity"[\s\S]*aria-label=\{`\$\{post\.likeCount\} likes`\}[\s\S]*<Heart[\s\S]*aria-label=\{`\$\{post\.commentCount\} comments`\}[\s\S]*<MessageCircle/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelPostMeta\s*\{[\s\S]*min-width:\s*0;[\s\S]*justify-content:\s*space-between;[\s\S]*flex-wrap:\s*wrap;/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelPostSignals\s*\{[\s\S]*min-width:\s*0;[\s\S]*flex:\s*1 1 0;[\s\S]*overflow:\s*hidden;/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelPostActivity\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*margin-left:\s*auto;[\s\S]*color:\s*var\(--sr-color-text-meta\);[\s\S]*font-size:\s*var\(--sr-font-size-xs\);/,
+  );
+  const activityStyles = styles.match(
+    /\.sidePanelPostActivity\s*\{([^}]*)\}/,
+  );
+  assert.ok(activityStyles);
+  assert.doesNotMatch(activityStyles[1], /font-size:\s*\d/);
+  assert.match(
+    postsPanel,
+    /<PostSignalChips maxVisible=\{2\} signals=\{post\.signalLabels\} \/>/,
+  );
+});
+
 function message({
   canFollowMember = false,
   canMessageMember = false,
