@@ -60,10 +60,11 @@ export function RoomMembershipControl({
         aria-label="Loading room membership"
         className={styles.membershipButton}
         disabled
+        title="Loading room membership"
         type="button"
       >
         <Users aria-hidden="true" size={15} />
-        Loading
+        <span className={styles.membershipActionLabel}>Loading</span>
       </button>
     );
   }
@@ -72,26 +73,36 @@ export function RoomMembershipControl({
     <>
       {joined ? (
         <div className={styles.membershipJoinedGroup}>
-          <span className={styles.membershipJoinedStatus}>
+          <span
+            aria-label="Joined"
+            className={styles.membershipJoinedStatus}
+            title="Joined"
+          >
             <Check aria-hidden="true" size={14} />
-            Joined
+            <span className={styles.membershipActionLabel}>Joined</span>
           </span>
           <button
+            aria-label="Leave room"
             className={styles.membershipLeaveButton}
             disabled={busy}
             onClick={() => setConfirmingLeave(true)}
             ref={leaveButtonRef}
+            title="Leave room"
             type="button"
           >
             <LogOut aria-hidden="true" size={14} />
-            Leave room
+            <span className={styles.membershipActionLabel}>
+              Leave room
+            </span>
           </button>
         </div>
       ) : (
         <button
+          aria-label="Join room"
           className={styles.membershipButton}
           disabled={busy}
           onClick={join}
+          title="Join room"
           type="button"
         >
           {isGuest ? (
@@ -99,7 +110,7 @@ export function RoomMembershipControl({
           ) : (
             <Users aria-hidden="true" size={15} />
           )}
-          Join room
+          <span className={styles.membershipActionLabel}>Join room</span>
         </button>
       )}
       {confirmingLeave ? (

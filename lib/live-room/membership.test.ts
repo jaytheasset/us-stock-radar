@@ -209,9 +209,22 @@ test("membership APIs derive actors, require same-origin mutations, and accept n
 });
 
 test("room UI exposes one Join state, safe guest return, Leave confirmation, and no room Follow control", () => {
-  assert.match(membershipControl, /Join room\s*<\/button>/);
-  assert.match(membershipControl, /Joined\s*<\/span>/);
-  assert.match(membershipControl, /Leave room\s*<\/button>/);
+  assert.match(
+    membershipControl,
+    /aria-label="Join room"[\s\S]*title="Join room"[\s\S]*membershipActionLabel\}>Join room<\/span>/,
+  );
+  assert.match(
+    membershipControl,
+    /aria-label="Joined"[\s\S]*title="Joined"[\s\S]*membershipActionLabel\}>Joined<\/span>/,
+  );
+  assert.match(
+    membershipControl,
+    /aria-label="Leave room"[\s\S]*title="Leave room"[\s\S]*membershipActionLabel\}>\s*Leave room/,
+  );
+  assert.match(
+    membershipControl,
+    /aria-label="Loading room membership"[\s\S]*title="Loading room membership"[\s\S]*membershipActionLabel\}>Loading<\/span>/,
+  );
   assert.match(
     membershipControl,
     /window\.location\.assign\(loginHref\)/,
@@ -302,6 +315,18 @@ test("membership controls and five-tab mobile navigation remain compact without 
   assert.match(
     liveStyles,
     /\.membershipDialogBackdrop[\s\S]*background:\s*var\(--sr-color-overlay-full-scroll\)/,
+  );
+  assert.match(
+    liveStyles,
+    /@media \(max-width: 360px\)\s*\{[\s\S]*\.roomActions \.membershipButton,[\s\S]*\.roomActions \.membershipLeaveButton,[\s\S]*\.membershipJoinedStatus[\s\S]*width:\s*calc\(var\(--sr-size-control\) - var\(--sr-space-2\)\);[\s\S]*flex:\s*0 0 calc\(var\(--sr-size-control\) - var\(--sr-space-2\)\);/,
+  );
+  assert.match(
+    liveStyles,
+    /@media \(max-width: 360px\)[\s\S]*\.roomActions \.membershipActionLabel\s*\{[\s\S]*position:\s*absolute;[\s\S]*clip-path:\s*inset\(50%\);[\s\S]*white-space:\s*nowrap;/,
+  );
+  assert.match(
+    liveStyles,
+    /@media \(max-width: 360px\)[\s\S]*\.roomMeta \.roomCounts\s*\{[\s\S]*display:\s*contents;/,
   );
   assert.match(
     tabStyles,
