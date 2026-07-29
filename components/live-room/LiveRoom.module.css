@@ -735,7 +735,8 @@
 }
 
 .sidePanelItem > span:last-child,
-.sidePanelMemberProfile > span:last-child {
+.sidePanelMemberProfile > span:last-child,
+.sidePanelPostContent {
   display: grid;
   min-width: 0;
   gap: var(--sr-space-1);
@@ -764,6 +765,52 @@
   line-height: var(--sr-line-height-default);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidePanelPostMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sr-space-1) var(--sr-space-2);
+}
+
+.sidePanelPostSignals {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.sidePanelPostSignals > div {
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.sidePanelPostActivity {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+  margin-left: auto;
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  white-space: nowrap;
+}
+
+.sidePanelPostActivity > span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-0-5);
+}
+
+.sidePanelPostActivity svg {
+  flex: 0 0 auto;
 }
 
 .sidePanelItemIcon,
