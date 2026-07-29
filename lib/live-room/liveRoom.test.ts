@@ -742,7 +742,7 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   );
   assert.match(
     styleSource,
-    /@media \(min-width: 761px\)[\s\S]*\.marketSummaryValues strong\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-lg\)/,
+    /@media \(min-width: 761px\)[\s\S]*\.marketSummaryValues strong\s*\{\s*font-size:\s*var\(--sr-font-size-xl\);[\s\S]*\.marketSummaryValues b\s*\{\s*font-size:\s*var\(--sr-font-size-md\);/,
   );
   assert.match(
     styleSource,
