@@ -909,6 +909,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--sr-space-3);
+  background: var(--sr-color-chat-timeline-background);
 }
 
 .roomNotice {
@@ -1038,7 +1039,7 @@
   min-height: 32px;
   margin: 0 auto var(--sr-space-4);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-action);
+  border-radius: var(--sr-radius-chat-control);
   padding: 0 var(--sr-space-3);
   color: var(--sr-color-text-secondary);
   background: var(--sr-color-surface-control);
@@ -1106,7 +1107,7 @@
   width: fit-content;
   max-width: min(720px, calc(100% - 46px));
   min-width: 0;
-  border-radius: var(--sr-radius-popover);
+  border-radius: var(--sr-radius-chat-message);
   padding: var(--sr-space-3);
 }
 
@@ -1151,7 +1152,7 @@
 .otherMessage header > small,
 .myMessage header > small {
   border: var(--sr-border-width) solid var(--sr-color-border-section);
-  border-radius: var(--sr-radius-sm);
+  border-radius: var(--sr-radius-chat-control);
   padding: 1px var(--sr-space-1);
   color: var(--sr-color-text-subtle);
   font-size: 9px;
@@ -1179,7 +1180,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--sr-radius-action);
+  border-radius: var(--sr-radius-chat-control);
   color: var(--sr-color-text-meta);
   background: transparent;
   cursor: pointer;
@@ -1213,7 +1214,7 @@
   align-items: center;
   gap: var(--sr-space-2);
   border: 0;
-  border-radius: var(--sr-radius-sm);
+  border-radius: var(--sr-radius-chat-control);
   padding: 0 var(--sr-space-2);
   color: var(--sr-color-text-secondary);
   background: transparent;
@@ -1260,7 +1261,7 @@
   border: 0;
   border-left: var(--sr-border-width-strong) solid
     var(--sr-color-accent-border);
-  border-radius: var(--sr-radius-sm);
+  border-radius: var(--sr-radius-chat-control);
   padding: var(--sr-space-1-5) var(--sr-space-2);
   color: var(--sr-color-text-secondary);
   background: var(--sr-color-surface-control-strong);
@@ -1298,14 +1299,15 @@ button.messageReplyPreview:hover {
 }
 
 .otherMessage article {
-  border: var(--sr-border-width) solid var(--sr-color-event-transaction-surface);
-  background: var(--sr-color-event-transaction-surface);
-  border-top-left-radius: var(--sr-radius-sm);
+  border: var(--sr-border-width) solid
+    var(--sr-color-chat-bubble-other-border);
+  background: var(--sr-color-chat-bubble-other-background);
 }
 
 .myMessage article {
-  background: var(--sr-color-accent-selected);
-  border-top-right-radius: var(--sr-radius-sm);
+  border: var(--sr-border-width) solid
+    var(--sr-color-chat-bubble-mine-border);
+  background: var(--sr-color-chat-bubble-mine-background);
 }
 
 .messageReference {
@@ -1758,9 +1760,15 @@ button.messageReplyPreview:hover {
   justify-content: center;
   gap: var(--sr-space-2);
   border-color: var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-chat-control);
   color: var(--sr-color-text-primary-action);
   background: var(--sr-color-surface-primary-action);
   cursor: pointer;
+}
+
+.composerReference button,
+.composerReply button {
+  border-radius: var(--sr-radius-chat-control);
 }
 
 .sendButton:disabled,
@@ -2389,7 +2397,7 @@ button.messageReplyPreview:hover {
   max-width: 170px;
   overflow: hidden;
   border: var(--sr-border-width) solid var(--sr-color-border);
-  border-radius: var(--sr-radius-control);
+  border-radius: var(--sr-radius-chat-control);
   padding: 0 var(--sr-space-1-5);
   color: var(--sr-color-text-secondary);
   background: transparent;

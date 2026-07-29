@@ -147,6 +147,13 @@
   --sr-color-event-neutral: #cbd1d9;
   --sr-color-event-neutral-surface: rgba(203, 209, 217, 0.08);
 
+  /* Color: financial chat */
+  --sr-color-chat-timeline-background: var(--sr-color-page-background);
+  --sr-color-chat-bubble-other-background: var(--sr-color-surface-panel);
+  --sr-color-chat-bubble-other-border: var(--sr-color-border);
+  --sr-color-chat-bubble-mine-background: var(--sr-color-accent-selected);
+  --sr-color-chat-bubble-mine-border: var(--sr-color-accent-border);
+
   /* Color: chart */
   --sr-color-chart-bullish: #3dd985;
   --sr-color-chart-bearish: #f45c55;
@@ -265,6 +272,8 @@
   --sr-radius-base: 6px;
   --sr-radius-mobile-control: 7px;
   --sr-radius-action: 8px;
+  --sr-radius-chat-message: 8px;
+  --sr-radius-chat-control: 6px;
   --sr-radius-popover: 12px;
   --sr-radius-sheet: 22px;
   --sr-radius-pill: 999px;
@@ -437,6 +446,13 @@ html [data-event-emphasis="dilution"] {
   --sr-color-event-product-surface: rgba(148, 98, 0, 0.16);
   --sr-color-event-neutral: #596678;
   --sr-color-event-neutral-surface: rgba(89, 102, 120, 0.12);
+
+  /* Color: financial chat */
+  --sr-color-chat-timeline-background: #f6f8fa;
+  --sr-color-chat-bubble-other-background: #ffffff;
+  --sr-color-chat-bubble-other-border: var(--sr-color-border);
+  --sr-color-chat-bubble-mine-background: #fff1e6;
+  --sr-color-chat-bubble-mine-border: #f6cba8;
 
   /* Color: chart */
   --sr-color-chart-bullish: #0d8749;
