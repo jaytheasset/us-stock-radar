@@ -26,6 +26,7 @@ export type BottomSheetShellViewport = "mobile" | "tablet";
 export type BottomSheetShellProps = BottomSheetAccessibleName & {
   children: ReactNode;
   closeLabel: string;
+  fixedAction?: ReactNode;
   id?: string;
   isOpen: boolean;
   layout: BottomSheetShellLayout;
@@ -97,6 +98,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   const {
     children,
     closeLabel,
+    fixedAction,
     id,
     isOpen,
     layout,
@@ -221,7 +223,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   const usesContentFooter = layout === "content-footer";
   const rootClasses = `${styles.root} ${viewport === "tablet" ? styles.tabletRoot : styles.mobileRoot} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
   const overlayClasses = `${styles.overlay} ${usesContentFooter ? styles.contentFooterOverlay : styles.fullScrollOverlay}`;
-  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface}`;
+  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedAction ? styles.surfaceWithFixedAction : ""}`;
   const closeClasses = `${styles.close} ${usesContentFooter ? styles.contentFooterClose : styles.fullScrollClose}`;
 
   return (
@@ -269,7 +271,14 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         >
           <X aria-hidden="true" size={18} />
         </button>
-        {children}
+        {fixedAction ? (
+          <>
+            <div className={styles.fixedActionScrollRegion}>{children}</div>
+            <div className={styles.fixedAction}>{fixedAction}</div>
+          </>
+        ) : (
+          children
+        )}
       </section>
     </div>
   );

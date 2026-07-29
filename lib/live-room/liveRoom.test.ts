@@ -444,6 +444,40 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     bottomSheetStyles,
     /\.fullScrollRoot\s*\{[\s\S]*z-index:\s*var\(--sr-z-sheet-full-scroll\)/,
   );
+  assert.match(clientSource, /fixedAction=\{<StockRadarThemeToggle labeled \/>\}/);
+  assert.match(bottomSheetSource, /fixedAction\?: ReactNode/);
+  assert.match(
+    bottomSheetSource,
+    /styles\.fixedActionScrollRegion[\s\S]*styles\.fixedAction/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.surfaceWithFixedAction\s*\{[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.fixedActionScrollRegion\s*\{[\s\S]*overflow-y:\s*auto[\s\S]*padding-bottom:\s*calc\([\s\S]*var\(--sr-size-control\)[\s\S]*env\(safe-area-inset-bottom\)/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.fixedAction\s*\{[\s\S]*position:\s*absolute[\s\S]*right:\s*max\(var\(--sr-space-4\), env\(safe-area-inset-right\)\)[\s\S]*bottom:\s*calc\(var\(--sr-space-4\) \+ env\(safe-area-inset-bottom\)\)/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.root,\s*\.root \*\s*\{[\s\S]*box-sizing:\s*border-box/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.surface\s*\{[\s\S]*width:\s*100%[\s\S]*max-width:\s*100vw/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.fullScrollSurface\s*\{[\s\S]*overflow-x:\s*hidden/,
+  );
+  const appShellCloseIndex = clientSource.lastIndexOf("</StockRadarAppShell>");
+  const mobileSheetIndex = clientSource.indexOf("<BottomSheetShell");
+  assert.ok(mobileSheetIndex > 0);
+  assert.ok(appShellCloseIndex > mobileSheetIndex);
   assert.doesNotMatch(
     clientSource,
     /mobileMembersOpen\b|data-mobile-members-open|styles\.membersPanel/,

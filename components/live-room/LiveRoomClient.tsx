@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
@@ -1704,7 +1705,6 @@ export function LiveRoomClient({
         </div>
 
         </div>
-      </StockRadarAppShell>
       {mobileSheet ? (
         <BottomSheetShell
           aria-label={
@@ -1717,6 +1717,7 @@ export function LiveRoomClient({
                   : "My Rooms"
           }
           closeLabel={`Close ${mobileSheet}`}
+          fixedAction={<StockRadarThemeToggle labeled />}
           id={`live-room-${mobileSheet}-sheet`}
           isOpen
           layout="full-scroll"
@@ -1840,6 +1841,7 @@ export function LiveRoomClient({
           target={messageRequestTarget}
         />
       ) : null}
+      </StockRadarAppShell>
     </>
   );
 }
