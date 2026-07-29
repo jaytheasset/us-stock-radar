@@ -1610,9 +1610,18 @@
   justify-content: center;
   border: 0;
   border-radius: var(--sr-radius-chat-control);
+  padding: 0;
   color: var(--sr-color-text-meta);
   background: transparent;
   cursor: pointer;
+}
+
+.messageActionsTrigger > svg {
+  width: var(--sr-space-4-5);
+  height: var(--sr-space-4-5);
+  flex: 0 0 auto;
+  color: currentColor;
+  stroke: currentColor;
 }
 
 .messageActionsTrigger:hover,
