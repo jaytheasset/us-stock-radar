@@ -1,15 +1,15 @@
 "use client";
 
 import { type RefObject } from "react";
-import { Bell, BellOff, Bookmark, BookmarkCheck, ExternalLink, X } from "lucide-react";
+import { Bell, BellOff, Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
   eventStatusLabels,
-  eventTypeLabels,
   marketSessionLabels,
   type CalendarEvent,
 } from "@/lib/calendar-v1/model";
@@ -17,71 +17,78 @@ import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import styles from "./CalendarV1.module.css";
 
 type CalendarEventDetailProps = {
-  event: CalendarEvent | null;
-  followed: boolean;
-  onDismiss: () => void;
-  onFollowToggle: () => void;
-  onWatchlistToggle: () => void;
+  desktopEvent: CalendarEvent | null;
+  followedEvents: Readonly<Record<string, boolean>>;
+  onFollowToggle: (event: CalendarEvent) => void;
+  onSheetDismiss: () => void;
+  onWatchlistToggle: (event: CalendarEvent) => void;
   openerRef: RefObject<HTMLElement | null>;
-  watchlisted: boolean;
+  sheetEvent: CalendarEvent | null;
+  watchlistOverrides: Readonly<Record<string, boolean>>;
 };
 
 export function CalendarEventDetail({
-  event,
-  followed,
-  onDismiss,
+  desktopEvent,
+  followedEvents,
   onFollowToggle,
+  onSheetDismiss,
   onWatchlistToggle,
   openerRef,
-  watchlisted,
+  sheetEvent,
+  watchlistOverrides,
 }: CalendarEventDetailProps) {
-  if (!event) return null;
-  const desktopTitleId = `calendar-desktop-detail-title-${event.id}`;
-  const mobileTitleId = `calendar-mobile-detail-title-${event.id}`;
+  const desktopTitleId = desktopEvent
+    ? `calendar-desktop-detail-title-${desktopEvent.id}`
+    : "calendar-desktop-detail-title";
+  const mobileTitleId = sheetEvent
+    ? `calendar-mobile-detail-title-${sheetEvent.id}`
+    : "calendar-mobile-detail-title";
 
   return (
     <>
-      <DetailPanelShell
-        aria-labelledby={desktopTitleId}
-        className={styles.desktopDetailPanel}
-      >
-        <button
-          aria-label="Close event detail"
-          className={styles.detailClose}
-          onClick={onDismiss}
-          type="button"
+      {desktopEvent ? (
+        <DetailPanelShell
+          aria-labelledby={desktopTitleId}
+          className={styles.desktopDetailPanel}
         >
-          <X aria-hidden="true" size={19} />
-        </button>
-        <CalendarEventDetailContent
-          event={event}
-          followed={followed}
-          onFollowToggle={onFollowToggle}
-          onWatchlistToggle={onWatchlistToggle}
-          titleId={desktopTitleId}
-          watchlisted={watchlisted}
-        />
-      </DetailPanelShell>
+          <CalendarEventDetailContent
+            event={desktopEvent}
+            followed={Boolean(followedEvents[desktopEvent.id])}
+            onFollowToggle={() => onFollowToggle(desktopEvent)}
+            onWatchlistToggle={() => onWatchlistToggle(desktopEvent)}
+            titleId={desktopTitleId}
+            watchlisted={
+              watchlistOverrides[desktopEvent.id] ??
+              desktopEvent.isWatchlisted
+            }
+          />
+        </DetailPanelShell>
+      ) : null}
       <BottomSheetShell
         aria-labelledby={mobileTitleId}
         closeLabel="Close event detail"
-        isOpen
+        isOpen={Boolean(sheetEvent)}
         layout="full-scroll"
-        onDismiss={onDismiss}
+        onDismiss={onSheetDismiss}
         openerRef={openerRef}
         overlayLabel="Dismiss event detail"
         viewport="tablet"
       >
-        <div className={styles.mobileDetailContent}>
-          <CalendarEventDetailContent
-            event={event}
-            followed={followed}
-            onFollowToggle={onFollowToggle}
-            onWatchlistToggle={onWatchlistToggle}
-            titleId={mobileTitleId}
-            watchlisted={watchlisted}
-          />
-        </div>
+        {sheetEvent ? (
+          <div className={styles.mobileDetailContent}>
+            <CalendarEventDetailContent
+              event={sheetEvent}
+              followed={Boolean(followedEvents[sheetEvent.id])}
+              onFollowToggle={() => onFollowToggle(sheetEvent)}
+              onWatchlistToggle={() => onWatchlistToggle(sheetEvent)}
+              titleId={mobileTitleId}
+              watchlisted={
+                watchlistOverrides[sheetEvent.id] ??
+                sheetEvent.isWatchlisted
+              }
+            />
+          </div>
+        ) : null}
       </BottomSheetShell>
     </>
   );
@@ -108,7 +115,7 @@ function CalendarEventDetailContent({
   return (
     <div className={styles.detailContent}>
       <header className={styles.detailHeader}>
-        <span>{eventTypeLabels[event.eventType]}</span>
+        <CalendarEventTypeBadge eventType={event.eventType} size="small" />
         <div>
           <strong>{event.ticker ?? "TBA"}</strong>
           <b data-status={event.status}>{eventStatusLabels[event.status]}</b>

@@ -57,6 +57,15 @@ const scenarios = {
       "live-room-header-728x90": "live-room-header-slot",
     },
   }),
+  H: resolveAdSenseConfig({
+    anchorEnabled: "false",
+    nodeEnv: "production",
+    publisherId: "ca-pub-test",
+    slotIds: {
+      "calendar-desktop-inline": "calendar-desktop-slot",
+      "calendar-mobile-inline": "calendar-mobile-slot",
+    },
+  }),
 };
 
 assert.equal(scenarios.A.publisherScriptEnabled, false);
@@ -108,10 +117,18 @@ assert.equal(
   Object.values(scenarios.G.manualSlotEnabled).filter(Boolean).length,
   1,
 );
+assert.equal(scenarios.H.publisherScriptEnabled, true);
+assert.equal(scenarios.H.anchorEnabled, false);
+assert.equal(scenarios.H.manualSlotEnabled["calendar-desktop-inline"], true);
+assert.equal(scenarios.H.manualSlotEnabled["calendar-mobile-inline"], true);
+assert.equal(
+  Object.values(scenarios.H.manualSlotEnabled).filter(Boolean).length,
+  2,
+);
 
 const scriptCounts = {};
 
-for (const scenarioName of ["A", "B", "C", "D", "E", "F", "G"]) {
+for (const scenarioName of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
   const fakeDom = installFakeDom();
   const scenario = scenarios[scenarioName];
   const loaderCalls = [];
@@ -185,6 +202,7 @@ const manualPlacementSources = await Promise.all(
     "../components/feed-v2/FeedRailAdSlot.tsx",
     "../components/alerts-v2/StockRadarAlertsV2.tsx",
     "../components/live-room/LiveRoomAdSlots.tsx",
+    "../components/calendar-v1/CalendarAdSlots.tsx",
   ].map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const analysisCompanionSource = await readFile(
@@ -267,6 +285,7 @@ console.log(
     E: summarize(scenarios.E),
     F: summarize(scenarios.F),
     G: summarize(scenarios.G),
+    H: summarize(scenarios.H),
     duplicateScriptGuard: "passed",
     manualFooterBoundary: "passed",
     manualFooterPremiumHref: "/premium",

@@ -12,6 +12,10 @@ import {
 } from "./dateUtils.ts";
 import { createCalendarMockEvents } from "./mockData.ts";
 import { DEFAULT_CALENDAR_FILTERS } from "./model.ts";
+import {
+  formatEventCount,
+  selectCalendarPreviewEvent,
+} from "./presentation.ts";
 
 test("date-only helpers parse in local calendar time and reject rollover dates", () => {
   const date = parseDateOnly("2026-07-29");
@@ -87,4 +91,58 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
   const unknownIpo = events.find((event) => event.id === "ipo-unknown-ticker");
   assert.equal(unknownIpo?.ticker, null);
   assert.equal(unknownIpo?.eventTime, null);
+});
+
+test("desktop preview defaults by view and preserves only valid selections", () => {
+  const events = createCalendarMockEvents("2026-07-29");
+  const firstTodayEvent = selectCalendarPreviewEvent(
+    events,
+    "2026-07-29",
+    "calendar",
+    null,
+  );
+  assert.equal(firstTodayEvent?.id, "earn-nvda-confirmed");
+
+  const nextDateEvents = events.filter(
+    (event) => event.eventDate === "2026-07-30",
+  );
+  const userSelection = nextDateEvents.at(-1);
+  assert.ok(userSelection);
+  assert.equal(
+    selectCalendarPreviewEvent(
+      events,
+      "2026-07-30",
+      "calendar",
+      userSelection.id,
+    )?.id,
+    userSelection.id,
+  );
+  assert.equal(
+    selectCalendarPreviewEvent(
+      events,
+      "2026-07-29",
+      "calendar",
+      userSelection.id,
+    )?.id,
+    "earn-nvda-confirmed",
+  );
+  assert.equal(
+    selectCalendarPreviewEvent(
+      events,
+      "2026-07-29",
+      "list",
+      userSelection.id,
+    )?.id,
+    userSelection.id,
+  );
+  assert.equal(
+    selectCalendarPreviewEvent(events, "2099-01-01", "calendar", null)?.id,
+    events[0]?.id,
+  );
+});
+
+test("event count grammar is singular only for one", () => {
+  assert.equal(formatEventCount(0), "0 events");
+  assert.equal(formatEventCount(1), "1 event");
+  assert.equal(formatEventCount(2), "2 events");
 });
