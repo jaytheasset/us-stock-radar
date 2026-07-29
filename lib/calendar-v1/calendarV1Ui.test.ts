@@ -88,6 +88,48 @@ test("count grammar and IPO price ranges use the shared presentation contract", 
   );
 });
 
+test("Calendar typography, day alignment, and conditional upcoming panel use local contracts", async () => {
+  const views = await read("components/calendar-v1/CalendarViews.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+  const presentation = await read("lib/calendar-v1/presentation.ts");
+  const calendarView = views.slice(
+    views.indexOf("export function CalendarView"),
+    views.indexOf("export function ListView"),
+  );
+  const upcomingRow = views.slice(
+    views.indexOf("function UpcomingEventRow"),
+    views.indexOf("function SelectedDateEmpty"),
+  );
+
+  assert.match(
+    styles,
+    /\.pageHeader h1\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-xl\);[\s\S]*font-weight:\s*var\(--sr-font-weight-heavy\);/,
+  );
+  assert.match(
+    styles,
+    /\.page \.viewControl > button,[\s\S]*\.page \.rangeControl > button,[\s\S]*\.page \.eventTypeControl > button\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-md\);[\s\S]*font-weight:\s*var\(--sr-font-weight-semibold\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*stretch;[\s\S]*flex-direction:\s*column;[\s\S]*justify-content:\s*flex-start;/,
+  );
+
+  assert.match(presentation, /selectedDateEventCount >= 3/);
+  assert.match(presentation, /event\.eventDate > selectedDate/);
+  assert.match(presentation, /stableIndex/);
+  assert.match(presentation, /\.slice\(0, Math\.max\(0, limit\)\)/);
+  assert.match(calendarView, /selectUpcomingCalendarEvents\(events, selectedDate\)/);
+  assert.match(calendarView, /\{upcomingEvents \? \(/);
+  assert.match(
+    calendarView,
+    /window\.matchMedia\("\(max-width: 1180px\)"\)[\s\S]*onSelectedDateChange\(event\.eventDate\);[\s\S]*onOpenEvent\(event, opener\);/,
+  );
+  assert.match(views, /No later events in this range\./);
+  assert.match(upcomingRow, /className=\{styles\.upcomingRowOpen\}/);
+  assert.match(upcomingRow, /<CalendarEventTypeBadge/);
+  assert.doesNotMatch(upcomingRow, /<Link|<a\b/);
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");

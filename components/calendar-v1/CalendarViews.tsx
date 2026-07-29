@@ -16,7 +16,10 @@ import {
   type CalendarDateRange,
   type CalendarEvent,
 } from "@/lib/calendar-v1/model";
-import { formatEventCount } from "@/lib/calendar-v1/presentation";
+import {
+  formatEventCount,
+  selectUpcomingCalendarEvents,
+} from "@/lib/calendar-v1/presentation";
 import { getLiveRoomHref } from "@/lib/live-room/adapters";
 import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import styles from "./CalendarV1.module.css";
@@ -47,6 +50,7 @@ export function CalendarView({
     groupCalendarEventsByDate(events).map((group) => [group.date, group.events]),
   );
   const selectedEvents = byDate.get(selectedDate) ?? [];
+  const upcomingEvents = selectUpcomingCalendarEvents(events, selectedDate);
 
   return (
     <div className={styles.calendarView} data-testid="calendar-view">
@@ -125,6 +129,18 @@ export function CalendarView({
           )}
         </div>
       </section>
+      {upcomingEvents ? (
+        <UpcomingEvents
+          events={upcomingEvents}
+          onOpenEvent={(event, opener) => {
+            if (!window.matchMedia("(max-width: 1180px)").matches) {
+              onSelectedDateChange(event.eventDate);
+            }
+            onOpenEvent(event, opener);
+          }}
+          selectedEventId={selectedEventId}
+        />
+      ) : null}
     </div>
   );
 }
@@ -220,6 +236,91 @@ function CalendarEventRow({
             <ChevronRight aria-hidden="true" size={16} />
           </Link>
         ) : null}
+      </div>
+    </article>
+  );
+}
+
+function UpcomingEvents({
+  events,
+  onOpenEvent,
+  selectedEventId,
+}: {
+  events: readonly CalendarEvent[];
+  onOpenEvent: OpenEvent;
+  selectedEventId: string | null;
+}) {
+  return (
+    <section
+      aria-labelledby="upcoming-events-title"
+      className={styles.upcomingPanel}
+      data-testid="calendar-upcoming-events"
+    >
+      <header>
+        <div>
+          <span>NEXT IN RANGE</span>
+          <h2 id="upcoming-events-title">Upcoming events</h2>
+        </div>
+        <b>{formatEventCount(events.length)}</b>
+      </header>
+      <div>
+        {events.length ? (
+          events.map((event) => (
+            <UpcomingEventRow
+              event={event}
+              isSelected={event.id === selectedEventId}
+              key={event.id}
+              onOpenEvent={onOpenEvent}
+            />
+          ))
+        ) : (
+          <p className={styles.upcomingEmpty}>No later events in this range.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function UpcomingEventRow({
+  event,
+  isSelected,
+  onOpenEvent,
+}: {
+  event: CalendarEvent;
+  isSelected: boolean;
+  onOpenEvent: OpenEvent;
+}) {
+  const date = parseDateOnly(event.eventDate);
+
+  return (
+    <article
+      className={styles.upcomingRow}
+      data-event-id={event.id}
+      data-selected={isSelected}
+    >
+      <button
+        aria-label={`Open upcoming ${event.companyName} ${eventTypeLabels[event.eventType]} details`}
+        className={styles.upcomingRowOpen}
+        onClick={(clickEvent) => onOpenEvent(event, clickEvent.currentTarget)}
+        type="button"
+      />
+      <time className={styles.upcomingDate} dateTime={event.eventDate}>
+        <span>{date.toLocaleDateString("en-US", { weekday: "short" })}</span>
+        <strong>
+          {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        </strong>
+      </time>
+      <div className={styles.upcomingIdentity}>
+        <strong>{event.ticker ?? "TBA"}</strong>
+        <span>{event.companyName}</span>
+      </div>
+      <div className={styles.upcomingDescription}>
+        <CalendarEventTypeBadge eventType={event.eventType} />
+        <strong>{event.title}</strong>
+      </div>
+      <div className={styles.upcomingMeta}>
+        <span>{marketSessionShortLabels[event.marketSession]}</span>
+        <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
       </div>
     </article>
   );
