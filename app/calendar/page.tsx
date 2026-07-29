@@ -5,6 +5,9 @@ import {
 } from "@/components/calendar-v1/StockRadarCalendarV1";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { formatDateOnly } from "@/lib/calendar-v1/dateUtils";
+import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Calendar | Stock Radar",
@@ -16,7 +19,10 @@ type CalendarPageProps = {
 };
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
-  const params = await searchParams;
+  const [params, viewerPlan] = await Promise.all([
+    searchParams,
+    getCurrentViewerPlan(),
+  ]);
   const requestedState = firstParam(params.state);
   const previewState: CalendarPreviewState =
     requestedState === "loading" || requestedState === "error" || requestedState === "empty"
@@ -25,7 +31,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <StockRadarAppShell activeNavigationItem="calendar" themeMode="user-selectable">
-      <StockRadarCalendarV1 previewState={previewState} today={formatDateOnly(new Date())} />
+      <StockRadarCalendarV1
+        previewState={previewState}
+        today={formatDateOnly(new Date())}
+        viewerPlan={viewerPlan}
+      />
     </StockRadarAppShell>
   );
 }

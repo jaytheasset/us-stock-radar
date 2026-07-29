@@ -10,10 +10,12 @@ import {
   LoaderCircle,
   RefreshCw,
 } from "lucide-react";
+import { CalendarAdSlots } from "@/components/calendar-v1/CalendarAdSlots";
 import { CalendarFilters } from "@/components/calendar-v1/CalendarFilters";
 import { CalendarEventDetail } from "@/components/calendar-v1/CalendarEventDetail";
 import { CalendarView, ListView } from "@/components/calendar-v1/CalendarViews";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import {
   countActiveCalendarFilters,
   filterCalendarEvents,
@@ -31,6 +33,11 @@ import {
   type CalendarRangePreset,
   type CalendarViewMode,
 } from "@/lib/calendar-v1/model";
+import {
+  formatEventCount,
+  selectCalendarPreviewEvent,
+} from "@/lib/calendar-v1/presentation";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./CalendarV1.module.css";
 
 export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
@@ -38,9 +45,11 @@ export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
 export function StockRadarCalendarV1({
   previewState = "default",
   today,
+  viewerPlan,
 }: {
   previewState?: CalendarPreviewState;
   today: string;
+  viewerPlan: Plan;
 }) {
   const [preset, setPreset] = useState<CalendarRangePreset>("this-week");
   const [range, setRange] = useState<CalendarDateRange>(() => getPresetDateRange("this-week", today));
@@ -48,7 +57,8 @@ export function StockRadarCalendarV1({
   const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [filters, setFilters] = useState(DEFAULT_CALENDAR_FILTERS);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
   const mobileFilterOpenerRef = useRef<HTMLButtonElement>(null);
@@ -71,25 +81,34 @@ export function StockRadarCalendarV1({
     [events, filters, range],
   );
   const activeFilterCount = countActiveCalendarFilters(filters);
+  const canShowPreview =
+    previewState === "default" &&
+    events.length > 0 &&
+    filteredEvents.length > 0;
+  const desktopPreviewEvent = canShowPreview
+    ? selectCalendarPreviewEvent(
+        filteredEvents,
+        selectedDate,
+        viewMode,
+        selectedEventId,
+      )
+    : null;
+  const sheetEvent =
+    events.find((event) => event.id === sheetEventId) ?? null;
+  const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
 
   useEffect(() => {
-    if (!selectedEvent) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && window.matchMedia("(min-width: 761px)").matches) {
-        event.preventDefault();
-        dismissDetail();
-      }
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [selectedEvent]);
+    const nextSelectedEventId = desktopPreviewEvent?.id ?? null;
+    setSelectedEventId((current) =>
+      current === nextSelectedEventId ? current : nextSelectedEventId,
+    );
+  }, [desktopPreviewEvent?.id]);
 
   function updateRange(nextRange: CalendarDateRange, nextPreset: CalendarRangePreset) {
     const normalized = normalizeDateRange(nextRange);
     setRange(normalized);
     setPreset(nextPreset);
     setSelectedDate(rangeContainsDate(normalized, today) ? today : normalized.from);
-    setSelectedEvent(null);
   }
 
   function selectPreset(nextPreset: CalendarRangePreset) {
@@ -101,12 +120,15 @@ export function StockRadarCalendarV1({
   }
 
   function openEvent(event: CalendarEvent, opener: HTMLElement) {
-    detailOpenerRef.current = opener;
-    setSelectedEvent(event);
+    setSelectedEventId(event.id);
+    if (window.matchMedia("(max-width: 1180px)").matches) {
+      detailOpenerRef.current = opener;
+      setSheetEventId(event.id);
+    }
   }
 
-  function dismissDetail() {
-    setSelectedEvent(null);
+  function dismissSheet() {
+    setSheetEventId(null);
     requestAnimationFrame(() => detailOpenerRef.current?.focus({ preventScroll: true }));
   }
 
@@ -123,7 +145,13 @@ export function StockRadarCalendarV1({
       );
     }
     if (viewMode === "list") {
-      return <ListView events={filteredEvents} onOpenEvent={openEvent} />;
+      return (
+        <ListView
+          events={filteredEvents}
+          onOpenEvent={openEvent}
+          selectedEventId={desktopPreviewEvent?.id ?? null}
+        />
+      );
     }
     return (
       <CalendarView
@@ -133,6 +161,7 @@ export function StockRadarCalendarV1({
         range={range}
         selectedDate={selectedDate}
         selectedDateListRef={selectedDateListRef}
+        selectedEventId={desktopPreviewEvent?.id ?? null}
         today={today}
       />
     );
@@ -250,38 +279,35 @@ export function StockRadarCalendarV1({
         setFilters={setFilters}
       />
 
-      <div className={styles.workspace} data-detail-open={Boolean(selectedEvent)}>
+      <CalendarAdSlots enabledForViewer={adsEnabledForViewer} />
+
+      <div className={styles.workspace} data-detail-open={Boolean(desktopPreviewEvent)}>
         <section className={styles.results} aria-label="Calendar results">
           <div className={styles.resultsSummary} aria-live="polite">
-            <span>{filteredEvents.length} events</span>
+            <span>{formatEventCount(filteredEvents.length)}</span>
             {activeFilterCount ? <b>{activeFilterCount} filters active</b> : <b>All events</b>}
           </div>
           {content}
         </section>
         <CalendarEventDetail
-          event={selectedEvent}
-          followed={selectedEvent ? Boolean(followedEvents[selectedEvent.id]) : false}
-          onDismiss={dismissDetail}
-          onFollowToggle={() => {
-            if (!selectedEvent) return;
+          desktopEvent={desktopPreviewEvent}
+          followedEvents={followedEvents}
+          onFollowToggle={(event) => {
             setFollowedEvents((current) => ({
               ...current,
-              [selectedEvent.id]: !current[selectedEvent.id],
+              [event.id]: !current[event.id],
             }));
           }}
-          onWatchlistToggle={() => {
-            if (!selectedEvent) return;
+          onSheetDismiss={dismissSheet}
+          onWatchlistToggle={(event) => {
             setWatchlistOverrides((current) => ({
               ...current,
-              [selectedEvent.id]: !(current[selectedEvent.id] ?? selectedEvent.isWatchlisted),
+              [event.id]: !(current[event.id] ?? event.isWatchlisted),
             }));
           }}
           openerRef={detailOpenerRef}
-          watchlisted={
-            selectedEvent
-              ? watchlistOverrides[selectedEvent.id] ?? selectedEvent.isWatchlisted
-              : false
-          }
+          sheetEvent={sheetEvent}
+          watchlistOverrides={watchlistOverrides}
         />
       </div>
     </div>

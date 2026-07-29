@@ -75,6 +75,46 @@ test("all ad-free and paid plans disable advertising", () => {
   }
 });
 
+test("Calendar resolves free-only ads on the server and owns both inventories", () => {
+  const pageSource = read("../app/calendar/page.tsx");
+  const workspaceSource = read(
+    "../components/calendar-v1/StockRadarCalendarV1.tsx",
+  );
+  const placementSource = read(
+    "../components/calendar-v1/CalendarAdSlots.tsx",
+  );
+  const configSource = read("../components/ads/adsenseConfig.ts");
+  const envSource = read("../.env.local.example");
+
+  assert.equal(areAdsEnabledForPlan("free"), true);
+  for (const plan of ["ad_free", "pro", "advanced", "ultimate"] as const) {
+    assert.equal(areAdsEnabledForPlan(plan), false);
+  }
+  assert.match(pageSource, /getCurrentViewerPlan\(\)/);
+  assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
+  assert.match(workspaceSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(placementSource, /inventory="calendar-desktop-inline"/);
+  assert.match(placementSource, /inventory="calendar-mobile-inline"/);
+  assert.match(configSource, /"calendar-desktop-inline"/);
+  assert.match(configSource, /"calendar-mobile-inline"/);
+  assert.match(
+    configSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID/,
+  );
+  assert.match(
+    configSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID/,
+  );
+  assert.match(
+    envSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID=/,
+  );
+  assert.match(
+    envSource,
+    /NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID=/,
+  );
+});
+
 test("free viewers see the collapsed rail fallback before a score rationale", () => {
   assert.equal(
     shouldShowAnalysisCollapsedRailInlineAd({

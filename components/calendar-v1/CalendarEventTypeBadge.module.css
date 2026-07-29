@@ -1,0 +1,8 @@
+.dividend {
+  color: var(--sr-color-positive);
+  background: color-mix(
+    in srgb,
+    var(--sr-color-positive) 1%,
+    var(--sr-color-surface) 99%
+  );
+}

@@ -20,6 +20,8 @@ export const adSenseInventories = [
   "live-room-header-728x90",
   "live-room-rail-300x250",
   "live-room-mobile-inline",
+  "calendar-desktop-inline",
+  "calendar-mobile-inline",
 ] as const;
 
 export type AdSenseInventory = (typeof adSenseInventories)[number];
@@ -95,6 +97,12 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
     "live-room-mobile-inline": normalize(
       input.slotIds?.["live-room-mobile-inline"],
     ),
+    "calendar-desktop-inline": normalize(
+      input.slotIds?.["calendar-desktop-inline"],
+    ),
+    "calendar-mobile-inline": normalize(
+      input.slotIds?.["calendar-mobile-inline"],
+    ),
   };
   const isProductionPublisher =
     input.nodeEnv === "production" && Boolean(publisherId);
@@ -144,6 +152,10 @@ export function resolveAdSenseConfig(input: AdSenseConfigInput): AdSenseConfig {
       isProductionPublisher && Boolean(slotIds["live-room-rail-300x250"]),
     "live-room-mobile-inline":
       isProductionPublisher && Boolean(slotIds["live-room-mobile-inline"]),
+    "calendar-desktop-inline":
+      isProductionPublisher && Boolean(slotIds["calendar-desktop-inline"]),
+    "calendar-mobile-inline":
+      isProductionPublisher && Boolean(slotIds["calendar-mobile-inline"]),
   };
 
   return {
@@ -203,5 +215,9 @@ export const adsenseConfig = resolveAdSenseConfig({
       process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_RAIL_300X250_SLOT_ID,
     "live-room-mobile-inline":
       process.env.NEXT_PUBLIC_ADSENSE_LIVE_ROOM_MOBILE_INLINE_SLOT_ID,
+    "calendar-desktop-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID,
+    "calendar-mobile-inline":
+      process.env.NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID,
   },
 });

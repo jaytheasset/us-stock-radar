@@ -3,6 +3,7 @@
 import type { RefObject } from "react";
 import { Bookmark, ChevronRight, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import {
   enumerateDateRange,
   groupCalendarEventsByDate,
@@ -15,6 +16,7 @@ import {
   type CalendarDateRange,
   type CalendarEvent,
 } from "@/lib/calendar-v1/model";
+import { formatEventCount } from "@/lib/calendar-v1/presentation";
 import { getLiveRoomHref } from "@/lib/live-room/adapters";
 import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import styles from "./CalendarV1.module.css";
@@ -28,6 +30,7 @@ export function CalendarView({
   range,
   selectedDate,
   selectedDateListRef,
+  selectedEventId,
   today,
 }: {
   events: readonly CalendarEvent[];
@@ -36,6 +39,7 @@ export function CalendarView({
   range: CalendarDateRange;
   selectedDate: string;
   selectedDateListRef: RefObject<HTMLDivElement | null>;
+  selectedEventId: string | null;
   today: string;
 }) {
   const dates = enumerateDateRange(range);
@@ -61,7 +65,7 @@ export function CalendarView({
                 weekday: "long",
                 month: "long",
                 day: "numeric",
-              })}, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
+              })}, ${formatEventCount(dayEvents.length)}`}
               aria-pressed={isSelected}
               className={styles.calendarDay}
               data-selected={isSelected}
@@ -80,9 +84,9 @@ export function CalendarView({
               </span>
               <span className={styles.dayEvents}>
                 {dayEvents.slice(0, 3).map((event) => (
-                  <span data-type={event.eventType} key={event.id}>
+                  <span key={event.id}>
                     <b>{event.ticker ?? "TBA"}</b>
-                    <small>{eventTypeLabels[event.eventType]}</small>
+                    <CalendarEventTypeBadge eventType={event.eventType} />
                   </span>
                 ))}
                 {dayEvents.length > 3 ? <strong>+{dayEvents.length - 3} more</strong> : null}
@@ -104,12 +108,17 @@ export function CalendarView({
               })}
             </h2>
           </div>
-          <b>{selectedEvents.length} events</b>
+          <b>{formatEventCount(selectedEvents.length)}</b>
         </header>
         <div ref={selectedDateListRef} tabIndex={-1}>
           {selectedEvents.length ? (
             selectedEvents.map((event) => (
-              <CalendarEventRow event={event} key={event.id} onOpenEvent={onOpenEvent} />
+              <CalendarEventRow
+                event={event}
+                isSelected={event.id === selectedEventId}
+                key={event.id}
+                onOpenEvent={onOpenEvent}
+              />
             ))
           ) : (
             <SelectedDateEmpty />
@@ -123,9 +132,11 @@ export function CalendarView({
 export function ListView({
   events,
   onOpenEvent,
+  selectedEventId,
 }: {
   events: readonly CalendarEvent[];
   onOpenEvent: OpenEvent;
+  selectedEventId: string | null;
 }) {
   const groups = groupCalendarEventsByDate(events);
   return (
@@ -143,11 +154,16 @@ export function ListView({
                 <h2>{date.toLocaleDateString("en-US", { weekday: "long" })}</h2>
                 <p>{date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
               </div>
-              <b>{group.events.length} events</b>
+              <b>{formatEventCount(group.events.length)}</b>
             </header>
             <div>
               {group.events.map((event) => (
-                <CalendarEventRow event={event} key={event.id} onOpenEvent={onOpenEvent} />
+                <CalendarEventRow
+                  event={event}
+                  isSelected={event.id === selectedEventId}
+                  key={event.id}
+                  onOpenEvent={onOpenEvent}
+                />
               ))}
             </div>
           </section>
@@ -159,15 +175,21 @@ export function ListView({
 
 function CalendarEventRow({
   event,
+  isSelected,
   onOpenEvent,
 }: {
   event: CalendarEvent;
+  isSelected: boolean;
   onOpenEvent: OpenEvent;
 }) {
   const liveRoomHref = getLiveRoomHref(event.ticker);
   const stockHref = getStockRouteHref(event.ticker);
   return (
-    <article className={styles.eventRow} data-event-id={event.id}>
+    <article
+      className={styles.eventRow}
+      data-event-id={event.id}
+      data-selected={isSelected}
+    >
       <button
         aria-label={`Open ${event.companyName} ${eventTypeLabels[event.eventType]} details`}
         className={styles.eventRowOpen}
@@ -180,7 +202,7 @@ function CalendarEventRow({
         {event.isWatchlisted ? <Bookmark aria-label="In mock watchlist" fill="currentColor" size={13} /> : null}
       </div>
       <div className={styles.eventDescription}>
-        <span data-type={event.eventType}>{eventTypeLabels[event.eventType]}</span>
+        <CalendarEventTypeBadge eventType={event.eventType} />
         <strong>{event.title}</strong>
       </div>
       <div className={styles.eventMeta}>

@@ -797,12 +797,13 @@ Dashboard inventory is independently configured through `dashboard-rail`, `dashb
 - Dashboard V2 placement owners: `components/dashboard-v2/DesktopRailAdSlot.tsx`, `components/dashboard-v2/DesktopInlineAdSlot.tsx`, and `components/dashboard-v2/MobileInlineAdSlot.tsx`
 - Filing analysis placement owners: `components/filing-analysis-v2/FilingRailAdSlot.tsx`, `components/filing-analysis-v2/FilingInlineAdSlot.tsx`, `components/filing-analysis-v2/AnalysisSignalCompanionAd.tsx`, and `components/filing-analysis-v2/AnalysisCollapsedRailInlineAd.tsx`
 - Alerts placement owner: `components/alerts-v2/StockRadarAlertsV2.tsx`
+- Calendar placement owner: `components/calendar-v1/CalendarAdSlots.tsx`
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
 - Site-wide Anchor opt-in owner: `app/layout.tsx`
 
 `adsenseScriptLoader` is the single owner of the official `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` script ID and DOM insertion. It stores the in-flight or completed promise on `window`, also checks the stable script element ID, and therefore inserts at most one script across Anchor opt-in, manual slots, React rerenders, and App Router navigation. It does not create an ad container, call `adsbygoogle.push`, or schedule refreshes.
 
-`AdSenseSlot` owns every manual `ins.adsbygoogle` attribute, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard across News V2, Filings V2, Dashboard V2, filing analysis, and Alerts. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
+`AdSenseSlot` owns every manual `ins.adsbygoogle` attribute, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard across News V2, Filings V2, Dashboard V2, filing analysis, Alerts, and Calendar. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
 
 Every rendered manual slot, including its development placeholder path, includes a low-emphasis site-owned footer with the inert label `Advertisement`, a divider, and a `Remove ads` link to the canonical `/premium` route. The footer is a sibling after the fixed-size ad surface: it is never a child of `ins.adsbygoogle`, never overlays the creative, and has explicit spacing plus a border separating its link target from the Google ad click area. This separation follows Google's [ad placement policy](https://support.google.com/adsense/answer/1346295?hl=en) guidance for avoiding accidental clicks near ads. `showRemoveAdsLink` can suppress this footer for a manual placement, while `enabledForViewer=false` suppresses both the manual ad and its footer without inventing a current subscription state.
 
@@ -819,6 +820,7 @@ Viewer eligibility for News and Filings list/detail manual placements is resolve
 - A free-viewer news or filing analysis with exactly one non-empty Bullish/Bearish card places the independently configured analysis-signal companion unit in the other desktop grid cell. Both-card and no-card analyses do not mount it. At 760 px and below, the existing one-column analysis grid stacks the companion unit after the signal card.
 - When a free-viewer analysis has no related-content rail and a visible Score Rationale, the ad-only desktop rail collapses at 1180 px and an independently configured horizontal fallback appears immediately above Score Rationale. It is capped at 970 x 90 from 761 through 1180 px and adapts to a 480 x 100 reservation at 760 px and below. Above 1180 px the fallback remains hidden and its media query prevents an AdSense request; related-content rails and analyses without Score Rationale never mount it.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. Minimum reservations prevent layout shift without forcing an oversized empty rectangle.
+- Calendar places one ad boundary after its filters and before its results workspace. Free viewers receive a 970 x 90 horizontal inventory above 1180 px or an exact 320 x 50 mobile/tablet inventory at 1180 px and below. Paid and ad-free plans mount neither placement.
 
 ### Configuration, fallback, and activation
 
@@ -844,6 +846,8 @@ The publisher script is eligible only in a production build with `NEXT_PUBLIC_AD
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_MOBILE_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X250_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X600_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID`
 
 The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each manual inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, manual positions retain their established `Advertisement` placeholders, while the Anchor loader renders nothing and does not load the Google script. In production, a missing manual slot ID leaves only that manual position on its placeholder path and does not block another configured slot or Anchor.
 

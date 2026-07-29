@@ -29,8 +29,7 @@
 
 .pageHeader > div:first-child > span,
 .selectedDateSection > header span,
-.mobileFilterSheet header > span,
-.detailHeader > span {
+.mobileFilterSheet header > span {
   color: var(--sr-color-accent-text);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-heavy);
@@ -396,27 +395,8 @@
   background: var(--sr-color-event-neutral-surface);
 }
 
-.dayEvents > span[data-type="earnings"] {
-  border-left-color: var(--sr-color-event-earnings);
-  background: var(--sr-color-event-earnings-surface);
-}
-
-.dayEvents > span[data-type="dividend"] {
-  border-left-color: var(--sr-color-positive);
-}
-
-.dayEvents > span[data-type="split"] {
-  border-left-color: var(--sr-color-event-transaction);
-  background: var(--sr-color-event-transaction-surface);
-}
-
-.dayEvents > span[data-type="ipo"] {
-  border-left-color: var(--sr-color-event-product);
-  background: var(--sr-color-event-product-surface);
-}
-
 .dayEvents b,
-.dayEvents small {
+.dayEvents > span > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -426,11 +406,6 @@
   color: var(--sr-color-text-ticker);
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-xs);
-}
-
-.dayEvents small {
-  color: var(--sr-color-text-muted);
-  font-size: 10px;
 }
 
 .dayEvents > strong {
@@ -532,7 +507,7 @@
   position: relative;
   display: grid;
   min-height: 70px;
-  grid-template-columns: minmax(170px, 0.7fr) minmax(220px, 1.2fr) minmax(135px, 0.45fr) auto;
+  grid-template-columns: minmax(170px, 0.7fr) minmax(220px, 1.2fr) minmax(135px, 0.45fr) 72px;
   align-items: center;
   gap: var(--sr-space-4);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
@@ -546,6 +521,14 @@
 
 .eventRow:hover {
   background: var(--sr-color-surface-table-hover);
+}
+
+@media (min-width: 1181px) {
+  .eventRow[data-selected="true"] {
+    box-shadow: inset var(--sr-border-width-strong) 0 0
+      var(--sr-color-accent-border-active);
+    background: var(--sr-color-accent-subtle);
+  }
 }
 
 .eventRowOpen {
@@ -600,34 +583,8 @@
   gap: var(--sr-space-1);
 }
 
-.eventDescription span {
+.eventDescription > span {
   width: max-content;
-  border-radius: var(--sr-radius-pill);
-  padding: var(--sr-space-0-5) var(--sr-space-2);
-  color: var(--sr-color-text-secondary);
-  background: var(--sr-color-event-neutral-surface);
-  font-size: 10px;
-  font-weight: var(--sr-font-weight-heavy);
-  text-transform: uppercase;
-}
-
-.eventDescription span[data-type="earnings"] {
-  color: var(--sr-color-event-earnings);
-  background: var(--sr-color-event-earnings-surface);
-}
-
-.eventDescription span[data-type="split"] {
-  color: var(--sr-color-event-transaction);
-  background: var(--sr-color-event-transaction-surface);
-}
-
-.eventDescription span[data-type="ipo"] {
-  color: var(--sr-color-event-product);
-  background: var(--sr-color-event-product-surface);
-}
-
-.eventDescription span[data-type="dividend"] {
-  color: var(--sr-color-positive);
 }
 
 .eventDescription strong {
@@ -666,6 +623,8 @@
   position: relative;
   z-index: 2;
   display: flex;
+  width: 72px;
+  justify-content: flex-end;
   gap: var(--sr-space-1);
 }
 
@@ -708,22 +667,6 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
-.detailClose {
-  position: absolute;
-  z-index: 2;
-  top: var(--sr-space-3);
-  right: var(--sr-space-3);
-  display: grid;
-  width: var(--sr-size-icon-button);
-  height: var(--sr-size-icon-button);
-  place-items: center;
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-pill);
-  color: var(--sr-color-text-detail-close);
-  background: var(--sr-color-surface-control);
-  cursor: pointer;
-}
-
 .detailContent {
   min-width: 0;
   padding: var(--sr-space-5);
@@ -731,7 +674,6 @@
 
 .detailHeader {
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-  padding-right: var(--sr-space-7);
   padding-bottom: var(--sr-space-4);
 }
 
@@ -1045,7 +987,7 @@
   }
 
   .eventRow {
-    grid-template-columns: minmax(135px, 0.65fr) minmax(180px, 1fr) minmax(110px, 0.4fr) auto;
+    grid-template-columns: minmax(135px, 0.65fr) minmax(180px, 1fr) minmax(110px, 0.4fr) 72px;
     gap: var(--sr-space-3);
   }
 }
@@ -1238,6 +1180,7 @@
   }
 
   .eventActions {
+    width: auto;
     grid-column: 2;
     grid-row: 1;
   }
@@ -1262,9 +1205,6 @@
     padding-left: var(--sr-space-4);
   }
 
-  .detailHeader {
-    padding-right: var(--sr-space-6);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
