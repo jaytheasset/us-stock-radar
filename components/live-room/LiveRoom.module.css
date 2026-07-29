@@ -1026,12 +1026,24 @@
   display: flex;
   width: 34px;
   height: 34px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-pill);
   background: var(--sr-color-surface-elevated);
   font-size: var(--sr-font-size-lg);
+}
+
+.messageAvatarLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.messageAvatarLink:hover,
+.messageAvatarLink:focus-visible {
+  border-color: var(--sr-color-accent-border);
+  background: var(--sr-color-surface-control-strong);
 }
 
 .otherMessage article,
@@ -1053,10 +1065,30 @@
 }
 
 .otherMessage header > strong,
-.myMessage header > strong {
+.myMessage header > strong,
+.messageAuthorLink {
   overflow-wrap: anywhere;
   color: var(--sr-color-text-strong);
   font-size: var(--sr-font-size-sm);
+}
+
+.messageAuthorLink {
+  font-weight: var(--sr-font-weight-strong);
+  text-decoration: none;
+}
+
+.messageAuthorLink:hover,
+.messageAuthorLink:focus-visible {
+  color: var(--sr-color-accent-text);
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-0-5);
+}
+
+.messageAvatarLink:focus-visible,
+.messageAuthorLink:focus-visible {
+  border-radius: var(--sr-radius-action);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }
 
 .otherMessage header > span,

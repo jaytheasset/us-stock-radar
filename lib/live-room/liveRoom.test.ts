@@ -523,6 +523,67 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
 });
 
+test("registered chat author avatar and name open the safe public profile", () => {
+  const timeline = readSource("components/live-room/ChatTimeline.tsx");
+  const styles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const company = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const community = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+
+  assert.match(company, /<ChatTimeline/);
+  assert.match(community, /<ChatTimeline/);
+  assert.match(
+    timeline,
+    /!item\.author\.isGuest && item\.author\.publicProfileId[\s\S]*encodeURIComponent\(\s*item\.author\.publicProfileId/,
+  );
+  assert.equal(
+    timeline.match(/href=\{publicProfileHref\}/g)?.length,
+    2,
+  );
+  assert.match(
+    timeline,
+    /aria-label=\{`View \$\{item\.author\.displayName\}'s public profile`\}[\s\S]*messageAvatarLink/,
+  );
+  assert.match(
+    timeline,
+    /className=\{styles\.messageAuthorLink\}[\s\S]*\{item\.author\.displayName\}/,
+  );
+  assert.match(
+    timeline,
+    /publicProfileHref \? \([\s\S]*<Link[\s\S]*: \([\s\S]*className=\{styles\.messageAvatar\}/,
+  );
+  assert.match(
+    timeline,
+    /publicProfileHref \? \([\s\S]*className=\{styles\.messageAuthorLink\}[\s\S]*: \([\s\S]*<strong>\{item\.author\.displayName\}<\/strong>/,
+  );
+  assert.doesNotMatch(timeline, /item\.author\.(?:userId|email)/);
+
+  assert.match(
+    timeline,
+    /className=\{styles\.postPreviewAuthor\}[\s\S]*item\.author\.publicProfileId/,
+  );
+  const replyStart = timeline.indexOf("{item.replyPreview ? (");
+  const replyEnd = timeline.indexOf("<p>{item.body}</p>", replyStart);
+  assert.ok(replyStart >= 0 && replyEnd > replyStart);
+  const replyMarkup = timeline.slice(replyStart, replyEnd);
+  assert.match(replyMarkup, /className=\{styles\.messageReplyPreview\}/);
+  assert.doesNotMatch(replyMarkup, /<Link/);
+
+  assert.match(
+    styles,
+    /\.messageAvatarLink:hover,[\s\S]*\.messageAvatarLink:focus-visible[\s\S]*var\(--sr-color-accent-border\)/,
+  );
+  assert.match(
+    styles,
+    /\.messageAvatarLink:focus-visible,[\s\S]*\.messageAuthorLink:focus-visible[\s\S]*var\(--sr-focus-ring-color\)/,
+  );
+});
+
 test("Live Room timeline starts latest, sticks selectively, and preserves older prepends", () => {
   const clientSource = readSource(
     "components/live-room/LiveRoomClient.tsx",
