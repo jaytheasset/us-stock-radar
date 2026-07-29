@@ -40,7 +40,8 @@
 .pageHeader h1 {
   margin: var(--sr-space-1) 0 0;
   color: var(--sr-color-text-heading);
-  font-size: var(--sr-font-size-heading-sm);
+  font-size: var(--sr-font-size-xl);
+  font-weight: var(--sr-font-weight-heavy);
   line-height: var(--sr-line-height-none);
 }
 
@@ -78,6 +79,13 @@
   width: min(480px, 100%);
 }
 
+.page .viewControl > button,
+.page .rangeControl > button,
+.page .eventTypeControl > button {
+  font-size: var(--sr-font-size-md);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
 .periodNavigation,
 .customRange,
 .customRange label,
@@ -105,6 +113,8 @@
   min-width: var(--sr-size-control);
   place-items: center;
   padding: 0 var(--sr-space-3);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
   cursor: pointer;
 }
 
@@ -230,6 +240,10 @@
   position: relative;
 }
 
+.filterMenu button > b {
+  font-weight: var(--sr-font-weight-semibold);
+}
+
 .filterMenuOptions {
   position: absolute;
   z-index: calc(var(--sr-z-sticky-action) + 1);
@@ -323,8 +337,12 @@
 }
 
 .calendarDay {
+  display: flex;
   min-width: 0;
   min-height: 142px;
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: flex-start;
   border: 0;
   padding: var(--sr-space-2);
   color: var(--sr-color-text-primary);
@@ -415,6 +433,7 @@
 }
 
 .selectedDateSection,
+.upcomingPanel,
 .dateGroup,
 .statePanel {
   border: var(--sr-border-width) solid var(--sr-color-border);
@@ -427,7 +446,13 @@
   overflow: hidden;
 }
 
+.upcomingPanel {
+  margin-top: var(--sr-space-4);
+  overflow: hidden;
+}
+
 .selectedDateSection > header,
+.upcomingPanel > header,
 .dateGroup > header {
   display: flex;
   align-items: center;
@@ -438,6 +463,7 @@
 }
 
 .selectedDateSection h2,
+.upcomingPanel h2,
 .dateGroup h2 {
   margin: var(--sr-space-1) 0 0;
   color: var(--sr-color-text-heading);
@@ -445,6 +471,7 @@
 }
 
 .selectedDateSection > header > b,
+.upcomingPanel > header > b,
 .dateGroup > header > b {
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-xs);
@@ -454,6 +481,133 @@
 
 .selectedDateSection > div:focus {
   outline-offset: calc(var(--sr-focus-ring-offset) * -1);
+}
+
+.upcomingPanel > header span {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-heavy);
+  letter-spacing: var(--sr-letter-spacing-wide);
+}
+
+.upcomingRow {
+  position: relative;
+  display: grid;
+  min-height: 62px;
+  grid-template-columns:
+    88px minmax(150px, 0.7fr) minmax(210px, 1.2fr)
+    minmax(105px, 0.45fr);
+  align-items: center;
+  gap: var(--sr-space-3);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) var(--sr-space-4);
+  background: var(--sr-color-surface-table-row);
+}
+
+.upcomingRow:last-child {
+  border-bottom: 0;
+}
+
+.upcomingRow:hover {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.upcomingRow[data-selected="true"] {
+  box-shadow: inset var(--sr-border-width-strong) 0 0
+    var(--sr-color-accent-border-active);
+  background: var(--sr-color-accent-subtle);
+}
+
+.upcomingRowOpen {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.upcomingDate,
+.upcomingIdentity,
+.upcomingDescription,
+.upcomingMeta {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.upcomingDate {
+  display: grid;
+  color: var(--sr-color-text-muted);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-xs);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+}
+
+.upcomingDate strong {
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+}
+
+.upcomingIdentity,
+.upcomingDescription,
+.upcomingMeta {
+  display: grid;
+  gap: var(--sr-space-1);
+}
+
+.upcomingIdentity strong {
+  color: var(--sr-color-text-ticker);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-md);
+}
+
+.upcomingIdentity span,
+.upcomingDescription > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcomingIdentity span,
+.upcomingMeta {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+}
+
+.upcomingDescription > span {
+  width: max-content;
+}
+
+.upcomingDescription > strong {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+}
+
+.upcomingMeta {
+  justify-items: start;
+}
+
+.upcomingMeta b {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.upcomingMeta b[data-status="completed"] {
+  color: var(--sr-color-positive);
+}
+
+.upcomingMeta b[data-status="estimated"] {
+  color: var(--sr-color-warning);
+}
+
+.upcomingEmpty {
+  margin: 0;
+  padding: var(--sr-space-3) var(--sr-space-4);
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-sm);
 }
 
 .listView {
@@ -1211,8 +1365,43 @@
   }
 
   .selectedDateSection > header,
+  .upcomingPanel > header,
   .dateGroup > header {
     padding: var(--sr-space-3);
+  }
+
+  .upcomingPanel {
+    margin-top: var(--sr-space-3);
+  }
+
+  .upcomingRow {
+    min-height: 98px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: var(--sr-space-1-5) var(--sr-space-2);
+    padding: var(--sr-space-3);
+  }
+
+  .upcomingDate {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .upcomingIdentity {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .upcomingDescription {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .upcomingMeta {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: var(--sr-space-2);
   }
 
   .eventRow {

@@ -15,6 +15,7 @@ import { DEFAULT_CALENDAR_FILTERS } from "./model.ts";
 import {
   formatEventCount,
   selectCalendarPreviewEvent,
+  selectUpcomingCalendarEvents,
 } from "./presentation.ts";
 
 test("date-only helpers parse in local calendar time and reject rollover dates", () => {
@@ -145,4 +146,68 @@ test("event count grammar is singular only for one", () => {
   assert.equal(formatEventCount(0), "0 events");
   assert.equal(formatEventCount(1), "1 event");
   assert.equal(formatEventCount(2), "2 events");
+});
+
+test("upcoming events are conditional, stable, selected-date exclusive, and capped", () => {
+  const selectedDate = "2026-07-31";
+  const source = createCalendarMockEvents("2026-07-29").slice(0, 8);
+  const eventDates = [
+    selectedDate,
+    "2026-08-03",
+    "2026-08-01",
+    "2026-08-01",
+    "2026-08-02",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-06",
+  ];
+  const oneSelectedEvent = source.map((event, index) => ({
+    ...event,
+    eventDate: eventDates[index],
+  }));
+  const upcoming = selectUpcomingCalendarEvents(
+    oneSelectedEvent,
+    selectedDate,
+  );
+
+  assert.ok(upcoming);
+  assert.deepEqual(
+    upcoming.map((event) => event.id),
+    [source[2].id, source[3].id, source[4].id, source[1].id, source[5].id],
+  );
+  assert.equal(upcoming.length, 5);
+  assert.ok(upcoming.every((event) => event.eventDate !== selectedDate));
+
+  for (const selectedCount of [0, 1, 2]) {
+    const events = source.map((event, index) => ({
+      ...event,
+      eventDate:
+        index < selectedCount
+          ? selectedDate
+          : `2026-08-${String(index + 1).padStart(2, "0")}`,
+    }));
+    assert.notEqual(
+      selectUpcomingCalendarEvents(events, selectedDate),
+      null,
+      `${selectedCount} selected-date events`,
+    );
+  }
+
+  const threeSelectedEvents = source.map((event, index) => ({
+    ...event,
+    eventDate: index < 3 ? selectedDate : "2026-08-01",
+  }));
+  assert.equal(
+    selectUpcomingCalendarEvents(threeSelectedEvents, selectedDate),
+    null,
+  );
+
+  const noLaterEvents = [
+    { ...source[0], eventDate: selectedDate },
+    { ...source[1], eventDate: "2026-07-30" },
+  ];
+  assert.deepEqual(
+    selectUpcomingCalendarEvents(noLaterEvents, selectedDate),
+    [],
+  );
 });
