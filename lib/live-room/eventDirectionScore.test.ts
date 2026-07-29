@@ -112,6 +112,7 @@ test("event score UI remains compact without overflowing desktop or mobile cards
   assert.ok(signalRule);
   assert.match(signalRule, /min-width:\s*0/);
   assert.match(signalRule, /max-width:\s*100%/);
+  assert.match(signalRule, /flex:\s*0 0 auto/);
   assert.match(signalRule, /overflow:\s*hidden/);
   assert.match(signalRule, /white-space:\s*nowrap/);
   assert.match(
@@ -125,5 +126,28 @@ test("event score UI remains compact without overflowing desktop or mobile cards
   assert.match(
     styles,
     /@media \(max-width: 760px\)[\s\S]*?\.latestEventCard\s*\{[\s\S]*?padding:/,
+  );
+});
+
+test("latest event meta wraps the score instead of shrinking it to zero", () => {
+  const styles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+
+  assert.match(
+    styles,
+    /\.eventMeta\s*\{[\s\S]*?flex-wrap:\s*wrap/,
+  );
+  assert.match(
+    styles,
+    /\.eventSignalScore\s*\{[\s\S]*?max-width:\s*100%[\s\S]*?flex:\s*0 0 auto/,
+  );
+  assert.match(
+    styles,
+    /\.sidePanelItem \.eventSignalScore\s*\{[\s\S]*?flex:\s*0 1 auto/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.eventMeta \.eventSignalScore\s*\{[\s\S]*?flex:\s*0 1 auto/,
   );
 });

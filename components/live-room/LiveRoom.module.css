@@ -378,7 +378,7 @@
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--sr-space-1);
   overflow: hidden;
@@ -387,6 +387,10 @@
   font-size: var(--sr-font-size-xs);
   line-height: var(--sr-line-height-default);
   white-space: nowrap;
+}
+
+.sidePanelItem .eventSignalScore {
+  flex: 0 1 auto;
 }
 
 .eventSignalDirection,
