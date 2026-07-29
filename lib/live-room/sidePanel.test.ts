@@ -135,7 +135,11 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(panel, /<LiveRoomMemberList[\s\S]*members=\{members\}/);
   assert.match(
     client,
-    /active=\{mobileSheet \?\? "chat"\}[\s\S]*controlsId: "live-room-members-sheet"[\s\S]*label: "Members"[\s\S]*value: "members"[\s\S]*visibility="mobile"/,
+    /const mobileLiveRoomTabs = \[[\s\S]*controlsId: "live-room-members-sheet"[\s\S]*label: "Members"[\s\S]*value: "members"[\s\S]*\] as const;/,
+  );
+  assert.match(
+    client,
+    /active=\{mobileSheet \?\? "chat"\}[\s\S]*items=\{mobileLiveRoomTabs\}[\s\S]*visibility="mobile"/,
   );
   assert.match(
     client,
@@ -192,7 +196,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(tabs, /"--live-room-mobile-tab-count": items\.length/);
   assert.match(
     tabStyles,
-    /\.tabs\.mobileDock\s*\{[\s\S]*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
+    /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
   );
   assert.match(tabStyles, /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/);
   assert.match(

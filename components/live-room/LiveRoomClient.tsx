@@ -111,6 +111,31 @@ type LiveRoomClientProps = {
 type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
 type MobileLiveRoomSheet = "events" | "members" | "posts" | "rooms";
+type MobileLiveRoomTab = "chat" | MobileLiveRoomSheet;
+
+const mobileLiveRoomTabs = [
+  { label: "Chat", value: "chat" },
+  {
+    controlsId: "live-room-posts-sheet",
+    label: "Posts",
+    value: "posts",
+  },
+  {
+    controlsId: "live-room-events-sheet",
+    label: "Events",
+    value: "events",
+  },
+  {
+    controlsId: "live-room-members-sheet",
+    label: "Members",
+    value: "members",
+  },
+  {
+    controlsId: "live-room-rooms-sheet",
+    label: "Rooms",
+    value: "rooms",
+  },
+] as const;
 
 const EMPTY_QUOTE: StockOverviewQuote = {
   change: null,
@@ -1026,6 +1051,11 @@ export function LiveRoomClient({
     setActiveTab(tab);
   };
 
+  const handleMobileTabChange = useCallback((tab: MobileLiveRoomTab) => {
+    setActiveTab("chat");
+    setMobileSheet(tab === "chat" ? null : tab);
+  }, []);
+
   const handleMobileTabElementChange = useCallback(
     (
       tab: "chat" | MobileLiveRoomSheet,
@@ -1467,37 +1497,8 @@ export function LiveRoomClient({
           active={mobileSheet ?? "chat"}
           dockOnMobile
           idPrefix="live-room-mobile"
-          items={[
-            { label: "Chat", value: "chat" },
-            {
-              controlsId: "live-room-posts-sheet",
-              label: "Posts",
-              value: "posts",
-            },
-            {
-              controlsId: "live-room-events-sheet",
-              label: "Events",
-              value: "events",
-            },
-            {
-              controlsId: "live-room-members-sheet",
-              label: "Members",
-              value: "members",
-            },
-            {
-              controlsId: "live-room-rooms-sheet",
-              label: "Rooms",
-              value: "rooms",
-            },
-          ]}
-          onChange={(tab) => {
-            setActiveTab("chat");
-            if (tab === "chat") {
-              setMobileSheet(null);
-              return;
-            }
-            setMobileSheet(tab);
-          }}
+          items={mobileLiveRoomTabs}
+          onChange={handleMobileTabChange}
           onItemElementChange={handleMobileTabElementChange}
           visibility="mobile"
         />
@@ -1716,6 +1717,16 @@ export function LiveRoomClient({
                   : "My Rooms"
           }
           closeLabel={`Close ${mobileSheet}`}
+          fixedFooter={
+            <RoomTabs
+              active={mobileSheet}
+              dockInMobileSheet
+              idPrefix="live-room-sheet"
+              items={mobileLiveRoomTabs}
+              onChange={handleMobileTabChange}
+              visibility="mobile"
+            />
+          }
           id={`live-room-${mobileSheet}-sheet`}
           isOpen
           layout="full-scroll"

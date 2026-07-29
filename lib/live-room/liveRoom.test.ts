@@ -339,20 +339,33 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
     clientSource.match(
       /<RoomTabs\s+active=\{mobileSheet \?\? "chat"\}[\s\S]*?visibility="mobile"\s*\/>/,
     )?.[0] ?? "";
+  const mobileTabItems =
+    clientSource.match(
+      /const mobileLiveRoomTabs = \[[\s\S]*?\] as const;/,
+    )?.[0] ?? "";
 
   assert.match(desktopTabs, /label: "Chat"/);
   assert.match(desktopTabs, /label: "Posts"/);
   assert.match(desktopTabs, /label: "Events"/);
   assert.doesNotMatch(desktopTabs, /label: "Members"/);
-  assert.match(mobileTabs, /label: "Members"/);
-  assert.match(mobileTabs, /controlsId: "live-room-posts-sheet"/);
-  assert.match(mobileTabs, /controlsId: "live-room-events-sheet"/);
-  assert.match(mobileTabs, /controlsId: "live-room-members-sheet"/);
+  assert.match(mobileTabItems, /label: "Chat"/);
+  assert.match(mobileTabItems, /label: "Posts"/);
+  assert.match(mobileTabItems, /label: "Events"/);
+  assert.match(mobileTabItems, /label: "Members"/);
+  assert.match(mobileTabItems, /label: "Rooms"/);
+  assert.match(mobileTabItems, /controlsId: "live-room-posts-sheet"/);
+  assert.match(mobileTabItems, /controlsId: "live-room-events-sheet"/);
+  assert.match(mobileTabItems, /controlsId: "live-room-members-sheet"/);
+  assert.match(mobileTabItems, /controlsId: "live-room-rooms-sheet"/);
   assert.match(mobileTabs, /idPrefix="live-room-mobile"/);
   assert.match(mobileTabs, /dockOnMobile/);
+  assert.match(mobileTabs, /items=\{mobileLiveRoomTabs\}/);
+  assert.match(mobileTabs, /onChange=\{handleMobileTabChange\}/);
   assert.match(mobileTabs, /onItemElementChange=\{handleMobileTabElementChange\}/);
+  assert.match(tabsSource, /dockInMobileSheet\?: boolean/);
   assert.match(tabsSource, /dockOnMobile\?: boolean/);
   assert.match(tabsSource, /styles\.mobileDock/);
+  assert.match(tabsSource, /styles\.mobileSheetDock/);
   assert.match(tabsSource, /styles\.desktopOnlyTabs/);
   assert.match(tabsSource, /styles\.mobileOnlyTabs/);
   assert.match(
@@ -371,7 +384,11 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
   assert.match(
     postStyles,
-    /\.tabs\.mobileDock\s*\{[\s\S]*grid-template-columns:\s*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
+    /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*grid-template-columns:\s*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
+  );
+  assert.match(
+    postStyles,
+    /\.tabs\.mobileSheetDock\s*\{[\s\S]*position:\s*relative/,
   );
   assert.match(
     postStyles,
@@ -388,7 +405,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     postStyles,
-    /\.tabs\.mobileDock\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*height:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
+    /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*height:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
   );
   assert.match(
     clientSource,
@@ -416,7 +433,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     clientSource,
-    /onChange=\{\(tab\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*tab === "chat"[\s\S]*setMobileSheet\(null\)/,
+    /const handleMobileTabChange = useCallback\(\(tab: MobileLiveRoomTab\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*setMobileSheet\(tab === "chat" \? null : tab\)/,
   );
   assert.match(clientSource, /mobilePostsOpenerRef/);
   assert.match(clientSource, /mobileEventsOpenerRef/);
@@ -447,6 +464,27 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   assert.doesNotMatch(clientSource, /StockRadarThemeToggle|fixedAction=/);
   assert.doesNotMatch(bottomSheetSource, /fixedAction/);
   assert.doesNotMatch(bottomSheetStyles, /fixedAction|surfaceWithFixedAction/);
+  assert.match(bottomSheetSource, /fixedFooter\?: ReactNode/);
+  assert.match(
+    bottomSheetSource,
+    /styles\.footerScrollRegion[\s\S]*styles\.fixedFooter/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.surfaceWithFixedFooter\s*\{[\s\S]*display:\s*flex[\s\S]*overflow:\s*hidden/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.footerScrollRegion\s*\{[\s\S]*overflow-y:\s*auto/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.fixedFooter\s*\{[\s\S]*flex:\s*0 0 auto/,
+  );
+  assert.match(
+    clientSource,
+    /fixedFooter=\{\s*<RoomTabs[\s\S]*active=\{mobileSheet\}[\s\S]*dockInMobileSheet[\s\S]*idPrefix="live-room-sheet"[\s\S]*items=\{mobileLiveRoomTabs\}[\s\S]*onChange=\{handleMobileTabChange\}[\s\S]*visibility="mobile"/,
+  );
   assert.match(
     bottomSheetStyles,
     /\.root,\s*\.root \*\s*\{[\s\S]*box-sizing:\s*border-box/,

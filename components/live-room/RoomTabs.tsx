@@ -21,6 +21,7 @@ type RoomTabsVisibility = "all" | "desktop" | "mobile";
 
 export function RoomTabs<T extends LiveRoomTab>({
   active,
+  dockInMobileSheet = false,
   dockOnMobile = false,
   idPrefix = "live-room",
   items,
@@ -29,6 +30,7 @@ export function RoomTabs<T extends LiveRoomTab>({
   visibility = "all",
 }: {
   active: T;
+  dockInMobileSheet?: boolean;
   dockOnMobile?: boolean;
   idPrefix?: string;
   items: ReadonlyArray<{
@@ -70,6 +72,7 @@ export function RoomTabs<T extends LiveRoomTab>({
       className={[
         styles.tabs,
         dockOnMobile ? styles.mobileDock : null,
+        dockInMobileSheet ? styles.mobileSheetDock : null,
         visibility === "desktop" ? styles.desktopOnlyTabs : null,
         visibility === "mobile" ? styles.mobileOnlyTabs : null,
       ]
