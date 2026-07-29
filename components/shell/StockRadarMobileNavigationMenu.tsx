@@ -11,14 +11,18 @@ export const stockRadarMobileMenuId = "stock-radar-mobile-navigation-menu";
 
 export type StockRadarMobileNavigationMenuProps = {
   activeItem: StockRadarPrimaryNavigationKey | null;
+  loginHref: string;
   menuRef: Ref<HTMLDivElement>;
   onItemActivate: (item: StockRadarNavigationItem) => void;
+  signupHref: string;
 };
 
 export function StockRadarMobileNavigationMenu({
   activeItem,
+  loginHref,
   menuRef,
   onItemActivate,
+  signupHref,
 }: StockRadarMobileNavigationMenuProps) {
   return (
     <div
@@ -61,7 +65,7 @@ export function StockRadarMobileNavigationMenu({
         })}
       </nav>
       <div className={styles.mobileMenuAccount}>
-        <AuthStatus />
+        <AuthStatus loginHref={loginHref} signupHref={signupHref} />
       </div>
     </div>
   );

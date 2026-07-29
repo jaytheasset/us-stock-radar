@@ -22,6 +22,7 @@ import {
   type ModerationReason,
 } from "@/lib/live-room/moderation";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
+import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import {
   isCurrentLiveRoomTimelineGeneration,
   mergeLiveRoomTimeline,
@@ -68,6 +69,9 @@ export function CommunityRoomClient({
         realtimeConfig,
       ),
     [realtimeConfig, room.slug],
+  );
+  const roomLoginHref = createLiveRoomMemberLoginHref(
+    `/live/community/${room.slug}`,
   );
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
   const [timelineState, setTimelineState] =
@@ -594,6 +598,7 @@ export function CommunityRoomClient({
 
         {activeTab === "posts" ? (
           <PostsPanel
+            loginHref={roomLoginHref}
             onCreated={(preview) => {
               setTimeline((current) =>
                 mergeLiveRoomTimeline(current, [preview]),
@@ -745,6 +750,7 @@ export function CommunityRoomClient({
             }
             eventReference={null}
             focusRequestId={composerFocusRequestId}
+            loginHref={roomLoginHref}
             onBodyChange={(nextBody) => {
               setBody(nextBody);
               setDecision(null);

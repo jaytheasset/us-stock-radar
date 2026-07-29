@@ -387,8 +387,9 @@ test("creator verification entry and guidance describe the existing ownership re
   assert.match(composerUi, /BadgeCheck/);
   assert.match(
     composerUi,
-    /profile\.isGuest[\s\S]*"\/login\?next=%2Faccount%2Fcreator"[\s\S]*"\/account\/creator"/,
+    /loginHref:\s*string[\s\S]*profile\.isGuest[\s\S]*\? loginHref[\s\S]*:\s*"\/account\/creator"/,
   );
+  assert.doesNotMatch(composerUi, /\/login\?next=%2Faccount%2Fcreator/);
   assert.match(composerUi, /Sign in to apply/);
   assert.match(composerUi, /Apply for creator verification/);
   assert.match(composerUi, /Instagram · X · YouTube/);

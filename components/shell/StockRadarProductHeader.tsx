@@ -30,6 +30,12 @@ export function StockRadarProductHeader({
   showThemeToggle = false,
 }: StockRadarProductHeaderProps) {
   const pathname = usePathname();
+  const authReturnPath =
+    pathname && pathname.startsWith("/") && !pathname.startsWith("//")
+      ? pathname
+      : "/";
+  const loginHref = `/login?next=${encodeURIComponent(authReturnPath)}`;
+  const signupHref = `/signup?next=${encodeURIComponent(authReturnPath)}`;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -115,7 +121,7 @@ export function StockRadarProductHeader({
             <Settings aria-hidden="true" size={18} />
           </IconButton>
           <div className={styles.desktopAccount}>
-            <AuthStatus />
+            <AuthStatus loginHref={loginHref} signupHref={signupHref} />
           </div>
           <IconButton
             aria-controls={isMobileMenuOpen ? stockRadarMobileMenuId : undefined}
@@ -134,8 +140,10 @@ export function StockRadarProductHeader({
       {isMobileMenuOpen ? (
         <StockRadarMobileNavigationMenu
           activeItem={activeNavigationItem}
+          loginHref={loginHref}
           menuRef={mobileMenuRef}
           onItemActivate={handleItemActivate}
+          signupHref={signupHref}
         />
       ) : null}
     </>

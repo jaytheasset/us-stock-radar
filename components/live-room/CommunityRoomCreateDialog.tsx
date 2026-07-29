@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   COMMUNITY_ROOM_FOCUS_TAGS,
   COMMUNITY_ROOM_INDUSTRY_OPTIONS,
@@ -21,6 +22,10 @@ import {
   type CommunityRoomIndustry,
   type CommunityRoomTheme,
 } from "@/lib/live-room/community";
+import {
+  COMMUNITY_ROOM_CREATE_LOGIN_HREF,
+  type CommunityRoomCreateEligibility,
+} from "@/lib/live-room/communityCreateEligibility";
 import {
   requestJson,
   toLiveRoomApiError,
@@ -51,16 +56,61 @@ const initialForm: FormState = {
   topic: "",
 };
 
-export function CommunityRoomCreateDialog() {
+export function CommunityRoomCreateDialog({
+  openOnLoad = false,
+}: {
+  openOnLoad?: boolean;
+}) {
   const router = useRouter();
   const dialogRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const busyRef = useRef(false);
+  const eligibilityBusyRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
   const [busy, setBusy] = useState(false);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [eligibility, setEligibility] =
+    useState<CommunityRoomCreateEligibility | null>(null);
+  const [eligibilityError, setEligibilityError] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   busyRef.current = busy;
+
+  const beginCreateFlow = useCallback(async () => {
+    if (eligibilityBusyRef.current) return;
+    eligibilityBusyRef.current = true;
+    setCheckingEligibility(true);
+    setEligibilityError(null);
+    try {
+      const result = await requestJson<CommunityRoomCreateEligibility>(
+        "/api/live-room/community/create-eligibility",
+      );
+      if (result.reason === "COMMUNITY_ROOM_MEMBER_REQUIRED") {
+        window.location.assign(
+          result.nextActionHref || COMMUNITY_ROOM_CREATE_LOGIN_HREF,
+        );
+        return;
+      }
+      setEligibility(result);
+      setOpen(true);
+    } catch (requestError) {
+      setEligibility(null);
+      setEligibilityError(toLiveRoomApiError(requestError).message);
+      setOpen(true);
+    } finally {
+      eligibilityBusyRef.current = false;
+      setCheckingEligibility(false);
+    }
+  }, []);
+
+  const openOnLoadHandled = useRef(false);
+  useEffect(() => {
+    if (!openOnLoad || openOnLoadHandled.current) return;
+    openOnLoadHandled.current = true;
+    void beginCreateFlow();
+  }, [beginCreateFlow, openOnLoad]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,7 +146,10 @@ export function CommunityRoomCreateDialog() {
     };
     window.addEventListener("keydown", handleKeyDown);
     window.requestAnimationFrame(() => {
-      dialog?.querySelector<HTMLElement>("input")?.focus();
+      const initialFocus =
+        dialog?.querySelector<HTMLElement>("input") ??
+        dialog?.querySelector<HTMLElement>("a[href], button");
+      initialFocus?.focus();
     });
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -189,12 +242,13 @@ export function CommunityRoomCreateDialog() {
     <>
       <button
         className={styles.createButton}
-        onClick={() => setOpen(true)}
+        disabled={checkingEligibility}
+        onClick={() => void beginCreateFlow()}
         ref={openerRef}
         type="button"
       >
         <Plus aria-hidden="true" size={16} />
-        Create room
+        {checkingEligibility ? "Checking eligibility…" : "Create a room"}
       </button>
       {open ? (
         <div className={styles.dialogBackdrop} role="presentation">
@@ -209,7 +263,9 @@ export function CommunityRoomCreateDialog() {
               <div>
                 <span>Member-created discussion</span>
                 <h2 id="community-room-create-title">
-                  Create a Community Room
+                  {eligibility?.canCreate
+                    ? "Create a Community Room"
+                    : "Before you create a room"}
                 </h2>
               </div>
               <button
@@ -222,11 +278,13 @@ export function CommunityRoomCreateDialog() {
                 <X aria-hidden="true" size={18} />
               </button>
             </header>
-            <p className={styles.dialogIntro}>
-              Choose structured details so people can find the room. A
-              signed-in member account is required.
-            </p>
-            <form className={styles.createForm} onSubmit={submit}>
+            {eligibility?.canCreate ? (
+              <>
+                <p className={styles.dialogIntro}>
+                  Choose structured details so people can find the room.
+                  Your account meets the current creation limits.
+                </p>
+                <form className={styles.createForm} onSubmit={submit}>
               <label>
                 <span>Room name</span>
                 <input
@@ -502,7 +560,61 @@ export function CommunityRoomCreateDialog() {
                   {busy ? "Creating…" : "Create Community Room"}
                 </button>
               </footer>
-            </form>
+                </form>
+              </>
+            ) : (
+              <div
+                className={styles.eligibilityPanel}
+                role={eligibilityError ? "alert" : "status"}
+              >
+                <AlertCircle aria-hidden="true" size={20} />
+                <div>
+                  <strong>
+                    {eligibilityError
+                      ? "Eligibility could not be checked"
+                      : eligibility?.reason ===
+                          "COMMUNITY_ROOM_CREATE_DAILY_LIMIT"
+                        ? "24-hour creation limit reached"
+                        : "Creation cooldown is active"}
+                  </strong>
+                  <p>
+                    {eligibilityError ||
+                      eligibility?.message ||
+                      "Room creation is temporarily unavailable."}
+                  </p>
+                  {eligibility?.retryAt ? (
+                    <small>
+                      Try again after{" "}
+                      {new Date(eligibility.retryAt).toLocaleString(
+                        "en-US",
+                      )}
+                      .
+                    </small>
+                  ) : null}
+                  <div className={styles.eligibilityActions}>
+                    {eligibility?.nextActionHref &&
+                    eligibility.nextActionLabel ? (
+                      <Link href={eligibility.nextActionHref}>
+                        {eligibility.nextActionLabel}
+                      </Link>
+                    ) : (
+                      <button
+                        disabled={checkingEligibility}
+                        onClick={() => void beginCreateFlow()}
+                        type="button"
+                      >
+                        {checkingEligibility
+                          ? "Checking…"
+                          : "Check again"}
+                      </button>
+                    )}
+                    <button onClick={() => setOpen(false)} type="button">
+                      Back to directory
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       ) : null}

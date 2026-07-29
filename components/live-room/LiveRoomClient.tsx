@@ -1458,6 +1458,7 @@ export function LiveRoomClient({
           <PostsPanel
             cursor={postsCursor}
             events={events}
+            loginHref={roomLoginHref}
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={handlePostCreated}
@@ -1541,6 +1542,7 @@ export function LiveRoomClient({
               }
               eventReference={reference}
               focusRequestId={composerFocusRequestId}
+              loginHref={roomLoginHref}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
                 setDecision(null);
@@ -1631,6 +1633,7 @@ export function LiveRoomClient({
                 cursor={postsCursor}
                 currentTicker={ticker}
                 events={events}
+                loginHref={roomLoginHref}
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}

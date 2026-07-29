@@ -58,11 +58,14 @@
 .filterActions button,
 .filterActions a,
 .openRoomLink,
+.openCompanyRoomLink,
 .pagination a,
 .directoryEmpty a,
 .backLink,
 .createForm footer button,
-.closeButton {
+.closeButton,
+.eligibilityActions a,
+.eligibilityActions button {
   display: inline-flex;
   min-height: var(--sr-size-control);
   align-items: center;
@@ -84,11 +87,19 @@
 .filterActions button:hover,
 .filterActions a:hover,
 .openRoomLink:hover,
+.openCompanyRoomLink:hover,
 .pagination a:hover,
 .directoryEmpty a:hover,
-.createForm footer button:hover {
+.createForm footer button:hover,
+.eligibilityActions a:hover,
+.eligibilityActions button:hover {
   color: var(--sr-color-text-heading);
   background: var(--sr-color-surface-control-strong);
+}
+
+.createButton:disabled {
+  opacity: var(--sr-opacity-disabled);
+  cursor: wait;
 }
 
 .directoryFilters {
@@ -390,6 +401,112 @@
   line-height: var(--sr-line-height-default);
 }
 
+.companyRoomResult {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+  margin-bottom: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-accent-selected);
+}
+
+.companyRoomIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-surface-control);
+}
+
+.companyRoomResult > div:nth-child(2) {
+  min-width: 0;
+}
+
+.companyRoomResult span {
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.companyRoomResult h3 {
+  margin: var(--sr-space-1) 0 0;
+  font-size: var(--sr-font-size-lg);
+}
+
+.companyRoomResult h3 a {
+  color: var(--sr-color-text-heading);
+  text-decoration: none;
+}
+
+.companyRoomResult p {
+  min-width: 0;
+  margin: var(--sr-space-1-5) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.openCompanyRoomLink {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.companyLookupNotice {
+  margin: 0 0 var(--sr-space-4);
+  border-left: 3px solid var(--sr-color-border-section);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-sm);
+}
+
+.eligibilityPanel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-5);
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-panel);
+}
+
+.eligibilityPanel > svg {
+  color: var(--sr-color-accent-text);
+}
+
+.eligibilityPanel strong {
+  color: var(--sr-color-text-heading);
+}
+
+.eligibilityPanel p {
+  margin: var(--sr-space-1-5) 0 0;
+  line-height: var(--sr-line-height-default);
+}
+
+.eligibilityPanel small {
+  display: block;
+  margin-top: var(--sr-space-2);
+  color: var(--sr-color-text-meta);
+}
+
+.eligibilityActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-4);
+}
+
 .createForm {
   display: grid;
   gap: var(--sr-space-4);
@@ -679,10 +796,13 @@
 .directoryFilters button:focus-visible,
 .directoryFilters a:focus-visible,
 .roomCard a:focus-visible,
+.companyRoomResult a:focus-visible,
 .createDialog button:focus-visible,
 .createDialog input:focus-visible,
 .createDialog textarea:focus-visible,
 .createDialog select:focus-visible,
+.eligibilityActions a:focus-visible,
+.eligibilityActions button:focus-visible,
 .backLink:focus-visible {
   outline: 2px solid var(--sr-color-accent-text);
   outline-offset: 2px;
@@ -704,6 +824,15 @@
 
   .roomGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .companyRoomResult {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .openCompanyRoomLink {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 
@@ -751,6 +880,19 @@
 
   .roomCard {
     min-height: 0;
+  }
+
+  .companyRoomResult {
+    grid-template-columns: 1fr;
+  }
+
+  .companyRoomIcon {
+    display: none;
+  }
+
+  .openCompanyRoomLink {
+    grid-column: auto;
+    width: 100%;
   }
 
   .openRoomLink {

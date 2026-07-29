@@ -36,6 +36,7 @@ export function PostsPanel({
   cursor: controlledCursor,
   currentTicker,
   events = [],
+  loginHref,
   onLoad: controlledLoad,
   onPostsChange: controlledPostsChange,
   onCreated,
@@ -47,6 +48,7 @@ export function PostsPanel({
   cursor?: string | null;
   currentTicker?: string;
   events?: readonly CompanyEvent[];
+  loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
   onPostsChange?: (
     update: (current: LiveRoomPost[]) => LiveRoomPost[],
@@ -254,7 +256,8 @@ export function PostsPanel({
       {profile?.isGuest ? (
         <div className={styles.signInNote}>
           <strong>Sign in to publish a post.</strong>
-          <span>Public posts remain readable without an account. Use the account menu to sign in.</span>
+          <span>Public posts remain readable without an account.</span>
+          <Link href={loginHref}>Sign in and return to this room</Link>
         </div>
       ) : null}
 

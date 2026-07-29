@@ -23,6 +23,7 @@ type MessageComposerProps = {
   disabled: boolean;
   eventReference: CompanyEventReference | null;
   focusRequestId?: number;
+  loginHref: string;
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
@@ -45,6 +46,7 @@ export function MessageComposer({
   disabled,
   eventReference,
   focusRequestId = 0,
+  loginHref,
   onBodyChange,
   onClearReference,
   onCancelReply,
@@ -208,7 +210,7 @@ export function MessageComposer({
                 className={styles.creatorVerificationLink}
                 href={
                   profile.isGuest
-                    ? "/login?next=%2Faccount%2Fcreator"
+                    ? loginHref
                     : "/account/creator"
                 }
               >
