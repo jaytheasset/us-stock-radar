@@ -332,7 +332,7 @@ test("message repositories batch engagement and expose actor-derived PUT routes"
   assert.match(communityRoute, /slug,/);
 });
 
-test("ordinary messages use one accessible compact engagement row", () => {
+test("ordinary messages keep compact accessible engagement in the header", () => {
   const timeline = readSource(
     "components/live-room/ChatTimeline.tsx",
   );
@@ -348,9 +348,15 @@ test("ordinary messages use one accessible compact engagement row", () => {
 
   assert.match(
     timeline,
+    /<header>[\s\S]*<MessageEngagement[\s\S]*<\/header>[\s\S]*<p>\{item\.body\}<\/p>/,
+  );
+  assert.doesNotMatch(
+    timeline,
     /<p>\{item\.body\}<\/p>[\s\S]*<MessageEngagement/,
   );
   assert.doesNotMatch(timeline, /messageReplyButton/);
+  assert.match(timeline, /<MessageCircle aria-hidden="true" \/>/);
+  assert.doesNotMatch(timeline, /Reply as ReplyIcon|<ReplyIcon/);
   assert.match(
     timeline,
     /`\$\{item\.likeCount\} likes\.[\s\S]*`\$\{item\.replyCount\} replies\./,
@@ -370,6 +376,14 @@ test("ordinary messages use one accessible compact engagement row", () => {
   assert.match(
     styles,
     /\.messageEngagementControl\s*\{[\s\S]*color:\s*var\(--sr-color-text-meta\)[\s\S]*font-size:\s*var\(--sr-font-size-xs\)/,
+  );
+  assert.match(
+    styles,
+    /\.messageEngagement\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*margin-left:\s*auto;/,
+  );
+  assert.doesNotMatch(
+    styles.match(/\.messageEngagement\s*\{([^}]*)\}/)?.[1] || "",
+    /margin-top/,
   );
   assert.match(
     styles,

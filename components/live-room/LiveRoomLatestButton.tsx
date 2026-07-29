@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import styles from "./LiveRoom.module.css";
 
 export function LiveRoomLatestButton({
@@ -22,10 +22,14 @@ export function LiveRoomLatestButton({
       onClick={onClick}
       type="button"
     >
-      <ArrowDown aria-hidden="true" size={14} />
-      <span>Latest</span>
+      <ChevronDown aria-hidden="true" size={18} />
       {unreadCount > 0 ? (
-        <b>{unreadCount > 99 ? "99+" : unreadCount}</b>
+        <b
+          aria-hidden="true"
+          className={styles.latestMessagesBadge}
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </b>
       ) : null}
     </button>
   );

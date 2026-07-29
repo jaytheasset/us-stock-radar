@@ -430,7 +430,12 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
   );
   assert.match(
     latestButton,
-    /Go to latest messages[\s\S]*<span>Latest<\/span>[\s\S]*unreadCount > 99 \? "99\+"/,
+    /Go to latest messages[\s\S]*<ChevronDown[\s\S]*size=\{18\}[\s\S]*latestMessagesBadge[\s\S]*unreadCount > 99 \? "99\+"/,
+  );
+  assert.doesNotMatch(latestButton, /<span>Latest<\/span>|ArrowDown/);
+  assert.match(
+    liveStyles,
+    /\.latestMessagesButton\s*\{[\s\S]*width:\s*calc\(var\(--sr-size-icon-button\) \+ var\(--sr-space-0-5\)\);[\s\S]*height:\s*calc\(var\(--sr-size-icon-button\) \+ var\(--sr-space-0-5\)\);[\s\S]*border-radius:\s*var\(--sr-radius-pill\);[\s\S]*\.latestMessagesBadge\s*\{[\s\S]*position:\s*absolute;/,
   );
   for (const latestHandler of [
     companyLatestHandler,
