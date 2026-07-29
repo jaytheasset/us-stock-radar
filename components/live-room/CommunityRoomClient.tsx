@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
@@ -144,6 +145,8 @@ export function CommunityRoomClient({
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [body, setBody] = useState("");
+  const [brokerageProof, setBrokerageProof] =
+    useState<BrokerageProofSummary | null>(null);
   const [replyingTo, setReplyingTo] = useState<LiveRoomChatMessage | null>(
     null,
   );
@@ -767,6 +770,7 @@ export function CommunityRoomClient({
       }
       const message = await repository.send({
         body: nextDecision.normalizedBody,
+        proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
       setMembershipJoined(true);
@@ -787,6 +791,7 @@ export function CommunityRoomClient({
         scheduleVisibleRead();
       });
       setBody("");
+      setBrokerageProof(null);
       setReplyingTo(null);
       setDecision(null);
       setProfileOpen(false);
@@ -1417,10 +1422,12 @@ export function CommunityRoomClient({
                   onClearReference={() => undefined}
                   onCancelReply={() => setReplyingTo(null)}
                   onPresenceSettingChange={handlePresenceSettingChange}
+                  onProofChange={setBrokerageProof}
                   onProfileChange={handleProfileChange}
                   onSend={handleSend}
                   placeholder="Share a useful view with this community…"
                   presenceSettingBusy={presenceSettingBusy}
+                  proof={brokerageProof}
                   profile={profile}
                   profileOpen={profileOpen}
                   replyPreview={

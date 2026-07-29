@@ -97,6 +97,10 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
     typeof input.eventId === "string" && input.eventId.trim()
       ? input.eventId.trim()
       : null;
+  const proofId =
+    typeof input.proofId === "string" && input.proofId.trim()
+      ? input.proofId.trim()
+      : null;
   const rawTickers = Array.isArray(input.relatedTickers)
     ? input.relatedTickers
     : [];
@@ -185,6 +189,7 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
     body,
     direction,
     eventId,
+    proofId,
     relatedTickers,
     signalLabels,
     title,

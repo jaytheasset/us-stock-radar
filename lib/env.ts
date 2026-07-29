@@ -34,6 +34,12 @@ const serverKeys = [
   "NAS_INGEST_TOKEN",
   "FDA_INGEST_URL",
   "ACCESSWIRE_INGEST_URL",
+  "SNAPTRADE_CLIENT_ID",
+  "SNAPTRADE_CONSUMER_KEY",
+  "SNAPTRADE_USER_SECRET_ENCRYPTION_KEY",
+  "SNAPTRADE_CONNECTIONS_ENABLED",
+  "SNAPTRADE_PUBLIC_PROOFS_ENABLED",
+  "SNAPTRADE_MOCK_ENABLED",
 ] as const;
 
 export function getServerEnv() {
@@ -78,6 +84,17 @@ export function getServerEnv() {
     nasIngestToken: process.env.NAS_INGEST_TOKEN || "",
     fdaIngestUrl: process.env.FDA_INGEST_URL || "",
     accesswireIngestUrl: process.env.ACCESSWIRE_INGEST_URL || "",
+    snaptradeClientId: process.env.SNAPTRADE_CLIENT_ID || "",
+    snaptradeConsumerKey: process.env.SNAPTRADE_CONSUMER_KEY || "",
+    snaptradeUserSecretEncryptionKey:
+      process.env.SNAPTRADE_USER_SECRET_ENCRYPTION_KEY || "",
+    snaptradeConnectionsEnabled:
+      (process.env.SNAPTRADE_CONNECTIONS_ENABLED || "false").toLowerCase() === "true",
+    snaptradePublicProofsEnabled:
+      (process.env.SNAPTRADE_PUBLIC_PROOFS_ENABLED || "false").toLowerCase() === "true",
+    snaptradeMockEnabled:
+      process.env.NODE_ENV !== "production" &&
+      (process.env.SNAPTRADE_MOCK_ENABLED || "false").toLowerCase() === "true",
   };
 }
 
@@ -120,6 +137,15 @@ export function envStatus() {
     NAS_INGEST_TOKEN: values.nasIngestToken,
     FDA_INGEST_URL: values.fdaIngestUrl,
     ACCESSWIRE_INGEST_URL: values.accesswireIngestUrl,
+    SNAPTRADE_CLIENT_ID: values.snaptradeClientId,
+    SNAPTRADE_CONSUMER_KEY: values.snaptradeConsumerKey,
+    SNAPTRADE_USER_SECRET_ENCRYPTION_KEY:
+      values.snaptradeUserSecretEncryptionKey,
+    SNAPTRADE_CONNECTIONS_ENABLED: String(values.snaptradeConnectionsEnabled),
+    SNAPTRADE_PUBLIC_PROOFS_ENABLED: String(
+      values.snaptradePublicProofsEnabled,
+    ),
+    SNAPTRADE_MOCK_ENABLED: String(values.snaptradeMockEnabled),
   };
 
   return serverKeys.map((key) => ({

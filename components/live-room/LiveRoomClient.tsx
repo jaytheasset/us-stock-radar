@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
@@ -186,6 +187,8 @@ export function LiveRoomClient({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [body, setBody] = useState("");
+  const [brokerageProof, setBrokerageProof] =
+    useState<BrokerageProofSummary | null>(null);
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
   const [replyingTo, setReplyingTo] =
@@ -1092,6 +1095,7 @@ export function LiveRoomClient({
       const message = await repository.send({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
+        proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
       setMembershipJoined(true);
@@ -1113,6 +1117,7 @@ export function LiveRoomClient({
         timelineSticksToBottomRef.current = true;
       });
       setBody("");
+      setBrokerageProof(null);
       setReference(null);
       setReplyingTo(null);
       setDecision(null);
@@ -1740,6 +1745,7 @@ export function LiveRoomClient({
               onCancelReply={() => setReplyingTo(null)}
               onProfileChange={handleProfileChange}
               onPresenceSettingChange={handlePresenceSettingChange}
+              onProofChange={setBrokerageProof}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
@@ -1756,6 +1762,7 @@ export function LiveRoomClient({
                   : null
               }
               presenceSettingBusy={presenceSettingBusy}
+              proof={brokerageProof}
               sending={sending}
               setProfileOpen={setProfileOpen}
               showPresence={showPresence}

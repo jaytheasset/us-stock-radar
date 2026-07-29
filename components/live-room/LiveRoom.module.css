@@ -3076,18 +3076,14 @@ button.messageReplyPreview:hover {
   }
 
   .composerMeta {
-    display: grid;
-    height: 24px;
-    align-items: end;
-    gap: 0;
+    display: flex;
+    height: auto;
+    align-items: center;
+    gap: var(--sr-space-1);
     padding: var(--sr-space-1) 0 0;
   }
 
-  .composerMeta:not(:has(.moderationError)) {
-    display: none;
-  }
-
-  .composerMeta > span:first-child {
+  .composerMeta > span:not(.moderationError) {
     display: none;
   }
 

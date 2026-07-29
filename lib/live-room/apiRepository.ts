@@ -151,6 +151,7 @@ export class LiveRoomApiRepository {
   send(input: {
     body: string;
     eventId?: string | null;
+    proofId?: string | null;
     replyToMessageId?: string | null;
   }) {
     return requestJson<LiveRoomChatMessage>(
@@ -160,6 +161,7 @@ export class LiveRoomApiRepository {
         body: JSON.stringify({
           body: input.body,
           eventId: input.eventId || null,
+          proofId: input.proofId || null,
           replyToMessageId: input.replyToMessageId || null,
         }),
       },

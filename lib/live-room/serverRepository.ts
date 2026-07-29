@@ -1,6 +1,9 @@
 import "server-only";
 
 import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
+import { getBrokerageConfig } from "@/lib/brokerage/config";
+import { getBrokerageProofMapForMessages } from "@/lib/brokerage/serverRepository";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import {
   supabaseDelete,
@@ -542,6 +545,7 @@ export async function sendLiveRoomMessage({
   actor,
   body,
   eventId,
+  proofId: rawProofId,
   replyToMessageId: rawReplyToMessageId,
   slug,
   ticker: rawTicker,
@@ -549,6 +553,7 @@ export async function sendLiveRoomMessage({
   actor: LiveRoomActor;
   body: string;
   eventId?: string | null;
+  proofId?: unknown;
   replyToMessageId?: unknown;
   slug?: string;
   ticker?: string;
@@ -556,6 +561,14 @@ export async function sendLiveRoomMessage({
   const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const replyToMessageId =
     normalizeOptionalLiveRoomReplyMessageId(rawReplyToMessageId);
+  const proofId =
+    rawProofId === undefined || rawProofId === null || rawProofId === ""
+      ? null
+      : normalizeLiveRoomUuid(
+          rawProofId,
+          "BROKERAGE_PROOF_NOT_ATTACHABLE",
+          "That brokerage proof cannot be attached.",
+        );
   const profile = await getLiveRoomProfile(actor);
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
@@ -589,7 +602,7 @@ export async function sendLiveRoomMessage({
       ? await getValidatedEventReference(room.ticker, eventId)
       : null;
   const author = createServerOwnedAuthorSnapshot({ actor, profile });
-  const result = await supabaseRpc("insert_live_room_message", {
+  const result = await supabaseRpc("insert_live_room_message_with_proof", {
     p_room_id: room.id,
     p_actor_kind: author.actorKind,
     p_member_user_id: author.memberUserId,
@@ -600,6 +613,8 @@ export async function sendLiveRoomMessage({
     p_body: decision.normalizedBody,
     p_referenced_event_id: reference?.eventId || null,
     p_reply_to_message_id: replyToMessageId,
+    p_proof_id: proofId,
+    p_public_sharing_enabled: getBrokerageConfig().publicProofsEnabled,
   });
 
   if (!result.ok) {
@@ -2038,10 +2053,19 @@ async function mapMessageRows(
     getLiveRoomPublicProfileIdMap(memberUserIds),
     getLiveRoomReplyPreviewMap(rows, blockedActorIds),
     getLiveRoomMessageEngagement(rows, actor, blockedActorIds),
+    getBrokerageProofMapForMessages(
+      rows.map((row) => readString(row.id)).filter(Boolean),
+    ),
   ]);
 
   if (actor.kind !== "member") {
-    const [socialBadges, publicProfileIds, replyPreviews, engagement] =
+    const [
+      socialBadges,
+      publicProfileIds,
+      replyPreviews,
+      engagement,
+      brokerageProofs,
+    ] =
       await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
@@ -2054,6 +2078,7 @@ async function mapMessageRows(
         replyPreviews,
         engagement.likedMessageIds,
         engagement.replyCounts,
+        brokerageProofs,
       ),
     );
   }
@@ -2064,7 +2089,13 @@ async function mapMessageRows(
     ),
   ];
   if (!targetUserIds.length) {
-    const [socialBadges, publicProfileIds, replyPreviews, engagement] =
+    const [
+      socialBadges,
+      publicProfileIds,
+      replyPreviews,
+      engagement,
+      brokerageProofs,
+    ] =
       await enrichmentPromise;
     return rows.map((row) =>
       mapMessageRow(
@@ -2077,12 +2108,19 @@ async function mapMessageRows(
         replyPreviews,
         engagement.likedMessageIds,
         engagement.replyCounts,
+        brokerageProofs,
       ),
     );
   }
 
   const [
-    [socialBadges, publicProfileIds, replyPreviews, engagement],
+    [
+      socialBadges,
+      publicProfileIds,
+      replyPreviews,
+      engagement,
+      brokerageProofs,
+    ],
     outgoing,
     blocks,
   ] = await Promise.all([
@@ -2138,6 +2176,7 @@ async function mapMessageRows(
       replyPreviews,
       engagement.likedMessageIds,
       engagement.replyCounts,
+      brokerageProofs,
     ),
   );
 }
@@ -2459,6 +2498,7 @@ function mapMessageRow(
   replyPreviewMap: ReadonlyMap<string, LiveRoomReplyPreview> = new Map(),
   likedMessageIds: ReadonlySet<string> = new Set(),
   replyCountMap: ReadonlyMap<string, number> = new Map(),
+  brokerageProofMap: ReadonlyMap<string, BrokerageProofSummary> = new Map(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -2494,6 +2534,7 @@ function mapMessageRow(
           : [],
     },
     body: readString(row.body),
+    brokerageProof: brokerageProofMap.get(messageId) || null,
     canFollowMember,
     canMessageMember:
       canFollowMember && messageableUserIds.has(memberUserId),
@@ -2554,6 +2595,26 @@ function mapDatabaseModerationError(error: string | undefined, status: number) {
       "LIVE_ROOM_INVALID_REPLY_TARGET",
       "That message is not available to reply to.",
       400,
+    ],
+    BROKERAGE_PUBLIC_SHARING_DISABLED: [
+      "BROKERAGE_PUBLIC_SHARING_DISABLED",
+      "Public sharing is pending provider approval.",
+      403,
+    ],
+    BROKERAGE_PLAN_REQUIRED: [
+      "BROKERAGE_PLAN_REQUIRED",
+      "A Pro, Advanced, or Ultimate plan is required.",
+      403,
+    ],
+    BROKERAGE_PROOF_NOT_ATTACHABLE: [
+      "BROKERAGE_PROOF_NOT_ATTACHABLE",
+      "That brokerage proof cannot be attached.",
+      400,
+    ],
+    BROKERAGE_MEMBER_REQUIRED: [
+      "BROKERAGE_MEMBER_REQUIRED",
+      "Sign in to attach brokerage evidence.",
+      401,
     ],
   };
   const match = Object.entries(mappings).find(([code]) =>

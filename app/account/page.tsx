@@ -8,6 +8,7 @@ import {
   KeyRound,
   MailCheck,
   MessageCircle,
+  Landmark,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -132,6 +133,9 @@ export default async function AccountPage() {
               </AccountLink>
               <AccountLink href="/account/creator" icon={<BadgeCheck size={16} />}>
                 Social account verification
+              </AccountLink>
+              <AccountLink href="/account/brokerage" icon={<Landmark size={16} />}>
+                Brokerage verification
               </AccountLink>
               <AccountLink
                 href="/community"
