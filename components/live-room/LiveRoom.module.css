@@ -59,6 +59,17 @@
   gap: var(--sr-space-1);
 }
 
+.roomTitlePrimary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.mobileExchange,
+.mobileRoomCounts {
+  display: none !important;
+}
+
 .roomTitleLine h1 {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1798,20 +1809,26 @@
   flex: 0 0 auto;
 }
 
-.messageEngagementControl[data-has-count="false"] {
+.messageEngagementControl[data-action="like"][data-has-count="false"] {
   pointer-events: none;
   opacity: 0;
 }
 
 .otherMessage article:hover
-  .messageEngagementControl[data-has-count="false"],
+  .messageEngagementControl[data-action="like"][data-has-count="false"],
 .myMessage article:hover
-  .messageEngagementControl[data-has-count="false"],
+  .messageEngagementControl[data-action="like"][data-has-count="false"],
 .otherMessage article:focus-within
-  .messageEngagementControl[data-has-count="false"],
+  .messageEngagementControl[data-action="like"][data-has-count="false"],
 .myMessage article:focus-within
-  .messageEngagementControl[data-has-count="false"] {
+  .messageEngagementControl[data-action="like"][data-has-count="false"] {
   pointer-events: auto;
+  opacity: 1;
+}
+
+.messageEngagementControl[data-action="reply"] {
+  pointer-events: auto;
+  visibility: visible;
   opacity: 1;
 }
 
@@ -2589,17 +2606,16 @@ button.messageReplyPreview:hover {
   .roomHeader {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     align-items: center;
-    column-gap: var(--sr-space-2);
-    row-gap: var(--sr-space-1);
+    column-gap: var(--sr-space-1);
+    row-gap: var(--sr-space-0-5);
     margin: 0;
     padding: var(--sr-space-3);
   }
 
   .roomIdentity {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+    display: contents;
   }
 
   .marketSummary {
@@ -2630,17 +2646,42 @@ button.messageReplyPreview:hover {
   }
 
   .roomTitleLine {
-    gap: var(--sr-space-0-5);
+    display: contents;
+  }
+
+  .roomTitlePrimary {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+    gap: var(--sr-space-1);
   }
 
   .roomTitleLine h1 {
+    flex: 1 1 auto;
     overflow: hidden;
     font-size: var(--sr-font-size-md);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .mobileExchange {
+    display: inline-flex !important;
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+    border-left: var(--sr-border-width) solid var(--sr-color-border);
+    padding-left: var(--sr-space-1);
+    color: var(--sr-color-text-meta);
+    font-family: var(--sr-font-family-sans);
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-medium);
+    line-height: var(--sr-line-height-control);
+    white-space: nowrap;
+  }
+
   .roomCompanyName {
+    grid-column: 1;
+    grid-row: 2;
     overflow: hidden;
     font-size: var(--sr-font-size-xs);
     text-overflow: ellipsis;
@@ -2648,28 +2689,48 @@ button.messageReplyPreview:hover {
   }
 
   .roomMeta {
-    margin-top: var(--sr-space-1);
-    gap: var(--sr-space-2);
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 3;
+    align-self: center;
+    flex-wrap: nowrap;
+    gap: 0;
+    margin-top: 0;
+    overflow: hidden;
   }
 
-  .roomMeta small {
+  .desktopExchange,
+  .desktopRoomCounts {
+    display: none !important;
+  }
+
+  .roomMeta .mobileRoomCounts {
+    display: inline-flex !important;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: var(--sr-space-1);
     font-size: var(--sr-font-size-xs);
+    white-space: nowrap;
   }
 
   .roomActions {
     display: flex;
     width: auto;
     min-width: 0;
+    flex-wrap: nowrap;
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 3;
     justify-self: end;
-    gap: var(--sr-space-1);
+    gap: var(--sr-space-0-5);
   }
 
   .roomActions button {
-    width: var(--sr-size-control);
-    min-width: var(--sr-size-control);
-    padding: 0;
+    width: auto;
+    min-width: 0;
+    min-height: var(--sr-size-icon-button);
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-xs);
   }
 
   .roomActions .membershipButton,
@@ -2677,7 +2738,9 @@ button.messageReplyPreview:hover {
   .roomActions .membershipDialog button {
     width: auto;
     min-width: 0;
-    padding: 0 var(--sr-space-2);
+    min-height: var(--sr-size-icon-button);
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
     font-size: var(--sr-font-size-xs);
   }
 
@@ -2686,8 +2749,9 @@ button.messageReplyPreview:hover {
   }
 
   .membershipJoinedStatus {
-    min-height: var(--sr-size-control);
-    padding: 0 var(--sr-space-1);
+    min-height: var(--sr-size-icon-button);
+    gap: var(--sr-space-0-5);
+    padding: 0 var(--sr-space-0-5);
     font-size: var(--sr-font-size-xs);
   }
 
@@ -2814,7 +2878,7 @@ button.messageReplyPreview:hover {
     height: var(--sr-size-icon-button);
   }
 
-  .messageEngagementControl[data-has-count="false"] {
+  .messageEngagementControl[data-action="like"][data-has-count="false"] {
     pointer-events: auto;
     opacity: 1;
   }

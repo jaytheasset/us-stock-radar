@@ -373,6 +373,14 @@ test("ordinary messages keep compact accessible engagement in the header", () =>
     timeline,
     /item\.likeCount > 0 \? <span>\{item\.likeCount\}<\/span> : null[\s\S]*item\.replyCount > 0 \? <span>\{item\.replyCount\}<\/span> : null/,
   );
+  assert.equal(
+    (timeline.match(/data-action="like"/g) || []).length,
+    2,
+  );
+  assert.equal(
+    (timeline.match(/data-action="reply"/g) || []).length,
+    2,
+  );
   assert.match(
     styles,
     /\.messageEngagementControl\s*\{[\s\S]*color:\s*var\(--sr-color-text-meta\)[\s\S]*font-size:\s*var\(--sr-font-size-xs\)/,
@@ -391,15 +399,23 @@ test("ordinary messages keep compact accessible engagement in the header", () =>
   );
   assert.match(
     styles,
-    /\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*pointer-events:\s*none[\s\S]*opacity:\s*0/,
+    /\.messageEngagementControl\[data-action="like"\]\[data-has-count="false"\]\s*\{[\s\S]*pointer-events:\s*none[\s\S]*opacity:\s*0/,
   );
   assert.match(
     styles,
-    /article:hover[\s\S]*article:focus-within[\s\S]*pointer-events:\s*auto[\s\S]*opacity:\s*1/,
+    /article:hover[\s\S]*data-action="like"[\s\S]*article:focus-within[\s\S]*data-action="like"[\s\S]*pointer-events:\s*auto[\s\S]*opacity:\s*1/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\)[\s\S]*\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*pointer-events:\s*auto[\s\S]*opacity:\s*1/,
+    /\.messageEngagementControl\[data-action="reply"\]\s*\{[\s\S]*pointer-events:\s*auto;[\s\S]*visibility:\s*visible;[\s\S]*opacity:\s*1;/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /data-action="reply"[^\n{]*\{[^}]*opacity:\s*0/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.messageEngagementControl\[data-action="like"\]\[data-has-count="false"\]\s*\{[\s\S]*pointer-events:\s*auto[\s\S]*opacity:\s*1/,
   );
   assert.doesNotMatch(
     styles.match(/\.messageEngagementControl\s*\{([^}]*)\}/)?.[1] || "",
