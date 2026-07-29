@@ -898,7 +898,6 @@ export async function getLiveRoomPresenceSummary({
   messageIds: unknown;
   ticker: string;
 }): Promise<LiveRoomPresenceSummary> {
-  assertLiveRoomPresenceMember(actor);
   const ticker = normalizeLiveRoomPresenceTicker(rawTicker);
   const messageIds = [
     ...new Set(
@@ -907,35 +906,73 @@ export async function getLiveRoomPresenceSummary({
         .map((messageId) => normalizeLiveRoomUuid(messageId)),
     ),
   ];
-  const result = await supabaseRpc(
-    "get_live_room_member_presence_summary",
-    {
-      p_member_user_id: actor.userId,
+
+  if (actor.kind === "guest") {
+    const heartbeat = await supabaseRpc(
+      "set_live_room_guest_presence_heartbeat",
+      {
+        p_guest_session_id: actor.guestSessionId,
+        p_ticker: ticker,
+      },
+    );
+    if (!heartbeat.ok || heartbeat.data !== true) {
+      throw new LiveRoomPolicyError(
+        "LIVE_ROOM_GUEST_PRESENCE_HEARTBEAT_FAILED",
+        heartbeat.error ||
+          "Anonymous Live Room presence could not be updated.",
+        heartbeat.status || 502,
+      );
+    }
+  }
+
+  const [countsResult, memberResult] = await Promise.all([
+    supabaseRpc("get_live_room_public_counts", {
       p_ticker: ticker,
-      p_message_ids: messageIds,
-      p_message_limit: 50,
-    },
-  );
-  const summary = readSingleRow(result.data);
-  if (!result.ok || !summary) {
+    }),
+    actor.kind === "member"
+      ? supabaseRpc("get_live_room_member_presence_summary", {
+          p_member_user_id: actor.userId,
+          p_ticker: ticker,
+          p_message_ids: messageIds,
+          p_message_limit: 50,
+        })
+      : Promise.resolve(null),
+  ]);
+  const counts = readSingleRow(countsResult.data);
+  const memberSummary = memberResult
+    ? readSingleRow(memberResult.data)
+    : null;
+  if (
+    !countsResult.ok ||
+    !counts ||
+    (memberResult && (!memberResult.ok || !memberSummary))
+  ) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_PRESENCE_UNAVAILABLE",
-      result.error || "Live Room presence could not be loaded.",
-      result.status || 502,
+      countsResult.error ||
+        memberResult?.error ||
+        "Live Room presence could not be loaded.",
+      countsResult.status || memberResult?.status || 502,
     );
   }
-  const messages = readRows(summary.messages)
+  const messages = readRows(memberSummary?.messages)
     .map((row) => ({
       isOnline: row.isOnline === true || row.is_online === true,
       messageId: readString(row.messageId ?? row.message_id),
     }))
     .filter((message) => isUuid(message.messageId));
+  const onlineCount = Math.max(
+    0,
+    Number(counts.onlineCount ?? counts.online_count) || 0,
+  );
   return {
     messages,
-    onlineMemberCount: Math.max(
-      0,
-      Number(summary.onlineMemberCount ?? summary.online_member_count) ||
-        0,
+    onlineCount,
+    participantCount: Math.max(
+      onlineCount,
+      Number(
+        counts.participantCount ?? counts.participant_count,
+      ) || 0,
     ),
   };
 }

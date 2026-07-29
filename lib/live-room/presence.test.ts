@@ -23,7 +23,11 @@ const projectRoot = process.cwd();
 const migration = read(
   "docs/db/migration-archive/pre-canonical-baseline/20260727181214_live_room_member_presence.sql",
 );
+const guestPresenceMigration = read(
+  "supabase/migrations/20260729062946_live_room_guest_presence_counts.sql",
+);
 const client = read("components/live-room/LiveRoomClient.tsx");
+const header = read("components/live-room/CompanyRoomHeader.tsx");
 const composer = read("components/live-room/MessageComposer.tsx");
 const timeline = read("components/live-room/ChatTimeline.tsx");
 const timelineStyles = read("components/live-room/LiveRoom.module.css");
@@ -186,6 +190,10 @@ test("presence response exposes only aggregate count, public message IDs, and bo
     migration,
     /'onlineMemberCount'[\s\S]+'messages'[\s\S]+'messageId'[\s\S]+'isOnline'/i,
   );
+  assert.match(
+    browserTypes,
+    /LiveRoomPublicRoomCounts[\s\S]*participantCount:\s*number[\s\S]*onlineCount:\s*number/,
+  );
   assert.doesNotMatch(
     presenceRoute,
     /memberUserId|member_user_id|lastSeen|last_seen|email|guestToken/i,
@@ -196,10 +204,22 @@ test("presence response exposes only aggregate count, public message IDs, and bo
   );
 });
 
-test("guest access is rejected and presence mutations require same-origin requests", () => {
+test("guests receive aggregate counts while member-only mutations remain protected", () => {
   assert.match(
     serverRepository,
     /function assertLiveRoomPresenceMember[\s\S]+actor\.kind !== "member"[\s\S]+LIVE_ROOM_MEMBER_REQUIRED/,
+  );
+  assert.match(
+    serverRepository,
+    /actor\.kind === "guest"[\s\S]*"set_live_room_guest_presence_heartbeat"[\s\S]*p_guest_session_id:\s*actor\.guestSessionId/,
+  );
+  assert.match(
+    serverRepository,
+    /"get_live_room_public_counts"[\s\S]*p_ticker:\s*ticker/,
+  );
+  assert.match(
+    serverRepository,
+    /actor\.kind === "member"[\s\S]*"get_live_room_member_presence_summary"[\s\S]*:\s*Promise\.resolve\(null\)/,
   );
   assert.match(
     presenceRoute,
@@ -223,7 +243,8 @@ test("presence state maps a page in one pass without marking guests online", () 
     message("00000000-0000-4000-8000-000000000003", false),
   ];
   const mapped = applyLiveRoomPresence(items, {
-    onlineMemberCount: 2,
+    onlineCount: 2,
+    participantCount: 3,
     messages: [
       {
         isOnline: true,
@@ -293,9 +314,17 @@ test("presence lifecycle is member-only, opt-in, visible, bounded, and cleaned u
   assert.match(client, /window\.clearInterval\(timer\)/);
   assert.match(client, /removeEventListener\(\s*"visibilitychange"/);
   assert.match(client, /removeEventListener\("focus"/);
+  assert.match(
+    client,
+    /const canReadCounts =[\s\S]*timelineState === "ready"[\s\S]*timelineState === "empty"[\s\S]*const canHeartbeatMember =[\s\S]*shouldRunLiveRoomPresence/,
+  );
+  assert.match(
+    client,
+    /if \(canHeartbeatMember\) \{[\s\S]*repository\.heartbeatPresence\(\)[\s\S]*\}[\s\S]*repository\.readPresence\(/,
+  );
 });
 
-test("presence stays available without appearing in chat message headers", () => {
+test("header shows participant total before aggregate online count for every actor", () => {
   assert.match(composer, /Show when I&apos;m active in Live Rooms/);
   assert.match(
     composer,
@@ -305,7 +334,7 @@ test("presence stays available without appearing in chat message headers", () =>
   assert.doesNotMatch(timeline, /item\.isOnline|onlineIndicator/);
   assert.doesNotMatch(timeline, />\s*Online\s*</);
   assert.doesNotMatch(timelineStyles, /\.onlineIndicator/);
-  assert.match(timelineStyles, /\.onlineCount > span\s*\{/);
+  assert.match(timelineStyles, /\.onlineCount > i\s*\{/);
   assert.match(
     timeline,
     /<strong>\{item\.author\.displayName\}<\/strong>[\s\S]*?getPlanDisplayName\(item\.author\.plan\)[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
@@ -318,7 +347,93 @@ test("presence stays available without appearing in chat message headers", () =>
     timelineStyles,
     /(?:\.otherMessage header > time|\.myMessage header > time)[\s\S]{0,180}margin-left:\s*auto/,
   );
-  assert.match(client, /onlineMemberCount=\{onlineMemberCount\}/);
+  assert.match(client, /roomCounts=\{roomCounts\}/);
+  assert.match(
+    header,
+    /roomCounts\.participantCount\} participants[\s\S]*?<span aria-hidden="true">·<\/span>[\s\S]*?roomCounts\.onlineCount\} online/,
+  );
+  assert.doesNotMatch(header, /onlineCount\s*!==|onlineCount\s*>\s*0/);
+  assert.match(
+    timelineStyles,
+    /\.roomCounts > strong\s*\{[\s\S]*?color:\s*var\(--sr-color-text-primary\)/,
+  );
+});
+
+test("guest presence migration is bounded, throttled, default-deny, and aggregate-only", () => {
+  assert.match(
+    guestPresenceMigration,
+    /create table public\.live_room_guest_presence[\s\S]*guest_session_id uuid primary key[\s\S]*references public\.live_room_guest_sessions\(id\) on delete cascade[\s\S]*room_id uuid not null[\s\S]*references public\.live_room_rooms\(id\) on delete cascade/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /live_room_guest_presence_room_seen_idx[\s\S]*\(room_id, last_seen_at desc\)/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /alter table public\.live_room_guest_presence enable row level security/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /revoke all on table public\.live_room_guest_presence\s+from public, anon, authenticated/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /grant select, insert, update, delete\s+on table public\.live_room_guest_presence\s+to service_role/i,
+  );
+  assert.equal(
+    (guestPresenceMigration.match(/security invoker/gi) || []).length,
+    2,
+  );
+  assert.equal(
+    (guestPresenceMigration.match(/set search_path = ''/gi) || [])
+      .length,
+    2,
+  );
+  assert.doesNotMatch(guestPresenceMigration, /security definer/i);
+  assert.match(
+    guestPresenceMigration,
+    /on conflict \(guest_session_id\) do update[\s\S]*room_id is distinct from excluded\.room_id[\s\S]*interval '30 seconds'/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /presence\.last_seen_at[\s\S]*interval '2 minutes'/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /session\.expires_at > pg_catalog\.now\(\)/i,
+  );
+});
+
+test("public room counts use visible authors plus visitors and return no identities", () => {
+  const countsFunction =
+    guestPresenceMigration.match(
+      /create function public\.get_live_room_public_counts\([\s\S]+?\$\$;/i,
+    )?.[0] || "";
+
+  assert.match(
+    countsFunction,
+    /public_member_authors[\s\S]*message\.visibility_status = 'visible'[\s\S]*post\.visibility_status = 'visible'[\s\S]*comment\.visibility_status = 'visible'/i,
+  );
+  assert.match(
+    countsFunction,
+    /display_members[\s\S]*public_member_authors[\s\S]*union[\s\S]*online_members/i,
+  );
+  assert.match(
+    countsFunction,
+    /'participantCount'[\s\S]*display_member_count \+ count\.online_guest_count[\s\S]*'onlineCount'[\s\S]*online_member_count \+ count\.online_guest_count/i,
+  );
+  assert.doesNotMatch(
+    countsFunction,
+    /jsonb_build_object\([\s\S]*'(?:memberUserId|guestSessionId|email|ip|lastSeen)'/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /revoke execute on function public\.get_live_room_public_counts\(text\)\s+from public, anon, authenticated/i,
+  );
+  assert.match(
+    guestPresenceMigration,
+    /grant execute on function public\.get_live_room_public_counts\(text\)\s+to service_role/i,
+  );
 });
 
 function message(id: string, isGuest: boolean): LiveRoomChatMessage {

@@ -591,8 +591,8 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
     darkTokens,
     /--sr-color-chat-bubble-mine-border:\s*#8c4a32/i,
   );
-  assert.match(tokens, /--sr-radius-chat-message:\s*8px/);
-  assert.match(tokens, /--sr-radius-chat-control:\s*6px/);
+  assert.match(tokens, /--sr-radius-chat-message:\s*6px/);
+  assert.match(tokens, /--sr-radius-chat-control:\s*4px/);
 
   for (const [token, value] of [
     ["timeline-background", "#f6f8fa"],
