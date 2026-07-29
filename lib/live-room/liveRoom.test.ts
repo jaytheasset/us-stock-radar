@@ -576,7 +576,7 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*var\(--sr-space-6\);\s*height:\s*var\(--sr-space-6\);\s*\}[\s\S]*?\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*var\(--sr-space-5\);\s*height:\s*var\(--sr-space-5\);\s*\}[\s\S]*?\.messageEngagementControl\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
   );
   assert.match(
     liveRoomStyles,
