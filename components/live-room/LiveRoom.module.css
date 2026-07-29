@@ -2120,23 +2120,40 @@ button.messageReplyPreview:hover {
   }
 
   .timelineList {
-    gap: var(--sr-space-2-5);
+    gap: var(--sr-space-1-5);
   }
 
   .otherMessage,
   .myMessage {
-    gap: var(--sr-space-2);
+    gap: var(--sr-space-1-5);
+  }
+
+  .messageAvatar {
+    width: 30px;
+    height: 30px;
   }
 
   .otherMessage article,
   .myMessage article {
     max-width: 85%;
-    padding: var(--sr-space-2) var(--sr-space-2-5);
+    padding: var(--sr-space-1-5) var(--sr-space-2);
+  }
+
+  .otherMessage article > header,
+  .myMessage article > header {
+    gap: var(--sr-space-1);
+  }
+
+  .messageReplyButton,
+  .messageActionsTrigger {
+    width: 24px;
+    height: 24px;
   }
 
   .otherMessage article > p,
   .myMessage article > p {
-    margin-top: var(--sr-space-1);
+    margin-top: var(--sr-space-0-5);
+    line-height: 1.45;
   }
 
   .messageReplyPreview {
