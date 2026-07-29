@@ -965,6 +965,61 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   );
 });
 
+test("mobile company header compacts into two columns without changing desktop structure", () => {
+  const headerSource = readSource(
+    "components/live-room/CompanyRoomHeader.tsx",
+  );
+  const styleSource = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const mobileStart = styleSource.indexOf("@media (max-width: 760px)");
+  const mobileEnd = styleSource.indexOf(
+    "@media (max-width: 420px)",
+    mobileStart,
+  );
+  const mobileStyles = styleSource.slice(mobileStart, mobileEnd);
+  const mobileHeader =
+    mobileStyles.match(/\.roomHeader\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileIdentity =
+    mobileStyles.match(/\.roomIdentity\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileMarket =
+    mobileStyles.match(/\.marketSummary\s*\{([^}]*)\}/)?.[1] ?? "";
+  const mobileActions =
+    mobileStyles.match(/\.roomActions\s*\{([^}]*)\}/)?.[1] ?? "";
+
+  assert.match(
+    headerSource,
+    /className=\{styles\.roomIdentity\}[\s\S]*className=\{styles\.marketSummary\}[\s\S]*className=\{styles\.roomActions\}/,
+  );
+  assert.match(
+    styleSource,
+    /^\.roomHeader\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto auto;/m,
+  );
+  assert.match(
+    mobileHeader,
+    /grid-template-columns:\s*minmax\(0, 1fr\) auto;/,
+  );
+  assert.match(mobileHeader, /grid-template-rows:\s*auto auto;/);
+  assert.match(mobileHeader, /padding:\s*var\(--sr-space-3\);/);
+  assert.doesNotMatch(mobileHeader, /\bheight:/);
+  assert.match(mobileIdentity, /grid-column:\s*1;/);
+  assert.match(mobileIdentity, /grid-row:\s*1 \/ span 2;/);
+  assert.match(mobileMarket, /grid-column:\s*2;/);
+  assert.match(mobileMarket, /grid-row:\s*1;/);
+  assert.match(mobileMarket, /justify-self:\s*end;/);
+  assert.match(mobileMarket, /border-top:\s*0;/);
+  assert.match(mobileMarket, /border-left:\s*0;/);
+  assert.match(mobileMarket, /padding-top:\s*0;/);
+  assert.match(mobileMarket, /padding-left:\s*0;/);
+  assert.match(
+    mobileStyles,
+    /\.marketSummaryValues strong\s*\{[^}]*font-size:\s*var\(--sr-font-size-lg\);/,
+  );
+  assert.match(mobileActions, /grid-column:\s*2;/);
+  assert.match(mobileActions, /grid-row:\s*2;/);
+  assert.match(mobileActions, /justify-self:\s*end;/);
+});
+
 test("public Live Room entry preserves the guest cookie actor contract without invite tokens", () => {
   const page = readSource("app/live/[ticker]/page.tsx");
   const messagesRoute = readSource(
