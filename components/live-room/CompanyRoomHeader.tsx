@@ -1,25 +1,23 @@
 "use client";
 
-import { Check, History, Share2 } from "lucide-react";
+import { History } from "lucide-react";
 import type { RefObject } from "react";
-import type { LiveRoomInviteUiState } from "@/lib/live-room/inviteShare";
 import type {
   CompanyRoomIdentity,
   LiveRoomPublicRoomCounts,
 } from "@/lib/live-room/types";
 import type { StockOverviewQuote } from "@/lib/watchlist/stockOverview";
+import { LiveRoomInviteMenu } from "./LiveRoomInviteMenu";
 import { RoomMembershipControl } from "./RoomMembershipControl";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   identity: CompanyRoomIdentity;
-  inviteState: LiveRoomInviteUiState;
   isGuest: boolean;
   loginHref: string;
   membershipBusy: boolean;
   membershipJoined: boolean | null;
-  onInvite: () => void;
   onJoin: () => Promise<void>;
   onLeave: () => Promise<void>;
   onOpenHistory: () => void;
@@ -30,12 +28,10 @@ type CompanyRoomHeaderProps = {
 export function CompanyRoomHeader({
   historyButtonRef,
   identity,
-  inviteState,
   isGuest,
   loginHref,
   membershipBusy,
   membershipJoined,
-  onInvite,
   onJoin,
   onLeave,
   onOpenHistory,
@@ -103,29 +99,10 @@ export function CompanyRoomHeader({
           onLeave={onLeave}
           roomLabel={`${identity.ticker} Live Room`}
         />
-        <button
-          aria-label="Invite people to this company room"
-          disabled={inviteState === "working"}
-          onClick={onInvite}
-          type="button"
-        >
-          {inviteState === "copied" || inviteState === "shared" ? (
-            <Check aria-hidden="true" size={15} />
-          ) : (
-            <Share2 aria-hidden="true" size={15} />
-          )}
-          <span aria-live="polite" className={styles.actionLabel}>
-            {inviteState === "copied"
-              ? "Copied"
-              : inviteState === "shared"
-                ? "Shared"
-                : inviteState === "error"
-                  ? "Share failed"
-                  : inviteState === "working"
-                    ? "Sharing…"
-                    : "Invite"}
-          </span>
-        </button>
+        <LiveRoomInviteMenu
+          ariaLabel="Invite people to this company room"
+          room={{ identity, kind: "company" }}
+        />
         <button
           aria-controls="live-room-history-sheet"
           aria-label="Open past company events"

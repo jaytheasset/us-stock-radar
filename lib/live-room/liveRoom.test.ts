@@ -1054,7 +1054,7 @@ test("public Live Room entry preserves the guest cookie actor contract without i
   );
 });
 
-test("Live Room Invite keeps short result states and never copies the current message URL", () => {
+test("Live Room Invite keeps its header label and delegates sharing to the shared sheet", () => {
   const client = readSource(
     "components/live-room/LiveRoomClient.tsx",
   );
@@ -1062,10 +1062,12 @@ test("Live Room Invite keeps short result states and never copies the current me
     "components/live-room/CompanyRoomHeader.tsx",
   );
 
-  assert.match(client, /shareLiveRoomInvite\(\{ identity \}\)/);
-  assert.match(client, /setInviteState\("idle"\)[\s\S]+2_000/);
-  assert.doesNotMatch(client, /window\.location\.href/);
-  assert.match(header, /"Copied"[\s\S]+"Shared"[\s\S]+"Share failed"/);
+  assert.doesNotMatch(client, /inviteState|shareLiveRoomInvite/);
+  assert.match(
+    header,
+    /<LiveRoomInviteMenu[\s\S]*ariaLabel="Invite people to this company room"[\s\S]*kind: "company"/,
+  );
+  assert.doesNotMatch(header, /"Copied"|"Shared"|"Share failed"/);
 });
 
 test("block removal, unblock replacement, and stale polling cannot hide restored messages", () => {
