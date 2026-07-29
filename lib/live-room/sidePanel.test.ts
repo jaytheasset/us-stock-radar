@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  selectLiveRoomSidePanelMembers,
-} from "./sidePanel.ts";
+import { selectLiveRoomSidePanelMembers } from "./sidePanel.ts";
 import type {
   LiveRoomChatMessage,
   LiveRoomPost,
@@ -59,41 +57,34 @@ test("side panel members use only real public member authors and deduplicate the
     }),
   ];
 
-  assert.deepEqual(
-    selectLiveRoomSidePanelMembers({ posts, timeline }),
-    [
-      {
-        canFollowMember: false,
-        canMessageMember: false,
-        displayName: "Grace",
-        emoji: "📈",
-        isMemberFollowed: false,
-        isOnline: false,
-        publicProfileId: "member-b",
-        sourceMessageId: null,
-      },
-      {
-        canFollowMember: true,
-        canMessageMember: true,
-        displayName: "Ada",
-        emoji: "🛰️",
-        isMemberFollowed: true,
-        isOnline: true,
-        publicProfileId: "member-a",
-        sourceMessageId: "message-1",
-      },
-    ],
-  );
+  assert.deepEqual(selectLiveRoomSidePanelMembers({ posts, timeline }), [
+    {
+      canFollowMember: false,
+      canMessageMember: false,
+      displayName: "Grace",
+      emoji: "📈",
+      isMemberFollowed: false,
+      isOnline: false,
+      publicProfileId: "member-b",
+      sourceMessageId: null,
+    },
+    {
+      canFollowMember: true,
+      canMessageMember: true,
+      displayName: "Ada",
+      emoji: "🛰️",
+      isMemberFollowed: true,
+      isOnline: true,
+      publicProfileId: "member-a",
+      sourceMessageId: "message-1",
+    },
+  ]);
 });
 
 test("desktop and mobile members share accessible links, status, and actions", () => {
-  const panel = read(
-    "components/live-room/LiveRoomDesktopSidePanel.tsx",
-  );
+  const panel = read("components/live-room/LiveRoomDesktopSidePanel.tsx");
   const client = read("components/live-room/LiveRoomClient.tsx");
-  const community = read(
-    "components/live-room/CommunityRoomClient.tsx",
-  );
+  const community = read("components/live-room/CommunityRoomClient.tsx");
   const styles = read("components/live-room/LiveRoom.module.css");
   const tabStyles = read("components/live-room/Posts.module.css");
   const tabs = read("components/live-room/RoomTabs.tsx");
@@ -111,14 +102,8 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.match(panel, /event\.detailHref/);
   assert.match(panel, /\/live\/posts\/\$\{post\.id\}/);
-  assert.match(
-    panel,
-    /\/live\/members\/\$\{member\.publicProfileId\}/,
-  );
-  assert.match(
-    panel,
-    /summary\.isOnline \? \([\s\S]*?aria-label="Online"/,
-  );
+  assert.match(panel, /\/live\/members\/\$\{member\.publicProfileId\}/);
+  assert.match(panel, /summary\.isOnline \? \([\s\S]*?aria-label="Online"/);
   assert.match(
     styles,
     /\.sidePanelOnline i\s*\{[\s\S]*?background:\s*var\(--sr-color-positive\)/,
@@ -165,10 +150,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
     panel,
     /isGuest \? \([\s\S]*href=\{loginHref\}[\s\S]*Follow[\s\S]*href=\{loginHref\}[\s\S]*Message/,
   );
-  assert.match(
-    panel,
-    /!isGuest && member\.canFollowMember && sourceMessageId/,
-  );
+  assert.match(panel, /!isGuest && member\.canFollowMember && sourceMessageId/);
   assert.match(
     panel,
     /!isGuest && member\.canMessageMember && sourceMessageId/,
@@ -219,21 +201,29 @@ test("desktop and mobile members share accessible links, status, and actions", (
     styles,
     /@media \(max-width: 420px\)[\s\S]*?\.sidePanelMemberActions a,\s*\.sidePanelMemberActions button\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?flex:\s*0 0 auto;[\s\S]*?padding:\s*0;/,
   );
-  assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/);
-  assert.doesNotMatch(community, /LiveRoomDesktopSidePanel/);
-  assert.doesNotMatch(community, /label: "Members"/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1180px\)[\s\S]+\.desktopSidePanel[\s\S]+display: none/,
+  );
+  assert.match(community, /LiveRoomDesktopSidePanel/);
+  assert.match(
+    community,
+    /const communityMobileTabs = \[[\s\S]*label: "Members"[\s\S]*value: "members"/,
+  );
+  assert.match(
+    community,
+    /mobileSheet === "members"[\s\S]*<LiveRoomMemberList/,
+  );
 });
 
 test("desktop Posts preview reuses signal chips and exposes compact activity counts", () => {
-  const panel = read(
-    "components/live-room/LiveRoomDesktopSidePanel.tsx",
-  );
+  const panel = read("components/live-room/LiveRoomDesktopSidePanel.tsx");
   const styles = read("components/live-room/LiveRoom.module.css");
   const postsPanel = read("components/live-room/PostsPanel.tsx");
 
   assert.match(
     panel,
-    /import \{[\s\S]*PostDirectionBadge,[\s\S]*PostSignalChips,[\s\S]*\} from "\.\/PostSignals"/,
+    /import \{\s*PostDirectionBadge,\s*PostSignalChips\s*\} from "\.\/PostSignals"/,
   );
   assert.match(
     panel,
@@ -259,9 +249,7 @@ test("desktop Posts preview reuses signal chips and exposes compact activity cou
     styles,
     /\.sidePanelPostActivity\s*\{[\s\S]*flex:\s*0 0 auto;[\s\S]*margin-left:\s*auto;[\s\S]*color:\s*var\(--sr-color-text-meta\);[\s\S]*font-size:\s*var\(--sr-font-size-xs\);/,
   );
-  const activityStyles = styles.match(
-    /\.sidePanelPostActivity\s*\{([^}]*)\}/,
-  );
+  const activityStyles = styles.match(/\.sidePanelPostActivity\s*\{([^}]*)\}/);
   assert.ok(activityStyles);
   assert.doesNotMatch(activityStyles[1], /font-size:\s*\d/);
   assert.match(

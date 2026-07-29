@@ -31,7 +31,10 @@ const companyShareData: LiveRoomInviteShareData = {
 };
 
 function readSource(relativePath: string) {
-  return readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../../${relativePath}`, import.meta.url),
+    "utf8",
+  );
 }
 
 test("canonical invite URLs remove message anchors, query, and hashes for both room kinds", () => {
@@ -57,10 +60,7 @@ test("canonical invite URLs remove message anchors, query, and hashes for both r
     null,
   );
   assert.equal(
-    createCanonicalCommunityRoomInviteUrl(
-      "bad",
-      "https://radar.example/live",
-    ),
+    createCanonicalCommunityRoomInviteUrl("bad", "https://radar.example/live"),
     null,
   );
 });
@@ -150,10 +150,7 @@ test("platform popup uses noopener noreferrer and blocked popups preserve the li
   });
 
   assert.equal(result, "opened");
-  assert.equal(
-    openedUrl,
-    createLiveRoomPlatformIntent("x", companyShareData),
-  );
+  assert.equal(openedUrl, createLiveRoomPlatformIntent("x", companyShareData));
   assert.equal(openedFeatures, "noopener,noreferrer");
   assert.equal(opener, null);
 
@@ -192,10 +189,7 @@ test("native share support, success, cancellation, and failure fallback stay exp
       sharedUrl = data.url;
     },
   };
-  assert.equal(
-    canUseLiveRoomNativeShare(companyShareData, environment),
-    true,
-  );
+  assert.equal(canUseLiveRoomNativeShare(companyShareData, environment), true);
   assert.equal(
     await shareLiveRoomInviteNatively({
       environment,
@@ -313,17 +307,13 @@ test("Instagram uses native share when possible and otherwise copies with guidan
 });
 
 test("shared Invite UI is guest-accessible and keeps the keyboard dialog contract", () => {
-  const menu = readSource(
-    "components/live-room/LiveRoomInviteMenu.tsx",
-  );
+  const menu = readSource("components/live-room/LiveRoomInviteMenu.tsx");
   const companyHeader = readSource(
     "components/live-room/CompanyRoomHeader.tsx",
   );
-  const companyClient = readSource(
-    "components/live-room/LiveRoomClient.tsx",
-  );
-  const communityClient = readSource(
-    "components/live-room/CommunityRoomClient.tsx",
+  const companyClient = readSource("components/live-room/LiveRoomClient.tsx");
+  const communityHeader = readSource(
+    "components/live-room/CommunityRoomHeader.tsx",
   );
 
   assert.match(menu, /aria-expanded=\{isOpen\}/);
@@ -338,13 +328,7 @@ test("shared Invite UI is guest-accessible and keeps the keyboard dialog contrac
   assert.match(menu, /Popup blocked\. Link copied instead\./);
   assert.doesNotMatch(menu, /loginHref|isGuest|signIn|signup/);
 
-  assert.match(
-    companyHeader,
-    /<LiveRoomInviteMenu[\s\S]*kind: "company"/,
-  );
-  assert.match(
-    communityClient,
-    /<LiveRoomInviteMenu[\s\S]*kind: "community"/,
-  );
+  assert.match(companyHeader, /<LiveRoomInviteMenu[\s\S]*kind: "company"/);
+  assert.match(communityHeader, /<LiveRoomInviteMenu[\s\S]*kind: "community"/);
   assert.doesNotMatch(companyClient, /inviteState|setInviteState/);
 });

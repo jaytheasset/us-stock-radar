@@ -37,6 +37,10 @@
   background: var(--sr-color-surface-panel);
 }
 
+.communityRoomHeader {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .roomIdentity {
   min-width: 0;
 }
@@ -178,6 +182,26 @@
   flex: 0 0 auto;
   align-items: center;
   gap: var(--sr-space-2);
+}
+
+.communityRoomsBackLink {
+  display: inline-flex;
+  min-width: var(--sr-size-control);
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+}
+
+.communityRoomsBackLink:hover {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-surface-control-strong);
 }
 
 .roomActions button,
@@ -436,11 +460,7 @@
   border-radius: var(--sr-radius-popover);
   padding: var(--sr-space-4);
   background:
-    linear-gradient(
-      115deg,
-      var(--sr-color-accent-subtle),
-      transparent 38%
-    ),
+    linear-gradient(115deg, var(--sr-color-accent-subtle), transparent 38%),
     var(--sr-color-surface-panel);
 }
 
@@ -664,6 +684,97 @@
   display: grid;
   min-width: 0;
   gap: var(--sr-space-4);
+}
+
+.communityAbout {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--sr-space-4);
+  padding: var(--sr-space-5);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-panel);
+}
+
+.communityAbout > div:first-child {
+  display: grid;
+  gap: var(--sr-space-2);
+}
+
+.communityAbout h2,
+.communityAbout p {
+  margin: 0;
+}
+
+.communityAbout h2 {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-lg);
+}
+
+.communityAbout p {
+  line-height: var(--sr-line-height-default);
+}
+
+.communityAboutMeta,
+.communityAboutTags,
+.communityAboutLinks,
+.communityAboutTickers {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+}
+
+.communityAboutMeta span,
+.communityAboutTags span,
+.communityAboutLinks a,
+.communityAboutTickers a {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-1) var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
+  text-decoration: none;
+}
+
+.communityAboutLinks {
+  display: grid;
+}
+
+.communityAboutLinks a {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.communityAboutLinks a:hover,
+.communityAboutTickers a:hover {
+  color: var(--sr-color-text-heading);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.communityAbout > small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.communityAbout[data-compact="true"] {
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-1);
+}
+
+.communityAbout[data-compact="true"] h2 {
+  font-size: var(--sr-font-size-md);
+}
+
+.communityAbout[data-compact="true"] p {
+  font-size: var(--sr-font-size-sm);
 }
 
 .roomLayout {
@@ -1480,8 +1591,7 @@
 
 .highlightedMessage {
   border-radius: var(--sr-radius-action);
-  outline: var(--sr-border-width-strong) solid
-    var(--sr-color-accent-border);
+  outline: var(--sr-border-width-strong) solid var(--sr-color-accent-border);
   outline-offset: var(--sr-space-2);
 }
 
@@ -1654,8 +1764,7 @@
 .reportReasons {
   display: grid;
   margin: var(--sr-space-1) 0;
-  border-left: var(--sr-border-width-strong) solid
-    var(--sr-color-accent-border);
+  border-left: var(--sr-border-width-strong) solid var(--sr-color-accent-border);
   padding-left: var(--sr-space-1);
 }
 
@@ -1780,13 +1889,17 @@
   opacity: 0;
 }
 
-.otherMessage article:hover
+.otherMessage
+  article:hover
   .messageEngagementControl[data-action="like"][data-has-count="false"],
-.myMessage article:hover
+.myMessage
+  article:hover
   .messageEngagementControl[data-action="like"][data-has-count="false"],
-.otherMessage article:focus-within
+.otherMessage
+  article:focus-within
   .messageEngagementControl[data-action="like"][data-has-count="false"],
-.myMessage article:focus-within
+.myMessage
+  article:focus-within
   .messageEngagementControl[data-action="like"][data-has-count="false"] {
   pointer-events: auto;
   opacity: 1;
@@ -1822,8 +1935,7 @@
   margin-top: var(--sr-space-2);
   overflow: hidden;
   border: 0;
-  border-left: var(--sr-border-width-strong) solid
-    var(--sr-color-accent-border);
+  border-left: var(--sr-border-width-strong) solid var(--sr-color-accent-border);
   border-radius: var(--sr-radius-chat-control);
   padding: var(--sr-space-1-5) var(--sr-space-2);
   color: var(--sr-color-text-secondary);
@@ -1862,14 +1974,12 @@ button.messageReplyPreview:hover {
 }
 
 .otherMessage article {
-  border: var(--sr-border-width) solid
-    var(--sr-color-chat-bubble-other-border);
+  border: var(--sr-border-width) solid var(--sr-color-chat-bubble-other-border);
   background: var(--sr-color-chat-bubble-other-background);
 }
 
 .myMessage article {
-  border: var(--sr-border-width) solid
-    var(--sr-color-chat-bubble-mine-border);
+  border: var(--sr-border-width) solid var(--sr-color-chat-bubble-mine-border);
   background: var(--sr-color-chat-bubble-mine-background);
 }
 
@@ -1879,8 +1989,7 @@ button.messageReplyPreview:hover {
   align-items: center;
   gap: var(--sr-space-2);
   margin-top: var(--sr-space-2);
-  border-left: var(--sr-border-width-strong) solid
-    var(--sr-color-accent-border);
+  border-left: var(--sr-border-width-strong) solid var(--sr-color-accent-border);
   padding: var(--sr-space-1-5) var(--sr-space-2);
   background: var(--sr-color-surface-elevated);
 }
@@ -2254,7 +2363,9 @@ button.messageReplyPreview:hover {
   height: 12px;
   border-radius: var(--sr-radius-pill);
   background: var(--sr-color-text-meta);
-  transition: transform 140ms ease, background-color 140ms ease;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease;
 }
 
 .presenceSwitch[aria-checked="true"] {
@@ -2423,6 +2534,7 @@ button.messageReplyPreview:hover {
 }
 
 .roomActions button:focus-visible,
+.communityRoomsBackLink:focus-visible,
 .followNote a:focus-visible,
 .mockControls button:focus-visible,
 .mockControls select:focus-visible,
@@ -2569,8 +2681,7 @@ button.messageReplyPreview:hover {
     padding: var(--sr-space-2) var(--sr-page-gutter-mobile)
       calc(
         var(--live-room-mobile-tabs-height) +
-          var(--live-room-mobile-composer-height) +
-          var(--sr-space-2) +
+          var(--live-room-mobile-composer-height) + var(--sr-space-2) +
           env(safe-area-inset-bottom)
       );
   }
@@ -2584,6 +2695,10 @@ button.messageReplyPreview:hover {
     row-gap: var(--sr-space-0-5);
     margin: 0;
     padding: var(--sr-space-3);
+  }
+
+  .communityRoomHeader {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .roomIdentity {
@@ -2696,6 +2811,18 @@ button.messageReplyPreview:hover {
     gap: var(--sr-space-0-5);
   }
 
+  .communityRoomHeader .roomActions {
+    grid-column: 2 / 3;
+  }
+
+  .communityRoomsBackLink {
+    min-width: var(--sr-size-icon-button);
+    min-height: var(--sr-size-icon-button);
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-xs);
+  }
+
   .roomActions button {
     width: auto;
     min-width: 0;
@@ -2734,6 +2861,11 @@ button.messageReplyPreview:hover {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+
+  .communityAbout {
+    gap: var(--sr-space-3);
+    padding: 0;
   }
 
   .roomActions .historyTrigger {
@@ -2877,8 +3009,7 @@ button.messageReplyPreview:hover {
     z-index: calc(var(--sr-z-sticky-action) + 2);
     right: 0;
     bottom: calc(
-      var(--live-room-mobile-tabs-height) +
-        env(safe-area-inset-bottom)
+      var(--live-room-mobile-tabs-height) + env(safe-area-inset-bottom)
     );
     left: 0;
     box-sizing: border-box;
@@ -3229,8 +3360,7 @@ button.messageReplyPreview:hover {
 .postPreviewTitle:focus-visible,
 .postPreviewAuthor:focus-visible {
   border-radius: var(--sr-radius-sm);
-  outline: var(--sr-border-width-strong) solid
-    var(--sr-color-accent-border);
+  outline: var(--sr-border-width-strong) solid var(--sr-color-accent-border);
   outline-offset: var(--sr-space-0-5);
 }
 
