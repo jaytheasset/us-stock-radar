@@ -10,7 +10,7 @@ export default async function AdminDbPage() {
   ).length;
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>DB Read-Out</h1>
@@ -241,6 +241,6 @@ export default async function AdminDbPage() {
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

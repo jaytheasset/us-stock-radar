@@ -32,7 +32,7 @@ export default async function NewsIngestAdminPage() {
   ]);
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>News Ingest</h1>
@@ -122,7 +122,7 @@ export default async function NewsIngestAdminPage() {
           />
         </article>
       </section>
-    </main>
+    </div>
   );
 }
 

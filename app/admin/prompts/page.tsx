@@ -7,7 +7,7 @@ export default function AdminPromptsPage() {
   const registry = getPromptRegistry();
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>Prompt Registry</h1>
@@ -85,7 +85,7 @@ export default function AdminPromptsPage() {
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }
 

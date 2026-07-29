@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LIVE_ROOM_PRIVATE_HEADERS } from "@/lib/live-room/apiResponse";
 import { socialVerificationErrorResponse } from "@/lib/social-verification/apiResponse";
-import { listSocialVerificationReviews } from "@/lib/social-verification/serverRepository";
+import {
+  assertSocialVerificationAdmin,
+  listSocialVerificationReviews,
+} from "@/lib/social-verification/serverRepository";
 import {
   applySocialAuthCookies,
   resolveSocialMember,
@@ -14,6 +17,7 @@ export async function GET(request: NextRequest) {
     null;
   try {
     resolution = await resolveSocialMember(request);
+    await assertSocialVerificationAdmin(resolution.userId);
     const result = await listSocialVerificationReviews({
       cursor: request.nextUrl.searchParams.get("cursor"),
       limit: Number(request.nextUrl.searchParams.get("limit")) || 25,

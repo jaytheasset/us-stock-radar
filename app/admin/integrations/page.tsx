@@ -7,7 +7,7 @@ export default function AdminIntegrationsPage() {
   const registry = getIntegrationRegistry();
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>Integrations</h1>
@@ -62,6 +62,6 @@ export default function AdminIntegrationsPage() {
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

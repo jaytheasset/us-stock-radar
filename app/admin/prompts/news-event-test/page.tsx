@@ -19,7 +19,7 @@ export default async function NewsEventPromptTestPage({ searchParams }: PageProp
   const sourceItem = readRecord(result.sourceItem);
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>News Event Prompt Test</h1>
@@ -130,7 +130,7 @@ export default async function NewsEventPromptTestPage({ searchParams }: PageProp
           <pre className="json-block">{JSON.stringify(result, null, 2)}</pre>
         </article>
       </section>
-    </main>
+    </div>
   );
 }
 

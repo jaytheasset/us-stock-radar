@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
 import { LIVE_ROOM_PRIVATE_HEADERS } from "@/lib/live-room/apiResponse";
 import { socialVerificationErrorResponse } from "@/lib/social-verification/apiResponse";
-import { reviewSocialVerification } from "@/lib/social-verification/serverRepository";
+import {
+  assertSocialVerificationAdmin,
+  reviewSocialVerification,
+} from "@/lib/social-verification/serverRepository";
 import {
   applySocialAuthCookies,
   resolveSocialMember,
@@ -23,6 +26,7 @@ export async function PATCH(
   try {
     assertSameOriginAuthRequest(request);
     resolution = await resolveSocialMember(request);
+    await assertSocialVerificationAdmin(resolution.userId);
     const { requestId } = await context.params;
     const input = (await request.json().catch(() => null)) as {
       decision?: unknown;

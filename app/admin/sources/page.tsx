@@ -7,7 +7,7 @@ export default function AdminSourcesPage() {
   const sources = getSourceJobRegistry();
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="topbar">
         <div className="title-block">
           <h1>Source Jobs</h1>
@@ -53,6 +53,6 @@ export default function AdminSourcesPage() {
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }
