@@ -1,4 +1,3 @@
-.desktop,
 .mobile {
   min-width: 0;
   margin-top: var(--sr-space-4);
@@ -8,8 +7,31 @@
   display: none;
 }
 
+.rail {
+  display: flex;
+  min-width: 0;
+  align-self: start;
+  flex-direction: column;
+  gap: var(--sr-space-4);
+}
+
+.rail[data-ads-enabled="false"] {
+  display: contents;
+}
+
+.desktopRailAd {
+  width: 100%;
+  max-width: 336px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
 @media (max-width: 1180px) {
-  .desktop {
+  .rail {
+    display: contents;
+  }
+
+  .desktopRailAd {
     display: none;
   }
 
@@ -19,7 +41,6 @@
 }
 
 @media (max-width: 760px) {
-  .desktop,
   .mobile {
     margin-top: var(--sr-space-3);
   }

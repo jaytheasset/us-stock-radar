@@ -801,7 +801,7 @@ Dashboard inventory is independently configured through `dashboard-rail`, `dashb
 - Responsive geometry and visibility owner: `components/news-v2/StockRadarNewsV2.module.css`
 - Site-wide Anchor opt-in owner: `app/layout.tsx`
 
-`adsenseScriptLoader` is the single owner of the official `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` script ID and DOM insertion. It stores the in-flight or completed promise on `window`, also checks the stable script element ID, and therefore inserts at most one script across Anchor opt-in, manual slots, React rerenders, and App Router navigation. It does not create an ad container, call `adsbygoogle.push`, or schedule refreshes.
+`adsenseScriptLoader` is the single owner of the official `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js` script ID and DOM insertion. It stores the in-flight or completed promise on `window`, also checks the stable script element ID, and therefore inserts at most one script across Anchor opt-in, manual slots, React rerenders, and App Router navigation. When the production Anchor flag is enabled, it applies the official `data-overlays="bottom"` attribute to that same script whether the root loader or a manual slot requests it first. With the flag disabled, the attribute is absent. It does not create an ad container, call `adsbygoogle.push`, or schedule refreshes.
 
 `AdSenseSlot` owns every manual `ins.adsbygoogle` attribute, lazy-request lifecycle, and per-mounted-slot `adsbygoogle.push` guard across News V2, Filings V2, Dashboard V2, filing analysis, Alerts, and Calendar. Each manual inventory type checks only the production publisher ID and its own slot ID; a missing unrelated slot ID does not disable it. The existing IntersectionObserver preload margin, media-query activation, zero-dimension guard, stable reservation, and one-push-per-slot behavior remain unchanged. No automatic refresh timer or repeat push is permitted.
 
@@ -809,7 +809,7 @@ Every rendered manual slot, including its development placeholder path, includes
 
 `AdSensePublisherLoader` is a non-visual root-layout client component for Google Auto ads Anchor opt-in. It returns `null` and only asks the shared loader for the publisher script when production, publisher, Anchor flag, and viewer-level `enabledForViewer` conditions all pass. Google Auto ads and the AdSense site settings own the actual Anchor DOM, dismissal behavior, responsive behavior, and placement; the application must not create a fixed-position imitation, placeholder, or Anchor `data-ad-slot`.
 
-Viewer eligibility for News and Filings list/detail manual placements is resolved on the server through the request-cached current-viewer plan helper. Only the `free` plan may render those manual placements; `ad_free`, `pro`, `advanced`, and `ultimate` suppress them before hydration. The site-wide Anchor remains disabled by configuration and does not perform a root-layout plan lookup, preserving static rendering for unrelated routes. A separate viewer-aware boundary is required before Anchor is enabled in the future.
+Viewer eligibility for manual placements and the site-wide official Bottom Anchor is resolved on the server through the request-cached current-viewer plan helper. Only the `free` plan enables advertising; `ad_free`, `pro`, `advanced`, and `ultimate` suppress manual ad surfaces, their `Advertisement`/`Remove ads` footers, and the root publisher loader before hydration.
 
 ### Inventory and responsive placement
 
@@ -817,6 +817,7 @@ Viewer eligibility for News and Filings list/detail manual placements is resolve
 - Desktop inline inventory uses a horizontal responsive AdSense request capped at 970 px, with a 90 px minimum reservation. It may use a smaller eligible creative when the shell is narrower.
 - At the mobile/tablet breakpoint, rail and desktop-inline inventory is hidden. Mobile inline inventory uses a responsive request capped at 480 px with a 100 px minimum reservation.
 - Dashboard V2, filing analysis, and Alerts use this same shared responsive contract. Their desktop rail positions are capped at 336 px; their desktop inline positions are capped at 970 px; their mobile inline positions are capped at 480 px. Alerts retains two independently configured rail positions but no longer hard-reserves the legacy 600 px block.
+- Calendar uses mutually exclusive placements. Above 1180 px, its right rail is ordered as top responsive ad, selected event preview, then bottom responsive ad. Each rail inventory is independently configured, capped at 336 px, and reserves a 250 px minimum. The retired Calendar 970 × 90 desktop-inline placement is not rendered. At 1180 px and below, neither desktop rail unit requests or mounts an `ins`; one fixed 320 × 50 mobile/tablet unit remains below the filters.
 - A free-viewer news or filing analysis with exactly one non-empty Bullish/Bearish card places the independently configured analysis-signal companion unit in the other desktop grid cell. Both-card and no-card analyses do not mount it. At 760 px and below, the existing one-column analysis grid stacks the companion unit after the signal card.
 - When a free-viewer analysis has no related-content rail and a visible Score Rationale, the ad-only desktop rail collapses at 1180 px and an independently configured horizontal fallback appears immediately above Score Rationale. It is capped at 970 x 90 from 761 through 1180 px and adapts to a 480 x 100 reservation at 760 px and below. Above 1180 px the fallback remains hidden and its media query prevents an AdSense request; related-content rails and analyses without Score Rationale never mount it.
 - Desktop and mobile placements have mutually exclusive media-query activation. An inactive placement never renders an `ins.adsbygoogle` element and therefore cannot request a hidden ad. Minimum reservations prevent layout shift without forcing an oversized empty rectangle.
@@ -827,7 +828,7 @@ Viewer eligibility for News and Filings list/detail manual placements is resolve
 The publisher script is eligible only in a production build with `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` and at least one enabled consumer: `NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED=true` or an individually configured manual slot. Manual inventory is independently enabled by its own slot variable:
 
 - `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID`
-- `NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED` (default `false`)
+- `NEXT_PUBLIC_ADSENSE_ANCHOR_ENABLED` (deployment default intent `true`; still requires a production publisher and Free viewer)
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X250_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_RAIL_300X600_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_NEWS_V2_DESKTOP_INLINE_SLOT_ID`
@@ -846,7 +847,8 @@ The publisher script is eligible only in a production build with `NEXT_PUBLIC_AD
 - `NEXT_PUBLIC_ADSENSE_DASHBOARD_V2_MOBILE_INLINE_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X250_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_ALERTS_RAIL_300X600_SLOT_ID`
-- `NEXT_PUBLIC_ADSENSE_CALENDAR_DESKTOP_INLINE_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_TOP_SLOT_ID`
+- `NEXT_PUBLIC_ADSENSE_CALENDAR_RAIL_BOTTOM_SLOT_ID`
 - `NEXT_PUBLIC_ADSENSE_CALENDAR_MOBILE_INLINE_SLOT_ID`
 
 The publisher value must be the AdSense client identifier (for example, a value with the `ca-pub-` prefix), and each manual inventory variable must contain its matching AdSense ad-unit slot ID. These public identifiers are documented in `.env.local.example`; real account values must be supplied by the production environment and must not be committed. In development, manual positions retain their established `Advertisement` placeholders, while the Anchor loader renders nothing and does not load the Google script. In production, a missing manual slot ID leaves only that manual position on its placeholder path and does not block another configured slot or Anchor.
@@ -858,9 +860,9 @@ Code only opts the site into the official publisher script. Production operators
 1. Enable Auto ads.
 2. In **Overlay formats**, enable **Anchor ads** and disable unwanted **Vignette ads** and **Side rail ads**.
 3. In the Anchor advanced position setting, select **Bottom only**. Google documents the available Anchor positions and the site editor path in [New settings for anchor ads and side rail ads](https://support.google.com/adsense/answer/16242705).
-4. Disable unwanted in-page Auto ads formats. The application supplies its own manual News V2 inventory and does not opt into or imitate Auto ads in-page placement.
+4. Disable unwanted in-page Auto ads formats. The application supplies its own manual page inventories and does not opt into or imitate Auto ads in-page placement.
 5. Confirm the deployed site behavior against Google's [Anchor ads contract](https://support.google.com/adsense/answer/15484692), including Google-owned dismissal and responsive behavior.
 
-`enabledForViewer` is the future viewer-policy boundary for Ad-Free subscriptions. The current application does not expose a settled auth/subscription advertising contract, so root layout passes the general enabled state without fabricating plan checks. Before enabling Anchor ads for a real deployment, the team must separately confirm the intended exposure scope until Ad-Free membership enforcement is implemented.
+`app/layout.tsx` passes `enabledForViewer={areAdsEnabledForPlan(viewerPlan)}` to the publisher loader. This is the site-wide Free-only policy boundary for the official Bottom Anchor; paid and Ad-Free plans do not load it.
 
 The manual-slot `Remove ads` link is conversion navigation only. It does not assert or persist Ad-Free entitlement, does not start checkout, and does not alter the Google-owned Auto ads Anchor. Auth, billing, subscription storage, and viewer-level enforcement remain separately scoped work.

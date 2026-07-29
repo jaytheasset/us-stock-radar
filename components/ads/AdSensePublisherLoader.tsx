@@ -17,7 +17,9 @@ export function AdSensePublisherLoader({
   useEffect(() => {
     if (!shouldLoadAnchorScript) return;
 
-    void loadAdSenseScript(adsenseConfig.publisherId).catch(() => undefined);
+    void loadAdSenseScript(adsenseConfig.publisherId, {
+      bottomAnchorEnabled: adsenseConfig.anchorEnabled,
+    }).catch(() => undefined);
   }, [shouldLoadAnchorScript]);
 
   return null;

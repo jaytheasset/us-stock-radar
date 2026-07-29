@@ -90,7 +90,9 @@ export function AdSenseSlot({
         if (renderedWidth <= 0 || renderedHeight <= 0) return;
 
         requestStartedRef.current = true;
-        void loadAdSenseScript(adsenseConfig.publisherId)
+        void loadAdSenseScript(adsenseConfig.publisherId, {
+          bottomAnchorEnabled: adsenseConfig.anchorEnabled,
+        })
           .then(() => {
             if (isDisposed || hasPushedRef.current || !container.isConnected) return;
 

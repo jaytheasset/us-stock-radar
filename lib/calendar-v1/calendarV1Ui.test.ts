@@ -88,20 +88,34 @@ test("count grammar and IPO price ranges use the shared presentation contract", 
   );
 });
 
-test("Calendar owns mutually exclusive free-viewer ad placements", async () => {
+test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
   const ads = await read("components/calendar-v1/CalendarAdSlots.tsx");
+  const adStyles = await read("components/calendar-v1/CalendarAdSlots.module.css");
+  const calendarStyles = await read("components/calendar-v1/CalendarV1.module.css");
 
   assert.match(page, /getCurrentViewerPlan/);
   assert.match(workspace, /areAdsEnabledForPlan\(viewerPlan\)/);
-  assert.match(ads, /inventory="calendar-desktop-inline"/);
+  assert.match(workspace, /<CalendarMobileAdSlot enabledForViewer=\{adsEnabledForViewer\}/);
+  assert.match(workspace, /<CalendarDesktopRail[\s\S]*desktopPreviewEvent/);
+  assert.match(ads, /CalendarRailAd inventory="calendar-rail-top" position="top"[\s\S]*\{children\}[\s\S]*CalendarRailAd inventory="calendar-rail-bottom" position="bottom"/);
+  assert.match(ads, /inventory=\{inventory\}/);
   assert.match(ads, /mediaQuery="\(min-width: 1181px\)"/);
-  assert.match(ads, /placeholderSize="970 × 90"/);
+  assert.match(ads, /format="responsive"/);
+  assert.match(ads, /height=\{250\}/);
+  assert.match(ads, /width=\{336\}/);
   assert.match(ads, /inventory="calendar-mobile-inline"/);
   assert.match(ads, /mediaQuery="\(max-width: 1180px\)"/);
   assert.match(ads, /placeholderSize="320 × 50"/);
   assert.match(ads, /height=\{50\}/);
+  assert.doesNotMatch(
+    ads,
+    new RegExp(["calendar", "desktop", "inline"].join("-")),
+  );
+  assert.match(adStyles, /\.rail\[data-ads-enabled="false"\]\s*\{\s*display:\s*contents;/);
+  assert.match(adStyles, /@media \(max-width: 1180px\)[\s\S]*\.desktopRailAd\s*\{\s*display:\s*none;/);
+  assert.match(calendarStyles, /\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel[\s\S]*position:\s*static;/);
 });
 
 test("calendar UI reuses shared filters, segmented controls, detail panel, and bottom sheet", async () => {
