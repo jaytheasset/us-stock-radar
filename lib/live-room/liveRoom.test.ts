@@ -484,19 +484,31 @@ test("Live Room keeps Chat above the composer and bottom nav while secondary mob
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.timelineList\s*\{\s*gap:\s*var\(--sr-space-2-5\);\s*\}/,
+    /@media \(max-width: 760px\)[\s\S]*?\.timelineList\s*\{\s*gap:\s*var\(--sr-space-1-5\);\s*\}/,
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage,\s*\.myMessage\s*\{\s*gap:\s*var\(--sr-space-2\);\s*\}/,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage,\s*\.myMessage\s*\{\s*gap:\s*var\(--sr-space-1-5\);\s*\}/,
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?padding:\s*var\(--sr-space-2\) var\(--sr-space-2-5\);/,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageAvatar\s*\{\s*width:\s*30px;\s*height:\s*30px;\s*\}/,
   );
   assert.match(
     liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > p,\s*\.myMessage article > p\s*\{\s*margin-top:\s*var\(--sr-space-1\);\s*\}/,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?padding:\s*var\(--sr-space-1-5\) var\(--sr-space-2\);/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > header,\s*\.myMessage article > header\s*\{\s*gap:\s*var\(--sr-space-1\);\s*\}/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.messageReplyButton,\s*\.messageActionsTrigger\s*\{\s*width:\s*24px;\s*height:\s*24px;\s*\}/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > p,\s*\.myMessage article > p\s*\{\s*margin-top:\s*var\(--sr-space-0-5\);\s*line-height:\s*1\.45;\s*\}/,
   );
   assert.match(
     liveRoomStyles,
