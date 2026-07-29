@@ -21,6 +21,7 @@ import {
   normalizeLiveRoomPostDraft,
   normalizeLiveRoomPostPageLimit,
 } from "./postPolicy";
+import { isLiveRoomPostSignal } from "./postSignals";
 import {
   normalizeLiveRoomPostCommentDraft,
   normalizeLiveRoomPostCommentPageLimit,
@@ -34,6 +35,7 @@ import type {
   LiveRoomPostComment,
   LiveRoomPostCommentPage,
   LiveRoomPostDraft,
+  LiveRoomPostLikeResult,
   LiveRoomPostPage,
   LiveRoomPostPreview,
   LiveRoomPublicMemberPostPage,
@@ -52,11 +54,14 @@ export type PostRow = {
   body?: unknown;
   created_at?: unknown;
   id?: unknown;
+  like_count?: unknown;
   referenced_event_id?: unknown;
   related_tickers?: unknown;
   room_id?: unknown;
+  signal_labels?: unknown;
   title?: unknown;
   updated_at?: unknown;
+  visible_comment_count?: unknown;
   visibility_status?: unknown;
 };
 
@@ -130,7 +135,7 @@ export async function listLiveRoomPosts({
   }
   const search: Record<string, string> = {
     select:
-      "id,room_id,author_user_id,title,body,related_tickers,referenced_event_id,visibility_status,created_at,updated_at",
+      "id,room_id,author_user_id,title,body,related_tickers,signal_labels,referenced_event_id,visibility_status,created_at,updated_at,like_count,visible_comment_count",
     visibility_status: `eq.${visibility}`,
     order: ascending
       ? "created_at.asc,id.asc"
@@ -208,7 +213,7 @@ export async function getLiveRoomPost(
   const [result, blockedMemberIds] = await Promise.all([
     supabaseSelect("live_room_posts", {
       select:
-        "id,room_id,author_user_id,title,body,related_tickers,referenced_event_id,visibility_status,created_at,updated_at",
+        "id,room_id,author_user_id,title,body,related_tickers,signal_labels,referenced_event_id,visibility_status,created_at,updated_at,like_count,visible_comment_count",
       id: `eq.${postId}`,
       visibility_status: "eq.visible",
       limit: "1",
@@ -261,6 +266,7 @@ export async function createLiveRoomPost({
     p_body: normalized.body,
     p_related_tickers: normalized.relatedTickers,
     p_referenced_event_id: normalized.eventId,
+    p_signal_labels: normalized.signalLabels,
   });
   return mapMutationResult(result, actor, "LIVE_ROOM_POST_CREATE_FAILED");
 }
@@ -290,6 +296,7 @@ export async function updateLiveRoomPost({
     p_body: normalized.body,
     p_related_tickers: normalized.relatedTickers,
     p_referenced_event_id: normalized.eventId,
+    p_signal_labels: normalized.signalLabels,
   });
   return mapMutationResult(result, actor, "LIVE_ROOM_POST_UPDATE_FAILED");
 }
@@ -319,6 +326,39 @@ export async function deleteLiveRoomPost({
     );
   }
   return { deleted: true as const, postId };
+}
+
+export async function toggleLiveRoomPostLike({
+  actor,
+  postId: rawPostId,
+}: {
+  actor: LiveRoomActor;
+  postId: unknown;
+}): Promise<LiveRoomPostLikeResult> {
+  assertMember(actor);
+  const postId = normalizeLiveRoomUuid(
+    rawPostId,
+    "LIVE_ROOM_INVALID_POST_ID",
+    "The post ID is invalid.",
+  );
+  await ensureLiveRoomMember(actor);
+  const result = await supabaseRpc("toggle_live_room_post_like", {
+    p_post_id: postId,
+    p_actor_user_id: actor.userId,
+  });
+  const row = readSingleRow(result.data);
+  if (!result.ok || !row || typeof row.liked !== "boolean") {
+    throw mapPostDatabaseError(
+      result.error,
+      result.status,
+      "LIVE_ROOM_POST_LIKE_FAILED",
+    );
+  }
+  return {
+    liked: row.liked,
+    likeCount: readNonnegativeCount(row.like_count),
+    postId,
+  };
 }
 
 export async function reportLiveRoomPost({
@@ -642,10 +682,15 @@ export function toLiveRoomPostPreview(post: LiveRoomPost): LiveRoomPostPreview {
   return {
     author: post.author,
     bodyPreview: createLiveRoomPostBodyPreview(post.body),
+    canLike: post.canLike,
+    commentCount: post.commentCount,
     createdAt: post.createdAt,
     id: post.id,
+    isLiked: post.isLiked,
     kind: "post_preview",
+    likeCount: post.likeCount,
     room: post.room,
+    signalLabels: post.signalLabels,
     title: post.title,
   };
 }
@@ -724,8 +769,15 @@ export async function mapLiveRoomPostRows(
   const eventIds = unique(
     rows.map((row) => readString(row.referenced_event_id)),
   );
-  const [profilesResult, roomsResult, communitiesResult, eventsResult, moderator] =
-    await Promise.all([
+  const postIds = unique(rows.map((row) => readString(row.id)));
+  const [
+    profilesResult,
+    roomsResult,
+    communitiesResult,
+    eventsResult,
+    likedPostsResult,
+    moderator,
+  ] = await Promise.all([
       supabaseSelect("live_room_member_profiles", {
         select: "user_id,public_profile_id,display_name,emoji",
         user_id: `in.(${authorIds.join(",")})`,
@@ -748,13 +800,22 @@ export async function mapLiveRoomPostRows(
             limit: String(eventIds.length),
           })
         : Promise.resolve({ ok: true, status: 200, data: [] }),
+      actor.kind === "member"
+        ? supabaseSelect("live_room_post_likes", {
+            select: "post_id",
+            post_id: `in.(${postIds.join(",")})`,
+            actor_user_id: `eq.${actor.userId}`,
+            limit: String(postIds.length),
+          })
+        : Promise.resolve({ ok: true, status: 200, data: [] }),
       isLiveRoomModerator(actor),
     ]);
   if (
     !profilesResult.ok ||
     !roomsResult.ok ||
     !communitiesResult.ok ||
-    !eventsResult.ok
+    !eventsResult.ok ||
+    !likedPostsResult.ok
   ) {
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_POSTS_UNAVAILABLE",
@@ -780,6 +841,11 @@ export async function mapLiveRoomPostRows(
   );
   const events = new Map(
     readRows(eventsResult.data).map((row) => [readString(row.id), row]),
+  );
+  const likedPostIds = new Set(
+    readRows(likedPostsResult.data)
+      .map((row) => readString(row.post_id))
+      .filter(Boolean),
   );
 
   return rows.map((row) => {
@@ -812,11 +878,15 @@ export async function mapLiveRoomPostRows(
         publicProfileId: readString(profile?.public_profile_id),
       },
       body: readString(row.body),
+      canLike: actor.kind === "member",
       canModerate: moderator,
+      commentCount: readNonnegativeCount(row.visible_comment_count),
       createdAt: readString(row.created_at),
       eventReference,
       id: readString(row.id),
+      isLiked: likedPostIds.has(readString(row.id)),
       isMine: actor.kind === "member" && actor.userId === authorUserId,
+      likeCount: readNonnegativeCount(row.like_count),
       relatedTickers: Array.isArray(row.related_tickers)
         ? row.related_tickers.map(readString).filter(Boolean)
         : [],
@@ -832,6 +902,9 @@ export async function mapLiveRoomPostRows(
             label: `${ticker} Company Room`,
             ticker,
           },
+      signalLabels: Array.isArray(row.signal_labels)
+        ? row.signal_labels.filter(isLiveRoomPostSignal)
+        : [],
       title: readString(row.title),
       updatedAt: readString(row.updated_at),
     };
@@ -951,13 +1024,26 @@ async function getPublicMember(rawPublicProfileId: unknown) {
       404,
     );
   }
+  const userId = readString(row.user_id);
+  const receivedLikesResult = await supabaseRpc(
+    "get_live_room_member_received_like_count",
+    { p_member_user_id: userId },
+  );
+  if (!receivedLikesResult.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PUBLIC_PROFILE_UNAVAILABLE",
+      "The member profile activity could not be loaded.",
+      receivedLikesResult.status || 502,
+    );
+  }
   return {
     member: {
       displayName: readString(row.display_name) || "Member",
       emoji: readString(row.emoji) || "👋",
       publicProfileId: readString(row.public_profile_id),
+      receivedLikeCount: readNonnegativeCount(receivedLikesResult.data),
     },
-    userId: readString(row.user_id),
+    userId,
   };
 }
 
@@ -1162,6 +1248,8 @@ function mapPostDatabaseError(
     LIVE_ROOM_POST_PRIMARY_TICKER_DUPLICATE:
       "Do not repeat the current room ticker in mentioned tickers.",
     LIVE_ROOM_POST_FORBIDDEN: "You cannot edit this post.",
+    LIVE_ROOM_POST_INVALID_SIGNALS:
+      "Choose up to three post signals from the available list.",
     LIVE_ROOM_INVALID_EVENT_REFERENCE:
       "That event cannot be attached to this room.",
     LIVE_ROOM_MEMBER_REQUIRED: "Sign in to write Live Room posts.",
@@ -1296,4 +1384,14 @@ function readSingleRow(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function readNonnegativeCount(value: unknown) {
+  const count =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  return Number.isSafeInteger(count) && count >= 0 ? count : 0;
 }

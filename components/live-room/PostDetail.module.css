@@ -140,6 +140,31 @@
   background: transparent;
 }
 
+.actions .engagementAction,
+.engagementCount {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
+  padding: 0 var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-meta);
+  background: var(--sr-color-surface-control);
+  line-height: 1;
+}
+
+.actions .engagementAction[aria-pressed="true"] {
+  color: var(--sr-color-accent-text);
+}
+
+.actions .engagementAction:hover,
+.actions .engagementAction:focus-visible {
+  color: var(--sr-color-text-heading);
+  border-color: var(--sr-color-border-section);
+}
+
 .actions details {
   position: relative;
 }
@@ -161,14 +186,14 @@
   margin-top: 24px;
 }
 
-.editForm label {
+.editForm > label {
   display: grid;
   gap: 7px;
   font-weight: 750;
 }
 
-.editForm input,
-.editForm textarea {
+.editForm > label > input,
+.editForm > label > textarea {
   width: 100%;
   padding: 11px 12px;
   border: var(--sr-border-width) solid var(--sr-color-border);
@@ -220,6 +245,16 @@
 .profileIntro,
 .profilePosts small {
   color: var(--sr-color-text-meta);
+}
+
+.profileReceivedLikes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
 }
 
 .profileActions {

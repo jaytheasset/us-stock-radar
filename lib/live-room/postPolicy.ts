@@ -1,9 +1,14 @@
 import { LiveRoomPolicyError, normalizeLiveRoomTicker } from "./policy.ts";
+import {
+  isLiveRoomPostSignal,
+  type LiveRoomPostSignal,
+} from "./postSignals.ts";
 
 export const LIVE_ROOM_POST_TITLE_MAX_LENGTH = 120;
 export const LIVE_ROOM_POST_BODY_MAX_LENGTH = 10_000;
 export const LIVE_ROOM_POST_BODY_PREVIEW_MAX_LENGTH = 220;
 export const LIVE_ROOM_POST_TICKER_LIMIT = 5;
+export const LIVE_ROOM_POST_SIGNAL_LIMIT = 3;
 export const LIVE_ROOM_POST_PAGE_SIZE = 20;
 export const LIVE_ROOM_POST_MAX_PAGE_SIZE = 50;
 
@@ -48,6 +53,9 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
   const rawTickers = Array.isArray(input.relatedTickers)
     ? input.relatedTickers
     : [];
+  const rawSignalLabels = Array.isArray(input.signalLabels)
+    ? input.signalLabels
+    : [];
 
   if (
     title.length < 4 ||
@@ -75,6 +83,12 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
       `Choose up to ${LIVE_ROOM_POST_TICKER_LIMIT} related tickers.`,
     );
   }
+  if (rawSignalLabels.length > LIVE_ROOM_POST_SIGNAL_LIMIT) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_SIGNALS",
+      `Choose up to ${LIVE_ROOM_POST_SIGNAL_LIMIT} post signals.`,
+    );
+  }
 
   const relatedTickers = [
     ...new Set(
@@ -88,7 +102,23 @@ export function normalizeLiveRoomPostDraft(value: unknown) {
     );
   }
 
-  return { body, eventId, relatedTickers, title };
+  if (!rawSignalLabels.every(isLiveRoomPostSignal)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_SIGNALS",
+      "Choose post signals from the available list.",
+    );
+  }
+  const signalLabels = [
+    ...new Set(rawSignalLabels as LiveRoomPostSignal[]),
+  ];
+  if (signalLabels.length !== rawSignalLabels.length) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_POST_INVALID_SIGNALS",
+      "Post signals must be unique.",
+    );
+  }
+
+  return { body, eventId, relatedTickers, signalLabels, title };
 }
 
 export function normalizeLiveRoomPostPageLimit(value: unknown) {

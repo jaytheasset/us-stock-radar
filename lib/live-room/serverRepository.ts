@@ -295,7 +295,7 @@ export async function getLiveRoomMessageChanges({
 
   const postSearch: Record<string, string> = {
     select:
-      "id,room_id,author_user_id,title,body,related_tickers,referenced_event_id,visibility_status,created_at,updated_at",
+      "id,room_id,author_user_id,title,body,related_tickers,signal_labels,referenced_event_id,visibility_status,created_at,updated_at,like_count,visible_comment_count",
     room_id: `eq.${room.id}`,
     order: "updated_at.asc,id.asc",
     limit: String(pageSize + 1),

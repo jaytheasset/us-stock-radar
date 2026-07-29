@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, LoaderCircle, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  FileText,
+  Heart,
+  LoaderCircle,
+  MessageCircle,
+  Plus,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   LiveRoomApiRepository,
@@ -9,6 +17,7 @@ import {
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
 import { createLiveRoomPostBodyPreview } from "@/lib/live-room/postPolicy";
+import type { LiveRoomPostSignal } from "@/lib/live-room/postSignals";
 import type {
   CompanyEvent,
   LiveRoomPost,
@@ -17,6 +26,10 @@ import type {
   LiveRoomProfile,
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
+import {
+  PostSignalChips,
+  PostSignalSelector,
+} from "./PostSignals";
 import styles from "./Posts.module.css";
 
 export function PostsPanel({
@@ -55,6 +68,9 @@ export function PostsPanel({
   const [body, setBody] = useState("");
   const [tickers, setTickers] = useState("");
   const [eventId, setEventId] = useState("");
+  const [signalLabels, setSignalLabels] = useState<
+    LiveRoomPostSignal[]
+  >([]);
   const [busy, setBusy] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const posts = controlledPosts ?? localPosts;
@@ -111,6 +127,7 @@ export function PostsPanel({
         ? eventId
         : null,
       relatedTickers,
+      signalLabels,
       title,
     };
     setBusy(true);
@@ -121,16 +138,22 @@ export function PostsPanel({
       onCreated?.({
         author: post.author,
         bodyPreview: createLiveRoomPostBodyPreview(post.body),
+        canLike: post.canLike,
+        commentCount: post.commentCount,
         createdAt: post.createdAt,
         id: post.id,
+        isLiked: post.isLiked,
         kind: "post_preview",
+        likeCount: post.likeCount,
         room: post.room,
+        signalLabels: post.signalLabels,
         title: post.title,
       });
       setTitle("");
       setBody("");
       setTickers("");
       setEventId("");
+      setSignalLabels([]);
       setFormOpen(false);
       setNotice("Post published.");
     } catch (error) {
@@ -292,6 +315,11 @@ export function PostsPanel({
               </select>
             </label>
           ) : null}
+          <PostSignalSelector
+            idPrefix="create-post-signal"
+            onChange={setSignalLabels}
+            value={signalLabels}
+          />
           <div className={styles.formActions}>
             <button disabled={busy} type="submit">
               {busy ? <LoaderCircle aria-hidden="true" size={16} /> : null}
@@ -343,6 +371,7 @@ export function PostsPanel({
                 <Link href={`/live/posts/${post.id}`}>{post.title}</Link>
               </h3>
               <p>{post.body}</p>
+              <PostSignalChips maxVisible={2} signals={post.signalLabels} />
               {post.relatedTickers.length ? (
                 <div className={styles.chips}>
                   {post.relatedTickers.map((ticker) => (
@@ -355,6 +384,20 @@ export function PostsPanel({
                   {post.eventReference.kind === "filing" ? "Filing" : "News"} · {post.eventReference.title}
                 </div>
               ) : null}
+              <div aria-label="Post activity" className={styles.activity}>
+                <span aria-label={`${post.likeCount} likes`}>
+                  <Heart
+                    aria-hidden="true"
+                    fill={post.isLiked ? "currentColor" : "none"}
+                    size={14}
+                  />
+                  {post.likeCount}
+                </span>
+                <span aria-label={`${post.commentCount} comments`}>
+                  <MessageCircle aria-hidden="true" size={14} />
+                  {post.commentCount}
+                </span>
+              </div>
               <div className={styles.actions}>
                 <Link href={`/live/posts/${post.id}`}>Read post</Link>
                 {post.isMine ? (

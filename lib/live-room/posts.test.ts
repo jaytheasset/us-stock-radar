@@ -34,6 +34,7 @@ test("post drafts enforce bounded title, body, and unique canonical tickers", ()
       body: "A durable thesis with enough detail for a Live Room post.",
       relatedTickers: ["NVDA", "AMD"],
       eventId: null,
+      signalLabels: [],
     },
   );
   assert.throws(() =>

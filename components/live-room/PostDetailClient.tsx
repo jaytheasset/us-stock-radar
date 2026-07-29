@@ -1,19 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, LoaderCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Heart,
+  LoaderCircle,
+  MessageCircle,
+} from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import {
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
+import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import type {
   LiveRoomPost,
   LiveRoomPostDraft,
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
 import { PostComments } from "./PostComments";
+import {
+  PostSignalChips,
+  PostSignalSelector,
+} from "./PostSignals";
 import styles from "./PostDetail.module.css";
 
 export function PostDetailClient({ postId }: { postId: string }) {
@@ -115,6 +125,13 @@ export function PostDetailClient({ postId }: { postId: string }) {
                     value={draft.body}
                   />
                 </label>
+                <PostSignalSelector
+                  idPrefix={`edit-post-${post.id}-signal`}
+                  onChange={(signalLabels) =>
+                    setDraft({ ...draft, signalLabels })
+                  }
+                  value={draft.signalLabels}
+                />
                 <div className={styles.actions}>
                   <button disabled={busy} type="submit">Save changes</button>
                   <button onClick={() => setEditing(false)} type="button">Cancel</button>
@@ -131,6 +148,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                   {post.updatedAt !== post.createdAt ? <span>Updated</span> : null}
                 </div>
+                <PostSignalChips signals={post.signalLabels} />
                 {post.relatedTickers.length ? (
                   <div className={styles.chips}>
                     {post.relatedTickers.map((ticker) => (
@@ -152,6 +170,54 @@ export function PostDetailClient({ postId }: { postId: string }) {
 
             {!editing ? (
               <div className={styles.actions}>
+                {post.canLike ? (
+                  <button
+                    aria-label={post.isLiked ? "Unlike post" : "Like post"}
+                    aria-pressed={post.isLiked}
+                    className={styles.engagementAction}
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        const result = await repository.toggleLike(post.id);
+                        setPost((current) =>
+                          current
+                            ? {
+                                ...current,
+                                isLiked: result.liked,
+                                likeCount: result.likeCount,
+                              }
+                            : current,
+                        );
+                      })
+                    }
+                    type="button"
+                  >
+                    <Heart
+                      aria-hidden="true"
+                      fill={post.isLiked ? "currentColor" : "none"}
+                      size={15}
+                    />
+                    {post.likeCount}
+                  </button>
+                ) : (
+                  <Link
+                    aria-label="Sign in to like this post"
+                    className={styles.engagementAction}
+                    href={createLiveRoomMemberLoginHref(
+                      `/live/posts/${post.id}`,
+                    )}
+                  >
+                    <Heart aria-hidden="true" size={15} />
+                    {post.likeCount}
+                  </Link>
+                )}
+                <span
+                  aria-label={`${post.commentCount} comments`}
+                  className={styles.engagementCount}
+                >
+                  <MessageCircle aria-hidden="true" size={15} />
+                  {post.commentCount}
+                </span>
                 <Link href={`${post.room.href}?tab=chat`}>Discuss in room Chat</Link>
                 {post.isMine ? (
                   <>
@@ -162,6 +228,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                           body: post.body,
                           eventId: post.eventReference?.eventId || null,
                           relatedTickers: post.relatedTickers,
+                          signalLabels: post.signalLabels,
                           title: post.title,
                         });
                         setEditing(true);
@@ -228,7 +295,23 @@ export function PostDetailClient({ postId }: { postId: string }) {
                 />
               </div>
             ) : null}
-            {!editing ? <PostComments postId={post.id} /> : null}
+            {!editing ? (
+              <PostComments postId={post.id}
+                onCommentCountChange={(delta) =>
+                  setPost((current) =>
+                    current
+                      ? {
+                          ...current,
+                          commentCount: Math.max(
+                            current.commentCount + delta,
+                            0,
+                          ),
+                        }
+                      : current,
+                  )
+                }
+              />
+            ) : null}
           </article>
         )}
       </main>

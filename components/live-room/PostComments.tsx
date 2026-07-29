@@ -13,7 +13,13 @@ import type {
 } from "@/lib/live-room/types";
 import styles from "./PostDetail.module.css";
 
-export function PostComments({ postId }: { postId: string }) {
+export function PostComments({
+  onCommentCountChange,
+  postId,
+}: {
+  onCommentCountChange?: (delta: number) => void;
+  postId: string;
+}) {
   const repository = useMemo(() => new LiveRoomPostApiRepository(), []);
   const [comments, setComments] = useState<LiveRoomPostComment[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -92,6 +98,7 @@ export function PostComments({ postId }: { postId: string }) {
               setComments((current) =>
                 orderComments([...current, created]),
               );
+              onCommentCountChange?.(1);
               setBody("");
               setReplyTo(null);
             });
@@ -230,6 +237,11 @@ export function PostComments({ postId }: { postId: string }) {
                         onClick={() =>
                           void run(async () => {
                             await repository.deleteComment(postId, comment.id);
+                            const removedCount = comments.filter(
+                              (item) =>
+                                item.id === comment.id ||
+                                item.parentCommentId === comment.id,
+                            ).length;
                             setComments((current) =>
                               current.filter(
                                 (item) =>
@@ -237,6 +249,7 @@ export function PostComments({ postId }: { postId: string }) {
                                   item.parentCommentId !== comment.id,
                               ),
                             );
+                            onCommentCountChange?.(-removedCount);
                             if (
                               replyTo?.id === comment.id ||
                               replyTo?.parentCommentId === comment.id

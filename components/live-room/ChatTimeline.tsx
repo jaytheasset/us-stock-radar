@@ -6,6 +6,7 @@ import {
   Ban,
   EyeOff,
   FileText,
+  Heart,
   MessageCircle,
   MoreHorizontal,
   Reply as ReplyIcon,
@@ -23,6 +24,7 @@ import {
   type LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
 import { formatEventTime } from "./CompanyEventCard";
+import { PostSignalChips } from "./PostSignals";
 import styles from "./LiveRoom.module.css";
 
 type ChatTimelineProps = {
@@ -152,6 +154,11 @@ export function ChatTimeline({
               </div>
               <div className={styles.postPreviewContent}>
                 <span className={styles.postPreviewLabel}>POST</span>
+                <PostSignalChips
+                  maxVisible={1}
+                  showOverflow={false}
+                  signals={item.signalLabels}
+                />
                 <Link
                   className={styles.postPreviewTitle}
                   href={`/live/posts/${item.id}`}
@@ -172,6 +179,24 @@ export function ChatTimeline({
                   <time dateTime={item.createdAt}>
                     {formatMessageTime(item.createdAt)}
                   </time>
+                  <span
+                    aria-label={`${item.likeCount} likes`}
+                    className={styles.postPreviewActivity}
+                  >
+                    <Heart
+                      aria-hidden="true"
+                      fill={item.isLiked ? "currentColor" : "none"}
+                      size={12}
+                    />
+                    {item.likeCount}
+                  </span>
+                  <span
+                    aria-label={`${item.commentCount} comments`}
+                    className={styles.postPreviewActivity}
+                  >
+                    <MessageCircle aria-hidden="true" size={12} />
+                    {item.commentCount}
+                  </span>
                 </div>
               </div>
             </li>
