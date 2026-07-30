@@ -40,21 +40,81 @@ export function CalendarDesktopRail({
   enabledForViewer: boolean;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
-  const detailAnchorRef = useRef<HTMLDivElement>(null);
+  const railScrollProgressRef = useRef(0);
 
   useEffect(() => {
-    if (
-      !enabledForViewer ||
-      !activeEventId ||
-      window.matchMedia("(max-width: 1180px)").matches
-    ) {
-      return;
-    }
+    railScrollProgressRef.current = 0;
+    if (!activeEventId || window.matchMedia("(max-width: 1180px)").matches) return;
+
     const rail = railRef.current;
-    const detailAnchor = detailAnchorRef.current;
-    if (!rail || !detailAnchor) return;
-    rail.scrollTop = detailAnchor.offsetTop;
-  }, [activeEventId, enabledForViewer]);
+    if (!rail) return;
+
+    rail.scrollTo({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      top: 0,
+    });
+  }, [activeEventId]);
+
+  useEffect(() => {
+    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    let previousPageScrollY = window.scrollY;
+    let pendingScrollDelta = 0;
+    let animationFrameId: number | null = null;
+
+    const syncRailToPageScroll = () => {
+      animationFrameId = null;
+
+      const rail = railRef.current;
+      const scrollDelta = pendingScrollDelta;
+      pendingScrollDelta = 0;
+
+      if (!desktopRailQuery.matches) {
+        railScrollProgressRef.current = 0;
+        return;
+      }
+      if (!rail) return;
+
+      if (window.scrollY <= 0) {
+        railScrollProgressRef.current = 0;
+        rail.scrollTo({ behavior: "auto", top: 0 });
+        return;
+      }
+      if (scrollDelta === 0) return;
+
+      const stickyTop = Number.parseFloat(window.getComputedStyle(rail).top) || 0;
+      if (rail.getBoundingClientRect().top > stickyTop + 1) return;
+
+      const maxScrollTop = Math.max(rail.scrollHeight - rail.clientHeight, 0);
+      railScrollProgressRef.current = Math.min(
+        maxScrollTop,
+        Math.max(0, railScrollProgressRef.current + scrollDelta),
+      );
+      rail.scrollTo({
+        behavior: "auto",
+        top: railScrollProgressRef.current,
+      });
+    };
+
+    const handlePageScroll = () => {
+      const currentScrollY = window.scrollY;
+      pendingScrollDelta += currentScrollY - previousPageScrollY;
+      previousPageScrollY = currentScrollY;
+
+      if (animationFrameId === null) {
+        animationFrameId = window.requestAnimationFrame(syncRailToPageScroll);
+      }
+    };
+
+    window.addEventListener("scroll", handlePageScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handlePageScroll);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -66,9 +126,7 @@ export function CalendarDesktopRail({
       {enabledForViewer ? (
         <CalendarRailAd inventory="calendar-rail-top" position="top" />
       ) : null}
-      <div className={styles.detailAnchor} ref={detailAnchorRef}>
-        {children}
-      </div>
+      <div className={styles.detailAnchor}>{children}</div>
       {enabledForViewer ? (
         <CalendarRailAd inventory="calendar-rail-bottom" position="bottom" />
       ) : null}
