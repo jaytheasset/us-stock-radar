@@ -56,7 +56,7 @@ export function buildDividendIdentity(input: {
   amount: number;
   frequency: string;
   occurrenceDate: string;
-  occurrenceKind: "declaration" | "record";
+  occurrenceKind: "declaration" | "payment" | "record";
   symbol: string;
 }) {
   parseDateOnly(input.occurrenceDate);
