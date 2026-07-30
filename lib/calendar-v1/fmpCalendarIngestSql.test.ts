@@ -7,6 +7,9 @@ const migrationUrl = new URL(
   import.meta.url,
 );
 
+const SCHEMA_QUALIFIED_SPECIAL_SQL_FORM =
+  /\b[a-z_][a-z0-9_$]*\.(?:coalesce|extract|greatest|least|nullif|overlay|position|substring|trim)\s*\(/i;
+
 test("FMP Calendar migration is additive, atomic, and service-role only", async () => {
   const sql = await readFile(migrationUrl, "utf8");
   assert.match(sql, /create or replace function public\.ingest_fmp_calendar_observation/);
@@ -22,6 +25,15 @@ test("FMP Calendar migration is additive, atomic, and service-role only", async 
   assert.match(sql, /grant execute on function[\s\S]*to service_role/);
   assert.doesNotMatch(sql, /security definer/i);
   assert.doesNotMatch(sql, /event_calendar_items/);
+});
+
+test("migration avoids schema-qualifying PostgreSQL special SQL syntax", async () => {
+  const sql = await readFile(migrationUrl, "utf8");
+  assert.doesNotMatch(sql, SCHEMA_QUALIFIED_SPECIAL_SQL_FORM);
+  assert.match(
+    sql,
+    /pg_catalog\.strpos\(v_canonical_identity, v_event_date::text\) > 0/,
+  );
 });
 
 test("raw retention and backfill contracts cannot create alerts", async () => {
@@ -48,7 +60,7 @@ test("revision/history changes only for normalized schedule or result changes", 
   assert.match(sql, /v_event\.lifecycle_status <> 'released'[\s\S]*'released'/);
   assert.match(sql, /'result-updated'/);
   assert.match(sql, /if v_changed then[\s\S]*insert into public\.calendar_event_history/);
-  assert.match(sql, /last_seen_at = pg_catalog\.greatest/);
+  assert.match(sql, /last_seen_at = greatest/);
   assert.match(sql, /checksum = excluded\.checksum/);
   assert.match(sql, /fetched_at = excluded\.fetched_at/);
   assert.ok(
