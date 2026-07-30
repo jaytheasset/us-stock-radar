@@ -1,55 +1,4 @@
-.previewBanner {
-  display: flex;
-  min-height: var(--sr-size-control);
-  align-items: center;
-  gap: var(--sr-space-3);
-  margin-bottom: var(--sr-space-3);
-  border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
-  border-radius: var(--sr-radius-control);
-  padding: var(--sr-space-2) var(--sr-space-4);
-  color: var(--sr-color-text-body);
-  background: var(--sr-color-accent-selected);
-  font-size: var(--sr-font-size-xs);
-}
-
-.previewBanner strong {
-  flex: 0 0 auto;
-  color: var(--sr-color-accent-text);
-  font-weight: var(--sr-font-weight-heavy);
-  letter-spacing: var(--sr-letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.scopeNote {
-  scroll-margin-top: calc(var(--sr-size-header) + var(--sr-space-6));
-  border: var(--sr-border-width) dashed var(--sr-color-border-control);
-  border-radius: var(--sr-radius-base);
-  padding: var(--sr-space-4);
-  color: var(--sr-color-text-body);
-  background: var(--sr-color-surface-control-group);
-}
-
-.scopeNote > span {
-  color: var(--sr-color-accent-text);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-heavy);
-  letter-spacing: var(--sr-letter-spacing-wide);
-}
-
-.scopeNote strong {
-  display: block;
-  margin-top: var(--sr-space-2);
-  color: var(--sr-color-text-heading);
-  font-size: var(--sr-font-size-md);
-}
-
-.scopeNote p {
-  margin: var(--sr-space-2) 0 0;
-  font-size: var(--sr-font-size-sm);
-  line-height: var(--sr-line-height-body);
-}
-
-.restoredSection {
+.fundamentalsSection {
   scroll-margin-top: calc(var(--sr-size-header) + var(--sr-space-6));
   padding: 0 var(--sr-space-4) var(--sr-space-4);
 }
@@ -74,6 +23,64 @@
   font-size: var(--sr-font-size-xs);
   font-variant-numeric: var(--sr-font-variant-numeric);
   text-align: right;
+}
+
+.dataState {
+  display: grid;
+  min-height: 132px;
+  place-content: center;
+  gap: var(--sr-space-2);
+  padding: var(--sr-space-6) var(--sr-space-4);
+  color: var(--sr-color-text-meta);
+  text-align: center;
+}
+
+.dataState strong {
+  color: var(--sr-color-text-body);
+  font-size: var(--sr-font-size-sm);
+}
+
+.sourceNotice,
+.planCard {
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  background: var(--sr-color-surface-control-group);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
+.sourceNotice {
+  margin-bottom: var(--sr-space-3);
+}
+
+.planCard {
+  display: grid;
+  align-content: center;
+  gap: var(--sr-space-2);
+}
+
+.planCard strong {
+  color: var(--sr-color-text-body);
+  font-size: var(--sr-font-size-sm);
+}
+
+.externalLink,
+.filingLink {
+  color: var(--sr-color-accent-text);
+  text-decoration: none;
+}
+
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.externalLink:hover,
+.filingLink:hover {
+  text-decoration: underline;
 }
 
 .financialOverviewGrid {
@@ -416,7 +423,7 @@
 .financialRow {
   display: grid;
   min-height: 38px;
-  grid-template-columns: minmax(120px, 1.3fr) repeat(4, minmax(70px, 1fr));
+  grid-template-columns: minmax(120px, 1.3fr) repeat(5, minmax(64px, 1fr));
   align-items: center;
   gap: var(--sr-space-2);
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
@@ -868,18 +875,7 @@
 }
 
 @media (max-width: 760px) {
-  .previewBanner {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--sr-space-1);
-    padding: var(--sr-space-3);
-  }
-
-  .scopeNote {
-    scroll-margin-top: calc(var(--sr-size-header) + var(--sr-space-8));
-  }
-
-  .restoredSection {
+  .fundamentalsSection {
     scroll-margin-top: calc(var(--sr-size-header) + var(--sr-space-8));
     padding: 0 var(--sr-space-3) var(--sr-space-3);
   }
