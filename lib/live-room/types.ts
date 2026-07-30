@@ -5,6 +5,10 @@ import type {
   LiveRoomPostSignal,
 } from "./postSignals.ts";
 import type { BrokerageProofSummary } from "../brokerage/types.ts";
+import type {
+  KlipyMediaAttachment,
+  KlipyReplyMediaPreview,
+} from "../klipy/types.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -60,6 +64,7 @@ export type LiveRoomReplyPreview = {
   authorEmoji: string;
   bodyPreview: string;
   messageId: string;
+  mediaPreview?: KlipyReplyMediaPreview | null;
 };
 
 export type LiveRoomChatMessage = {
@@ -77,6 +82,7 @@ export type LiveRoomChatMessage = {
   isMine?: boolean;
   kind: "message";
   likeCount: number;
+  media?: KlipyMediaAttachment | null;
   replyCount: number;
   replyPreview: LiveRoomReplyPreview | null;
 };

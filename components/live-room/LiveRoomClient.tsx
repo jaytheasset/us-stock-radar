@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
+import type { KlipyMediaAttachment } from "@/lib/klipy/types";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
@@ -189,6 +190,8 @@ export function LiveRoomClient({
   const [body, setBody] = useState("");
   const [brokerageProof, setBrokerageProof] =
     useState<BrokerageProofSummary | null>(null);
+  const [klipyMedia, setKlipyMedia] =
+    useState<KlipyMediaAttachment | null>(null);
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
   const [replyingTo, setReplyingTo] =
@@ -1063,7 +1066,7 @@ export function LiveRoomClient({
   );
 
   const handleSend = async () => {
-    if (!profile) return;
+    if (!profile || sending) return;
     const currentUserHistory = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -1074,6 +1077,7 @@ export function LiveRoomClient({
         createdAt: item.createdAt,
       }));
     const clientDecision = evaluateLiveRoomMessage(body, {
+      allowEmpty: Boolean(klipyMedia),
       history: currentUserHistory,
       now: new Date().toISOString(),
     });
@@ -1095,6 +1099,7 @@ export function LiveRoomClient({
       const message = await repository.send({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
+        mediaId: klipyMedia?.providerMediaId || null,
         proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
@@ -1118,6 +1123,7 @@ export function LiveRoomClient({
       });
       setBody("");
       setBrokerageProof(null);
+      setKlipyMedia(null);
       setReference(null);
       setReplyingTo(null);
       setDecision(null);
@@ -1748,7 +1754,14 @@ export function LiveRoomClient({
               onCancelReply={() => setReplyingTo(null)}
               onProfileChange={handleProfileChange}
               onPresenceSettingChange={handlePresenceSettingChange}
-              onProofChange={setBrokerageProof}
+              onProofChange={(proof) => {
+                setBrokerageProof(proof);
+                if (proof) setKlipyMedia(null);
+              }}
+              onMediaChange={(media) => {
+                setKlipyMedia(media);
+                if (media) setBrokerageProof(null);
+              }}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
@@ -1760,11 +1773,19 @@ export function LiveRoomClient({
                       bodyPreview: createLiveRoomReplyBodyPreview(
                         replyingTo.body,
                       ),
+                      mediaPreview: replyingTo.media
+                        ? {
+                            alt: replyingTo.media.alt,
+                            kind: "gif",
+                            previewUrl: replyingTo.media.previewUrl,
+                          }
+                        : null,
                       messageId: replyingTo.id,
                     }
                   : null
               }
               presenceSettingBusy={presenceSettingBusy}
+              media={klipyMedia}
               proof={brokerageProof}
               sending={sending}
               setProfileOpen={setProfileOpen}

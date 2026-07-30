@@ -403,7 +403,7 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
   const messages = read("lib/live-room/serverRepository.ts");
   const posts = read("lib/live-room/postServerRepository.ts");
   const brokerage = read("lib/brokerage/serverRepository.ts");
-  assert.match(messages, /insert_live_room_message_with_proof/);
+  assert.match(messages, /insert_live_room_message_with_attachments/);
   assert.match(posts, /create_live_room_post_with_proof/);
   assert.match(messages, /p_public_sharing_enabled/);
   assert.match(posts, /p_public_sharing_enabled/);
@@ -438,11 +438,11 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
   );
   assert.match(
     liveRoomCss,
-    /\.composerRow\s*\{[\s\S]*grid-template-columns:\s*170px minmax\(220px,\s*1fr\) auto auto/,
+    /\.composerRow\s*\{[\s\S]*grid-template-columns:\s*170px minmax\(220px,\s*1fr\) auto auto auto/,
   );
   assert.match(
     liveRoomCss,
-    /@media \(max-width: 760px\)[\s\S]*\.composerRow\s*\{[\s\S]*grid-template-columns:\s*42px minmax\(0,\s*1fr\) 42px 42px/,
+    /@media \(max-width: 760px\)[\s\S]*\.composerRow\s*\{[\s\S]*grid-template-columns:\s*42px minmax\(0,\s*1fr\) 42px 42px 42px/,
   );
   assert.match(read("components/live-room/ChatTimeline.tsx"), /BrokerageProofCard/);
   assert.match(read("components/live-room/PostsPanel.tsx"), /BrokerageEvidencePicker/);
