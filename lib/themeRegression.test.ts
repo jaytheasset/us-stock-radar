@@ -40,12 +40,10 @@ test("root layout owns the single beforeInteractive theme initializer", () => {
 
 test("stored light theme styles user-selectable shells before hydration without changing fixed-dark shells", () => {
   const tokenSource = readSource("app/stock-radar-tokens.css");
-  const lightSelector =
-    '[data-sr-theme="light"],\nhtml[data-theme="light"] [data-sr-theme-mode="user-selectable"] {';
 
-  assert.ok(
-    tokenSource.includes(lightSelector),
-    "the explicit light selector must remain first and the pre-hydration selector must follow it",
+  assert.match(
+    tokenSource,
+    /\[data-sr-theme="light"\]\s*,\s*html\[data-theme="light"\]\s+\[data-sr-theme-mode="user-selectable"\]\s*\{/,
   );
   assert.doesNotMatch(
     tokenSource,
