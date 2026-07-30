@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { logoutAndReloadCurrentPage } from "@/lib/auth/clientLogout";
 
 type AuthUser = {
   id: string;
@@ -27,6 +28,7 @@ export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showC
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutFailed, setLogoutFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -55,11 +57,14 @@ export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showC
   }, []);
 
   async function handleLogout() {
+    if (loggingOut) return;
     setLoggingOut(true);
+    setLogoutFailed(false);
     try {
-      await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
-    } finally {
-      window.location.assign("/feed");
+      await logoutAndReloadCurrentPage();
+    } catch {
+      setLogoutFailed(true);
+      setLoggingOut(false);
     }
   }
 
@@ -95,8 +100,18 @@ export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showC
         <span aria-hidden="true">{initial}</span>
         <strong>{label}</strong>
       </Link>
-      <button className="auth-logout-button" disabled={loggingOut} type="button" onClick={handleLogout}>
-        {loggingOut ? "Logging out..." : "Logout"}
+      <button
+        aria-live="polite"
+        className="auth-logout-button"
+        disabled={loggingOut}
+        type="button"
+        onClick={handleLogout}
+      >
+        {loggingOut
+          ? "Logging out..."
+          : logoutFailed
+            ? "Logout failed — retry"
+            : "Logout"}
       </button>
     </div>
   );
