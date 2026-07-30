@@ -44,6 +44,7 @@ const serverKeys = [
   "SNAPTRADE_MANUAL_REFRESH_MONTHLY_LIMIT",
   "SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS",
   "SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS",
+  "KLIPY_API_KEY",
 ] as const;
 
 export function getServerEnv() {
@@ -110,6 +111,7 @@ export function getServerEnv() {
       Number(process.env.SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS) || 600,
     snaptradeManualRefreshEstimatedCostCents:
       Number(process.env.SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS) || 5,
+    klipyApiKey: process.env.KLIPY_API_KEY || "",
   };
 }
 
@@ -171,6 +173,7 @@ export function envStatus() {
     SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS: String(
       values.snaptradeManualRefreshEstimatedCostCents,
     ),
+    KLIPY_API_KEY: values.klipyApiKey,
   };
 
   return serverKeys.map((key) => ({

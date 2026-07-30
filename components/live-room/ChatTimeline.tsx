@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import {
+  KlipyMessageMedia,
+  KlipyReplyMedia,
+} from "@/components/klipy/KlipyMedia";
+import {
   BrokerageProofCard,
   BrokerageProofSampleCard,
 } from "@/components/brokerage/BrokerageProofCard";
@@ -447,6 +451,11 @@ export function ChatTimeline({
                       {item.replyPreview.authorDisplayName}
                     </strong>
                     <span>{item.replyPreview.bodyPreview}</span>
+                    {item.replyPreview.mediaPreview ? (
+                      <KlipyReplyMedia
+                        media={item.replyPreview.mediaPreview}
+                      />
+                    ) : null}
                   </button>
                 ) : (
                   <div className={styles.messageReplyPreview}>
@@ -457,10 +466,16 @@ export function ChatTimeline({
                       {item.replyPreview.authorDisplayName}
                     </strong>
                     <span>{item.replyPreview.bodyPreview}</span>
+                    {item.replyPreview.mediaPreview ? (
+                      <KlipyReplyMedia
+                        media={item.replyPreview.mediaPreview}
+                      />
+                    ) : null}
                   </div>
                 )
               ) : null}
-              <p>{item.body}</p>
+              {item.body ? <p>{item.body}</p> : null}
+              {item.media ? <KlipyMessageMedia media={item.media} /> : null}
               {item.brokerageProof ? (
                 <BrokerageProofCard compact proof={item.brokerageProof} />
               ) : null}

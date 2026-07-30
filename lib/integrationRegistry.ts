@@ -77,6 +77,12 @@ export const integrationRegistry = [
       "SNAPTRADE_PUBLIC_PROOFS_ENABLED",
     ],
   },
+  {
+    key: "klipy",
+    label: "KLIPY GIF",
+    category: "media",
+    envKeys: ["KLIPY_API_KEY"],
+  },
 ];
 
 export function getIntegrationRegistry() {

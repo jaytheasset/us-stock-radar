@@ -3,11 +3,13 @@
   --live-room-mobile-composer-control-height: 0px;
   --live-room-mobile-composer-reference-height: 0px;
   --live-room-mobile-composer-reply-height: 0px;
+  --live-room-mobile-composer-media-height: 0px;
   --live-room-mobile-composer-error-height: 0px;
   --live-room-mobile-composer-height: calc(
     var(--live-room-mobile-composer-control-height) +
       var(--live-room-mobile-composer-reference-height) +
       var(--live-room-mobile-composer-reply-height) +
+      var(--live-room-mobile-composer-media-height) +
       var(--live-room-mobile-composer-error-height)
   );
   --live-room-workspace-height: max(560px, calc(100dvh - 240px));
@@ -2178,6 +2180,18 @@ button.messageReplyPreview:hover {
   white-space: nowrap;
 }
 
+.composerReply strong {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.composerReply strong > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .composerReference button,
 .composerReply button {
   display: flex;
@@ -2194,7 +2208,7 @@ button.messageReplyPreview:hover {
 
 .composerRow {
   display: grid;
-  grid-template-columns: 170px minmax(220px, 1fr) auto auto;
+  grid-template-columns: 170px minmax(220px, 1fr) auto auto auto;
   gap: var(--sr-space-2);
   align-items: stretch;
 }
@@ -2716,6 +2730,10 @@ button.messageReplyPreview:hover {
     --live-room-mobile-composer-reply-height: 58px;
   }
 
+  .page:has(.roomLayout:not([hidden]) .composerMedia) {
+    --live-room-mobile-composer-media-height: 62px;
+  }
+
   .page:has(.roomLayout:not([hidden]) .moderationError) {
     --live-room-mobile-composer-error-height: 24px;
   }
@@ -3088,7 +3106,7 @@ button.messageReplyPreview:hover {
   }
 
   .composerRow {
-    grid-template-columns: 42px minmax(0, 1fr) 42px 42px;
+    grid-template-columns: 42px minmax(0, 1fr) 42px 42px 42px;
     gap: var(--sr-space-1-5);
   }
 
