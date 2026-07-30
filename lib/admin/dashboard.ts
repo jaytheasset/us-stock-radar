@@ -232,8 +232,7 @@ export async function buildAdminDashboardSnapshot(
     recentReports,
     integrationMissing,
     warnings: [
-      "Schema warning: the current trial_plan constraint allows Pro only; product policy requires the 14-day trial on Advanced.",
-      "Reports are raw, read-only records. A unified moderation case and resolution workflow is not implemented yet.",
+      "Billing provider mutations, cron controls, prompt editing, and destructive data operations remain intentionally disabled in this phase.",
     ],
     degradedSources,
     generatedAt: new Date().toISOString(),

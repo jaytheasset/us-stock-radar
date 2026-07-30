@@ -1,66 +1,56 @@
-import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
+import { requireAdminPermission } from "@/lib/admin/server";
 import { getIntegrationRegistry } from "@/lib/integrationRegistry";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminIntegrationsPage() {
+export default async function AdminIntegrationsPage() {
+  await requireAdminPermission("system.read");
   const registry = getIntegrationRegistry();
-
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="title-block">
+    <div className={styles.page}>
+      <header className={styles.heading}>
+        <div>
+          <span className={styles.eyebrow}>System</span>
           <h1>Integrations</h1>
-          <p className="muted">Non-secret integration/env registry.</p>
+          <p>
+            Non-secret environment readiness only. Values, tokens, brokerage
+            user secrets, and account data are never rendered.
+          </p>
         </div>
-        <Link className="text-link" href="/admin">
-          Admin
-        </Link>
+        <span className={styles.badge}>Read only</span>
       </header>
-
-      <section className="definition-list">
-        {registry.integrations.map((integration) => (
-          <article className="definition-card" key={integration.key}>
-            <div className="definition-card-header">
-              <div>
+      <section className={styles.detailGrid}>
+        {registry.integrations.map((integration) => {
+          const present = integration.env.filter((item) => item.present).length;
+          return (
+            <article className={styles.detailCard} key={integration.key}>
+              <div className={styles.actions}>
                 <h2>{integration.label}</h2>
-                <p className="muted">
-                  {integration.key} · {integration.category}
-                </p>
+                <span
+                  className={`${styles.pill} ${
+                    present === integration.env.length
+                      ? styles.pillPositive
+                      : styles.pillNegative
+                  }`}
+                >
+                  {present}/{integration.env.length} configured
+                </span>
               </div>
-              <span
-                className={`pill ${
-                  integration.env.every((item) => item.present) ? "ok" : "warn"
-                }`}
-              >
-                {integration.env.filter((item) => item.present).length}/
-                {integration.env.length} env
-              </span>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Env Key</th>
-                    <th>Present</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {integration.env.map((item) => (
-                    <tr key={item.key}>
-                      <td className="ticker">{item.key}</td>
-                      <td>
-                        <span className={`pill ${item.present ? "ok" : "bad"}`}>
-                          {item.present ? "yes" : "no"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        ))}
+              <p className={styles.muted}>
+                {integration.key} · {integration.category}
+              </p>
+              <ul className={styles.compactList}>
+                {integration.env.map((item) => (
+                  <li key={item.key}>
+                    <span className={styles.mono}>{item.key}</span>
+                    <strong>{item.present ? "Present" : "Missing"}</strong>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
       </section>
     </div>
   );

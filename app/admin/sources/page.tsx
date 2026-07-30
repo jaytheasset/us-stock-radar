@@ -1,57 +1,88 @@
-import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
+import { listFailedSourceRuns } from "@/lib/admin/operations";
+import { requireAdminPermission } from "@/lib/admin/server";
 import { getSourceJobRegistry } from "@/lib/sourceJobs";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminSourcesPage() {
-  const sources = getSourceJobRegistry();
-
+export default async function AdminSourcesPage() {
+  await requireAdminPermission("data.read");
+  const [failures, sources] = await Promise.all([
+    listFailedSourceRuns(200),
+    Promise.resolve(getSourceJobRegistry()),
+  ]);
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="title-block">
-          <h1>Source Jobs</h1>
-          <p className="muted">Job route registry and collection URLs. This page does not run jobs.</p>
+    <div className={styles.page}>
+      <header className={styles.heading}>
+        <div>
+          <span className={styles.eyebrow}>Data operations</span>
+          <h1>Source operations</h1>
+          <p>
+            Failure detail and the configured collection registry. This screen
+            cannot run jobs or change cron state.
+          </p>
         </div>
-        <Link className="text-link" href="/admin">
-          Admin
-        </Link>
+        <span className={styles.badge}>Read only</span>
       </header>
 
-      <section className="definition-list">
-        {sources.map((source) => (
-          <article className="definition-card" key={source.source}>
-            <div className="definition-card-header">
-              <div>
-                <h2>{source.label}</h2>
-                <p className="muted">
-                  {source.source} · {source.jobRoute}
-                </p>
-              </div>
-              <span className="pill ok">{source.sourceUrls.length} URL</span>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Label</th>
-                    <th>Primary</th>
-                    <th>URL</th>
+      <section className={styles.stack}>
+        <h2>Failed source runs</h2>
+        {failures.length ? (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Started</th>
+                  <th>Source</th>
+                  <th>Group</th>
+                  <th>Run type</th>
+                  <th>Error</th>
+                  <th>Stats</th>
+                </tr>
+              </thead>
+              <tbody>
+                {failures.map((run) => (
+                  <tr key={run.id}>
+                    <td>{new Date(run.startedAt).toLocaleString("en-US")}</td>
+                    <td>
+                      <strong>{run.sourceCode}</strong>
+                    </td>
+                    <td>{run.sourceGroup}</td>
+                    <td>{run.runType}</td>
+                    <td>{run.errorMessage || "No error message"}</td>
+                    <td className={styles.mono}>
+                      {JSON.stringify(run.stats).slice(0, 240)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {source.sourceUrls.map((item) => (
-                    <tr key={item.url}>
-                      <td>{item.label}</td>
-                      <td>{item.primary ? "yes" : "no"}</td>
-                      <td className="url-cell">{item.url}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        ))}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className={styles.notice}>No failed source runs.</p>
+        )}
+      </section>
+
+      <section className={styles.stack}>
+        <h2>Source registry</h2>
+        <div className={styles.detailGrid}>
+          {sources.map((source) => (
+            <article className={styles.detailCard} key={source.source}>
+              <h3>{source.label}</h3>
+              <p className={styles.mono}>
+                {source.source} · {source.jobRoute}
+              </p>
+              <ul className={styles.compactList}>
+                {source.sourceUrls.map((item) => (
+                  <li key={item.url}>
+                    <span>{item.label}</span>
+                    <strong>{item.primary ? "Primary" : "Fallback"}</strong>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );

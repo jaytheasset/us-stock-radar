@@ -1,4 +1,4 @@
-import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
 import { getPromptRegistry } from "@/lib/promptRegistry";
 
 export const dynamic = "force-dynamic";
@@ -7,15 +7,12 @@ export default function AdminPromptsPage() {
   const registry = getPromptRegistry();
 
   return (
-    <div className="shell">
-      <header className="topbar">
+    <div className={styles.page}>
+      <header className={styles.heading}>
         <div className="title-block">
           <h1>Prompt Registry</h1>
           <p className="muted">Draft LLM prompt inventory. No prompt writes from this page.</p>
         </div>
-        <Link className="text-link" href="/admin">
-          Admin
-        </Link>
       </header>
 
       <section className="definition-list">

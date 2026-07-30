@@ -5,8 +5,10 @@ import {
   CircleDollarSign,
   Database,
   Gauge,
+  History,
   IdCard,
   LifeBuoy,
+  KeyRound,
   Settings,
   ShieldCheck,
   Users,
@@ -29,6 +31,8 @@ const ICONS = {
   "/admin/alerts": BellRing,
   "/admin/billing": CircleDollarSign,
   "/admin/integrations": Settings,
+  "/admin/audit": History,
+  "/admin/roles": KeyRound,
 } as const;
 
 function isActive(pathname: string, href: string) {
