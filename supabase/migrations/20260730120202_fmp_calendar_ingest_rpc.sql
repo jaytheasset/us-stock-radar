@@ -172,13 +172,16 @@ begin
     ingested_run_id = excluded.ingested_run_id
   returning id into v_raw_id;
 
-  select event_row, details.detail
-  into v_event, v_old_detail
+  select event_row.*
+  into v_event
   from public.calendar_events as event_row
-  left join public.calendar_event_details as details
-    on details.event_id = event_row.id
   where event_row.canonical_identity_key = v_canonical_identity
   for update of event_row;
+
+  select details.detail
+  into v_old_detail
+  from public.calendar_event_details as details
+  where details.event_id = v_event.id;
 
   if v_event.id is null then
     insert into public.calendar_events (
