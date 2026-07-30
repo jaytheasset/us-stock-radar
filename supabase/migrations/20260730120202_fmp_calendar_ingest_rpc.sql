@@ -32,7 +32,7 @@ declare
   v_raw_id uuid;
   v_source_id uuid;
   v_old_detail jsonb;
-  v_detail jsonb := pg_catalog.coalesce(p_observation->'details', '{}'::jsonb);
+  v_detail jsonb := coalesce(p_observation->'details', '{}'::jsonb);
   v_raw_payload jsonb := p_observation->'raw_payload';
   v_canonical_identity text := pg_catalog.btrim(p_observation->>'canonical_identity_key');
   v_event_type text := pg_catalog.btrim(p_observation->>'event_type');
@@ -41,7 +41,7 @@ declare
   v_confidence text := pg_catalog.btrim(p_observation->>'schedule_confidence');
   v_impact text := pg_catalog.btrim(p_observation->>'impact_level');
   v_title text := pg_catalog.btrim(p_observation->>'title');
-  v_ticker text := pg_catalog.nullif(pg_catalog.btrim(p_observation->>'ticker'), '');
+  v_ticker text := nullif(pg_catalog.btrim(p_observation->>'ticker'), '');
   v_company_name text := pg_catalog.btrim(p_observation->>'company_name');
   v_source_event_key text := pg_catalog.btrim(p_observation->>'source_event_key');
   v_raw_checksum text := pg_catalog.btrim(p_observation->>'raw_checksum');
@@ -111,7 +111,7 @@ begin
     v_request_date := (p_observation->>'request_date')::date;
     v_fetched_at := (p_observation->>'fetched_at')::timestamptz;
     v_source_modified_at :=
-      pg_catalog.nullif(p_observation->>'source_modified_at', '')::timestamptz;
+      nullif(p_observation->>'source_modified_at', '')::timestamptz;
   exception
     when others then
       raise exception using errcode = '22023', message = 'CALENDAR_OBSERVATION_DATE_INVALID';
@@ -119,7 +119,7 @@ begin
   if v_event_date <> v_request_date then
     raise exception using errcode = '22023', message = 'CALENDAR_REQUEST_WINDOW_INVALID';
   end if;
-  if pg_catalog.position(v_event_date::text in v_canonical_identity) > 0 then
+  if pg_catalog.strpos(v_canonical_identity, v_event_date::text) > 0 then
     raise exception using errcode = '22023', message = 'CALENDAR_IDENTITY_CONTAINS_SCHEDULED_DATE';
   end if;
 
@@ -165,7 +165,7 @@ begin
     and request_window_end is not null
   )
   do update set
-    fetched_at = pg_catalog.greatest(
+    fetched_at = greatest(
       public.calendar_provider_payloads.fetched_at,
       excluded.fetched_at
     ),
@@ -238,7 +238,7 @@ begin
       or v_event.time_status is distinct from 'time-not-announced'
       or v_event.market_session is distinct from 'tna'
       or v_event.schedule_confidence is distinct from v_confidence;
-    v_details_changed := pg_catalog.coalesce(v_old_detail, '{}'::jsonb)
+    v_details_changed := coalesce(v_old_detail, '{}'::jsonb)
       is distinct from v_detail;
     v_changed :=
       v_schedule_changed
@@ -265,7 +265,7 @@ begin
       'market_session', v_event.market_session,
       'lifecycle_status', v_event.lifecycle_status,
       'schedule_confidence', v_event.schedule_confidence,
-      'details', pg_catalog.coalesce(v_old_detail, '{}'::jsonb)
+      'details', coalesce(v_old_detail, '{}'::jsonb)
     )
   end;
 
@@ -283,7 +283,7 @@ begin
       schedule_confidence = case when v_changed then v_confidence else schedule_confidence end,
       impact_level = case when v_changed then v_impact else impact_level end,
       current_revision = current_revision + case when v_changed then 1 else 0 end,
-      last_seen_at = pg_catalog.greatest(last_seen_at, v_fetched_at),
+      last_seen_at = greatest(last_seen_at, v_fetched_at),
       updated_at = case when v_changed then v_now else updated_at end
     where id = v_event_id;
   end if;
