@@ -200,6 +200,65 @@ test("Calendar date controls render locale-independent English picker values", a
   );
 });
 
+test("mobile Calendar header and date navigation remove duplicate controls", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+  const mobileDates = await read(
+    "components/calendar-v1/MobileCalendarDateNavigation.tsx",
+  );
+  const filters = await read("components/calendar-v1/CalendarFilters.tsx");
+  const views = await read("components/calendar-v1/CalendarViews.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+  const compactNavigation = mobileDates.slice(
+    mobileDates.indexOf('aria-label="Mobile date navigation"'),
+    mobileDates.indexOf("<BottomSheetShell"),
+  );
+
+  assert.match(workspace, /data-calendar-header/);
+  assert.match(workspace, /data-calendar-date-controls/);
+  assert.match(workspace, /data-calendar-results/);
+  assert.match(workspace, /<MobileCalendarDateNavigation/);
+  assert.match(filters, /data-calendar-filters/);
+  assert.match(filters, /Search events or tickers/);
+  assert.match(filters, /Search events, agencies, industries, tickers/);
+
+  assert.match(mobileDates, /BottomSheetShell/);
+  assert.match(mobileDates, /openerRef=\{openerRef\}/);
+  assert.match(mobileDates, /aria-expanded=\{isOpen\}/);
+  assert.match(mobileDates, /formatCompactRangeLabel\(range\)/);
+  assert.match(mobileDates, /shiftDateRange\(range, -1\)/);
+  assert.match(mobileDates, /shiftDateRange\(range, 1\)/);
+  assert.match(mobileDates, /label: "Today", value: "today"/);
+  assert.match(mobileDates, /label: "This week", value: "this-week"/);
+  assert.match(mobileDates, /label: "Next week", value: "next-week"/);
+  assert.match(mobileDates, /label: "Custom", value: "custom"/);
+  assert.match(mobileDates, /aria-label="From date"/);
+  assert.match(mobileDates, /aria-label="To date"/);
+  assert.match(mobileDates, /Apply range/);
+  assert.doesNotMatch(compactNavigation, />\s*Today\s*</);
+
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.pageHeader > div:first-child > span,[\s\S]*\.pageHeader p\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.rangeControl,[\s\S]*\.periodNavigation,[\s\S]*\.customRange\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDateNavigation\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.resultsSummary b\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.dayHeading em\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.match(views, /\{isToday \? <em>Today<\/em> : null\}/);
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");

@@ -29,7 +29,8 @@
 
 .pageHeader > div:first-child > span,
 .selectedDateSection > header span,
-.mobileFilterSheet header > span {
+.mobileFilterSheet header > span,
+.mobileRangeSheet header > span {
   color: var(--sr-color-accent-text);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-heavy);
@@ -184,6 +185,11 @@
   padding: 0;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.mobileDateNavigation,
+.mobileSearchPlaceholder {
+  display: none;
 }
 
 .customRange {
@@ -1245,20 +1251,79 @@
   padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
 }
 
-.mobileFilterSheet header {
+.mobileFilterSheet header,
+.mobileRangeSheet header {
   padding-right: var(--sr-space-7);
 }
 
-.mobileFilterSheet h2 {
+.mobileFilterSheet h2,
+.mobileRangeSheet h2 {
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-sheet-title);
   font-size: var(--sr-font-size-heading-sm);
 }
 
-.mobileFilterSheet header p {
+.mobileFilterSheet header p,
+.mobileRangeSheet header p {
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-sm);
+}
+
+.mobileRangeSheet {
+  padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
+}
+
+.mobileRangeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-5);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-4);
+}
+
+.mobileCustomRange {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-4);
+}
+
+.mobileCustomRange label {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-label);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.mobileCustomRange input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+}
+
+.mobileCustomRange > button {
+  grid-column: 1 / -1;
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-primary-action);
+  background: var(--sr-color-surface-primary-action);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
 }
 
 .mobileFilterGroup {
@@ -1378,15 +1443,21 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-7);
+    padding: var(--sr-space-2) var(--sr-page-gutter-mobile) var(--sr-space-7);
   }
 
   .pageHeader {
     align-items: center;
-    margin-bottom: var(--sr-space-3);
+    margin-bottom: var(--sr-space-2);
+  }
+
+  .pageHeader > div:first-child > span,
+  .pageHeader p {
+    display: none;
   }
 
   .pageHeader h1 {
+    margin: 0;
     font-size: var(--sr-font-size-xl);
   }
 
@@ -1400,51 +1471,75 @@
   }
 
   .dateControls {
-    display: grid;
-    gap: var(--sr-space-3);
-    padding: var(--sr-space-2);
+    display: block;
+    padding: var(--sr-space-1);
   }
 
-  .rangeControl {
-    width: 100%;
-    grid-template-columns: repeat(4, minmax(76px, 1fr));
-  }
-
-  .periodNavigation {
-    display: grid;
-    grid-template-columns: var(--sr-size-control) minmax(66px, auto) var(--sr-size-control) minmax(0, 1fr);
-  }
-
-  .jumpDate {
-    min-width: 0;
-  }
-
-  .jumpDate .dateFieldLabel {
+  .rangeControl,
+  .periodNavigation,
+  .customRange {
     display: none;
   }
 
-  .englishDatePicker,
-  .englishDateButton {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .customRange {
+  .mobileDateNavigation {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      var(--sr-size-control)
+      minmax(0, 1fr)
+      var(--sr-size-control)
+      var(--sr-size-control);
+    gap: var(--sr-space-1);
   }
 
-  .customDateField {
-    min-width: 0;
+  .mobileDateNavigation > button {
     display: grid;
-    gap: 0;
-    padding: var(--sr-space-1) var(--sr-space-2);
+    min-width: 0;
+    min-height: var(--sr-size-control);
+    place-items: center;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-control);
+    padding: 0;
+    color: var(--sr-color-text-control-strong);
+    background: var(--sr-color-surface-control);
+    cursor: pointer;
   }
 
-  .customDateField .englishDatePicker,
-  .customDateField .englishDateButton {
-    width: 100%;
-    min-width: 0;
+  .mobileDateNavigation > .mobileRangeLabel {
+    display: block;
+    overflow: hidden;
+    padding: 0 var(--sr-space-2);
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-size-control);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchField {
+    position: relative;
+  }
+
+  .searchField input::placeholder {
+    color: transparent;
+  }
+
+  .mobileSearchPlaceholder {
+    position: absolute;
+    right: var(--sr-space-2);
+    left: calc(var(--sr-space-3) + 17px + var(--sr-space-2));
+    display: block;
+    overflow: hidden;
+    color: var(--sr-color-text-meta);
+    font-size: var(--sr-font-size-md);
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchField input:not(:placeholder-shown) + .mobileSearchPlaceholder {
+    display: none;
   }
 
   .filters {
@@ -1457,6 +1552,10 @@
 
   .resultsSummary {
     min-height: 34px;
+  }
+
+  .resultsSummary b {
+    display: none;
   }
 
   .calendarWeekdays {
@@ -1488,7 +1587,7 @@
   }
 
   .dayHeading em {
-    font-size: 8px;
+    display: none;
   }
 
   .dayHeading small {

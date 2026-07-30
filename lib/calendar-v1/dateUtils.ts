@@ -219,6 +219,25 @@ export function formatRangeLabel(range: CalendarDateRange): string {
   return `${fromLabel} – ${toLabel}`;
 }
 
+export function formatCompactRangeLabel(range: CalendarDateRange): string {
+  const normalized = normalizeDateRange(range);
+  const from = parseDateOnly(normalized.from);
+  const to = parseDateOnly(normalized.to);
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const formatDate = (date: Date, includeYear: boolean) =>
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: includeYear ? "numeric" : undefined,
+    });
+
+  if (normalized.from === normalized.to) {
+    return formatDate(from, !sameYear);
+  }
+
+  return `${formatDate(from, !sameYear)} – ${formatDate(to, !sameYear)}`;
+}
+
 export function daysBetween(from: string, to: string): number {
   const start = parseDateOnly(from);
   const end = parseDateOnly(to);
