@@ -42,6 +42,14 @@ export function formatDateOnly(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function formatEnglishDatePickerValue(value: string): string {
+  return parseDateOnly(value).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export function getCalendarMarketDate(date = new Date()): string {
   if (Number.isNaN(date.getTime())) {
     throw new RangeError("Invalid market date instant");

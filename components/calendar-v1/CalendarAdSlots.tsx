@@ -34,13 +34,56 @@ export function CalendarDesktopRail({
   activeEventId,
   children,
   enabledForViewer,
+  onContentHeightChange,
 }: {
   activeEventId: string | null;
   children: ReactNode;
   enabledForViewer: boolean;
+  onContentHeightChange: (height: number) => void;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const railScrollProgressRef = useRef(0);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    let animationFrameId: number | null = null;
+
+    const reportContentHeight = () => {
+      animationFrameId = null;
+      onContentHeightChange(
+        desktopRailQuery.matches ? Math.ceil(rail.scrollHeight) : 0,
+      );
+    };
+    const scheduleContentHeightReport = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(reportContentHeight);
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleContentHeightReport);
+    resizeObserver.observe(rail);
+    for (const child of rail.children) {
+      resizeObserver.observe(child);
+    }
+
+    const mutationObserver = new MutationObserver(scheduleContentHeightReport);
+    mutationObserver.observe(rail, { childList: true, subtree: true });
+    window.addEventListener("resize", scheduleContentHeightReport, {
+      passive: true,
+    });
+    scheduleContentHeightReport();
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener("resize", scheduleContentHeightReport);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [onContentHeightChange]);
 
   useEffect(() => {
     railScrollProgressRef.current = 0;

@@ -175,6 +175,31 @@ test("Calendar typography, day alignment, and conditional upcoming panel use loc
   assert.doesNotMatch(upcomingRow, /<Link|<a\b/);
 });
 
+test("Calendar date controls render locale-independent English picker values", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+
+  assert.match(workspace, /formatEnglishDatePickerValue\(value\)/);
+  assert.match(workspace, /:\s*"MM\/DD\/YYYY"/);
+  assert.match(workspace, /ariaLabel="Choose date"[\s\S]*ariaLabel="From date"[\s\S]*ariaLabel="To date"/);
+  assert.match(
+    workspace,
+    /typeof input\.showPicker === "function"[\s\S]*input\.showPicker\(\)[\s\S]*input\.click\(\);/,
+  );
+  assert.match(
+    workspace,
+    /aria-hidden="true"[\s\S]*className=\{styles\.nativeDateInput\}[\s\S]*tabIndex=\{-1\}[\s\S]*type="date"/,
+  );
+  assert.match(
+    styles,
+    /\.nativeDateInput\s*\{[\s\S]*width:\s*1px;[\s\S]*height:\s*1px;[\s\S]*clip-path:\s*inset\(50%\);/,
+  );
+  assert.match(
+    styles,
+    /\.page \.englishDateButton\s*\{[\s\S]*min-width:\s*134px;[\s\S]*background:\s*transparent;/,
+  );
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
@@ -190,8 +215,25 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
     workspace,
     /<CalendarDesktopRail[\s\S]*activeEventId=\{selectedEventId\}[\s\S]*desktopPreviewEvent/,
   );
+  assert.match(workspace, /const \[desktopRailContentHeight, setDesktopRailContentHeight\] = useState\(0\)/);
+  assert.match(workspace, /data-view-mode=\{viewMode\}/);
+  assert.match(workspace, /"--calendar-desktop-rail-content-height": `\$\{desktopRailContentHeight\}px`/);
+  assert.match(workspace, /onContentHeightChange=\{setDesktopRailContentHeight\}/);
   assert.match(ads, /CalendarRailAd inventory="calendar-rail-top" position="top"[\s\S]*\{children\}[\s\S]*CalendarRailAd inventory="calendar-rail-bottom" position="bottom"/);
   assert.match(ads, /activeEventId:\s*string \| null/);
+  assert.match(ads, /onContentHeightChange:\s*\(height: number\) => void/);
+  assert.match(
+    ads,
+    /Math\.ceil\(rail\.scrollHeight\)[\s\S]*new ResizeObserver\(scheduleContentHeightReport\)[\s\S]*resizeObserver\.observe\(rail\)[\s\S]*for \(const child of rail\.children\)[\s\S]*new MutationObserver\(scheduleContentHeightReport\)/,
+  );
+  assert.match(
+    calendarStyles,
+    /@media \(min-width: 1181px\)[\s\S]*\.workspace\[data-view-mode="calendar"\]\[data-detail-open="true"\]\s*\{[\s\S]*min-height:\s*var\(--calendar-desktop-rail-content-height,\s*0\);/,
+  );
+  assert.doesNotMatch(
+    calendarStyles,
+    /\.workspace\[data-view-mode="list"\][^{]*\{[^}]*min-height:/,
+  );
   assert.match(ads, /const railScrollProgressRef = useRef\(0\)/);
   assert.match(
     ads,
