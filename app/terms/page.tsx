@@ -48,7 +48,7 @@ const sections: LegalDocumentSection[] = [
         <p>
           You are responsible for accurate account information, safeguarding
           your sign-in methods, and activity under your account. Notify Stock
-          Radar through the contact route in Section 13 if you believe your
+          Radar through the contact route below if you believe your
           account has been compromised. Do not share access in a way that
           bypasses plan limits or security controls.
         </p>
@@ -146,25 +146,28 @@ const sections: LegalDocumentSection[] = [
     content: (
       <>
         <p>
-          If enabled for your plan and environment, you may choose to connect a
-          brokerage through SnapTrade. The current integration is read-only.
-          Stock Radar does not place orders, execute trades, hold assets, or
-          move money. SnapTrade and the connected broker apply their own terms,
-          consent flows, availability rules, and data limitations.
+          Eligible Pro, Advanced, and Ultimate users may choose to connect a
+          brokerage through SnapTrade. The connection is read-only. Stock Radar
+          does not place orders, execute trades, hold assets, or move money.
+          SnapTrade and any connected broker apply their own terms, consent
+          flows, availability rules, and data limitations.
         </p>
         <p>
-          A broker-linked proof can verify selected connected data at a stated
-          time, such as a position or execution record. It does not verify
-          investing performance, present ownership, the completeness of an
-          account, the accuracy of a user&apos;s statements, or future results.
-          Connection status and broker data may be stale, unavailable, or
-          corrected later.
+          Subject to available controls and the applicable data-use permissions,
+          a user may publish only selected holdings or execution records in a
+          server-generated proof card. Any public-proof or data-repackaging
+          feature remains subject to SnapTrade&apos;s required written approval
+          and the applicable market-data rights. A proof does not verify
+          investing performance, account completeness, a user&apos;s statements, or
+          future results.
         </p>
         <p>
-          Proof details are not public by default. Publishing or attaching a
-          proof requires an explicit user action and may expose only the fields
-          selected for disclosure. Never treat a proof as investment advice or
-          a reason to copy another user&apos;s trade.
+          Proof details are private by default. Account numbers,
+          total balances, quantities, and dollar amounts are hidden by
+          default, and paper accounts would be labeled as such. Publishing or
+          attaching a proof would require an explicit user action. Never treat
+          a proof as investment advice or a reason to copy another user&apos;s
+          trade.
         </p>
       </>
     ),
@@ -182,13 +185,22 @@ const sections: LegalDocumentSection[] = [
           ad placements, although third-party content and links may still appear.
         </p>
         <p>
-          Some trials may require a payment method, be limited to one per
-          account, and convert to a paid plan unless canceled. The price,
-          billing interval, trial conversion, cancellation timing, taxes, and
-          any refund terms will be disclosed before you confirm a purchase or
-          trial. No payment provider or general refund promise is established
-          by these Terms. Where offered, billing terms presented at checkout
-          form part of these Terms.
+          Stock Radar&apos;s intended launch payment model is to use Paddle as the
+          merchant of record, subject to completing the provider&apos;s onboarding
+          and launch configuration. Paddle is not yet a live payment provider
+          for the Service. The Advanced plan is intended to include a 14-day
+          free trial that requires a payment card and converts to paid billing
+          unless canceled before the trial ends. You may cancel during the
+          trial. After paid conversion, fees are not ordinarily refunded on a
+          pro-rata basis except where required by law, for duplicate charges,
+          or for a material service failure.
+        </p>
+        <p>
+          Prices, billing interval, taxes, trial conversion, cancellation
+          timing, and the final checkout terms will be disclosed before a
+          purchase is confirmed. Where payments are offered, the checkout terms
+          form part of these Terms and apply alongside any mandatory consumer
+          protection law.
         </p>
       </>
     ),
@@ -290,11 +302,37 @@ const sections: LegalDocumentSection[] = [
     ),
   },
   {
+    id: "governing-law",
+    title: "Governing law and venue",
+    content: (
+      <p>
+        These Terms are governed by the laws of the Republic of Korea. The
+        Seoul Central District Court has exclusive jurisdiction over disputes
+        arising from or relating to these Terms or the Service, except where
+        mandatory law requires a different governing law or forum.
+      </p>
+    ),
+  },
+  {
     id: "contact",
     title: "Contact",
     content: (
       <>
         <p>{legalPolicyMeta.contactStatement}</p>
+        <p>
+          <strong>Operator:</strong> {legalPolicyMeta.operatorName},{" "}
+          {legalPolicyMeta.operatorDescription}.<br />
+          <strong>Business registration number:</strong>{" "}
+          {legalPolicyMeta.businessRegistrationNumber}.<br />
+          <strong>Business address:</strong> {legalPolicyMeta.businessAddress}.
+        </p>
+        <p>
+          <strong>Support:</strong> {legalPolicyMeta.supportEmail}
+          <br />
+          <strong>Legal:</strong> {legalPolicyMeta.legalEmail}
+          <br />
+          <strong>Privacy:</strong> {legalPolicyMeta.privacyEmail}
+        </p>
         <p>
           Privacy questions are addressed in the{" "}
           <Link href="/privacy">Privacy Policy</Link>. Content-specific concerns
