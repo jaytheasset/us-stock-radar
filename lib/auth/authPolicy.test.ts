@@ -460,6 +460,21 @@ test("auth route contract covers callback verification, revoke, reset, and priva
     authStatus,
     /if \(payload\.sessionRefreshed && payload\.user\) \{\s*router\.refresh\(\)/,
   );
+  const accountLogout = readProjectFile(
+    "components/account/AccountLogoutButton.tsx",
+  );
+  const clientLogout = readProjectFile("lib/auth/clientLogout.ts");
+  for (const source of [authStatus, accountLogout]) {
+    assert.match(source, /logoutAndReloadCurrentPage/);
+    assert.doesNotMatch(source, /location\.assign\("\/feed"\)/);
+  }
+  assert.match(clientLogout, /fetch\("\/api\/auth\/logout"/);
+  assert.match(clientLogout, /if \(!response\.ok\)/);
+  assert.match(clientLogout, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(clientLogout, /\/feed|returnUrl|next:/);
+  assert.doesNotMatch(clientLogout, /location\.(?:assign|replace)/);
+  assert.match(authStatus, /Logout failed — retry/);
+  assert.match(accountLogout, /Logout failed — retry/);
 
   for (const source of [
     sessionRoute,
