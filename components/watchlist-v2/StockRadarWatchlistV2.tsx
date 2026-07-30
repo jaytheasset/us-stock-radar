@@ -46,11 +46,13 @@ import {
   type StockOverviewSelectionMode,
   type TickerSearchResult,
 } from "@/lib/watchlist/stockOverview";
+import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
 } from "@/lib/watchlist/types";
 import { WatchlistStockChart } from "./WatchlistStockChart";
+import { StockFundamentalsSections } from "./StockFundamentalsSections";
 import styles from "./StockRadarWatchlistV2.module.css";
 
 type StockRadarWatchlistV2Props = {
@@ -121,9 +123,13 @@ export function StockRadarWatchlistV2({
   const [quote, setQuote] = useState(emptyQuote);
   const [chartPoints, setChartPoints] = useState<StockOverviewChartPoint[]>([]);
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
+  const [fundamentals, setFundamentals] =
+    useState<StockFundamentalsSnapshot | null>(null);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
   const [chartState, setChartState] = useState<LoadState>("idle");
   const [eventsState, setEventsState] = useState<LoadState>("idle");
+  const [fundamentalsState, setFundamentalsState] =
+    useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
   const [visibleEventCount, setVisibleEventCount] = useState(10);
@@ -250,6 +256,41 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [selectedTicker, selectedWatchlistItem?.companyName]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
+      setFundamentals(null);
+      setFundamentalsState("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setFundamentals(null);
+    setFundamentalsState("loading");
+
+    void fetch(
+      `/api/market/fmp/fundamentals?symbol=${encodeURIComponent(selectedTicker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readJsonResponse)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        const nextFundamentals = readFundamentalsSnapshot(
+          payload,
+          selectedTicker,
+        );
+        setFundamentals(nextFundamentals);
+        setFundamentalsState(nextFundamentals ? "ready" : "unavailable");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFundamentals(null);
+          setFundamentalsState("unavailable");
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -840,26 +881,12 @@ export function StockRadarWatchlistV2({
                       />
                     </section>
 
-                    <DisclosureSection
-                      events={financialEvents}
-                      id="watchlist-financials"
-                      number="02"
-                      title="Financials"
-                      unavailableCopy="Financial statement metrics are not available through the current product data contract. Tracked earnings and financial disclosures appear here when present."
-                    />
-                    <DisclosureSection
-                      events={ownershipEvents}
-                      id="watchlist-ownership"
-                      number="03"
-                      title="Ownership"
-                      unavailableCopy="Institutional holder totals are not available through the current product data contract. Tracked insider and beneficial ownership disclosures appear here when present."
-                    />
-                    <DisclosureSection
-                      events={dilutionEvents}
-                      id="watchlist-dilution"
-                      number="04"
-                      title="Dilution"
-                      unavailableCopy="No tracked dilution disclosure is available for this ticker. This is not a statement that dilution risk is zero."
+                    <StockFundamentalsSections
+                      dilutionEvents={dilutionEvents}
+                      financialEvents={financialEvents}
+                      loadState={fundamentalsState}
+                      ownershipEvents={ownershipEvents}
+                      snapshot={fundamentals}
                     />
                   </div>
 
@@ -1479,70 +1506,6 @@ function EventPreview({
   );
 }
 
-function DisclosureSection({
-  events,
-  id,
-  number,
-  title,
-  unavailableCopy,
-}: {
-  events: StockOverviewEvent[];
-  id: string;
-  number: string;
-  title: string;
-  unavailableCopy: string;
-}) {
-  const latest = events[0] ?? null;
-  return (
-    <section aria-labelledby={`${id}-title`} className={styles.section} id={id}>
-      <SectionHeading id={`${id}-title`} number={number} title={title} />
-      <div className={styles.disclosureSummary}>
-        <div>
-          <span>LATEST TRACKED DISCLOSURE</span>
-          <strong>{latest ? latest.title : "Unavailable"}</strong>
-          <p>{latest ? latest.summary : unavailableCopy}</p>
-        </div>
-        <dl>
-          <div>
-            <dt>Tracked events</dt>
-            <dd>{events.length}</dd>
-          </div>
-          <div>
-            <dt>Last update</dt>
-            <dd>
-              {latest
-                ? formatStockOverviewEt(latest.detectedAt, "date")
-                : "—"}
-            </dd>
-          </div>
-        </dl>
-      </div>
-      <details className={styles.disclosureDetails}>
-        <summary>
-          <span>Disclosure history</span>
-          <ChevronDown aria-hidden="true" size={16} />
-        </summary>
-        {events.length ? (
-          <ul>
-            {events.slice(0, 6).map((event) => (
-              <li key={event.id}>
-                <time>{formatStockOverviewEt(event.detectedAt, "date")}</time>
-                {event.detailHref ? (
-                  <Link href={event.detailHref}>{event.title}</Link>
-                ) : (
-                  <span>{event.title}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>{unavailableCopy}</p>
-        )}
-      </details>
-    </section>
-  );
-}
-
 function SectionHeading({
   id,
   number,
@@ -1660,4 +1623,25 @@ async function readJsonResponse(response: Response) {
     throw new Error(payload?.error || "Request failed.");
   }
   return payload;
+}
+
+function readFundamentalsSnapshot(
+  payload: unknown,
+  expectedSymbol: string,
+): StockFundamentalsSnapshot | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const data = (payload as { data?: unknown }).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const candidate = data as Partial<StockFundamentalsSnapshot>;
+  if (
+    candidate.symbol !== expectedSymbol ||
+    !candidate.financials ||
+    !candidate.ownership ||
+    !candidate.sources
+  ) {
+    return null;
+  }
+  return candidate as StockFundamentalsSnapshot;
 }
