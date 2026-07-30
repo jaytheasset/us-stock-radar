@@ -1,8 +1,8 @@
 "use client";
 
-import { BadgeCheck, Send, UserRound, X } from "lucide-react";
-import Link from "next/link";
+import { Send, UserRound, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
@@ -23,9 +23,9 @@ import type {
   LiveRoomProfile,
   LiveRoomReplyPreview,
 } from "@/lib/live-room/types";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
+import { ChatNameSetup } from "./ChatNameSetup";
 import styles from "./LiveRoom.module.css";
-
-const profileEmojis = ["👋", "🦊", "🐻", "🦉", "🚀", "🧭", "📊", "🌱"];
 
 type MessageComposerProps = {
   body: string;
@@ -37,11 +37,11 @@ type MessageComposerProps = {
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
-  onProfileChange: (profile: LiveRoomProfile) => void;
+  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
-  onSend: () => void;
+  onSend: (profileOverride?: LiveRoomProfile) => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
   replyPreview: LiveRoomReplyPreview | null;
@@ -64,7 +64,7 @@ export function MessageComposer({
   onBodyChange,
   onClearReference,
   onCancelReply,
-  onProfileChange,
+  onProfileSave,
   onPresenceSettingChange,
   onMediaChange,
   onProofChange,
@@ -81,6 +81,19 @@ export function MessageComposer({
   showPresence,
 }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const resumeSendRef = useRef(false);
+  const requiresChatName =
+    profile?.isGuest === false && profile.isChatNameSet === false;
+
+  const requestSend = () => {
+    if (requiresChatName) {
+      resumeSendRef.current = true;
+      setProfileOpen(true);
+      return;
+    }
+    onSend();
+  };
 
   useEffect(() => {
     if (focusRequestId > 0) textareaRef.current?.focus();
@@ -106,7 +119,8 @@ export function MessageComposer({
       {replyPreview ? (
         <div className={styles.composerReply}>
           <span>
-            Replying to {replyPreview.authorDisplayName}
+            Replying to{" "}
+            {formatPublicChatName(replyPreview.authorDisplayName)}
           </span>
           <strong>
             {replyPreview.mediaPreview ? (
@@ -137,26 +151,33 @@ export function MessageComposer({
           <button
             aria-label={
               profile
-                ? `Edit Live Room profile: ${
-                    profile.displayName.trim() ||
-                    (profile.isGuest ? "Guest" : "Member")
-                  }`
+                ? profile.isGuest
+                  ? "Guest Live Room identity"
+                  : `${profile.isChatNameSet ? "Edit" : "Set"} Live Room chat name: ${formatPublicChatName(profile.displayName)}`
                 : "Loading Live Room identity"
             }
-            aria-expanded={profile ? profileOpen : false}
-            aria-haspopup={profile ? "dialog" : undefined}
+            aria-expanded={profile?.isGuest === false ? profileOpen : false}
+            aria-haspopup={profile?.isGuest === false ? "dialog" : undefined}
             className={styles.profileButton}
-            disabled={!profile}
+            disabled={!profile || profile.isGuest}
             onClick={() => {
-              if (profile) setProfileOpen(!profileOpen);
+              if (profile?.isGuest === false) setProfileOpen(!profileOpen);
             }}
+            ref={profileButtonRef}
             type="button"
           >
             {profile ? (
               <>
-                <span aria-hidden="true">{profile.emoji}</span>
+                <MemberAvatar
+                  displayName={profile.displayName || "?"}
+                  size="small"
+                />
                 <span>
-                  <strong>{profile.displayName}</strong>
+                  <strong>
+                    {profile.isChatNameSet
+                      ? formatPublicChatName(profile.displayName)
+                      : "Set chat name"}
+                  </strong>
                   <MemberPlanBadge
                     plan={profile.isGuest ? "visitor" : profile.plan}
                   />
@@ -177,90 +198,27 @@ export function MessageComposer({
               <UserRound aria-hidden="true" size={14} />
             ) : null}
           </button>
-          {profile && profileOpen ? (
-            <div
-              aria-label="Live Room profile picker"
-              className={styles.profilePicker}
-              role="dialog"
-            >
-              <strong>Live Room profile</strong>
-              <label>
-                Display name
-                <input
-                  maxLength={24}
-                  onChange={(event) =>
-                    onProfileChange({
-                      ...profile,
-                      displayName: event.target.value,
-                    })
-                  }
-                  value={profile.displayName}
-                />
-              </label>
-              <span>Choose an emoji</span>
-              <div className={styles.emojiGrid}>
-                {profileEmojis.map((emoji) => (
-                  <button
-                    aria-label={`Use ${emoji} profile`}
-                    aria-pressed={profile.emoji === emoji}
-                    key={emoji}
-                    onClick={() => onProfileChange({ ...profile, emoji })}
-                    type="button"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              {!profile.isGuest && showPresence !== null ? (
-                <div className={styles.presenceSetting}>
-                  <span>
-                    <strong>Show when I&apos;m active in Live Rooms</strong>
-                    <small>
-                      Shows you online only in the company room you are
-                      currently viewing.
-                    </small>
-                  </span>
-                  <button
-                    aria-checked={showPresence}
-                    aria-label="Show when I am active in Live Rooms"
-                    className={styles.presenceSwitch}
-                    disabled={presenceSettingBusy}
-                    onClick={() =>
-                      onPresenceSettingChange(!showPresence)
-                    }
-                    role="switch"
-                    type="button"
-                  >
-                    <span />
-                  </button>
-                </div>
-              ) : null}
-              <Link
-                className={styles.creatorVerificationLink}
-                href={
-                  profile.isGuest
-                    ? loginHref
-                    : "/account/creator"
+          {profile && !profile.isGuest ? (
+            <ChatNameSetup
+              isOpen={profileOpen}
+              onDismiss={() => {
+                resumeSendRef.current = false;
+                setProfileOpen(false);
+              }}
+              onPresenceSettingChange={onPresenceSettingChange}
+              onSave={async (displayName) => {
+                const saved = await onProfileSave(displayName);
+                if (resumeSendRef.current) {
+                  resumeSendRef.current = false;
+                  window.setTimeout(() => onSend(saved), 0);
                 }
-              >
-                <BadgeCheck aria-hidden="true" size={18} />
-                <span>
-                  <strong>
-                    {profile.isGuest
-                      ? "Sign in to apply"
-                      : "Apply for creator verification"}
-                  </strong>
-                  <small>
-                    Verify ownership of Instagram · X · YouTube.
-                  </small>
-                </span>
-              </Link>
-              <small>
-                {profile.isGuest
-                  ? "Saved to this browser’s secure guest session."
-                  : "Saved to your member profile."}
-              </small>
-            </div>
+                return saved;
+              }}
+              openerRef={profileButtonRef}
+              presenceSettingBusy={presenceSettingBusy}
+              profile={profile}
+              showPresence={showPresence}
+            />
           ) : null}
         </div>
 
@@ -273,6 +231,9 @@ export function MessageComposer({
             disabled={disabled || sending}
             maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
             onChange={(event) => onBodyChange(event.target.value)}
+            onFocus={() => {
+              if (requiresChatName) setProfileOpen(true);
+            }}
             onKeyDown={(event) => {
               if (
                 event.key === "Enter" &&
@@ -280,12 +241,14 @@ export function MessageComposer({
                 !event.nativeEvent.isComposing
               ) {
                 event.preventDefault();
-                onSend();
+                requestSend();
               }
             }}
             placeholder={
               replyPreview
-                ? `Reply to ${replyPreview.authorDisplayName}…`
+                ? `Reply to ${formatPublicChatName(
+                    replyPreview.authorDisplayName,
+                  )}…`
                 : placeholder
             }
             ref={textareaRef}
@@ -312,7 +275,7 @@ export function MessageComposer({
           aria-label="Send message"
           className={styles.sendButton}
           disabled={disabled || sending}
-          onClick={onSend}
+          onClick={requestSend}
           type="button"
         >
           <Send aria-hidden="true" size={17} />

@@ -20,6 +20,8 @@ import {
   type ReactNode,
 } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import {
   LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT,
@@ -365,7 +367,11 @@ function PostsPreview({
               <BrokerageProofCard compact proof={post.brokerageProof} />
             ) : null}
             <small>
-              {post.author.emoji} {post.author.displayName} ·{" "}
+              <MemberAvatar
+                displayName={post.author.displayName}
+                size="small"
+              />
+              {formatPublicChatName(post.author.displayName)} ·{" "}
               {formatPreviewDate(post.createdAt)}
             </small>
             <div className={styles.sidePanelPostMeta}>
@@ -451,7 +457,7 @@ export function LiveRoomMemberList({
       {visibleMembers.map(({ member, summary }) => {
         const socialBadges = summary.socialBadges;
         const displayName = summary.displayName;
-        const emoji = summary.emoji;
+        const publicDisplayName = formatPublicChatName(displayName);
         const sourceMessageId = member.sourceMessageId;
         const busy =
           Boolean(sourceMessageId) && messageActionId === sourceMessageId;
@@ -461,12 +467,13 @@ export function LiveRoomMemberList({
               className={styles.sidePanelMemberProfile}
               href={`/live/members/${member.publicProfileId}`}
             >
-              <span aria-hidden="true" className={styles.sidePanelAvatar}>
-                {emoji}
-              </span>
+              <MemberAvatar
+                className={styles.sidePanelAvatar}
+                displayName={displayName}
+              />
               <span className={styles.sidePanelMemberSummary}>
                 <span className={styles.sidePanelMemberIdentity}>
-                  <strong>{displayName}</strong>
+                  <strong>{publicDisplayName}</strong>
                   {socialBadges.length ? (
                     <BadgeCheck
                       aria-label={`Verified creator: ${socialBadges
@@ -516,14 +523,14 @@ export function LiveRoomMemberList({
             (sourceMessageId &&
               (member.canFollowMember || member.canMessageMember)) ? (
               <div
-                aria-label={`Actions for ${displayName}`}
+                aria-label={`Actions for ${publicDisplayName}`}
                 className={styles.sidePanelMemberActions}
                 role="group"
               >
                 {isGuest ? (
                   <>
                     <Link
-                      aria-label={`Sign in to follow ${displayName}`}
+                      aria-label={`Sign in to follow ${publicDisplayName}`}
                       href={loginHref}
                       title="Follow"
                     >
@@ -531,7 +538,7 @@ export function LiveRoomMemberList({
                       <span className={styles.visuallyHidden}>Follow</span>
                     </Link>
                     <Link
-                      aria-label={`Sign in to message ${displayName}`}
+                      aria-label={`Sign in to message ${publicDisplayName}`}
                       href={loginHref}
                       title="Message"
                     >
@@ -544,8 +551,8 @@ export function LiveRoomMemberList({
                   <button
                     aria-label={
                       member.isMemberFollowed
-                        ? `Unfollow ${displayName}`
-                        : `Follow ${displayName}`
+                        ? `Unfollow ${publicDisplayName}`
+                        : `Follow ${publicDisplayName}`
                     }
                     aria-pressed={member.isMemberFollowed}
                     data-followed={member.isMemberFollowed}
@@ -571,7 +578,7 @@ export function LiveRoomMemberList({
                 ) : null}
                 {!isGuest && member.canMessageMember && sourceMessageId ? (
                   <button
-                    aria-label={`Message ${displayName}`}
+                    aria-label={`Message ${publicDisplayName}`}
                     disabled={busy}
                     onClick={() =>
                       void onMessageMember(sourceMessageId).catch(

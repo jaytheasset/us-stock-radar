@@ -8,6 +8,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -34,7 +36,6 @@ type ProfileActionBusy = "follow" | "message" | "request" | null;
 
 type MessageRequestTarget = {
   displayName: string;
-  emoji: string;
   messageId: string;
 };
 
@@ -168,7 +169,6 @@ export function PublicMemberProfileClient({
       if (result.mode === "request_required") {
         setMessageRequestTarget({
           displayName: result.peer.displayName,
-          emoji: result.peer.emoji,
           messageId: actions.sourceMessageId,
         });
         return;
@@ -222,6 +222,7 @@ export function PublicMemberProfileClient({
     actions &&
     !actions.isSelf &&
     (actions.isGuest || actions.canFollow || actions.canMessage);
+  const publicDisplayName = formatPublicChatName(member?.displayName || "");
 
   return (
     <>
@@ -244,10 +245,10 @@ export function PublicMemberProfileClient({
             <>
               <header className={styles.profileHeader}>
                 <div className={styles.profileIdentity}>
-                  <span aria-hidden="true">{member.emoji}</span>
+                  <MemberAvatar displayName={member.displayName} size="large" />
                   <div>
                     <small>Live Room member</small>
-                    <h1>{member.displayName}</h1>
+                    <h1>{publicDisplayName}</h1>
                     {member.brokerageConnected ? (
                       <span className={styles.profileBrokerageBadge}>
                         Brokerage connected
@@ -261,14 +262,14 @@ export function PublicMemberProfileClient({
                 </div>
                 {showActions ? (
                   <div
-                    aria-label={`Actions for ${member.displayName}`}
+                    aria-label={`Actions for ${publicDisplayName}`}
                     className={styles.profileActions}
                     role="group"
                   >
                     {actions.isGuest ? (
                       <>
                         <Link
-                          aria-label={`Sign in to follow ${member.displayName}`}
+                          aria-label={`Sign in to follow ${publicDisplayName}`}
                           className={styles.profileActionButton}
                           href={loginHref}
                         >
@@ -276,7 +277,7 @@ export function PublicMemberProfileClient({
                           Follow
                         </Link>
                         <Link
-                          aria-label={`Sign in to message ${member.displayName}`}
+                          aria-label={`Sign in to message ${publicDisplayName}`}
                           className={styles.profileActionButton}
                           href={loginHref}
                         >
@@ -293,8 +294,8 @@ export function PublicMemberProfileClient({
                           <button
                             aria-label={
                               actions.isFollowing
-                                ? `Unfollow ${member.displayName}`
-                                : `Follow ${member.displayName}`
+                                ? `Unfollow ${publicDisplayName}`
+                                : `Follow ${publicDisplayName}`
                             }
                             aria-pressed={actions.isFollowing}
                             className={styles.profileActionButton}
@@ -316,7 +317,7 @@ export function PublicMemberProfileClient({
                         ) : null}
                         {actions.canMessage ? (
                           <button
-                            aria-label={`Message ${member.displayName}`}
+                            aria-label={`Message ${publicDisplayName}`}
                             className={styles.profileActionButton}
                             disabled={Boolean(actionBusy)}
                             onClick={() => void handleMessage()}

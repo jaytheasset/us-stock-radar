@@ -76,6 +76,10 @@ const composerUi = readFileSync(
   path.join(root, "components/live-room/MessageComposer.tsx"),
   "utf8",
 );
+const chatNameSetupUi = readFileSync(
+  path.join(root, "components/live-room/ChatNameSetup.tsx"),
+  "utf8",
+);
 const creatorPage = readFileSync(
   path.join(root, "app/account/creator/page.tsx"),
   "utf8",
@@ -383,16 +387,12 @@ test("badge language describes social ownership without endorsement wording", ()
 });
 
 test("creator verification entry and guidance describe the existing ownership review", () => {
-  assert.match(composerUi, /import Link from "next\/link"/);
-  assert.match(composerUi, /BadgeCheck/);
-  assert.match(
-    composerUi,
-    /loginHref:\s*string[\s\S]*profile\.isGuest[\s\S]*\? loginHref[\s\S]*:\s*"\/account\/creator"/,
-  );
-  assert.doesNotMatch(composerUi, /\/login\?next=%2Faccount%2Fcreator/);
-  assert.match(composerUi, /Sign in to apply/);
-  assert.match(composerUi, /Apply for creator verification/);
-  assert.match(composerUi, /Instagram · X · YouTube/);
+  assert.match(chatNameSetupUi, /import Link from "next\/link"/);
+  assert.match(chatNameSetupUi, /BadgeCheck/);
+  assert.match(chatNameSetupUi, /href="\/account\/creator"/);
+  assert.doesNotMatch(chatNameSetupUi, /\/login\?next=%2Faccount%2Fcreator/);
+  assert.match(chatNameSetupUi, /Apply for creator verification/);
+  assert.match(chatNameSetupUi, /Instagram, X, or YouTube/);
 
   assert.match(memberUi, /<h1>Creator verification<\/h1>/);
   assert.match(memberUi, /How verification works/);

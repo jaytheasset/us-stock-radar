@@ -53,6 +53,7 @@ export type LiveRoomProfile = {
   canModerate?: boolean;
   displayName: string;
   emoji: string;
+  isChatNameSet?: boolean;
   isGuest: boolean;
   plan: Plan;
   publicProfileId?: string;

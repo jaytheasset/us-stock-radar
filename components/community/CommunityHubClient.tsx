@@ -23,6 +23,8 @@ import {
   useState,
 } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { CommunityHubApiRepository } from "@/lib/community-hub/apiRepository";
 import type {
   CommunityHubPeopleFilter,
@@ -517,7 +519,6 @@ function InboxPanel({
                   >
                     <Identity
                       displayName={request.peer.displayName}
-                      emoji={request.peer.emoji}
                       plan={request.peer.plan}
                     />
                     <p>{request.bodyPreview}</p>
@@ -597,7 +598,6 @@ function InboxPanel({
                     <Identity
                       compact
                       displayName={conversation.peer.displayName}
-                      emoji={conversation.peer.emoji}
                       plan={conversation.peer.plan}
                     />
                     <span className={styles.rowPreview}>
@@ -646,7 +646,6 @@ function InboxPanel({
                     <Identity
                       compact
                       displayName={request.peer.displayName}
-                      emoji={request.peer.emoji}
                       plan={request.peer.plan}
                     />
                     <span className={styles.rowPreview}>
@@ -750,7 +749,6 @@ function PeoplePanel({
                   >
                     <Identity
                       displayName={person.displayName}
-                      emoji={person.emoji}
                       isVerified={person.isVerified}
                       plan={person.plan}
                     />
@@ -945,7 +943,9 @@ function ActivityPanel({
               </span>
               <span>
                 <span className={styles.activityMeta}>
-                  <strong>{activity.actorDisplayName}</strong>
+                  <strong>
+                    {formatPublicChatName(activity.actorDisplayName)}
+                  </strong>
                   <b>{formatActivityKind(activity.kind)}</b>
                   <time dateTime={activity.createdAt}>
                     {formatTime(activity.createdAt)}
@@ -988,24 +988,23 @@ function PanelHeading({
 function Identity({
   compact = false,
   displayName,
-  emoji,
   isVerified = false,
   plan,
 }: {
   compact?: boolean;
   displayName: string;
-  emoji: string;
   isVerified?: boolean;
   plan: DirectMessageInbox["conversations"][number]["peer"]["plan"];
 }) {
   return (
     <span className={`${styles.identity} ${compact ? styles.compact : ""}`}>
-      <span aria-hidden="true" className={styles.avatar}>
-        {emoji}
-      </span>
+      <MemberAvatar
+        className={styles.avatar}
+        displayName={displayName}
+      />
       <span>
         <strong>
-          {displayName}
+          {formatPublicChatName(displayName)}
           {isVerified ? (
             <BadgeCheck
               aria-label="Verified member"
