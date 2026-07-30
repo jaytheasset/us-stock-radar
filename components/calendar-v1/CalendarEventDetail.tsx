@@ -9,7 +9,6 @@ import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
-  calendarProviderLabels,
   eventStatusLabels,
   impactLevelLabels,
   marketSessionLabels,
@@ -18,7 +17,6 @@ import {
   type MacroCalendarEvent,
   type PolicyCalendarEvent,
 } from "@/lib/calendar-v1/model";
-import { normalizeSafeCalendarSourceUrl } from "@/lib/calendar-v1/normalized";
 import {
   formatCalendarEventTime,
   formatMacroMetricValue,
@@ -127,7 +125,6 @@ function CalendarEventDetailContent({
   const followActionLabel = followed
     ? `Unfollow ${event.title} event`
     : `Follow ${event.title} event`;
-  const safeSourceUrl = normalizeSafeCalendarSourceUrl(event.sourceUrl);
 
   return (
     <div className={styles.detailContent}>
@@ -161,27 +158,6 @@ function CalendarEventDetailContent({
       <section className={styles.detailSection}>
         <h3>Event data</h3>
         {renderEventDetails(event)}
-      </section>
-
-      <section className={styles.detailSection}>
-        <h3>Data provenance</h3>
-        <dl>
-          <DetailValue label="Agency" value={event.sourceAgency} />
-          <DetailLinkValue
-            href={safeSourceUrl}
-            label="Source"
-            value={event.sourceName}
-          />
-          <DetailValue
-            label="Provider"
-            value={calendarProviderLabels[event.provider]}
-          />
-          <DetailValue
-            label="Confidence"
-            value={titleCase(event.scheduleConfidence)}
-          />
-          <DetailValue label="Updated" value={formatUpdatedAt(event.lastUpdatedAt)} />
-        </dl>
       </section>
 
       <div className={styles.detailActions}>
@@ -525,36 +501,6 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
-function DetailLinkValue({
-  href,
-  label,
-  value,
-}: {
-  href: string | null;
-  label: string;
-  value: string | null;
-}) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd data-missing={!value}>
-        {value ? (
-          href ? (
-            <a href={href} rel="noreferrer noopener" target="_blank">
-              {value}
-              <ExternalLink aria-hidden="true" size={13} />
-            </a>
-          ) : (
-            value
-          )
-        ) : (
-          "Not announced"
-        )}
-      </dd>
-    </div>
-  );
-}
-
 function formatDetailDate(value: string | null) {
   if (!value) return null;
   return parseDateOnly(value).toLocaleDateString("en-US", {
@@ -578,20 +524,6 @@ function formatExactEt(value: string | null) {
     hour: "numeric",
     minute: "2-digit",
   })} ET`;
-}
-
-function formatUpdatedAt(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Not available"
-    : `${date.toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: "America/New_York",
-      })} ET`;
 }
 
 function formatNumber(value: number | null) {

@@ -856,14 +856,12 @@
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
   box-shadow: var(--sr-shadow-panel);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-@media (min-width: 1181px) {
-  .workspace[data-rail-ads="true"] .desktopDetailPanel {
-    position: static;
-    overflow-y: visible;
-    max-height: none;
-  }
+.desktopDetailPanel::-webkit-scrollbar {
+  display: none;
 }
 
 .detailContent {

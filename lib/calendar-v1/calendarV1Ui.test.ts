@@ -173,7 +173,19 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   );
   assert.match(adStyles, /\.rail\[data-ads-enabled="false"\]\s*\{\s*display:\s*contents;/);
   assert.match(adStyles, /@media \(max-width: 1180px\)[\s\S]*\.desktopRailAd\s*\{\s*display:\s*none;/);
-  assert.match(calendarStyles, /\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel[\s\S]*position:\s*static;/);
+  assert.match(calendarStyles, /\.desktopDetailPanel\s*\{[\s\S]*position:\s*sticky;/);
+  assert.match(
+    calendarStyles,
+    /\.desktopDetailPanel\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*scrollbar-width:\s*none;/,
+  );
+  assert.match(
+    calendarStyles,
+    /\.desktopDetailPanel::\-webkit\-scrollbar\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.doesNotMatch(
+    calendarStyles,
+    /\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel[\s\S]*position:\s*static;/,
+  );
 });
 
 test("calendar UI reuses shared filters, segmented controls, detail panel, and bottom sheet", async () => {
@@ -270,11 +282,12 @@ test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and c
   assert.match(detail, /function renderPolicyDetails/);
   assert.match(detail, /Economic release metrics/);
   assert.match(detail, /Not released/);
-  assert.match(detail, /sourceAgency/);
-  assert.match(detail, /calendarProviderLabels/);
-  assert.match(detail, /normalizeSafeCalendarSourceUrl/);
-  assert.match(detail, /sourceUrl/);
-  assert.match(detail, /titleCase\(event\.scheduleConfidence\)/);
+  assert.doesNotMatch(detail, /Data provenance/);
+  assert.doesNotMatch(detail, /sourceAgency/);
+  assert.doesNotMatch(detail, /calendarProviderLabels/);
+  assert.doesNotMatch(detail, /normalizeSafeCalendarSourceUrl/);
+  assert.doesNotMatch(detail, /sourceUrl/);
+  assert.doesNotMatch(detail, /titleCase\(event\.scheduleConfidence\)/);
   assert.doesNotMatch(detail, /sourceEventKey/);
   assert.doesNotMatch(detail, /value="Mock"/);
   assert.match(styles, /\.macroMetrics\s*\{/);

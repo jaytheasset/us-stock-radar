@@ -52,7 +52,7 @@ export function CalendarView({
 }) {
   const dates = enumerateDateRange(range);
   const byDate = new Map(
-    groupCalendarEventsByDate(events).map((group) => [group.date, group.events]),
+    groupCalendarEventsByDate(events, today).map((group) => [group.date, group.events]),
   );
   const selectedEvents = byDate.get(selectedDate) ?? [];
   const upcomingEvents = selectUpcomingCalendarEvents(events, selectedDate);
@@ -154,12 +154,14 @@ export function ListView({
   events,
   onOpenEvent,
   selectedEventId,
+  today,
 }: {
   events: readonly CalendarEvent[];
   onOpenEvent: OpenEvent;
   selectedEventId: string | null;
+  today: string;
 }) {
-  const groups = groupCalendarEventsByDate(events);
+  const groups = groupCalendarEventsByDate(events, today);
   return (
     <div className={styles.listView} data-testid="list-view">
       {groups.map((group) => {

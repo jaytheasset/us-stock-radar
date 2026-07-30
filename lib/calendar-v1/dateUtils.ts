@@ -149,9 +149,10 @@ export function filterCalendarEvents(
 
 export function groupCalendarEventsByDate(
   events: readonly CalendarEvent[],
+  today: string,
 ): Array<{ date: string; events: CalendarEvent[] }> {
   const groups = new Map<string, CalendarEvent[]>();
-  [...events].sort(compareCalendarEvents).forEach((event) => {
+  sortCalendarEventsByDateContext(events, today).forEach((event) => {
     const group = groups.get(event.eventDate) ?? [];
     group.push(event);
     groups.set(event.eventDate, group);
@@ -216,12 +217,53 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((end.getTime() - start.getTime()) / 86_400_000);
 }
 
+export function sortCalendarEventsByDateContext(
+  events: readonly CalendarEvent[],
+  today: string,
+): CalendarEvent[] {
+  parseDateOnly(today);
+  return [...events].sort((a, b) => {
+    const dateOrder = a.eventDate.localeCompare(b.eventDate);
+    if (dateOrder) return dateOrder;
+
+    const statusOrder =
+      getDateContextStatusRank(a, today) - getDateContextStatusRank(b, today);
+    return statusOrder || compareCalendarEventTimeAndIdentity(a, b);
+  });
+}
+
 function compareCalendarEvents(a: CalendarEvent, b: CalendarEvent): number {
   return (
     a.eventDate.localeCompare(b.eventDate) ||
+    compareCalendarEventTimeAndIdentity(a, b)
+  );
+}
+
+function compareCalendarEventTimeAndIdentity(
+  a: CalendarEvent,
+  b: CalendarEvent,
+): number {
+  return (
     (a.eventTime ?? "99:99").localeCompare(b.eventTime ?? "99:99") ||
     getCalendarEventIdentity(a).primaryLabel.localeCompare(
       getCalendarEventIdentity(b).primaryLabel,
     )
   );
+}
+
+function getDateContextStatusRank(
+  event: CalendarEvent,
+  today: string,
+): number {
+  if (event.status === "postponed") return 3;
+  if (event.status === "cancelled") return 4;
+
+  if (event.eventDate < today) {
+    if (event.status === "completed") return 0;
+    return event.status === "confirmed" ? 1 : 2;
+  }
+
+  if (event.status === "confirmed") return 0;
+  if (event.status === "estimated") return 1;
+  return 2;
 }

@@ -254,6 +254,7 @@ export function StockRadarCalendarV1({
           events={filteredEvents}
           onOpenEvent={openEvent}
           selectedEventId={desktopPreviewEvent?.id ?? null}
+          today={today}
         />
       );
     }

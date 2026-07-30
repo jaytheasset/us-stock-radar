@@ -9,6 +9,7 @@ import {
   normalizeDateRange,
   parseDateOnly,
   shiftDateRange,
+  sortCalendarEventsByDateContext,
   updateCalendarCategoryFilter,
 } from "./dateUtils.ts";
 import {
@@ -24,6 +25,7 @@ import {
   POLICY_SUBCATEGORIES,
   calendarEventTypeGroups,
   eventTypeCategories,
+  type CalendarEvent,
 } from "./model.ts";
 import {
   formatCalendarEventTime,
@@ -99,7 +101,7 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
     { from: "2026-07-29", to: "2026-07-31" },
     DEFAULT_CALENDAR_FILTERS,
   );
-  const groups = groupCalendarEventsByDate(filtered);
+  const groups = groupCalendarEventsByDate(filtered, "2026-07-29");
   assert.deepEqual(groups.map((group) => group.date), ["2026-07-29", "2026-07-30", "2026-07-31"]);
   assert.ok(groups[1].events.length >= 6);
 
@@ -116,6 +118,69 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
     null,
   );
   assert.equal(unknownIpo?.eventTime, null);
+});
+
+test("date-context sorting prioritizes remaining events today and in the future, but completed events in the past", () => {
+  const template = createCalendarMockEvents("2026-07-29")[0];
+  assert.ok(template);
+  const makeEvent = (
+    id: string,
+    eventDate: string,
+    status: CalendarEvent["status"],
+    eventTime: string,
+  ): CalendarEvent => ({
+    ...template,
+    id,
+    eventDate,
+    eventTime,
+    status,
+  });
+  const events = [
+    makeEvent("past-estimated", "2026-07-28", "estimated", "08:00"),
+    makeEvent("past-confirmed", "2026-07-28", "confirmed", "10:00"),
+    makeEvent("past-completed", "2026-07-28", "completed", "16:00"),
+    makeEvent("today-cancelled", "2026-07-29", "cancelled", "07:00"),
+    makeEvent("today-completed", "2026-07-29", "completed", "08:00"),
+    makeEvent("today-estimated", "2026-07-29", "estimated", "09:00"),
+    makeEvent("today-confirmed", "2026-07-29", "confirmed", "10:00"),
+    makeEvent("today-postponed", "2026-07-29", "postponed", "06:00"),
+    makeEvent("future-completed", "2026-07-30", "completed", "08:00"),
+    makeEvent("future-estimated", "2026-07-30", "estimated", "09:00"),
+    makeEvent("future-confirmed", "2026-07-30", "confirmed", "10:00"),
+  ];
+
+  const groups = groupCalendarEventsByDate(events, "2026-07-29");
+  assert.deepEqual(groups.map((group) => group.date), [
+    "2026-07-28",
+    "2026-07-29",
+    "2026-07-30",
+  ]);
+  assert.deepEqual(groups[0]?.events.map((event) => event.status), [
+    "completed",
+    "confirmed",
+    "estimated",
+  ]);
+  assert.deepEqual(groups[1]?.events.map((event) => event.status), [
+    "confirmed",
+    "estimated",
+    "completed",
+    "postponed",
+    "cancelled",
+  ]);
+  assert.deepEqual(groups[2]?.events.map((event) => event.status), [
+    "confirmed",
+    "estimated",
+    "completed",
+  ]);
+
+  const sameStatus = sortCalendarEventsByDateContext(
+    [
+      makeEvent("late", "2026-07-29", "confirmed", "16:00"),
+      makeEvent("early", "2026-07-29", "confirmed", "08:00"),
+    ],
+    "2026-07-29",
+  );
+  assert.deepEqual(sameStatus.map((event) => event.id), ["early", "late"]);
 });
 
 test("desktop preview defaults by view and preserves only valid selections", () => {
