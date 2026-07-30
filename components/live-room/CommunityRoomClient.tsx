@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
+import type { KlipyMediaAttachment } from "@/lib/klipy/types";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
@@ -147,6 +148,8 @@ export function CommunityRoomClient({
   const [body, setBody] = useState("");
   const [brokerageProof, setBrokerageProof] =
     useState<BrokerageProofSummary | null>(null);
+  const [klipyMedia, setKlipyMedia] =
+    useState<KlipyMediaAttachment | null>(null);
   const [replyingTo, setReplyingTo] = useState<LiveRoomChatMessage | null>(
     null,
   );
@@ -741,7 +744,7 @@ export function CommunityRoomClient({
   );
 
   const handleSend = async () => {
-    if (!profile) return;
+    if (!profile || sending) return;
     const history = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -749,6 +752,7 @@ export function CommunityRoomClient({
       )
       .map((item) => ({ body: item.body, createdAt: item.createdAt }));
     const nextDecision = evaluateLiveRoomMessage(body, {
+      allowEmpty: Boolean(klipyMedia),
       history,
       now: new Date().toISOString(),
     });
@@ -770,6 +774,7 @@ export function CommunityRoomClient({
       }
       const message = await repository.send({
         body: nextDecision.normalizedBody,
+        mediaId: klipyMedia?.providerMediaId || null,
         proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
@@ -792,6 +797,7 @@ export function CommunityRoomClient({
       });
       setBody("");
       setBrokerageProof(null);
+      setKlipyMedia(null);
       setReplyingTo(null);
       setDecision(null);
       setProfileOpen(false);
@@ -1425,11 +1431,19 @@ export function CommunityRoomClient({
                   onClearReference={() => undefined}
                   onCancelReply={() => setReplyingTo(null)}
                   onPresenceSettingChange={handlePresenceSettingChange}
-                  onProofChange={setBrokerageProof}
+                  onProofChange={(proof) => {
+                    setBrokerageProof(proof);
+                    if (proof) setKlipyMedia(null);
+                  }}
+                  onMediaChange={(media) => {
+                    setKlipyMedia(media);
+                    if (media) setBrokerageProof(null);
+                  }}
                   onProfileChange={handleProfileChange}
                   onSend={handleSend}
                   placeholder="Share a useful view with this community…"
                   presenceSettingBusy={presenceSettingBusy}
+                  media={klipyMedia}
                   proof={brokerageProof}
                   profile={profile}
                   profileOpen={profileOpen}
@@ -1441,6 +1455,13 @@ export function CommunityRoomClient({
                           bodyPreview: createLiveRoomReplyBodyPreview(
                             replyingTo.body,
                           ),
+                          mediaPreview: replyingTo.media
+                            ? {
+                                alt: replyingTo.media.alt,
+                                kind: "gif",
+                                previewUrl: replyingTo.media.previewUrl,
+                              }
+                            : null,
                           messageId: replyingTo.id,
                         }
                       : null

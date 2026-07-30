@@ -4,6 +4,12 @@ import { ensureUserBootstrap } from "@/lib/auth/supabaseAuth";
 import { getBrokerageConfig } from "@/lib/brokerage/config";
 import { getBrokerageProofMapForMessages } from "@/lib/brokerage/serverRepository";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
+import { resolveKlipyMedia } from "@/lib/klipy/serverProvider";
+import {
+  getKlipyMediaMapForMessages,
+  toKlipyReplyMediaPreview,
+} from "@/lib/klipy/serverRepository";
+import type { KlipyMediaAttachment } from "@/lib/klipy/types";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import {
   supabaseDelete,
@@ -545,6 +551,7 @@ export async function sendLiveRoomMessage({
   actor,
   body,
   eventId,
+  mediaId: rawMediaId,
   proofId: rawProofId,
   replyToMessageId: rawReplyToMessageId,
   slug,
@@ -553,6 +560,7 @@ export async function sendLiveRoomMessage({
   actor: LiveRoomActor;
   body: string;
   eventId?: string | null;
+  mediaId?: unknown;
   proofId?: unknown;
   replyToMessageId?: unknown;
   slug?: string;
@@ -569,11 +577,32 @@ export async function sendLiveRoomMessage({
           "BROKERAGE_PROOF_NOT_ATTACHABLE",
           "That brokerage proof cannot be attached.",
         );
+  const hasMediaId =
+    rawMediaId !== undefined && rawMediaId !== null && rawMediaId !== "";
+  if (hasMediaId && actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to send KLIPY GIFs.",
+      401,
+    );
+  }
+  const media =
+    !hasMediaId
+      ? null
+      : await resolveKlipyMedia(rawMediaId);
+  if (media && proofId) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_ATTACHMENT_CONFLICT",
+      "Attach either Evidence or a KLIPY GIF.",
+      400,
+    );
+  }
   const profile = await getLiveRoomProfile(actor);
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
     typeof body === "string" ? body : "",
     {
+      allowEmpty: Boolean(media),
       history,
       now: new Date().toISOString(),
     },
@@ -602,7 +631,7 @@ export async function sendLiveRoomMessage({
       ? await getValidatedEventReference(room.ticker, eventId)
       : null;
   const author = createServerOwnedAuthorSnapshot({ actor, profile });
-  const result = await supabaseRpc("insert_live_room_message_with_proof", {
+  const result = await supabaseRpc("insert_live_room_message_with_attachments", {
     p_room_id: room.id,
     p_actor_kind: author.actorKind,
     p_member_user_id: author.memberUserId,
@@ -615,6 +644,17 @@ export async function sendLiveRoomMessage({
     p_reply_to_message_id: replyToMessageId,
     p_proof_id: proofId,
     p_public_sharing_enabled: getBrokerageConfig().publicProofsEnabled,
+    p_media_provider: media?.provider || null,
+    p_provider_media_id: media?.providerMediaId || null,
+    p_media_kind: media?.kind || null,
+    p_media_title: media?.title || null,
+    p_media_alt_text: media?.alt || null,
+    p_media_display_url: media?.displayUrl || null,
+    p_media_preview_url: media?.previewUrl || null,
+    p_media_width: media?.width || null,
+    p_media_height: media?.height || null,
+    p_media_item_url: media?.itemUrl || null,
+    p_media_content_fingerprint: media?.contentFingerprint || null,
   });
 
   if (!result.ok) {
@@ -2056,6 +2096,9 @@ async function mapMessageRows(
     getBrokerageProofMapForMessages(
       rows.map((row) => readString(row.id)).filter(Boolean),
     ),
+    getKlipyMediaMapForMessages(
+      rows.map((row) => readString(row.id)).filter(Boolean),
+    ),
   ]);
 
   if (actor.kind !== "member") {
@@ -2065,6 +2108,7 @@ async function mapMessageRows(
       replyPreviews,
       engagement,
       brokerageProofs,
+      media,
     ] =
       await enrichmentPromise;
     return rows.map((row) =>
@@ -2079,6 +2123,7 @@ async function mapMessageRows(
         engagement.likedMessageIds,
         engagement.replyCounts,
         brokerageProofs,
+        media,
       ),
     );
   }
@@ -2095,6 +2140,7 @@ async function mapMessageRows(
       replyPreviews,
       engagement,
       brokerageProofs,
+      media,
     ] =
       await enrichmentPromise;
     return rows.map((row) =>
@@ -2109,6 +2155,7 @@ async function mapMessageRows(
         engagement.likedMessageIds,
         engagement.replyCounts,
         brokerageProofs,
+        media,
       ),
     );
   }
@@ -2120,6 +2167,7 @@ async function mapMessageRows(
       replyPreviews,
       engagement,
       brokerageProofs,
+      media,
     ],
     outgoing,
     blocks,
@@ -2177,6 +2225,7 @@ async function mapMessageRows(
       engagement.likedMessageIds,
       engagement.replyCounts,
       brokerageProofs,
+      media,
     ),
   );
 }
@@ -2243,6 +2292,11 @@ async function getLiveRoomReplyPreviewMap(
   }
 
   const blocked = new Set(blockedActorIds);
+  const mediaMap = await getKlipyMediaMapForMessages(
+    (readRows(result.data) as MessageRow[])
+      .map((row) => readString(row.id))
+      .filter(Boolean),
+  );
   return new Map(
     (readRows(result.data) as MessageRow[])
       .filter((row) => !blocked.has(readString(row.actor_id)))
@@ -2256,8 +2310,11 @@ async function getLiveRoomReplyPreviewMap(
             authorEmoji: readString(row.author_emoji) || "👋",
             bodyPreview: createLiveRoomReplyBodyPreview(
               readString(row.body),
-            ),
+            ) || (mediaMap.has(messageId) ? "GIF" : ""),
             messageId,
+            mediaPreview: toKlipyReplyMediaPreview(
+              mediaMap.get(messageId),
+            ),
           },
         ] as const;
       }),
@@ -2499,6 +2556,7 @@ function mapMessageRow(
   likedMessageIds: ReadonlySet<string> = new Set(),
   replyCountMap: ReadonlyMap<string, number> = new Map(),
   brokerageProofMap: ReadonlyMap<string, BrokerageProofSummary> = new Map(),
+  mediaMap: ReadonlyMap<string, KlipyMediaAttachment> = new Map(),
 ): LiveRoomChatMessage {
   const eventId = readString(row.referenced_event_id);
   const eventKind = readString(row.referenced_event_kind);
@@ -2547,6 +2605,7 @@ function mapMessageRow(
     isMine: isLiveRoomMessageMine(row, actor),
     kind: "message",
     likeCount: readNonnegativeCount(row.like_count),
+    media: mediaMap.get(messageId) || null,
     replyCount: replyCountMap.get(messageId) || 0,
     replyPreview:
       replyPreviewMap.get(readString(row.reply_to_message_id)) || null,
@@ -2615,6 +2674,21 @@ function mapDatabaseModerationError(error: string | undefined, status: number) {
       "BROKERAGE_MEMBER_REQUIRED",
       "Sign in to attach brokerage evidence.",
       401,
+    ],
+    LIVE_ROOM_ATTACHMENT_CONFLICT: [
+      "LIVE_ROOM_ATTACHMENT_CONFLICT",
+      "Attach either Evidence or a KLIPY GIF.",
+      400,
+    ],
+    LIVE_ROOM_MEMBER_REQUIRED: [
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to send KLIPY GIFs.",
+      401,
+    ],
+    KLIPY_MEDIA_INVALID: [
+      "KLIPY_MEDIA_INVALID",
+      "That KLIPY GIF is no longer available.",
+      400,
     ],
   };
   const match = Object.entries(mappings).find(([code]) =>

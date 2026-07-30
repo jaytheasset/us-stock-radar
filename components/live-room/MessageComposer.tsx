@@ -7,6 +7,14 @@ import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import {
+  KlipyPicker,
+} from "@/components/klipy/KlipyPicker";
+import {
+  KlipyReplyMedia,
+  KlipySelectedMedia,
+} from "@/components/klipy/KlipyMedia";
+import type { KlipyMediaAttachment } from "@/lib/klipy/types";
+import {
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
   type ModerationDecision,
 } from "@/lib/live-room/moderation";
@@ -31,6 +39,7 @@ type MessageComposerProps = {
   onCancelReply: () => void;
   onProfileChange: (profile: LiveRoomProfile) => void;
   onPresenceSettingChange: (showPresence: boolean) => void;
+  onMediaChange: (media: KlipyMediaAttachment | null) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
   onSend: () => void;
   profile: LiveRoomProfile | null;
@@ -38,6 +47,7 @@ type MessageComposerProps = {
   replyPreview: LiveRoomReplyPreview | null;
   placeholder?: string;
   presenceSettingBusy: boolean;
+  media: KlipyMediaAttachment | null;
   proof: BrokerageProofSummary | null;
   sending: boolean;
   setProfileOpen: (open: boolean) => void;
@@ -56,6 +66,7 @@ export function MessageComposer({
   onCancelReply,
   onProfileChange,
   onPresenceSettingChange,
+  onMediaChange,
   onProofChange,
   onSend,
   profile,
@@ -63,6 +74,7 @@ export function MessageComposer({
   replyPreview,
   placeholder = "Share a company view…",
   presenceSettingBusy,
+  media,
   proof,
   sending,
   setProfileOpen,
@@ -96,7 +108,12 @@ export function MessageComposer({
           <span>
             Replying to {replyPreview.authorDisplayName}
           </span>
-          <strong>{replyPreview.bodyPreview}</strong>
+          <strong>
+            {replyPreview.mediaPreview ? (
+              <KlipyReplyMedia media={replyPreview.mediaPreview} />
+            ) : null}
+            <span>{replyPreview.bodyPreview}</span>
+          </strong>
           <button
             aria-label="Cancel reply"
             onClick={onCancelReply}
@@ -104,6 +121,14 @@ export function MessageComposer({
           >
             <X aria-hidden="true" size={14} />
           </button>
+        </div>
+      ) : null}
+      {media ? (
+        <div className={styles.composerMedia}>
+          <KlipySelectedMedia
+            media={media}
+            onRemove={() => onMediaChange(null)}
+          />
         </div>
       ) : null}
 
@@ -245,7 +270,7 @@ export function MessageComposer({
         >
           <span className={styles.visuallyHidden}>Message</span>
           <textarea
-            disabled={disabled}
+            disabled={disabled || sending}
             maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
             onChange={(event) => onBodyChange(event.target.value)}
             onKeyDown={(event) => {
@@ -276,6 +301,12 @@ export function MessageComposer({
           onChange={onProofChange}
           placement="composer"
           value={proof}
+        />
+        <KlipyPicker
+          disabled={disabled || sending}
+          isGuest={profile?.isGuest !== false}
+          loginHref={loginHref}
+          onSelect={onMediaChange}
         />
         <button
           aria-label="Send message"

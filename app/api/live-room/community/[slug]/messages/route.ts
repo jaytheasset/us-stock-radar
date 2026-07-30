@@ -81,6 +81,7 @@ export async function POST(
     const { slug } = await context.params;
     const input = (await request.json().catch(() => null)) as {
       body?: unknown;
+      mediaId?: unknown;
       proofId?: unknown;
       replyToMessageId?: unknown;
     } | null;
@@ -89,6 +90,7 @@ export async function POST(
       actor: resolution.actor,
       body: typeof input?.body === "string" ? input.body : "",
       eventId: null,
+      mediaId: input?.mediaId,
       proofId: input?.proofId,
       replyToMessageId: normalizeOptionalLiveRoomReplyMessageId(
         input?.replyToMessageId,

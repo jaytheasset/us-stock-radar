@@ -1,0 +1,295 @@
+.pickerRoot {
+  position: relative;
+  min-width: 0;
+}
+
+.pickerTrigger {
+  display: inline-flex;
+  height: 100%;
+  min-width: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-chat-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  cursor: pointer;
+}
+
+.pickerTrigger span {
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.pickerTrigger:hover,
+.pickerTrigger:focus-visible,
+.pickerTrigger[aria-expanded="true"] {
+  border-color: var(--sr-color-accent-border);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.desktopPicker {
+  position: absolute;
+  z-index: var(--sr-z-sheet-close);
+  right: 0;
+  bottom: calc(100% + var(--sr-space-2));
+  width: min(390px, calc(100vw - var(--sr-space-8)));
+  max-height: min(520px, 70dvh);
+  overflow-y: auto;
+  border: var(--sr-border-width) solid var(--sr-color-border-overlay);
+  border-radius: var(--sr-radius-popover);
+  padding: var(--sr-space-3);
+  background: var(--sr-color-surface-overlay);
+  box-shadow: var(--sr-shadow-menu);
+}
+
+.pickerContent {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-3);
+}
+
+.searchField {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-meta);
+  background: var(--sr-color-surface-control);
+}
+
+.searchField input {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  outline: 0;
+  color: var(--sr-color-text-primary);
+  background: transparent;
+  font: inherit;
+}
+
+.searchField button,
+.selectedMedia button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--sr-radius-control);
+  color: var(--sr-color-text-meta);
+  background: transparent;
+  cursor: pointer;
+}
+
+.resultGrid,
+.skeletonGrid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+}
+
+.resultGrid button,
+.skeletonGrid span {
+  position: relative;
+  display: block;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+  padding: 0;
+  background: var(--sr-color-surface-elevated);
+}
+
+.resultGrid button {
+  cursor: pointer;
+}
+
+.resultGrid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.skeletonGrid span {
+  animation: klipy-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.pickerStatus {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+  margin: 0;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-sm);
+}
+
+.pickerStatus button,
+.loadMore {
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-1-5) var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  cursor: pointer;
+}
+
+.loadMore {
+  display: inline-flex;
+  justify-self: center;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.attribution {
+  justify-self: end;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  text-decoration: none;
+}
+
+.mobileTitle {
+  margin: 0 0 var(--sr-space-3);
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-lg);
+}
+
+.messageMedia {
+  display: block;
+  width: fit-content;
+  max-width: min(320px, 100%);
+  margin-top: var(--sr-space-2);
+  overflow: hidden;
+  border-radius: var(--sr-radius-base);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-elevated);
+}
+
+.messageMedia img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+.mediaFallback {
+  display: inline-flex;
+  min-height: 72px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  padding: var(--sr-space-3);
+  font-size: var(--sr-font-size-sm);
+}
+
+.replyMedia {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-1);
+}
+
+.replyMedia img {
+  width: 38px;
+  height: 28px;
+  border-radius: var(--sr-radius-control);
+  object-fit: cover;
+}
+
+.selectedMedia {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-2);
+  margin-bottom: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-1-5);
+  background: var(--sr-color-surface-elevated);
+}
+
+.selectedMedia img {
+  width: 64px;
+  height: 48px;
+  border-radius: var(--sr-radius-control);
+  object-fit: cover;
+}
+
+.selectedMedia span {
+  min-width: 0;
+}
+
+.selectedMedia strong,
+.selectedMedia small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectedMedia strong {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.selectedMedia small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@keyframes klipy-pulse {
+  from { opacity: var(--sr-opacity-disabled); }
+  to { opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .pickerTrigger {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+  }
+
+  .pickerTrigger span {
+    display: none;
+  }
+
+  .pickerContent {
+    padding: var(--sr-space-8) var(--sr-space-4) var(--sr-space-5);
+  }
+
+  .mobileTitle {
+    padding: var(--sr-space-8) var(--sr-space-4) 0;
+    margin: 0;
+  }
+
+  .resultGrid,
+  .skeletonGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .messageMedia {
+    max-width: 100%;
+  }
+}

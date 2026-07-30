@@ -23,6 +23,7 @@ export type ModerationHistoryItem = {
 };
 
 export type ModerationContext = {
+  allowEmpty?: boolean;
   history: readonly ModerationHistoryItem[];
   now: string;
 };
@@ -44,6 +45,9 @@ export function evaluateLiveRoomMessage(
   const normalizedBody = body.trim();
 
   if (!normalizedBody) {
+    if (context.allowEmpty) {
+      return { allowed: true, normalizedBody };
+    }
     return block("empty", "Write a message before sending.");
   }
 
