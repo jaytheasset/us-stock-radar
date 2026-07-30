@@ -22,6 +22,7 @@ import {
 } from "@/components/calendar-v1/CalendarAdSlots";
 import { CalendarFilters } from "@/components/calendar-v1/CalendarFilters";
 import { CalendarEventDetail } from "@/components/calendar-v1/CalendarEventDetail";
+import { MobileCalendarDateNavigation } from "@/components/calendar-v1/MobileCalendarDateNavigation";
 import { CalendarView, ListView } from "@/components/calendar-v1/CalendarViews";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
@@ -281,7 +282,7 @@ export function StockRadarCalendarV1({
 
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
+      <header className={styles.pageHeader} data-calendar-header>
         <div>
           <span>EVENT DISCOVERY</span>
           <h1>Calendar</h1>
@@ -300,7 +301,11 @@ export function StockRadarCalendarV1({
         />
       </header>
 
-      <section aria-label="Date range controls" className={styles.dateControls}>
+      <section
+        aria-label="Date range controls"
+        className={styles.dateControls}
+        data-calendar-date-controls
+      >
         <SegmentedControl
           ariaLabel="Date range"
           className={styles.rangeControl}
@@ -373,6 +378,12 @@ export function StockRadarCalendarV1({
             </div>
           </div>
         ) : null}
+        <MobileCalendarDateNavigation
+          onRangeChange={updateRange}
+          preset={preset}
+          range={range}
+          today={today}
+        />
       </section>
 
       <CalendarFilters
@@ -400,7 +411,11 @@ export function StockRadarCalendarV1({
             : undefined
         }
       >
-        <section className={styles.results} aria-label="Calendar results">
+        <section
+          aria-label="Calendar results"
+          className={styles.results}
+          data-calendar-results
+        >
           <div className={styles.resultsSummary} aria-live="polite">
             <span>{formatEventCount(filteredEvents.length)}</span>
             {activeFilterCount ? <b>{activeFilterCount} filters active</b> : <b>All events</b>}

@@ -4,6 +4,7 @@ import {
   addDateOnlyDays,
   enumerateDateRange,
   filterCalendarEvents,
+  formatCompactRangeLabel,
   formatEnglishDatePickerValue,
   getPresetDateRange,
   groupCalendarEventsByDate,
@@ -52,6 +53,21 @@ test("visible date picker values stay in a fixed English US format", () => {
   assert.throws(
     () => formatEnglishDatePickerValue("2026-13-05"),
     /Invalid date-only/,
+  );
+});
+
+test("compact mobile range labels omit redundant same-year text", () => {
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-07-27", to: "2026-08-02" }),
+    "Jul 27 – Aug 2",
+  );
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-07-30", to: "2026-07-30" }),
+    "Jul 30",
+  );
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-12-29", to: "2027-01-04" }),
+    "Dec 29, 2026 – Jan 4, 2027",
   );
 });
 
