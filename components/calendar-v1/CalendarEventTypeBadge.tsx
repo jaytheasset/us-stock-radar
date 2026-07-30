@@ -41,18 +41,31 @@ export function getCalendarEventBadgeTone(eventType: CalendarEventType) {
 export function CalendarEventTypeBadge({
   eventType,
   size = "micro",
+  truncateLabel = false,
 }: {
   eventType: CalendarEventType;
   size?: BadgeSize;
+  truncateLabel?: boolean;
 }) {
+  const className = [
+    eventType === "dividend" ? styles.dividend : undefined,
+    truncateLabel ? styles.truncated : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <Badge
-      className={eventType === "dividend" ? styles.dividend : undefined}
+      className={className || undefined}
       data-calendar-event-type={eventType}
       size={size}
       tone={getCalendarEventBadgeTone(eventType)}
     >
-      {eventTypeLabels[eventType]}
+      {truncateLabel ? (
+        <span>{eventTypeLabels[eventType]}</span>
+      ) : (
+        eventTypeLabels[eventType]
+      )}
     </Badge>
   );
 }
