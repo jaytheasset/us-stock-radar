@@ -190,8 +190,25 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
     workspace,
     /<CalendarDesktopRail[\s\S]*activeEventId=\{selectedEventId\}[\s\S]*desktopPreviewEvent/,
   );
+  assert.match(workspace, /const \[desktopRailContentHeight, setDesktopRailContentHeight\] = useState\(0\)/);
+  assert.match(workspace, /data-view-mode=\{viewMode\}/);
+  assert.match(workspace, /"--calendar-desktop-rail-content-height": `\$\{desktopRailContentHeight\}px`/);
+  assert.match(workspace, /onContentHeightChange=\{setDesktopRailContentHeight\}/);
   assert.match(ads, /CalendarRailAd inventory="calendar-rail-top" position="top"[\s\S]*\{children\}[\s\S]*CalendarRailAd inventory="calendar-rail-bottom" position="bottom"/);
   assert.match(ads, /activeEventId:\s*string \| null/);
+  assert.match(ads, /onContentHeightChange:\s*\(height: number\) => void/);
+  assert.match(
+    ads,
+    /Math\.ceil\(rail\.scrollHeight\)[\s\S]*new ResizeObserver\(scheduleContentHeightReport\)[\s\S]*resizeObserver\.observe\(rail\)[\s\S]*for \(const child of rail\.children\)[\s\S]*new MutationObserver\(scheduleContentHeightReport\)/,
+  );
+  assert.match(
+    calendarStyles,
+    /@media \(min-width: 1181px\)[\s\S]*\.workspace\[data-view-mode="calendar"\]\[data-detail-open="true"\]\s*\{[\s\S]*min-height:\s*var\(--calendar-desktop-rail-content-height,\s*0\);/,
+  );
+  assert.doesNotMatch(
+    calendarStyles,
+    /\.workspace\[data-view-mode="list"\][^{]*\{[^}]*min-height:/,
+  );
   assert.match(ads, /const railScrollProgressRef = useRef\(0\)/);
   assert.match(
     ads,

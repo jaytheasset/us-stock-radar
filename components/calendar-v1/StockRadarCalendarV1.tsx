@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -75,6 +81,7 @@ export function StockRadarCalendarV1({
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
   const [sourceEvents, setSourceEvents] = useState<readonly CalendarEvent[]>(initialEvents);
+  const [desktopRailContentHeight, setDesktopRailContentHeight] = useState(0);
   const [loadState, setLoadState] = useState<"ready" | "loading" | "error">(
     initialLoadError ? "error" : "ready",
   );
@@ -389,6 +396,14 @@ export function StockRadarCalendarV1({
         className={styles.workspace}
         data-detail-open={Boolean(desktopPreviewEvent)}
         data-rail-ads={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+        data-view-mode={viewMode}
+        style={
+          desktopRailContentHeight > 0
+            ? ({
+                "--calendar-desktop-rail-content-height": `${desktopRailContentHeight}px`,
+              } as CSSProperties)
+            : undefined
+        }
       >
         <section className={styles.results} aria-label="Calendar results">
           <div className={styles.resultsSummary} aria-live="polite">
@@ -400,6 +415,7 @@ export function StockRadarCalendarV1({
         <CalendarDesktopRail
           activeEventId={selectedEventId}
           enabledForViewer={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+          onContentHeightChange={setDesktopRailContentHeight}
         >
           <CalendarEventDetail
             desktopEvent={desktopPreviewEvent}

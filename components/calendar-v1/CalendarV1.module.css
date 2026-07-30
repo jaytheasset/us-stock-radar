@@ -299,6 +299,12 @@
   grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
 }
 
+@media (min-width: 1181px) {
+  .workspace[data-view-mode="calendar"][data-detail-open="true"] {
+    min-height: var(--calendar-desktop-rail-content-height, 0);
+  }
+}
+
 .results {
   min-width: 0;
 }
