@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type AuthUser = {
@@ -11,6 +12,7 @@ type AuthUser = {
 
 type AuthMeResponse = {
   ok?: boolean;
+  sessionRefreshed?: boolean;
   user?: AuthUser | null;
 };
 
@@ -21,6 +23,7 @@ type AuthStatusProps = {
 };
 
 export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showCreateAccount = true }: AuthStatusProps) {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -32,7 +35,12 @@ export function AuthStatus({ loginHref = "/login", signupHref = "/signup", showC
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         const payload = (await response.json()) as AuthMeResponse;
-        if (active) setUser(payload.user || null);
+        if (active) {
+          setUser(payload.user || null);
+          if (payload.sessionRefreshed && payload.user) {
+            router.refresh();
+          }
+        }
       } catch {
         if (active) setUser(null);
       } finally {
