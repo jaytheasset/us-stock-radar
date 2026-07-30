@@ -6,6 +6,7 @@ import {
   normalizeLiveRoomTicker,
 } from "@/lib/live-room/adapters";
 import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
+import { getLiveRoomAvailability } from "@/lib/live-room/roomAvailabilityServer";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 type LiveRoomPageProps = {
@@ -44,7 +45,10 @@ export default async function LiveRoomPage({
     redirect(getLiveRoomHref(ticker) as string);
   }
 
-  const viewerPlan = await getCurrentViewerPlan();
+  const [viewerPlan, roomAvailability] = await Promise.all([
+    getCurrentViewerPlan(),
+    getLiveRoomAvailability({ ticker }),
+  ]);
 
   return (
     <LiveRoomClient
@@ -52,6 +56,7 @@ export default async function LiveRoomPage({
         typeof query.message === "string" ? query.message : null
       }
       realtimeConfig={getLiveRoomRealtimeConfig()}
+      roomAvailability={roomAvailability}
       ticker={ticker}
       viewerPlan={viewerPlan}
     />

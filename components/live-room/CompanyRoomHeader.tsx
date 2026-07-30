@@ -16,6 +16,7 @@ type CompanyRoomHeaderProps = {
   identity: CompanyRoomIdentity;
   isGuest: boolean;
   loginHref: string;
+  joiningDisabled?: boolean;
   membershipBusy: boolean;
   membershipJoined: boolean | null;
   onJoin: () => Promise<void>;
@@ -30,6 +31,7 @@ export function CompanyRoomHeader({
   identity,
   isGuest,
   loginHref,
+  joiningDisabled = false,
   membershipBusy,
   membershipJoined,
   onJoin,
@@ -117,6 +119,7 @@ export function CompanyRoomHeader({
           busy={membershipBusy}
           isGuest={isGuest}
           joined={membershipJoined}
+          joiningDisabled={joiningDisabled}
           loginHref={loginHref}
           onJoin={onJoin}
           onLeave={onLeave}

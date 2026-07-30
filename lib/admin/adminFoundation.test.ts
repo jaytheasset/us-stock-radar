@@ -20,6 +20,9 @@ const operationsMigration = read(
 const orphanBackfillMigration = read(
   "supabase/migrations/20260730051040_admin_moderation_orphan_backfill.sql",
 );
+const roomControlsMigration = read(
+  "supabase/migrations/20260730110605_admin_room_controls_v3.sql",
+);
 const adminLayout = read("app/admin/layout.tsx");
 const adminServer = read("lib/admin/server.ts");
 const adminApi = read("lib/admin/api.ts");
@@ -40,6 +43,12 @@ const moderationMutationApi = read(
   "app/api/admin/moderation/[caseId]/route.ts",
 );
 const roleMutationApi = read("app/api/admin/roles/route.ts");
+const globeRunApi = read("app/api/admin/sources/globe/run/route.ts");
+const globeIngestPanel = read("app/admin/news-ingest/GlobeIngestPanel.tsx");
+const roomMutationApi = read(
+  "app/api/admin/rooms/[roomId]/status/route.ts",
+);
+const roomsRepository = read("lib/admin/rooms.ts");
 const adminShell = read("components/admin/AdminShell.tsx");
 const legacyAdminPages = [
   "app/admin/creator-verifications/page.tsx",
@@ -108,7 +117,13 @@ test("roles expose only their intended navigation and permissions", () => {
   const moderationNavigation = visibleAdminNavigation(["moderator"]);
   assert.deepEqual(
     moderationNavigation.map((item) => item.href),
-    ["/admin", "/admin/users", "/admin/moderation", "/admin/audit"],
+    [
+      "/admin",
+      "/admin/users",
+      "/admin/moderation",
+      "/admin/rooms",
+      "/admin/audit",
+    ],
   );
   assert.equal(rolesHavePermission(["moderator"], "moderation.write"), true);
   assert.equal(rolesHavePermission(["support"], "users.enforce"), false);
@@ -119,6 +134,7 @@ test("roles expose only their intended navigation and permissions", () => {
       "/admin",
       "/admin/users",
       "/admin/moderation",
+      "/admin/rooms",
       "/admin/creator-verifications",
       "/admin/data",
       "/admin/alerts",
@@ -127,6 +143,82 @@ test("roles expose only their intended navigation and permissions", () => {
       "/admin/audit",
       "/admin/roles",
     ],
+  );
+});
+
+test("source runs use a reasoned admin server path without exposing ingest secrets", () => {
+  assert.equal(rolesHavePermission(["operations"], "data.run"), true);
+  assert.equal(rolesHavePermission(["moderator"], "data.run"), false);
+  assert.match(
+    globeRunApi,
+    /resolveAdminApiAccess\(request, "data\.run"\)/,
+  );
+  assert.match(globeRunApi, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(globeRunApi, /runAdminGlobeIngest/);
+  assert.doesNotMatch(
+    globeIngestPanel,
+    /\/api\/sources\/globe\/ingest|SOURCE_INGEST_INTERNAL_SECRET|CRON_SECRET/,
+  );
+  assert.match(
+    globeIngestPanel,
+    /\/api\/admin\/sources\/globe\/run/,
+  );
+  assert.match(globeIngestPanel, /FORCE REANALYZE/);
+  assert.match(roomControlsMigration, /admin_record_source_run_audit/);
+  assert.match(
+    roomControlsMigration,
+    /private\.admin_actor_role\([\s\S]*'super_admin', 'operations'/,
+  );
+  assert.match(roomControlsMigration, /admin_audit_logs/);
+});
+
+test("Live Room admin controls are permissioned, audited, and soft-state only", () => {
+  assert.equal(rolesHavePermission(["operations"], "rooms.manage"), true);
+  assert.equal(rolesHavePermission(["moderator"], "rooms.manage"), true);
+  assert.equal(rolesHavePermission(["support"], "rooms.manage"), false);
+  assert.match(
+    roomMutationApi,
+    /resolveAdminApiAccess\(request, "rooms\.manage"\)/,
+  );
+  assert.match(roomMutationApi, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(roomsRepository, /admin_list_live_rooms/);
+  assert.match(roomsRepository, /admin_get_live_room_detail/);
+  assert.match(roomsRepository, /admin_set_live_room_status/);
+  assert.match(
+    roomControlsMigration,
+    /p_action not in \('lock', 'unlock', 'archive', 'restore'\)/,
+  );
+  assert.match(
+    roomControlsMigration,
+    /insert into public\.admin_audit_logs[\s\S]*'live_room\.' \|\| p_action/,
+  );
+  assert.doesNotMatch(
+    `${roomControlsMigration}\n${roomsRepository}\n${roomMutationApi}`,
+    /hard_delete|delete\s+from\s+public\.live_room_rooms|direct_message|account_number|user_secret/i,
+  );
+});
+
+test("room state enforcement is additive and blocks every new public write path", () => {
+  assert.match(
+    roomControlsMigration,
+    /add column if not exists admin_status text not null default 'active'/,
+  );
+  for (const table of [
+    "live_room_messages",
+    "live_room_posts",
+    "live_room_post_comments",
+    "live_room_memberships",
+  ]) {
+    assert.match(
+      roomControlsMigration,
+      new RegExp(`${table}_enforce_room_writable`, "i"),
+    );
+  }
+  assert.match(roomControlsMigration, /LIVE_ROOM_LOCKED/);
+  assert.match(roomControlsMigration, /LIVE_ROOM_ARCHIVED/);
+  assert.match(
+    roomControlsMigration,
+    /revoke all on function public\.admin_set_live_room_status[\s\S]*from public, anon, authenticated/i,
   );
 });
 

@@ -8,6 +8,7 @@ export function RoomMembershipControl({
   busy,
   isGuest,
   joined,
+  joiningDisabled = false,
   loginHref,
   onJoin,
   onLeave,
@@ -16,6 +17,7 @@ export function RoomMembershipControl({
   busy: boolean;
   isGuest: boolean;
   joined: boolean | null;
+  joiningDisabled?: boolean;
   loginHref: string;
   onJoin: () => Promise<void>;
   onLeave: () => Promise<void>;
@@ -100,9 +102,9 @@ export function RoomMembershipControl({
         <button
           aria-label="Join room"
           className={styles.membershipButton}
-          disabled={busy}
+          disabled={busy || joiningDisabled}
           onClick={join}
-          title="Join room"
+          title={joiningDisabled ? "Room is read-only" : "Join room"}
           type="button"
         >
           {isGuest ? (

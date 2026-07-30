@@ -191,7 +191,7 @@ test("membership APIs derive actors, require same-origin mutations, and accept n
 test("room UI exposes one Join state, safe guest return, Leave confirmation, and no room Follow control", () => {
   assert.match(
     membershipControl,
-    /aria-label="Join room"[\s\S]*title="Join room"[\s\S]*membershipActionLabel\}>Join room<\/span>/,
+    /aria-label="Join room"[\s\S]*disabled=\{busy \|\| joiningDisabled\}[\s\S]*title=\{joiningDisabled \? "Room is read-only" : "Join room"\}[\s\S]*membershipActionLabel\}>Join room<\/span>/,
   );
   assert.match(
     membershipControl,

@@ -397,6 +397,17 @@
   color: var(--sr-color-text-heading);
 }
 
+.roomAvailabilityNotice {
+  margin: var(--sr-space-2) 0 0;
+  border: var(--sr-border-width) solid var(--sr-color-warning);
+  border-radius: var(--sr-radius-card);
+  padding: var(--sr-space-3) var(--sr-space-4);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-warning, var(--sr-color-surface-muted));
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
 .latestSection {
   display: grid;
   grid-template-columns: minmax(190px, 0.32fr) minmax(0, 1fr);

@@ -135,6 +135,19 @@ export async function findCompanyLiveRoomDirectoryResult(
   const row = readRecord(result.data);
   const symbol = normalizeLiveRoomTicker(row?.symbol);
   if (!row || symbol !== ticker) return null;
+  const roomResult = await supabaseSelect("live_room_rooms", {
+    select: "admin_status",
+    room_kind: "eq.company",
+    ticker: `eq.${ticker}`,
+    limit: "1",
+  });
+  const room = readRecord(roomResult.data);
+  if (
+    roomResult.ok &&
+    readString(room?.admin_status) === "archived"
+  ) {
+    return null;
+  }
 
   return {
     companyName: readString(row.name) || `${ticker} company`,
@@ -276,7 +289,9 @@ export async function listCommunityRooms(
     throw mapCommunityRoomDatabaseError(result.error, result.status);
   }
 
-  const rows = readRows(result.data);
+  const rows = await filterArchivedCommunityRoomRows(
+    readRows(result.data),
+  );
   const hasMore = rows.length > COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE;
   const items = rows
     .slice(0, COMMUNITY_ROOM_DIRECTORY_PAGE_SIZE)
@@ -298,6 +313,43 @@ export async function listCommunityRooms(
           })
         : null,
   };
+}
+
+async function filterArchivedCommunityRoomRows(
+  rows: Array<Record<string, unknown>>,
+) {
+  const slugs = [
+    ...new Set(rows.map((row) => readString(row.slug)).filter(Boolean)),
+  ];
+  if (!slugs.length) return rows;
+  const communityResult = await supabaseSelect("live_room_community_rooms", {
+    select: "room_id,slug",
+    slug: `in.(${slugs.join(",")})`,
+    limit: String(slugs.length),
+  });
+  if (!communityResult.ok) return rows;
+  const communities = readRows(communityResult.data);
+  const roomIds = communities
+    .map((row) => readString(row.room_id))
+    .filter(Boolean);
+  if (!roomIds.length) return rows;
+  const roomResult = await supabaseSelect("live_room_rooms", {
+    select: "id,admin_status",
+    id: `in.(${roomIds.join(",")})`,
+    limit: String(roomIds.length),
+  });
+  if (!roomResult.ok) return rows;
+  const archivedIds = new Set(
+    readRows(roomResult.data)
+      .filter((row) => readString(row.admin_status) === "archived")
+      .map((row) => readString(row.id)),
+  );
+  const archivedSlugs = new Set(
+    communities
+      .filter((row) => archivedIds.has(readString(row.room_id)))
+      .map((row) => readString(row.slug)),
+  );
+  return rows.filter((row) => !archivedSlugs.has(readString(row.slug)));
 }
 
 export function communityFiltersToSearchParams(

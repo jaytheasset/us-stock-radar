@@ -4,6 +4,7 @@ import { CommunityRoomClient } from "@/components/live-room/CommunityRoomClient"
 import { getCommunityRoom } from "@/lib/live-room/communityServerRepository";
 import { getCommunityRoomSlugOrNull } from "@/lib/live-room/community";
 import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
+import { getLiveRoomAvailability } from "@/lib/live-room/roomAvailabilityServer";
 import { LiveRoomPolicyError } from "@/lib/live-room/policy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
@@ -47,9 +48,10 @@ export default async function CommunityRoomPage({
   if (rawSlug !== slug) redirect(`/live/community/${slug}`);
 
   try {
-    const [room, viewerPlan] = await Promise.all([
+    const [room, viewerPlan, roomAvailability] = await Promise.all([
       getCommunityRoom(slug),
       getCurrentViewerPlan(),
+      getLiveRoomAvailability({ slug }),
     ]);
     return (
       <CommunityRoomClient
@@ -58,6 +60,7 @@ export default async function CommunityRoomPage({
         }
         realtimeConfig={getLiveRoomRealtimeConfig()}
         room={room}
+        roomAvailability={roomAvailability}
         viewerPlan={viewerPlan}
       />
     );

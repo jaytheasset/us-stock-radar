@@ -4,9 +4,11 @@ import { useState } from "react";
 
 type IngestResult = Record<string, unknown>;
 
-export function GlobeIngestPanel() {
-  const [limit, setLimit] = useState(20);
+export function GlobeIngestPanel({ canRun }: { canRun: boolean }) {
+  const [limit, setLimit] = useState(1);
   const [force, setForce] = useState(false);
+  const [forceConfirmation, setForceConfirmation] = useState("");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<IngestResult | null>(null);
   const [error, setError] = useState("");
@@ -17,19 +19,21 @@ export function GlobeIngestPanel() {
     setResult(null);
 
     try {
-      const params = new URLSearchParams({
-        limit: String(limit),
-      });
-      if (force) params.set("force", "true");
-
-      const response = await fetch(`/api/sources/globe/ingest?${params.toString()}`, {
+      const response = await fetch("/api/admin/sources/globe/run", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          force,
+          forceConfirmation,
+          limit,
+          reason,
+        }),
       });
       const payload = (await response.json().catch(() => null)) as IngestResult | null;
       if (!response.ok) {
         throw new Error(readError(payload) || `HTTP ${response.status}`);
       }
-      setResult(payload);
+      setResult(readRecord(payload?.data) || payload);
     } catch (runError) {
       setError(runError instanceof Error ? runError.message : "Unknown ingest error");
     } finally {
@@ -42,28 +46,78 @@ export function GlobeIngestPanel() {
       <div className="definition-card-header">
         <div>
           <h2>GlobeNewswire Ingest Runner</h2>
-          <p className="muted">Runs raw parse, LLM analysis, canonical DB write, and duplicate/coverage guards.</p>
+          <p className="muted">
+            Administrator-only server execution. Every run is locked and
+            recorded in the append-only audit log.
+          </p>
         </div>
         <span className={loading ? "pill warn" : "pill ok"}>{loading ? "Running" : "Ready"}</span>
       </div>
 
+      {!canRun ? (
+        <div className="ingest-result">
+          Read-only access. Source execution is limited to Operations and
+          Super Admin roles.
+        </div>
+      ) : (
       <div className="ingest-runner">
         <label>
           <span>Limit</span>
           <select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>
             <option value={1}>1 item</option>
+            <option value={5}>5 items</option>
             <option value={12}>12 items</option>
             <option value={20}>20 items</option>
           </select>
         </label>
+        <label>
+          <span>Execution reason</span>
+          <input
+            maxLength={2000}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Required for the audit log"
+            value={reason}
+          />
+        </label>
         <label className="ingest-checkbox">
-          <input checked={force} onChange={(event) => setForce(event.target.checked)} type="checkbox" />
+          <input
+            checked={force}
+            onChange={(event) => {
+              setForce(event.target.checked);
+              if (!event.target.checked) setForceConfirmation("");
+            }}
+            type="checkbox"
+          />
           <span>Force re-analysis</span>
         </label>
-        <button disabled={loading} onClick={runIngest} type="button">
+        {force ? (
+          <div className="error-state ingest-result">
+            <strong>Forced analysis ignores normal reuse safeguards.</strong>
+            <label>
+              Type FORCE REANALYZE
+              <input
+                autoComplete="off"
+                onChange={(event) =>
+                  setForceConfirmation(event.target.value)
+                }
+                value={forceConfirmation}
+              />
+            </label>
+          </div>
+        ) : null}
+        <button
+          disabled={
+            loading ||
+            reason.trim().length < 4 ||
+            (force && forceConfirmation.trim() !== "FORCE REANALYZE")
+          }
+          onClick={runIngest}
+          type="button"
+        >
           {loading ? "Running..." : "Run Globe Ingest"}
         </button>
       </div>
+      )}
 
       {error ? (
         <div className="error-state ingest-result">
@@ -102,5 +156,12 @@ function metric(label: string, value: string) {
 
 function readError(payload: IngestResult | null) {
   if (!payload) return "";
-  return String(payload.error || payload.message || "");
+  const error = readRecord(payload.error);
+  return String(error?.message || payload.error || payload.message || "");
+}
+
+function readRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as IngestResult)
+    : null;
 }

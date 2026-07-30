@@ -77,6 +77,7 @@ export function PostsPanel({
   profile,
   repository,
   state: controlledState,
+  writeDisabled = false,
 }: {
   cursor?: string | null;
   currentTicker?: string;
@@ -91,6 +92,7 @@ export function PostsPanel({
   profile: LiveRoomProfile | null;
   repository: LiveRoomApiRepository;
   state?: "error" | "loading" | "ready";
+  writeDisabled?: boolean;
 }) {
   const postRepository = useMemo(() => new LiveRoomPostApiRepository(), []);
   const [localPosts, setLocalPosts] = useState<LiveRoomPost[]>([]);
@@ -394,7 +396,7 @@ export function PostsPanel({
           <h2 id="live-room-posts-title">Posts</h2>
           <p>Long-form views stay separate from chat and company events.</p>
         </div>
-        {profile?.isGuest === false ? (
+        {profile?.isGuest === false && !writeDisabled ? (
           <button onClick={() => setFormOpen((value) => !value)} type="button">
             <Plus aria-hidden="true" size={16} />
             New post
@@ -410,7 +412,14 @@ export function PostsPanel({
         </div>
       ) : null}
 
-      {formOpen && profile?.isGuest === false ? (
+      {writeDisabled ? (
+        <div className={styles.signInNote}>
+          <strong>This room is read-only.</strong>
+          <span>Existing public posts remain available.</span>
+        </div>
+      ) : null}
+
+      {formOpen && profile?.isGuest === false && !writeDisabled ? (
         <form
           className={styles.form}
           onSubmit={(event) => {

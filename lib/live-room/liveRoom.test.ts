@@ -845,7 +845,10 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   const adSource = readSource("components/live-room/LiveRoomAdSlots.tsx");
   const styleSource = readSource("components/live-room/LiveRoom.module.css");
 
-  assert.match(pageSource, /await getCurrentViewerPlan\(\)/);
+  assert.match(
+    pageSource,
+    /await Promise\.all\(\[[\s\S]*getCurrentViewerPlan\(\)[\s\S]*getLiveRoomAvailability\(\{ ticker \}\)/,
+  );
   assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
   assert.match(
     clientSource,
@@ -2238,4 +2241,53 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(header, /<LiveRoomUnreadMenu \/>[\s\S]+aria-label="Alerts"/);
   assert.match(header, /<Bell aria-hidden="true"/);
   assert.match(unreadRoute, /if \(!hasExistingIdentity\)[\s\S]+emptySummary/);
+});
+
+test("administrator room states keep public history readable while blocking every create path", () => {
+  const migration = readSource(
+    "supabase/migrations/20260730110605_admin_room_controls_v3.sql",
+  );
+  const companyPage = readSource("app/live/[ticker]/page.tsx");
+  const communityPage = readSource("app/live/community/[slug]/page.tsx");
+  const companyClient = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const communityClient = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+  const communityRepository = readSource(
+    "lib/live-room/communityServerRepository.ts",
+  );
+
+  assert.match(
+    migration,
+    /admin_status text not null default 'active'/,
+  );
+  for (const table of [
+    "live_room_messages",
+    "live_room_posts",
+    "live_room_post_comments",
+    "live_room_memberships",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(`${table}_enforce_room_writable`, "i"),
+    );
+  }
+  assert.match(migration, /LIVE_ROOM_LOCKED/);
+  assert.match(migration, /LIVE_ROOM_ARCHIVED/);
+  assert.match(
+    migration,
+    /assert_live_room_writable[\s\S]+pg_advisory_xact_lock[\s\S]+hashtextextended\(p_room_id::text,\s*0\)/,
+  );
+  assert.match(companyPage, /getLiveRoomAvailability/);
+  assert.match(communityPage, /getLiveRoomAvailability/);
+  assert.match(companyClient, /roomAvailabilityNotice/);
+  assert.match(communityClient, /roomAvailabilityNotice/);
+  assert.match(companyClient, /writeDisabled=\{roomReadOnly\}/);
+  assert.match(communityClient, /writeDisabled=\{roomReadOnly\}/);
+  assert.match(
+    communityRepository,
+    /filterArchivedCommunityRoomRows/,
+  );
 });

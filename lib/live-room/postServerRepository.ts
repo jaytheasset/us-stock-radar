@@ -1261,7 +1261,7 @@ function mapPostDatabaseError(
 ) {
   const knownCode =
     error?.match(
-      /(?:LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF)|BROKERAGE_(?:PUBLIC_SHARING_DISABLED|PLAN_REQUIRED|PROOF_NOT_ATTACHABLE))/,
+      /(?:LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF|LOCKED|ARCHIVED)|BROKERAGE_(?:PUBLIC_SHARING_DISABLED|PLAN_REQUIRED|PROOF_NOT_ATTACHABLE))/,
     )?.[0] || fallbackCode;
   const messages: Record<string, string> = {
     LIVE_ROOM_POST_DUPLICATE:
@@ -1283,6 +1283,9 @@ function mapPostDatabaseError(
     LIVE_ROOM_MEMBER_REQUIRED: "Sign in to write Live Room posts.",
     LIVE_ROOM_MODERATOR_REQUIRED: "Moderator access is required.",
     LIVE_ROOM_CANNOT_BLOCK_SELF: "You cannot block yourself.",
+    LIVE_ROOM_LOCKED:
+      "This room is locked. Existing public content remains readable.",
+    LIVE_ROOM_ARCHIVED: "This room is archived and read-only.",
     BROKERAGE_PUBLIC_SHARING_DISABLED:
       "Public sharing is pending provider approval.",
     BROKERAGE_PLAN_REQUIRED:
@@ -1298,11 +1301,16 @@ function mapPostDatabaseError(
   const brokerageForbidden =
     knownCode === "BROKERAGE_PUBLIC_SHARING_DISABLED" ||
     knownCode === "BROKERAGE_PLAN_REQUIRED";
+  const readOnly =
+    knownCode === "LIVE_ROOM_LOCKED" ||
+    knownCode === "LIVE_ROOM_ARCHIVED";
   return new LiveRoomPolicyError(
     knownCode,
     messages[knownCode] || "The post action could not be completed.",
     unauthorized
       ? 401
+      : readOnly
+        ? 423
       : forbidden || brokerageForbidden
         ? 403
         : notFound
@@ -1318,7 +1326,7 @@ function mapCommentDatabaseError(
 ) {
   const knownCode =
     error?.match(
-      /LIVE_ROOM_(?:COMMENT_[A-Z_]+|POST_NOT_FOUND|MEMBER_REQUIRED|INVALID_REPORT_REASON)/,
+      /LIVE_ROOM_(?:COMMENT_[A-Z_]+|POST_NOT_FOUND|MEMBER_REQUIRED|INVALID_REPORT_REASON|LOCKED|ARCHIVED)/,
     )?.[0] || fallbackCode;
   const messages: Record<string, string> = {
     LIVE_ROOM_COMMENT_DUPLICATE:
@@ -1337,15 +1345,21 @@ function mapCommentDatabaseError(
       "Sign in to comment on Live Room posts.",
     LIVE_ROOM_INVALID_REPORT_REASON:
       "Choose a valid report reason.",
+    LIVE_ROOM_LOCKED:
+      "This room is locked. Existing public content remains readable.",
+    LIVE_ROOM_ARCHIVED: "This room is archived and read-only.",
   };
   const unauthorized = knownCode === "LIVE_ROOM_MEMBER_REQUIRED";
   const notFound =
     knownCode === "LIVE_ROOM_COMMENT_NOT_FOUND" ||
     knownCode === "LIVE_ROOM_POST_NOT_FOUND";
+  const readOnly =
+    knownCode === "LIVE_ROOM_LOCKED" ||
+    knownCode === "LIVE_ROOM_ARCHIVED";
   return new LiveRoomPolicyError(
     knownCode,
     messages[knownCode] || "The comment action could not be completed.",
-    unauthorized ? 401 : notFound ? 404 : status || 400,
+    unauthorized ? 401 : notFound ? 404 : readOnly ? 423 : status || 400,
   );
 }
 

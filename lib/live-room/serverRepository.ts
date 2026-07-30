@@ -1370,6 +1370,10 @@ export async function updateLiveRoomMembership({
     p_room_id: room.id,
   });
   if (!result.ok || result.data !== joined) {
+    const availabilityError = mapRoomAvailabilityDatabaseError(
+      result.error,
+    );
+    if (availabilityError) throw availabilityError;
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBERSHIP_UPDATE_FAILED",
       result.error || "Room membership could not be updated.",
@@ -2615,6 +2619,16 @@ function mapMessageRow(
 function mapDatabaseModerationError(error: string | undefined, status: number) {
   const value = error || "";
   const mappings: Record<string, [string, string, number]> = {
+    LIVE_ROOM_LOCKED: [
+      "LIVE_ROOM_LOCKED",
+      "This room is locked. Existing public content remains readable.",
+      423,
+    ],
+    LIVE_ROOM_ARCHIVED: [
+      "LIVE_ROOM_ARCHIVED",
+      "This room is archived and read-only.",
+      423,
+    ],
     LIVE_ROOM_EMPTY: [
       "LIVE_ROOM_EMPTY",
       "Write a message before sending.",
@@ -2703,6 +2717,25 @@ function mapDatabaseModerationError(error: string | undefined, status: number) {
     "The message could not be saved.",
     status || 502,
   );
+}
+
+function mapRoomAvailabilityDatabaseError(error: string | undefined) {
+  const value = error || "";
+  if (value.includes("LIVE_ROOM_LOCKED")) {
+    return new LiveRoomPolicyError(
+      "LIVE_ROOM_LOCKED",
+      "This room is locked. Existing public content remains readable.",
+      423,
+    );
+  }
+  if (value.includes("LIVE_ROOM_ARCHIVED")) {
+    return new LiveRoomPolicyError(
+      "LIVE_ROOM_ARCHIVED",
+      "This room is archived and read-only.",
+      423,
+    );
+  }
+  return null;
 }
 
 function mapLiveRoomActionError(

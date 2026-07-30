@@ -18,6 +18,9 @@ export const ADMIN_PERMISSIONS = [
   "verifications.read",
   "verifications.review",
   "data.read",
+  "data.run",
+  "rooms.read",
+  "rooms.manage",
   "alerts.read",
   "billing.read",
   "system.read",
@@ -32,6 +35,9 @@ const ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[]> = {
   operations: [
     "overview.read",
     "data.read",
+    "data.run",
+    "rooms.read",
+    "rooms.manage",
     "alerts.read",
     "system.read",
     "audit.read",
@@ -42,6 +48,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[]> = {
     "users.enforce",
     "moderation.read",
     "moderation.write",
+    "rooms.read",
+    "rooms.manage",
     "audit.read",
   ],
   verification_reviewer: [
@@ -77,6 +85,11 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationItem[] = [
     href: "/admin/moderation",
     label: "Moderation",
     permission: "moderation.read",
+  },
+  {
+    href: "/admin/rooms",
+    label: "Live Rooms",
+    permission: "rooms.read",
   },
   {
     href: "/admin/creator-verifications",

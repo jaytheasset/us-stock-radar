@@ -11,6 +11,7 @@ import styles from "./LiveRoom.module.css";
 type CommunityRoomHeaderProps = {
   isGuest: boolean;
   loginHref: string;
+  joiningDisabled?: boolean;
   membershipBusy: boolean;
   membershipJoined: boolean | null;
   onJoin: () => Promise<void>;
@@ -22,6 +23,7 @@ type CommunityRoomHeaderProps = {
 export function CommunityRoomHeader({
   isGuest,
   loginHref,
+  joiningDisabled = false,
   membershipBusy,
   membershipJoined,
   onJoin,
@@ -87,6 +89,7 @@ export function CommunityRoomHeader({
           busy={membershipBusy}
           isGuest={isGuest}
           joined={membershipJoined}
+          joiningDisabled={joiningDisabled}
           loginHref={loginHref}
           onJoin={onJoin}
           onLeave={onLeave}
