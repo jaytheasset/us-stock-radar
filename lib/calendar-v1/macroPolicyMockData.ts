@@ -11,7 +11,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
   ) => ({
     id,
     provider: "mock" as const,
-    providerEventKey: `mock:${id}`,
     title: sourceName,
     eventDate: date(offset),
     eventEndDate: null,
@@ -26,7 +25,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
     sourceAgency,
     sourceName,
     sourceUrl: null,
-    sourceEventKey: null,
     affectedSectors: [] as string[],
     relatedTickers: [] as string[],
     status: "confirmed" as const,
@@ -45,7 +43,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       marketSession: "bmo",
       lifecycleStatus: "released",
       status: "completed",
-      sourceEventKey: "bls:cpi:2026-06",
       details: {
         referencePeriod: "June 2026",
         releaseNote: "Headline and core CPI are one release event.",
@@ -81,7 +78,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       marketSession: "bmo",
       lifecycleStatus: "released",
       status: "completed",
-      sourceEventKey: "bls:ppi:2026-06",
       details: {
         referencePeriod: "June 2026",
         releaseNote: null,
@@ -117,7 +113,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       marketSession: "bmo",
       lifecycleStatus: "released",
       status: "completed",
-      sourceEventKey: "bea:pce:2026-06",
       details: {
         referencePeriod: "June 2026",
         releaseNote: "Headline and core PCE are one release event.",
@@ -151,7 +146,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       eventTime: "08:30",
       timeStatus: "exact",
       marketSession: "bmo",
-      sourceEventKey: "bls:employment:2026-07",
       details: {
         referencePeriod: "July 2026",
         releaseNote: "Payrolls, unemployment, and wages remain one event.",
@@ -194,7 +188,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       eventTime: "10:00",
       timeStatus: "exact",
       marketSession: "market-hours",
-      sourceEventKey: "bls:jolts:2026-06",
       details: {
         referencePeriod: "June 2026",
         releaseNote: null,
@@ -219,7 +212,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       eventTime: "08:30",
       timeStatus: "exact",
       marketSession: "bmo",
-      sourceEventKey: "bea:gdp:2026-q2:advance",
       details: {
         referencePeriod: "Q2 2026",
         releaseNote: "Advance estimate; later revisions remain separate stages.",
@@ -243,7 +235,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       title: "Retail Sales",
       scheduleConfidence: "tentative",
       status: "estimated",
-      sourceEventKey: "census:retail-sales:2026-07",
       details: {
         referencePeriod: "July 2026",
         releaseNote: "Release time has not been announced.",
@@ -272,7 +263,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       marketSession: "market-hours",
       lifecycleStatus: "released",
       status: "completed",
-      sourceEventKey: "fed:fomc:2026-07",
       details: {
         decisionTime: "14:00",
         pressConferenceTime: "14:30",
@@ -292,7 +282,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       timeStatus: "exact",
       marketSession: "market-hours",
       impactLevel: "medium",
-      sourceEventKey: "treasury:auction:10y:2026-07",
       details: {
         kind: "auction",
         maturity: "10-Year",
@@ -310,7 +299,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       impactScope: "sector",
       impactLevel: "medium",
       affectedSectors: ["Broker-dealers", "Digital assets"],
-      sourceEventKey: "sec:open-meeting:2026-07-31",
       details: {
         ruleOrMeetingTitle: "Open Meeting on Market Structure",
         agenda: [
@@ -335,7 +323,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       impactScope: "sector",
       affectedSectors: ["Biotechnology", "Pharmaceuticals"],
       relatedTickers: ["MRNA", "PFE"],
-      sourceEventKey: "fda:vrbpac:2026-08",
       details: {
         committee: "Vaccines and Related Biological Products Advisory Committee",
         product: "Next-generation respiratory vaccine",
@@ -357,7 +344,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       impactScope: "sector",
       affectedSectors: ["Semiconductors", "Electronics"],
       relatedTickers: ["NVDA", "AMD"],
-      sourceEventKey: "ustr:semiconductor-tariff:2026",
       details: {
         actionType: "tariff",
         targetCountries: ["China"],
@@ -376,7 +362,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       eventTime: "14:00",
       timeStatus: "exact",
       marketSession: "market-hours",
-      sourceEventKey: "fed:fomc-minutes:2026-07",
       details: {
         meetingPeriod: "July 28–29, 2026",
         documentTitle: "Minutes of the Federal Open Market Committee",
@@ -391,7 +376,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       title: "Fed Chair Semiannual Monetary Policy Testimony",
       scheduleConfidence: "tentative",
       status: "estimated",
-      sourceEventKey: "fed:testimony:2026-h2",
       details: {
         witness: "Federal Reserve Chair",
         committee: "U.S. Senate Committee on Banking, Housing, and Urban Affairs",
@@ -409,7 +393,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       timeStatus: "exact",
       marketSession: "market-hours",
       impactLevel: "medium",
-      sourceEventKey: "treasury:quarterly-refunding:2026-q3",
       details: {
         kind: "announcement",
         maturity: null,
@@ -427,7 +410,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       eventTime: "08:30",
       timeStatus: "exact",
       marketSession: "bmo",
-      sourceEventKey: "treasury:quarterly-refunding:2026-q3",
       details: {
         kind: "announcement",
         maturity: null,
@@ -448,7 +430,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       lifecycleStatus: "cancelled",
       status: "cancelled",
       impactLevel: "medium",
-      sourceEventKey: "treasury:auction:30y:2026-08",
       details: {
         kind: "auction",
         maturity: "30-Year",
@@ -467,7 +448,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       impactLevel: "medium",
       affectedSectors: ["Digital assets", "Broker-dealers"],
       relatedTickers: ["COIN"],
-      sourceEventKey: "sec:rule:s7-12-26",
       details: {
         ruleOrMeetingTitle: "Safeguarding Advisory Client Assets",
         agenda: [],
@@ -487,7 +467,6 @@ export function createMacroPolicyMockEvents(today: string): CalendarEvent[] {
       impactLevel: "medium",
       affectedSectors: ["Digital assets", "Broker-dealers"],
       relatedTickers: ["COIN"],
-      sourceEventKey: "sec:rule:s7-12-26",
       details: {
         ruleOrMeetingTitle: "Safeguarding Advisory Client Assets",
         agenda: [],

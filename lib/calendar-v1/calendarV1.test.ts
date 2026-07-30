@@ -402,7 +402,21 @@ test("duplicate-prevention fixtures keep combined releases and related milestone
   assert.equal(byType("sec-open-meeting").length, 1);
   const milestones = byType("sec-rule-milestone");
   assert.equal(milestones.length, 2);
-  assert.equal(milestones[0]?.sourceEventKey, milestones[1]?.sourceEventKey);
+  assert.ok(
+    milestones.every(
+      (event) =>
+        event.category === "policy" &&
+        event.eventType === "sec-rule-milestone",
+    ),
+  );
+  assert.equal(
+    milestones[0]?.eventType === "sec-rule-milestone"
+      ? milestones[0].details.documentOrDocket
+      : null,
+    milestones[1]?.eventType === "sec-rule-milestone"
+      ? milestones[1].details.documentOrDocket
+      : null,
+  );
   assert.notEqual(milestones[0]?.eventDate, milestones[1]?.eventDate);
   assert.equal(byType("treasury-auction-10y").length, 1);
   assert.equal(byType("treasury-auction-30y").length, 1);

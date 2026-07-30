@@ -13,6 +13,7 @@ import {
 } from "./presentation.ts";
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+export const CALENDAR_MARKET_TIME_ZONE = "America/New_York";
 
 export function parseDateOnly(value: string): Date {
   const match = DATE_ONLY_PATTERN.exec(value);
@@ -39,6 +40,27 @@ export function formatDateOnly(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function getCalendarMarketDate(date = new Date()): string {
+  if (Number.isNaN(date.getTime())) {
+    throw new RangeError("Invalid market date instant");
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: CALENDAR_MARKET_TIME_ZONE,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type === "year" || part.type === "month" || part.type === "day")
+      .map((part) => [part.type, part.value]),
+  );
+  const value = `${values.year}-${values.month}-${values.day}`;
+  parseDateOnly(value);
+  return value;
 }
 
 export function addDateOnlyDays(value: string, days: number): string {

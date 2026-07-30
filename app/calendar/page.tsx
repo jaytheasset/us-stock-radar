@@ -4,14 +4,20 @@ import {
   type CalendarPreviewState,
 } from "@/components/calendar-v1/StockRadarCalendarV1";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
-import { formatDateOnly } from "@/lib/calendar-v1/dateUtils";
+import {
+  getCalendarMarketDate,
+  getPresetDateRange,
+} from "@/lib/calendar-v1/dateUtils";
+import type { CalendarEvent } from "@/lib/calendar-v1/model";
+import { getNormalizedCalendarEvents } from "@/lib/calendar-v1/repository";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Calendar | Stock Radar",
-  description: "Explore upcoming earnings, dividend, stock split, and IPO events.",
+  description:
+    "Explore upcoming Company, Macro, and Policy events across the U.S. market.",
 };
 
 type CalendarPageProps = {
@@ -28,12 +34,27 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     requestedState === "loading" || requestedState === "error" || requestedState === "empty"
       ? requestedState
       : "default";
+  const today = getCalendarMarketDate();
+  const initialRange = getPresetDateRange("this-week", today);
+  let initialEvents: CalendarEvent[] = [];
+  let initialLoadError = false;
+
+  if (previewState === "default") {
+    try {
+      initialEvents = await getNormalizedCalendarEvents(initialRange);
+    } catch {
+      initialLoadError = true;
+    }
+  }
 
   return (
     <StockRadarAppShell activeNavigationItem="calendar" themeMode="user-selectable">
       <StockRadarCalendarV1
+        initialEvents={initialEvents}
+        initialLoadError={initialLoadError}
+        initialRange={initialRange}
         previewState={previewState}
-        today={formatDateOnly(new Date())}
+        today={today}
         viewerPlan={viewerPlan}
       />
     </StockRadarAppShell>

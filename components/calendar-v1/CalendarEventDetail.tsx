@@ -9,6 +9,7 @@ import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
+  calendarProviderLabels,
   eventStatusLabels,
   impactLevelLabels,
   marketSessionLabels,
@@ -17,6 +18,7 @@ import {
   type MacroCalendarEvent,
   type PolicyCalendarEvent,
 } from "@/lib/calendar-v1/model";
+import { normalizeSafeCalendarSourceUrl } from "@/lib/calendar-v1/normalized";
 import {
   formatCalendarEventTime,
   formatMacroMetricValue,
@@ -125,6 +127,7 @@ function CalendarEventDetailContent({
   const followActionLabel = followed
     ? `Unfollow ${event.title} event`
     : `Follow ${event.title} event`;
+  const safeSourceUrl = normalizeSafeCalendarSourceUrl(event.sourceUrl);
 
   return (
     <div className={styles.detailContent}>
@@ -164,9 +167,19 @@ function CalendarEventDetailContent({
         <h3>Data provenance</h3>
         <dl>
           <DetailValue label="Agency" value={event.sourceAgency} />
-          <DetailValue label="Source" value={event.sourceName} />
-          <DetailValue label="Provider" value="Mock" />
-          <DetailValue label="Source key" value={event.sourceEventKey} />
+          <DetailLinkValue
+            href={safeSourceUrl}
+            label="Source"
+            value={event.sourceName}
+          />
+          <DetailValue
+            label="Provider"
+            value={calendarProviderLabels[event.provider]}
+          />
+          <DetailValue
+            label="Confidence"
+            value={titleCase(event.scheduleConfidence)}
+          />
           <DetailValue label="Updated" value={formatUpdatedAt(event.lastUpdatedAt)} />
         </dl>
       </section>
@@ -294,7 +307,14 @@ function renderCompanyDetails(event: CompanyCalendarEvent) {
     return (
       <>
         <DetailValue label="Split ratio" value={event.details.ratio} />
-        <DetailValue label="Split type" value={`${titleCase(event.details.splitKind)} split`} />
+        <DetailValue
+          label="Split type"
+          value={
+            event.details.splitKind
+              ? `${titleCase(event.details.splitKind)} split`
+              : null
+          }
+        />
         <DetailValue label="Effective date" value={formatDetailDate(event.details.effectiveDate)} />
         <DetailValue label="Related ticker" value={event.details.relatedTicker} />
       </>
@@ -316,7 +336,10 @@ function renderCompanyDetails(event: CompanyCalendarEvent) {
         value={event.details.offerPrice === null ? null : `$${event.details.offerPrice.toFixed(2)}`}
       />
       <DetailValue label="Raise size" value={formatMoney(event.details.raiseAmount)} />
-      <DetailValue label="IPO stage" value={titleCase(event.details.ipoStage)} />
+      <DetailValue
+        label="IPO stage"
+        value={event.details.ipoStage ? titleCase(event.details.ipoStage) : null}
+      />
     </>
   );
 }
@@ -366,7 +389,16 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
         {common}
         <DetailValue label="Decision time" value={formatExactEt(event.details.decisionTime)} />
         <DetailValue label="Press conference" value={formatExactEt(event.details.pressConferenceTime)} />
-        <DetailValue label="SEP included" value={event.details.includesSep ? "Yes" : "No"} />
+        <DetailValue
+          label="SEP included"
+          value={
+            event.details.includesSep === null
+              ? null
+              : event.details.includesSep
+                ? "Yes"
+                : "No"
+          }
+        />
         <DetailValue
           label="Target range"
           value={
@@ -406,7 +438,10 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Kind" value={titleCase(event.details.kind)} />
+        <DetailValue
+          label="Kind"
+          value={event.details.kind ? titleCase(event.details.kind) : null}
+        />
         <DetailValue label="Maturity" value={event.details.maturity} />
         <DetailValue
           label="Amount"
@@ -420,7 +455,14 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Stage" value={titleCase(event.details.milestone)} />
+        <DetailValue
+          label="Stage"
+          value={
+            event.details.milestone
+              ? titleCase(event.details.milestone)
+              : null
+          }
+        />
         <DetailValue label="Title" value={event.details.ruleOrMeetingTitle} />
         <DetailValue label="Agenda" value={joinValues(event.details.agenda)} />
         <DetailValue label="Document / docket" value={event.details.documentOrDocket} />
@@ -431,8 +473,22 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Action" value={titleCase(event.details.actionType)} />
-        <DetailValue label="Date stage" value={titleCase(event.details.actionDateKind)} />
+        <DetailValue
+          label="Action"
+          value={
+            event.details.actionType
+              ? titleCase(event.details.actionType)
+              : null
+          }
+        />
+        <DetailValue
+          label="Date stage"
+          value={
+            event.details.actionDateKind
+              ? titleCase(event.details.actionDateKind)
+              : null
+          }
+        />
         <DetailValue label="Target countries" value={joinValues(event.details.targetCountries)} />
         <DetailValue label="Industries" value={joinValues(event.details.affectedIndustries)} />
         <DetailValue label="Tariff / restriction" value={event.details.tariffOrRestriction} />
@@ -449,7 +505,10 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
         <DetailValue label="Indication" value={event.details.indication} />
         <DetailValue
           label="Meeting dates"
-          value={`${formatDetailDate(event.details.meetingStartDate)} – ${formatDetailDate(event.details.meetingEndDate)}`}
+          value={formatDetailDateRange(
+            event.details.meetingStartDate,
+            event.details.meetingEndDate,
+          )}
         />
       </>
     );
@@ -466,6 +525,36 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
+function DetailLinkValue({
+  href,
+  label,
+  value,
+}: {
+  href: string | null;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd data-missing={!value}>
+        {value ? (
+          href ? (
+            <a href={href} rel="noreferrer noopener" target="_blank">
+              {value}
+              <ExternalLink aria-hidden="true" size={13} />
+            </a>
+          ) : (
+            value
+          )
+        ) : (
+          "Not announced"
+        )}
+      </dd>
+    </div>
+  );
+}
+
 function formatDetailDate(value: string | null) {
   if (!value) return null;
   return parseDateOnly(value).toLocaleDateString("en-US", {
@@ -473,6 +562,13 @@ function formatDetailDate(value: string | null) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatDetailDateRange(from: string | null, to: string | null) {
+  const fromLabel = formatDetailDate(from);
+  const toLabel = formatDetailDate(to);
+  if (fromLabel && toLabel) return `${fromLabel} – ${toLabel}`;
+  return fromLabel ?? toLabel;
 }
 
 function formatExactEt(value: string | null) {
