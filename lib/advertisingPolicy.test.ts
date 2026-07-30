@@ -220,7 +220,10 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
     rootLayoutSource,
     /enabledForViewer=\{areAdsEnabledForPlan\(viewerPlan\)\}/,
   );
-  assert.match(liveRoomRouteSource, /const viewerPlan = await getCurrentViewerPlan\(\)/);
+  assert.match(
+    liveRoomRouteSource,
+    /const \[\s*viewerPlan,[\s\S]*\] = await Promise\.all\(\[[\s\S]*getCurrentViewerPlan\(\)/,
+  );
   assert.match(liveRoomRouteSource, /viewerPlan=\{viewerPlan\}/);
   assert.match(liveRoomClientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
   assert.match(liveRoomClientSource, /<LiveRoomHeaderAdSlot/);
