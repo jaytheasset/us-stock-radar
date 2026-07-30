@@ -175,6 +175,31 @@ test("Calendar typography, day alignment, and conditional upcoming panel use loc
   assert.doesNotMatch(upcomingRow, /<Link|<a\b/);
 });
 
+test("Calendar date controls render locale-independent English picker values", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+
+  assert.match(workspace, /formatEnglishDatePickerValue\(value\)/);
+  assert.match(workspace, /:\s*"MM\/DD\/YYYY"/);
+  assert.match(workspace, /ariaLabel="Choose date"[\s\S]*ariaLabel="From date"[\s\S]*ariaLabel="To date"/);
+  assert.match(
+    workspace,
+    /typeof input\.showPicker === "function"[\s\S]*input\.showPicker\(\)[\s\S]*input\.click\(\);/,
+  );
+  assert.match(
+    workspace,
+    /aria-hidden="true"[\s\S]*className=\{styles\.nativeDateInput\}[\s\S]*tabIndex=\{-1\}[\s\S]*type="date"/,
+  );
+  assert.match(
+    styles,
+    /\.nativeDateInput\s*\{[\s\S]*width:\s*1px;[\s\S]*height:\s*1px;[\s\S]*clip-path:\s*inset\(50%\);/,
+  );
+  assert.match(
+    styles,
+    /\.page \.englishDateButton\s*\{[\s\S]*min-width:\s*134px;[\s\S]*background:\s*transparent;/,
+  );
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");

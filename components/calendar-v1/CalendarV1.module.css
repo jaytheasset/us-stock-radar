@@ -88,7 +88,7 @@
 
 .periodNavigation,
 .customRange,
-.customRange label,
+.customDateField,
 .jumpDate {
   display: flex;
   align-items: center;
@@ -100,7 +100,7 @@
 
 .periodNavigation > button,
 .jumpDate,
-.customRange label {
+.customDateField {
   min-height: var(--sr-size-control);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-control);
@@ -124,29 +124,66 @@
 }
 
 .jumpDate,
-.customRange label {
+.customDateField {
   position: relative;
   gap: var(--sr-space-2);
   padding: 0 var(--sr-space-3);
 }
 
-.jumpDate span,
-.customRange span {
+.dateFieldLabel {
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
   text-transform: uppercase;
 }
 
-.jumpDate input,
-.customRange input {
-  max-width: 134px;
+.englishDatePicker {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.page .englishDateButton {
+  display: flex;
+  min-width: 134px;
+  min-height: calc(var(--sr-size-control) - (2 * var(--sr-border-width)));
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
   border: 0;
+  padding: 0;
   color: var(--sr-color-text-control-strong);
   background: transparent;
-  color-scheme: dark;
+  cursor: pointer;
+}
+
+.englishDateButton > span {
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-regular);
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.englishDateButton svg {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-muted);
+}
+
+.nativeDateInput {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  max-width: 1px;
+  max-height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .customRange {
@@ -1382,11 +1419,12 @@
     min-width: 0;
   }
 
-  .jumpDate span {
+  .jumpDate .dateFieldLabel {
     display: none;
   }
 
-  .jumpDate input {
+  .englishDatePicker,
+  .englishDateButton {
     width: 100%;
     min-width: 0;
   }
@@ -1396,14 +1434,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .customRange label {
+  .customDateField {
     min-width: 0;
     display: grid;
     gap: 0;
     padding: var(--sr-space-1) var(--sr-space-2);
   }
 
-  .customRange input {
+  .customDateField .englishDatePicker,
+  .customDateField .englishDateButton {
     width: 100%;
     min-width: 0;
   }

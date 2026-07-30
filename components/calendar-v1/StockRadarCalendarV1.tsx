@@ -28,6 +28,7 @@ import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import {
   countActiveCalendarFilters,
   filterCalendarEvents,
+  formatEnglishDatePickerValue,
   formatRangeLabel,
   getPresetDateRange,
   normalizeDateRange,
@@ -334,48 +335,42 @@ export function StockRadarCalendarV1({
           >
             <ChevronRight aria-hidden="true" size={18} />
           </button>
-          <label className={styles.jumpDate}>
-            <span>Choose date</span>
-            <input
-              aria-label="Choose date"
-              onInput={(event) => {
-                if (!event.currentTarget.value) return;
+          <div className={styles.jumpDate}>
+            <span className={styles.dateFieldLabel}>Choose date</span>
+            <EnglishDatePicker
+              ariaLabel="Choose date"
+              onValueChange={(value) => {
                 updateRange(
-                  { from: event.currentTarget.value, to: event.currentTarget.value },
+                  { from: value, to: value },
                   "custom",
                 );
               }}
-              type="date"
               value={range.from === range.to ? range.from : ""}
             />
-          </label>
+          </div>
         </div>
         {preset === "custom" ? (
           <div className={styles.customRange}>
-            <label>
-              <span>From</span>
-              <input
-                onInput={(event) => {
-                  if (event.currentTarget.value) {
-                    updateRange({ ...range, from: event.currentTarget.value }, "custom");
-                  }
+            <div className={styles.customDateField}>
+              <span className={styles.dateFieldLabel}>From</span>
+              <EnglishDatePicker
+                ariaLabel="From date"
+                onValueChange={(value) => {
+                  updateRange({ ...range, from: value }, "custom");
                 }}
-                type="date"
                 value={range.from}
               />
-            </label>
-            <label>
-              <span>To</span>
-              <input
-                onInput={(event) => {
-                  if (event.currentTarget.value) {
-                    updateRange({ ...range, to: event.currentTarget.value }, "custom");
-                  }
+            </div>
+            <div className={styles.customDateField}>
+              <span className={styles.dateFieldLabel}>To</span>
+              <EnglishDatePicker
+                ariaLabel="To date"
+                onValueChange={(value) => {
+                  updateRange({ ...range, to: value }, "custom");
                 }}
-                type="date"
                 value={range.to}
               />
-            </label>
+            </div>
           </div>
         ) : null}
       </section>
@@ -442,6 +437,66 @@ export function StockRadarCalendarV1({
         </CalendarDesktopRail>
       </div>
     </div>
+  );
+}
+
+function EnglishDatePicker({
+  ariaLabel,
+  onValueChange,
+  value,
+}: {
+  ariaLabel: string;
+  onValueChange: (value: string) => void;
+  value: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayValue = value
+    ? formatEnglishDatePickerValue(value)
+    : "MM/DD/YYYY";
+
+  function openNativePicker() {
+    const input = inputRef.current;
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // Fall through to the click fallback for browsers that expose but block showPicker.
+    }
+
+    input.click();
+  }
+
+  return (
+    <span className={styles.englishDatePicker}>
+      <button
+        aria-haspopup="dialog"
+        aria-label={`${ariaLabel}: ${displayValue}`}
+        className={styles.englishDateButton}
+        onClick={openNativePicker}
+        type="button"
+      >
+        <span>{displayValue}</span>
+        <CalendarDays aria-hidden="true" size={15} />
+      </button>
+      <input
+        aria-hidden="true"
+        className={styles.nativeDateInput}
+        lang="en-US"
+        onChange={(event) => {
+          if (event.currentTarget.value) {
+            onValueChange(event.currentTarget.value);
+          }
+        }}
+        ref={inputRef}
+        tabIndex={-1}
+        type="date"
+        value={value}
+      />
+    </span>
   );
 }
 

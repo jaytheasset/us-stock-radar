@@ -4,6 +4,7 @@ import {
   addDateOnlyDays,
   enumerateDateRange,
   filterCalendarEvents,
+  formatEnglishDatePickerValue,
   getPresetDateRange,
   groupCalendarEventsByDate,
   normalizeDateRange,
@@ -43,6 +44,15 @@ test("date-only helpers parse in local calendar time and reject rollover dates",
   assert.equal(date.getDate(), 29);
   assert.equal(addDateOnlyDays("2026-03-08", 1), "2026-03-09");
   assert.throws(() => parseDateOnly("2026-02-30"), /Invalid date-only/);
+});
+
+test("visible date picker values stay in a fixed English US format", () => {
+  assert.equal(formatEnglishDatePickerValue("2026-07-30"), "July 30, 2026");
+  assert.equal(formatEnglishDatePickerValue("2026-12-05"), "December 5, 2026");
+  assert.throws(
+    () => formatEnglishDatePickerValue("2026-13-05"),
+    /Invalid date-only/,
+  );
 });
 
 test("presets, custom normalization, enumeration, and shifting share one range contract", () => {
