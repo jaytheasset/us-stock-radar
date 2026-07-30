@@ -183,6 +183,98 @@ test("dividend adapter nulls implausible auxiliary dates instead of trusting the
   assert.equal(noOccurrence.kind, "quarantined");
 });
 
+test("dividend adapter falls back to a distinct payment date for canonical identity", () => {
+  const result = adapt(
+    "dividend",
+    {
+      adjDividend: 0.41406,
+      declarationDate: null,
+      frequency: "Quarterly",
+      paymentDate: "2026-07-30",
+      recordDate: "2026-07-29",
+      symbol: "EXM",
+      date: "2026-07-29",
+    },
+    "2026-07-29",
+  );
+
+  assert.equal(result.kind, "accepted");
+  if (result.kind !== "accepted") return;
+  assert.equal(
+    result.observation.canonicalIdentityKey,
+    "fmp:company:dividend:EXM:payment:2026-07-30:0.41406:quarterly",
+  );
+  assert.doesNotMatch(
+    result.observation.canonicalIdentityKey,
+    /2026-07-29/,
+  );
+});
+
+test("irregular daily dividends use distinct payment dates instead of colliding on one declaration", () => {
+  const first = adapt(
+    "dividend",
+    {
+      adjDividend: 0.0493,
+      declarationDate: "2026-06-13",
+      frequency: "Irregular",
+      paymentDate: "2026-07-24",
+      recordDate: "2026-07-23",
+      symbol: "EXM",
+      date: "2026-07-23",
+    },
+    "2026-07-23",
+  );
+  const second = adapt(
+    "dividend",
+    {
+      adjDividend: 0.0493,
+      declarationDate: "2026-06-13",
+      frequency: "Irregular",
+      paymentDate: "2026-07-27",
+      recordDate: "2026-07-24",
+      symbol: "EXM",
+      date: "2026-07-24",
+    },
+    "2026-07-24",
+  );
+
+  assert.equal(first.kind, "accepted");
+  assert.equal(second.kind, "accepted");
+  if (first.kind !== "accepted" || second.kind !== "accepted") return;
+  assert.equal(
+    first.observation.canonicalIdentityKey,
+    "fmp:company:dividend:EXM:payment:2026-07-24:0.0493:irregular",
+  );
+  assert.equal(
+    second.observation.canonicalIdentityKey,
+    "fmp:company:dividend:EXM:payment:2026-07-27:0.0493:irregular",
+  );
+  assert.notEqual(
+    first.observation.canonicalIdentityKey,
+    second.observation.canonicalIdentityKey,
+  );
+});
+
+test("dividend adapter quarantines rows without an auxiliary date distinct from the event date", () => {
+  const result = adapt(
+    "dividend",
+    {
+      adjDividend: 0.25,
+      declarationDate: "2026-07-29",
+      frequency: "Quarterly",
+      paymentDate: "2026-07-29",
+      recordDate: "2026-07-29",
+      symbol: "EXM",
+      date: "2026-07-29",
+    },
+    "2026-07-29",
+  );
+
+  assert.equal(result.kind, "quarantined");
+  if (result.kind !== "quarantined") return;
+  assert.equal(result.reason, "dividend_occurrence_unverified");
+});
+
 test("split ratio determines forward/reverse and conflicting provider labels only warn", () => {
   assert.deepEqual(normalizeSplitRatio(10, 2), {
     denominator: 1,
@@ -449,10 +541,11 @@ test("client and protected route keep credentials/raw payload server-side", asyn
 function adapt(
   eventType: FmpCompanyCalendarEventType,
   row: Record<string, unknown>,
+  requestDate = "2026-07-30",
 ) {
   return adaptFmpCalendarRow(eventType, row, {
     fetchedAt: "2026-07-30T12:00:00.000Z",
-    requestDate: "2026-07-30",
+    requestDate,
     runId: "fixture-run",
     universe: universe(),
   });

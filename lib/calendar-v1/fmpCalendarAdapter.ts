@@ -129,16 +129,27 @@ function adaptDividend(
   if (amount === null || !frequency) {
     return quarantined("dividend_identity_inputs_missing", warnings);
   }
-  const occurrenceDate = declarationDate ?? recordDate;
-  const occurrenceKind = declarationDate ? "declaration" : "record";
-  if (!occurrenceDate) {
+  const standardOccurrences = [
+    { date: declarationDate, kind: "declaration" as const },
+    { date: recordDate, kind: "record" as const },
+    { date: paymentDate, kind: "payment" as const },
+  ];
+  const occurrence = (
+    frequency.trim().toLowerCase() === "irregular"
+      ? [
+          { date: paymentDate, kind: "payment" as const },
+          ...standardOccurrences.slice(0, 2),
+        ]
+      : standardOccurrences
+  ).find(({ date }) => date !== null && date !== eventDate);
+  if (!occurrence?.date) {
     return quarantined("dividend_occurrence_unverified", warnings);
   }
   const identity = buildDividendIdentity({
     amount,
     frequency,
-    occurrenceDate,
-    occurrenceKind,
+    occurrenceDate: occurrence.date,
+    occurrenceKind: occurrence.kind,
     symbol,
   });
   if (!identity) return quarantined("dividend_identity_unavailable", warnings);
