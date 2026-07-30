@@ -407,6 +407,16 @@
   font-size: 11px;
 }
 
+.compactList li > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.compactList li > .pill {
+  flex: 0 0 auto;
+}
+
 .compactList li:last-child {
   border-bottom: 0;
 }

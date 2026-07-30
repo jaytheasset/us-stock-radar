@@ -2,11 +2,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { GlobeIngestPanel } from "@/app/admin/news-ingest/GlobeIngestPanel";
 import styles from "@/components/admin/AdminSection.module.css";
+import { rolesHavePermission } from "@/lib/admin/policy";
+import { requireAdminPermission } from "@/lib/admin/server";
 import { fetchEventCount, supabaseSelect } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewsIngestAdminPage() {
+  const access = await requireAdminPermission("data.read");
   const [alertCount, feedCount, archiveCount, recentRuns, skippedRaw, recentEvents] = await Promise.all([
     fetchEventCount({ sourceGroup: "news", deliveryLevel: "alert" }),
     fetchEventCount({ sourceGroup: "news", deliveryLevel: "feed" }),
@@ -57,7 +60,9 @@ export default async function NewsIngestAdminPage() {
       </section>
 
       <section className="definition-list">
-        <GlobeIngestPanel />
+        <GlobeIngestPanel
+          canRun={rolesHavePermission(access.roles, "data.run")}
+        />
 
         <article className="definition-card">
           <div className="definition-card-header">

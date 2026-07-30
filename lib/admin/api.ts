@@ -83,9 +83,18 @@ export function normalizeAdminError(error: unknown) {
     "ADMIN_MODERATION_TARGET_NOT_MUTABLE",
     "ADMIN_REASON_REQUIRED",
     "ADMIN_ROLE_INVALID",
+    "ADMIN_ROOM_ACTION_INVALID",
+    "ADMIN_ROOM_FILTER_INVALID",
+    "ADMIN_ROOM_NOT_FOUND",
+    "ADMIN_ROOM_STATE_CONFLICT",
     "ADMIN_SELF_ENFORCEMENT_FORBIDDEN",
     "ADMIN_SELF_ROLE_CHANGE_FORBIDDEN",
     "ADMIN_SUSPENSION_EXPIRY_INVALID",
+    "ADMIN_SOURCE_RUN_AUDIT_FAILED",
+    "ADMIN_SOURCE_RUN_CONFIRMATION_REQUIRED",
+    "ADMIN_SOURCE_RUN_FAILED",
+    "ADMIN_SOURCE_RUN_LIMIT_INVALID",
+    "ADMIN_SOURCE_RUN_LOCK_UNAVAILABLE",
     "ADMIN_TRIAGE_INVALID",
     "ADMIN_USER_ACTION_UNSUPPORTED",
     "ADMIN_USER_NOT_FOUND",
@@ -114,12 +123,26 @@ function adminErrorMessage(code: string) {
       "The reported content is deleted or no longer mutable.",
     ADMIN_REASON_REQUIRED: "Enter a reason of at least four characters.",
     ADMIN_ROLE_INVALID: "Choose a supported administrator role.",
+    ADMIN_ROOM_ACTION_INVALID: "Choose a supported room action.",
+    ADMIN_ROOM_FILTER_INVALID: "Choose supported Live Room filters.",
+    ADMIN_ROOM_NOT_FOUND: "That Live Room no longer exists.",
+    ADMIN_ROOM_STATE_CONFLICT:
+      "The Live Room state changed. Refresh before trying again.",
     ADMIN_SELF_ENFORCEMENT_FORBIDDEN:
       "Administrators cannot apply community enforcement to themselves.",
     ADMIN_SELF_ROLE_CHANGE_FORBIDDEN:
       "Administrators cannot change their own roles from this screen.",
     ADMIN_SUSPENSION_EXPIRY_INVALID:
       "Choose a future suspension end within 365 days.",
+    ADMIN_SOURCE_RUN_AUDIT_FAILED:
+      "The ingest was not started because its audit record could not be saved.",
+    ADMIN_SOURCE_RUN_CONFIRMATION_REQUIRED:
+      "Type FORCE REANALYZE to confirm forced analysis.",
+    ADMIN_SOURCE_RUN_FAILED:
+      "GlobeNewswire ingest completed with a source or analysis failure.",
+    ADMIN_SOURCE_RUN_LIMIT_INVALID: "Choose a supported ingest limit.",
+    ADMIN_SOURCE_RUN_LOCK_UNAVAILABLE:
+      "The ingest lock is temporarily unavailable.",
     ADMIN_TRIAGE_INVALID: "Choose a valid queue status and severity.",
     ADMIN_USER_ACTION_UNSUPPORTED:
       "User detail actions are limited to community suspension or restoration.",

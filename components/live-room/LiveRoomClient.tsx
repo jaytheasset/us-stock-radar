@@ -75,6 +75,11 @@ import {
 } from "@/lib/live-room/presence";
 import { selectLiveRoomSidePanelMembers } from "@/lib/live-room/sidePanel";
 import {
+  isLiveRoomReadOnly,
+  liveRoomReadOnlyMessage,
+  type LiveRoomAvailability,
+} from "@/lib/live-room/roomAvailability";
+import {
   ChatTimeline,
   LatestChatEventStrip,
 } from "./ChatTimeline";
@@ -104,6 +109,7 @@ import styles from "./LiveRoom.module.css";
 type LiveRoomClientProps = {
   activityMessageId: string | null;
   realtimeConfig: LiveRoomRealtimeConfig | null;
+  roomAvailability: LiveRoomAvailability;
   ticker: string;
   viewerPlan: Plan;
 };
@@ -153,11 +159,15 @@ const EMPTY_QUOTE: StockOverviewQuote = {
 export function LiveRoomClient({
   activityMessageId,
   realtimeConfig,
+  roomAvailability,
   ticker,
   viewerPlan,
 }: LiveRoomClientProps) {
   const router = useRouter();
   const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
+  const roomReadOnly = isLiveRoomReadOnly(roomAvailability);
+  const roomAvailabilityMessage =
+    liveRoomReadOnlyMessage(roomAvailability);
   const roomKey = useMemo(
     () => createCompanyRoomKey({ ticker }),
     [ticker],
@@ -957,6 +967,7 @@ export function LiveRoomClient({
   };
 
   const handleJoinRoom = async () => {
+    if (roomReadOnly) return;
     if (membershipBusy || profile?.isGuest !== false) return;
     setMembershipBusy(true);
     setRoomNotice(null);
@@ -1063,6 +1074,10 @@ export function LiveRoomClient({
   );
 
   const handleSend = async () => {
+    if (roomReadOnly) {
+      setRoomNotice(roomAvailabilityMessage);
+      return;
+    }
     if (!profile) return;
     const currentUserHistory = timeline
       .filter(
@@ -1535,6 +1550,7 @@ export function LiveRoomClient({
             historyButtonRef={historyOpenerRef}
             identity={identity}
             isGuest={profile?.isGuest === true}
+            joiningDisabled={roomReadOnly}
             loginHref={roomLoginHref}
             membershipBusy={membershipBusy}
             membershipJoined={membershipJoined}
@@ -1552,6 +1568,12 @@ export function LiveRoomClient({
         <LiveRoomMobileInlineAdSlot
           enabledForViewer={adsEnabledForViewer}
         />
+
+        {roomAvailabilityMessage ? (
+          <p className={styles.roomAvailabilityNotice} role="status">
+            {roomAvailabilityMessage}
+          </p>
+        ) : null}
 
         {membershipJoined ? (
           <div className={styles.followNote}>
@@ -1647,6 +1669,7 @@ export function LiveRoomClient({
             repository={repository}
             currentTicker={ticker}
             state={postsState}
+            writeDisabled={roomReadOnly}
           />
           </div>
         ) : null}
@@ -1735,7 +1758,8 @@ export function LiveRoomClient({
               disabled={
                 profile === null ||
                 timelineState === "error" ||
-                timelineState === "loading"
+                timelineState === "loading" ||
+                roomReadOnly
               }
               eventReference={reference}
               focusRequestId={composerFocusRequestId}
@@ -1858,6 +1882,7 @@ export function LiveRoomClient({
                 profile={profile}
                 repository={repository}
                 state={postsState}
+                writeDisabled={roomReadOnly}
               />
             </div>
           ) : null}
