@@ -10,7 +10,7 @@
       var(--live-room-mobile-composer-reply-height) +
       var(--live-room-mobile-composer-error-height)
   );
-  --live-room-workspace-height: clamp(560px, calc(100dvh - 300px), 680px);
+  --live-room-workspace-height: max(560px, calc(100dvh - 240px));
 
   box-sizing: border-box;
   width: calc(100% - (2 * var(--sr-page-gutter-desktop)));
@@ -21,7 +21,7 @@
 }
 
 .page[data-ad-enabled="true"] {
-  --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
+  --live-room-workspace-height: max(520px, calc(100dvh - 350px));
 }
 
 .roomHeaderRow {
