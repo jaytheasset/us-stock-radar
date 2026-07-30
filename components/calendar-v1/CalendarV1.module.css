@@ -846,7 +846,7 @@
   font-size: var(--sr-font-size-sm);
 }
 
-.desktopDetailPanel {
+.workspace .desktopDetailPanel {
   position: sticky;
   top: calc(var(--sr-size-header) + var(--sr-space-4));
   align-self: start;
@@ -860,7 +860,7 @@
   scrollbar-width: none;
 }
 
-.desktopDetailPanel::-webkit-scrollbar {
+.workspace .desktopDetailPanel::-webkit-scrollbar {
   display: none;
 }
 

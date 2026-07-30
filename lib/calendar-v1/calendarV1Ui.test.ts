@@ -152,6 +152,7 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const ads = await read("components/calendar-v1/CalendarAdSlots.tsx");
   const adStyles = await read("components/calendar-v1/CalendarAdSlots.module.css");
   const calendarStyles = await read("components/calendar-v1/CalendarV1.module.css");
+  const detailPanelStyles = await read("components/ui/DetailPanelShell.module.css");
 
   assert.match(page, /getCurrentViewerPlan/);
   assert.match(workspace, /areAdsEnabledForPlan\(viewerPlan\)/);
@@ -173,14 +174,18 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   );
   assert.match(adStyles, /\.rail\[data-ads-enabled="false"\]\s*\{\s*display:\s*contents;/);
   assert.match(adStyles, /@media \(max-width: 1180px\)[\s\S]*\.desktopRailAd\s*\{\s*display:\s*none;/);
-  assert.match(calendarStyles, /\.desktopDetailPanel\s*\{[\s\S]*position:\s*sticky;/);
+  assert.match(detailPanelStyles, /\.panel\s*\{[\s\S]*position:\s*relative;/);
   assert.match(
     calendarStyles,
-    /\.desktopDetailPanel\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*scrollbar-width:\s*none;/,
+    /\.workspace \.desktopDetailPanel\s*\{[\s\S]*position:\s*sticky;[\s\S]*top:\s*calc\(var\(--sr-size-header\) \+ var\(--sr-space-4\)\);/,
   );
   assert.match(
     calendarStyles,
-    /\.desktopDetailPanel::\-webkit\-scrollbar\s*\{[\s\S]*display:\s*none;/,
+    /\.workspace \.desktopDetailPanel\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*scrollbar-width:\s*none;/,
+  );
+  assert.match(
+    calendarStyles,
+    /\.workspace \.desktopDetailPanel::\-webkit\-scrollbar\s*\{[\s\S]*display:\s*none;/,
   );
   assert.doesNotMatch(
     calendarStyles,
