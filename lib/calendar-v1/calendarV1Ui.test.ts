@@ -171,12 +171,25 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   );
   assert.match(ads, /CalendarRailAd inventory="calendar-rail-top" position="top"[\s\S]*\{children\}[\s\S]*CalendarRailAd inventory="calendar-rail-bottom" position="bottom"/);
   assert.match(ads, /activeEventId:\s*string \| null/);
+  assert.match(ads, /const railScrollProgressRef = useRef\(0\)/);
   assert.match(
     ads,
-    /useEffect\(\(\) => \{[\s\S]*!enabledForViewer[\s\S]*!activeEventId[\s\S]*window\.matchMedia\("\(max-width: 1180px\)"\)\.matches[\s\S]*rail\.scrollTop = detailAnchor\.offsetTop;[\s\S]*\[activeEventId, enabledForViewer\]/,
+    /useEffect\(\(\) => \{[\s\S]*railScrollProgressRef\.current = 0;[\s\S]*!activeEventId[\s\S]*window\.matchMedia\("\(max-width: 1180px\)"\)\.matches[\s\S]*window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)\.matches[\s\S]*top:\s*0,[\s\S]*\[activeEventId\]/,
+  );
+  assert.match(
+    ads,
+    /const desktopRailQuery = window\.matchMedia\("\(min-width: 1181px\)"\);[\s\S]*let previousPageScrollY = window\.scrollY;[\s\S]*let pendingScrollDelta = 0;/,
+  );
+  assert.match(
+    ads,
+    /const scrollDelta = pendingScrollDelta;[\s\S]*window\.getComputedStyle\(rail\)\.top[\s\S]*rail\.getBoundingClientRect\(\)\.top > stickyTop \+ 1[\s\S]*rail\.scrollHeight - rail\.clientHeight[\s\S]*railScrollProgressRef\.current \+ scrollDelta[\s\S]*rail\.scrollTo\(/,
+  );
+  assert.match(
+    ads,
+    /window\.requestAnimationFrame\(syncRailToPageScroll\);[\s\S]*window\.removeEventListener\("scroll", handlePageScroll\);[\s\S]*window\.cancelAnimationFrame\(animationFrameId\)/,
   );
   assert.match(ads, /ref=\{railRef\}/);
-  assert.match(ads, /className=\{styles\.detailAnchor\} ref=\{detailAnchorRef\}/);
+  assert.match(ads, /className=\{styles\.detailAnchor\}>\{children\}/);
   assert.match(ads, /inventory=\{inventory\}/);
   assert.match(ads, /mediaQuery="\(min-width: 1181px\)"/);
   assert.match(ads, /format="responsive"/);
@@ -190,40 +203,21 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
     ads,
     new RegExp(["calendar", "desktop", "inline"].join("-")),
   );
-  assert.match(adStyles, /\.rail\[data-ads-enabled="false"\]\s*\{\s*display:\s*contents;/);
+  assert.doesNotMatch(adStyles, /\.rail\[data-ads-enabled="false"\]/);
   assert.match(
     adStyles,
-    /@media \(min-width: 1181px\)[\s\S]*\.rail\[data-ads-enabled="true"\]\s*\{[\s\S]*position:\s*sticky;[\s\S]*top:\s*calc\(var\(--sr-size-header\) \+ var\(--sr-space-4\)\);[\s\S]*overflow-y:\s*auto;[\s\S]*max-height:\s*calc\(100vh - var\(--sr-size-header\) - var\(--sr-space-8\)\);[\s\S]*scrollbar-width:\s*none;/,
+    /@media \(min-width: 1181px\)[\s\S]*\.rail\s*\{[\s\S]*position:\s*sticky;[\s\S]*top:\s*var\(--sr-space-4\);[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*hidden;[\s\S]*max-height:\s*calc\(100dvh - var\(--sr-space-8\)\);/,
   );
-  assert.match(
-    adStyles,
-    /\.rail\[data-ads-enabled="true"\]::\-webkit\-scrollbar\s*\{[\s\S]*display:\s*none;/,
-  );
-  assert.match(
-    adStyles,
-    /\.rail\[data-ads-enabled="false"\] \.detailAnchor\s*\{[\s\S]*display:\s*contents;/,
-  );
+  assert.match(adStyles, /@media \(max-width: 1180px\)[\s\S]*\.rail\s*\{\s*display:\s*contents;/);
   assert.match(adStyles, /@media \(max-width: 1180px\)[\s\S]*\.desktopRailAd\s*\{\s*display:\s*none;/);
   assert.match(detailPanelStyles, /\.panel\s*\{[\s\S]*position:\s*relative;/);
-  assert.match(
+  assert.doesNotMatch(
     calendarStyles,
-    /\.workspace \.desktopDetailPanel\s*\{[^}]*position:\s*sticky;[^}]*top:\s*var\(--sr-space-4\);[^}]*max-height:\s*calc\(100vh - var\(--sr-space-8\)\);/,
-  );
-  assert.match(
-    calendarStyles,
-    /\.workspace \.desktopDetailPanel\s*\{[^}]*overflow-y:\s*auto;[^}]*scrollbar-width:\s*none;/,
-  );
-  assert.match(
-    calendarStyles,
-    /\.workspace \.desktopDetailPanel::\-webkit\-scrollbar\s*\{[\s\S]*display:\s*none;/,
+    /\.workspace \.desktopDetailPanel\s*\{[^}]*(?:position:\s*sticky|overflow-y:\s*auto|max-height:)/,
   );
   assert.doesNotMatch(
     calendarStyles,
-    /\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel\s*\{[^}]*position:\s*sticky;/,
-  );
-  assert.match(
-    calendarStyles,
-    /@media \(min-width: 1181px\)[\s\S]*\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel\s*\{[^}]*position:\s*relative;[^}]*top:\s*auto;[^}]*overflow:\s*visible;[^}]*max-height:\s*none;/,
+    /\.workspace\[data-rail-ads="true"\] \.desktopDetailPanel/,
   );
 });
 

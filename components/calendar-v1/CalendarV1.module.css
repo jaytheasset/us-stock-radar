@@ -847,30 +847,9 @@
 }
 
 .workspace .desktopDetailPanel {
-  position: sticky;
-  top: var(--sr-space-4);
-  align-self: start;
-  overflow-x: hidden;
-  overflow-y: auto;
-  max-height: calc(100vh - var(--sr-space-8));
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
   box-shadow: var(--sr-shadow-panel);
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.workspace .desktopDetailPanel::-webkit-scrollbar {
-  display: none;
-}
-
-@media (min-width: 1181px) {
-  .workspace[data-rail-ads="true"] .desktopDetailPanel {
-    position: relative;
-    top: auto;
-    overflow: visible;
-    max-height: none;
-  }
 }
 
 .detailContent {
