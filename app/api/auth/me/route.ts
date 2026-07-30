@@ -12,10 +12,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const tokens = await getAuthTokensFromCookies();
   const resolved = await resolveAuthSession(tokens);
+  const sessionRefreshed = Boolean(
+    resolved.refreshedSession?.access_token,
+  );
 
   const response = NextResponse.json(
     {
       ok: true,
+      sessionRefreshed,
       user: resolved.user
         ? {
             id: resolved.user.id,
