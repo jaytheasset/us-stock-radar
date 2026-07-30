@@ -101,6 +101,7 @@ test("count grammar and IPO price ranges use the shared presentation contract", 
     detail,
     /priceRangeLow\.toFixed\(2\)\} – \$\$\{event\.details\.priceRangeHigh/,
   );
+  assert.match(detail, /label="Expected price range"/);
 });
 
 test("Calendar typography, day alignment, and conditional upcoming panel use local contracts", async () => {

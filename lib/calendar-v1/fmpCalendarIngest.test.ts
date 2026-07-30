@@ -332,6 +332,40 @@ test("IPO candidates survive ticker mismatch without a fabricated security relat
   }
 });
 
+test("IPO priced actions preserve expected ranges without inventing a final offer price", () => {
+  const range = adapt("ipo", {
+    actions: "Priced",
+    company: "Example Corporation",
+    date: "2026-07-30",
+    exchange: "NASDAQ",
+    priceRange: "$15.00 - $17.00",
+    symbol: "EXM",
+  });
+  const pointRange = adapt("ipo", {
+    actions: "Priced",
+    company: "Example Corporation",
+    date: "2026-07-30",
+    exchange: "NASDAQ",
+    priceRange: "20",
+    symbol: "EXM",
+  });
+
+  for (const result of [range, pointRange]) {
+    assert.equal(result.kind, "accepted");
+    if (result.kind !== "accepted") continue;
+    assert.equal(result.observation.details.ipoStage, "priced");
+    assert.equal(result.observation.details.offerPrice, null);
+  }
+  if (range.kind === "accepted") {
+    assert.equal(range.observation.details.priceRangeLow, 15);
+    assert.equal(range.observation.details.priceRangeHigh, 17);
+  }
+  if (pointRange.kind === "accepted") {
+    assert.equal(pointRange.observation.details.priceRangeLow, 20);
+    assert.equal(pointRange.observation.details.priceRangeHigh, 20);
+  }
+});
+
 test("request parsing is strict, GET is dry-run only, and ranges stop at 93 days", () => {
   assert.deepEqual(
     parseRequest("GET", {

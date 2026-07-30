@@ -264,9 +264,6 @@ function adaptIpo(
   if (!identity) return quarantined("ipo_identity_unavailable");
   const priceRange = parseIpoPriceRange(raw.priceRange);
   const actionText = stringValue(raw.actions)?.toLowerCase() ?? "";
-  const offerPrice = actionText.includes("priced")
-    ? priceRange?.low ?? null
-    : null;
 
   return accepted(
     {
@@ -275,7 +272,7 @@ function adaptIpo(
       details: {
         exchange,
         ipoStage: actionText.includes("priced") ? "priced" : "date-estimated",
-        offerPrice,
+        offerPrice: null,
         priceRangeHigh: priceRange?.high ?? null,
         priceRangeLow: priceRange?.low ?? null,
         raiseAmount: numericValue(raw.marketCap),
