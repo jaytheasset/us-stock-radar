@@ -864,6 +864,22 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   assert.match(clientSource, /areAdsEnabledForPlan\(viewerPlan\)/);
   assert.match(
     clientSource,
+    /className=\{styles\.page\}[\s\S]*data-ad-enabled=\{adsEnabledForViewer \? "true" : "false"\}/,
+  );
+  assert.match(
+    styleSource,
+    /--live-room-workspace-height:\s*clamp\(560px,\s*calc\(100dvh - 300px\),\s*680px\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.page\[data-ad-enabled="true"\]\s*\{[\s\S]*--live-room-workspace-height:\s*clamp\(520px,\s*calc\(100dvh - 350px\),\s*620px\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.page\[data-ad-enabled="false"\] \.desktopRail\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);[\s\S]*gap:\s*0/,
+  );
+  assert.match(
+    clientSource,
     /className=\{styles\.roomHeaderRow\}[\s\S]*data-ad-enabled=\{adsEnabledForViewer \? "true" : undefined\}[\s\S]*<CompanyRoomHeader[\s\S]*<LiveRoomHeaderAdSlot/,
   );
   assert.match(clientSource, /<LiveRoomMobileInlineAdSlot/);

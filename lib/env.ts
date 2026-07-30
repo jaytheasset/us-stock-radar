@@ -40,6 +40,10 @@ const serverKeys = [
   "SNAPTRADE_CONNECTIONS_ENABLED",
   "SNAPTRADE_PUBLIC_PROOFS_ENABLED",
   "SNAPTRADE_MOCK_ENABLED",
+  "SNAPTRADE_SANDBOX_BROKER",
+  "SNAPTRADE_MANUAL_REFRESH_MONTHLY_LIMIT",
+  "SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS",
+  "SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS",
 ] as const;
 
 export function getServerEnv() {
@@ -95,6 +99,17 @@ export function getServerEnv() {
     snaptradeMockEnabled:
       process.env.NODE_ENV !== "production" &&
       (process.env.SNAPTRADE_MOCK_ENABLED || "false").toLowerCase() === "true",
+    snaptradeSandboxBroker:
+      process.env.NODE_ENV !== "production" &&
+      (process.env.SNAPTRADE_SANDBOX_BROKER || "").toUpperCase() === "SANDBOX"
+        ? "SANDBOX"
+        : "",
+    snaptradeManualRefreshMonthlyLimit:
+      Number(process.env.SNAPTRADE_MANUAL_REFRESH_MONTHLY_LIMIT) || 20,
+    snaptradeManualRefreshCooldownSeconds:
+      Number(process.env.SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS) || 600,
+    snaptradeManualRefreshEstimatedCostCents:
+      Number(process.env.SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS) || 5,
   };
 }
 
@@ -146,6 +161,16 @@ export function envStatus() {
       values.snaptradePublicProofsEnabled,
     ),
     SNAPTRADE_MOCK_ENABLED: String(values.snaptradeMockEnabled),
+    SNAPTRADE_SANDBOX_BROKER: values.snaptradeSandboxBroker,
+    SNAPTRADE_MANUAL_REFRESH_MONTHLY_LIMIT: String(
+      values.snaptradeManualRefreshMonthlyLimit,
+    ),
+    SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS: String(
+      values.snaptradeManualRefreshCooldownSeconds,
+    ),
+    SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS: String(
+      values.snaptradeManualRefreshEstimatedCostCents,
+    ),
   };
 
   return serverKeys.map((key) => ({

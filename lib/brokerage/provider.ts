@@ -12,6 +12,7 @@ export function getBrokerageProvider(): BrokerageProvider | null {
     return new SnapTradeBrokerageProvider({
       clientId: config.clientId,
       consumerKey: config.consumerKey,
+      sandboxBroker: config.sandboxBroker,
     });
   }
   return null;

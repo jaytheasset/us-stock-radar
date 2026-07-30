@@ -13,10 +13,12 @@ import styles from "./Brokerage.module.css";
 export function BrokerageEvidencePicker({
   loginHref,
   onChange,
+  placement = "default",
   value,
 }: {
   loginHref: string;
   onChange: (proof: BrokerageProofSummary | null) => void;
+  placement?: "composer" | "default";
   value: BrokerageProofSummary | null;
 }) {
   const id = useId();
@@ -50,6 +52,10 @@ export function BrokerageEvidencePicker({
       setOpen(false);
       return;
     }
+    if (placement === "composer" && value) {
+      setOpen(true);
+      return;
+    }
     try {
       const [nextStatus, nextProofs] = await Promise.all([
         request<BrokerageConnectionStatus>("/api/account/brokerage"),
@@ -59,17 +65,21 @@ export function BrokerageEvidencePicker({
       setProofs(nextProofs);
       setOpen(true);
     } catch {
-      setNotice("Sign in to attach broker-linked evidence.");
+      setNotice("Sign in to attach verified trading.");
       setOpen(true);
     }
   }
 
   return (
-    <div className={styles.evidencePicker} ref={rootRef}>
-      {value ? (
+    <div
+      className={styles.evidencePicker}
+      data-placement={placement}
+      ref={rootRef}
+    >
+      {value && placement === "default" ? (
         <div className={styles.selectedEvidence}>
           <BrokerageProofCard compact proof={value} />
-          <button aria-label="Remove brokerage evidence" onClick={() => onChange(null)} type="button">
+          <button aria-label="Remove verified trading" onClick={() => onChange(null)} type="button">
             <X aria-hidden="true" size={14} />
           </button>
         </div>
@@ -77,29 +87,61 @@ export function BrokerageEvidencePicker({
         <button
           aria-controls={id}
           aria-expanded={open}
+          aria-label="Verified trading"
+          aria-pressed={value ? true : undefined}
           className={styles.evidenceButton}
           onClick={() => void toggle()}
           ref={triggerRef}
           type="button"
         >
           <BadgeCheck aria-hidden="true" size={15} />
-          Evidence
-          <ChevronDown aria-hidden="true" size={13} />
+          <span className={styles.evidenceButtonText}>Verified trading</span>
+          <ChevronDown
+            aria-hidden="true"
+            className={styles.evidenceButtonChevron}
+            size={13}
+          />
         </button>
       )}
-      {open && !value ? (
-        <div aria-label="Brokerage evidence" className={styles.evidenceMenu} id={id} role="dialog">
-          <strong>Broker-linked evidence</strong>
-          {notice ? <><p>{notice}</p><Link href={loginHref}>Sign in</Link></> : !status?.canConnect ? (
+      {open ? (
+        <div aria-label="Verified trading" className={styles.evidenceMenu} id={id} role="dialog">
+          <strong>Verified trading</strong>
+          {value && placement === "composer" ? (
+            <>
+              <BrokerageProofCard compact proof={value} />
+              <button
+                className={styles.evidenceRemoveButton}
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                type="button"
+              >
+                <X aria-hidden="true" size={14} />
+                Remove
+              </button>
+            </>
+          ) : notice ? <><p>{notice}</p><Link href={loginHref}>Sign in</Link></> : !status?.canConnect ? (
             <><p>Pro, Advanced, or Ultimate is required.</p><Link href="/premium">View Premium plans</Link></>
           ) : !status.publicProofsEnabled ? (
-            <p>Public sharing pending approval.</p>
+            <>
+              <p>
+                Public proof sharing is pending approval. You can still
+                connect and privately review your brokerage accounts.
+              </p>
+              <Link
+                className={styles.evidenceMenuLink}
+                href="/account/brokerage"
+              >
+                Brokerage verification
+              </Link>
+            </>
           ) : !status.connected ? (
             <><p>Connect a read-only brokerage account first.</p><Link href="/account/brokerage">Brokerage verification</Link></>
           ) : proofs.length ? (
             proofs.map((proof) => (
               <button
-                aria-label={`Attach ${proof.ticker} ${proof.kind} evidence`}
+                aria-label={`Attach verified ${proof.kind} for ${proof.ticker}`}
                 key={proof.id}
                 onClick={() => {
                   onChange(proof);
@@ -111,7 +153,7 @@ export function BrokerageEvidencePicker({
               </button>
             ))
           ) : (
-            <><p>Create a public-safe proof before attaching evidence.</p><Link href="/account/brokerage">Create proof</Link></>
+            <><p>Create a public-safe proof before attaching verified trading.</p><Link href="/account/brokerage">Create proof</Link></>
           )}
         </div>
       ) : null}

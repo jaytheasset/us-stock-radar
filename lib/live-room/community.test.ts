@@ -873,7 +873,10 @@ test("Community realtime topics stay separate while preserving company topics", 
 
 test("Community detail reuses the responsive Live Room workspace without development chrome", () => {
   assert.match(communityClient, /<StockRadarAppShell/);
-  assert.match(communityClient, /<div className=\{roomStyles\.page\}>/);
+  assert.match(
+    communityClient,
+    /className=\{roomStyles\.page\}[\s\S]*data-ad-enabled=\{adsEnabledForViewer \? "true" : "false"\}/,
+  );
   assert.doesNotMatch(communityClient, /<main\b/);
   assert.doesNotMatch(
     communityClient,
