@@ -23,6 +23,7 @@ test("client theme provider contains no inline script and reconciles both storag
   assert.match(source, /document\.documentElement\.dataset\.theme = theme/);
   assert.match(source, /document\.documentElement\.style\.colorScheme = theme/);
   assert.match(source, /data-sr-theme=\{theme\}/);
+  assert.match(source, /data-sr-theme-mode=\{mode\}/);
 });
 
 test("root layout owns the single beforeInteractive theme initializer", () => {
@@ -35,6 +36,19 @@ test("root layout owns the single beforeInteractive theme initializer", () => {
   assert.match(source, /localStorage\.getItem\("stock-radar-theme"\)/);
   assert.match(source, /document\.documentElement\.dataset\.theme = theme/);
   assert.match(source, /document\.documentElement\.style\.colorScheme = theme/);
+});
+
+test("stored light theme styles user-selectable shells before hydration without changing fixed-dark shells", () => {
+  const tokenSource = readSource("app/stock-radar-tokens.css");
+
+  assert.match(
+    tokenSource,
+    /\[data-sr-theme="light"\]\s*,\s*html\[data-theme="light"\]\s+\[data-sr-theme-mode="user-selectable"\]\s*\{/,
+  );
+  assert.doesNotMatch(
+    tokenSource,
+    /html\[data-theme="light"\]\s+\[data-sr-theme-mode="fixed-dark"\]/,
+  );
 });
 
 test("both theme controls preserve the shared persistence and accessible toggle contract", () => {

@@ -113,6 +113,7 @@ export function StockRadarThemeProvider({
       <div
         className={className}
         data-sr-theme={theme}
+        data-sr-theme-mode={mode}
         suppressHydrationWarning
       >
         {children}

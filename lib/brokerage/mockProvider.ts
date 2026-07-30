@@ -1,8 +1,13 @@
 import "server-only";
 
 import type {
+  BrokerageAccountActivities,
+  BrokerageAccountOrder,
+  BrokerageAccountPositions,
+  BrokerageLinkedAccount,
   BrokerageProofCandidate,
   BrokerageProvider,
+  BrokerageProviderAccount,
   BrokerageProviderUser,
 } from "./types";
 
@@ -26,9 +31,96 @@ export class MockBrokerageProvider implements BrokerageProvider {
 
   async listAccounts() {
     return [
-      { brokerName: "Mock Securities", id: "mock-live", isPaper: false },
-      { brokerName: "Mock Paper Broker", id: "mock-paper", isPaper: true },
+      mockProviderAccount(
+        "mock-live",
+        false,
+        "Mock Securities",
+        "Individual",
+        "mock-authorization-live",
+      ),
+      mockProviderAccount(
+        "mock-paper",
+        true,
+        "Mock Paper Broker",
+        "Paper Trading",
+        "mock-authorization-paper",
+      ),
     ];
+  }
+
+  async getAccount(
+    _user: BrokerageProviderUser,
+    accountId: string,
+  ): Promise<BrokerageLinkedAccount> {
+    return accountId === "mock-paper"
+      ? mockAccount(accountId, true, "Mock Paper Broker", "Paper Trading")
+      : mockAccount(accountId, false, "Mock Securities", "Individual");
+  }
+
+  async getAccountPositions(
+    _user: BrokerageProviderUser,
+    accountId: string,
+  ): Promise<BrokerageAccountPositions> {
+    return {
+      accountId,
+      asOf: now(),
+      positions: [{
+        assetType: "stock",
+        costBasis: 118.4,
+        currency: "USD",
+        description: "NVIDIA Corporation",
+        id: "mock-position-nvda",
+        isCashEquivalent: false,
+        price: 135.9,
+        side: "LONG",
+        ticker: "NVDA",
+        units: 12,
+      }],
+    };
+  }
+
+  async getAccountOrders(
+    _user: BrokerageProviderUser,
+    _accountId: string,
+  ): Promise<BrokerageAccountOrder[]> {
+    return [{
+      action: "BUY",
+      executedAt: now(),
+      executionPrice: 164.2,
+      filledQuantity: 5,
+      id: "mock-order-0",
+      orderType: "Market",
+      placedAt: now(),
+      status: "EXECUTED",
+      ticker: "AMD",
+      totalQuantity: 5,
+    }];
+  }
+
+  async getAccountActivities(
+    _user: BrokerageProviderUser,
+    accountId: string,
+    input: { limit: number; offset: number },
+  ): Promise<BrokerageAccountActivities> {
+    return {
+      accountId,
+      activities: [{
+        amount: 575.25,
+        currency: "USD",
+        description: "Mock sell",
+        fee: 0,
+        id: "mock-activity-0",
+        price: 191.75,
+        settlementDate: now().slice(0, 10),
+        ticker: "AAPL",
+        tradeDate: now(),
+        type: "SELL",
+        units: 3,
+      }],
+      limit: input.limit,
+      offset: input.offset,
+      total: 1,
+    };
   }
 
   async listProofCandidates(): Promise<BrokerageProofCandidate[]> {
@@ -82,6 +174,50 @@ export class MockBrokerageProvider implements BrokerageProvider {
     ];
   }
 
+  async refreshConnection(
+    _user: BrokerageProviderUser,
+    _authorizationId: string,
+  ) {
+    return "succeeded" as const;
+  }
+
   async disconnect(_user: BrokerageProviderUser) {}
   async deleteUser(_user: BrokerageProviderUser) {}
+}
+
+function mockAccount(
+  id: string,
+  isPaper: boolean,
+  brokerName: string,
+  name: string,
+): BrokerageLinkedAccount {
+  return {
+    accountCategory: "INVESTMENT",
+    accountStatus: "open",
+    brokerName,
+    connectionStatus: "connected",
+    dataFreshness: "delayed",
+    holdingsSync: "ready",
+    id,
+    isPaper,
+    lastHoldingsSync: now(),
+    lastTransactionsSync: now(),
+    maskedNumber: isPaper ? "•••• 0002" : "•••• 0001",
+    name,
+    rawType: isPaper ? "Paper" : "Individual",
+    transactionsSync: "ready",
+  };
+}
+
+function mockProviderAccount(
+  id: string,
+  isPaper: boolean,
+  brokerName: string,
+  name: string,
+  providerAuthorizationId: string,
+): BrokerageProviderAccount {
+  return {
+    ...mockAccount(id, isPaper, brokerName, name),
+    providerAuthorizationId,
+  };
 }

@@ -271,6 +271,12 @@ export function MessageComposer({
             {body.length}/{LIVE_ROOM_MESSAGE_MAX_LENGTH}
           </small>
         </label>
+        <BrokerageEvidencePicker
+          loginHref={loginHref}
+          onChange={onProofChange}
+          placement="composer"
+          value={proof}
+        />
         <button
           aria-label="Send message"
           className={styles.sendButton}
@@ -284,11 +290,6 @@ export function MessageComposer({
       </div>
 
       <div className={styles.composerMeta}>
-        <BrokerageEvidencePicker
-          loginHref={loginHref}
-          onChange={onProofChange}
-          value={proof}
-        />
         <span>Enter to send · Shift+Enter for a new line</span>
         {decision && !decision.allowed ? (
           <span

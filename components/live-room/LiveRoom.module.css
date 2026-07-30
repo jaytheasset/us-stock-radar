@@ -10,7 +10,7 @@
       var(--live-room-mobile-composer-reply-height) +
       var(--live-room-mobile-composer-error-height)
   );
-  --live-room-workspace-height: clamp(520px, calc(100dvh - 350px), 620px);
+  --live-room-workspace-height: max(560px, calc(100dvh - 240px));
 
   box-sizing: border-box;
   width: calc(100% - (2 * var(--sr-page-gutter-desktop)));
@@ -18,6 +18,10 @@
   min-height: calc(100vh - var(--sr-size-header));
   margin-inline: auto;
   padding: var(--sr-space-4) 0 var(--sr-space-8);
+}
+
+.page[data-ad-enabled="true"] {
+  --live-room-workspace-height: max(520px, calc(100dvh - 350px));
 }
 
 .roomHeaderRow {
@@ -625,6 +629,11 @@
   grid-template-rows: minmax(0, 1fr) auto;
   align-self: start;
   gap: var(--sr-space-4);
+}
+
+.page[data-ad-enabled="false"] .desktopRail {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
 }
 
 .desktopRailAd {
@@ -1778,6 +1787,46 @@
   white-space: pre-wrap;
 }
 
+.brokerageSampleMessage article {
+  width: min(760px, calc(100% - 46px));
+  max-width: min(760px, calc(100% - 46px));
+  border: var(--sr-border-width) dashed var(--sr-color-product-accent-border);
+  background: var(--sr-color-surface-control);
+}
+
+.brokerageSampleBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: var(--sr-border-width) solid var(--sr-color-warning);
+  border-radius: var(--sr-radius-chat-control);
+  padding-inline: var(--sr-space-1);
+  color: var(--sr-color-warning);
+  background: var(--sr-color-surface-panel);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-strong);
+  line-height: 1;
+}
+
+.brokerageSampleGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-2);
+}
+
+.brokerageSampleGrid > section {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.brokerageSampleGrid > section > small {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
 .messageActionsMenu svg {
   width: var(--sr-space-4);
   height: var(--sr-space-4);
@@ -2145,7 +2194,7 @@ button.messageReplyPreview:hover {
 
 .composerRow {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) auto;
+  grid-template-columns: 170px minmax(220px, 1fr) auto auto;
   gap: var(--sr-space-2);
   align-items: stretch;
 }
@@ -2993,6 +3042,23 @@ button.messageReplyPreview:hover {
     line-height: 1.45;
   }
 
+  .brokerageSampleMessage {
+    gap: var(--sr-space-1);
+  }
+
+  .brokerageSampleMessage .messageAvatar {
+    display: none;
+  }
+
+  .brokerageSampleMessage article {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .brokerageSampleGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .messageReplyPreview {
     gap: var(--sr-space-0-5);
     margin-top: var(--sr-space-1-5);
@@ -3022,7 +3088,7 @@ button.messageReplyPreview:hover {
   }
 
   .composerRow {
-    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    grid-template-columns: 42px minmax(0, 1fr) 42px 42px;
     gap: var(--sr-space-1-5);
   }
 
@@ -3076,11 +3142,9 @@ button.messageReplyPreview:hover {
   }
 
   .composerMeta {
-    display: flex;
+    display: block;
     height: auto;
-    align-items: center;
-    gap: var(--sr-space-1);
-    padding: var(--sr-space-1) 0 0;
+    padding: 0;
   }
 
   .composerMeta > span:not(.moderationError) {

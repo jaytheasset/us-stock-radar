@@ -1523,7 +1523,10 @@ export function LiveRoomClient({
         activeNavigationItem={null}
         themeMode="user-selectable"
       >
-        <div className={styles.page}>
+        <div
+          className={styles.page}
+          data-ad-enabled={adsEnabledForViewer ? "true" : "false"}
+        >
         <div
           className={styles.roomHeaderRow}
           data-ad-enabled={adsEnabledForViewer ? "true" : undefined}

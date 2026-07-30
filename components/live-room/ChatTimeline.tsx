@@ -16,7 +16,11 @@ import {
   UserPlus,
 } from "lucide-react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
-import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
+import {
+  BrokerageProofCard,
+  BrokerageProofSampleCard,
+} from "@/components/brokerage/BrokerageProofCard";
+import { usePathname } from "next/navigation";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import {
   LIVE_ROOM_REPORT_REASONS,
@@ -129,6 +133,10 @@ export function ChatTimeline({
   state,
   viewerIsGuest,
 }: ChatTimelineProps) {
+  const pathname = usePathname();
+  const showLocalBrokerageSamples =
+    process.env.NEXT_PUBLIC_BROKERAGE_LOCAL_SAMPLES_ENABLED === "true" &&
+    pathname.toUpperCase() === "/LIVE/BBLG";
   if (state === "loading") {
     return (
       <div aria-busy="true" className={styles.timelineState}>
@@ -173,6 +181,34 @@ export function ChatTimeline({
 
   return (
     <ol aria-label={ariaLabel} className={styles.timelineList}>
+      {showLocalBrokerageSamples ? (
+        <li className={`${styles.otherMessage} ${styles.brokerageSampleMessage}`}>
+          <div className={styles.messageAvatar} aria-hidden="true">
+            🧪
+          </div>
+          <article>
+            <header>
+              <strong>Local QA</strong>
+              <span className={styles.brokerageSampleBadge}>
+                UI sample only
+              </span>
+            </header>
+            <p>
+              Paper-position card disclosure preview. Not live broker data.
+            </p>
+            <div className={styles.brokerageSampleGrid}>
+              <section>
+                <small>Basic · default privacy</small>
+                <BrokerageProofSampleCard disclosure="basic" />
+              </section>
+              <section>
+                <small>Full · user disclosed</small>
+                <BrokerageProofSampleCard disclosure="full" />
+              </section>
+            </div>
+          </article>
+        </li>
+      ) : null}
       {items.map((item) => {
         const unreadDivider =
           item.kind === "message" &&
