@@ -151,7 +151,11 @@ export function getCalendarEventContext(event: CalendarEvent) {
   if (event.category === "company") return event.sourceAgency;
   if (event.category === "macro") {
     const metric = event.details.metrics[0];
-    if (!metric) return `${event.sourceAgency} · ${event.details.referencePeriod}`;
+    if (!metric) {
+      return [event.sourceAgency, event.details.referencePeriod]
+        .filter(Boolean)
+        .join(" · ");
+    }
     const actual = metric.released
       ? formatMacroMetricValue(metric.actual, metric.unit)
       : "Not released";
@@ -161,7 +165,7 @@ export function getCalendarEventContext(event: CalendarEvent) {
     )} · Previous ${formatMacroMetricValue(metric.previous, metric.unit)}`;
   }
 
-  let stage: string = event.policySubcategory;
+  let stage: string | null = event.policySubcategory;
   let industries: readonly string[] = event.affectedSectors;
   if (
     event.eventType === "sec-open-meeting" ||
@@ -183,7 +187,7 @@ export function getCalendarEventContext(event: CalendarEvent) {
   }
   return [
     event.sourceAgency,
-    stage.replaceAll("-", " "),
+    stage?.replaceAll("-", " "),
     industries.join(", "),
     event.relatedTickers.join(", "),
   ]

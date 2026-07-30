@@ -5,17 +5,32 @@ import test from "node:test";
 const read = (relativePath: string) =>
   readFile(new URL(`../../${relativePath}`, import.meta.url), "utf8");
 
-test("calendar route is a mock-only Stock Radar shell without legacy data calls", async () => {
+test("calendar route reads normalized events through the server boundary", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
-  const combined = `${page}\n${workspace}`;
+  const route = await read("app/api/calendar/normalized/route.ts");
+  const repository = await read("lib/calendar-v1/repository.ts");
+  const normalized = await read("lib/calendar-v1/normalized.ts");
+  const legacyRoute = await read("app/api/calendar/route.ts");
+  const legacyQa = await read("scripts/qa-calendar-route.mjs");
 
   assert.match(page, /StockRadarAppShell/);
   assert.match(page, /activeNavigationItem="calendar"/);
   assert.match(page, /getCurrentViewerPlan\(\)/);
   assert.match(page, /viewerPlan=\{viewerPlan\}/);
-  assert.match(workspace, /createCalendarMockEvents/);
-  assert.doesNotMatch(combined, /\/api\/calendar|supabase|FMP|fetch\(/i);
+  assert.match(page, /getNormalizedCalendarEvents/);
+  assert.match(page, /getCalendarMarketDate/);
+  assert.match(page, /initialEvents=\{initialEvents\}/);
+  assert.match(workspace, /fetch\(`\/api\/calendar\/normalized\?/);
+  assert.match(workspace, /new AbortController\(\)/);
+  assert.match(workspace, /requestIdRef\.current/);
+  assert.doesNotMatch(`${page}\n${workspace}`, /createCalendarMockEvents/);
+  assert.match(route, /getNormalizedCalendarEvents/);
+  assert.match(repository, /import "server-only"/);
+  assert.match(repository, /supabaseSelect/);
+  assert.match(normalized, /calendar_events/);
+  assert.match(legacyRoute, /event_calendar_items/);
+  assert.match(legacyQa, /\/api\/calendar/);
 });
 
 test("desktop preview selection and mobile sheet-open state are independent", async () => {
@@ -255,8 +270,12 @@ test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and c
   assert.match(detail, /Economic release metrics/);
   assert.match(detail, /Not released/);
   assert.match(detail, /sourceAgency/);
-  assert.match(detail, /sourceEventKey/);
-  assert.match(detail, /value="Mock"/);
+  assert.match(detail, /calendarProviderLabels/);
+  assert.match(detail, /normalizeSafeCalendarSourceUrl/);
+  assert.match(detail, /sourceUrl/);
+  assert.match(detail, /titleCase\(event\.scheduleConfidence\)/);
+  assert.doesNotMatch(detail, /sourceEventKey/);
+  assert.doesNotMatch(detail, /value="Mock"/);
   assert.match(styles, /\.macroMetrics\s*\{/);
   assert.match(styles, /grid-template-columns:\s*minmax\(84px/);
 });

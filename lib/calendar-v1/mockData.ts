@@ -21,7 +21,6 @@ export function createCalendarMockEvents(today: string): CalendarEvent[] {
   ) => ({
     id,
     provider: "mock" as const,
-    providerEventKey: `mock:${id}`,
     category: "company" as const,
     eventDate: date(offset),
     eventEndDate: null,
@@ -34,7 +33,6 @@ export function createCalendarMockEvents(today: string): CalendarEvent[] {
     sourceAgency: "Mock market calendar",
     sourceName: "Company event fixture",
     sourceUrl: null,
-    sourceEventKey: `company:${id}`,
     affectedSectors: [],
     relatedTickers: [],
     source: "Mock market calendar",

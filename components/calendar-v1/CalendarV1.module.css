@@ -968,6 +968,15 @@
   font-weight: var(--sr-font-weight-regular);
 }
 
+.detailSection dd a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  color: var(--sr-color-text-control-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .detailSection {
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
   padding: var(--sr-space-4) 0;
