@@ -868,11 +868,15 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   );
   assert.match(
     styleSource,
-    /--live-room-workspace-height:\s*clamp\(560px,\s*calc\(100dvh - 300px\),\s*680px\)/,
+    /--live-room-workspace-height:\s*max\(560px,\s*calc\(100dvh - 240px\)\)/,
   );
   assert.match(
     styleSource,
-    /\.page\[data-ad-enabled="true"\]\s*\{[\s\S]*--live-room-workspace-height:\s*clamp\(520px,\s*calc\(100dvh - 350px\),\s*620px\)/,
+    /\.page\[data-ad-enabled="true"\]\s*\{[\s\S]*--live-room-workspace-height:\s*max\(520px,\s*calc\(100dvh - 350px\)\)/,
+  );
+  assert.doesNotMatch(
+    styleSource,
+    /--live-room-workspace-height:[^\n]*(?:680px|620px)/,
   );
   assert.match(
     styleSource,
