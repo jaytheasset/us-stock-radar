@@ -19,6 +19,14 @@
   display: contents;
 }
 
+.detailAnchor {
+  min-width: 0;
+}
+
+.rail[data-ads-enabled="false"] .detailAnchor {
+  display: contents;
+}
+
 .desktopRailAd {
   width: 100%;
   max-width: 336px;
@@ -26,8 +34,27 @@
   margin-inline: auto;
 }
 
+@media (min-width: 1181px) {
+  .rail[data-ads-enabled="true"] {
+    position: sticky;
+    top: calc(var(--sr-size-header) + var(--sr-space-4));
+    overflow-y: auto;
+    max-height: calc(100vh - var(--sr-size-header) - var(--sr-space-8));
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .rail[data-ads-enabled="true"]::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @media (max-width: 1180px) {
   .rail {
+    display: contents;
+  }
+
+  .detailAnchor {
     display: contents;
   }
 

@@ -142,13 +142,6 @@ export function StockRadarCalendarV1({
   const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
 
   useEffect(() => {
-    const nextSelectedEventId = desktopPreviewEvent?.id ?? null;
-    setSelectedEventId((current) =>
-      current === nextSelectedEventId ? current : nextSelectedEventId,
-    );
-  }, [desktopPreviewEvent?.id]);
-
-  useEffect(() => {
     if (previewState !== "default") return;
     const key = rangeKey(range);
     if (loadedRangeKeyRef.current === key && reloadToken === 0) return;
@@ -199,6 +192,7 @@ export function StockRadarCalendarV1({
       setSourceEvents([]);
     }
     setSheetEventId(null);
+    setSelectedEventId(null);
     setRange(normalized);
     setPreset(nextPreset);
     setSelectedDate(rangeContainsDate(normalized, today) ? today : normalized.from);
@@ -218,6 +212,11 @@ export function StockRadarCalendarV1({
       detailOpenerRef.current = opener;
       setSheetEventId(event.id);
     }
+  }
+
+  function selectDate(date: string) {
+    setSelectedEventId(null);
+    setSelectedDate(date);
   }
 
   function dismissSheet() {
@@ -259,10 +258,10 @@ export function StockRadarCalendarV1({
       );
     }
     return (
-      <CalendarView
-        events={filteredEvents}
-        onOpenEvent={openEvent}
-        onSelectedDateChange={setSelectedDate}
+        <CalendarView
+          events={filteredEvents}
+          onOpenEvent={openEvent}
+          onSelectedDateChange={selectDate}
         range={range}
         selectedDate={selectedDate}
         selectedDateListRef={selectedDateListRef}
@@ -399,6 +398,7 @@ export function StockRadarCalendarV1({
           {content}
         </section>
         <CalendarDesktopRail
+          activeEventId={selectedEventId}
           enabledForViewer={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
         >
           <CalendarEventDetail

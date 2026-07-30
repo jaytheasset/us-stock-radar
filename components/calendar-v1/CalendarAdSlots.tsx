@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./CalendarAdSlots.module.css";
 
@@ -31,22 +31,44 @@ export function CalendarMobileAdSlot({
 }
 
 export function CalendarDesktopRail({
+  activeEventId,
   children,
   enabledForViewer,
 }: {
+  activeEventId: string | null;
   children: ReactNode;
   enabledForViewer: boolean;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const detailAnchorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (
+      !enabledForViewer ||
+      !activeEventId ||
+      window.matchMedia("(max-width: 1180px)").matches
+    ) {
+      return;
+    }
+    const rail = railRef.current;
+    const detailAnchor = detailAnchorRef.current;
+    if (!rail || !detailAnchor) return;
+    rail.scrollTop = detailAnchor.offsetTop;
+  }, [activeEventId, enabledForViewer]);
+
   return (
     <div
       className={styles.rail}
       data-ads-enabled={enabledForViewer}
       data-calendar-desktop-rail=""
+      ref={railRef}
     >
       {enabledForViewer ? (
         <CalendarRailAd inventory="calendar-rail-top" position="top" />
       ) : null}
-      {children}
+      <div className={styles.detailAnchor} ref={detailAnchorRef}>
+        {children}
+      </div>
       {enabledForViewer ? (
         <CalendarRailAd inventory="calendar-rail-bottom" position="bottom" />
       ) : null}
