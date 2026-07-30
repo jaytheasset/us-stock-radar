@@ -10,6 +10,22 @@ const migrationUrl = new URL(
 const SCHEMA_QUALIFIED_SPECIAL_SQL_FORM =
   /\b[a-z_][a-z0-9_$]*\.(?:coalesce|extract|greatest|least|nullif|overlay|position|substring|trim)\s*\(/i;
 
+function declaredRowTargets(sql: string) {
+  return Array.from(
+    sql.matchAll(
+      /^\s*([a-z_][a-z0-9_$]*)\s+(?:[a-z_][a-z0-9_$.]*%rowtype|record)\s*;/gim,
+    ),
+    (match) => match[1],
+  );
+}
+
+function selectIntoTargets(sql: string) {
+  return Array.from(
+    sql.matchAll(/\bselect\b[\s\S]*?\binto\s+([\s\S]*?)\s+\bfrom\b/gi),
+    (match) => match[1].trim(),
+  );
+}
+
 test("FMP Calendar migration is additive, atomic, and service-role only", async () => {
   const sql = await readFile(migrationUrl, "utf8");
   assert.match(sql, /create or replace function public\.ingest_fmp_calendar_observation/);
@@ -33,6 +49,34 @@ test("migration avoids schema-qualifying PostgreSQL special SQL syntax", async (
   assert.match(
     sql,
     /pg_catalog\.strpos\(v_canonical_identity, v_event_date::text\) > 0/,
+  );
+});
+
+test("row and record variables are never mixed into multi-target loads", async () => {
+  const sql = await readFile(migrationUrl, "utf8");
+  const rowTargets = declaredRowTargets(sql);
+  const intoTargets = selectIntoTargets(sql);
+
+  assert.deepEqual(rowTargets, ["v_event"]);
+  for (const rowTarget of rowTargets) {
+    for (const intoTarget of intoTargets) {
+      if (new RegExp(`\\b${rowTarget}\\b`, "i").test(intoTarget)) {
+        assert.doesNotMatch(
+          intoTarget,
+          /,/,
+          `${rowTarget} must be the only SELECT INTO target`,
+        );
+      }
+    }
+  }
+
+  assert.match(
+    sql,
+    /select event_row\.\*[\s\S]*into v_event[\s\S]*for update of event_row;/,
+  );
+  assert.match(
+    sql,
+    /select details\.detail[\s\S]*into v_old_detail[\s\S]*where details\.event_id = v_event\.id;/,
   );
 });
 
