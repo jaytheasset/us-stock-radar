@@ -16,6 +16,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import {
   LIVE_ROOM_REPORT_REASONS,
@@ -247,6 +248,9 @@ export function ChatTimeline({
                 <p className={styles.postPreviewExcerpt}>
                   {item.bodyPreview}
                 </p>
+                {item.brokerageProof ? (
+                  <BrokerageProofCard compact proof={item.brokerageProof} />
+                ) : null}
                 <div className={styles.postPreviewMeta}>
                   <Link
                     className={styles.postPreviewAuthor}
@@ -421,6 +425,9 @@ export function ChatTimeline({
                 )
               ) : null}
               <p>{item.body}</p>
+              {item.brokerageProof ? (
+                <BrokerageProofCard compact proof={item.brokerageProof} />
+              ) : null}
             </article>
             </li>
           </Fragment>

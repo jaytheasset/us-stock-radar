@@ -38,8 +38,20 @@ const legacyAdminPages = [
 test("anonymous users and ordinary members are rejected before admin content renders", () => {
   assert.match(adminLayout, /requireAdminPageAccess\(\)/);
   assert.match(adminServer, /redirect\("\/login\?next=%2Fadmin"\)/);
-  assert.match(adminServer, /if \(!access\) redirect\("\/"\)/);
+  assert.match(
+    adminServer,
+    /if \(!access\) redirect\("\/login\?next=%2Fadmin&reason=admin_required"\)/,
+  );
+  assert.doesNotMatch(adminServer, /redirect\("\/"\)/);
   assert.doesNotMatch(adminServer, /user_metadata|app_metadata/);
+});
+
+test("admin exit links return to the current markets dashboard", () => {
+  assert.equal(
+    (adminShell.match(/href="\/dashboard-v2"/g) || []).length,
+    2,
+  );
+  assert.doesNotMatch(adminShell, /href="\/"/);
 });
 
 test("legacy active admins retain access during RBAC migration", () => {
@@ -86,7 +98,11 @@ test("new admin tables are service-only, RLS-enabled, and audit logs are append-
   );
   assert.match(
     migration,
-    /revoke all on table public\.admin_audit_logs from public, anon, authenticated/i,
+    /revoke all on table public\.admin_role_assignments\s+from public, anon, authenticated, service_role/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on table public\.admin_audit_logs\s+from public, anon, authenticated, service_role/i,
   );
   assert.match(
     migration,

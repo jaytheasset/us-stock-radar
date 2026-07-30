@@ -58,6 +58,57 @@ values (
   true
 );
 
+insert into public.user_plan_subscriptions (
+  user_id,
+  plan,
+  status
+)
+values (
+  '88000000-0000-4000-8000-000000000001',
+  'advanced',
+  'active'
+);
+
+insert into public.user_profiles (id)
+select (
+  '88000000-0000-4000-8001-'
+  || pg_catalog.lpad(series.value::text, 12, '0')
+)::uuid
+from pg_catalog.generate_series(1, 100) as series(value);
+
+insert into public.live_room_member_profiles (
+  user_id,
+  display_name,
+  emoji,
+  public_profile_id,
+  show_presence
+)
+select
+  (
+    '88000000-0000-4000-8001-'
+    || pg_catalog.lpad(series.value::text, 12, '0')
+  )::uuid,
+  'Creator follower ' || series.value,
+  chr(128075),
+  (
+    '88100000-0000-4000-8001-'
+    || pg_catalog.lpad(series.value::text, 12, '0')
+  )::uuid,
+  true
+from pg_catalog.generate_series(1, 100) as series(value);
+
+insert into public.live_room_member_follows (
+  follower_user_id,
+  followed_user_id
+)
+select
+  (
+    '88000000-0000-4000-8001-'
+    || pg_catalog.lpad(series.value::text, 12, '0')
+  )::uuid,
+  '88000000-0000-4000-8000-000000000001'
+from pg_catalog.generate_series(1, 100) as series(value);
+
 select public.create_live_room_community_room(
   '88000000-0000-4000-8000-000000000001',
   'community-creator-membership-test',

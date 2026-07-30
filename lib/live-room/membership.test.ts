@@ -4,8 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 const root = process.cwd();
-const read = (file: string) =>
-  readFileSync(path.join(root, file), "utf8");
+const read = (file: string) => readFileSync(path.join(root, file), "utf8");
 
 const migration = read(
   "supabase/migrations/20260729073253_live_room_persistent_membership.sql",
@@ -19,43 +18,24 @@ const privateSchemaGrantMigration = read(
 const server = read("lib/live-room/serverRepository.ts");
 const api = read("lib/live-room/apiRepository.ts");
 const types = read("lib/live-room/types.ts");
-const companyClient = read(
-  "components/live-room/LiveRoomClient.tsx",
-);
-const companyHeader = read(
-  "components/live-room/CompanyRoomHeader.tsx",
-);
-const communityClient = read(
-  "components/live-room/CommunityRoomClient.tsx",
-);
+const companyClient = read("components/live-room/LiveRoomClient.tsx");
+const companyHeader = read("components/live-room/CompanyRoomHeader.tsx");
+const communityClient = read("components/live-room/CommunityRoomClient.tsx");
+const communityHeader = read("components/live-room/CommunityRoomHeader.tsx");
 const membershipControl = read(
   "components/live-room/RoomMembershipControl.tsx",
 );
-const desktopPanel = read(
-  "components/live-room/LiveRoomDesktopSidePanel.tsx",
-);
-const joinedList = read(
-  "components/live-room/JoinedRoomsList.tsx",
-);
+const desktopPanel = read("components/live-room/LiveRoomDesktopSidePanel.tsx");
+const joinedList = read("components/live-room/JoinedRoomsList.tsx");
 const directory = read("app/live/page.tsx");
-const companyRoute = read(
-  "app/api/live-room/[ticker]/membership/route.ts",
-);
+const companyRoute = read("app/api/live-room/[ticker]/membership/route.ts");
 const communityRoute = read(
   "app/api/live-room/community/[slug]/membership/route.ts",
 );
-const listRoute = read(
-  "app/api/live-room/memberships/route.ts",
-);
-const liveStyles = read(
-  "components/live-room/LiveRoom.module.css",
-);
-const tabStyles = read(
-  "components/live-room/Posts.module.css",
-);
-const communityHub = read(
-  "components/community/CommunityHubClient.tsx",
-);
+const listRoute = read("app/api/live-room/memberships/route.ts");
+const liveStyles = read("components/live-room/LiveRoom.module.css");
+const tabStyles = read("components/live-room/Posts.module.css");
+const communityHub = read("components/community/CommunityHubClient.tsx");
 
 test("room membership storage is default-deny, service-only, and backfills saved rooms", () => {
   assert.match(
@@ -144,11 +124,8 @@ test("successful member contributions idempotently Join both company and Communi
     );
   }
   assert.equal(
-    (
-      migration.match(
-        /perform private\.ensure_live_room_membership\(/gi,
-      ) ?? []
-    ).length >= 3,
+    (migration.match(/perform private\.ensure_live_room_membership\(/gi) ?? [])
+      .length >= 3,
     true,
   );
 });
@@ -228,10 +205,7 @@ test("room UI exposes one Join state, safe guest return, Leave confirmation, and
     membershipControl,
     /aria-label="Loading room membership"[\s\S]*title="Loading room membership"[\s\S]*membershipActionLabel\}>Loading<\/span>/,
   );
-  assert.match(
-    membershipControl,
-    /window\.location\.assign\(loginHref\)/,
-  );
+  assert.match(membershipControl, /window\.location\.assign\(loginHref\)/);
   assert.match(
     membershipControl,
     /role="dialog"[\s\S]*Leave \{roomLabel\}\?[\s\S]*removes the room from My Rooms[\s\S]*You can still read the room/,
@@ -245,8 +219,8 @@ test("room UI exposes one Join state, safe guest return, Leave confirmation, and
     /<RoomMembershipControl[\s\S]*loginHref=\{loginHref\}/,
   );
   assert.match(
-    communityClient,
-    /<RoomMembershipControl[\s\S]*loginHref=\{roomLoginHref\}/,
+    communityHeader,
+    /<RoomMembershipControl[\s\S]*loginHref=\{loginHref\}/,
   );
   assert.doesNotMatch(
     companyClient,
@@ -295,10 +269,7 @@ test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile,
     listFunction,
     /block\.blocker_member_user_id = p_member_user_id[\s\S]*block\.blocked_actor_id = message\.actor_id[\s\S]*block\.blocker_actor_id = message\.actor_id[\s\S]*block\.blocked_member_user_id = p_member_user_id/i,
   );
-  assert.match(
-    desktopPanel,
-    /label: "My Rooms"[\s\S]*value: "rooms"/,
-  );
+  assert.match(desktopPanel, /label: "My Rooms"[\s\S]*value: "rooms"/);
   assert.match(
     companyClient,
     /label: "Rooms"[\s\S]*value: "rooms"[\s\S]*mobileSheet === "rooms"/,
@@ -338,15 +309,9 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
   const communityMessagesRoute = read(
     "app/api/live-room/community/[slug]/messages/route.ts",
   );
-  const communityPage = read(
-    "app/live/community/[slug]/page.tsx",
-  );
-  const readHook = read(
-    "components/live-room/useLiveRoomReadPosition.ts",
-  );
-  const latestButton = read(
-    "components/live-room/LiveRoomLatestButton.tsx",
-  );
+  const communityPage = read("app/live/community/[slug]/page.tsx");
+  const readHook = read("components/live-room/useLiveRoomReadPosition.ts");
+  const latestButton = read("components/live-room/LiveRoomLatestButton.tsx");
   const companyLatestHandler =
     companyClient.match(
       /const handleLatest = async \(\) => \{[\s\S]+?\n  \};/,
@@ -381,11 +346,11 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
     server,
     /supabaseRpc\("get_live_room_resume_state"[\s\S]*p_member_user_id: memberUserId[\s\S]*p_room_id: roomId/,
   );
+  assert.match(api, /if \(options\.resume\) search\.set\("resume", "true"\)/);
   assert.match(
-    api,
-    /if \(options\.resume\) search\.set\("resume", "true"\)/,
+    companyMessagesRoute,
+    /searchParams\.get\("resume"\) === "true"/,
   );
-  assert.match(companyMessagesRoute, /searchParams\.get\("resume"\) === "true"/);
   assert.match(
     communityMessagesRoute,
     /searchParams\.get\("resume"\) === "true"/,
@@ -402,10 +367,7 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
     communityClient,
     /if \(initial && highlightedMessageId\)[\s\S]*scheduleTimelineScroll\(\(element\) => \{[\s\S]*live-room-message-\$\{highlightedMessageId\}[\s\S]*element\.contains\(target\)[\s\S]*element\.scrollTo\(\{[\s\S]*\(element\.clientHeight - bounds\.height\) \/ 2[\s\S]*handleTimelineScroll\(\);[\s\S]*scheduleVisibleRead\(\);/,
   );
-  assert.doesNotMatch(
-    communityClient,
-    /markMemberActivityRead/,
-  );
+  assert.doesNotMatch(communityClient, /markMemberActivityRead/);
   assert.match(
     communityPage,
     /searchParams[\s\S]*activityMessageId=\{[\s\S]*query\.message/,
@@ -437,10 +399,7 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
     liveStyles,
     /\.latestMessagesButton\s*\{[\s\S]*width:\s*calc\(var\(--sr-size-icon-button\) \+ var\(--sr-space-0-5\)\);[\s\S]*height:\s*calc\(var\(--sr-size-icon-button\) \+ var\(--sr-space-0-5\)\);[\s\S]*border-radius:\s*var\(--sr-radius-pill\);[\s\S]*\.latestMessagesBadge\s*\{[\s\S]*position:\s*absolute;/,
   );
-  for (const latestHandler of [
-    companyLatestHandler,
-    communityLatestHandler,
-  ]) {
+  for (const latestHandler of [companyLatestHandler, communityLatestHandler]) {
     assert.match(
       latestHandler,
       /repository\.list\(\)[\s\S]*setTimeline\(replaceLiveRoomTimeline\(page\.items\)\)[\s\S]*scheduleTimelineScroll\(\(element\) => \{[\s\S]*top: element\.scrollHeight[\s\S]*timelineSticksToBottomRef\.current = true[\s\S]*handleTimelineScroll\(\);[\s\S]*scheduleVisibleRead\(\);/,

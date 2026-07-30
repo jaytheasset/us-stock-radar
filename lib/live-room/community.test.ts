@@ -30,15 +30,16 @@ const discoveryMigration = read(discoveryMigrationPath);
 const creatorMembershipMigration = read(
   "supabase/migrations/20260729190400_community_room_creator_membership.sql",
 );
+const creatorEligibilityMigration = read(
+  "supabase/migrations/20260729194138_community_room_creator_eligibility.sql",
+);
 const foundationMigration = read(
   "docs/db/migration-archive/pre-canonical-baseline/20260727101129_live_room_realtime_foundation.sql",
 );
 const blockModerationMigration = read(
   "docs/db/migration-archive/pre-canonical-baseline/20260727121025_fix_live_room_block_moderation.sql",
 );
-const communityRepository = read(
-  "lib/live-room/communityServerRepository.ts",
-);
+const communityRepository = read("lib/live-room/communityServerRepository.ts");
 const liveRoomRepository = read("lib/live-room/serverRepository.ts");
 const communityRoute = read("app/api/live-room/community/route.ts");
 const createEligibilityRoute = read(
@@ -57,28 +58,23 @@ const communityModerationRoute = read(
   "app/api/live-room/community/[slug]/moderation/route.ts",
 );
 const directoryPage = read("app/live/page.tsx");
-const createDialog = read(
-  "components/live-room/CommunityRoomCreateDialog.tsx",
+const createDialog = read("components/live-room/CommunityRoomCreateDialog.tsx");
+const communityStyles = read("components/live-room/CommunityRooms.module.css");
+const communityClient = read("components/live-room/CommunityRoomClient.tsx");
+const communityDetailPage = read("app/live/community/[slug]/page.tsx");
+const communityHeader = read("components/live-room/CommunityRoomHeader.tsx");
+const communityAbout = read("components/live-room/CommunityRoomAbout.tsx");
+const desktopSidePanel = read(
+  "components/live-room/LiveRoomDesktopSidePanel.tsx",
 );
-const communityStyles = read(
-  "components/live-room/CommunityRooms.module.css",
-);
-const communityClient = read(
-  "components/live-room/CommunityRoomClient.tsx",
-);
+const liveRoomStyles = read("components/live-room/LiveRoom.module.css");
 const unreadMenu = read("components/shell/LiveRoomUnreadMenu.tsx");
-const productHeader = read(
-  "components/shell/StockRadarProductHeader.tsx",
-);
+const productHeader = read("components/shell/StockRadarProductHeader.tsx");
 const mobileNavigation = read(
   "components/shell/StockRadarMobileNavigationMenu.tsx",
 );
-const liveRoomClient = read(
-  "components/live-room/LiveRoomClient.tsx",
-);
-const messageComposer = read(
-  "components/live-room/MessageComposer.tsx",
-);
+const liveRoomClient = read("components/live-room/LiveRoomClient.tsx");
+const messageComposer = read("components/live-room/MessageComposer.tsx");
 const postsPanel = read("components/live-room/PostsPanel.tsx");
 
 test("Community Room classification values are closed canonical allowlists", () => {
@@ -95,12 +91,7 @@ test("Community Room classification values are closed canonical allowlists", () 
   );
   assert.deepEqual(
     COMMUNITY_ROOM_STYLES.map(({ value }) => value),
-    [
-      "live_reaction",
-      "deep_research",
-      "beginner_friendly",
-      "open_discussion",
-    ],
+    ["live_reaction", "deep_research", "beginner_friendly", "open_discussion"],
   );
   assert.deepEqual(
     COMMUNITY_ROOM_LANGUAGES.map(({ value }) => value),
@@ -186,12 +177,7 @@ test("create validation rejects free tags, cardinality overflow, links, HTML, an
   assert.throws(() =>
     normalizeCommunityRoomCreateInput({
       ...valid,
-      focusTags: [
-        "earnings",
-        "macro_policy",
-        "company_news",
-        "sec_filings",
-      ],
+      focusTags: ["earnings", "macro_policy", "company_news", "sec_filings"],
     }),
   );
   assert.throws(() =>
@@ -310,10 +296,7 @@ test("discovery anchors use canonical themes and industry slugs", () => {
 });
 
 test("slugs are opaque canonical room identity rather than ticker identity", () => {
-  const slug = createCommunityRoomSlug(
-    "Market & Macro",
-    "A1B2C3D4",
-  );
+  const slug = createCommunityRoomSlug("Market & Macro", "A1B2C3D4");
   assert.equal(slug, "market-macro-a1b2c3d4");
   assert.equal(getCommunityRoomSlugOrNull(slug), slug);
   assert.equal(getCommunityRoomSlugOrNull("AAPL"), null);
@@ -360,8 +343,14 @@ test("directory filters are closed, shareable, and page size is bounded to 20", 
 });
 
 test("migration preserves company ticker uniqueness while adding nullable community identity", () => {
-  assert.match(foundationMigration, /ticker text not null[\s\S]*unique \(ticker\)/i);
-  assert.match(migration, /add column if not exists room_kind text not null default 'company'/i);
+  assert.match(
+    foundationMigration,
+    /ticker text not null[\s\S]*unique \(ticker\)/i,
+  );
+  assert.match(
+    migration,
+    /add column if not exists room_kind text not null default 'company'/i,
+  );
   assert.match(migration, /alter column ticker drop not null/i);
   assert.match(
     migration,
@@ -371,10 +360,7 @@ test("migration preserves company ticker uniqueness while adding nullable commun
     liveRoomRepository,
     /room_kind: "eq\.company"[\s\S]*onConflict: "ticker"/,
   );
-  assert.match(
-    liveRoomRepository,
-    /\{ room_kind: "company", ticker \}/,
-  );
+  assert.match(liveRoomRepository, /\{ room_kind: "company", ticker \}/);
 });
 
 test("Community migration runs after the existing Live Room function migrations", () => {
@@ -454,10 +440,7 @@ test("Community Room metadata is default-deny with owner FK and covering indexes
     migration,
     /live_room_community_rooms_owner_created_idx[\s\S]*\(owner_user_id, created_at desc\)/i,
   );
-  assert.match(
-    migration,
-    /live_room_community_rooms_(activity|created)_idx/i,
-  );
+  assert.match(migration, /live_room_community_rooms_(activity|created)_idx/i);
   assert.match(
     migration,
     /using gin \(focus_tags\)[\s\S]*using gin \(search_document\)/i,
@@ -473,10 +456,7 @@ test("discovery migration preserves old rooms and validates new canonical arrays
     discoveryMigration,
     /add column if not exists industries text\[\] not null default array\[\]::text\[\]/i,
   );
-  assert.match(
-    discoveryMigration,
-    /cardinality\(p_values\) between 0 and 3/gi,
-  );
+  assert.match(discoveryMigration, /cardinality\(p_values\) between 0 and 3/gi);
   assert.deepEqual(
     readSqlAllowlist("live_room_community_themes_valid").sort(),
     COMMUNITY_ROOM_THEME_OPTIONS.map((option) => option.value).sort(),
@@ -497,10 +477,7 @@ test("discovery migration preserves old rooms and validates new canonical arrays
     discoveryMigration,
     /cardinality\(v_related_tickers\) = 0[\s\S]*cardinality\(v_themes\) = 0[\s\S]*cardinality\(v_industries\) = 0[\s\S]*COMMUNITY_ROOM_DISCOVERY_ANCHOR_REQUIRED/i,
   );
-  assert.doesNotMatch(
-    discoveryMigration,
-    /add constraint\s+\w*discovery\w*/i,
-  );
+  assert.doesNotMatch(discoveryMigration, /add constraint\s+\w*discovery\w*/i);
 });
 
 test("discovery migration filters through GIN indexes and keeps RPCs service-role only", () => {
@@ -557,7 +534,10 @@ test("creation is member-only, transactionally rate-limited, and collision-safe"
   assert.match(migration, /interval '5 minutes'/i);
   assert.match(migration, /interval '24 hours'/i);
   assert.match(migration, />= 5/);
-  assert.match(migration, /when unique_violation[\s\S]*COMMUNITY_ROOM_SLUG_TAKEN/i);
+  assert.match(
+    migration,
+    /when unique_violation[\s\S]*COMMUNITY_ROOM_SLUG_TAKEN/i,
+  );
   assert.match(communityRepository, /attempt < 4/);
   assert.doesNotMatch(communityRepository, /ownerUserId|owner_user_id[^:]/);
 });
@@ -583,6 +563,7 @@ test("community room creation atomically joins the creator", () => {
 
 test("create entry routes guests through one safe login return without exposing owner input", () => {
   const guest = resolveCommunityRoomCreateEligibility({
+    effectivePlan: null,
     history: [],
     isMember: false,
     now: new Date("2026-07-29T12:00:00.000Z"),
@@ -590,10 +571,7 @@ test("create entry routes guests through one safe login return without exposing 
 
   assert.equal(guest.canCreate, false);
   assert.equal(guest.reason, "COMMUNITY_ROOM_MEMBER_REQUIRED");
-  assert.equal(
-    guest.nextActionHref,
-    "/login?next=%2Flive%3Fcreate%3Droom",
-  );
+  assert.equal(guest.nextActionHref, "/login?next=%2Flive%3Fcreate%3Droom");
   assert.equal(COMMUNITY_ROOM_CREATE_LOGIN_HREF, guest.nextActionHref);
   assert.match(
     createEligibilityRoute,
@@ -610,9 +588,79 @@ test("create entry routes guests through one safe login return without exposing 
   );
 });
 
+test("creator eligibility requires Advanced or Ultimate and 100 canonical followers", () => {
+  for (const effectivePlan of ["free", "ad_free", "pro"] as const) {
+    const eligibility = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 250,
+      history: [],
+      isMember: true,
+    });
+    assert.equal(eligibility.reason, "COMMUNITY_ROOM_ADVANCED_REQUIRED");
+    assert.equal(eligibility.canCreate, false);
+    assert.equal(eligibility.nextActionHref, "/premium");
+  }
+
+  for (const effectivePlan of ["advanced", "ultimate"] as const) {
+    const belowBoundary = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 99,
+      history: [],
+      isMember: true,
+    });
+    const atBoundary = resolveCommunityRoomCreateEligibility({
+      effectivePlan,
+      followerCount: 100,
+      history: [],
+      isMember: true,
+    });
+    assert.equal(belowBoundary.reason, "COMMUNITY_ROOM_FOLLOWERS_REQUIRED");
+    assert.equal(belowBoundary.followerRequirement, 100);
+    assert.equal(atBoundary.canCreate, true);
+    assert.equal(atBoundary.planEligible, true);
+  }
+
+  assert.match(
+    creatorEligibilityMigration,
+    /subscription\.status = 'active'[\s\S]*subscription\.trial_plan in \('pro', 'advanced'\)[\s\S]*trial_ends_at > pg_catalog\.now\(\)/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /count\(distinct follow\.follower_user_id\)[\s\S]*join public\.user_profiles as follower[\s\S]*not exists \([\s\S]*live_room_actor_blocks/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /create trigger assert_live_room_community_creator_eligibility[\s\S]*before insert on public\.live_room_community_rooms/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /COMMUNITY_ROOM_ADVANCED_REQUIRED[\s\S]*COMMUNITY_ROOM_FOLLOWERS_REQUIRED/i,
+  );
+  assert.match(
+    creatorEligibilityMigration,
+    /security invoker[\s\S]*set search_path = ''[\s\S]*revoke all on function public\.get_live_room_community_creator_eligibility[\s\S]*from public, anon, authenticated[\s\S]*grant execute[\s\S]*to service_role/i,
+  );
+  assert.match(
+    communityRepository,
+    /getCommunityRoomCreateEligibility\(actor\)[\s\S]*if \(!eligibility\.canCreate\)[\s\S]*create_live_room_community_room/,
+  );
+  assert.match(createDialog, /Advanced plan required/);
+  assert.match(createDialog, /100 followers required/);
+  assert.match(
+    createDialog,
+    /<progress[\s\S]*followerCount[\s\S]*followerRequirement/,
+  );
+  assert.match(
+    communityStyles,
+    /\.eligibilityProgress progress\s*\{[\s\S]*accent-color:\s*var\(--sr-color-accent\)/,
+  );
+});
+
 test("signed-in ineligible members receive the exact cooldown or rolling-day condition", () => {
   const now = new Date("2026-07-29T12:00:00.000Z");
   const cooldown = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "advanced",
+    followerCount: 100,
     history: [
       {
         createdAt: "2026-07-29T11:58:00.000Z",
@@ -623,6 +671,8 @@ test("signed-in ineligible members receive the exact cooldown or rolling-day con
     now,
   });
   const dailyLimit = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "ultimate",
+    followerCount: 101,
     history: Array.from({ length: 5 }, (_, index) => ({
       createdAt: new Date(
         now.getTime() - (index + 1) * 60 * 60 * 1_000,
@@ -635,14 +685,8 @@ test("signed-in ineligible members receive the exact cooldown or rolling-day con
 
   assert.equal(cooldown.reason, "COMMUNITY_ROOM_CREATE_COOLDOWN");
   assert.match(cooldown.message, /once every 5 minutes/i);
-  assert.equal(
-    cooldown.retryAt,
-    "2026-07-29T12:03:00.000Z",
-  );
-  assert.equal(
-    dailyLimit.reason,
-    "COMMUNITY_ROOM_CREATE_DAILY_LIMIT",
-  );
+  assert.equal(cooldown.retryAt, "2026-07-29T12:03:00.000Z");
+  assert.equal(dailyLimit.reason, "COMMUNITY_ROOM_CREATE_DAILY_LIMIT");
   assert.match(dailyLimit.message, /at most 5[\s\S]*rolling 24-hour/i);
   assert.match(createDialog, /24-hour creation limit reached/);
   assert.match(createDialog, /Creation cooldown is active/);
@@ -651,6 +695,8 @@ test("signed-in ineligible members receive the exact cooldown or rolling-day con
 
 test("eligible members receive the canonical form and success enters the new room", () => {
   const eligible = resolveCommunityRoomCreateEligibility({
+    effectivePlan: "advanced",
+    followerCount: 100,
     history: [
       {
         createdAt: "2026-07-29T11:00:00.000Z",
@@ -689,7 +735,10 @@ test("eligible members receive the canonical form and success enters the new roo
 test("directory query uses FTS, stable cursors, filters, and a bounded one-query RPC", () => {
   assert.match(migration, /search_document tsvector generated always/i);
   assert.match(migration, /websearch_to_tsquery/i);
-  assert.match(migration, /room\.focus_tags @> array\[p_focus_tag\]::text\[\]/i);
+  assert.match(
+    migration,
+    /room\.focus_tags @> array\[p_focus_tag\]::text\[\]/i,
+  );
   assert.match(migration, /\(room\.created_at, room\.slug\) </i);
   assert.match(migration, /\(room\.last_activity_at, room\.slug\) </i);
   assert.match(migration, /limit v_limit \+ 1/gi);
@@ -756,10 +805,7 @@ test("every company Live Room sign-in CTA preserves the exact ticker room return
     liveRoomClient,
     /const roomLoginHref = createLiveRoomMemberLoginHref\(\s*`\/live\/\$\{ticker\}`/,
   );
-  assert.equal(
-    liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length,
-    7,
-  );
+  assert.equal(liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length, 7);
   assert.match(
     productHeader,
     /const authReturnPath =[\s\S]*pathname\.startsWith\("\/"\)[\s\S]*const loginHref = `\/login\?next=\$\{encodeURIComponent\(authReturnPath\)\}`[\s\S]*<AuthStatus loginHref=\{loginHref\} signupHref=\{signupHref\}/,
@@ -794,23 +840,14 @@ test("Community messages reuse message moderation, report, and block server cont
   );
   assert.match(communityReportsRoute, /reportLiveRoomMessage/);
   assert.match(communityBlocksRoute, /blockLiveRoomMessageAuthor/);
-  assert.match(
-    communityModerationRoute,
-    /listHiddenLiveRoomMessages/,
-  );
+  assert.match(communityModerationRoute, /listHiddenLiveRoomMessages/);
   assert.match(communityModerationRoute, /moderateLiveRoomMessage/);
   assert.match(communityClient, /evaluateLiveRoomMessage/);
   assert.match(communityClient, /repository\.report/);
   assert.match(communityClient, /repository\.block/);
-  assert.match(
-    communityClient,
-    /replyToMessageId: replyingTo\?\.id \|\| null/,
-  );
+  assert.match(communityClient, /replyToMessageId: replyingTo\?\.id \|\| null/);
   assert.match(communityClient, /onReply=\{handleReply\}/);
-  assert.match(
-    communityClient,
-    /setBody\(""\);[\s\S]*?setReplyingTo\(null\)/,
-  );
+  assert.match(communityClient, /setBody\(""\);[\s\S]*?setReplyingTo\(null\)/);
   assert.match(
     liveRoomRepository,
     /Community Room messages cannot attach company event cards/,
@@ -831,10 +868,77 @@ test("Community realtime topics stay separate while preserving company topics", 
     /when room\.room_kind = 'community' then[\s\S]*'community:' \|\| community\.slug/i,
   );
   assert.match(migration, /'live-room:' \|\| v_room_topic/i);
+  assert.match(communityClient, /\{ kind: "community", slug: room\.slug \}/);
+});
+
+test("Community detail reuses the responsive Live Room workspace without development chrome", () => {
+  assert.match(communityClient, /<StockRadarAppShell/);
+  assert.match(communityClient, /<div className=\{roomStyles\.page\}>/);
+  assert.doesNotMatch(communityClient, /<main\b/);
+  assert.doesNotMatch(
+    communityClient,
+    /Open discussion|Realtime updates|45-second polling fallback|Blocked 0/,
+  );
+
+  assert.match(communityClient, /<CommunityRoomHeader/);
+  assert.match(communityHeader, /<RoomMembershipControl/);
+  assert.match(communityHeader, /<LiveRoomInviteMenu/);
+  assert.match(communityHeader, /href="\/live"/);
+  assert.match(communityClient, /<ChatTimeline/);
+  assert.match(communityClient, /<MessageComposer/);
+  assert.match(communityClient, /<LiveRoomDesktopSidePanel/);
+  assert.match(
+    desktopSidePanel,
+    /const COMMUNITY_SIDE_PANEL_TABS = \[[\s\S]*label: "Posts"[\s\S]*label: "Members"[\s\S]*label: "My Rooms"[\s\S]*label: "About"/,
+  );
+  assert.doesNotMatch(
+    desktopSidePanel.match(
+      /const COMMUNITY_SIDE_PANEL_TABS = \[[\s\S]*?\] as const;/,
+    )?.[0] ?? "",
+    /Updates/,
+  );
+
   assert.match(
     communityClient,
-    /\{ kind: "community", slug: room\.slug \}/,
+    /const communityMobileTabs = \[[\s\S]*label: "Chat"[\s\S]*label: "Posts"[\s\S]*label: "About"[\s\S]*label: "Members"[\s\S]*label: "Rooms"/,
   );
+  assert.match(
+    communityClient,
+    /<BottomSheetShell[\s\S]*fixedFooter=\{[\s\S]*dockInMobileSheet[\s\S]*items=\{communityMobileTabs\}/,
+  );
+  assert.match(
+    communityClient,
+    /mobileSheet === "posts"[\s\S]*mobileSheet === "about"[\s\S]*mobileSheet === "members"[\s\S]*mobileSheet === "rooms"/,
+  );
+
+  assert.match(communityClient, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(communityClient, /<LiveRoomHeaderAdSlot/);
+  assert.match(communityClient, /<LiveRoomMobileInlineAdSlot/);
+  assert.match(communityClient, /<LiveRoomRailAdSlot/);
+  assert.match(communityDetailPage, /getCurrentViewerPlan\(\)/);
+  assert.match(communityDetailPage, /viewerPlan=\{viewerPlan\}/);
+
+  assert.match(communityAbout, /room\.topic/);
+  assert.match(communityAbout, /room\.roomStyle/);
+  assert.match(communityAbout, /room\.language/);
+  assert.match(communityAbout, /room\.focusTags/);
+  assert.match(communityAbout, /room\.themes/);
+  assert.match(communityAbout, /room\.industries/);
+  assert.match(communityAbout, /room\.relatedTickers/);
+  assert.match(
+    liveRoomStyles,
+    /\.communityRoomHeader\s*\{[\s\S]*grid-template-columns:/,
+  );
+  assert.match(
+    liveRoomStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.communityRoomHeader\s*\{/,
+  );
+
+  assert.match(
+    communityClient,
+    /new LiveRoomApiRepository\(\s*\{ kind: "community", slug: room\.slug \}/,
+  );
+  assert.doesNotMatch(communityClient, /\/api\/live-room\/community/);
 });
 
 test("public API presentation omits owner and internal room identifiers", () => {
@@ -843,16 +947,16 @@ test("public API presentation omits owner and internal room identifiers", () => 
     /ownerUserId|owner_user_id|roomId|room_id/,
   );
   assert.doesNotMatch(
-    migration.match(/return pg_catalog\.jsonb_build_object\([\s\S]*?\n  \);/)?.[0] ?? "",
+    migration.match(
+      /return pg_catalog\.jsonb_build_object\([\s\S]*?\n  \);/,
+    )?.[0] ?? "",
     /owner_user_id|room_id/,
   );
-  assert.match(
-    migration,
-    /'slug', v_slug[\s\S]*'createdAt', v_now/,
-  );
-  const discoveryPublicFunctions = discoveryMigration.match(
-    /create function public\.create_live_room_community_room[\s\S]*?create or replace function public\.get_live_room_community_room[\s\S]*?create function public\.list_live_room_community_rooms/,
-  )?.[0] ?? "";
+  assert.match(migration, /'slug', v_slug[\s\S]*'createdAt', v_now/);
+  const discoveryPublicFunctions =
+    discoveryMigration.match(
+      /create function public\.create_live_room_community_room[\s\S]*?create or replace function public\.get_live_room_community_room[\s\S]*?create function public\.list_live_room_community_rooms/,
+    )?.[0] ?? "";
   assert.doesNotMatch(
     discoveryPublicFunctions,
     /'ownerUserId'|'owner_user_id'|'roomId'|'room_id'/,
@@ -870,10 +974,7 @@ test("directory creation UI enforces required fields without free-form tags", ()
   assert.match(createDialog, /Up to 5 tickers/);
   assert.match(createDialog, /Market themes/);
   assert.match(createDialog, /Industries/);
-  assert.match(
-    createDialog,
-    /Choose at least one ticker, theme, or industry/,
-  );
+  assert.match(createDialog, /Choose at least one ticker, theme, or industry/);
   assert.match(createDialog, /aria-pressed/);
   assert.match(createDialog, /MAIN theme/);
   assert.match(createDialog, /required/);
@@ -934,15 +1035,9 @@ function read(relativePath: string) {
 function readSqlAllowlist(functionName: string) {
   const body =
     discoveryMigration.match(
-      new RegExp(
-        `function public\\.${functionName}\\([\\s\\S]+?\\$\\$;`,
-        "i",
-      ),
+      new RegExp(`function public\\.${functionName}\\([\\s\\S]+?\\$\\$;`, "i"),
     )?.[0] ?? "";
   const arrayBody =
-    body.match(/p_values <@ array\[([\s\S]+?)\]::text\[\]/i)?.[1] ??
-    "";
-  return [...arrayBody.matchAll(/'([^']+)'/g)].map(
-    (match) => match[1],
-  );
+    body.match(/p_values <@ array\[([\s\S]+?)\]::text\[\]/i)?.[1] ?? "";
+  return [...arrayBody.matchAll(/'([^']+)'/g)].map((match) => match[1]);
 }

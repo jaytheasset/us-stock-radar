@@ -1,18 +1,14 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Hash,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
+import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
 import {
   LiveRoomApiRepository,
   requestLiveRoomUnreadRefresh,
@@ -49,43 +45,82 @@ import {
 import type {
   LiveRoomBlockedActor,
   LiveRoomChatMessage,
+  LiveRoomMembershipList,
+  LiveRoomMemberSummary,
   LiveRoomModerationItem,
+  LiveRoomPost,
+  LiveRoomPostPreview,
   LiveRoomProfile,
   LiveRoomPublicRoomCounts,
   LiveRoomReportReason,
   LiveRoomTimelineItem,
 } from "@/lib/live-room/types";
-import {
-  getCommunityFocusTagLabel,
-  getCommunityLanguageLabel,
-  getCommunityRoomIndustryLabel,
-  getCommunityRoomStyleLabel,
-  getCommunityRoomThemeLabel,
-  getCommunityTopicLabel,
-  type CommunityRoom,
-} from "@/lib/live-room/community";
+import type { CommunityRoom } from "@/lib/live-room/community";
+import { selectLiveRoomSidePanelMembers } from "@/lib/live-room/sidePanel";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import { ChatTimeline } from "./ChatTimeline";
-import { LiveRoomInviteMenu } from "./LiveRoomInviteMenu";
+import { CommunityRoomAbout } from "./CommunityRoomAbout";
+import { CommunityRoomHeader } from "./CommunityRoomHeader";
+import { JoinedRoomsList } from "./JoinedRoomsList";
+import {
+  LiveRoomHeaderAdSlot,
+  LiveRoomMobileInlineAdSlot,
+  LiveRoomRailAdSlot,
+} from "./LiveRoomAdSlots";
+import {
+  LiveRoomDesktopSidePanel,
+  LiveRoomMemberList,
+} from "./LiveRoomDesktopSidePanel";
 import { LiveRoomLatestButton } from "./LiveRoomLatestButton";
 import { MessageComposer } from "./MessageComposer";
 import { PostsPanel } from "./PostsPanel";
-import { RoomMembershipControl } from "./RoomMembershipControl";
-import { RoomTabs, type LiveRoomTab } from "./RoomTabs";
+import { RoomTabs } from "./RoomTabs";
 import { useLiveRoomReadPosition } from "./useLiveRoomReadPosition";
 import roomStyles from "./LiveRoom.module.css";
-import styles from "./CommunityRooms.module.css";
 
 type TimelineState = "empty" | "error" | "loading" | "ready";
+type PostsState = "error" | "loading" | "ready";
+type CommunityMainTab = "about" | "chat" | "posts";
+type CommunityMobileSheet = "about" | "members" | "posts" | "rooms";
+type CommunityMobileTab = "chat" | CommunityMobileSheet;
+
+const communityMobileTabs = [
+  { label: "Chat", value: "chat" },
+  {
+    controlsId: "live-room-posts-sheet",
+    label: "Posts",
+    value: "posts",
+  },
+  {
+    controlsId: "live-room-about-sheet",
+    label: "About",
+    value: "about",
+  },
+  {
+    controlsId: "live-room-members-sheet",
+    label: "Members",
+    value: "members",
+  },
+  {
+    controlsId: "live-room-rooms-sheet",
+    label: "Rooms",
+    value: "rooms",
+  },
+] as const;
 
 export function CommunityRoomClient({
   activityMessageId,
   realtimeConfig,
   room,
+  viewerPlan,
 }: {
   activityMessageId: string | null;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   room: CommunityRoom;
+  viewerPlan: Plan;
 }) {
+  const router = useRouter();
+  const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
   const repository = useMemo(
     () =>
       new LiveRoomApiRepository(
@@ -94,12 +129,15 @@ export function CommunityRoomClient({
       ),
     [realtimeConfig, room.slug],
   );
+  const directMessageRepository = useMemo(
+    () => new DirectMessageApiRepository(),
+    [],
+  );
   const roomLoginHref = createLiveRoomMemberLoginHref(
     `/live/community/${room.slug}`,
   );
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
-  const [timelineState, setTimelineState] =
-    useState<TimelineState>("loading");
+  const [timelineState, setTimelineState] = useState<TimelineState>("loading");
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
@@ -107,12 +145,15 @@ export function CommunityRoomClient({
   const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [body, setBody] = useState("");
-  const [replyingTo, setReplyingTo] =
-    useState<LiveRoomChatMessage | null>(null);
-  const [composerFocusRequestId, setComposerFocusRequestId] =
-    useState(0);
-  const [highlightedMessageId, setHighlightedMessageId] =
-    useState<string | null>(null);
+  const [brokerageProof, setBrokerageProof] =
+    useState<BrokerageProofSummary | null>(null);
+  const [replyingTo, setReplyingTo] = useState<LiveRoomChatMessage | null>(
+    null,
+  );
+  const [composerFocusRequestId, setComposerFocusRequestId] = useState(0);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
   const [decision, setDecision] = useState<ModerationDecision | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -122,20 +163,49 @@ export function CommunityRoomClient({
     LiveRoomModerationItem[]
   >([]);
   const [moderationOpen, setModerationOpen] = useState(false);
-  const [messageActionId, setMessageActionId] =
-    useState<string | null>(null);
-  const [messageLikeIds, setMessageLikeIds] =
-    useState<ReadonlySet<string>>(() => new Set());
-  const [activeTab, setActiveTab] = useState<LiveRoomTab>("chat");
-  const [membershipJoined, setMembershipJoined] =
-    useState<boolean | null>(null);
+  const [messageActionId, setMessageActionId] = useState<string | null>(null);
+  const [messageLikeIds, setMessageLikeIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [posts, setPosts] = useState<LiveRoomPost[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsState, setPostsState] = useState<PostsState>("loading");
+  const [joinedRooms, setJoinedRooms] = useState<LiveRoomMembershipList | null>(
+    null,
+  );
+  const [joinedRoomsError, setJoinedRoomsError] = useState<string | null>(null);
+  const [joinedRoomsLoading, setJoinedRoomsLoading] = useState(true);
+  const [memberSummaries, setMemberSummaries] = useState<
+    LiveRoomMemberSummary[] | null
+  >(null);
+  const [messageRequestTarget, setMessageRequestTarget] = useState<{
+    displayName: string;
+    emoji: string;
+    messageId: string;
+  } | null>(null);
+  const [messageRequestBusy, setMessageRequestBusy] = useState(false);
+  const [messageRequestError, setMessageRequestError] = useState<string | null>(
+    null,
+  );
+  const [activeTab, setActiveTab] = useState<CommunityMainTab>("chat");
+  const [mobileSheet, setMobileSheet] = useState<CommunityMobileSheet | null>(
+    null,
+  );
+  const [membershipJoined, setMembershipJoined] = useState<boolean | null>(
+    null,
+  );
   const [membershipBusy, setMembershipBusy] = useState(false);
   const [showPresence, setShowPresence] = useState<boolean | null>(null);
   const [presenceSettingBusy, setPresenceSettingBusy] = useState(false);
-  const [roomCounts, setRoomCounts] =
-    useState<LiveRoomPublicRoomCounts | null>(null);
+  const [roomCounts, setRoomCounts] = useState<LiveRoomPublicRoomCounts | null>(
+    null,
+  );
   const profileSaveTimerRef = useRef<number | null>(null);
   const membershipRef = useRef(false);
+  const mobileAboutOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
   const presenceMessageIdsRef = useRef<string[]>([]);
   const replyScrollFrameRef = useRef<number | null>(null);
   const timelineScrollFrameRef = useRef<number | null>(null);
@@ -148,9 +218,7 @@ export function CommunityRoomClient({
   } | null>(null);
   const timelineGenerationRef = useRef(0);
   const messageLikeIdsRef = useRef<Set<string>>(new Set());
-  const updatesSubscriptionRef = useRef<{ close: () => void } | null>(
-    null,
-  );
+  const updatesSubscriptionRef = useRef<{ close: () => void } | null>(null);
   const {
     firstUnreadMessageId,
     handleTimelineScroll,
@@ -169,6 +237,14 @@ export function CommunityRoomClient({
     repository,
     timeline,
   });
+  const members = useMemo(
+    () => selectLiveRoomSidePanelMembers({ posts, timeline }),
+    [posts, timeline],
+  );
+  const memberSummaryKey = useMemo(
+    () => members.map((member) => member.publicProfileId).join(","),
+    [members],
+  );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
   const scheduleTimelineScroll = useCallback(
@@ -202,6 +278,13 @@ export function CommunityRoomClient({
     setOlderCursor(null);
     setNotice(null);
     setHighlightedMessageId(null);
+    setPosts([]);
+    setPostsCursor(null);
+    setPostsState("loading");
+    setJoinedRooms(null);
+    setJoinedRoomsError(null);
+    setJoinedRoomsLoading(true);
+    setMemberSummaries(null);
     didInitialTimelineScrollRef.current = false;
     forceOwnTimelineScrollRef.current = false;
     previousTimelineTailIdRef.current = null;
@@ -216,12 +299,27 @@ export function CommunityRoomClient({
         const presenceSettingPromise = nextProfile.isGuest
           ? Promise.resolve(null)
           : repository.readPresenceSetting().catch(() => null);
+        const postsPagePromise = repository
+          .listPosts()
+          .then((page) => ({ page }))
+          .catch(() => ({ page: null }));
+        const joinedRoomsPromise = nextProfile.isGuest
+          ? Promise.resolve({ data: null, error: null })
+          : repository
+              .listJoinedRooms(8)
+              .then((data) => ({ data, error: null }))
+              .catch((error) => ({
+                data: null,
+                error: toLiveRoomApiError(error).message,
+              }));
         const [
           page,
           nextBlocks,
           nextHiddenMessages,
           membership,
           nextPresenceSetting,
+          nextPostsPage,
+          nextJoinedRooms,
         ] = await Promise.all([
           repository.list({ resume: !activityMessageId }),
           repository.listBlocks(),
@@ -230,6 +328,8 @@ export function CommunityRoomClient({
             : Promise.resolve([]),
           repository.readMembership(),
           presenceSettingPromise,
+          postsPagePromise,
+          joinedRoomsPromise,
         ]);
         if (!isCurrent()) return;
         let initialItems = page.items;
@@ -238,10 +338,8 @@ export function CommunityRoomClient({
             const anchor =
               page.items.find(
                 (item) =>
-                  item.kind === "message" &&
-                  item.id === activityMessageId,
-              ) ||
-              (await repository.readMessageAnchor(activityMessageId));
+                  item.kind === "message" && item.id === activityMessageId,
+              ) || (await repository.readMessageAnchor(activityMessageId));
             if (!isCurrent()) return;
             initialItems = mergeLiveRoomTimeline(initialItems, [anchor]);
             setHighlightedMessageId(anchor.id);
@@ -259,25 +357,33 @@ export function CommunityRoomClient({
         setMembershipJoined(membership.joined);
         membershipRef.current = membership.joined;
         setRoomCounts(membership);
+        if (nextPostsPage.page) {
+          setPosts(nextPostsPage.page.items);
+          setPostsCursor(nextPostsPage.page.nextCursor);
+          setPostsState("ready");
+        } else {
+          setPosts([]);
+          setPostsCursor(null);
+          setPostsState("error");
+        }
+        setJoinedRooms(nextJoinedRooms.data);
+        setJoinedRoomsError(nextJoinedRooms.error);
+        setJoinedRoomsLoading(false);
         setShowPresence(
           nextProfile.isGuest
             ? false
-            : nextPresenceSetting?.showPresence ?? null,
+            : (nextPresenceSetting?.showPresence ?? null),
         );
         updates = repository.updates.subscribe({
           afterChange: page.latestChangeCursor,
           onError: (error) => {
             if (isCurrent()) {
-              setNotice(
-                `${error.message} Automatic retry is still active.`,
-              );
+              setNotice(`${error.message} Automatic retry is still active.`);
             }
           },
           onMessages: (messages) => {
             if (!isCurrent()) return;
-            setTimeline((current) =>
-              mergeLiveRoomTimeline(current, messages),
-            );
+            setTimeline((current) => mergeLiveRoomTimeline(current, messages));
             setTimelineState("ready");
             recordIncomingMessages(messages);
           },
@@ -301,6 +407,8 @@ export function CommunityRoomClient({
         if (!isCurrent()) return;
         setNotice(toLiveRoomApiError(error).message);
         setTimelineState("error");
+        setPostsState("error");
+        setJoinedRoomsLoading(false);
       }
     })();
 
@@ -343,9 +451,7 @@ export function CommunityRoomClient({
           const viewport = element.getBoundingClientRect();
           const bounds = target.getBoundingClientRect();
           element.scrollTop +=
-            bounds.top -
-            viewport.top -
-            Math.min(element.clientHeight / 4, 96);
+            bounds.top - viewport.top - Math.min(element.clientHeight / 4, 96);
         }
         handleTimelineScroll();
         scheduleVisibleRead();
@@ -438,13 +544,19 @@ export function CommunityRoomClient({
   ]);
 
   useEffect(() => {
-    presenceMessageIdsRef.current =
-      getLiveRoomPresenceMessageIds(timeline);
+    presenceMessageIdsRef.current = getLiveRoomPresenceMessageIds(timeline);
   }, [timeline]);
+
+  useEffect(() => {
+    setMemberSummaries(null);
+  }, [memberSummaryKey, repository]);
 
   useEffect(() => {
     const canReadCounts =
       timelineState === "ready" || timelineState === "empty";
+    const memberPublicProfileIds = memberSummaryKey
+      ? memberSummaryKey.split(",")
+      : [];
     const canHeartbeatMember =
       canReadCounts &&
       shouldRunLiveRoomPresence({
@@ -474,9 +586,14 @@ export function CommunityRoomClient({
           if (!active) return;
           if (!heartbeat.recorded) setShowPresence(false);
         }
-        const summary = await repository.readPresence(
-          presenceMessageIdsRef.current,
-        );
+        const [summary, nextMemberSummaries] = await Promise.all([
+          repository.readPresence(presenceMessageIdsRef.current),
+          memberPublicProfileIds.length
+            ? repository
+                .listMemberSummaries(memberPublicProfileIds)
+                .catch(() => ({ items: [] }))
+            : Promise.resolve({ items: [] }),
+        ]);
         if (!active) return;
         setRoomCounts({
           memberCount: summary.memberCount,
@@ -485,10 +602,9 @@ export function CommunityRoomClient({
           visitorCount: summary.visitorCount,
         });
         if (canHeartbeatMember) {
-          setTimeline((current) =>
-            applyLiveRoomPresence(current, summary),
-          );
+          setTimeline((current) => applyLiveRoomPresence(current, summary));
         }
+        setMemberSummaries(nextMemberSummaries.items);
       } catch {
         if (active) setRoomCounts(null);
       } finally {
@@ -510,13 +626,16 @@ export function CommunityRoomClient({
     return () => {
       active = false;
       window.clearInterval(timer);
-      document.removeEventListener(
-        "visibilitychange",
-        refreshWhenVisible,
-      );
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("focus", refreshWhenVisible);
     };
-  }, [profile?.isGuest, repository, showPresence, timelineState]);
+  }, [
+    memberSummaryKey,
+    profile?.isGuest,
+    repository,
+    showPresence,
+    timelineState,
+  ]);
 
   useEffect(
     () => () => {
@@ -547,11 +666,79 @@ export function CommunityRoomClient({
           emoji: nextProfile.emoji,
         })
         .then(setProfile)
-        .catch((error) =>
-          setNotice(toLiveRoomApiError(error).message),
-        );
+        .catch((error) => setNotice(toLiveRoomApiError(error).message));
     }, 500);
   };
+
+  const refreshJoinedRooms = async () => {
+    if (profile?.isGuest !== false) return;
+    setJoinedRoomsLoading(true);
+    setJoinedRoomsError(null);
+    try {
+      setJoinedRooms(await repository.listJoinedRooms(8));
+    } catch (error) {
+      setJoinedRoomsError(toLiveRoomApiError(error).message);
+    } finally {
+      setJoinedRoomsLoading(false);
+    }
+  };
+
+  const handleLoadPosts = useCallback(
+    async (before?: string | null) => {
+      try {
+        const page = await repository.listPosts(before);
+        setPosts((current) =>
+          before
+            ? [
+                ...current,
+                ...page.items.filter(
+                  (post) => !current.some((item) => item.id === post.id),
+                ),
+              ]
+            : page.items,
+        );
+        setPostsCursor(page.nextCursor);
+        setPostsState("ready");
+      } catch (error) {
+        setPostsState("error");
+        throw error;
+      }
+    },
+    [repository],
+  );
+
+  const handlePostCreated = (preview: LiveRoomPostPreview) => {
+    setMembershipJoined(true);
+    membershipRef.current = true;
+    void refreshJoinedRooms();
+    forceOwnTimelineScrollRef.current = true;
+    setTimeline((current) => mergeLiveRoomTimeline(current, [preview]));
+    setTimelineState("ready");
+    setMobileSheet(null);
+    setActiveTab("chat");
+  };
+
+  const handleDesktopTabChange = (tab: CommunityMainTab) => {
+    setMobileSheet(null);
+    setActiveTab(tab);
+  };
+
+  const handleMobileTabChange = useCallback((tab: CommunityMobileTab) => {
+    setActiveTab("chat");
+    setMobileSheet(tab === "chat" ? null : tab);
+  }, []);
+
+  const handleMobileTabElementChange = useCallback(
+    (tab: CommunityMobileTab, element: HTMLButtonElement | null) => {
+      if (tab === "about") mobileAboutOpenerRef.current = element;
+      if (tab === "members") {
+        mobileMembersOpenerRef.current = element;
+      }
+      if (tab === "posts") mobilePostsOpenerRef.current = element;
+      if (tab === "rooms") mobileRoomsOpenerRef.current = element;
+    },
+    [],
+  );
 
   const handleSend = async () => {
     if (!profile) return;
@@ -583,15 +770,15 @@ export function CommunityRoomClient({
       }
       const message = await repository.send({
         body: nextDecision.normalizedBody,
+        proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
       setMembershipJoined(true);
       membershipRef.current = true;
+      void refreshJoinedRooms();
       markLatestLoaded();
       forceOwnTimelineScrollRef.current = true;
-      setTimeline((current) =>
-        mergeLiveRoomTimeline(current, [message]),
-      );
+      setTimeline((current) => mergeLiveRoomTimeline(current, [message]));
       setTimelineState("ready");
       scheduleTimelineScroll((element) => {
         element.scrollTo({
@@ -604,6 +791,7 @@ export function CommunityRoomClient({
         scheduleVisibleRead();
       });
       setBody("");
+      setBrokerageProof(null);
       setReplyingTo(null);
       setDecision(null);
       setProfileOpen(false);
@@ -629,6 +817,7 @@ export function CommunityRoomClient({
       setMembershipJoined(state.joined);
       membershipRef.current = state.joined;
       setRoomCounts(state);
+      await refreshJoinedRooms();
       requestLiveRoomUnreadRefresh();
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
@@ -646,6 +835,7 @@ export function CommunityRoomClient({
       setMembershipJoined(state.joined);
       membershipRef.current = state.joined;
       setRoomCounts(state);
+      await refreshJoinedRooms();
       requestLiveRoomUnreadRefresh();
       setNotice(
         "You left the room. Reading stays available; contributing again joins the room.",
@@ -658,17 +848,13 @@ export function CommunityRoomClient({
     }
   };
 
-  const handlePresenceSettingChange = async (
-    nextShowPresence: boolean,
-  ) => {
+  const handlePresenceSettingChange = async (nextShowPresence: boolean) => {
     if (presenceSettingBusy || profile?.isGuest !== false) return;
     const previous = showPresence;
     setPresenceSettingBusy(true);
     setNotice(null);
     try {
-      const setting = await repository.writePresenceSetting(
-        nextShowPresence,
-      );
+      const setting = await repository.writePresenceSetting(nextShowPresence);
       setShowPresence(setting.showPresence);
       if (!setting.showPresence) {
         setTimeline((current) => clearLiveRoomPresence(current));
@@ -707,19 +893,13 @@ export function CommunityRoomClient({
     setTimeline((current) =>
       updateLiveRoomMessageEngagement(current, message.id, {
         isLiked: liked,
-        likeCount: Math.max(
-          0,
-          message.likeCount + (liked ? 1 : -1),
-        ),
+        likeCount: Math.max(0, message.likeCount + (liked ? 1 : -1)),
       }),
     );
     setNotice(null);
 
     try {
-      const result = await repository.setMessageLike(
-        message.id,
-        liked,
-      );
+      const result = await repository.setMessageLike(message.id, liked);
       setTimeline((current) =>
         updateLiveRoomMessageEngagement(current, result.messageId, {
           isLiked: result.liked,
@@ -728,11 +908,7 @@ export function CommunityRoomClient({
       );
     } catch (error) {
       setTimeline((current) =>
-        updateLiveRoomMessageEngagement(
-          current,
-          message.id,
-          previous,
-        ),
+        updateLiveRoomMessageEngagement(current, message.id, previous),
       );
       setNotice(toLiveRoomApiError(error).message);
     } finally {
@@ -743,9 +919,7 @@ export function CommunityRoomClient({
 
   const handleOpenReplyTarget = (messageId: string) => {
     if (
-      !timeline.some(
-        (item) => item.kind === "message" && item.id === messageId,
-      )
+      !timeline.some((item) => item.kind === "message" && item.id === messageId)
     ) {
       return;
     }
@@ -774,9 +948,7 @@ export function CommunityRoomClient({
             previousScrollTop: timelineElement.scrollTop,
           }
         : null;
-      setTimeline((current) =>
-        mergeLiveRoomTimeline(page.items, current),
-      );
+      setTimeline((current) => mergeLiveRoomTimeline(page.items, current));
       setOlderCursor(page.nextCursor);
       setNotice(null);
     } catch (error) {
@@ -856,13 +1028,100 @@ export function CommunityRoomClient({
     }
   };
 
+  const handleMemberFollow = async (
+    messageId: string,
+    nextFollowed: boolean,
+  ) => {
+    setMessageActionId(messageId);
+    setNotice(null);
+    try {
+      const result = await repository.writeMemberFollow({
+        followed: nextFollowed,
+        messageId,
+      });
+      setTimeline((current) =>
+        current.map((item) =>
+          item.kind === "message" && item.id === result.messageId
+            ? { ...item, isMemberFollowed: result.followed }
+            : item,
+        ),
+      );
+      const refreshedPage = await repository.list();
+      setTimeline((current) =>
+        mergeLiveRoomTimeline(current, refreshedPage.items),
+      );
+      setNotice(result.followed ? "Member followed." : "Member unfollowed.");
+    } catch (error) {
+      setNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleMessageMember = async (messageId: string) => {
+    setMessageActionId(messageId);
+    setNotice(null);
+    try {
+      const result = await directMessageRepository.start(messageId);
+      if (result.mode === "request_required") {
+        setMessageRequestError(null);
+        setMessageRequestTarget({
+          displayName: result.peer.displayName,
+          emoji: result.peer.emoji,
+          messageId,
+        });
+        return;
+      }
+      if (result.conversationId) {
+        router.push(`/messages/${encodeURIComponent(result.conversationId)}`);
+      }
+    } catch (error) {
+      setNotice(toLiveRoomApiError(error).message);
+      throw error;
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleMobileMessageMember = async (messageId: string) => {
+    setMobileSheet(null);
+    setActiveTab("chat");
+    await handleMessageMember(messageId);
+  };
+
+  const handleSendMessageRequest = async (requestBody: string) => {
+    if (!messageRequestTarget || messageRequestBusy) return;
+    setMessageRequestBusy(true);
+    setMessageRequestError(null);
+    try {
+      const result = await directMessageRepository.request(
+        messageRequestTarget.messageId,
+        requestBody,
+      );
+      if (!result.conversationId) {
+        throw new Error("The message request could not be opened.");
+      }
+      setMessageRequestTarget(null);
+      router.push(`/messages/${encodeURIComponent(result.conversationId)}`);
+    } catch (error) {
+      setMessageRequestError(toLiveRoomApiError(error).message);
+    } finally {
+      setMessageRequestBusy(false);
+    }
+  };
+
+  const handleCloseMessageRequest = useCallback(() => {
+    if (messageRequestBusy) return;
+    setMessageRequestError(null);
+    setMessageRequestTarget(null);
+  }, [messageRequestBusy]);
+
   const handleUnblock = async (blockId: string) => {
     setMessageActionId(blockId);
     try {
       await repository.unblock(blockId);
-      setBlocks((current) =>
-        current.filter((item) => item.id !== blockId),
-      );
+      setBlocks((current) => current.filter((item) => item.id !== blockId));
       updatesSubscriptionRef.current?.close();
       updatesSubscriptionRef.current = null;
       const generation = timelineGenerationRef.current + 1;
@@ -917,9 +1176,7 @@ export function CommunityRoomClient({
         setTimelineState("ready");
       }
       setHiddenMessages(await repository.listHiddenMessages());
-      setNotice(
-        action === "hide" ? "Message hidden." : "Message restored.",
-      );
+      setNotice(action === "hide" ? "Message hidden." : "Message restored.");
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
       throw error;
@@ -929,96 +1186,35 @@ export function CommunityRoomClient({
   };
 
   return (
-    <StockRadarAppShell
-      activeNavigationItem={null}
-      themeMode="user-selectable"
-    >
-      <main className={`${roomStyles.page} ${styles.communityPage}`}>
-        <header className={styles.communityHeader}>
-          <div>
-            <Link className={styles.backLink} href="/live">
-              <ArrowLeft aria-hidden="true" size={15} />
-              Community Rooms
-            </Link>
-            <div className={styles.communityHeaderActions}>
-              <RoomMembershipControl
-                busy={membershipBusy}
-                isGuest={profile?.isGuest === true}
-                joined={membershipJoined}
-                loginHref={roomLoginHref}
-                onJoin={handleJoinRoom}
-                onLeave={handleLeaveRoom}
-                roomLabel={room.name}
-              />
-              <LiveRoomInviteMenu
-                ariaLabel="Invite people to this Community Room"
-                room={{
-                  kind: "community",
-                  name: room.name,
-                  slug: room.slug,
-                }}
-              />
-            </div>
-            <span className={styles.eyebrow}>Community Room</span>
-            <h1>{room.name}</h1>
-            <p>{room.summary}</p>
-            {roomCounts ? (
-              <div className={styles.communityRoomCounts}>
-                <strong>{roomCounts.memberCount} members</strong>
-                {roomCounts.visitorCount > 0 ? (
-                  <span>{roomCounts.visitorCount} visitors</span>
-                ) : null}
-                <span>{roomCounts.onlineCount} online</span>
-              </div>
-            ) : null}
-            <div className={styles.metaList} hidden={activeTab !== "about"}>
-              <span>{getCommunityTopicLabel(room.topic)}</span>
-              <span>{getCommunityRoomStyleLabel(room.roomStyle)}</span>
-              <span>{getCommunityLanguageLabel(room.language)}</span>
-              {room.focusTags.map((tag) => (
-                <span key={tag}>
-                  <Hash aria-hidden="true" size={12} />
-                  {getCommunityFocusTagLabel(tag)}
-                </span>
-              ))}
-            </div>
-            {room.themes.length || room.industries.length ? (
-              <div
-                aria-label="Room discovery themes and industries"
-                className={styles.discoveryList}
-                hidden={activeTab !== "about"}
-              >
-                {room.themes.map((theme) => (
-                  <Link href={`/live?theme=${theme}`} key={`theme:${theme}`}>
-                    Theme · {getCommunityRoomThemeLabel(theme)}
-                  </Link>
-                ))}
-                {room.industries.map((industry) => (
-                  <Link
-                    href={`/live?industry=${industry}`}
-                    key={`industry:${industry}`}
-                  >
-                    Industry · {getCommunityRoomIndustryLabel(industry)}
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-            {room.relatedTickers.length ? (
-              <div
-                aria-label="Related company tickers"
-                className={styles.tickerList}
-                hidden={activeTab !== "about"}
-              >
-                {room.relatedTickers.map((ticker) => (
-                  <Link href={`/live/${ticker}`} key={ticker}>
-                    {ticker}
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </header>
+    <StockRadarAppShell activeNavigationItem={null} themeMode="user-selectable">
+      <div className={roomStyles.page}>
+        <div
+          className={roomStyles.roomHeaderRow}
+          data-ad-enabled={adsEnabledForViewer ? "true" : undefined}
+        >
+          <CommunityRoomHeader
+            isGuest={profile?.isGuest === true}
+            loginHref={roomLoginHref}
+            membershipBusy={membershipBusy}
+            membershipJoined={membershipJoined}
+            onJoin={handleJoinRoom}
+            onLeave={handleLeaveRoom}
+            room={room}
+            roomCounts={roomCounts}
+          />
+          <LiveRoomHeaderAdSlot enabledForViewer={adsEnabledForViewer} />
+        </div>
 
+        <LiveRoomMobileInlineAdSlot enabledForViewer={adsEnabledForViewer} />
+
+        {membershipJoined ? (
+          <div className={roomStyles.followNote}>
+            <p>
+              Joined. This room stays in My Rooms and tracks unread activity
+              until you choose Leave room.
+            </p>
+          </div>
+        ) : null}
         <RoomTabs
           active={activeTab}
           items={[
@@ -1026,233 +1222,385 @@ export function CommunityRoomClient({
             { label: "Posts", value: "posts" },
             { label: "About", value: "about" },
           ]}
-          onChange={setActiveTab}
+          onChange={handleDesktopTabChange}
+          visibility="desktop"
+        />
+        <RoomTabs
+          active={mobileSheet ?? "chat"}
+          dockOnMobile
+          idPrefix="live-room-mobile"
+          items={communityMobileTabs}
+          onChange={handleMobileTabChange}
+          onItemElementChange={handleMobileTabElementChange}
+          visibility="mobile"
         />
 
-        {activeTab === "about" ? (
-          <section
-            aria-labelledby="live-room-about-tab"
-            className={`${roomStyles.chatPanel} ${styles.communityChat}`}
-            id="live-room-about-panel"
-            role="tabpanel"
-          >
-            <h2>About this room</h2>
-            <p>{room.summary}</p>
-            <small>
-              Created {new Date(room.createdAt).toLocaleDateString("en-US")}
-            </small>
-          </section>
-        ) : null}
-
-        {activeTab === "posts" ? (
-          <PostsPanel
-            loginHref={roomLoginHref}
-            onCreated={(preview) => {
-              setMembershipJoined(true);
-              membershipRef.current = true;
-              setTimeline((current) =>
-                mergeLiveRoomTimeline(current, [preview]),
-              );
-              setTimelineState("ready");
-              setActiveTab("chat");
-            }}
-            profile={profile}
-            repository={repository}
-          />
-        ) : null}
-
-        <section
-          aria-label={`${room.name} Community Room discussion`}
-          aria-labelledby="live-room-chat-tab"
-          className={`${roomStyles.chatPanel} ${styles.communityChat}`}
-          hidden={activeTab !== "chat"}
-          id="live-room-chat-panel"
-          role="tabpanel"
-        >
-          <div className={roomStyles.chatTop}>
-            <div className={roomStyles.chatHeading}>
-              <div>
-                <span>Open discussion</span>
-                <h2>{room.name}</h2>
-              </div>
-              <small>
-                Realtime updates · 45-second polling fallback
-                {notice ? ` · ${notice}` : ""}
-              </small>
-            </div>
-            <div className={roomStyles.roomManagement}>
-              <button
-                aria-expanded={blocksOpen}
-                onClick={() => setBlocksOpen((value) => !value)}
-                type="button"
+        <div className={roomStyles.workspaceLayout}>
+          <div className={roomStyles.primaryColumn}>
+            {activeTab === "about" ? (
+              <section
+                aria-labelledby="live-room-about-tab"
+                className={roomStyles.desktopTabPanel}
+                id="live-room-about-panel"
+                role="tabpanel"
               >
-                Blocked {blocks.length}
-              </button>
-              {profile?.canModerate ? (
-                <button
-                  aria-expanded={moderationOpen}
-                  onClick={() =>
-                    setModerationOpen((value) => !value)
-                  }
-                  type="button"
-                >
-                  Hidden {hiddenMessages.length}
-                </button>
-              ) : null}
-            </div>
-            {blocksOpen ? (
-              <div
-                aria-label="Blocked Community Room authors"
-                className={roomStyles.managementPanel}
-              >
-                {blocks.length ? (
-                  blocks.map((block) => (
-                    <div key={block.id}>
-                      <span aria-hidden="true">{block.emoji}</span>
-                      <strong>{block.displayName}</strong>
-                      <button
-                        disabled={messageActionId === block.id}
-                        onClick={() => void handleUnblock(block.id)}
-                        type="button"
-                      >
-                        Unblock
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p>No blocked authors.</p>
-                )}
+                <CommunityRoomAbout room={room} />
+              </section>
+            ) : null}
+
+            {activeTab === "posts" ? (
+              <div className={roomStyles.desktopTabPanel}>
+                <PostsPanel
+                  cursor={postsCursor}
+                  loginHref={roomLoginHref}
+                  onCreated={handlePostCreated}
+                  onLoad={handleLoadPosts}
+                  onPostsChange={setPosts}
+                  posts={posts}
+                  profile={profile}
+                  repository={repository}
+                  state={postsState}
+                />
               </div>
             ) : null}
-            {profile?.canModerate && moderationOpen ? (
-              <div
-                aria-label="Hidden Community Room messages"
-                className={roomStyles.managementPanel}
-              >
-                {hiddenMessages.length ? (
-                  hiddenMessages.map((message) => (
-                    <div key={message.id}>
-                      <span aria-hidden="true">
-                        {message.author.emoji}
-                      </span>
-                      <p>
-                        <strong>{message.author.displayName}</strong>
-                        {" · "}
-                        {message.body}
-                      </p>
-                      <button
-                        disabled={messageActionId === message.id}
-                        onClick={() =>
-                          void handleModerate(message.id, "restore")
-                        }
-                        type="button"
-                      >
-                        Restore
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p>No hidden messages.</p>
-                )}
-              </div>
-            ) : null}
-          </div>
 
-          <div className={roomStyles.timelineViewport}>
             <div
-              className={roomStyles.timeline}
-              onScroll={handleTimelineScroll}
-              ref={timelineElementRef}
+              aria-labelledby="live-room-chat-tab"
+              className={roomStyles.roomLayout}
+              data-desktop-hidden={activeTab !== "chat"}
+              id="live-room-chat-panel"
+              role="tabpanel"
             >
-            {olderCursor && timelineState === "ready" ? (
-              <button
-                className={roomStyles.loadOlderButton}
-                disabled={loadingOlder}
-                onClick={handleLoadOlder}
-                type="button"
+              <section
+                aria-label={`${room.name} Community Room discussion`}
+                className={roomStyles.chatPanel}
               >
-                {loadingOlder ? "Loading…" : "Load older messages"}
-              </button>
-            ) : null}
-            <ChatTimeline
-              ariaLabel={`${room.name} Community Room messages`}
-              canModerate={profile?.canModerate === true}
-              currentProfileName={profile?.displayName.trim() || ""}
-              emptyDescription="Share the first useful thought with the room."
-              emptyTitle="Start this community discussion."
-              firstUnreadMessageId={firstUnreadMessageId}
-              highlightedMessageId={highlightedMessageId}
-              items={timeline}
-              loginHref={roomLoginHref}
-              messageActionId={messageActionId}
-              messageLikeIds={messageLikeIds}
-              onBlock={handleBlock}
-              onHide={(messageId) =>
-                handleModerate(messageId, "hide")
-              }
-              onOpenReplyTarget={handleOpenReplyTarget}
-              onReply={handleReply}
-              onReport={handleReport}
-              onToggleMessageLike={handleToggleMessageLike}
-              onRetry={() => setReloadKey((value) => value + 1)}
-              state={timelineState}
-              viewerIsGuest={profile?.isGuest !== false}
-            />
+                <div className={roomStyles.timelineViewport}>
+                  <div
+                    className={roomStyles.timeline}
+                    onScroll={handleTimelineScroll}
+                    ref={timelineElementRef}
+                  >
+                    {notice ? (
+                      <p className={roomStyles.roomNotice} role="status">
+                        {notice}
+                      </p>
+                    ) : null}
+                    {blocks.length > 0 ||
+                    (profile?.canModerate && hiddenMessages.length > 0) ? (
+                      <div className={roomStyles.roomManagement}>
+                        {blocks.length > 0 ? (
+                          <button
+                            aria-expanded={blocksOpen}
+                            onClick={() => setBlocksOpen((value) => !value)}
+                            type="button"
+                          >
+                            Blocked {blocks.length}
+                          </button>
+                        ) : null}
+                        {profile?.canModerate && hiddenMessages.length > 0 ? (
+                          <button
+                            aria-expanded={moderationOpen}
+                            onClick={() => setModerationOpen((value) => !value)}
+                            type="button"
+                          >
+                            Hidden {hiddenMessages.length}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {blocksOpen && blocks.length > 0 ? (
+                      <div
+                        aria-label="Blocked Community Room authors"
+                        className={roomStyles.managementPanel}
+                      >
+                        {blocks.map((block) => (
+                          <div key={block.id}>
+                            <span aria-hidden="true">{block.emoji}</span>
+                            <strong>{block.displayName}</strong>
+                            <button
+                              disabled={messageActionId === block.id}
+                              onClick={() => void handleUnblock(block.id)}
+                              type="button"
+                            >
+                              Unblock
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {profile?.canModerate &&
+                    moderationOpen &&
+                    hiddenMessages.length > 0 ? (
+                      <div
+                        aria-label="Hidden Community Room messages"
+                        className={roomStyles.managementPanel}
+                      >
+                        {hiddenMessages.map((message) => (
+                          <div key={message.id}>
+                            <span aria-hidden="true">
+                              {message.author.emoji}
+                            </span>
+                            <p>
+                              <strong>{message.author.displayName}</strong>
+                              {" · "}
+                              {message.body}
+                            </p>
+                            <button
+                              disabled={messageActionId === message.id}
+                              onClick={() =>
+                                void handleModerate(message.id, "restore")
+                              }
+                              type="button"
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {olderCursor && timelineState === "ready" ? (
+                      <button
+                        className={roomStyles.loadOlderButton}
+                        disabled={loadingOlder}
+                        onClick={handleLoadOlder}
+                        type="button"
+                      >
+                        {loadingOlder ? "Loading…" : "Load older messages"}
+                      </button>
+                    ) : null}
+                    <ChatTimeline
+                      ariaLabel={`${room.name} Community Room messages`}
+                      canModerate={profile?.canModerate === true}
+                      currentProfileName={profile?.displayName.trim() || ""}
+                      emptyDescription="Share the first useful thought with the room."
+                      emptyTitle="Start this community discussion."
+                      firstUnreadMessageId={firstUnreadMessageId}
+                      highlightedMessageId={highlightedMessageId}
+                      items={timeline}
+                      loginHref={roomLoginHref}
+                      messageActionId={messageActionId}
+                      messageLikeIds={messageLikeIds}
+                      onBlock={handleBlock}
+                      onHide={(messageId) => handleModerate(messageId, "hide")}
+                      onMessageMember={handleMessageMember}
+                      onOpenReplyTarget={handleOpenReplyTarget}
+                      onReply={handleReply}
+                      onReport={handleReport}
+                      onToggleMemberFollow={handleMemberFollow}
+                      onToggleMessageLike={handleToggleMessageLike}
+                      onRetry={() => setReloadKey((value) => value + 1)}
+                      state={timelineState}
+                      viewerIsGuest={profile?.isGuest !== false}
+                    />
+                  </div>
+                  {timelineState === "ready" &&
+                  (!nearBottom || pendingUnreadCount > 0 || !isLatestLoaded) ? (
+                    <LiveRoomLatestButton
+                      busy={loadingLatest}
+                      onClick={() => void handleLatest()}
+                      unreadCount={pendingUnreadCount}
+                    />
+                  ) : null}
+                </div>
+
+                <MessageComposer
+                  body={body}
+                  decision={decision}
+                  disabled={
+                    profile === null ||
+                    timelineState === "error" ||
+                    timelineState === "loading"
+                  }
+                  eventReference={null}
+                  focusRequestId={composerFocusRequestId}
+                  loginHref={roomLoginHref}
+                  onBodyChange={(nextBody) => {
+                    setBody(nextBody);
+                    setDecision(null);
+                  }}
+                  onClearReference={() => undefined}
+                  onCancelReply={() => setReplyingTo(null)}
+                  onPresenceSettingChange={handlePresenceSettingChange}
+                  onProofChange={setBrokerageProof}
+                  onProfileChange={handleProfileChange}
+                  onSend={handleSend}
+                  placeholder="Share a useful view with this community…"
+                  presenceSettingBusy={presenceSettingBusy}
+                  proof={brokerageProof}
+                  profile={profile}
+                  profileOpen={profileOpen}
+                  replyPreview={
+                    replyingTo
+                      ? {
+                          authorDisplayName: replyingTo.author.displayName,
+                          authorEmoji: replyingTo.author.emoji,
+                          bodyPreview: createLiveRoomReplyBodyPreview(
+                            replyingTo.body,
+                          ),
+                          messageId: replyingTo.id,
+                        }
+                      : null
+                  }
+                  sending={sending}
+                  setProfileOpen={setProfileOpen}
+                  showPresence={showPresence}
+                />
+              </section>
             </div>
-            {timelineState === "ready" &&
-            (!nearBottom ||
-              pendingUnreadCount > 0 ||
-              !isLatestLoaded) ? (
-              <LiveRoomLatestButton
-                busy={loadingLatest}
-                onClick={() => void handleLatest()}
-                unreadCount={pendingUnreadCount}
-              />
-            ) : null}
           </div>
 
-          <MessageComposer
-            body={body}
-            decision={decision}
-            disabled={
-              profile === null ||
-              timelineState === "error" ||
-              timelineState === "loading"
-            }
-            eventReference={null}
-            focusRequestId={composerFocusRequestId}
-            loginHref={roomLoginHref}
-            onBodyChange={(nextBody) => {
-              setBody(nextBody);
-              setDecision(null);
-            }}
-            onClearReference={() => undefined}
-            onCancelReply={() => setReplyingTo(null)}
-            onPresenceSettingChange={handlePresenceSettingChange}
-            onProfileChange={handleProfileChange}
-            onSend={handleSend}
-            placeholder="Share a useful view with this community…"
-            presenceSettingBusy={presenceSettingBusy}
-            profile={profile}
-            profileOpen={profileOpen}
-            replyPreview={
-              replyingTo
-                ? {
-                    authorDisplayName: replyingTo.author.displayName,
-                    authorEmoji: replyingTo.author.emoji,
-                    bodyPreview: createLiveRoomReplyBodyPreview(
-                      replyingTo.body,
-                    ),
-                    messageId: replyingTo.id,
-                  }
-                : null
-            }
-            sending={sending}
-            setProfileOpen={setProfileOpen}
-            showPresence={showPresence}
-          />
-        </section>
-      </main>
+          <div className={roomStyles.desktopRail}>
+            <LiveRoomDesktopSidePanel
+              aboutContent={<CommunityRoomAbout compact room={room} />}
+              currentRoomHref={`/live/community/${room.slug}`}
+              eventSource="api"
+              events={[]}
+              isGuest={profile?.isGuest === true}
+              joinedRooms={joinedRooms}
+              joinedRoomsError={joinedRoomsError}
+              joinedRoomsLoading={joinedRoomsLoading}
+              loginHref={roomLoginHref}
+              memberSummaries={memberSummaries}
+              messageActionId={messageActionId}
+              onChangeMainTab={(tab) =>
+                handleDesktopTabChange(tab === "posts" ? "posts" : "chat")
+              }
+              onMessageMember={handleMessageMember}
+              onOpenAbout={() => handleDesktopTabChange("about")}
+              onRetryPosts={() => {
+                void handleLoadPosts().catch(() => undefined);
+              }}
+              onToggleMemberFollow={handleMemberFollow}
+              posts={posts}
+              postsState={postsState}
+              timeline={timeline}
+            />
+            <LiveRoomRailAdSlot enabledForViewer={adsEnabledForViewer} />
+          </div>
+        </div>
+      </div>
+
+      {mobileSheet ? (
+        <BottomSheetShell
+          aria-label={
+            mobileSheet === "posts"
+              ? "Posts"
+              : mobileSheet === "about"
+                ? "About"
+                : mobileSheet === "members"
+                  ? "Members"
+                  : "My Rooms"
+          }
+          closeLabel={`Close ${mobileSheet}`}
+          fixedFooter={
+            <RoomTabs
+              active={mobileSheet}
+              dockInMobileSheet
+              idPrefix="live-room-sheet"
+              items={communityMobileTabs}
+              onChange={handleMobileTabChange}
+              visibility="mobile"
+            />
+          }
+          id={`live-room-${mobileSheet}-sheet`}
+          isOpen
+          layout="full-scroll"
+          onDismiss={() => {
+            setMobileSheet(null);
+            setActiveTab("chat");
+          }}
+          openerRef={
+            mobileSheet === "posts"
+              ? mobilePostsOpenerRef
+              : mobileSheet === "about"
+                ? mobileAboutOpenerRef
+                : mobileSheet === "members"
+                  ? mobileMembersOpenerRef
+                  : mobileRoomsOpenerRef
+          }
+          overlayLabel={`Close ${mobileSheet}`}
+          viewport="mobile"
+        >
+          {mobileSheet === "posts" ? (
+            <div className={roomStyles.mobileSheetContent}>
+              <PostsPanel
+                cursor={postsCursor}
+                loginHref={roomLoginHref}
+                onCreated={handlePostCreated}
+                onLoad={handleLoadPosts}
+                onPostsChange={setPosts}
+                posts={posts}
+                profile={profile}
+                repository={repository}
+                state={postsState}
+              />
+            </div>
+          ) : null}
+          {mobileSheet === "about" ? (
+            <div className={roomStyles.mobileSheetContent}>
+              <CommunityRoomAbout room={room} />
+            </div>
+          ) : null}
+          {mobileSheet === "members" ? (
+            <div
+              className={`${roomStyles.mobileSheetContent} ${roomStyles.mobileMembersSheetContent}`}
+            >
+              <header className={roomStyles.mobileSheetHeading}>
+                <h2>Members</h2>
+                <p>
+                  Follow public members or start a conversation from their
+                  latest visible activity.
+                </p>
+              </header>
+              <LiveRoomMemberList
+                isGuest={profile?.isGuest === true}
+                loginHref={roomLoginHref}
+                members={members}
+                memberSummaries={memberSummaries}
+                messageActionId={messageActionId}
+                onMessageMember={handleMobileMessageMember}
+                onToggleMemberFollow={handleMemberFollow}
+              />
+            </div>
+          ) : null}
+          {mobileSheet === "rooms" ? (
+            <div className={roomStyles.mobileSheetContent}>
+              <header className={roomStyles.mobileSheetHeading}>
+                <h2>My Rooms</h2>
+                <p>Only rooms you have joined appear here.</p>
+              </header>
+              {profile?.isGuest ? (
+                <div className={roomStyles.joinedRoomsStatus}>
+                  <Link href={roomLoginHref}>Sign in to view My Rooms</Link>
+                </div>
+              ) : (
+                <JoinedRoomsList
+                  currentHref={`/live/community/${room.slug}`}
+                  data={joinedRooms}
+                  error={joinedRoomsError}
+                  loading={joinedRoomsLoading}
+                />
+              )}
+              <Link
+                className={roomStyles.mobileRoomsViewAll}
+                href={profile?.isGuest ? roomLoginHref : "/live?view=joined"}
+              >
+                View all joined rooms
+              </Link>
+            </div>
+          ) : null}
+        </BottomSheetShell>
+      ) : null}
+      {messageRequestTarget ? (
+        <DirectMessageRequestModal
+          busy={messageRequestBusy}
+          error={messageRequestError}
+          onCancel={handleCloseMessageRequest}
+          onSubmit={handleSendMessageRequest}
+          target={messageRequestTarget}
+        />
+      ) : null}
     </StockRadarAppShell>
   );
 }

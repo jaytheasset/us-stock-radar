@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
+import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import {
   FileText,
   Heart,
@@ -98,6 +101,8 @@ export function PostsPanel({
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [brokerageProof, setBrokerageProof] =
+    useState<BrokerageProofSummary | null>(null);
   const [tickers, setTickers] = useState("");
   const [tickerResults, setTickerResults] = useState<TickerSearchResult[]>([]);
   const [tickerSearchState, setTickerSearchState] =
@@ -267,6 +272,7 @@ export function PostsPanel({
       eventId: events.some((event) => event.eventId === eventId)
         ? eventId
         : null,
+      proofId: brokerageProof?.id || null,
       relatedTickers,
       signalLabels,
       title,
@@ -279,6 +285,7 @@ export function PostsPanel({
       onCreated?.({
         author: post.author,
         bodyPreview: createLiveRoomPostBodyPreview(post.body),
+        brokerageProof: post.brokerageProof,
         canLike: post.canLike,
         commentCount: post.commentCount,
         createdAt: post.createdAt,
@@ -293,6 +300,7 @@ export function PostsPanel({
       });
       setTitle("");
       setBody("");
+      setBrokerageProof(null);
       setTickers("");
       setEventId("");
       setDirection(null);
@@ -527,6 +535,11 @@ export function PostsPanel({
             onChange={setDirection}
             value={direction}
           />
+          <BrokerageEvidencePicker
+            loginHref={loginHref}
+            onChange={setBrokerageProof}
+            value={brokerageProof}
+          />
           <div className={styles.formActions}>
             <button disabled={busy} type="submit">
               {busy ? <LoaderCircle aria-hidden="true" size={16} /> : null}
@@ -582,6 +595,9 @@ export function PostsPanel({
                 <Link href={`/live/posts/${post.id}`}>{post.title}</Link>
               </h3>
               <p>{post.body}</p>
+              {post.brokerageProof ? (
+                <BrokerageProofCard compact proof={post.brokerageProof} />
+              ) : null}
               {post.direction || post.signalLabels.length ? (
                 <div className={styles.postMetadata}>
                   <PostDirectionBadge direction={post.direction} />

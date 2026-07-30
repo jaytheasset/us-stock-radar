@@ -248,6 +248,11 @@ export function PublicMemberProfileClient({
                   <div>
                     <small>Live Room member</small>
                     <h1>{member.displayName}</h1>
+                    {member.brokerageConnected ? (
+                      <span className={styles.profileBrokerageBadge}>
+                        Brokerage connected
+                      </span>
+                    ) : null}
                     <span className={styles.profileReceivedLikes}>
                       <Heart aria-hidden="true" size={14} />
                       Received likes {member.receivedLikeCount}

@@ -4,6 +4,8 @@ import { BadgeCheck, Send, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
+import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import {
   LIVE_ROOM_MESSAGE_MAX_LENGTH,
   type ModerationDecision,
@@ -29,12 +31,14 @@ type MessageComposerProps = {
   onCancelReply: () => void;
   onProfileChange: (profile: LiveRoomProfile) => void;
   onPresenceSettingChange: (showPresence: boolean) => void;
+  onProofChange: (proof: BrokerageProofSummary | null) => void;
   onSend: () => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
   replyPreview: LiveRoomReplyPreview | null;
   placeholder?: string;
   presenceSettingBusy: boolean;
+  proof: BrokerageProofSummary | null;
   sending: boolean;
   setProfileOpen: (open: boolean) => void;
   showPresence: boolean | null;
@@ -52,12 +56,14 @@ export function MessageComposer({
   onCancelReply,
   onProfileChange,
   onPresenceSettingChange,
+  onProofChange,
   onSend,
   profile,
   profileOpen,
   replyPreview,
   placeholder = "Share a company view…",
   presenceSettingBusy,
+  proof,
   sending,
   setProfileOpen,
   showPresence,
@@ -278,6 +284,11 @@ export function MessageComposer({
       </div>
 
       <div className={styles.composerMeta}>
+        <BrokerageEvidencePicker
+          loginHref={loginHref}
+          onChange={onProofChange}
+          value={proof}
+        />
         <span>Enter to send · Shift+Enter for a new line</span>
         {decision && !decision.allowed ? (
           <span

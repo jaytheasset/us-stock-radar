@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import {
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
@@ -176,6 +177,9 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   </aside>
                 ) : null}
                 <div className={styles.body}>{post.body}</div>
+                {post.brokerageProof ? (
+                  <BrokerageProofCard proof={post.brokerageProof} />
+                ) : null}
               </>
             )}
 
@@ -244,6 +248,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                           body: post.body,
                           direction: post.direction,
                           eventId: post.eventReference?.eventId || null,
+                          proofId: post.brokerageProof?.id || null,
                           relatedTickers: post.relatedTickers,
                           signalLabels: post.signalLabels,
                           title: post.title,

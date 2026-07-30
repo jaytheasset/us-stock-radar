@@ -17,8 +17,10 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import {
   LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT,
   selectLiveRoomSidePanelMembers,
@@ -33,22 +35,29 @@ import type {
 } from "@/lib/live-room/types";
 import { CompanyEventSignalScore } from "./CompanyEventSignalScore";
 import { JoinedRoomsList } from "./JoinedRoomsList";
-import {
-  PostDirectionBadge,
-  PostSignalChips,
-} from "./PostSignals";
+import { PostDirectionBadge, PostSignalChips } from "./PostSignals";
 import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
-type SidePanelTab = "members" | "posts" | "rooms" | "updates";
+type SidePanelTab = "about" | "members" | "posts" | "rooms" | "updates";
 type PostState = "error" | "loading" | "ready";
 
-const SIDE_PANEL_TABS = [
+const COMPANY_SIDE_PANEL_TABS = [
   { label: "Updates", value: "updates" },
   { label: "Posts", value: "posts" },
   { label: "Members", value: "members" },
   { label: "My Rooms", value: "rooms" },
+] as const satisfies ReadonlyArray<{
+  label: string;
+  value: SidePanelTab;
+}>;
+
+const COMMUNITY_SIDE_PANEL_TABS = [
+  { label: "Posts", value: "posts" },
+  { label: "Members", value: "members" },
+  { label: "My Rooms", value: "rooms" },
+  { label: "About", value: "about" },
 ] as const satisfies ReadonlyArray<{
   label: string;
   value: SidePanelTab;
@@ -61,6 +70,7 @@ const compactCountFormatter = new Intl.NumberFormat("en-US", {
 });
 
 export function LiveRoomDesktopSidePanel({
+  aboutContent,
   eventSource,
   events,
   isGuest,
@@ -71,6 +81,7 @@ export function LiveRoomDesktopSidePanel({
   memberSummaries,
   messageActionId,
   onChangeMainTab,
+  onOpenAbout,
   onMessageMember,
   onRetryPosts,
   onToggleMemberFollow,
@@ -79,6 +90,7 @@ export function LiveRoomDesktopSidePanel({
   timeline,
   currentRoomHref,
 }: {
+  aboutContent?: ReactNode;
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
   isGuest: boolean;
@@ -89,19 +101,21 @@ export function LiveRoomDesktopSidePanel({
   memberSummaries: readonly LiveRoomMemberSummary[] | null;
   messageActionId?: string | null;
   onChangeMainTab: (tab: CompanyLiveRoomTab) => void;
+  onOpenAbout?: () => void;
   onMessageMember: (messageId: string) => Promise<void>;
   onRetryPosts: () => void;
-  onToggleMemberFollow: (
-    messageId: string,
-    followed: boolean,
-  ) => Promise<void>;
+  onToggleMemberFollow: (messageId: string, followed: boolean) => Promise<void>;
   posts: readonly LiveRoomPost[];
   postsState: PostState;
   timeline: readonly LiveRoomTimelineItem[];
   currentRoomHref: string;
 }) {
-  const [activeTab, setActiveTab] =
-    useState<SidePanelTab>("updates");
+  const sidePanelTabs = aboutContent
+    ? COMMUNITY_SIDE_PANEL_TABS
+    : COMPANY_SIDE_PANEL_TABS;
+  const [activeTab, setActiveTab] = useState<SidePanelTab>(
+    aboutContent ? "posts" : "updates",
+  );
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const members = useMemo(
     () => selectLiveRoomSidePanelMembers({ posts, timeline }),
@@ -114,20 +128,18 @@ export function LiveRoomDesktopSidePanel({
   ) => {
     let nextIndex: number | null = null;
     if (event.key === "ArrowRight") {
-      nextIndex = (index + 1) % SIDE_PANEL_TABS.length;
+      nextIndex = (index + 1) % sidePanelTabs.length;
     }
     if (event.key === "ArrowLeft") {
-      nextIndex =
-        (index - 1 + SIDE_PANEL_TABS.length) %
-        SIDE_PANEL_TABS.length;
+      nextIndex = (index - 1 + sidePanelTabs.length) % sidePanelTabs.length;
     }
     if (event.key === "Home") nextIndex = 0;
     if (event.key === "End") {
-      nextIndex = SIDE_PANEL_TABS.length - 1;
+      nextIndex = sidePanelTabs.length - 1;
     }
     if (nextIndex === null) return;
     event.preventDefault();
-    const nextTab = SIDE_PANEL_TABS[nextIndex];
+    const nextTab = sidePanelTabs[nextIndex];
     if (!nextTab) return;
     setActiveTab(nextTab.value);
     tabRefs.current[nextIndex]?.focus();
@@ -150,14 +162,12 @@ export function LiveRoomDesktopSidePanel({
         className={styles.sidePanelTabs}
         role="tablist"
       >
-        {SIDE_PANEL_TABS.map((tab, index) => (
+        {sidePanelTabs.map((tab, index) => (
           <button
             aria-controls={`live-room-side-${tab.value}-panel`}
             aria-selected={activeTab === tab.value}
             className={
-              activeTab === tab.value
-                ? styles.activeSidePanelTab
-                : undefined
+              activeTab === tab.value ? styles.activeSidePanelTab : undefined
             }
             id={`live-room-side-${tab.value}-tab`}
             key={tab.value}
@@ -200,6 +210,8 @@ export function LiveRoomDesktopSidePanel({
             onMessageMember={onMessageMember}
             onToggleMemberFollow={onToggleMemberFollow}
           />
+        ) : activeTab === "about" ? (
+          aboutContent
         ) : isGuest ? (
           <div className={styles.sidePanelStatus}>
             <Users aria-hidden="true" size={17} />
@@ -223,6 +235,15 @@ export function LiveRoomDesktopSidePanel({
           View all
           <ArrowRight aria-hidden="true" size={14} />
         </Link>
+      ) : activeTab === "about" ? (
+        <button
+          className={styles.sidePanelViewAll}
+          onClick={onOpenAbout}
+          type="button"
+        >
+          View about
+          <ArrowRight aria-hidden="true" size={14} />
+        </button>
       ) : (
         <button
           className={styles.sidePanelViewAll}
@@ -256,52 +277,46 @@ function UpdatesPreview({
 
   return (
     <div className={styles.sidePanelList}>
-      {events
-        .slice(0, LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT)
-        .map((event) =>
-          event.detailHref ? (
-            <Link
-              className={styles.sidePanelItem}
-              href={event.detailHref}
-              key={event.eventId}
-            >
-              <span className={styles.sidePanelItemIcon}>
-                <Newspaper aria-hidden="true" size={14} />
-              </span>
-              <span>
-                <strong>{event.title}</strong>
-                <small>
-                  {event.kind === "filing" ? "Filing" : "News"} ·{" "}
-                  {formatPreviewDate(event.occurredAt)}
-                </small>
-                <CompanyEventSignalScore
-                  score={event.score}
-                  signal={event.signal}
-                />
-              </span>
-            </Link>
-          ) : (
-            <div
-              className={styles.sidePanelItem}
-              key={event.eventId}
-            >
-              <span className={styles.sidePanelItemIcon}>
-                <Newspaper aria-hidden="true" size={14} />
-              </span>
-              <span>
-                <strong>{event.title}</strong>
-                <small>
-                  Analysis unavailable ·{" "}
-                  {formatPreviewDate(event.occurredAt)}
-                </small>
-                <CompanyEventSignalScore
-                  score={event.score}
-                  signal={event.signal}
-                />
-              </span>
-            </div>
-          ),
-        )}
+      {events.slice(0, LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT).map((event) =>
+        event.detailHref ? (
+          <Link
+            className={styles.sidePanelItem}
+            href={event.detailHref}
+            key={event.eventId}
+          >
+            <span className={styles.sidePanelItemIcon}>
+              <Newspaper aria-hidden="true" size={14} />
+            </span>
+            <span>
+              <strong>{event.title}</strong>
+              <small>
+                {event.kind === "filing" ? "Filing" : "News"} ·{" "}
+                {formatPreviewDate(event.occurredAt)}
+              </small>
+              <CompanyEventSignalScore
+                score={event.score}
+                signal={event.signal}
+              />
+            </span>
+          </Link>
+        ) : (
+          <div className={styles.sidePanelItem} key={event.eventId}>
+            <span className={styles.sidePanelItemIcon}>
+              <Newspaper aria-hidden="true" size={14} />
+            </span>
+            <span>
+              <strong>{event.title}</strong>
+              <small>
+                Analysis unavailable · {formatPreviewDate(event.occurredAt)}
+              </small>
+              <CompanyEventSignalScore
+                score={event.score}
+                signal={event.signal}
+              />
+            </span>
+          </div>
+        ),
+      )}
     </div>
   );
 }
@@ -334,63 +349,61 @@ function PostsPreview({
 
   return (
     <div className={styles.sidePanelList}>
-      {posts
-        .slice(0, LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT)
-        .map((post) => (
-          <Link
-            className={`${styles.sidePanelItem} ${directionSurfaceStyles.surface}`}
-            data-direction={post.direction ?? "unspecified"}
-            href={`/live/posts/${post.id}`}
-            key={post.id}
-          >
-            <span className={styles.sidePanelItemIcon}>
-              <FileText aria-hidden="true" size={14} />
-            </span>
-            <div className={styles.sidePanelPostContent}>
-              <strong>{post.title}</strong>
-              <small>
-                {post.author.emoji} {post.author.displayName} ·{" "}
-                {formatPreviewDate(post.createdAt)}
-              </small>
-              <div className={styles.sidePanelPostMeta}>
-                {post.direction || post.signalLabels.length ? (
-                  <div className={styles.sidePanelPostSignals}>
-                    <PostDirectionBadge direction={post.direction} />
-                    <PostSignalChips
-                      maxVisible={1}
-                      signals={post.signalLabels}
-                    />
-                  </div>
-                ) : null}
+      {posts.slice(0, LIVE_ROOM_SIDE_PANEL_ITEM_LIMIT).map((post) => (
+        <Link
+          className={`${styles.sidePanelItem} ${directionSurfaceStyles.surface}`}
+          data-direction={post.direction ?? "unspecified"}
+          href={`/live/posts/${post.id}`}
+          key={post.id}
+        >
+          <span className={styles.sidePanelItemIcon}>
+            <FileText aria-hidden="true" size={14} />
+          </span>
+          <div className={styles.sidePanelPostContent}>
+            <strong>{post.title}</strong>
+            {post.brokerageProof ? (
+              <BrokerageProofCard compact proof={post.brokerageProof} />
+            ) : null}
+            <small>
+              {post.author.emoji} {post.author.displayName} ·{" "}
+              {formatPreviewDate(post.createdAt)}
+            </small>
+            <div className={styles.sidePanelPostMeta}>
+              {post.direction || post.signalLabels.length ? (
+                <div className={styles.sidePanelPostSignals}>
+                  <PostDirectionBadge direction={post.direction} />
+                  <PostSignalChips maxVisible={1} signals={post.signalLabels} />
+                </div>
+              ) : null}
+              <span
+                aria-label="Post activity"
+                className={styles.sidePanelPostActivity}
+              >
                 <span
-                  aria-label="Post activity"
-                  className={styles.sidePanelPostActivity}
+                  aria-label={`${post.likeCount} likes`}
+                  data-kind="like"
+                  title="Likes"
                 >
-                  <span
-                    aria-label={`${post.likeCount} likes`}
-                    data-kind="like"
-                    title="Likes"
-                  >
-                    <Heart
-                      aria-hidden="true"
-                      fill={post.isLiked ? "currentColor" : "none"}
-                      size={12}
-                    />
-                    {post.likeCount}
-                  </span>
-                  <span
-                    aria-label={`${post.commentCount} comments`}
-                    data-kind="comment"
-                    title="Comments"
-                  >
-                    <MessageCircle aria-hidden="true" size={12} />
-                    {post.commentCount}
-                  </span>
+                  <Heart
+                    aria-hidden="true"
+                    fill={post.isLiked ? "currentColor" : "none"}
+                    size={12}
+                  />
+                  {post.likeCount}
                 </span>
-              </div>
+                <span
+                  aria-label={`${post.commentCount} comments`}
+                  data-kind="comment"
+                  title="Comments"
+                >
+                  <MessageCircle aria-hidden="true" size={12} />
+                  {post.commentCount}
+                </span>
+              </span>
             </div>
-          </Link>
-        ))}
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -410,10 +423,7 @@ export function LiveRoomMemberList({
   memberSummaries: readonly LiveRoomMemberSummary[] | null;
   messageActionId?: string | null;
   onMessageMember: (messageId: string) => Promise<void>;
-  onToggleMemberFollow: (
-    messageId: string,
-    followed: boolean,
-  ) => Promise<void>;
+  onToggleMemberFollow: (messageId: string, followed: boolean) => Promise<void>;
 }) {
   if (!members.length) {
     return (
@@ -424,10 +434,7 @@ export function LiveRoomMemberList({
     return <PreviewStatus label="Loading public member summaries…" />;
   }
   const summaries = new Map(
-    memberSummaries.map((summary) => [
-      summary.publicProfileId,
-      summary,
-    ]),
+    memberSummaries.map((summary) => [summary.publicProfileId, summary]),
   );
   const visibleMembers = members.flatMap((member) => {
     const summary = summaries.get(member.publicProfileId);
@@ -447,13 +454,9 @@ export function LiveRoomMemberList({
         const emoji = summary.emoji;
         const sourceMessageId = member.sourceMessageId;
         const busy =
-          Boolean(sourceMessageId) &&
-          messageActionId === sourceMessageId;
+          Boolean(sourceMessageId) && messageActionId === sourceMessageId;
         return (
-          <div
-            className={styles.sidePanelMember}
-            key={member.publicProfileId}
-          >
+          <div className={styles.sidePanelMember} key={member.publicProfileId}>
             <Link
               className={styles.sidePanelMemberProfile}
               href={`/live/members/${member.publicProfileId}`}
@@ -491,10 +494,7 @@ export function LiveRoomMemberList({
                   <span title="Followers">
                     <Users aria-hidden="true" size={11} />
                     {formatMemberCount(summary.followerCount)}
-                    <span className={styles.visuallyHidden}>
-                      {" "}
-                      followers
-                    </span>
+                    <span className={styles.visuallyHidden}> followers</span>
                   </span>
                   <span title="Posts">
                     <FileText aria-hidden="true" size={11} />

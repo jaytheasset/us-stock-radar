@@ -89,7 +89,7 @@ export function AdminShell({
               </span>
             ))}
           </div>
-          <Link className={styles.siteLink} href="/">
+          <Link className={styles.siteLink} href="/dashboard-v2">
             Return to Stock Radar
           </Link>
         </div>
@@ -100,7 +100,7 @@ export function AdminShell({
           <Link className={styles.mobileBrand} href="/admin">
             Stock Radar Admin
           </Link>
-          <Link className={styles.mobileExit} href="/">
+          <Link className={styles.mobileExit} href="/dashboard-v2">
             Site
           </Link>
         </header>
