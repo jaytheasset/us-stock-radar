@@ -352,7 +352,8 @@ html [data-event-emphasis="dilution"] {
   color: var(--sr-color-event-legal);
 }
 
-[data-sr-theme="light"] {
+[data-sr-theme="light"],
+html[data-theme="light"] [data-sr-theme-mode="user-selectable"] {
   /* Color: canvas, surfaces, and overlays */
   --sr-color-page-background: #ffffff;
   --sr-color-page-background-top: #ffffff;
