@@ -1187,7 +1187,10 @@ export function CommunityRoomClient({
 
   return (
     <StockRadarAppShell activeNavigationItem={null} themeMode="user-selectable">
-      <div className={roomStyles.page}>
+      <div
+        className={roomStyles.page}
+        data-ad-enabled={adsEnabledForViewer ? "true" : "false"}
+      >
         <div
           className={roomStyles.roomHeaderRow}
           data-ad-enabled={adsEnabledForViewer ? "true" : undefined}

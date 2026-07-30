@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { getBrokerageConfig } from "./config";
+import { recordBrokerageManualRefreshWebhook } from "./serverRepository";
 import { supabaseSelect, supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
 import {
   canonicalizeSnapTradePayload,
@@ -78,6 +79,26 @@ export async function recordSnapTradeWebhook(
     const userId = readString(row?.user_id);
     if (connection.ok && userId) {
       const upperType = event.eventType.toUpperCase();
+      if (upperType === "ACCOUNT_HOLDINGS_UPDATED") {
+        const accountId =
+          readString(event.payload.accountId) ||
+          readString(event.payload.account_id);
+        const authorizationId =
+          readString(event.payload.brokerageAuthorizationId) ||
+          readString(event.payload.brokerage_authorization_id);
+        if (accountId && authorizationId) {
+          // SnapTrade sends one completion webhook per account. The quota row
+          // is counted only after every account under the connection reports
+          // a successful holdings update.
+          await recordBrokerageManualRefreshWebhook({
+            accountId,
+            authorizationId,
+            eventTimestamp: event.eventTimestamp,
+            succeeded: holdingsUpdateSucceeded(event.payload),
+            userId,
+          });
+        }
+      }
       const nextStatus = upperType.includes("DISABLED")
         ? "disabled"
         : upperType.includes("DELETED") ||
@@ -110,4 +131,19 @@ export async function recordSnapTradeWebhook(
 
 function readString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function holdingsUpdateSucceeded(payload: Record<string, unknown>) {
+  const details =
+    payload.details &&
+    typeof payload.details === "object" &&
+    !Array.isArray(payload.details)
+      ? (payload.details as Record<string, unknown>)
+      : null;
+  if (!details) return false;
+  const results = Object.values(details).filter(
+    (value): value is Record<string, unknown> =>
+      Boolean(value && typeof value === "object" && !Array.isArray(value)),
+  );
+  return results.length > 0 && results.every((result) => result.success === true);
 }

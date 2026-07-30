@@ -2,9 +2,22 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Landmark, Link2Off, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Landmark,
+  Link2Off,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import type {
+  BrokerageAccountActivities,
+  BrokerageAccountOrder,
+  BrokerageAccountPositions,
   BrokerageConnectionStatus,
+  BrokerageLinkedAccount,
+  BrokerageManualRefreshQuota,
+  BrokerageManualRefreshResult,
   BrokerageProofCandidate,
   BrokerageProofDisclosure,
   BrokerageProofSummary,
@@ -21,6 +34,17 @@ export function BrokerageAccountClient({
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [candidates, setCandidates] = useState<BrokerageProofCandidate[]>([]);
   const [proofs, setProofs] = useState<BrokerageProofSummary[]>([]);
+  const [accounts, setAccounts] = useState<BrokerageLinkedAccount[]>([]);
+  const [refreshQuota, setRefreshQuota] =
+    useState<BrokerageManualRefreshQuota | null>(null);
+  const [refreshPolicyUnavailable, setRefreshPolicyUnavailable] =
+    useState(false);
+  const [accountData, setAccountData] = useState<{
+    account: BrokerageLinkedAccount;
+    activities: BrokerageAccountActivities;
+    orders: BrokerageAccountOrder[];
+    positions: BrokerageAccountPositions;
+  } | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState("");
   const [publicConsent, setPublicConsent] = useState(false);
   const [disclosure, setDisclosure] = useState<BrokerageProofDisclosure>({});
@@ -37,11 +61,27 @@ export function BrokerageAccountClient({
   useEffect(() => {
     if (!status.connected) return;
     void Promise.all([
-      requestJson<BrokerageProofCandidate[]>("/api/account/brokerage/candidates"),
+      requestJson<BrokerageLinkedAccount[]>("/api/account/brokerage/accounts"),
+      status.publicProofsEnabled
+        ? requestJson<BrokerageProofCandidate[]>("/api/account/brokerage/candidates")
+        : Promise.resolve([]),
       requestJson<BrokerageProofSummary[]>("/api/account/brokerage/proofs"),
-    ]).then(([nextCandidates, nextProofs]) => {
+      requestJson<BrokerageManualRefreshQuota>(
+        "/api/account/brokerage/refresh-quota",
+      )
+        .then((value) => {
+          setRefreshPolicyUnavailable(false);
+          return value;
+        })
+        .catch(() => {
+          setRefreshPolicyUnavailable(true);
+          return null;
+        }),
+    ]).then(([nextAccounts, nextCandidates, nextProofs, nextRefreshQuota]) => {
+      setAccounts(nextAccounts);
       setCandidates(nextCandidates);
       setProofs(nextProofs);
+      setRefreshQuota(nextRefreshQuota);
     }).catch(() => setNotice("Linked records could not be loaded."));
   }, [status.connected]);
 
@@ -57,11 +97,81 @@ export function BrokerageAccountClient({
           action === "disconnect"
             ? "Brokerage disconnected. Existing cards are historical snapshots."
             : action === "sync"
-              ? "Connection status refreshed."
+              ? "Connection checked."
               : "Terms accepted.",
         );
+        if (action === "sync" && next.connected) {
+          const [nextAccounts, nextRefreshQuota] = await Promise.all([
+            requestJson<BrokerageLinkedAccount[]>(
+              "/api/account/brokerage/accounts",
+            ),
+            requestJson<BrokerageManualRefreshQuota>(
+              "/api/account/brokerage/refresh-quota",
+            )
+              .then((value) => {
+                setRefreshPolicyUnavailable(false);
+                return value;
+              })
+              .catch(() => {
+                setRefreshPolicyUnavailable(true);
+                return null;
+              }),
+          ]);
+          setAccounts(nextAccounts);
+          setRefreshQuota(nextRefreshQuota);
+        }
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "The request failed.");
+      }
+    });
+  }
+
+  function loadAccountData(accountId: string) {
+    startTransition(async () => {
+      try {
+        const path = `/api/account/brokerage/accounts/${encodeURIComponent(accountId)}`;
+        const [account, positions, orders, activities] = await Promise.all([
+          requestJson<BrokerageLinkedAccount>(path),
+          requestJson<BrokerageAccountPositions>(`${path}/positions`),
+          requestJson<BrokerageAccountOrder[]>(`${path}/orders`),
+          requestJson<BrokerageAccountActivities>(
+            `${path}/activities?limit=25&offset=0`,
+          ),
+        ]);
+        setAccountData({ account, activities, orders, positions });
+        setNotice("Private brokerage data loaded.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? error.message
+            : "Brokerage account data could not be loaded.",
+        );
+      }
+    });
+  }
+
+  function refreshAccount(accountId: string) {
+    startTransition(async () => {
+      try {
+        const result = await requestJson<BrokerageManualRefreshResult>(
+          `/api/account/brokerage/accounts/${encodeURIComponent(accountId)}/refresh`,
+          { method: "POST" },
+        );
+        setRefreshQuota(result.quota);
+        setRefreshPolicyUnavailable(false);
+        setNotice(
+          result.status === "realtime"
+            ? "This connection already returns real-time data. No manual refresh was charged."
+            : result.status === "succeeded"
+              ? "Sandbox brokerage data refreshed successfully."
+              : "Refresh scheduled. The monthly count changes only after every account sync succeeds.",
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? error.message
+            : "Brokerage data could not be refreshed.",
+        );
       }
     });
   }
@@ -131,6 +241,15 @@ export function BrokerageAccountClient({
               <strong>Not configured</strong>
               <p>SnapTrade credentials are not configured for this environment. The rest of Stock Radar remains available.</p>
             </div>
+          ) : status.status === "credentials_reset_required" ? (
+            <div className={styles.message}>
+              <strong>Sandbox registration reset required</strong>
+              <p>
+                This account has credentials encrypted with an older local key.
+                Remove the old sandbox registration through the authorized QA
+                cleanup flow, then connect again.
+              </p>
+            </div>
           ) : !status.termsAccepted ? (
             <div className={styles.message}>
               <strong>SnapTrade End User Terms</strong>
@@ -153,7 +272,7 @@ export function BrokerageAccountClient({
                 <ExternalLink aria-hidden="true" size={16} />
                 {status.connected ? "Reconnect account" : "Connect account"}
               </button>
-              <button disabled={pending} onClick={() => runAction("sync")} type="button">Refresh status</button>
+              <button disabled={pending} onClick={() => runAction("sync")} type="button">Check connection</button>
               {status.connected ? (
                 <button disabled={pending} onClick={() => runAction("disconnect")} type="button">
                   <Link2Off aria-hidden="true" size={16} /> Disconnect
@@ -222,6 +341,156 @@ export function BrokerageAccountClient({
         </article>
       </div>
 
+      {status.connected ? (
+        <section className={`${styles.panel} ${styles.accountsPanel}`}>
+          <div className={styles.panelHeading}>
+            <Landmark aria-hidden="true" size={19} />
+            <h2>Connected brokerage accounts</h2>
+            <span className={styles.state}>{accounts.length} account{accounts.length === 1 ? "" : "s"}</span>
+          </div>
+          {refreshQuota ? (
+            <div className={styles.refreshPolicy}>
+              <div>
+                <strong>
+                  {refreshQuota.remaining} of {refreshQuota.monthlyLimit} manual
+                  refreshes remaining
+                </strong>
+                <span>
+                  {refreshQuota.pending
+                    ? `${refreshQuota.pending} pending · `
+                    : ""}
+                  Successful refreshes only · resets{" "}
+                  {formatShortDate(refreshQuota.resetAt)}
+                </span>
+              </div>
+              <p>
+                One refresh updates every account in that brokerage connection.
+                A 10-minute cooldown prevents repeat charges. Daily automatic
+                sync continues after the monthly limit is reached.
+              </p>
+            </div>
+          ) : refreshPolicyUnavailable ? (
+            <div className={styles.refreshPolicy}>
+              <div>
+                <strong>Manual refresh unavailable</strong>
+                <span>The usage policy could not be loaded.</span>
+              </div>
+              <p>
+                Connection checks and private cached data remain available.
+                Refresh data stays disabled until the refresh policy is
+                available.
+              </p>
+            </div>
+          ) : null}
+          {accounts.length ? (
+            <div className={styles.accountList}>
+              {accounts.map((account) => (
+                <article className={styles.accountRow} key={account.id}>
+                  {(() => {
+                    const refreshState =
+                      refreshQuota?.accountStates[account.id] || null;
+                    return (
+                      <>
+                  <div className={styles.accountIdentity}>
+                    <strong>{account.name}</strong>
+                    <span>{account.brokerName} · {account.maskedNumber || "Number hidden"}</span>
+                  </div>
+                  <div className={styles.accountMeta}>
+                    <span data-account-type={account.isPaper ? "paper" : "live"}>
+                      {account.isPaper ? "Paper" : "Live"}
+                    </span>
+                    <span>{account.connectionStatus === "disabled" ? "Connection disabled" : "Connected"}</span>
+                    <span>{readSyncLabel(account)}</span>
+                  </div>
+                  <div className={styles.accountActions}>
+                    <button
+                      disabled={pending}
+                      onClick={() => loadAccountData(account.id)}
+                      type="button"
+                    >
+                      View data
+                    </button>
+                    <button
+                      disabled={pending || !refreshState?.canRefresh}
+                      onClick={() => refreshAccount(account.id)}
+                      title={readRefreshHelp(
+                        refreshState,
+                        refreshPolicyUnavailable,
+                      )}
+                      type="button"
+                    >
+                      <RefreshCw aria-hidden="true" size={15} />
+                      {readRefreshButtonLabel(refreshState)}
+                    </button>
+                  </div>
+                      </>
+                    );
+                  })()}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.copy}>No connected accounts were returned.</p>
+          )}
+
+          {accountData ? (
+            <div className={styles.accountDataPanel}>
+              <header>
+                <div>
+                  <span className={styles.eyebrow}>Private test data</span>
+                  <h3>{accountData.account.name}</h3>
+                </div>
+                <span data-account-type={accountData.account.isPaper ? "paper" : "live"}>
+                  {accountData.account.isPaper ? "Paper account" : "Live account"}
+                </span>
+              </header>
+              <dl className={styles.accountDetails}>
+                <div><dt>Broker</dt><dd>{accountData.account.brokerName}</dd></div>
+                <div><dt>Type</dt><dd>{accountData.account.rawType || "Not provided"}</dd></div>
+                <div><dt>Status</dt><dd>{accountData.account.accountStatus}</dd></div>
+                <div><dt>Positions as of</dt><dd>{formatDate(accountData.positions.asOf)}</dd></div>
+              </dl>
+              <AccountDataTable
+                columns={["Ticker", "Asset", "Side", "Units", "Cost basis"]}
+                empty="No positions returned."
+                rows={accountData.positions.positions.map((position) => [
+                  position.ticker,
+                  position.assetType,
+                  position.side,
+                  formatNumber(position.units),
+                  formatNumber(position.costBasis, position.currency),
+                ])}
+                title={`Positions (${accountData.positions.positions.length})`}
+              />
+              <AccountDataTable
+                columns={["Ticker", "Action", "Status", "Filled", "Execution"]}
+                empty="No recent orders returned."
+                rows={accountData.orders.map((order) => [
+                  order.ticker,
+                  order.action,
+                  order.status,
+                  formatNumber(order.filledQuantity),
+                  formatNumber(order.executionPrice),
+                ])}
+                title={`Orders (${accountData.orders.length})`}
+              />
+              <AccountDataTable
+                columns={["Date", "Ticker", "Type", "Units", "Price"]}
+                empty="No activities returned."
+                rows={accountData.activities.activities.map((activity) => [
+                  formatDate(activity.tradeDate),
+                  activity.ticker || "—",
+                  activity.type,
+                  formatNumber(activity.units),
+                  formatNumber(activity.price, activity.currency),
+                ])}
+                title={`Activities (${accountData.activities.activities.length})`}
+              />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {proofs.length ? (
         <section className={styles.proofs}>
           <h2>Your brokerage proofs</h2>
@@ -246,7 +515,71 @@ function readStatusLabel(status: BrokerageConnectionStatus) {
   if (status.status === "connected") return "Brokerage connected";
   if (status.status === "upgrade_required") return "Upgrade required";
   if (status.status === "not_configured") return "Not configured";
+  if (status.status === "credentials_reset_required") return "Reset required";
   return status.status === "disconnected" ? "Disconnected" : "Not connected";
+}
+
+function readSyncLabel(account: BrokerageLinkedAccount) {
+  if (account.holdingsSync === "unavailable") return "Holdings unavailable";
+  if (account.holdingsSync === "syncing" || account.transactionsSync === "syncing") {
+    return "Syncing";
+  }
+  return account.holdingsSync === "ready" ? "Synced" : "Sync unknown";
+}
+
+function AccountDataTable({
+  columns,
+  empty,
+  rows,
+  title,
+}: {
+  columns: string[];
+  empty: string;
+  rows: string[][];
+  title: string;
+}) {
+  return (
+    <section className={styles.dataTable}>
+      <h4>{title}</h4>
+      {rows.length ? (
+        <div>
+          <table>
+            <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`${title}-${rowIndex}`}>
+                  {row.map((value, columnIndex) => (
+                    <td key={`${rowIndex}-${columns[columnIndex]}`}>{value}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p>{empty}</p>}
+    </section>
+  );
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Not available";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function formatShortDate(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatNumber(value: number | null, currency?: string | null) {
+  if (value === null) return "—";
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 4,
+  }).format(value);
+  return currency ? `${formatted} ${currency}` : formatted;
 }
 
 function readDisclosureLabel(key: keyof BrokerageProofDisclosure) {
@@ -257,4 +590,45 @@ function readDisclosureLabel(key: keyof BrokerageProofDisclosure) {
     executionQuantity: "Execution quantity",
     units: "Units",
   } as const)[key];
+}
+
+function readRefreshButtonLabel(
+  state: BrokerageManualRefreshQuota["accountStates"][string] | null,
+) {
+  if (!state) return "Refresh data";
+  if (state.status === "realtime") return "Real-time";
+  if (state.status === "pending") return "Refresh pending";
+  if (state.status === "quota_exhausted") return "Monthly limit used";
+  if (state.status === "cooldown") {
+    return `Retry in ${Math.max(1, Math.ceil(state.retryAfterSeconds / 60))}m`;
+  }
+  if (state.status === "unavailable") return "Refresh unavailable";
+  return "Refresh data";
+}
+
+function readRefreshHelp(
+  state: BrokerageManualRefreshQuota["accountStates"][string] | null,
+  policyUnavailable = false,
+) {
+  if (!state) {
+    return policyUnavailable
+      ? "Manual refresh is disabled because the usage policy is unavailable."
+      : "Refresh policy is loading.";
+  }
+  if (state.status === "realtime") {
+    return "Real-time connections update when data is requested.";
+  }
+  if (state.status === "pending") {
+    return "SnapTrade is completing the requested holdings sync.";
+  }
+  if (state.status === "quota_exhausted") {
+    return "Wait for the next daily automatic sync or the monthly reset.";
+  }
+  if (state.status === "cooldown") {
+    return "This connection can be refreshed again after the 10-minute cooldown.";
+  }
+  if (state.status === "unavailable") {
+    return "The connection data mode is not available yet.";
+  }
+  return "Refresh every account under this brokerage connection.";
 }

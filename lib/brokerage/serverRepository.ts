@@ -23,10 +23,21 @@ import {
   normalizeProofCandidate,
 } from "./policy";
 import { getBrokerageProvider } from "./provider";
+import {
+  assertOwnedBrokerageAccount,
+  toPublicBrokerageAccount,
+} from "./accountData";
 import type {
+  BrokerageAccountActivities,
+  BrokerageAccountOrder,
+  BrokerageAccountPositions,
   BrokerageConnectionStatus,
+  BrokerageLinkedAccount,
+  BrokerageManualRefreshQuota,
+  BrokerageManualRefreshResult,
   BrokerageProofDisclosure,
   BrokerageProofSummary,
+  BrokerageProviderAccount,
   BrokerageProviderUser,
 } from "./types";
 
@@ -63,7 +74,14 @@ export async function getBrokerageConnectionStatus(
   ]);
   const config = getBrokerageConfig();
   const eligible = canUseBrokerage(effective.effectivePlan);
-  const connected = connection?.status === "connected";
+  const credentialsUnreadable = Boolean(
+    connection &&
+      config.encryptionKey &&
+      hasEncryptedProviderSecret(connection) &&
+      !canDecryptProviderUser(connection, config.encryptionKey),
+  );
+  const connected =
+    connection?.status === "connected" && !credentialsUnreadable;
   const termsAccepted = Boolean(connection?.terms_accepted_at);
   return {
     accountTypes: [
@@ -79,13 +97,15 @@ export async function getBrokerageConnectionStatus(
       ? "upgrade_required"
       : config.mode === "unavailable" || !config.encryptionKey
         ? "not_configured"
-        : !termsAccepted
-          ? "terms_required"
-          : connected
-            ? "connected"
-            : connection?.status === "disconnected"
-              ? "disconnected"
-              : "ready",
+        : credentialsUnreadable
+          ? "credentials_reset_required"
+          : !termsAccepted
+            ? "terms_required"
+            : connected
+              ? "connected"
+              : connection?.status === "disconnected"
+                ? "disconnected"
+                : "ready",
     termsAccepted,
   };
 }
@@ -131,7 +151,7 @@ export async function createBrokeragePortal(
       "Accept the SnapTrade End User Terms before connecting.",
     );
   }
-  let user = readProviderUser(connection, config.encryptionKey);
+  let user = readProviderUserOrThrow(connection, config.encryptionKey);
   if (!user) {
     user = await provider.registerUser(createSnapTradeUserId(userId));
     const encrypted = encryptBrokerageSecret(
@@ -157,7 +177,7 @@ export async function syncBrokerageConnection(userId: string) {
   const connection = await getConnection(userId);
   const user =
     connection && config.encryptionKey
-      ? readProviderUser(connection, config.encryptionKey)
+      ? readProviderUserOrThrow(connection, config.encryptionKey)
       : null;
   if (!provider || !user) {
     throw new BrokeragePolicyError(
@@ -184,7 +204,7 @@ export async function disconnectBrokerage(userId: string) {
   const connection = await getConnection(userId);
   const user =
     connection && config.encryptionKey
-      ? readProviderUser(connection, config.encryptionKey)
+      ? readProviderUserOrThrow(connection, config.encryptionKey)
       : null;
   if (provider && user) await provider.disconnect(user);
   await updateConnection(userId, {
@@ -203,7 +223,7 @@ export async function deleteBrokerageData(userId: string) {
   const connection = await getConnection(userId);
   const user =
     connection && config.encryptionKey
-      ? readProviderUser(connection, config.encryptionKey)
+      ? readProviderUserOrThrow(connection, config.encryptionKey)
       : null;
   if (provider && user) await provider.deleteUser(user);
   await expireProofsForUser(userId, "expired");
@@ -218,6 +238,196 @@ export async function listBrokerageProofCandidates(userId: string) {
   await assertBrokerageEligibility(userId);
   const { provider, user } = await getReadyProviderUser(userId);
   return (await provider.listProofCandidates(user)).map(normalizeProofCandidate);
+}
+
+export async function listBrokerageAccounts(
+  userId: string,
+): Promise<BrokerageLinkedAccount[]> {
+  await assertBrokerageEligibility(userId);
+  const { provider, user } = await getReadyProviderUser(userId);
+  return (await provider.listAccounts(user)).map(toPublicBrokerageAccount);
+}
+
+export async function getBrokerageAccount(
+  userId: string,
+  accountId: string,
+): Promise<BrokerageLinkedAccount> {
+  const { provider, user, ownedAccount } =
+    await getOwnedBrokerageAccount(userId, accountId);
+  const detail = await provider.getAccount(user, ownedAccount.id);
+  return {
+    ...detail,
+    connectionStatus: ownedAccount.connectionStatus,
+    dataFreshness: ownedAccount.dataFreshness,
+  };
+}
+
+export async function getBrokerageAccountPositions(
+  userId: string,
+  accountId: string,
+): Promise<BrokerageAccountPositions> {
+  const { provider, user, ownedAccount } =
+    await getOwnedBrokerageAccount(userId, accountId);
+  return provider.getAccountPositions(user, ownedAccount.id);
+}
+
+export async function getBrokerageAccountOrders(
+  userId: string,
+  accountId: string,
+): Promise<BrokerageAccountOrder[]> {
+  const { provider, user, ownedAccount } =
+    await getOwnedBrokerageAccount(userId, accountId);
+  return provider.getAccountOrders(user, ownedAccount.id);
+}
+
+export async function getBrokerageAccountActivities(
+  userId: string,
+  accountId: string,
+  input: { limit?: number; offset?: number },
+): Promise<BrokerageAccountActivities> {
+  const { provider, user, ownedAccount } =
+    await getOwnedBrokerageAccount(userId, accountId);
+  const requestedLimit = Number.isFinite(input.limit)
+    ? Math.trunc(input.limit as number)
+    : 50;
+  const requestedOffset = Number.isFinite(input.offset)
+    ? Math.trunc(input.offset as number)
+    : 0;
+  const limit = Math.max(1, Math.min(requestedLimit, 100));
+  const offset = Math.max(0, requestedOffset);
+  return provider.getAccountActivities(user, ownedAccount.id, {
+    limit,
+    offset,
+  });
+}
+
+export async function getBrokerageManualRefreshQuota(
+  userId: string,
+): Promise<BrokerageManualRefreshQuota> {
+  await assertBrokerageEligibility(userId);
+  const { provider, user } = await getReadyProviderUser(userId);
+  const accounts = await provider.listAccounts(user);
+  return readBrokerageManualRefreshQuota(userId, accounts);
+}
+
+export async function refreshBrokerageAccount(
+  userId: string,
+  accountId: string,
+): Promise<BrokerageManualRefreshResult> {
+  const { accounts, ownedAccount, provider, user } =
+    await getOwnedBrokerageAccount(userId, accountId);
+  if (ownedAccount.dataFreshness === "realtime") {
+    return {
+      accountId: ownedAccount.id,
+      quota: await readBrokerageManualRefreshQuota(userId, accounts),
+      status: "realtime",
+    };
+  }
+  if (ownedAccount.dataFreshness !== "delayed") {
+    throw new BrokeragePolicyError(
+      "BROKERAGE_REFRESH_UNAVAILABLE",
+      "Manual refresh is unavailable until the connection data mode is known.",
+      409,
+    );
+  }
+
+  const config = getBrokerageConfig();
+  const expectedAccountIds = accounts
+    .filter(
+      (account) =>
+        account.providerAuthorizationId ===
+        ownedAccount.providerAuthorizationId,
+    )
+    .map((account) => account.id);
+  const reservation = await supabaseRpc(
+    "reserve_brokerage_manual_refresh",
+    {
+      p_cooldown_seconds: config.manualRefreshCooldownSeconds,
+      p_estimated_cost_cents: config.manualRefreshEstimatedCostCents,
+      p_expected_account_ids: expectedAccountIds,
+      p_monthly_limit: config.manualRefreshMonthlyLimit,
+      p_provider_account_id: ownedAccount.id,
+      p_provider_authorization_id: ownedAccount.providerAuthorizationId,
+      p_user_id: userId,
+    },
+  );
+  if (!reservation.ok) {
+    throw mapRefreshDatabaseError(reservation.error, reservation.status);
+  }
+  const reservationRow = readSingle(reservation.data);
+  const requestId = readString(reservationRow?.request_id);
+  const requestedAt =
+    readString(reservationRow?.refresh_requested_at) ||
+    new Date().toISOString();
+  if (!isUuid(requestId)) throw unavailable();
+
+  const providerAcceptedAt = new Date().toISOString();
+  const queued = await supabaseUpdate(
+    "brokerage_manual_refreshes",
+    { id: `eq.${requestId}`, user_id: `eq.${userId}` },
+    {
+      provider_accepted_at: providerAcceptedAt,
+      status: "queued",
+    },
+  );
+  if (!queued.ok) throw unavailable(queued.error);
+
+  let providerResult: "queued" | "succeeded";
+  try {
+    providerResult = await provider.refreshConnection(
+      user,
+      ownedAccount.providerAuthorizationId,
+    );
+  } catch (error) {
+    await supabaseUpdate(
+      "brokerage_manual_refreshes",
+      { id: `eq.${requestId}`, user_id: `eq.${userId}` },
+      {
+        completed_at: new Date().toISOString(),
+        failure_code: "PROVIDER_REQUEST_FAILED",
+        provider_accepted_at: null,
+        status: "request_failed",
+      },
+    );
+    throw error;
+  }
+
+  if (providerResult === "succeeded") {
+    const completedAt = new Date().toISOString();
+    const completed = await supabaseUpdate(
+      "brokerage_manual_refreshes",
+      { id: `eq.${requestId}`, user_id: `eq.${userId}` },
+      {
+        completed_account_ids: expectedAccountIds,
+        completed_at: completedAt,
+        counted_at: requestedAt,
+        status: "succeeded",
+      },
+    );
+    if (!completed.ok) throw unavailable(completed.error);
+  }
+
+  return {
+    accountId: ownedAccount.id,
+    quota: await readBrokerageManualRefreshQuota(userId, accounts),
+    status: providerResult,
+  };
+}
+
+export async function recordBrokerageManualRefreshWebhook(input: {
+  accountId: string;
+  authorizationId: string;
+  eventTimestamp: string;
+  succeeded: boolean;
+  userId: string;
+}) {
+  return supabaseRpc("record_brokerage_manual_refresh_webhook", {
+    p_event_timestamp: input.eventTimestamp,
+    p_provider_account_id: input.accountId,
+    p_provider_authorization_id: input.authorizationId,
+    p_succeeded: input.succeeded,
+    p_user_id: input.userId,
+  });
 }
 
 export async function createBrokerageProof(
@@ -443,7 +653,7 @@ async function getReadyProviderUser(userId: string) {
   const connection = await getConnection(userId);
   const user =
     connection && config.encryptionKey
-      ? readProviderUser(connection, config.encryptionKey)
+      ? readProviderUserOrThrow(connection, config.encryptionKey)
       : null;
   if (!provider || !user || connection?.status !== "connected") {
     throw new BrokeragePolicyError(
@@ -453,6 +663,152 @@ async function getReadyProviderUser(userId: string) {
     );
   }
   return { provider, user };
+}
+
+async function getOwnedBrokerageAccount(userId: string, accountId: string) {
+  if (!isSafeProviderAccountId(accountId)) {
+    throw new BrokeragePolicyError(
+      "BROKERAGE_ACCOUNT_NOT_FOUND",
+      "That brokerage account is not available.",
+      404,
+    );
+  }
+  const { provider, user } = await getReadyProviderUser(userId);
+  // Provider account IDs are never trusted from the route. List the signed-in
+  // user's accounts first and only then make the account-scoped provider call.
+  const accounts = await provider.listAccounts(user);
+  const ownedAccount = assertOwnedBrokerageAccount(
+    accounts,
+    accountId,
+  );
+  if (!ownedAccount) {
+    throw new BrokeragePolicyError(
+      "BROKERAGE_ACCOUNT_NOT_FOUND",
+      "That brokerage account is not available.",
+      404,
+    );
+  }
+  return { accounts, ownedAccount, provider, user };
+}
+
+async function readBrokerageManualRefreshQuota(
+  userId: string,
+  accounts: BrokerageProviderAccount[],
+): Promise<BrokerageManualRefreshQuota> {
+  const config = getBrokerageConfig();
+  const now = new Date();
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const nextMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+  );
+  const queryStart = new Date(
+    monthStart.getTime() -
+      Math.max(config.manualRefreshCooldownSeconds, 60 * 60) * 1_000,
+  );
+  const result = await supabaseSelect("brokerage_manual_refreshes", {
+    limit: "1000",
+    order: "requested_at.desc",
+    requested_at: `gte.${queryStart.toISOString()}`,
+    select:
+      "status,requested_at,provider_accepted_at,counted_at,provider_authorization_id",
+    user_id: `eq.${userId}`,
+  });
+  if (!result.ok) throw unavailable(result.error);
+  const rows = readRows(result.data);
+  const monthStartMs = monthStart.getTime();
+  const nextMonthMs = nextMonth.getTime();
+  const nowMs = now.getTime();
+  const used = rows.filter((row) => {
+    if (readString(row.status) !== "succeeded") return false;
+    const countedAt = readTimestamp(row.counted_at);
+    return countedAt >= monthStartMs && countedAt < nextMonthMs;
+  }).length;
+  const pending = rows.filter((row) => {
+    const status = readString(row.status);
+    const requestedAt = readTimestamp(row.requested_at);
+    if (requestedAt < monthStartMs || requestedAt >= nextMonthMs) return false;
+    if (status === "reserved") {
+      return requestedAt >= nowMs - 5 * 60 * 1_000;
+    }
+    if (status === "queued") {
+      const acceptedAt = readTimestamp(row.provider_accepted_at);
+      return acceptedAt >= nowMs - 60 * 60 * 1_000;
+    }
+    return false;
+  }).length;
+  const remaining = Math.max(config.manualRefreshMonthlyLimit - used, 0);
+  const available = Math.max(remaining - pending, 0);
+
+  const accountStates = Object.fromEntries(
+    accounts.map((account) => {
+      const connectionRows = rows.filter(
+        (row) =>
+          readString(row.provider_authorization_id) ===
+          account.providerAuthorizationId,
+      );
+      const activePending = connectionRows.some((row) => {
+        const status = readString(row.status);
+        if (status === "reserved") {
+          return (
+            readTimestamp(row.requested_at) >= nowMs - 5 * 60 * 1_000
+          );
+        }
+        return (
+          status === "queued" &&
+          readTimestamp(row.provider_accepted_at) >=
+            nowMs - 60 * 60 * 1_000
+        );
+      });
+      const lastRequestedAt =
+        connectionRows
+          .map((row) => readString(row.provider_accepted_at))
+          .find(Boolean) || null;
+      const retryAfterSeconds = lastRequestedAt
+        ? Math.max(
+            0,
+            Math.ceil(
+              (new Date(lastRequestedAt).getTime() +
+                config.manualRefreshCooldownSeconds * 1_000 -
+                nowMs) /
+                1_000,
+            ),
+          )
+        : 0;
+      const state =
+        account.dataFreshness === "realtime"
+          ? { canRefresh: false, status: "realtime" as const }
+          : account.dataFreshness !== "delayed"
+            ? { canRefresh: false, status: "unavailable" as const }
+            : activePending
+              ? { canRefresh: false, status: "pending" as const }
+              : available === 0
+                ? { canRefresh: false, status: "quota_exhausted" as const }
+                : retryAfterSeconds > 0
+                  ? { canRefresh: false, status: "cooldown" as const }
+                  : { canRefresh: true, status: "ready" as const };
+      return [
+        account.id,
+        {
+          ...state,
+          lastRequestedAt,
+          retryAfterSeconds,
+        },
+      ];
+    }),
+  );
+
+  return {
+    accountStates,
+    available,
+    cooldownSeconds: config.manualRefreshCooldownSeconds,
+    monthlyLimit: config.manualRefreshMonthlyLimit,
+    pending,
+    remaining,
+    resetAt: nextMonth.toISOString(),
+    used,
+  };
 }
 
 async function getConnection(userId: string) {
@@ -475,6 +831,37 @@ function readProviderUser(row: ConnectionRow, key: Buffer): BrokerageProviderUse
   };
   if (!providerUserId || !value.authTag || !value.ciphertext || !value.iv) return null;
   return { providerUserId, userSecret: decryptBrokerageSecret(value, key) };
+}
+
+function readProviderUserOrThrow(
+  row: ConnectionRow,
+  key: Buffer,
+): BrokerageProviderUser | null {
+  try {
+    return readProviderUser(row, key);
+  } catch {
+    throw new BrokeragePolicyError(
+      "BROKERAGE_CREDENTIALS_RESET_REQUIRED",
+      "Reconnect this sandbox brokerage registration before continuing.",
+      409,
+    );
+  }
+}
+
+function canDecryptProviderUser(row: ConnectionRow, key: Buffer) {
+  try {
+    return Boolean(readProviderUser(row, key));
+  } catch {
+    return false;
+  }
+}
+
+function hasEncryptedProviderSecret(row: ConnectionRow) {
+  return Boolean(
+    readString(row.encrypted_user_secret) ||
+      readString(row.secret_auth_tag) ||
+      readString(row.secret_iv),
+  );
 }
 
 async function saveRegisteredUser(
@@ -552,6 +939,29 @@ function mapDatabaseError(error: string | undefined, status: number) {
   );
 }
 
+function mapRefreshDatabaseError(error: string | undefined, status: number) {
+  const value = error || "";
+  if (value.includes("BROKERAGE_REFRESH_COOLDOWN")) {
+    return new BrokeragePolicyError(
+      "BROKERAGE_REFRESH_COOLDOWN",
+      "Wait 10 minutes before refreshing this brokerage connection again.",
+      429,
+    );
+  }
+  if (value.includes("BROKERAGE_REFRESH_LIMIT_REACHED")) {
+    return new BrokeragePolicyError(
+      "BROKERAGE_REFRESH_LIMIT_REACHED",
+      "This month's manual refresh limit is used. Daily automatic sync will continue.",
+      429,
+    );
+  }
+  return new BrokeragePolicyError(
+    "BROKERAGE_REFRESH_UNAVAILABLE",
+    "Manual refresh is temporarily unavailable.",
+    status || 502,
+  );
+}
+
 function unavailable(detail?: string) {
   return new BrokeragePolicyError(
     "BROKERAGE_UNAVAILABLE",
@@ -578,6 +988,10 @@ function readNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
+function readTimestamp(value: unknown) {
+  const parsed = Date.parse(readString(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 function readConnectionState(value: unknown): BrokerageProofSummary["connectionState"] {
   return value === "expired" || value === "disconnected" ? value : "connected";
 }
@@ -591,4 +1005,8 @@ function readStage(value: unknown): BrokerageProofSummary["stage"] {
 }
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isSafeProviderAccountId(value: string) {
+  return /^[a-z0-9_-]{1,100}$/i.test(value);
 }
