@@ -17,13 +17,21 @@ const sections: LegalDocumentSection[] = [
     id: "scope",
     title: "Scope",
     content: (
-      <p>
-        This Privacy Policy explains how Stock Radar collects, uses, discloses,
-        and retains information when you use the websites, accounts, market
-        tools, alerts, community features, and optional integrations that make
-        up the Service. It does not control third-party sites or services that
-        publish their own privacy terms.
-      </p>
+      <>
+        <p>
+          This Privacy Policy explains how Stock Radar collects, uses,
+          discloses, and retains information when you use the websites,
+          accounts, market tools, alerts, community features, and optional
+          integrations that make up the Service. It does not control
+          third-party sites or services that publish their own privacy terms.
+        </p>
+        <p>
+          Stock Radar is operated by {legalPolicyMeta.operatorName},{" "}
+          {legalPolicyMeta.operatorDescription}, with a business address at{" "}
+          {legalPolicyMeta.businessAddress}. Its business registration number
+          is {legalPolicyMeta.businessRegistrationNumber}.
+        </p>
+      </>
     ),
   },
   {
@@ -74,7 +82,7 @@ const sections: LegalDocumentSection[] = [
             provider user identifiers and encrypted provider secrets, broker
             metadata, account type, proof candidates, consent records, selected
             proof fields, publication status, revocation, and verification
-            timestamps when the feature is enabled and you connect.
+            timestamps when you choose to connect through SnapTrade.
           </li>
         </ul>
         <p>
@@ -110,7 +118,7 @@ const sections: LegalDocumentSection[] = [
           <li>create, authenticate, secure, and administer accounts;</li>
           <li>
             provide watchlists, alerts, delivery, community, messaging,
-            verification, and optional brokerage evidence;
+            verification, and SnapTrade brokerage evidence;
           </li>
           <li>
             apply plan limits, trials, ad or ad-free behavior, and product
@@ -169,25 +177,25 @@ const sections: LegalDocumentSection[] = [
         <ul>
           <li>
             <strong>Supabase</strong> for database, authentication, and backend
-            services, and <strong>Vercel</strong> for application hosting and
-            delivery;
+            services, and <strong>Vercel</strong> for application hosting,
+            delivery, and operational logs;
           </li>
           <li>
-            <strong>Google</strong> for optional Google OAuth, AI-assisted source
-            analysis through Gemini where configured, and advertising through
-            AdSense on ad-supported access;
+            <strong>Google</strong> for optional Google OAuth and advertising
+            through AdSense on ad-supported access. AdSense may process cookies,
+            device information, and IP-derived request data;
           </li>
           <li>
-            <strong>OpenAI</strong> for source-content analysis where configured;
+            <strong>FMP</strong> for market, company, and event data used in
+            Stock Radar&apos;s market features;
           </li>
           <li>
             <strong>Telegram</strong> and browser push services when you choose
             those alert channels;
           </li>
           <li>
-            <strong>SnapTrade</strong> and a connected broker only when the
-            optional brokerage feature is enabled and you initiate a connection;
-            and
+            <strong>SnapTrade</strong> and the connected broker when you
+            voluntarily initiate a brokerage connection; and
           </li>
           <li>
             market-data, company-reference, news, regulatory, and other content
@@ -201,28 +209,36 @@ const sections: LegalDocumentSection[] = [
           protect users or the Service, during a business reorganization subject
           to appropriate protections, or with your direction or consent.
         </p>
+        <p>
+          Stock Radar does not currently use Google Analytics. We will update
+          this Policy before enabling a new analytics or advertising provider.
+        </p>
       </>
     ),
   },
   {
     id: "snaptrade",
-    title: "Optional SnapTrade connection",
+    title: "SnapTrade connection",
     content: (
       <>
         <p>
-          SnapTrade is used only if the integration is enabled, your plan is
-          eligible, and you choose to connect. You must review and accept
-          SnapTrade&apos;s end-user terms before opening its connection portal.
-          SnapTrade and the connected institution process data under their own
-          terms and consent flows; production availability is not guaranteed.
+          Eligible Pro, Advanced, and Ultimate users may choose to connect a
+          brokerage through SnapTrade. You must review and accept SnapTrade&apos;s
+          end-user terms before opening its connection portal. SnapTrade and the
+          connected institution process data under their own terms and consent
+          flows. The connection is read-only: Stock Radar does not place orders,
+          execute trades, hold assets, or move money.
         </p>
         <p>
           Provider secrets are stored in protected form and are not public.
-          Account numbers and brokerage passwords are not displayed as public
-          proof. A proof becomes public only when you explicitly publish or
-          attach it, and only selected disclosure fields should be shown. You
-          can disconnect or revoke proofs through available controls, while
-          limited records may remain for security, consent, moderation, or legal
+          Account numbers, total balances, quantities, and dollar amounts are
+          private by default, and paper accounts are labeled as such. A public
+          proof requires an explicit user action and may show only selected
+          holdings or execution fields in a server-generated card. Public proof
+          and data-repackaging capabilities remain subject to SnapTrade&apos;s
+          required written approval and applicable market-data rights. You can
+          disconnect or revoke proofs through available controls, while limited
+          records may remain for security, consent, moderation, or legal
           purposes.
         </p>
       </>
@@ -363,6 +379,16 @@ const sections: LegalDocumentSection[] = [
     content: (
       <>
         <p>{legalPolicyMeta.contactStatement}</p>
+        <p>
+          <strong>Privacy Officer:</strong> {legalPolicyMeta.privacyOfficerName}{" "}
+          ({legalPolicyMeta.privacyOfficerTitle})
+          <br />
+          <strong>Privacy:</strong> {legalPolicyMeta.privacyEmail}
+          <br />
+          <strong>Support:</strong> {legalPolicyMeta.supportEmail}
+          <br />
+          <strong>Legal:</strong> {legalPolicyMeta.legalEmail}
+        </p>
         <p>
           For a report about specific community content, use its in-product
           report control when available. For account-related requests, sign in

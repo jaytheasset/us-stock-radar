@@ -106,7 +106,36 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   assert.match(sharedDocument, /effectiveDate/);
   assert.match(sharedDocument, /updatedDate/);
   assert.match(policyConfig, /July 30, 2026/g);
-  assert.match(policyConfig, /Counsel must review/);
+  assert.match(policyConfig, /counsel must review/i);
+});
+
+test("legal pages use the approved operator, commercial, privacy, and brokerage policy", () => {
+  const terms = read("app/terms/page.tsx");
+  const privacy = read("app/privacy/page.tsx");
+  const policyConfig = read("lib/legalPolicy.ts");
+
+  assert.match(policyConfig, /V-the Asset, Ltd\./);
+  assert.match(policyConfig, /490-86-01154/);
+  assert.match(policyConfig, /SengYeon Kang/);
+  assert.match(policyConfig, /Privacy Officer/);
+  assert.match(policyConfig, /support@stockradar\.com/);
+  assert.match(policyConfig, /legal@stockradar\.com/);
+  assert.match(policyConfig, /privacy@stockradar\.com/);
+
+  assert.match(terms, /laws of the Republic of Korea/);
+  assert.match(terms, /Seoul Central District Court/);
+  assert.match(terms, /Paddle as the\s+merchant of record/);
+  assert.match(terms, /Paddle is not yet a live payment provider/);
+  assert.match(terms, /14-day/);
+  assert.match(terms, /Eligible Pro, Advanced, and Ultimate users/);
+  assert.doesNotMatch(terms, /not currently offer a live SnapTrade/);
+
+  assert.match(privacy, /Google Analytics/);
+  assert.match(privacy, /does not currently use Google Analytics/);
+  assert.match(privacy, /AdSense may process cookies/);
+  assert.match(privacy, /FMP/);
+  assert.match(privacy, /SnapTrade[\s\S]*written approval/);
+  assert.doesNotMatch(privacy, /<strong>OpenAI<\/strong>/);
 });
 
 test("legal layout has responsive, theme-token-only overflow protection", () => {

@@ -1,12 +1,19 @@
 /**
- * Pre-launch policy draft. Counsel must review the operator identity, contact
- * method, commercial terms, jurisdiction-specific disclosures, and all policy
- * text before public launch. Do not invent a legal entity, address, governing
- * law, or dedicated email until the operator confirms it.
+ * Approved pre-launch legal-policy details. Keep the legal documents aligned
+ * with this record; counsel must review the final public launch copy.
  */
 export const legalPolicyMeta = {
   effectiveDate: "July 30, 2026",
   updatedDate: "July 30, 2026",
+  operatorName: "V-the Asset, Ltd.",
+  operatorDescription: "a corporation organized under the laws of the Republic of Korea",
+  businessRegistrationNumber: "490-86-01154",
+  businessAddress: "751 Building, 129-1 Bongeunsa-ro, Gangnam-gu, Seoul, Republic of Korea (서울시 강남구 봉은사로 129-1, 751빌딩)",
+  supportEmail: "support@stockradar.com",
+  legalEmail: "legal@stockradar.com",
+  privacyEmail: "privacy@stockradar.com",
+  privacyOfficerName: "SengYeon Kang",
+  privacyOfficerTitle: "Privacy Officer (대표자 겸임)",
   contactStatement:
-    "For legal, account, or privacy questions, use the support channel presented in the Service when available. Stock Radar will publish any additional formal operator and legal-contact details required for public launch in this document.",
+    "Stock Radar is operated by V-the Asset, Ltd., a Korean corporation. For support, legal, or privacy questions, contact the applicable address below.",
 } as const;
