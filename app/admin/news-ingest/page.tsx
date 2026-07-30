@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { GlobeIngestPanel } from "@/app/admin/news-ingest/GlobeIngestPanel";
+import styles from "@/components/admin/AdminSection.module.css";
 import { fetchEventCount, supabaseSelect } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -32,16 +33,13 @@ export default async function NewsIngestAdminPage() {
   ]);
 
   return (
-    <div className="shell">
-      <header className="topbar">
+    <div className={styles.page}>
+      <header className={styles.heading}>
         <div className="title-block">
           <h1>News Ingest</h1>
           <p className="muted">GlobeNewswire collection, LLM analysis, event storage, and coverage QA.</p>
         </div>
         <div className="prompt-test-actions">
-          <Link className="text-link" href="/admin">
-            Admin
-          </Link>
           <Link className="text-link" href="/admin/prompts/news-event-test?dryRun=true">
             Prompt Dry Run
           </Link>

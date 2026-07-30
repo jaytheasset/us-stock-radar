@@ -65,6 +65,18 @@ export const integrationRegistry = [
     category: "runtime",
     envKeys: ["NAS_INGEST_TOKEN", "FDA_INGEST_URL", "ACCESSWIRE_INGEST_URL"],
   },
+  {
+    key: "snaptrade",
+    label: "SnapTrade Brokerage",
+    category: "brokerage",
+    envKeys: [
+      "SNAPTRADE_CLIENT_ID",
+      "SNAPTRADE_CONSUMER_KEY",
+      "SNAPTRADE_USER_SECRET_ENCRYPTION_KEY",
+      "SNAPTRADE_CONNECTIONS_ENABLED",
+      "SNAPTRADE_PUBLIC_PROOFS_ENABLED",
+    ],
+  },
 ];
 
 export function getIntegrationRegistry() {

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
 import { eventTypeDefinitions, eventTypeStats } from "@/lib/eventTypeRegistry";
 
 export const dynamic = "force-dynamic";
@@ -7,17 +7,14 @@ const categories = Array.from(new Set(eventTypeDefinitions.map((definition) => d
 
 export default function AdminEventTypesPage() {
   return (
-    <div className="shell">
-      <header className="topbar">
+    <div className={styles.page}>
+      <header className={styles.heading}>
         <div className="title-block">
           <h1>Event Type Registry</h1>
           <p className="muted">
             Normalized event labels for feed badges, alert filters, and future filing families.
           </p>
         </div>
-        <Link className="text-link" href="/admin">
-          Admin
-        </Link>
       </header>
 
       <section className="status-strip event-type-status">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
 import { runNewsEventAnalysisPreview } from "@/lib/ai/newsEventAnalysisPreview";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,8 @@ export default async function NewsEventPromptTestPage({ searchParams }: PageProp
   const sourceItem = readRecord(result.sourceItem);
 
   return (
-    <div className="shell">
-      <header className="topbar">
+    <div className={styles.page}>
+      <header className={styles.heading}>
         <div className="title-block">
           <h1>News Event Prompt Test</h1>
           <p className="muted">GlobeNewswire raw item to structured LLM analysis. This page does not write to DB.</p>

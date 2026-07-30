@@ -1,4 +1,4 @@
-import Link from "next/link";
+import styles from "@/components/admin/AdminSection.module.css";
 import {
   sectorMappings,
   taxonomyStats,
@@ -16,15 +16,12 @@ const subThemeCounts = themeSubThemes.reduce<Record<string, number>>((counts, su
 
 export default function AdminTaxonomyPage() {
   return (
-    <div className="shell">
-      <header className="topbar">
+    <div className={styles.page}>
+      <header className={styles.heading}>
         <div className="title-block">
           <h1>Taxonomy Read-Out</h1>
           <p className="muted">Sector, sub-category, FMP industry, and theme-group seed registry.</p>
         </div>
-        <Link className="text-link" href="/admin">
-          Admin
-        </Link>
       </header>
 
       <section className="status-strip taxonomy-status">

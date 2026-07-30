@@ -14,14 +14,32 @@ const read = (relativePath: string) =>
 const migration = read(
   "supabase/migrations/20260729195029_admin_foundation_v1.sql",
 );
+const operationsMigration = read(
+  "supabase/migrations/20260730040144_admin_operations_v2.sql",
+);
+const orphanBackfillMigration = read(
+  "supabase/migrations/20260730051040_admin_moderation_orphan_backfill.sql",
+);
 const adminLayout = read("app/admin/layout.tsx");
 const adminServer = read("lib/admin/server.ts");
+const adminApi = read("lib/admin/api.ts");
 const dashboardRepository = read("lib/admin/dashboard.ts");
 const dashboardPage = read("app/admin/page.tsx");
+const usersRepository = read("lib/admin/users.ts");
+const moderationRepository = read("lib/admin/moderation.ts");
+const auditRepository = read("lib/admin/audit.ts");
+const operationsRepository = read("lib/admin/operations.ts");
 const adminListApi = read("app/api/admin/creator-verifications/route.ts");
 const adminMutationApi = read(
   "app/api/admin/creator-verifications/[requestId]/route.ts",
 );
+const userCommunityMutationApi = read(
+  "app/api/admin/users/[userId]/community-status/route.ts",
+);
+const moderationMutationApi = read(
+  "app/api/admin/moderation/[caseId]/route.ts",
+);
+const roleMutationApi = read("app/api/admin/roles/route.ts");
 const adminShell = read("components/admin/AdminShell.tsx");
 const legacyAdminPages = [
   "app/admin/creator-verifications/page.tsx",
@@ -33,6 +51,15 @@ const legacyAdminPages = [
   "app/admin/prompts/news-event-test/page.tsx",
   "app/admin/sources/page.tsx",
   "app/admin/taxonomy/page.tsx",
+].map(read);
+const v2AdminPages = [
+  "app/admin/alerts/page.tsx",
+  "app/admin/audit/page.tsx",
+  "app/admin/moderation/page.tsx",
+  "app/admin/moderation/[caseId]/page.tsx",
+  "app/admin/roles/page.tsx",
+  "app/admin/users/page.tsx",
+  "app/admin/users/[userId]/page.tsx",
 ].map(read);
 
 test("anonymous users and ordinary members are rejected before admin content renders", () => {
@@ -81,7 +108,25 @@ test("roles expose only their intended navigation and permissions", () => {
   const moderationNavigation = visibleAdminNavigation(["moderator"]);
   assert.deepEqual(
     moderationNavigation.map((item) => item.href),
-    ["/admin", "/admin/moderation"],
+    ["/admin", "/admin/users", "/admin/moderation", "/admin/audit"],
+  );
+  assert.equal(rolesHavePermission(["moderator"], "moderation.write"), true);
+  assert.equal(rolesHavePermission(["support"], "users.enforce"), false);
+  assert.equal(rolesHavePermission(["operations"], "roles.manage"), false);
+  assert.deepEqual(
+    visibleAdminNavigation(["super_admin"]).map((item) => item.href),
+    [
+      "/admin",
+      "/admin/users",
+      "/admin/moderation",
+      "/admin/creator-verifications",
+      "/admin/data",
+      "/admin/alerts",
+      "/admin/billing",
+      "/admin/integrations",
+      "/admin/audit",
+      "/admin/roles",
+    ],
   );
 });
 
@@ -121,6 +166,181 @@ test("admin APIs perform a server permission check on every request", () => {
     /assertSocialVerificationAdmin\(resolution\.userId\)/,
   );
   assert.match(adminMutationApi, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(
+    userCommunityMutationApi,
+    /resolveAdminApiAccess\(request, "users\.enforce"\)/,
+  );
+  assert.match(
+    moderationMutationApi,
+    /resolveAdminApiAccess\(request, "moderation\.write"\)/,
+  );
+  assert.match(
+    roleMutationApi,
+    /resolveAdminApiAccess\(request, "roles\.manage"\)/,
+  );
+  for (const mutation of [
+    userCommunityMutationApi,
+    moderationMutationApi,
+    roleMutationApi,
+  ]) {
+    assert.match(mutation, /assertSameOriginAuthRequest\(request\)/);
+  }
+  assert.doesNotMatch(adminApi, /user_metadata|app_metadata/);
+});
+
+test("admin v2 operation tables are RLS protected and service-role only", () => {
+  for (const table of [
+    "user_community_status",
+    "user_community_enforcement_actions",
+    "admin_moderation_cases",
+    "admin_moderation_case_events",
+  ]) {
+    assert.match(
+      operationsMigration,
+      new RegExp(`create table public\\.${table}`, "i"),
+    );
+    assert.match(
+      operationsMigration,
+      new RegExp(
+        `alter table public\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+    assert.match(
+      operationsMigration,
+      new RegExp(
+        `revoke all on table public\\.${table}\\s+from public, anon, authenticated, service_role`,
+        "i",
+      ),
+    );
+  }
+  assert.doesNotMatch(
+    operationsMigration,
+    /grant\s+(?:all|update|delete)[^;]*user_community_enforcement_actions\s+to\s+service_role/i,
+  );
+  assert.doesNotMatch(
+    operationsMigration,
+    /grant\s+(?:all|update|delete)[^;]*admin_moderation_case_events\s+to\s+service_role/i,
+  );
+});
+
+test("community enforcement is reasoned, audited, and separate from Auth", () => {
+  assert.match(
+    operationsMigration,
+    /p_action not in \('warning', 'temporary_suspend', 'permanent_suspend', 'unsuspend'\)/,
+  );
+  assert.match(operationsMigration, /ADMIN_REASON_REQUIRED/);
+  assert.match(operationsMigration, /ADMIN_SELF_ENFORCEMENT_FORBIDDEN/);
+  assert.match(
+    operationsMigration,
+    /insert into public\.admin_audit_logs[\s\S]*community_status/i,
+  );
+  assert.doesNotMatch(
+    `${operationsMigration}\n${usersRepository}`,
+    /auth\.admin\.deleteUser|\/auth\/v1\/admin\/users\/[^`'"]+\/password/i,
+  );
+  assert.match(usersRepository, /ADMIN_USER_ACTION_UNSUPPORTED/);
+  assert.match(
+    usersRepository,
+    /temporary_suspend[\s\S]*permanent_suspend[\s\S]*unsuspend/,
+  );
+});
+
+test("all four raw report sources feed one moderation queue without deleting evidence", () => {
+  for (const source of [
+    "live_room_message_reports",
+    "live_room_post_reports",
+    "live_room_post_comment_reports",
+    "live_room_direct_message_reports",
+  ]) {
+    assert.match(
+      operationsMigration,
+      new RegExp(`${source}_create_admin_case`, "i"),
+    );
+    assert.doesNotMatch(
+      operationsMigration,
+      new RegExp(`delete\\s+from\\s+public\\.${source}`, "i"),
+    );
+  }
+  assert.match(
+    operationsMigration,
+    /status in \('open', 'in_review', 'resolved', 'dismissed'\)/,
+  );
+  assert.match(
+    operationsMigration,
+    /severity in \('low', 'normal', 'high', 'critical'\)/,
+  );
+  assert.match(operationsMigration, /target_snapshot jsonb not null/);
+  for (const action of [
+    "dismiss",
+    "hide_content",
+    "restore_content",
+    "warn_user",
+    "temporary_suspend",
+    "permanent_suspend",
+  ]) {
+    assert.match(operationsMigration, new RegExp(`'${action}'`));
+  }
+  assert.match(
+    moderationRepository,
+    /live_room_message_reports[\s\S]*live_room_post_reports[\s\S]*live_room_post_comment_reports[\s\S]*live_room_direct_message_reports/,
+  );
+  assert.equal(
+    (orphanBackfillMigration.match(/left join public\.live_room_/g) || [])
+      .length,
+    4,
+  );
+  assert.equal(
+    (orphanBackfillMigration.match(/'evidence_missing', true/g) || []).length,
+    4,
+  );
+});
+
+test("role mutations stay database-backed and are included in the audit trail", () => {
+  assert.match(operationsMigration, /create function public\.admin_set_role_assignment/);
+  assert.match(operationsMigration, /ADMIN_SELF_ROLE_CHANGE_FORBIDDEN/);
+  assert.match(operationsMigration, /ADMIN_LAST_SUPER_ADMIN_REQUIRED/);
+  assert.match(
+    operationsMigration,
+    /insert into public\.admin_audit_logs[\s\S]*admin_role_assignment/i,
+  );
+  assert.doesNotMatch(
+    `${operationsMigration}\n${auditRepository}\n${roleMutationApi}`,
+    /user_metadata|app_metadata/,
+  );
+});
+
+test("user lookup includes required summaries and never queries brokerage secrets", () => {
+  assert.match(usersRepository, /email: `ilike\.\*\$\{safeLike\}\*`/);
+  assert.match(usersRepository, /display_name: `ilike\.\*\$\{safeLike\}\*`/);
+  assert.match(usersRepository, /public_profile_id\.eq/);
+  assert.match(usersRepository, /last_sign_in_at/);
+  assert.match(usersRepository, /live_room_memberships/);
+  assert.match(usersRepository, /live_room_member_follows/);
+  assert.match(usersRepository, /live_room_social_verifications/);
+  assert.match(usersRepository, /user_delivery_channels/);
+  assert.match(usersRepository, /user_alert_tickers/);
+  assert.match(
+    usersRepository,
+    /user_id,provider,status,has_live_account,has_paper_account,connected_at,last_synced_at,disconnected_at/,
+  );
+  assert.doesNotMatch(
+    usersRepository,
+    /userSecret|user_secret|account_number|accountNumber|position|balance|trade_history|transactions/,
+  );
+});
+
+test("source and alert failure details remain read-only", () => {
+  assert.match(operationsRepository, /status: "eq\.failed"/);
+  assert.match(operationsRepository, /delivery_status: "eq\.failed"/);
+  assert.doesNotMatch(
+    operationsRepository,
+    /supabaseRpc|insert|update|delete|retry/i,
+  );
+  assert.doesNotMatch(
+    dashboardRepository,
+    /trial_plan[\s\S]{0,120}Pro only/i,
+  );
 });
 
 test("dashboard query failures degrade individual signals instead of crashing the page", () => {
@@ -141,7 +361,14 @@ test("admin routes are dynamic and excluded from indexing", () => {
 test("AdminShell owns the only admin main landmark", () => {
   assert.equal((adminShell.match(/<main\b/g) || []).length, 1);
   assert.equal((adminShell.match(/<\/main>/g) || []).length, 1);
-  for (const page of legacyAdminPages) {
+  for (const page of [...legacyAdminPages, ...v2AdminPages]) {
     assert.doesNotMatch(page, /<\/?main\b/);
+  }
+});
+
+test("legacy data screens use the shared AdminShell surface", () => {
+  for (const page of legacyAdminPages) {
+    assert.doesNotMatch(page, /className="(?:shell|topbar)"/);
+    assert.doesNotMatch(page, /\uFFFD/);
   }
 });
