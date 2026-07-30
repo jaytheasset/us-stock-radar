@@ -233,6 +233,18 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /"Stock Overview"/);
   assert.match(componentSource, /"Personal market workspace"/);
   assert.match(
+    componentSource,
+    /new ResizeObserver\(scheduleActiveSectionUpdate\)/,
+  );
+  assert.match(
+    componentSource,
+    /\}, \[fundamentalsState, selectedTicker\]\);/,
+  );
+  assert.match(
+    componentSource,
+    /\.element\.scrollIntoView\(\{ block: "start" \}\);/,
+  );
+  assert.match(
     componentCss,
     /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;/,
   );

@@ -395,14 +395,13 @@ export function StockRadarWatchlistV2({
 
     const updateActiveSection = () => {
       animationFrameId = null;
-      const scrollMarginTop =
-        Number.parseFloat(
-          window.getComputedStyle(sections[0].element).scrollMarginTop,
-        ) || 0;
-      const activationLine = scrollMarginTop + 1;
       let nextSectionId = sections[0].id;
 
       for (const section of sections) {
+        const activationLine =
+          (Number.parseFloat(
+            window.getComputedStyle(section.element).scrollMarginTop,
+          ) || 0) + 1;
         if (section.element.getBoundingClientRect().top <= activationLine) {
           nextSectionId = section.id;
         }
@@ -439,6 +438,10 @@ export function StockRadarWatchlistV2({
     );
     if (initialHashSectionId) {
       setActiveSectionId(initialHashSectionId);
+      sections
+        .find((section) => section.id === initialHashSectionId)
+        ?.element.scrollIntoView({ block: "start" });
+      scheduleActiveSectionUpdate();
     } else {
       scheduleActiveSectionUpdate();
     }
@@ -448,16 +451,24 @@ export function StockRadarWatchlistV2({
     });
     window.addEventListener("resize", scheduleActiveSectionUpdate);
     window.addEventListener("hashchange", handleHashChange);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(scheduleActiveSectionUpdate);
+    for (const section of sections) {
+      resizeObserver?.observe(section.element);
+    }
 
     return () => {
       window.removeEventListener("scroll", scheduleActiveSectionUpdate);
       window.removeEventListener("resize", scheduleActiveSectionUpdate);
       window.removeEventListener("hashchange", handleHashChange);
+      resizeObserver?.disconnect();
       if (animationFrameId !== null) {
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [selectedTicker]);
+  }, [fundamentalsState, selectedTicker]);
 
   useEffect(() => {
     if (!window.matchMedia("(max-width: 1120px)").matches) return;
