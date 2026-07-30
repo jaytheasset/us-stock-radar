@@ -848,11 +848,11 @@
 
 .workspace .desktopDetailPanel {
   position: sticky;
-  top: calc(var(--sr-size-header) + var(--sr-space-4));
+  top: var(--sr-space-4);
   align-self: start;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(100vh - var(--sr-size-header) - var(--sr-space-8));
+  max-height: calc(100vh - var(--sr-space-8));
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
   box-shadow: var(--sr-shadow-panel);
