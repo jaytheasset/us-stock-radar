@@ -141,6 +141,10 @@ test("every individual ingest route enforces authorization for GET and POST", ()
       2,
       `${path.relative(process.cwd(), routeFile)} must protect GET and POST`,
     );
+    if (routeFile.includes(`${path.sep}fmp-calendar${path.sep}`)) {
+      assert.match(source, /parseFmpCalendarIngestRequest/);
+      continue;
+    }
     assert.match(
       source,
       /request\.nextUrl\.searchParams\.get\("dryRun"\) === "true"/,
