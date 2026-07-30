@@ -137,6 +137,27 @@ test("Calendar typography, day alignment, and conditional upcoming panel use loc
     styles,
     /\.calendarDay\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*stretch;[\s\S]*flex-direction:\s*column;[\s\S]*justify-content:\s*flex-start;/,
   );
+  assert.match(
+    styles,
+    /\.dayEvents\s*\{[\s\S]*min-width:\s*0;/,
+  );
+  assert.match(
+    styles,
+    /\.dayEvents > span\s*\{[\s\S]*display:\s*flex;[\s\S]*min-width:\s*0;/,
+  );
+  assert.match(
+    styles,
+    /\.dayEvents b\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*min-width:\s*0;[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;/,
+  );
+  assert.match(
+    styles,
+    /\.dayEvents > span > span\s*\{[\s\S]*flex:\s*0 1 auto;[\s\S]*min-width:\s*var\(--sr-space-8\);[\s\S]*max-width:\s*60%;[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;/,
+  );
+  assert.match(calendarView, /<CalendarEventTypeBadge[\s\S]*truncateLabel/);
+  assert.match(
+    await read("components/calendar-v1/CalendarEventTypeBadge.module.css"),
+    /\.truncated > span\s*\{[\s\S]*min-width:\s*0;[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;/,
+  );
 
   assert.match(presentation, /selectedDateEventCount >= 3/);
   assert.match(presentation, /event\.eventDate > selectedDate/);

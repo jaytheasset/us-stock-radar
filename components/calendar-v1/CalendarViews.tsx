@@ -95,7 +95,10 @@ export function CalendarView({
                 {dayEvents.slice(0, 3).map((event) => (
                   <span key={event.id}>
                     <b>{getCalendarCompactIdentity(event)}</b>
-                    <CalendarEventTypeBadge eventType={event.eventType} />
+                    <CalendarEventTypeBadge
+                      eventType={event.eventType}
+                      truncateLabel
+                    />
                   </span>
                 ))}
                 {dayEvents.length > 3 ? <strong>+{dayEvents.length - 3} more</strong> : null}

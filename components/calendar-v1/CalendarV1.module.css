@@ -422,6 +422,7 @@
 
 .dayEvents {
   display: grid;
+  min-width: 0;
   gap: var(--sr-space-1);
   margin-top: var(--sr-space-2);
 }
@@ -436,8 +437,18 @@
   background: var(--sr-color-event-neutral-surface);
 }
 
-.dayEvents b,
+.dayEvents b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dayEvents > span > span {
+  flex: 0 1 auto;
+  min-width: var(--sr-space-8);
+  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
