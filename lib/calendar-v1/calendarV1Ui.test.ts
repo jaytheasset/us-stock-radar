@@ -207,7 +207,7 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   assert.match(detailPanelStyles, /\.panel\s*\{[\s\S]*position:\s*relative;/);
   assert.match(
     calendarStyles,
-    /\.workspace \.desktopDetailPanel\s*\{[^}]*position:\s*sticky;[^}]*top:\s*calc\(var\(--sr-size-header\) \+ var\(--sr-space-4\)\);/,
+    /\.workspace \.desktopDetailPanel\s*\{[^}]*position:\s*sticky;[^}]*top:\s*var\(--sr-space-4\);[^}]*max-height:\s*calc\(100vh - var\(--sr-space-8\)\);/,
   );
   assert.match(
     calendarStyles,
