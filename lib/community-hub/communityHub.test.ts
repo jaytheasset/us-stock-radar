@@ -151,6 +151,8 @@ test("desktop popup and mobile header lead to the full Community hub without top
   assert.match(hub, /People/);
   assert.match(hub, /Rooms/);
   assert.match(hub, /Activity/);
+  assert.match(hub, /action=\{\{ href: "\/live", label: "Browse Live Rooms" \}\}/);
+  assert.doesNotMatch(hub, /Browse Live Feed/);
 });
 
 test("message requests retain Accept, Decline, and Block before conversations", () => {

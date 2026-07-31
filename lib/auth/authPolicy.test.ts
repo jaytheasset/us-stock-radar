@@ -325,6 +325,25 @@ test("password update distinguishes invalid and temporarily unavailable sessions
   const updateRoute = readProjectFile(
     "app/api/auth/password/update/route.ts",
   );
+  const accountPage = readProjectFile("app/account/page.tsx");
+  const resetRequestRoute = readProjectFile(
+    "app/api/auth/password/reset-request/route.ts",
+  );
+  assert.match(
+    accountPage,
+    /href="\/account\/update-password"[\s\S]*Change password/,
+  );
+  assert.doesNotMatch(accountPage, /href=\{`\/forgot-password/);
+  assert.match(updateRoute, /resolveAuthSession\(/);
+  assert.match(
+    updateRoute,
+    /const accessToken =[\s\S]*resolved\.refreshedSession\?\.access_token \|\| tokens\.accessToken;[\s\S]*updateSupabasePassword\(accessToken, password\)/,
+  );
+  assert.doesNotMatch(updateRoute, /callbackType|type === "recovery"/);
+  assert.match(
+    resetRequestRoute,
+    /buildAuthCallbackUrl\([\s\S]*"recovery",[\s\S]*"\/account\/update-password"/,
+  );
   assert.match(
     updateRoute,
     /authSessionState === "invalid"[\s\S]*clearAuthSessionCookies\(response\)/,

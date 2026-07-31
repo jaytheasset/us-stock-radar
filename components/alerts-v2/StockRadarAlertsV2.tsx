@@ -17,6 +17,7 @@ import type {
   TickerSearchResult,
 } from "@/lib/alerts/tickers/types";
 import type { WatchlistTickerItem, WatchlistViewModel } from "@/lib/watchlist/types";
+import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import {
   alertIconSet,
   alertSources,
@@ -778,30 +779,55 @@ export function StockRadarAlertsV2({
             <p className={styles.tickerEmpty}>Loading alert-enabled tickers...</p>
           ) : tickers.length === 0 ? (
             <p className={styles.tickerEmpty}>No alert-enabled tickers yet.</p>
-          ) : tickers.map((ticker) => (
-            <article className={styles.tickerRow} key={ticker.id}>
-              <strong>{ticker.ticker}</strong>
-              <span>{ticker.companyName}</span>
-              <div className={styles.inlineToggle}>
-                <ToggleSwitch
-                  checked={ticker.enabled}
+          ) : tickers.map((ticker) => {
+            const stockHref = getStockRouteHref(ticker.ticker);
+
+            return (
+              <article className={styles.tickerRow} key={ticker.id}>
+                {stockHref ? (
+                  <>
+                    <Link
+                      aria-label={`View ${ticker.ticker} stock overview`}
+                      className={styles.tickerSymbolLink}
+                      href={stockHref}
+                    >
+                      {ticker.ticker}
+                    </Link>
+                    <Link
+                      aria-label={`View ${ticker.companyName} stock overview`}
+                      className={styles.tickerCompanyLink}
+                      href={stockHref}
+                    >
+                      {ticker.companyName}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <strong>{ticker.ticker}</strong>
+                    <span>{ticker.companyName}</span>
+                  </>
+                )}
+                <div className={styles.inlineToggle}>
+                  <ToggleSwitch
+                    checked={ticker.enabled}
+                    disabled={Boolean(tickerAction)}
+                    label={`Toggle alerts for ${ticker.ticker}`}
+                    onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
+                  />
+                  <em>{ticker.enabled ? "ON" : "OFF"}</em>
+                </div>
+                <button
+                  aria-label={`Remove ${ticker.ticker}`}
+                  className={styles.removeButton}
                   disabled={Boolean(tickerAction)}
-                  label={`Toggle alerts for ${ticker.ticker}`}
-                  onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
-                />
-                <em>{ticker.enabled ? "ON" : "OFF"}</em>
-              </div>
-              <button
-                aria-label={`Remove ${ticker.ticker}`}
-                className={styles.removeButton}
-                disabled={Boolean(tickerAction)}
-                onClick={() => void removeTicker(ticker.ticker)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={20} />
-              </button>
-            </article>
-          ))}
+                  onClick={() => void removeTicker(ticker.ticker)}
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={20} />
+                </button>
+              </article>
+            );
+          })}
         </div>
           </section>
 
