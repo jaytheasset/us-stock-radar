@@ -197,6 +197,77 @@ test("news runtime wires the existing final normalizer into the single Gemini an
   );
 });
 
+test("general news prompt requires source-backed directional points without manufacturing both sides", () => {
+  const promptSource = readFileSync(
+    new URL("../prompts/newsEventAnalysis.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(promptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v26"/);
+  assert.match(promptSource, /distinct directional facts explicitly source-backed by the article body/);
+  assert.match(promptSource, /use fewer items or an empty array \[\]/);
+  assert.match(promptSource, /Empty arrays are normal and expected/);
+  assert.match(promptSource, /Do not manufacture both bullish_points and bearish_points/);
+  assert.match(promptSource, /For a bullish signal[\s\S]*?otherwise use bearish_points: \[\]/);
+  assert.match(promptSource, /For a bearish signal[\s\S]*?otherwise use bullish_points: \[\]/);
+  assert.match(promptSource, /For volatile or mixed developments[\s\S]*?source-backed facts on both sides/);
+  assert.match(promptSource, /neutral, administrative, or mechanical news[\s\S]*?arrays may naturally be empty/);
+  assert.match(
+    promptSource,
+    /Do not unnecessarily repeat the same fact across bullish_points, bearish_points, summary, why_it_matters, and key_evidence/,
+  );
+  assert.match(
+    promptSource,
+    /required: \[[\s\S]*?"bullish_points",[\s\S]*?"bearish_points",/,
+  );
+  assert.match(promptSource, /Required key; use an empty array when no source-backed bullish fact exists/);
+  assert.match(promptSource, /Required key; use an empty array when no source-backed bearish fact exists/);
+});
+
+test("single-pass news analysis preserves source-backed directional array shapes", async () => {
+  const examples = [
+    {
+      name: "bullish-only",
+      analysis: {
+        signal: "bullish",
+        bullish_points: ["Contract adds $40 million of committed revenue"],
+        bearish_points: [],
+      },
+    },
+    {
+      name: "bearish-only",
+      analysis: {
+        signal: "bearish",
+        bullish_points: [],
+        bearish_points: ["Guidance was cut below the prior range"],
+      },
+    },
+    {
+      name: "volatile-with-both-sides",
+      analysis: {
+        signal: "volatile",
+        bullish_points: ["Trial met its primary efficacy endpoint"],
+        bearish_points: ["Serious adverse events exceeded the control arm"],
+      },
+    },
+  ] as const;
+
+  for (const example of examples) {
+    const result = await runNewsGeminiAnalysis({
+      apiKey: "test-key",
+      model: "gemini-2.5-flash-lite",
+      prompt,
+      input: {},
+      maxOutputTokens: 6000,
+      normalizeAnalysis: (value) => value,
+      runPrompt: async ({ model }) => successfulRun(model, { ...example.analysis }),
+    });
+
+    assert.equal(result.stage, "complete", example.name);
+    assert.deepEqual(result.analysis, example.analysis, example.name);
+  }
+});
+
 test("Nasdaq Corporate Actions uses the shared single-call Flash-Lite path without OpenAI", () => {
   const previewSource = readFileSync(
     new URL("./nasdaqCorporateActionAnalysisPreview.ts", import.meta.url),
@@ -218,6 +289,28 @@ test("Nasdaq Corporate Actions uses the shared single-call Flash-Lite path witho
     /env\.openAi|OPENAI_API_KEY|OPENAI_MODEL|api\.openai\.com|runStructuredOpenAiJson/,
   );
   assert.match(promptSource, /output_contract: newsEventAnalysisResponseSchema/);
+});
+
+test("only nasdaq_corporate_actions routes to the dedicated analysis prompt", () => {
+  const ingestSource = readFileSync(
+    new URL("../newsIngest.ts", import.meta.url),
+    "utf8",
+  );
+  const routeStart = ingestSource.indexOf("function runNewsAnalysisForRawItem(");
+  const routeEnd = ingestSource.indexOf("async function runNewsIngestForSource", routeStart);
+  const routeSource = ingestSource.slice(routeStart, routeEnd);
+
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  assert.match(
+    routeSource,
+    /if \(rawItem\.source_code === "nasdaq_corporate_actions"\)[\s\S]*?return runNasdaqCorporateActionAnalysisForRawItem/,
+  );
+  assert.match(routeSource, /return runNewsEventAnalysisForRawItem\(rawItem, options\);/);
+  assert.equal(routeSource.match(/rawItem\.source_code ===/g)?.length, 1);
+  assert.doesNotMatch(
+    routeSource,
+    /rawItem\.source_code === "(?!nasdaq_corporate_actions")[^"]+"/,
+  );
 });
 
 test("Nasdaq Corporate Actions preserves analysis fields while removing CUSIP administration", () => {
