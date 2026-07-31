@@ -2,11 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Menu, Settings } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 import { AuthStatus } from "@/components/AuthStatus";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
 import { LiveRoomUnreadMenu } from "@/components/shell/LiveRoomUnreadMenu";
 import { StockRadarTickerSearch } from "@/components/shell/StockRadarTickerSearch";
+import { AlertNotificationsMenu } from "@/components/shell/AlertNotificationsMenu";
 import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import {
   StockRadarMobileNavigationMenu,
@@ -113,9 +114,7 @@ export function StockRadarProductHeader({
         <div aria-label="Dashboard actions" className={styles.actions}>
           <StockRadarTickerSearch onOpen={() => closeMobileMenu()} />
           <LiveRoomUnreadMenu />
-          <IconButton aria-label="Alerts" indicator>
-            <Bell aria-hidden="true" size={18} />
-          </IconButton>
+          <AlertNotificationsMenu loginHref={loginHref} />
           {showThemeToggle ? <StockRadarThemeToggle /> : null}
           <IconButton aria-label="Settings" className={styles.settingsButton}>
             <Settings aria-hidden="true" size={18} />

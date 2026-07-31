@@ -225,6 +225,23 @@ export async function getDeliveredAlertsForUser({
   };
 }
 
+export async function getUnreadAlertCountForUser(userId: string) {
+  const result = await supabaseSelect("user_alert_deliveries", {
+    select: "id",
+    user_id: `eq.${userId}`,
+    delivery_status: "eq.sent",
+    read_at: "is.null",
+    limit: "1",
+  });
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    count: result.count ?? 0,
+    error: result.error,
+  };
+}
+
 export type DeliveryStatusFilter = "queued" | "sent" | "failed" | "suppressed" | "all";
 
 function mapPreferences(row?: AlertPreferencesRow): AlertPreferences {

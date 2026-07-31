@@ -9,6 +9,7 @@ export async function sendTelegramMessage(chatId: string, text: string) {
       ok: false,
       status: 0,
       error: "TELEGRAM_BOT_TOKEN is missing",
+      outcome: "not_sent" as const,
     };
   }
 
@@ -28,13 +29,16 @@ export async function sendTelegramMessage(chatId: string, text: string) {
     return {
       ok: Boolean(response.ok && data?.ok),
       status: response.status,
+      providerMessageId: readTelegramMessageId(data),
       error: response.ok && data?.ok ? undefined : readTelegramError(data, response.statusText),
+      outcome: response.ok && data?.ok ? ("sent" as const) : ("not_sent" as const),
     };
   } catch (error) {
     return {
       ok: false,
       status: 0,
       error: error instanceof Error ? error.message : "Telegram send failed",
+      outcome: "uncertain" as const,
     };
   }
 }
@@ -44,4 +48,22 @@ function readTelegramError(data: unknown, fallback: string) {
     return String((data as { description?: unknown }).description || fallback);
   }
   return fallback;
+}
+
+function readTelegramMessageId(data: unknown) {
+  if (
+    data &&
+    typeof data === "object" &&
+    "result" in data &&
+    (data as { result?: unknown }).result &&
+    typeof (data as { result?: unknown }).result === "object"
+  ) {
+    const messageId = (
+      (data as { result: { message_id?: unknown } }).result
+    ).message_id;
+    if (typeof messageId === "number" || typeof messageId === "string") {
+      return String(messageId);
+    }
+  }
+  return undefined;
 }
