@@ -5,6 +5,7 @@ import {
   buildChannelNotAvailableMessage,
   getChannelLockState,
   getUserPlan,
+  IMPLEMENTED_ALERT_CHANNELS,
   normalizeChannelPatch,
 } from "@/lib/alerts/alertValidation";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -43,6 +44,20 @@ export async function PATCH(request: NextRequest) {
 
     const plan = await getUserPlan(userId);
     const locked = getChannelLockState(plan, patch.channel);
+
+    if (
+      patch.enabled &&
+      !IMPLEMENTED_ALERT_CHANNELS.includes(patch.channel)
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "CHANNEL_COMING_LATER",
+          message: `${channelLabel(patch.channel)} delivery is coming later and cannot be enabled yet.`,
+        },
+        { status: 501, headers: NO_STORE_HEADERS },
+      );
+    }
 
     if (patch.enabled && locked) {
       return NextResponse.json(

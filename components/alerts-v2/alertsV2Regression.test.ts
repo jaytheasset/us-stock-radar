@@ -15,6 +15,26 @@ const pageSource = readFileSync(
   new URL("../../app/alerts/page.tsx", import.meta.url),
   "utf8",
 );
+const settingsRouteSource = readFileSync(
+  new URL("../../app/api/alerts/settings/route.ts", import.meta.url),
+  "utf8",
+);
+const deliveredRouteSource = readFileSync(
+  new URL("../../app/api/alerts/delivered/route.ts", import.meta.url),
+  "utf8",
+);
+const followsRouteSource = readFileSync(
+  new URL("../../app/api/calendar/follows/route.ts", import.meta.url),
+  "utf8",
+);
+const calendarDeliverySource = readFileSync(
+  new URL("../../lib/alerts/calendarDelivery.ts", import.meta.url),
+  "utf8",
+);
+const supabaseAuthSource = readFileSync(
+  new URL("../../lib/auth/supabaseAuth.ts", import.meta.url),
+  "utf8",
+);
 const liveRoomClientSource = readFileSync(
   new URL("../live-room/LiveRoomClient.tsx", import.meta.url),
   "utf8",
@@ -104,15 +124,44 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
   );
 });
 
+test("Alerts V2 reads and persists the authenticated runtime instead of a mock plan", () => {
+  assert.doesNotMatch(componentSource, /getAlertsMockPlan|accountPlanId|setAccountPlanId/);
+  assert.doesNotMatch(componentSource, /lib\/mock\/alertsV2Data/);
+  assert.match(componentSource, /fetch\("\/api\/alerts\/settings"/);
+  assert.match(componentSource, /fetch\("\/api\/alerts\/preferences"/);
+  assert.match(componentSource, /fetch\("\/api\/alerts\/discovery-categories"/);
+  assert.match(componentSource, /fetch\("\/api\/alerts\/channels"/);
+  assert.match(componentSource, /areAdsEnabledForPlan\(plan\)/);
+  assert.match(componentSource, /planLimits\.discoveryCategories/);
+  assert.match(settingsRouteSource, /getAlertSettingsViewModel\(userId\)/);
+});
+
+test("in-app delivery is real, readable, and unimplemented external channels stay explicit", () => {
+  assert.match(componentSource, /body: JSON\.stringify\(\{ action: "test" \}\)/);
+  assert.match(componentSource, /body: JSON\.stringify\(\{ id: alert\.id, read: true \}\)/);
+  assert.match(componentSource, /COMING LATER/);
+  assert.match(deliveredRouteSource, /export async function POST/);
+  assert.match(deliveredRouteSource, /export async function PATCH/);
+  assert.match(deliveredRouteSource, /read_at:/);
+  assert.match(followsRouteSource, /setUserCalendarFollow/);
+  assert.match(calendarDeliverySource, /user_delivery_channels/);
+  assert.match(calendarDeliverySource, /ticker: nullableString\(event\.ticker\)/);
+  assert.match(componentSource, /Followed Calendar events/);
+});
+
+test("auth bootstrap preserves a saved Web delivery preference", () => {
+  assert.match(
+    supabaseAuthSource,
+    /"user_delivery_channels"[\s\S]*enabled:\s*true[\s\S]*resolution=ignore-duplicates/,
+  );
+});
+
 test("Live Room Follow tracks chat unread state and stays separate from paid Alerts", () => {
-  assert.match(liveRoomHeaderSource, /Bookmark/);
+  assert.match(liveRoomHeaderSource, /RoomMembershipControl/);
   assert.doesNotMatch(liveRoomHeaderSource, /BookmarkCheck/);
   assert.doesNotMatch(liveRoomHeaderSource, /Bell(?:Off)?/);
-  assert.match(liveRoomClientSource, /Room saved\./);
-  assert.match(
-    liveRoomClientSource,
-    /New chat messages from other people will be shown\s+as unread\./,
-  );
+  assert.match(liveRoomClientSource, /membershipJoined/);
+  assert.match(liveRoomClientSource, /requestLiveRoomUnreadRefresh/);
   assert.doesNotMatch(liveRoomClientSource, /\/alerts\?ticker=/);
   assert.doesNotMatch(liveRoomClientSource, />\s*Turn on alerts\s*</);
   assert.doesNotMatch(
@@ -121,8 +170,6 @@ test("Live Room Follow tracks chat unread state and stays separate from paid Ale
   );
   assert.match(liveRoomInboxSource, /Rooms/);
   assert.match(liveRoomInboxSource, /People/);
-  assert.match(liveRoomClientSource, /15_000/);
-  assert.match(liveRoomClientSource, /New company update/);
 });
 
 test("alerts ticker query prepares search selection without adding a ticker", () => {

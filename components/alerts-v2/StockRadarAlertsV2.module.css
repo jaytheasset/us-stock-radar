@@ -1067,6 +1067,23 @@
   color: var(--sr-color-text-muted);
 }
 
+.readButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--sr-color-accent);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.readButton:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .watchlistOverlay {
   position: fixed;
   z-index: var(--sr-z-sheet-content-footer);

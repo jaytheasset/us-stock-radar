@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAlertDeliveryScheduler } from "@/lib/alerts/delivery/runAlertDeliveryScheduler";
+import { runCalendarAlertDelivery } from "@/lib/alerts/calendarDelivery";
 
 export const dynamic = "force-dynamic";
 
@@ -31,24 +32,31 @@ export async function POST(request: NextRequest) {
   const write = writeRequested && cronWriteEnabled;
   const runId = `cron:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 
-  const result = await runAlertDeliveryScheduler({
-    runId,
-    recordRunLog: true,
-    dryRun: !write,
-    write,
-    limit: readPositiveInt(params.get("limit"), 50, 250),
-    queuedLimit: readPositiveInt(params.get("queuedLimit") || params.get("queued-limit"), 50, 250),
-    lookbackHours: readPositiveInt(params.get("lookbackHours") || params.get("lookback-hours"), 6, 24 * 30),
-    lockTtlSeconds: readPositiveInt(params.get("lockTtlSeconds") || params.get("lock-ttl-seconds"), 300, 3600),
-    force: isTruthy(params.get("force")),
-    skipBatch: isTruthy(params.get("skipBatch") || params.get("skip-batch")),
-    skipQueued: isTruthy(params.get("skipQueued") || params.get("skip-queued")),
-  });
+  const [result, calendar] = await Promise.all([
+    runAlertDeliveryScheduler({
+      runId,
+      recordRunLog: true,
+      dryRun: !write,
+      write,
+      limit: readPositiveInt(params.get("limit"), 50, 250),
+      queuedLimit: readPositiveInt(params.get("queuedLimit") || params.get("queued-limit"), 50, 250),
+      lookbackHours: readPositiveInt(params.get("lookbackHours") || params.get("lookback-hours"), 6, 24 * 30),
+      lockTtlSeconds: readPositiveInt(params.get("lockTtlSeconds") || params.get("lock-ttl-seconds"), 300, 3600),
+      force: isTruthy(params.get("force")),
+      skipBatch: isTruthy(params.get("skipBatch") || params.get("skip-batch")),
+      skipQueued: isTruthy(params.get("skipQueued") || params.get("skip-queued")),
+    }),
+    runCalendarAlertDelivery({
+      write,
+      limit: readPositiveInt(params.get("calendarLimit") || params.get("calendar-limit"), 100, 250),
+    }),
+  ]);
 
-  const status = result.lockSkipped ? "skipped" : result.ok ? "success" : "failed";
+  const ok = result.ok && calendar.ok;
+  const status = result.lockSkipped ? "skipped" : ok ? "success" : "failed";
   return NextResponse.json(
     {
-      ok: result.ok,
+      ok,
       status,
       reason: result.lockSkipped ? "LOCK_HELD" : undefined,
       runId: result.runId || runId,
@@ -57,10 +65,11 @@ export async function POST(request: NextRequest) {
       summary: {
         batch: result.batch,
         queued: result.queued,
+        calendar,
       },
-      error: result.error,
+      error: result.error || calendar.error,
     },
-    { status: result.ok ? 200 : 500, headers: NO_STORE_HEADERS },
+    { status: ok ? 200 : 500, headers: NO_STORE_HEADERS },
   );
 }
 
