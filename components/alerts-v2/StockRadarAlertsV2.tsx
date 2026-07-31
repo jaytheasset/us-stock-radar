@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
 import type {
   AlertSettingsViewModel,
   DeliveredAlertItem,
@@ -1140,6 +1141,11 @@ export function StockRadarAlertsV2({
             <div>
               <h2 id="alerts-v2-followed-title">Followed Calendar events</h2>
               <p>Event-specific schedule updates and reminders. These are separate from Watch Stock.</p>
+              {settings ? (
+                <span className={styles.calendarFollowUsage}>
+                  {formatCalendarEventFollowUsage(settings.calendarEventFollowUsage)}
+                </span>
+              ) : null}
             </div>
             <Link href="/calendar">Manage in Calendar</Link>
           </div>

@@ -255,6 +255,15 @@
   white-space: nowrap;
 }
 
+.cardHeader .calendarFollowUsage {
+  display: block;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-body);
+}
+
 .addTickerRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px 136px;
