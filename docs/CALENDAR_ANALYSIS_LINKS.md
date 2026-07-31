@@ -34,8 +34,8 @@ returns aggregate matching statistics, and never returns raw matching evidence.
 Only a linked representative analysis exposes the canonical
 `/filings/{analysis_event_id}` CTA. Additional linked analyses are shown as a
 compact related count. `Analysis pending` is shown only when a stored candidate
-exists and no linked analysis exists. The provider/agency/source URL remains a
-separate source section.
+exists and no linked analysis exists. Provider/source metadata remains distinct
+in the data contract, but Calendar detail does not add a provenance section.
 
 Candidate rows intentionally do not trigger an LLM call in a request path. The
 current shared AI pipeline is filing-analysis oriented rather than a queued,

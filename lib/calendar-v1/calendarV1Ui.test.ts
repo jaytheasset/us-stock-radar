@@ -503,12 +503,12 @@ test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and c
   assert.match(detail, /Economic release metrics/);
   assert.match(detail, /Not released/);
   assert.doesNotMatch(detail, /Data provenance/);
-  assert.match(detail, /<h3>Source<\/h3>/);
-  assert.match(detail, /value=\{event\.sourceAgency\}/);
+  assert.doesNotMatch(detail, /<h3>Source<\/h3>/);
+  assert.doesNotMatch(detail, /value=\{event\.sourceAgency\}/);
   assert.doesNotMatch(detail, /calendarProviderLabels/);
   assert.doesNotMatch(detail, /normalizeSafeCalendarSourceUrl/);
-  assert.match(detail, /event\.sourceUrl/);
-  assert.match(detail, /Open original source/);
+  assert.doesNotMatch(detail, /event\.sourceUrl/);
+  assert.doesNotMatch(detail, /Open original source/);
   assert.doesNotMatch(detail, /titleCase\(event\.scheduleConfidence\)/);
   assert.doesNotMatch(detail, /sourceEventKey/);
   assert.doesNotMatch(detail, /value="Mock"/);

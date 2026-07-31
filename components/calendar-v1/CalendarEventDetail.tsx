@@ -171,25 +171,6 @@ function CalendarEventDetailContent({
         {renderEventDetails(event)}
       </section>
 
-      <section className={styles.detailSection}>
-        <h3>Source</h3>
-        <dl>
-          <DetailValue label="Provider" value={event.sourceName} />
-          <DetailValue label="Agency" value={event.sourceAgency} />
-        </dl>
-        {event.sourceUrl ? (
-          <a
-            className={styles.sourceLink}
-            href={event.sourceUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            Open original source
-            <ExternalLink aria-hidden="true" size={14} />
-          </a>
-        ) : null}
-      </section>
-
       <div className={styles.detailActions}>
         <div className={styles.detailAction}>
           <div>

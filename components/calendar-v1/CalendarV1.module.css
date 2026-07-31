@@ -1098,34 +1098,23 @@
   margin: var(--sr-space-4) 0 0;
 }
 
-.analysisLink,
-.sourceLink {
+.analysisLink {
   display: inline-flex;
   align-items: center;
   gap: var(--sr-space-1-5);
   border-radius: var(--sr-radius-sm);
+  color: var(--sr-color-accent-text);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
   text-decoration: none;
 }
 
-.analysisLink {
-  color: var(--sr-color-accent-text);
-}
-
-.sourceLink {
-  margin-top: var(--sr-space-2);
-  color: var(--sr-color-text-secondary);
-}
-
-.analysisLink:hover,
-.sourceLink:hover {
+.analysisLink:hover {
   text-decoration: underline;
   text-underline-offset: var(--sr-space-1);
 }
 
-.analysisLink:focus-visible,
-.sourceLink:focus-visible {
+.analysisLink:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
 }
