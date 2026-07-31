@@ -427,7 +427,9 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
   assert.match(workspace, /\[ticker\]: !\(current\[ticker\]/);
   assert.doesNotMatch(workspace, /\[event\.id\]: !\(current\[event\.id\][\s\S]*isWatchlisted/);
-  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(workspace, /body: JSON\.stringify\(\{ eventId: event\.id, enabled \}\)/);
+  assert.match(workspace, /\/api\/calendar\/follows/);
+  assert.match(workspace, /\/login\?next=\$\{encodeURIComponent\(returnTo\)\}/);
   assert.match(detail, /watchlistTickers\.has\(ticker\)/);
   assert.match(detail, /followedEvents\[event\.id\]/);
 
@@ -436,12 +438,11 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(watchAction, /No ticker to watch/);
   assert.match(watchAction, /Watch Stock/);
   assert.match(detail, /Watching \$\{ticker\}/);
-  assert.doesNotMatch(followAction, /disabled=/);
+  assert.match(followAction, /disabled=\{followBusy\}/);
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
-  assert.match(detail, /Preview only\./);
-  assert.match(detail, /Alert delivery is not\s+connected yet\./);
+  assert.match(detail, /saved to Alerts separately from Stock Watchlist tracking/);
   assert.match(
     styles,
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
@@ -541,7 +542,8 @@ test("primary ticker gates stock actions while Follow Event stays event-scoped f
   const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
 
   assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
-  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(workspace, /eventId: event\.id, enabled/);
+  assert.match(workspace, /setUserCalendarFollow|\/api\/calendar\/follows/);
   assert.match(detail, /const ticker = identity\.primaryTicker/);
   assert.match(detail, /disabled=\{!ticker\}/);
   assert.match(detail, /\{ticker \? \(\s*<div className=\{styles\.detailLinks\}>/);
@@ -551,8 +553,9 @@ test("primary ticker gates stock actions while Follow Event stays event-scoped f
       detail.indexOf("<strong>Event alert</strong>"),
       detail.indexOf("{ticker ? ("),
     ),
-    /disabled=/,
+    /disabled=\{!ticker\}/,
   );
+  assert.match(detail, /disabled=\{followBusy\}/);
 });
 
 test("event rows keep their full-row detail trigger separate from internal links", async () => {

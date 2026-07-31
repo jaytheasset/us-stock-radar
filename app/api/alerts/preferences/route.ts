@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAlertSettingsViewModel, getGuestAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
-import { AlertValidationError, normalizePreferencePatch } from "@/lib/alerts/alertValidation";
+import {
+  AlertValidationError,
+  assertAdvancedAlertFiltersAllowed,
+  getUserPlan,
+  normalizePreferencePatch,
+} from "@/lib/alerts/alertValidation";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseUpsert } from "@/lib/supabase";
 
@@ -18,6 +23,8 @@ const FIELD_MAP: Record<string, string> = {
   discoveryEnabled: "discovery_enabled",
   groupDuplicates: "group_duplicates",
   cooldownMinutes: "cooldown_minutes",
+  marketCapFilters: "market_cap_filters",
+  filingTypeFilters: "filing_type_filters",
 };
 
 export async function PATCH(request: NextRequest) {
@@ -38,6 +45,9 @@ export async function PATCH(request: NextRequest) {
         { headers: NO_STORE_HEADERS },
       );
     }
+
+    const plan = await getUserPlan(userId);
+    assertAdvancedAlertFiltersAllowed(plan, patch);
 
     const payload: Record<string, unknown> = {
       user_id: userId,

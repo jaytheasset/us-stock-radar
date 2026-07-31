@@ -9,6 +9,8 @@ export type AlertPreferences = {
   discoveryEnabled: boolean;
   groupDuplicates: boolean;
   cooldownMinutes: number;
+  marketCapFilters: string[];
+  filingTypeFilters: string[];
 };
 
 export type DeliveryChannelState = {
@@ -18,6 +20,8 @@ export type DeliveryChannelState = {
   enabled: boolean;
   locked: boolean;
   connected: boolean;
+  implemented: boolean;
+  comingLater: boolean;
   availabilityLabel: string;
   statusLabel: string;
 };
@@ -36,11 +40,26 @@ export type DeliveredAlertItem = {
   categoryLabel: string | null;
   sourceType: string | null;
   sourceLabel: string | null;
-  alertLane: "watchlist" | "market_discovery";
+  alertLane: "watchlist" | "market_discovery" | "calendar_follow";
+  calendarEventId: string | null;
   severity: string | null;
   deliveredChannels: AlertChannel[];
   deliveryStatus: "queued" | "sent" | "failed" | "suppressed";
   deliveredAt: string;
+  readAt: string | null;
+  isRead: boolean;
+};
+
+export type FollowedCalendarEventItem = {
+  followId: string;
+  eventId: string;
+  title: string;
+  eventType: string;
+  eventDate: string;
+  eventTime: string | null;
+  lifecycleStatus: string;
+  ticker: string | null;
+  enabled: boolean;
 };
 
 export type AlertSettingsViewModel = {
@@ -60,5 +79,6 @@ export type AlertSettingsViewModel = {
   selectedCategories: PublicAlertCategory[];
   selectedCategoryDetails: SelectedAlertCategory[];
   channels: DeliveryChannelState[];
+  followedCalendarEvents: FollowedCalendarEventItem[];
   recentDeliveredAlerts: DeliveredAlertItem[];
 };

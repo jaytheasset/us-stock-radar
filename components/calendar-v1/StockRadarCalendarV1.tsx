@@ -53,6 +53,7 @@ import {
   selectCalendarPreviewEvent,
 } from "@/lib/calendar-v1/presentation";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import type { FollowedCalendarEventItem } from "@/lib/alerts/types";
 import styles from "./CalendarV1.module.css";
 
 export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
@@ -82,6 +83,8 @@ export function StockRadarCalendarV1({
   const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
+  const [followAction, setFollowAction] = useState("");
+  const [followMessage, setFollowMessage] = useState("");
   const [sourceEvents, setSourceEvents] = useState<readonly CalendarEvent[]>(initialEvents);
   const [desktopRailContentHeight, setDesktopRailContentHeight] = useState(0);
   const [loadState, setLoadState] = useState<"ready" | "loading" | "error">(
@@ -109,6 +112,34 @@ export function StockRadarCalendarV1({
       ),
     [sourceEvents, watchlistOverrides],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/calendar/follows", {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as {
+          data?: FollowedCalendarEventItem[];
+          message?: string;
+        } | null;
+        if (!response.ok || !Array.isArray(payload?.data)) {
+          throw new Error(payload?.message || "Failed to load followed events.");
+        }
+        setFollowedEvents(
+          Object.fromEntries(payload.data.map((follow) => [follow.eventId, follow.enabled])),
+        );
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setFollowMessage(
+          error instanceof Error ? error.message : "Failed to load followed events.",
+        );
+      });
+    return () => controller.abort();
+  }, []);
   const watchlistTickers = useMemo(() => {
     const tickers = new Set<string>();
     for (const ticker of CALENDAR_MOCK_WATCHLIST_TICKERS) {
@@ -240,6 +271,49 @@ export function StockRadarCalendarV1({
     }
     loadedRangeKeyRef.current = null;
     setReloadToken((current) => current + 1);
+  }
+
+  async function toggleFollowEvent(event: CalendarEvent) {
+    if (followAction) return;
+    const enabled = !followedEvents[event.id];
+    setFollowAction(event.id);
+    setFollowMessage("");
+
+    try {
+      const response = await fetch("/api/calendar/follows", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: event.id, enabled }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        data?: { follows?: FollowedCalendarEventItem[] };
+        message?: string;
+      } | null;
+      if (response.status === 401) {
+        const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        window.location.assign(`/login?next=${encodeURIComponent(returnTo)}`);
+        return;
+      }
+      if (!response.ok || !Array.isArray(payload?.data?.follows)) {
+        throw new Error(payload?.message || "Failed to update the event follow.");
+      }
+      setFollowedEvents(
+        Object.fromEntries(
+          payload.data.follows.map((follow) => [follow.eventId, follow.enabled]),
+        ),
+      );
+      setFollowMessage(
+        enabled
+          ? "Event followed. Schedule updates and the 30-minute reminder will appear in Alerts."
+          : "Event follow removed.",
+      );
+    } catch (error) {
+      setFollowMessage(
+        error instanceof Error ? error.message : "Failed to update the event follow.",
+      );
+    } finally {
+      setFollowAction("");
+    }
   }
 
   const content = (() => {
@@ -429,13 +503,10 @@ export function StockRadarCalendarV1({
         >
           <CalendarEventDetail
             desktopEvent={desktopPreviewEvent}
+            followAction={followAction}
+            followMessage={followMessage}
             followedEvents={followedEvents}
-            onFollowToggle={(event) => {
-              setFollowedEvents((current) => ({
-                ...current,
-                [event.id]: !current[event.id],
-              }));
-            }}
+            onFollowToggle={(event) => void toggleFollowEvent(event)}
             onSheetDismiss={dismissSheet}
             onWatchlistToggle={(event) => {
               const ticker = getCalendarEventIdentity(event).primaryTicker;
