@@ -6,7 +6,6 @@ import Link from "next/link";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
-import { AlertReliabilityNotice } from "@/components/ui/AlertReliabilityNotice";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
@@ -223,10 +222,6 @@ function CalendarEventDetailContent({
             {followBusy ? "Saving..." : followed ? "Event Followed" : "Follow Event"}
           </button>
         </div>
-      </div>
-
-      <div className={styles.alertReliabilityNotice}>
-        <AlertReliabilityNotice />
       </div>
 
       {analysisHref ? (

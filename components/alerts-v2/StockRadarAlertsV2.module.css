@@ -267,10 +267,6 @@
   min-width: 0;
 }
 
-.reliabilityNotice {
-  margin-top: var(--sr-space-4);
-}
-
 .tickerMessage,
 .tickerEmpty,
 .watchlistStatus {

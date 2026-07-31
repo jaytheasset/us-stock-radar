@@ -51,10 +51,6 @@ const tickerAutocompleteSource = readFileSync(
   new URL("../ui/TickerCompanyAutocomplete.tsx", import.meta.url),
   "utf8",
 );
-const reliabilityNoticeSource = readFileSync(
-  new URL("../ui/AlertReliabilityNotice.tsx", import.meta.url),
-  "utf8",
-);
 
 test("alerts uses the shared product shell and token-only visual contract", () => {
   assert.match(
@@ -204,12 +200,9 @@ test("alerts ticker query prepares search selection without adding a ticker", ()
   );
 });
 
-test("alerts settings show the shared reliability notice once", () => {
-  assert.equal((componentSource.match(/<AlertReliabilityNotice \/>/g) || []).length, 1);
-  assert.match(
-    reliabilityNoticeSource,
-    /Alerts may be delayed, changed, duplicated, or unavailable\. Do not rely on an alert as the sole basis for a trading decision\./,
-  );
+test("alerts settings omit the retired reliability disclaimer", () => {
+  assert.doesNotMatch(componentSource, /AlertReliabilityNotice/);
+  assert.doesNotMatch(componentSource, /Alerts may be delayed, changed, duplicated, or unavailable/);
 });
 
 test("registered alert tickers link to stock overview without absorbing controls", () => {
