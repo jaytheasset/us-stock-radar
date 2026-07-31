@@ -113,7 +113,7 @@ function buildQueuedArgs() {
 
 function runChild(script, childArgs) {
   try {
-    const stdout = execFileSync("node", [script, ...childArgs], {
+    const stdout = execFileSync("node", ["--experimental-strip-types", script, ...childArgs], {
       cwd: process.cwd(),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],

@@ -6,7 +6,14 @@ import {
 } from "@/lib/alerts/delivery/channelAttempts";
 import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
-import type { AlertChannel } from "@/lib/subscriptionPolicy";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
+import {
+  getPlanLimits,
+  isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
+  type AlertChannel,
+  type Plan,
+} from "@/lib/subscriptionPolicy";
 import type {
   ProcessQueuedDeliveryItemResult,
   ProcessQueuedDeliveryOptions,
@@ -109,10 +116,17 @@ async function processQueuedDeliveryRow(
     write: boolean;
   },
 ): Promise<ProcessQueuedDeliveryItemResult> {
+  const plan = (await getEffectiveUserPlan(row.user_id)).effectivePlan;
+  const policyError = getQueuedDeliveryPolicyError(row, plan);
+  if (policyError) {
+    return suppressQueuedDeliveryForPolicy(row, policyError, { dryRun, write });
+  }
+
   const channelRows = await fetchChannelRows(row.user_id);
   const channels = await processRequestedChannels(row, channelRows, {
     dryRun,
     write,
+    plan,
   });
 
   const base = {
@@ -248,9 +262,11 @@ async function processRequestedChannels(
   {
     dryRun,
     write,
+    plan,
   }: {
     dryRun: boolean;
     write: boolean;
+    plan: Plan;
   },
 ): Promise<ChannelProcessingResult> {
   const result: ChannelProcessingResult = {
@@ -262,8 +278,14 @@ async function processRequestedChannels(
     inProgress: false,
     uncertain: false,
   };
+  const entitledChannels = new Set(getPlanLimits(plan).channels);
 
   for (const channel of new Set(row.delivered_channels)) {
+    if (!entitledChannels.has(channel)) {
+      result.suppressedCount += 1;
+      result.errors.push(`${channel}: channel is not available on the current plan.`);
+      continue;
+    }
     const channelRow = channelRows.get(channel);
     if (dryRun || !write) {
       if (isChannelReady(channel, channelRow)) {
@@ -388,6 +410,57 @@ async function processRequestedChannels(
     if (!finished.ok) result.inProgress = true;
   }
 
+  return result;
+}
+
+function getQueuedDeliveryPolicyError(row: QueuedAlertDeliveryRow, plan: Plan) {
+  if (row.alert_lane === "market_discovery") {
+    if (!row.category || !isDiscoveryCategoryAllowed(plan, row.category)) {
+      return `${row.category || "Unknown category"} is not available for ${plan} market-wide Discovery.`;
+    }
+    return "";
+  }
+
+  if (!row.category || !isTickerAlertCategoryAllowed(plan, row.category)) {
+    return `${row.category || "Unknown category"} is not a public ticker alert category.`;
+  }
+  return "";
+}
+
+async function suppressQueuedDeliveryForPolicy(
+  row: QueuedAlertDeliveryRow,
+  error: string,
+  { dryRun, write }: { dryRun: boolean; write: boolean },
+): Promise<ProcessQueuedDeliveryItemResult> {
+  const result: ProcessQueuedDeliveryItemResult = {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    ticker: row.ticker,
+    action: "suppressed",
+    channels: [],
+    duplicatesPrevented: 0,
+    error: sanitizeError(error),
+  };
+  if (dryRun || !write) return result;
+
+  const updated = await supabaseUpdate(
+    "user_alert_deliveries",
+    { id: `eq.${row.id}`, delivery_status: "eq.queued" },
+    {
+      delivery_status: "suppressed",
+      delivered_channels: [],
+      attempted_at: new Date().toISOString(),
+      last_error: result.error,
+    },
+  );
+  if (!updated.ok) {
+    return markDeliveryFailed(
+      row,
+      sanitizeError(updated.error || "Failed to suppress an ineligible queued alert delivery."),
+      0,
+    );
+  }
   return result;
 }
 

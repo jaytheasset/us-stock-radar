@@ -191,9 +191,13 @@ export function StockRadarAlertsV2({
     () => tickers.filter((ticker) => ticker.enabled).length,
     [tickers],
   );
-  const enabledCoreCoverageCount = useMemo(
-    () => coverageItems.filter((item) => !item.locked && coverageState[item.id]).length,
-    [coverageState],
+  const enabledDiscoveryCoverageCount = useMemo(
+    () => coverageItems.filter(
+      (item) =>
+        allowedDiscoveryCategories.has(item.id as PublicAlertCategory) &&
+        coverageState[item.id],
+    ).length,
+    [allowedDiscoveryCategories, coverageState],
   );
   const visibleRecentAlerts = hasExpandedAlertHistory
     ? recentAlerts
@@ -658,11 +662,18 @@ export function StockRadarAlertsV2({
   const CheckCircle2 = alertIconSet.CheckCircle2;
   const Lock = alertIconSet.Lock;
   const Trash2 = alertIconSet.Trash2;
-  const upgradeTier = plan === "advanced" ? "Ultimate" : "Advanced";
+  const upgradeTier = plan === "free" || plan === "ad_free"
+    ? "Pro"
+    : plan === "pro"
+      ? "Advanced"
+      : "Ultimate";
+  const requiresProDiscovery = planLimits.discoveryCategories.length === 0;
   const coverageDescription =
-    planLimits.discoveryCategories.length === coverageItems.length
+    requiresProDiscovery
+      ? "Market-wide Discovery is available on Pro and higher plans. Alert-enabled tickers remain monitored across all 17 event types."
+      : planLimits.discoveryCategories.length === coverageItems.length
       ? "All 17 Discovery categories are available for stocks outside your alert-enabled tickers."
-      : "Your plan includes the 12 core Discovery categories. Advanced unlocks all 17.";
+      : "Your plan includes 12 core Discovery categories. Advanced unlocks all 17.";
 
   return (
     <div className={styles.page}>
@@ -730,7 +741,7 @@ export function StockRadarAlertsV2({
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
-            <p>Enabled tickers are covered across every category below, including Dilution &amp; Offerings, Listing Risk &amp; Delisting, Reverse Splits, and Bankruptcy &amp; Default.</p>
+            <p>Each enabled ticker is monitored across all 17 event types.</p>
           </div>
           <span>{enabledCount} / {alertTickerLimit ?? "Unlimited"} enabled</span>
         </div>
@@ -834,34 +845,37 @@ export function StockRadarAlertsV2({
           <div className={styles.settingsGrid}>
         <section className={`${styles.card} ${styles.coverageCard}`} aria-labelledby="alerts-v2-coverage-title">
           <input
-            aria-label="Toggle Alert coverage settings"
+            aria-label="Toggle Market Discovery coverage settings"
             className={styles.mobileCoverageControl}
             id="alerts-v2-coverage-toggle"
             type="checkbox"
           />
           <label className={styles.mobileCoverageSummary} htmlFor="alerts-v2-coverage-toggle">
             <span>
-              <strong>Alert coverage</strong>
+              <strong>Market Discovery coverage</strong>
               <small>
                 {settingsLoading
                   ? "Loading saved coverage"
-                  : `${enabledCoreCoverageCount} core alerts on`}
+                  : requiresProDiscovery
+                    ? "Pro+ required"
+                    : `${enabledDiscoveryCoverageCount} Discovery alerts on`}
               </small>
             </span>
             <ChevronDown aria-hidden="true" size={18} />
           </label>
           <div className={styles.cardHeader}>
             <div>
-              <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
+              <h2 id="alerts-v2-coverage-title">Market Discovery coverage</h2>
               <p>{coverageDescription}</p>
             </div>
+            {requiresProDiscovery ? <span className={styles.lockedBadge}>PRO+</span> : null}
           </div>
 
           <div className={styles.settingList} id="alerts-v2-coverage-settings">
             {coverageItems.map((item) => {
               const Icon = item.icon;
               const locked = !allowedDiscoveryCategories.has(item.id as PublicAlertCategory);
-              const lockedTier = "ADVANCED";
+              const lockedTier = item.requiredTier;
               const isEnabled = !locked && Boolean(coverageState[item.id]);
 
               return (
@@ -910,15 +924,19 @@ export function StockRadarAlertsV2({
 
           {upgradeMessage ? (
             <div className={styles.upgradePanel} role="status">
-              {upgradeMessage} Unlock critical risk alerts with Advanced.
+              {upgradeMessage}
             </div>
           ) : null}
 
           {planLimits.discoveryCategories.length < coverageItems.length ? (
             <div className={styles.cardFooter}>
-              <span>Unlock all 17 Discovery categories with Advanced</span>
+              <span>
+                {requiresProDiscovery
+                  ? "Unlock 12 core Market Discovery categories with Pro"
+                  : "Unlock all 17 Market Discovery categories with Advanced"}
+              </span>
               <Link className={styles.advancedUpgradeButton} href="/premium">
-                Upgrade to Advanced
+                Upgrade to {requiresProDiscovery ? "Pro" : "Advanced"}
               </Link>
             </div>
           ) : null}
@@ -969,7 +987,7 @@ export function StockRadarAlertsV2({
                   (candidate) => candidate.channel === item.id,
                 );
                 const locked = channel?.locked ?? true;
-                const comingLater = channel?.comingLater ?? false;
+                const implemented = channel?.implemented ?? false;
 
                 return (
                   <article className={styles.settingRow} key={item.id}>
@@ -978,21 +996,16 @@ export function StockRadarAlertsV2({
                       <strong>{item.title}</strong>
                       <span>{channel?.statusLabel || "Loading..."}</span>
                     </div>
-                    {comingLater ? (
+                    {item.lockedTier ? (
                       <span className={styles.lockGroup}>
-                        <Lock aria-hidden="true" size={15} />
-                        <em>COMING LATER</em>
-                      </span>
-                    ) : locked ? (
-                      <span className={styles.lockGroup}>
-                        <Lock aria-hidden="true" size={15} />
-                        <em>{channel?.availabilityLabel}</em>
+                        {locked || !implemented ? <Lock aria-hidden="true" size={15} /> : null}
+                        <em>{item.lockedTier}+</em>
                       </span>
                     ) : null}
                     <div className={styles.inlineToggle}>
                       <ToggleSwitch
                         checked={Boolean(deliveryState[item.id])}
-                        disabled={locked || comingLater || settingsLoading}
+                        disabled={locked || !implemented || settingsLoading}
                         label={`Toggle ${item.title}`}
                         onChange={() =>
                           void updateDeliveryChannel(
@@ -1271,7 +1284,13 @@ export function StockRadarAlertsV2({
             <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
               <span>{upgradeTier.toUpperCase()}</span>
               <h2 id="alerts-v2-rail-upgrade-title">Unlock more signal</h2>
-              <p>{upgradeTier === "Advanced" ? "Get all 17 Discovery categories and advanced filters." : "Get form-level filing filters and custom rules with Ultimate."}</p>
+              <p>
+                {upgradeTier === "Pro"
+                  ? "Get 12 core Market Discovery categories and Telegram delivery."
+                  : upgradeTier === "Advanced"
+                    ? "Get all 17 Market Discovery categories, advanced filters, and Email entitlement."
+                    : "Get form-level filing filters and custom rules with Ultimate."}
+              </p>
               <Link className={styles.railUpgradeLink} href="/premium">View {upgradeTier}</Link>
             </section>
           ) : null}

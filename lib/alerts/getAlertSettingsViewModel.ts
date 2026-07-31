@@ -301,7 +301,6 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
     const implemented = IMPLEMENTED_ALERT_CHANNELS.includes(channel);
     const locked = getChannelLockState(plan, channel);
     const available = !locked && implemented;
-    const comingLater = !implemented;
     const row = rowsByChannel.get(channel);
     const connected = isChannelConnected(channel, row);
     const enabled =
@@ -316,13 +315,10 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
       locked,
       connected,
       implemented,
-      comingLater,
-      availabilityLabel: comingLater
-        ? "Coming later"
-        : getChannelAvailabilityLabel(plan, channel),
-      statusLabel: comingLater
-        ? "Coming later"
-        : getChannelStatusLabel({ available, connected, enabled }),
+      availabilityLabel: getChannelAvailabilityLabel(plan, channel),
+      statusLabel: implemented
+        ? getChannelStatusLabel({ available, connected, enabled })
+        : "Not available",
     };
   });
 }

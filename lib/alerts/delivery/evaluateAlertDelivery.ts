@@ -3,6 +3,7 @@ import "server-only";
 import {
   getPlanLimits,
   isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
   type AlertCategory,
   type AlertChannel,
   type Plan,
@@ -48,7 +49,6 @@ type UserAlertPreferences = {
   watchlistNewsEnabled: boolean;
   watchlistFilingsEnabled: boolean;
   watchlistCalendarEnabled: boolean;
-  watchlistRiskEnabled: boolean;
   discoveryEnabled: boolean;
 };
 
@@ -56,17 +56,8 @@ const DEFAULT_PREFERENCES: UserAlertPreferences = {
   watchlistNewsEnabled: true,
   watchlistFilingsEnabled: true,
   watchlistCalendarEnabled: true,
-  watchlistRiskEnabled: true,
   discoveryEnabled: true,
 };
-
-const RISK_CATEGORIES = new Set<AlertCategory>([
-  "listing_risk",
-  "dilution_risk",
-  "financial_risk",
-  "legal_risk",
-  "fda_clinical",
-]);
 
 const ALL_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
 
@@ -103,6 +94,14 @@ export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent)
     }
 
     if (matchedTickers.length) {
+      if (!isTickerAlertCategoryAllowed(context.plan, event.category)) {
+        skipped.push({
+          userId,
+          reason: "TICKER_ALERT_CATEGORY_NOT_ACTIVE",
+          detail: `${event.category} is not a public ticker alert category.`,
+        });
+        continue;
+      }
       const watchlistSkip = getWatchlistSkipReason(event, context.preferences);
       if (watchlistSkip) {
         skipped.push({ userId, reason: watchlistSkip });
@@ -166,7 +165,7 @@ async function fetchUserContext(userId: string) {
     }),
     supabaseSelect("alert_preferences", {
       select:
-        "watchlist_news_enabled,watchlist_filings_enabled,watchlist_calendar_enabled,watchlist_risk_enabled,discovery_enabled",
+        "watchlist_news_enabled,watchlist_filings_enabled,watchlist_calendar_enabled,discovery_enabled",
       user_id: `eq.${userId}`,
       limit: "1",
     }),
@@ -239,7 +238,6 @@ function getWatchlistSkipReason(event: NormalizedAlertEvent, preferences: UserAl
   if (event.sourceType === "news" && !preferences.watchlistNewsEnabled) return "WATCHLIST_NEWS_DISABLED";
   if (event.sourceType === "filing" && !preferences.watchlistFilingsEnabled) return "WATCHLIST_FILINGS_DISABLED";
   if (event.sourceType === "calendar" && !preferences.watchlistCalendarEnabled) return "WATCHLIST_CALENDAR_DISABLED";
-  if (RISK_CATEGORIES.has(event.category) && !preferences.watchlistRiskEnabled) return "WATCHLIST_RISK_DISABLED";
   return "";
 }
 
@@ -282,7 +280,6 @@ function readPreferences(row?: PreferenceRow): UserAlertPreferences {
     watchlistNewsEnabled: readBoolean(row?.watchlist_news_enabled, DEFAULT_PREFERENCES.watchlistNewsEnabled),
     watchlistFilingsEnabled: readBoolean(row?.watchlist_filings_enabled, DEFAULT_PREFERENCES.watchlistFilingsEnabled),
     watchlistCalendarEnabled: readBoolean(row?.watchlist_calendar_enabled, DEFAULT_PREFERENCES.watchlistCalendarEnabled),
-    watchlistRiskEnabled: readBoolean(row?.watchlist_risk_enabled, DEFAULT_PREFERENCES.watchlistRiskEnabled),
     discoveryEnabled: readBoolean(row?.discovery_enabled, DEFAULT_PREFERENCES.discoveryEnabled),
   };
 }

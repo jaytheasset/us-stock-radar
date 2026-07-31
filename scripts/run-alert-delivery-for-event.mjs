@@ -3,14 +3,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
-
-const PLAN_LIMITS = {
-  free: { alertDelayMinutes: 5, channels: ["web"] },
-  ad_free: { alertDelayMinutes: 5, channels: ["web"] },
-  pro: { alertDelayMinutes: 0, channels: ["web", "telegram"] },
-  advanced: { alertDelayMinutes: 0, channels: ["web", "telegram", "email"] },
-  ultimate: { alertDelayMinutes: 0, channels: ["web", "telegram", "email", "webhook", "api"] },
-};
+import {
+  getPlanLimits,
+  isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
+  isValidAlertCategory,
+} from "../lib/subscriptionPolicy.ts";
 
 const PLAN_RANK = {
   free: 0,
@@ -19,27 +17,6 @@ const PLAN_RANK = {
   advanced: 3,
   ultimate: 4,
 };
-
-const ALERT_CATEGORIES = new Set([
-  "listing_risk",
-  "dilution_risk",
-  "earnings",
-  "sales_performance",
-  "product_update",
-  "leadership_governance",
-  "insider_ownership",
-  "ipo_listing",
-  "shareholder_vote",
-  "strategic_transaction",
-  "financial_risk",
-  "legal_risk",
-  "dividends",
-  "capital_return",
-  "fda_clinical",
-  "policy_regulation",
-  "macro_market",
-  "other",
-]);
 
 const args = parseArgs(process.argv.slice(2));
 const eventId = String(args.get("event-id") || args.get("eventId") || "").trim();
@@ -167,7 +144,8 @@ async function normalizeEvent(id) {
   const score = readNumber(event.score, 0);
   const impact = readString(event.impact);
   const deliveryLevel = readDeliveryLevel(event.delivery_level);
-  const category = ALERT_CATEGORIES.has(readString(event.event_type)) ? readString(event.event_type) : "other";
+  const eventType = readString(event.event_type);
+  const category = isValidAlertCategory(eventType) ? eventType : "other";
   const sourceGroup = readString(event.source_group);
 
   return {
@@ -202,7 +180,7 @@ async function evaluate(event) {
 
   for (const userId of users) {
     const context = await fetchUserContext(userId);
-    const matchedTickers = event.tickers.filter((ticker) => context.watchlistTickers.has(ticker));
+    const matchedTickers = event.tickers.filter((ticker) => context.alertTickers.has(ticker));
     const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
 
     if (!eligibleChannels.length) {
@@ -211,6 +189,10 @@ async function evaluate(event) {
     }
 
     if (matchedTickers.length) {
+      if (!isTickerAlertCategoryAllowed(context.plan, event.category)) {
+        skipped.push({ userId, reason: "TICKER_ALERT_CATEGORY_NOT_ACTIVE", detail: event.category });
+        continue;
+      }
       const reason = getWatchlistSkipReason(event, context.preferences);
       if (reason) {
         skipped.push({ userId, reason });
@@ -222,6 +204,15 @@ async function evaluate(event) {
 
     if (!context.preferences.discoveryEnabled) {
       skipped.push({ userId, reason: "DISCOVERY_DISABLED" });
+      continue;
+    }
+
+    if (!isDiscoveryCategoryAllowed(context.plan, event.category)) {
+      skipped.push({
+        userId,
+        reason: "DISCOVERY_CATEGORY_NOT_ACTIVE",
+        detail: `${event.category} is not available for ${context.plan} market-wide Discovery.`,
+      });
       continue;
     }
 
@@ -240,7 +231,7 @@ async function fetchUserContext(userId) {
   const [planRow, preferencesRow, watchlistRows, categoryRows, channelRows] = await Promise.all([
     fetchOne("user_plan_subscriptions", { user_id: `eq.${userId}` }),
     fetchOne("alert_preferences", { user_id: `eq.${userId}` }),
-    fetchRows("watchlist_tickers", { select: "ticker", user_id: `eq.${userId}`, limit: "1000" }),
+    fetchRows("user_alert_tickers", { select: "ticker", user_id: `eq.${userId}`, enabled: "eq.true", limit: "1000" }),
     fetchRows("user_discovery_categories", { select: "category", user_id: `eq.${userId}`, enabled: "eq.true", limit: "100" }),
     fetchRows("user_delivery_channels", { select: "channel,enabled,destination,verified_at", user_id: `eq.${userId}`, limit: "20" }),
   ]);
@@ -251,10 +242,9 @@ async function fetchUserContext(userId) {
       watchlistNewsEnabled: readBoolean(preferencesRow?.watchlist_news_enabled, true),
       watchlistFilingsEnabled: readBoolean(preferencesRow?.watchlist_filings_enabled, true),
       watchlistCalendarEnabled: readBoolean(preferencesRow?.watchlist_calendar_enabled, true),
-      watchlistRiskEnabled: readBoolean(preferencesRow?.watchlist_risk_enabled, true),
       discoveryEnabled: readBoolean(preferencesRow?.discovery_enabled, true),
     },
-    watchlistTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
+    alertTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
     discoveryCategories: new Set(categoryRows.map((row) => readString(row.category)).filter(Boolean)),
     channels: channelRows,
   };
@@ -278,9 +268,6 @@ function getWatchlistSkipReason(event, preferences) {
   if (event.sourceType === "news" && !preferences.watchlistNewsEnabled) return "WATCHLIST_NEWS_DISABLED";
   if (event.sourceType === "filing" && !preferences.watchlistFilingsEnabled) return "WATCHLIST_FILINGS_DISABLED";
   if (event.sourceType === "calendar" && !preferences.watchlistCalendarEnabled) return "WATCHLIST_CALENDAR_DISABLED";
-  if (["listing_risk", "dilution_risk", "financial_risk", "legal_risk", "fda_clinical"].includes(event.category) && !preferences.watchlistRiskEnabled) {
-    return "WATCHLIST_RISK_DISABLED";
-  }
   return "";
 }
 
@@ -352,10 +339,6 @@ async function sendTelegramMessage(chatId, text) {
 function formatTelegramMessage(event) {
   const ticker = event.primaryTicker || event.tickers[0] || "Market";
   return [`STOCK RADAR Alert`, `${ticker}: ${event.title}`, `Category: ${event.category || "other"}`].join("\n");
-}
-
-function getPlanLimits(plan) {
-  return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
 
 async function insertDelivery({ userId, event, candidate, deliveredChannels, lastError }) {
@@ -437,16 +420,15 @@ function readPlan(row) {
   const trialPlan = readString(row?.trial_plan);
   const trialStartedAt = readString(row?.trial_started_at);
   const trialEndsAt = readString(row?.trial_ends_at);
-  const trialCancelledAt = readString(row?.trial_cancelled_at);
   const trialEndsTime = Date.parse(trialEndsAt);
   if (
-    trialPlan === "pro" &&
+    (trialPlan === "pro" || trialPlan === "advanced") &&
     trialStartedAt &&
     Number.isFinite(trialEndsTime) &&
     trialEndsTime > Date.now() &&
-    !trialCancelledAt
+    PLAN_RANK[trialPlan] > PLAN_RANK[effectiveBasePlan]
   ) {
-    return "pro";
+    return trialPlan;
   }
 
   return effectiveBasePlan;
