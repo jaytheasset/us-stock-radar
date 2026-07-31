@@ -171,6 +171,25 @@ function CalendarEventDetailContent({
         {renderEventDetails(event)}
       </section>
 
+      <section className={styles.detailSection}>
+        <h3>Source</h3>
+        <dl>
+          <DetailValue label="Provider" value={event.sourceName} />
+          <DetailValue label="Agency" value={event.sourceAgency} />
+        </dl>
+        {event.sourceUrl ? (
+          <a
+            className={styles.sourceLink}
+            href={event.sourceUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Open original source
+            <ExternalLink aria-hidden="true" size={14} />
+          </a>
+        ) : null}
+      </section>
+
       <div className={styles.detailActions}>
         <div className={styles.detailAction}>
           <div>
@@ -225,10 +244,17 @@ function CalendarEventDetailContent({
       </div>
 
       {analysisHref ? (
-        <Link className={styles.analysisLink} href={analysisHref}>
-          View analysis
-          <ExternalLink aria-hidden="true" size={14} />
-        </Link>
+        <div className={styles.analysisEntry}>
+          <Link className={styles.analysisLink} href={analysisHref}>
+            View Stock Radar Analysis
+            <ExternalLink aria-hidden="true" size={14} />
+          </Link>
+          {(event.relatedAnalysisCount ?? 0) > 0 ? (
+            <span>Related analyses {event.relatedAnalysisCount}</span>
+          ) : null}
+        </div>
+      ) : event.analysisPending ? (
+        <p className={styles.analysisPending}>Analysis pending</p>
       ) : null}
 
       {ticker ? (

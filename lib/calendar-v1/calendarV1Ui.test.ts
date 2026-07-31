@@ -413,7 +413,10 @@ test("calendar UI reuses shared filters, segmented controls, detail panel, and b
   assert.match(detail, /LiveRoomEntryButton/);
   assert.match(detail, /getStockRouteHref/);
   assert.match(detail, /const analysisHref = event\.detailHref \?\? null/);
-  assert.match(detail, /\{analysisHref \? \([\s\S]*href=\{analysisHref\}[\s\S]*View analysis/);
+  assert.match(detail, /\{analysisHref \? \([\s\S]*href=\{analysisHref\}[\s\S]*View Stock Radar Analysis/);
+  assert.match(detail, /Related analyses \{event\.relatedAnalysisCount\}/);
+  assert.match(detail, /: event\.analysisPending \? \([\s\S]*Analysis pending/);
+  assert.doesNotMatch(detail, /disabled[^\n]*analysis/i);
 });
 
 test("stock watching is ticker-scoped while event following remains event-scoped", async () => {
@@ -500,10 +503,12 @@ test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and c
   assert.match(detail, /Economic release metrics/);
   assert.match(detail, /Not released/);
   assert.doesNotMatch(detail, /Data provenance/);
-  assert.doesNotMatch(detail, /sourceAgency/);
+  assert.match(detail, /<h3>Source<\/h3>/);
+  assert.match(detail, /value=\{event\.sourceAgency\}/);
   assert.doesNotMatch(detail, /calendarProviderLabels/);
   assert.doesNotMatch(detail, /normalizeSafeCalendarSourceUrl/);
-  assert.doesNotMatch(detail, /sourceUrl/);
+  assert.match(detail, /event\.sourceUrl/);
+  assert.match(detail, /Open original source/);
   assert.doesNotMatch(detail, /titleCase\(event\.scheduleConfidence\)/);
   assert.doesNotMatch(detail, /sourceEventKey/);
   assert.doesNotMatch(detail, /value="Mock"/);
