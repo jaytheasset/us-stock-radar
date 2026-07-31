@@ -8,9 +8,12 @@ import {
 } from "@/lib/eventTypeRegistry";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
-import { fetchEventAnalysis, fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import { readStoredFilingSourceContent } from "@/lib/originalSourceContent";
+import { selectRelatedFilingRows } from "@/lib/relatedFilings";
+import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
+import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
 import {
   GenericFilingAnalysis,
   type GenericFilingAnalysisData,
@@ -4571,21 +4574,27 @@ async function resolveFilingEvent(id: string): Promise<FilingEvent> {
 }
 
 async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
-  const normalizedTicker = item.ticker.trim().toUpperCase();
-  const ticker = isRealTicker(normalizedTicker) ? normalizedTicker : "";
-  const canLoadTickerContext = isRealTicker(ticker);
-  const [eventResult, analysisResult, relatedNewsResult, recentFilingsResult] = await Promise.all([
+  const [eventResult, analysisResult, tickerLinksResult] = await Promise.all([
     fetchEventById(item.id),
     fetchEventAnalysis(item.id),
+    fetchEventTickers(item.id),
+  ]);
+  const eventRow = toRecord(eventResult.data);
+  const tickerLinkRows = toRows(tickerLinksResult.data);
+  const primaryTickerLink = tickerLinkRows.find((row) => readRowString(row, "role") === "primary") || tickerLinkRows[0];
+  const normalizedTicker = firstStoredValue([
+    item.ticker,
+    readRowString(eventRow, "ticker"),
+    readRowString(primaryTickerLink, "symbol"),
+  ]).toUpperCase();
+  const ticker = isRealTicker(normalizedTicker) ? normalizedTicker : "";
+  const canLoadTickerContext = isRealTicker(ticker);
+  const [rawItem, relatedNewsResult] = await Promise.all([
+    loadRawItem(readRowString(eventRow, "raw_item_id")),
     canLoadTickerContext
       ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: item.id, limit: 4 })
       : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
-    canLoadTickerContext
-      ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: item.id, limit: 4 })
-      : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
   ]);
-  const eventRow = toRecord(eventResult.data);
-  const rawItem = await loadRawItem(readRowString(eventRow, "raw_item_id"));
   const analysis = toRecord(analysisResult.data);
   const metadata = toRecord(eventRow?.metadata);
   const analysisMetadata = toRecord(analysis?.metadata);
@@ -4663,7 +4672,13 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     "";
   const originalHtml = readOriginalHtml(eventRow, rawItem, rawPayload);
   const relatedNewsRows = toRows(relatedNewsResult.data);
-  const recentFilingRows = toRows(recentFilingsResult.data);
+  const recentFilingRows = await loadRelatedFilingRows({
+    currentDate: readRowString(eventRow, "published_at") || item.detectedAtRaw || readRowString(eventRow, "detected_at"),
+    currentId: item.id,
+    formType,
+    issuer: company,
+    ticker,
+  });
   const marketContext = buildDbMarketContext(item, eventRow);
   const filingBrief = cleanStoredAnalysisText(item.quickTake || item.summary);
   const whyItMatters = cleanStoredAnalysisText(readRowString(analysis, "why_it_matters"));
@@ -4779,24 +4794,78 @@ async function loadRawItem(rawItemId: string) {
   return toRows(result.data)[0] || null;
 }
 
+async function loadRelatedFilingRows({
+  currentDate,
+  currentId,
+  formType,
+  issuer,
+  ticker,
+}: {
+  currentDate: string;
+  currentId: string;
+  formType: string;
+  issuer: string;
+  ticker: string;
+}) {
+  const [directResult, recentResult, tickerLinksResult] = await Promise.all([
+    ticker
+      ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: currentId, limit: 20 })
+      : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
+    supabaseSelect("events", {
+      select: "*",
+      source_group: "eq.filings",
+      order: "detected_at.desc",
+      limit: "100",
+    }),
+    ticker
+      ? supabaseSelect("event_tickers", {
+          select: "event_id,symbol,role,sort_order",
+          symbol: `eq.${ticker}`,
+          limit: "100",
+        })
+      : Promise.resolve({ ok: true, status: 200, data: [], error: undefined }),
+  ]);
+  const tickerLinkRows = toRows(tickerLinksResult.data);
+  const linkedEventIds = [...new Set(tickerLinkRows.map((row) => readRowString(row, "event_id")).filter(Boolean))];
+  const linkedEventsResult = linkedEventIds.length
+    ? await supabaseSelect("events", {
+        select: "*",
+        id: `in.(${linkedEventIds.join(",")})`,
+        source_group: "eq.filings",
+        limit: "100",
+      })
+    : { data: [] as unknown[] };
+  const linkedEventIdSet = new Set(linkedEventIds);
+  const candidates = [
+    ...toRows(directResult.data),
+    ...toRows(linkedEventsResult.data),
+    ...toRows(recentResult.data),
+  ].map((row) => linkedEventIdSet.has(readRowString(row, "id"))
+    ? { ...row, _linked_tickers: [ticker] }
+    : row);
+
+  return selectRelatedFilingRows({
+    candidates,
+    currentDate,
+    currentId,
+    formType,
+    issuer,
+    ticker,
+  });
+}
+
 function readOriginalHtml(
   eventRow: Record<string, unknown> | null,
   rawItem: Record<string, unknown> | null,
   rawPayload: Record<string, unknown> | null,
 ) {
-  return (
-    readRowString(rawPayload, "full_text_html") ||
-    readRowString(rawPayload, "filing_html") ||
-    readRowString(rawPayload, "primary_document_html") ||
-    readMetadataString(eventRow, "full_text_html") ||
-    readMetadataString(eventRow, "filing_html") ||
-    bodyTextToHtml(
-      readRowString(rawItem, "body_text") ||
-        readRowString(rawPayload, "body_text") ||
-        readMetadataString(eventRow, "filing_text") ||
-        readMetadataString(eventRow, "original_text"),
-    )
-  );
+  const storedContent = readStoredFilingSourceContent({
+    event: eventRow,
+    metadata: toRecord(eventRow?.metadata),
+    rawItem,
+    rawPayload,
+  });
+  return storedContent.html || bodyTextToHtml(storedContent.text);
 }
 
 function buildDbMarketContext(
@@ -7703,8 +7772,6 @@ function OriginalFilingText({
   includeMetadataTable?: boolean;
   includeTemplateStatus?: boolean;
 }) {
-  const embeddedHtml = isolateOriginalFilingMarkup(filing.originalHtml, filing.sourceUrl);
-
   return (
     <section className="stock-detail-card full-text-card filing-original-card">
       <div className="card-heading-row">
@@ -7713,9 +7780,10 @@ function OriginalFilingText({
           <p>{filing.originalTextNote}</p>
         </div>
       </div>
-      <div
-        className="full-text-content filing-text-content"
-        dangerouslySetInnerHTML={{ __html: embeddedHtml }}
+      <SecFilingHtmlViewer
+        html={filing.originalHtml}
+        sourceUrl={filing.sourceUrl}
+        title={`${filing.formType || "SEC"} original SEC filing`}
       />
       {includeMetadataTable ? (
         <div className="full-text-content filing-text-content filing-template-table">
@@ -7740,63 +7808,6 @@ function OriginalFilingText({
         </div>
       ) : null}
     </section>
-  );
-}
-
-function isolateOriginalFilingMarkup(value: string, sourceUrl?: string) {
-  const textBlock = value.match(/<TEXT>\s*([\s\S]*?)\s*<\/TEXT>/i)?.[1] || value;
-
-  const isolatedMarkup = removeOriginalFilingImageOcr(textBlock)
-    .replace(/<!doctype[^>]*>/gi, "")
-    .replace(/<(?:script|style|title)\b[^>]*>[\s\S]*?<\/(?:script|style|title)\s*>/gi, "")
-    .replace(/<(?:base|link|meta)\b[^>]*\/?\s*>/gi, "")
-    .replace(/<\/?(?:body|head|html)\b[^>]*>/gi, "")
-    .replace(/<a\b(?=[^>]*\bhref\s*=\s*["']#TOC["'])[^>]*>\s*TABLE OF CONTENTS\s*<\/a>/gi, "")
-    .replace(/\s+(?:color|bgcolor)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (_match, quote, style) => {
-      const cleanedStyle = stripOriginalFilingColors(style).trim();
-      return cleanedStyle ? ` style=${quote}${cleanedStyle}${quote}` : "";
-    });
-
-  return resolveOriginalFilingUrls(isolatedMarkup, sourceUrl);
-}
-
-function removeOriginalFilingImageOcr(value: string) {
-  return value.replace(
-    /(<div\b[^>]*>\s*<img\b[^>]*>\s*<\/div>)\s*<div\b(?=[^>]*\bstyle\s*=\s*["'][^"']*\bline-height\s*:\s*(?:[0-3](?:\.\d+)?)pt\b[^"']*["'])[^>]*>\s*(?:<font\b[^>]*>[\s\S]*?<\/font>\s*)+<\/div>/gi,
-    "$1",
-  );
-}
-
-function resolveOriginalFilingUrls(value: string, sourceUrl?: string) {
-  if (!sourceUrl) return value;
-
-  return value.replace(
-    /\s+(src|href)\s*=\s*(["'])([^"']*)\2/gi,
-    (attributeMarkup, attribute: string, _quote: string, rawUrl: string) => {
-      const url = rawUrl.trim();
-      if (!url || url.startsWith("#") || /^(?:data:|javascript:|mailto:|tel:)/i.test(url)) {
-        return attributeMarkup;
-      }
-
-      try {
-        const resolvedUrl = new URL(url, sourceUrl).toString();
-        return ` ${attribute.toLowerCase()}="${escapeOriginalFilingAttribute(resolvedUrl)}"`;
-      } catch {
-        return attributeMarkup;
-      }
-    },
-  );
-}
-
-function escapeOriginalFilingAttribute(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-}
-
-function stripOriginalFilingColors(value: string) {
-  return value.replace(
-    /(^|[;{]\s*)(?:color|background(?:-color)?)\s*:\s*[^;}]+;?/gim,
-    "$1",
   );
 }
 

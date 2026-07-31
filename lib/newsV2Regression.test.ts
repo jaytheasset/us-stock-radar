@@ -299,6 +299,41 @@ test("news archive rejects missing data without exposing development fixtures", 
   assert.doesNotMatch(source, /mockArchiveEvent|buildMockPriceSeries|Trinity Bank/);
 });
 
+test("news analysis detail preserves stored original source and partial market context", () => {
+  const detailSource = readFileSync(
+    new URL("./newsAnalysisDetail.ts", import.meta.url),
+    "utf8",
+  );
+  const adapterSource = readFileSync(
+    new URL("../components/news-analysis-v2/NewsAnalysisAdapter.tsx", import.meta.url),
+    "utf8",
+  );
+  const sharedAnalysisSource = readFileSync(
+    new URL(
+      "../components/filing-analysis-v2/GenericFilingAnalysis.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(detailSource, /readStoredNewsSourceContent/);
+  assert.match(detailSource, /sanitizeNewsArticleHtml/);
+  assert.match(detailSource, /readString\(primaryTickerRow, "symbol"\)/);
+  assert.match(detailSource, /if \(!matched\.some\(\(item\) => item\.primary\)\) return null/);
+  assert.match(detailSource, /buildNewsMarketContext/);
+  assert.match(adapterSource, /<OriginalNewsArticle html=\{detail\.originalHtml\}/);
+  assert.match(adapterSource, /Stored company and market context is unavailable for this event/);
+  assert.match(adapterSource, /<GenericFilingAnalysis/);
+  assert.equal(
+    sharedAnalysisSource.match(/AI-assisted analysis\. Verify material facts against the original source\. Scores, labels, and directional signals are not investment recommendations\./g)?.length,
+    1,
+  );
+  assert.equal(
+    sharedAnalysisSource.match(/\{AI_ANALYSIS_DISCLOSURE\}/g)?.length,
+    1,
+  );
+});
+
 test("mobile news metadata uses a dedicated readable row", () => {
   const rowSource = readFileSync(
     new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
@@ -453,7 +488,7 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
 });
 
-test("product header switches to its mobile navigation before mid-width clipping", () => {
+test("product header switches to its mobile navigation at the integrated breakpoint", () => {
   const styles = readFileSync(
     new URL(
       "../components/shell/StockRadarProductHeader.module.css",
@@ -464,7 +499,7 @@ test("product header switches to its mobile navigation before mid-width clipping
 
   assert.match(
     styles,
-    /@media \(max-width: 1120px\) \{[\s\S]*?\.primaryNavigation \{[\s\S]*?display: none;[\s\S]*?\.actions \.mobileMenuButton \{[\s\S]*?display: flex;/,
+    /@media \(max-width: 820px\) \{[\s\S]*?\.primaryNavigation \{[\s\S]*?display: none;[\s\S]*?\.actions \.mobileMenuButton \{[\s\S]*?display: flex;/,
   );
   assert.match(
     styles,

@@ -29,6 +29,8 @@ export type SectorThemePeriod = {
 };
 
 export type SectorThemeContext = {
+  companyName?: string;
+  exchange?: string;
   sector?: string;
   industry?: string;
   marketCap?: string;
