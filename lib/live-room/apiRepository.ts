@@ -295,7 +295,7 @@ export class LiveRoomApiRepository {
     return requestJson<LiveRoomProfile>("/api/live-room/profile");
   }
 
-  writeProfile(input: Pick<LiveRoomProfile, "displayName">) {
+  writeProfile(input: Pick<LiveRoomProfile, "bio" | "displayName">) {
     return requestJson<LiveRoomProfile>("/api/live-room/profile", {
       method: "PUT",
       body: JSON.stringify(input),

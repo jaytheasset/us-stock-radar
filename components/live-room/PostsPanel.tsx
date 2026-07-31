@@ -88,7 +88,9 @@ export function PostsPanel({
   events?: readonly CompanyEvent[];
   loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
-  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
+  onProfileSave: (
+    profile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => Promise<LiveRoomProfile>;
   onPostsChange?: (
     update: (current: LiveRoomPost[]) => LiveRoomPost[],
   ) => void;
@@ -456,8 +458,8 @@ export function PostsPanel({
             setProfileSetupOpen(false);
           }}
           onPresenceSettingChange={() => undefined}
-          onSave={async (displayName) => {
-            const saved = await onProfileSave(displayName);
+          onSave={async (nextProfile) => {
+            const saved = await onProfileSave(nextProfile);
             if (resumeCreateRef.current) {
               resumeCreateRef.current = false;
               window.setTimeout(() => void handleCreate(true), 0);

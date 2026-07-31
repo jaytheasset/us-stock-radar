@@ -4,6 +4,7 @@ import {
   Heart,
   LoaderCircle,
   MessageCircle,
+  Pencil,
   UserCheck,
   UserPlus,
 } from "lucide-react";
@@ -15,21 +16,25 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
 import {
+  LiveRoomApiRepository,
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
 import type {
   LiveRoomPost,
+  LiveRoomProfile,
   LiveRoomPublicMember,
   LiveRoomPublicMemberActions,
 } from "@/lib/live-room/types";
+import { ChatNameSetup } from "./ChatNameSetup";
 import styles from "./PostDetail.module.css";
 
 type ProfileActionBusy = "follow" | "message" | "request" | null;
@@ -46,11 +51,17 @@ export function PublicMemberProfileClient({
 }) {
   const router = useRouter();
   const repository = useMemo(() => new LiveRoomPostApiRepository(), []);
+  const profileRepository = useMemo(
+    () => new LiveRoomApiRepository("PROFILE"),
+    [],
+  );
   const directMessageRepository = useMemo(
     () => new DirectMessageApiRepository(),
     [],
   );
   const [member, setMember] = useState<LiveRoomPublicMember | null>(null);
+  const [ownProfile, setOwnProfile] = useState<LiveRoomProfile | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [actions, setActions] =
     useState<LiveRoomPublicMemberActions | null>(null);
   const [posts, setPosts] = useState<LiveRoomPost[]>([]);
@@ -62,11 +73,14 @@ export function PublicMemberProfileClient({
     useState<ProfileActionBusy>(null);
   const [messageRequestTarget, setMessageRequestTarget] =
     useState<MessageRequestTarget | null>(null);
+  const editProfileButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setMember(null);
+    setOwnProfile(null);
+    setProfileOpen(false);
     setActions(null);
     setPosts([]);
     setCursor(null);
@@ -83,6 +97,10 @@ export function PublicMemberProfileClient({
         try {
           nextActions =
             await repository.readMemberActions(publicProfileId);
+          if (nextActions.isSelf) {
+            const currentProfile = await profileRepository.readProfile();
+            if (active) setOwnProfile(currentProfile);
+          }
         } catch (reason) {
           nextActionError = toLiveRoomApiError(reason).message;
         }
@@ -102,7 +120,7 @@ export function PublicMemberProfileClient({
     return () => {
       active = false;
     };
-  }, [publicProfileId, repository]);
+  }, [profileRepository, publicProfileId, repository]);
 
   const loadOlder = async () => {
     if (!cursor || loading) return;
@@ -333,8 +351,29 @@ export function PublicMemberProfileClient({
                       </>
                     )}
                   </div>
+                ) : actions?.isSelf && ownProfile ? (
+                  <div className={styles.profileActions}>
+                    <button
+                      className={styles.profileActionButton}
+                      onClick={() => setProfileOpen(true)}
+                      ref={editProfileButtonRef}
+                      type="button"
+                    >
+                      <Pencil aria-hidden="true" size={15} />
+                      Edit profile
+                    </button>
+                  </div>
                 ) : null}
               </header>
+              {member.bio ? (
+                <section
+                  aria-labelledby="member-about-title"
+                  className={styles.profileAbout}
+                >
+                  <h2 id="member-about-title">About</h2>
+                  <p>{member.bio}</p>
+                </section>
+              ) : null}
               {actionError ? (
                 <p className={styles.profileActionNotice} role="alert">
                   {actionError}
@@ -396,6 +435,33 @@ export function PublicMemberProfileClient({
           onCancel={handleCloseMessageRequest}
           onSubmit={handleSendMessageRequest}
           target={messageRequestTarget}
+        />
+      ) : null}
+      {ownProfile && actions?.isSelf ? (
+        <ChatNameSetup
+          isOpen={profileOpen}
+          onDismiss={() => setProfileOpen(false)}
+          onPresenceSettingChange={() => undefined}
+          onSave={async (nextProfile) => {
+            const saved =
+              await profileRepository.writeProfile(nextProfile);
+            setOwnProfile(saved);
+            setMember((current) =>
+              current
+                ? {
+                    ...current,
+                    bio: saved.bio,
+                    displayName: saved.displayName,
+                    emoji: saved.emoji,
+                  }
+                : current,
+            );
+            return saved;
+          }}
+          openerRef={editProfileButtonRef}
+          presenceSettingBusy={false}
+          profile={ownProfile}
+          showPresence={null}
         />
       ) : null}
     </>

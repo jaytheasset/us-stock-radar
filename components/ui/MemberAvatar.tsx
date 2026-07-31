@@ -1,4 +1,7 @@
-import { formatPublicChatName, getLiveRoomChatNameInitial } from "@/lib/live-room/chatIdentity";
+import {
+  formatPublicChatName,
+  getLiveRoomChatNameInitials,
+} from "@/lib/live-room/chatIdentity";
 import styles from "./MemberAvatar.module.css";
 
 export function MemberAvatar({
@@ -29,7 +32,7 @@ export function MemberAvatar({
         <img alt="" src={imageUrl} />
       ) : (
         <span aria-hidden="true">
-          {getLiveRoomChatNameInitial(displayName)}
+          {getLiveRoomChatNameInitials(displayName)}
         </span>
       )}
     </span>

@@ -986,7 +986,10 @@ export async function getLiveRoomProfile(
   const id =
     actor.kind === "member" ? actor.userId : actor.guestSessionId;
   const selected = await supabaseSelect(table, {
-    select: "display_name,emoji",
+    select:
+      actor.kind === "member"
+        ? "display_name,emoji,bio"
+        : "display_name,emoji",
     [key]: `eq.${id}`,
     limit: "1",
   });
@@ -1044,6 +1047,7 @@ export async function getLiveRoomProfile(
 
   const displayName = readString(row.display_name);
   return {
+    bio: actor.kind === "member" ? readString(row.bio) || null : null,
     canModerate,
     displayName:
       displayName || getDefaultLiveRoomDisplayName(actor),
@@ -1078,7 +1082,8 @@ export async function updateLiveRoomProfile(
 
   const result =
     actor.kind === "member"
-      ? await supabaseRpc("set_live_room_member_chat_name", {
+      ? await supabaseRpc("set_live_room_member_profile", {
+          p_bio: profile.bio,
           p_member_user_id: actor.userId,
           p_display_name: profile.displayName,
         })

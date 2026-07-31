@@ -61,7 +61,13 @@ export function formatPublicChatName(value: unknown) {
   return validation.ok ? validation.value : "Name unavailable";
 }
 
-export function getLiveRoomChatNameInitial(value: unknown) {
-  const publicName = formatPublicChatName(value);
-  return publicName === "Name unavailable" ? "?" : publicName[0].toUpperCase();
+export function getLiveRoomChatNameInitials(value: unknown) {
+  const normalized = normalizeLiveRoomChatName(value);
+  const publicName =
+    /^[A-Za-z0-9]$/.test(normalized)
+      ? normalized
+      : formatPublicChatName(normalized);
+  if (publicName === "Name unavailable") return "?";
+  const characters = publicName.match(/[A-Za-z0-9]/g)?.slice(0, 2) ?? [];
+  return characters.length ? characters.join("").toUpperCase() : "?";
 }

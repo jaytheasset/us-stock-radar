@@ -924,9 +924,11 @@ export function LiveRoomClient({
     };
   }, [ticker]);
 
-  const handleProfileSave = async (displayName: string) => {
+  const handleProfileSave = async (
+    nextProfile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => {
     setRoomNotice(null);
-    const saved = await repository.writeProfile({ displayName });
+    const saved = await repository.writeProfile(nextProfile);
     setProfile(saved);
     return saved;
   };

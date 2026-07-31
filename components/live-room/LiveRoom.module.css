@@ -2938,9 +2938,18 @@ button.messageReplyPreview:hover {
 
   .profileButton {
     display: flex;
+    box-sizing: border-box;
+    width: 42px;
+    height: 42px;
     min-height: 42px;
     justify-content: center;
-    padding: var(--sr-space-1);
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .profileButton:disabled {
+    background: transparent;
   }
 
   .profileButton > span:first-child {

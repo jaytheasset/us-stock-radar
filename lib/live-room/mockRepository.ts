@@ -148,6 +148,7 @@ export class BrowserLiveRoomProfileRepository
         typeof stored.emoji === "string"
       ) {
         return {
+          bio: typeof stored.bio === "string" ? stored.bio : null,
           displayName: stored.displayName.trim().slice(0, 24) || "Guest",
           emoji: stored.emoji,
           isGuest: true,
@@ -157,6 +158,7 @@ export class BrowserLiveRoomProfileRepository
     } catch (_) {}
 
     return {
+      bio: null,
       displayName: "Guest",
       emoji: "👋",
       isGuest: true,

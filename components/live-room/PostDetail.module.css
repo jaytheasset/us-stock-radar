@@ -295,6 +295,32 @@
   margin-left: auto;
 }
 
+.profileAbout {
+  margin-top: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-panel);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
+}
+
+.profileAbout h2,
+.profileAbout p {
+  margin: 0;
+}
+
+.profileAbout h2 {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-md);
+}
+
+.profileAbout p {
+  margin-top: var(--sr-space-2);
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+  line-height: var(--sr-line-height-default);
+  white-space: pre-wrap;
+}
+
 .profileActionButton {
   display: inline-flex;
   min-width: 0;

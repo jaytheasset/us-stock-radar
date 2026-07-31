@@ -1058,7 +1058,7 @@ async function getPublicMember(rawPublicProfileId: unknown) {
     "The public member profile ID is invalid.",
   );
   const result = await supabaseSelect("live_room_member_profiles", {
-    select: "user_id,public_profile_id,display_name,emoji",
+    select: "user_id,public_profile_id,display_name,emoji,bio",
     public_profile_id: `eq.${publicProfileId}`,
     limit: "1",
   });
@@ -1086,6 +1086,7 @@ async function getPublicMember(rawPublicProfileId: unknown) {
   }
   return {
     member: {
+      bio: readString(row.bio) || null,
       brokerageConnected,
       displayName: readString(row.display_name) || "Member",
       emoji: readString(row.emoji) || "👋",

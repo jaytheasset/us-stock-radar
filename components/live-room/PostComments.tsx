@@ -224,10 +224,9 @@ export function PostComments({
             setProfileSetupOpen(false);
           }}
           onPresenceSettingChange={() => undefined}
-          onSave={async (displayName) => {
-            const saved = await profileRepository.writeProfile({
-              displayName,
-            });
+          onSave={async (nextProfile) => {
+            const saved =
+              await profileRepository.writeProfile(nextProfile);
             setProfile(saved);
             if (resumeCommentRef.current) {
               resumeCommentRef.current = false;

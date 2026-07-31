@@ -60,23 +60,49 @@
   font-weight: var(--sr-font-weight-semibold);
 }
 
-.form input {
+.form input,
+.form textarea {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: var(--sr-size-control);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-3);
   color: var(--sr-color-text-primary);
   background: var(--sr-color-surface-control);
   font: inherit;
   font-weight: var(--sr-font-weight-regular);
 }
 
-.form input:focus-visible {
+.form input {
+  min-height: var(--sr-size-control);
+  padding: 0 var(--sr-space-3);
+}
+
+.form textarea {
+  min-height: calc(4 * var(--sr-line-height-default) * 1em);
+  resize: vertical;
+  padding: var(--sr-space-2) var(--sr-space-3);
+  line-height: var(--sr-line-height-default);
+}
+
+.form input:focus-visible,
+.form textarea:focus-visible {
   border-color: var(--sr-color-accent-border);
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+}
+
+.labelRow small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
 }
 
 .error {

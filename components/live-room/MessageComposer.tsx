@@ -37,7 +37,9 @@ type MessageComposerProps = {
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
-  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
+  onProfileSave: (
+    profile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => Promise<LiveRoomProfile>;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
@@ -238,8 +240,8 @@ export function MessageComposer({
                 setProfileOpen(false);
               }}
               onPresenceSettingChange={onPresenceSettingChange}
-              onSave={async (displayName) => {
-                const saved = await onProfileSave(displayName);
+              onSave={async (nextProfile) => {
+                const saved = await onProfileSave(nextProfile);
                 if (resumeSendRef.current) {
                   resumeSendRef.current = false;
                   window.setTimeout(() => onSend(saved), 0);

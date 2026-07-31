@@ -25,10 +25,14 @@ import {
 } from "./guestIdentity.ts";
 import {
   formatPublicChatName,
-  getLiveRoomChatNameInitial,
+  getLiveRoomChatNameInitials,
   normalizeLiveRoomChatName,
   validateLiveRoomChatName,
 } from "./chatIdentity.ts";
+import {
+  LIVE_ROOM_PROFILE_BIO_MAX_LENGTH,
+  normalizeLiveRoomProfileBio,
+} from "./profileBio.ts";
 import {
   createServerOwnedAuthorSnapshot,
   getDefaultLiveRoomDisplayName,
@@ -1263,6 +1267,7 @@ test("server-owned actor identity prevents guest and member impersonation", () =
     email: "member@example.com",
   };
   const profile = {
+    bio: null,
     displayName: "Server profile",
     emoji: "🧭",
     isGuest: true,
@@ -1383,23 +1388,48 @@ test("chat names normalize ASCII whitespace and reject Unicode, invalid starts, 
 });
 
 test("chat-name initials follow name changes without exposing legacy Member", () => {
-  assert.equal(getLiveRoomChatNameInitial("Moon to moon"), "M");
-  assert.equal(getLiveRoomChatNameInitial("alpha"), "A");
-  assert.equal(getLiveRoomChatNameInitial("Member"), "?");
-  assert.equal(getLiveRoomChatNameInitial(""), "?");
+  assert.equal(getLiveRoomChatNameInitials("MarketHawk"), "MA");
+  assert.equal(getLiveRoomChatNameInitials("Moon to moon"), "MO");
+  assert.equal(getLiveRoomChatNameInitials("A-1"), "A1");
+  assert.equal(getLiveRoomChatNameInitials("A"), "A");
+  assert.equal(getLiveRoomChatNameInitials("Member"), "?");
+  assert.equal(getLiveRoomChatNameInitials(""), "?");
   assert.equal(formatPublicChatName("Member"), "Name unavailable");
   assert.equal(formatPublicChatName("한글 Name"), "Name unavailable");
   assert.equal(formatPublicChatName("Guest"), "Guest");
   assert.equal(formatPublicChatName("  Alpha   One "), "Alpha One");
 });
 
-test("profile policy stores only a normalized chat name", () => {
+test("profile policy stores a normalized chat name and optional plain-text bio", () => {
   assert.deepEqual(
     normalizeLiveRoomProfileInput({
+      bio: "  Long-term investor.\r\n  Focused on filings.  ",
       displayName: "  Radar   Fox  ",
     }),
-    { displayName: "Radar Fox" },
+    {
+      bio: "Long-term investor.\nFocused on filings.",
+      displayName: "Radar Fox",
+    },
   );
+  assert.equal(normalizeLiveRoomProfileBio("   "), null);
+  assert.equal(
+    normalizeLiveRoomProfileBio("one\ntwo\nthree\nfour"),
+    "one\ntwo\nthree\nfour",
+  );
+  assert.equal(
+    normalizeLiveRoomProfileBio("a".repeat(LIVE_ROOM_PROFILE_BIO_MAX_LENGTH)),
+    "a".repeat(LIVE_ROOM_PROFILE_BIO_MAX_LENGTH),
+  );
+  assert.throws(() =>
+    normalizeLiveRoomProfileBio(
+      "a".repeat(LIVE_ROOM_PROFILE_BIO_MAX_LENGTH + 1),
+    ),
+  );
+  assert.throws(() =>
+    normalizeLiveRoomProfileBio("one\ntwo\nthree\nfour\nfive"),
+  );
+  assert.throws(() => normalizeLiveRoomProfileBio("<strong>HTML</strong>"));
+  assert.throws(() => normalizeLiveRoomProfileBio("control\tcharacter"));
   assert.throws(
     () =>
       normalizeLiveRoomProfileInput({
@@ -2383,12 +2413,83 @@ test("member chat identity is service-owned, unique, and required by every publi
   assert.doesNotMatch(migration, /security definer/i);
   assert.match(
     serverRepository,
-    /supabaseRpc\("set_live_room_member_chat_name"[\s\S]+p_member_user_id: actor\.userId/,
+    /supabaseRpc\("set_live_room_member_profile"[\s\S]+p_member_user_id: actor\.userId/,
   );
   assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_TAKEN[\s\S]+409/);
   assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
   assert.match(postRepository, /assertLiveRoomMemberChatName/g);
   assert.match(postRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
+});
+
+test("optional member bio stays service-owned and limited to profile detail", () => {
+  const migration = readSource(
+    "supabase/migrations/20260731031022_live_room_member_profile_bio.sql",
+  );
+  const serverRepository = readSource("lib/live-room/serverRepository.ts");
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
+  const setup = readSource("components/live-room/ChatNameSetup.tsx");
+  const publicProfile = readSource(
+    "components/live-room/PublicMemberProfileClient.tsx",
+  );
+  const liveRoomCss = readSource("components/live-room/LiveRoom.module.css");
+  const types = readSource("lib/live-room/types.ts");
+
+  assert.match(
+    migration,
+    /alter table public\.live_room_member_profiles[\s\S]+add column bio text/i,
+  );
+  assert.match(
+    migration,
+    /function public\.set_live_room_member_profile\([\s\S]+security invoker[\s\S]+set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.set_live_room_member_profile\(uuid, text, text\)[\s\S]+from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.set_live_room_member_profile\(uuid, text, text\)[\s\S]+to service_role/i,
+  );
+  assert.match(
+    migration,
+    /set_live_room_member_chat_name\([\s\S]+p_member_user_id[\s\S]+p_display_name/i,
+  );
+  assert.doesNotMatch(migration, /security definer/i);
+  assert.match(
+    serverRepository,
+    /actor\.kind === "member"[\s\S]+display_name,emoji,bio/,
+  );
+  assert.match(serverRepository, /bio:\s*actor\.kind === "member"/);
+  assert.match(
+    postRepository,
+    /select: "user_id,public_profile_id,display_name,emoji,bio"/,
+  );
+  assert.match(setup, /About \(optional\)/);
+  assert.match(setup, /LIVE_ROOM_PROFILE_BIO_MAX_LENGTH/);
+  assert.match(setup, /normalizeLiveRoomProfileBio\(bio\)/);
+  assert.match(publicProfile, /member\.bio \? \(/);
+  assert.match(publicProfile, />About</);
+  assert.match(publicProfile, /Edit profile/);
+  assert.match(publicProfile, /actions\?\.isSelf && ownProfile/);
+  assert.doesNotMatch(
+    types.match(
+      /export type LiveRoomMemberSummary = \{[\s\S]*?\n\};/,
+    )?.[0] ?? "",
+    /\bbio\b/,
+  );
+  const publicMemberContract =
+    types.match(
+      /export type LiveRoomPublicMember = \{[\s\S]*?\n\};/,
+    )?.[0] ?? "";
+  assert.match(publicMemberContract, /bio: string \| null/);
+  assert.doesNotMatch(publicMemberContract, /\buserId\b|\bemail\b/);
+  assert.match(types, /LiveRoomMessageAuthor = Omit<LiveRoomProfile, "bio">/);
+  assert.match(
+    liveRoomCss,
+    /@media \(max-width: 760px\)[\s\S]+\.profileButton \{[\s\S]+width: 42px;[\s\S]+height: 42px;[\s\S]+border: 0;[\s\S]+padding: 0;[\s\S]+background: transparent;/,
+  );
 });
 
 test("first public writing preserves drafts while shared chat identity works on desktop and mobile", () => {
@@ -2419,7 +2520,7 @@ test("first public writing preserves drafts while shared chat identity works on 
   assert.match(posts, /handleCreate\(true\)/);
   assert.match(comments, /resumeCommentRef\.current = true/);
   assert.match(comments, /createComment\(true\)/);
-  assert.match(avatar, /getLiveRoomChatNameInitial\(displayName\)/);
+  assert.match(avatar, /getLiveRoomChatNameInitials\(displayName\)/);
   assert.doesNotMatch(chatTimeline, /replyPreview\.authorEmoji/);
   assert.match(
     chatTimeline,
@@ -2451,4 +2552,12 @@ test("all public member surfaces use the shared initial avatar contract", () => 
     /background:\s*var\(--sr-color-surface-control\)/,
   );
   assert.doesNotMatch(avatarStyles, /#[0-9a-f]{3,8}|gradient/i);
+  assert.match(
+    avatarStyles,
+    /font-size:\s*var\(--sr-font-size-xs\)[\s\S]*letter-spacing:\s*var\(--sr-letter-spacing-default\)/,
+  );
+  assert.match(
+    avatarStyles,
+    /\[data-avatar-size="large"\][\s\S]*font-size:\s*var\(--sr-font-size-md\)/,
+  );
 });
