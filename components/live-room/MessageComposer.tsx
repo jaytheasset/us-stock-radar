@@ -1,7 +1,7 @@
 "use client";
 
 import { Send, UserRound, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
@@ -83,8 +83,30 @@ export function MessageComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const resumeSendRef = useRef(false);
+  const [proofPickerOpen, setProofPickerOpen] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const requiresChatName =
     profile?.isGuest === false && profile.isChatNameSet === false;
+  const handleProofPickerOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setProofPickerOpen(nextOpen);
+      if (nextOpen) {
+        setMediaPickerOpen(false);
+        setProfileOpen(false);
+      }
+    },
+    [setProfileOpen],
+  );
+  const handleMediaPickerOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setMediaPickerOpen(nextOpen);
+      if (nextOpen) {
+        setProofPickerOpen(false);
+        setProfileOpen(false);
+      }
+    },
+    [setProfileOpen],
+  );
 
   const requestSend = () => {
     if (requiresChatName) {
@@ -98,6 +120,12 @@ export function MessageComposer({
   useEffect(() => {
     if (focusRequestId > 0) textareaRef.current?.focus();
   }, [focusRequestId]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    setProofPickerOpen(false);
+    setMediaPickerOpen(false);
+  }, [profileOpen]);
 
   return (
     <div className={styles.composer}>
@@ -161,7 +189,11 @@ export function MessageComposer({
             className={styles.profileButton}
             disabled={!profile || profile.isGuest}
             onClick={() => {
-              if (profile?.isGuest === false) setProfileOpen(!profileOpen);
+              if (profile?.isGuest === false) {
+                setProofPickerOpen(false);
+                setMediaPickerOpen(false);
+                setProfileOpen(!profileOpen);
+              }
             }}
             ref={profileButtonRef}
             type="button"
@@ -232,7 +264,11 @@ export function MessageComposer({
             maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
             onChange={(event) => onBodyChange(event.target.value)}
             onFocus={() => {
-              if (requiresChatName) setProfileOpen(true);
+              if (requiresChatName) {
+                setProofPickerOpen(false);
+                setMediaPickerOpen(false);
+                setProfileOpen(true);
+              }
             }}
             onKeyDown={(event) => {
               if (
@@ -260,15 +296,19 @@ export function MessageComposer({
           </small>
         </label>
         <BrokerageEvidencePicker
+          isOpen={proofPickerOpen}
           loginHref={loginHref}
           onChange={onProofChange}
+          onOpenChange={handleProofPickerOpenChange}
           placement="composer"
           value={proof}
         />
         <KlipyPicker
           disabled={disabled || sending}
+          isOpen={mediaPickerOpen}
           isGuest={profile?.isGuest !== false}
           loginHref={loginHref}
+          onOpenChange={handleMediaPickerOpenChange}
           onSelect={onMediaChange}
         />
         <button

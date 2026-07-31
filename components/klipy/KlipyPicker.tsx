@@ -26,13 +26,17 @@ const pageCache = new Map<string, KlipySearchPage>();
 
 export function KlipyPicker({
   disabled,
+  isOpen,
   isGuest,
   loginHref,
+  onOpenChange,
   onSelect,
 }: {
   disabled: boolean;
+  isOpen?: boolean;
   isGuest: boolean;
   loginHref: string;
+  onOpenChange?: (open: boolean) => void;
   onSelect: (media: KlipyMediaAttachment) => void;
 }) {
   const id = `klipy-picker-${useId().replace(/:/g, "")}`;
@@ -40,7 +44,15 @@ export function KlipyPicker({
   const requestRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isOpen ?? internalOpen;
+  const setPickerOpen = useCallback(
+    (nextOpen: boolean) => {
+      if (isOpen === undefined) setInternalOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [isOpen, onOpenChange],
+  );
   const [mobile, setMobile] = useState(false);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<PickerState>({
@@ -49,11 +61,11 @@ export function KlipyPicker({
     page: null,
   });
   const closeAndRestoreFocus = useCallback(() => {
-    setOpen(false);
+    setPickerOpen(false);
     window.requestAnimationFrame(() => {
       openerRef.current?.focus({ preventScroll: true });
     });
-  }, []);
+  }, [setPickerOpen]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -146,7 +158,7 @@ export function KlipyPicker({
         !panelRef.current?.contains(event.target as Node) &&
         !openerRef.current?.contains(event.target as Node)
       ) {
-        setOpen(false);
+        setPickerOpen(false);
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -162,7 +174,7 @@ export function KlipyPicker({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [closeAndRestoreFocus, mobile, open]);
+  }, [closeAndRestoreFocus, mobile, open, setPickerOpen]);
 
   const content = (
     <div className={styles.pickerContent}>
@@ -266,7 +278,7 @@ export function KlipyPicker({
             window.location.assign(loginHref);
             return;
           }
-          setOpen((current) => !current);
+          setPickerOpen(!open);
         }}
         ref={openerRef}
         type="button"
@@ -291,7 +303,7 @@ export function KlipyPicker({
         id={id}
         isOpen={open && mobile}
         layout="full-scroll"
-        onDismiss={() => setOpen(false)}
+        onDismiss={() => setPickerOpen(false)}
         openerRef={openerRef}
         overlayLabel="Close KLIPY picker"
       >
