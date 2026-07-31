@@ -2659,3 +2659,80 @@ test("all public member surfaces use the shared initial avatar contract", () => 
     /\[data-avatar-size="large"\][\s\S]*font-size:\s*var\(--sr-font-size-md\)/,
   );
 });
+
+test("Live Room disclosure appears exactly once at the shared composer boundary", () => {
+  const disclosure = readSource(
+    "components/live-room/LiveRoomDisclosureNotice.tsx",
+  );
+  const disclosureStyles = readSource(
+    "components/live-room/LiveRoomDisclosureNotice.module.css",
+  );
+  const composer = readSource("components/live-room/MessageComposer.tsx");
+  const posts = readSource("components/live-room/PostsPanel.tsx");
+  const postDetail = readSource(
+    "components/live-room/PostDetailClient.tsx",
+  );
+  const proofCard = readSource(
+    "components/brokerage/BrokerageProofCard.tsx",
+  );
+  const companyRoom = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const communityRoom = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+  const roomStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const terms = readSource("app/terms/page.tsx");
+
+  assert.match(
+    disclosure,
+    /User posts and verified trades are not endorsed by Stock Radar and are not investment advice\. Verify independently\./,
+  );
+  assert.match(
+    disclosure,
+    /href="\/terms#live-room-community-disclosures"/,
+  );
+  assert.equal(
+    (composer.match(/<LiveRoomDisclosureNotice \/>/g) ?? []).length,
+    1,
+  );
+  for (const source of [posts, postDetail, companyRoom, communityRoom]) {
+    assert.doesNotMatch(source, /LiveRoomDisclosureNotice|showDisclosure/);
+    assert.doesNotMatch(source, /live-room-community-disclosures/);
+  }
+  assert.doesNotMatch(
+    proofCard,
+    /Verified means selected broker-linked data matched|About verified|proofInfo|BottomSheetShell/,
+  );
+  assert.match(
+    roomStyles,
+    /--live-room-mobile-composer-disclosure-height: 34px/,
+  );
+  assert.match(
+    roomStyles,
+    /var\(--live-room-mobile-composer-disclosure-height\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /font-size: var\(--sr-font-size-xs\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /color: var\(--sr-color-text-secondary\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /@media \(max-width: 760px\)[\s\S]*min-height: 34px/,
+  );
+  assert.doesNotMatch(disclosureStyles, /posts-sheet|post-detail/);
+  assert.doesNotMatch(disclosureStyles, /#[0-9a-f]{3,8}\b/i);
+  assert.match(terms, /id: "live-room-community-disclosures"/);
+  assert.match(terms, /not endorsed by Stock Radar, verified for investment merit/);
+  assert.match(terms, /selected broker-linked facts matched/);
+  assert.match(terms, /omitted accounts, profitability, future/);
+  assert.match(terms, /accept the risks of trading/);
+  assert.match(terms, /survive termination—including/);
+  assert.match(terms, /conduct—will survive/);
+});
