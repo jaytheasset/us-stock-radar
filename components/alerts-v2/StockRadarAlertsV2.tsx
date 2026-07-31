@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
-import { AlertReliabilityNotice } from "@/components/ui/AlertReliabilityNotice";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import type {
   AlertSettingsViewModel,
@@ -1135,10 +1134,6 @@ export function StockRadarAlertsV2({
             </div>
           ) : null}
         </section>
-
-        <div className={styles.reliabilityNotice}>
-          <AlertReliabilityNotice />
-        </div>
 
         <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-followed-title">
           <div className={styles.cardHeader}>
