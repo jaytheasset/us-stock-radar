@@ -7,6 +7,7 @@ import {
   findPriorYearQuarter,
   normalizeStockFundamentals,
   type StockFundamentalsProviderResult,
+  type StockFundamentalsProviderSources,
 } from "./stockFundamentals.ts";
 import { fetchStockFundamentals } from "./stockFundamentalsServer.ts";
 
@@ -15,16 +16,54 @@ const ready = (data: unknown): StockFundamentalsProviderResult => ({
   state: "ready",
 });
 
-test("normalizes joined quarterly statements and cash-flow signs", () => {
+const unavailable = (): StockFundamentalsProviderResult => ({
+  data: [],
+  state: "plan_unavailable",
+});
+
+function sources(
+  overrides: Partial<StockFundamentalsProviderSources> = {},
+): StockFundamentalsProviderSources {
+  return {
+    balanceAnnual: ready([]),
+    balanceQuarterly: ready([]),
+    beneficialOwnership: ready([]),
+    cashAnnual: ready([]),
+    cashQuarterly: ready([]),
+    enterpriseValues: ready([]),
+    incomeAnnual: ready([]),
+    incomeQuarterly: ready([]),
+    insiderStatistics: ready([]),
+    insiderTrades: ready([]),
+    institutionalHolders: unavailable(),
+    institutionalSummary: unavailable(),
+    sharesFloat: ready([]),
+    splits: ready([]),
+    ...overrides,
+  };
+}
+
+test("normalizes quarterly and annual statements plus verified share structure", () => {
   const snapshot = normalizeStockFundamentals(
     "amd",
-    {
-      balanceSheet: ready([
+    sources({
+      balanceAnnual: ready([
+        {
+          cashAndShortTermInvestments: 6_000,
+          date: "2025-12-27",
+          fiscalYear: "2025",
+          period: "FY",
+          reportedCurrency: "USD",
+          totalDebt: 3_000,
+        },
+      ]),
+      balanceQuarterly: ready([
         {
           cashAndShortTermInvestments: 12_347,
           date: "2026-03-28",
           fiscalYear: "2026",
           period: "Q1",
+          reportedCurrency: "USD",
           totalAssets: 79_642,
           totalDebt: 3_871,
           totalStockholdersEquity: 64_462,
@@ -57,7 +96,16 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
           url: "https://www.sec.gov/Archives/older.xml",
         },
       ]),
-      cashFlow: ready([
+      cashAnnual: ready([
+        {
+          date: "2025-12-27",
+          fiscalYear: "2025",
+          freeCashFlow: 5_000,
+          operatingCashFlow: 6_000,
+          period: "FY",
+        },
+      ]),
+      cashQuarterly: ready([
         {
           commonStockIssued: null,
           commonStockRepurchased: -221,
@@ -68,7 +116,23 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
           stockBasedCompensation: 487,
         },
       ]),
-      incomeStatement: ready([
+      enterpriseValues: ready([
+        { date: "2026-03-28", numberOfShares: 1_650_000_000 },
+        { date: "2025-12-27", numberOfShares: 1_625_000_000 },
+      ]),
+      incomeAnnual: ready([
+        {
+          date: "2025-12-27",
+          epsDiluted: 2.5,
+          filingDate: "2026-02-04",
+          fiscalYear: "2025",
+          netIncome: 4_000,
+          period: "FY",
+          reportedCurrency: "USD",
+          revenue: 30_000,
+        },
+      ]),
+      incomeQuarterly: ready([
         {
           date: "2026-03-28",
           epsDiluted: 0.84,
@@ -78,6 +142,7 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
           netIncome: 1_383,
           operatingIncome: 1_476,
           period: "Q1",
+          reportedCurrency: "USD",
           revenue: 10_253,
           weightedAverageShsOutDil: 1_650,
         },
@@ -91,8 +156,6 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
           weightedAverageShsOutDil: 1_626,
         },
       ]),
-      insiderStatistics: ready([]),
-      insiderTrades: ready([]),
       sharesFloat: ready([
         {
           date: "2026-07-29 10:56:42",
@@ -101,14 +164,25 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
           outstandingShares: 1_630_600_000,
         },
       ]),
-    },
+      splits: ready([
+        { date: "2000-08-22", denominator: 1, numerator: 2 },
+      ]),
+    }),
     "2026-07-31T00:00:00.000Z",
   );
 
   assert.equal(snapshot.symbol, "AMD");
   assert.equal(snapshot.financials.quarters[0]?.totalDebt, 3_871);
   assert.equal(snapshot.financials.quarters[0]?.commonStockRepurchased, 221);
+  assert.equal(snapshot.financials.annuals[0]?.operatingCashFlow, 6_000);
+  assert.equal(snapshot.financials.annuals[0]?.reportedCurrency, "USD");
   assert.equal(snapshot.sharesFloat?.outstandingShares, 1_630_600_000);
+  assert.equal(snapshot.shareHistory[0]?.shares, 1_650_000_000);
+  assert.deepEqual(snapshot.splits[0], {
+    date: "2000-08-22",
+    denominator: 1,
+    numerator: 2,
+  });
   assert.equal(snapshot.ownership.beneficialFilings.length, 3);
   assert.equal(snapshot.ownership.beneficialFilings[0]?.url, "");
   assert.deepEqual(
@@ -117,6 +191,7 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
     ),
     ["Vanguard Capital Management"],
   );
+  assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
   assert.equal(
     findPriorYearQuarter(
       snapshot.financials.quarters,
@@ -124,6 +199,19 @@ test("normalizes joined quarterly statements and cash-flow signs", () => {
     )?.fiscalYear,
     "2025",
   );
+});
+
+test("marks a statement source partial when only one cadence is available", () => {
+  const snapshot = normalizeStockFundamentals(
+    "AMD",
+    sources({
+      incomeAnnual: unavailable(),
+      incomeQuarterly: ready([
+        { date: "2026-03-28", fiscalYear: "2026", period: "Q1" },
+      ]),
+    }),
+  );
+  assert.equal(snapshot.sources.incomeStatement.state, "partial");
 });
 
 test("only calculates comparable changes with a positive baseline", () => {
@@ -149,7 +237,7 @@ test("normalizes issuance and repurchase magnitudes before net supply math", () 
   });
 });
 
-test("keeps 402 and failed FMP sources isolated without leaking provider details", async () => {
+test("isolates FMP plan limits and never sends the key in request URLs", async () => {
   const requestedUrls: string[] = [];
   const seenApiKeys: string[] = [];
   const fetchImpl = async (
@@ -165,19 +253,28 @@ test("keeps 402 and failed FMP sources isolated without leaking provider details
           date: "2026-03-28",
           filingDate: "2026-05-06",
           fiscalYear: "2026",
-          period: "Q1",
+          period: url.includes("period=annual") ? "FY" : "Q1",
           revenue: 10_253,
         },
       ]);
     }
     if (url.includes("/balance-sheet-statement?")) {
-      return new Response("provider secret details", { status: 402 });
+      return new Response("provider details", { status: 402 });
     }
     if (url.includes("/cash-flow-statement?")) {
-      return new Response("upstream failure secret", { status: 500 });
+      return new Response("upstream details", { status: 500 });
     }
     if (url.includes("/shares-float?")) {
       return Response.json([{ outstandingShares: 1_630_600_000 }]);
+    }
+    if (url.includes("/enterprise-values?")) {
+      return Response.json([{ date: "2026-03-28", numberOfShares: 1_650_000_000 }]);
+    }
+    if (url.includes("/splits?")) {
+      return Response.json([{ date: "2000-08-22", denominator: 1, numerator: 2 }]);
+    }
+    if (url.includes("/institutional-ownership/")) {
+      return new Response("plan details", { status: 403 });
     }
     return Response.json([]);
   };
@@ -193,11 +290,14 @@ test("keeps 402 and failed FMP sources isolated without leaking provider details
   assert.equal(snapshot.sources.cashFlow.state, "unavailable");
   assert.equal(snapshot.sources.beneficialOwnership.state, "empty");
   assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
+  assert.equal(snapshot.sources.sharesHistory.state, "ready");
+  assert.equal(snapshot.sources.splits.state, "ready");
   assert.equal(snapshot.financials.quarters[0]?.revenue, 10_253);
   assert.ok(requestedUrls.every((url) => !url.includes("apikey")));
   assert.ok(seenApiKeys.every((key) => key === "server-only-test-key"));
   const serialized = JSON.stringify(snapshot);
   assert.equal(serialized.includes("server-only-test-key"), false);
-  assert.equal(serialized.includes("provider secret details"), false);
-  assert.equal(serialized.includes("upstream failure secret"), false);
+  assert.equal(serialized.includes("provider details"), false);
+  assert.equal(serialized.includes("upstream details"), false);
+  assert.equal(serialized.includes("plan details"), false);
 });

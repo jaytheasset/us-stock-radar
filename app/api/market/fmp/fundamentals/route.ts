@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
 
   const data = await fetchStockFundamentals(symbol);
   const anyAvailable = Object.values(data.sources).some(
-    (source) => source.state === "ready",
+    (source) =>
+      source.rowCount > 0 &&
+      (source.state === "ready" || source.state === "partial"),
   );
 
   return NextResponse.json(

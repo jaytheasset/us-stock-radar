@@ -1,5 +1,6 @@
 export type StockFundamentalsSourceState =
   | "ready"
+  | "partial"
   | "empty"
   | "plan_unavailable"
   | "unavailable";
@@ -14,12 +15,14 @@ export type StockFundamentalsSourceKey =
   | "balanceSheet"
   | "cashFlow"
   | "sharesFloat"
+  | "sharesHistory"
+  | "splits"
   | "insiderStatistics"
   | "insiderTrades"
   | "beneficialOwnership"
   | "institutionalOwnership";
 
-export type StockFinancialQuarter = {
+export type StockFinancialPeriod = {
   capitalExpenditure: number | null;
   cashAndShortTermInvestments: number | null;
   commonStockIssued: number | null;
@@ -34,6 +37,7 @@ export type StockFinancialQuarter = {
   operatingCashFlow: number | null;
   operatingIncome: number | null;
   period: string;
+  reportedCurrency: string;
   revenue: number | null;
   stockBasedCompensation: number | null;
   totalAssets: number | null;
@@ -41,6 +45,8 @@ export type StockFinancialQuarter = {
   totalStockholdersEquity: number | null;
   weightedAverageShsOutDil: number | null;
 };
+
+export type StockFinancialQuarter = StockFinancialPeriod;
 
 export type StockInsiderStatistic = {
   acquiredTransactions: number | null;
@@ -73,6 +79,17 @@ export type StockSharesFloat = {
   outstandingShares: number | null;
 };
 
+export type StockShareHistoryPoint = {
+  date: string;
+  shares: number;
+};
+
+export type StockSplit = {
+  date: string;
+  denominator: number;
+  numerator: number;
+};
+
 export type StockBeneficialOwnershipFiling = {
   acceptedDate: string;
   amountBeneficiallyOwned: number | null;
@@ -83,35 +100,72 @@ export type StockBeneficialOwnershipFiling = {
   url: string;
 };
 
+export type StockInstitutionalSummary = {
+  asOf: string;
+  closedPositions: number | null;
+  increasedPositions: number | null;
+  investorsHolding: number | null;
+  newPositions: number | null;
+  ownershipPercent: number | null;
+  quarter: number | null;
+  reducedPositions: number | null;
+  sharesHeld: number | null;
+  totalInvested: number | null;
+  year: number | null;
+};
+
+export type StockInstitutionalHolder = {
+  asOf: string;
+  changeInShares: number | null;
+  holder: string;
+  marketValue: number | null;
+  portfolioWeight: number | null;
+  shares: number | null;
+};
+
 export type StockFundamentalsSnapshot = {
   fetchedAt: string;
   financials: {
+    annuals: StockFinancialPeriod[];
     quarters: StockFinancialQuarter[];
   };
   ownership: {
     beneficialFilings: StockBeneficialOwnershipFiling[];
+    institutionalHolders: StockInstitutionalHolder[];
+    institutionalSummary: StockInstitutionalSummary | null;
     reportedBeneficialOwners: StockBeneficialOwnershipFiling[];
     statistics: StockInsiderStatistic[];
     trades: StockInsiderTrade[];
   };
+  shareHistory: StockShareHistoryPoint[];
   sharesFloat: StockSharesFloat | null;
   sources: Record<StockFundamentalsSourceKey, StockFundamentalsSourceStatus>;
+  splits: StockSplit[];
   symbol: string;
 };
 
 export type StockFundamentalsProviderResult = {
   data: unknown;
-  state: Exclude<StockFundamentalsSourceState, "empty">;
+  fetchedAt?: string;
+  httpStatus?: number;
+  state: Exclude<StockFundamentalsSourceState, "empty" | "partial">;
 };
 
 export type StockFundamentalsProviderSources = {
-  balanceSheet: StockFundamentalsProviderResult;
+  balanceAnnual: StockFundamentalsProviderResult;
+  balanceQuarterly: StockFundamentalsProviderResult;
   beneficialOwnership: StockFundamentalsProviderResult;
-  cashFlow: StockFundamentalsProviderResult;
-  incomeStatement: StockFundamentalsProviderResult;
+  cashAnnual: StockFundamentalsProviderResult;
+  cashQuarterly: StockFundamentalsProviderResult;
+  enterpriseValues: StockFundamentalsProviderResult;
+  incomeAnnual: StockFundamentalsProviderResult;
+  incomeQuarterly: StockFundamentalsProviderResult;
   insiderStatistics: StockFundamentalsProviderResult;
   insiderTrades: StockFundamentalsProviderResult;
+  institutionalHolders: StockFundamentalsProviderResult;
+  institutionalSummary: StockFundamentalsProviderResult;
   sharesFloat: StockFundamentalsProviderResult;
+  splits: StockFundamentalsProviderResult;
 };
 
 export function normalizeStockFundamentals(
@@ -119,65 +173,33 @@ export function normalizeStockFundamentals(
   providerSources: StockFundamentalsProviderSources,
   fetchedAt = new Date().toISOString(),
 ): StockFundamentalsSnapshot {
-  const incomeRows = readRows(providerSources.incomeStatement.data);
-  const balanceRows = readRows(providerSources.balanceSheet.data);
+  const incomeQuarterlyRows = readRows(providerSources.incomeQuarterly.data);
+  const balanceQuarterlyRows = readRows(providerSources.balanceQuarterly.data);
+  const cashQuarterlyRows = readRows(providerSources.cashQuarterly.data);
+  const incomeAnnualRows = readRows(providerSources.incomeAnnual.data);
+  const balanceAnnualRows = readRows(providerSources.balanceAnnual.data);
+  const cashAnnualRows = readRows(providerSources.cashAnnual.data);
   const beneficialRows = readRows(providerSources.beneficialOwnership.data);
-  const cashRows = readRows(providerSources.cashFlow.data);
+  const enterpriseRows = readRows(providerSources.enterpriseValues.data);
   const sharesFloatRows = readRows(providerSources.sharesFloat.data);
+  const splitRows = readRows(providerSources.splits.data);
   const statisticRows = readRows(providerSources.insiderStatistics.data);
   const tradeRows = readRows(providerSources.insiderTrades.data);
+  const institutionalSummaryRows = readRows(providerSources.institutionalSummary.data);
+  const institutionalHolderRows = readRows(providerSources.institutionalHolders.data);
 
-  const quarters = incomeRows
-    .map((incomeRow) => {
-      const date = readString(incomeRow, "date");
-      const fiscalYear = readString(incomeRow, "fiscalYear");
-      const period = readString(incomeRow, "period");
-      if (!date && (!fiscalYear || !period)) return null;
-      const balanceRow = matchQuarterRow(balanceRows, date, fiscalYear, period);
-      const cashRow = matchQuarterRow(cashRows, date, fiscalYear, period);
-
-      return {
-        capitalExpenditure: readNumber(cashRow, "capitalExpenditure"),
-        cashAndShortTermInvestments: readNumber(
-          balanceRow,
-          "cashAndShortTermInvestments",
-        ),
-        commonStockIssued: normalizeCashFlowMagnitude(
-          readNumber(cashRow, "commonStockIssued"),
-        ),
-        commonStockRepurchased: normalizeCashFlowMagnitude(
-          readNumber(cashRow, "commonStockRepurchased"),
-        ),
-        date,
-        epsDiluted: readNumber(incomeRow, "epsDiluted"),
-        filingDate:
-          readString(incomeRow, "filingDate") ||
-          readString(balanceRow, "filingDate") ||
-          readString(cashRow, "filingDate"),
-        fiscalYear,
-        freeCashFlow: readNumber(cashRow, "freeCashFlow"),
-        grossProfit: readNumber(incomeRow, "grossProfit"),
-        netIncome: readNumber(incomeRow, "netIncome"),
-        operatingCashFlow: readNumber(cashRow, "operatingCashFlow"),
-        operatingIncome: readNumber(incomeRow, "operatingIncome"),
-        period,
-        revenue: readNumber(incomeRow, "revenue"),
-        stockBasedCompensation: readNumber(cashRow, "stockBasedCompensation"),
-        totalAssets: readNumber(balanceRow, "totalAssets"),
-        totalDebt: readNumber(balanceRow, "totalDebt"),
-        totalStockholdersEquity: readNumber(
-          balanceRow,
-          "totalStockholdersEquity",
-        ),
-        weightedAverageShsOutDil: readNumber(
-          incomeRow,
-          "weightedAverageShsOutDil",
-        ),
-      } satisfies StockFinancialQuarter;
-    })
-    .filter((row): row is StockFinancialQuarter => Boolean(row))
-    .sort((left, right) => quarterSortValue(right) - quarterSortValue(left))
-    .slice(0, 5);
+  const quarters = normalizeFinancialPeriods(
+    incomeQuarterlyRows,
+    balanceQuarterlyRows,
+    cashQuarterlyRows,
+    5,
+  );
+  const annuals = normalizeFinancialPeriods(
+    incomeAnnualRows,
+    balanceAnnualRows,
+    cashAnnualRows,
+    5,
+  );
 
   const statistics = statisticRows
     .map((row) => {
@@ -283,29 +305,67 @@ export function normalizeStockFundamentals(
       }
     : null;
 
+  const shareHistory = enterpriseRows
+    .map((row) => {
+      const date = readString(row, "date");
+      const shares = readNumber(row, "numberOfShares");
+      return date && shares !== null && shares > 0 ? { date, shares } : null;
+    })
+    .filter((row): row is StockShareHistoryPoint => Boolean(row))
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, 8);
+
+  const splits = splitRows
+    .map((row) => {
+      const date = readString(row, "date");
+      const numerator = readNumber(row, "numerator");
+      const denominator = readNumber(row, "denominator");
+      if (!date || numerator === null || denominator === null || numerator <= 0 || denominator <= 0) {
+        return null;
+      }
+      return { date, denominator, numerator } satisfies StockSplit;
+    })
+    .filter((row): row is StockSplit => Boolean(row))
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, 12);
+
+  const institutionalSummary = normalizeInstitutionalSummary(
+    institutionalSummaryRows[0] ?? null,
+  );
+  const institutionalHolders = institutionalHolderRows
+    .map(normalizeInstitutionalHolder)
+    .filter((row): row is StockInstitutionalHolder => Boolean(row))
+    .slice(0, 10);
+
   return {
     fetchedAt,
-    financials: { quarters },
+    financials: { annuals, quarters },
     ownership: {
       beneficialFilings,
+      institutionalHolders,
+      institutionalSummary,
       reportedBeneficialOwners,
       statistics,
       trades,
     },
+    shareHistory,
     sharesFloat,
     sources: {
-      balanceSheet: sourceStatus(
-        providerSources.balanceSheet.state,
-        balanceRows.length,
+      balanceSheet: combinedSourceStatus(
+        [providerSources.balanceQuarterly, providerSources.balanceAnnual],
+        balanceQuarterlyRows.length + balanceAnnualRows.length,
       ),
       beneficialOwnership: sourceStatus(
         providerSources.beneficialOwnership.state,
         beneficialFilings.length,
       ),
-      cashFlow: sourceStatus(providerSources.cashFlow.state, cashRows.length),
-      incomeStatement: sourceStatus(
-        providerSources.incomeStatement.state,
-        incomeRows.length,
+      cashFlow: combinedSourceStatus(
+        [providerSources.cashQuarterly, providerSources.cashAnnual],
+        cashQuarterlyRows.length + cashAnnualRows.length,
+      ),
+      incomeStatement: combinedSourceStatus(
+        [providerSources.incomeQuarterly, providerSources.incomeAnnual],
+        incomeQuarterlyRows.length + incomeAnnualRows.length,
       ),
       insiderStatistics: sourceStatus(
         providerSources.insiderStatistics.state,
@@ -315,15 +375,21 @@ export function normalizeStockFundamentals(
         providerSources.insiderTrades.state,
         trades.length,
       ),
-      institutionalOwnership: {
-        rowCount: 0,
-        state: "plan_unavailable",
-      },
+      institutionalOwnership: combinedSourceStatus(
+        [providerSources.institutionalSummary, providerSources.institutionalHolders],
+        (institutionalSummary ? 1 : 0) + institutionalHolders.length,
+      ),
       sharesFloat: sourceStatus(
         providerSources.sharesFloat.state,
         sharesFloat ? 1 : 0,
       ),
+      sharesHistory: sourceStatus(
+        providerSources.enterpriseValues.state,
+        shareHistory.length,
+      ),
+      splits: sourceStatus(providerSources.splits.state, splits.length),
     },
+    splits,
     symbol: normalizeSymbol(symbol),
   };
 }
@@ -399,9 +465,9 @@ export function calculateTrailingEquityCashFlow(
   return {
     issued,
     net:
-      issued === null && repurchased === null
+      issued === null || repurchased === null
         ? null
-        : (issued ?? 0) - (repurchased ?? 0),
+        : issued - repurchased,
     repurchased,
   };
 }
@@ -416,6 +482,110 @@ export function sumAvailable(values: readonly (number | null | undefined)[]) {
     : null;
 }
 
+function normalizeFinancialPeriods(
+  incomeRows: readonly Record<string, unknown>[],
+  balanceRows: readonly Record<string, unknown>[],
+  cashRows: readonly Record<string, unknown>[],
+  limit: number,
+) {
+  return incomeRows
+    .map((incomeRow) => {
+      const date = readString(incomeRow, "date");
+      const fiscalYear = readString(incomeRow, "fiscalYear");
+      const period = readString(incomeRow, "period");
+      if (!date && (!fiscalYear || !period)) return null;
+      const balanceRow = matchPeriodRow(balanceRows, date, fiscalYear, period);
+      const cashRow = matchPeriodRow(cashRows, date, fiscalYear, period);
+
+      return {
+        capitalExpenditure: readNumber(cashRow, "capitalExpenditure"),
+        cashAndShortTermInvestments: readNumber(
+          balanceRow,
+          "cashAndShortTermInvestments",
+        ),
+        commonStockIssued: normalizeCashFlowMagnitude(
+          readNumber(cashRow, "commonStockIssued"),
+        ),
+        commonStockRepurchased: normalizeCashFlowMagnitude(
+          readNumber(cashRow, "commonStockRepurchased"),
+        ),
+        date,
+        epsDiluted: readNumber(incomeRow, "epsDiluted"),
+        filingDate:
+          readString(incomeRow, "filingDate") ||
+          readString(balanceRow, "filingDate") ||
+          readString(cashRow, "filingDate"),
+        fiscalYear,
+        freeCashFlow: readNumber(cashRow, "freeCashFlow"),
+        grossProfit: readNumber(incomeRow, "grossProfit"),
+        netIncome: readNumber(incomeRow, "netIncome"),
+        operatingCashFlow: readNumber(cashRow, "operatingCashFlow"),
+        operatingIncome: readNumber(incomeRow, "operatingIncome"),
+        period,
+        reportedCurrency:
+          readString(incomeRow, "reportedCurrency") ||
+          readString(balanceRow, "reportedCurrency") ||
+          readString(cashRow, "reportedCurrency"),
+        revenue: readNumber(incomeRow, "revenue"),
+        stockBasedCompensation: readNumber(cashRow, "stockBasedCompensation"),
+        totalAssets: readNumber(balanceRow, "totalAssets"),
+        totalDebt: readNumber(balanceRow, "totalDebt"),
+        totalStockholdersEquity: readNumber(
+          balanceRow,
+          "totalStockholdersEquity",
+        ),
+        weightedAverageShsOutDil: readNumber(
+          incomeRow,
+          "weightedAverageShsOutDil",
+        ),
+      } satisfies StockFinancialPeriod;
+    })
+    .filter((row): row is StockFinancialPeriod => Boolean(row))
+    .sort((left, right) => periodSortValue(right) - periodSortValue(left))
+    .slice(0, limit);
+}
+
+function normalizeInstitutionalSummary(
+  row: Record<string, unknown> | null,
+): StockInstitutionalSummary | null {
+  if (!row) return null;
+  const summary = {
+    asOf: readStringAny(row, ["date", "filingDate"]),
+    closedPositions: readNumberAny(row, ["closedPositions", "positionsClosed"]),
+    increasedPositions: readNumberAny(row, ["increasedPositions", "positionsIncreased"]),
+    investorsHolding: readNumberAny(row, ["investorsHolding", "holders"]),
+    newPositions: readNumberAny(row, ["newPositions", "positionsNew"]),
+    ownershipPercent: readNumberAny(row, ["ownershipPercent", "ownershipPercentage"]),
+    quarter: readIntegerAny(row, ["quarter"]),
+    reducedPositions: readNumberAny(row, ["reducedPositions", "positionsReduced"]),
+    sharesHeld: readNumberAny(row, ["numberOf13Fshares", "sharesHeld", "shares"]),
+    totalInvested: readNumberAny(row, ["totalInvested", "marketValue"]),
+    year: readIntegerAny(row, ["year"]),
+  } satisfies StockInstitutionalSummary;
+  return Object.values(summary).some((value) => value !== null && value !== "")
+    ? summary
+    : null;
+}
+
+function normalizeInstitutionalHolder(
+  row: Record<string, unknown>,
+): StockInstitutionalHolder | null {
+  const holder = readStringAny(row, ["holder", "investorName", "name"]);
+  if (!holder) return null;
+  return {
+    asOf: readStringAny(row, ["date", "filingDate"]),
+    changeInShares: readNumberAny(row, [
+      "changeInSharesNumber",
+      "changeInShares",
+      "change",
+    ]),
+    holder,
+    marketValue: readNumberAny(row, ["marketValue", "value"]),
+    portfolioWeight: readNumberAny(row, ["weight", "portfolioWeight"]),
+    shares: readNumberAny(row, ["sharesNumber", "numberOfShares", "shares"]),
+  };
+}
+
 function sourceStatus(
   state: StockFundamentalsProviderResult["state"],
   rowCount: number,
@@ -426,7 +596,22 @@ function sourceStatus(
   };
 }
 
-function matchQuarterRow(
+function combinedSourceStatus(
+  sources: readonly StockFundamentalsProviderResult[],
+  rowCount: number,
+): StockFundamentalsSourceStatus {
+  const readyCount = sources.filter((source) => source.state === "ready").length;
+  if (readyCount === sources.length) {
+    return { rowCount, state: rowCount ? "ready" : "empty" };
+  }
+  if (readyCount > 0) return { rowCount, state: "partial" };
+  if (sources.some((source) => source.state === "plan_unavailable")) {
+    return { rowCount, state: "plan_unavailable" };
+  }
+  return { rowCount, state: "unavailable" };
+}
+
+function matchPeriodRow(
   rows: readonly Record<string, unknown>[],
   date: string,
   fiscalYear: string,
@@ -445,12 +630,12 @@ function matchQuarterRow(
   );
 }
 
-function quarterSortValue(quarter: StockFinancialQuarter) {
-  const dateValue = Date.parse(quarter.date);
+function periodSortValue(period: StockFinancialPeriod) {
+  const dateValue = Date.parse(period.date);
   if (Number.isFinite(dateValue)) return dateValue;
-  const year = Number(quarter.fiscalYear);
-  const period = Number(quarter.period.replace(/\D/g, ""));
-  return (Number.isFinite(year) ? year : 0) * 10 + (period || 0);
+  const year = Number(period.fiscalYear);
+  const quarter = Number(period.period.replace(/\D/g, ""));
+  return (Number.isFinite(year) ? year : 0) * 10 + (quarter || 0);
 }
 
 function readRows(value: unknown): Record<string, unknown>[] {
@@ -468,18 +653,20 @@ function readRows(value: unknown): Record<string, unknown>[] {
   );
 }
 
-function readString(
-  row: Record<string, unknown> | null,
-  key: string,
-) {
+function readString(row: Record<string, unknown> | null, key: string) {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
-function readNumber(
-  row: Record<string, unknown> | null,
-  key: string,
-) {
+function readStringAny(row: Record<string, unknown>, keys: readonly string[]) {
+  for (const key of keys) {
+    const value = readString(row, key);
+    if (value) return value;
+  }
+  return "";
+}
+
+function readNumber(row: Record<string, unknown> | null, key: string) {
   const value = row?.[key];
   const number =
     typeof value === "number"
@@ -490,12 +677,25 @@ function readNumber(
   return Number.isFinite(number) ? number : null;
 }
 
-function readInteger(
-  row: Record<string, unknown> | null,
-  key: string,
-) {
+function readNumberAny(row: Record<string, unknown>, keys: readonly string[]) {
+  for (const key of keys) {
+    const value = readNumber(row, key);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function readInteger(row: Record<string, unknown> | null, key: string) {
   const value = readNumber(row, key);
   return value !== null && Number.isInteger(value) ? value : null;
+}
+
+function readIntegerAny(row: Record<string, unknown>, keys: readonly string[]) {
+  for (const key of keys) {
+    const value = readInteger(row, key);
+    if (value !== null) return value;
+  }
+  return null;
 }
 
 function safeHttpUrl(value: string) {

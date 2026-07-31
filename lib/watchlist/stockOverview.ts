@@ -81,19 +81,32 @@ const ownershipEventTerms = [
   "ownership",
   "beneficial",
   "form_4",
+  "form 3",
+  "form 4",
+  "form 5",
   "13d",
   "13g",
+  "proxy",
+  "def 14a",
   "144",
 ];
 const dilutionEventTerms = [
   "dilution",
   "offering",
+  "secondary",
   "shelf",
   "atm",
   "convertible",
   "warrant",
+  "equity line",
+  "registered direct",
+  "private placement",
+  "stock split",
+  "reverse split",
   "s-8",
 ];
+const dilutionDirectForms = /^(?:S-1|S-3|F-1|F-3|S-8|424B\d*|EFFECT)(?:\/A)?$/i;
+const dilutionContextForms = /^(?:8-K|6-K)(?:\/A)?$/i;
 
 export function resolveWatchlistTicker(
   requestedTicker: string | null | undefined,
@@ -246,16 +259,22 @@ export function selectStockOverviewEvents(
   events: readonly StockOverviewEvent[],
   section: "financials" | "ownership" | "dilution",
 ) {
-  const terms =
-    section === "financials"
-      ? financialEventTerms
-      : section === "ownership"
-        ? ownershipEventTerms
-        : dilutionEventTerms;
-
   return events.filter((event) => {
-    const haystack = `${event.eventType} ${event.formType} ${event.category}`.toLowerCase();
-    return terms.some((term) => haystack.includes(term));
+    const classification = `${event.eventType} ${event.category}`.toLowerCase();
+    const fullText = `${classification} ${event.formType} ${event.title} ${event.summary}`.toLowerCase();
+    if (section === "financials") {
+      return financialEventTerms.some((term) => fullText.includes(term));
+    }
+    if (section === "ownership") {
+      return ownershipEventTerms.some((term) => fullText.includes(term));
+    }
+    if (dilutionDirectForms.test(event.formType.trim())) return true;
+    if (dilutionContextForms.test(event.formType.trim())) {
+      return dilutionEventTerms.some((term) => classification.includes(term) ||
+        event.title.toLowerCase().includes(term) ||
+        event.summary.toLowerCase().includes(term));
+    }
+    return dilutionEventTerms.some((term) => fullText.includes(term));
   });
 }
 
