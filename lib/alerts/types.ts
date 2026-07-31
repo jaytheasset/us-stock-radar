@@ -23,6 +23,7 @@ export type DeliveryChannelState = {
   implemented: boolean;
   availabilityLabel: string;
   statusLabel: string;
+  accountLabel?: string | null;
 };
 
 export type SelectedAlertCategory = {

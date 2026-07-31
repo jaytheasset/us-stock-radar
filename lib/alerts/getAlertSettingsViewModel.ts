@@ -14,6 +14,7 @@ import {
 } from "@/lib/subscriptionPolicy";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
+import { normalizeTelegramUsername } from "@/lib/telegram/telegramConnectPolicy";
 import { getUserCalendarFollowsViewModel } from "@/lib/alerts/calendarFollows";
 import {
   ALERT_FILING_TYPE_FILTERS,
@@ -43,6 +44,7 @@ type DeliveryChannelRow = {
   enabled?: unknown;
   destination?: unknown;
   verified_at?: unknown;
+  metadata?: unknown;
 };
 
 type DiscoveryCategoryRow = {
@@ -97,7 +99,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       limit: "100",
     }),
     supabaseSelect("user_delivery_channels", {
-      select: "channel,enabled,destination,verified_at",
+      select: "channel,enabled,destination,verified_at,metadata",
       user_id: `eq.${userId}`,
       limit: "20",
     }),
@@ -303,6 +305,7 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
     const available = !locked && implemented;
     const row = rowsByChannel.get(channel);
     const connected = isChannelConnected(channel, row);
+    const accountLabel = channel === "telegram" ? readTelegramAccountLabel(row?.metadata) : null;
     const enabled =
       available &&
       connected &&
@@ -317,8 +320,9 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
       implemented,
       availabilityLabel: getChannelAvailabilityLabel(plan, channel),
       statusLabel: implemented
-        ? getChannelStatusLabel({ available, connected, enabled })
+        ? getChannelStatusLabel({ channel, available, connected, enabled, accountLabel })
         : "Not available",
+      accountLabel,
     };
   });
 }
@@ -330,17 +334,29 @@ function isChannelConnected(channel: AlertChannel, row?: DeliveryChannelRow) {
 }
 
 function getChannelStatusLabel({
+  channel,
   available,
   connected,
   enabled,
+  accountLabel,
 }: {
+  channel: AlertChannel;
   available: boolean;
   connected: boolean;
   enabled: boolean;
+  accountLabel: string | null;
 }) {
+  if (channel === "telegram" && connected) {
+    return accountLabel ? `Connected · ${accountLabel}` : "Connected";
+  }
   if (!available) return "Locked";
   if (!connected) return "Not connected";
   return enabled ? "Enabled" : "Connected";
+}
+
+function readTelegramAccountLabel(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return normalizeTelegramUsername((value as { username?: unknown }).username);
 }
 
 function mapDeliveredAlerts(rows: unknown[]): DeliveredAlertItem[] {
