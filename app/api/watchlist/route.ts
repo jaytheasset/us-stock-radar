@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseUpsert } from "@/lib/supabase";
+import { findTickerBySymbol } from "@/lib/alerts/tickers/getAlertTickersViewModel";
 import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 import {
   WatchlistValidationError,
@@ -61,11 +62,21 @@ export async function POST(request: NextRequest) {
 
     assertWatchlistLimit(existing.plan, existing.usage);
 
+    const catalogTicker = await findTickerBySymbol(ticker);
+    if (!catalogTicker) {
+      throw new WatchlistValidationError(
+        "TICKER_NOT_FOUND",
+        `${ticker} is not an active listed ticker.`,
+        { ticker },
+      );
+    }
+
     const insertResult = await supabaseUpsert(
       "watchlist_tickers",
       {
         user_id: userId,
-        ticker,
+        ticker: catalogTicker.ticker,
+        company_name: catalogTicker.companyName,
       },
       {
         prefer: "return=representation",

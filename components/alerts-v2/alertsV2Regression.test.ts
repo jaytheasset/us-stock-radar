@@ -47,6 +47,14 @@ const liveRoomInboxSource = readFileSync(
   new URL("../shell/LiveRoomUnreadMenu.tsx", import.meta.url),
   "utf8",
 );
+const tickerAutocompleteSource = readFileSync(
+  new URL("../ui/TickerCompanyAutocomplete.tsx", import.meta.url),
+  "utf8",
+);
+const reliabilityNoticeSource = readFileSync(
+  new URL("../ui/AlertReliabilityNotice.tsx", import.meta.url),
+  "utf8",
+);
 
 test("alerts uses the shared product shell and token-only visual contract", () => {
   assert.match(
@@ -71,14 +79,10 @@ test("alerts uses the shared product shell and token-only visual contract", () =
 });
 
 test("alerts controls keep the shared search, focus, toggle, and locked-state hierarchy", () => {
-  assert.match(
-    styles,
-    /\.searchBox \{[\s\S]*height: 38px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*background: var\(--sr-color-surface-control\);/,
-  );
-  assert.match(
-    styles,
-    /\.searchBox:focus-within \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*box-shadow: 0 0 0 2px var\(--sr-color-accent-active-soft\);/,
-  );
+  assert.match(componentSource, /TickerCompanyAutocomplete/);
+  assert.match(tickerAutocompleteSource, /role="combobox"/);
+  assert.match(tickerAutocompleteSource, /role="listbox"/);
+  assert.match(tickerAutocompleteSource, /ArrowDown/);
   assert.match(
     styles,
     /\.toggle \{[\s\S]*width: 38px;[\s\S]*height: var\(--sr-size-badge\);[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);/,
@@ -187,18 +191,23 @@ test("alerts ticker query prepares search selection without adding a ticker", ()
     pageSource,
     /<StockRadarAlertsV2 initialTicker=\{initialTicker\}/,
   );
-  assert.match(componentSource, /pendingInitialTickerRef/);
-  assert.match(componentSource, /exactInitialMatch/);
-  assert.match(
-    componentSource,
-    /fetch\(`\/api\/tickers\/search\?q=\$\{encodeURIComponent\(query\)\}`/,
-  );
+  assert.match(componentSource, /autoSelectExact/);
+  assert.match(componentSource, /selectedTicker=\{selectedTicker\?\.ticker\}/);
+  assert.match(tickerAutocompleteSource, /\/api\/tickers\/search\?q=/);
   assert.match(
     componentSource,
     /onClick=\{\(\) => void addTicker\(\)\}/,
   );
   assert.doesNotMatch(
     componentSource,
-    /exactInitialMatch[\s\S]{0,500}(?:addTicker|method:\s*"POST")/,
+    /autoSelectExact[\s\S]{0,300}(?:addTicker|method:\s*"POST")/,
+  );
+});
+
+test("alerts settings show the shared reliability notice once", () => {
+  assert.equal((componentSource.match(/<AlertReliabilityNotice \/>/g) || []).length, 1);
+  assert.match(
+    reliabilityNoticeSource,
+    /Alerts may be delayed, changed, duplicated, or unavailable\. Do not rely on an alert as the sole basis for a trading decision\./,
   );
 });

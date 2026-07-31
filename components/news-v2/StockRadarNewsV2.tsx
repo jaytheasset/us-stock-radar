@@ -273,6 +273,10 @@ export function StockRadarNewsV2({
             onRemoveFilter={removeFilter}
             onReset={resetFilters}
             onSearch={() => setQuery(queryDraft.trim())}
+            onTickerSelect={(ticker) => {
+              setQueryDraft(ticker);
+              setQuery(ticker);
+            }}
             onToggleFilter={toggleFilter}
             queryDraft={queryDraft}
           />

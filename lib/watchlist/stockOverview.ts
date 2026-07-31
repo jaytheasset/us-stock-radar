@@ -2,6 +2,12 @@ import {
   getDirectionalScoreTone,
   type DirectionalScoreTone,
 } from "../directionalScore.ts";
+import {
+  mapTickerSearchResults as mapSharedTickerSearchResults,
+  type TickerSearchResult,
+} from "../tickerSearchContract.ts";
+
+export type { TickerSearchResult } from "../tickerSearchContract.ts";
 
 export type StockOverviewSignal = "bullish" | "bearish" | "volatile" | "neutral";
 
@@ -54,14 +60,6 @@ export type StockOverviewChartPoint = {
   open: number;
   time: string;
   volume: number;
-};
-
-export type TickerSearchResult = {
-  assetType: string | null;
-  companyName: string;
-  exchange: string | null;
-  marketCap: number | null;
-  ticker: string;
 };
 
 export type StockOverviewSelectionMode = "stock" | "watchlist";
@@ -236,23 +234,7 @@ export function mapStockOverviewEvents(payload: unknown): StockOverviewEvent[] {
 }
 
 export function mapTickerSearchResults(payload: unknown): TickerSearchResult[] {
-  const record = asRecord(payload);
-  const rows = Array.isArray(record?.data) ? record.data : [];
-  return rows
-    .map((value) => {
-      const row = asRecord(value);
-      const ticker = normalizeStockTicker(readString(row, ["ticker"]));
-      const companyName = readString(row, ["companyName"]);
-      if (!ticker || !companyName) return null;
-      return {
-        assetType: readNullableString(row, ["assetType"]),
-        companyName,
-        exchange: readNullableString(row, ["exchange"]),
-        marketCap: readNumber(row, ["marketCap"]),
-        ticker,
-      };
-    })
-    .filter((item): item is TickerSearchResult => Boolean(item));
+  return mapSharedTickerSearchResults(payload);
 }
 
 export function selectStockOverviewEvents(

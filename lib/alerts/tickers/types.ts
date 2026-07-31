@@ -1,5 +1,7 @@
 import type { Plan } from "@/lib/subscriptionPolicy";
 
+export type { TickerSearchResult } from "@/lib/tickerSearchContract";
+
 export type AlertTickerItem = {
   id: string;
   ticker: string;
@@ -17,12 +19,4 @@ export type AlertTickersViewModel = {
   usage: number;
   enabledCount: number;
   items: AlertTickerItem[];
-};
-
-export type TickerSearchResult = {
-  ticker: string;
-  companyName: string;
-  exchange: string | null;
-  assetType: string | null;
-  marketCap: number | null;
 };
