@@ -8,6 +8,7 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import type { KlipyMediaAttachment } from "@/lib/klipy/types";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { DirectMessageApiRepository } from "@/lib/direct-messages/apiRepository";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/lib/live-room/moderation";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import {
   applyLiveRoomPresence,
   clearLiveRoomPresence,
@@ -193,7 +195,6 @@ export function CommunityRoomClient({
   >(null);
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
     displayName: string;
-    emoji: string;
     messageId: string;
   } | null>(null);
   const [messageRequestBusy, setMessageRequestBusy] = useState(false);
@@ -213,7 +214,6 @@ export function CommunityRoomClient({
   const [roomCounts, setRoomCounts] = useState<LiveRoomPublicRoomCounts | null>(
     null,
   );
-  const profileSaveTimerRef = useRef<number | null>(null);
   const membershipRef = useRef(false);
   const mobileAboutOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
@@ -652,9 +652,6 @@ export function CommunityRoomClient({
 
   useEffect(
     () => () => {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-      }
       if (replyScrollFrameRef.current !== null) {
         window.cancelAnimationFrame(replyScrollFrameRef.current);
       }
@@ -665,22 +662,11 @@ export function CommunityRoomClient({
     [],
   );
 
-  const handleProfileChange = (nextProfile: LiveRoomProfile) => {
-    setProfile(nextProfile);
+  const handleProfileSave = async (displayName: string) => {
     setNotice(null);
-    if (profileSaveTimerRef.current !== null) {
-      window.clearTimeout(profileSaveTimerRef.current);
-    }
-    profileSaveTimerRef.current = window.setTimeout(() => {
-      profileSaveTimerRef.current = null;
-      void repository
-        .writeProfile({
-          displayName: nextProfile.displayName,
-          emoji: nextProfile.emoji,
-        })
-        .then(setProfile)
-        .catch((error) => setNotice(toLiveRoomApiError(error).message));
-    }, 500);
+    const saved = await repository.writeProfile({ displayName });
+    setProfile(saved);
+    return saved;
   };
 
   const refreshJoinedRooms = async () => {
@@ -753,12 +739,20 @@ export function CommunityRoomClient({
     [],
   );
 
-  const handleSend = async () => {
+  const handleSend = async (profileOverride?: LiveRoomProfile) => {
     if (roomReadOnly) {
       setNotice(roomAvailabilityMessage);
       return;
     }
-    if (!profile || sending) return;
+    const activeProfile = profileOverride ?? profile;
+    if (!activeProfile || sending) return;
+    if (
+      activeProfile.isGuest === false &&
+      activeProfile.isChatNameSet === false
+    ) {
+      setProfileOpen(true);
+      return;
+    }
     const history = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -776,16 +770,6 @@ export function CommunityRoomClient({
     setSending(true);
     setNotice(null);
     try {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-        profileSaveTimerRef.current = null;
-        setProfile(
-          await repository.writeProfile({
-            displayName: profile.displayName,
-            emoji: profile.emoji,
-          }),
-        );
-      }
       const message = await repository.send({
         body: nextDecision.normalizedBody,
         mediaId: klipyMedia?.providerMediaId || null,
@@ -1040,7 +1024,9 @@ export function CommunityRoomClient({
         result.block,
         ...current.filter((item) => item.id !== result.block.id),
       ]);
-      setNotice(`${result.block.displayName} is blocked.`);
+      setNotice(
+        `${formatPublicChatName(result.block.displayName)} is blocked.`,
+      );
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
       throw error;
@@ -1089,7 +1075,6 @@ export function CommunityRoomClient({
         setMessageRequestError(null);
         setMessageRequestTarget({
           displayName: result.peer.displayName,
-          emoji: result.peer.emoji,
           messageId,
         });
         return;
@@ -1287,6 +1272,7 @@ export function CommunityRoomClient({
                   onCreated={handlePostCreated}
                   onLoad={handleLoadPosts}
                   onPostsChange={setPosts}
+                  onProfileSave={handleProfileSave}
                   posts={posts}
                   profile={profile}
                   repository={repository}
@@ -1348,8 +1334,10 @@ export function CommunityRoomClient({
                       >
                         {blocks.map((block) => (
                           <div key={block.id}>
-                            <span aria-hidden="true">{block.emoji}</span>
-                            <strong>{block.displayName}</strong>
+                            <MemberAvatar displayName={block.displayName} />
+                            <strong>
+                              {formatPublicChatName(block.displayName)}
+                            </strong>
                             <button
                               disabled={messageActionId === block.id}
                               onClick={() => void handleUnblock(block.id)}
@@ -1370,11 +1358,15 @@ export function CommunityRoomClient({
                       >
                         {hiddenMessages.map((message) => (
                           <div key={message.id}>
-                            <span aria-hidden="true">
-                              {message.author.emoji}
-                            </span>
+                            <MemberAvatar
+                              displayName={message.author.displayName}
+                            />
                             <p>
-                              <strong>{message.author.displayName}</strong>
+                              <strong>
+                                {formatPublicChatName(
+                                  message.author.displayName,
+                                )}
+                              </strong>
                               {" · "}
                               {message.body}
                             </p>
@@ -1463,7 +1455,7 @@ export function CommunityRoomClient({
                     setKlipyMedia(media);
                     if (media) setBrokerageProof(null);
                   }}
-                  onProfileChange={handleProfileChange}
+                  onProfileSave={handleProfileSave}
                   onSend={handleSend}
                   placeholder="Share a useful view with this community…"
                   presenceSettingBusy={presenceSettingBusy}
@@ -1578,6 +1570,7 @@ export function CommunityRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
+                onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}
                 repository={repository}

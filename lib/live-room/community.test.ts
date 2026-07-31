@@ -815,8 +815,8 @@ test("every company Live Room sign-in CTA preserves the exact ticker room return
     /loginHref:\s*string[\s\S]*signupHref:\s*string[\s\S]*<AuthStatus loginHref=\{loginHref\} signupHref=\{signupHref\}/,
   );
   assert.match(
-    messageComposer,
-    /profile\.isGuest[\s\S]*\? loginHref[\s\S]*: "\/account\/creator"/,
+    read("components/live-room/ChatNameSetup.tsx"),
+    /href="\/account\/creator"/,
   );
   assert.doesNotMatch(
     messageComposer,

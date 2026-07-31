@@ -710,8 +710,15 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
-.evidenceMenu p {
+.evidenceMenuContent {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+}
+
+.evidenceMenuContent p {
   margin: 0;
+  overflow-wrap: anywhere;
   color: var(--sr-color-text-secondary);
   font-size: var(--sr-font-size-xs);
 }
@@ -732,7 +739,8 @@
   text-decoration: none;
 }
 
-.evidenceMenu > button {
+.evidenceMenuContent > button {
+  width: 100%;
   min-width: 0;
   border: 0;
   padding: 0;
@@ -762,7 +770,7 @@
   left: auto;
 }
 
-.evidenceMenu > .evidenceRemoveButton {
+.evidenceMenuContent > .evidenceRemoveButton {
   display: inline-flex;
   width: fit-content;
   min-height: 28px;
@@ -790,10 +798,20 @@
     display: none;
   }
 
-  .evidencePicker[data-placement="composer"] .evidenceMenu {
-    width: min(
-      320px,
-      calc(100vw - (2 * var(--sr-page-gutter-mobile)))
-    );
+  .evidenceSheetContent {
+    width: 100%;
+    min-width: 0;
+    padding: var(--sr-space-8) var(--sr-page-gutter-mobile)
+      calc(var(--sr-space-6) + env(safe-area-inset-bottom));
+  }
+
+  .evidenceSheetContent .proofCard {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .evidenceSheetContent .evidenceMenuContent > a {
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 }
