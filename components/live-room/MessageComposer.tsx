@@ -25,6 +25,7 @@ import type {
 } from "@/lib/live-room/types";
 import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { ChatNameSetup } from "./ChatNameSetup";
+import { LiveRoomDisclosureNotice } from "./LiveRoomDisclosureNotice";
 import styles from "./LiveRoom.module.css";
 
 type MessageComposerProps = {
@@ -343,6 +344,7 @@ export function MessageComposer({
           </span>
         ) : null}
       </div>
+      <LiveRoomDisclosureNotice />
     </div>
   );
 }

@@ -173,6 +173,34 @@ const sections: LegalDocumentSection[] = [
     ),
   },
   {
+    id: "live-room-community-disclosures",
+    title: "Live Room, community, and verified trading disclosures",
+    content: (
+      <>
+        <p>
+          Live Room chats, community posts, comments, and other User Content
+          are not endorsed by Stock Radar, verified for investment merit, or
+          investment advice. Stock Radar does not recommend a user, post,
+          position, or trade because it appears in the Service.
+        </p>
+        <p>
+          &ldquo;Verified trade&rdquo; or &ldquo;Verified position&rdquo;
+          means only that selected broker-linked facts matched the connected
+          brokerage data at the stated verification time. It does not verify
+          identity or ownership beyond that connected brokerage context, the
+          user&apos;s overall portfolio, omitted accounts, profitability, future
+          performance, or the quality of any recommendation or analysis.
+        </p>
+        <p>
+          A current or historical status can change after verification. You
+          must independently verify community content and brokerage evidence,
+          make your own investment decisions, and accept the risks of trading,
+          including loss of principal.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "plans",
     title: "Plans, trials, and advertising",
     content: (

@@ -399,6 +399,31 @@ test("public UI avoids ownership claims and preserves required disclosure", () =
   assert.match(files, /Paper account/);
 });
 
+test("verified brokerage cards do not render per-card disclaimer controls", () => {
+  const proofCard = read("components/brokerage/BrokerageProofCard.tsx");
+  const proofStyles = read("components/brokerage/Brokerage.module.css");
+  const desktopPanel = read(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
+
+  assert.doesNotMatch(
+    proofCard,
+    /Verified means selected broker-linked data matched at the stated time\. It does not prove overall performance\./,
+  );
+  assert.doesNotMatch(
+    proofCard,
+    /Info,|showInfo|About verified|proofInfo|BottomSheetShell/,
+  );
+  assert.doesNotMatch(proofStyles, /\.proofInfo|\.proofCardFrame/);
+  assert.match(proofCard, /if \(!linked\)[\s\S]*return <span/);
+  assert.match(proofCard, /return \([\s\S]*<Link/);
+  assert.match(desktopPanel, /<Link[\s\S]*sidePanelItem/);
+  assert.match(
+    desktopPanel,
+    /href=\{`\/live\/posts\/\$\{post\.id\}`\}[\s\S]*<strong>\{post\.title\}<\/strong>/,
+  );
+});
+
 test("Live Room message and post writes use transactional proof wrappers", () => {
   const messages = read("lib/live-room/serverRepository.ts");
   const posts = read("lib/live-room/postServerRepository.ts");

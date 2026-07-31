@@ -61,6 +61,7 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
     "community-content",
     "verification",
     "brokerage",
+    "live-room-community-disclosures",
     "plans",
     "third-parties",
     "intellectual-property",
@@ -94,6 +95,10 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   assert.match(terms, /at least 18 years old/);
   assert.match(terms, /not a broker-dealer, investment adviser/);
   assert.match(terms, /does not place orders, execute trades, hold assets, or/);
+  assert.match(terms, /not endorsed by Stock Radar, verified for investment merit/);
+  assert.match(terms, /selected broker-linked facts matched/);
+  assert.match(terms, /conduct—will survive/);
+  assert.doesNotMatch(terms, /survive termination\?|conduct\?/);
   assert.match(privacy, /does not sell personal information for money/);
   assert.match(privacy, /California residents may/);
   assert.match(privacy, /The Service is for adults age 18 and older/);
