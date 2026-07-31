@@ -369,6 +369,7 @@ function PostsPreview({
             <small>
               <MemberAvatar
                 displayName={post.author.displayName}
+                imageUrl={post.author.avatarUrl}
                 size="small"
               />
               {formatPublicChatName(post.author.displayName)} ·{" "}
@@ -470,6 +471,7 @@ export function LiveRoomMemberList({
               <MemberAvatar
                 className={styles.sidePanelAvatar}
                 displayName={displayName}
+                imageUrl={summary.avatarUrl}
               />
               <span className={styles.sidePanelMemberSummary}>
                 <span className={styles.sidePanelMemberIdentity}>

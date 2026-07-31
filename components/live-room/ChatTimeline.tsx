@@ -300,6 +300,7 @@ export function ChatTimeline({
                   >
                     <MemberAvatar
                       displayName={item.author.displayName}
+                      imageUrl={item.author.avatarUrl}
                       size="small"
                     />
                     <span>{formatPublicChatName(item.author.displayName)}</span>
@@ -365,12 +366,14 @@ export function ChatTimeline({
                 <MemberAvatar
                   className={styles.messageAvatar}
                   displayName={item.author.displayName}
+                  imageUrl={item.author.avatarUrl}
                 />
               </Link>
             ) : (
               <MemberAvatar
                 className={styles.messageAvatar}
                 displayName={item.author.displayName}
+                imageUrl={item.author.avatarUrl}
               />
             )}
             <article>
@@ -456,6 +459,7 @@ export function ChatTimeline({
                     <strong>
                       <MemberAvatar
                         displayName={item.replyPreview.authorDisplayName}
+                        imageUrl={item.replyPreview.authorAvatarUrl}
                         size="small"
                       />
                       {formatPublicChatName(
@@ -474,6 +478,7 @@ export function ChatTimeline({
                     <strong>
                       <MemberAvatar
                         displayName={item.replyPreview.authorDisplayName}
+                        imageUrl={item.replyPreview.authorAvatarUrl}
                         size="small"
                       />
                       {formatPublicChatName(

@@ -6,6 +6,7 @@ import {
   normalizeLiveRoomUuid,
   type LiveRoomActor,
 } from "@/lib/live-room/policy";
+import { buildLiveRoomAvatarUrl } from "@/lib/live-room/profileAvatar";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import { evaluateDirectMessage } from "./moderation";
@@ -68,7 +69,17 @@ export async function startDirectConversation({
   if (!result.ok) {
     throw mapDirectMessageError(result.error, result.status);
   }
-  return mapStartResult(result.data);
+  const mapped = mapStartResult(result.data);
+  const avatarUrls = await getDirectMessageAvatarUrls([
+    mapped.peer.displayName,
+  ]);
+  return {
+    ...mapped,
+    peer: {
+      ...mapped.peer,
+      avatarUrl: avatarUrls.get(mapped.peer.displayName) || null,
+    },
+  };
 }
 export async function getDirectMessageInbox(
   actor: LiveRoomActor,
@@ -95,11 +106,25 @@ export async function getDirectMessageInbox(
   const outgoingRequests = readRows(data?.outgoingRequests)
     .map(mapRequestSummary)
     .filter((item): item is DirectMessageRequestSummary => item !== null);
+  const avatarUrls = await getDirectMessageAvatarUrls([
+    ...conversations.map((item) => item.peer.displayName),
+    ...incomingRequests.map((item) => item.peer.displayName),
+    ...outgoingRequests.map((item) => item.peer.displayName),
+  ]);
   return {
-    conversations,
-    incomingRequests,
+    conversations: conversations.map((item) => ({
+      ...item,
+      peer: withDirectMessageAvatar(item.peer, avatarUrls),
+    })),
+    incomingRequests: incomingRequests.map((item) => ({
+      ...item,
+      peer: withDirectMessageAvatar(item.peer, avatarUrls),
+    })),
     isAuthenticated: true,
-    outgoingRequests,
+    outgoingRequests: outgoingRequests.map((item) => ({
+      ...item,
+      peer: withDirectMessageAvatar(item.peer, avatarUrls),
+    })),
     pendingRequestCount: Math.max(
       0,
       Number(data?.pendingRequestCount ?? data?.pending_request_count) || 0,
@@ -137,7 +162,14 @@ export async function getDirectConversation({
   if (!result.ok) {
     throw mapDirectMessageError(result.error, result.status);
   }
-  return mapConversation(result.data);
+  const conversation = mapConversation(result.data);
+  const avatarUrls = await getDirectMessageAvatarUrls([
+    conversation.peer.displayName,
+  ]);
+  return {
+    ...conversation,
+    peer: withDirectMessageAvatar(conversation.peer, avatarUrls),
+  };
 }
 
 export async function sendDirectMessage({
@@ -474,6 +506,7 @@ function mapConversationSummary(
     latestIsMine: value.latestIsMine === true,
     mutualFollow: value.mutualFollow === true,
     peer: {
+      avatarUrl: null,
       displayName: readString(value.peerDisplayName).slice(0, 24) || "Member",
       emoji: readString(value.peerEmoji).slice(0, 16) || "💬",
       plan: normalizePlan(value.peerPlan),
@@ -494,6 +527,7 @@ function mapRequestSummary(
     conversationId,
     createdAt: isIsoDate(createdAt) ? createdAt : null,
     peer: {
+      avatarUrl: null,
       displayName:
         readString(value.peerDisplayName).slice(0, 24) || "Member",
       emoji: readString(value.peerEmoji).slice(0, 16) || "💬",
@@ -522,6 +556,7 @@ function mapMessage(value: Record<string, unknown>): DirectMessage | null {
 function mapPeer(value: unknown): DirectMessagePeer {
   const peer = readRecord(value);
   return {
+    avatarUrl: null,
     displayName: readString(peer?.displayName).slice(0, 24) || "Member",
     emoji: readString(peer?.emoji).slice(0, 16) || "💬",
     plan: normalizePlan(peer?.plan),
@@ -556,9 +591,47 @@ function mapStartResult(value: unknown): DirectMessageStartResult {
     isRequestSender: data?.isRequestSender === true,
     mode,
     peer: {
+      avatarUrl: peer.avatarUrl,
       displayName: peer.displayName,
       emoji: peer.emoji,
     },
+  };
+}
+
+async function getDirectMessageAvatarUrls(
+  displayNames: readonly string[],
+) {
+  const names = [...new Set(displayNames.filter(Boolean))];
+  if (!names.length) return new Map<string, string | null>();
+  const result = await supabaseSelect("live_room_member_profiles", {
+    select: "display_name,avatar_path",
+    display_name: `in.(${names
+      .map((name) => `"${name}"`)
+      .join(",")})`,
+    limit: String(names.length),
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_DIRECT_UNAVAILABLE",
+      "Member profile photos could not be loaded.",
+      result.status || 502,
+    );
+  }
+  return new Map(
+    readRows(result.data).map((row) => [
+      readString(row.display_name),
+      buildLiveRoomAvatarUrl(row.avatar_path),
+    ]),
+  );
+}
+
+function withDirectMessageAvatar(
+  peer: DirectMessagePeer,
+  avatarUrls: ReadonlyMap<string, string | null>,
+) {
+  return {
+    ...peer,
+    avatarUrl: avatarUrls.get(peer.displayName) || null,
   };
 }
 

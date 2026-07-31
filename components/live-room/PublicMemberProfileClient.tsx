@@ -40,6 +40,7 @@ import styles from "./PostDetail.module.css";
 type ProfileActionBusy = "follow" | "message" | "request" | null;
 
 type MessageRequestTarget = {
+  avatarUrl: string | null;
   displayName: string;
   messageId: string;
 };
@@ -186,6 +187,7 @@ export function PublicMemberProfileClient({
       );
       if (result.mode === "request_required") {
         setMessageRequestTarget({
+          avatarUrl: result.peer.avatarUrl,
           displayName: result.peer.displayName,
           messageId: actions.sourceMessageId,
         });
@@ -263,7 +265,11 @@ export function PublicMemberProfileClient({
             <>
               <header className={styles.profileHeader}>
                 <div className={styles.profileIdentity}>
-                  <MemberAvatar displayName={member.displayName} size="large" />
+                  <MemberAvatar
+                    displayName={member.displayName}
+                    imageUrl={member.avatarUrl}
+                    size="large"
+                  />
                   <div>
                     <small>Live Room member</small>
                     <h1>{publicDisplayName}</h1>
@@ -440,6 +446,18 @@ export function PublicMemberProfileClient({
       {ownProfile && actions?.isSelf ? (
         <ChatNameSetup
           isOpen={profileOpen}
+          onAvatarChange={async (photo) => {
+            const saved = photo
+              ? await profileRepository.writeProfileAvatar(photo)
+              : await profileRepository.removeProfileAvatar();
+            setOwnProfile(saved);
+            setMember((current) =>
+              current
+                ? { ...current, avatarUrl: saved.avatarUrl }
+                : current,
+            );
+            return saved;
+          }}
           onDismiss={() => setProfileOpen(false)}
           onPresenceSettingChange={() => undefined}
           onSave={async (nextProfile) => {
@@ -451,6 +469,7 @@ export function PublicMemberProfileClient({
                 ? {
                     ...current,
                     bio: saved.bio,
+                    avatarUrl: saved.avatarUrl,
                     displayName: saved.displayName,
                     emoji: saved.emoji,
                   }

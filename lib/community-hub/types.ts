@@ -11,6 +11,7 @@ export type CommunityHubPeopleFilter =
   (typeof COMMUNITY_HUB_PEOPLE_FILTERS)[number];
 
 export type CommunityHubPerson = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   followsYou: boolean;

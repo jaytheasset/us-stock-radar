@@ -148,6 +148,10 @@ export class BrowserLiveRoomProfileRepository
         typeof stored.emoji === "string"
       ) {
         return {
+          avatarUrl:
+            typeof stored.avatarUrl === "string"
+              ? stored.avatarUrl
+              : null,
           bio: typeof stored.bio === "string" ? stored.bio : null,
           displayName: stored.displayName.trim().slice(0, 24) || "Guest",
           emoji: stored.emoji,
@@ -158,6 +162,7 @@ export class BrowserLiveRoomProfileRepository
     } catch (_) {}
 
     return {
+      avatarUrl: null,
       bio: null,
       displayName: "Guest",
       emoji: "👋",
@@ -188,6 +193,7 @@ function createSeedMessages(
   return [
     {
       author: {
+        avatarUrl: null,
         displayName: "Mina",
         emoji: "🦊",
         isGuest: false,
@@ -205,6 +211,7 @@ function createSeedMessages(
     },
     {
       author: {
+        avatarUrl: null,
         displayName: "ChartPilot",
         emoji: "🛰️",
         isGuest: false,

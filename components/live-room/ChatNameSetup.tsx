@@ -2,7 +2,13 @@
 
 import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
@@ -21,6 +27,7 @@ import styles from "./ChatNameSetup.module.css";
 export function ChatNameSetup({
   isOpen,
   onDismiss,
+  onAvatarChange,
   onSave,
   onPresenceSettingChange,
   openerRef,
@@ -30,6 +37,7 @@ export function ChatNameSetup({
 }: {
   isOpen: boolean;
   onDismiss: () => void;
+  onAvatarChange: (photo: File | null) => Promise<LiveRoomProfile>;
   onSave: (
     profile: Pick<LiveRoomProfile, "bio" | "displayName">,
   ) => Promise<LiveRoomProfile>;
@@ -43,8 +51,10 @@ export function ChatNameSetup({
   const [bio, setBio] = useState(profile.bio ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const titleId = `live-room-chat-name-${useId()}`;
 
   useEffect(() => {
@@ -61,6 +71,7 @@ export function ChatNameSetup({
     setBio(profile.bio ?? "");
     setError(null);
     setSaving(false);
+    setPhotoBusy(false);
   }, [isOpen, profile.bio, profile.displayName]);
 
   useEffect(() => {
@@ -99,6 +110,19 @@ export function ChatNameSetup({
     }
   };
 
+  const changePhoto = async (photo: File | null) => {
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      await onAvatarChange(photo);
+    } catch (cause) {
+      setError(toLiveRoomApiError(cause).message);
+    } finally {
+      setPhotoBusy(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
+
   const content = (
     <form
       className={styles.form}
@@ -108,7 +132,11 @@ export function ChatNameSetup({
       }}
     >
       <div className={styles.heading}>
-        <MemberAvatar displayName={displayName} size="large" />
+        <MemberAvatar
+          displayName={displayName}
+          imageUrl={profile.avatarUrl}
+          size="large"
+        />
         <div>
           <span>Public identity</span>
           <h2 id={titleId}>
@@ -119,6 +147,41 @@ export function ChatNameSetup({
             profile.
           </p>
         </div>
+      </div>
+      <div className={styles.photoControls}>
+        <input
+          accept="image/jpeg,image/png,image/webp"
+          aria-label="Choose profile photo"
+          className={styles.photoInput}
+          disabled={photoBusy || saving}
+          onChange={(event) => {
+            const photo = event.currentTarget.files?.[0] || null;
+            if (photo) void changePhoto(photo);
+          }}
+          ref={photoInputRef}
+          type="file"
+        />
+        <button
+          disabled={photoBusy || saving}
+          onClick={() => photoInputRef.current?.click()}
+          type="button"
+        >
+          {photoBusy
+            ? "Updating..."
+            : profile.avatarUrl
+              ? "Replace"
+              : "Upload photo"}
+        </button>
+        {profile.avatarUrl ? (
+          <button
+            disabled={photoBusy || saving}
+            onClick={() => void changePhoto(null)}
+            type="button"
+          >
+            Remove
+          </button>
+        ) : null}
+        <small>JPEG, PNG, or WebP. Maximum 5 MB.</small>
       </div>
       <label>
         Chat name
@@ -194,10 +257,14 @@ export function ChatNameSetup({
         </span>
       </Link>
       <div className={styles.actions}>
-        <button disabled={saving} type="submit">
+        <button disabled={saving || photoBusy} type="submit">
           {saving ? "Saving..." : "Save profile"}
         </button>
-        <button disabled={saving} onClick={onDismiss} type="button">
+        <button
+          disabled={saving || photoBusy}
+          onClick={onDismiss}
+          type="button"
+        >
           Cancel
         </button>
       </div>

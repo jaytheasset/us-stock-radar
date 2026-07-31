@@ -238,6 +238,7 @@ export function LiveRoomClient({
   const [messageLikeIds, setMessageLikeIds] =
     useState<ReadonlySet<string>>(() => new Set());
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
+    avatarUrl: string | null;
     displayName: string;
     messageId: string;
   } | null>(null);
@@ -933,6 +934,15 @@ export function LiveRoomClient({
     return saved;
   };
 
+  const handleProfileAvatarChange = async (photo: File | null) => {
+    setRoomNotice(null);
+    const saved = photo
+      ? await repository.writeProfileAvatar(photo)
+      : await repository.removeProfileAvatar();
+    setProfile(saved);
+    return saved;
+  };
+
   const refreshJoinedRooms = async () => {
     if (profile?.isGuest !== false) return;
     setJoinedRoomsLoading(true);
@@ -1346,6 +1356,7 @@ export function LiveRoomClient({
       if (result.mode === "request_required") {
         setMessageRequestError(null);
         setMessageRequestTarget({
+          avatarUrl: result.peer.avatarUrl,
           displayName: result.peer.displayName,
           messageId,
         });
@@ -1647,6 +1658,7 @@ export function LiveRoomClient({
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={handlePostCreated}
+            onProfileAvatarChange={handleProfileAvatarChange}
             onProfileSave={handleProfileSave}
             posts={posts}
             profile={profile}
@@ -1754,6 +1766,7 @@ export function LiveRoomClient({
               }}
               onClearReference={() => setReference(null)}
               onCancelReply={() => setReplyingTo(null)}
+              onProfileAvatarChange={handleProfileAvatarChange}
               onProfileSave={handleProfileSave}
               onPresenceSettingChange={handlePresenceSettingChange}
               onProofChange={(proof) => {
@@ -1770,6 +1783,7 @@ export function LiveRoomClient({
               replyPreview={
                 replyingTo
                   ? {
+                      authorAvatarUrl: replyingTo.author.avatarUrl,
                       authorDisplayName: replyingTo.author.displayName,
                       authorEmoji: replyingTo.author.emoji,
                       bodyPreview: createLiveRoomReplyBodyPreview(
@@ -1877,6 +1891,7 @@ export function LiveRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
+                onProfileAvatarChange={handleProfileAvatarChange}
                 onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}

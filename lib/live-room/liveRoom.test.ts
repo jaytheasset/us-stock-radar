@@ -785,6 +785,7 @@ test("read position counts only ordinary non-self messages through the visible c
     isMine: boolean,
   ): LiveRoomChatMessage => ({
     author: {
+      avatarUrl: null,
       displayName: isMine ? "Me" : "Member",
       emoji: isMine ? "M" : "R",
       isGuest: false,
@@ -806,6 +807,7 @@ test("read position counts only ordinary non-self messages through the visible c
     message("first-unread", "2026-07-29T10:01:00.000Z", false),
     {
       author: {
+        avatarUrl: null,
         displayName: "Writer",
         emoji: "W",
         publicProfileId: "profile",
@@ -1105,6 +1107,7 @@ test("Live Room Invite keeps its header label and delegates sharing to the share
 test("block removal, unblock replacement, and stale polling cannot hide restored messages", () => {
   const memberMessage: LiveRoomChatMessage = {
     author: {
+      avatarUrl: null,
       displayName: "Member",
       emoji: "M",
       isGuest: false,
@@ -1122,6 +1125,7 @@ test("block removal, unblock replacement, and stale polling cannot hide restored
   };
   const guestMessage: LiveRoomChatMessage = {
     author: {
+      avatarUrl: null,
       displayName: "Guest",
       emoji: "G",
       isGuest: true,
@@ -1267,6 +1271,7 @@ test("server-owned actor identity prevents guest and member impersonation", () =
     email: "member@example.com",
   };
   const profile = {
+    avatarUrl: null,
     bio: null,
     displayName: "Server profile",
     emoji: "🧭",
@@ -1584,11 +1589,11 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
 
   assert.match(
     repository,
-    /supabaseSelect\("live_room_member_profiles",\s*\{[\s\S]*?select: "user_id,public_profile_id"[\s\S]*?user_id: `in\.\(\$\{memberUserIds\.join\(","\)\}\)`/,
+    /supabaseSelect\("live_room_member_profiles",\s*\{[\s\S]*?select: "user_id,public_profile_id,avatar_path"[\s\S]*?user_id: `in\.\(\$\{memberUserIds\.join\(","\)\}\)`/,
   );
   assert.match(
     repository,
-    /publicProfileId:[\s\S]*?publicProfileIdMap\.get\(memberUserId\)/,
+    /publicProfileId:[\s\S]*?publicProfileMap\.get\(memberUserId\)\?\.publicProfileId/,
   );
   assert.match(
     repository,
@@ -2464,7 +2469,7 @@ test("optional member bio stays service-owned and limited to profile detail", ()
   assert.match(serverRepository, /bio:\s*actor\.kind === "member"/);
   assert.match(
     postRepository,
-    /select: "user_id,public_profile_id,display_name,emoji,bio"/,
+    /user_id,public_profile_id,display_name,emoji,bio,avatar_path/,
   );
   assert.match(setup, /About \(optional\)/);
   assert.match(setup, /LIVE_ROOM_PROFILE_BIO_MAX_LENGTH/);
@@ -2484,6 +2489,7 @@ test("optional member bio stays service-owned and limited to profile detail", ()
       /export type LiveRoomPublicMember = \{[\s\S]*?\n\};/,
     )?.[0] ?? "";
   assert.match(publicMemberContract, /bio: string \| null/);
+  assert.match(publicMemberContract, /avatarUrl: string \| null/);
   assert.doesNotMatch(publicMemberContract, /\buserId\b|\bemail\b/);
   assert.match(types, /LiveRoomMessageAuthor = Omit<LiveRoomProfile, "bio">/);
   assert.match(
@@ -2531,6 +2537,92 @@ test("first public writing preserves drafts while shared chat identity works on 
   assert.doesNotMatch(requestModal, /target\.emoji/);
 });
 
+test("member profile photos are server-processed, service-owned, and shared safely", () => {
+  const migration = readSource(
+    "supabase/migrations/20260731033018_live_room_member_profile_avatars.sql",
+  );
+  const avatarRoute = readSource(
+    "app/api/live-room/profile/avatar/route.ts",
+  );
+  const avatarProcessor = readSource(
+    "lib/live-room/profileAvatarImage.ts",
+  );
+  const avatarStorage = readSource(
+    "lib/live-room/profileAvatar.ts",
+  );
+  const avatar = readSource("components/ui/MemberAvatar.tsx");
+  const setup = readSource("components/live-room/ChatNameSetup.tsx");
+  const setupStyles = readSource(
+    "components/live-room/ChatNameSetup.module.css",
+  );
+  const repository = readSource("lib/live-room/serverRepository.ts");
+  const apiRepository = readSource("lib/live-room/apiRepository.ts");
+  const types = readSource("lib/live-room/types.ts");
+
+  assert.match(
+    migration,
+    /add column avatar_path text[\s\S]+live_room_member_profiles_avatar_path_check/i,
+  );
+  assert.match(
+    migration,
+    /insert into storage\.buckets[\s\S]+live-room-member-avatars[\s\S]+true[\s\S]+1048576[\s\S]+image\/webp/i,
+  );
+  assert.match(
+    migration,
+    /function public\.set_live_room_member_avatar_path\([\s\S]+security invoker[\s\S]+set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.set_live_room_member_avatar_path\(uuid, text\)[\s\S]+from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.set_live_room_member_avatar_path\(uuid, text\)[\s\S]+to service_role/i,
+  );
+  assert.doesNotMatch(migration, /create policy/i);
+  assert.match(avatarRoute, /assertSameOriginAuthRequest\(request\)/);
+  assert.match(avatarRoute, /resolveLiveRoomActor\(request\)/);
+  assert.doesNotMatch(avatarRoute, /userId|avatar_path|publicProfileId/);
+  assert.match(
+    avatarProcessor,
+    /image\/jpeg[\s\S]+image\/png[\s\S]+image\/webp/,
+  );
+  assert.match(avatarProcessor, /5 \* 1024 \* 1024/);
+  assert.match(avatarProcessor, /\.metadata\(\)/);
+  assert.match(
+    avatarProcessor,
+    /\.resize\(LIVE_ROOM_AVATAR_OUTPUT_SIZE, LIVE_ROOM_AVATAR_OUTPUT_SIZE/,
+  );
+  assert.match(avatarProcessor, /\.webp\(/);
+  assert.doesNotMatch(avatarProcessor, /\.withMetadata\(/);
+  assert.match(
+    avatarStorage,
+    /randomUUID\(\)[\s\S]+\.webp[\s\S]+upsert: false/,
+  );
+  assert.match(
+    repository,
+    /uploadLiveRoomAvatarObject\(nextPath, processed\)[\s\S]+set_live_room_member_avatar_path[\s\S]+removeLiveRoomAvatarObject\(current\.avatarPath\)/,
+  );
+  assert.match(
+    repository,
+    /if \(!result\.ok\) \{[\s\S]+removeLiveRoomAvatarObject\(nextPath\)/,
+  );
+  assert.match(apiRepository, /body: form/);
+  assert.match(apiRepository, /!isFormData/);
+  assert.match(setup, /Upload photo/);
+  assert.match(setup, /"Replace"/);
+  assert.match(setup, />\s*Remove\s*</);
+  assert.match(setup, /accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(
+    setupStyles,
+    /\.photoControls\s*\{[\s\S]*?position: relative/,
+  );
+  assert.match(avatar, /onError=\{\(\) => setFailedImageUrl\(imageUrl\)\}/);
+  assert.match(avatar, /alt=\{`\$\{label\} avatar`\}/);
+  assert.match(avatar, /getLiveRoomChatNameInitials\(displayName\)/);
+  assert.doesNotMatch(types, /\bavatarPath\b|\bavatar_path\b/);
+});
+
 test("all public member surfaces use the shared initial avatar contract", () => {
   for (const file of [
     "components/live-room/ChatTimeline.tsx",
@@ -2545,6 +2637,7 @@ test("all public member surfaces use the shared initial avatar contract", () => 
     "components/direct-messages/DirectMessageRequestModal.tsx",
   ]) {
     assert.match(readSource(file), /MemberAvatar/, file);
+    assert.match(readSource(file), /imageUrl/, file);
   }
   const avatarStyles = readSource("components/ui/MemberAvatar.module.css");
   assert.match(

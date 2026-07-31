@@ -302,6 +302,25 @@ export class LiveRoomApiRepository {
     });
   }
 
+  writeProfileAvatar(photo: File) {
+    const form = new FormData();
+    form.set("photo", photo);
+    return requestJson<LiveRoomProfile>(
+      "/api/live-room/profile/avatar",
+      {
+        method: "POST",
+        body: form,
+      },
+    );
+  }
+
+  removeProfileAvatar() {
+    return requestJson<LiveRoomProfile>(
+      "/api/live-room/profile/avatar",
+      { method: "DELETE" },
+    );
+  }
+
   readPresence(messageIds: readonly string[]) {
     return requestJson<LiveRoomPresenceSummary>(
       `${this.roomApiPath()}/presence`,
@@ -688,13 +707,17 @@ export async function requestJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(path, {
     ...init,
     cache: "no-store",
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !isFormData
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init?.headers,
     },
   });

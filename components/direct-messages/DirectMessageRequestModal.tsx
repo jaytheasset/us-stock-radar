@@ -8,6 +8,7 @@ import { LIVE_ROOM_MESSAGE_MAX_LENGTH } from "@/lib/live-room/moderation";
 import styles from "./DirectMessageRequestModal.module.css";
 
 type DirectMessageRequestTarget = {
+  avatarUrl: string | null;
   displayName: string;
   messageId: string;
 };
@@ -63,6 +64,7 @@ export function DirectMessageRequestModal({
           <MemberAvatar
             className={styles.avatar}
             displayName={target.displayName}
+            imageUrl={target.avatarUrl}
           />
           <div>
             <small>Message request</small>

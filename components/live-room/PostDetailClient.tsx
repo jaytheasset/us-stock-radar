@@ -155,6 +155,7 @@ export function PostDetailClient({ postId }: { postId: string }) {
                   <Link href={`/live/members/${post.author.publicProfileId}`}>
                     <MemberAvatar
                       displayName={post.author.displayName}
+                      imageUrl={post.author.avatarUrl}
                       size="small"
                     />
                     {formatPublicChatName(post.author.displayName)}

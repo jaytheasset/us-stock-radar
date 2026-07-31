@@ -37,6 +37,9 @@ type MessageComposerProps = {
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
+  onProfileAvatarChange: (
+    photo: File | null,
+  ) => Promise<LiveRoomProfile>;
   onProfileSave: (
     profile: Pick<LiveRoomProfile, "bio" | "displayName">,
   ) => Promise<LiveRoomProfile>;
@@ -66,6 +69,7 @@ export function MessageComposer({
   onBodyChange,
   onClearReference,
   onCancelReply,
+  onProfileAvatarChange,
   onProfileSave,
   onPresenceSettingChange,
   onMediaChange,
@@ -204,6 +208,7 @@ export function MessageComposer({
               <>
                 <MemberAvatar
                   displayName={profile.displayName || "?"}
+                  imageUrl={profile.avatarUrl}
                   size="small"
                 />
                 <span>
@@ -235,6 +240,7 @@ export function MessageComposer({
           {profile && !profile.isGuest ? (
             <ChatNameSetup
               isOpen={profileOpen}
+              onAvatarChange={onProfileAvatarChange}
               onDismiss={() => {
                 resumeSendRef.current = false;
                 setProfileOpen(false);

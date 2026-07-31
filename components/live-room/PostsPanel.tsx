@@ -74,6 +74,7 @@ export function PostsPanel({
   events = [],
   loginHref,
   onLoad: controlledLoad,
+  onProfileAvatarChange,
   onProfileSave,
   onPostsChange: controlledPostsChange,
   onCreated,
@@ -88,6 +89,9 @@ export function PostsPanel({
   events?: readonly CompanyEvent[];
   loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
+  onProfileAvatarChange: (
+    photo: File | null,
+  ) => Promise<LiveRoomProfile>;
   onProfileSave: (
     profile: Pick<LiveRoomProfile, "bio" | "displayName">,
   ) => Promise<LiveRoomProfile>;
@@ -453,6 +457,7 @@ export function PostsPanel({
       {profile?.isGuest === false ? (
         <ChatNameSetup
           isOpen={profileSetupOpen}
+          onAvatarChange={onProfileAvatarChange}
           onDismiss={() => {
             resumeCreateRef.current = false;
             setProfileSetupOpen(false);
@@ -653,6 +658,7 @@ export function PostsPanel({
                 <Link href={`/live/members/${post.author.publicProfileId}`}>
                   <MemberAvatar
                     displayName={post.author.displayName}
+                    imageUrl={post.author.avatarUrl}
                     size="small"
                   />
                   {formatPublicChatName(post.author.displayName)}

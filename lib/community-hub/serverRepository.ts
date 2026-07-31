@@ -1,6 +1,6 @@
 import "server-only";
 
-import { supabaseRpc } from "@/lib/supabase";
+import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import {
   LiveRoomPolicyError,
@@ -15,6 +15,7 @@ import {
   type CommunityHubRoom,
   type CommunityHubRoomsPage,
 } from "./types";
+import { buildLiveRoomAvatarUrl } from "@/lib/live-room/profileAvatar";
 
 type PeopleCursor = {
   at: string;
@@ -60,6 +61,24 @@ export async function listCommunityHubPeople({
   const items = rows
     .map(mapPerson)
     .filter((item): item is CommunityHubPerson => item !== null);
+  const avatarResult = items.length
+    ? await supabaseSelect("live_room_member_profiles", {
+        select: "public_profile_id,avatar_path",
+        public_profile_id: `in.(${items
+          .map((item) => item.publicProfileId)
+          .join(",")})`,
+        limit: String(items.length),
+      })
+    : { data: [], error: undefined, ok: true, status: 200 };
+  if (!avatarResult.ok) {
+    throw communityHubError(avatarResult.error, avatarResult.status);
+  }
+  const avatarUrls = new Map(
+    readRows(avatarResult.data).map((row) => [
+      readString(row.public_profile_id),
+      buildLiveRoomAvatarUrl(row.avatar_path),
+    ]),
+  );
   const last = rows.at(-1);
   const nextCursor =
     data?.hasMore === true && last
@@ -75,7 +94,10 @@ export async function listCommunityHubPeople({
       following: readCount(data?.followingCount),
       mutual: readCount(data?.mutualCount),
     },
-    items,
+    items: items.map((item) => ({
+      ...item,
+      avatarUrl: avatarUrls.get(item.publicProfileId) || null,
+    })),
     nextCursor,
   };
 }
@@ -166,6 +188,7 @@ function mapPerson(
     return null;
   }
   return {
+    avatarUrl: null,
     displayName: readString(row.displayName).slice(0, 24) || "Member",
     emoji: readString(row.emoji).slice(0, 16) || "👋",
     followsYou,

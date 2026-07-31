@@ -445,6 +445,7 @@ test("public room counts use visible authors plus visitors and return no identit
 function message(id: string, isGuest: boolean): LiveRoomChatMessage {
   return {
     author: {
+      avatarUrl: null,
       displayName: isGuest ? "Guest" : "Member",
       emoji: "👋",
       isGuest,
