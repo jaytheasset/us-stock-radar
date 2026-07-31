@@ -21,6 +21,7 @@ import type { Plan } from "@/lib/subscriptionPolicy";
 import { getLiveRoomSocialBadgeMap } from "@/lib/social-verification/serverRepository";
 import { listCommunityHubRooms } from "@/lib/community-hub/serverRepository";
 import { getCommunityRoomIdentity } from "./communityServerRepository";
+import { isLiveRoomChatNameSet } from "./chatIdentity";
 import { evaluateLiveRoomMessage } from "./moderation";
 import {
   listLiveRoomPosts,
@@ -598,6 +599,13 @@ export async function sendLiveRoomMessage({
     );
   }
   const profile = await getLiveRoomProfile(actor);
+  if (actor.kind === "member" && !profile.isChatNameSet) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_CHAT_NAME_REQUIRED",
+      "Choose a chat name before posting publicly.",
+      409,
+    );
+  }
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
     typeof body === "string" ? body : "",
@@ -999,11 +1007,18 @@ export async function getLiveRoomProfile(
         email: actor.email,
       });
     }
-    const defaults = {
-      display_name: getDefaultLiveRoomDisplayName(actor),
-      emoji: "👋",
-      [key]: id,
-    };
+    const defaults =
+      actor.kind === "member"
+        ? {
+            display_name: null,
+            emoji: null,
+            [key]: id,
+          }
+        : {
+            display_name: getDefaultLiveRoomDisplayName(actor),
+            emoji: "👋",
+            [key]: id,
+          };
     const created = await supabaseUpsert(table, defaults, {
       onConflict: key,
       prefer: "resolution=merge-duplicates,return=representation",
@@ -1027,11 +1042,14 @@ export async function getLiveRoomProfile(
     isLiveRoomModerator(actor),
   ]);
 
+  const displayName = readString(row.display_name);
   return {
     canModerate,
     displayName:
-      readString(row.display_name) || getDefaultLiveRoomDisplayName(actor),
+      displayName || getDefaultLiveRoomDisplayName(actor),
     emoji: readString(row.emoji) || "👋",
+    isChatNameSet:
+      actor.kind === "guest" || isLiveRoomChatNameSet(displayName),
     isGuest: actor.kind === "guest",
     plan,
   };
@@ -1058,20 +1076,34 @@ export async function updateLiveRoomProfile(
     });
   }
 
-  const result = await supabaseUpsert(
-    table,
-    {
-      [key]: id,
-      display_name: profile.displayName,
-      emoji: profile.emoji,
-    },
-    {
-      onConflict: key,
-      prefer: "resolution=merge-duplicates,return=representation",
-    },
-  );
+  const result =
+    actor.kind === "member"
+      ? await supabaseRpc("set_live_room_member_chat_name", {
+          p_member_user_id: actor.userId,
+          p_display_name: profile.displayName,
+        })
+      : await supabaseUpsert(
+          table,
+          {
+            [key]: id,
+            display_name: profile.displayName,
+            emoji: "👋",
+          },
+          {
+            onConflict: key,
+            prefer: "resolution=merge-duplicates,return=representation",
+          },
+        );
 
   if (!result.ok) {
+    const error = result.error || "";
+    if (error.includes("LIVE_ROOM_CHAT_NAME_TAKEN")) {
+      throw new LiveRoomPolicyError(
+        "LIVE_ROOM_CHAT_NAME_TAKEN",
+        "This chat name is already taken.",
+        409,
+      );
+    }
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_PROFILE_UPDATE_FAILED",
       result.error || "The Live Room profile could not be saved.",
@@ -2750,6 +2782,11 @@ function mapLiveRoomActionError(
       "LIVE_ROOM_INVALID_REPORT_REASON",
       "Choose spam, harassment, misinformation, or other.",
       400,
+    ],
+    LIVE_ROOM_CHAT_NAME_REQUIRED: [
+      "LIVE_ROOM_CHAT_NAME_REQUIRED",
+      "Choose a chat name before posting publicly.",
+      409,
     ],
     LIVE_ROOM_MESSAGE_NOT_FOUND: [
       "LIVE_ROOM_MESSAGE_NOT_FOUND",

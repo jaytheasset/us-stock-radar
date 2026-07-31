@@ -13,7 +13,6 @@ import {
 } from "@/lib/supabase";
 import { getCommunityRoomIdentity } from "./communityServerRepository";
 import {
-  getDefaultLiveRoomDisplayName,
   LiveRoomPolicyError,
   normalizeLiveRoomReportReason,
   normalizeLiveRoomTicker,
@@ -268,6 +267,7 @@ export async function createLiveRoomPost({
   const room = await resolveRoom({ slug, ticker });
   await validatePostRelatedTickers(normalized.relatedTickers, room);
   await ensureLiveRoomMember(actor);
+  await assertLiveRoomMemberChatName(actor);
   const result = await supabaseRpc("create_live_room_post_with_proof", {
     p_room_id: room.id,
     p_author_user_id: actor.userId,
@@ -303,6 +303,7 @@ export async function updateLiveRoomPost({
   const normalized = normalizeLiveRoomPostDraft(draft);
   const room = await resolvePostRoom(postId);
   await validatePostRelatedTickers(normalized.relatedTickers, room);
+  await assertLiveRoomMemberChatName(actor);
   const result = await supabaseRpc("update_live_room_post", {
     p_post_id: postId,
     p_author_user_id: actor.userId,
@@ -568,6 +569,7 @@ export async function createLiveRoomPostComment({
       )
     : null;
   await ensureLiveRoomMember(actor);
+  await assertLiveRoomMemberChatName(actor);
   const result = await supabaseRpc("create_live_room_post_comment", {
     p_post_id: postId,
     p_author_user_id: actor.userId,
@@ -605,6 +607,7 @@ export async function updateLiveRoomPostComment({
   );
   await assertCommentBelongsToPost(commentId, postId);
   const normalized = normalizeLiveRoomPostCommentDraft(draft);
+  await assertLiveRoomMemberChatName(actor);
   const result = await supabaseRpc("update_live_room_post_comment", {
     p_comment_id: commentId,
     p_author_user_id: actor.userId,
@@ -1013,8 +1016,8 @@ async function ensureLiveRoomMember(
     "live_room_member_profiles",
     {
       user_id: actor.userId,
-      display_name: getDefaultLiveRoomDisplayName(actor),
-      emoji: "👋",
+      display_name: null,
+      emoji: null,
     },
     {
       onConflict: "user_id",
@@ -1026,6 +1029,24 @@ async function ensureLiveRoomMember(
       "LIVE_ROOM_PROFILE_UNAVAILABLE",
       "The member profile could not be created.",
       created.status || 502,
+    );
+  }
+}
+
+async function assertLiveRoomMemberChatName(
+  actor: Extract<LiveRoomActor, { kind: "member" }>,
+) {
+  const selected = await supabaseSelect("live_room_member_profiles", {
+    select: "display_name",
+    user_id: `eq.${actor.userId}`,
+    limit: "1",
+  });
+  const profile = readSingleRow(selected.data);
+  if (!selected.ok || !readString(profile?.display_name)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_CHAT_NAME_REQUIRED",
+      "Choose a chat name before posting publicly.",
+      409,
     );
   }
 }
@@ -1261,7 +1282,7 @@ function mapPostDatabaseError(
 ) {
   const knownCode =
     error?.match(
-      /(?:LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF|LOCKED|ARCHIVED)|BROKERAGE_(?:PUBLIC_SHARING_DISABLED|PLAN_REQUIRED|PROOF_NOT_ATTACHABLE))/,
+      /(?:LIVE_ROOM_(?:POST_[A-Z_]+|INVALID_EVENT_REFERENCE|MEMBER_REQUIRED|CHAT_NAME_REQUIRED|MODERATOR_REQUIRED|CANNOT_BLOCK_SELF|LOCKED|ARCHIVED)|BROKERAGE_(?:PUBLIC_SHARING_DISABLED|PLAN_REQUIRED|PROOF_NOT_ATTACHABLE))/,
     )?.[0] || fallbackCode;
   const messages: Record<string, string> = {
     LIVE_ROOM_POST_DUPLICATE:
@@ -1281,6 +1302,8 @@ function mapPostDatabaseError(
     LIVE_ROOM_INVALID_EVENT_REFERENCE:
       "That event cannot be attached to this room.",
     LIVE_ROOM_MEMBER_REQUIRED: "Sign in to write Live Room posts.",
+    LIVE_ROOM_CHAT_NAME_REQUIRED:
+      "Choose a chat name before posting publicly.",
     LIVE_ROOM_MODERATOR_REQUIRED: "Moderator access is required.",
     LIVE_ROOM_CANNOT_BLOCK_SELF: "You cannot block yourself.",
     LIVE_ROOM_LOCKED:
@@ -1304,11 +1327,14 @@ function mapPostDatabaseError(
   const readOnly =
     knownCode === "LIVE_ROOM_LOCKED" ||
     knownCode === "LIVE_ROOM_ARCHIVED";
+  const conflict = knownCode === "LIVE_ROOM_CHAT_NAME_REQUIRED";
   return new LiveRoomPolicyError(
     knownCode,
     messages[knownCode] || "The post action could not be completed.",
     unauthorized
       ? 401
+      : conflict
+        ? 409
       : readOnly
         ? 423
       : forbidden || brokerageForbidden
@@ -1326,7 +1352,7 @@ function mapCommentDatabaseError(
 ) {
   const knownCode =
     error?.match(
-      /LIVE_ROOM_(?:COMMENT_[A-Z_]+|POST_NOT_FOUND|MEMBER_REQUIRED|INVALID_REPORT_REASON|LOCKED|ARCHIVED)/,
+      /LIVE_ROOM_(?:COMMENT_[A-Z_]+|POST_NOT_FOUND|MEMBER_REQUIRED|CHAT_NAME_REQUIRED|INVALID_REPORT_REASON|LOCKED|ARCHIVED)/,
     )?.[0] || fallbackCode;
   const messages: Record<string, string> = {
     LIVE_ROOM_COMMENT_DUPLICATE:
@@ -1343,6 +1369,8 @@ function mapCommentDatabaseError(
       "That post is no longer available.",
     LIVE_ROOM_MEMBER_REQUIRED:
       "Sign in to comment on Live Room posts.",
+    LIVE_ROOM_CHAT_NAME_REQUIRED:
+      "Choose a chat name before posting publicly.",
     LIVE_ROOM_INVALID_REPORT_REASON:
       "Choose a valid report reason.",
     LIVE_ROOM_LOCKED:
@@ -1356,10 +1384,19 @@ function mapCommentDatabaseError(
   const readOnly =
     knownCode === "LIVE_ROOM_LOCKED" ||
     knownCode === "LIVE_ROOM_ARCHIVED";
+  const conflict = knownCode === "LIVE_ROOM_CHAT_NAME_REQUIRED";
   return new LiveRoomPolicyError(
     knownCode,
     messages[knownCode] || "The comment action could not be completed.",
-    unauthorized ? 401 : notFound ? 404 : readOnly ? 423 : status || 400,
+    unauthorized
+      ? 401
+      : conflict
+        ? 409
+        : notFound
+          ? 404
+          : readOnly
+            ? 423
+            : status || 400,
   );
 }
 

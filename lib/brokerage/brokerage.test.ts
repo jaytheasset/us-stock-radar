@@ -420,13 +420,39 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
     /p_execution_price:[\s\S]+disclosure\.executionPrice === true[\s\S]+candidate\.executionPrice[\s\S]+: null/,
   );
   const picker = read("components/brokerage/BrokerageEvidencePicker.tsx");
+  const proofCard = read("components/brokerage/BrokerageProofCard.tsx");
+  const brokerageCss = read("components/brokerage/Brokerage.module.css");
+  const composer = read("components/live-room/MessageComposer.tsx");
+  const klipyPicker = read("components/klipy/KlipyPicker.tsx");
   assert.match(picker, /linked=\{false\}/);
   assert.match(picker, /aria-label="Verified trading"/);
   assert.match(picker, />Verified trading<\/span>/);
+  assert.match(picker, /BadgeDollarSign/);
+  assert.match(proofCard, /BadgeDollarSign/);
+  assert.doesNotMatch(picker + proofCard, /BadgeCheck/);
   assert.doesNotMatch(picker, />Evidence<\/span>|Add proof|Verified proof/);
   assert.match(picker, /placement="composer"|data-placement=\{placement\}/);
   assert.match(picker, /event\.key !== "Escape"/);
   assert.match(picker, /contains\(event\.target as Node\)/);
+  assert.match(picker, /<BottomSheetShell/);
+  assert.match(picker, /isOpen=\{open && usesMobileSheet\}/);
+  assert.match(picker, /\{open && !usesMobileSheet \? \(/);
+  assert.match(picker, /openerRef=\{triggerRef\}/);
+  assert.match(picker, /closeLabel="Close verified trading"/);
+  assert.match(
+    brokerageCss,
+    /\.evidenceSheetContent\s*\{[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*safe-area-inset-bottom/,
+  );
+  assert.match(
+    composer,
+    /handleProofPickerOpenChange[\s\S]*setMediaPickerOpen\(false\)[\s\S]*isOpen=\{proofPickerOpen\}[\s\S]*onOpenChange=\{handleProofPickerOpenChange\}/,
+  );
+  assert.match(
+    composer,
+    /handleMediaPickerOpenChange[\s\S]*setProofPickerOpen\(false\)[\s\S]*isOpen=\{mediaPickerOpen\}[\s\S]*onOpenChange=\{handleMediaPickerOpenChange\}/,
+  );
+  assert.match(klipyPicker, /isOpen\?: boolean/);
+  assert.match(klipyPicker, /onOpenChange\?: \(open: boolean\) => void/);
   const liveRoomCss = read("components/live-room/LiveRoom.module.css");
   assert.match(
     liveRoomCss,

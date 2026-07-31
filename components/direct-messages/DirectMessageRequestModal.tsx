@@ -2,12 +2,13 @@
 
 import { AlertTriangle, Send, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { LIVE_ROOM_MESSAGE_MAX_LENGTH } from "@/lib/live-room/moderation";
 import styles from "./DirectMessageRequestModal.module.css";
 
 type DirectMessageRequestTarget = {
   displayName: string;
-  emoji: string;
   messageId: string;
 };
 
@@ -59,13 +60,14 @@ export function DirectMessageRequestModal({
       />
       <section className={styles.dialog}>
         <header>
-          <span aria-hidden="true" className={styles.avatar}>
-            {target.emoji}
-          </span>
+          <MemberAvatar
+            className={styles.avatar}
+            displayName={target.displayName}
+          />
           <div>
             <small>Message request</small>
             <h2 id="direct-message-request-title">
-              Message {target.displayName}
+              Message {formatPublicChatName(target.displayName)}
             </h2>
           </div>
           <button

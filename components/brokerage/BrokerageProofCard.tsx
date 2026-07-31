@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Clock3, FileClock } from "lucide-react";
+import { BadgeDollarSign, Clock3, FileClock } from "lucide-react";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import styles from "./Brokerage.module.css";
 
@@ -51,7 +51,7 @@ export function BrokerageProofCard({
         {proof.revoked ? (
           <FileClock aria-hidden="true" size={16} />
         ) : (
-          <BadgeCheck aria-hidden="true" size={16} />
+          <BadgeDollarSign aria-hidden="true" size={16} />
         )}
       </span>
       <span className={styles.proofBody}>
@@ -88,7 +88,7 @@ export function BrokerageProofCard({
           </span>
         ) : null}
         <span className={styles.proofTimestamp}>
-          <BadgeCheck aria-hidden="true" size={12} />
+          <BadgeDollarSign aria-hidden="true" size={12} />
           Verified {formatBrokerageProofTimestamp(proof.verifiedAsOf)}
         </span>
         {sample?.averageEntry ? (

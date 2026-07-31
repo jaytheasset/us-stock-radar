@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
 import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
@@ -36,6 +37,7 @@ import {
   replaceLiveRoomPostTickerInputToken,
   selectLiveRoomPostTickerSuggestions,
 } from "@/lib/live-room/postTickerAutocomplete";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import type {
   LiveRoomPostDirection,
   LiveRoomPostSignal,
@@ -62,6 +64,7 @@ import {
   PostSignalChips,
   PostSignalSelector,
 } from "./PostSignals";
+import { ChatNameSetup } from "./ChatNameSetup";
 import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import styles from "./Posts.module.css";
 
@@ -71,6 +74,7 @@ export function PostsPanel({
   events = [],
   loginHref,
   onLoad: controlledLoad,
+  onProfileSave,
   onPostsChange: controlledPostsChange,
   onCreated,
   posts: controlledPosts,
@@ -84,6 +88,7 @@ export function PostsPanel({
   events?: readonly CompanyEvent[];
   loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
+  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
   onPostsChange?: (
     update: (current: LiveRoomPost[]) => LiveRoomPost[],
   ) => void;
@@ -101,6 +106,7 @@ export function PostsPanel({
     useState<"error" | "loading" | "ready">("loading");
   const [notice, setNotice] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [profileSetupOpen, setProfileSetupOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [brokerageProof, setBrokerageProof] =
@@ -126,6 +132,8 @@ export function PostsPanel({
   const onPostsChange = controlledPostsChange ?? setLocalPosts;
   const selectedEvent = events.find((event) => event.eventId === eventId);
   const tickerInputRef = useRef<HTMLInputElement>(null);
+  const newPostButtonRef = useRef<HTMLButtonElement>(null);
+  const resumeCreateRef = useRef(false);
   const tickerListboxId = `live-room-post-ticker-results-${useId()}`;
   const tickerInputContext = useMemo(
     () => getLiveRoomPostTickerInputContext(tickers),
@@ -266,7 +274,16 @@ export function PostsPanel({
     }
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (skipProfileCheck = false) => {
+    if (
+      !skipProfileCheck &&
+      profile?.isGuest === false &&
+      profile.isChatNameSet === false
+    ) {
+      resumeCreateRef.current = true;
+      setProfileSetupOpen(true);
+      return;
+    }
     const relatedTickers = parseLiveRoomPostMentionedTickers(tickers);
     const draft: LiveRoomPostDraft = {
       body,
@@ -375,7 +392,9 @@ export function PostsPanel({
             item.author.publicProfileId !== post.author.publicProfileId,
         ),
       );
-      setNotice(`${post.author.displayName} is blocked.`);
+      setNotice(
+        `${formatPublicChatName(post.author.displayName)} is blocked.`,
+      );
     } catch (error) {
       setNotice(toLiveRoomApiError(error).message);
     } finally {
@@ -397,7 +416,17 @@ export function PostsPanel({
           <p>Long-form views stay separate from chat and company events.</p>
         </div>
         {profile?.isGuest === false && !writeDisabled ? (
-          <button onClick={() => setFormOpen((value) => !value)} type="button">
+          <button
+            onClick={() => {
+              if (profile.isChatNameSet === false) {
+                setProfileSetupOpen(true);
+                return;
+              }
+              setFormOpen((value) => !value);
+            }}
+            ref={newPostButtonRef}
+            type="button"
+          >
             <Plus aria-hidden="true" size={16} />
             New post
           </button>
@@ -417,6 +446,31 @@ export function PostsPanel({
           <strong>This room is read-only.</strong>
           <span>Existing public posts remain available.</span>
         </div>
+      ) : null}
+
+      {profile?.isGuest === false ? (
+        <ChatNameSetup
+          isOpen={profileSetupOpen}
+          onDismiss={() => {
+            resumeCreateRef.current = false;
+            setProfileSetupOpen(false);
+          }}
+          onPresenceSettingChange={() => undefined}
+          onSave={async (displayName) => {
+            const saved = await onProfileSave(displayName);
+            if (resumeCreateRef.current) {
+              resumeCreateRef.current = false;
+              window.setTimeout(() => void handleCreate(true), 0);
+            } else {
+              setFormOpen(true);
+            }
+            return saved;
+          }}
+          openerRef={newPostButtonRef}
+          presenceSettingBusy={false}
+          profile={profile}
+          showPresence={null}
+        />
       ) : null}
 
       {formOpen && profile?.isGuest === false && !writeDisabled ? (
@@ -595,8 +649,11 @@ export function PostsPanel({
               ) : null}
               <div className={styles.authorLine}>
                 <Link href={`/live/members/${post.author.publicProfileId}`}>
-                  <span aria-hidden="true">{post.author.emoji}</span>
-                  {post.author.displayName}
+                  <MemberAvatar
+                    displayName={post.author.displayName}
+                    size="small"
+                  />
+                  {formatPublicChatName(post.author.displayName)}
                 </Link>
                 <time dateTime={post.createdAt}>{formatPostDate(post.createdAt)}</time>
               </div>

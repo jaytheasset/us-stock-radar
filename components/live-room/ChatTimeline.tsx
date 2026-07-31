@@ -16,6 +16,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import {
   KlipyMessageMedia,
   KlipyReplyMedia,
@@ -296,8 +298,11 @@ export function ChatTimeline({
                     className={styles.postPreviewAuthor}
                     href={`/live/members/${item.author.publicProfileId}`}
                   >
-                    <span aria-hidden="true">{item.author.emoji}</span>
-                    <span>{item.author.displayName}</span>
+                    <MemberAvatar
+                      displayName={item.author.displayName}
+                      size="small"
+                    />
+                    <span>{formatPublicChatName(item.author.displayName)}</span>
                   </Link>
                   <time dateTime={item.createdAt}>
                     {formatMessageTime(item.createdAt)}
@@ -353,16 +358,20 @@ export function ChatTimeline({
             >
             {publicProfileHref ? (
               <Link
-                aria-label={`View ${item.author.displayName}'s public profile`}
-                className={`${styles.messageAvatar} ${styles.messageAvatarLink}`}
+                aria-label={`View ${formatPublicChatName(item.author.displayName)}'s public profile`}
+                className={styles.messageAvatarLink}
                 href={publicProfileHref}
               >
-                <span aria-hidden="true">{item.author.emoji}</span>
+                <MemberAvatar
+                  className={styles.messageAvatar}
+                  displayName={item.author.displayName}
+                />
               </Link>
             ) : (
-              <div className={styles.messageAvatar} aria-hidden="true">
-                {item.author.emoji}
-              </div>
+              <MemberAvatar
+                className={styles.messageAvatar}
+                displayName={item.author.displayName}
+              />
             )}
             <article>
               <header>
@@ -371,10 +380,10 @@ export function ChatTimeline({
                     className={styles.messageAuthorLink}
                     href={publicProfileHref}
                   >
-                    {item.author.displayName}
+                    {formatPublicChatName(item.author.displayName)}
                   </Link>
                 ) : (
-                  <strong>{item.author.displayName}</strong>
+                  <strong>{formatPublicChatName(item.author.displayName)}</strong>
                 )}
                 <MemberPlanBadge
                   plan={item.author.isGuest ? "visitor" : item.author.plan}
@@ -384,7 +393,7 @@ export function ChatTimeline({
                 </time>
                 {item.author.socialBadges?.map((badge) => (
                   <a
-                    aria-label={`${badge.label} profile for ${item.author.displayName}`}
+                    aria-label={`${badge.label} profile for ${formatPublicChatName(item.author.displayName)}`}
                     className={styles.socialVerificationBadge}
                     href={badge.profileUrl}
                     key={badge.platform}
@@ -437,7 +446,7 @@ export function ChatTimeline({
                 visibleMessageIds.has(item.replyPreview.messageId) &&
                 onOpenReplyTarget ? (
                   <button
-                    aria-label={`Go to message from ${item.replyPreview.authorDisplayName}`}
+                    aria-label={`Go to message from ${formatPublicChatName(item.replyPreview.authorDisplayName)}`}
                     className={styles.messageReplyPreview}
                     onClick={() =>
                       onOpenReplyTarget(item.replyPreview!.messageId)
@@ -445,10 +454,13 @@ export function ChatTimeline({
                     type="button"
                   >
                     <strong>
-                      <span aria-hidden="true">
-                        {item.replyPreview.authorEmoji}
-                      </span>
-                      {item.replyPreview.authorDisplayName}
+                      <MemberAvatar
+                        displayName={item.replyPreview.authorDisplayName}
+                        size="small"
+                      />
+                      {formatPublicChatName(
+                        item.replyPreview.authorDisplayName,
+                      )}
                     </strong>
                     <span>{item.replyPreview.bodyPreview}</span>
                     {item.replyPreview.mediaPreview ? (
@@ -460,10 +472,13 @@ export function ChatTimeline({
                 ) : (
                   <div className={styles.messageReplyPreview}>
                     <strong>
-                      <span aria-hidden="true">
-                        {item.replyPreview.authorEmoji}
-                      </span>
-                      {item.replyPreview.authorDisplayName}
+                      <MemberAvatar
+                        displayName={item.replyPreview.authorDisplayName}
+                        size="small"
+                      />
+                      {formatPublicChatName(
+                        item.replyPreview.authorDisplayName,
+                      )}
                     </strong>
                     <span>{item.replyPreview.bodyPreview}</span>
                     {item.replyPreview.mediaPreview ? (
@@ -510,10 +525,10 @@ function MessageEngagement({
     ? `${item.likeCount} likes. Sign in to like this message`
     : `${item.likeCount} likes. ${
         item.isLiked ? "Unlike" : "Like"
-      } message from ${item.author.displayName}`;
+      } message from ${formatPublicChatName(item.author.displayName)}`;
   const replyLabel = viewerIsGuest
-    ? `${item.replyCount} replies. Sign in to reply to ${item.author.displayName}`
-    : `${item.replyCount} replies. Reply to ${item.author.displayName}`;
+    ? `${item.replyCount} replies. Sign in to reply to ${formatPublicChatName(item.author.displayName)}`
+    : `${item.replyCount} replies. Reply to ${formatPublicChatName(item.author.displayName)}`;
   const likeContent = (
     <>
       <Heart

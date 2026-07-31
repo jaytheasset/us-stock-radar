@@ -24,6 +24,12 @@ import {
   LIVE_ROOM_GUEST_COOKIE,
 } from "./guestIdentity.ts";
 import {
+  formatPublicChatName,
+  getLiveRoomChatNameInitial,
+  normalizeLiveRoomChatName,
+  validateLiveRoomChatName,
+} from "./chatIdentity.ts";
+import {
   createServerOwnedAuthorSnapshot,
   getDefaultLiveRoomDisplayName,
   getLiveRoomActorFilter,
@@ -678,11 +684,11 @@ test("registered chat author avatar and name open the safe public profile", () =
   assert.equal(timeline.match(/href=\{publicProfileHref\}/g)?.length, 2);
   assert.match(
     timeline,
-    /aria-label=\{`View \$\{item\.author\.displayName\}'s public profile`\}[\s\S]*messageAvatarLink/,
+    /aria-label=\{`View \$\{formatPublicChatName\(item\.author\.displayName\)\}'s public profile`\}[\s\S]*messageAvatarLink/,
   );
   assert.match(
     timeline,
-    /className=\{styles\.messageAuthorLink\}[\s\S]*\{item\.author\.displayName\}/,
+    /className=\{styles\.messageAuthorLink\}[\s\S]*formatPublicChatName\(item\.author\.displayName\)/,
   );
   assert.match(
     timeline,
@@ -690,7 +696,7 @@ test("registered chat author avatar and name open the safe public profile", () =
   );
   assert.match(
     timeline,
-    /publicProfileHref \? \([\s\S]*className=\{styles\.messageAuthorLink\}[\s\S]*: \([\s\S]*<strong>\{item\.author\.displayName\}<\/strong>/,
+    /publicProfileHref \? \([\s\S]*className=\{styles\.messageAuthorLink\}[\s\S]*: \([\s\S]*<strong>\{formatPublicChatName\(item\.author\.displayName\)\}<\/strong>/,
   );
   assert.doesNotMatch(timeline, /item\.author\.(?:userId|email)/);
 
@@ -1331,7 +1337,7 @@ test("member default display names never derive from email addresses", () => {
       userId: "22222222-2222-4222-8222-222222222222",
       email: "private.local-part@example.com",
     }),
-    "Member",
+    "",
   );
   assert.equal(
     getDefaultLiveRoomDisplayName({
@@ -1342,31 +1348,75 @@ test("member default display names never derive from email addresses", () => {
   );
 });
 
-test("profile policy rejects arbitrary emoji and control-character names", () => {
+test("chat names normalize ASCII whitespace and reject Unicode, invalid starts, and reserved identities", () => {
+  assert.equal(
+    normalizeLiveRoomChatName("  Moon   to moon  "),
+    "Moon to moon",
+  );
+  assert.deepEqual(validateLiveRoomChatName("  Moon   to moon  "), {
+    ok: true,
+    value: "Moon to moon",
+  });
+  for (const invalid of [
+    "문라이트",
+    "Ångström",
+    "1Trader",
+    "_Trader",
+    "A!",
+    "A@example.com",
+    "A",
+    "A".repeat(25),
+  ]) {
+    assert.equal(validateLiveRoomChatName(invalid).ok, false, invalid);
+  }
+  for (const reserved of [
+    "Member",
+    "mEmBeR",
+    "Stock Radar",
+    "stock-radar",
+    "ADMIN",
+  ]) {
+    const result = validateLiveRoomChatName(reserved);
+    assert.equal(result.ok, false, reserved);
+    if (!result.ok) assert.equal(result.code, "reserved");
+  }
+});
+
+test("chat-name initials follow name changes without exposing legacy Member", () => {
+  assert.equal(getLiveRoomChatNameInitial("Moon to moon"), "M");
+  assert.equal(getLiveRoomChatNameInitial("alpha"), "A");
+  assert.equal(getLiveRoomChatNameInitial("Member"), "?");
+  assert.equal(getLiveRoomChatNameInitial(""), "?");
+  assert.equal(formatPublicChatName("Member"), "Name unavailable");
+  assert.equal(formatPublicChatName("한글 Name"), "Name unavailable");
+  assert.equal(formatPublicChatName("Guest"), "Guest");
+  assert.equal(formatPublicChatName("  Alpha   One "), "Alpha One");
+});
+
+test("profile policy stores only a normalized chat name", () => {
   assert.deepEqual(
     normalizeLiveRoomProfileInput({
-      displayName: "  RadarFox  ",
-      emoji: "🦊",
+      displayName: "  Radar   Fox  ",
     }),
-    { displayName: "RadarFox", emoji: "🦊" },
+    { displayName: "Radar Fox" },
   );
   assert.throws(
     () =>
       normalizeLiveRoomProfileInput({
-        displayName: "Imposter",
-        emoji: "💳",
+        displayName: "한글 Name",
       }),
     (error) =>
       error instanceof LiveRoomPolicyError &&
-      error.code === "LIVE_ROOM_INVALID_EMOJI",
+      error.code === "LIVE_ROOM_INVALID_CHAT_NAME",
   );
   assert.throws(
     () =>
       normalizeLiveRoomProfileInput({
-        displayName: "bad\u0000name",
-        emoji: "👋",
+        displayName: "Member",
       }),
-    LiveRoomPolicyError,
+    (error) =>
+      error instanceof LiveRoomPolicyError &&
+      error.code === "LIVE_ROOM_RESERVED_CHAT_NAME",
   );
 });
 
@@ -1525,13 +1575,19 @@ test("message reads bulk-enrich opaque profiles and safe reply previews without 
   );
   assert.match(
     chat,
-    /`\$\{item\.replyCount\} replies\. Reply to \$\{item\.author\.displayName\}`/,
+    /`\$\{item\.replyCount\} replies\. Reply to \$\{formatPublicChatName\(item\.author\.displayName\)\}`/,
   );
   assert.doesNotMatch(chat, /className=\{styles\.messageReplyButton\}/);
   assert.match(chat, /className=\{styles\.messageReplyPreview\}/);
-  assert.match(composer, /Replying to \{replyPreview\.authorDisplayName\}/);
+  assert.match(
+    composer,
+    /Replying to\{" "\}[\s\S]*formatPublicChatName\(replyPreview\.authorDisplayName\)/,
+  );
   assert.match(composer, /aria-label="Cancel reply"/);
-  assert.match(composer, /`Reply to \$\{replyPreview\.authorDisplayName\}…`/);
+  assert.match(
+    composer,
+    /`Reply to \$\{formatPublicChatName\([\s\S]*replyPreview\.authorDisplayName/,
+  );
   assert.match(client, /replyToMessageId: replyingTo\?\.id \|\| null/);
   assert.match(
     client,
@@ -2290,4 +2346,109 @@ test("administrator room states keep public history readable while blocking ever
     communityRepository,
     /filterArchivedCommunityRoomRows/,
   );
+});
+
+test("member chat identity is service-owned, unique, and required by every public write path", () => {
+  const migration = readSource(
+    "supabase/migrations/20260730175310_live_room_chat_name_identity.sql",
+  );
+  const serverRepository = readSource(
+    "lib/live-room/serverRepository.ts",
+  );
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
+
+  assert.match(
+    migration,
+    /create unique index live_room_member_profiles_chat_name_unique_idx[\s\S]+pg_catalog\.lower\(display_name\)[\s\S]+where display_name is not null/i,
+  );
+  assert.match(
+    migration,
+    /function public\.set_live_room_member_chat_name\(uuid, text\)[\s\S]+security invoker[\s\S]+set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.set_live_room_member_chat_name\(uuid, text\)[\s\S]+from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.set_live_room_member_chat_name\(uuid, text\)[\s\S]+to service_role/i,
+  );
+  assert.match(migration, /LIVE_ROOM_CHAT_NAME_TAKEN/);
+  assert.match(migration, /LIVE_ROOM_CHAT_NAME_REQUIRED/g);
+  assert.match(migration, /live_room_messages_require_chat_name/);
+  assert.match(migration, /live_room_posts_require_chat_name/);
+  assert.match(migration, /live_room_post_comments_require_chat_name/);
+  assert.doesNotMatch(migration, /security definer/i);
+  assert.match(
+    serverRepository,
+    /supabaseRpc\("set_live_room_member_chat_name"[\s\S]+p_member_user_id: actor\.userId/,
+  );
+  assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_TAKEN[\s\S]+409/);
+  assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
+  assert.match(postRepository, /assertLiveRoomMemberChatName/g);
+  assert.match(postRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
+});
+
+test("first public writing preserves drafts while shared chat identity works on desktop and mobile", () => {
+  const setup = readSource("components/live-room/ChatNameSetup.tsx");
+  const composer = readSource("components/live-room/MessageComposer.tsx");
+  const chatTimeline = readSource("components/live-room/ChatTimeline.tsx");
+  const posts = readSource("components/live-room/PostsPanel.tsx");
+  const comments = readSource("components/live-room/PostComments.tsx");
+  const avatar = readSource("components/ui/MemberAvatar.tsx");
+  const directMessage = readSource(
+    "components/direct-messages/DirectMessageClient.tsx",
+  );
+  const requestModal = readSource(
+    "components/direct-messages/DirectMessageRequestModal.tsx",
+  );
+
+  assert.match(setup, /\.showModal\(\)/);
+  assert.match(setup, /dialog\?\.open[\s\S]*dialog\.close\(\)/);
+  assert.match(setup, /openerRef\.current\?\.focus\(\)/);
+  assert.match(setup, /<dialog/);
+  assert.match(setup, /<BottomSheetShell/);
+  assert.match(setup, /validateLiveRoomChatName\(displayName\)/);
+  assert.doesNotMatch(setup, /emoji/i);
+  assert.match(composer, /onFocus=\{\(\) => \{[\s\S]+requiresChatName/);
+  assert.match(composer, /resumeSendRef\.current = true/);
+  assert.match(composer, /window\.setTimeout\(\(\) => onSend\(saved\), 0\)/);
+  assert.match(posts, /resumeCreateRef\.current = true/);
+  assert.match(posts, /handleCreate\(true\)/);
+  assert.match(comments, /resumeCommentRef\.current = true/);
+  assert.match(comments, /createComment\(true\)/);
+  assert.match(avatar, /getLiveRoomChatNameInitial\(displayName\)/);
+  assert.doesNotMatch(chatTimeline, /replyPreview\.authorEmoji/);
+  assert.match(
+    chatTimeline,
+    /<MemberAvatar[\s\S]*displayName=\{item\.replyPreview\.authorDisplayName\}[\s\S]*size="small"/,
+  );
+  assert.match(avatar, /imageUrl/);
+  assert.doesNotMatch(directMessage, /peer\.emoji/);
+  assert.doesNotMatch(requestModal, /target\.emoji/);
+});
+
+test("all public member surfaces use the shared initial avatar contract", () => {
+  for (const file of [
+    "components/live-room/ChatTimeline.tsx",
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+    "components/live-room/MessageComposer.tsx",
+    "components/live-room/PostComments.tsx",
+    "components/live-room/PostDetailClient.tsx",
+    "components/live-room/PostsPanel.tsx",
+    "components/live-room/PublicMemberProfileClient.tsx",
+    "components/community/CommunityHubClient.tsx",
+    "components/direct-messages/DirectMessageClient.tsx",
+    "components/direct-messages/DirectMessageRequestModal.tsx",
+  ]) {
+    assert.match(readSource(file), /MemberAvatar/, file);
+  }
+  const avatarStyles = readSource("components/ui/MemberAvatar.module.css");
+  assert.match(
+    avatarStyles,
+    /background:\s*var\(--sr-color-surface-control\)/,
+  );
+  assert.doesNotMatch(avatarStyles, /#[0-9a-f]{3,8}|gradient/i);
 });

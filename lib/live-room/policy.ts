@@ -4,17 +4,7 @@ import {
   type LiveRoomProfile,
   type LiveRoomReportReason,
 } from "./types.ts";
-
-export const LIVE_ROOM_ALLOWED_EMOJIS = [
-  "👋",
-  "🦊",
-  "🐻",
-  "🦉",
-  "🚀",
-  "🧭",
-  "📊",
-  "🌱",
-] as const;
+import { validateLiveRoomChatName } from "./chatIdentity.ts";
 
 export const LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS = 5 * 60 * 1_000;
 
@@ -127,35 +117,18 @@ export function normalizeLiveRoomProfileInput(value: unknown) {
     value && typeof value === "object"
       ? (value as Record<string, unknown>)
       : {};
-  const displayName =
-    typeof input.displayName === "string" ? input.displayName.trim() : "";
-  const emoji = typeof input.emoji === "string" ? input.emoji : "";
-
-  if (
-    !displayName ||
-    displayName.length > 24 ||
-    /[\u0000-\u001f\u007f]/.test(displayName)
-  ) {
+  const result = validateLiveRoomChatName(input.displayName);
+  if (!result.ok) {
     throw new LiveRoomPolicyError(
-      "LIVE_ROOM_INVALID_DISPLAY_NAME",
-      "Display names must be between 1 and 24 visible characters.",
+      result.code === "reserved"
+        ? "LIVE_ROOM_RESERVED_CHAT_NAME"
+        : "LIVE_ROOM_INVALID_CHAT_NAME",
+      result.message,
       400,
     );
   }
 
-  if (
-    !LIVE_ROOM_ALLOWED_EMOJIS.includes(
-      emoji as (typeof LIVE_ROOM_ALLOWED_EMOJIS)[number],
-    )
-  ) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_INVALID_EMOJI",
-      "Choose one of the available profile emojis.",
-      400,
-    );
-  }
-
-  return { displayName, emoji };
+  return { displayName: result.value };
 }
 
 export function validateLiveRoomEventReference(
@@ -243,5 +216,5 @@ export function shouldRefreshLiveRoomGuestLastSeen(
 }
 
 export function getDefaultLiveRoomDisplayName(actor: LiveRoomActor) {
-  return actor.kind === "guest" ? "Guest" : "Member";
+  return actor.kind === "guest" ? "Guest" : "";
 }

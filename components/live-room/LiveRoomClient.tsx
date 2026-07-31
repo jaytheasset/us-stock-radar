@@ -28,6 +28,7 @@ import {
   type ModerationReason,
 } from "@/lib/live-room/moderation";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import type {
   CompanyEvent,
@@ -238,7 +239,6 @@ export function LiveRoomClient({
     useState<ReadonlySet<string>>(() => new Set());
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
     displayName: string;
-    emoji: string;
     messageId: string;
   } | null>(null);
   const [messageRequestBusy, setMessageRequestBusy] = useState(false);
@@ -261,7 +261,6 @@ export function LiveRoomClient({
   const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
-  const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
   const messageLikeIdsRef = useRef<Set<string>>(new Set());
@@ -829,14 +828,6 @@ export function LiveRoomClient({
   ]);
 
   useEffect(() => {
-    return () => {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     const controller = new AbortController();
     void fetch(
       `/api/market/fmp/profile?symbol=${encodeURIComponent(ticker)}`,
@@ -933,27 +924,11 @@ export function LiveRoomClient({
     };
   }, [ticker]);
 
-  const handleProfileChange = (nextProfile: LiveRoomProfile) => {
-    setProfile(nextProfile);
+  const handleProfileSave = async (displayName: string) => {
     setRoomNotice(null);
-    if (profileSaveTimerRef.current !== null) {
-      window.clearTimeout(profileSaveTimerRef.current);
-    }
-    profileSaveTimerRef.current = window.setTimeout(() => {
-      profileSaveTimerRef.current = null;
-      void repository
-        .writeProfile({
-          displayName: nextProfile.displayName,
-          emoji: nextProfile.emoji,
-        })
-        .then((saved) => {
-          setProfile(saved);
-          setRoomNotice(null);
-        })
-        .catch((error) => {
-          setRoomNotice(toLiveRoomApiError(error).message);
-        });
-    }, 500);
+    const saved = await repository.writeProfile({ displayName });
+    setProfile(saved);
+    return saved;
   };
 
   const refreshJoinedRooms = async () => {
@@ -1076,12 +1051,20 @@ export function LiveRoomClient({
     [],
   );
 
-  const handleSend = async () => {
+  const handleSend = async (profileOverride?: LiveRoomProfile) => {
     if (roomReadOnly) {
       setRoomNotice(roomAvailabilityMessage);
       return;
     }
-    if (!profile || sending) return;
+    const activeProfile = profileOverride ?? profile;
+    if (!activeProfile || sending) return;
+    if (
+      activeProfile.isGuest === false &&
+      activeProfile.isChatNameSet === false
+    ) {
+      setProfileOpen(true);
+      return;
+    }
     const currentUserHistory = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -1102,15 +1085,6 @@ export function LiveRoomClient({
     setSending(true);
     setRoomNotice(null);
     try {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-        profileSaveTimerRef.current = null;
-        const savedProfile = await repository.writeProfile({
-          displayName: profile.displayName,
-          emoji: profile.emoji,
-        });
-        setProfile(savedProfile);
-      }
       const message = await repository.send({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
@@ -1318,7 +1292,9 @@ export function LiveRoomClient({
         result.block,
         ...current.filter((block) => block.id !== result.block.id),
       ]);
-      setRoomNotice(`${result.block.displayName} is blocked.`);
+      setRoomNotice(
+        `${formatPublicChatName(result.block.displayName)} is blocked.`,
+      );
     } catch (error) {
       setRoomNotice(toLiveRoomApiError(error).message);
       throw error;
@@ -1369,7 +1345,6 @@ export function LiveRoomClient({
         setMessageRequestError(null);
         setMessageRequestTarget({
           displayName: result.peer.displayName,
-          emoji: result.peer.emoji,
           messageId,
         });
         return;
@@ -1670,6 +1645,7 @@ export function LiveRoomClient({
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={handlePostCreated}
+            onProfileSave={handleProfileSave}
             posts={posts}
             profile={profile}
             repository={repository}
@@ -1776,7 +1752,7 @@ export function LiveRoomClient({
               }}
               onClearReference={() => setReference(null)}
               onCancelReply={() => setReplyingTo(null)}
-              onProfileChange={handleProfileChange}
+              onProfileSave={handleProfileSave}
               onPresenceSettingChange={handlePresenceSettingChange}
               onProofChange={(proof) => {
                 setBrokerageProof(proof);
@@ -1899,6 +1875,7 @@ export function LiveRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
+                onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}
                 repository={repository}

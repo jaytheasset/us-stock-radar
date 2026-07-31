@@ -63,7 +63,11 @@ export function CalendarFilters({
   setFilters,
 }: CalendarFiltersProps) {
   return (
-    <section aria-label="Calendar filters" className={styles.filters}>
+    <section
+      aria-label="Calendar filters"
+      className={styles.filters}
+      data-calendar-filters
+    >
       <div className={styles.searchAndMobileFilters}>
         <label className={styles.searchField}>
           <Search aria-hidden="true" size={17} />
@@ -79,6 +83,12 @@ export function CalendarFilters({
             type="search"
             value={filters.query}
           />
+          <span
+            aria-hidden="true"
+            className={styles.mobileSearchPlaceholder}
+          >
+            Search events or tickers
+          </span>
         </label>
         <FilterTrigger
           active={activeCount > 0}
