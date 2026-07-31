@@ -8,9 +8,17 @@ export const metadata: Metadata = {
 
 export default async function LiveRoomMemberPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ publicProfileId: string }>;
+  searchParams: Promise<{ edit?: string | string[] }>;
 }) {
   const { publicProfileId } = await params;
-  return <PublicMemberProfileClient publicProfileId={publicProfileId} />;
+  const query = await searchParams;
+  return (
+    <PublicMemberProfileClient
+      editOnLoad={query.edit === "profile"}
+      publicProfileId={publicProfileId}
+    />
+  );
 }

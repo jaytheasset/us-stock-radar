@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Menu, Settings } from "lucide-react";
+import { Menu } from "lucide-react";
+import Link from "next/link";
 import { AuthStatus } from "@/components/AuthStatus";
 import { StockRadarDesktopNavigation } from "@/components/shell/StockRadarDesktopNavigation";
 import { LiveRoomUnreadMenu } from "@/components/shell/LiveRoomUnreadMenu";
@@ -70,6 +71,11 @@ export function StockRadarProductHeader({
       body.style.paddingRight = `calc(${bodyPaddingRight} + ${scrollbarWidth}px)`;
     }
     body.style.overflow = "hidden";
+    requestAnimationFrame(() => {
+      mobileMenuRef.current
+        ?.querySelector<HTMLElement>('[role="menuitem"]')
+        ?.focus({ preventScroll: true });
+    });
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -84,6 +90,25 @@ export function StockRadarProductHeader({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeMobileMenu(true);
+        return;
+      }
+
+      if (event.key === "Tab" && mobileMenuRef.current) {
+        const focusable = Array.from(
+          mobileMenuRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        const first = focusable.at(0);
+        const last = focusable.at(-1);
+        if (!first || !last) return;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -98,29 +123,38 @@ export function StockRadarProductHeader({
     };
   }, [closeMobileMenu, isMobileMenuOpen]);
 
-  const handleItemActivate = (item: StockRadarNavigationItem) => {
-    closeMobileMenu(item.kind === "action");
+  const handleItemActivate = (_item: StockRadarNavigationItem) => {
+    closeMobileMenu();
   };
 
   return (
     <>
       <header className={styles.header}>
-        <div className={styles.brand}>
+        <Link
+          aria-label={`${stockRadarProductName} Markets dashboard`}
+          className={styles.brand}
+          href="/dashboard-v2"
+        >
           <span>{stockRadarProductName}</span>
-        </div>
+        </Link>
 
         <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
 
-        <div aria-label="Dashboard actions" className={styles.actions}>
+        <div
+          aria-label="Dashboard actions"
+          className={styles.actions}
+          role="group"
+        >
           <StockRadarTickerSearch onOpen={() => closeMobileMenu()} />
           <LiveRoomUnreadMenu />
           <AlertNotificationsMenu loginHref={loginHref} />
           {showThemeToggle ? <StockRadarThemeToggle /> : null}
-          <IconButton aria-label="Settings" className={styles.settingsButton}>
-            <Settings aria-hidden="true" size={18} />
-          </IconButton>
           <div className={styles.desktopAccount}>
-            <AuthStatus loginHref={loginHref} signupHref={signupHref} />
+            <AuthStatus
+              accountMenu
+              loginHref={loginHref}
+              signupHref={signupHref}
+            />
           </div>
           <IconButton
             aria-controls={isMobileMenuOpen ? stockRadarMobileMenuId : undefined}
