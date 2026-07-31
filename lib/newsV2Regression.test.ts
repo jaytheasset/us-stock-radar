@@ -193,48 +193,35 @@ test("news scope badges hide company scope and use source-backed market taxonomy
   assert.match(rowSource, /label=\{scopeBadgeLabel\}/);
 });
 
-test("news, filings, and watchlist searches share the inset icon divider contract", () => {
-  const searchFields = [
-    {
-      component: "../components/news-v2/NewsV2FilterBar.tsx",
-      styles: "../components/news-v2/StockRadarNewsV2.module.css",
-      fieldClass: "searchField",
-    },
-    {
-      component: "../components/filings-v2/FilingsV2FilterBar.tsx",
-      styles: "../components/filings-v2/StockRadarFilingsV2.module.css",
-      fieldClass: "searchControl",
-    },
-    {
-      component: "../components/watchlist-v2/StockRadarWatchlistV2.tsx",
-      styles: "../components/watchlist-v2/StockRadarWatchlistV2.module.css",
-      fieldClass: "tickerSearch",
-    },
+test("news, filings, alerts, and watchlist share one accessible ticker autocomplete", () => {
+  const componentPaths = [
+    "../components/news-v2/NewsV2FilterBar.tsx",
+    "../components/filings-v2/FilingsV2FilterBar.tsx",
+    "../components/alerts-v2/StockRadarAlertsV2.tsx",
+    "../components/watchlist-v2/StockRadarWatchlistV2.tsx",
   ];
+  const autocomplete = readFileSync(
+    new URL("../components/ui/TickerCompanyAutocomplete.tsx", import.meta.url),
+    "utf8",
+  );
+  const autocompleteStyles = readFileSync(
+    new URL("../components/ui/TickerCompanyAutocomplete.module.css", import.meta.url),
+    "utf8",
+  );
 
-  for (const searchField of searchFields) {
-    const componentSource = readFileSync(
-      new URL(searchField.component, import.meta.url),
-      "utf8",
-    );
-    const styles = readFileSync(new URL(searchField.styles, import.meta.url), "utf8");
-
-    assert.match(componentSource, /className=\{styles\.searchIconCell\}/);
+  for (const componentPath of componentPaths) {
     assert.match(
-      styles,
-      new RegExp(
-        `\\.${searchField.fieldClass} \\{[\\s\\S]*?height: 38px;[\\s\\S]*?gap: var\\(--sr-space-2\\);`,
-      ),
-    );
-    assert.match(
-      styles,
-      /\.searchIconCell \{[\s\S]*?height: 100%;[\s\S]*?flex: 0 0 28px;/,
-    );
-    assert.match(
-      styles,
-      /\.searchIconCell::after \{[\s\S]*?top: 7px;[\s\S]*?bottom: 7px;[\s\S]*?width: var\(--sr-border-width\);[\s\S]*?background: var\(--sr-color-divider\);/,
+      readFileSync(new URL(componentPath, import.meta.url), "utf8"),
+      /TickerCompanyAutocomplete/,
     );
   }
+  assert.match(autocomplete, /aria-autocomplete="list"/);
+  assert.match(autocomplete, /role="listbox"/);
+  assert.match(autocomplete, /moveTickerSearchIndex/);
+  assert.match(
+    autocompleteStyles,
+    /\.control \{[\s\S]*height: 38px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*background-clip: padding-box;/,
+  );
 });
 
 test("10k+ tuple cursor pagination is stable with tied timestamps", () => {

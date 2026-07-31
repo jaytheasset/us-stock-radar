@@ -1172,6 +1172,10 @@
   cursor: not-allowed;
 }
 
+.alertReliabilityNotice {
+  margin-top: var(--sr-space-3);
+}
+
 .detailLinks > span {
   color: var(--sr-color-state-disabled-text);
 }
