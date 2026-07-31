@@ -12,6 +12,7 @@ import {
   shouldSuppressStaleCalendarCandidate,
   type CalendarCandidateKind,
 } from "@/lib/alerts/calendarDeliveryPolicy";
+import type { CalendarAlertDeliveryResult } from "@/lib/alerts/delivery/types";
 
 export type CalendarAlertCandidate = {
   id: string;
@@ -190,7 +191,7 @@ export async function runCalendarAlertDelivery({
 }: {
   write: boolean;
   limit?: number;
-}) {
+}): Promise<CalendarAlertDeliveryResult> {
   if (write) await enqueueDueCalendarReminders();
 
   const candidateResult = await supabaseSelect("calendar_alert_candidates", {
@@ -209,6 +210,7 @@ export async function runCalendarAlertDelivery({
       duplicates: 0,
       disabled: 0,
       suppressed: 0,
+      failed: 0,
       error: candidateResult.error || "Failed to read calendar alert candidates.",
     };
   }
@@ -223,6 +225,7 @@ export async function runCalendarAlertDelivery({
   let duplicates = 0;
   let disabled = 0;
   let suppressed = 0;
+  let failed = 0;
 
   for (const candidate of candidates) {
     const [eventResult, securityResult] = await Promise.all([
@@ -295,36 +298,49 @@ export async function runCalendarAlertDelivery({
       continue;
     }
 
+    let candidateFailed = false;
     for (const follow of eligibleFollows) {
       const followId = stringValue(follow.id);
       const userId = stringValue(follow.user_id);
       if (!followId || !userId) continue;
-      const result = await deliverCalendarCandidateToUser({
-        candidate,
-        event: eventWithTicker,
-        followId,
-        userId,
-      });
-      if (result.duplicate) duplicates += 1;
-      if (result.disabled) disabled += 1;
-      if (result.delivered) delivered += 1;
+      try {
+        const result = await deliverCalendarCandidateToUser({
+          candidate,
+          event: eventWithTicker,
+          followId,
+          userId,
+        });
+        if (result.duplicate) duplicates += 1;
+        if (result.disabled) disabled += 1;
+        if (result.delivered) delivered += 1;
+      } catch {
+        failed += 1;
+        candidateFailed = true;
+      }
     }
 
     await supabaseUpdate(
       "calendar_alert_candidates",
       { id: `eq.${candidate.id}` },
-      { status: "completed", updated_at: new Date().toISOString() },
+      {
+        status: candidateFailed ? "failed" : "completed",
+        updated_at: new Date().toISOString(),
+      },
     );
   }
 
   return {
-    ok: true,
+    ok: failed === 0,
     write,
     scanned: candidates.length,
     delivered,
     duplicates,
     disabled,
     suppressed,
+    failed,
+    error: failed
+      ? `${failed} Calendar delivery attempt(s) failed and remain eligible for a deduplicated rerun.`
+      : undefined,
   };
 }
 
