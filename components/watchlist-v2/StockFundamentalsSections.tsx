@@ -60,6 +60,7 @@ function FinancialsSection({
   snapshot,
 }: SectionProps) {
   const quarters = snapshot?.financials.quarters ?? [];
+  const annuals = snapshot?.financials.annuals ?? [];
   const latest = quarters[0] ?? null;
   const previous = quarters[1] ?? null;
   const priorYear = findPriorYearQuarter(quarters, latest);
@@ -90,6 +91,7 @@ function FinancialsSection({
     latest.revenue,
   );
   const quarterLabels = quarters.map(formatQuarterLabel);
+  const annualLabels = annuals.map(formatQuarterLabel);
   const rows = [
     {
       label: "Revenue",
@@ -118,6 +120,32 @@ function FinancialsSection({
       values: quarters.map((quarter) => formatUsd(quarter.freeCashFlow)),
     },
   ];
+  const annualRows = [
+    {
+      label: "Revenue",
+      values: annuals.map((period) => formatUsd(period.revenue)),
+    },
+    {
+      label: "Operating income",
+      values: annuals.map((period) => formatUsd(period.operatingIncome)),
+    },
+    {
+      label: "Net income",
+      values: annuals.map((period) => formatUsd(period.netIncome)),
+    },
+    {
+      label: "Diluted EPS",
+      values: annuals.map((period) => formatEps(period.epsDiluted)),
+    },
+    {
+      label: "Operating cash flow",
+      values: annuals.map((period) => formatUsd(period.operatingCashFlow)),
+    },
+    {
+      label: "Free cash flow",
+      values: annuals.map((period) => formatUsd(period.freeCashFlow)),
+    },
+  ];
 
   return (
     <section
@@ -126,7 +154,7 @@ function FinancialsSection({
       id="watchlist-financials"
     >
       <DataSectionHeader
-        asOf={`${formatQuarterLabel(latest)} actual · filed ${formatDate(latest.filingDate)}`}
+        asOf={`${latest.reportedCurrency || "Currency unavailable"} · ${formatQuarterLabel(latest)} actual · filed ${formatDate(latest.filingDate)} · refreshed ${formatDate(snapshot?.fetchedAt)}`}
         id="watchlist-financials-title"
         number="02"
         title="Financials"
@@ -259,6 +287,11 @@ function FinancialsSection({
             note={formatQuarterLabel(latest)}
             value={formatUsd(latest.totalStockholdersEquity)}
           />
+          <Metric
+            label="Operating cash flow"
+            note={formatQuarterLabel(latest)}
+            value={formatUsd(latest.operatingCashFlow)}
+          />
         </dl>
       </div>
 
@@ -306,6 +339,54 @@ function FinancialsSection({
           </p>
         </div>
       </details>
+
+      <details className={styles.detailDisclosure}>
+        <DisclosureSummary
+          detail={`${annuals.length} reported fiscal years`}
+          title="Annual trends"
+        />
+        <div className={styles.disclosureBody}>
+          {annuals.length ? (
+            <div
+              aria-label="Reported annual financial trends"
+              className={styles.financialTable}
+              role="table"
+            >
+              <div className={styles.financialHeader} role="row">
+                <span role="columnheader">Metric</span>
+                {annualLabels.map((period) => (
+                  <span key={period} role="columnheader">
+                    {period}
+                    <small>Actual</small>
+                  </span>
+                ))}
+              </div>
+              {annualRows.map((row) => (
+                <div className={styles.financialRow} key={row.label} role="row">
+                  <strong role="rowheader">{row.label}</strong>
+                  {row.values.map((value, index) => (
+                    <span
+                      data-label={annualLabels[index]}
+                      key={`${row.label}-${annualLabels[index]}`}
+                      role="cell"
+                    >
+                      {value}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.methodNote}>
+              Annual statements are unavailable while quarterly actuals remain visible.
+            </p>
+          )}
+          <p className={styles.methodNote}>
+            Monetary values use the filing&apos;s reported currency and compact display units.
+            Annual and quarterly periods are kept separate.
+          </p>
+        </div>
+      </details>
     </section>
   );
 }
@@ -320,10 +401,14 @@ function OwnershipSection({
   const beneficialOwners =
     snapshot?.ownership.reportedBeneficialOwners ?? [];
   const beneficialFilings = snapshot?.ownership.beneficialFilings ?? [];
+  const institutionalSummary = snapshot?.ownership.institutionalSummary ?? null;
+  const institutionalHolders = snapshot?.ownership.institutionalHolders ?? [];
   const hasOwnershipData =
     Boolean(statistic) ||
+    Boolean(institutionalSummary) ||
     trades.length > 0 ||
     beneficialFilings.length > 0 ||
+    institutionalHolders.length > 0 ||
     events.length > 0;
 
   if (!snapshot || (!hasOwnershipData && loadState !== "ready")) {
@@ -340,13 +425,14 @@ function OwnershipSection({
   const totalAcquired = statistic?.totalAcquired ?? null;
   const totalDisposed = statistic?.totalDisposed ?? null;
   const netInsiderShares =
-    totalAcquired === null && totalDisposed === null
+    totalAcquired === null || totalDisposed === null
       ? null
-      : (totalAcquired ?? 0) - (totalDisposed ?? 0);
+      : totalAcquired - totalDisposed;
   const ownershipUnavailable = getUnavailableSources(snapshot, [
     "insiderStatistics",
     "insiderTrades",
     "beneficialOwnership",
+    "institutionalOwnership",
   ]);
 
   return (
@@ -403,8 +489,11 @@ function OwnershipSection({
             <p>Reported transactions, not an estimate of total ownership</p>
           </div>
           <div className={styles.ownershipChangeList}>
-            {trades.slice(0, 3).map((trade) => (
-              <InsiderActivity key={insiderTradeKey(trade)} trade={trade} />
+            {trades.slice(0, 3).map((trade, index) => (
+              <InsiderActivity
+                key={`${insiderTradeKey(trade)}-${index}`}
+                trade={trade}
+              />
             ))}
             {!trades.length ? (
               <p className={styles.methodNote}>
@@ -413,14 +502,25 @@ function OwnershipSection({
             ) : null}
           </div>
         </section>
-        <div className={styles.planCard}>
-          <strong>Institutional ownership</strong>
-          <span>Not included in current data plan.</span>
-          <span>
-            No institutional ownership percentage or Top 13F holders are
-            inferred from other sources.
-          </span>
-        </div>
+        {institutionalSummary || institutionalHolders.length ? (
+          <div className={styles.planCard}>
+            <strong>Institutional ownership</strong>
+            <span>{formatPercent(institutionalSummary?.ownershipPercent)} reported</span>
+            <span>
+              13F period {formatInstitutionalPeriod(institutionalSummary)} ·{" "}
+              {formatInteger(institutionalSummary?.investorsHolding)} reporting holders
+            </span>
+          </div>
+        ) : (
+          <div className={styles.planCard}>
+            <strong>Institutional ownership</strong>
+            <span>Unavailable on the current FMP plan.</span>
+            <span>
+              No institutional percentage or Top 13F holder ranking is inferred.
+              Local SEC ownership filings remain available below.
+            </span>
+          </div>
+        )}
       </div>
 
       <details className={styles.ownershipDisclosure}>
@@ -441,10 +541,10 @@ function OwnershipSection({
               <span role="columnheader">Shares</span>
               <span role="columnheader">Price</span>
             </div>
-            {trades.map((trade) => (
+            {trades.map((trade, index) => (
               <div
                 className={styles.dilutionEventRow}
-                key={insiderTradeKey(trade)}
+                key={`${insiderTradeKey(trade)}-${index}`}
                 role="row"
               >
                 <time data-label="Filed" dateTime={trade.filingDate} role="cell">
@@ -480,6 +580,40 @@ function OwnershipSection({
           </div>
         </div>
       </details>
+
+      {institutionalHolders.length ? (
+        <details className={styles.ownershipDisclosure}>
+          <DisclosureSummary
+            detail={`${institutionalHolders.length} holders · ${formatInstitutionalPeriod(institutionalSummary)}`}
+            title="Institutional holders"
+          />
+          <div className={styles.ownershipDisclosureBody}>
+            <div
+              aria-label="Reported institutional holders"
+              className={styles.ownershipTable}
+              role="table"
+            >
+              <div className={styles.ownershipTableHeader} role="row">
+                <span role="columnheader">Holder</span>
+                <span role="columnheader">Shares</span>
+                <span role="columnheader">Change</span>
+                <span role="columnheader">As of</span>
+              </div>
+              {institutionalHolders.map((holder) => (
+                <div className={styles.ownershipTableRow} key={`${holder.holder}-${holder.asOf}`} role="row">
+                  <strong role="cell">{holder.holder}</strong>
+                  <span data-label="Shares" role="cell">{formatShares(holder.shares)}</span>
+                  <span data-label="Change" role="cell">{formatSignedShares(holder.changeInShares)}</span>
+                  <span data-label="As of" role="cell">{formatDateShort(holder.asOf)}</span>
+                </div>
+              ))}
+            </div>
+            <p className={styles.methodNote}>
+              13F values use their reported quarter and are not aligned to insider or beneficial-owner filing dates.
+            </p>
+          </div>
+        </details>
+      ) : null}
 
       <details className={styles.ownershipDisclosure} open>
         <DisclosureSummary
@@ -538,10 +672,15 @@ function DilutionSection({
 }: SectionProps) {
   const quarters = snapshot?.financials.quarters ?? [];
   const latest = quarters[0] ?? null;
-  const previous = quarters[1] ?? null;
   const priorYear = findPriorYearQuarter(quarters, latest);
   const float = snapshot?.sharesFloat ?? null;
-  const hasDilutionData = Boolean(latest || float || events.length);
+  const shareHistory = snapshot?.shareHistory ?? [];
+  const splits = snapshot?.splits ?? [];
+  const latestSharePoint = shareHistory[0] ?? null;
+  const oldestSharePoint = shareHistory.at(-1) ?? null;
+  const hasDilutionData = Boolean(
+    latest || float || shareHistory.length || splits.length || events.length,
+  );
 
   if (!snapshot || (!hasDilutionData && loadState !== "ready")) {
     return (
@@ -560,6 +699,8 @@ function DilutionSection({
   );
   const dilutionUnavailable = getUnavailableSources(snapshot, [
     "sharesFloat",
+    "sharesHistory",
+    "splits",
     "incomeStatement",
     "cashFlow",
   ]);
@@ -572,7 +713,7 @@ function DilutionSection({
       id="watchlist-dilution"
     >
       <DataSectionHeader
-        asOf={`Share snapshot ${formatDate(float?.asOf)} · financials ${formatQuarterLabel(latest)}`}
+        asOf={`Share snapshot ${formatDate(float?.asOf)} · financials ${formatQuarterLabel(latest)} · refreshed ${formatDate(snapshot?.fetchedAt)}`}
         id="watchlist-dilution-title"
         number="04"
         title="Dilution"
@@ -605,6 +746,16 @@ function DilutionSection({
             ),
           )} YoY`}
           value={formatShares(latest?.weightedAverageShsOutDil)}
+        />
+        <Metric
+          label="Reported shares trend"
+          note={`${formatSignedPercent(
+            calculatePercentChange(
+              latestSharePoint?.shares,
+              oldestSharePoint?.shares,
+            ),
+          )} since ${formatDateShort(oldestSharePoint?.date)}`}
+          value={formatShares(latestSharePoint?.shares)}
         />
         <Metric
           label="SBC · trailing 4Q"
@@ -711,6 +862,76 @@ function DilutionSection({
             to positive magnitudes before netting. A negative net value means
             repurchase cash outflow exceeded issuance proceeds; it is not a
             direct count of shares retired.
+          </p>
+        </div>
+      </details>
+
+      <details className={styles.dilutionDisclosure} open>
+        <DisclosureSummary
+          detail={`${shareHistory.length} reported share-count periods · ${splits.length} split records`}
+          title="Shares outstanding and split history"
+        />
+        <div className={styles.disclosureBody}>
+          {shareHistory.length ? (
+            <div
+              aria-label="Reported shares outstanding history"
+              className={styles.ownershipTable}
+              role="table"
+            >
+              <div className={styles.ownershipTableHeader} role="row">
+                <span role="columnheader">Period</span>
+                <span role="columnheader">Reported shares</span>
+                <span role="columnheader">Change</span>
+                <span role="columnheader">Basis</span>
+              </div>
+              {shareHistory.map((point, index) => (
+                <div className={styles.ownershipTableRow} key={point.date} role="row">
+                  <strong role="cell">{formatDateShort(point.date)}</strong>
+                  <span data-label="Reported shares" role="cell">{formatShares(point.shares)}</span>
+                  <span data-label="Change" role="cell">
+                    {formatSignedPercent(
+                      calculatePercentChange(point.shares, shareHistory[index + 1]?.shares),
+                    )}
+                  </span>
+                  <span data-label="Basis" role="cell">FMP enterprise value period</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.methodNote}>
+              Historical shares outstanding are unavailable. This does not mean share count was unchanged.
+            </p>
+          )}
+          {splits.length ? (
+            <div
+              aria-label="Reported stock split history"
+              className={styles.ownershipTable}
+              role="table"
+            >
+              <div className={styles.ownershipTableHeader} role="row">
+                <span role="columnheader">Effective</span>
+                <span role="columnheader">Ratio</span>
+                <span role="columnheader">Type</span>
+                <span role="columnheader">Source</span>
+              </div>
+              {splits.map((split) => (
+                <div className={styles.ownershipTableRow} key={`${split.date}-${split.numerator}-${split.denominator}`} role="row">
+                  <strong role="cell">{formatDateShort(split.date)}</strong>
+                  <span data-label="Ratio" role="cell">{formatSplitRatio(split.numerator, split.denominator)}</span>
+                  <span data-label="Type" role="cell">
+                    {split.numerator < split.denominator ? "Reverse split" : "Forward split"}
+                  </span>
+                  <span data-label="Source" role="cell">FMP split record</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.methodNote}>
+              No split row was returned. This is a provider coverage state, not proof that no split occurred.
+            </p>
+          )}
+          <p className={styles.methodNote}>
+            Share-count changes are calculated only between reported positive values. They are not presented as an offering-specific dilution estimate.
           </p>
         </div>
       </details>
@@ -997,8 +1218,8 @@ function SourceNotice({
   return (
     <p className={styles.sourceNotice}>
       Partial data: {sources.map(formatSourceName).join(", ")}{" "}
-      {sources.length === 1 ? "is" : "are"} unavailable. Available fields remain
-      visible.
+      {sources.length === 1 ? "is" : "are"} partial, plan-limited, or unavailable.
+      Available reported fields remain visible.
     </p>
   );
 }
@@ -1010,7 +1231,11 @@ function getUnavailableSources(
   if (!snapshot) return sources;
   return sources.filter((source) => {
     const state = snapshot.sources[source].state;
-    return state === "unavailable" || state === "plan_unavailable";
+    return (
+      state === "partial" ||
+      state === "unavailable" ||
+      state === "plan_unavailable"
+    );
   });
 }
 
@@ -1024,6 +1249,8 @@ function formatSourceName(source: StockFundamentalsSourceKey) {
     insiderTrades: "insider trades",
     institutionalOwnership: "institutional ownership",
     sharesFloat: "share float",
+    sharesHistory: "shares outstanding history",
+    splits: "stock splits",
   };
   return names[source];
 }
@@ -1034,9 +1261,25 @@ function calculateQuarterEquityCashFlow(
   if (!quarter) return null;
   const issued = quarter.commonStockIssued;
   const repurchased = quarter.commonStockRepurchased;
-  return issued === null && repurchased === null
+  return issued === null || repurchased === null
     ? null
-    : (issued ?? 0) - (repurchased ?? 0);
+    : issued - repurchased;
+}
+
+function formatInstitutionalPeriod(
+  summary: StockFundamentalsSnapshot["ownership"]["institutionalSummary"],
+) {
+  if (!summary) return "period unavailable";
+  if (summary.year && summary.quarter) return `Q${summary.quarter} ${summary.year}`;
+  return formatDate(summary.asOf);
+}
+
+function formatSplitRatio(numerator: number, denominator: number) {
+  return `${formatRatioNumber(numerator)}:${formatRatioNumber(denominator)}`;
+}
+
+function formatRatioNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
 function formatQuarterLabel(

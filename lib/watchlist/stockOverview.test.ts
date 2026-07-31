@@ -157,6 +157,59 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
   assert.equal(selectStockOverviewEvents(events, "dilution").length, 1);
 });
 
+test("classifies direct dilution forms and contextual 8-K/6-K filings without treating every current report as dilution", () => {
+  const events = mapStockOverviewEvents({
+    data: [
+      {
+        detected_at: "2026-07-24T14:30:00Z",
+        event_type: "registration",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd2",
+        metadata: { form_type: "S-1" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Registration statement",
+      },
+      {
+        detected_at: "2026-07-23T14:30:00Z",
+        event_type: "financing",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd3",
+        metadata: { form_type: "8-K" },
+        source_group: "filings",
+        summary: "Company entered a convertible financing with warrants.",
+        ticker: "MULN",
+        title: "Financing agreement",
+      },
+      {
+        detected_at: "2026-07-22T14:30:00Z",
+        event_type: "leadership",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd4",
+        metadata: { form_type: "8-K" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Chief operating officer appointed",
+      },
+      {
+        detected_at: "2026-07-21T14:30:00Z",
+        event_type: "governance",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd5",
+        metadata: { form_type: "DEF 14A" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Annual proxy statement",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    selectStockOverviewEvents(events, "dilution").map((event) => event.formType),
+    ["S-1", "8-K"],
+  );
+  assert.deepEqual(
+    selectStockOverviewEvents(events, "ownership").map((event) => event.formType),
+    ["DEF 14A"],
+  );
+});
+
 test("watchlist page preserves auth/API contracts and uses the current product shell", async () => {
   const [
     pageSource,
