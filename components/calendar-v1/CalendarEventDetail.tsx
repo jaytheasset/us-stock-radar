@@ -225,10 +225,17 @@ function CalendarEventDetailContent({
       </div>
 
       {analysisHref ? (
-        <Link className={styles.analysisLink} href={analysisHref}>
-          View analysis
-          <ExternalLink aria-hidden="true" size={14} />
-        </Link>
+        <div className={styles.analysisEntry}>
+          <Link className={styles.analysisLink} href={analysisHref}>
+            View Stock Radar Analysis
+            <ExternalLink aria-hidden="true" size={14} />
+          </Link>
+          {(event.relatedAnalysisCount ?? 0) > 0 ? (
+            <span>Related analyses {event.relatedAnalysisCount}</span>
+          ) : null}
+        </div>
+      ) : event.analysisPending ? (
+        <p className={styles.analysisPending}>Analysis pending</p>
       ) : null}
 
       {ticker ? (
