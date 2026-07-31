@@ -211,3 +211,13 @@ test("alerts settings show the shared reliability notice once", () => {
     /Alerts may be delayed, changed, duplicated, or unavailable\. Do not rely on an alert as the sole basis for a trading decision\./,
   );
 });
+
+test("registered alert tickers link to stock overview without absorbing controls", () => {
+  assert.match(componentSource, /getStockRouteHref\(ticker\.ticker\)/);
+  assert.match(componentSource, /className=\{styles\.tickerSymbolLink\}[\s\S]*href=\{stockHref\}/);
+  assert.match(componentSource, /className=\{styles\.tickerCompanyLink\}[\s\S]*href=\{stockHref\}/);
+  assert.match(componentSource, /label=\{`Toggle alerts for \$\{ticker\.ticker\}`\}/);
+  assert.match(componentSource, /onChange=\{\(\) => void toggleTicker/);
+  assert.match(componentSource, /onClick=\{\(\) => void removeTicker/);
+  assert.match(styles, /\.tickerSymbolLink:focus-visible,[\s\S]*\.tickerCompanyLink:focus-visible/);
+});

@@ -9,6 +9,7 @@ import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
 import { selectDashboardV2EventTypeBadges } from "@/lib/dashboardV2Events";
 import type { DashboardV2MarketMover } from "@/lib/dashboardV2Types";
+import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 
 type MarketMoversTableProps = {
   mobileValueMode?: "change" | "volume";
@@ -55,6 +56,7 @@ export function MarketMoversTable({
                 ? "negative"
                 : "positive";
               const isSelected = selectedTicker === row.ticker;
+              const tickerHref = getStockRouteHref(row.ticker);
               const primaryValue =
                 mobileValueMode === "volume" ? row.volume : row.changePercent;
               const secondaryValue =
@@ -118,6 +120,7 @@ export function MarketMoversTable({
                     rank={row.rank}
                     selected={isSelected}
                     ticker={row.ticker}
+                    tickerHref={tickerHref}
                     volume={row.volume}
                   />
                   {rows.length > 25 && index === 24 ? <DesktopInlineAdSlot /> : null}
@@ -147,6 +150,7 @@ export function MarketMoversTable({
                     secondaryValue={secondaryValue}
                     selected={isSelected}
                     ticker={row.ticker}
+                    tickerHref={tickerHref}
                   />
                   {rows.length >= 50 && index === 24 ? <MobileInlineAdSlot /> : null}
                 </Fragment>

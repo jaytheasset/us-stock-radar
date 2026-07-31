@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { MarketChartAction } from "@/components/market/MarketChartAction";
 import { MarketImpactLabel, type MarketImpact } from "@/components/market/MarketImpactLabel";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
@@ -17,6 +18,7 @@ export type DesktopMarketRowProps = {
   rank: number;
   selected?: boolean;
   ticker: string;
+  tickerHref?: string | null;
   volume: string;
 };
 
@@ -33,6 +35,7 @@ export function DesktopMarketRow({
   rank,
   selected = false,
   ticker,
+  tickerHref,
   volume,
 }: DesktopMarketRowProps) {
   const changeTone = change.startsWith("-") ? styles.negative : styles.positive;
@@ -54,7 +57,19 @@ export function DesktopMarketRow({
       <td>
         <div className={styles.tickerCell}>
           <MarketTickerLogo logoUrl={logoUrl} size="desktop" ticker={ticker} />
-          <strong>{ticker}</strong>
+          <strong>
+            {tickerHref ? (
+              <Link
+                aria-label={`View ${ticker} stock overview`}
+                className={styles.tickerLink}
+                href={tickerHref}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                {ticker}
+              </Link>
+            ) : ticker}
+          </strong>
           <span>{company}</span>
         </div>
       </td>

@@ -126,6 +126,7 @@ function CalendarEventDetailContent({
   const identity = getCalendarEventIdentity(event);
   const ticker = identity.primaryTicker;
   const stockHref = getStockRouteHref(ticker);
+  const analysisHref = event.detailHref ?? null;
   const eventDate = parseDateOnly(event.eventDate);
   const watchLabel = watchlisted ? `Watching ${ticker}` : "Watch Stock";
   const watchActionLabel = ticker
@@ -227,6 +228,13 @@ function CalendarEventDetailContent({
       <div className={styles.alertReliabilityNotice}>
         <AlertReliabilityNotice />
       </div>
+
+      {analysisHref ? (
+        <Link className={styles.analysisLink} href={analysisHref}>
+          View analysis
+          <ExternalLink aria-hidden="true" size={14} />
+        </Link>
+      ) : null}
 
       {ticker ? (
         <div className={styles.detailLinks}>

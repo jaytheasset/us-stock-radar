@@ -46,3 +46,20 @@ test("existing 1600px product workspaces remain the read-only reference", () => 
     assert.match(source, /margin: 0 auto;/);
   }
 });
+
+test("Markets ticker links use the canonical stock route without replacing row selection", () => {
+  const table = read("components/dashboard-v2/MarketMoversTable.tsx");
+  const desktopRow = read("components/market/DesktopMarketRow.tsx");
+  const mobileRow = read("components/market/MobileMarketRow.tsx");
+
+  assert.match(table, /getStockRouteHref\(row\.ticker\)/);
+  assert.match(table, /tickerHref=\{tickerHref\}/);
+  for (const row of [desktopRow, mobileRow]) {
+    assert.match(row, /href=\{tickerHref\}/);
+    assert.match(row, /View \$\{ticker\} stock overview/);
+    assert.match(row, /onClick=\{\(event\) => event\.stopPropagation\(\)\}/);
+    assert.match(row, /onKeyDown=\{\(event\) => event\.stopPropagation\(\)\}/);
+    assert.match(row, /onClick=\{onSelect\}/);
+    assert.match(row, /onSelect\?\.\(\)/);
+  }
+});

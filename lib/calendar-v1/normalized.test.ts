@@ -14,6 +14,7 @@ import {
   buildNormalizedCalendarQuery,
   mapNormalizedCalendarRow,
   normalizeCalendarProvider,
+  normalizeCalendarAnalysisHref,
   normalizeSafeCalendarSourceUrl,
   parseCalendarEventsApiPayload,
   parseNormalizedCalendarRange,
@@ -119,6 +120,7 @@ test("mapper handles missing optional source, security, metric, and details safe
   assert.equal(event.provider, "unknown");
   assert.equal(event.sourceAgency, "Agency not announced");
   assert.equal(event.sourceUrl, null);
+  assert.equal(event.detailHref, null);
   assert.deepEqual(event.affectedSectors, []);
   assert.deepEqual(event.relatedTickers, []);
   if (event.category !== "macro") assert.fail("expected Macro event");
@@ -127,6 +129,28 @@ test("mapper handles missing optional source, security, metric, and details safe
     referencePeriod: null,
     releaseNote: null,
   });
+});
+
+test("calendar analysis routes are explicit canonical news or filing paths only", () => {
+  const eventId = "00000000-0000-4000-8000-000000000001";
+  assert.equal(normalizeCalendarAnalysisHref(`/events/${eventId}`), `/events/${eventId}`);
+  assert.equal(normalizeCalendarAnalysisHref(`/filings/${eventId}`), `/filings/${eventId}`);
+  assert.equal(normalizeCalendarAnalysisHref(`/stocks/${eventId}`), null);
+  assert.equal(normalizeCalendarAnalysisHref("https://example.com/events/1"), null);
+  assert.equal(normalizeCalendarAnalysisHref("/events/not-persistent"), null);
+
+  const mapped = mapNormalizedCalendarRow(
+    baseMacroRow({
+      details: {
+        detail: {
+          analysis_href: `/events/${eventId}`,
+          reference_period: "June 2026",
+        },
+        schema_version: 1,
+      },
+    }),
+  );
+  assert.equal(mapped.detailHref, `/events/${eventId}`);
 });
 
 test("mapper creates Company and Policy discriminated details without inventing values", () => {

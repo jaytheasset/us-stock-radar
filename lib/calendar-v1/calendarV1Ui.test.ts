@@ -412,6 +412,8 @@ test("calendar UI reuses shared filters, segmented controls, detail panel, and b
   assert.match(detail, /BottomSheetShell/);
   assert.match(detail, /LiveRoomEntryButton/);
   assert.match(detail, /getStockRouteHref/);
+  assert.match(detail, /const analysisHref = event\.detailHref \?\? null/);
+  assert.match(detail, /\{analysisHref \? \([\s\S]*href=\{analysisHref\}[\s\S]*View analysis/);
 });
 
 test("stock watching is ticker-scoped while event following remains event-scoped", async () => {

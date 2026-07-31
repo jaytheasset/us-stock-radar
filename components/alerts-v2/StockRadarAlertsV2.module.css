@@ -348,17 +348,20 @@
 }
 
 .tickerRow strong,
+.tickerSymbolLink,
 .recentRow strong {
   color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-heavy);
 }
 
-.tickerRow strong {
+.tickerRow strong,
+.tickerSymbolLink {
   font-family: var(--sr-font-family-mono);
 }
 
 .tickerRow span,
+.tickerCompanyLink,
 .settingRow span,
 .recentRow span,
 .recentRow p,
@@ -370,6 +373,24 @@
   line-height: var(--sr-line-height-body);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tickerSymbolLink,
+.tickerCompanyLink {
+  text-decoration: none;
+}
+
+.tickerSymbolLink:hover,
+.tickerCompanyLink:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-1);
+}
+
+.tickerSymbolLink:focus-visible,
+.tickerCompanyLink:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }
 
 .inlineToggle {
@@ -1265,11 +1286,13 @@
     padding: var(--sr-space-1) 0;
   }
 
-  .tickerRow strong {
+  .tickerRow strong,
+  .tickerSymbolLink {
     grid-area: ticker;
   }
 
-  .tickerRow span {
+  .tickerRow span,
+  .tickerCompanyLink {
     grid-area: company;
   }
 

@@ -150,7 +150,7 @@ export default async function AccountPage() {
                 Message privacy
               </AccountLink>
               <AccountLink
-                href={`/forgot-password${authUser.email ? `?email=${encodeURIComponent(authUser.email)}` : ""}`}
+                href="/account/update-password"
                 icon={<KeyRound size={16} />}
               >
                 Change password

@@ -23,6 +23,7 @@ import {
   parseDateOnly,
 } from "./dateUtils.ts";
 import { policyEventTypeSubcategories } from "./taxonomyManifest.ts";
+import { isPersistentEventId } from "../watchlist/stockOverview.ts";
 
 export const MAX_CALENDAR_RANGE_DAYS = 93;
 export const NORMALIZED_CALENDAR_PAGE_SIZE = 500;
@@ -385,6 +386,15 @@ export function mapNormalizedCalendarRow(value: unknown): CalendarEvent {
 
   const common = {
     affectedSectors: sectors,
+    detailHref: normalizeCalendarAnalysisHref(
+      readDetailString(
+        detail,
+        "detailHref",
+        "detail_href",
+        "analysisHref",
+        "analysis_href",
+      ),
+    ),
     eventDate,
     eventEndDate,
     eventTime,
@@ -912,6 +922,13 @@ function normalizeMetricUnit(
 function readDetail(value: unknown): Record<string, unknown> {
   const relation = relationRecord(value);
   return relation ? optionalRecord(relation.detail) ?? {} : {};
+}
+
+export function normalizeCalendarAnalysisHref(value: unknown) {
+  const href = optionalString(value);
+  if (!href) return null;
+  const match = /^\/(?:events|filings)\/([^/?#]+)$/.exec(href);
+  return match && isPersistentEventId(match[1]) ? href : null;
 }
 
 function readDetailString(
