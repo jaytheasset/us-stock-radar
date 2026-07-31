@@ -2314,6 +2314,7 @@ test("member activity API stays service-only, privacy-safe, and avoids per-autho
 test("global Live Room inbox uses low-frequency visible polling plus focus refresh and stays distinct from Alerts", () => {
   const inbox = readSource("components/shell/LiveRoomUnreadMenu.tsx");
   const header = readSource("components/shell/StockRadarProductHeader.tsx");
+  const alerts = readSource("components/shell/AlertNotificationsMenu.tsx");
   const repository = readSource("lib/live-room/apiRepository.ts");
   const unreadRoute = readSource("app/api/live-room/unread/route.ts");
 
@@ -2329,8 +2330,12 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /Unfollow member/);
   assert.match(inbox, /All caught up/);
   assert.match(inbox, /Follow a company Live Room/);
-  assert.match(header, /<LiveRoomUnreadMenu \/>[\s\S]+aria-label="Alerts"/);
-  assert.match(header, /<Bell aria-hidden="true"/);
+  assert.match(
+    header,
+    /<LiveRoomUnreadMenu \/>[\s\S]+<AlertNotificationsMenu loginHref=\{loginHref\} \/>/,
+  );
+  assert.match(alerts, /aria-label=\{[\s\S]*`Alerts, \$\{unreadCount\} unread`/);
+  assert.match(alerts, /<Bell aria-hidden="true"/);
   assert.match(unreadRoute, /if \(!hasExistingIdentity\)[\s\S]+emptySummary/);
 });
 

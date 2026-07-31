@@ -29,26 +29,15 @@ export function StockRadarMobileNavigationMenu({
       className={styles.mobileMenuPopover}
       id={stockRadarMobileMenuId}
       ref={menuRef}
-      role="menu"
     >
-      <nav aria-label="Mobile menu" className={styles.mobileMenuList}>
+      <nav
+        aria-label="Mobile menu"
+        className={styles.mobileMenuList}
+        role="menu"
+      >
         {stockRadarMobileNavigationItems.map((item) => {
           const className = item.key === "premium" ? styles.mobileMenuPremium : undefined;
           const content = <span>{item.label}</span>;
-
-          if (item.kind === "action") {
-            return (
-              <button
-                className={className}
-                key={item.key}
-                onClick={() => onItemActivate(item)}
-                role="menuitem"
-                type="button"
-              >
-                {content}
-              </button>
-            );
-          }
 
           return (
             <a
@@ -65,7 +54,7 @@ export function StockRadarMobileNavigationMenu({
         })}
       </nav>
       <div className={styles.mobileMenuAccount}>
-        <AuthStatus loginHref={loginHref} signupHref={signupHref} />
+        <AuthStatus accountMenu loginHref={loginHref} signupHref={signupHref} />
       </div>
     </div>
   );
