@@ -74,6 +74,7 @@ export function PostsPanel({
   events = [],
   loginHref,
   onLoad: controlledLoad,
+  onProfileAvatarChange,
   onProfileSave,
   onPostsChange: controlledPostsChange,
   onCreated,
@@ -88,7 +89,12 @@ export function PostsPanel({
   events?: readonly CompanyEvent[];
   loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
-  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
+  onProfileAvatarChange: (
+    photo: File | null,
+  ) => Promise<LiveRoomProfile>;
+  onProfileSave: (
+    profile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => Promise<LiveRoomProfile>;
   onPostsChange?: (
     update: (current: LiveRoomPost[]) => LiveRoomPost[],
   ) => void;
@@ -451,13 +457,14 @@ export function PostsPanel({
       {profile?.isGuest === false ? (
         <ChatNameSetup
           isOpen={profileSetupOpen}
+          onAvatarChange={onProfileAvatarChange}
           onDismiss={() => {
             resumeCreateRef.current = false;
             setProfileSetupOpen(false);
           }}
           onPresenceSettingChange={() => undefined}
-          onSave={async (displayName) => {
-            const saved = await onProfileSave(displayName);
+          onSave={async (nextProfile) => {
+            const saved = await onProfileSave(nextProfile);
             if (resumeCreateRef.current) {
               resumeCreateRef.current = false;
               window.setTimeout(() => void handleCreate(true), 0);
@@ -651,6 +658,7 @@ export function PostsPanel({
                 <Link href={`/live/members/${post.author.publicProfileId}`}>
                   <MemberAvatar
                     displayName={post.author.displayName}
+                    imageUrl={post.author.avatarUrl}
                     size="small"
                   />
                   {formatPublicChatName(post.author.displayName)}

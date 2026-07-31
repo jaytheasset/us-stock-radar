@@ -45,6 +45,13 @@ import {
   type LiveRoomActor,
 } from "./policy";
 import { createLiveRoomReplyBodyPreview } from "./replyPolicy";
+import {
+  buildLiveRoomAvatarPath,
+  buildLiveRoomAvatarUrl,
+  removeLiveRoomAvatarObject,
+  uploadLiveRoomAvatarObject,
+} from "./profileAvatar";
+import { processLiveRoomAvatarUpload } from "./profileAvatarImage";
 import type {
   CompanyEventReference,
   LiveRoomBlockedActor,
@@ -82,6 +89,11 @@ type RoomRow = {
   kind: "company" | "community";
   slug: string | null;
   ticker: string | null;
+};
+
+type LiveRoomPublicProfilePresentation = {
+  avatarUrl: string | null;
+  publicProfileId: string;
 };
 
 type MessageRow = {
@@ -986,7 +998,10 @@ export async function getLiveRoomProfile(
   const id =
     actor.kind === "member" ? actor.userId : actor.guestSessionId;
   const selected = await supabaseSelect(table, {
-    select: "display_name,emoji",
+    select:
+      actor.kind === "member"
+        ? "display_name,emoji,bio,avatar_path,public_profile_id"
+        : "display_name,emoji",
     [key]: `eq.${id}`,
     limit: "1",
   });
@@ -1044,6 +1059,11 @@ export async function getLiveRoomProfile(
 
   const displayName = readString(row.display_name);
   return {
+    avatarUrl:
+      actor.kind === "member"
+        ? buildLiveRoomAvatarUrl(row.avatar_path)
+        : null,
+    bio: actor.kind === "member" ? readString(row.bio) || null : null,
     canModerate,
     displayName:
       displayName || getDefaultLiveRoomDisplayName(actor),
@@ -1052,6 +1072,10 @@ export async function getLiveRoomProfile(
       actor.kind === "guest" || isLiveRoomChatNameSet(displayName),
     isGuest: actor.kind === "guest",
     plan,
+    publicProfileId:
+      actor.kind === "member"
+        ? readString(row.public_profile_id) || undefined
+        : undefined,
   };
 }
 
@@ -1078,7 +1102,8 @@ export async function updateLiveRoomProfile(
 
   const result =
     actor.kind === "member"
-      ? await supabaseRpc("set_live_room_member_chat_name", {
+      ? await supabaseRpc("set_live_room_member_profile", {
+          p_bio: profile.bio,
           p_member_user_id: actor.userId,
           p_display_name: profile.displayName,
         })
@@ -1112,6 +1137,79 @@ export async function updateLiveRoomProfile(
   }
 
   return getLiveRoomProfile(actor);
+}
+
+export async function updateLiveRoomProfileAvatar(
+  actor: LiveRoomActor,
+  input: { bytes: Uint8Array; declaredMimeType: string },
+) {
+  assertLiveRoomProfileMember(actor);
+  await ensureUserBootstrap({ id: actor.userId, email: actor.email });
+  const current = await getLiveRoomAvatarState(actor.userId);
+  const processed = await processLiveRoomAvatarUpload(input);
+  const nextPath = buildLiveRoomAvatarPath(current.publicProfileId);
+
+  await uploadLiveRoomAvatarObject(nextPath, processed);
+  const result = await supabaseRpc("set_live_room_member_avatar_path", {
+    p_avatar_path: nextPath,
+    p_member_user_id: actor.userId,
+  });
+  if (!result.ok) {
+    await removeLiveRoomAvatarObject(nextPath);
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_AVATAR_UPDATE_FAILED",
+      result.error || "The profile photo could not be saved.",
+      result.status || 502,
+    );
+  }
+
+  if (current.avatarPath && current.avatarPath !== nextPath) {
+    await removeLiveRoomAvatarObject(current.avatarPath);
+  }
+  return getLiveRoomProfile(actor);
+}
+
+export async function removeLiveRoomProfileAvatar(
+  actor: LiveRoomActor,
+) {
+  assertLiveRoomProfileMember(actor);
+  const current = await getLiveRoomAvatarState(actor.userId);
+  const result = await supabaseRpc("set_live_room_member_avatar_path", {
+    p_avatar_path: null,
+    p_member_user_id: actor.userId,
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_AVATAR_UPDATE_FAILED",
+      result.error || "The profile photo could not be removed.",
+      result.status || 502,
+    );
+  }
+  if (current.avatarPath) {
+    await removeLiveRoomAvatarObject(current.avatarPath);
+  }
+  return getLiveRoomProfile(actor);
+}
+
+async function getLiveRoomAvatarState(userId: string) {
+  const selected = await supabaseSelect("live_room_member_profiles", {
+    select: "avatar_path,public_profile_id",
+    user_id: `eq.${userId}`,
+    limit: "1",
+  });
+  const row = readSingleRow(selected.data);
+  const publicProfileId = readString(row?.public_profile_id);
+  if (!selected.ok || !row || !isUuid(publicProfileId)) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PROFILE_UNAVAILABLE",
+      selected.error || "The member profile could not be loaded.",
+      selected.status || 502,
+    );
+  }
+  return {
+    avatarPath: readString(row.avatar_path) || null,
+    publicProfileId,
+  };
 }
 
 export async function getLiveRoomPresenceSetting(
@@ -1367,12 +1465,41 @@ export async function listLiveRoomMemberSummaries({
       result.status || 502,
     );
   }
+  const items = readRows(payload.items)
+    .map(mapLiveRoomMemberSummary)
+    .filter(
+      (item): item is LiveRoomMemberSummary => item !== null,
+    );
+  if (!items.length) return { items: [] };
+  const avatarResult = await supabaseSelect(
+    "live_room_member_profiles",
+    {
+      select: "public_profile_id,avatar_path",
+      public_profile_id: `in.(${items
+        .map((item) => item.publicProfileId)
+        .join(",")})`,
+      limit: String(items.length),
+    },
+  );
+  if (!avatarResult.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_SUMMARIES_UNAVAILABLE",
+      avatarResult.error ||
+        "Public member profile photos could not be loaded.",
+      avatarResult.status || 502,
+    );
+  }
+  const avatarUrls = new Map(
+    readRows(avatarResult.data).map((row) => [
+      readString(row.public_profile_id),
+      buildLiveRoomAvatarUrl(row.avatar_path),
+    ]),
+  );
   return {
-    items: readRows(payload.items)
-      .map(mapLiveRoomMemberSummary)
-      .filter(
-        (item): item is LiveRoomMemberSummary => item !== null,
-      ),
+    items: items.map((item) => ({
+      ...item,
+      avatarUrl: avatarUrls.get(item.publicProfileId) || null,
+    })),
   };
 }
 
@@ -2126,7 +2253,7 @@ async function mapMessageRows(
       actor,
       messageIds: rows.map((row) => readString(row.id)).filter(Boolean),
     }),
-    getLiveRoomPublicProfileIdMap(memberUserIds),
+    getLiveRoomPublicProfileMap(memberUserIds),
     getLiveRoomReplyPreviewMap(rows, blockedActorIds),
     getLiveRoomMessageEngagement(rows, actor, blockedActorIds),
     getBrokerageProofMapForMessages(
@@ -2140,7 +2267,7 @@ async function mapMessageRows(
   if (actor.kind !== "member") {
     const [
       socialBadges,
-      publicProfileIds,
+      publicProfiles,
       replyPreviews,
       engagement,
       brokerageProofs,
@@ -2154,7 +2281,7 @@ async function mapMessageRows(
         new Set(),
         new Set(),
         socialBadges,
-        publicProfileIds,
+        publicProfiles,
         replyPreviews,
         engagement.likedMessageIds,
         engagement.replyCounts,
@@ -2172,7 +2299,7 @@ async function mapMessageRows(
   if (!targetUserIds.length) {
     const [
       socialBadges,
-      publicProfileIds,
+      publicProfiles,
       replyPreviews,
       engagement,
       brokerageProofs,
@@ -2186,7 +2313,7 @@ async function mapMessageRows(
         new Set(),
         new Set(),
         socialBadges,
-        publicProfileIds,
+        publicProfiles,
         replyPreviews,
         engagement.likedMessageIds,
         engagement.replyCounts,
@@ -2199,7 +2326,7 @@ async function mapMessageRows(
   const [
     [
       socialBadges,
-      publicProfileIds,
+      publicProfiles,
       replyPreviews,
       engagement,
       brokerageProofs,
@@ -2256,7 +2383,7 @@ async function mapMessageRows(
       followedUserIds,
       messageableUserIds,
       socialBadges,
-      publicProfileIds,
+      publicProfiles,
       replyPreviews,
       engagement.likedMessageIds,
       engagement.replyCounts,
@@ -2266,12 +2393,14 @@ async function mapMessageRows(
   );
 }
 
-async function getLiveRoomPublicProfileIdMap(
+async function getLiveRoomPublicProfileMap(
   memberUserIds: readonly string[],
 ) {
-  if (!memberUserIds.length) return new Map<string, string>();
+  if (!memberUserIds.length) {
+    return new Map<string, LiveRoomPublicProfilePresentation>();
+  }
   const result = await supabaseSelect("live_room_member_profiles", {
-    select: "user_id,public_profile_id",
+    select: "user_id,public_profile_id,avatar_path",
     user_id: `in.(${memberUserIds.join(",")})`,
     limit: String(memberUserIds.length),
   });
@@ -2288,11 +2417,14 @@ async function getLiveRoomPublicProfileIdMap(
         (row) =>
           [
             readString(row.user_id),
-            readString(row.public_profile_id),
+            {
+              avatarUrl: buildLiveRoomAvatarUrl(row.avatar_path),
+              publicProfileId: readString(row.public_profile_id),
+            },
           ] as const,
       )
-      .filter(([userId, publicProfileId]) =>
-        Boolean(userId && publicProfileId),
+      .filter(([userId, profile]) =>
+        Boolean(userId && profile.publicProfileId),
       ),
   );
 }
@@ -2314,7 +2446,7 @@ async function getLiveRoomReplyPreviewMap(
 
   const result = await supabaseSelect("live_room_messages", {
     select:
-      "id,actor_id,author_display_name,author_emoji,body,visibility_status",
+      "id,actor_id,author_kind,member_user_id,author_display_name,author_emoji,body,visibility_status",
     id: `in.(${replyMessageIds.join(",")})`,
     visibility_status: "eq.visible",
     limit: String(replyMessageIds.length),
@@ -2328,19 +2460,32 @@ async function getLiveRoomReplyPreviewMap(
   }
 
   const blocked = new Set(blockedActorIds);
-  const mediaMap = await getKlipyMediaMapForMessages(
-    (readRows(result.data) as MessageRow[])
+  const resultRows = readRows(result.data) as MessageRow[];
+  const [mediaMap, publicProfiles] = await Promise.all([
+    getKlipyMediaMapForMessages(
+      resultRows
       .map((row) => readString(row.id))
       .filter(Boolean),
-  );
+    ),
+    getLiveRoomPublicProfileMap(
+      resultRows
+        .filter((row) => row.author_kind === "member")
+        .map((row) => readString(row.member_user_id))
+        .filter(Boolean),
+    ),
+  ]);
   return new Map(
-    (readRows(result.data) as MessageRow[])
+    resultRows
       .filter((row) => !blocked.has(readString(row.actor_id)))
       .map((row) => {
         const messageId = readString(row.id);
+        const memberProfile = publicProfiles.get(
+          readString(row.member_user_id),
+        );
         return [
           messageId,
           {
+            authorAvatarUrl: memberProfile?.avatarUrl || null,
             authorDisplayName:
               readString(row.author_display_name) || "Member",
             authorEmoji: readString(row.author_emoji) || "👋",
@@ -2432,6 +2577,18 @@ function assertLiveRoomPresenceMember(
     throw new LiveRoomPolicyError(
       "LIVE_ROOM_MEMBER_REQUIRED",
       "Sign in to use Live Room presence.",
+      401,
+    );
+  }
+}
+
+function assertLiveRoomProfileMember(
+  actor: LiveRoomActor,
+): asserts actor is Extract<LiveRoomActor, { kind: "member" }> {
+  if (actor.kind !== "member") {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_MEMBER_REQUIRED",
+      "Sign in to manage a profile photo.",
       401,
     );
   }
@@ -2558,6 +2715,7 @@ function mapLiveRoomMemberSummary(
     return [{ label, platform: socialPlatform, profileUrl }];
   });
   return {
+    avatarUrl: null,
     displayName:
       readString(row.displayName ?? row.display_name) || "Member",
     emoji:
@@ -2587,7 +2745,10 @@ function mapMessageRow(
     string,
     LiveRoomProfile["socialBadges"]
   > = new Map(),
-  publicProfileIdMap: ReadonlyMap<string, string> = new Map(),
+  publicProfileMap: ReadonlyMap<
+    string,
+    LiveRoomPublicProfilePresentation
+  > = new Map(),
   replyPreviewMap: ReadonlyMap<string, LiveRoomReplyPreview> = new Map(),
   likedMessageIds: ReadonlySet<string> = new Set(),
   replyCountMap: ReadonlyMap<string, number> = new Map(),
@@ -2614,13 +2775,17 @@ function mapMessageRow(
 
   return {
     author: {
+      avatarUrl:
+        row.author_kind === "member"
+          ? publicProfileMap.get(memberUserId)?.avatarUrl || null
+          : null,
       displayName: readString(row.author_display_name) || "Member",
       emoji: readString(row.author_emoji) || "👋",
       isGuest: row.author_kind === "guest",
       plan: normalizePlan(row.author_plan),
       publicProfileId:
         row.author_kind === "member"
-          ? publicProfileIdMap.get(memberUserId)
+          ? publicProfileMap.get(memberUserId)?.publicProfileId
           : undefined,
       socialBadges:
         row.author_kind === "member"

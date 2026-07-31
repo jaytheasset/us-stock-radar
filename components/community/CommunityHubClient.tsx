@@ -518,6 +518,7 @@ function InboxPanel({
                     key={request.conversationId}
                   >
                     <Identity
+                      avatarUrl={request.peer.avatarUrl}
                       displayName={request.peer.displayName}
                       plan={request.peer.plan}
                     />
@@ -596,6 +597,7 @@ function InboxPanel({
                     key={conversation.conversationId}
                   >
                     <Identity
+                      avatarUrl={conversation.peer.avatarUrl}
                       compact
                       displayName={conversation.peer.displayName}
                       plan={conversation.peer.plan}
@@ -644,6 +646,7 @@ function InboxPanel({
                     key={request.conversationId}
                   >
                     <Identity
+                      avatarUrl={request.peer.avatarUrl}
                       compact
                       displayName={request.peer.displayName}
                       plan={request.peer.plan}
@@ -748,6 +751,7 @@ function PeoplePanel({
                     )}`}
                   >
                     <Identity
+                      avatarUrl={person.avatarUrl}
                       displayName={person.displayName}
                       isVerified={person.isVerified}
                       plan={person.plan}
@@ -986,11 +990,13 @@ function PanelHeading({
 }
 
 function Identity({
+  avatarUrl,
   compact = false,
   displayName,
   isVerified = false,
   plan,
 }: {
+  avatarUrl: string | null;
   compact?: boolean;
   displayName: string;
   isVerified?: boolean;
@@ -1001,6 +1007,7 @@ function Identity({
       <MemberAvatar
         className={styles.avatar}
         displayName={displayName}
+        imageUrl={avatarUrl}
       />
       <span>
         <strong>

@@ -50,6 +50,8 @@ export type CompanyEventSource =
   | "mock-simulation";
 
 export type LiveRoomProfile = {
+  avatarUrl: string | null;
+  bio: string | null;
   canModerate?: boolean;
   displayName: string;
   emoji: string;
@@ -61,6 +63,7 @@ export type LiveRoomProfile = {
 };
 
 export type LiveRoomReplyPreview = {
+  authorAvatarUrl: string | null;
   authorDisplayName: string;
   authorEmoji: string;
   bodyPreview: string;
@@ -68,8 +71,10 @@ export type LiveRoomReplyPreview = {
   mediaPreview?: KlipyReplyMediaPreview | null;
 };
 
+export type LiveRoomMessageAuthor = Omit<LiveRoomProfile, "bio">;
+
 export type LiveRoomChatMessage = {
-  author: LiveRoomProfile;
+  author: LiveRoomMessageAuthor;
   body: string;
   brokerageProof?: BrokerageProofSummary | null;
   canFollowMember?: boolean;
@@ -149,6 +154,7 @@ export type LiveRoomMembershipList = {
 };
 
 export type LiveRoomMemberSummary = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   followerCount: number;
@@ -185,6 +191,7 @@ export type LiveRoomPostRoom =
     };
 
 export type LiveRoomPostAuthor = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   publicProfileId: string;
@@ -245,6 +252,8 @@ export type LiveRoomPostPage = {
 };
 
 export type LiveRoomPublicMember = {
+  avatarUrl: string | null;
+  bio: string | null;
   brokerageConnected: boolean;
   displayName: string;
   emoji: string;
@@ -329,7 +338,7 @@ export type LiveRoomModerationItem = LiveRoomChatMessage & {
 };
 
 export type LiveRoomMessageDraft = {
-  author: LiveRoomProfile;
+  author: LiveRoomMessageAuthor;
   body: string;
   eventReference: CompanyEventReference | null;
 };

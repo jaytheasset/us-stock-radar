@@ -217,6 +217,13 @@ export function PostComments({
       {profile?.isGuest === false ? (
         <ChatNameSetup
           isOpen={profileSetupOpen}
+          onAvatarChange={async (photo) => {
+            const saved = photo
+              ? await profileRepository.writeProfileAvatar(photo)
+              : await profileRepository.removeProfileAvatar();
+            setProfile(saved);
+            return saved;
+          }}
           onDismiss={() => {
             suppressNextProfilePromptRef.current = true;
             resumeCommentRef.current = false;
@@ -224,10 +231,9 @@ export function PostComments({
             setProfileSetupOpen(false);
           }}
           onPresenceSettingChange={() => undefined}
-          onSave={async (displayName) => {
-            const saved = await profileRepository.writeProfile({
-              displayName,
-            });
+          onSave={async (nextProfile) => {
+            const saved =
+              await profileRepository.writeProfile(nextProfile);
             setProfile(saved);
             if (resumeCommentRef.current) {
               resumeCommentRef.current = false;
@@ -266,6 +272,7 @@ export function PostComments({
                 <Link href={`/live/members/${comment.author.publicProfileId}`}>
                   <MemberAvatar
                     displayName={comment.author.displayName}
+                    imageUrl={comment.author.avatarUrl}
                     size="small"
                   />
                   {formatPublicChatName(comment.author.displayName)}

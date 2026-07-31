@@ -19,6 +19,7 @@ import {
   normalizeLiveRoomUuid,
   type LiveRoomActor,
 } from "./policy";
+import { buildLiveRoomAvatarUrl } from "./profileAvatar";
 import {
   assertLiveRoomPostMentionTargets,
   createLiveRoomPostBodyPreview,
@@ -802,7 +803,8 @@ export async function mapLiveRoomPostRows(
     brokerageProofs,
   ] = await Promise.all([
       supabaseSelect("live_room_member_profiles", {
-        select: "user_id,public_profile_id,display_name,emoji",
+        select:
+          "user_id,public_profile_id,display_name,emoji,avatar_path",
         user_id: `in.(${authorIds.join(",")})`,
         limit: String(authorIds.length),
       }),
@@ -897,6 +899,7 @@ export async function mapLiveRoomPostRows(
         : null;
     return {
       author: {
+        avatarUrl: buildLiveRoomAvatarUrl(profile?.avatar_path),
         displayName: readString(profile?.display_name) || "Member",
         emoji: readString(profile?.emoji) || "👋",
         publicProfileId: readString(profile?.public_profile_id),
@@ -946,7 +949,8 @@ async function mapLiveRoomPostCommentRows(
   if (!rows.length) return [];
   const authorIds = unique(rows.map((row) => readString(row.author_user_id)));
   const profilesResult = await supabaseSelect("live_room_member_profiles", {
-    select: "user_id,public_profile_id,display_name,emoji",
+    select:
+      "user_id,public_profile_id,display_name,emoji,avatar_path",
     user_id: `in.(${authorIds.join(",")})`,
     limit: String(authorIds.length),
   });
@@ -968,6 +972,7 @@ async function mapLiveRoomPostCommentRows(
     const profile = profiles.get(authorUserId);
     return {
       author: {
+        avatarUrl: buildLiveRoomAvatarUrl(profile?.avatar_path),
         displayName: readString(profile?.display_name) || "Member",
         emoji: readString(profile?.emoji) || "?",
         publicProfileId: readString(profile?.public_profile_id),
@@ -1058,7 +1063,8 @@ async function getPublicMember(rawPublicProfileId: unknown) {
     "The public member profile ID is invalid.",
   );
   const result = await supabaseSelect("live_room_member_profiles", {
-    select: "user_id,public_profile_id,display_name,emoji",
+    select:
+      "user_id,public_profile_id,display_name,emoji,bio,avatar_path",
     public_profile_id: `eq.${publicProfileId}`,
     limit: "1",
   });
@@ -1086,6 +1092,8 @@ async function getPublicMember(rawPublicProfileId: unknown) {
   }
   return {
     member: {
+      avatarUrl: buildLiveRoomAvatarUrl(row.avatar_path),
+      bio: readString(row.bio) || null,
       brokerageConnected,
       displayName: readString(row.display_name) || "Member",
       emoji: readString(row.emoji) || "👋",

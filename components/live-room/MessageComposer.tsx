@@ -37,7 +37,12 @@ type MessageComposerProps = {
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
-  onProfileSave: (displayName: string) => Promise<LiveRoomProfile>;
+  onProfileAvatarChange: (
+    photo: File | null,
+  ) => Promise<LiveRoomProfile>;
+  onProfileSave: (
+    profile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => Promise<LiveRoomProfile>;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
@@ -64,6 +69,7 @@ export function MessageComposer({
   onBodyChange,
   onClearReference,
   onCancelReply,
+  onProfileAvatarChange,
   onProfileSave,
   onPresenceSettingChange,
   onMediaChange,
@@ -202,6 +208,7 @@ export function MessageComposer({
               <>
                 <MemberAvatar
                   displayName={profile.displayName || "?"}
+                  imageUrl={profile.avatarUrl}
                   size="small"
                 />
                 <span>
@@ -233,13 +240,14 @@ export function MessageComposer({
           {profile && !profile.isGuest ? (
             <ChatNameSetup
               isOpen={profileOpen}
+              onAvatarChange={onProfileAvatarChange}
               onDismiss={() => {
                 resumeSendRef.current = false;
                 setProfileOpen(false);
               }}
               onPresenceSettingChange={onPresenceSettingChange}
-              onSave={async (displayName) => {
-                const saved = await onProfileSave(displayName);
+              onSave={async (nextProfile) => {
+                const saved = await onProfileSave(nextProfile);
                 if (resumeSendRef.current) {
                   resumeSendRef.current = false;
                   window.setTimeout(() => onSend(saved), 0);

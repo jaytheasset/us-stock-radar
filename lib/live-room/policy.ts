@@ -5,6 +5,10 @@ import {
   type LiveRoomReportReason,
 } from "./types.ts";
 import { validateLiveRoomChatName } from "./chatIdentity.ts";
+import {
+  LiveRoomProfileBioValidationError,
+  normalizeLiveRoomProfileBio,
+} from "./profileBio.ts";
 
 export const LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS = 5 * 60 * 1_000;
 
@@ -128,7 +132,21 @@ export function normalizeLiveRoomProfileInput(value: unknown) {
     );
   }
 
-  return { displayName: result.value };
+  try {
+    return {
+      bio: normalizeLiveRoomProfileBio(input.bio),
+      displayName: result.value,
+    };
+  } catch (error) {
+    if (error instanceof LiveRoomProfileBioValidationError) {
+      throw new LiveRoomPolicyError(
+        "LIVE_ROOM_INVALID_PROFILE_BIO",
+        error.message,
+        400,
+      );
+    }
+    throw error;
+  }
 }
 
 export function validateLiveRoomEventReference(

@@ -264,6 +264,7 @@ export function DirectMessageClient({
             <MemberAvatar
               className={styles.avatar}
               displayName={conversation?.peer.displayName || ""}
+              imageUrl={conversation?.peer.avatarUrl}
             />
             <span>
               <small>Member messages</small>

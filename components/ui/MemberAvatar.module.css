@@ -12,6 +12,7 @@
   background: var(--sr-color-surface-control);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-strong);
+  letter-spacing: var(--sr-letter-spacing-default);
   line-height: 1;
 }
 
@@ -29,7 +30,7 @@
 .avatar[data-avatar-size="large"] {
   width: calc(var(--sr-size-icon-button) + var(--sr-space-3));
   height: calc(var(--sr-size-icon-button) + var(--sr-space-3));
-  font-size: var(--sr-font-size-lg);
+  font-size: var(--sr-font-size-md);
 }
 
 .avatar img {
