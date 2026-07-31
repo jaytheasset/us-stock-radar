@@ -397,6 +397,14 @@
   line-height: var(--sr-line-height-default);
 }
 
+.analysisDisclosure {
+  margin: 0;
+  padding-inline: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+}
+
 .caseGrid,
 .analysisGrid,
 .chartSummaryGrid,

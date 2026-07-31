@@ -1078,6 +1078,32 @@
   font-family: var(--sr-font-family-mono);
 }
 
+.analysisLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1-5);
+  margin-top: var(--sr-space-4);
+  border-radius: var(--sr-radius-sm);
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+}
+
+.analysisLink:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-1);
+}
+
+.analysisLink:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.analysisLink + .detailLinks {
+  margin-top: var(--sr-space-2);
+}
+
 .detailLinks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

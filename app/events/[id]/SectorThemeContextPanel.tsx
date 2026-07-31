@@ -67,6 +67,8 @@ export function SectorThemeContextPanel({
   const moverGroupName = context.moverGroupName || context.subTheme || context.industry || context.sector || "";
   const moverHeading = getMoverHeading(context.moverMode, moverGroupName, range);
   const metrics = [
+    context.companyName ? { label: "Company", name: context.companyName } : null,
+    context.exchange ? { label: "Exchange", name: context.exchange } : null,
     { label: "Sector", name: context.sector, value: period.sectorChange },
     { label: "Industry", name: context.industry, value: period.industryChange },
     context.themeGroup

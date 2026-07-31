@@ -412,6 +412,8 @@ test("calendar UI reuses shared filters, segmented controls, detail panel, and b
   assert.match(detail, /BottomSheetShell/);
   assert.match(detail, /LiveRoomEntryButton/);
   assert.match(detail, /getStockRouteHref/);
+  assert.match(detail, /const analysisHref = event\.detailHref \?\? null/);
+  assert.match(detail, /\{analysisHref \? \([\s\S]*href=\{analysisHref\}[\s\S]*View analysis/);
 });
 
 test("stock watching is ticker-scoped while event following remains event-scoped", async () => {
@@ -443,6 +445,8 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
   assert.match(detail, /saved to Alerts separately from Stock Watchlist tracking/);
+  assert.doesNotMatch(detail, /AlertReliabilityNotice/);
+  assert.doesNotMatch(detail, /Alerts may be delayed, changed, duplicated, or unavailable/);
   assert.match(
     styles,
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { FilingsV2MarketCapOption } from "@/components/filings-v2/FilingsV2MarketCapOption";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
+import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import {
   filingsV2DateOptions,
   filingsV2EventLabels,
@@ -31,6 +32,7 @@ type FilingsV2FilterBarProps = {
   onRemoveFilter: (group: FilingsV2FilterGroup, value: string) => void;
   onReset: () => void;
   onSearch: () => void;
+  onTickerSelect: (ticker: string) => void;
   onToggleFilter: (group: FilingsV2FilterGroup, value: string) => void;
   query: string;
 };
@@ -66,6 +68,7 @@ export function FilingsV2FilterBar({
   onRemoveFilter,
   onReset,
   onSearch,
+  onTickerSelect,
   onToggleFilter,
   query,
 }: FilingsV2FilterBarProps) {
@@ -111,18 +114,15 @@ export function FilingsV2FilterBar({
           }}
           role="search"
         >
-          <label className={styles.searchControl}>
-            <span aria-hidden="true" className={styles.searchIconCell}>
-              <Search size={17} />
-            </span>
-            <span className={styles.visuallyHidden}>Search filings</span>
-            <input
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search filings"
-              type="search"
-              value={query}
-            />
-          </label>
+          <TickerCompanyAutocomplete
+            className={styles.searchControl}
+            id="filings-v2-ticker-company-search"
+            label="Search filings by ticker or company"
+            onSelect={(result) => onTickerSelect(result.ticker)}
+            onValueChange={onQueryChange}
+            placeholder="Search ticker, company or filing"
+            value={query}
+          />
           <button className={styles.searchButton} type="submit">Search</button>
         </form>
 

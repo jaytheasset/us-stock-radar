@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
+import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import type {
   AlertSettingsViewModel,
@@ -15,6 +16,7 @@ import type {
   TickerSearchResult,
 } from "@/lib/alerts/tickers/types";
 import type { WatchlistTickerItem, WatchlistViewModel } from "@/lib/watchlist/types";
+import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import {
   alertIconSet,
   alertSources,
@@ -142,10 +144,6 @@ export function StockRadarAlertsV2({
   const [tickerAction, setTickerAction] = useState("");
   const [tickerInput, setTickerInput] = useState(normalizedInitialTicker);
   const [selectedTicker, setSelectedTicker] = useState<TickerSearchResult | null>(null);
-  const [tickerSuggestions, setTickerSuggestions] = useState<TickerSearchResult[]>([]);
-  const [tickerSearchLoading, setTickerSearchLoading] = useState(false);
-  const [tickerSearchOpen, setTickerSearchOpen] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [tickerMessage, setTickerMessage] = useState("");
   const [watchlistItems, setWatchlistItems] = useState<WatchlistTickerItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -175,9 +173,7 @@ export function StockRadarAlertsV2({
   const [recentAlertsError, setRecentAlertsError] = useState("");
   const [hasExpandedAlertHistory, setHasExpandedAlertHistory] = useState(false);
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
-  const tickerSearchRef = useRef<HTMLDivElement>(null);
   const lastInitialTickerRef = useRef(normalizedInitialTicker);
-  const pendingInitialTickerRef = useRef(normalizedInitialTicker);
   const plan = settings?.plan ?? "free";
   const planLimits = settings?.limits ?? getPlanLimits(plan);
   const allowedDiscoveryCategories = useMemo(
@@ -286,92 +282,10 @@ export function StockRadarAlertsV2({
     }
 
     lastInitialTickerRef.current = normalizedInitialTicker;
-    pendingInitialTickerRef.current = normalizedInitialTicker;
     setTickerInput(normalizedInitialTicker);
     setSelectedTicker(null);
-    setTickerSuggestions([]);
-    setTickerSearchOpen(false);
     setTickerMessage("");
   }, [normalizedInitialTicker]);
-
-  useEffect(() => {
-    const query = tickerInput.trim();
-    if (
-      !query ||
-      (selectedTicker && selectedTicker.ticker === query.toUpperCase())
-    ) {
-      setTickerSuggestions([]);
-      setTickerSearchLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setTickerSearchLoading(true);
-      fetch(`/api/tickers/search?q=${encodeURIComponent(query)}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          const payload = await readApiPayload<TickerSearchResult[]>(response);
-          if (!response.ok || !Array.isArray(payload?.data)) {
-            throw new Error(payload?.message || "Failed to search tickers.");
-          }
-          const requestedInitialTicker = pendingInitialTickerRef.current;
-          const exactInitialMatch =
-            requestedInitialTicker === query.toUpperCase()
-              ? payload.data.find(
-                  (suggestion) =>
-                    suggestion.ticker === requestedInitialTicker,
-                )
-              : undefined;
-
-          if (exactInitialMatch) {
-            pendingInitialTickerRef.current = "";
-            setSelectedTicker(exactInitialMatch);
-            setTickerInput(exactInitialMatch.ticker);
-            setTickerSuggestions([]);
-            setTickerSearchOpen(false);
-            setTickerMessage("");
-            return;
-          }
-
-          if (requestedInitialTicker === query.toUpperCase()) {
-            pendingInitialTickerRef.current = "";
-          }
-          setTickerSuggestions(payload.data);
-          setActiveSuggestionIndex(0);
-          setTickerSearchOpen(true);
-        })
-        .catch((error: unknown) => {
-          if (controller.signal.aborted) return;
-          setTickerSuggestions([]);
-          setTickerMessage(error instanceof Error ? error.message : "Failed to search tickers.");
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setTickerSearchLoading(false);
-        });
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [selectedTicker, tickerInput]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        tickerSearchRef.current &&
-        !tickerSearchRef.current.contains(event.target as Node)
-      ) {
-        setTickerSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
 
   const markSettingsChanged = () => setSaveStatus("idle");
 
@@ -548,8 +462,6 @@ export function StockRadarAlertsV2({
   const selectTickerSuggestion = (suggestion: TickerSearchResult) => {
     setSelectedTicker(suggestion);
     setTickerInput(suggestion.ticker);
-    setTickerSuggestions([]);
-    setTickerSearchOpen(false);
     setTickerMessage("");
   };
 
@@ -578,8 +490,6 @@ export function StockRadarAlertsV2({
       setAlertTickerLimit(payload.data.limit);
       setTickerInput("");
       setSelectedTicker(null);
-      setTickerSuggestions([]);
-      setTickerSearchOpen(false);
       markSettingsChanged();
     } catch (error) {
       setTickerMessage(error instanceof Error ? error.message : "Failed to add alert-enabled ticker.");
@@ -746,7 +656,6 @@ export function StockRadarAlertsV2({
   const Bell = alertIconSet.Bell;
   const CheckCircle2 = alertIconSet.CheckCircle2;
   const Lock = alertIconSet.Lock;
-  const Search = alertIconSet.Search;
   const Trash2 = alertIconSet.Trash2;
   const upgradeTier = plan === "advanced" ? "Ultimate" : "Advanced";
   const coverageDescription =
@@ -826,81 +735,21 @@ export function StockRadarAlertsV2({
         </div>
 
         <div className={styles.addTickerRow}>
-          <div className={styles.tickerSearch} ref={tickerSearchRef}>
-            <label className={styles.searchBox}>
-              <Search aria-hidden="true" size={18} />
-              <span>Search ticker or company to add</span>
-              <input
-                aria-autocomplete="list"
-                aria-controls="alert-ticker-suggestions"
-                aria-expanded={tickerSearchOpen}
-                autoComplete="off"
-                onChange={(event) => {
-                  pendingInitialTickerRef.current = "";
-                  setTickerInput(event.target.value);
-                  setSelectedTicker(null);
-                  setTickerMessage("");
-                }}
-                onFocus={() => {
-                  if (tickerSuggestions.length > 0) setTickerSearchOpen(true);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown" && tickerSuggestions.length > 0) {
-                    event.preventDefault();
-                    setTickerSearchOpen(true);
-                    setActiveSuggestionIndex((current) =>
-                      Math.min(current + 1, tickerSuggestions.length - 1),
-                    );
-                  } else if (event.key === "ArrowUp" && tickerSuggestions.length > 0) {
-                    event.preventDefault();
-                    setActiveSuggestionIndex((current) => Math.max(current - 1, 0));
-                  } else if (event.key === "Enter") {
-                    event.preventDefault();
-                    const activeSuggestion = tickerSuggestions[activeSuggestionIndex];
-                    if (tickerSearchOpen && activeSuggestion) {
-                      selectTickerSuggestion(activeSuggestion);
-                    } else if (selectedTicker) {
-                      void addTicker();
-                    }
-                  } else if (event.key === "Escape") {
-                    setTickerSearchOpen(false);
-                  }
-                }}
-                placeholder="Search ticker or company"
-                value={tickerInput}
-              />
-            </label>
-
-            {tickerSearchOpen ? (
-              <div
-                className={styles.tickerSuggestions}
-                id="alert-ticker-suggestions"
-                role="listbox"
-              >
-                {tickerSearchLoading ? (
-                  <p className={styles.tickerSearchStatus}>Searching...</p>
-                ) : tickerSuggestions.length > 0 ? (
-                  tickerSuggestions.map((suggestion, index) => (
-                    <button
-                      aria-selected={index === activeSuggestionIndex}
-                      className={styles.tickerSuggestion}
-                      data-active={index === activeSuggestionIndex}
-                      key={suggestion.ticker}
-                      onClick={() => selectTickerSuggestion(suggestion)}
-                      role="option"
-                      type="button"
-                    >
-                      <strong>{suggestion.ticker}</strong>
-                      <span>{suggestion.companyName}</span>
-                      <small>{suggestion.exchange || suggestion.assetType || ""}</small>
-                    </button>
-                  ))
-                ) : tickerInput.trim() ? (
-                  <p className={styles.tickerSearchStatus}>No matching listed ticker.</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          <TickerCompanyAutocomplete
+            autoSelectExact
+            className={styles.tickerSearch}
+            id="alerts-v2-ticker-search"
+            label="Search ticker or company to add"
+            onSelect={selectTickerSuggestion}
+            onValueChange={(value) => {
+              setTickerInput(value);
+              setSelectedTicker(null);
+              setTickerMessage("");
+            }}
+            placeholder="Search ticker or company"
+            selectedTicker={selectedTicker?.ticker}
+            value={tickerInput}
+          />
           <button
             className={styles.primaryButton}
             disabled={!selectedTicker || Boolean(tickerAction)}
@@ -929,30 +778,55 @@ export function StockRadarAlertsV2({
             <p className={styles.tickerEmpty}>Loading alert-enabled tickers...</p>
           ) : tickers.length === 0 ? (
             <p className={styles.tickerEmpty}>No alert-enabled tickers yet.</p>
-          ) : tickers.map((ticker) => (
-            <article className={styles.tickerRow} key={ticker.id}>
-              <strong>{ticker.ticker}</strong>
-              <span>{ticker.companyName}</span>
-              <div className={styles.inlineToggle}>
-                <ToggleSwitch
-                  checked={ticker.enabled}
+          ) : tickers.map((ticker) => {
+            const stockHref = getStockRouteHref(ticker.ticker);
+
+            return (
+              <article className={styles.tickerRow} key={ticker.id}>
+                {stockHref ? (
+                  <>
+                    <Link
+                      aria-label={`View ${ticker.ticker} stock overview`}
+                      className={styles.tickerSymbolLink}
+                      href={stockHref}
+                    >
+                      {ticker.ticker}
+                    </Link>
+                    <Link
+                      aria-label={`View ${ticker.companyName} stock overview`}
+                      className={styles.tickerCompanyLink}
+                      href={stockHref}
+                    >
+                      {ticker.companyName}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <strong>{ticker.ticker}</strong>
+                    <span>{ticker.companyName}</span>
+                  </>
+                )}
+                <div className={styles.inlineToggle}>
+                  <ToggleSwitch
+                    checked={ticker.enabled}
+                    disabled={Boolean(tickerAction)}
+                    label={`Toggle alerts for ${ticker.ticker}`}
+                    onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
+                  />
+                  <em>{ticker.enabled ? "ON" : "OFF"}</em>
+                </div>
+                <button
+                  aria-label={`Remove ${ticker.ticker}`}
+                  className={styles.removeButton}
                   disabled={Boolean(tickerAction)}
-                  label={`Toggle alerts for ${ticker.ticker}`}
-                  onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
-                />
-                <em>{ticker.enabled ? "ON" : "OFF"}</em>
-              </div>
-              <button
-                aria-label={`Remove ${ticker.ticker}`}
-                className={styles.removeButton}
-                disabled={Boolean(tickerAction)}
-                onClick={() => void removeTicker(ticker.ticker)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={20} />
-              </button>
-            </article>
-          ))}
+                  onClick={() => void removeTicker(ticker.ticker)}
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={20} />
+                </button>
+              </article>
+            );
+          })}
         </div>
           </section>
 

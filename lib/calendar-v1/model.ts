@@ -103,6 +103,7 @@ type CalendarEventCommon = {
   category: CalendarCategory;
   eventType: CalendarEventType;
   title: string;
+  detailHref?: string | null;
   eventDate: string;
   eventEndDate: string | null;
   eventTime: string | null;

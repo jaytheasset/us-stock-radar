@@ -12,7 +12,6 @@ import {
   LoaderCircle,
   Menu,
   Plus,
-  Search,
   Trash2,
 } from "lucide-react";
 import {
@@ -26,6 +25,7 @@ import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
+import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { formatLimit } from "@/lib/subscriptionPolicy";
 import {
   formatCompactMarketValue,
@@ -36,7 +36,6 @@ import {
   mapStockOverviewEvents,
   mapStockOverviewProfile,
   mapStockOverviewQuote,
-  mapTickerSearchResults,
   resolveStockOverviewTicker,
   selectStockOverviewEvents,
   type StockOverviewChartPoint,
@@ -139,8 +138,6 @@ export function StockRadarWatchlistV2({
   const [sortMode, setSortMode] = useState<SortMode>("saved");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [tickerQuery, setTickerQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<TickerSearchResult[]>([]);
-  const [searchState, setSearchState] = useState<LoadState>("idle");
   const [mutationTicker, setMutationTicker] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"neutral" | "error">("neutral");
@@ -322,41 +319,6 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [chartRange, selectedTicker]);
-
-  useEffect(() => {
-    const query = tickerQuery.trim();
-    if (!query) {
-      setSearchResults([]);
-      setSearchState("idle");
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      setSearchState("loading");
-      void fetch(`/api/tickers/search?q=${encodeURIComponent(query)}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      })
-        .then(readJsonResponse)
-        .then((payload) => {
-          if (controller.signal.aborted) return;
-          setSearchResults(mapTickerSearchResults(payload));
-          setSearchState("ready");
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) {
-            setSearchResults([]);
-            setSearchState("unavailable");
-          }
-        });
-    }, 220);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
-  }, [tickerQuery]);
 
   useEffect(() => {
     if (!isSortOpen) return;
@@ -549,7 +511,6 @@ export function StockRadarWatchlistV2({
       }
       setWatchlist(payload.data);
       setTickerQuery("");
-      setSearchResults([]);
       setStatusMessage(`${result.ticker} added to your watchlist.`);
       setIsTickerSheetOpen(false);
     } catch (error) {
@@ -664,8 +625,6 @@ export function StockRadarWatchlistV2({
       onSortKeyDown={handleSortMenuKeyDown}
       onToggleSort={() => setIsSortOpen((value) => !value)}
       query={tickerQuery}
-      searchResults={searchResults}
-      searchState={searchState}
       selectedTicker={selectedTicker}
       sortMenuRef={sortMenuRef}
       sortMode={sortMode}
@@ -939,7 +898,7 @@ export function StockRadarWatchlistV2({
           onDismiss={() => setIsTickerSheetOpen(false)}
           openerRef={tickerSheetOpenerRef}
           overlayLabel="Close watchlist"
-          viewport="tablet"
+          viewport="all"
         >
           <div className={styles.sheetContent}>
             <div className={styles.sheetHeading}>
@@ -983,8 +942,6 @@ function WatchlistRail({
   onSortKeyDown,
   onToggleSort,
   query,
-  searchResults,
-  searchState,
   selectedTicker,
   sortMenuRef,
   sortMode,
@@ -1004,8 +961,6 @@ function WatchlistRail({
   onSortKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onToggleSort: () => void;
   query: string;
-  searchResults: TickerSearchResult[];
-  searchState: LoadState;
   selectedTicker: string | null;
   sortMenuRef: React.RefObject<HTMLDivElement | null>;
   sortMode: SortMode;
@@ -1068,56 +1023,27 @@ function WatchlistRail({
         </div>
       </div>
 
-      <label className={styles.tickerSearch}>
-        <span aria-hidden="true" className={styles.searchIconCell}>
-          <Search size={15} />
-        </span>
-        <input
-          aria-label="Search stocks to add"
-          autoCapitalize="characters"
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search ticker or company"
-          value={query}
-        />
-      </label>
-
-      {query ? (
-        <div className={styles.searchResults} role="listbox">
-          {searchState === "loading" ? (
-            <span className={styles.inlineLoading}>
-              <LoaderCircle aria-hidden="true" size={14} /> Searching…
-            </span>
-          ) : searchResults.length ? (
-            searchResults.map((result) => {
-              const isSaved = watchlist.items.some(
-                (item) => item.ticker === result.ticker,
-              );
-              return (
-                <button
-                  aria-label={`${isSaved ? "Open" : "Add"} ${result.ticker}`}
-                  disabled={Boolean(mutationTicker) || (!isSaved && limitReached)}
-                  key={result.ticker}
-                  onClick={() => onAdd(result)}
-                  role="option"
-                  type="button"
-                >
-                  <span>
-                    <strong>{result.ticker}</strong>
-                    <small>{result.companyName}</small>
-                  </span>
-                  <span>{isSaved ? "Open" : <Plus aria-hidden="true" size={14} />}</span>
-                </button>
-              );
-            })
+      <TickerCompanyAutocomplete
+        className={styles.tickerSearch}
+        emptyMessage="No matching active ticker."
+        getOptionAction={(result) =>
+          watchlist.items.some((item) => item.ticker === result.ticker) ? (
+            "Open"
           ) : (
-            <span className={styles.searchEmpty}>
-              {searchState === "unavailable"
-                ? "Ticker search is unavailable."
-                : "No matching active ticker."}
-            </span>
-          )}
-        </div>
-      ) : null}
+            <Plus aria-hidden="true" size={14} />
+          )
+        }
+        id="watchlist-ticker-search"
+        isOptionDisabled={(result) =>
+          Boolean(mutationTicker) ||
+          (limitReached && !watchlist.items.some((item) => item.ticker === result.ticker))
+        }
+        label="Search stocks to add"
+        onSelect={onAdd}
+        onValueChange={onQueryChange}
+        placeholder="Search ticker or company"
+        value={query}
+      />
 
       <ul className={styles.watchlistItems}>
         {watchlistItems.map((item) => (
