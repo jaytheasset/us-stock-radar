@@ -3,18 +3,18 @@
   margin-inline: auto;
 }
 
-.mobileSlot {
+.slot.mobileSlot {
   display: none;
 }
 
 @media (max-width: 1180px) {
-  .desktopSlot {
+  .slot.desktopSlot {
     display: none;
   }
 }
 
 @media (max-width: 760px) {
-  .mobileSlot {
+  .slot.mobileSlot {
     display: flex;
   }
 }

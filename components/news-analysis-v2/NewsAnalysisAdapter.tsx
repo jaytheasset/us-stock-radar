@@ -56,7 +56,16 @@ export function NewsAnalysisAdapter({
           preferredSourceUrl ? <GooglePreferredSourceLink href={preferredSourceUrl} summary /> : undefined
         }
         timestampLabel={detail.timestampLabel}
-        contextRenderer={detail.marketContext ? <SectorThemeContextPanel context={detail.marketContext} storedOnly ticker={filing.ticker} /> : undefined}
+        contextRenderer={detail.marketContext ? (
+          <SectorThemeContextPanel context={detail.marketContext} storedOnly ticker={filing.ticker} />
+        ) : (
+          <section className="stock-detail-card sector-theme-main-card">
+            <div className="card-heading-row context-heading-row">
+              <h2>Market Context</h2>
+            </div>
+            <p>Stored company and market context is unavailable for this event.</p>
+          </section>
+        )}
       />
     </StockRadarAppShell>
   );
