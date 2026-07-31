@@ -7,6 +7,7 @@ import { DesktopInlineAdSlot } from "@/components/dashboard-v2/DesktopInlineAdSl
 import { MobileInlineAdSlot } from "@/components/dashboard-v2/MobileInlineAdSlot";
 import { DesktopMarketRow } from "@/components/market/DesktopMarketRow";
 import { MobileMarketRow, type MarketValueTone } from "@/components/market/MobileMarketRow";
+import { selectDashboardV2EventTypeBadges } from "@/lib/dashboardV2Events";
 import type { DashboardV2MarketMover } from "@/lib/dashboardV2Types";
 
 type MarketMoversTableProps = {
@@ -60,10 +61,21 @@ export function MarketMoversTable({
                 mobileValueMode === "volume" ? row.changePercent : row.price;
               const primaryTone = mobileValueMode === "volume" ? "neutral" : changeTone;
               const secondaryTone = mobileValueMode === "volume" ? changeTone : "neutral";
-              const visibleMobileEvents = row.events.slice(0, 2);
-              const hiddenMobileEvents = row.events.slice(2);
-              const hiddenEventLabel = hiddenMobileEvents.length
-                ? `Additional events: ${hiddenMobileEvents
+              const desktopEventTypes = selectDashboardV2EventTypeBadges(
+                row.events,
+                4,
+              );
+              const visibleMobileEventTypes =
+                desktopEventTypes.representatives.slice(0, 2);
+              const hiddenMobileEventTypes =
+                desktopEventTypes.representatives.slice(2);
+              const hiddenDesktopLabel = desktopEventTypes.hidden.length
+                ? `Additional event types: ${desktopEventTypes.hidden
+                    .map(getEventAccessibleLabel)
+                    .join(", ")}`
+                : undefined;
+              const hiddenMobileLabel = hiddenMobileEventTypes.length
+                ? `Additional event types: ${hiddenMobileEventTypes
                     .map(getEventAccessibleLabel)
                     .join(", ")}`
                 : undefined;
@@ -74,10 +86,27 @@ export function MarketMoversTable({
                     change={row.changePercent}
                     company={row.company}
                     events={
-                      row.events.length
-                        ? row.events.slice(0, 4).map((event) => (
-                            <EventBadge event={event} key={event.id} />
-                          ))
+                      desktopEventTypes.visible.length
+                        ? (
+                            <>
+                              {desktopEventTypes.visible.map((event) => (
+                                <EventBadge
+                                  event={event}
+                                  key={event.code}
+                                  size="micro"
+                                />
+                              ))}
+                              {desktopEventTypes.hidden.length ? (
+                                <span
+                                  aria-label={hiddenDesktopLabel}
+                                  className="dashboard-v2-event-overflow"
+                                  title={hiddenDesktopLabel}
+                                >
+                                  +{desktopEventTypes.hidden.length}
+                                </span>
+                              ) : null}
+                            </>
+                          )
                         : undefined
                     }
                     impact={row.maxImpact}
@@ -96,18 +125,18 @@ export function MarketMoversTable({
                   <MobileMarketRow
                     company={row.company}
                     eventBadges={
-                      visibleMobileEvents.length
-                        ? visibleMobileEvents.map((event) => (
+                      visibleMobileEventTypes.length
+                        ? visibleMobileEventTypes.map((event) => (
                             <EventBadge
                               event={event}
-                              key={`${row.ticker}-mobile-${event.id}`}
+                              key={`${row.ticker}-mobile-${event.code}`}
                               size="micro"
                             />
                           ))
                         : undefined
                     }
-                    eventOverflowCount={hiddenMobileEvents.length}
-                    eventOverflowLabel={hiddenEventLabel}
+                    eventOverflowCount={hiddenMobileEventTypes.length}
+                    eventOverflowLabel={hiddenMobileLabel}
                     impact={row.maxImpact}
                     logoUrl={row.logoUrl}
                     onSelect={() => onSelectRow?.(row)}
