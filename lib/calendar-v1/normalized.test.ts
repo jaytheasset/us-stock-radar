@@ -81,6 +81,7 @@ test("normalized query uses the date index contract and a public projection", ()
     "calendar_event_sectors",
     "calendar_event_metrics",
     "calendar_event_details",
+    "calendar_event_analysis_links",
   ]) {
     assert.match(NORMALIZED_CALENDAR_SELECT, new RegExp(relation));
   }
@@ -131,26 +132,43 @@ test("mapper handles missing optional source, security, metric, and details safe
   });
 });
 
-test("calendar analysis routes are explicit canonical news or filing paths only", () => {
+test("calendar analysis routes come only from linked relationships and use the filing route", () => {
   const eventId = "00000000-0000-4000-8000-000000000001";
-  assert.equal(normalizeCalendarAnalysisHref(`/events/${eventId}`), `/events/${eventId}`);
+  assert.equal(normalizeCalendarAnalysisHref(`/events/${eventId}`), null);
   assert.equal(normalizeCalendarAnalysisHref(`/filings/${eventId}`), `/filings/${eventId}`);
   assert.equal(normalizeCalendarAnalysisHref(`/stocks/${eventId}`), null);
   assert.equal(normalizeCalendarAnalysisHref("https://example.com/events/1"), null);
-  assert.equal(normalizeCalendarAnalysisHref("/events/not-persistent"), null);
+  assert.equal(normalizeCalendarAnalysisHref("/filings/not-persistent"), null);
 
   const mapped = mapNormalizedCalendarRow(
     baseMacroRow({
+      analysis_links: [
+        { analysis_event_id: eventId, is_primary: true, link_status: "linked" },
+        { analysis_event_id: uuidFor(2), is_primary: false, link_status: "linked" },
+      ],
       details: {
         detail: {
-          analysis_href: `/events/${eventId}`,
+          analysis_href: `/filings/${uuidFor(3)}`,
           reference_period: "June 2026",
         },
         schema_version: 1,
       },
     }),
   );
-  assert.equal(mapped.detailHref, `/events/${eventId}`);
+  assert.equal(mapped.detailHref, `/filings/${eventId}`);
+  assert.equal(mapped.relatedAnalysisCount, 1);
+  assert.equal(mapped.analysisPending, false);
+
+  const pending = mapNormalizedCalendarRow(
+    baseMacroRow({
+      analysis_links: [
+        { analysis_event_id: uuidFor(4), is_primary: false, link_status: "candidate" },
+      ],
+    }),
+  );
+  assert.equal(pending.detailHref, null);
+  assert.equal(pending.relatedAnalysisCount, 0);
+  assert.equal(pending.analysisPending, true);
 });
 
 test("mapper creates Company and Policy discriminated details without inventing values", () => {
@@ -376,6 +394,7 @@ function parseRange(from: string, to: string) {
 
 function baseMacroRow(overrides: Record<string, unknown> = {}) {
   return {
+    analysis_links: [],
     category: "macro",
     details: {
       detail: {
