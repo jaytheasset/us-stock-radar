@@ -156,6 +156,7 @@ export function StockRadarAlertsV2({
   const [deliveryState, setDeliveryState] = useState(
     Object.fromEntries(deliveryItems.map((item) => [item.id, item.enabled])),
   );
+  const [telegramAction, setTelegramAction] = useState<"" | "connect" | "change" | "disconnect">("");
   const [marketCapState, setMarketCapState] = useState(
     Object.fromEntries(marketCapFilters.map((item) => [item.id, true])),
   );
@@ -294,6 +295,54 @@ export function StockRadarAlertsV2({
 
   const markSettingsChanged = () => setSaveStatus("idle");
 
+  const openTelegramConnection = async (action: "connect" | "change") => {
+    setTelegramAction(action);
+    setSettingsMessage("");
+    try {
+      const response = await fetch("/api/alerts/channels/telegram/connect", {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        connectUrl?: string;
+        message?: string;
+      } | null;
+      if (!response.ok || !payload?.connectUrl) {
+        throw new Error(payload?.message || "Failed to start Telegram connection.");
+      }
+      window.location.assign(payload.connectUrl);
+      return true;
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to start Telegram connection.",
+      );
+      return false;
+    } finally {
+      setTelegramAction("");
+    }
+  };
+
+  const disconnectTelegram = async () => {
+    setTelegramAction("disconnect");
+    setSettingsMessage("");
+    try {
+      const response = await fetch("/api/alerts/channels/telegram/connect", {
+        method: "DELETE",
+      });
+      const payload = await readApiPayload<AlertSettingsViewModel>(response);
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.message || "Failed to disconnect Telegram alerts.");
+      }
+      applySettings(payload.data);
+      setSaveStatus("saved");
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to disconnect Telegram alerts.",
+      );
+    } finally {
+      setTelegramAction("");
+    }
+  };
+
   const applySettings = (nextSettings: AlertSettingsViewModel) => {
     setSettings(nextSettings);
     const selected = new Set(nextSettings.selectedCategories);
@@ -338,17 +387,7 @@ export function StockRadarAlertsV2({
       if (channel === "telegram" && enabled) {
         const currentChannel = settings?.channels.find((item) => item.channel === "telegram");
         if (!currentChannel?.connected) {
-          const connectResponse = await fetch("/api/alerts/channels/telegram/connect", {
-            method: "POST",
-          });
-          const connectPayload = (await connectResponse.json().catch(() => null)) as {
-            url?: string;
-            message?: string;
-          } | null;
-          if (!connectResponse.ok || !connectPayload?.url) {
-            throw new Error(connectPayload?.message || "Failed to start Telegram connection.");
-          }
-          window.location.assign(connectPayload.url);
+          await openTelegramConnection("connect");
           return false;
         }
       }
@@ -990,7 +1029,10 @@ export function StockRadarAlertsV2({
                 const implemented = channel?.implemented ?? false;
 
                 return (
-                  <article className={styles.settingRow} key={item.id}>
+                  <article
+                    className={`${styles.settingRow} ${item.id === "telegram" ? styles.telegramSettingRow : ""}`}
+                    key={item.id}
+                  >
                     <Icon aria-hidden="true" size={20} />
                     <div>
                       <strong>{item.title}</strong>
@@ -1016,6 +1058,37 @@ export function StockRadarAlertsV2({
                       />
                       <em>{deliveryState[item.id] ? "ON" : "OFF"}</em>
                     </div>
+                    {item.id === "telegram" && channel ? (
+                      <div className={styles.channelActions}>
+                        {!channel.connected && !locked ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void openTelegramConnection("connect")}
+                            type="button"
+                          >
+                            {telegramAction === "connect" ? "Opening..." : "Connect Telegram"}
+                          </button>
+                        ) : null}
+                        {channel.connected && !locked ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void openTelegramConnection("change")}
+                            type="button"
+                          >
+                            {telegramAction === "change" ? "Opening..." : "Change account"}
+                          </button>
+                        ) : null}
+                        {channel.connected ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void disconnectTelegram()}
+                            type="button"
+                          >
+                            {telegramAction === "disconnect" ? "Disconnecting..." : "Disconnect"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
