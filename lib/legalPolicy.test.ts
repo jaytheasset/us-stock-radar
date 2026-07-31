@@ -47,6 +47,7 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   const terms = read("app/terms/page.tsx");
   const privacy = read("app/privacy/page.tsx");
   const sharedDocument = read("components/legal/LegalDocument.tsx");
+  const productFooter = read("components/shell/StockRadarProductFooter.tsx");
   const policyConfig = read("lib/legalPolicy.ts");
 
   for (const source of [terms, privacy]) {
@@ -110,6 +111,8 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   assert.match(sharedDocument, /href="\/dashboard-v2"/);
   assert.match(sharedDocument, /effectiveDate/);
   assert.match(sharedDocument, /updatedDate/);
+  assert.match(productFooter, /href="\/terms#market-information"/);
+  assert.match(productFooter, />Full disclaimer<\/Link>/);
   assert.match(policyConfig, /July 30, 2026/g);
   assert.match(policyConfig, /counsel must review/i);
 });

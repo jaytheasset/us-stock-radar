@@ -1,4 +1,6 @@
 .shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   overflow-x: clip;
   isolation: isolate;
@@ -48,6 +50,7 @@
 }
 
 .main {
+  flex: 1 0 auto;
   min-width: 0;
 }
 
