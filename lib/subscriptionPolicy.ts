@@ -38,6 +38,7 @@ export type AlertCategoryDefinition<TCategory extends AlertCategory = AlertCateg
 export type PlanLimits = {
   watchlistLimit: PlanLimitValue;
   alertTickerLimit: PlanLimitValue;
+  calendarEventFollowLimit: PlanLimitValue;
   discoveryCategories: readonly PublicAlertCategory[];
   alertDelayMinutes: number;
   channels: readonly AlertChannel[];
@@ -164,6 +165,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     watchlistLimit: null,
     alertTickerLimit: 1,
+    calendarEventFollowLimit: 5,
     discoveryCategories: CORE_CATEGORY_VALUES,
     alertDelayMinutes: 5,
     channels: ["web"],
@@ -175,6 +177,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   ad_free: {
     watchlistLimit: null,
     alertTickerLimit: 5,
+    calendarEventFollowLimit: 20,
     discoveryCategories: CORE_CATEGORY_VALUES,
     alertDelayMinutes: 5,
     channels: ["web"],
@@ -186,6 +189,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: {
     watchlistLimit: null,
     alertTickerLimit: 15,
+    calendarEventFollowLimit: 50,
     discoveryCategories: CORE_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram"],
@@ -197,6 +201,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   advanced: {
     watchlistLimit: null,
     alertTickerLimit: null,
+    calendarEventFollowLimit: null,
     discoveryCategories: PUBLIC_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email"],
@@ -208,6 +213,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   ultimate: {
     watchlistLimit: null,
     alertTickerLimit: null,
+    calendarEventFollowLimit: null,
     discoveryCategories: PUBLIC_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email", "webhook", "api"],

@@ -14,7 +14,7 @@ import {
 } from "@/lib/subscriptionPolicy";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
-import { getUserCalendarFollows } from "@/lib/alerts/calendarFollows";
+import { getUserCalendarFollowsViewModel } from "@/lib/alerts/calendarFollows";
 import {
   ALERT_FILING_TYPE_FILTERS,
   ALERT_MARKET_CAP_FILTERS,
@@ -77,7 +77,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     categoriesResult,
     channelsResult,
     deliveriesResult,
-    followedCalendarEvents,
+    calendarEventFollows,
   ] = await Promise.all([
     supabaseSelect("user_alert_tickers", {
       select: "id",
@@ -108,7 +108,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       order: "delivered_at.desc",
       limit: "5",
     }),
-    getUserCalendarFollows(userId),
+    getUserCalendarFollowsViewModel(userId, plan),
   ]);
 
   const alertTickers = Array.isArray(alertTickersResult.data)
@@ -144,7 +144,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       description: getCategoryDescription(category),
     })),
     channels,
-    followedCalendarEvents,
+    followedCalendarEvents: calendarEventFollows.follows,
+    calendarEventFollowUsage: calendarEventFollows.usage,
     recentDeliveredAlerts,
   };
 }
@@ -183,6 +184,11 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
       },
     ]),
     followedCalendarEvents: [],
+    calendarEventFollowUsage: {
+      activeCount: 0,
+      limit: limits.calendarEventFollowLimit,
+      remaining: limits.calendarEventFollowLimit,
+    },
     recentDeliveredAlerts: [],
   };
 }

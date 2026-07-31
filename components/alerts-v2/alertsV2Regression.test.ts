@@ -27,6 +27,17 @@ const followsRouteSource = readFileSync(
   new URL("../../app/api/calendar/follows/route.ts", import.meta.url),
   "utf8",
 );
+const calendarFollowsSource = readFileSync(
+  new URL("../../lib/alerts/calendarFollows.ts", import.meta.url),
+  "utf8",
+);
+const calendarFollowMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260731145536_calendar_follow_plan_limits.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const calendarDeliverySource = readFileSync(
   new URL("../../lib/alerts/calendarDelivery.ts", import.meta.url),
   "utf8",
@@ -147,6 +158,20 @@ test("in-app delivery is real, readable, and unimplemented external channels sta
   assert.match(calendarDeliverySource, /user_delivery_channels/);
   assert.match(calendarDeliverySource, /ticker: nullableString\(event\.ticker\)/);
   assert.match(componentSource, /Followed Calendar events/);
+});
+
+test("Calendar follows enforce effective-plan limits atomically on the server", () => {
+  assert.match(followsRouteSource, /getEffectiveUserPlan\(userId\)/);
+  assert.match(followsRouteSource, /plan:\s*planState\.effectivePlan/);
+  assert.match(followsRouteSource, /\.\.\.error\.details/);
+  assert.match(calendarFollowsSource, /calendarEventFollowLimit/);
+  assert.match(calendarFollowsSource, /CALENDAR_FOLLOW_LIMIT_REACHED/);
+  assert.match(calendarFollowsSource, /upgradeTarget:\s*upgradePlan \? "\/premium" : null/);
+  assert.match(calendarFollowMigrationSource, /pg_advisory_xact_lock/);
+  assert.match(calendarFollowMigrationSource, /event\.lifecycle_status not in \('released', 'completed', 'cancelled'\)/);
+  assert.match(calendarFollowMigrationSource, /follow\.enabled/);
+  assert.match(calendarFollowMigrationSource, /on conflict \(user_id, event_id\)/);
+  assert.match(componentSource, /formatCalendarEventFollowUsage\(settings\.calendarEventFollowUsage\)/);
 });
 
 test("auth bootstrap preserves a saved Web delivery preference", () => {

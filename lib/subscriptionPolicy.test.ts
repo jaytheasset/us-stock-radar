@@ -41,6 +41,10 @@ test("watchlists are unlimited and alert ticker limits match the approved contra
     plans.map((plan) => getPlanLimits(plan).alertTickerLimit),
     [1, 5, 15, null, null],
   );
+  assert.deepEqual(
+    plans.map((plan) => getPlanLimits(plan).calendarEventFollowLimit),
+    [5, 20, 50, null, null],
+  );
 });
 
 test("market-wide Discovery uses an allowed category set, not arbitrary slots", () => {
