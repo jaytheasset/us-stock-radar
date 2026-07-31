@@ -1,7 +1,8 @@
 .page {
   min-width: 0;
   min-height: calc(100vh - var(--sr-size-header));
-  width: 100%;
+  width: min(100%, 1600px);
+  margin: 0 auto;
   padding: var(--sr-space-4-5) var(--sr-page-gutter-desktop) var(--sr-space-7);
   color: var(--sr-color-text-primary);
   background: var(--sr-color-page-background);
