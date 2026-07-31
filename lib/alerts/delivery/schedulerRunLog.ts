@@ -123,6 +123,8 @@ function summarizeQueued(queued: RunAlertDeliverySchedulerResult["queued"]) {
     sent: queued.sent,
     failed: queued.failed,
     suppressed: queued.suppressed,
+    duplicatesPrevented: queued.duplicatesPrevented,
+    inProgress: queued.inProgress,
   };
 }
 
@@ -133,6 +135,18 @@ function summarizeSchedulerResult(result: RunAlertDeliverySchedulerResult) {
     write: result.write,
     locked: result.locked,
     lockSkipped: result.lockSkipped === true,
+    calendar: result.calendar
+      ? {
+          ok: result.calendar.ok,
+          write: result.calendar.write,
+          scanned: result.calendar.scanned,
+          delivered: result.calendar.delivered,
+          duplicates: result.calendar.duplicates,
+          disabled: result.calendar.disabled,
+          suppressed: result.calendar.suppressed,
+          failed: result.calendar.failed || 0,
+        }
+      : null,
     error: result.error ? sanitizeSchedulerError(result.error) : null,
   };
 }

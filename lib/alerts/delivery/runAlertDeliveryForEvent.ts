@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createUserAlertDelivery } from "@/lib/alerts/delivery/createUserAlertDelivery";
-import { runDeliveryAdapters } from "@/lib/alerts/delivery/deliveryAdapters";
 import { evaluateAlertDeliveryForEvent } from "@/lib/alerts/delivery/evaluateAlertDelivery";
 import { normalizeAlertEvent } from "@/lib/alerts/delivery/normalizeAlertEvent";
 import type { CreateAlertDeliveryResult, RunAlertDeliveryOptions, RunAlertDeliveryResult } from "@/lib/alerts/delivery/types";
@@ -50,52 +49,24 @@ export async function runAlertDeliveryForEvent(options: RunAlertDeliveryOptions)
   for (const candidate of evaluation.candidates) {
     if (!write) continue;
 
-    if (candidate.deliveryStatus === "queued") {
-      writes.push(
-        await createUserAlertDelivery({
-          userId: candidate.userId,
-          event: normalized.event,
-          alertLane: candidate.alertLane,
-          deliveryStatus: "queued",
-          deliveredChannels: [],
-          scheduledFor: candidate.scheduledFor,
-        }),
-      );
-      continue;
-    }
-
-    const adapterResult = await runDeliveryAdapters({
-      event: normalized.event,
-      candidate,
-      dryRun: false,
-    });
-
-    if (!adapterResult.deliveredChannels.length) {
-      writes.push({
-        ok: true,
-        skipped: true,
-        reason: adapterResult.errors[0]?.error || "NO_CHANNELS_DELIVERED",
-      });
-      continue;
-    }
-
     writes.push(
       await createUserAlertDelivery({
         userId: candidate.userId,
         event: normalized.event,
         alertLane: candidate.alertLane,
-        deliveryStatus: "sent",
-        deliveredChannels: adapterResult.deliveredChannels,
+        deliveryStatus: "queued",
+        deliveredChannels: candidate.eligibleChannels.map(
+          (channel) => channel.channel,
+        ),
         scheduledFor: candidate.scheduledFor,
-        sentAt: new Date().toISOString(),
-        attemptedAt: new Date().toISOString(),
-        lastError: adapterResult.errors.map((error) => `${error.channel}: ${error.error}`).join("; ") || undefined,
       }),
     );
   }
 
+  const failedWrites = writes.filter((result) => !result.ok);
+
   return {
-    ok: true,
+    ok: failedWrites.length === 0,
     dryRun,
     write,
     event: normalized.event,
@@ -108,6 +79,13 @@ export async function runAlertDeliveryForEvent(options: RunAlertDeliveryOptions)
       writtenCount: writes.filter((result) => result.ok && !result.skipped).length,
       duplicateCount: writes.filter((result) => result.reason === "DUPLICATE_DELIVERY").length,
     },
+    error:
+      failedWrites.length > 0
+        ? failedWrites
+            .map((result) => result.error)
+            .filter(Boolean)
+            .join("; ")
+        : undefined,
   };
 }
 

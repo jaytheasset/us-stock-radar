@@ -64,8 +64,10 @@ export async function runAlertDeliveryBatch(
     }
   }
 
+  const failed = eventResults.filter((event) => event.status === "failed").length;
+
   return {
-    ok: true,
+    ok: failed === 0,
     dryRun,
     write,
     force,
@@ -75,7 +77,7 @@ export async function runAlertDeliveryBatch(
     skippedAlreadyProcessed,
     deliveriesCreated: eventResults.reduce((sum, event) => sum + event.deliveriesCreated, 0),
     duplicatesSkipped: eventResults.reduce((sum, event) => sum + event.duplicatesSkipped, 0),
-    failed: eventResults.filter((event) => event.status === "failed").length,
+    failed,
     events: eventResults,
   };
 }

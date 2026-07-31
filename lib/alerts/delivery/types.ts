@@ -127,8 +127,9 @@ export type ProcessQueuedDeliveryItemResult = {
   userId: string;
   title: string;
   ticker?: string | null;
-  action: "would_send" | "sent" | "suppressed" | "failed";
+  action: "would_send" | "sent" | "suppressed" | "failed" | "in_progress";
   channels: AlertChannel[];
+  duplicatesPrevented: number;
   error?: string;
 };
 
@@ -142,7 +143,21 @@ export type ProcessQueuedDeliveryResult = {
   sent: number;
   failed: number;
   suppressed: number;
+  duplicatesPrevented: number;
+  inProgress: number;
   items: ProcessQueuedDeliveryItemResult[];
+  error?: string;
+};
+
+export type CalendarAlertDeliveryResult = {
+  ok: boolean;
+  write: boolean;
+  scanned: number;
+  delivered: number;
+  duplicates: number;
+  disabled: number;
+  suppressed: number;
+  failed?: number;
   error?: string;
 };
 
@@ -193,6 +208,8 @@ export type RunAlertDeliverySchedulerOptions = {
   queuedLimit?: number;
   skipBatch?: boolean;
   skipQueued?: boolean;
+  skipCalendar?: boolean;
+  calendarLimit?: number;
   lockTtlSeconds?: number;
   useLock?: boolean;
 };
@@ -206,5 +223,6 @@ export type RunAlertDeliverySchedulerResult = {
   lockSkipped?: boolean;
   batch?: RunAlertDeliveryBatchResult | null;
   queued?: ProcessQueuedDeliveryResult | null;
+  calendar?: CalendarAlertDeliveryResult | null;
   error?: string;
 };

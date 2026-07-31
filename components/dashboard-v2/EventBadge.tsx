@@ -1,4 +1,5 @@
 import { Badge, type BadgeSize } from "@/components/ui/Badge";
+import { getDashboardV2ShortEventLabel } from "@/lib/dashboardV2Events";
 import type { DashboardV2Event } from "@/lib/dashboardV2Types";
 
 type EventBadgeProps = {
@@ -15,26 +16,11 @@ export function EventBadge({ event, size = "small" }: EventBadgeProps) {
       title={event.label}
       tone={event.tone}
     >
-      {shortEventLabel(event)}
+      {getDashboardV2ShortEventLabel(event)}
     </Badge>
   );
 }
 
 export function getEventAccessibleLabel(event: DashboardV2Event) {
   return event.label;
-}
-
-function shortEventLabel(event: DashboardV2Event) {
-  const knownLabels: Record<string, string> = {
-    dilution_risk: "DILUTION",
-    earnings: "EARN",
-    fda_clinical: "PRODUCT",
-    insider_ownership: "INSIDER",
-    ipo_listing: "LISTING",
-    legal_risk: "LEGAL",
-    listing_risk: "LISTING",
-    product_update: "PRODUCT",
-    strategic_transaction: "M&A",
-  };
-  return knownLabels[event.code] || event.label.toUpperCase().slice(0, 10);
 }

@@ -27,7 +27,10 @@ type AlertsClientProps = {
 type AlertsTab = "Alert Settings" | "Delivered Alerts" | "Delivery Channels" | "Muted & Grouping";
 type SaveState = "idle" | "saving" | "recent" | "failed";
 type DeliveredFilter = "all" | "watchlist" | "market_discovery" | "news" | "filings";
-type BooleanPreferenceKey = Exclude<keyof AlertPreferences, "cooldownMinutes">;
+type BooleanPreferenceKey = Exclude<
+  keyof AlertPreferences,
+  "cooldownMinutes" | "marketCapFilters" | "filingTypeFilters"
+>;
 type TelegramConnectState = "idle" | "generating" | "opened" | "failed";
 
 const navItems = [

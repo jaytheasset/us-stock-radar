@@ -126,6 +126,8 @@
 
 .badgeRow {
   display: flex;
+  overflow: hidden;
+  min-width: 0;
   min-height: var(--sr-size-badge);
   align-items: center;
   gap: var(--sr-space-1-5);

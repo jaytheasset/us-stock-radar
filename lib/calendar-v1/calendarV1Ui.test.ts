@@ -259,6 +259,63 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   assert.match(views, /\{isToday \? <em>Today<\/em> : null\}/);
 });
 
+test("mobile Calendar dates form one continuous accessible week strip", async () => {
+  const views = await read("components/calendar-v1/CalendarViews.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+
+  assert.match(views, /className=\{styles\.weekStrip\}/);
+  assert.match(views, /aria-label="Event calendar dates"/);
+  assert.match(views, /aria-pressed=\{isSelected\}/);
+  assert.match(views, /data-selected=\{isSelected\}/);
+  assert.match(views, /data-today=\{isToday\}/);
+  assert.match(
+    views,
+    /\$\{formatEventCount\(dayEvents\.length\)\}/,
+  );
+  assert.match(
+    views,
+    /\{dayEvents\.length \? <small>\{dayEvents\.length\}<\/small> : null\}/,
+  );
+
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.weekStrip\s*\{[\s\S]*overflow:\s*hidden;[\s\S]*border:[\s\S]*border-radius:\s*var\(--sr-radius-base\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarGrid\s*\{[\s\S]*border:\s*0;[\s\S]*gap:\s*0;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarDay\s*\{[\s\S]*height:\s*64px;[\s\S]*min-height:\s*64px;[\s\S]*border-left:/,
+  );
+  assert.match(styles, /\.calendarDay:first-child\s*\{[\s\S]*border-left:\s*0;/);
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\],[\s\S]*box-shadow:\s*none;[\s\S]*background:\s*var\(--sr-color-accent-subtle\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\]::after\s*\{[\s\S]*height:\s*var\(--sr-border-width-strong\);[\s\S]*background:\s*var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-today="true"\]:not\(\[data-selected="true"\]\) \.dayHeading b\s*\{[\s\S]*color:\s*var\(--sr-color-accent-text\);[\s\S]*box-shadow:\s*inset 0 0 0 var\(--sr-border-width\) var\(--sr-color-accent-border-active\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\] \.dayHeading b\s*\{[\s\S]*color:\s*var\(--sr-color-text-inverse\);[\s\S]*background:\s*var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.dayHeading small\s*\{[\s\S]*min-width:\s*20px;[\s\S]*height:\s*16px;[\s\S]*padding:\s*0 var\(--sr-space-1\);[\s\S]*white-space:\s*nowrap;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarDay:focus-visible\s*\{[\s\S]*outline-offset:/,
+  );
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
@@ -370,7 +427,9 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
   assert.match(workspace, /\[ticker\]: !\(current\[ticker\]/);
   assert.doesNotMatch(workspace, /\[event\.id\]: !\(current\[event\.id\][\s\S]*isWatchlisted/);
-  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(workspace, /body: JSON\.stringify\(\{ eventId: event\.id, enabled \}\)/);
+  assert.match(workspace, /\/api\/calendar\/follows/);
+  assert.match(workspace, /\/login\?next=\$\{encodeURIComponent\(returnTo\)\}/);
   assert.match(detail, /watchlistTickers\.has\(ticker\)/);
   assert.match(detail, /followedEvents\[event\.id\]/);
 
@@ -379,12 +438,11 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(watchAction, /No ticker to watch/);
   assert.match(watchAction, /Watch Stock/);
   assert.match(detail, /Watching \$\{ticker\}/);
-  assert.doesNotMatch(followAction, /disabled=/);
+  assert.match(followAction, /disabled=\{followBusy\}/);
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
-  assert.match(detail, /Preview only\./);
-  assert.match(detail, /Alert delivery is not\s+connected yet\./);
+  assert.match(detail, /saved to Alerts separately from Stock Watchlist tracking/);
   assert.match(
     styles,
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
@@ -484,7 +542,8 @@ test("primary ticker gates stock actions while Follow Event stays event-scoped f
   const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
 
   assert.match(workspace, /getCalendarEventIdentity\(event\)\.primaryTicker/);
-  assert.match(workspace, /\[event\.id\]: !current\[event\.id\]/);
+  assert.match(workspace, /eventId: event\.id, enabled/);
+  assert.match(workspace, /setUserCalendarFollow|\/api\/calendar\/follows/);
   assert.match(detail, /const ticker = identity\.primaryTicker/);
   assert.match(detail, /disabled=\{!ticker\}/);
   assert.match(detail, /\{ticker \? \(\s*<div className=\{styles\.detailLinks\}>/);
@@ -494,8 +553,9 @@ test("primary ticker gates stock actions while Follow Event stays event-scoped f
       detail.indexOf("<strong>Event alert</strong>"),
       detail.indexOf("{ticker ? ("),
     ),
-    /disabled=/,
+    /disabled=\{!ticker\}/,
   );
+  assert.match(detail, /disabled=\{followBusy\}/);
 });
 
 test("event rows keep their full-row detail trigger separate from internal links", async () => {

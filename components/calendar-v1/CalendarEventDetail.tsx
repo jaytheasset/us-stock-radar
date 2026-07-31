@@ -27,6 +27,8 @@ import styles from "./CalendarV1.module.css";
 
 type CalendarEventDetailProps = {
   desktopEvent: CalendarEvent | null;
+  followAction: string;
+  followMessage: string;
   followedEvents: Readonly<Record<string, boolean>>;
   onFollowToggle: (event: CalendarEvent) => void;
   onSheetDismiss: () => void;
@@ -38,6 +40,8 @@ type CalendarEventDetailProps = {
 
 export function CalendarEventDetail({
   desktopEvent,
+  followAction,
+  followMessage,
   followedEvents,
   onFollowToggle,
   onSheetDismiss,
@@ -58,6 +62,8 @@ export function CalendarEventDetail({
     return (
       <CalendarEventDetailContent
         event={event}
+        followBusy={followAction === event.id}
+        followMessage={followMessage}
         followed={Boolean(followedEvents[event.id])}
         onFollowToggle={() => onFollowToggle(event)}
         onWatchlistToggle={() => onWatchlistToggle(event)}
@@ -99,6 +105,8 @@ export function CalendarEventDetail({
 
 function CalendarEventDetailContent({
   event,
+  followBusy,
+  followMessage,
   followed,
   onFollowToggle,
   onWatchlistToggle,
@@ -106,6 +114,8 @@ function CalendarEventDetailContent({
   watchlisted,
 }: {
   event: CalendarEvent;
+  followBusy: boolean;
+  followMessage: string;
   followed: boolean;
   onFollowToggle: () => void;
   onWatchlistToggle: () => void;
@@ -194,6 +204,7 @@ function CalendarEventDetailContent({
           <button
             aria-label={followActionLabel}
             aria-pressed={followed}
+            disabled={followBusy}
             onClick={onFollowToggle}
             title={
               followed
@@ -207,7 +218,7 @@ function CalendarEventDetailContent({
             ) : (
               <Bell aria-hidden="true" size={16} />
             )}
-            {followed ? "Event Followed" : "Follow Event"}
+            {followBusy ? "Saving..." : followed ? "Event Followed" : "Follow Event"}
           </button>
         </div>
       </div>
@@ -230,10 +241,13 @@ function CalendarEventDetailContent({
           />
         </div>
       ) : null}
-      <p className={styles.mockNotice}>
-        Preview only. Changes are local mock state. Alert delivery is not
-        connected yet.
-      </p>
+      {followMessage ? (
+        <p className={styles.mockNotice} role="status">{followMessage}</p>
+      ) : (
+        <p className={styles.mockNotice}>
+          Event follows are saved to Alerts separately from Stock Watchlist tracking.
+        </p>
+      )}
     </div>
   );
 }

@@ -164,6 +164,23 @@
   display: none;
 }
 
+:global(.dashboard-v2-event-badge) {
+  overflow: hidden;
+  max-width: 100%;
+  flex: 0 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(.dashboard-v2-event-overflow) {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-none);
+  white-space: nowrap;
+}
+
 :global(.dashboard-v2-market-table th:nth-child(1)),
 :global(.dashboard-v2-desktop-market-row td:nth-child(1)) {
   width: 42px;
