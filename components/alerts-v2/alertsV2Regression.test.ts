@@ -27,6 +27,14 @@ const followsRouteSource = readFileSync(
   new URL("../../app/api/calendar/follows/route.ts", import.meta.url),
   "utf8",
 );
+const alertsConfigSource = readFileSync(
+  new URL("../../lib/alerts/alertsV2Config.ts", import.meta.url),
+  "utf8",
+);
+const channelsRouteSource = readFileSync(
+  new URL("../../app/api/alerts/channels/route.ts", import.meta.url),
+  "utf8",
+);
 const calendarFollowsSource = readFileSync(
   new URL("../../lib/alerts/calendarFollows.ts", import.meta.url),
   "utf8",
@@ -147,10 +155,21 @@ test("Alerts V2 reads and persists the authenticated runtime instead of a mock p
   assert.match(settingsRouteSource, /getAlertSettingsViewModel\(userId\)/);
 });
 
-test("in-app delivery is real, readable, and unimplemented external channels stay explicit", () => {
+test("in-app delivery is real, readable, and external channel entitlements stay explicit", () => {
   assert.match(componentSource, /body: JSON\.stringify\(\{ action: "test" \}\)/);
   assert.match(componentSource, /body: JSON\.stringify\(\{ id: alert\.id, read: true \}\)/);
-  assert.match(componentSource, /COMING LATER/);
+  const deferredCopyPattern = new RegExp(
+    [`Coming`, `later`].join(" ") + "|" + [`Coming`, `soon`].join(" "),
+    "i",
+  );
+  assert.doesNotMatch(componentSource, deferredCopyPattern);
+  assert.match(componentSource, /item\.lockedTier/);
+  assert.match(componentSource, /disabled=\{locked \|\| !implemented \|\| settingsLoading\}/);
+  assert.match(alertsConfigSource, /id: "telegram"[\s\S]*lockedTier: "PRO"/);
+  assert.match(alertsConfigSource, /id: "email"[\s\S]*lockedTier: "ADVANCED"/);
+  assert.doesNotMatch(alertsConfigSource, /id: "webhook"|id: "api"/);
+  assert.match(channelsRouteSource, /CHANNEL_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(channelsRouteSource, deferredCopyPattern);
   assert.match(deliveredRouteSource, /export async function POST/);
   assert.match(deliveredRouteSource, /export async function PATCH/);
   assert.match(deliveredRouteSource, /read_at:/);
@@ -158,6 +177,15 @@ test("in-app delivery is real, readable, and unimplemented external channels sta
   assert.match(calendarDeliverySource, /user_delivery_channels/);
   assert.match(calendarDeliverySource, /ticker: nullableString\(event\.ticker\)/);
   assert.match(componentSource, /Followed Calendar events/);
+});
+
+test("Market Discovery is distinct from all-category ticker monitoring", () => {
+  assert.match(componentSource, /Market Discovery coverage/);
+  assert.match(componentSource, /Each enabled ticker is monitored across all 17 event types\./);
+  assert.match(componentSource, /requiresProDiscovery[\s\S]*PRO\+/);
+  assert.match(componentSource, /Unlock 12 core Market Discovery categories with Pro/);
+  assert.match(componentSource, /item\.requiredTier/);
+  assert.doesNotMatch(componentSource, />Alert coverage</);
 });
 
 test("Calendar follows enforce effective-plan limits atomically on the server", () => {

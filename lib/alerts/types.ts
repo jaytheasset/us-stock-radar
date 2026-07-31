@@ -21,7 +21,6 @@ export type DeliveryChannelState = {
   locked: boolean;
   connected: boolean;
   implemented: boolean;
-  comingLater: boolean;
   availabilityLabel: string;
   statusLabel: string;
 };

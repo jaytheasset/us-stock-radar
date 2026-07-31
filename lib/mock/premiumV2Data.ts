@@ -190,7 +190,7 @@ const riskCoverageItems = RISK_CATALYST_ALERT_CATEGORIES.map((category) => ({
 
 export const premiumV2MarketCoverageGroups: readonly PremiumV2MarketCoverageGroup[] = [
   {
-    badge: "Free–Pro",
+    badge: "Pro+",
     description: "Twelve Core event types available for market-wide Discovery.",
     items: coreCoverageItems,
     planKey: "pro",
@@ -229,8 +229,8 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
     feature: "Market-Wide Discovery",
     values: {
-      free: "12 Core types",
-      adFree: "12 Core types",
+      free: "Pro+ required",
+      adFree: "Pro+ required",
       pro: "12 Core types",
       advanced: "All 17 types",
       ultimate: "All 17 types + rules",
@@ -267,7 +267,7 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
 export const premiumV2FaqItems = [
   {
     answer:
-      "Ticker Alerts cover companies you choose and include all 17 public event types on every plan. Market-wide Discovery scans companies outside that list: Free through Pro include the 12 Core types, while Advanced and Ultimate include all 17.",
+      "Ticker Alerts cover companies you choose and include all 17 public event types on every plan. Market-wide Discovery scans companies outside that list: Pro includes the 12 Core types, while Advanced and Ultimate include all 17. Free and Ad-Free do not include Market Discovery.",
     question: "What is the difference between Ticker Alerts and Market-Wide Discovery?",
   },
   {
