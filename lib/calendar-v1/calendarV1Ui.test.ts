@@ -259,6 +259,63 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   assert.match(views, /\{isToday \? <em>Today<\/em> : null\}/);
 });
 
+test("mobile Calendar dates form one continuous accessible week strip", async () => {
+  const views = await read("components/calendar-v1/CalendarViews.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
+
+  assert.match(views, /className=\{styles\.weekStrip\}/);
+  assert.match(views, /aria-label="Event calendar dates"/);
+  assert.match(views, /aria-pressed=\{isSelected\}/);
+  assert.match(views, /data-selected=\{isSelected\}/);
+  assert.match(views, /data-today=\{isToday\}/);
+  assert.match(
+    views,
+    /\$\{formatEventCount\(dayEvents\.length\)\}/,
+  );
+  assert.match(
+    views,
+    /\{dayEvents\.length \? <small>\{dayEvents\.length\}<\/small> : null\}/,
+  );
+
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.weekStrip\s*\{[\s\S]*overflow:\s*hidden;[\s\S]*border:[\s\S]*border-radius:\s*var\(--sr-radius-base\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarGrid\s*\{[\s\S]*border:\s*0;[\s\S]*gap:\s*0;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarDay\s*\{[\s\S]*height:\s*64px;[\s\S]*min-height:\s*64px;[\s\S]*border-left:/,
+  );
+  assert.match(styles, /\.calendarDay:first-child\s*\{[\s\S]*border-left:\s*0;/);
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\],[\s\S]*box-shadow:\s*none;[\s\S]*background:\s*var\(--sr-color-accent-subtle\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\]::after\s*\{[\s\S]*height:\s*var\(--sr-border-width-strong\);[\s\S]*background:\s*var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-today="true"\]:not\(\[data-selected="true"\]\) \.dayHeading b\s*\{[\s\S]*color:\s*var\(--sr-color-accent-text\);[\s\S]*box-shadow:\s*inset 0 0 0 var\(--sr-border-width\) var\(--sr-color-accent-border-active\);/,
+  );
+  assert.match(
+    styles,
+    /\.calendarDay\[data-selected="true"\] \.dayHeading b\s*\{[\s\S]*color:\s*var\(--sr-color-text-inverse\);[\s\S]*background:\s*var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.dayHeading small\s*\{[\s\S]*min-width:\s*20px;[\s\S]*height:\s*16px;[\s\S]*padding:\s*0 var\(--sr-space-1\);[\s\S]*white-space:\s*nowrap;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarDay:focus-visible\s*\{[\s\S]*outline-offset:/,
+  );
+});
+
 test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
