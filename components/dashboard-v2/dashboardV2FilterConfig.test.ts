@@ -61,7 +61,7 @@ function mover(
     changePercent: "+1.00%",
     company: ticker,
     events: code && label
-      ? [{ code, id: `${ticker}-event`, impact, label, signal, timestamp: "2026-07-23T00:00:00Z", title: label, tone: "neutral" as const }]
+      ? [{ code, id: `${ticker}-event`, impact, label, score: 0, signal, timestamp: "2026-07-23T00:00:00Z", title: label, tone: "neutral" as const }]
       : [],
     marketCap: "$1.00B",
     marketCapValue,
