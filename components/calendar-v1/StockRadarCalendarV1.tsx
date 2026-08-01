@@ -63,6 +63,8 @@ export function StockRadarCalendarV1({
   initialEvents,
   initialLoadError = false,
   initialRange,
+  initialSelectedDate,
+  initialSelectedEventId = null,
   previewState = "default",
   today,
   viewerPlan,
@@ -70,17 +72,21 @@ export function StockRadarCalendarV1({
   initialEvents: readonly CalendarEvent[];
   initialLoadError?: boolean;
   initialRange: CalendarDateRange;
+  initialSelectedDate?: string;
+  initialSelectedEventId?: string | null;
   previewState?: CalendarPreviewState;
   today: string;
   viewerPlan: Plan;
 }) {
   const [preset, setPreset] = useState<CalendarRangePreset>("this-week");
   const [range, setRange] = useState<CalendarDateRange>(initialRange);
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(initialSelectedDate ?? today);
   const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [filters, setFilters] = useState(DEFAULT_CALENDAR_FILTERS);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(
+    initialSelectedEventId,
+  );
   const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
@@ -105,6 +111,17 @@ export function StockRadarCalendarV1({
   const loadedRangeKeyRef = useRef<string | null>(
     initialLoadError ? null : rangeKey(initialRange),
   );
+
+  useEffect(() => {
+    if (
+      !initialSelectedEventId ||
+      !sourceEvents.some((event) => event.id === initialSelectedEventId) ||
+      !window.matchMedia("(max-width: 1180px)").matches
+    ) {
+      return;
+    }
+    setSheetEventId(initialSelectedEventId);
+  }, [initialSelectedEventId, sourceEvents]);
   const events = useMemo(
     () =>
       sourceEvents.map((event) =>
