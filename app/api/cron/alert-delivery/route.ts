@@ -68,6 +68,12 @@ async function runCron(
       50,
       250,
     ),
+    telegramCampaignLimit: readPositiveInt(
+      params.get("telegramCampaignLimit") ||
+        params.get("telegram-campaign-limit"),
+      10,
+      50,
+    ),
     calendarLimit: readPositiveInt(
       params.get("calendarLimit") || params.get("calendar-limit"),
       100,
@@ -91,6 +97,10 @@ async function runCron(
     skipPublicTelegram: isTruthy(
       params.get("skipPublicTelegram") ||
         params.get("skip-public-telegram"),
+    ),
+    skipTelegramCampaigns: isTruthy(
+      params.get("skipTelegramCampaigns") ||
+        params.get("skip-telegram-campaigns"),
     ),
     skipCalendar: isTruthy(
       params.get("skipCalendar") || params.get("skip-calendar"),
@@ -116,6 +126,7 @@ async function runCron(
         batch: result.batch,
         queued: result.queued,
         publicTelegram: result.publicTelegram,
+        telegramCampaigns: result.telegramCampaigns,
         calendar: result.calendar,
       },
       error: result.error || result.calendar?.error,
