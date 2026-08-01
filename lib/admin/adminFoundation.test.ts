@@ -23,6 +23,9 @@ const orphanBackfillMigration = read(
 const roomControlsMigration = read(
   "supabase/migrations/20260730110605_admin_room_controls_v3.sql",
 );
+const telegramCampaignMigration = read(
+  "supabase/migrations/20260801105641_admin_telegram_campaigns.sql",
+);
 const adminLayout = read("app/admin/layout.tsx");
 const adminServer = read("lib/admin/server.ts");
 const adminApi = read("lib/admin/api.ts");
@@ -48,6 +51,18 @@ const globeIngestPanel = read("app/admin/news-ingest/GlobeIngestPanel.tsx");
 const roomMutationApi = read(
   "app/api/admin/rooms/[roomId]/status/route.ts",
 );
+const telegramCreateApi = read("app/api/admin/telegram-campaigns/route.ts");
+const telegramMutationApi = read(
+  "app/api/admin/telegram-campaigns/[campaignId]/route.ts",
+);
+const telegramAiApi = read(
+  "app/api/admin/telegram-campaigns/ai-draft/route.ts",
+);
+const telegramLocalDueApi = read(
+  "app/api/admin/telegram-campaigns/run-due/route.ts",
+);
+const telegramDelivery = read("lib/admin/telegramCampaignDelivery.ts");
+const telegramAiRuntime = read("lib/admin/telegramCampaignAi.ts");
 const roomsRepository = read("lib/admin/rooms.ts");
 const adminShell = read("components/admin/AdminShell.tsx");
 const legacyAdminPages = [
@@ -135,6 +150,7 @@ test("roles expose only their intended navigation and permissions", () => {
       "/admin/users",
       "/admin/moderation",
       "/admin/rooms",
+      "/admin/telegram-channel",
       "/admin/creator-verifications",
       "/admin/data",
       "/admin/alerts",
@@ -143,6 +159,97 @@ test("roles expose only their intended navigation and permissions", () => {
       "/admin/audit",
       "/admin/roles",
     ],
+  );
+});
+
+test("Telegram Channel operations use dedicated permissions and server-only mutations", () => {
+  assert.equal(rolesHavePermission(["operations"], "telegram.read"), true);
+  assert.equal(rolesHavePermission(["operations"], "telegram.write"), true);
+  assert.equal(rolesHavePermission(["operations"], "telegram.send"), true);
+  assert.equal(rolesHavePermission(["moderator"], "telegram.read"), false);
+  assert.equal(rolesHavePermission(["support"], "telegram.send"), false);
+  assert.match(
+    telegramCreateApi,
+    /resolveAdminApiAccess\(request, "telegram\.write"\)/,
+  );
+  assert.match(
+    telegramMutationApi,
+    /action === "send_now" \? "telegram\.send" : "telegram\.write"/,
+  );
+  assert.match(
+    telegramAiApi,
+    /resolveAdminApiAccess\(request, "telegram\.write"\)/,
+  );
+  assert.match(
+    telegramLocalDueApi,
+    /resolveAdminApiAccess\(request, "telegram\.send"\)/,
+  );
+  for (const route of [
+    telegramCreateApi,
+    telegramMutationApi,
+    telegramAiApi,
+    telegramLocalDueApi,
+  ]) {
+    assert.match(route, /assertSameOriginAuthRequest\(request\)/);
+  }
+});
+
+test("Telegram campaigns are service-only, audited, and claimed atomically", () => {
+  assert.match(
+    telegramCampaignMigration,
+    /alter table public\.admin_telegram_campaigns enable row level security/i,
+  );
+  assert.match(
+    telegramCampaignMigration,
+    /revoke all on table public\.admin_telegram_campaigns\s+from public, anon, authenticated, service_role/i,
+  );
+  assert.match(
+    telegramCampaignMigration,
+    /grant select, insert, update on table public\.admin_telegram_campaigns\s+to service_role/i,
+  );
+  assert.match(telegramCampaignMigration, /for update skip locked/i);
+  assert.match(telegramCampaignMigration, /attempt_token uuid/i);
+  assert.match(
+    telegramCampaignMigration,
+    /p_outcome not in \('sent', 'not_sent', 'uncertain'\)/i,
+  );
+  assert.match(telegramCampaignMigration, /retry_allowed = p_outcome = 'not_sent'/i);
+  assert.match(
+    telegramCampaignMigration,
+    /insert into public\.admin_audit_logs/g,
+  );
+  assert.doesNotMatch(
+    telegramCampaignMigration,
+    /delete\s+from\s+public\.admin_telegram_campaigns/i,
+  );
+});
+
+test("Telegram provider credentials stay server-side and tests cannot hit the public channel", () => {
+  assert.match(telegramDelivery, /sendTelegramMessage/);
+  assert.match(telegramDelivery, /createLocalAdminTelegramMockTransport/);
+  assert.match(telegramLocalDueApi, /process\.env\.NODE_ENV === "production"/);
+  assert.match(telegramLocalDueApi, /RUN LOCAL MOCK/);
+  assert.match(telegramLocalDueApi, /createLocalAdminTelegramMockTransport\(\)/);
+  assert.doesNotMatch(
+    `${telegramCreateApi}\n${telegramMutationApi}\n${telegramAiApi}`,
+    /telegramBotToken|telegramPublicChannelId|TELEGRAM_BOT_TOKEN|TELEGRAM_PUBLIC_CHANNEL_ID/,
+  );
+  assert.doesNotMatch(
+    telegramCampaignMigration,
+    /bot_token|channel_id|chat_id|api_key/i,
+  );
+});
+
+test("AI drafting is rate-limited, schema-constrained, audited, and review-only", () => {
+  assert.match(telegramCampaignMigration, /telegram_campaign\.ai_draft_requested/);
+  assert.match(telegramCampaignMigration, /interval '1 hour'/);
+  assert.match(telegramCampaignMigration, /v_count >= 20/);
+  assert.match(telegramAiRuntime, /ADMIN_TELEGRAM_AI_RESPONSE_SCHEMA/);
+  assert.match(telegramAiRuntime, /claimAdminTelegramAiDraft/);
+  assert.match(telegramAiRuntime, /finishAdminTelegramAiDraft/);
+  assert.doesNotMatch(
+    telegramAiRuntime,
+    /saveAdminTelegramCampaign|scheduleAdminTelegramCampaign|sendAdminTelegramCampaignNow/,
   );
 });
 
