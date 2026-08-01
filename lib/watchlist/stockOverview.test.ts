@@ -291,6 +291,28 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /"Personal market workspace"/);
   assert.match(
     componentSource,
+    /className=\{styles\.contextRail\}[\s\S]*<RadarBrief[\s\S]*<WatchlistUpgradeCard[\s\S]*className=\{styles\.railAd\}[\s\S]*<EventPreview[\s\S]*<StockCalendarEvents[\s\S]*<CompanyContext/,
+  );
+  assert.match(
+    componentSource,
+    /\{allowAds \? \([\s\S]*className=\{styles\.railAd\}[\s\S]*\) : null\}/,
+  );
+  assert.match(
+    componentCss,
+    /\.contextRail \{[\s\S]*display: grid;[\s\S]*align-content: start;[\s\S]*gap: var\(--sr-space-4\);[\s\S]*\}/,
+  );
+  const contextRailRule = componentCss.match(/\.contextRail \{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.doesNotMatch(contextRailRule, /max-height|overflow-y|scrollbar-gutter|position:\s*sticky/);
+  assert.match(
+    componentCss,
+    /\.promoRow \{\s*display: none;\s*\}/,
+  );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 1180px\) \{[\s\S]*\.promoRow \{[\s\S]*display: grid;/,
+  );
+  assert.match(
+    componentSource,
     /new ResizeObserver\(scheduleActiveSectionUpdate\)/,
   );
   assert.match(
