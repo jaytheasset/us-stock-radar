@@ -18,6 +18,8 @@ test("Telegram destination ownership uses the exact public conflict message", ()
   assert.equal(normalizeTelegramDestination(" 123456 "), "123456");
   assert.equal(normalizeTelegramDestination(-123456), "-123456");
   assert.equal(normalizeTelegramDestination(null), "");
+  assert.equal(normalizeTelegramDestination("123,or=(user_id.neq.x)"), "");
+  assert.equal(normalizeTelegramDestination("telegram-chat"), "");
   assert.equal(
     isTelegramDestinationUniqueConflict({
       status: 409,

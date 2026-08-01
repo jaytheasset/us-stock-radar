@@ -15,6 +15,12 @@ import {
 } from "@/lib/telegram/telegramConnectPolicy";
 import { buildTelegramMuteConfirmationKeyboard } from "@/lib/telegram/telegramAlertMessage";
 import { parseTelegramMuteCallbackData } from "@/lib/telegram/telegramCallbackPolicy";
+import { handleTelegramConnectedCommand } from "@/lib/telegram/telegramCommandInteractions";
+import {
+  buildTelegramHelpText,
+  isTelegramConnectedCommand,
+  parseTelegramCommand,
+} from "@/lib/telegram/telegramCommandPolicy";
 import { resolveTelegramMuteAction } from "@/lib/telegram/telegramInteractions";
 import {
   answerTelegramCallbackQuery,
@@ -105,7 +111,14 @@ export async function POST(request: NextRequest) {
   }
 
   const command = parseTelegramCommand(text);
-  if (command === "settings") {
+  if (command.name === "invalid") {
+    await sendTelegramMessage(chatId, command.message, {
+      replyMarkup: buildSiteKeyboard("Open command help", "/alerts"),
+    });
+    return webhookResponse({ ok: true, command: "invalid" });
+  }
+
+  if (command.name === "settings") {
     await sendTelegramMessage(
       chatId,
       "Manage watched tickers, Market Discovery, and delivery channels in Stock Radar Alerts.",
@@ -114,24 +127,29 @@ export async function POST(request: NextRequest) {
     return webhookResponse({ ok: true, command: "settings" });
   }
 
-  if (command === "help") {
+  if (command.name === "help") {
     await sendTelegramMessage(
       chatId,
-      [
-        "Stock Radar Telegram is your alert inbox and settings remote.",
-        "",
-        "• Open a company Live Room from an alert.",
-        "• Mute a ticker after confirmation.",
-        "• Use /settings to manage all Alerts preferences.",
-        "",
-        "Free-form chat, comments, voting, and full analysis are available on the Stock Radar site.",
-      ].join("\n"),
+      buildTelegramHelpText(),
       { replyMarkup: buildSiteKeyboard("Open Stock Radar Alerts", "/alerts") },
     );
     return webhookResponse({ ok: true, command: "help" });
   }
 
-  if (command !== "start") return webhookResponse({ ok: true, ignored: true });
+  if (isTelegramConnectedCommand(command)) {
+    const presentation = await handleTelegramConnectedCommand({
+      baseUrl: getServerEnv().appBaseUrl,
+      command,
+      destination: chatId,
+    });
+    await sendTelegramMessage(chatId, presentation.text, {
+      replyMarkup: presentation.replyMarkup,
+      disableWebPagePreview: true,
+    });
+    return webhookResponse({ ok: true, command: command.name });
+  }
+
+  if (command.name !== "start") return webhookResponse({ ok: true, ignored: true });
 
   const token = parseTelegramStartToken(text);
 
@@ -269,11 +287,6 @@ function buildSiteKeyboard(text: string, pathname: string): TelegramInlineKeyboa
   const baseUrl = normalizeBaseUrl(getServerEnv().appBaseUrl);
   if (!baseUrl) return undefined;
   return { inline_keyboard: [[{ text, url: new URL(pathname, baseUrl).toString() }]] };
-}
-
-function parseTelegramCommand(text: string) {
-  const match = text.match(/^\/(start|settings|help)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i);
-  return match?.[1]?.toLowerCase() || "";
 }
 
 function secretsMatch(actual: string, expected: string) {

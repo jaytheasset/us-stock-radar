@@ -2,6 +2,7 @@ import "server-only";
 
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
 import { resolveTelegramMuteTicker } from "@/lib/telegram/telegramCallbackPolicy";
+import { normalizeTelegramDestination } from "@/lib/telegram/telegramConnectPolicy";
 
 type TelegramTickerRow = {
   ticker?: unknown;
@@ -12,16 +13,21 @@ export type TelegramMuteResolution =
   | { ok: true; userId: string; ticker: string; alreadyMuted: boolean }
   | { ok: false; error: "CONNECTION_NOT_FOUND" | "ACTION_INVALID" | "READ_FAILED" | "WRITE_FAILED" };
 
-export async function resolveTelegramMuteAction(input: {
-  destination: string;
-  token: string;
-  tokenSecret: string;
-  write: boolean;
-}): Promise<TelegramMuteResolution> {
+export type TelegramConnectionOwnerResolution =
+  | { ok: true; userId: string }
+  | { ok: false; error: "CONNECTION_NOT_FOUND" | "READ_FAILED" };
+
+export async function resolveTelegramConnectionOwner(
+  destination: string,
+): Promise<TelegramConnectionOwnerResolution> {
+  const normalizedDestination = normalizeTelegramDestination(destination);
+  if (!normalizedDestination) {
+    return { ok: false, error: "CONNECTION_NOT_FOUND" };
+  }
   const owner = await supabaseSelect("user_delivery_channels", {
     select: "user_id",
     channel: "eq.telegram",
-    destination: `eq.${input.destination}`,
+    destination: `eq.${normalizedDestination}`,
     verified_at: "not.is.null",
     limit: "1",
   });
@@ -31,7 +37,20 @@ export async function resolveTelegramMuteAction(input: {
     ? (owner.data[0] as { user_id?: unknown } | undefined)
     : undefined;
   const userId = stringValue(ownerRow?.user_id);
-  if (!userId) return { ok: false, error: "CONNECTION_NOT_FOUND" };
+  return userId
+    ? { ok: true, userId }
+    : { ok: false, error: "CONNECTION_NOT_FOUND" };
+}
+
+export async function resolveTelegramMuteAction(input: {
+  destination: string;
+  token: string;
+  tokenSecret: string;
+  write: boolean;
+}): Promise<TelegramMuteResolution> {
+  const owner = await resolveTelegramConnectionOwner(input.destination);
+  if (!owner.ok) return owner;
+  const userId = owner.userId;
 
   const tickersResult = await supabaseSelect("user_alert_tickers", {
     select: "ticker,enabled",
