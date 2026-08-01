@@ -8,13 +8,12 @@ export type TelegramCommand =
   | { name: "rooms" }
   | { name: "stock"; ticker: string }
   | { name: "room"; ticker: string }
-  | { name: "say"; ticker: string; body: string }
   | { name: "invalid"; message: string }
   | { name: "ignored" };
 
 export type TelegramConnectedCommand = Extract<
   TelegramCommand,
-  { name: "stock" | "watchlist" | "rooms" | "room" | "say" }
+  { name: "stock" | "watchlist" | "rooms" | "room" }
 >;
 
 const tickerPattern = /^[A-Z0-9][A-Z0-9.-]{0,11}$/;
@@ -46,18 +45,6 @@ export function parseTelegramCommand(value: unknown): TelegramCommand {
       ? { name, ticker }
       : { name: "invalid", message: `Use /${name} TICKER, for example /${name} AMD.` };
   }
-  if (name === "say") {
-    const sayMatch = argument.match(/^(\S+)\s+([\s\S]+)$/);
-    const ticker = normalizeTelegramTickerArgument(sayMatch?.[1]);
-    const body = sayMatch?.[2]?.trim() || "";
-    return ticker && body
-      ? { name: "say", ticker, body }
-      : {
-          name: "invalid",
-          message: "Use /say TICKER message, for example /say AMD Watching guidance closely.",
-        };
-  }
-
   return { name: "ignored" };
 }
 
@@ -73,8 +60,7 @@ export function isTelegramConnectedCommand(
     command.name === "stock" ||
     command.name === "watchlist" ||
     command.name === "rooms" ||
-    command.name === "room" ||
-    command.name === "say"
+    command.name === "room"
   );
 }
 
@@ -86,7 +72,6 @@ export function buildTelegramHelpText() {
     "/watchlist — View your Stock Radar watchlist",
     "/rooms — View Live Rooms you joined",
     "/room TICKER — Open a Company Live Room",
-    "/say TICKER message — Post to a room you already joined",
     "/settings — Manage Alerts",
     "/help — Show this help",
   ].join("\n");

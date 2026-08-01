@@ -3,7 +3,6 @@ const commands = [
   { command: "watchlist", description: "View your Stock Radar watchlist" },
   { command: "rooms", description: "View Live Rooms you joined" },
   { command: "room", description: "Open a Company Live Room" },
-  { command: "say", description: "Post to a Live Room you joined" },
   { command: "settings", description: "Manage Stock Radar Alerts" },
   { command: "help", description: "Show supported commands" },
 ];
