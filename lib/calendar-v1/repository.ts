@@ -4,7 +4,7 @@ import { supabaseSelect } from "@/lib/supabase";
 import type { CalendarDateRange } from "./model.ts";
 import {
   readNormalizedCalendarEvents,
-  readUpcomingCompanyCalendarEvents,
+  readStockCompanyCalendarEvents,
   type CalendarSelect,
 } from "./normalized.ts";
 
@@ -15,13 +15,15 @@ export async function getNormalizedCalendarEvents(range: CalendarDateRange) {
   );
 }
 
-export async function getUpcomingCompanyCalendarEvents(
+export async function getStockCompanyCalendarEvents(
   range: CalendarDateRange,
   ticker: string,
+  order: "asc" | "desc" = "asc",
 ) {
-  return readUpcomingCompanyCalendarEvents(
+  return readStockCompanyCalendarEvents(
     range,
     ticker,
     supabaseSelect as CalendarSelect,
+    order,
   );
 }

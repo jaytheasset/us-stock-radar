@@ -11,9 +11,9 @@ import {
   MAX_CALENDAR_RANGE_DAYS,
   NORMALIZED_CALENDAR_PAGE_SIZE,
   NORMALIZED_CALENDAR_SELECT,
-  UPCOMING_COMPANY_CALENDAR_LIMIT,
+  STOCK_COMPANY_CALENDAR_LIMIT,
   buildNormalizedCalendarQuery,
-  buildUpcomingCompanyCalendarQuery,
+  buildStockCompanyCalendarQuery,
   mapNormalizedCalendarRow,
   normalizeCalendarProvider,
   normalizeCalendarAnalysisHref,
@@ -22,7 +22,7 @@ import {
   parseCalendarEventsApiPayload,
   parseNormalizedCalendarRange,
   readNormalizedCalendarEvents,
-  readUpcomingCompanyCalendarEvents,
+  readStockCompanyCalendarEvents,
 } from "./normalized.ts";
 
 test("normalized range parser validates required dates, order, and maximum span", () => {
@@ -91,14 +91,18 @@ test("normalized query uses the date index contract and a public projection", ()
   }
 });
 
-test("upcoming company query is exact, primary-ticker scoped, ordered, and capped", async () => {
+test("stock company query is exact, primary-ticker scoped, direction-aware, and capped", async () => {
   const range = { from: "2026-08-01", to: "2026-10-31" };
-  const query = buildUpcomingCompanyCalendarQuery(range, "amd");
+  const query = buildStockCompanyCalendarQuery(range, "amd");
   assert.equal(query.category, "eq.company");
   assert.equal(query["securities.role"], "eq.primary");
   assert.equal(query["securities.ticker"], "eq.AMD");
-  assert.equal(query.limit, String(UPCOMING_COMPANY_CALENDAR_LIMIT));
+  assert.equal(query.limit, String(STOCK_COMPANY_CALENDAR_LIMIT));
   assert.equal(query.order, "event_date.asc,event_time.asc.nullslast,id.asc");
+  assert.equal(
+    buildStockCompanyCalendarQuery(range, "AMD", "desc").order,
+    "event_date.desc,event_time.desc.nullslast,id.desc",
+  );
   assert.match(query.select, /calendar_event_securities!inner/);
   assert.equal(normalizeCompanyCalendarTicker(" amd "), "AMD");
   assert.equal(normalizeCompanyCalendarTicker("AMD&category=eq.policy"), null);
@@ -119,7 +123,7 @@ test("upcoming company query is exact, primary-ticker scoped, ordered, and cappe
     securities: [{ role: "primary", ticker: "JPM" }],
     title: "JPM earnings",
   };
-  const events = await readUpcomingCompanyCalendarEvents(
+  const events = await readStockCompanyCalendarEvents(
     range,
     "AMD",
     async (_table, receivedQuery) => {

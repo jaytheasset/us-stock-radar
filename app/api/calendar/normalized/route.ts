@@ -6,7 +6,7 @@ import {
 } from "@/lib/calendar-v1/normalized";
 import {
   getNormalizedCalendarEvents,
-  getUpcomingCompanyCalendarEvents,
+  getStockCompanyCalendarEvents,
 } from "@/lib/calendar-v1/repository";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +39,28 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const requestedTickerOrder = request.nextUrl.searchParams.get("tickerOrder");
+  if (
+    requestedTickerOrder !== null &&
+    requestedTickerOrder !== "asc" &&
+    requestedTickerOrder !== "desc"
+  ) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "INVALID_TICKER_ORDER",
+          message: "Stock Calendar order must be asc or desc.",
+        },
+      },
+      { headers: NO_STORE_HEADERS, status: 400 },
+    );
+  }
+  const tickerOrder = requestedTickerOrder === "desc" ? "desc" : "asc";
+
   try {
     const data = ticker
-      ? await getUpcomingCompanyCalendarEvents(parsed.range, ticker)
+      ? await getStockCompanyCalendarEvents(parsed.range, ticker, tickerOrder)
       : await getNormalizedCalendarEvents(parsed.range);
     return NextResponse.json(
       {

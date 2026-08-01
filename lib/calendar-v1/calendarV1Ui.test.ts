@@ -63,14 +63,17 @@ test("stock detail reuses normalized company Calendar data, badges, and canonica
   const calendarPage = await read("app/calendar/page.tsx");
 
   assert.match(stock, /<CalendarEventTypeBadge/);
-  assert.match(stock, /<h2 id=\{headingId\}>Upcoming events<\/h2>/);
-  assert.match(stock, /selectUpcomingCompanyCalendarEvents/);
+  assert.match(stock, /<h2 id=\{headingId\}>Calendar events<\/h2>/);
+  assert.match(stock, /selectStockCalendarEvents/);
+  assert.match(stock, /addDateOnlyDays\(today, -30\)/);
+  assert.match(stock, /addDateOnlyDays\(today, 89\)/);
+  assert.match(stock, /fetchCalendarRange[\s\S]*"desc"/);
   assert.match(stock, /getCalendarEventRouteHref\(event\)/);
   assert.match(stock, /ticker: selectedTicker/);
   assert.doesNotMatch(stock, /createCalendarMockEvents|fmp-calendar/);
-  assert.match(route, /getUpcomingCompanyCalendarEvents/);
+  assert.match(route, /getStockCompanyCalendarEvents/);
   assert.match(route, /normalizeCompanyCalendarTicker/);
-  assert.match(repository, /readUpcomingCompanyCalendarEvents/);
+  assert.match(repository, /readStockCompanyCalendarEvents/);
   assert.match(calendarPage, /parseCalendarEventRouteSelection/);
   assert.match(calendarPage, /initialSelectedEventId=\{selectedEvent\?\.id \?\? null\}/);
   assert.match(

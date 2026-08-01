@@ -31,14 +31,14 @@ import {
 } from "./model.ts";
 import {
   formatCalendarEventTime,
-  formatUpcomingCalendarEventDateTime,
+  formatStockCalendarEventDateTime,
   formatEventCount,
   getCalendarEventRouteHref,
   getCalendarEventIdentity,
   isCalendarEventWatchlistMatch,
   parseCalendarEventRouteSelection,
   selectCalendarPreviewEvent,
-  selectUpcomingCompanyCalendarEvents,
+  selectStockCalendarEvents,
   selectUpcomingCalendarEvents,
 } from "./presentation.ts";
 
@@ -331,35 +331,94 @@ test("upcoming events are conditional, stable, selected-date exclusive, and capp
   );
 });
 
-test("stock upcoming events use exact company scope, chronological order, and canonical Calendar links", () => {
+test("stock Calendar events prioritize upcoming dates and backfill recent dates", () => {
   const base = createCalendarMockEvents("2026-07-29").find(
     (event) => event.category === "company",
   );
   assert.ok(base?.category === "company");
   const eventId = "177f0498-ca27-4da2-a149-716e92748080";
   const events: CalendarEvent[] = [
-    { ...base, eventDate: "2026-08-05", eventTime: null, id: eventId, ticker: "AMD" },
-    { ...base, eventDate: "2026-08-04", eventTime: "16:05", id: "7c45b0bf-cd94-4b95-bf49-d00a17a4b039", ticker: "AMD" },
-    { ...base, eventDate: "2026-08-03", id: "bf99a7a4-1a14-43eb-b1ca-3c80095324f0", ticker: "JPM" },
-    { ...base, category: "company", eventDate: "2026-07-31", id: "83ec7d0e-0000-4000-8000-000000000001", ticker: "AMD" },
+    {
+      ...base,
+      eventDate: "2026-08-05",
+      eventTime: null,
+      id: eventId,
+      ticker: "AMD",
+    },
+    {
+      ...base,
+      eventDate: "2026-08-04",
+      eventTime: "16:05",
+      id: "7c45b0bf-cd94-4b95-bf49-d00a17a4b039",
+      ticker: "AMD",
+    },
+    {
+      ...base,
+      eventDate: "2026-08-03",
+      id: "bf99a7a4-1a14-43eb-b1ca-3c80095324f0",
+      ticker: "JPM",
+    },
+    {
+      ...base,
+      eventDate: "2026-07-31",
+      eventTime: "09:30",
+      id: "83ec7d0e-0000-4000-8000-000000000001",
+      ticker: "AMD",
+    },
+    {
+      ...base,
+      eventDate: "2026-07-31",
+      eventTime: "16:00",
+      id: "83ec7d0e-0000-4000-8000-000000000002",
+      ticker: "AMD",
+    },
+    {
+      ...base,
+      eventDate: "2026-07-30",
+      eventTime: null,
+      id: "83ec7d0e-0000-4000-8000-000000000003",
+      ticker: "AMD",
+    },
   ];
-  const upcoming = selectUpcomingCompanyCalendarEvents(
+  const selected = selectStockCalendarEvents(
     events,
     "amd",
     "2026-08-01",
   );
-  assert.deepEqual(upcoming.map((event) => event.eventDate), ["2026-08-04", "2026-08-05"]);
-  assert.ok(upcoming.every((event) => event.category === "company" && event.ticker === "AMD"));
+  assert.deepEqual(
+    selected.map((event) => [event.eventDate, event.eventTime]),
+    [
+      ["2026-08-04", "16:05"],
+      ["2026-08-05", null],
+      ["2026-07-31", "16:00"],
+      ["2026-07-31", "09:30"],
+      ["2026-07-30", null],
+    ],
+  );
+  assert.ok(
+    selected.every(
+      (event) => event.category === "company" && event.ticker === "AMD",
+    ),
+  );
+  assert.deepEqual(
+    selectStockCalendarEvents(events, "AMD", "2026-08-01", 2).map(
+      (event) => event.eventDate,
+    ),
+    ["2026-08-04", "2026-08-05"],
+  );
   assert.equal(
-    getCalendarEventRouteHref(upcoming[0]),
+    getCalendarEventRouteHref(selected[0]),
     "/calendar?date=2026-08-04&event=7c45b0bf-cd94-4b95-bf49-d00a17a4b039",
   );
   assert.deepEqual(
-    parseCalendarEventRouteSelection(upcoming[0].id, upcoming[0].eventDate),
-    { eventDate: "2026-08-04", eventId: upcoming[0].id },
+    parseCalendarEventRouteSelection(selected[0].id, selected[0].eventDate),
+    { eventDate: "2026-08-04", eventId: selected[0].id },
   );
   assert.equal(parseCalendarEventRouteSelection("not-an-id", "2026-08-04"), null);
-  assert.match(formatUpcomingCalendarEventDateTime(upcoming[0]), /Tue, Aug 4 · 4:05 PM ET/);
+  assert.match(
+    formatStockCalendarEventDateTime(selected[0]),
+    /Tue, Aug 4 · 4:05 PM ET/,
+  );
 });
 
 test("calendar category, event type, and policy subcategory contracts are closed and grouped", () => {
