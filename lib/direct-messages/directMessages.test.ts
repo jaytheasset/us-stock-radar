@@ -633,9 +633,15 @@ test("every new FK and inbox/status access path has a covering index", () => {
   );
 });
 
-test("Messages remains in Live Room activity and separate from paid Alerts", () => {
-  assert.match(inboxComponent, /Community \+ Messages/);
-  assert.match(inboxComponent, />\s*Activity\s*/);
+test("Messages remains in the Community inbox and separate from paid Alerts", () => {
+  assert.match(inboxComponent, /aria-label="Community inbox"/);
+  assert.match(inboxComponent, />\s*Notifications\s*/);
+  assert.match(inboxComponent, />\s*Messages\s*/);
+  assert.match(
+    inboxComponent,
+    /Your direct messages and message requests will appear here/,
+  );
+  assert.doesNotMatch(inboxComponent, /Community \+ Messages/);
   assert.match(
     inboxComponent,
     /summary\.totalUnreadCount \+ directInbox\.totalUnreadCount/,
