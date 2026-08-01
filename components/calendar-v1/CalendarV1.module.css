@@ -295,12 +295,41 @@
   display: grid;
   width: max-content;
   min-width: 190px;
-  gap: var(--sr-space-2);
+  gap: 0;
   border: var(--sr-border-width) solid var(--sr-color-border-overlay);
   border-radius: var(--sr-radius-popover);
   padding: var(--sr-space-3);
   background: var(--sr-color-surface-overlay);
   box-shadow: var(--sr-shadow-menu);
+}
+
+.flatFilterOption {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+  border: 0;
+  border-radius: 0;
+  padding: 0 var(--sr-space-3);
+  background: transparent;
+  text-align: left;
+}
+
+.flatFilterOption:hover {
+  background: var(--sr-color-surface-muted-action);
+}
+
+.flatFilterOption[aria-pressed="true"],
+.flatFilterOption[aria-pressed="true"]:hover {
+  border: 0;
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-active-soft);
+}
+
+.flatFilterOption svg {
+  flex: 0 0 auto;
 }
 
 .typeMenuOptions {
@@ -1404,18 +1433,23 @@
   gap: var(--sr-space-2);
 }
 
+.mobileFilterGroup > .mobileFlatOptionList {
+  display: grid;
+  width: 100%;
+  gap: 0;
+}
+
 .mobileTypeOptionGroup {
-  display: flex;
+  display: grid;
   flex: 1 0 100%;
-  flex-wrap: wrap;
-  gap: var(--sr-space-2);
+  gap: 0;
   min-width: 0;
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
   padding-top: var(--sr-space-2);
 }
 
 .mobileTypeOptionGroup h4 {
-  flex: 1 0 100%;
+  margin-bottom: var(--sr-space-1);
 }
 
 .mobileFilterActions {
