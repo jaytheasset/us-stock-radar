@@ -40,7 +40,7 @@ test("desktop preview selection and mobile sheet-open state are independent", as
   assert.match(workspace, /selectCalendarPreviewEvent\(/);
   assert.match(
     workspace,
-    /const \[selectedEventId, setSelectedEventId\] = useState<string \| null>\(null\)/,
+    /const \[selectedEventId, setSelectedEventId\] = useState<string \| null>\([\s\S]*initialSelectedEventId/,
   );
   assert.match(workspace, /const \[sheetEventId,/);
   assert.match(
@@ -53,6 +53,33 @@ test("desktop preview selection and mobile sheet-open state are independent", as
   assert.match(detail, /isOpen=\{Boolean\(sheetEvent\)\}/);
   assert.doesNotMatch(workspace, /addEventListener\("keydown"/);
   assert.doesNotMatch(detail, /className=\{styles\.detailClose\}/);
+});
+
+test("stock detail reuses normalized company Calendar data, badges, and canonical selection", async () => {
+  const stock = await read("components/watchlist-v2/StockRadarWatchlistV2.tsx");
+  const stockStyles = await read("components/watchlist-v2/StockRadarWatchlistV2.module.css");
+  const route = await read("app/api/calendar/normalized/route.ts");
+  const repository = await read("lib/calendar-v1/repository.ts");
+  const calendarPage = await read("app/calendar/page.tsx");
+
+  assert.match(stock, /<CalendarEventTypeBadge/);
+  assert.match(stock, /<h2 id=\{headingId\}>Calendar events<\/h2>/);
+  assert.match(stock, /selectStockCalendarEvents/);
+  assert.match(stock, /addDateOnlyDays\(today, -30\)/);
+  assert.match(stock, /addDateOnlyDays\(today, 89\)/);
+  assert.match(stock, /fetchCalendarRange[\s\S]*"desc"/);
+  assert.match(stock, /getCalendarEventRouteHref\(event\)/);
+  assert.match(stock, /ticker: selectedTicker/);
+  assert.doesNotMatch(stock, /createCalendarMockEvents|fmp-calendar/);
+  assert.match(route, /getStockCompanyCalendarEvents/);
+  assert.match(route, /normalizeCompanyCalendarTicker/);
+  assert.match(repository, /readStockCompanyCalendarEvents/);
+  assert.match(calendarPage, /parseCalendarEventRouteSelection/);
+  assert.match(calendarPage, /initialSelectedEventId=\{selectedEvent\?\.id \?\? null\}/);
+  assert.match(
+    stockStyles,
+    /@media \(max-width: 1180px\)[\s\S]*\.contextRail \{[\s\S]*display: none;/,
+  );
 });
 
 test("rows reserve their desktop action column and selected rows have a non-color cue", async () => {

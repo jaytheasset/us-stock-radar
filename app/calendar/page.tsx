@@ -10,6 +10,7 @@ import {
 } from "@/lib/calendar-v1/dateUtils";
 import type { CalendarEvent } from "@/lib/calendar-v1/model";
 import { getNormalizedCalendarEvents } from "@/lib/calendar-v1/repository";
+import { parseCalendarEventRouteSelection } from "@/lib/calendar-v1/presentation";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
@@ -36,12 +37,17 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     ? (await getWatchlistViewModel(userId)).items.map((item) => item.ticker)
     : [];
   const requestedState = firstParam(params.state);
+  const requestedSelection = parseCalendarEventRouteSelection(
+    firstParam(params.event),
+    firstParam(params.date),
+  );
   const previewState: CalendarPreviewState =
     requestedState === "loading" || requestedState === "error" || requestedState === "empty"
       ? requestedState
       : "default";
   const today = getCalendarMarketDate();
-  const initialRange = getPresetDateRange("this-week", today);
+  const requestedDate = requestedSelection?.eventDate ?? today;
+  const initialRange = getPresetDateRange("this-week", requestedDate);
   let initialEvents: CalendarEvent[] = [];
   let initialLoadError = false;
 
@@ -53,6 +59,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     }
   }
 
+  const selectedEvent = requestedSelection
+    ? initialEvents.find(
+        (event) =>
+          event.id === requestedSelection.eventId &&
+          event.eventDate === requestedSelection.eventDate,
+      ) ?? null
+    : null;
+
   return (
     <StockRadarAppShell activeNavigationItem="calendar" themeMode="user-selectable">
       <StockRadarCalendarV1
@@ -60,6 +74,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         initialLoadError={initialLoadError}
         initialRange={initialRange}
         initialWatchlistTickers={initialWatchlistTickers}
+        initialSelectedDate={selectedEvent?.eventDate ?? requestedDate}
+        initialSelectedEventId={selectedEvent?.id ?? null}
         previewState={previewState}
         today={today}
         viewerPlan={viewerPlan}

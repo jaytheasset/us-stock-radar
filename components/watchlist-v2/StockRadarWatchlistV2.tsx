@@ -22,10 +22,27 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
+import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
+import {
+  addDateOnlyDays,
+  getCalendarMarketDate,
+} from "@/lib/calendar-v1/dateUtils";
+import {
+  eventStatusLabels,
+  type CompanyCalendarEvent,
+} from "@/lib/calendar-v1/model";
+import {
+  parseCalendarEventsApiPayload,
+} from "@/lib/calendar-v1/normalized";
+import {
+  formatStockCalendarEventDateTime,
+  getCalendarEventRouteHref,
+  selectStockCalendarEvents,
+} from "@/lib/calendar-v1/presentation";
 import { formatLimit } from "@/lib/subscriptionPolicy";
 import {
   formatCompactMarketValue,
@@ -128,6 +145,9 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
+  const [stockCalendarEvents, setStockCalendarEvents] = useState<
+    CompanyCalendarEvent[]
+  >([]);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
   const [chartState, setChartState] = useState<LoadState>("idle");
   const [eventsState, setEventsState] = useState<LoadState>("idle");
@@ -257,6 +277,60 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [selectedTicker, selectedWatchlistItem?.companyName]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
+      setStockCalendarEvents([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const today = getCalendarMarketDate();
+    const fetchCalendarRange = (
+      from: string,
+      to: string,
+      tickerOrder: "asc" | "desc",
+    ) => {
+      const params = new URLSearchParams({
+        from,
+        ticker: selectedTicker,
+        tickerOrder,
+        to,
+      });
+      return fetch(`/api/calendar/normalized?${params.toString()}`, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      })
+        .then(readJsonResponse)
+        .then(parseCalendarEventsApiPayload);
+    };
+    setStockCalendarEvents([]);
+
+    void Promise.all([
+      fetchCalendarRange(today, addDateOnlyDays(today, 89), "asc"),
+      fetchCalendarRange(
+        addDateOnlyDays(today, -30),
+        addDateOnlyDays(today, -1),
+        "desc",
+      ),
+    ])
+      .then(([upcomingEvents, recentEvents]) => {
+        if (controller.signal.aborted) return;
+        setStockCalendarEvents(
+          selectStockCalendarEvents(
+            [...upcomingEvents, ...recentEvents],
+            selectedTicker,
+            today,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setStockCalendarEvents([]);
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -774,12 +848,13 @@ export function StockRadarWatchlistV2({
                   ))}
                 </nav>
 
-                <div className={styles.heroGrid}>
-                  <RadarBrief event={latestEvent} ticker={selectedTicker} />
-                  <section
-                    aria-labelledby="watchlist-chart-title"
-                    className={styles.chartPanel}
-                  >
+                <div className={styles.workspaceGrid}>
+                  <div className={styles.workspaceMain}>
+                    <div className={styles.heroGrid}>
+                      <section
+                        aria-labelledby="watchlist-chart-title"
+                        className={styles.chartPanel}
+                      >
                     <div className={styles.panelHeading}>
                       <div>
                         <span>PRICE ACTION</span>
@@ -821,40 +896,42 @@ export function StockRadarWatchlistV2({
                         ticker={selectedTicker}
                       />
                     )}
-                    <MarketStats quote={quote} profile={profile} />
-                  </section>
-                </div>
+                        <MarketStats quote={quote} profile={profile} />
+                      </section>
+                      <div className={styles.responsiveRadarBrief}>
+                        <RadarBrief event={latestEvent} ticker={selectedTicker} />
+                      </div>
+                    </div>
 
-                <div className={styles.promoRow}>
-                  {allowAds ? (
-                    <>
-                      <AdSenseSlot
-                        className={styles.desktopInlineAd}
-                        enabledForViewer
-                        format="horizontal"
-                        height={90}
-                        inventory="dashboard-desktop-inline"
-                        mediaQuery="(min-width: 761px) and (max-width: 1180px)"
-                        placeholderSize="Responsive · max 970 × 90"
-                        width={970}
-                      />
-                      <AdSenseSlot
-                        className={styles.mobileInlineAd}
-                        enabledForViewer
-                        format="responsive"
-                        height={100}
-                        inventory="dashboard-mobile-inline"
-                        mediaQuery="(max-width: 760px)"
-                        placeholderSize="320 × 100"
-                        width={320}
-                      />
-                    </>
-                  ) : null}
-                  <WatchlistUpgradeCard watchlist={watchlist} />
-                </div>
+                    <div className={styles.promoRow}>
+                      {allowAds ? (
+                        <>
+                          <AdSenseSlot
+                            className={styles.desktopInlineAd}
+                            enabledForViewer
+                            format="horizontal"
+                            height={90}
+                            inventory="dashboard-desktop-inline"
+                            mediaQuery="(min-width: 761px) and (max-width: 1180px)"
+                            placeholderSize="Responsive · max 970 × 90"
+                            width={970}
+                          />
+                          <AdSenseSlot
+                            className={styles.mobileInlineAd}
+                            enabledForViewer
+                            format="responsive"
+                            height={100}
+                            inventory="dashboard-mobile-inline"
+                            mediaQuery="(max-width: 760px)"
+                            placeholderSize="320 × 100"
+                            width={320}
+                          />
+                        </>
+                      ) : null}
+                      <WatchlistUpgradeCard watchlist={watchlist} />
+                    </div>
 
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailMain}>
+                    <div className={styles.detailMain}>
                     <section
                       aria-labelledby="watchlist-events-title"
                       className={styles.section}
@@ -894,13 +971,14 @@ export function StockRadarWatchlistV2({
                       ownershipEvents={ownershipEvents}
                       snapshot={fundamentals}
                     />
+                    </div>
                   </div>
-
                   <aside
                     aria-label={`${selectedTicker} event context`}
                     className={styles.contextRail}
                   >
-                    <EventPreview event={selectedEvent} variant="desktop" />
+                    <RadarBrief event={latestEvent} ticker={selectedTicker} />
+                    <WatchlistUpgradeCard watchlist={watchlist} />
                     {allowAds ? (
                       <AdSenseSlot
                         className={styles.railAd}
@@ -912,6 +990,11 @@ export function StockRadarWatchlistV2({
                         width={300}
                       />
                     ) : null}
+                    <EventPreview event={selectedEvent} variant="desktop" />
+                    <StockCalendarEvents
+                      events={stockCalendarEvents}
+                      ticker={selectedTicker}
+                    />
                     <CompanyContext profile={profile} ticker={selectedTicker} />
                   </aside>
                 </div>
@@ -1540,6 +1623,42 @@ function CompanyContext({
           <ExternalLink aria-hidden="true" size={12} />
         </a>
       ) : null}
+    </section>
+  );
+}
+
+function StockCalendarEvents({
+  events,
+  ticker,
+}: {
+  events: readonly CompanyCalendarEvent[];
+  ticker: string;
+}) {
+  if (!events.length) return null;
+
+  const headingId = `calendar-${ticker.replaceAll(".", "-").toLowerCase()}-events`;
+  return (
+    <section aria-labelledby={headingId} className={styles.upcomingEvents}>
+      <h2 id={headingId}>Calendar events</h2>
+      <div className={styles.upcomingEventList}>
+        {events.map((event) => (
+          <Link
+            aria-label={`Open ${event.title} in Calendar`}
+            className={styles.upcomingEventRow}
+            href={getCalendarEventRouteHref(event)}
+            key={event.id}
+          >
+            <span className={styles.upcomingEventTopline}>
+              <CalendarEventTypeBadge eventType={event.eventType} size="micro" />
+            </span>
+            <strong>{event.title}</strong>
+            <span className={styles.upcomingEventMeta}>
+              <span>{formatStockCalendarEventDateTime(event)}</span>
+              <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
+            </span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }

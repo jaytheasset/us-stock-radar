@@ -516,11 +516,26 @@
   font-family: var(--sr-font-family-mono);
 }
 
-.heroGrid {
+.workspaceGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
   align-items: start;
   gap: var(--stock-detail-column-gap);
+}
+
+.workspaceMain,
+.detailMain {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-4);
+}
+
+.heroGrid {
+  min-width: 0;
+}
+
+.responsiveRadarBrief {
+  display: none;
 }
 
 .radarBrief,
@@ -528,6 +543,7 @@
 .section,
 .eventPreview,
 .previewEmpty,
+.upcomingEvents,
 .companyContext,
 .upgradeCard {
   border: var(--sr-border-width) solid var(--sr-color-border);
@@ -537,10 +553,6 @@
 }
 
 .radarBrief {
-  position: sticky;
-  top: calc(var(--sr-size-header) + var(--sr-space-4));
-  grid-column: 2;
-  grid-row: 1;
   padding: var(--sr-space-4);
 }
 
@@ -678,8 +690,6 @@
 }
 
 .chartPanel {
-  grid-column: 1;
-  grid-row: 1;
   min-width: 0;
   padding: var(--sr-space-4);
 }
@@ -872,10 +882,7 @@
 }
 
 .promoRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
-  gap: var(--stock-detail-column-gap);
-  margin: var(--sr-space-4) 0;
+  display: none;
 }
 
 .desktopInlineAd,
@@ -884,7 +891,6 @@
 }
 
 .upgradeCard {
-  grid-column: -2 / -1;
   padding: var(--sr-space-4);
   border-color: var(--sr-color-accent-border-premium);
   background:
@@ -902,19 +908,6 @@
 
 .upgradeCard :global(button) {
   margin-top: var(--sr-space-3);
-}
-
-.detailGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
-  align-items: start;
-  gap: var(--stock-detail-column-gap);
-}
-
-.detailMain {
-  display: grid;
-  gap: var(--sr-space-4);
-  min-width: 0;
 }
 
 .section {
@@ -1105,18 +1098,87 @@
 }
 
 .contextRail {
-  position: sticky;
-  top: calc(var(--sr-size-header) + var(--sr-space-4));
   display: grid;
-  max-height: calc(100dvh - var(--sr-size-header) - var(--sr-space-6));
+  min-width: 0;
+  align-content: start;
   gap: var(--sr-space-4);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
 .eventPreview,
+.upcomingEvents,
 .companyContext {
   padding: var(--sr-space-4);
+}
+
+.upcomingEvents h2 {
+  margin: 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-md);
+  line-height: var(--sr-line-height-snug);
+}
+
+.upcomingEventList {
+  display: grid;
+  margin-top: var(--sr-space-2);
+}
+
+.upcomingEventRow {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-2) 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.upcomingEventRow:hover {
+  background: var(--sr-color-surface-table-hover);
+}
+
+.upcomingEventTopline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.upcomingEventRow > strong {
+  overflow: hidden;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcomingEventMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+}
+
+.upcomingEventMeta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcomingEventMeta b {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+}
+
+.upcomingEventMeta b[data-status="completed"] {
+  color: var(--sr-color-positive);
+}
+
+.upcomingEventMeta b[data-status="estimated"] {
+  color: var(--sr-color-warning);
 }
 
 .eventPreview header {
@@ -1452,21 +1514,28 @@
     display: block;
   }
 
-  .heroGrid {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.48fr);
+  .workspaceGrid {
+    display: block;
   }
 
-  .radarBrief {
-    position: static;
+  .heroGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.48fr);
+    align-items: start;
+    gap: var(--stock-detail-column-gap);
+  }
+
+  .responsiveRadarBrief {
+    display: block;
     grid-column: 2;
+  }
+
+  .responsiveRadarBrief .radarBrief {
+    position: static;
   }
 
   .chartPanel {
     grid-column: 1;
-  }
-
-  .detailGrid {
-    display: block;
   }
 
   .contextRail {
@@ -1474,7 +1543,9 @@
   }
 
   .promoRow {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(250px, 0.45fr);
+    gap: var(--stock-detail-column-gap);
   }
 
   .desktopInlineAd {
