@@ -4,11 +4,14 @@ import {
   addDateOnlyDays,
   enumerateDateRange,
   filterCalendarEvents,
+  formatCompactRangeLabel,
+  formatEnglishDatePickerValue,
   getPresetDateRange,
   groupCalendarEventsByDate,
   normalizeDateRange,
   parseDateOnly,
   shiftDateRange,
+  sortCalendarEventsByDateContext,
   updateCalendarCategoryFilter,
 } from "./dateUtils.ts";
 import {
@@ -24,6 +27,7 @@ import {
   POLICY_SUBCATEGORIES,
   calendarEventTypeGroups,
   eventTypeCategories,
+  type CalendarEvent,
 } from "./model.ts";
 import {
   formatCalendarEventTime,
@@ -41,6 +45,30 @@ test("date-only helpers parse in local calendar time and reject rollover dates",
   assert.equal(date.getDate(), 29);
   assert.equal(addDateOnlyDays("2026-03-08", 1), "2026-03-09");
   assert.throws(() => parseDateOnly("2026-02-30"), /Invalid date-only/);
+});
+
+test("visible date picker values stay in a fixed English US format", () => {
+  assert.equal(formatEnglishDatePickerValue("2026-07-30"), "July 30, 2026");
+  assert.equal(formatEnglishDatePickerValue("2026-12-05"), "December 5, 2026");
+  assert.throws(
+    () => formatEnglishDatePickerValue("2026-13-05"),
+    /Invalid date-only/,
+  );
+});
+
+test("compact mobile range labels omit redundant same-year text", () => {
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-07-27", to: "2026-08-02" }),
+    "Jul 27 – Aug 2",
+  );
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-07-30", to: "2026-07-30" }),
+    "Jul 30",
+  );
+  assert.equal(
+    formatCompactRangeLabel({ from: "2026-12-29", to: "2027-01-04" }),
+    "Dec 29, 2026 – Jan 4, 2027",
+  );
 });
 
 test("presets, custom normalization, enumeration, and shifting share one range contract", () => {
@@ -99,7 +127,7 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
     { from: "2026-07-29", to: "2026-07-31" },
     DEFAULT_CALENDAR_FILTERS,
   );
-  const groups = groupCalendarEventsByDate(filtered);
+  const groups = groupCalendarEventsByDate(filtered, "2026-07-29");
   assert.deepEqual(groups.map((group) => group.date), ["2026-07-29", "2026-07-30", "2026-07-31"]);
   assert.ok(groups[1].events.length >= 6);
 
@@ -116,6 +144,69 @@ test("grouping is date ordered, retains crowded dates, and does not invent missi
     null,
   );
   assert.equal(unknownIpo?.eventTime, null);
+});
+
+test("date-context sorting prioritizes remaining events today and in the future, but completed events in the past", () => {
+  const template = createCalendarMockEvents("2026-07-29")[0];
+  assert.ok(template);
+  const makeEvent = (
+    id: string,
+    eventDate: string,
+    status: CalendarEvent["status"],
+    eventTime: string,
+  ): CalendarEvent => ({
+    ...template,
+    id,
+    eventDate,
+    eventTime,
+    status,
+  });
+  const events = [
+    makeEvent("past-estimated", "2026-07-28", "estimated", "08:00"),
+    makeEvent("past-confirmed", "2026-07-28", "confirmed", "10:00"),
+    makeEvent("past-completed", "2026-07-28", "completed", "16:00"),
+    makeEvent("today-cancelled", "2026-07-29", "cancelled", "07:00"),
+    makeEvent("today-completed", "2026-07-29", "completed", "08:00"),
+    makeEvent("today-estimated", "2026-07-29", "estimated", "09:00"),
+    makeEvent("today-confirmed", "2026-07-29", "confirmed", "10:00"),
+    makeEvent("today-postponed", "2026-07-29", "postponed", "06:00"),
+    makeEvent("future-completed", "2026-07-30", "completed", "08:00"),
+    makeEvent("future-estimated", "2026-07-30", "estimated", "09:00"),
+    makeEvent("future-confirmed", "2026-07-30", "confirmed", "10:00"),
+  ];
+
+  const groups = groupCalendarEventsByDate(events, "2026-07-29");
+  assert.deepEqual(groups.map((group) => group.date), [
+    "2026-07-28",
+    "2026-07-29",
+    "2026-07-30",
+  ]);
+  assert.deepEqual(groups[0]?.events.map((event) => event.status), [
+    "completed",
+    "confirmed",
+    "estimated",
+  ]);
+  assert.deepEqual(groups[1]?.events.map((event) => event.status), [
+    "confirmed",
+    "estimated",
+    "completed",
+    "postponed",
+    "cancelled",
+  ]);
+  assert.deepEqual(groups[2]?.events.map((event) => event.status), [
+    "confirmed",
+    "estimated",
+    "completed",
+  ]);
+
+  const sameStatus = sortCalendarEventsByDateContext(
+    [
+      makeEvent("late", "2026-07-29", "confirmed", "16:00"),
+      makeEvent("early", "2026-07-29", "confirmed", "08:00"),
+    ],
+    "2026-07-29",
+  );
+  assert.deepEqual(sameStatus.map((event) => event.id), ["early", "late"]);
 });
 
 test("desktop preview defaults by view and preserves only valid selections", () => {
@@ -402,7 +493,21 @@ test("duplicate-prevention fixtures keep combined releases and related milestone
   assert.equal(byType("sec-open-meeting").length, 1);
   const milestones = byType("sec-rule-milestone");
   assert.equal(milestones.length, 2);
-  assert.equal(milestones[0]?.sourceEventKey, milestones[1]?.sourceEventKey);
+  assert.ok(
+    milestones.every(
+      (event) =>
+        event.category === "policy" &&
+        event.eventType === "sec-rule-milestone",
+    ),
+  );
+  assert.equal(
+    milestones[0]?.eventType === "sec-rule-milestone"
+      ? milestones[0].details.documentOrDocket
+      : null,
+    milestones[1]?.eventType === "sec-rule-milestone"
+      ? milestones[1].details.documentOrDocket
+      : null,
+  );
   assert.notEqual(milestones[0]?.eventDate, milestones[1]?.eventDate);
   assert.equal(byType("treasury-auction-10y").length, 1);
   assert.equal(byType("treasury-auction-30y").length, 1);

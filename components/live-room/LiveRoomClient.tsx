@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
+import type { KlipyMediaAttachment } from "@/lib/klipy/types";
 import { DirectMessageRequestModal } from "@/components/direct-messages/DirectMessageRequestModal";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
@@ -27,6 +28,7 @@ import {
   type ModerationReason,
 } from "@/lib/live-room/moderation";
 import { createLiveRoomMemberLoginHref } from "@/lib/live-room/memberActions";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { createLiveRoomReplyBodyPreview } from "@/lib/live-room/replyPolicy";
 import type {
   CompanyEvent,
@@ -108,6 +110,7 @@ import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
   activityMessageId: string | null;
+  loginReturnPath: string;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   roomAvailability: LiveRoomAvailability;
   ticker: string;
@@ -158,6 +161,7 @@ const EMPTY_QUOTE: StockOverviewQuote = {
 
 export function LiveRoomClient({
   activityMessageId,
+  loginReturnPath,
   realtimeConfig,
   roomAvailability,
   ticker,
@@ -199,6 +203,8 @@ export function LiveRoomClient({
   const [body, setBody] = useState("");
   const [brokerageProof, setBrokerageProof] =
     useState<BrokerageProofSummary | null>(null);
+  const [klipyMedia, setKlipyMedia] =
+    useState<KlipyMediaAttachment | null>(null);
   const [reference, setReference] =
     useState<CompanyEventReference | null>(null);
   const [replyingTo, setReplyingTo] =
@@ -234,8 +240,8 @@ export function LiveRoomClient({
   const [messageLikeIds, setMessageLikeIds] =
     useState<ReadonlySet<string>>(() => new Set());
   const [messageRequestTarget, setMessageRequestTarget] = useState<{
+    avatarUrl: string | null;
     displayName: string;
-    emoji: string;
     messageId: string;
   } | null>(null);
   const [messageRequestBusy, setMessageRequestBusy] = useState(false);
@@ -258,7 +264,6 @@ export function LiveRoomClient({
   const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
-  const profileSaveTimerRef = useRef<number | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
   const messageLikeIdsRef = useRef<Set<string>>(new Set());
@@ -311,6 +316,7 @@ export function LiveRoomClient({
   );
   const roomLoginHref = createLiveRoomMemberLoginHref(
     `/live/${ticker}`,
+    loginReturnPath,
   );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
@@ -826,14 +832,6 @@ export function LiveRoomClient({
   ]);
 
   useEffect(() => {
-    return () => {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     const controller = new AbortController();
     void fetch(
       `/api/market/fmp/profile?symbol=${encodeURIComponent(ticker)}`,
@@ -930,27 +928,22 @@ export function LiveRoomClient({
     };
   }, [ticker]);
 
-  const handleProfileChange = (nextProfile: LiveRoomProfile) => {
-    setProfile(nextProfile);
+  const handleProfileSave = async (
+    nextProfile: Pick<LiveRoomProfile, "bio" | "displayName">,
+  ) => {
     setRoomNotice(null);
-    if (profileSaveTimerRef.current !== null) {
-      window.clearTimeout(profileSaveTimerRef.current);
-    }
-    profileSaveTimerRef.current = window.setTimeout(() => {
-      profileSaveTimerRef.current = null;
-      void repository
-        .writeProfile({
-          displayName: nextProfile.displayName,
-          emoji: nextProfile.emoji,
-        })
-        .then((saved) => {
-          setProfile(saved);
-          setRoomNotice(null);
-        })
-        .catch((error) => {
-          setRoomNotice(toLiveRoomApiError(error).message);
-        });
-    }, 500);
+    const saved = await repository.writeProfile(nextProfile);
+    setProfile(saved);
+    return saved;
+  };
+
+  const handleProfileAvatarChange = async (photo: File | null) => {
+    setRoomNotice(null);
+    const saved = photo
+      ? await repository.writeProfileAvatar(photo)
+      : await repository.removeProfileAvatar();
+    setProfile(saved);
+    return saved;
   };
 
   const refreshJoinedRooms = async () => {
@@ -1073,12 +1066,20 @@ export function LiveRoomClient({
     [],
   );
 
-  const handleSend = async () => {
+  const handleSend = async (profileOverride?: LiveRoomProfile) => {
     if (roomReadOnly) {
       setRoomNotice(roomAvailabilityMessage);
       return;
     }
-    if (!profile) return;
+    const activeProfile = profileOverride ?? profile;
+    if (!activeProfile || sending) return;
+    if (
+      activeProfile.isGuest === false &&
+      activeProfile.isChatNameSet === false
+    ) {
+      setProfileOpen(true);
+      return;
+    }
     const currentUserHistory = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -1089,6 +1090,7 @@ export function LiveRoomClient({
         createdAt: item.createdAt,
       }));
     const clientDecision = evaluateLiveRoomMessage(body, {
+      allowEmpty: Boolean(klipyMedia),
       history: currentUserHistory,
       now: new Date().toISOString(),
     });
@@ -1098,18 +1100,10 @@ export function LiveRoomClient({
     setSending(true);
     setRoomNotice(null);
     try {
-      if (profileSaveTimerRef.current !== null) {
-        window.clearTimeout(profileSaveTimerRef.current);
-        profileSaveTimerRef.current = null;
-        const savedProfile = await repository.writeProfile({
-          displayName: profile.displayName,
-          emoji: profile.emoji,
-        });
-        setProfile(savedProfile);
-      }
       const message = await repository.send({
         body: clientDecision.normalizedBody,
         eventId: reference?.eventId || null,
+        mediaId: klipyMedia?.providerMediaId || null,
         proofId: brokerageProof?.id || null,
         replyToMessageId: replyingTo?.id || null,
       });
@@ -1133,6 +1127,7 @@ export function LiveRoomClient({
       });
       setBody("");
       setBrokerageProof(null);
+      setKlipyMedia(null);
       setReference(null);
       setReplyingTo(null);
       setDecision(null);
@@ -1312,7 +1307,9 @@ export function LiveRoomClient({
         result.block,
         ...current.filter((block) => block.id !== result.block.id),
       ]);
-      setRoomNotice(`${result.block.displayName} is blocked.`);
+      setRoomNotice(
+        `${formatPublicChatName(result.block.displayName)} is blocked.`,
+      );
     } catch (error) {
       setRoomNotice(toLiveRoomApiError(error).message);
       throw error;
@@ -1362,8 +1359,8 @@ export function LiveRoomClient({
       if (result.mode === "request_required") {
         setMessageRequestError(null);
         setMessageRequestTarget({
+          avatarUrl: result.peer.avatarUrl,
           displayName: result.peer.displayName,
-          emoji: result.peer.emoji,
           messageId,
         });
         return;
@@ -1664,6 +1661,8 @@ export function LiveRoomClient({
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={handlePostCreated}
+            onProfileAvatarChange={handleProfileAvatarChange}
+            onProfileSave={handleProfileSave}
             posts={posts}
             profile={profile}
             repository={repository}
@@ -1770,25 +1769,42 @@ export function LiveRoomClient({
               }}
               onClearReference={() => setReference(null)}
               onCancelReply={() => setReplyingTo(null)}
-              onProfileChange={handleProfileChange}
+              onProfileAvatarChange={handleProfileAvatarChange}
+              onProfileSave={handleProfileSave}
               onPresenceSettingChange={handlePresenceSettingChange}
-              onProofChange={setBrokerageProof}
+              onProofChange={(proof) => {
+                setBrokerageProof(proof);
+                if (proof) setKlipyMedia(null);
+              }}
+              onMediaChange={(media) => {
+                setKlipyMedia(media);
+                if (media) setBrokerageProof(null);
+              }}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
               replyPreview={
                 replyingTo
                   ? {
+                      authorAvatarUrl: replyingTo.author.avatarUrl,
                       authorDisplayName: replyingTo.author.displayName,
                       authorEmoji: replyingTo.author.emoji,
                       bodyPreview: createLiveRoomReplyBodyPreview(
                         replyingTo.body,
                       ),
+                      mediaPreview: replyingTo.media
+                        ? {
+                            alt: replyingTo.media.alt,
+                            kind: "gif",
+                            previewUrl: replyingTo.media.previewUrl,
+                          }
+                        : null,
                       messageId: replyingTo.id,
                     }
                   : null
               }
               presenceSettingBusy={presenceSettingBusy}
+              media={klipyMedia}
               proof={brokerageProof}
               sending={sending}
               setProfileOpen={setProfileOpen}
@@ -1878,6 +1894,8 @@ export function LiveRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
+                onProfileAvatarChange={handleProfileAvatarChange}
+                onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}
                 repository={repository}

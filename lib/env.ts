@@ -11,8 +11,11 @@ const serverKeys = [
   "TELEGRAM_BOT_USERNAME",
   "TELEGRAM_WEBHOOK_SECRET",
   "TELEGRAM_CHAT_ID",
+  "TELEGRAM_PUBLIC_CHANNEL_ID",
   "ALERT_DELIVERY_CRON_SECRET",
   "ALERT_DELIVERY_CRON_WRITE_ENABLED",
+  "ALERT_DELIVERY_SEND_TELEGRAM",
+  "ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC",
   "DASHBOARD_MOVERS_CRON_SECRET",
   "CRON_SECRET",
   "SOURCE_INGEST_WORKFLOW_ENABLED_LANES",
@@ -44,6 +47,7 @@ const serverKeys = [
   "SNAPTRADE_MANUAL_REFRESH_MONTHLY_LIMIT",
   "SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS",
   "SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS",
+  "KLIPY_API_KEY",
 ] as const;
 
 export function getServerEnv() {
@@ -61,9 +65,14 @@ export function getServerEnv() {
     telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || "",
     telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || "",
     telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
+    telegramPublicChannelId: process.env.TELEGRAM_PUBLIC_CHANNEL_ID || "",
     alertDeliveryCronSecret: process.env.ALERT_DELIVERY_CRON_SECRET || "",
     alertDeliveryCronWriteEnabled:
       (process.env.ALERT_DELIVERY_CRON_WRITE_ENABLED || "false").toLowerCase() === "true",
+    alertDeliverySendTelegram:
+      (process.env.ALERT_DELIVERY_SEND_TELEGRAM || "false").toLowerCase() === "true",
+    alertDeliverySendTelegramPublic:
+      (process.env.ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC || "false").toLowerCase() === "true",
     dashboardMoversCronSecret:
       process.env.DASHBOARD_MOVERS_CRON_SECRET || "",
     cronSecret: process.env.CRON_SECRET || "",
@@ -110,6 +119,7 @@ export function getServerEnv() {
       Number(process.env.SNAPTRADE_MANUAL_REFRESH_COOLDOWN_SECONDS) || 600,
     snaptradeManualRefreshEstimatedCostCents:
       Number(process.env.SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS) || 5,
+    klipyApiKey: process.env.KLIPY_API_KEY || "",
   };
 }
 
@@ -128,8 +138,13 @@ export function envStatus() {
     TELEGRAM_BOT_USERNAME: values.telegramBotUsername,
     TELEGRAM_WEBHOOK_SECRET: values.telegramWebhookSecret,
     TELEGRAM_CHAT_ID: values.telegramChatId,
+    TELEGRAM_PUBLIC_CHANNEL_ID: values.telegramPublicChannelId,
     ALERT_DELIVERY_CRON_SECRET: values.alertDeliveryCronSecret,
     ALERT_DELIVERY_CRON_WRITE_ENABLED: String(values.alertDeliveryCronWriteEnabled),
+    ALERT_DELIVERY_SEND_TELEGRAM: String(values.alertDeliverySendTelegram),
+    ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC: String(
+      values.alertDeliverySendTelegramPublic,
+    ),
     DASHBOARD_MOVERS_CRON_SECRET: values.dashboardMoversCronSecret,
     CRON_SECRET: values.cronSecret,
     SOURCE_INGEST_WORKFLOW_ENABLED_LANES:
@@ -171,6 +186,7 @@ export function envStatus() {
     SNAPTRADE_MANUAL_REFRESH_ESTIMATED_COST_CENTS: String(
       values.snaptradeManualRefreshEstimatedCostCents,
     ),
+    KLIPY_API_KEY: values.klipyApiKey,
   };
 
   return serverKeys.map((key) => ({

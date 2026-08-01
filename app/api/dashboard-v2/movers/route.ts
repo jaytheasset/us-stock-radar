@@ -15,6 +15,11 @@ import {
   type DashboardV2MoverMode,
 } from "@/lib/dashboardV2ExtendedMovers";
 import {
+  includesDashboardV2EventDeliveryLevel,
+  normalizeDashboardV2EventScore,
+  sortDashboardV2Events,
+} from "@/lib/dashboardV2Events";
+import {
   readDashboardExtendedMoverSnapshot,
   type DashboardExtendedMoverSnapshot,
   writeDashboardExtendedMoverSnapshot,
@@ -870,6 +875,9 @@ async function loadRecentEventsByTicker(tickers: string[]) {
     if (!event) continue;
     values.set(ticker, [...(values.get(ticker) || []), event]);
   }
+  for (const [ticker, events] of values) {
+    values.set(ticker, sortDashboardV2Events(events));
+  }
 
   return { status: values.size ? "ready" as const : "empty" as const, values };
 }
@@ -879,7 +887,15 @@ function normalizeEvent(row: EventRow): DashboardV2Event | null {
   const code = textValue(row.event_type).toLowerCase();
   const title = textValue(row.title);
   const timestamp = textValue(row.detected_at) || textValue(row.published_at);
-  if (!id || !code || !title || !timestamp) return null;
+  if (
+    !id ||
+    !code ||
+    !title ||
+    !timestamp ||
+    !includesDashboardV2EventDeliveryLevel(row.delivery_level)
+  ) {
+    return null;
+  }
   const badge = getEventTypeBadge(code);
 
   return {
@@ -887,6 +903,7 @@ function normalizeEvent(row: EventRow): DashboardV2Event | null {
     id,
     impact: normalizeImpact(row.impact),
     label: badge.label,
+    score: normalizeDashboardV2EventScore(row.score),
     signal: normalizeSignal(row.signal),
     timestamp,
     title,

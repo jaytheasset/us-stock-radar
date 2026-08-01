@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -16,12 +22,15 @@ import {
 } from "@/components/calendar-v1/CalendarAdSlots";
 import { CalendarFilters } from "@/components/calendar-v1/CalendarFilters";
 import { CalendarEventDetail } from "@/components/calendar-v1/CalendarEventDetail";
+import { MobileCalendarDateNavigation } from "@/components/calendar-v1/MobileCalendarDateNavigation";
 import { CalendarView, ListView } from "@/components/calendar-v1/CalendarViews";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { buildCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
 import {
   countActiveCalendarFilters,
   filterCalendarEvents,
+  formatEnglishDatePickerValue,
   formatRangeLabel,
   getPresetDateRange,
   normalizeDateRange,
@@ -30,7 +39,6 @@ import {
 } from "@/lib/calendar-v1/dateUtils";
 import {
   CALENDAR_MOCK_WATCHLIST_TICKERS,
-  createCalendarMockEvents,
 } from "@/lib/calendar-v1/mockData";
 import {
   DEFAULT_CALENDAR_FILTERS,
@@ -39,27 +47,35 @@ import {
   type CalendarRangePreset,
   type CalendarViewMode,
 } from "@/lib/calendar-v1/model";
+import { parseCalendarEventsApiPayload } from "@/lib/calendar-v1/normalized";
 import {
   formatEventCount,
   getCalendarEventIdentity,
   selectCalendarPreviewEvent,
 } from "@/lib/calendar-v1/presentation";
-import type { Plan } from "@/lib/subscriptionPolicy";
+import { getPlanLimits, type Plan } from "@/lib/subscriptionPolicy";
+import type { CalendarEventFollowsViewModel } from "@/lib/alerts/types";
 import styles from "./CalendarV1.module.css";
 
 export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
 
 export function StockRadarCalendarV1({
+  initialEvents,
+  initialLoadError = false,
+  initialRange,
   previewState = "default",
   today,
   viewerPlan,
 }: {
+  initialEvents: readonly CalendarEvent[];
+  initialLoadError?: boolean;
+  initialRange: CalendarDateRange;
   previewState?: CalendarPreviewState;
   today: string;
   viewerPlan: Plan;
 }) {
   const [preset, setPreset] = useState<CalendarRangePreset>("this-week");
-  const [range, setRange] = useState<CalendarDateRange>(() => getPresetDateRange("this-week", today));
+  const [range, setRange] = useState<CalendarDateRange>(initialRange);
   const [selectedDate, setSelectedDate] = useState(today);
   const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [filters, setFilters] = useState(DEFAULT_CALENDAR_FILTERS);
@@ -68,12 +84,26 @@ export function StockRadarCalendarV1({
   const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
+  const [followUsage, setFollowUsage] = useState(() =>
+    buildCalendarEventFollowUsage(
+      0,
+      getPlanLimits(viewerPlan).calendarEventFollowLimit,
+    ),
+  );
+  const [followAction, setFollowAction] = useState("");
+  const [followMessage, setFollowMessage] = useState("");
+  const [sourceEvents, setSourceEvents] = useState<readonly CalendarEvent[]>(initialEvents);
+  const [desktopRailContentHeight, setDesktopRailContentHeight] = useState(0);
+  const [loadState, setLoadState] = useState<"ready" | "loading" | "error">(
+    initialLoadError ? "error" : "ready",
+  );
+  const [reloadToken, setReloadToken] = useState(0);
   const mobileFilterOpenerRef = useRef<HTMLButtonElement>(null);
   const detailOpenerRef = useRef<HTMLElement | null>(null);
   const selectedDateListRef = useRef<HTMLDivElement>(null);
-  const sourceEvents = useMemo(
-    () => (previewState === "empty" ? [] : createCalendarMockEvents(today)),
-    [previewState, today],
+  const requestIdRef = useRef(0);
+  const loadedRangeKeyRef = useRef<string | null>(
+    initialLoadError ? null : rangeKey(initialRange),
   );
   const events = useMemo(
     () =>
@@ -89,6 +119,35 @@ export function StockRadarCalendarV1({
       ),
     [sourceEvents, watchlistOverrides],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/calendar/follows", {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as {
+          data?: CalendarEventFollowsViewModel;
+          message?: string;
+        } | null;
+        if (!response.ok || !Array.isArray(payload?.data?.follows) || !payload.data.usage) {
+          throw new Error(payload?.message || "Failed to load followed events.");
+        }
+        setFollowedEvents(
+          Object.fromEntries(payload.data.follows.map((follow) => [follow.eventId, follow.enabled])),
+        );
+        setFollowUsage(payload.data.usage);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setFollowMessage(
+          error instanceof Error ? error.message : "Failed to load followed events.",
+        );
+      });
+    return () => controller.abort();
+  }, []);
   const watchlistTickers = useMemo(() => {
     const tickers = new Set<string>();
     for (const ticker of CALENDAR_MOCK_WATCHLIST_TICKERS) {
@@ -110,8 +169,12 @@ export function StockRadarCalendarV1({
     [events, filters, range, watchlistTickers],
   );
   const activeFilterCount = countActiveCalendarFilters(filters);
+  const visibleLoadState =
+    previewState === "loading" || previewState === "error"
+      ? previewState
+      : loadState;
   const canShowPreview =
-    previewState === "default" &&
+    visibleLoadState === "ready" &&
     events.length > 0 &&
     filteredEvents.length > 0;
   const desktopPreviewEvent = canShowPreview
@@ -127,14 +190,57 @@ export function StockRadarCalendarV1({
   const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
 
   useEffect(() => {
-    const nextSelectedEventId = desktopPreviewEvent?.id ?? null;
-    setSelectedEventId((current) =>
-      current === nextSelectedEventId ? current : nextSelectedEventId,
-    );
-  }, [desktopPreviewEvent?.id]);
+    if (previewState !== "default") return;
+    const key = rangeKey(range);
+    if (loadedRangeKeyRef.current === key && reloadToken === 0) return;
+
+    const requestId = ++requestIdRef.current;
+    const controller = new AbortController();
+    setLoadState("loading");
+    setSourceEvents([]);
+
+    const params = new URLSearchParams({ from: range.from, to: range.to });
+    fetch(`/api/calendar/normalized?${params.toString()}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload: unknown = await response.json();
+        if (!response.ok) throw new Error("Calendar request failed");
+        return parseCalendarEventsApiPayload(payload);
+      })
+      .then((nextEvents) => {
+        if (requestIdRef.current !== requestId) return;
+        loadedRangeKeyRef.current = key;
+        setSourceEvents(nextEvents);
+        setLoadState("ready");
+      })
+      .catch((error: unknown) => {
+        if (
+          controller.signal.aborted ||
+          (error instanceof DOMException && error.name === "AbortError") ||
+          requestIdRef.current !== requestId
+        ) {
+          return;
+        }
+        loadedRangeKeyRef.current = null;
+        setSourceEvents([]);
+        setLoadState("error");
+      });
+
+    return () => controller.abort();
+  }, [previewState, range.from, range.to, reloadToken]);
 
   function updateRange(nextRange: CalendarDateRange, nextPreset: CalendarRangePreset) {
     const normalized = normalizeDateRange(nextRange);
+    if (previewState === "default") {
+      loadedRangeKeyRef.current = null;
+      setLoadState("loading");
+      setSourceEvents([]);
+    }
+    setSheetEventId(null);
+    setSelectedEventId(null);
     setRange(normalized);
     setPreset(nextPreset);
     setSelectedDate(rangeContainsDate(normalized, today) ? today : normalized.from);
@@ -156,15 +262,75 @@ export function StockRadarCalendarV1({
     }
   }
 
+  function selectDate(date: string) {
+    setSelectedEventId(null);
+    setSelectedDate(date);
+  }
+
   function dismissSheet() {
     setSheetEventId(null);
     requestAnimationFrame(() => detailOpenerRef.current?.focus({ preventScroll: true }));
   }
 
+  function retryLoad() {
+    if (previewState !== "default") {
+      window.location.assign("/calendar");
+      return;
+    }
+    loadedRangeKeyRef.current = null;
+    setReloadToken((current) => current + 1);
+  }
+
+  async function toggleFollowEvent(event: CalendarEvent) {
+    if (followAction) return;
+    const enabled = !followedEvents[event.id];
+    setFollowAction(event.id);
+    setFollowMessage("");
+
+    try {
+      const response = await fetch("/api/calendar/follows", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: event.id, enabled }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        data?: CalendarEventFollowsViewModel & { followed?: boolean };
+        message?: string;
+      } | null;
+      if (response.status === 401) {
+        const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        window.location.assign(`/login?next=${encodeURIComponent(returnTo)}`);
+        return;
+      }
+      if (!response.ok || !Array.isArray(payload?.data?.follows) || !payload.data.usage) {
+        throw new Error(payload?.message || "Failed to update the event follow.");
+      }
+      setFollowedEvents(
+        Object.fromEntries(
+          payload.data.follows.map((follow) => [follow.eventId, follow.enabled]),
+        ),
+      );
+      setFollowUsage(payload.data.usage);
+      setFollowMessage(
+        enabled
+          ? "Event followed. Schedule updates and the 30-minute reminder will appear in Alerts."
+          : "Event follow removed.",
+      );
+    } catch (error) {
+      setFollowMessage(
+        error instanceof Error ? error.message : "Failed to update the event follow.",
+      );
+    } finally {
+      setFollowAction("");
+    }
+  }
+
   const content = (() => {
-    if (previewState === "loading") return <CalendarLoading />;
-    if (previewState === "error") return <CalendarError />;
-    if (!events.length) return <CalendarEmpty variant="all" onReset={() => window.location.assign("/calendar")} />;
+    if (visibleLoadState === "loading") return <CalendarLoading />;
+    if (visibleLoadState === "error") return <CalendarError onRetry={retryLoad} />;
+    if (previewState === "empty" || !events.length) {
+      return <CalendarEmpty variant="all" onReset={retryLoad} />;
+    }
     if (!filteredEvents.length) {
       return (
         <CalendarEmpty
@@ -179,14 +345,15 @@ export function StockRadarCalendarV1({
           events={filteredEvents}
           onOpenEvent={openEvent}
           selectedEventId={desktopPreviewEvent?.id ?? null}
+          today={today}
         />
       );
     }
     return (
-      <CalendarView
-        events={filteredEvents}
-        onOpenEvent={openEvent}
-        onSelectedDateChange={setSelectedDate}
+        <CalendarView
+          events={filteredEvents}
+          onOpenEvent={openEvent}
+          onSelectedDateChange={selectDate}
         range={range}
         selectedDate={selectedDate}
         selectedDateListRef={selectedDateListRef}
@@ -198,7 +365,7 @@ export function StockRadarCalendarV1({
 
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
+      <header className={styles.pageHeader} data-calendar-header>
         <div>
           <span>EVENT DISCOVERY</span>
           <h1>Calendar</h1>
@@ -217,7 +384,11 @@ export function StockRadarCalendarV1({
         />
       </header>
 
-      <section aria-label="Date range controls" className={styles.dateControls}>
+      <section
+        aria-label="Date range controls"
+        className={styles.dateControls}
+        data-calendar-date-controls
+      >
         <SegmentedControl
           ariaLabel="Date range"
           className={styles.rangeControl}
@@ -252,50 +423,50 @@ export function StockRadarCalendarV1({
           >
             <ChevronRight aria-hidden="true" size={18} />
           </button>
-          <label className={styles.jumpDate}>
-            <span>Choose date</span>
-            <input
-              aria-label="Choose date"
-              onInput={(event) => {
-                if (!event.currentTarget.value) return;
+          <div className={styles.jumpDate}>
+            <span className={styles.dateFieldLabel}>Choose date</span>
+            <EnglishDatePicker
+              ariaLabel="Choose date"
+              onValueChange={(value) => {
                 updateRange(
-                  { from: event.currentTarget.value, to: event.currentTarget.value },
+                  { from: value, to: value },
                   "custom",
                 );
               }}
-              type="date"
               value={range.from === range.to ? range.from : ""}
             />
-          </label>
+          </div>
         </div>
         {preset === "custom" ? (
           <div className={styles.customRange}>
-            <label>
-              <span>From</span>
-              <input
-                onInput={(event) => {
-                  if (event.currentTarget.value) {
-                    updateRange({ ...range, from: event.currentTarget.value }, "custom");
-                  }
+            <div className={styles.customDateField}>
+              <span className={styles.dateFieldLabel}>From</span>
+              <EnglishDatePicker
+                ariaLabel="From date"
+                onValueChange={(value) => {
+                  updateRange({ ...range, from: value }, "custom");
                 }}
-                type="date"
                 value={range.from}
               />
-            </label>
-            <label>
-              <span>To</span>
-              <input
-                onInput={(event) => {
-                  if (event.currentTarget.value) {
-                    updateRange({ ...range, to: event.currentTarget.value }, "custom");
-                  }
+            </div>
+            <div className={styles.customDateField}>
+              <span className={styles.dateFieldLabel}>To</span>
+              <EnglishDatePicker
+                ariaLabel="To date"
+                onValueChange={(value) => {
+                  updateRange({ ...range, to: value }, "custom");
                 }}
-                type="date"
                 value={range.to}
               />
-            </label>
+            </div>
           </div>
         ) : null}
+        <MobileCalendarDateNavigation
+          onRangeChange={updateRange}
+          preset={preset}
+          range={range}
+          today={today}
+        />
       </section>
 
       <CalendarFilters
@@ -314,8 +485,20 @@ export function StockRadarCalendarV1({
         className={styles.workspace}
         data-detail-open={Boolean(desktopPreviewEvent)}
         data-rail-ads={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+        data-view-mode={viewMode}
+        style={
+          desktopRailContentHeight > 0
+            ? ({
+                "--calendar-desktop-rail-content-height": `${desktopRailContentHeight}px`,
+              } as CSSProperties)
+            : undefined
+        }
       >
-        <section className={styles.results} aria-label="Calendar results">
+        <section
+          aria-label="Calendar results"
+          className={styles.results}
+          data-calendar-results
+        >
           <div className={styles.resultsSummary} aria-live="polite">
             <span>{formatEventCount(filteredEvents.length)}</span>
             {activeFilterCount ? <b>{activeFilterCount} filters active</b> : <b>All events</b>}
@@ -323,17 +506,17 @@ export function StockRadarCalendarV1({
           {content}
         </section>
         <CalendarDesktopRail
+          activeEventId={selectedEventId}
           enabledForViewer={adsEnabledForViewer && Boolean(desktopPreviewEvent)}
+          onContentHeightChange={setDesktopRailContentHeight}
         >
           <CalendarEventDetail
             desktopEvent={desktopPreviewEvent}
+            followAction={followAction}
+            followMessage={followMessage}
+            followUsage={followUsage}
             followedEvents={followedEvents}
-            onFollowToggle={(event) => {
-              setFollowedEvents((current) => ({
-                ...current,
-                [event.id]: !current[event.id],
-              }));
-            }}
+            onFollowToggle={(event) => void toggleFollowEvent(event)}
             onSheetDismiss={dismissSheet}
             onWatchlistToggle={(event) => {
               const ticker = getCalendarEventIdentity(event).primaryTicker;
@@ -353,6 +536,66 @@ export function StockRadarCalendarV1({
   );
 }
 
+function EnglishDatePicker({
+  ariaLabel,
+  onValueChange,
+  value,
+}: {
+  ariaLabel: string;
+  onValueChange: (value: string) => void;
+  value: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayValue = value
+    ? formatEnglishDatePickerValue(value)
+    : "MM/DD/YYYY";
+
+  function openNativePicker() {
+    const input = inputRef.current;
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // Fall through to the click fallback for browsers that expose but block showPicker.
+    }
+
+    input.click();
+  }
+
+  return (
+    <span className={styles.englishDatePicker}>
+      <button
+        aria-haspopup="dialog"
+        aria-label={`${ariaLabel}: ${displayValue}`}
+        className={styles.englishDateButton}
+        onClick={openNativePicker}
+        type="button"
+      >
+        <span>{displayValue}</span>
+        <CalendarDays aria-hidden="true" size={15} />
+      </button>
+      <input
+        aria-hidden="true"
+        className={styles.nativeDateInput}
+        lang="en-US"
+        onChange={(event) => {
+          if (event.currentTarget.value) {
+            onValueChange(event.currentTarget.value);
+          }
+        }}
+        ref={inputRef}
+        tabIndex={-1}
+        type="date"
+        value={value}
+      />
+    </span>
+  );
+}
+
 function CalendarLoading() {
   return (
     <section aria-busy="true" aria-label="Loading calendar events" className={styles.statePanel}>
@@ -366,13 +609,13 @@ function CalendarLoading() {
   );
 }
 
-function CalendarError() {
+function CalendarError({ onRetry }: { onRetry: () => void }) {
   return (
     <section className={styles.statePanel} role="alert">
       <AlertTriangle aria-hidden="true" size={28} />
       <h2>Calendar events could not be loaded</h2>
       <p>Try the preview again. No saved data was changed.</p>
-      <button onClick={() => window.location.assign("/calendar")} type="button">
+      <button onClick={onRetry} type="button">
         <RefreshCw aria-hidden="true" size={15} />
         Retry
       </button>
@@ -394,11 +637,15 @@ function CalendarEmpty({
       <p>
         {variant === "all"
           ? "Move to another period to continue exploring events."
-          : "Clear the filters or search to see the full mock calendar."}
+          : "Clear the filters or search to see the full calendar."}
       </p>
       <button onClick={onReset} type="button">
-        {variant === "all" ? "Return to calendar" : "Reset filters"}
+        {variant === "all" ? "Reload range" : "Reset filters"}
       </button>
     </section>
   );
+}
+
+function rangeKey(range: CalendarDateRange) {
+  return `${range.from}:${range.to}`;
 }

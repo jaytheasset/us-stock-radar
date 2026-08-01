@@ -4,19 +4,18 @@ This runbook covers the STOCK RADAR personalized alert delivery scheduler.
 
 Current deployment strategy:
 
-- Use Render only for now.
-- Deploy the Next.js app as a Render Web Service.
-- Run alert delivery with a Render Cron Job using the scheduler CLI.
-- Keep `POST /api/cron/alert-delivery` as a protected backup endpoint for external cron or manual operations.
-- Do not build a Vercel native Cron GET wrapper now.
+- Deploy the Next.js app and API routes on Vercel Production.
+- Run scheduled alert delivery through the Vercel Cron `GET /api/cron/alert-delivery` contract in `vercel.json`.
+- Keep `POST /api/cron/alert-delivery` as a protected manual operator endpoint.
+- Host the production Telegram webhook at `https://us-stock-radar.com/api/telegram/webhook`.
 
 The delivery system is not a news or SEC analysis pipeline. It only takes already-created `events` and decides which users should receive personalized delivery based on watchlist, discovery categories, preferences, plan limits, and delivery channels.
 
-## Current Render-Only Architecture
+## Current Vercel Production Architecture
 
-### Render Web Service
+### Vercel Production Deployment
 
-The Render Web Service hosts the Next.js app and API routes:
+The Vercel Production deployment hosts the Next.js app and API routes:
 
 - `/alerts`
 - `/watchlist`
@@ -26,45 +25,39 @@ The Render Web Service hosts the Next.js app and API routes:
 - `/api/telegram/webhook`
 - `/api/cron/alert-delivery`
 
-The protected cron endpoint remains available, but it is not the primary scheduling path while using Render.
+Vercel Cron uses the protected GET route. The protected POST route remains available for intentional manual runs.
 
-### Render Cron Job
+### Vercel Cron Job
 
-The Render Cron Job runs the alert delivery scheduler as a command:
+`vercel.json` invokes the scheduler Route Handler every five minutes:
 
-```bash
-npm run deliver:scheduler -- --write --limit 50 --queued-limit 50 --lookback-hours 6
+```text
+GET /api/cron/alert-delivery
 ```
 
-This is preferred over calling the HTTP cron endpoint from Render because:
+The route contract provides:
 
-- the scheduler already exists as a CLI command;
-- the CLI defaults to dry-run unless `--write` is passed;
-- Render Cron Jobs are designed to run commands;
-- the app-level job lock still protects against overlap;
-- no HTTP cron secret is required for the primary Render cron path.
+- `Authorization: Bearer <CRON_SECRET>` verification for scheduled requests;
+- an `ALERT_DELIVERY_CRON_WRITE_ENABLED` production write gate;
+- the existing application-level overlap lock;
+- durable scheduler and event-run records;
+- explicit reconciliation instead of automatic retry for uncertain external sends.
 
-## Render Deployment Checklists
+## Vercel Deployment Checklists
 
-### Web Service Checklist
+### Production Deployment Checklist
 
-Render Web Service should run the Next.js app and API routes.
+Vercel Production should run the Next.js app and API routes.
 
-Recommended build command:
-
-```bash
-npm install && npm run build
-```
-
-Recommended start command:
+Repository build command:
 
 ```bash
-npm run start
+npm run build
 ```
 
 Before enabling cron delivery, confirm:
 
-- build succeeds on Render;
+- the Vercel Production build succeeds;
 - `/alerts` returns 200;
 - `/watchlist` returns 200;
 - `/premium` returns 200;
@@ -114,19 +107,19 @@ Confirm:
 - `failed` and `suppressed` rows can be queried;
 - Telegram messages are not sent.
 
-### Telegram Staging Checklist
+### Telegram Prelaunch Checklist
 
 Do this separately after write mode is stable.
 
-- Use a staging bot or a clearly limited test bot.
+- Use the single production bot only during an announced, short prelaunch test window.
 - Connect one test Telegram account from `/alerts`.
-- Register the Telegram webhook.
+- Temporarily register the approved local HTTPS tunnel webhook.
 - Keep batch limits low.
 - Run a single event dry-run first.
 - Run a single event `--write` second.
-- Enable `ALERT_DELIVERY_SEND_TELEGRAM=true` only for staging or a restricted production test.
+- Enable `ALERT_DELIVERY_SEND_TELEGRAM=true` only for the restricted test.
 - Confirm message receipt.
-- Turn production-wide Telegram delivery on only after limited QA passes.
+- Restore and verify `https://us-stock-radar.com/api/telegram/webhook` before ending the test window.
 
 ## Product Rules
 
@@ -204,16 +197,15 @@ Supported scheduler options:
 --no-lock
 ```
 
-## Render Environment Variables
+## Vercel Environment Variables
 
-### Render Web Service Env
+### Vercel Production Env
 
 Required for the Next.js app and API routes:
 
 ```bash
 SUPABASE_URL=<value>
 SUPABASE_SERVICE_ROLE_KEY=<value>
-SUPABASE_DB_URL=<value>
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` is server-side only. Do not expose it with a `NEXT_PUBLIC_` prefix and do not use it in client components.
@@ -226,78 +218,57 @@ TELEGRAM_BOT_USERNAME=<value>
 TELEGRAM_WEBHOOK_SECRET=<value>
 ```
 
-Required only if using the protected HTTP cron endpoint:
+Required for Vercel Cron and protected manual runs:
 
 ```bash
-ALERT_DELIVERY_CRON_SECRET=<secret>
-# or
 CRON_SECRET=<secret>
-
 ALERT_DELIVERY_CRON_WRITE_ENABLED=false
 ```
 
-### Render Cron Job Env
-
-Required:
+Telegram delivery gate:
 
 ```bash
-SUPABASE_URL=<value>
-SUPABASE_SERVICE_ROLE_KEY=<value>
-SUPABASE_DB_URL=<value>
-```
-
-Telegram-related:
-
-```bash
-TELEGRAM_BOT_TOKEN=<value>
-TELEGRAM_BOT_USERNAME=<value>
-TELEGRAM_WEBHOOK_SECRET=<value>
 ALERT_DELIVERY_SEND_TELEGRAM=false
 ```
 
-For the default Render CLI Cron Job path:
-
-- `ALERT_DELIVERY_CRON_SECRET` is not required.
-- `CRON_SECRET` is not required.
-- `ALERT_DELIVERY_CRON_WRITE_ENABLED` is not required.
-- `--write` is the CLI write gate.
-- `ALERT_DELIVERY_SEND_TELEGRAM=true` is still required before actual Telegram messages can be sent.
+Set these values in the Vercel Production scope. Environment changes take
+effect only after a new deployment. `ALERT_DELIVERY_CRON_SECRET` is optional and
+used only when a separate secret is desired for manual POST operations.
 
 Never print env values in logs, shell output, support screenshots, run logs, or commit messages.
 
-## Render Cron Job Setup
+## Vercel Cron Job Setup
 
-Use Render Cron Job with the scheduler CLI.
+`vercel.json` registers `GET /api/cron/alert-delivery` every five minutes. Vercel
+adds the configured `CRON_SECRET` authorization header.
 
-Build command:
-
-```bash
-npm install
-```
-
-Phase 1 dry-run command:
+Use the CLI only for local or isolated operator dry-runs:
 
 ```bash
 npm run deliver:scheduler -- --limit 50 --queued-limit 50 --lookback-hours 6
 ```
 
-Phase 2 write command, Telegram send off:
+An intentional local write-mode check uses:
 
 ```bash
 npm run deliver:scheduler -- --write --limit 50 --queued-limit 50 --lookback-hours 6
 ```
 
-Initial schedule:
-
-- Start with every 5 minutes.
-- After stability is confirmed, consider every 1-2 minutes if needed.
-- Keep schedules in UTC.
+Keep `ALERT_DELIVERY_CRON_WRITE_ENABLED=false` for the initial Production deploy,
+then enable it and redeploy only after dry-run verification. Keep
+`ALERT_DELIVERY_SEND_TELEGRAM=false` through the first write-enabled phase.
 
 Keep the application lock enabled. The scheduler uses `alert_delivery_job_locks` to protect against overlapping execution.
 
 ## Protected HTTP Cron Endpoint
 
-Endpoint:
+Scheduled endpoint:
+
+```text
+GET /api/cron/alert-delivery
+```
+
+Manual endpoint:
 
 ```text
 POST /api/cron/alert-delivery
@@ -317,22 +288,21 @@ X-Cron-Secret: <secret>
 
 This endpoint is kept for:
 
-- external cron providers that can call POST with custom headers;
 - manual operator runs;
-- fallback operations if Render Cron Job is not used;
-- curl-based Render cron if command-based cron is not preferred.
+- isolated dry-run/write verification;
+- an explicit fallback if the scheduled Vercel invocation needs diagnosis.
 
 Dry-run request:
 
 ```bash
-curl -X POST "https://YOUR_RENDER_DOMAIN/api/cron/alert-delivery?limit=50&queuedLimit=50&lookbackHours=6" \
+curl -X POST "https://us-stock-radar.com/api/cron/alert-delivery?limit=50&queuedLimit=50&lookbackHours=6" \
   -H "Authorization: Bearer $ALERT_DELIVERY_CRON_SECRET"
 ```
 
 Write request:
 
 ```bash
-curl -X POST "https://YOUR_RENDER_DOMAIN/api/cron/alert-delivery?write=true&limit=50&queuedLimit=50&lookbackHours=6" \
+curl -X POST "https://us-stock-radar.com/api/cron/alert-delivery?write=true&limit=50&queuedLimit=50&lookbackHours=6" \
   -H "Authorization: Bearer $ALERT_DELIVERY_CRON_SECRET"
 ```
 
@@ -346,7 +316,7 @@ This endpoint gate is separate from the CLI `--write` flag.
 
 ## Operating Phases
 
-### Phase 1: Render Cron dry-run
+### Phase 1: Local scheduler dry-run
 
 Command:
 
@@ -387,9 +357,11 @@ Expected:
 - `alert_delivery_event_runs` records event-level processing summary.
 - Telegram messages are not sent.
 
-### Phase 3: Telegram staging QA
+### Phase 3: Telegram prelaunch QA
 
-Use only a staging bot and a small number of test users.
+Use the single production bot with a small number of test users during an
+announced, short test window. Follow `docs/TELEGRAM_CONNECT.md`, including the
+mandatory Production webhook restoration check.
 
 Env:
 
@@ -643,10 +615,10 @@ Do not clear an active lock casually.
 
 Before setting `ALERT_DELIVERY_SEND_TELEGRAM=true`:
 
-- Staging has passed with real Telegram messages.
+- Prelaunch QA has passed with real Telegram messages.
 - The bot token belongs to the intended environment.
 - The webhook URL is correct:
-  - `https://YOUR_RENDER_DOMAIN/api/telegram/webhook`
+  - `https://us-stock-radar.com/api/telegram/webhook`
 - Telegram webhook secret is configured and verified.
 - Bot webhook registration uses the correct secret token.
 - Test users have connected Telegram from `/alerts`.
@@ -659,46 +631,31 @@ Before setting `ALERT_DELIVERY_SEND_TELEGRAM=true`:
 - Logs do not print message bodies that contain sensitive user data.
 - Logs do not print tokens, secrets, DB URLs, or authorization headers.
 
-Register Telegram webhook:
+Register and inspect the webhook only with the secret-safe PowerShell commands in
+`docs/TELEGRAM_CONNECT.md`. That procedure covers Production registration,
+`getWebhookInfo`, temporary local-tunnel switching, and mandatory restoration.
+
+### Free public Telegram broadcast
+
+The free public broadcast is independent from member Telegram connections and
+uses the same bot token with two additional server-only values:
 
 ```bash
-curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://YOUR_RENDER_DOMAIN/api/telegram/webhook",
-    "secret_token": "'"$TELEGRAM_WEBHOOK_SECRET"'"
-  }'
+TELEGRAM_PUBLIC_CHANNEL_ID=@channel_username_or_numeric_id
+ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC=false
 ```
 
-Do not paste real token values into shared logs.
+Keep the public send gate false for local checks. The normal scheduler dry-run
+can inspect due rows without sending. For a locally approved write-path check,
+use a transaction or fixture destination and never point the local environment
+at the Production channel. Enabling the public gate requires an explicit
+Production operating window, the intended channel destination, and a bot that
+has only the required post-message administrator permission.
 
-## Future Vercel Frontend-Only Split
-
-Not now.
-
-If needed later, split the deployment like this:
-
-- Vercel: frontend only.
-- Render: API server, cron jobs, Telegram webhook, delivery workers.
-- Frontend calls Render backend through a configured API base URL.
-
-Example frontend env:
-
-```bash
-NEXT_PUBLIC_API_BASE_URL=https://api.example.com
-```
-
-That split requires a separate design for:
-
-- CORS;
-- auth;
-- cookies/session handling;
-- API base URL routing;
-- deployment boundaries.
-
-Vercel native Cron is still not required in that split. Keeping cron on Render remains simpler because the scheduler is a CLI worker.
-
-If Vercel native Cron is ever required, add a dedicated GET wrapper route at that time. Do not implement that wrapper now.
+Public rows are keyed by event and the fixed `telegram_public` channel. A
+provider-declared failure becomes retryable after five minutes. An uncertain
+network outcome is not automatically retried because doing so could duplicate a
+channel post.
 
 ## Safety Rules
 
@@ -707,9 +664,12 @@ If Vercel native Cron is ever required, add a dedicated GET wrapper route at tha
 - Never print `ALERT_DELIVERY_CRON_SECRET` or `CRON_SECRET`.
 - Never print `TELEGRAM_BOT_TOKEN`.
 - Never print `TELEGRAM_WEBHOOK_SECRET`.
+- Never print `TELEGRAM_PUBLIC_CHANNEL_ID`.
 - Never log `Authorization` headers.
 - Never store raw Telegram connect tokens. Only token hashes belong in the DB.
 - Never let Telegram send run unless `ALERT_DELIVERY_SEND_TELEGRAM=true`.
+- Never let the free public broadcast send unless
+  `ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC=true`.
 - For CLI scheduler, never run write mode unless `--write` is intentional.
 - For HTTP cron endpoint, never run write mode unless `ALERT_DELIVERY_CRON_WRITE_ENABLED=true`.
 - Keep dry-run as the default for manual commands.
@@ -813,23 +773,22 @@ Also verify:
 - bot token is configured;
 - webhook is registered.
 
-## Immediate TODO
+## Production TODO
 
-1. Configure Render Cron Job dry-run.
-2. Configure Render Cron Job write mode with Telegram send off.
+1. Deploy Vercel Cron with the write gate off and verify authorization.
+2. Enable Vercel Cron write mode with Telegram send off and redeploy.
 3. Monitor scheduler run logs.
-4. Run Telegram staging E2E QA.
+4. Run the approved Telegram prelaunch E2E QA and restore the Production webhook.
 5. Enable production Telegram send with limited rollout.
 
 ## Not Now
 
-- Vercel GET cron wrapper.
-- Frontend/backend split.
 - Email adapter.
 - Webhook/API adapter.
 - Saved Alert Rules.
 
 ## Source References
 
-- Render Cron Jobs: https://render.com/docs/cronjobs
-- Vercel Cron Jobs, only for future frontend split review: https://vercel.com/docs/cron-jobs
+- Vercel Cron Jobs: https://vercel.com/docs/cron-jobs
+- Vercel Functions runtimes: https://vercel.com/docs/functions/runtimes
+- Vercel environment variables: https://vercel.com/docs/environment-variables

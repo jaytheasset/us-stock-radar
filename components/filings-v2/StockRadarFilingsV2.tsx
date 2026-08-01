@@ -340,6 +340,10 @@ export function StockRadarFilingsV2({
             onRemoveFilter={removeFilter}
             onReset={resetFilters}
             onSearch={searchFilings}
+            onTickerSelect={(ticker) => {
+              setSearchInput(ticker);
+              setQuery(ticker);
+            }}
             onToggleFilter={toggleFilter}
             query={searchInput}
           />

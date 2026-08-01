@@ -8,10 +8,15 @@ import {
 import { getLiveRoomRealtimeConfig } from "@/lib/live-room/realtimeServerConfig";
 import { getLiveRoomAvailability } from "@/lib/live-room/roomAvailabilityServer";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
+import { createCompanyLiveRoomEntryPath } from "@/lib/live-room/memberActions";
 
 type LiveRoomPageProps = {
   params: Promise<{ ticker: string }>;
-  searchParams: Promise<{ message?: string | string[] }>;
+  searchParams: Promise<{
+    event?: string | string[];
+    message?: string | string[];
+    src?: string | string[];
+  }>;
 };
 
 export function generateMetadata({
@@ -41,8 +46,13 @@ export default async function LiveRoomPage({
   const ticker = normalizeLiveRoomTicker(routeTicker);
 
   if (!ticker) notFound();
+  const loginReturnPath = createCompanyLiveRoomEntryPath({
+    ticker,
+    eventId: query.event,
+    source: query.src,
+  });
   if (routeTicker !== ticker) {
-    redirect(getLiveRoomHref(ticker) as string);
+    redirect(loginReturnPath);
   }
 
   const [viewerPlan, roomAvailability] = await Promise.all([
@@ -55,6 +65,7 @@ export default async function LiveRoomPage({
       activityMessageId={
         typeof query.message === "string" ? query.message : null
       }
+      loginReturnPath={loginReturnPath}
       realtimeConfig={getLiveRoomRealtimeConfig()}
       roomAvailability={roomAvailability}
       ticker={ticker}

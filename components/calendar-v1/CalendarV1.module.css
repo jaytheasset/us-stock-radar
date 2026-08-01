@@ -29,7 +29,8 @@
 
 .pageHeader > div:first-child > span,
 .selectedDateSection > header span,
-.mobileFilterSheet header > span {
+.mobileFilterSheet header > span,
+.mobileRangeSheet header > span {
   color: var(--sr-color-accent-text);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-heavy);
@@ -88,7 +89,7 @@
 
 .periodNavigation,
 .customRange,
-.customRange label,
+.customDateField,
 .jumpDate {
   display: flex;
   align-items: center;
@@ -100,7 +101,7 @@
 
 .periodNavigation > button,
 .jumpDate,
-.customRange label {
+.customDateField {
   min-height: var(--sr-size-control);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-control);
@@ -124,29 +125,71 @@
 }
 
 .jumpDate,
-.customRange label {
+.customDateField {
   position: relative;
   gap: var(--sr-space-2);
   padding: 0 var(--sr-space-3);
 }
 
-.jumpDate span,
-.customRange span {
+.dateFieldLabel {
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
   text-transform: uppercase;
 }
 
-.jumpDate input,
-.customRange input {
-  max-width: 134px;
+.englishDatePicker {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.page .englishDateButton {
+  display: flex;
+  min-width: 134px;
+  min-height: calc(var(--sr-size-control) - (2 * var(--sr-border-width)));
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
   border: 0;
+  padding: 0;
   color: var(--sr-color-text-control-strong);
   background: transparent;
-  color-scheme: dark;
+  cursor: pointer;
+}
+
+.englishDateButton > span {
   font-family: var(--sr-font-family-mono);
   font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-regular);
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.englishDateButton svg {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-muted);
+}
+
+.nativeDateInput {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  max-width: 1px;
+  max-height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mobileDateNavigation,
+.mobileSearchPlaceholder {
+  display: none;
 }
 
 .customRange {
@@ -252,12 +295,41 @@
   display: grid;
   width: max-content;
   min-width: 190px;
-  gap: var(--sr-space-2);
+  gap: 0;
   border: var(--sr-border-width) solid var(--sr-color-border-overlay);
   border-radius: var(--sr-radius-popover);
   padding: var(--sr-space-3);
   background: var(--sr-color-surface-overlay);
   box-shadow: var(--sr-shadow-menu);
+}
+
+.flatFilterOption {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+  border: 0;
+  border-radius: 0;
+  padding: 0 var(--sr-space-3);
+  background: transparent;
+  text-align: left;
+}
+
+.flatFilterOption:hover {
+  background: var(--sr-color-surface-muted-action);
+}
+
+.flatFilterOption[aria-pressed="true"],
+.flatFilterOption[aria-pressed="true"]:hover {
+  border: 0;
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-active-soft);
+}
+
+.flatFilterOption svg {
+  flex: 0 0 auto;
 }
 
 .typeMenuOptions {
@@ -299,6 +371,12 @@
   grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
 }
 
+@media (min-width: 1181px) {
+  .workspace[data-view-mode="calendar"][data-detail-open="true"] {
+    min-height: var(--calendar-desktop-rail-content-height, 0);
+  }
+}
+
 .results {
   min-width: 0;
 }
@@ -330,6 +408,10 @@
 .calendarView,
 .listView {
   min-width: 0;
+}
+
+.weekStrip {
+  display: contents;
 }
 
 .calendarWeekdays {
@@ -422,6 +504,7 @@
 
 .dayEvents {
   display: grid;
+  min-width: 0;
   gap: var(--sr-space-1);
   margin-top: var(--sr-space-2);
 }
@@ -436,8 +519,18 @@
   background: var(--sr-color-event-neutral-surface);
 }
 
-.dayEvents b,
+.dayEvents b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dayEvents > span > span {
+  flex: 0 1 auto;
+  min-width: var(--sr-space-8);
+  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -846,24 +939,10 @@
   font-size: var(--sr-font-size-sm);
 }
 
-.desktopDetailPanel {
-  position: sticky;
-  top: calc(var(--sr-size-header) + var(--sr-space-4));
-  align-self: start;
-  overflow-x: hidden;
-  overflow-y: auto;
-  max-height: calc(100vh - var(--sr-size-header) - var(--sr-space-8));
+.workspace .desktopDetailPanel {
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
   box-shadow: var(--sr-shadow-panel);
-}
-
-@media (min-width: 1181px) {
-  .workspace[data-rail-ads="true"] .desktopDetailPanel {
-    position: static;
-    overflow-y: visible;
-    max-height: none;
-  }
 }
 
 .detailContent {
@@ -968,6 +1047,15 @@
   font-weight: var(--sr-font-weight-regular);
 }
 
+.detailSection dd a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  color: var(--sr-color-text-control-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .detailSection {
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
   padding: var(--sr-space-4) 0;
@@ -1017,6 +1105,52 @@
 .macroMetrics span {
   color: var(--sr-color-text-secondary);
   font-family: var(--sr-font-family-mono);
+}
+
+.analysisEntry {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-4);
+  flex-wrap: wrap;
+}
+
+.analysisEntry > span,
+.analysisPending {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.analysisPending {
+  margin: var(--sr-space-4) 0 0;
+}
+
+.analysisLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1-5);
+  border-radius: var(--sr-radius-sm);
+  color: var(--sr-color-accent-text);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+}
+
+.analysisLink:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-1);
+}
+
+.analysisLink:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.analysisEntry + .detailLinks,
+.analysisPending + .detailLinks {
+  margin-top: var(--sr-space-2);
 }
 
 .detailLinks {
@@ -1078,6 +1212,15 @@
   margin-top: var(--sr-space-1);
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-body);
+}
+
+.detailAction .followUsage {
+  display: block;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-medium);
   line-height: var(--sr-line-height-body);
 }
 
@@ -1196,20 +1339,79 @@
   padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
 }
 
-.mobileFilterSheet header {
+.mobileFilterSheet header,
+.mobileRangeSheet header {
   padding-right: var(--sr-space-7);
 }
 
-.mobileFilterSheet h2 {
+.mobileFilterSheet h2,
+.mobileRangeSheet h2 {
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-sheet-title);
   font-size: var(--sr-font-size-heading-sm);
 }
 
-.mobileFilterSheet header p {
+.mobileFilterSheet header p,
+.mobileRangeSheet header p {
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-sm);
+}
+
+.mobileRangeSheet {
+  padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
+}
+
+.mobileRangeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-5);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-4);
+}
+
+.mobileCustomRange {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-top: var(--sr-space-4);
+}
+
+.mobileCustomRange label {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-label);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.mobileCustomRange input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-2);
+  color: var(--sr-color-text-control-strong);
+  background: var(--sr-color-surface-control);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+}
+
+.mobileCustomRange > button {
+  grid-column: 1 / -1;
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
+  border-radius: var(--sr-radius-action);
+  color: var(--sr-color-text-primary-action);
+  background: var(--sr-color-surface-primary-action);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
 }
 
 .mobileFilterGroup {
@@ -1231,18 +1433,23 @@
   gap: var(--sr-space-2);
 }
 
+.mobileFilterGroup > .mobileFlatOptionList {
+  display: grid;
+  width: 100%;
+  gap: 0;
+}
+
 .mobileTypeOptionGroup {
-  display: flex;
+  display: grid;
   flex: 1 0 100%;
-  flex-wrap: wrap;
-  gap: var(--sr-space-2);
+  gap: 0;
   min-width: 0;
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
   padding-top: var(--sr-space-2);
 }
 
 .mobileTypeOptionGroup h4 {
-  flex: 1 0 100%;
+  margin-bottom: var(--sr-space-1);
 }
 
 .mobileFilterActions {
@@ -1329,15 +1536,21 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-7);
+    padding: var(--sr-space-2) var(--sr-page-gutter-mobile) var(--sr-space-7);
   }
 
   .pageHeader {
     align-items: center;
-    margin-bottom: var(--sr-space-3);
+    margin-bottom: var(--sr-space-2);
+  }
+
+  .pageHeader > div:first-child > span,
+  .pageHeader p {
+    display: none;
   }
 
   .pageHeader h1 {
+    margin: 0;
     font-size: var(--sr-font-size-xl);
   }
 
@@ -1351,49 +1564,75 @@
   }
 
   .dateControls {
-    display: grid;
-    gap: var(--sr-space-3);
-    padding: var(--sr-space-2);
+    display: block;
+    padding: var(--sr-space-1);
   }
 
-  .rangeControl {
-    width: 100%;
-    grid-template-columns: repeat(4, minmax(76px, 1fr));
-  }
-
-  .periodNavigation {
-    display: grid;
-    grid-template-columns: var(--sr-size-control) minmax(66px, auto) var(--sr-size-control) minmax(0, 1fr);
-  }
-
-  .jumpDate {
-    min-width: 0;
-  }
-
-  .jumpDate span {
+  .rangeControl,
+  .periodNavigation,
+  .customRange {
     display: none;
   }
 
-  .jumpDate input {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .customRange {
+  .mobileDateNavigation {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      var(--sr-size-control)
+      minmax(0, 1fr)
+      var(--sr-size-control)
+      var(--sr-size-control);
+    gap: var(--sr-space-1);
   }
 
-  .customRange label {
-    min-width: 0;
+  .mobileDateNavigation > button {
     display: grid;
-    gap: 0;
-    padding: var(--sr-space-1) var(--sr-space-2);
+    min-width: 0;
+    min-height: var(--sr-size-control);
+    place-items: center;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-control);
+    padding: 0;
+    color: var(--sr-color-text-control-strong);
+    background: var(--sr-color-surface-control);
+    cursor: pointer;
   }
 
-  .customRange input {
-    width: 100%;
-    min-width: 0;
+  .mobileDateNavigation > .mobileRangeLabel {
+    display: block;
+    overflow: hidden;
+    padding: 0 var(--sr-space-2);
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-size-control);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchField {
+    position: relative;
+  }
+
+  .searchField input::placeholder {
+    color: transparent;
+  }
+
+  .mobileSearchPlaceholder {
+    position: absolute;
+    right: var(--sr-space-2);
+    left: calc(var(--sr-space-3) + 17px + var(--sr-space-2));
+    display: block;
+    overflow: hidden;
+    color: var(--sr-color-text-meta);
+    font-size: var(--sr-font-size-md);
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchField input:not(:placeholder-shown) + .mobileSearchPlaceholder {
+    display: none;
   }
 
   .filters {
@@ -1408,8 +1647,22 @@
     min-height: 34px;
   }
 
+  .resultsSummary b {
+    display: none;
+  }
+
+  .weekStrip {
+    display: block;
+    overflow: hidden;
+    border: var(--sr-border-width) solid var(--sr-color-border);
+    border-radius: var(--sr-radius-base);
+    background: var(--sr-color-surface-table-row);
+  }
+
   .calendarWeekdays {
+    border: 0;
     border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+    border-radius: 0;
   }
 
   .calendarWeekdays span {
@@ -1418,31 +1671,105 @@
     font-size: 9px;
   }
 
+  .calendarGrid {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    gap: 0;
+    background: var(--sr-color-surface-table-row);
+  }
+
   .calendarDay {
-    min-height: 61px;
+    position: relative;
+    height: 64px;
+    min-height: 64px;
+    border-left: var(--sr-border-width) solid var(--sr-color-border);
     padding: var(--sr-space-1);
+    background: var(--sr-color-surface-table-row);
     text-align: center;
   }
 
+  .calendarDay:first-child {
+    border-left: 0;
+  }
+
+  .calendarDay:hover {
+    background: var(--sr-color-surface-table-row);
+  }
+
+  .calendarDay[data-selected="true"],
+  .calendarDay[data-selected="true"]:hover {
+    box-shadow: none;
+    background: var(--sr-color-accent-subtle);
+  }
+
+  .calendarDay[data-selected="true"]::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--sr-border-width-strong);
+    background: var(--sr-color-accent);
+    content: "";
+  }
+
+  .calendarDay:focus-visible {
+    z-index: 1;
+    outline-offset: calc(var(--sr-focus-ring-width) * -1);
+  }
+
   .dayHeading {
-    display: grid;
+    display: flex;
     min-height: 0;
-    justify-items: center;
-    gap: 0;
+    align-items: center;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
   }
 
   .dayHeading b {
-    width: 25px;
-    height: 25px;
+    width: 26px;
+    height: 26px;
+    color: var(--sr-color-text-heading);
+    background: transparent;
+    box-shadow: none;
+    font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .calendarDay[data-today="true"]:not([data-selected="true"]) .dayHeading b {
+    color: var(--sr-color-accent-text);
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--sr-border-width) var(--sr-color-accent-border-active);
+  }
+
+  .calendarDay[data-selected="true"] .dayHeading b {
+    color: var(--sr-color-text-inverse);
+    background: var(--sr-color-accent);
+    box-shadow: none;
   }
 
   .dayHeading em {
-    font-size: 8px;
+    display: none;
   }
 
   .dayHeading small {
+    display: inline-flex;
+    min-width: 20px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
     margin: 0;
+    border: var(--sr-border-width) solid var(--sr-color-border-muted-action);
+    border-radius: var(--sr-radius-sm);
+    padding: 0 var(--sr-space-1);
+    color: var(--sr-color-text-meta);
+    background: var(--sr-color-surface-muted-action);
     font-size: 9px;
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .dayEvents {

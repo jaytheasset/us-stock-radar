@@ -14,11 +14,16 @@ import {
 } from "@/lib/subscriptionPolicy";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
+import { normalizeTelegramUsername } from "@/lib/telegram/telegramConnectPolicy";
+import { getUserCalendarFollowsViewModel } from "@/lib/alerts/calendarFollows";
 import {
+  ALERT_FILING_TYPE_FILTERS,
+  ALERT_MARKET_CAP_FILTERS,
   ALL_ALERT_CHANNELS,
   DEFAULT_ALERT_PREFERENCES,
   getChannelAvailabilityLabel,
   getChannelLockState,
+  IMPLEMENTED_ALERT_CHANNELS,
 } from "@/lib/alerts/alertValidation";
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem, DeliveryChannelState } from "@/lib/alerts/types";
 
@@ -30,6 +35,8 @@ type AlertPreferencesRow = {
   discovery_enabled?: unknown;
   group_duplicates?: unknown;
   cooldown_minutes?: unknown;
+  market_cap_filters?: unknown;
+  filing_type_filters?: unknown;
 };
 
 type DeliveryChannelRow = {
@@ -37,6 +44,7 @@ type DeliveryChannelRow = {
   enabled?: unknown;
   destination?: unknown;
   verified_at?: unknown;
+  metadata?: unknown;
 };
 
 type DiscoveryCategoryRow = {
@@ -56,6 +64,8 @@ type DeliveredAlertRow = {
   delivered_channels?: unknown;
   delivery_status?: unknown;
   delivered_at?: unknown;
+  calendar_event_id?: unknown;
+  read_at?: unknown;
 };
 
 export async function getAlertSettingsViewModel(userId: string): Promise<AlertSettingsViewModel> {
@@ -63,7 +73,14 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   const plan = planState.effectivePlan;
   const limits = getPlanLimits(plan);
 
-  const [alertTickersResult, preferencesResult, categoriesResult, channelsResult, deliveriesResult] = await Promise.all([
+  const [
+    alertTickersResult,
+    preferencesResult,
+    categoriesResult,
+    channelsResult,
+    deliveriesResult,
+    calendarEventFollows,
+  ] = await Promise.all([
     supabaseSelect("user_alert_tickers", {
       select: "id",
       user_id: `eq.${userId}`,
@@ -82,7 +99,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       limit: "100",
     }),
     supabaseSelect("user_delivery_channels", {
-      select: "channel,enabled,destination,verified_at",
+      select: "channel,enabled,destination,verified_at,metadata",
       user_id: `eq.${userId}`,
       limit: "20",
     }),
@@ -93,6 +110,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       order: "delivered_at.desc",
       limit: "5",
     }),
+    getUserCalendarFollowsViewModel(userId, plan),
   ]);
 
   const alertTickers = Array.isArray(alertTickersResult.data)
@@ -128,6 +146,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       description: getCategoryDescription(category),
     })),
     channels,
+    followedCalendarEvents: calendarEventFollows.follows,
+    calendarEventFollowUsage: calendarEventFollows.usage,
     recentDeliveredAlerts,
   };
 }
@@ -154,6 +174,8 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
     },
     preferences: {
       ...DEFAULT_ALERT_PREFERENCES,
+      marketCapFilters: [...DEFAULT_ALERT_PREFERENCES.marketCapFilters],
+      filingTypeFilters: [...DEFAULT_ALERT_PREFERENCES.filingTypeFilters],
     },
     selectedCategories: [],
     selectedCategoryDetails: [],
@@ -163,6 +185,12 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
         enabled: true,
       },
     ]),
+    followedCalendarEvents: [],
+    calendarEventFollowUsage: {
+      activeCount: 0,
+      limit: limits.calendarEventFollowLimit,
+      remaining: limits.calendarEventFollowLimit,
+    },
     recentDeliveredAlerts: [],
   };
 }
@@ -178,7 +206,7 @@ export async function getDeliveredAlertsForUser({
   userId: string;
   limit?: number;
   offset?: number;
-  lane?: "watchlist" | "market_discovery";
+  lane?: "watchlist" | "market_discovery" | "calendar_follow";
   category?: AlertCategory;
   status?: DeliveryStatusFilter;
 }) {
@@ -205,6 +233,23 @@ export async function getDeliveredAlertsForUser({
   };
 }
 
+export async function getUnreadAlertCountForUser(userId: string) {
+  const result = await supabaseSelect("user_alert_deliveries", {
+    select: "id",
+    user_id: `eq.${userId}`,
+    delivery_status: "eq.sent",
+    read_at: "is.null",
+    limit: "1",
+  });
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    count: result.count ?? 0,
+    error: result.error,
+  };
+}
+
 export type DeliveryStatusFilter = "queued" | "sent" | "failed" | "suppressed" | "all";
 
 function mapPreferences(row?: AlertPreferencesRow): AlertPreferences {
@@ -216,6 +261,16 @@ function mapPreferences(row?: AlertPreferencesRow): AlertPreferences {
     discoveryEnabled: booleanValue(row?.discovery_enabled, DEFAULT_ALERT_PREFERENCES.discoveryEnabled),
     groupDuplicates: booleanValue(row?.group_duplicates, DEFAULT_ALERT_PREFERENCES.groupDuplicates),
     cooldownMinutes: numberValue(row?.cooldown_minutes, DEFAULT_ALERT_PREFERENCES.cooldownMinutes),
+    marketCapFilters: stringArrayValue(
+      row?.market_cap_filters,
+      ALERT_MARKET_CAP_FILTERS,
+      DEFAULT_ALERT_PREFERENCES.marketCapFilters,
+    ),
+    filingTypeFilters: stringArrayValue(
+      row?.filing_type_filters,
+      ALERT_FILING_TYPE_FILTERS,
+      DEFAULT_ALERT_PREFERENCES.filingTypeFilters,
+    ),
   };
 }
 
@@ -245,11 +300,16 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
   }
 
   return ALL_ALERT_CHANNELS.map((channel) => {
+    const implemented = IMPLEMENTED_ALERT_CHANNELS.includes(channel);
     const locked = getChannelLockState(plan, channel);
-    const available = !locked;
+    const available = !locked && implemented;
     const row = rowsByChannel.get(channel);
     const connected = isChannelConnected(channel, row);
-    const enabled = available && connected && (row?.enabled === true);
+    const accountLabel = channel === "telegram" ? readTelegramAccountLabel(row?.metadata) : null;
+    const enabled =
+      available &&
+      connected &&
+      (row?.enabled === true || (channel === "web" && !row));
     return {
       channel,
       label: formatChannels([channel]),
@@ -257,8 +317,12 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
       enabled,
       locked,
       connected,
+      implemented,
       availabilityLabel: getChannelAvailabilityLabel(plan, channel),
-      statusLabel: getChannelStatusLabel({ available, connected, enabled }),
+      statusLabel: implemented
+        ? getChannelStatusLabel({ channel, available, connected, enabled, accountLabel })
+        : "Not available",
+      accountLabel,
     };
   });
 }
@@ -270,17 +334,29 @@ function isChannelConnected(channel: AlertChannel, row?: DeliveryChannelRow) {
 }
 
 function getChannelStatusLabel({
+  channel,
   available,
   connected,
   enabled,
+  accountLabel,
 }: {
+  channel: AlertChannel;
   available: boolean;
   connected: boolean;
   enabled: boolean;
+  accountLabel: string | null;
 }) {
+  if (channel === "telegram" && connected) {
+    return accountLabel ? `Connected · ${accountLabel}` : "Connected";
+  }
   if (!available) return "Locked";
   if (!connected) return "Not connected";
   return enabled ? "Enabled" : "Connected";
+}
+
+function readTelegramAccountLabel(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return normalizeTelegramUsername((value as { username?: unknown }).username);
 }
 
 function mapDeliveredAlerts(rows: unknown[]): DeliveredAlertItem[] {
@@ -305,10 +381,13 @@ function mapDeliveredAlerts(rows: unknown[]): DeliveredAlertItem[] {
         sourceType: nullableString(row.source_type),
         sourceLabel: nullableString(row.source_label),
         alertLane,
+        calendarEventId: nullableString(row.calendar_event_id),
         severity: nullableString(row.severity),
         deliveredChannels: normalizeChannels(row.delivered_channels),
         deliveryStatus,
         deliveredAt,
+        readAt: nullableString(row.read_at),
+        isRead: Boolean(nullableString(row.read_at)),
       },
     ];
   });
@@ -321,7 +400,13 @@ function normalizeCategory(value: unknown) {
 
 function normalizeLane(value: unknown) {
   const lane = stringValue(value);
-  if (lane === "watchlist" || lane === "market_discovery") return lane;
+  if (
+    lane === "watchlist" ||
+    lane === "market_discovery" ||
+    lane === "calendar_follow"
+  ) {
+    return lane;
+  }
   return null;
 }
 
@@ -356,4 +441,16 @@ function stringValue(value: unknown) {
 function nullableString(value: unknown) {
   const text = stringValue(value);
   return text || null;
+}
+
+function stringArrayValue(
+  value: unknown,
+  allowedValues: readonly string[],
+  fallback: readonly string[],
+) {
+  if (!Array.isArray(value)) return [...fallback];
+  const allowed = new Set(allowedValues);
+  return value.filter(
+    (item): item is string => typeof item === "string" && allowed.has(item),
+  );
 }

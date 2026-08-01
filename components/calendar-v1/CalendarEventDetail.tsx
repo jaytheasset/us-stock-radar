@@ -7,6 +7,8 @@ import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTy
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
+import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
+import type { CalendarEventFollowUsage } from "@/lib/alerts/types";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
   eventStatusLabels,
@@ -27,6 +29,9 @@ import styles from "./CalendarV1.module.css";
 
 type CalendarEventDetailProps = {
   desktopEvent: CalendarEvent | null;
+  followAction: string;
+  followMessage: string;
+  followUsage: CalendarEventFollowUsage;
   followedEvents: Readonly<Record<string, boolean>>;
   onFollowToggle: (event: CalendarEvent) => void;
   onSheetDismiss: () => void;
@@ -38,6 +43,9 @@ type CalendarEventDetailProps = {
 
 export function CalendarEventDetail({
   desktopEvent,
+  followAction,
+  followMessage,
+  followUsage,
   followedEvents,
   onFollowToggle,
   onSheetDismiss,
@@ -58,6 +66,9 @@ export function CalendarEventDetail({
     return (
       <CalendarEventDetailContent
         event={event}
+        followBusy={followAction === event.id}
+        followMessage={followMessage}
+        followUsage={followUsage}
         followed={Boolean(followedEvents[event.id])}
         onFollowToggle={() => onFollowToggle(event)}
         onWatchlistToggle={() => onWatchlistToggle(event)}
@@ -99,6 +110,9 @@ export function CalendarEventDetail({
 
 function CalendarEventDetailContent({
   event,
+  followBusy,
+  followMessage,
+  followUsage,
   followed,
   onFollowToggle,
   onWatchlistToggle,
@@ -106,6 +120,9 @@ function CalendarEventDetailContent({
   watchlisted,
 }: {
   event: CalendarEvent;
+  followBusy: boolean;
+  followMessage: string;
+  followUsage: CalendarEventFollowUsage;
   followed: boolean;
   onFollowToggle: () => void;
   onWatchlistToggle: () => void;
@@ -115,6 +132,7 @@ function CalendarEventDetailContent({
   const identity = getCalendarEventIdentity(event);
   const ticker = identity.primaryTicker;
   const stockHref = getStockRouteHref(ticker);
+  const analysisHref = event.detailHref ?? null;
   const eventDate = parseDateOnly(event.eventDate);
   const watchLabel = watchlisted ? `Watching ${ticker}` : "Watch Stock";
   const watchActionLabel = ticker
@@ -160,17 +178,6 @@ function CalendarEventDetailContent({
         {renderEventDetails(event)}
       </section>
 
-      <section className={styles.detailSection}>
-        <h3>Data provenance</h3>
-        <dl>
-          <DetailValue label="Agency" value={event.sourceAgency} />
-          <DetailValue label="Source" value={event.sourceName} />
-          <DetailValue label="Provider" value="Mock" />
-          <DetailValue label="Source key" value={event.sourceEventKey} />
-          <DetailValue label="Updated" value={formatUpdatedAt(event.lastUpdatedAt)} />
-        </dl>
-      </section>
-
       <div className={styles.detailActions}>
         <div className={styles.detailAction}>
           <div>
@@ -201,10 +208,14 @@ function CalendarEventDetailContent({
           <div>
             <strong>Event alert</strong>
             <span>Follow this event&apos;s schedule and reminders.</span>
+            <small className={styles.followUsage}>
+              {formatCalendarEventFollowUsage(followUsage)}
+            </small>
           </div>
           <button
             aria-label={followActionLabel}
             aria-pressed={followed}
+            disabled={followBusy}
             onClick={onFollowToggle}
             title={
               followed
@@ -218,10 +229,24 @@ function CalendarEventDetailContent({
             ) : (
               <Bell aria-hidden="true" size={16} />
             )}
-            {followed ? "Event Followed" : "Follow Event"}
+            {followBusy ? "Saving..." : followed ? "Event Followed" : "Follow Event"}
           </button>
         </div>
       </div>
+
+      {analysisHref ? (
+        <div className={styles.analysisEntry}>
+          <Link className={styles.analysisLink} href={analysisHref}>
+            View Stock Radar Analysis
+            <ExternalLink aria-hidden="true" size={14} />
+          </Link>
+          {(event.relatedAnalysisCount ?? 0) > 0 ? (
+            <span>Related analyses {event.relatedAnalysisCount}</span>
+          ) : null}
+        </div>
+      ) : event.analysisPending ? (
+        <p className={styles.analysisPending}>Analysis pending</p>
+      ) : null}
 
       {ticker ? (
         <div className={styles.detailLinks}>
@@ -241,10 +266,13 @@ function CalendarEventDetailContent({
           />
         </div>
       ) : null}
-      <p className={styles.mockNotice}>
-        Preview only. Changes are local mock state. Alert delivery is not
-        connected yet.
-      </p>
+      {followMessage ? (
+        <p className={styles.mockNotice} role="status">{followMessage}</p>
+      ) : (
+        <p className={styles.mockNotice}>
+          Event follows are saved to Alerts separately from Stock Watchlist tracking.
+        </p>
+      )}
     </div>
   );
 }
@@ -294,7 +322,14 @@ function renderCompanyDetails(event: CompanyCalendarEvent) {
     return (
       <>
         <DetailValue label="Split ratio" value={event.details.ratio} />
-        <DetailValue label="Split type" value={`${titleCase(event.details.splitKind)} split`} />
+        <DetailValue
+          label="Split type"
+          value={
+            event.details.splitKind
+              ? `${titleCase(event.details.splitKind)} split`
+              : null
+          }
+        />
         <DetailValue label="Effective date" value={formatDetailDate(event.details.effectiveDate)} />
         <DetailValue label="Related ticker" value={event.details.relatedTicker} />
       </>
@@ -316,7 +351,10 @@ function renderCompanyDetails(event: CompanyCalendarEvent) {
         value={event.details.offerPrice === null ? null : `$${event.details.offerPrice.toFixed(2)}`}
       />
       <DetailValue label="Raise size" value={formatMoney(event.details.raiseAmount)} />
-      <DetailValue label="IPO stage" value={titleCase(event.details.ipoStage)} />
+      <DetailValue
+        label="IPO stage"
+        value={event.details.ipoStage ? titleCase(event.details.ipoStage) : null}
+      />
     </>
   );
 }
@@ -366,7 +404,16 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
         {common}
         <DetailValue label="Decision time" value={formatExactEt(event.details.decisionTime)} />
         <DetailValue label="Press conference" value={formatExactEt(event.details.pressConferenceTime)} />
-        <DetailValue label="SEP included" value={event.details.includesSep ? "Yes" : "No"} />
+        <DetailValue
+          label="SEP included"
+          value={
+            event.details.includesSep === null
+              ? null
+              : event.details.includesSep
+                ? "Yes"
+                : "No"
+          }
+        />
         <DetailValue
           label="Target range"
           value={
@@ -406,7 +453,10 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Kind" value={titleCase(event.details.kind)} />
+        <DetailValue
+          label="Kind"
+          value={event.details.kind ? titleCase(event.details.kind) : null}
+        />
         <DetailValue label="Maturity" value={event.details.maturity} />
         <DetailValue
           label="Amount"
@@ -420,7 +470,14 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Stage" value={titleCase(event.details.milestone)} />
+        <DetailValue
+          label="Stage"
+          value={
+            event.details.milestone
+              ? titleCase(event.details.milestone)
+              : null
+          }
+        />
         <DetailValue label="Title" value={event.details.ruleOrMeetingTitle} />
         <DetailValue label="Agenda" value={joinValues(event.details.agenda)} />
         <DetailValue label="Document / docket" value={event.details.documentOrDocket} />
@@ -431,8 +488,22 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
     return (
       <>
         {common}
-        <DetailValue label="Action" value={titleCase(event.details.actionType)} />
-        <DetailValue label="Date stage" value={titleCase(event.details.actionDateKind)} />
+        <DetailValue
+          label="Action"
+          value={
+            event.details.actionType
+              ? titleCase(event.details.actionType)
+              : null
+          }
+        />
+        <DetailValue
+          label="Date stage"
+          value={
+            event.details.actionDateKind
+              ? titleCase(event.details.actionDateKind)
+              : null
+          }
+        />
         <DetailValue label="Target countries" value={joinValues(event.details.targetCountries)} />
         <DetailValue label="Industries" value={joinValues(event.details.affectedIndustries)} />
         <DetailValue label="Tariff / restriction" value={event.details.tariffOrRestriction} />
@@ -449,7 +520,10 @@ function renderPolicyDetails(event: PolicyCalendarEvent) {
         <DetailValue label="Indication" value={event.details.indication} />
         <DetailValue
           label="Meeting dates"
-          value={`${formatDetailDate(event.details.meetingStartDate)} – ${formatDetailDate(event.details.meetingEndDate)}`}
+          value={formatDetailDateRange(
+            event.details.meetingStartDate,
+            event.details.meetingEndDate,
+          )}
         />
       </>
     );
@@ -475,6 +549,13 @@ function formatDetailDate(value: string | null) {
   });
 }
 
+function formatDetailDateRange(from: string | null, to: string | null) {
+  const fromLabel = formatDetailDate(from);
+  const toLabel = formatDetailDate(to);
+  if (fromLabel && toLabel) return `${fromLabel} – ${toLabel}`;
+  return fromLabel ?? toLabel;
+}
+
 function formatExactEt(value: string | null) {
   if (!value) return null;
   const [hour, minute] = value.split(":").map(Number);
@@ -482,20 +563,6 @@ function formatExactEt(value: string | null) {
     hour: "numeric",
     minute: "2-digit",
   })} ET`;
-}
-
-function formatUpdatedAt(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Not available"
-    : `${date.toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: "America/New_York",
-      })} ET`;
 }
 
 function formatNumber(value: number | null) {

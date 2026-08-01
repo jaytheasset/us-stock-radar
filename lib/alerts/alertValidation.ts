@@ -14,6 +14,17 @@ import {
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 
 export const ALL_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
+export const IMPLEMENTED_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram"];
+export const ALERT_MARKET_CAP_FILTERS = ["mega", "large", "mid", "small", "micro"] as const;
+export const ALERT_FILING_TYPE_FILTERS = [
+  "8-k", "10-q", "10-k", "6-k", "20-f",
+  "s-1", "s-3", "s-4", "s-8", "f-1", "f-3", "f-4",
+  "424b", "424b3", "424b4", "424b5",
+  "def-14a", "pre-14a", "defa14a",
+  "sc-13d", "sc-13g", "form-4", "144",
+  "sc-to-i", "sc-to-t", "sc-14d9", "25-nse", "pos-am", "effect",
+  "8-k-a", "10-q-a", "10-k-a", "nt-10-k", "nt-10-q",
+] as const;
 
 export const DEFAULT_ALERT_PREFERENCES = {
   watchlistNewsEnabled: true,
@@ -23,6 +34,8 @@ export const DEFAULT_ALERT_PREFERENCES = {
   discoveryEnabled: true,
   groupDuplicates: true,
   cooldownMinutes: 60,
+  marketCapFilters: [...ALERT_MARKET_CAP_FILTERS],
+  filingTypeFilters: [...ALERT_FILING_TYPE_FILTERS],
 } as const;
 
 export const ALERT_PREFERENCE_FIELDS = [
@@ -33,6 +46,8 @@ export const ALERT_PREFERENCE_FIELDS = [
   "discoveryEnabled",
   "groupDuplicates",
   "cooldownMinutes",
+  "marketCapFilters",
+  "filingTypeFilters",
 ] as const;
 
 export async function getUserPlan(userId: string): Promise<Plan> {
@@ -75,11 +90,13 @@ export function assertDiscoveryCategoriesAllowed(plan: Plan, categories: PublicA
 
 export function buildCategoryAvailabilityMessage(plan: Plan) {
   const planName = getPlanDisplayName(plan);
-  const upgradeText =
-    plan === "free" || plan === "ad_free" || plan === "pro"
-      ? " Upgrade to Advanced to unlock all 17 market-wide Discovery categories."
-      : "";
-  return `${planName} includes the approved Discovery category set for this plan.${upgradeText}`;
+  if (plan === "free" || plan === "ad_free") {
+    return `${planName} does not include Market Discovery. Upgrade to Pro for 12 core market-wide categories.`;
+  }
+  if (plan === "pro") {
+    return "Pro includes 12 core Market Discovery categories. Upgrade to Advanced to unlock all 17.";
+  }
+  return `${planName} includes all 17 Market Discovery categories.`;
 }
 
 export function getChannelLockState(plan: Plan, channel: AlertChannel) {
@@ -157,7 +174,7 @@ export function normalizePreferencePatch(body: unknown) {
   }
 
   const input = body as Record<string, unknown>;
-  const patch: Record<string, boolean | number> = {};
+  const patch: Record<string, boolean | number | string[]> = {};
 
   for (const field of ALERT_PREFERENCE_FIELDS) {
     if (!(field in input)) continue;
@@ -170,6 +187,22 @@ export function normalizePreferencePatch(body: unknown) {
       patch.cooldownMinutes = Math.max(5, Math.min(1440, Math.floor(numeric)));
       continue;
     }
+    if (field === "marketCapFilters") {
+      patch.marketCapFilters = normalizeFilterValues(
+        value,
+        ALERT_MARKET_CAP_FILTERS,
+        "market cap filter",
+      );
+      continue;
+    }
+    if (field === "filingTypeFilters") {
+      patch.filingTypeFilters = normalizeFilterValues(
+        value,
+        ALERT_FILING_TYPE_FILTERS,
+        "filing type filter",
+      );
+      continue;
+    }
     if (typeof value !== "boolean") {
       throw new AlertValidationError("INVALID_PREFERENCE", `${field} must be a boolean.`);
     }
@@ -177,6 +210,50 @@ export function normalizePreferencePatch(body: unknown) {
   }
 
   return patch;
+}
+
+export function assertAdvancedAlertFiltersAllowed(
+  plan: Plan,
+  patch: Record<string, boolean | number | string[]>,
+) {
+  const limits = getPlanLimits(plan);
+  if ("marketCapFilters" in patch && !limits.advancedFilters) {
+    throw new AlertValidationError(
+      "ADVANCED_FILTERS_NOT_AVAILABLE",
+      "Market cap filters are available on Advanced and Ultimate plans.",
+    );
+  }
+  if ("filingTypeFilters" in patch && !limits.customRules) {
+    throw new AlertValidationError(
+      "CUSTOM_RULES_NOT_AVAILABLE",
+      "Form-level filing rules are available on Ultimate.",
+    );
+  }
+}
+
+function normalizeFilterValues(
+  value: unknown,
+  allowedValues: readonly string[],
+  label: string,
+) {
+  if (!Array.isArray(value)) {
+    throw new AlertValidationError(
+      "INVALID_ALERT_FILTER",
+      `${label} values must be an array.`,
+    );
+  }
+  const allowed = new Set(allowedValues);
+  const normalized: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || !allowed.has(item)) {
+      throw new AlertValidationError(
+        "INVALID_ALERT_FILTER",
+        `${String(item || "Empty value")} is not a supported ${label}.`,
+      );
+    }
+    if (!normalized.includes(item)) normalized.push(item);
+  }
+  return normalized;
 }
 
 export class AlertValidationError extends Error {

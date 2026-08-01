@@ -41,6 +41,7 @@ export type DirectMessageConversationStatus = "accepted" | "pending";
 export type DirectMessageRequestRole = "recipient" | "sender" | null;
 
 export type DirectMessagePeer = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   plan: Plan;
@@ -50,7 +51,7 @@ export type DirectMessageStartResult = {
   conversationId: string | null;
   isRequestSender: boolean;
   mode: "accepted" | "pending" | "request_required";
-  peer: Pick<DirectMessagePeer, "displayName" | "emoji">;
+  peer: Pick<DirectMessagePeer, "avatarUrl" | "displayName" | "emoji">;
 };
 
 export type DirectMessageConversationSummary = {

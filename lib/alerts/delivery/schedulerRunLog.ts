@@ -123,6 +123,8 @@ function summarizeQueued(queued: RunAlertDeliverySchedulerResult["queued"]) {
     sent: queued.sent,
     failed: queued.failed,
     suppressed: queued.suppressed,
+    duplicatesPrevented: queued.duplicatesPrevented,
+    inProgress: queued.inProgress,
   };
 }
 
@@ -133,6 +135,34 @@ function summarizeSchedulerResult(result: RunAlertDeliverySchedulerResult) {
     write: result.write,
     locked: result.locked,
     lockSkipped: result.lockSkipped === true,
+    publicTelegram: result.publicTelegram
+      ? {
+          ok: result.publicTelegram.ok,
+          write: result.publicTelegram.write,
+          scanned: result.publicTelegram.scanned,
+          processed: result.publicTelegram.processed,
+          wouldProcess: result.publicTelegram.wouldProcess,
+          sent: result.publicTelegram.sent,
+          failed: result.publicTelegram.failed,
+          suppressed: result.publicTelegram.suppressed,
+          disabled: result.publicTelegram.disabled,
+          duplicatesPrevented:
+            result.publicTelegram.duplicatesPrevented,
+          inProgress: result.publicTelegram.inProgress,
+        }
+      : null,
+    calendar: result.calendar
+      ? {
+          ok: result.calendar.ok,
+          write: result.calendar.write,
+          scanned: result.calendar.scanned,
+          delivered: result.calendar.delivered,
+          duplicates: result.calendar.duplicates,
+          disabled: result.calendar.disabled,
+          suppressed: result.calendar.suppressed,
+          failed: result.calendar.failed || 0,
+        }
+      : null,
     error: result.error ? sanitizeSchedulerError(result.error) : null,
   };
 }

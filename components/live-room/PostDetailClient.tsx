@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import {
   ArrowLeft,
   Heart,
@@ -20,6 +21,7 @@ import type {
   LiveRoomPostDraft,
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { PostComments } from "./PostComments";
 import {
   PostDirectionBadge,
@@ -151,8 +153,12 @@ export function PostDetailClient({ postId }: { postId: string }) {
                 <h1>{post.title}</h1>
                 <div className={styles.byline}>
                   <Link href={`/live/members/${post.author.publicProfileId}`}>
-                    <span aria-hidden="true">{post.author.emoji}</span>
-                    {post.author.displayName}
+                    <MemberAvatar
+                      displayName={post.author.displayName}
+                      imageUrl={post.author.avatarUrl}
+                      size="small"
+                    />
+                    {formatPublicChatName(post.author.displayName)}
                   </Link>
                   <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                   {post.updatedAt !== post.createdAt ? <span>Updated</span> : null}

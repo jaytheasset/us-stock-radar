@@ -10,8 +10,6 @@ export type StockRadarPrimaryNavigationKey =
   | "premium"
   | "watchlist";
 
-export type StockRadarNavigationKey = StockRadarPrimaryNavigationKey | "settings";
-
 export type StockRadarLinkNavigationItem = {
   href: string;
   key: StockRadarPrimaryNavigationKey;
@@ -20,15 +18,7 @@ export type StockRadarLinkNavigationItem = {
   premium?: boolean;
 };
 
-export type StockRadarActionNavigationItem = {
-  key: "settings";
-  kind: "action";
-  label: string;
-};
-
-export type StockRadarNavigationItem =
-  | StockRadarActionNavigationItem
-  | StockRadarLinkNavigationItem;
+export type StockRadarNavigationItem = StockRadarLinkNavigationItem;
 
 export const stockRadarPrimaryNavigationItems = [
   { href: "/dashboard-v2", key: "markets", kind: "link", label: "Markets" },
@@ -47,7 +37,10 @@ export const stockRadarPrimaryNavigationItems = [
   },
 ] as const satisfies readonly StockRadarLinkNavigationItem[];
 
-export const stockRadarMobileNavigationItems = [
-  ...stockRadarPrimaryNavigationItems,
-  { key: "settings", kind: "action", label: "Settings" },
-] as const satisfies readonly StockRadarNavigationItem[];
+export const stockRadarMobileNavigationItems = stockRadarPrimaryNavigationItems;
+
+export const stockRadarDirectNavigationKeys = new Set<StockRadarPrimaryNavigationKey>([
+  "markets",
+  "feed",
+  "watchlist",
+]);

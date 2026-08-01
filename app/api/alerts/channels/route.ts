@@ -5,6 +5,7 @@ import {
   buildChannelNotAvailableMessage,
   getChannelLockState,
   getUserPlan,
+  IMPLEMENTED_ALERT_CHANNELS,
   normalizeChannelPatch,
 } from "@/lib/alerts/alertValidation";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -52,6 +53,17 @@ export async function PATCH(request: NextRequest) {
           message: buildChannelNotAvailableMessage(patch.channel),
         },
         { status: 403, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    if (patch.enabled && !IMPLEMENTED_ALERT_CHANNELS.includes(patch.channel)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "CHANNEL_NOT_IMPLEMENTED",
+          message: `${channelLabel(patch.channel)} delivery is not available.`,
+        },
+        { status: 501, headers: NO_STORE_HEADERS },
       );
     }
 

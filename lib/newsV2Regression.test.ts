@@ -193,48 +193,35 @@ test("news scope badges hide company scope and use source-backed market taxonomy
   assert.match(rowSource, /label=\{scopeBadgeLabel\}/);
 });
 
-test("news, filings, and watchlist searches share the inset icon divider contract", () => {
-  const searchFields = [
-    {
-      component: "../components/news-v2/NewsV2FilterBar.tsx",
-      styles: "../components/news-v2/StockRadarNewsV2.module.css",
-      fieldClass: "searchField",
-    },
-    {
-      component: "../components/filings-v2/FilingsV2FilterBar.tsx",
-      styles: "../components/filings-v2/StockRadarFilingsV2.module.css",
-      fieldClass: "searchControl",
-    },
-    {
-      component: "../components/watchlist-v2/StockRadarWatchlistV2.tsx",
-      styles: "../components/watchlist-v2/StockRadarWatchlistV2.module.css",
-      fieldClass: "tickerSearch",
-    },
+test("news, filings, alerts, and watchlist share one accessible ticker autocomplete", () => {
+  const componentPaths = [
+    "../components/news-v2/NewsV2FilterBar.tsx",
+    "../components/filings-v2/FilingsV2FilterBar.tsx",
+    "../components/alerts-v2/StockRadarAlertsV2.tsx",
+    "../components/watchlist-v2/StockRadarWatchlistV2.tsx",
   ];
+  const autocomplete = readFileSync(
+    new URL("../components/ui/TickerCompanyAutocomplete.tsx", import.meta.url),
+    "utf8",
+  );
+  const autocompleteStyles = readFileSync(
+    new URL("../components/ui/TickerCompanyAutocomplete.module.css", import.meta.url),
+    "utf8",
+  );
 
-  for (const searchField of searchFields) {
-    const componentSource = readFileSync(
-      new URL(searchField.component, import.meta.url),
-      "utf8",
-    );
-    const styles = readFileSync(new URL(searchField.styles, import.meta.url), "utf8");
-
-    assert.match(componentSource, /className=\{styles\.searchIconCell\}/);
+  for (const componentPath of componentPaths) {
     assert.match(
-      styles,
-      new RegExp(
-        `\\.${searchField.fieldClass} \\{[\\s\\S]*?height: 38px;[\\s\\S]*?gap: var\\(--sr-space-2\\);`,
-      ),
-    );
-    assert.match(
-      styles,
-      /\.searchIconCell \{[\s\S]*?height: 100%;[\s\S]*?flex: 0 0 28px;/,
-    );
-    assert.match(
-      styles,
-      /\.searchIconCell::after \{[\s\S]*?top: 7px;[\s\S]*?bottom: 7px;[\s\S]*?width: var\(--sr-border-width\);[\s\S]*?background: var\(--sr-color-divider\);/,
+      readFileSync(new URL(componentPath, import.meta.url), "utf8"),
+      /TickerCompanyAutocomplete/,
     );
   }
+  assert.match(autocomplete, /aria-autocomplete="list"/);
+  assert.match(autocomplete, /role="listbox"/);
+  assert.match(autocomplete, /moveTickerSearchIndex/);
+  assert.match(
+    autocompleteStyles,
+    /\.control \{[\s\S]*height: 38px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*background-clip: padding-box;/,
+  );
 });
 
 test("10k+ tuple cursor pagination is stable with tied timestamps", () => {
@@ -297,6 +284,41 @@ test("news archive rejects missing data without exposing development fixtures", 
   assert.match(source, /series=\{null\}/);
   assert.match(source, /original article text is currently unavailable/i);
   assert.doesNotMatch(source, /mockArchiveEvent|buildMockPriceSeries|Trinity Bank/);
+});
+
+test("news analysis detail preserves stored original source and partial market context", () => {
+  const detailSource = readFileSync(
+    new URL("./newsAnalysisDetail.ts", import.meta.url),
+    "utf8",
+  );
+  const adapterSource = readFileSync(
+    new URL("../components/news-analysis-v2/NewsAnalysisAdapter.tsx", import.meta.url),
+    "utf8",
+  );
+  const sharedAnalysisSource = readFileSync(
+    new URL(
+      "../components/filing-analysis-v2/GenericFilingAnalysis.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(detailSource, /readStoredNewsSourceContent/);
+  assert.match(detailSource, /sanitizeNewsArticleHtml/);
+  assert.match(detailSource, /readString\(primaryTickerRow, "symbol"\)/);
+  assert.match(detailSource, /if \(!matched\.some\(\(item\) => item\.primary\)\) return null/);
+  assert.match(detailSource, /buildNewsMarketContext/);
+  assert.match(adapterSource, /<OriginalNewsArticle html=\{detail\.originalHtml\}/);
+  assert.match(adapterSource, /Stored company and market context is unavailable for this event/);
+  assert.match(adapterSource, /<GenericFilingAnalysis/);
+  assert.equal(
+    sharedAnalysisSource.match(/AI-assisted analysis\. Verify material facts against the original source\. Scores, labels, and directional signals are not investment recommendations\./g)?.length,
+    1,
+  );
+  assert.equal(
+    sharedAnalysisSource.match(/\{AI_ANALYSIS_DISCLOSURE\}/g)?.length,
+    1,
+  );
 });
 
 test("mobile news metadata uses a dedicated readable row", () => {
@@ -453,7 +475,7 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
 });
 
-test("product header switches to its mobile navigation before mid-width clipping", () => {
+test("product header switches to its mobile navigation at the integrated breakpoint", () => {
   const styles = readFileSync(
     new URL(
       "../components/shell/StockRadarProductHeader.module.css",
@@ -464,7 +486,7 @@ test("product header switches to its mobile navigation before mid-width clipping
 
   assert.match(
     styles,
-    /@media \(max-width: 1120px\) \{[\s\S]*?\.primaryNavigation \{[\s\S]*?display: none;[\s\S]*?\.actions \.mobileMenuButton \{[\s\S]*?display: flex;/,
+    /@media \(max-width: 820px\) \{[\s\S]*?\.primaryNavigation \{[\s\S]*?display: none;[\s\S]*?\.actions \.mobileMenuButton \{[\s\S]*?display: flex;/,
   );
   assert.match(
     styles,

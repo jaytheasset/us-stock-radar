@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { NextResponse } from "next/server.js";
+import { NextRequest, NextResponse } from "next/server.js";
+import { proxy } from "../../proxy.ts";
 import {
   AUTH_ACCESS_COOKIE,
   AUTH_REFRESH_COOKIE,
@@ -208,6 +209,51 @@ test("proxy refresh grant returns and preserves rotated tokens without logging t
   });
 });
 
+test("proxy forwards rotated cookies to the same SSR request and persists them", async () => {
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_ANON_KEY = "public-anon-key";
+  globalThis.fetch = (async () =>
+    Response.json({
+      access_token: "rotated-access",
+      refresh_token: "rotated-refresh",
+      expires_in: 3600,
+      user: { id: "00000000-0000-4000-8000-000000000123" },
+    })) as typeof fetch;
+
+  const response = await proxy(
+    new NextRequest("https://radar.example/calendar", {
+      headers: {
+        cookie: [
+          `${AUTH_ACCESS_COOKIE}=${jwtWithExpiry(1)}`,
+          `${AUTH_REFRESH_COOKIE}=current-refresh`,
+          "unrelated=value",
+        ].join("; "),
+      },
+    }),
+  );
+  const forwardedCookie =
+    response.headers.get("x-middleware-request-cookie") || "";
+  const persistedCookies = response.headers.getSetCookie().join("\n");
+
+  assert.match(
+    forwardedCookie,
+    new RegExp(`${AUTH_ACCESS_COOKIE}=rotated-access`),
+  );
+  assert.match(
+    forwardedCookie,
+    new RegExp(`${AUTH_REFRESH_COOKIE}=rotated-refresh`),
+  );
+  assert.match(forwardedCookie, /unrelated=value/);
+  assert.match(
+    persistedCookies,
+    new RegExp(`${AUTH_ACCESS_COOKIE}=rotated-access`),
+  );
+  assert.match(
+    persistedCookies,
+    new RegExp(`${AUTH_REFRESH_COOKIE}=rotated-refresh`),
+  );
+});
+
 test("refresh failures clear only invalid sessions and preserve transient failures", async () => {
   process.env.SUPABASE_URL = "https://project.supabase.co";
   process.env.SUPABASE_ANON_KEY = "public-anon-key";
@@ -278,6 +324,25 @@ test("password update distinguishes invalid and temporarily unavailable sessions
 
   const updateRoute = readProjectFile(
     "app/api/auth/password/update/route.ts",
+  );
+  const accountPage = readProjectFile("app/account/page.tsx");
+  const resetRequestRoute = readProjectFile(
+    "app/api/auth/password/reset-request/route.ts",
+  );
+  assert.match(
+    accountPage,
+    /href="\/account\/update-password"[\s\S]*Change password/,
+  );
+  assert.doesNotMatch(accountPage, /href=\{`\/forgot-password/);
+  assert.match(updateRoute, /resolveAuthSession\(/);
+  assert.match(
+    updateRoute,
+    /const accessToken =[\s\S]*resolved\.refreshedSession\?\.access_token \|\| tokens\.accessToken;[\s\S]*updateSupabasePassword\(accessToken, password\)/,
+  );
+  assert.doesNotMatch(updateRoute, /callbackType|type === "recovery"/);
+  assert.match(
+    resetRequestRoute,
+    /buildAuthCallbackUrl\([\s\S]*"recovery",[\s\S]*"\/account\/update-password"/,
   );
   assert.match(
     updateRoute,
@@ -399,10 +464,36 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   assert.match(oauthPkce, /createHash\("sha256"\)/);
 
   const authForm = readProjectFile("components/AuthForm.tsx");
+  const authStatus = readProjectFile("components/AuthStatus.tsx");
   assert.match(authForm, /Continue with Google/);
   assert.match(authForm, /fetch\("\/api\/auth\/oauth\/google"/);
   assert.match(authForm, /JSON\.stringify\(\{ next: nextPath \}\)/);
   assert.match(authForm, /mode === "signup"/);
+  assert.match(meRoute, /sessionRefreshed/);
+  const meResponsePayload = meRoute.slice(
+    meRoute.indexOf("const response = NextResponse.json"),
+    meRoute.indexOf("if (resolved.refreshedSession"),
+  );
+  assert.doesNotMatch(meResponsePayload, /(?:access|refresh)Token/);
+  assert.match(
+    authStatus,
+    /if \(payload\.sessionRefreshed && payload\.user\) \{\s*router\.refresh\(\)/,
+  );
+  const accountLogout = readProjectFile(
+    "components/account/AccountLogoutButton.tsx",
+  );
+  const clientLogout = readProjectFile("lib/auth/clientLogout.ts");
+  for (const source of [authStatus, accountLogout]) {
+    assert.match(source, /logoutAndReloadCurrentPage/);
+    assert.doesNotMatch(source, /location\.assign\("\/feed"\)/);
+  }
+  assert.match(clientLogout, /fetch\("\/api\/auth\/logout"/);
+  assert.match(clientLogout, /if \(!response\.ok\)/);
+  assert.match(clientLogout, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(clientLogout, /\/feed|returnUrl|next:/);
+  assert.doesNotMatch(clientLogout, /location\.(?:assign|replace)/);
+  assert.match(authStatus, /Logout failed — retry/);
+  assert.match(accountLogout, /Logout failed — retry/);
 
   for (const source of [
     sessionRoute,

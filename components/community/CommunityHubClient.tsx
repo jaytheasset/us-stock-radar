@@ -23,6 +23,8 @@ import {
   useState,
 } from "react";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { CommunityHubApiRepository } from "@/lib/community-hub/apiRepository";
 import type {
   CommunityHubPeopleFilter,
@@ -492,7 +494,7 @@ function InboxPanel({
       />
       {empty ? (
         <EmptyState
-          action={{ href: "/feed", label: "Browse Live Feed" }}
+          action={{ href: "/live", label: "Browse Live Rooms" }}
           description="Start from a registered member’s message menu in a Live Room."
           title="No member messages yet"
         />
@@ -516,8 +518,8 @@ function InboxPanel({
                     key={request.conversationId}
                   >
                     <Identity
+                      avatarUrl={request.peer.avatarUrl}
                       displayName={request.peer.displayName}
-                      emoji={request.peer.emoji}
                       plan={request.peer.plan}
                     />
                     <p>{request.bodyPreview}</p>
@@ -595,9 +597,9 @@ function InboxPanel({
                     key={conversation.conversationId}
                   >
                     <Identity
+                      avatarUrl={conversation.peer.avatarUrl}
                       compact
                       displayName={conversation.peer.displayName}
-                      emoji={conversation.peer.emoji}
                       plan={conversation.peer.plan}
                     />
                     <span className={styles.rowPreview}>
@@ -644,9 +646,9 @@ function InboxPanel({
                     key={request.conversationId}
                   >
                     <Identity
+                      avatarUrl={request.peer.avatarUrl}
                       compact
                       displayName={request.peer.displayName}
-                      emoji={request.peer.emoji}
                       plan={request.peer.plan}
                     />
                     <span className={styles.rowPreview}>
@@ -749,8 +751,8 @@ function PeoplePanel({
                     )}`}
                   >
                     <Identity
+                      avatarUrl={person.avatarUrl}
                       displayName={person.displayName}
-                      emoji={person.emoji}
                       isVerified={person.isVerified}
                       plan={person.plan}
                     />
@@ -945,7 +947,9 @@ function ActivityPanel({
               </span>
               <span>
                 <span className={styles.activityMeta}>
-                  <strong>{activity.actorDisplayName}</strong>
+                  <strong>
+                    {formatPublicChatName(activity.actorDisplayName)}
+                  </strong>
                   <b>{formatActivityKind(activity.kind)}</b>
                   <time dateTime={activity.createdAt}>
                     {formatTime(activity.createdAt)}
@@ -986,26 +990,28 @@ function PanelHeading({
 }
 
 function Identity({
+  avatarUrl,
   compact = false,
   displayName,
-  emoji,
   isVerified = false,
   plan,
 }: {
+  avatarUrl: string | null;
   compact?: boolean;
   displayName: string;
-  emoji: string;
   isVerified?: boolean;
   plan: DirectMessageInbox["conversations"][number]["peer"]["plan"];
 }) {
   return (
     <span className={`${styles.identity} ${compact ? styles.compact : ""}`}>
-      <span aria-hidden="true" className={styles.avatar}>
-        {emoji}
-      </span>
+      <MemberAvatar
+        className={styles.avatar}
+        displayName={displayName}
+        imageUrl={avatarUrl}
+      />
       <span>
         <strong>
-          {displayName}
+          {formatPublicChatName(displayName)}
           {isVerified ? (
             <BadgeCheck
               aria-label="Verified member"

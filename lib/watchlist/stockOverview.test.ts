@@ -157,6 +157,59 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
   assert.equal(selectStockOverviewEvents(events, "dilution").length, 1);
 });
 
+test("classifies direct dilution forms and contextual 8-K/6-K filings without treating every current report as dilution", () => {
+  const events = mapStockOverviewEvents({
+    data: [
+      {
+        detected_at: "2026-07-24T14:30:00Z",
+        event_type: "registration",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd2",
+        metadata: { form_type: "S-1" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Registration statement",
+      },
+      {
+        detected_at: "2026-07-23T14:30:00Z",
+        event_type: "financing",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd3",
+        metadata: { form_type: "8-K" },
+        source_group: "filings",
+        summary: "Company entered a convertible financing with warrants.",
+        ticker: "MULN",
+        title: "Financing agreement",
+      },
+      {
+        detected_at: "2026-07-22T14:30:00Z",
+        event_type: "leadership",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd4",
+        metadata: { form_type: "8-K" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Chief operating officer appointed",
+      },
+      {
+        detected_at: "2026-07-21T14:30:00Z",
+        event_type: "governance",
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd5",
+        metadata: { form_type: "DEF 14A" },
+        source_group: "filings",
+        ticker: "MULN",
+        title: "Annual proxy statement",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    selectStockOverviewEvents(events, "dilution").map((event) => event.formType),
+    ["S-1", "8-K"],
+  );
+  assert.deepEqual(
+    selectStockOverviewEvents(events, "ownership").map((event) => event.formType),
+    ["DEF 14A"],
+  );
+});
+
 test("watchlist page preserves auth/API contracts and uses the current product shell", async () => {
   const [
     pageSource,
@@ -224,6 +277,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /method: "DELETE"/);
   assert.match(componentSource, /payload\.persisted === false/);
   assert.match(componentSource, /viewport="tablet"/);
+  assert.match(componentSource, /viewport="all"/);
+  assert.match(componentSource, /TickerCompanyAutocomplete/);
+  assert.match(addRoute, /findTickerBySymbol/);
+  assert.match(addRoute, /company_name: catalogTicker\.companyName/);
   assert.match(componentSource, /viewerPlan|watchlist\.plan === "free"/);
   assert.match(componentSource, /selectionMode === "stock"/);
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
@@ -232,6 +289,18 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /"Stock research workspace"/);
   assert.match(componentSource, /"Stock Overview"/);
   assert.match(componentSource, /"Personal market workspace"/);
+  assert.match(
+    componentSource,
+    /new ResizeObserver\(scheduleActiveSectionUpdate\)/,
+  );
+  assert.match(
+    componentSource,
+    /\}, \[fundamentalsState, selectedTicker\]\);/,
+  );
+  assert.match(
+    componentSource,
+    /\.element\.scrollIntoView\(\{ block: "start" \}\);/,
+  );
   assert.match(
     componentCss,
     /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;/,
@@ -322,10 +391,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(headerSearchSource, /event\.key === "Escape"/);
   assert.match(headerSearchSource, /moveTickerSearchIndex/);
   assert.match(headerSearchSource, /router\.push\(href\)/);
-  assert.match(headerCss, /@media \(max-width: 1120px\)/);
+  assert.match(headerCss, /@media \(max-width: 820px\)/);
   assert.match(
     headerCss,
-    /@media \(max-width: 1120px\) \{[\s\S]*\.header \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*background: var\(--sr-color-surface-product-menu\);/,
+    /@media \(max-width: 820px\) \{[\s\S]*\.header \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*background: var\(--sr-color-surface-product-menu\);/,
   );
   assert.match(headerCss, /\.globalSearchPanel \{[\s\S]*position: fixed/);
   assert.match(headerCss, /left: var\(--sr-space-3\)/);

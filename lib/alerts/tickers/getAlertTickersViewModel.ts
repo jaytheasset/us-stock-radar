@@ -3,10 +3,14 @@ import "server-only";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { formatLimit, getPlanDisplayName, getPlanLimits } from "@/lib/subscriptionPolicy";
 import { supabaseSelect } from "@/lib/supabase";
+import { fetchSecCompanyTickers } from "@/lib/integrations";
+import {
+  normalizeTickerSearchQuery,
+  type TickerSearchResult,
+} from "@/lib/tickerSearchContract";
 import type {
   AlertTickerItem,
   AlertTickersViewModel,
-  TickerSearchResult,
 } from "@/lib/alerts/tickers/types";
 
 type AlertTickerRow = {
@@ -24,6 +28,17 @@ type TickerCatalogRow = {
   exchange?: unknown;
   asset_type?: unknown;
   market_cap?: unknown;
+};
+
+type EventTickerCatalogRow = {
+  symbol?: unknown;
+  exchange?: unknown;
+  metadata?: unknown;
+};
+
+type SecTickerRow = {
+  ticker?: unknown;
+  title?: unknown;
 };
 
 export async function getAlertTickersViewModel(userId: string): Promise<AlertTickersViewModel> {
@@ -75,56 +90,53 @@ export function formatAlertTickerUsage(viewModel: Pick<AlertTickersViewModel, "u
 }
 
 export async function findTickerBySymbol(ticker: string): Promise<TickerSearchResult | null> {
-  const result = await supabaseSelect("tickers", {
-    select: "symbol,name,exchange,asset_type,market_cap",
-    symbol: `eq.${ticker}`,
-    is_active: "eq.true",
-    limit: "1",
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error || "Failed to validate ticker.");
-  }
-
-  const row = Array.isArray(result.data) ? result.data[0] : null;
-  return mapTickerCatalogRow(row);
+  const normalizedTicker = ticker.trim().toUpperCase();
+  const results = await searchTickerCatalog(normalizedTicker, 12);
+  return results.find((result) => result.ticker === normalizedTicker) ?? null;
 }
 
 export async function searchTickerCatalog(query: string, limit = 8): Promise<TickerSearchResult[]> {
-  const normalized = normalizeCatalogQuery(query);
+  const normalized = normalizeTickerSearchQuery(query);
   if (!normalized) return [];
 
-  const result = await supabaseSelect("tickers", {
-    select: "symbol,name,exchange,asset_type,market_cap",
-    is_active: "eq.true",
-    or: `(symbol.ilike.${normalized}*,name.ilike.*${normalized}*)`,
-    order: "symbol.asc",
-    limit: String(Math.max(1, Math.min(limit, 12))),
-  });
+  const cappedLimit = Math.max(1, Math.min(limit, 12));
+  const [catalogResult, eventTickerResult] = await Promise.all([
+    supabaseSelect("tickers", {
+      select: "symbol,name,exchange,asset_type,market_cap",
+      is_active: "eq.true",
+      or: `(symbol.ilike.${normalized}*,name.ilike.*${normalized}*)`,
+      order: "symbol.asc",
+      limit: String(cappedLimit),
+    }),
+    supabaseSelect("event_tickers", {
+      select: "symbol,exchange,metadata",
+      or: `(symbol.ilike.${normalized}*,metadata->>company_name.ilike.*${normalized}*)`,
+      order: "symbol.asc",
+      limit: String(cappedLimit * 4),
+    }),
+  ]);
 
-  if (!result.ok) {
-    throw new Error(result.error || "Failed to search tickers.");
+  if (!catalogResult.ok) {
+    throw new Error(catalogResult.error || "Failed to search tickers.");
   }
 
-  const rows = Array.isArray(result.data)
-    ? result.data
-        .map(mapTickerCatalogRow)
-        .filter((item): item is TickerSearchResult => Boolean(item))
+  const catalogRows = Array.isArray(catalogResult.data)
+    ? catalogResult.data.map(mapTickerCatalogRow)
     : [];
+  const eventRows = eventTickerResult.ok && Array.isArray(eventTickerResult.data)
+    ? eventTickerResult.data.map(mapEventTickerCatalogRow)
+    : [];
+  const localRows = mergeTickerResults([...catalogRows, ...eventRows]);
+  const secRows = localRows.length < cappedLimit
+    ? await searchSecTickerCatalog(normalized)
+    : [];
+  const rows = mergeTickerResults([...localRows, ...secRows]);
   const uppercaseQuery = normalized.toUpperCase();
 
   return rows.sort((a, b) => {
     const rankDifference = getSearchRank(a, uppercaseQuery) - getSearchRank(b, uppercaseQuery);
     return rankDifference || a.ticker.localeCompare(b.ticker);
-  });
-}
-
-function normalizeCatalogQuery(value: string) {
-  return value
-    .trim()
-    .replace(/[^A-Za-z0-9 .&'-]/g, "")
-    .replace(/\s+/g, " ")
-    .slice(0, 48);
+  }).slice(0, cappedLimit);
 }
 
 function getSearchRank(item: TickerSearchResult, query: string) {
@@ -158,7 +170,7 @@ function mapTickerCatalogRow(row: unknown): TickerSearchResult | null {
   const companyName = stringValue(item.name);
   if (!ticker || !companyName) return null;
 
-  const marketCap = Number(item.market_cap);
+  const marketCap = optionalNumber(item.market_cap);
   return {
     ticker,
     companyName,
@@ -168,6 +180,64 @@ function mapTickerCatalogRow(row: unknown): TickerSearchResult | null {
   };
 }
 
+function mapEventTickerCatalogRow(row: unknown): TickerSearchResult | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as EventTickerCatalogRow;
+  const metadata =
+    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
+      ? (item.metadata as Record<string, unknown>)
+      : {};
+  const ticker = stringValue(item.symbol).toUpperCase();
+  const companyName = stringValue(metadata.company_name);
+  if (!ticker || !companyName) return null;
+  const marketCap = optionalNumber(metadata.market_cap);
+  return {
+    ticker,
+    companyName,
+    exchange: nullableString(item.exchange),
+    assetType: nullableString(metadata.asset_type) || "stock",
+    marketCap: Number.isFinite(marketCap) ? marketCap : null,
+  };
+}
+
+async function searchSecTickerCatalog(query: string): Promise<TickerSearchResult[]> {
+  const result = await fetchSecCompanyTickers(query);
+  if (!result.ok || !Array.isArray(result.data)) return [];
+  return result.data.flatMap((value) => {
+    const row = value as SecTickerRow;
+    const ticker = stringValue(row.ticker).toUpperCase();
+    const companyName = stringValue(row.title);
+    if (!ticker || !companyName) return [];
+    return [{
+      ticker,
+      companyName,
+      exchange: null,
+      assetType: "stock",
+      marketCap: null,
+    }];
+  });
+}
+
+function mergeTickerResults(results: Array<TickerSearchResult | null>) {
+  const merged = new Map<string, TickerSearchResult>();
+  for (const result of results) {
+    if (!result) continue;
+    const current = merged.get(result.ticker);
+    if (!current) {
+      merged.set(result.ticker, result);
+      continue;
+    }
+    merged.set(result.ticker, {
+      ticker: result.ticker,
+      companyName: current.companyName || result.companyName,
+      exchange: current.exchange || result.exchange,
+      assetType: current.assetType || result.assetType,
+      marketCap: current.marketCap ?? result.marketCap,
+    });
+  }
+  return [...merged.values()];
+}
+
 function stringValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -175,4 +245,9 @@ function stringValue(value: unknown) {
 function nullableString(value: unknown) {
   const text = stringValue(value);
   return text || null;
+}
+
+function optionalNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return Number.NaN;
+  return Number(value);
 }

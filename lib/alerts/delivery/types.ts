@@ -8,12 +8,17 @@ export type AlertDeliveryStatus = "queued" | "sent" | "failed" | "suppressed";
 export type NormalizedAlertEvent = {
   id: string;
   title: string;
+  quickTake?: string;
   tickers: string[];
   primaryTicker?: string;
   category: AlertCategory;
   sourceType: NormalizedAlertSourceType;
   sourceLabel?: string;
   severity?: NormalizedAlertSeverity;
+  score?: number;
+  signal?: "bullish" | "bearish" | "volatile" | "neutral";
+  impact?: "high" | "medium" | "low";
+  marketScope: "company" | "sector" | "theme" | "macro";
   publishedAt?: string;
   metadata?: Record<string, unknown>;
 };
@@ -103,6 +108,7 @@ export type RunAlertDeliveryResult = {
 export type QueuedAlertDeliveryRow = {
   id: string;
   user_id: string;
+  alert_event_id: string | null;
   ticker: string | null;
   title: string;
   category: AlertCategory | null;
@@ -127,8 +133,9 @@ export type ProcessQueuedDeliveryItemResult = {
   userId: string;
   title: string;
   ticker?: string | null;
-  action: "would_send" | "sent" | "suppressed" | "failed";
+  action: "would_send" | "sent" | "suppressed" | "failed" | "in_progress";
   channels: AlertChannel[];
+  duplicatesPrevented: number;
   error?: string;
 };
 
@@ -142,7 +149,67 @@ export type ProcessQueuedDeliveryResult = {
   sent: number;
   failed: number;
   suppressed: number;
+  duplicatesPrevented: number;
+  inProgress: number;
   items: ProcessQueuedDeliveryItemResult[];
+  error?: string;
+};
+
+export type CalendarAlertDeliveryResult = {
+  ok: boolean;
+  write: boolean;
+  scanned: number;
+  delivered: number;
+  duplicates: number;
+  disabled: number;
+  suppressed: number;
+  failed?: number;
+  error?: string;
+};
+
+export type PublicTelegramBroadcastStatus =
+  | "pending"
+  | "attempting"
+  | "sent"
+  | "failed"
+  | "suppressed"
+  | "uncertain";
+
+export type PublicTelegramBroadcastRow = {
+  id: string;
+  event_id: string;
+  status: PublicTelegramBroadcastStatus;
+  scheduled_for: string;
+  next_retry_at: string | null;
+};
+
+export type PublicTelegramBroadcastItemResult = {
+  eventId: string;
+  action:
+    | "would_send"
+    | "sent"
+    | "failed"
+    | "suppressed"
+    | "in_progress"
+    | "disabled";
+  duplicatePrevented: boolean;
+  error?: string;
+};
+
+export type PublicTelegramBroadcastResult = {
+  ok: boolean;
+  dryRun: boolean;
+  write: boolean;
+  scanned: number;
+  processed: number;
+  wouldProcess: number;
+  sent: number;
+  failed: number;
+  suppressed: number;
+  disabled: number;
+  duplicatesPrevented: number;
+  inProgress: number;
+  items: PublicTelegramBroadcastItemResult[];
   error?: string;
 };
 
@@ -191,8 +258,12 @@ export type RunAlertDeliverySchedulerOptions = {
   limit?: number;
   lookbackHours?: number;
   queuedLimit?: number;
+  publicTelegramLimit?: number;
   skipBatch?: boolean;
   skipQueued?: boolean;
+  skipPublicTelegram?: boolean;
+  skipCalendar?: boolean;
+  calendarLimit?: number;
   lockTtlSeconds?: number;
   useLock?: boolean;
 };
@@ -206,5 +277,7 @@ export type RunAlertDeliverySchedulerResult = {
   lockSkipped?: boolean;
   batch?: RunAlertDeliveryBatchResult | null;
   queued?: ProcessQueuedDeliveryResult | null;
+  publicTelegram?: PublicTelegramBroadcastResult | null;
+  calendar?: CalendarAlertDeliveryResult | null;
   error?: string;
 };

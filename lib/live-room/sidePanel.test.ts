@@ -281,6 +281,7 @@ function message({
 }): LiveRoomChatMessage {
   return {
     author: {
+      avatarUrl: null,
       displayName,
       emoji: "🛰️",
       isGuest,
@@ -316,6 +317,7 @@ function post({
 }): LiveRoomPost {
   return {
     author: {
+      avatarUrl: null,
       displayName,
       emoji: "📈",
       publicProfileId,

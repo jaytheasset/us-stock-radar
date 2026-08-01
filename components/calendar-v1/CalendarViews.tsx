@@ -52,57 +52,62 @@ export function CalendarView({
 }) {
   const dates = enumerateDateRange(range);
   const byDate = new Map(
-    groupCalendarEventsByDate(events).map((group) => [group.date, group.events]),
+    groupCalendarEventsByDate(events, today).map((group) => [group.date, group.events]),
   );
   const selectedEvents = byDate.get(selectedDate) ?? [];
   const upcomingEvents = selectUpcomingCalendarEvents(events, selectedDate);
 
   return (
     <div className={styles.calendarView} data-testid="calendar-view">
-      <div className={styles.calendarWeekdays} aria-hidden="true">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <span key={day}>{day}</span>)}
-      </div>
-      <div aria-label="Event calendar dates" className={styles.calendarGrid} role="group">
-        {dates.map((date) => {
-          const dayEvents = byDate.get(date) ?? [];
-          const parsed = parseDateOnly(date);
-          const isSelected = date === selectedDate;
-          const isToday = date === today;
-          return (
-            <button
-              aria-label={`${parsed.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}, ${formatEventCount(dayEvents.length)}`}
-              aria-pressed={isSelected}
-              className={styles.calendarDay}
-              data-selected={isSelected}
-              data-today={isToday}
-              key={date}
-              onClick={() => {
-                onSelectedDateChange(date);
-                requestAnimationFrame(() => selectedDateListRef.current?.focus());
-              }}
-              type="button"
-            >
-              <span className={styles.dayHeading}>
-                <b>{parsed.getDate()}</b>
-                {isToday ? <em>Today</em> : null}
-                {dayEvents.length ? <small>{dayEvents.length}</small> : null}
-              </span>
-              <span className={styles.dayEvents}>
-                {dayEvents.slice(0, 3).map((event) => (
-                  <span key={event.id}>
-                    <b>{getCalendarCompactIdentity(event)}</b>
-                    <CalendarEventTypeBadge eventType={event.eventType} />
-                  </span>
-                ))}
-                {dayEvents.length > 3 ? <strong>+{dayEvents.length - 3} more</strong> : null}
-              </span>
-            </button>
-          );
-        })}
+      <div className={styles.weekStrip}>
+        <div className={styles.calendarWeekdays} aria-hidden="true">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <span key={day}>{day}</span>)}
+        </div>
+        <div aria-label="Event calendar dates" className={styles.calendarGrid} role="group">
+          {dates.map((date) => {
+            const dayEvents = byDate.get(date) ?? [];
+            const parsed = parseDateOnly(date);
+            const isSelected = date === selectedDate;
+            const isToday = date === today;
+            return (
+              <button
+                aria-label={`${parsed.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}, ${formatEventCount(dayEvents.length)}`}
+                aria-pressed={isSelected}
+                className={styles.calendarDay}
+                data-selected={isSelected}
+                data-today={isToday}
+                key={date}
+                onClick={() => {
+                  onSelectedDateChange(date);
+                  requestAnimationFrame(() => selectedDateListRef.current?.focus());
+                }}
+                type="button"
+              >
+                <span className={styles.dayHeading}>
+                  <b>{parsed.getDate()}</b>
+                  {isToday ? <em>Today</em> : null}
+                  {dayEvents.length ? <small>{dayEvents.length}</small> : null}
+                </span>
+                <span className={styles.dayEvents}>
+                  {dayEvents.slice(0, 3).map((event) => (
+                    <span key={event.id}>
+                      <b>{getCalendarCompactIdentity(event)}</b>
+                      <CalendarEventTypeBadge
+                        eventType={event.eventType}
+                        truncateLabel
+                      />
+                    </span>
+                  ))}
+                  {dayEvents.length > 3 ? <strong>+{dayEvents.length - 3} more</strong> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <section className={styles.selectedDateSection} aria-labelledby="selected-date-title">
@@ -154,12 +159,14 @@ export function ListView({
   events,
   onOpenEvent,
   selectedEventId,
+  today,
 }: {
   events: readonly CalendarEvent[];
   onOpenEvent: OpenEvent;
   selectedEventId: string | null;
+  today: string;
 }) {
-  const groups = groupCalendarEventsByDate(events);
+  const groups = groupCalendarEventsByDate(events, today);
   return (
     <div className={styles.listView} data-testid="list-view">
       {groups.map((group) => {

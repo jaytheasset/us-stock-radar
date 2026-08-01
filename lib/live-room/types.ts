@@ -5,6 +5,10 @@ import type {
   LiveRoomPostSignal,
 } from "./postSignals.ts";
 import type { BrokerageProofSummary } from "../brokerage/types.ts";
+import type {
+  KlipyMediaAttachment,
+  KlipyReplyMediaPreview,
+} from "../klipy/types.ts";
 
 export type CompanyRoomKey =
   | { kind: "issuer_id"; value: string }
@@ -46,9 +50,12 @@ export type CompanyEventSource =
   | "mock-simulation";
 
 export type LiveRoomProfile = {
+  avatarUrl: string | null;
+  bio: string | null;
   canModerate?: boolean;
   displayName: string;
   emoji: string;
+  isChatNameSet?: boolean;
   isGuest: boolean;
   plan: Plan;
   publicProfileId?: string;
@@ -56,14 +63,18 @@ export type LiveRoomProfile = {
 };
 
 export type LiveRoomReplyPreview = {
+  authorAvatarUrl: string | null;
   authorDisplayName: string;
   authorEmoji: string;
   bodyPreview: string;
   messageId: string;
+  mediaPreview?: KlipyReplyMediaPreview | null;
 };
 
+export type LiveRoomMessageAuthor = Omit<LiveRoomProfile, "bio">;
+
 export type LiveRoomChatMessage = {
-  author: LiveRoomProfile;
+  author: LiveRoomMessageAuthor;
   body: string;
   brokerageProof?: BrokerageProofSummary | null;
   canFollowMember?: boolean;
@@ -77,6 +88,7 @@ export type LiveRoomChatMessage = {
   isMine?: boolean;
   kind: "message";
   likeCount: number;
+  media?: KlipyMediaAttachment | null;
   replyCount: number;
   replyPreview: LiveRoomReplyPreview | null;
 };
@@ -142,6 +154,7 @@ export type LiveRoomMembershipList = {
 };
 
 export type LiveRoomMemberSummary = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   followerCount: number;
@@ -178,6 +191,7 @@ export type LiveRoomPostRoom =
     };
 
 export type LiveRoomPostAuthor = {
+  avatarUrl: string | null;
   displayName: string;
   emoji: string;
   publicProfileId: string;
@@ -238,6 +252,8 @@ export type LiveRoomPostPage = {
 };
 
 export type LiveRoomPublicMember = {
+  avatarUrl: string | null;
+  bio: string | null;
   brokerageConnected: boolean;
   displayName: string;
   emoji: string;
@@ -322,7 +338,7 @@ export type LiveRoomModerationItem = LiveRoomChatMessage & {
 };
 
 export type LiveRoomMessageDraft = {
-  author: LiveRoomProfile;
+  author: LiveRoomMessageAuthor;
   body: string;
   eventReference: CompanyEventReference | null;
 };

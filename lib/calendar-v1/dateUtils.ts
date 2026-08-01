@@ -13,6 +13,7 @@ import {
 } from "./presentation.ts";
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+export const CALENDAR_MARKET_TIME_ZONE = "America/New_York";
 
 export function parseDateOnly(value: string): Date {
   const match = DATE_ONLY_PATTERN.exec(value);
@@ -39,6 +40,35 @@ export function formatDateOnly(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function formatEnglishDatePickerValue(value: string): string {
+  return parseDateOnly(value).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function getCalendarMarketDate(date = new Date()): string {
+  if (Number.isNaN(date.getTime())) {
+    throw new RangeError("Invalid market date instant");
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: CALENDAR_MARKET_TIME_ZONE,
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type === "year" || part.type === "month" || part.type === "day")
+      .map((part) => [part.type, part.value]),
+  );
+  const value = `${values.year}-${values.month}-${values.day}`;
+  parseDateOnly(value);
+  return value;
 }
 
 export function addDateOnlyDays(value: string, days: number): string {
@@ -127,9 +157,10 @@ export function filterCalendarEvents(
 
 export function groupCalendarEventsByDate(
   events: readonly CalendarEvent[],
+  today: string,
 ): Array<{ date: string; events: CalendarEvent[] }> {
   const groups = new Map<string, CalendarEvent[]>();
-  [...events].sort(compareCalendarEvents).forEach((event) => {
+  sortCalendarEventsByDateContext(events, today).forEach((event) => {
     const group = groups.get(event.eventDate) ?? [];
     group.push(event);
     groups.set(event.eventDate, group);
@@ -188,18 +219,78 @@ export function formatRangeLabel(range: CalendarDateRange): string {
   return `${fromLabel} – ${toLabel}`;
 }
 
+export function formatCompactRangeLabel(range: CalendarDateRange): string {
+  const normalized = normalizeDateRange(range);
+  const from = parseDateOnly(normalized.from);
+  const to = parseDateOnly(normalized.to);
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const formatDate = (date: Date, includeYear: boolean) =>
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: includeYear ? "numeric" : undefined,
+    });
+
+  if (normalized.from === normalized.to) {
+    return formatDate(from, !sameYear);
+  }
+
+  return `${formatDate(from, !sameYear)} – ${formatDate(to, !sameYear)}`;
+}
+
 export function daysBetween(from: string, to: string): number {
   const start = parseDateOnly(from);
   const end = parseDateOnly(to);
   return Math.round((end.getTime() - start.getTime()) / 86_400_000);
 }
 
+export function sortCalendarEventsByDateContext(
+  events: readonly CalendarEvent[],
+  today: string,
+): CalendarEvent[] {
+  parseDateOnly(today);
+  return [...events].sort((a, b) => {
+    const dateOrder = a.eventDate.localeCompare(b.eventDate);
+    if (dateOrder) return dateOrder;
+
+    const statusOrder =
+      getDateContextStatusRank(a, today) - getDateContextStatusRank(b, today);
+    return statusOrder || compareCalendarEventTimeAndIdentity(a, b);
+  });
+}
+
 function compareCalendarEvents(a: CalendarEvent, b: CalendarEvent): number {
   return (
     a.eventDate.localeCompare(b.eventDate) ||
+    compareCalendarEventTimeAndIdentity(a, b)
+  );
+}
+
+function compareCalendarEventTimeAndIdentity(
+  a: CalendarEvent,
+  b: CalendarEvent,
+): number {
+  return (
     (a.eventTime ?? "99:99").localeCompare(b.eventTime ?? "99:99") ||
     getCalendarEventIdentity(a).primaryLabel.localeCompare(
       getCalendarEventIdentity(b).primaryLabel,
     )
   );
+}
+
+function getDateContextStatusRank(
+  event: CalendarEvent,
+  today: string,
+): number {
+  if (event.status === "postponed") return 3;
+  if (event.status === "cancelled") return 4;
+
+  if (event.eventDate < today) {
+    if (event.status === "completed") return 0;
+    return event.status === "confirmed" ? 1 : 2;
+  }
+
+  if (event.status === "confirmed") return 0;
+  if (event.status === "estimated") return 1;
+  return 2;
 }

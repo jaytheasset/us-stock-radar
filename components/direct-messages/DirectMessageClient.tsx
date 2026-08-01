@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import {
   DIRECT_MESSAGE_POLL_INTERVAL_MS,
@@ -33,6 +34,7 @@ import type {
 } from "@/lib/direct-messages/types";
 import { DIRECT_MESSAGE_REPORT_REASONS } from "@/lib/direct-messages/types";
 import { LiveRoomApiError } from "@/lib/live-room/apiRepository";
+import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import { LIVE_ROOM_MESSAGE_MAX_LENGTH } from "@/lib/live-room/moderation";
 import styles from "./DirectMessage.module.css";
 
@@ -259,14 +261,19 @@ export function DirectMessageClient({
             Back
           </Link>
           <div className={styles.identity}>
-            <span aria-hidden="true" className={styles.avatar}>
-              {conversation?.peer.emoji || "💬"}
-            </span>
+            <MemberAvatar
+              className={styles.avatar}
+              displayName={conversation?.peer.displayName || ""}
+              imageUrl={conversation?.peer.avatarUrl}
+            />
             <span>
               <small>Member messages</small>
               <strong>
-                {conversation?.peer.displayName ||
-                  (state === "loading" ? "Loading…" : "Conversation")}
+                {conversation
+                  ? formatPublicChatName(conversation.peer.displayName)
+                  : state === "loading"
+                    ? "Loading…"
+                    : "Conversation"}
               </strong>
             </span>
           </div>
@@ -404,7 +411,10 @@ export function DirectMessageClient({
 
         <form className={styles.composer} onSubmit={handleSend}>
           <label htmlFor="direct-message-body">
-            Message {conversation?.peer.displayName || "member"}
+            Message{" "}
+            {conversation
+              ? formatPublicChatName(conversation.peer.displayName)
+              : "member"}
           </label>
           <div>
             <textarea

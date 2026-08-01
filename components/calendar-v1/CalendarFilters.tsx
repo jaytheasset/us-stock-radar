@@ -4,11 +4,12 @@ import {
   useEffect,
   useRef,
   useState,
+  type ComponentProps,
   type Dispatch,
   type RefObject,
   type SetStateAction,
 } from "react";
-import { ChevronDown, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
@@ -53,6 +54,19 @@ function getVisibleTypeGroups(category: CalendarCategory | "all") {
   return category === "all" ? CALENDAR_CATEGORIES : [category];
 }
 
+function CalendarFlatFilterOption({
+  className,
+  ...props
+}: ComponentProps<typeof FilterOption>) {
+  return (
+    <FilterOption
+      {...props}
+      className={[styles.flatFilterOption, className].filter(Boolean).join(" ")}
+      selectedIndicator={<Check aria-hidden="true" size={14} strokeWidth={2.25} />}
+    />
+  );
+}
+
 export function CalendarFilters({
   activeCount,
   filters,
@@ -63,7 +77,11 @@ export function CalendarFilters({
   setFilters,
 }: CalendarFiltersProps) {
   return (
-    <section aria-label="Calendar filters" className={styles.filters}>
+    <section
+      aria-label="Calendar filters"
+      className={styles.filters}
+      data-calendar-filters
+    >
       <div className={styles.searchAndMobileFilters}>
         <label className={styles.searchField}>
           <Search aria-hidden="true" size={17} />
@@ -79,6 +97,12 @@ export function CalendarFilters({
             type="search"
             value={filters.query}
           />
+          <span
+            aria-hidden="true"
+            className={styles.mobileSearchPlaceholder}
+          >
+            Search events or tickers
+          </span>
         </label>
         <FilterTrigger
           active={activeCount > 0}
@@ -218,7 +242,7 @@ function EventTypeFilterMenu({
           id="calendar-type-options"
           role="group"
         >
-          <FilterOption
+          <CalendarFlatFilterOption
             label="All types"
             onClick={() => {
               onChange("all");
@@ -230,7 +254,7 @@ function EventTypeFilterMenu({
             <section className={styles.typeOptionGroup} key={group}>
               <h3>{calendarCategoryLabels[group]}</h3>
               {calendarEventTypeGroups[group].map((eventType) => (
-                <FilterOption
+                <CalendarFlatFilterOption
                   key={eventType}
                   label={eventTypeLabels[eventType]}
                   onClick={() => {
@@ -299,7 +323,7 @@ function FilterMenu<Value extends string>({
           role="group"
         >
           {options.map((option) => (
-            <FilterOption
+            <CalendarFlatFilterOption
               key={option.value}
               label={option.label}
               onClick={() => {
@@ -364,8 +388,8 @@ function MobileCalendarFilterSheet({
         />
         <section className={styles.mobileFilterGroup}>
           <h3>Event type</h3>
-          <div>
-            <FilterOption
+          <div className={styles.mobileFlatOptionList}>
+            <CalendarFlatFilterOption
               label="All types"
               onClick={() =>
                 setFilters((current) => ({ ...current, eventType: "all" }))
@@ -376,7 +400,7 @@ function MobileCalendarFilterSheet({
               <div className={styles.mobileTypeOptionGroup} key={group}>
                 <h4>{calendarCategoryLabels[group]}</h4>
                 {calendarEventTypeGroups[group].map((eventType) => (
-                  <FilterOption
+                  <CalendarFlatFilterOption
                     key={eventType}
                     label={eventTypeLabels[eventType]}
                     onClick={() =>
@@ -408,6 +432,7 @@ function MobileCalendarFilterSheet({
           </div>
         </section>
         <MobileFilterGroup
+          flat
           label="Market session"
           onChange={(marketSession) =>
             setFilters((current) => ({
@@ -425,6 +450,7 @@ function MobileCalendarFilterSheet({
           value={filters.marketSession}
         />
         <MobileFilterGroup
+          flat
           label="Status"
           onChange={(status) =>
             setFilters((current) => ({
@@ -451,22 +477,26 @@ function MobileCalendarFilterSheet({
 }
 
 function MobileFilterGroup({
+  flat = false,
   label,
   onChange,
   options,
   value,
 }: {
+  flat?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: readonly FilterMenuOption<string>[];
   value: string;
 }) {
+  const Option = flat ? CalendarFlatFilterOption : FilterOption;
+
   return (
     <section className={styles.mobileFilterGroup}>
       <h3>{label}</h3>
-      <div>
+      <div className={flat ? styles.mobileFlatOptionList : undefined}>
         {options.map((option) => (
-          <FilterOption
+          <Option
             key={option.value}
             label={option.label}
             onClick={() => onChange(option.value)}

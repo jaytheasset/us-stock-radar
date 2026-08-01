@@ -21,7 +21,8 @@
 
 @media (max-width: 1180px) {
   .mobileRoot,
-  .tabletRoot {
+  .tabletRoot,
+  .allRoot {
     position: fixed;
     display: block;
     inset: 0;
@@ -165,6 +166,69 @@
   }
 
   .close:focus-visible {
+    outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+    outline-offset: var(--sr-focus-ring-offset);
+  }
+}
+
+@media (min-width: 1181px) {
+  .allRoot {
+    position: fixed;
+    z-index: var(--sr-z-sheet-full-scroll);
+    display: grid;
+    inset: 0;
+    place-items: center;
+    padding: var(--sr-space-6);
+    background: var(--sr-color-overlay-full-scroll);
+    backdrop-filter: blur(4px);
+  }
+
+  .allRoot .overlay {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .allRoot .surface {
+    position: relative;
+    width: min(440px, calc(100vw - var(--sr-space-8)));
+    max-height: min(760px, calc(100dvh - var(--sr-space-8)));
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: var(--sr-border-width) solid var(--sr-color-border-overlay);
+    border-radius: var(--sr-radius-sheet);
+    background:
+      linear-gradient(180deg, var(--sr-color-accent-sheet-glow), transparent 20%),
+      var(--sr-color-surface-overlay);
+    box-shadow: var(--sr-shadow-sheet-full-scroll);
+    scrollbar-gutter: stable;
+  }
+
+  .allRoot .handle {
+    display: none;
+  }
+
+  .allRoot .close {
+    position: absolute;
+    z-index: var(--sr-z-sheet-close);
+    top: var(--sr-space-4);
+    right: var(--sr-space-4);
+    display: flex;
+    width: var(--sr-size-close-button);
+    height: var(--sr-size-close-button);
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--sr-radius-pill);
+    padding: 0;
+    color: var(--sr-color-text-close);
+    background: transparent;
+  }
+
+  .allRoot .close:focus-visible,
+  .allRoot .surface:focus-visible {
     outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
     outline-offset: var(--sr-focus-ring-offset);
   }

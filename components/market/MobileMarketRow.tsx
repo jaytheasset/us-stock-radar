@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   MarketImpactLabel,
   type MarketImpact,
@@ -23,6 +24,7 @@ export type MobileMarketRowProps = {
   secondaryValue: string;
   selected?: boolean;
   ticker: string;
+  tickerHref?: string | null;
 };
 
 const toneClasses: Record<MarketValueTone, string> = {
@@ -46,6 +48,7 @@ export function MobileMarketRow({
   secondaryValue,
   selected = false,
   ticker,
+  tickerHref,
 }: MobileMarketRowProps) {
   return (
     <tr
@@ -63,7 +66,19 @@ export function MobileMarketRow({
       <td className={styles.mobileRank}>{rank}</td>
       <td className={styles.mobileIdentity}>
         <MarketTickerLogo logoUrl={logoUrl} size="mobile" ticker={ticker} />
-        <strong>{ticker}</strong>
+        <strong>
+          {tickerHref ? (
+            <Link
+              aria-label={`View ${ticker} stock overview`}
+              className={styles.tickerLink}
+              href={tickerHref}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {ticker}
+            </Link>
+          ) : ticker}
+        </strong>
         <span>{company}</span>
       </td>
       <td className={`${styles.mobilePrimary} ${toneClasses[primaryTone]}`}>

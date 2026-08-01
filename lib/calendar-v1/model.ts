@@ -68,7 +68,24 @@ export const CALENDAR_EVENT_STATUSES = [
 ] as const;
 export type CalendarEventStatus = (typeof CALENDAR_EVENT_STATUSES)[number];
 
-export type CalendarProvider = "mock";
+export const CALENDAR_PROVIDERS = [
+  "mock",
+  "fmp",
+  "bls",
+  "bea",
+  "census",
+  "federal-reserve",
+  "us-treasury",
+  "sec",
+  "federal-register",
+  "ustr",
+  "bis",
+  "ofac",
+  "fda",
+  "other",
+  "unknown",
+] as const;
+export type CalendarProvider = (typeof CALENDAR_PROVIDERS)[number];
 export type CalendarTimezone = "America/New_York";
 export type CalendarTimeStatus = "exact" | "time-not-announced" | "all-day";
 export type CalendarLifecycleStatus =
@@ -83,10 +100,12 @@ export type CalendarImpactScope = "market-wide" | "sector" | "company";
 type CalendarEventCommon = {
   id: string;
   provider: CalendarProvider;
-  providerEventKey: string;
   category: CalendarCategory;
   eventType: CalendarEventType;
   title: string;
+  detailHref?: string | null;
+  relatedAnalysisCount?: number;
+  analysisPending?: boolean;
   eventDate: string;
   eventEndDate: string | null;
   eventTime: string | null;
@@ -100,7 +119,6 @@ type CalendarEventCommon = {
   sourceAgency: string;
   sourceName: string;
   sourceUrl: string | null;
-  sourceEventKey: string | null;
   affectedSectors: string[];
   relatedTickers: string[];
   status: CalendarEventStatus;
@@ -119,7 +137,7 @@ type CompanyCalendarEventCommon = CalendarEventCommon & {
 export type EarningsCalendarEvent = CompanyCalendarEventCommon & {
   eventType: "earnings";
   details: {
-    fiscalQuarter: string;
+    fiscalQuarter: string | null;
     epsEstimate: number | null;
     revenueEstimate: number | null;
     actualEps: number | null;
@@ -132,7 +150,7 @@ export type DividendCalendarEvent = CompanyCalendarEventCommon & {
   eventType: "dividend";
   details: {
     dividendPerShare: number | null;
-    exDividendDate: string;
+    exDividendDate: string | null;
     recordDate: string | null;
     paymentDate: string | null;
     frequency: string | null;
@@ -143,9 +161,9 @@ export type DividendCalendarEvent = CompanyCalendarEventCommon & {
 export type SplitCalendarEvent = CompanyCalendarEventCommon & {
   eventType: "split";
   details: {
-    ratio: string;
-    splitKind: "forward" | "reverse";
-    effectiveDate: string;
+    ratio: string | null;
+    splitKind: "forward" | "reverse" | null;
+    effectiveDate: string | null;
     relatedTicker: string | null;
   };
 };
@@ -163,7 +181,8 @@ export type IpoCalendarEvent = CompanyCalendarEventCommon & {
       | "date-estimated"
       | "range-announced"
       | "priced"
-      | "trading";
+      | "trading"
+      | null;
   };
 };
 
@@ -187,7 +206,7 @@ export type MacroCalendarEvent = CalendarEventCommon & {
   category: "macro";
   eventType: MacroCalendarEventType;
   details: {
-    referencePeriod: string;
+    referencePeriod: string | null;
     metrics: MacroMetric[];
     releaseNote: string | null;
   };
@@ -206,7 +225,7 @@ export type FomcDecisionCalendarEvent = PolicyCalendarEventCommon & {
   details: {
     decisionTime: string | null;
     pressConferenceTime: string | null;
-    includesSep: boolean;
+    includesSep: boolean | null;
     targetRangeLower: number | null;
     targetRangeUpper: number | null;
   };
@@ -216,8 +235,8 @@ export type FomcMinutesCalendarEvent = PolicyCalendarEventCommon & {
   eventType: "fomc-minutes";
   policySubcategory: "monetary-policy";
   details: {
-    meetingPeriod: string;
-    documentTitle: string;
+    meetingPeriod: string | null;
+    documentTitle: string | null;
   };
 };
 
@@ -225,9 +244,9 @@ export type FedChairTestimonyCalendarEvent = PolicyCalendarEventCommon & {
   eventType: "fed-chair-testimony";
   policySubcategory: "monetary-policy";
   details: {
-    witness: string;
-    committee: string;
-    topic: string;
+    witness: string | null;
+    committee: string | null;
+    topic: string | null;
   };
 };
 
@@ -239,7 +258,7 @@ export type TreasuryCalendarEvent = PolicyCalendarEventCommon & {
     | "treasury-auction-30y";
   policySubcategory: "treasury";
   details: {
-    kind: "announcement" | "auction";
+    kind: "announcement" | "auction" | null;
     maturity: string | null;
     amountBillions: number | null;
     result: string | null;
@@ -250,13 +269,14 @@ export type SecCalendarEvent = PolicyCalendarEventCommon & {
   eventType: "sec-open-meeting" | "sec-rule-milestone";
   policySubcategory: "sec-regulation";
   details: {
-    ruleOrMeetingTitle: string;
+    ruleOrMeetingTitle: string | null;
     agenda: string[];
     milestone:
       | "meeting"
       | "comment-deadline"
       | "effective-date"
-      | "compliance-date";
+      | "compliance-date"
+      | null;
     documentOrDocket: string | null;
   };
 };
@@ -265,11 +285,11 @@ export type TradePolicyCalendarEvent = PolicyCalendarEventCommon & {
   eventType: "trade-policy-action";
   policySubcategory: "trade-policy";
   details: {
-    actionType: "tariff" | "export-control" | "sanctions";
+    actionType: "tariff" | "export-control" | "sanctions" | null;
     targetCountries: string[];
     affectedIndustries: string[];
     tariffOrRestriction: string | null;
-    actionDateKind: "effective-date" | "comment-deadline";
+    actionDateKind: "effective-date" | "comment-deadline" | null;
   };
 };
 
@@ -277,12 +297,12 @@ export type FdaAdvisoryCalendarEvent = PolicyCalendarEventCommon & {
   eventType: "fda-advisory-committee";
   policySubcategory: "industry-regulation";
   details: {
-    committee: string;
-    product: string;
-    sponsor: string;
-    indication: string;
-    meetingStartDate: string;
-    meetingEndDate: string;
+    committee: string | null;
+    product: string | null;
+    sponsor: string | null;
+    indication: string | null;
+    meetingStartDate: string | null;
+    meetingEndDate: string | null;
   };
 };
 
@@ -400,4 +420,22 @@ export const impactLevelLabels: Record<CalendarImpactLevel, string> = {
   high: "High impact",
   medium: "Medium impact",
   low: "Low impact",
+};
+
+export const calendarProviderLabels: Record<CalendarProvider, string> = {
+  mock: "Mock",
+  fmp: "Financial Modeling Prep",
+  bls: "BLS",
+  bea: "BEA",
+  census: "U.S. Census Bureau",
+  "federal-reserve": "Federal Reserve",
+  "us-treasury": "U.S. Treasury",
+  sec: "SEC",
+  "federal-register": "Federal Register",
+  ustr: "USTR",
+  bis: "BIS",
+  ofac: "OFAC",
+  fda: "FDA",
+  other: "Other source",
+  unknown: "Not announced",
 };

@@ -13,6 +13,7 @@ export type DashboardV2Event = {
   id: string;
   impact?: DashboardV2Impact;
   label: string;
+  score: number;
   signal?: DashboardV2Signal;
   timestamp: string;
   title: string;

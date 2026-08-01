@@ -15,8 +15,8 @@
   gap: var(--sr-space-4);
 }
 
-.rail[data-ads-enabled="false"] {
-  display: contents;
+.detailAnchor {
+  min-width: 0;
 }
 
 .desktopRailAd {
@@ -26,8 +26,24 @@
   margin-inline: auto;
 }
 
+@media (min-width: 1181px) {
+  .rail {
+    position: sticky;
+    top: var(--sr-space-4);
+    overflow-x: hidden;
+    overflow-y: hidden;
+    max-height: calc(100dvh - var(--sr-space-8));
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+  }
+}
+
 @media (max-width: 1180px) {
   .rail {
+    display: contents;
+  }
+
+  .detailAnchor {
     display: contents;
   }
 

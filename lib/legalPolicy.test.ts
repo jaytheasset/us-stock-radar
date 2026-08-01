@@ -47,6 +47,7 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   const terms = read("app/terms/page.tsx");
   const privacy = read("app/privacy/page.tsx");
   const sharedDocument = read("components/legal/LegalDocument.tsx");
+  const productFooter = read("components/shell/StockRadarProductFooter.tsx");
   const policyConfig = read("lib/legalPolicy.ts");
 
   for (const source of [terms, privacy]) {
@@ -61,6 +62,7 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
     "community-content",
     "verification",
     "brokerage",
+    "live-room-community-disclosures",
     "plans",
     "third-parties",
     "intellectual-property",
@@ -94,6 +96,10 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   assert.match(terms, /at least 18 years old/);
   assert.match(terms, /not a broker-dealer, investment adviser/);
   assert.match(terms, /does not place orders, execute trades, hold assets, or/);
+  assert.match(terms, /not endorsed by Stock Radar, verified for investment merit/);
+  assert.match(terms, /selected broker-linked facts matched/);
+  assert.match(terms, /conduct—will survive/);
+  assert.doesNotMatch(terms, /survive termination\?|conduct\?/);
   assert.match(privacy, /does not sell personal information for money/);
   assert.match(privacy, /California residents may/);
   assert.match(privacy, /The Service is for adults age 18 and older/);
@@ -105,6 +111,8 @@ test("legal pages use the current shell, dates, cross-links, and complete policy
   assert.match(sharedDocument, /href="\/dashboard-v2"/);
   assert.match(sharedDocument, /effectiveDate/);
   assert.match(sharedDocument, /updatedDate/);
+  assert.match(productFooter, /href="\/terms#market-information"/);
+  assert.match(productFooter, />Full disclaimer<\/Link>/);
   assert.match(policyConfig, /July 30, 2026/g);
   assert.match(policyConfig, /counsel must review/i);
 });

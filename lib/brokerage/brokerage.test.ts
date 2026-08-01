@@ -399,11 +399,36 @@ test("public UI avoids ownership claims and preserves required disclosure", () =
   assert.match(files, /Paper account/);
 });
 
+test("verified brokerage cards do not render per-card disclaimer controls", () => {
+  const proofCard = read("components/brokerage/BrokerageProofCard.tsx");
+  const proofStyles = read("components/brokerage/Brokerage.module.css");
+  const desktopPanel = read(
+    "components/live-room/LiveRoomDesktopSidePanel.tsx",
+  );
+
+  assert.doesNotMatch(
+    proofCard,
+    /Verified means selected broker-linked data matched at the stated time\. It does not prove overall performance\./,
+  );
+  assert.doesNotMatch(
+    proofCard,
+    /Info,|showInfo|About verified|proofInfo|BottomSheetShell/,
+  );
+  assert.doesNotMatch(proofStyles, /\.proofInfo|\.proofCardFrame/);
+  assert.match(proofCard, /if \(!linked\)[\s\S]*return <span/);
+  assert.match(proofCard, /return \([\s\S]*<Link/);
+  assert.match(desktopPanel, /<Link[\s\S]*sidePanelItem/);
+  assert.match(
+    desktopPanel,
+    /href=\{`\/live\/posts\/\$\{post\.id\}`\}[\s\S]*<strong>\{post\.title\}<\/strong>/,
+  );
+});
+
 test("Live Room message and post writes use transactional proof wrappers", () => {
   const messages = read("lib/live-room/serverRepository.ts");
   const posts = read("lib/live-room/postServerRepository.ts");
   const brokerage = read("lib/brokerage/serverRepository.ts");
-  assert.match(messages, /insert_live_room_message_with_proof/);
+  assert.match(messages, /insert_live_room_message_with_attachments/);
   assert.match(posts, /create_live_room_post_with_proof/);
   assert.match(messages, /p_public_sharing_enabled/);
   assert.match(posts, /p_public_sharing_enabled/);
@@ -420,13 +445,39 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
     /p_execution_price:[\s\S]+disclosure\.executionPrice === true[\s\S]+candidate\.executionPrice[\s\S]+: null/,
   );
   const picker = read("components/brokerage/BrokerageEvidencePicker.tsx");
+  const proofCard = read("components/brokerage/BrokerageProofCard.tsx");
+  const brokerageCss = read("components/brokerage/Brokerage.module.css");
+  const composer = read("components/live-room/MessageComposer.tsx");
+  const klipyPicker = read("components/klipy/KlipyPicker.tsx");
   assert.match(picker, /linked=\{false\}/);
   assert.match(picker, /aria-label="Verified trading"/);
   assert.match(picker, />Verified trading<\/span>/);
+  assert.match(picker, /BadgeDollarSign/);
+  assert.match(proofCard, /BadgeDollarSign/);
+  assert.doesNotMatch(picker + proofCard, /BadgeCheck/);
   assert.doesNotMatch(picker, />Evidence<\/span>|Add proof|Verified proof/);
   assert.match(picker, /placement="composer"|data-placement=\{placement\}/);
   assert.match(picker, /event\.key !== "Escape"/);
   assert.match(picker, /contains\(event\.target as Node\)/);
+  assert.match(picker, /<BottomSheetShell/);
+  assert.match(picker, /isOpen=\{open && usesMobileSheet\}/);
+  assert.match(picker, /\{open && !usesMobileSheet \? \(/);
+  assert.match(picker, /openerRef=\{triggerRef\}/);
+  assert.match(picker, /closeLabel="Close verified trading"/);
+  assert.match(
+    brokerageCss,
+    /\.evidenceSheetContent\s*\{[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*safe-area-inset-bottom/,
+  );
+  assert.match(
+    composer,
+    /handleProofPickerOpenChange[\s\S]*setMediaPickerOpen\(false\)[\s\S]*isOpen=\{proofPickerOpen\}[\s\S]*onOpenChange=\{handleProofPickerOpenChange\}/,
+  );
+  assert.match(
+    composer,
+    /handleMediaPickerOpenChange[\s\S]*setProofPickerOpen\(false\)[\s\S]*isOpen=\{mediaPickerOpen\}[\s\S]*onOpenChange=\{handleMediaPickerOpenChange\}/,
+  );
+  assert.match(klipyPicker, /isOpen\?: boolean/);
+  assert.match(klipyPicker, /onOpenChange\?: \(open: boolean\) => void/);
   const liveRoomCss = read("components/live-room/LiveRoom.module.css");
   assert.match(
     liveRoomCss,
@@ -438,11 +489,11 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
   );
   assert.match(
     liveRoomCss,
-    /\.composerRow\s*\{[\s\S]*grid-template-columns:\s*170px minmax\(220px,\s*1fr\) auto auto/,
+    /\.composerRow\s*\{[\s\S]*grid-template-columns:\s*170px minmax\(220px,\s*1fr\) auto auto auto/,
   );
   assert.match(
     liveRoomCss,
-    /@media \(max-width: 760px\)[\s\S]*\.composerRow\s*\{[\s\S]*grid-template-columns:\s*42px minmax\(0,\s*1fr\) 42px 42px/,
+    /@media \(max-width: 760px\)[\s\S]*\.composerRow\s*\{[\s\S]*grid-template-columns:\s*42px minmax\(0,\s*1fr\) 42px 42px 42px/,
   );
   assert.match(read("components/live-room/ChatTimeline.tsx"), /BrokerageProofCard/);
   assert.match(read("components/live-room/PostsPanel.tsx"), /BrokerageEvidencePicker/);

@@ -255,6 +255,15 @@
   white-space: nowrap;
 }
 
+.cardHeader .calendarFollowUsage {
+  display: block;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-body);
+}
+
 .addTickerRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px 136px;
@@ -267,98 +276,6 @@
   min-width: 0;
 }
 
-.searchBox {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  height: 38px;
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-3);
-  color: var(--sr-color-text-muted);
-  background: var(--sr-color-surface-control);
-}
-
-.searchBox:focus-within {
-  border-color: var(--sr-color-accent-border-active);
-  box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
-}
-
-.searchBox span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-}
-
-.searchBox input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  padding: 0 0 0 var(--sr-space-2);
-  color: var(--sr-color-text-primary);
-  background: transparent;
-  font-size: var(--sr-font-size-xs);
-  outline: 0;
-}
-
-.searchBox input::placeholder {
-  color: var(--sr-color-text-meta);
-}
-
-.tickerSuggestions {
-  position: absolute;
-  z-index: var(--sr-z-sheet-handle);
-  top: calc(100% + var(--sr-space-1));
-  right: 0;
-  left: 0;
-  display: grid;
-  max-height: 300px;
-  overflow-y: auto;
-  border: var(--sr-border-width) solid var(--sr-color-border-overlay);
-  border-radius: var(--sr-radius-popover);
-  padding: var(--sr-space-1);
-  background: var(--sr-color-surface-overlay);
-  box-shadow: var(--sr-shadow-menu);
-}
-
-.tickerSuggestion {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sr-space-2);
-  min-height: 42px;
-  border: 0;
-  border-radius: var(--sr-radius-control);
-  padding: var(--sr-space-2) var(--sr-space-3);
-  color: var(--sr-color-text-primary);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tickerSuggestion:hover,
-.tickerSuggestion[data-active="true"] {
-  background: var(--sr-color-surface-option);
-}
-
-.tickerSuggestion strong {
-  color: var(--sr-color-text-ticker);
-  font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-xs);
-}
-
-.tickerSuggestion span,
-.tickerSuggestion small {
-  overflow: hidden;
-  color: var(--sr-color-text-muted);
-  font-size: var(--sr-font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tickerSearchStatus,
 .tickerMessage,
 .tickerEmpty,
 .watchlistStatus {
@@ -366,10 +283,6 @@
   color: var(--sr-color-text-muted);
   font-size: var(--sr-font-size-xs);
   line-height: var(--sr-line-height-body);
-}
-
-.tickerSearchStatus {
-  padding: var(--sr-space-3);
 }
 
 .tickerMessage {
@@ -440,17 +353,20 @@
 }
 
 .tickerRow strong,
+.tickerSymbolLink,
 .recentRow strong {
   color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-sm);
   font-weight: var(--sr-font-weight-heavy);
 }
 
-.tickerRow strong {
+.tickerRow strong,
+.tickerSymbolLink {
   font-family: var(--sr-font-family-mono);
 }
 
 .tickerRow span,
+.tickerCompanyLink,
 .settingRow span,
 .recentRow span,
 .recentRow p,
@@ -462,6 +378,24 @@
   line-height: var(--sr-line-height-body);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tickerSymbolLink,
+.tickerCompanyLink {
+  text-decoration: none;
+}
+
+.tickerSymbolLink:hover,
+.tickerCompanyLink:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-1);
+}
+
+.tickerSymbolLink:focus-visible,
+.tickerCompanyLink:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }
 
 .inlineToggle {
@@ -629,6 +563,36 @@
 
 .settingRow .inlineToggle {
   grid-column: 4;
+}
+
+.telegramSettingRow {
+  padding-bottom: var(--sr-space-2);
+}
+
+.channelActions {
+  display: flex;
+  grid-column: 2 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
+.channelActions button {
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.channelActions button:disabled {
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
 }
 
 .settingRow[data-locked="true"] {
@@ -1067,6 +1031,23 @@
   color: var(--sr-color-text-muted);
 }
 
+.readButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--sr-color-accent);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.readButton:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .watchlistOverlay {
   position: fixed;
   z-index: var(--sr-z-sheet-content-footer);
@@ -1171,6 +1152,11 @@
 .removeButton:focus-visible,
 .panelTitle button:focus-visible,
 .watchlistItems button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.channelActions button:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
 }
@@ -1340,11 +1326,13 @@
     padding: var(--sr-space-1) 0;
   }
 
-  .tickerRow strong {
+  .tickerRow strong,
+  .tickerSymbolLink {
     grid-area: ticker;
   }
 
-  .tickerRow span {
+  .tickerRow span,
+  .tickerCompanyLink {
     grid-area: company;
   }
 
@@ -1400,6 +1388,18 @@
       "icon text toggle"
       "icon lock toggle";
     min-height: 48px;
+  }
+
+  .deliveryCard .telegramSettingRow {
+    grid-template-areas:
+      "icon text toggle"
+      "icon lock toggle"
+      ". actions actions";
+  }
+
+  .telegramSettingRow .channelActions {
+    grid-area: actions;
+    justify-content: flex-start;
   }
 
   .deliveryCard .settingRow .lockGroup {

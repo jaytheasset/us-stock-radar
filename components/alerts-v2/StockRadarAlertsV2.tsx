@@ -4,22 +4,34 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
-import type { DeliveredAlertItem } from "@/lib/alerts/types";
+import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
+import type {
+  AlertSettingsViewModel,
+  DeliveredAlertItem,
+} from "@/lib/alerts/types";
 import type {
   AlertTickerItem,
   AlertTickersViewModel,
   TickerSearchResult,
 } from "@/lib/alerts/tickers/types";
 import type { WatchlistTickerItem, WatchlistViewModel } from "@/lib/watchlist/types";
+import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 import {
   alertIconSet,
   alertSources,
   coverageItems,
   deliveryItems,
   filingAlertGroups,
-  getAlertsMockPlan,
   marketCapFilters,
-} from "@/lib/mock/alertsV2Data";
+} from "@/lib/alerts/alertsV2Config";
+import {
+  getPlanDisplayName,
+  getPlanLimits,
+  type AlertChannel,
+  type PublicAlertCategory,
+} from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarAlertsV2.module.css";
 
 const INITIAL_RECENT_ALERT_COUNT = 6;
@@ -112,10 +124,8 @@ function ToggleSwitch({
   );
 }
 
-function getDefaultCoverageState(hasRiskAlerts: boolean) {
-  return Object.fromEntries(
-    coverageItems.map((item) => [item.id, item.enabled || (hasRiskAlerts && Boolean(item.locked))]),
-  );
+function getDefaultCoverageState() {
+  return Object.fromEntries(coverageItems.map((item) => [item.id, false]));
 }
 
 type StockRadarAlertsV2Props = {
@@ -126,29 +136,27 @@ export function StockRadarAlertsV2({
   initialTicker = "",
 }: StockRadarAlertsV2Props) {
   const normalizedInitialTicker = initialTicker.trim().toUpperCase();
-  const [accountPlanId, setAccountPlanId] = useState("free");
-  const mockPlan = getAlertsMockPlan(accountPlanId);
+  const [settings, setSettings] = useState<AlertSettingsViewModel | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsMessage, setSettingsMessage] = useState("");
   const [tickers, setTickers] = useState<AlertTickerItem[]>([]);
   const [alertTickerLimit, setAlertTickerLimit] = useState<number | null>(null);
   const [tickersLoading, setTickersLoading] = useState(true);
   const [tickerAction, setTickerAction] = useState("");
   const [tickerInput, setTickerInput] = useState(normalizedInitialTicker);
   const [selectedTicker, setSelectedTicker] = useState<TickerSearchResult | null>(null);
-  const [tickerSuggestions, setTickerSuggestions] = useState<TickerSearchResult[]>([]);
-  const [tickerSearchLoading, setTickerSearchLoading] = useState(false);
-  const [tickerSearchOpen, setTickerSearchOpen] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [tickerMessage, setTickerMessage] = useState("");
   const [watchlistItems, setWatchlistItems] = useState<WatchlistTickerItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistError, setWatchlistError] = useState("");
-  const [coverageState, setCoverageState] = useState(() => getDefaultCoverageState(mockPlan.hasRiskAlerts));
+  const [coverageState, setCoverageState] = useState(getDefaultCoverageState);
   const [sourceState, setSourceState] = useState(
     Object.fromEntries(alertSources.map((source) => [source.id, true])),
   );
   const [deliveryState, setDeliveryState] = useState(
     Object.fromEntries(deliveryItems.map((item) => [item.id, item.enabled])),
   );
+  const [telegramAction, setTelegramAction] = useState<"" | "connect" | "change" | "disconnect">("");
   const [marketCapState, setMarketCapState] = useState(
     Object.fromEntries(marketCapFilters.map((item) => [item.id, true])),
   );
@@ -158,7 +166,6 @@ export function StockRadarAlertsV2({
     ),
   );
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
-  const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [hasSentTestAlert, setHasSentTestAlert] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
@@ -168,17 +175,30 @@ export function StockRadarAlertsV2({
   const [recentAlertsError, setRecentAlertsError] = useState("");
   const [hasExpandedAlertHistory, setHasExpandedAlertHistory] = useState(false);
   const fromWatchlistButtonRef = useRef<HTMLButtonElement>(null);
-  const tickerSearchRef = useRef<HTMLDivElement>(null);
   const lastInitialTickerRef = useRef(normalizedInitialTicker);
-  const pendingInitialTickerRef = useRef(normalizedInitialTicker);
+  const plan = settings?.plan ?? "free";
+  const planLimits = settings?.limits ?? getPlanLimits(plan);
+  const allowedDiscoveryCategories = useMemo(
+    () => new Set(planLimits.discoveryCategories),
+    [planLimits.discoveryCategories],
+  );
+  const showsAds = areAdsEnabledForPlan(plan);
+  const isUltimate = plan === "ultimate";
+  const hasAdvancedFilters = planLimits.advancedFilters;
+  const hasFilingTypeAlerts = planLimits.customRules;
+  const isPushEnabled = Boolean(deliveryState.web);
 
   const enabledCount = useMemo(
     () => tickers.filter((ticker) => ticker.enabled).length,
     [tickers],
   );
-  const enabledCoreCoverageCount = useMemo(
-    () => coverageItems.filter((item) => !item.locked && coverageState[item.id]).length,
-    [coverageState],
+  const enabledDiscoveryCoverageCount = useMemo(
+    () => coverageItems.filter(
+      (item) =>
+        allowedDiscoveryCategories.has(item.id as PublicAlertCategory) &&
+        coverageState[item.id],
+    ).length,
+    [allowedDiscoveryCategories, coverageState],
   );
   const visibleRecentAlerts = hasExpandedAlertHistory
     ? recentAlerts
@@ -188,6 +208,30 @@ export function StockRadarAlertsV2({
     () => watchlistItems.filter((item) => !tickers.some((ticker) => ticker.ticker === item.ticker)),
     [tickers, watchlistItems],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSettingsLoading(true);
+    fetch("/api/alerts/settings", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await readApiPayload<AlertSettingsViewModel>(response);
+        if (!response.ok || !payload?.data) {
+          throw new Error(payload?.message || "Failed to load alert settings.");
+        }
+        applySettings(payload.data);
+        setSettingsMessage("");
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setSettingsMessage(
+          error instanceof Error ? error.message : "Failed to load alert settings.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSettingsLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -222,7 +266,6 @@ export function StockRadarAlertsV2({
       .then((data) => {
         setTickers(data.items);
         setAlertTickerLimit(data.limit);
-        setAccountPlanId(data.plan === "ad_free" ? "ad-free" : data.plan);
         setTickerMessage("");
       })
       .catch((error: unknown) => {
@@ -245,114 +288,224 @@ export function StockRadarAlertsV2({
     }
 
     lastInitialTickerRef.current = normalizedInitialTicker;
-    pendingInitialTickerRef.current = normalizedInitialTicker;
     setTickerInput(normalizedInitialTicker);
     setSelectedTicker(null);
-    setTickerSuggestions([]);
-    setTickerSearchOpen(false);
     setTickerMessage("");
   }, [normalizedInitialTicker]);
 
-  useEffect(() => {
-    const query = tickerInput.trim();
-    if (
-      !query ||
-      (selectedTicker && selectedTicker.ticker === query.toUpperCase())
-    ) {
-      setTickerSuggestions([]);
-      setTickerSearchLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setTickerSearchLoading(true);
-      fetch(`/api/tickers/search?q=${encodeURIComponent(query)}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          const payload = await readApiPayload<TickerSearchResult[]>(response);
-          if (!response.ok || !Array.isArray(payload?.data)) {
-            throw new Error(payload?.message || "Failed to search tickers.");
-          }
-          const requestedInitialTicker = pendingInitialTickerRef.current;
-          const exactInitialMatch =
-            requestedInitialTicker === query.toUpperCase()
-              ? payload.data.find(
-                  (suggestion) =>
-                    suggestion.ticker === requestedInitialTicker,
-                )
-              : undefined;
-
-          if (exactInitialMatch) {
-            pendingInitialTickerRef.current = "";
-            setSelectedTicker(exactInitialMatch);
-            setTickerInput(exactInitialMatch.ticker);
-            setTickerSuggestions([]);
-            setTickerSearchOpen(false);
-            setTickerMessage("");
-            return;
-          }
-
-          if (requestedInitialTicker === query.toUpperCase()) {
-            pendingInitialTickerRef.current = "";
-          }
-          setTickerSuggestions(payload.data);
-          setActiveSuggestionIndex(0);
-          setTickerSearchOpen(true);
-        })
-        .catch((error: unknown) => {
-          if (controller.signal.aborted) return;
-          setTickerSuggestions([]);
-          setTickerMessage(error instanceof Error ? error.message : "Failed to search tickers.");
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setTickerSearchLoading(false);
-        });
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [selectedTicker, tickerInput]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        tickerSearchRef.current &&
-        !tickerSearchRef.current.contains(event.target as Node)
-      ) {
-        setTickerSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
-
-  useEffect(() => {
-    setCoverageState(getDefaultCoverageState(mockPlan.hasRiskAlerts));
-  }, [mockPlan.id, mockPlan.hasRiskAlerts]);
-
   const markSettingsChanged = () => setSaveStatus("idle");
 
-  const updatePushEnabled = (enabled: boolean) => {
-    setIsPushEnabled(enabled);
-    setHasSentTestAlert(false);
+  const openTelegramConnection = async (action: "connect" | "change") => {
+    setTelegramAction(action);
+    setSettingsMessage("");
+    try {
+      const response = await fetch("/api/alerts/channels/telegram/connect", {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        connectUrl?: string;
+        message?: string;
+      } | null;
+      if (!response.ok || !payload?.connectUrl) {
+        throw new Error(payload?.message || "Failed to start Telegram connection.");
+      }
+      window.location.assign(payload.connectUrl);
+      return true;
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to start Telegram connection.",
+      );
+      return false;
+    } finally {
+      setTelegramAction("");
+    }
   };
 
-  const sendTestAlert = () => {
-    setIsPushEnabled(true);
-    setHasSentTestAlert(true);
+  const disconnectTelegram = async () => {
+    setTelegramAction("disconnect");
+    setSettingsMessage("");
+    try {
+      const response = await fetch("/api/alerts/channels/telegram/connect", {
+        method: "DELETE",
+      });
+      const payload = await readApiPayload<AlertSettingsViewModel>(response);
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.message || "Failed to disconnect Telegram alerts.");
+      }
+      applySettings(payload.data);
+      setSaveStatus("saved");
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to disconnect Telegram alerts.",
+      );
+    } finally {
+      setTelegramAction("");
+    }
+  };
+
+  const applySettings = (nextSettings: AlertSettingsViewModel) => {
+    setSettings(nextSettings);
+    const selected = new Set(nextSettings.selectedCategories);
+    setCoverageState(
+      Object.fromEntries(coverageItems.map((item) => [item.id, selected.has(item.id as PublicAlertCategory)])),
+    );
+    setSourceState({
+      news: nextSettings.preferences.watchlistNewsEnabled,
+      filings: nextSettings.preferences.watchlistFilingsEnabled,
+    });
+    setDeliveryState(
+      Object.fromEntries(
+        nextSettings.channels.map((channel) => [channel.channel, channel.enabled]),
+      ),
+    );
+    setMarketCapState(
+      Object.fromEntries(
+        marketCapFilters.map((item) => [
+          item.id,
+          nextSettings.preferences.marketCapFilters.includes(item.id),
+        ]),
+      ),
+    );
+    setFilingState(
+      Object.fromEntries(
+        filingAlertGroups.flatMap((group) =>
+          group.items.map((item) => [
+            item.id,
+            nextSettings.preferences.filingTypeFilters.includes(item.id),
+          ]),
+        ),
+      ),
+    );
+  };
+
+  const updateDeliveryChannel = async (channel: AlertChannel, enabled: boolean) => {
+    if (settingsLoading) return false;
+    setSettingsLoading(true);
+    setSettingsMessage("");
+    setHasSentTestAlert(false);
+    try {
+      if (channel === "telegram" && enabled) {
+        const currentChannel = settings?.channels.find((item) => item.channel === "telegram");
+        if (!currentChannel?.connected) {
+          await openTelegramConnection("connect");
+          return false;
+        }
+      }
+      const response = await fetch("/api/alerts/channels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel, enabled }),
+      });
+      const payload = await readApiPayload<AlertSettingsViewModel>(response);
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.message || "Failed to update delivery channel.");
+      }
+      applySettings(payload.data);
+      setSaveStatus("saved");
+      return true;
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to update delivery channel.",
+      );
+      return false;
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const sendTestAlert = async () => {
+    setSettingsMessage("");
+    try {
+      if (!isPushEnabled) {
+        const enabled = await updateDeliveryChannel("web", true);
+        if (!enabled) return;
+      }
+      const response = await fetch("/api/alerts/delivered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test" }),
+      });
+      const payload = await readApiPayload<never>(response);
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to send the test alert.");
+      }
+      setHasSentTestAlert(true);
+      await loadAlertHistory({
+        limit: hasExpandedAlertHistory ? ALERT_HISTORY_PAGE_SIZE : INITIAL_RECENT_ALERT_COUNT,
+        offset: 0,
+        replace: true,
+      });
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to send the test alert.",
+      );
+    }
+  };
+
+  const saveSettings = async () => {
+    if (!settings || settingsLoading) return;
+    setSettingsLoading(true);
+    setSettingsMessage("");
+    try {
+      const categories = coverageItems
+        .filter((item) => coverageState[item.id] && allowedDiscoveryCategories.has(item.id as PublicAlertCategory))
+        .map((item) => item.id as PublicAlertCategory);
+      const preferencePatch: Record<string, unknown> = {
+        watchlistNewsEnabled: Boolean(sourceState.news),
+        watchlistFilingsEnabled: Boolean(sourceState.filings),
+      };
+      if (hasAdvancedFilters) {
+        preferencePatch.marketCapFilters = marketCapFilters
+          .filter((item) => marketCapState[item.id])
+          .map((item) => item.id);
+      }
+      if (hasFilingTypeAlerts) {
+        preferencePatch.filingTypeFilters = filingAlertGroups.flatMap((group) =>
+          group.items.filter((item) => filingState[item.id]).map((item) => item.id),
+        );
+      }
+      const [preferencesResponse, categoriesResponse] = await Promise.all([
+        fetch("/api/alerts/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(preferencePatch),
+        }),
+        fetch("/api/alerts/discovery-categories", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ categories }),
+        }),
+      ]);
+      const preferencesPayload = await readApiPayload<AlertSettingsViewModel>(preferencesResponse);
+      const categoriesPayload = await readApiPayload<AlertSettingsViewModel>(categoriesResponse);
+      if (!preferencesResponse.ok || !preferencesPayload?.data) {
+        throw new Error(preferencesPayload?.message || "Failed to save alert preferences.");
+      }
+      if (!categoriesResponse.ok || !categoriesPayload?.data) {
+        throw new Error(categoriesPayload?.message || "Failed to save Discovery categories.");
+      }
+      const settingsResponse = await fetch("/api/alerts/settings", {
+        cache: "no-store",
+      });
+      const settingsPayload = await readApiPayload<AlertSettingsViewModel>(settingsResponse);
+      if (!settingsResponse.ok || !settingsPayload?.data) {
+        throw new Error(
+          settingsPayload?.message ||
+            "Settings saved, but the refreshed state could not be loaded.",
+        );
+      }
+      applySettings(settingsPayload.data);
+      setSaveStatus("saved");
+    } catch (error) {
+      setSettingsMessage(error instanceof Error ? error.message : "Failed to save alert settings.");
+    } finally {
+      setSettingsLoading(false);
+    }
   };
 
   const selectTickerSuggestion = (suggestion: TickerSearchResult) => {
     setSelectedTicker(suggestion);
     setTickerInput(suggestion.ticker);
-    setTickerSuggestions([]);
-    setTickerSearchOpen(false);
     setTickerMessage("");
   };
 
@@ -381,8 +534,6 @@ export function StockRadarAlertsV2({
       setAlertTickerLimit(payload.data.limit);
       setTickerInput("");
       setSelectedTicker(null);
-      setTickerSuggestions([]);
-      setTickerSearchOpen(false);
       markSettingsChanged();
     } catch (error) {
       setTickerMessage(error instanceof Error ? error.message : "Failed to add alert-enabled ticker.");
@@ -521,20 +672,47 @@ export function StockRadarAlertsV2({
     setHasExpandedAlertHistory(false);
   };
 
+  const markAlertRead = async (alert: DeliveredAlertItem) => {
+    if (alert.isRead) return;
+    try {
+      const response = await fetch("/api/alerts/delivered", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: alert.id, read: true }),
+      });
+      const payload = await readApiPayload<never>(response);
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to mark alert read.");
+      }
+      const readAt = new Date().toISOString();
+      setRecentAlerts((current) =>
+        current.map((item) =>
+          item.id === alert.id ? { ...item, isRead: true, readAt } : item,
+        ),
+      );
+    } catch (error) {
+      setRecentAlertsError(
+        error instanceof Error ? error.message : "Failed to mark alert read.",
+      );
+    }
+  };
+
   const Bell = alertIconSet.Bell;
   const CheckCircle2 = alertIconSet.CheckCircle2;
   const Lock = alertIconSet.Lock;
-  const Search = alertIconSet.Search;
   const Trash2 = alertIconSet.Trash2;
-  const isUltimate = mockPlan.id === "ultimate";
-  const upgradeTier = mockPlan.id === "advanced" ? "Ultimate" : "Advanced";
-  const isTelegramLocked = !["pro", "advanced", "ultimate"].includes(mockPlan.id);
-  const outsideTickerCoverage = mockPlan.hasRiskAlerts
-    ? "All market tickers are eligible for the enabled Core Event and Risk & Catalyst alerts below."
-    : "Stocks outside your alert-enabled tickers receive only the enabled Core Event alerts below.";
-  const coverageDescription = mockPlan.hasCoverageControls
-    ? outsideTickerCoverage
-    : "Unlock event coverage controls with Pro.";
+  const upgradeTier = plan === "free" || plan === "ad_free"
+    ? "Pro"
+    : plan === "pro"
+      ? "Advanced"
+      : "Ultimate";
+  const requiresProDiscovery = planLimits.discoveryCategories.length === 0;
+  const coverageDescription =
+    requiresProDiscovery
+      ? "Market-wide Discovery is available on Pro and higher plans. Alert-enabled tickers remain monitored across all 17 event types."
+      : planLimits.discoveryCategories.length === coverageItems.length
+      ? "All 17 Discovery categories are available for stocks outside your alert-enabled tickers."
+      : "Your plan includes 12 core Discovery categories. Advanced unlocks all 17.";
 
   return (
     <div className={styles.page}>
@@ -546,124 +724,83 @@ export function StockRadarAlertsV2({
               <p>Choose the stocks you want to monitor and how you receive alerts.</p>
             </div>
             <div className={styles.planSummary}>
-              <span>Your plan: {mockPlan.label}</span>
+              <span>
+                Your plan: {settings?.planLabel || getPlanDisplayName(plan)}
+                {settings?.trial?.active ? " (trial)" : ""}
+              </span>
               <Link href="/premium">Manage plan</Link>
             </div>
           </section>
 
-          <section className={styles.notice} aria-label="Push permission notice">
+          <section className={styles.notice} aria-label="In-app alert status">
             <Bell aria-hidden="true" size={20} />
             <p>
               {hasSentTestAlert
-                ? "Test alert sent."
+                ? "Test in-app alert delivered to Recent alerts."
                 : isPushEnabled
-                  ? "Push notifications are enabled."
-                  : "Push notifications are disabled. Enable notifications to receive real-time alerts."}
+                  ? "In-app alerts are enabled and stored in your delivery history."
+                  : "In-app alerts are disabled. Enable Web delivery to receive alerts here."}
             </p>
-            <span className={styles.noticeMobileLabel}>Push notifications</span>
+            <span className={styles.noticeMobileLabel}>In-app alerts</span>
             <div className={styles.noticeMobileToggle}>
               <ToggleSwitch
                 checked={isPushEnabled}
-                label="Toggle push notifications"
-                onChange={() => updatePushEnabled(!isPushEnabled)}
+                disabled={settingsLoading}
+                label="Toggle in-app alerts"
+                onChange={() => void updateDeliveryChannel("web", !isPushEnabled)}
               />
               <em>{isPushEnabled ? "ON" : "OFF"}</em>
             </div>
             <div className={styles.noticeActions}>
-              <button onClick={() => updatePushEnabled(!isPushEnabled)} type="button">
-                {isPushEnabled ? "Disable notifications" : "Enable notifications"}
+              <button
+                disabled={settingsLoading}
+                onClick={() => void updateDeliveryChannel("web", !isPushEnabled)}
+                type="button"
+              >
+                {isPushEnabled ? "Disable in-app alerts" : "Enable in-app alerts"}
               </button>
-              <button onClick={sendTestAlert} type="button">
+              <button disabled={settingsLoading} onClick={() => void sendTestAlert()} type="button">
                 {hasSentTestAlert ? "Test alert sent" : "Send test alert"}
               </button>
             </div>
           </section>
 
+          {settingsMessage ? (
+            <p className={styles.tickerMessage} role="status">{settingsMessage}</p>
+          ) : null}
+          {settings?.guestMode ? (
+            <section className={styles.notice} aria-label="Sign in required">
+              <Lock aria-hidden="true" size={20} />
+              <p>Sign in to save alert settings, follow Calendar events, and keep delivery history.</p>
+              <Link href="/login?next=%2Falerts">Sign in</Link>
+            </section>
+          ) : null}
+
           <section className={`${styles.card} ${styles.tickerCard}`} aria-labelledby="alerts-v2-tickers-title">
         <div className={styles.cardHeader}>
           <div>
             <h2 id="alerts-v2-tickers-title">Alert-enabled tickers</h2>
-            <p>Enabled tickers are covered across every category below, including Dilution &amp; Offerings, Listing Risk &amp; Delisting, Reverse Splits, and Bankruptcy &amp; Default.</p>
+            <p>Each enabled ticker is monitored across all 17 event types.</p>
           </div>
           <span>{enabledCount} / {alertTickerLimit ?? "Unlimited"} enabled</span>
         </div>
 
         <div className={styles.addTickerRow}>
-          <div className={styles.tickerSearch} ref={tickerSearchRef}>
-            <label className={styles.searchBox}>
-              <Search aria-hidden="true" size={18} />
-              <span>Search ticker or company to add</span>
-              <input
-                aria-autocomplete="list"
-                aria-controls="alert-ticker-suggestions"
-                aria-expanded={tickerSearchOpen}
-                autoComplete="off"
-                onChange={(event) => {
-                  pendingInitialTickerRef.current = "";
-                  setTickerInput(event.target.value);
-                  setSelectedTicker(null);
-                  setTickerMessage("");
-                }}
-                onFocus={() => {
-                  if (tickerSuggestions.length > 0) setTickerSearchOpen(true);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown" && tickerSuggestions.length > 0) {
-                    event.preventDefault();
-                    setTickerSearchOpen(true);
-                    setActiveSuggestionIndex((current) =>
-                      Math.min(current + 1, tickerSuggestions.length - 1),
-                    );
-                  } else if (event.key === "ArrowUp" && tickerSuggestions.length > 0) {
-                    event.preventDefault();
-                    setActiveSuggestionIndex((current) => Math.max(current - 1, 0));
-                  } else if (event.key === "Enter") {
-                    event.preventDefault();
-                    const activeSuggestion = tickerSuggestions[activeSuggestionIndex];
-                    if (tickerSearchOpen && activeSuggestion) {
-                      selectTickerSuggestion(activeSuggestion);
-                    } else if (selectedTicker) {
-                      void addTicker();
-                    }
-                  } else if (event.key === "Escape") {
-                    setTickerSearchOpen(false);
-                  }
-                }}
-                placeholder="Search ticker or company"
-                value={tickerInput}
-              />
-            </label>
-
-            {tickerSearchOpen ? (
-              <div
-                className={styles.tickerSuggestions}
-                id="alert-ticker-suggestions"
-                role="listbox"
-              >
-                {tickerSearchLoading ? (
-                  <p className={styles.tickerSearchStatus}>Searching...</p>
-                ) : tickerSuggestions.length > 0 ? (
-                  tickerSuggestions.map((suggestion, index) => (
-                    <button
-                      aria-selected={index === activeSuggestionIndex}
-                      className={styles.tickerSuggestion}
-                      data-active={index === activeSuggestionIndex}
-                      key={suggestion.ticker}
-                      onClick={() => selectTickerSuggestion(suggestion)}
-                      role="option"
-                      type="button"
-                    >
-                      <strong>{suggestion.ticker}</strong>
-                      <span>{suggestion.companyName}</span>
-                      <small>{suggestion.exchange || suggestion.assetType || ""}</small>
-                    </button>
-                  ))
-                ) : tickerInput.trim() ? (
-                  <p className={styles.tickerSearchStatus}>No matching listed ticker.</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          <TickerCompanyAutocomplete
+            autoSelectExact
+            className={styles.tickerSearch}
+            id="alerts-v2-ticker-search"
+            label="Search ticker or company to add"
+            onSelect={selectTickerSuggestion}
+            onValueChange={(value) => {
+              setTickerInput(value);
+              setSelectedTicker(null);
+              setTickerMessage("");
+            }}
+            placeholder="Search ticker or company"
+            selectedTicker={selectedTicker?.ticker}
+            value={tickerInput}
+          />
           <button
             className={styles.primaryButton}
             disabled={!selectedTicker || Boolean(tickerAction)}
@@ -692,66 +829,93 @@ export function StockRadarAlertsV2({
             <p className={styles.tickerEmpty}>Loading alert-enabled tickers...</p>
           ) : tickers.length === 0 ? (
             <p className={styles.tickerEmpty}>No alert-enabled tickers yet.</p>
-          ) : tickers.map((ticker) => (
-            <article className={styles.tickerRow} key={ticker.id}>
-              <strong>{ticker.ticker}</strong>
-              <span>{ticker.companyName}</span>
-              <div className={styles.inlineToggle}>
-                <ToggleSwitch
-                  checked={ticker.enabled}
+          ) : tickers.map((ticker) => {
+            const stockHref = getStockRouteHref(ticker.ticker);
+
+            return (
+              <article className={styles.tickerRow} key={ticker.id}>
+                {stockHref ? (
+                  <>
+                    <Link
+                      aria-label={`View ${ticker.ticker} stock overview`}
+                      className={styles.tickerSymbolLink}
+                      href={stockHref}
+                    >
+                      {ticker.ticker}
+                    </Link>
+                    <Link
+                      aria-label={`View ${ticker.companyName} stock overview`}
+                      className={styles.tickerCompanyLink}
+                      href={stockHref}
+                    >
+                      {ticker.companyName}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <strong>{ticker.ticker}</strong>
+                    <span>{ticker.companyName}</span>
+                  </>
+                )}
+                <div className={styles.inlineToggle}>
+                  <ToggleSwitch
+                    checked={ticker.enabled}
+                    disabled={Boolean(tickerAction)}
+                    label={`Toggle alerts for ${ticker.ticker}`}
+                    onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
+                  />
+                  <em>{ticker.enabled ? "ON" : "OFF"}</em>
+                </div>
+                <button
+                  aria-label={`Remove ${ticker.ticker}`}
+                  className={styles.removeButton}
                   disabled={Boolean(tickerAction)}
-                  label={`Toggle alerts for ${ticker.ticker}`}
-                  onChange={() => void toggleTicker(ticker.ticker, !ticker.enabled)}
-                />
-                <em>{ticker.enabled ? "ON" : "OFF"}</em>
-              </div>
-              <button
-                aria-label={`Remove ${ticker.ticker}`}
-                className={styles.removeButton}
-                disabled={Boolean(tickerAction)}
-                onClick={() => void removeTicker(ticker.ticker)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={20} />
-              </button>
-            </article>
-          ))}
+                  onClick={() => void removeTicker(ticker.ticker)}
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={20} />
+                </button>
+              </article>
+            );
+          })}
         </div>
           </section>
 
           <div className={styles.settingsGrid}>
         <section className={`${styles.card} ${styles.coverageCard}`} aria-labelledby="alerts-v2-coverage-title">
           <input
-            aria-label="Toggle Alert coverage settings"
+            aria-label="Toggle Market Discovery coverage settings"
             className={styles.mobileCoverageControl}
             id="alerts-v2-coverage-toggle"
             type="checkbox"
           />
           <label className={styles.mobileCoverageSummary} htmlFor="alerts-v2-coverage-toggle">
             <span>
-              <strong>Alert coverage</strong>
+              <strong>Market Discovery coverage</strong>
               <small>
-                {mockPlan.hasCoverageControls
-                  ? `${enabledCoreCoverageCount} core alerts on`
-                  : "Pro+ coverage controls"}
+                {settingsLoading
+                  ? "Loading saved coverage"
+                  : requiresProDiscovery
+                    ? "Pro+ required"
+                    : `${enabledDiscoveryCoverageCount} Discovery alerts on`}
               </small>
             </span>
             <ChevronDown aria-hidden="true" size={18} />
           </label>
           <div className={styles.cardHeader}>
             <div>
-              <h2 id="alerts-v2-coverage-title">Alert coverage</h2>
+              <h2 id="alerts-v2-coverage-title">Market Discovery coverage</h2>
               <p>{coverageDescription}</p>
             </div>
-            {!mockPlan.hasCoverageControls ? <span className={styles.lockedBadge}>PRO+</span> : null}
+            {requiresProDiscovery ? <span className={styles.lockedBadge}>PRO+</span> : null}
           </div>
 
           <div className={styles.settingList} id="alerts-v2-coverage-settings">
             {coverageItems.map((item) => {
               const Icon = item.icon;
-              const locked = !mockPlan.hasCoverageControls || (Boolean(item.locked) && !mockPlan.hasRiskAlerts);
-              const lockedTier = item.locked ? "ADVANCED" : "PRO";
-              const isEnabled = mockPlan.hasCoverageControls && Boolean(coverageState[item.id]);
+              const locked = !allowedDiscoveryCategories.has(item.id as PublicAlertCategory);
+              const lockedTier = item.requiredTier;
+              const isEnabled = !locked && Boolean(coverageState[item.id]);
 
               return (
                 <article
@@ -778,7 +942,7 @@ export function StockRadarAlertsV2({
                   <div className={styles.inlineToggle}>
                     <ToggleSwitch
                       checked={isEnabled}
-                      disabled={locked}
+                      disabled={locked || settingsLoading}
                       label={`Toggle ${item.title}`}
                       onChange={() =>
                         {
@@ -799,20 +963,19 @@ export function StockRadarAlertsV2({
 
           {upgradeMessage ? (
             <div className={styles.upgradePanel} role="status">
-              {upgradeMessage} Unlock critical risk alerts with Advanced.
+              {upgradeMessage}
             </div>
           ) : null}
 
-          {!mockPlan.hasCoverageControls ? (
+          {planLimits.discoveryCategories.length < coverageItems.length ? (
             <div className={styles.cardFooter}>
-              <span>Unlock event coverage controls with Pro</span>
-              <Link href="/premium">Upgrade to Pro</Link>
-            </div>
-          ) : !mockPlan.hasRiskAlerts ? (
-            <div className={styles.cardFooter}>
-              <span>Unlock critical risk alerts with Advanced</span>
+              <span>
+                {requiresProDiscovery
+                  ? "Unlock 12 core Market Discovery categories with Pro"
+                  : "Unlock all 17 Market Discovery categories with Advanced"}
+              </span>
               <Link className={styles.advancedUpgradeButton} href="/premium">
-                Upgrade to Advanced
+                Upgrade to {requiresProDiscovery ? "Pro" : "Advanced"}
               </Link>
             </div>
           ) : null}
@@ -824,7 +987,6 @@ export function StockRadarAlertsV2({
               <div>
                 <h2 id="alerts-v2-sources-title">Alert sources</h2>
               </div>
-              {!mockPlan.hasSourceFilters ? <span className={styles.lockedBadge}>PRO+</span> : null}
             </div>
 
             <div className={styles.sourceFilterGrid} role="group" aria-label="Alert sources">
@@ -832,7 +994,7 @@ export function StockRadarAlertsV2({
                 <label className={styles.sourceFilterOption} key={source.id}>
                   <input
                     checked={Boolean(sourceState[source.id])}
-                    disabled={!mockPlan.hasSourceFilters}
+                    disabled={settingsLoading}
                     onChange={(event) =>
                       {
                         setSourceState((current) => ({
@@ -860,46 +1022,73 @@ export function StockRadarAlertsV2({
             <div className={styles.settingList}>
               {deliveryItems.map((item) => {
                 const Icon = item.icon;
-                const locked =
-                  item.id === "email"
-                    ? !mockPlan.hasEmailDelivery
-                    : item.id === "telegram"
-                      ? isTelegramLocked
-                      : item.id === "webhook" || item.id === "api"
-                        ? !isUltimate
-                        : false;
-                const lockedTier =
-                  item.id === "email" ? "ADVANCED" : item.id === "webhook" || item.id === "api" ? "ULTIMATE" : "PRO";
+                const channel = settings?.channels.find(
+                  (candidate) => candidate.channel === item.id,
+                );
+                const locked = channel?.locked ?? true;
+                const implemented = channel?.implemented ?? false;
 
                 return (
-                  <article className={styles.settingRow} key={item.id}>
+                  <article
+                    className={`${styles.settingRow} ${item.id === "telegram" ? styles.telegramSettingRow : ""}`}
+                    key={item.id}
+                  >
                     <Icon aria-hidden="true" size={20} />
                     <div>
                       <strong>{item.title}</strong>
+                      <span>{channel?.statusLabel || "Loading..."}</span>
                     </div>
-                    {locked ? (
+                    {item.lockedTier ? (
                       <span className={styles.lockGroup}>
-                        <Lock aria-hidden="true" size={15} />
-                      <em>{lockedTier}+</em>
+                        {locked || !implemented ? <Lock aria-hidden="true" size={15} /> : null}
+                        <em>{item.lockedTier}+</em>
                       </span>
                     ) : null}
                     <div className={styles.inlineToggle}>
                       <ToggleSwitch
                         checked={Boolean(deliveryState[item.id])}
-                        disabled={locked}
+                        disabled={locked || !implemented || settingsLoading}
                         label={`Toggle ${item.title}`}
                         onChange={() =>
-                          {
-                            setDeliveryState((current) => ({
-                              ...current,
-                              [item.id]: !current[item.id],
-                            }));
-                            markSettingsChanged();
-                          }
+                          void updateDeliveryChannel(
+                            item.id as AlertChannel,
+                            !deliveryState[item.id],
+                          )
                         }
                       />
                       <em>{deliveryState[item.id] ? "ON" : "OFF"}</em>
                     </div>
+                    {item.id === "telegram" && channel ? (
+                      <div className={styles.channelActions}>
+                        {!channel.connected && !locked ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void openTelegramConnection("connect")}
+                            type="button"
+                          >
+                            {telegramAction === "connect" ? "Opening..." : "Connect Telegram"}
+                          </button>
+                        ) : null}
+                        {channel.connected && !locked ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void openTelegramConnection("change")}
+                            type="button"
+                          >
+                            {telegramAction === "change" ? "Opening..." : "Change account"}
+                          </button>
+                        ) : null}
+                        {channel.connected ? (
+                          <button
+                            disabled={Boolean(telegramAction) || settingsLoading}
+                            onClick={() => void disconnectTelegram()}
+                            type="button"
+                          >
+                            {telegramAction === "disconnect" ? "Disconnecting..." : "Disconnect"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
@@ -911,7 +1100,7 @@ export function StockRadarAlertsV2({
               <div>
                 <h2 id="alerts-v2-market-cap-title">Market cap filters</h2>
               </div>
-              {!mockPlan.hasMarketCapFilters ? <span className={styles.lockedBadge}>PRO+</span> : null}
+              {!hasAdvancedFilters ? <span className={styles.lockedBadge}>ADVANCED+</span> : null}
             </div>
 
             <div className={styles.marketCapGrid}>
@@ -919,7 +1108,7 @@ export function StockRadarAlertsV2({
                 <label className={styles.marketCapOption} key={item.id}>
                   <input
                     checked={Boolean(marketCapState[item.id])}
-                    disabled={!mockPlan.hasMarketCapFilters}
+                    disabled={!hasAdvancedFilters || settingsLoading}
                     onChange={(event) =>
                       {
                         setMarketCapState((current) => ({
@@ -944,8 +1133,13 @@ export function StockRadarAlertsV2({
 
         <div className={styles.settingsSaveBar}>
           {saveStatus === "saved" ? <span role="status">Saved</span> : null}
-          <button className={`${styles.primaryButton} ${styles.saveButton}`} onClick={() => setSaveStatus("saved")} type="button">
-            Save changes
+          <button
+            className={`${styles.primaryButton} ${styles.saveButton}`}
+            disabled={settingsLoading || !settings}
+            onClick={() => void saveSettings()}
+            type="button"
+          >
+            {settingsLoading ? "Saving..." : "Save changes"}
           </button>
         </div>
 
@@ -955,7 +1149,7 @@ export function StockRadarAlertsV2({
               <h2 id="alerts-v2-filing-title">Filing type alerts</h2>
               <p>Choose which SEC forms can trigger filing alerts.</p>
             </div>
-            {!mockPlan.hasFilingTypeAlerts ? (
+            {!hasFilingTypeAlerts ? (
               <span className={styles.lockedBadge}>
                 <Lock aria-hidden="true" size={14} />
                 ULTIMATE+
@@ -977,7 +1171,7 @@ export function StockRadarAlertsV2({
                       <input
                         aria-label={`Select all ${group.title}`}
                         checked={isGroupSelected}
-                        disabled={!mockPlan.hasFilingTypeAlerts}
+                        disabled={!hasFilingTypeAlerts || settingsLoading}
                         onChange={(event) => {
                           const checked = event.currentTarget.checked;
                           setFilingState((current) => ({
@@ -1001,7 +1195,7 @@ export function StockRadarAlertsV2({
                       <label className={styles.filingTypeOption} key={item.id}>
                         <input
                           checked={Boolean(filingState[item.id])}
-                          disabled={!mockPlan.hasFilingTypeAlerts}
+                          disabled={!hasFilingTypeAlerts || settingsLoading}
                           onChange={(event) => {
                             setFilingState((current) => ({
                               ...current,
@@ -1020,12 +1214,48 @@ export function StockRadarAlertsV2({
             })}
           </div>
 
-          {!mockPlan.hasFilingTypeAlerts ? (
+          {!hasFilingTypeAlerts ? (
             <div className={styles.ultimateFooter}>
               <span>Unlock form-level filing alert rules with Ultimate</span>
               <Link href="/premium">Upgrade to Ultimate</Link>
             </div>
           ) : null}
+        </section>
+
+        <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-followed-title">
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 id="alerts-v2-followed-title">Followed Calendar events</h2>
+              <p>Event-specific schedule updates and reminders. These are separate from Watch Stock.</p>
+              {settings ? (
+                <span className={styles.calendarFollowUsage}>
+                  {formatCalendarEventFollowUsage(settings.calendarEventFollowUsage)}
+                </span>
+              ) : null}
+            </div>
+            <Link href="/calendar">Manage in Calendar</Link>
+          </div>
+          <div className={styles.settingList}>
+            {settingsLoading && !settings ? (
+              <p className={styles.recentEmpty}>Loading followed events...</p>
+            ) : settings?.followedCalendarEvents.length ? (
+              settings.followedCalendarEvents.map((event) => (
+                <article className={styles.settingRow} key={event.followId}>
+                  <Bell aria-hidden="true" size={20} />
+                  <div>
+                    <strong>{event.title}</strong>
+                    <span>
+                      {event.ticker ? `${event.ticker} · ` : ""}
+                      {formatCalendarFollowDate(event.eventDate, event.eventTime)}
+                    </span>
+                  </div>
+                  <em>{event.lifecycleStatus}</em>
+                </article>
+              ))
+            ) : (
+              <p className={styles.recentEmpty}>No followed Calendar events yet.</p>
+            )}
+          </div>
         </section>
 
         <section className={`${styles.card} ${styles.recentCard}`} aria-labelledby="alerts-v2-recent-title">
@@ -1053,7 +1283,12 @@ export function StockRadarAlertsV2({
             <p className={styles.recentEmpty}>No delivered alerts yet.</p>
           ) : null}
           {visibleRecentAlerts.map((alert) => (
-            <article className={styles.recentRow} key={alert.id} role="row">
+            <article
+              className={styles.recentRow}
+              data-read={alert.isRead}
+              key={alert.id}
+              role="row"
+            >
               <strong role="cell">{alert.ticker || "MARKET"}</strong>
               <span role="cell">{getDeliveredAlertType(alert)}</span>
               <p role="cell">{alert.title}</p>
@@ -1062,7 +1297,16 @@ export function StockRadarAlertsV2({
               </time>
               <em data-status={alert.deliveryStatus} role="cell">
                 <CheckCircle2 aria-hidden="true" size={16} />
-                {getDeliveryStatusLabel(alert.deliveryStatus)}
+                {alert.isRead ? "Read" : getDeliveryStatusLabel(alert.deliveryStatus)}
+                {!alert.isRead && alert.deliveryStatus === "sent" ? (
+                  <button
+                    className={styles.readButton}
+                    onClick={() => void markAlertRead(alert)}
+                    type="button"
+                  >
+                    Mark read
+                  </button>
+                ) : null}
               </em>
             </article>
           ))}
@@ -1097,7 +1341,7 @@ export function StockRadarAlertsV2({
         </main>
 
         <aside className={styles.adRail} aria-label="Plan and advertising">
-          {mockPlan.showsAds ? (
+          {showsAds ? (
             <AdSenseSlot
               className={styles.railAdSlot}
               format="responsive"
@@ -1113,12 +1357,18 @@ export function StockRadarAlertsV2({
             <section className={styles.railUpgrade} aria-labelledby="alerts-v2-rail-upgrade-title">
               <span>{upgradeTier.toUpperCase()}</span>
               <h2 id="alerts-v2-rail-upgrade-title">Unlock more signal</h2>
-              <p>{upgradeTier === "Advanced" ? "Get critical risk alerts and Email delivery with Advanced." : "Get form-level filing filters and custom rules with Ultimate."}</p>
+              <p>
+                {upgradeTier === "Pro"
+                  ? "Get 12 core Market Discovery categories and Telegram delivery."
+                  : upgradeTier === "Advanced"
+                    ? "Get all 17 Market Discovery categories, advanced filters, and Email entitlement."
+                    : "Get form-level filing filters and custom rules with Ultimate."}
+              </p>
               <Link className={styles.railUpgradeLink} href="/premium">View {upgradeTier}</Link>
             </section>
           ) : null}
 
-          {mockPlan.showsAds ? (
+          {showsAds ? (
             <AdSenseSlot
               className={styles.railAdSlot}
               format="responsive"
@@ -1185,6 +1435,7 @@ export function StockRadarAlertsV2({
 function getDeliveredAlertType(alert: DeliveredAlertItem) {
   if (alert.categoryLabel) return alert.categoryLabel;
   if (alert.sourceLabel) return alert.sourceLabel;
+  if (alert.alertLane === "calendar_follow") return "Calendar follow";
   return alert.alertLane === "watchlist" ? "Watchlist" : "Market discovery";
 }
 
@@ -1217,4 +1468,17 @@ function formatRelativeTime(value: string) {
     day: "numeric",
     year: new Date(timestamp).getFullYear() === new Date().getFullYear() ? undefined : "numeric",
   }).format(timestamp);
+}
+
+function formatCalendarFollowDate(eventDate: string, eventTime: string | null) {
+  const timestamp = Date.parse(`${eventDate}T12:00:00Z`);
+  const dateLabel = Number.isFinite(timestamp)
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(timestamp)
+    : eventDate;
+  return eventTime ? `${dateLabel} · ${eventTime.slice(0, 5)} ET` : dateLabel;
 }

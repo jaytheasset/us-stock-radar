@@ -2,6 +2,7 @@ import type { DetailTone, PriceChartSeries, SectorThemeContext } from "@/app/eve
 import type { GenericFilingAnalysisData } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import { bodyTextToSafeHtml, sanitizeNewsArticleHtml } from "@/lib/newsArticleSanitizer";
 import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
+import { readStoredNewsSourceContent } from "@/lib/originalSourceContent";
 import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 
 type DbRow = Record<string, unknown>;
@@ -26,28 +27,28 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
   const event = asRecord(eventResult.data);
   if (!event || readString(event, "source_group") !== "news") return null;
 
-  const ticker = normalizeTicker(readString(event, "ticker"));
   const rawItemId = readString(event, "raw_item_id");
-  const [
-    analysisResult,
-    tickersResult,
-    rawResult,
-    relatedNewsResult,
-    relatedFilingsResult,
-    quote,
-    chart,
-    tickerCatalogResult,
-  ] = await Promise.all([
+  const [analysisResult, tickersResult, rawResult] = await Promise.all([
     fetchEventAnalysis(id),
     fetchEventTickers(id),
     fetchRawItem(rawItemId),
+  ]);
+  const tickerRows = toRows(tickersResult.data);
+  const primaryTickerRow = tickerRows.find((row) => readString(row, "role") === "primary") ||
+    tickerRows.find((row) => normalizeTicker(readString(row, "symbol")) === normalizeTicker(readString(event, "ticker"))) ||
+    tickerRows[0] || null;
+  const ticker = normalizeTicker(firstString(
+    readString(event, "ticker"),
+    readString(primaryTickerRow, "symbol"),
+  ));
+  const [relatedNewsResult, relatedFilingsResult, quote, chart, tickerCatalogResult] = await Promise.all([
     ticker ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: id, limit: 4 }) : emptyRowsResult(),
     ticker ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: id, limit: 4 }) : emptyRowsResult(),
     ticker ? fetchStoredQuote(ticker) : Promise.resolve(null),
     ticker ? fetchStoredChart(ticker) : Promise.resolve(null),
     ticker
       ? supabaseSelect("tickers", {
-          select: "symbol,name,exchange",
+          select: "symbol,name,exchange,fmp_sector,fmp_industry",
           symbol: `eq.${ticker}`,
           is_active: "eq.true",
           limit: "1",
@@ -59,9 +60,6 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
   const rawPayload = asRecord(rawItem?.raw_payload);
   const articlePayload = asRecord(rawPayload?.article_payload);
   const metadata = asRecord(event.metadata);
-  const tickerRows = toRows(tickersResult.data);
-  const primaryTickerRow = tickerRows.find((row) => readString(row, "role") === "primary") ||
-    tickerRows.find((row) => normalizeTicker(readString(row, "symbol")) === ticker) || null;
   const tickerMetadata = asRecord(primaryTickerRow?.metadata);
   const tickerCatalog = asRecord(toRows(tickerCatalogResult.data)[0]);
   const sourceUrl = firstString(
@@ -120,23 +118,28 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
   const signal = readSignal(event);
   const score = readNumber(event, "score");
 
-  const originalStoredHtml = firstString(
-    readString(rawPayload, "full_text_html"),
-    readString(articlePayload, "full_text_html"),
-  );
-  const originalBodyText = firstString(
-    readString(rawItem, "body_text"),
-    readString(rawPayload, "body_text"),
-    readString(articlePayload, "body_text"),
-  );
+  const originalSourceContent = readStoredNewsSourceContent({
+    event,
+    metadata,
+    nestedPayload: articlePayload,
+    rawItem,
+    rawPayload,
+  });
   const originalHtml = sanitizeNewsArticleHtml(
-    originalStoredHtml || bodyTextToSafeHtml(originalBodyText),
+    originalSourceContent.html || bodyTextToSafeHtml(originalSourceContent.text),
     sourceUrl,
   );
-  const classification = readClassification(event, metadata);
-  const marketContext = classification
+  const classification = readClassification(event, metadata, tickerMetadata, tickerCatalog);
+  const snapshotContext = classification
     ? await fetchStoredMarketContext(classification)
     : null;
+  const marketContext = buildNewsMarketContext({
+    classification,
+    company,
+    exchange,
+    snapshotContext,
+    ticker,
+  });
 
   return {
     eventType: readString(event, "event_type"),
@@ -253,10 +256,13 @@ async function fetchStoredMarketContext(classification: Classification): Promise
     limit: "200",
   })));
   const matched = results.map((result) => matchContextRows(toRows(result.data), classification));
-  if (matched.some((item) => !item.primary)) return null;
+  if (!matched.some((item) => item.primary)) return null;
 
   const periods = Object.fromEntries(matched.map((item, index) => {
-    const primary = item.primary!;
+    const primary = item.primary;
+    if (!primary) {
+      return [index === 0 ? "1D" : index === 1 ? "5D" : "30D", emptyContextPeriod()];
+    }
     const change = readNumber(primary, "change_percent") || 0;
     return [index === 0 ? "1D" : index === 1 ? "5D" : "30D", {
       sectorChange: formatPercent(readNumber(item.sector, "change_percent") ?? undefined),
@@ -281,6 +287,57 @@ async function fetchStoredMarketContext(classification: Classification): Promise
   };
 }
 
+function buildNewsMarketContext({
+  classification,
+  company,
+  exchange,
+  snapshotContext,
+  ticker,
+}: {
+  classification: Classification | null;
+  company: string;
+  exchange: string;
+  snapshotContext: SectorThemeContext | null;
+  ticker: string;
+}): SectorThemeContext | null {
+  if (!classification && !company && !exchange && !ticker) return null;
+  const identity = {
+    companyName: company || undefined,
+    exchange: exchange || undefined,
+  };
+  if (snapshotContext) {
+    return {
+      ...snapshotContext,
+      ...identity,
+      contextTitle: snapshotContext.contextTitle || company || ticker || undefined,
+    };
+  }
+
+  return {
+    ...identity,
+    contextTitle: company || ticker || undefined,
+    industry: classification?.industry || undefined,
+    moverGroupName: classification?.subTheme || classification?.theme || classification?.industry || classification?.sector || company || ticker || undefined,
+    moverMode: "related",
+    periods: {
+      "1D": emptyContextPeriod(),
+      "5D": emptyContextPeriod(),
+      "30D": emptyContextPeriod(),
+    },
+    sector: classification?.sector || undefined,
+    subTheme: classification?.subTheme || undefined,
+    themeGroup: classification?.theme || undefined,
+  };
+}
+
+function emptyContextPeriod(): SectorThemeContext["periods"]["1D"] {
+  return {
+    themeScore: 0,
+    themeSignal: "neutral",
+    topMovers: [],
+  };
+}
+
 function matchContextRows(rows: DbRow[], classification: Classification) {
   const find = (scope: string, value: string) => value ? rows.find((row) =>
     readString(row, "scope") === scope && [readString(row, "group_key"), readString(row, "group_name")]
@@ -292,12 +349,17 @@ function matchContextRows(rows: DbRow[], classification: Classification) {
   return { sector, industry, theme, subTheme, primary: subTheme || theme || industry || sector };
 }
 
-function readClassification(event: DbRow, metadata: DbRow | null): Classification | null {
+function readClassification(
+  event: DbRow,
+  metadata: DbRow | null,
+  tickerMetadata: DbRow | null,
+  tickerCatalog: DbRow | null,
+): Classification | null {
   const value = {
-    sector: firstString(readString(event, "sector"), readString(metadata, "sector")),
-    industry: firstString(readString(event, "industry_group"), readString(metadata, "industry_group")),
-    theme: firstString(readString(event, "theme_group"), readString(metadata, "theme_group")),
-    subTheme: firstString(readString(event, "sub_theme"), readString(metadata, "sub_theme")),
+    sector: firstString(readString(event, "sector"), readString(metadata, "sector"), readString(tickerMetadata, "llm_sector"), readString(tickerCatalog, "fmp_sector")),
+    industry: firstString(readString(event, "industry_group"), readString(metadata, "industry_group"), readString(metadata, "industry"), readString(tickerMetadata, "llm_industry_group"), readString(tickerCatalog, "fmp_industry")),
+    theme: firstString(readString(event, "theme_group"), readString(metadata, "theme_group"), readString(tickerMetadata, "theme_group"), readString(tickerMetadata, "llm_theme_group")),
+    subTheme: firstString(readString(event, "sub_theme"), readString(metadata, "sub_theme"), readString(tickerMetadata, "sub_theme"), readString(tickerMetadata, "llm_sub_theme")),
   };
   return Object.values(value).some(Boolean) ? value : null;
 }

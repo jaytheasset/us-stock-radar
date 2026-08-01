@@ -37,6 +37,7 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   }
 
   const row = eventResult.data as DbRow;
+  const eventMetadata = readRecord(row.metadata);
   const canonical = resolveCanonicalEventFields(row);
   const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];
   const eventTicker = readTicker(row.ticker);
@@ -51,24 +52,41 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   const category = normalizeCategory(readString(row.event_type));
   const sourceType = normalizeSourceType(canonical.sourceGroup);
   const title = readString(row.title) || "Untitled alert event";
-  const publishedAt = readString(row.published_at) || readString(row.detected_at) || readString(row.event_date);
+  const publishedAt = readString(row.published_at) || readString(row.detected_at);
   const sourceLabel = readString(row.source_name) || formatSource(readString(row.source_code));
   const severity = normalizeSeverity(canonical.score, canonical.impact);
+  const score = readOptionalScore(row.score);
+  const signal = readOptionalSignal(row.signal);
+  const impact = readOptionalImpact(row.impact);
 
   return {
     ok: true,
     event: {
       id: normalizedEventId,
       title,
+      quickTake: readString(row.quick_take) || undefined,
       tickers,
       primaryTicker,
       category,
       sourceType,
       sourceLabel,
       severity,
+      score,
+      signal,
+      impact,
+      marketScope: canonical.marketScope,
       publishedAt,
       metadata: {
         source_group: canonical.sourceGroup,
+        source_code: readString(row.source_code),
+        form_type:
+          readString(eventMetadata.form_type) ||
+          readString(eventMetadata.sec_form_type) ||
+          readString(eventMetadata.formType),
+        provider:
+          readString(eventMetadata.provider) ||
+          readString(eventMetadata.provider_name),
+        agency: readString(eventMetadata.agency),
         delivery_level: canonical.deliveryLevel,
         score: canonical.score,
         impact: canonical.impact,
@@ -77,6 +95,23 @@ export async function normalizeAlertEvent(eventId: string): Promise<
       },
     },
   };
+}
+
+function readOptionalScore(value: unknown) {
+  const score = readNumber(value);
+  return Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : undefined;
+}
+
+function readOptionalSignal(value: unknown): NormalizedAlertEvent["signal"] {
+  const signal = readString(value).toLowerCase();
+  return signal === "bullish" || signal === "bearish" || signal === "volatile" || signal === "neutral"
+    ? signal
+    : undefined;
+}
+
+function readOptionalImpact(value: unknown): NormalizedAlertEvent["impact"] {
+  const impact = readString(value).toLowerCase();
+  return impact === "high" || impact === "medium" || impact === "low" ? impact : undefined;
 }
 
 function normalizeCategory(value: string): AlertCategory {
@@ -130,10 +165,16 @@ function readString(value: unknown) {
   return "";
 }
 
-function readNumber(value: unknown) {
+function readNumber(value: unknown, fallback = Number.NaN) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  return 100;
+  return fallback;
+}
+
+function readRecord(value: unknown): DbRow {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as DbRow)
+    : {};
 }
 
 function formatSource(value: string) {

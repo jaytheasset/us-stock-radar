@@ -32,6 +32,7 @@ const membershipMigration = read(
 const client = read("components/live-room/LiveRoomClient.tsx");
 const header = read("components/live-room/CompanyRoomHeader.tsx");
 const composer = read("components/live-room/MessageComposer.tsx");
+const chatNameSetup = read("components/live-room/ChatNameSetup.tsx");
 const timeline = read("components/live-room/ChatTimeline.tsx");
 const timelineStyles = read("components/live-room/LiveRoom.module.css");
 const serverRepository = read("lib/live-room/serverRepository.ts");
@@ -330,19 +331,19 @@ test("presence lifecycle is member-only, opt-in, visible, bounded, and cleaned u
 });
 
 test("header distinguishes joined members and visitors before aggregate online count", () => {
-  assert.match(composer, /Show when I&apos;m active in Live Rooms/);
+  assert.match(chatNameSetup, /Show when I&apos;m active in Live Rooms/);
   assert.match(
-    composer,
-    /only in the company room you are\s+currently viewing/,
+    chatNameSetup,
+    /Only shows activity in the room you are viewing/,
   );
-  assert.match(composer, /role="switch"/);
+  assert.match(chatNameSetup, /role="switch"/);
   assert.doesNotMatch(timeline, /item\.isOnline|onlineIndicator/);
   assert.doesNotMatch(timeline, />\s*Online\s*</);
   assert.doesNotMatch(timelineStyles, /\.onlineIndicator/);
   assert.match(timelineStyles, /\.onlineCount > i\s*\{/);
   assert.match(
     timeline,
-    /<strong>\{item\.author\.displayName\}<\/strong>[\s\S]*?<MemberPlanBadge[\s\S]*?item\.author\.plan[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
+    /<strong>\{formatPublicChatName\(item\.author\.displayName\)\}<\/strong>[\s\S]*?<MemberPlanBadge[\s\S]*?item\.author\.plan[\s\S]*?<time dateTime=\{item\.createdAt\}>[\s\S]*?item\.author\.socialBadges\?\.map[\s\S]*?<MessageActions/,
   );
   assert.match(
     timelineStyles,
@@ -444,6 +445,7 @@ test("public room counts use visible authors plus visitors and return no identit
 function message(id: string, isGuest: boolean): LiveRoomChatMessage {
   return {
     author: {
+      avatarUrl: null,
       displayName: isGuest ? "Guest" : "Member",
       emoji: "👋",
       isGuest,
