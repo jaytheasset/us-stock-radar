@@ -9,6 +9,7 @@ import {
   MailCheck,
   MessageCircle,
   Landmark,
+  Star,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -128,8 +129,11 @@ export default async function AccountPage() {
               <AccountLink href="/alerts" icon={<Bell size={16} />}>
                 Alert settings
               </AccountLink>
-              <AccountLink href="/watchlist" icon={<Bookmark size={16} />}>
+              <AccountLink href="/watchlist" icon={<Star size={16} />}>
                 Watchlist
+              </AccountLink>
+              <AccountLink href="/saved" icon={<Bookmark size={16} />}>
+                Saved
               </AccountLink>
               <AccountLink href="/account/creator" icon={<BadgeCheck size={16} />}>
                 Social account verification

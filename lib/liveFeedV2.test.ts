@@ -828,7 +828,9 @@ test("feed preview mapper preserves company-news hierarchy without fake values",
   assert.equal(news.brief, "A real summary");
   assert.deepEqual(news.keyPoints, ["Evidence one", "Evidence two"]);
   assert.equal(news.coverage, "Company");
-  assert.equal(news.watchlist, null);
+  assert.equal(news.watchlist, false);
+  assert.equal(news.saved, false);
+  assert.equal(news.authenticated, false);
 });
 
 test("feed preview mapper preserves market fields independently", () => {

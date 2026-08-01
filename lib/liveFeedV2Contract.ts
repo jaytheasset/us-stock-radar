@@ -69,6 +69,7 @@ type LiveFeedV2PreviewBase = {
 };
 
 export type LiveFeedV2FilingPreview = LiveFeedV2PreviewBase & {
+  authenticated: boolean;
   accession: string | null;
   company: string | null;
   events: readonly string[];
@@ -77,11 +78,13 @@ export type LiveFeedV2FilingPreview = LiveFeedV2PreviewBase & {
   keyPoints: readonly string[];
   kind: "filing";
   relatedFilings: readonly LiveFeedV2RelatedItem[];
+  saved: boolean;
   ticker: string;
-  watchlist: boolean | null;
+  watchlist: boolean;
 };
 
 export type LiveFeedV2CompanyNewsPreview = LiveFeedV2PreviewBase & {
+  authenticated: boolean;
   brief: string | null;
   category: string;
   company: string | null;
@@ -89,8 +92,9 @@ export type LiveFeedV2CompanyNewsPreview = LiveFeedV2PreviewBase & {
   keyPoints: readonly string[];
   kind: "company-news";
   relatedNews: readonly LiveFeedV2RelatedItem[];
+  saved: boolean;
   ticker: string;
-  watchlist: boolean | null;
+  watchlist: boolean;
 };
 
 export type LiveFeedV2MarketNewsPreview = LiveFeedV2PreviewBase & {

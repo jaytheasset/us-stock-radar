@@ -12,11 +12,19 @@ export const metadata: Metadata = {
     "Live market-moving news, filings, alerts, and market context.",
 };
 
-export default async function FeedPage() {
-  const [initialData, viewerPlan] = await Promise.all([
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string | string[] }>;
+}) {
+  const [initialData, viewerPlan, params] = await Promise.all([
     getLiveFeedV2InitialData(),
     getCurrentViewerPlan(),
+    searchParams,
   ]);
+  const requestedPreview = Array.isArray(params.preview)
+    ? params.preview[0]
+    : params.preview;
 
   return (
     <StockRadarAppShell
@@ -25,6 +33,7 @@ export default async function FeedPage() {
     >
       <StockRadarFeedV2
         initialData={initialData}
+        initialPreviewId={requestedPreview}
         viewerPlan={viewerPlan}
       />
     </StockRadarAppShell>

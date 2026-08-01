@@ -11,6 +11,7 @@ export type LiveFeedV2PreviewRelatedTicker = {
 };
 
 export type LiveFeedV2PreviewSource = {
+  authenticated?: boolean;
   accessionNumber?: string | null;
   category: string;
   companyName?: string | null;
@@ -28,9 +29,11 @@ export type LiveFeedV2PreviewSource = {
   sentiment: LiveFeedV2Sentiment;
   source: string;
   sourceUrl?: string | null;
+  saved?: boolean;
   summary?: string | null;
   themeLabel?: string | null;
   ticker: string;
+  watchlist?: boolean;
 };
 
 export function createLiveFeedV2Preview(
@@ -54,6 +57,7 @@ export function createLiveFeedV2Preview(
   if (item.feedType === "filings") {
     return {
       ...base,
+      authenticated: item.authenticated === true,
       accession: availableText(item.accessionNumber),
       company: companyName,
       events: compactTextList([item.category]),
@@ -75,8 +79,9 @@ export function createLiveFeedV2Preview(
           metadata: formatRelatedMetadata(related),
           title: availableText(related.headline) || "—",
         })),
+      saved: item.saved === true,
       ticker: primaryTicker || normalizeTicker(item.ticker) || "N/A",
-      watchlist: null,
+      watchlist: item.watchlist === true,
     };
   }
 
@@ -108,6 +113,7 @@ export function createLiveFeedV2Preview(
 
   return {
     ...base,
+    authenticated: item.authenticated === true,
     brief: availableSummary(item.summary),
     category: availableText(item.category) || "News",
     company: companyName,
@@ -128,8 +134,9 @@ export function createLiveFeedV2Preview(
         metadata: formatRelatedMetadata(related),
         title: availableText(related.headline) || "—",
       })),
+    saved: item.saved === true,
     ticker: primaryTicker || normalizeTicker(item.ticker) || "N/A",
-    watchlist: null,
+    watchlist: item.watchlist === true,
   };
 }
 

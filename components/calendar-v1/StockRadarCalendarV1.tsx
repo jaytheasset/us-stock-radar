@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CalendarDays,
@@ -38,9 +39,6 @@ import {
   shiftDateRange,
 } from "@/lib/calendar-v1/dateUtils";
 import {
-  CALENDAR_MOCK_WATCHLIST_TICKERS,
-} from "@/lib/calendar-v1/mockData";
-import {
   DEFAULT_CALENDAR_FILTERS,
   type CalendarDateRange,
   type CalendarEvent,
@@ -55,6 +53,10 @@ import {
 } from "@/lib/calendar-v1/presentation";
 import { getPlanLimits, type Plan } from "@/lib/subscriptionPolicy";
 import type { CalendarEventFollowsViewModel } from "@/lib/alerts/types";
+import {
+  publishUserContentChange,
+  subscribeToUserContentChanges,
+} from "@/lib/userContentSync";
 import styles from "./CalendarV1.module.css";
 
 export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
@@ -63,17 +65,22 @@ export function StockRadarCalendarV1({
   initialEvents,
   initialLoadError = false,
   initialRange,
+  initialWatchlistTickers,
   previewState = "default",
   today,
   viewerPlan,
+  viewerAuthenticated,
 }: {
   initialEvents: readonly CalendarEvent[];
   initialLoadError?: boolean;
   initialRange: CalendarDateRange;
+  initialWatchlistTickers: readonly string[];
   previewState?: CalendarPreviewState;
   today: string;
   viewerPlan: Plan;
+  viewerAuthenticated: boolean;
 }) {
+  const router = useRouter();
   const [preset, setPreset] = useState<CalendarRangePreset>("this-week");
   const [range, setRange] = useState<CalendarDateRange>(initialRange);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -83,6 +90,10 @@ export function StockRadarCalendarV1({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
+  const initialWatchlistSet = useMemo(
+    () => new Set(initialWatchlistTickers),
+    [initialWatchlistTickers],
+  );
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
   const [followUsage, setFollowUsage] = useState(() =>
     buildCalendarEventFollowUsage(
@@ -112,12 +123,12 @@ export function StockRadarCalendarV1({
           ? {
               ...event,
               isWatchlisted: event.ticker
-                ? watchlistOverrides[event.ticker] ?? event.isWatchlisted
+                ? watchlistOverrides[event.ticker] ?? initialWatchlistSet.has(event.ticker)
                 : event.isWatchlisted,
             }
           : event,
       ),
-    [sourceEvents, watchlistOverrides],
+    [initialWatchlistSet, sourceEvents, watchlistOverrides],
   );
 
   useEffect(() => {
@@ -148,10 +159,22 @@ export function StockRadarCalendarV1({
       });
     return () => controller.abort();
   }, []);
+  useEffect(
+    () =>
+      subscribeToUserContentChanges((change) => {
+        if (change.kind !== "watchlist") return;
+        setWatchlistOverrides((current) => ({
+          ...current,
+          [change.ticker]: change.value,
+        }));
+      }),
+    [],
+  );
   const watchlistTickers = useMemo(() => {
-    const tickers = new Set<string>();
-    for (const ticker of CALENDAR_MOCK_WATCHLIST_TICKERS) {
-      if (watchlistOverrides[ticker] ?? true) tickers.add(ticker);
+    const tickers = new Set(initialWatchlistSet);
+    for (const [ticker, enabled] of Object.entries(watchlistOverrides)) {
+      if (enabled) tickers.add(ticker);
+      else tickers.delete(ticker);
     }
     for (const event of events) {
       if (
@@ -163,7 +186,7 @@ export function StockRadarCalendarV1({
       }
     }
     return tickers;
-  }, [events, watchlistOverrides]);
+  }, [events, initialWatchlistSet, watchlistOverrides]);
   const filteredEvents = useMemo(
     () => filterCalendarEvents(events, range, filters, watchlistTickers),
     [events, filters, range, watchlistTickers],
@@ -322,6 +345,52 @@ export function StockRadarCalendarV1({
       );
     } finally {
       setFollowAction("");
+    }
+  }
+
+  async function toggleWatchlist(event: CalendarEvent) {
+    const ticker = getCalendarEventIdentity(event).primaryTicker;
+    if (!ticker || event.category !== "company") return;
+    if (!viewerAuthenticated) {
+      router.push(
+        `/login?next=${encodeURIComponent(
+          `${window.location.pathname}${window.location.search}${window.location.hash}`,
+        )}`,
+      );
+      return;
+    }
+
+    const previous = watchlistTickers.has(ticker);
+    const next = !previous;
+    setWatchlistOverrides((current) => ({ ...current, [ticker]: next }));
+    publishUserContentChange({ kind: "watchlist", ticker, value: next });
+
+    try {
+      const response = await fetch(
+        next ? "/api/watchlist" : `/api/watchlist/${encodeURIComponent(ticker)}`,
+        next
+          ? {
+              body: JSON.stringify({ ticker }),
+              headers: { "Content-Type": "application/json" },
+              method: "POST",
+            }
+          : { method: "DELETE" },
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok === false || payload?.persisted === false) {
+        throw new Error(payload?.message || "Failed to update Watchlist.");
+      }
+      setFollowMessage(
+        next
+          ? `${ticker} added to Stock Watchlist. Event alerts remain separate.`
+          : `${ticker} removed from Stock Watchlist. Event alerts remain unchanged.`,
+      );
+    } catch (error) {
+      setWatchlistOverrides((current) => ({ ...current, [ticker]: previous }));
+      publishUserContentChange({ kind: "watchlist", ticker, value: previous });
+      setFollowMessage(
+        error instanceof Error ? error.message : "Failed to update Watchlist.",
+      );
     }
   }
 
@@ -518,14 +587,7 @@ export function StockRadarCalendarV1({
             followedEvents={followedEvents}
             onFollowToggle={(event) => void toggleFollowEvent(event)}
             onSheetDismiss={dismissSheet}
-            onWatchlistToggle={(event) => {
-              const ticker = getCalendarEventIdentity(event).primaryTicker;
-              if (!ticker) return;
-              setWatchlistOverrides((current) => ({
-                ...current,
-                [ticker]: !(current[ticker] ?? watchlistTickers.has(ticker)),
-              }));
-            }}
+            onWatchlistToggle={(event) => void toggleWatchlist(event)}
             openerRef={detailOpenerRef}
             sheetEvent={sheetEvent}
             watchlistTickers={watchlistTickers}

@@ -5,13 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDownAZ,
   Bell,
-  Bookmark,
   Check,
   ChevronDown,
   ExternalLink,
   LoaderCircle,
   Menu,
   Plus,
+  Star,
   Trash2,
 } from "lucide-react";
 import {
@@ -50,6 +50,10 @@ import type {
   WatchlistTickerItem,
   WatchlistViewModel,
 } from "@/lib/watchlist/types";
+import {
+  publishUserContentChange,
+  subscribeToUserContentChanges,
+} from "@/lib/userContentSync";
 import { WatchlistStockChart } from "./WatchlistStockChart";
 import { StockFundamentalsSections } from "./StockFundamentalsSections";
 import styles from "./StockRadarWatchlistV2.module.css";
@@ -450,6 +454,20 @@ export function StockRadarWatchlistV2({
     }
   }, [activeSectionId]);
 
+  useEffect(
+    () =>
+      subscribeToUserContentChanges((change) => {
+        if (change.kind !== "watchlist") return;
+        void fetch("/api/watchlist", { cache: "no-store" })
+          .then((response) => response.json())
+          .then((payload) => {
+            if (payload?.ok && payload.data) setWatchlist(payload.data);
+          })
+          .catch(() => undefined);
+      }),
+    [],
+  );
+
   function navigateToTicker(ticker: string, replace = false) {
     const href =
       selectionMode === "stock"
@@ -510,6 +528,11 @@ export function StockRadarWatchlistV2({
         return;
       }
       setWatchlist(payload.data);
+      publishUserContentChange({
+        kind: "watchlist",
+        ticker: result.ticker,
+        value: true,
+      });
       setTickerQuery("");
       setStatusMessage(`${result.ticker} added to your watchlist.`);
       setIsTickerSheetOpen(false);
@@ -563,6 +586,11 @@ export function StockRadarWatchlistV2({
         return;
       }
       setWatchlist(payload.data);
+      publishUserContentChange({
+        kind: "watchlist",
+        ticker,
+        value: false,
+      });
       setStatusMessage(`${ticker} removed from your watchlist.`);
     } catch (error) {
       setWatchlist(previous);
@@ -699,6 +727,14 @@ export function StockRadarWatchlistV2({
               limitReached={limitReached}
               mutationTicker={mutationTicker}
               onToggleWatchlist={() => {
+                if (watchlist.guestMode) {
+                  router.push(
+                    `/login?next=${encodeURIComponent(
+                      getStockRouteHref(selectedTicker) || "/watchlist",
+                    )}`,
+                  );
+                  return;
+                }
                 if (selectedWatchlistItem) {
                   void removeTicker(selectedTicker);
                   return;
@@ -1081,7 +1117,7 @@ function WatchlistRail({
 
       {!watchlistItems.length ? (
         <div className={styles.railEmpty}>
-          <Bookmark aria-hidden="true" size={18} />
+          <Star aria-hidden="true" size={18} />
           <strong>No saved tickers</strong>
           <span>Use search above to add your first stock.</span>
         </div>
@@ -1166,19 +1202,31 @@ function StockHeader({
       </div>
       <div className={styles.stockActions}>
         <button
+          aria-label={
+            isSaved
+              ? `Remove ${ticker} from Watchlist`
+              : `Add ${ticker} to Watchlist`
+          }
           aria-pressed={isSaved}
           disabled={
             mutationTicker === ticker || (!isSaved && limitReached)
           }
           onClick={onToggleWatchlist}
+          title={
+            isSaved
+              ? `Remove ${ticker} from Watchlist`
+              : `Add ${ticker} to Watchlist`
+          }
           type="button"
         >
           {mutationTicker === ticker ? (
             <LoaderCircle aria-hidden="true" size={15} />
-          ) : isSaved ? (
-            <Check aria-hidden="true" size={15} />
           ) : (
-            <Plus aria-hidden="true" size={15} />
+            <Star
+              aria-hidden="true"
+              fill={isSaved ? "currentColor" : "none"}
+              size={18}
+            />
           )}
           {isSaved ? "Watching" : "Add to Watchlist"}
         </button>
@@ -1521,7 +1569,7 @@ function EmptyWatchlist({
 }) {
   return (
     <section className={styles.emptyWatchlist}>
-      <Bookmark aria-hidden="true" size={28} />
+      <Star aria-hidden="true" size={28} />
       <span>{guestMode ? "WATCHLIST PREVIEW" : "YOUR WATCHLIST"}</span>
       <h2>{guestMode ? "Build a watchlist that follows you" : "Add your first stock"}</h2>
       <p>
