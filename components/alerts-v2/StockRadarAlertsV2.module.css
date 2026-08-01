@@ -565,7 +565,8 @@
   grid-column: 4;
 }
 
-.telegramSettingRow {
+.telegramSettingRow,
+.connectedSettingRow {
   padding-bottom: var(--sr-space-2);
 }
 
@@ -1390,14 +1391,16 @@
     min-height: 48px;
   }
 
-  .deliveryCard .telegramSettingRow {
+  .deliveryCard .telegramSettingRow,
+  .deliveryCard .connectedSettingRow {
     grid-template-areas:
       "icon text toggle"
       "icon lock toggle"
       ". actions actions";
   }
 
-  .telegramSettingRow .channelActions {
+  .telegramSettingRow .channelActions,
+  .connectedSettingRow .channelActions {
     grid-area: actions;
     justify-content: flex-start;
   }

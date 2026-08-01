@@ -16,6 +16,12 @@ const serverKeys = [
   "ALERT_DELIVERY_CRON_WRITE_ENABLED",
   "ALERT_DELIVERY_SEND_TELEGRAM",
   "ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC",
+  "ALERT_DELIVERY_SEND_EMAIL",
+  "RESEND_API_KEY",
+  "ALERT_EMAIL_FROM",
+  "ALERT_EMAIL_REPLY_TO",
+  "RESEND_WEBHOOK_SECRET",
+  "ALERT_EMAIL_UNSUBSCRIBE_SECRET",
   "DASHBOARD_MOVERS_CRON_SECRET",
   "CRON_SECRET",
   "SOURCE_INGEST_WORKFLOW_ENABLED_LANES",
@@ -73,6 +79,13 @@ export function getServerEnv() {
       (process.env.ALERT_DELIVERY_SEND_TELEGRAM || "false").toLowerCase() === "true",
     alertDeliverySendTelegramPublic:
       (process.env.ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC || "false").toLowerCase() === "true",
+    alertDeliverySendEmail:
+      (process.env.ALERT_DELIVERY_SEND_EMAIL || "false").toLowerCase() === "true",
+    resendApiKey: process.env.RESEND_API_KEY || "",
+    alertEmailFrom: process.env.ALERT_EMAIL_FROM || "",
+    alertEmailReplyTo: process.env.ALERT_EMAIL_REPLY_TO || "",
+    resendWebhookSecret: process.env.RESEND_WEBHOOK_SECRET || "",
+    alertEmailUnsubscribeSecret: process.env.ALERT_EMAIL_UNSUBSCRIBE_SECRET || "",
     dashboardMoversCronSecret:
       process.env.DASHBOARD_MOVERS_CRON_SECRET || "",
     cronSecret: process.env.CRON_SECRET || "",
@@ -145,6 +158,12 @@ export function envStatus() {
     ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC: String(
       values.alertDeliverySendTelegramPublic,
     ),
+    ALERT_DELIVERY_SEND_EMAIL: String(values.alertDeliverySendEmail),
+    RESEND_API_KEY: values.resendApiKey,
+    ALERT_EMAIL_FROM: values.alertEmailFrom,
+    ALERT_EMAIL_REPLY_TO: values.alertEmailReplyTo,
+    RESEND_WEBHOOK_SECRET: values.resendWebhookSecret,
+    ALERT_EMAIL_UNSUBSCRIBE_SECRET: values.alertEmailUnsubscribeSecret,
     DASHBOARD_MOVERS_CRON_SECRET: values.dashboardMoversCronSecret,
     CRON_SECRET: values.cronSecret,
     SOURCE_INGEST_WORKFLOW_ENABLED_LANES:

@@ -10,7 +10,11 @@ import {
 } from "@/lib/alerts/alertValidation";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import { supabaseUpdate } from "@/lib/supabase";
 import type { AlertChannel } from "@/lib/subscriptionPolicy";
+import { getAuthUserById, getVerifiedAuthEmail } from "@/lib/auth/getAuthUserById";
+import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
+import { verifyEmailUnsubscribeToken } from "@/lib/alerts/emailUnsubscribeToken";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +25,23 @@ const NO_STORE_HEADERS = {
 type ChannelRow = {
   destination?: unknown;
   verified_at?: unknown;
+  metadata?: unknown;
 };
+
+export async function GET(request: NextRequest) {
+  const verified = verifyUnsubscribeRequest(request);
+  if (!verified) return new NextResponse("Invalid or expired unsubscribe link.", { status: 400, headers: NO_STORE_HEADERS });
+  const escapedToken = verified.token.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  return new NextResponse(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribe</title><body><main><h1>Turn off Stock Radar alert emails?</h1><p>This keeps Web, Telegram, tickers, and other alert settings unchanged.</p><form method="post" action="?unsubscribe=${escapedToken}"><button type="submit">Turn off Email alerts</button></form></main></body></html>`, { headers: { ...NO_STORE_HEADERS, "Content-Type": "text/html; charset=utf-8" } });
+}
+
+export async function POST(request: NextRequest) {
+  const verified = verifyUnsubscribeRequest(request);
+  if (!verified) return new NextResponse("Invalid or expired unsubscribe link.", { status: 400, headers: NO_STORE_HEADERS });
+  const result = await supabaseUpdate("user_delivery_channels", { user_id: `eq.${verified.userId}`, channel: "eq.email" }, { enabled: false });
+  if (!result.ok) return new NextResponse("Unable to update Email alerts.", { status: 503, headers: NO_STORE_HEADERS });
+  return new NextResponse("Email alerts are off. Other alert channels remain unchanged.", { headers: NO_STORE_HEADERS });
+}
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -67,7 +87,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (patch.enabled && !(await isChannelConnected(userId, patch.channel))) {
+    const emailIdentity = patch.channel === "email" && patch.enabled
+      ? getVerifiedAuthEmail(await getAuthUserById(userId))
+      : null;
+    if (patch.channel === "email" && patch.enabled && !getAlertEmailConfig().configured) {
+      return NextResponse.json({ ok: false, error: "EMAIL_NOT_CONFIGURED", message: "Email delivery is not configured yet." }, { status: 503, headers: NO_STORE_HEADERS });
+    }
+    if (patch.channel === "email" && patch.enabled && !emailIdentity) {
+      return NextResponse.json({ ok: false, error: "EMAIL_NOT_VERIFIED", message: "Verify the email on your Stock Radar account before enabling Email alerts." }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+
+    const currentChannel = await getChannelRow(userId, patch.channel);
+    if (patch.channel === "email" && patch.enabled && isEmailSuppressed(currentChannel?.metadata)) {
+      return NextResponse.json({ ok: false, error: "EMAIL_SUPPRESSED", message: "Email alerts are paused after a delivery safety event. Contact support after resolving the address issue." }, { status: 409, headers: NO_STORE_HEADERS });
+    }
+    if (patch.enabled && patch.channel !== "email" && !isConnectedRow(patch.channel, currentChannel)) {
       return NextResponse.json(
         {
           ok: false,
@@ -84,6 +118,7 @@ export async function PATCH(request: NextRequest) {
         user_id: userId,
         channel: patch.channel,
         enabled: patch.enabled,
+        ...(emailIdentity ? { destination: emailIdentity.email, verified_at: emailIdentity.verifiedAt } : {}),
       },
       {
         onConflict: "user_id,channel",
@@ -121,25 +156,40 @@ export async function PATCH(request: NextRequest) {
       {
         ok: false,
         error: "CHANNEL_UPDATE_FAILED",
-        message: error instanceof Error ? error.message : "Failed to update delivery channel.",
+        message: "Failed to update delivery channel.",
       },
       { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }
 
-async function isChannelConnected(userId: string, channel: AlertChannel) {
-  if (channel === "web") return true;
-
+async function getChannelRow(userId: string, channel: AlertChannel) {
+  if (channel === "web") return undefined;
   const result = await supabaseSelect("user_delivery_channels", {
-    select: "destination,verified_at",
+    select: "destination,verified_at,metadata",
     user_id: `eq.${userId}`,
     channel: `eq.${channel}`,
     limit: "1",
   });
   const row = Array.isArray(result.data) ? (result.data[0] as ChannelRow | undefined) : undefined;
 
+  return row;
+}
+
+function isConnectedRow(channel: AlertChannel, row?: ChannelRow) {
+  if (channel === "web") return true;
   return Boolean(stringValue(row?.destination) || stringValue(row?.verified_at));
+}
+
+function isEmailSuppressed(value: unknown) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && (value as { email_suppressed?: unknown }).email_suppressed === true);
+}
+
+function verifyUnsubscribeRequest(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get("unsubscribe")?.trim() || "";
+  const secret = getAlertEmailConfig().unsubscribeSecret;
+  const verified = verifyEmailUnsubscribeToken(token, secret);
+  return verified ? { ...verified, token } : null;
 }
 
 function channelLabel(channel: AlertChannel) {

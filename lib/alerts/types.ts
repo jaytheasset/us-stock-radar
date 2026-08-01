@@ -24,6 +24,11 @@ export type DeliveryChannelState = {
   availabilityLabel: string;
   statusLabel: string;
   accountLabel?: string | null;
+  canEnable?: boolean;
+  configured?: boolean;
+  sendingEnabled?: boolean;
+  suppressed?: boolean;
+  recentStatusLabel?: string | null;
 };
 
 export type SelectedAlertCategory = {

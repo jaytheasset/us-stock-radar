@@ -1030,13 +1030,14 @@ export function StockRadarAlertsV2({
 
                 return (
                   <article
-                    className={`${styles.settingRow} ${item.id === "telegram" ? styles.telegramSettingRow : ""}`}
+                    className={`${styles.settingRow} ${item.id === "telegram" || item.id === "email" ? styles.connectedSettingRow : ""}`}
                     key={item.id}
                   >
                     <Icon aria-hidden="true" size={20} />
                     <div>
                       <strong>{item.title}</strong>
                       <span>{channel?.statusLabel || "Loading..."}</span>
+                      {channel?.recentStatusLabel ? <span>{channel.recentStatusLabel}</span> : null}
                     </div>
                     {item.lockedTier ? (
                       <span className={styles.lockGroup}>
@@ -1047,7 +1048,7 @@ export function StockRadarAlertsV2({
                     <div className={styles.inlineToggle}>
                       <ToggleSwitch
                         checked={Boolean(deliveryState[item.id])}
-                        disabled={locked || !implemented || settingsLoading}
+                        disabled={locked || !implemented || settingsLoading || (channel ? !channel.canEnable && !deliveryState[item.id] : false)}
                         label={`Toggle ${item.title}`}
                         onChange={() =>
                           void updateDeliveryChannel(
