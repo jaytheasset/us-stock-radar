@@ -37,6 +37,7 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   }
 
   const row = eventResult.data as DbRow;
+  const eventMetadata = readRecord(row.metadata);
   const canonical = resolveCanonicalEventFields(row);
   const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];
   const eventTicker = readTicker(row.ticker);
@@ -77,6 +78,15 @@ export async function normalizeAlertEvent(eventId: string): Promise<
       publishedAt,
       metadata: {
         source_group: canonical.sourceGroup,
+        source_code: readString(row.source_code),
+        form_type:
+          readString(eventMetadata.form_type) ||
+          readString(eventMetadata.sec_form_type) ||
+          readString(eventMetadata.formType),
+        provider:
+          readString(eventMetadata.provider) ||
+          readString(eventMetadata.provider_name),
+        agency: readString(eventMetadata.agency),
         delivery_level: canonical.deliveryLevel,
         score: canonical.score,
         impact: canonical.impact,
@@ -159,6 +169,12 @@ function readNumber(value: unknown, fallback = Number.NaN) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return fallback;
+}
+
+function readRecord(value: unknown): DbRow {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as DbRow)
+    : {};
 }
 
 function formatSource(value: string) {

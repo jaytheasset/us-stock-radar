@@ -57,7 +57,7 @@ export function buildTelegramAlertKeyboard(
   }
 
   const secondary = [];
-  const analysisPath = getCanonicalAnalysisPath(event);
+  const analysisPath = getCanonicalAlertAnalysisPath(event);
   if (analysisPath) {
     secondary.push({ text: "View Analysis", url: buildAbsoluteUrl(baseUrl, analysisPath) });
   }
@@ -110,7 +110,7 @@ export function formatEventTimeEt(value?: string) {
   return `${formatted} ET`;
 }
 
-function getCanonicalAnalysisPath(event: NormalizedAlertEvent) {
+export function getCanonicalAlertAnalysisPath(event: NormalizedAlertEvent) {
   if (!event.id.trim()) return "";
   if (event.sourceType === "filing") return `/filings/${encodeURIComponent(event.id)}`;
   if (event.sourceType === "news") return `/events/${encodeURIComponent(event.id)}`;

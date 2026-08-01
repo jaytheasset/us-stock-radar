@@ -167,6 +167,52 @@ export type CalendarAlertDeliveryResult = {
   error?: string;
 };
 
+export type PublicTelegramBroadcastStatus =
+  | "pending"
+  | "attempting"
+  | "sent"
+  | "failed"
+  | "suppressed"
+  | "uncertain";
+
+export type PublicTelegramBroadcastRow = {
+  id: string;
+  event_id: string;
+  status: PublicTelegramBroadcastStatus;
+  scheduled_for: string;
+  next_retry_at: string | null;
+};
+
+export type PublicTelegramBroadcastItemResult = {
+  eventId: string;
+  action:
+    | "would_send"
+    | "sent"
+    | "failed"
+    | "suppressed"
+    | "in_progress"
+    | "disabled";
+  duplicatePrevented: boolean;
+  error?: string;
+};
+
+export type PublicTelegramBroadcastResult = {
+  ok: boolean;
+  dryRun: boolean;
+  write: boolean;
+  scanned: number;
+  processed: number;
+  wouldProcess: number;
+  sent: number;
+  failed: number;
+  suppressed: number;
+  disabled: number;
+  duplicatesPrevented: number;
+  inProgress: number;
+  items: PublicTelegramBroadcastItemResult[];
+  error?: string;
+};
+
 export type RunAlertDeliveryBatchOptions = {
   dryRun?: boolean;
   write?: boolean;
@@ -212,8 +258,10 @@ export type RunAlertDeliverySchedulerOptions = {
   limit?: number;
   lookbackHours?: number;
   queuedLimit?: number;
+  publicTelegramLimit?: number;
   skipBatch?: boolean;
   skipQueued?: boolean;
+  skipPublicTelegram?: boolean;
   skipCalendar?: boolean;
   calendarLimit?: number;
   lockTtlSeconds?: number;
@@ -229,6 +277,7 @@ export type RunAlertDeliverySchedulerResult = {
   lockSkipped?: boolean;
   batch?: RunAlertDeliveryBatchResult | null;
   queued?: ProcessQueuedDeliveryResult | null;
+  publicTelegram?: PublicTelegramBroadcastResult | null;
   calendar?: CalendarAlertDeliveryResult | null;
   error?: string;
 };
