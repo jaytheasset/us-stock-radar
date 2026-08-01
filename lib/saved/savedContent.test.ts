@@ -59,10 +59,11 @@ test("Watchlist, Save, and Follow Event remain separate actions", () => {
   assert.doesNotMatch(calendar, /SavedContentButton|Bookmark/);
   assert.match(stockPage, /Star/);
   assert.doesNotMatch(stockPage, /SavedContentButton/);
-  for (const watchlistSurface of [dashboardDetail, filingsDetail]) {
-    assert.match(watchlistSurface, /Star/);
-    assert.doesNotMatch(watchlistSurface, /Bookmark/);
-  }
+  assert.match(dashboardDetail, /Star/);
+  assert.doesNotMatch(dashboardDetail, /Bookmark/);
+  assert.match(filingsDetail, /WatchlistButton/);
+  assert.match(filingsDetail, /SavedContentButton/);
+  assert.match(filingsDetail, /record\.ticker \? \(/);
   assert.match(
     actionStyles,
     /\.button \{[\s\S]*width: 36px;[\s\S]*height: 36px;[\s\S]*border: 0;[\s\S]*color: var\(--sr-color-text-control-strong\);[\s\S]*background: transparent;/,

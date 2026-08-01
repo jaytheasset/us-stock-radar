@@ -20,7 +20,103 @@ import {
   type FilingsV2SummaryMetrics,
 } from "@/lib/filingsV2Model";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import {
+  getSavedContentOverride,
+  getWatchlistOverride,
+  subscribeToUserContentChanges,
+} from "@/lib/userContentSync";
 import styles from "./StockRadarFilingsV2.module.css";
+
+const savedContentBatchSize = 100;
+
+type FilingsViewerContentState = {
+  authenticated: boolean;
+  savedIds: Set<string>;
+  watchedTickers: Set<string>;
+};
+
+async function loadFilingsViewerContentState(
+  records: readonly FilingsV2Record[],
+  signal: AbortSignal,
+): Promise<FilingsViewerContentState> {
+  const contentIds = Array.from(
+    new Set(records.map((record) => record.id.toLowerCase())),
+  );
+  const contentIdBatches = Array.from(
+    { length: Math.ceil(contentIds.length / savedContentBatchSize) },
+    (_, index) =>
+      contentIds.slice(
+        index * savedContentBatchSize,
+        (index + 1) * savedContentBatchSize,
+      ),
+  );
+  const [savedPayloads, watchlistPayload] = await Promise.all([
+    Promise.all(
+      contentIdBatches.map(async (batch) => {
+        const search = new URLSearchParams({
+          contentIds: batch.join(","),
+          contentType: "filing",
+        });
+        const response = await fetch(`/api/saved?${search.toString()}`, {
+          cache: "no-store",
+          signal,
+        });
+        const payload = (await response.json()) as {
+          authenticated?: boolean;
+          savedIds?: string[];
+        };
+        if (!response.ok) throw new Error("Saved filing state unavailable");
+        return payload;
+      }),
+    ),
+    fetch("/api/watchlist", { cache: "no-store", signal }).then(
+      async (response) => {
+        const payload = (await response.json()) as {
+          data?: { items?: Array<{ ticker?: string }> };
+        };
+        if (!response.ok) throw new Error("Watchlist state unavailable");
+        return payload;
+      },
+    ),
+  ]);
+  const authenticated = savedPayloads.some(
+    (payload) => payload.authenticated === true,
+  );
+  const serverSavedIds = new Set(
+    savedPayloads
+      .flatMap((payload) => payload.savedIds || [])
+      .map((contentId) => contentId.toLowerCase()),
+  );
+  const serverWatchedTickers = new Set(
+    (watchlistPayload.data?.items || [])
+      .map((item) => item.ticker?.trim().toUpperCase() || "")
+      .filter(Boolean),
+  );
+  const relevantTickers = Array.from(
+    new Set(
+      records
+        .map((record) => record.ticker?.trim().toUpperCase() || "")
+        .filter(Boolean),
+    ),
+  );
+
+  return {
+    authenticated,
+    savedIds: new Set(
+      contentIds.filter(
+        (contentId) =>
+          getSavedContentOverride("filing", contentId) ??
+          serverSavedIds.has(contentId),
+      ),
+    ),
+    watchedTickers: new Set(
+      relevantTickers.filter(
+        (ticker) =>
+          getWatchlistOverride(ticker) ?? serverWatchedTickers.has(ticker),
+      ),
+    ),
+  };
+}
 
 function buildFilingsV2RequestUrl(
   filters: FilingsV2FilterState,
@@ -54,6 +150,9 @@ function buildFilingsV2RequestUrl(
 type StockRadarFilingsV2Props = {
   formOptions: readonly string[];
   hasMore: boolean;
+  initialAuthenticated: boolean;
+  initialSavedIds: readonly string[];
+  initialWatchedTickers: readonly string[];
   nextCursor: FilingsV2Cursor | null;
   preferredSourceUrl?: string | null;
   records: readonly FilingsV2Record[];
@@ -67,6 +166,9 @@ type StockRadarFilingsV2Props = {
 export function StockRadarFilingsV2({
   formOptions,
   hasMore,
+  initialAuthenticated,
+  initialSavedIds,
+  initialWatchedTickers,
   nextCursor,
   preferredSourceUrl,
   records,
@@ -90,6 +192,18 @@ export function StockRadarFilingsV2({
   const [selectedId, setSelectedId] = useState(records[0]?.id ?? "");
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [viewerAuthenticated, setViewerAuthenticated] = useState(
+    initialAuthenticated,
+  );
+  const [savedIds, setSavedIds] = useState(
+    () => new Set(initialSavedIds.map((contentId) => contentId.toLowerCase())),
+  );
+  const [watchedTickers, setWatchedTickers] = useState(
+    () =>
+      new Set(
+        initialWatchedTickers.map((ticker) => ticker.trim().toUpperCase()),
+      ),
+  );
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const detailOpenerRef = useRef<HTMLElement | null>(null);
   const detailSelectionAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -97,12 +211,65 @@ export function StockRadarFilingsV2({
   const detailRailScrollProgressRef = useRef(0);
   const filterOpenerRef = useRef<HTMLButtonElement | null>(null);
   const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const didSkipInitialViewerRefreshRef = useRef(false);
   const requestKey = useMemo(() => JSON.stringify({ filters, query }), [filters, query]);
   const lastRequestKeyRef = useRef(requestKey);
   const remainingCount = Math.max(pageTotalCount - pageRecords.length, 0);
   const tallRailAdCount = Math.max(1, Math.ceil(pageRecords.length / 12) - 1);
   const selectedRecord = resolveFilingsV2SelectedRecord(pageRecords, selectedId);
   const relatedRecords = selectedRecord?.relatedFilings ?? [];
+  const selectedSaved = selectedRecord
+    ? getSavedContentOverride("filing", selectedRecord.id) ??
+      savedIds.has(selectedRecord.id.toLowerCase())
+    : false;
+  const selectedTicker = selectedRecord?.ticker?.trim().toUpperCase() || "";
+  const selectedWatched = selectedTicker
+    ? getWatchlistOverride(selectedTicker) ?? watchedTickers.has(selectedTicker)
+    : false;
+
+  useEffect(
+    () =>
+      subscribeToUserContentChanges((change) => {
+        if (change.kind === "saved" && change.contentType === "filing") {
+          setSavedIds((current) => {
+            const next = new Set(current);
+            if (change.value) next.add(change.contentId.toLowerCase());
+            else next.delete(change.contentId.toLowerCase());
+            return next;
+          });
+        }
+        if (change.kind === "watchlist") {
+          setWatchedTickers((current) => {
+            const next = new Set(current);
+            if (change.value) next.add(change.ticker);
+            else next.delete(change.ticker);
+            return next;
+          });
+        }
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    if (!didSkipInitialViewerRefreshRef.current) {
+      didSkipInitialViewerRefreshRef.current = true;
+      return;
+    }
+    if (!pageRecords.length) return;
+
+    const controller = new AbortController();
+    void loadFilingsViewerContentState(pageRecords, controller.signal)
+      .then((viewerState) => {
+        setViewerAuthenticated(viewerState.authenticated);
+        setSavedIds(viewerState.savedIds);
+        setWatchedTickers(viewerState.watchedTickers);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      });
+
+    return () => controller.abort();
+  }, [pageRecords]);
 
   useEffect(() => {
     if (pageRecords.length > 0 && !pageRecords.some((record) => record.id === selectedId)) {
@@ -378,6 +545,9 @@ export function StockRadarFilingsV2({
             ref={detailSelectionAnchorRef}
           >
             <FilingsV2DetailPanel
+              initialAuthenticated={viewerAuthenticated}
+              initialSaved={selectedSaved}
+              initialWatched={selectedWatched}
               record={selectedRecord}
               relatedRecords={relatedRecords}
               showAds={viewerPlan === "free"}
@@ -397,6 +567,9 @@ export function StockRadarFilingsV2({
 
       {selectedRecord ? (
         <MobileFilingsV2DetailSheet
+          initialAuthenticated={viewerAuthenticated}
+          initialSaved={selectedSaved}
+          initialWatched={selectedWatched}
           isOpen={isDetailSheetOpen}
           onDismiss={() => setIsDetailSheetOpen(false)}
           openerRef={detailOpenerRef}
