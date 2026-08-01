@@ -111,13 +111,6 @@ export function buildPublicTelegramBroadcastKeyboard(
     event.primaryTicker || event.tickers[0] || "",
   );
   const buttons: TelegramInlineKeyboardMarkup["inline_keyboard"][number] = [];
-  const analysisPath = getCanonicalAlertAnalysisPath(event);
-  if (analysisPath) {
-    buttons.push({
-      text: "View Analysis",
-      url: buildAbsoluteUrl(baseUrl, analysisPath),
-    });
-  }
   if (ticker && event.marketScope === "company") {
     buttons.push({
       text: `Enter ${ticker} Live Room`,
@@ -126,6 +119,13 @@ export function buildPublicTelegramBroadcastKeyboard(
         `/live/${encodeURIComponent(ticker)}`,
         { event: event.id, src: "telegram" },
       ),
+    });
+  }
+  const analysisPath = getCanonicalAlertAnalysisPath(event);
+  if (analysisPath) {
+    buttons.push({
+      text: "View Analysis",
+      url: buildAbsoluteUrl(baseUrl, analysisPath),
     });
   }
   return buttons.length ? { inline_keyboard: [buttons] } : undefined;
