@@ -10,6 +10,7 @@ import {
 import {
   claimAdminTelegramCampaign,
   claimDueAdminTelegramCampaign,
+  expireAdminTelegramCampaignLeases,
   finishAdminTelegramCampaign,
   type AdminTelegramCampaign,
 } from "./telegramCampaigns";
@@ -67,6 +68,7 @@ export async function runDueAdminTelegramCampaigns(input: {
   const limit = Math.max(1, Math.min(Math.trunc(input.limit || 10), 50));
   const trigger = input.trigger || "scheduler";
   const transport = input.transport || sendTelegramMessage;
+  const expiredLeases = await expireAdminTelegramCampaignLeases(50);
   const configuration = resolveDeliveryConfiguration(transport);
   if (!configuration.ok) {
     return {
@@ -75,6 +77,7 @@ export async function runDueAdminTelegramCampaigns(input: {
       sent: 0,
       failed: 0,
       uncertain: 0,
+      expiredLeases,
       disabled: true,
       items: [] as AdminTelegramCampaignDeliveryResult[],
       error: configuration.error,
@@ -104,6 +107,7 @@ export async function runDueAdminTelegramCampaigns(input: {
     sent: items.filter((item) => item.action === "sent").length,
     failed: items.filter((item) => item.action === "failed").length,
     uncertain: items.filter((item) => item.action === "uncertain").length,
+    expiredLeases,
     disabled: false,
     items,
     error: items.find((item) => item.error)?.error,

@@ -286,6 +286,7 @@ export type RunAlertDeliverySchedulerResult = {
     sent: number;
     failed: number;
     uncertain: number;
+    expiredLeases: number;
     disabled: boolean;
     error?: string;
   } | null;

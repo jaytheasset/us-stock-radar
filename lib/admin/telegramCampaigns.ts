@@ -31,6 +31,7 @@ export type AdminTelegramCampaign = AdminTelegramCampaignContent & {
   sentAt: string | null;
   canceledAt: string | null;
   startedAt: string | null;
+  leaseExpiresAt: string | null;
   completedAt: string | null;
   providerMessageId: string | null;
   deliveryOutcome: "none" | "sent" | "not_sent" | "uncertain";
@@ -228,6 +229,51 @@ export async function finishAdminTelegramCampaign(input: {
   };
 }
 
+export async function expireAdminTelegramCampaignLeases(limit = 50) {
+  const result = await supabaseRpc("expire_admin_telegram_campaign_leases", {
+    p_limit: Math.max(1, Math.min(Math.trunc(limit), 250)),
+  });
+  if (!result.ok) {
+    throw new Error(
+      result.error || "ADMIN_TELEGRAM_LEASE_CLEANUP_FAILED",
+    );
+  }
+  const expired = Number(result.data);
+  return Number.isInteger(expired) && expired >= 0 ? expired : 0;
+}
+
+export async function reconcileAdminTelegramCampaign(input: {
+  actorUserId: string;
+  campaignId: unknown;
+  reconciliation: "delivered" | "not_delivered";
+  reason: unknown;
+  expectedVersion: unknown;
+  requestId?: string;
+}) {
+  const expectedVersion = optionalPositiveInt(input.expectedVersion);
+  if (!expectedVersion) {
+    throw new Error("ADMIN_TELEGRAM_EXPECTED_VERSION_REQUIRED");
+  }
+  const result = await supabaseRpc("admin_reconcile_telegram_campaign", {
+    p_actor_user_id: input.actorUserId,
+    p_campaign_id: requireUuid(input.campaignId),
+    p_reconciliation: input.reconciliation,
+    p_reason: readString(input.reason),
+    p_expected_version: expectedVersion,
+    p_request_id: cleanRequestId(input.requestId),
+  });
+  if (!result.ok) {
+    throw new Error(
+      result.error || "ADMIN_TELEGRAM_RECONCILIATION_FAILED",
+    );
+  }
+  const row = readRows(result.data)[0];
+  if (!row) throw new Error("ADMIN_TELEGRAM_CAMPAIGN_STATE_CONFLICT");
+  return enrichCampaignActors([readCampaign(row)]).then(
+    (campaigns) => campaigns[0] || null,
+  );
+}
+
 export async function claimAdminTelegramAiDraft(input: {
   actorUserId: string;
   reason: unknown;
@@ -286,6 +332,7 @@ const CAMPAIGN_SELECT = [
   "sent_at",
   "canceled_at",
   "started_at",
+  "lease_expires_at",
   "completed_at",
   "provider_message_id",
   "delivery_outcome",
@@ -369,6 +416,7 @@ function readCampaign(row: Row): AdminTelegramCampaign {
     sentAt: readNullableString(row.sent_at),
     canceledAt: readNullableString(row.canceled_at),
     startedAt: readNullableString(row.started_at),
+    leaseExpiresAt: readNullableString(row.lease_expires_at),
     completedAt: readNullableString(row.completed_at),
     providerMessageId: readNullableString(row.provider_message_id),
     deliveryOutcome: readDeliveryOutcome(row.delivery_outcome),
