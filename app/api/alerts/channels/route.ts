@@ -10,11 +10,9 @@ import {
 } from "@/lib/alerts/alertValidation";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseSelect, supabaseUpsert } from "@/lib/supabase";
-import { supabaseUpdate } from "@/lib/supabase";
 import type { AlertChannel } from "@/lib/subscriptionPolicy";
 import { getAuthUserById, getVerifiedAuthEmail } from "@/lib/auth/getAuthUserById";
 import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
-import { verifyEmailUnsubscribeToken } from "@/lib/alerts/emailUnsubscribeToken";
 
 export const dynamic = "force-dynamic";
 
@@ -27,21 +25,6 @@ type ChannelRow = {
   verified_at?: unknown;
   metadata?: unknown;
 };
-
-export async function GET(request: NextRequest) {
-  const verified = verifyUnsubscribeRequest(request);
-  if (!verified) return new NextResponse("Invalid or expired unsubscribe link.", { status: 400, headers: NO_STORE_HEADERS });
-  const escapedToken = verified.token.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  return new NextResponse(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribe</title><body><main><h1>Turn off Stock Radar alert emails?</h1><p>This keeps Web, Telegram, tickers, and other alert settings unchanged.</p><form method="post" action="?unsubscribe=${escapedToken}"><button type="submit">Turn off Email alerts</button></form></main></body></html>`, { headers: { ...NO_STORE_HEADERS, "Content-Type": "text/html; charset=utf-8" } });
-}
-
-export async function POST(request: NextRequest) {
-  const verified = verifyUnsubscribeRequest(request);
-  if (!verified) return new NextResponse("Invalid or expired unsubscribe link.", { status: 400, headers: NO_STORE_HEADERS });
-  const result = await supabaseUpdate("user_delivery_channels", { user_id: `eq.${verified.userId}`, channel: "eq.email" }, { enabled: false });
-  if (!result.ok) return new NextResponse("Unable to update Email alerts.", { status: 503, headers: NO_STORE_HEADERS });
-  return new NextResponse("Email alerts are off. Other alert channels remain unchanged.", { headers: NO_STORE_HEADERS });
-}
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -183,13 +166,6 @@ function isConnectedRow(channel: AlertChannel, row?: ChannelRow) {
 
 function isEmailSuppressed(value: unknown) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) && (value as { email_suppressed?: unknown }).email_suppressed === true);
-}
-
-function verifyUnsubscribeRequest(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("unsubscribe")?.trim() || "";
-  const secret = getAlertEmailConfig().unsubscribeSecret;
-  const verified = verifyEmailUnsubscribeToken(token, secret);
-  return verified ? { ...verified, token } : null;
 }
 
 function channelLabel(channel: AlertChannel) {
