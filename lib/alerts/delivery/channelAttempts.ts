@@ -15,6 +15,8 @@ export type AlertDeliveryAttemptStatus =
 type ClaimRow = {
   acquired?: unknown;
   attempt_status?: unknown;
+  retry_at?: unknown;
+  attempt_number?: unknown;
 };
 
 export async function claimAlertDeliveryChannelAttempt({
@@ -52,7 +54,18 @@ export async function claimAlertDeliveryChannelAttempt({
     acquired: row?.acquired === true,
     attemptToken,
     status: readAttemptStatus(row?.attempt_status),
+    retryAt: readString(row?.retry_at) || null,
+    attemptNumber: readInteger(row?.attempt_number),
   };
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readInteger(value: unknown) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : 0;
 }
 
 export async function finishAlertDeliveryChannelAttempt({

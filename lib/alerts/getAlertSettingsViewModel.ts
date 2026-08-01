@@ -26,6 +26,8 @@ import {
   IMPLEMENTED_ALERT_CHANNELS,
 } from "@/lib/alerts/alertValidation";
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem, DeliveryChannelState } from "@/lib/alerts/types";
+import { getAuthUserById, getVerifiedAuthEmail, maskEmailAddress } from "@/lib/auth/getAuthUserById";
+import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
 
 type AlertPreferencesRow = {
   watchlist_news_enabled?: unknown;
@@ -68,6 +70,8 @@ type DeliveredAlertRow = {
   read_at?: unknown;
 };
 
+type EmailAttemptRow = { status?: unknown; provider_status?: unknown; updated_at?: unknown };
+
 export async function getAlertSettingsViewModel(userId: string): Promise<AlertSettingsViewModel> {
   const planState = await getEffectiveUserPlan(userId);
   const plan = planState.effectivePlan;
@@ -80,6 +84,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     channelsResult,
     deliveriesResult,
     calendarEventFollows,
+    authUser,
+    emailAttemptsResult,
   ] = await Promise.all([
     supabaseSelect("user_alert_tickers", {
       select: "id",
@@ -111,6 +117,14 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       limit: "5",
     }),
     getUserCalendarFollowsViewModel(userId, plan),
+    getAuthUserById(userId),
+    supabaseSelect("alert_delivery_channel_attempts", {
+      select: "status,provider_status,updated_at",
+      user_id: `eq.${userId}`,
+      channel: "eq.email",
+      order: "updated_at.desc",
+      limit: "1",
+    }),
   ]);
 
   const alertTickers = Array.isArray(alertTickersResult.data)
@@ -123,7 +137,12 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
   const selectedCategories = readSelectedCategories(categoriesResult.data).filter((category) =>
     allowedDiscoveryCategories.has(category),
   );
-  const channels = buildDeliveryChannels(plan, Array.isArray(channelsResult.data) ? channelsResult.data : []);
+  const channels = buildDeliveryChannels(
+    plan,
+    Array.isArray(channelsResult.data) ? channelsResult.data : [],
+    getVerifiedAuthEmail(authUser),
+    Array.isArray(emailAttemptsResult.data) ? emailAttemptsResult.data[0] as EmailAttemptRow | undefined : undefined,
+  );
   const recentDeliveredAlerts = mapDeliveredAlerts(Array.isArray(deliveriesResult.data) ? deliveriesResult.data : []);
 
   return {
@@ -184,7 +203,7 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
         channel: "web",
         enabled: true,
       },
-    ]),
+    ], null, undefined),
     followedCalendarEvents: [],
     calendarEventFollowUsage: {
       activeCount: 0,
@@ -291,7 +310,12 @@ function readSelectedCategories(data: unknown): PublicAlertCategory[] {
   return selected;
 }
 
-function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], rows: unknown[]): DeliveryChannelState[] {
+function buildDeliveryChannels(
+  plan: Parameters<typeof getChannelLockState>[0],
+  rows: unknown[],
+  authEmail: { email: string; verifiedAt: string } | null,
+  recentEmailAttempt?: EmailAttemptRow,
+): DeliveryChannelState[] {
   const rowsByChannel = new Map<AlertChannel, DeliveryChannelRow>();
   for (const row of rows as DeliveryChannelRow[]) {
     const channel = stringValue(row.channel);
@@ -304,10 +328,16 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
     const locked = getChannelLockState(plan, channel);
     const available = !locked && implemented;
     const row = rowsByChannel.get(channel);
-    const connected = isChannelConnected(channel, row);
-    const accountLabel = channel === "telegram" ? readTelegramAccountLabel(row?.metadata) : null;
+    const emailConfig = getAlertEmailConfig();
+    const connected = channel === "email" ? Boolean(authEmail) : isChannelConnected(channel, row);
+    const accountLabel = channel === "telegram"
+      ? readTelegramAccountLabel(row?.metadata)
+      : channel === "email" && authEmail ? maskEmailAddress(authEmail.email) : null;
+    const suppressed = channel === "email" && isEmailSuppressed(row?.metadata);
+    const configured = channel !== "email" || emailConfig.configured;
+    const canEnable = available && connected && configured && !suppressed;
     const enabled =
-      available &&
+      canEnable &&
       connected &&
       (row?.enabled === true || (channel === "web" && !row));
     return {
@@ -320,9 +350,14 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
       implemented,
       availabilityLabel: getChannelAvailabilityLabel(plan, channel),
       statusLabel: implemented
-        ? getChannelStatusLabel({ channel, available, connected, enabled, accountLabel })
+        ? getChannelStatusLabel({ channel, available, connected, enabled, accountLabel, configured, sendingEnabled: emailConfig.sendingEnabled, suppressed })
         : "Not available",
       accountLabel,
+      canEnable,
+      configured,
+      sendingEnabled: channel === "email" ? emailConfig.sendingEnabled : undefined,
+      suppressed,
+      recentStatusLabel: channel === "email" ? formatEmailAttemptStatus(recentEmailAttempt) : null,
     };
   });
 }
@@ -339,19 +374,56 @@ function getChannelStatusLabel({
   connected,
   enabled,
   accountLabel,
+  configured,
+  sendingEnabled,
+  suppressed,
 }: {
   channel: AlertChannel;
   available: boolean;
   connected: boolean;
   enabled: boolean;
   accountLabel: string | null;
+  configured: boolean;
+  sendingEnabled: boolean;
+  suppressed: boolean;
 }) {
   if (channel === "telegram" && connected) {
     return accountLabel ? `Connected · ${accountLabel}` : "Connected";
   }
   if (!available) return "Locked";
+  if (channel === "email") {
+    if (!connected) return "Verify your account email";
+    if (!configured) return "Email delivery is not configured";
+    if (suppressed) return "Paused after a delivery safety event";
+    if (enabled && !sendingEnabled) {
+      return accountLabel ? `Enabled · ${accountLabel} · Delivery paused` : "Enabled · Delivery paused";
+    }
+    if (enabled) return accountLabel ? `Enabled · ${accountLabel}` : "Enabled";
+    return accountLabel ? `Ready · ${accountLabel}` : "Ready";
+  }
   if (!connected) return "Not connected";
   return enabled ? "Enabled" : "Connected";
+}
+
+function isEmailSuppressed(value: unknown) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && (value as { email_suppressed?: unknown }).email_suppressed === true);
+}
+
+function formatEmailAttemptStatus(row?: EmailAttemptRow) {
+  const provider = stringValue(row?.provider_status);
+  const status = provider || stringValue(row?.status);
+  if (!status) return null;
+  const labels: Record<string, string> = {
+    "email.delivered": "Recent: Delivered",
+    "email.bounced": "Recent: Bounced",
+    "email.complained": "Recent: Complaint received",
+    "email.suppressed": "Recent: Suppressed",
+    sent: "Recent: Sent",
+    failed: "Recent: Failed",
+    uncertain: "Recent: Needs review",
+    attempting: "Recent: Sending",
+  };
+  return labels[status] || null;
 }
 
 function readTelegramAccountLabel(value: unknown) {

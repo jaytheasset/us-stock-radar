@@ -14,7 +14,7 @@ import {
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 
 export const ALL_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
-export const IMPLEMENTED_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram"];
+export const IMPLEMENTED_ALERT_CHANNELS: AlertChannel[] = ["web", "telegram", "email"];
 export const ALERT_MARKET_CAP_FILTERS = ["mega", "large", "mid", "small", "micro"] as const;
 export const ALERT_FILING_TYPE_FILTERS = [
   "8-k", "10-q", "10-k", "6-k", "20-f",

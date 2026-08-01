@@ -87,6 +87,10 @@ export async function normalizeAlertEvent(eventId: string): Promise<
           readString(eventMetadata.provider) ||
           readString(eventMetadata.provider_name),
         agency: readString(eventMetadata.agency),
+        company_name:
+          readString(row.company_name) ||
+          readString(eventMetadata.company_name) ||
+          readString(eventMetadata.companyName),
         delivery_level: canonical.deliveryLevel,
         score: canonical.score,
         impact: canonical.impact,

@@ -781,9 +781,36 @@ Also verify:
 4. Run the approved Telegram prelaunch E2E QA and restore the Production webhook.
 5. Enable production Telegram send with limited rollout.
 
+## Resend Email delivery
+
+Email uses the same queued delivery and channel-attempt worker as Web and Telegram. It is fail-closed unless all required server-only values are present:
+
+```bash
+RESEND_API_KEY=
+ALERT_EMAIL_FROM="Stock Radar <alerts@your-verified-domain.example>"
+ALERT_EMAIL_REPLY_TO=
+RESEND_WEBHOOK_SECRET=
+ALERT_EMAIL_UNSUBSCRIBE_SECRET=
+ALERT_DELIVERY_SEND_EMAIL=false
+```
+
+Set the Resend webhook URL to `https://us-stock-radar.com/api/webhooks` and subscribe to `email.delivered`, `email.bounced`, `email.complained`, and `email.suppressed`. Keep `ALERT_EMAIL_UNSUBSCRIBE_SECRET` independent from the Resend API key and webhook signing secret. A hard bounce, complaint, or provider suppression disables only that member's Email channel.
+
+Verify the sending domain in Resend before using it in `ALERT_EMAIL_FROM`. While a domain is unverified, use Resend's documented test sender `onboarding@resend.dev` only as an explicit local override; it is never a code default. Resend's safe test recipients (`delivered@resend.dev`, `bounced@resend.dev`, `complained@resend.dev`, `suppressed@resend.dev`) can exercise provider outcomes without targeting a real inbox.
+
+### One-account local test mail
+
+1. Keep ingestion cron jobs and `ALERT_DELIVERY_SEND_TELEGRAM*` off. Apply migrations with `npx supabase migration up --local`.
+2. Use an Advanced or Ultimate local account whose Supabase Auth email is verified. Enable only its Email row in `/alerts`.
+3. Run the protected manual cron once in dry-run mode and confirm exactly one queued event/account candidate: `POST /api/cron/alert-delivery?dryRun=true&queuedLimit=1&skipBatch=true&skipPublicTelegram=true&skipTelegramCampaigns=true&skipCalendar=true` with `Authorization: Bearer <ALERT_DELIVERY_CRON_SECRET>`.
+4. Set `ALERT_EMAIL_FROM` explicitly (`onboarding@resend.dev` only for the documented Resend sandbox case), configure the secrets, and set `ALERT_DELIVERY_CRON_WRITE_ENABLED=true` plus `ALERT_DELIVERY_SEND_EMAIL=true` only in the isolated local server process.
+5. Invoke the same `POST` URL with `write=true&queuedLimit=1` and the manual cron authorization header. Do not run the legacy CLI processor for this test; the Route Handler exercises the production TypeScript adapter.
+6. Confirm one `email` channel attempt, its provider message id, and webhook status. Restore `ALERT_DELIVERY_SEND_EMAIL=false` immediately after the single test.
+
+Definite provider rejections retry after five minutes, at most three attempts, using the stable delivery/channel Resend idempotency key. Network or persistence ambiguity becomes `uncertain` and is never retried automatically.
+
 ## Not Now
 
-- Email adapter.
 - Webhook/API adapter.
 - Saved Alert Rules.
 
@@ -792,3 +819,7 @@ Also verify:
 - Vercel Cron Jobs: https://vercel.com/docs/cron-jobs
 - Vercel Functions runtimes: https://vercel.com/docs/functions/runtimes
 - Vercel environment variables: https://vercel.com/docs/environment-variables
+- Resend send email API: https://resend.com/docs/api-reference/emails/send-email
+- Resend idempotency keys: https://resend.com/docs/dashboard/emails/idempotency-keys
+- Resend webhook verification: https://resend.com/docs/webhooks/verify-webhooks-requests
+- Resend one-click unsubscribe: https://resend.com/docs/dashboard/emails/add-unsubscribe-to-transactional-emails

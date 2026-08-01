@@ -8,6 +8,9 @@ import { normalizeAlertEvent } from "@/lib/alerts/delivery/normalizeAlertEvent";
 import { getServerEnv } from "@/lib/env";
 import { buildTelegramAlertPresentation } from "@/lib/telegram/telegramAlertMessage";
 import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
+import { sendAlertEmail } from "@/lib/alerts/sendAlertEmail";
+import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
+import { getAuthUserById, getVerifiedAuthEmail } from "@/lib/auth/getAuthUserById";
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import {
@@ -29,6 +32,7 @@ type DeliveryChannelRow = {
   enabled?: unknown;
   destination?: unknown;
   verified_at?: unknown;
+  metadata?: unknown;
 };
 
 type ChannelProcessingResult = {
@@ -325,6 +329,9 @@ async function processRequestedChannels(
       } else if (claim.status === "suppressed") {
         result.suppressedCount += 1;
         result.errors.push(`${channel}: delivery is suppressed.`);
+      } else if (channel === "email" && claim.retryAt) {
+        result.inProgress = true;
+        result.errors.push("email: retry is scheduled after a definite provider rejection.");
       } else {
         result.failedCount += 1;
         result.errors.push(`${channel}: previous delivery attempt failed.`);
@@ -406,6 +413,57 @@ async function processRequestedChannels(
       continue;
     }
 
+    if (channel === "email") {
+      const authEmail = getVerifiedAuthEmail(await getAuthUserById(row.user_id));
+      if (!authEmail) {
+        const error = "The current Stock Radar account email is missing or unverified.";
+        const finished = await finishAlertDeliveryChannelAttempt({
+          deliveryId: row.id,
+          channel,
+          attemptToken: claim.attemptToken,
+          status: "suppressed",
+          error,
+        });
+        result.suppressedCount += 1;
+        result.errors.push(`email: ${error}`);
+        if (!finished.ok) result.inProgress = true;
+        continue;
+      }
+      const sent = await sendAlertEmail({
+        deliveryId: row.id,
+        userId: row.user_id,
+        destination: authEmail.email,
+        event: await buildQueuedNormalizedEvent(row),
+      });
+      const status = sent.ok ? "sent" : sent.outcome === "uncertain" ? "uncertain" : "failed";
+      const error = sent.ok ? undefined : sanitizeError(sent.error || "Email send failed.");
+      const finished = await finishAlertDeliveryChannelAttempt({
+        deliveryId: row.id,
+        channel,
+        attemptToken: claim.attemptToken,
+        status,
+        providerMessageId: sent.ok ? sent.providerMessageId : undefined,
+        error,
+      });
+      if (!finished.ok) {
+        result.inProgress = true;
+        result.errors.push("email: provider outcome could not be persisted; automatic retry is blocked.");
+      } else if (sent.ok) {
+        result.sentChannels.push("email");
+      } else if (status === "uncertain") {
+        result.inProgress = true;
+        result.uncertain = true;
+        result.errors.push(`email: ${error}`);
+      } else if (claim.attemptNumber < 3) {
+        result.inProgress = true;
+        result.errors.push(`email: ${error} A bounded retry is scheduled.`);
+      } else {
+        result.failedCount += 1;
+        result.errors.push(`email: ${error}`);
+      }
+      continue;
+    }
+
     const error = `${channel} delivery adapter is not implemented yet.`;
     const finished = await finishAlertDeliveryChannelAttempt({
       deliveryId: row.id,
@@ -475,7 +533,7 @@ async function suppressQueuedDeliveryForPolicy(
 
 async function fetchChannelRows(userId: string) {
   const result = await supabaseSelect("user_delivery_channels", {
-    select: "channel,enabled,destination,verified_at",
+    select: "channel,enabled,destination,verified_at,metadata",
     user_id: `eq.${userId}`,
     limit: "20",
   });
@@ -507,6 +565,10 @@ function isChannelReady(
       Boolean(process.env.TELEGRAM_BOT_TOKEN)
     );
   }
+  if (channel === "email") {
+    const config = getAlertEmailConfig();
+    return config.sendingEnabled && row?.enabled === true && Boolean(readString(row.destination)) && Boolean(readString(row.verified_at)) && !isEmailSuppressed(row.metadata);
+  }
   return false;
 }
 
@@ -530,6 +592,14 @@ function channelUnavailableReason(
     if (!readString(row.destination) || !readString(row.verified_at)) {
       return "Telegram is not connected and verified.";
     }
+  }
+  if (channel === "email") {
+    const config = getAlertEmailConfig();
+    if (!config.configured) return "Email delivery is not configured.";
+    if (!config.sendingEnabled) return "Email sending is disabled by ALERT_DELIVERY_SEND_EMAIL.";
+    if (row?.enabled !== true) return "Email delivery is disabled.";
+    if (!readString(row.destination) || !readString(row.verified_at)) return "The account email is missing or unverified.";
+    if (isEmailSuppressed(row.metadata)) return "Email delivery is suppressed after a provider safety event.";
   }
   return `${channel} delivery is not implemented yet.`;
 }
@@ -562,12 +632,18 @@ async function markDeliveryFailed(
 }
 
 async function buildQueuedTelegramPresentation(row: QueuedAlertDeliveryRow) {
-  const normalized = row.alert_event_id
-    ? await normalizeAlertEvent(row.alert_event_id)
-    : null;
-  const event = normalized?.ok
-    ? normalized.event
-    : {
+  const event = await buildQueuedNormalizedEvent(row);
+  const env = getServerEnv();
+  return buildTelegramAlertPresentation(event, {
+    baseUrl: env.appBaseUrl,
+    callbackSecret: env.telegramWebhookSecret,
+    callbackSubject: row.user_id,
+  });
+}
+
+async function buildQueuedNormalizedEvent(row: QueuedAlertDeliveryRow) {
+  const normalized = row.alert_event_id ? await normalizeAlertEvent(row.alert_event_id) : null;
+  return normalized?.ok ? normalized.event : {
         id: row.alert_event_id || row.id,
         title: row.title,
         tickers: row.ticker ? [row.ticker] : [],
@@ -578,12 +654,10 @@ async function buildQueuedTelegramPresentation(row: QueuedAlertDeliveryRow) {
         severity: row.severity || undefined,
         marketScope: "macro" as const,
       };
-  const env = getServerEnv();
-  return buildTelegramAlertPresentation(event, {
-    baseUrl: env.appBaseUrl,
-    callbackSecret: env.telegramWebhookSecret,
-    callbackSubject: row.user_id,
-  });
+}
+
+function isEmailSuppressed(value: unknown) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && (value as { email_suppressed?: unknown }).email_suppressed === true);
 }
 
 function readQueuedRow(value: unknown): QueuedAlertDeliveryRow | null {

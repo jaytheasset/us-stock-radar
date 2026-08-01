@@ -187,7 +187,8 @@ test("in-app delivery is real, readable, and external channel entitlements stay 
   );
   assert.doesNotMatch(componentSource, deferredCopyPattern);
   assert.match(componentSource, /item\.lockedTier/);
-  assert.match(componentSource, /disabled=\{locked \|\| !implemented \|\| settingsLoading\}/);
+  assert.match(componentSource, /disabled=\{locked \|\| !implemented \|\| settingsLoading \|\|/);
+  assert.match(componentSource, /!channel\.canEnable && !deliveryState\[item\.id\]/);
   assert.match(alertsConfigSource, /id: "telegram"[\s\S]*lockedTier: "PRO"/);
   assert.match(alertsConfigSource, /id: "email"[\s\S]*lockedTier: "ADVANCED"/);
   assert.doesNotMatch(alertsConfigSource, /id: "webhook"|id: "api"/);
