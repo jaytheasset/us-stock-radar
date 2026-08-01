@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AdminTelegramCampaign } from "@/lib/admin/telegramCampaigns";
 import {
   ADMIN_TELEGRAM_NOTICE_TYPES,
@@ -53,11 +53,35 @@ export function AdminTelegramCampaignEditor({
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  useEffect(() => {
+    const updateClock = () => setNowMs(Date.now());
+    updateClock();
+    const interval = window.setInterval(updateClock, 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
   const editable = !campaign || campaign.status === "draft" || campaign.status === "scheduled";
   const canSend =
     campaign?.status === "draft" ||
     (campaign?.status === "failed" && campaign.retryAllowed);
   const canCancel = campaign?.status === "scheduled";
+  const leaseExpiryMs = campaign?.leaseExpiresAt
+    ? Date.parse(campaign.leaseExpiresAt)
+    : Number.NaN;
+  const leaseActive =
+    campaign?.status === "sending" &&
+    Number.isFinite(leaseExpiryMs) &&
+    (nowMs === null || leaseExpiryMs > nowMs);
+  const leaseExpired =
+    campaign?.status === "sending" &&
+    Number.isFinite(leaseExpiryMs) &&
+    nowMs !== null &&
+    leaseExpiryMs <= nowMs;
+  const canReconcile =
+    leaseExpired ||
+    (campaign?.status === "failed" &&
+      campaign.deliveryOutcome === "uncertain" &&
+      !campaign.retryAllowed);
   const preview = useMemo(() => {
     try {
       const content = normalizeAdminTelegramCampaignContent(fields, { baseUrl });
@@ -183,6 +207,40 @@ export function AdminTelegramCampaignEditor({
     });
   }
 
+  async function reconcileDelivery(
+    action: "mark_delivered" | "confirm_not_delivered",
+  ) {
+    if (!campaign) return;
+    await run(action, async () => {
+      requireReason();
+      const confirmed = window.confirm(
+        action === "mark_delivered"
+          ? "Confirm that this campaign is already visible in the public Telegram channel? No new message will be sent."
+          : "Confirm that this campaign was not delivered? This enables an explicit retry but does not send now.",
+      );
+      if (!confirmed) return;
+      const response = await callApi(
+        `/api/admin/telegram-campaigns/${campaign.id}`,
+        {
+          action,
+          expectedVersion: campaign.version,
+          reason,
+        },
+      );
+      const reconciled = response.data?.campaign;
+      if (!reconciled) {
+        throw new Error("Campaign reconciliation returned no record.");
+      }
+      setCampaign(reconciled);
+      setSuccess(
+        action === "mark_delivered"
+          ? "Marked delivered from operator verification. No Telegram message was sent."
+          : "Confirmed not delivered. An explicit retry is now available; no Telegram message was sent.",
+      );
+      router.refresh();
+    });
+  }
+
   async function createAiDraft() {
     await run("ai", async () => {
       requireReason();
@@ -258,10 +316,36 @@ export function AdminTelegramCampaignEditor({
 
       {error ? <div className={styles.error}>{error}</div> : null}
       {success ? <div className={styles.success}>{success}</div> : null}
-      {campaign?.deliveryOutcome === "uncertain" ? (
+      {leaseActive ? (
+        <div className={styles.notice}>
+          Delivery is still inside its claim lease. Wait until {formatLocal(campaign.leaseExpiresAt!)} before reconciling, or refresh after the provider result is recorded.
+        </div>
+      ) : null}
+      {canReconcile ? (
         <div className={styles.error}>
-          Telegram delivery is uncertain. Automatic and manual retries are
-          blocked until an operator reconciles the provider result.
+          <strong>Telegram delivery is uncertain.</strong> Check the actual
+          public channel, enter an operator reason below, then record exactly
+          one outcome. Neither action sends a Telegram message.
+          <div className={styles.actions}>
+            <button
+              className={styles.button}
+              disabled={Boolean(busy)}
+              onClick={() => reconcileDelivery("mark_delivered")}
+              type="button"
+            >
+              {busy === "mark_delivered" ? "Recording…" : "Mark as delivered"}
+            </button>
+            <button
+              className={styles.buttonDanger}
+              disabled={Boolean(busy)}
+              onClick={() => reconcileDelivery("confirm_not_delivered")}
+              type="button"
+            >
+              {busy === "confirm_not_delivered"
+                ? "Recording…"
+                : "Confirm not delivered"}
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -457,6 +541,12 @@ export function AdminTelegramCampaignEditor({
                 <dd>{campaign.providerMessageId || "—"}</dd>
                 <dt>Attempts</dt>
                 <dd>{campaign.attemptCount}</dd>
+                <dt>Claim lease</dt>
+                <dd>
+                  {campaign.leaseExpiresAt
+                    ? `Expires ${formatLocal(campaign.leaseExpiresAt)}`
+                    : "—"}
+                </dd>
                 <dt>Outcome</dt>
                 <dd>{campaign.deliveryOutcome}</dd>
                 <dt>Last error</dt>

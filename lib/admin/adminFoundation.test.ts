@@ -26,6 +26,9 @@ const roomControlsMigration = read(
 const telegramCampaignMigration = read(
   "supabase/migrations/20260801105641_admin_telegram_campaigns.sql",
 );
+const telegramLeaseMigration = read(
+  "supabase/migrations/20260801124443_admin_telegram_delivery_leases.sql",
+);
 const adminLayout = read("app/admin/layout.tsx");
 const adminServer = read("lib/admin/server.ts");
 const adminApi = read("lib/admin/api.ts");
@@ -62,6 +65,9 @@ const telegramLocalDueApi = read(
   "app/api/admin/telegram-campaigns/run-due/route.ts",
 );
 const telegramDelivery = read("lib/admin/telegramCampaignDelivery.ts");
+const telegramEditor = read(
+  "components/admin/AdminTelegramCampaignEditor.tsx",
+);
 const telegramAiRuntime = read("lib/admin/telegramCampaignAi.ts");
 const roomsRepository = read("lib/admin/rooms.ts");
 const adminShell = read("components/admin/AdminShell.tsx");
@@ -174,7 +180,7 @@ test("Telegram Channel operations use dedicated permissions and server-only muta
   );
   assert.match(
     telegramMutationApi,
-    /action === "send_now" \? "telegram\.send" : "telegram\.write"/,
+    /"send_now",[\s\S]*"mark_delivered",[\s\S]*"confirm_not_delivered"[\s\S]*\? "telegram\.send"/,
   );
   assert.match(
     telegramAiApi,
@@ -192,6 +198,48 @@ test("Telegram Channel operations use dedicated permissions and server-only muta
   ]) {
     assert.match(route, /assertSameOriginAuthRequest\(request\)/);
   }
+});
+
+test("Telegram delivery claims expire safely and require operator reconciliation", () => {
+  assert.match(
+    telegramLeaseMigration,
+    /pg_catalog\.make_interval\(mins => 10\)/,
+  );
+  assert.match(telegramLeaseMigration, /lease_expires_at timestamptz/i);
+  assert.match(telegramLeaseMigration, /for update skip locked/i);
+  assert.match(
+    telegramLeaseMigration,
+    /status = 'failed'[\s\S]*delivery_outcome = 'uncertain'[\s\S]*retry_allowed = false/i,
+  );
+  assert.match(
+    telegramLeaseMigration,
+    /telegram_campaign\.delivery_lease_expired/i,
+  );
+  assert.match(
+    telegramLeaseMigration,
+    /p_reconciliation not in \('delivered', 'not_delivered'\)/i,
+  );
+  assert.match(
+    telegramLeaseMigration,
+    /telegram_send_invoked', false/i,
+  );
+  assert.doesNotMatch(
+    telegramLeaseMigration,
+    /sendTelegramMessage|api\.telegram\.org/i,
+  );
+  assert.match(
+    telegramLeaseMigration,
+    /revoke all on function public\.expire_admin_telegram_campaign_leases[\s\S]*from public, anon, authenticated, service_role/i,
+  );
+  assert.match(
+    telegramDelivery,
+    /runDueAdminTelegramCampaigns[\s\S]*const expiredLeases = await expireAdminTelegramCampaignLeases\(50\);[\s\S]*const configuration = resolveDeliveryConfiguration\(transport\);/,
+  );
+  assert.match(telegramMutationApi, /reconcileAdminTelegramCampaign/);
+  assert.match(telegramEditor, /Mark as delivered/);
+  assert.match(telegramEditor, /Confirm not delivered/);
+  assert.match(telegramEditor, /leaseActive/);
+  assert.match(telegramEditor, /Neither action sends a Telegram message/);
 });
 
 test("Telegram campaigns are service-only, audited, and claimed atomically", () => {

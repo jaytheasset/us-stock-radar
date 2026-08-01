@@ -19,6 +19,9 @@ const queuedDelivery = readProjectFile(
 const publicTelegramDelivery = readProjectFile(
   "lib/alerts/delivery/publicTelegramBroadcast.ts",
 );
+const adminTelegramDelivery = readProjectFile(
+  "lib/admin/telegramCampaignDelivery.ts",
+);
 const deliveryEvaluation = readProjectFile(
   "lib/alerts/delivery/evaluateAlertDelivery.ts",
 );
@@ -92,6 +95,15 @@ test("public Telegram stays separate from member delivery and fail-closed", () =
     scheduler,
     /telegramCampaigns\?\.disabled \? undefined : telegramCampaigns\?\.error/,
   );
+});
+
+test("admin Telegram scheduler expires stale claims before any new provider work", () => {
+  assert.match(adminTelegramDelivery, /expireAdminTelegramCampaignLeases/);
+  assert.match(
+    adminTelegramDelivery,
+    /runDueAdminTelegramCampaigns[\s\S]*const expiredLeases = await expireAdminTelegramCampaignLeases\(50\);[\s\S]*const configuration = resolveDeliveryConfiguration\(transport\);/,
+  );
+  assert.match(adminTelegramDelivery, /expiredLeases/);
 });
 
 test("events persist an outbox row before any external channel processing", () => {

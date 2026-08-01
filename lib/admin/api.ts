@@ -107,12 +107,15 @@ export function normalizeAdminError(error: unknown) {
     "ADMIN_TELEGRAM_CAMPAIGN_NOT_SCHEDULABLE",
     "ADMIN_TELEGRAM_CAMPAIGN_NOT_SENDABLE",
     "ADMIN_TELEGRAM_CAMPAIGN_STATE_CONFLICT",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_RECONCILABLE",
     "ADMIN_TELEGRAM_CONTENT_REQUIRED",
+    "ADMIN_TELEGRAM_EXPECTED_VERSION_REQUIRED",
     "ADMIN_TELEGRAM_LOCAL_RUN_CONFIRMATION_REQUIRED",
     "ADMIN_TELEGRAM_LOCAL_RUN_UNAVAILABLE",
     "ADMIN_TELEGRAM_NOTICE_TYPE_INVALID",
     "ADMIN_TELEGRAM_PUBLIC_CHANNEL_NOT_CONFIGURED",
     "ADMIN_TELEGRAM_PUBLIC_SENDING_DISABLED",
+    "ADMIN_TELEGRAM_RECONCILIATION_INVALID",
     "ADMIN_TELEGRAM_SCHEDULE_INVALID",
     "ADMIN_TELEGRAM_SOURCE_LABEL_TOO_LONG",
     "ADMIN_TELEGRAM_TICKER_INVALID",
@@ -190,8 +193,12 @@ function adminErrorMessage(code: string) {
       "This campaign is not safe to send or retry.",
     ADMIN_TELEGRAM_CAMPAIGN_STATE_CONFLICT:
       "The campaign changed. Refresh before trying again.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_RECONCILABLE:
+      "This campaign is not ready for delivery reconciliation.",
     ADMIN_TELEGRAM_CONTENT_REQUIRED:
       "Enter a title or body for the Telegram campaign.",
+    ADMIN_TELEGRAM_EXPECTED_VERSION_REQUIRED:
+      "Refresh the campaign before reconciling its delivery.",
     ADMIN_TELEGRAM_LOCAL_RUN_CONFIRMATION_REQUIRED:
       "Confirm the local mock scheduler run before continuing.",
     ADMIN_TELEGRAM_LOCAL_RUN_UNAVAILABLE:
@@ -202,6 +209,8 @@ function adminErrorMessage(code: string) {
       "The public Telegram channel is not configured on the server.",
     ADMIN_TELEGRAM_PUBLIC_SENDING_DISABLED:
       "Public Telegram sending is disabled on the server.",
+    ADMIN_TELEGRAM_RECONCILIATION_INVALID:
+      "Choose a supported Telegram delivery reconciliation.",
     ADMIN_TELEGRAM_SCHEDULE_INVALID:
       "Choose a valid future time in Eastern Time.",
     ADMIN_TELEGRAM_SOURCE_LABEL_TOO_LONG:

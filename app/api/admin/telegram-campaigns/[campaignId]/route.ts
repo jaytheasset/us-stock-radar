@@ -8,6 +8,7 @@ import {
 import {
   cancelAdminTelegramCampaign,
   getAdminTelegramCampaign,
+  reconcileAdminTelegramCampaign,
   saveAdminTelegramCampaign,
   scheduleAdminTelegramCampaign,
 } from "@/lib/admin/telegramCampaigns";
@@ -33,8 +34,13 @@ export async function PATCH(request: NextRequest, context: Context) {
       scheduledForEt?: unknown;
     } | null;
     const action = typeof input?.action === "string" ? input.action : "";
-    const permission =
-      action === "send_now" ? "telegram.send" : "telegram.write";
+    const permission = [
+      "send_now",
+      "mark_delivered",
+      "confirm_not_delivered",
+    ].includes(action)
+      ? "telegram.send"
+      : "telegram.write";
     resolution = await resolveAdminApiAccess(request, permission);
     const { campaignId } = await context.params;
     const common = {
@@ -70,6 +76,17 @@ export async function PATCH(request: NextRequest, context: Context) {
                   delivery: await sendAdminTelegramCampaignNow(common),
                   campaign: await getAdminTelegramCampaign(campaignId),
                 }
+              : action === "mark_delivered" ||
+                  action === "confirm_not_delivered"
+                ? {
+                    campaign: await reconcileAdminTelegramCampaign({
+                      ...common,
+                      reconciliation:
+                        action === "mark_delivered"
+                          ? "delivered"
+                          : "not_delivered",
+                    }),
+                  }
               : (() => {
                   throw new Error("ADMIN_TELEGRAM_ACTION_INVALID");
                 })();
