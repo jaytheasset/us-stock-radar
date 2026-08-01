@@ -92,7 +92,7 @@ runbook itself.
 ## Bot command menu
 
 The implemented private-chat commands are `/stock`, `/watchlist`, `/rooms`,
-`/room`, `/say`, `/settings`, and `/help`. Preview the command registration
+`/room`, `/settings`, and `/help`. Preview the command registration
 without network access or bot changes:
 
 ```powershell

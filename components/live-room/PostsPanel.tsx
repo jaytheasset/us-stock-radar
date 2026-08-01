@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
 import { BrokerageProofCard } from "@/components/brokerage/BrokerageProofCard";
@@ -38,6 +39,7 @@ import {
   selectLiveRoomPostTickerSuggestions,
 } from "@/lib/live-room/postTickerAutocomplete";
 import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
+import { useSavedContentSet } from "@/lib/saved/useSavedContentSet";
 import type {
   LiveRoomPostDirection,
   LiveRoomPostSignal,
@@ -132,6 +134,10 @@ export function PostsPanel({
   const [busy, setBusy] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const posts = controlledPosts ?? localPosts;
+  const savedState = useSavedContentSet(
+    "live_room_post",
+    posts.map((post) => post.id),
+  );
   const cursor =
     controlledCursor === undefined ? localCursor : controlledCursor;
   const state = controlledState ?? localState;
@@ -647,6 +653,17 @@ export function PostsPanel({
               data-direction={post.direction ?? "unspecified"}
               key={post.id}
             >
+              <div className={styles.postSaveAction}>
+                <SavedContentButton
+                  contentId={post.id}
+                  contentType="live_room_post"
+                  initialAuthenticated={
+                    profile?.isGuest === false || savedState.authenticated
+                  }
+                  initialSaved={savedState.savedIds.has(post.id.toLowerCase())}
+                  returnHref={`/live/posts/${post.id}`}
+                />
+              </div>
               {currentTicker &&
               post.room.kind === "company" &&
               post.room.ticker !== currentTicker ? (

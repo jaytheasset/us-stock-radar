@@ -8,7 +8,6 @@ import {
 } from "./telegramCommandPolicy.ts";
 import {
   executeTelegramConnectedCommand,
-  TelegramCommandUserError,
   type TelegramCommandDependencies,
 } from "./telegramCommandRuntime.ts";
 
@@ -24,11 +23,6 @@ test("Telegram parser accepts only bounded, explicit supported commands", () => 
     name: "room",
     ticker: "BRK.B",
   });
-  assert.deepEqual(parseTelegramCommand("/say NVDA   Watching guidance closely."), {
-    name: "say",
-    ticker: "NVDA",
-    body: "Watching guidance closely.",
-  });
   assert.deepEqual(parseTelegramCommand("/watchlist"), { name: "watchlist" });
   assert.deepEqual(parseTelegramCommand("/rooms"), { name: "rooms" });
   assert.deepEqual(parseTelegramCommand("/settings"), { name: "settings" });
@@ -38,14 +32,15 @@ test("Telegram parser accepts only bounded, explicit supported commands", () => 
   assert.equal(parseTelegramCommand("/stock").name, "invalid");
   assert.equal(parseTelegramCommand("/stock AMD,or=(user_id.neq.x)").name, "invalid");
   assert.equal(parseTelegramCommand("/watchlist extra").name, "invalid");
-  assert.equal(parseTelegramCommand(`/say AMD ${"x".repeat(800)}`).name, "invalid");
+  assert.equal(parseTelegramCommand("/say AMD Watching guidance closely.").name, "ignored");
 });
 
 test("help advertises only implemented Telegram commands", () => {
   const help = buildTelegramHelpText();
-  for (const command of ["/stock", "/watchlist", "/rooms", "/room", "/say", "/settings", "/help"]) {
+  for (const command of ["/stock", "/watchlist", "/rooms", "/room", "/settings", "/help"]) {
     assert.match(help, new RegExp(command.replace("/", "\\/")));
   }
+  assert.doesNotMatch(help, /\/say/);
   assert.doesNotMatch(help, /AI|vote|comment|mirror/i);
 });
 
@@ -183,38 +178,7 @@ test("room lookup reports membership without joining automatically", async () =>
   assert.equal(pathname(result.replyMarkup?.inline_keyboard[0][0].url), "/live/AMD");
 });
 
-test("say requires an existing membership and reuses the member write dependency", async () => {
-  let sent: { userId: string; ticker: string; body: string } | null = null;
-  const command = { name: "say", ticker: "AMD", body: "Watching guidance." } as const;
-  const rejected = await executeTelegramConnectedCommand(
-    { baseUrl, command, destination: "telegram-chat-a" },
-    dependencies({ readRoomMembership: async () => ({ joined: false }) }),
-  );
-  assert.match(rejected.text, /Join AMD Live Room/);
-
-  const accepted = await executeTelegramConnectedCommand(
-    { baseUrl, command, destination: "telegram-chat-a" },
-    dependencies({
-      sendRoomMessage: async (userId, ticker, body) => {
-        sent = { userId, ticker, body };
-      },
-    }),
-  );
-  assert.deepEqual(sent, { userId: ownerUserId, ticker: "AMD", body: "Watching guidance." });
-  assert.match(accepted.text, /Message posted/);
-
-  const moderated = await executeTelegramConnectedCommand(
-    { baseUrl, command, destination: "telegram-chat-a" },
-    dependencies({
-      sendRoomMessage: async () => {
-        throw new TelegramCommandUserError("This wording is blocked. Rephrase the message.");
-      },
-    }),
-  );
-  assert.equal(moderated.text, "This wording is blocked. Rephrase the message.");
-});
-
-test("server wiring reuses exact owner, catalog, watchlist, membership, and moderated message paths", () => {
+test("server wiring reuses exact owner, catalog, watchlist, and membership paths", () => {
   const webhook = read("app/api/telegram/webhook/route.ts");
   const interactions = read("lib/telegram/telegramInteractions.ts");
   const commandInteractions = read("lib/telegram/telegramCommandInteractions.ts");
@@ -232,7 +196,7 @@ test("server wiring reuses exact owner, catalog, watchlist, membership, and mode
   assert.match(commandInteractions, /getWatchlistViewModel\(userId\)/);
   assert.match(commandInteractions, /listLiveRoomMemberships\(memberActor\(userId\), limit\)/);
   assert.match(commandInteractions, /getLiveRoomMembership/);
-  assert.match(commandInteractions, /sendLiveRoomMessage/);
+  assert.doesNotMatch(commandInteractions, /sendLiveRoomMessage/);
   assert.doesNotMatch(commandInteractions, /supabaseUpsert|supabaseRpc|live_room_messages|user_metadata/);
   assert.match(runbook, /callback_query/);
   assert.match(commandScript, /TELEGRAM_BOT_COMMANDS_WRITE_ENABLED !== "true"/);
@@ -253,7 +217,6 @@ function dependencies(
     readWatchlist: async () => [],
     listRooms: async () => ({ hasMore: false, items: [] }),
     readRoomMembership: async () => ({ joined: true }),
-    sendRoomMessage: async () => undefined,
     ...overrides,
   };
 }

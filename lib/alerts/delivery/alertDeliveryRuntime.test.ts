@@ -19,6 +19,9 @@ const queuedDelivery = readProjectFile(
 const publicTelegramDelivery = readProjectFile(
   "lib/alerts/delivery/publicTelegramBroadcast.ts",
 );
+const adminTelegramDelivery = readProjectFile(
+  "lib/admin/telegramCampaignDelivery.ts",
+);
 const deliveryEvaluation = readProjectFile(
   "lib/alerts/delivery/evaluateAlertDelivery.ts",
 );
@@ -49,11 +52,12 @@ test("manual POST compatibility stays dry-run by default and isolated from sched
   assert.match(cronRoute, /x-cron-secret/);
 });
 
-test("one scheduler lock covers member, public Telegram, and Calendar delivery", () => {
+test("one scheduler lock covers member, public Telegram, admin campaigns, and Calendar delivery", () => {
   assert.match(scheduler, /acquireJobLock/);
   assert.match(scheduler, /await runAlertDeliveryBatch/);
   assert.match(scheduler, /await processQueuedDeliveries/);
   assert.match(scheduler, /await runPublicTelegramBroadcastDelivery/);
+  assert.match(scheduler, /await runDueAdminTelegramCampaigns/);
   assert.match(scheduler, /await runCalendarAlertDelivery/);
   assert.ok(
     scheduler.indexOf("await runAlertDeliveryBatch") <
@@ -65,6 +69,10 @@ test("one scheduler lock covers member, public Telegram, and Calendar delivery",
   );
   assert.ok(
     scheduler.indexOf("await runPublicTelegramBroadcastDelivery") <
+      scheduler.indexOf("await runDueAdminTelegramCampaigns"),
+  );
+  assert.ok(
+    scheduler.indexOf("await runDueAdminTelegramCampaigns") <
       scheduler.indexOf("await runCalendarAlertDelivery"),
   );
 });
@@ -81,6 +89,21 @@ test("public Telegram stays separate from member delivery and fail-closed", () =
   );
   assert.match(cronRoute, /publicTelegramLimit/);
   assert.match(cronRoute, /publicTelegram: result\.publicTelegram/);
+  assert.match(cronRoute, /telegramCampaigns: result\.telegramCampaigns/);
+  assert.match(cronRoute, /telegramCampaignLimit/);
+  assert.match(
+    scheduler,
+    /telegramCampaigns\?\.disabled \? undefined : telegramCampaigns\?\.error/,
+  );
+});
+
+test("admin Telegram scheduler expires stale claims before any new provider work", () => {
+  assert.match(adminTelegramDelivery, /expireAdminTelegramCampaignLeases/);
+  assert.match(
+    adminTelegramDelivery,
+    /runDueAdminTelegramCampaigns[\s\S]*const expiredLeases = await expireAdminTelegramCampaignLeases\(50\);[\s\S]*const configuration = resolveDeliveryConfiguration\(transport\);/,
+  );
+  assert.match(adminTelegramDelivery, /expiredLeases/);
 });
 
 test("events persist an outbox row before any external channel processing", () => {

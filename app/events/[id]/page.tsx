@@ -15,6 +15,8 @@ import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
 import { loadNewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getViewerContentState, savedContentKey } from "@/lib/saved/server";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 import {
@@ -512,15 +514,23 @@ export function generateStaticParams() {
 }
 
 export default async function StockNewsDetailPage({ params }: StockDetailPageProps) {
-  const [{ id }, viewerPlan] = await Promise.all([
+  const [{ id }, viewerPlan, userId] = await Promise.all([
     params,
     getCurrentViewerPlan(),
+    getOptionalCurrentUserId(),
   ]);
   const allowAds = areAdsEnabledForPlan(viewerPlan);
   if (id === NEWS_ANALYSIS_V2_FIXTURE_SLUG) {
     const fixture = await loadNewsAnalysisDetail(id);
     if (!fixture) notFound();
-    return <NewsAnalysisAdapter allowAds={allowAds} detail={fixture} newsId={id} />;
+    return (
+      <NewsAnalysisAdapter
+        allowAds={allowAds}
+        detail={fixture}
+        newsId={id}
+        viewerState={await getNewsViewerState(userId, id, fixture.filing.ticker)}
+      />
+    );
   }
   const liveDetail = isUuid(id) ? await getLiveEventDetail(id) : { item: null };
   const liveItem = liveDetail.item;
@@ -531,7 +541,14 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   if (liveItem?.sourceGroup === "news") {
     const detail = await loadNewsAnalysisDetail(id);
     if (!detail) notFound();
-    return <NewsAnalysisAdapter allowAds={allowAds} detail={detail} newsId={id} />;
+    return (
+      <NewsAnalysisAdapter
+        allowAds={allowAds}
+        detail={detail}
+        newsId={id}
+        viewerState={await getNewsViewerState(userId, id, detail.filing.ticker)}
+      />
+    );
   }
   const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
   let profile = liveItem
@@ -778,6 +795,25 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
       </div>
     </main>
   );
+}
+
+async function getNewsViewerState(
+  userId: string | null,
+  contentId: string,
+  ticker: string,
+) {
+  const state = await getViewerContentState({
+    userId,
+    references: isUuid(contentId)
+      ? [{ contentId, contentType: "news" as const }]
+      : [],
+    tickers: [ticker],
+  });
+  return {
+    authenticated: state.authenticated,
+    saved: state.savedKeys.has(savedContentKey("news", contentId)),
+    watched: state.watchedTickers.has(ticker.trim().toUpperCase()),
+  };
 }
 
 function isNasdaqCorporateActionDetail(event: FeedItem, profile: DetailProfile) {

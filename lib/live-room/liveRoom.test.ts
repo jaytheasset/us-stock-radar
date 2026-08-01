@@ -2324,13 +2324,20 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /LIVE_ROOM_UNREAD_REFRESH_EVENT/);
   assert.match(inbox, /MessageCircle/);
   assert.doesNotMatch(inbox, /MessageSquareText/);
-  assert.match(inbox, /Rooms/);
-  assert.match(inbox, /People/);
+  assert.match(inbox, />\s*Notifications\s*/);
+  assert.match(inbox, />\s*My Rooms\s*/);
+  assert.match(inbox, />\s*Following\s*/);
   assert.match(inbox, /Sign in to follow members/);
-  assert.match(inbox, /No new chats from people you follow/);
+  assert.match(inbox, /No new activity from people you follow/);
   assert.match(inbox, /Unfollow member/);
-  assert.match(inbox, /All caught up/);
-  assert.match(inbox, /Follow a company Live Room/);
+  assert.match(inbox, /No new updates/);
+  assert.match(inbox, /total === 1 \? "update" : "updates"/);
+  assert.match(inbox, /Rooms you join or follow will appear here/);
+  assert.match(inbox, /aria-label="Community inbox"/);
+  assert.match(
+    inbox,
+    /Replies, comments, and new posts from rooms or people you follow will appear here/,
+  );
   assert.match(
     header,
     /<LiveRoomUnreadMenu \/>[\s\S]+<AlertNotificationsMenu loginHref=\{loginHref\} \/>/,

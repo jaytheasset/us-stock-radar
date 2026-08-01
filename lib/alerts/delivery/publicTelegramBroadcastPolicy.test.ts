@@ -155,13 +155,13 @@ test("public Telegram includes Quick Take and at most the two canonical buttons"
   const buttons = presentation.replyMarkup?.inline_keyboard.flat() || [];
   assert.deepEqual(
     buttons.map((button) => button.text),
-    ["View Analysis", "Enter AMD Live Room"],
+    ["Enter AMD Live Room", "View Analysis"],
   );
-  assert.equal(new URL(buttons[0].url || "").pathname, `/filings/${baseEvent.id}`);
-  const liveUrl = new URL(buttons[1].url || "");
+  const liveUrl = new URL(buttons[0].url || "");
   assert.equal(liveUrl.pathname, "/live/AMD");
   assert.equal(liveUrl.searchParams.get("event"), baseEvent.id);
   assert.equal(liveUrl.searchParams.get("src"), "telegram");
+  assert.equal(new URL(buttons[1].url || "").pathname, `/filings/${baseEvent.id}`);
 
   const analysisOnly = buildPublicTelegramBroadcastPresentation(
     {

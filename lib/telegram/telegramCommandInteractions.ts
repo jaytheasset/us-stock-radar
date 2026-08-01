@@ -5,13 +5,11 @@ import { findTickerBySymbol } from "@/lib/alerts/tickers/getAlertTickersViewMode
 import {
   getLiveRoomMembership,
   listLiveRoomMemberships,
-  sendLiveRoomMessage,
 } from "@/lib/live-room/serverRepository";
-import { LiveRoomPolicyError, type LiveRoomActor } from "@/lib/live-room/policy";
+import type { LiveRoomActor } from "@/lib/live-room/policy";
 import { getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 import {
   executeTelegramConnectedCommand,
-  TelegramCommandUserError,
   type TelegramCommandPresentation,
 } from "@/lib/telegram/telegramCommandRuntime";
 import type { TelegramConnectedCommand } from "@/lib/telegram/telegramCommandPolicy";
@@ -50,20 +48,6 @@ export async function handleTelegramConnectedCommand(input: {
       listLiveRoomMemberships(memberActor(userId), limit),
     readRoomMembership: async (userId, ticker) =>
       getLiveRoomMembership({ actor: memberActor(userId), ticker }),
-    sendRoomMessage: async (userId, ticker, body) => {
-      try {
-        await sendLiveRoomMessage({
-          actor: memberActor(userId),
-          body,
-          ticker,
-        });
-      } catch (error) {
-        if (error instanceof LiveRoomPolicyError) {
-          throw new TelegramCommandUserError(error.message);
-        }
-        throw error;
-      }
-    },
   });
 }
 

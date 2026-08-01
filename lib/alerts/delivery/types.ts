@@ -259,9 +259,11 @@ export type RunAlertDeliverySchedulerOptions = {
   lookbackHours?: number;
   queuedLimit?: number;
   publicTelegramLimit?: number;
+  telegramCampaignLimit?: number;
   skipBatch?: boolean;
   skipQueued?: boolean;
   skipPublicTelegram?: boolean;
+  skipTelegramCampaigns?: boolean;
   skipCalendar?: boolean;
   calendarLimit?: number;
   lockTtlSeconds?: number;
@@ -278,6 +280,16 @@ export type RunAlertDeliverySchedulerResult = {
   batch?: RunAlertDeliveryBatchResult | null;
   queued?: ProcessQueuedDeliveryResult | null;
   publicTelegram?: PublicTelegramBroadcastResult | null;
+  telegramCampaigns?: {
+    ok: boolean;
+    scanned: number;
+    sent: number;
+    failed: number;
+    uncertain: number;
+    expiredLeases: number;
+    disabled: boolean;
+    error?: string;
+  } | null;
   calendar?: CalendarAlertDeliveryResult | null;
   error?: string;
 };

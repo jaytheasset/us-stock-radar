@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type Ref } from "react";
 import Link from "next/link";
-import { Bookmark, ChevronRight } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import {
   ChartRangeSelector,
   mobileChartRanges,
@@ -177,7 +177,7 @@ function WatchlistButton({
       title="Watchlist action unavailable"
       type="button"
     >
-      <Bookmark aria-hidden="true" size={iconSize} />
+      <Star aria-hidden="true" size={iconSize} />
     </button>
   );
 }

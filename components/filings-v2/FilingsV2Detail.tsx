@@ -1,6 +1,8 @@
 import type { RefObject } from "react";
 import Link from "next/link";
-import { Bookmark, ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
+import { WatchlistButton } from "@/components/actions/WatchlistButton";
 import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge";
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
 import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
@@ -15,12 +17,18 @@ import {
 import styles from "./StockRadarFilingsV2.module.css";
 
 type FilingsV2DetailContentProps = {
+  initialAuthenticated: boolean;
+  initialSaved: boolean;
+  initialWatched: boolean;
   record: FilingsV2Record;
   relatedRecords: readonly FilingsV2RelatedFiling[];
   showAds: boolean;
 };
 
 export function FilingsV2DetailContent({
+  initialAuthenticated,
+  initialSaved,
+  initialWatched,
   record,
   relatedRecords,
   showAds,
@@ -41,14 +49,21 @@ export function FilingsV2DetailContent({
             </h2>
             <p>{record.company}</p>
           </div>
-          {record.watchlist !== undefined ? (
-            <span className={styles.watchlistStatus}>
-              <Bookmark aria-hidden="true" size={14} />
-              <span className={styles.watchlistStatusText}>
-                {record.watchlist ? "Watchlist" : "Not watched"}
-              </span>
-            </span>
-          ) : null}
+          <div className={styles.previewActions}>
+            {record.ticker ? (
+              <WatchlistButton
+                initialAuthenticated={initialAuthenticated}
+                initialWatched={initialWatched}
+                ticker={record.ticker}
+              />
+            ) : null}
+            <SavedContentButton
+              contentId={record.id}
+              contentType="filing"
+              initialAuthenticated={initialAuthenticated}
+              initialSaved={initialSaved}
+            />
+          </div>
         </div>
 
         <div className={styles.detailClassification}>

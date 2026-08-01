@@ -31,15 +31,7 @@ export type TelegramCommandDependencies = {
   readRoomMembership: (userId: string, ticker: string) => Promise<{ joined: boolean }>;
   readWatchlist: (userId: string) => Promise<TelegramCommandStock[]>;
   resolveOwner: (destination: string) => Promise<string | null>;
-  sendRoomMessage: (userId: string, ticker: string, body: string) => Promise<void>;
 };
-
-export class TelegramCommandUserError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TelegramCommandUserError";
-  }
-}
 
 export async function executeTelegramConnectedCommand(
   input: {
@@ -133,37 +125,14 @@ export async function executeTelegramConnectedCommand(
     }
     const membership = await dependencies.readRoomMembership(userId, stock.ticker);
 
-    if (input.command.name === "room") {
-      return presentation(
-        `${formatStockLabel(stock)}\n${membership.joined ? "Joined" : "Not joined yet"} · Company Live Room`,
-        input.baseUrl,
-        [[siteButton(`💬 Enter ${stock.ticker} Live Room`, `/live/${encodeURIComponent(stock.ticker)}`)]],
-      );
-    }
-
-    if (!membership.joined) {
-      return presentation(
-        `Join ${stock.ticker} Live Room on Stock Radar before using /say.`,
-        input.baseUrl,
-        [[siteButton(`Join ${stock.ticker} Live Room`, `/live/${encodeURIComponent(stock.ticker)}`)]],
-      );
-    }
-    await dependencies.sendRoomMessage(
-      userId,
-      stock.ticker,
-      input.command.body,
-    );
     return presentation(
-      `Message posted to ${stock.ticker} Live Room.`,
+      `${formatStockLabel(stock)}\n${membership.joined ? "Joined" : "Not joined yet"} · Company Live Room`,
       input.baseUrl,
-      [[siteButton(`Open ${stock.ticker} Live Room`, `/live/${encodeURIComponent(stock.ticker)}`)]],
+      [[siteButton(`💬 Enter ${stock.ticker} Live Room`, `/live/${encodeURIComponent(stock.ticker)}`)]],
     );
-  } catch (error) {
+  } catch {
     return {
-      text:
-        error instanceof TelegramCommandUserError
-          ? cleanDisplayText(error.message, 300)
-          : "Stock Radar could not complete that command right now.",
+      text: "Stock Radar could not complete that command right now.",
     };
   }
 }

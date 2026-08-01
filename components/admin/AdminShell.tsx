@@ -12,6 +12,7 @@ import {
   Settings,
   ShieldCheck,
   MessagesSquare,
+  Send,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +29,7 @@ const ICONS = {
   "/admin/users": Users,
   "/admin/moderation": ShieldCheck,
   "/admin/rooms": MessagesSquare,
+  "/admin/telegram-channel": Send,
   "/admin/creator-verifications": IdCard,
   "/admin/data": Database,
   "/admin/alerts": BellRing,

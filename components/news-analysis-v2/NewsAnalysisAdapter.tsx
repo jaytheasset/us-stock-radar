@@ -1,6 +1,5 @@
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
-import { NewsBookmarkButton } from "@/components/filing-analysis-v2/FilingBookmarkButton";
 import { GenericFilingAnalysis } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
@@ -14,12 +13,18 @@ type NewsAnalysisAdapterProps = {
   allowAds: boolean;
   detail: NewsAnalysisDetail;
   newsId: string;
+  viewerState: {
+    authenticated: boolean;
+    saved: boolean;
+    watched: boolean;
+  };
 };
 
 export function NewsAnalysisAdapter({
   allowAds,
   detail,
   newsId,
+  viewerState,
 }: NewsAnalysisAdapterProps) {
   const { filing } = detail;
   const analysisFiling = { ...filing, filingBrief: "" };
@@ -32,11 +37,14 @@ export function NewsAnalysisAdapter({
     <StockRadarAppShell activeNavigationItem="news" themeMode="user-selectable">
       <GenericFilingAnalysis
         allowAds={allowAds}
-        bookmarkRenderer={<NewsBookmarkButton newsId={newsId} />}
         eventLabel={badge?.label || ""}
         eventTone={badge ? toBadgeTone(badge.tone) : "neutral"}
         filing={analysisFiling}
         filingId={newsId}
+        initialAuthenticated={viewerState.authenticated}
+        initialSaved={viewerState.saved}
+        initialWatched={viewerState.watched}
+        savedContentType="news"
         originalBodyRenderer={detail.originalHtml ? <OriginalNewsArticle html={detail.originalHtml} /> : undefined}
         originalLinkLabel="View Original Article"
         originalSectionTitle="Original Article"
