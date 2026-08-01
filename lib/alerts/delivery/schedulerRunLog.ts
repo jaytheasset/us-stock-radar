@@ -151,6 +151,16 @@ function summarizeSchedulerResult(result: RunAlertDeliverySchedulerResult) {
           inProgress: result.publicTelegram.inProgress,
         }
       : null,
+    telegramCampaigns: result.telegramCampaigns
+      ? {
+          ok: result.telegramCampaigns.ok,
+          scanned: result.telegramCampaigns.scanned,
+          sent: result.telegramCampaigns.sent,
+          failed: result.telegramCampaigns.failed,
+          uncertain: result.telegramCampaigns.uncertain,
+          disabled: result.telegramCampaigns.disabled,
+        }
+      : null,
     calendar: result.calendar
       ? {
           ok: result.calendar.ok,
