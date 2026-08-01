@@ -1,4 +1,7 @@
 .page {
+  --stock-detail-context-rail-width: 320px;
+  --stock-detail-column-gap: var(--sr-space-4);
+
   width: min(100%, 1600px);
   margin: 0 auto;
   padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
@@ -515,9 +518,9 @@
 
 .heroGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
   align-items: start;
-  gap: var(--sr-space-4);
+  gap: var(--stock-detail-column-gap);
 }
 
 .radarBrief,
@@ -870,8 +873,8 @@
 
 .promoRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 310px);
-  gap: var(--sr-space-4);
+  grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
+  gap: var(--stock-detail-column-gap);
   margin: var(--sr-space-4) 0;
 }
 
@@ -903,9 +906,9 @@
 
 .detailGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) var(--stock-detail-context-rail-width);
   align-items: start;
-  gap: var(--sr-space-4);
+  gap: var(--stock-detail-column-gap);
 }
 
 .detailMain {
@@ -1402,6 +1405,8 @@
 
 @media (max-width: 1320px) {
   .page {
+    --stock-detail-context-rail-width: 300px;
+
     padding-right: var(--sr-space-4);
     padding-left: var(--sr-space-4);
   }
@@ -1418,13 +1423,6 @@
     grid-template-columns: 210px minmax(0, 1fr);
   }
 
-  .heroGrid {
-    grid-template-columns: minmax(0, 1fr) 280px;
-  }
-
-  .detailGrid {
-    grid-template-columns: minmax(0, 1fr) 300px;
-  }
 }
 
 @media (max-width: 1180px) {
