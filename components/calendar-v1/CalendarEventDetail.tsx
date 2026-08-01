@@ -6,8 +6,9 @@ import Link from "next/link";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
-import { AlertReliabilityNotice } from "@/components/ui/AlertReliabilityNotice";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
+import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
+import type { CalendarEventFollowUsage } from "@/lib/alerts/types";
 import { parseDateOnly } from "@/lib/calendar-v1/dateUtils";
 import {
   eventStatusLabels,
@@ -30,6 +31,7 @@ type CalendarEventDetailProps = {
   desktopEvent: CalendarEvent | null;
   followAction: string;
   followMessage: string;
+  followUsage: CalendarEventFollowUsage;
   followedEvents: Readonly<Record<string, boolean>>;
   onFollowToggle: (event: CalendarEvent) => void;
   onSheetDismiss: () => void;
@@ -43,6 +45,7 @@ export function CalendarEventDetail({
   desktopEvent,
   followAction,
   followMessage,
+  followUsage,
   followedEvents,
   onFollowToggle,
   onSheetDismiss,
@@ -65,6 +68,7 @@ export function CalendarEventDetail({
         event={event}
         followBusy={followAction === event.id}
         followMessage={followMessage}
+        followUsage={followUsage}
         followed={Boolean(followedEvents[event.id])}
         onFollowToggle={() => onFollowToggle(event)}
         onWatchlistToggle={() => onWatchlistToggle(event)}
@@ -108,6 +112,7 @@ function CalendarEventDetailContent({
   event,
   followBusy,
   followMessage,
+  followUsage,
   followed,
   onFollowToggle,
   onWatchlistToggle,
@@ -117,6 +122,7 @@ function CalendarEventDetailContent({
   event: CalendarEvent;
   followBusy: boolean;
   followMessage: string;
+  followUsage: CalendarEventFollowUsage;
   followed: boolean;
   onFollowToggle: () => void;
   onWatchlistToggle: () => void;
@@ -202,6 +208,9 @@ function CalendarEventDetailContent({
           <div>
             <strong>Event alert</strong>
             <span>Follow this event&apos;s schedule and reminders.</span>
+            <small className={styles.followUsage}>
+              {formatCalendarEventFollowUsage(followUsage)}
+            </small>
           </div>
           <button
             aria-label={followActionLabel}
@@ -225,15 +234,18 @@ function CalendarEventDetailContent({
         </div>
       </div>
 
-      <div className={styles.alertReliabilityNotice}>
-        <AlertReliabilityNotice />
-      </div>
-
       {analysisHref ? (
-        <Link className={styles.analysisLink} href={analysisHref}>
-          View analysis
-          <ExternalLink aria-hidden="true" size={14} />
-        </Link>
+        <div className={styles.analysisEntry}>
+          <Link className={styles.analysisLink} href={analysisHref}>
+            View Stock Radar Analysis
+            <ExternalLink aria-hidden="true" size={14} />
+          </Link>
+          {(event.relatedAnalysisCount ?? 0) > 0 ? (
+            <span>Related analyses {event.relatedAnalysisCount}</span>
+          ) : null}
+        </div>
+      ) : event.analysisPending ? (
+        <p className={styles.analysisPending}>Analysis pending</p>
       ) : null}
 
       {ticker ? (

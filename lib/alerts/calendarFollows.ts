@@ -4,12 +4,22 @@ import {
   deliverCalendarCandidateToUser,
   ensureCalendarCandidate,
 } from "@/lib/alerts/calendarDelivery";
-import type { FollowedCalendarEventItem } from "@/lib/alerts/types";
+import { buildCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
+import type {
+  CalendarEventFollowsViewModel,
+  FollowedCalendarEventItem,
+} from "@/lib/alerts/types";
 import {
+  supabaseRpc,
   supabaseSelect,
   supabaseUpdate,
   supabaseUpsert,
 } from "@/lib/supabase";
+import {
+  getPlanDisplayName,
+  getPlanLimits,
+  type Plan,
+} from "@/lib/subscriptionPolicy";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,16 +46,49 @@ type CalendarSecurityRow = {
   role?: unknown;
 };
 
+type CalendarFollowMutationRow = {
+  follow_id?: unknown;
+};
+
+type CalendarFollowCountRow = {
+  active_count?: unknown;
+};
+
 export class CalendarFollowError extends Error {
   readonly code: string;
   readonly status: number;
+  readonly details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, status = 400) {
+  constructor(
+    code: string,
+    message: string,
+    status = 400,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "CalendarFollowError";
     this.code = code;
     this.status = status;
+    this.details = details;
   }
+}
+
+export async function getUserCalendarFollowsViewModel(
+  userId: string,
+  plan: Plan,
+): Promise<CalendarEventFollowsViewModel> {
+  const [follows, activeCount] = await Promise.all([
+    getUserCalendarFollows(userId),
+    getUserCalendarEventFollowActiveCount(userId),
+  ]);
+
+  return {
+    follows,
+    usage: buildCalendarEventFollowUsage(
+      activeCount,
+      getPlanLimits(plan).calendarEventFollowLimit,
+    ),
+  };
 }
 
 export async function getUserCalendarFollows(
@@ -128,37 +171,31 @@ export async function setUserCalendarFollow({
   userId,
   eventId,
   enabled,
+  plan,
 }: {
   userId: string;
   eventId: string;
   enabled: boolean;
+  plan: Plan;
 }) {
   const normalizedEventId = normalizeEventId(eventId);
   const event = await getCalendarEvent(normalizedEventId);
-  const existingResult = await supabaseSelect("user_calendar_event_follows", {
-    select: "id,event_id,enabled",
-    user_id: `eq.${userId}`,
-    event_id: `eq.${normalizedEventId}`,
-    limit: "1",
-  });
-  const existing = Array.isArray(existingResult.data)
-    ? (existingResult.data[0] as CalendarFollowRow | undefined)
-    : undefined;
-
-  const followResult = await supabaseUpsert(
-    "user_calendar_event_follows",
+  const limit = getPlanLimits(plan).calendarEventFollowLimit;
+  const followResult = await supabaseRpc(
+    "set_user_calendar_event_follow_with_limit",
     {
-      user_id: userId,
-      event_id: normalizedEventId,
-      enabled,
-    },
-    {
-      onConflict: "user_id,event_id",
-      prefer: "resolution=merge-duplicates,return=representation",
+      p_user_id: userId,
+      p_event_id: normalizedEventId,
+      p_enabled: enabled,
+      p_limit: limit,
     },
   );
 
   if (!followResult.ok) {
+    if ((followResult.error || "").includes("CALENDAR_FOLLOW_LIMIT_REACHED")) {
+      const activeCount = await getUserCalendarEventFollowActiveCount(userId);
+      throwCalendarFollowLimitError(plan, limit, activeCount);
+    }
     throw new CalendarFollowError(
       "CALENDAR_FOLLOW_SAVE_FAILED",
       followResult.error || "Failed to save calendar event follow.",
@@ -167,9 +204,9 @@ export async function setUserCalendarFollow({
   }
 
   const row = Array.isArray(followResult.data)
-    ? (followResult.data[0] as CalendarFollowRow | undefined)
+    ? (followResult.data[0] as CalendarFollowMutationRow | undefined)
     : undefined;
-  const followId = stringValue(row?.id) || stringValue(existing?.id);
+  const followId = stringValue(row?.follow_id);
   if (!followId) {
     throw new CalendarFollowError(
       "CALENDAR_FOLLOW_SAVE_FAILED",
@@ -229,8 +266,53 @@ export async function setUserCalendarFollow({
 
   return {
     followed: enabled,
-    follows: await getUserCalendarFollows(userId),
+    ...(await getUserCalendarFollowsViewModel(userId, plan)),
   };
+}
+
+async function getUserCalendarEventFollowActiveCount(userId: string) {
+  const result = await supabaseRpc(
+    "get_user_calendar_event_follow_active_count",
+    { p_user_id: userId },
+  );
+  if (!result.ok) {
+    throw new Error(result.error || "Failed to count active followed calendar events.");
+  }
+  const row = Array.isArray(result.data)
+    ? (result.data[0] as CalendarFollowCountRow | undefined)
+    : undefined;
+  return nonnegativeIntegerValue(row?.active_count);
+}
+
+function throwCalendarFollowLimitError(
+  plan: Plan,
+  limit: number | null,
+  activeCount: number,
+): never {
+  const planName = getPlanDisplayName(plan);
+  const upgradePlan = getCalendarFollowUpgradePlan(plan);
+  const upgradeText = upgradePlan
+    ? ` Upgrade to ${getPlanDisplayName(upgradePlan)} to follow more active events.`
+    : "";
+  throw new CalendarFollowError(
+    "CALENDAR_FOLLOW_LIMIT_REACHED",
+    `${planName} includes up to ${limit ?? "unlimited"} active Calendar event follows.${upgradeText}`,
+    409,
+    {
+      limit,
+      activeCount,
+      remaining: limit === null ? null : Math.max(0, limit - activeCount),
+      upgradePlan,
+      upgradeTarget: upgradePlan ? "/premium" : null,
+    },
+  );
+}
+
+function getCalendarFollowUpgradePlan(plan: Plan): Plan | null {
+  if (plan === "free") return "ad_free";
+  if (plan === "ad_free") return "pro";
+  if (plan === "pro") return "advanced";
+  return null;
 }
 
 async function getCalendarEvent(eventId: string) {
@@ -309,4 +391,9 @@ function nullableString(value: unknown) {
 function numberValue(value: unknown, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(1, Math.trunc(number)) : fallback;
+}
+
+function nonnegativeIntegerValue(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
 }

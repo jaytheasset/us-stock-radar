@@ -8,12 +8,17 @@ export type AlertDeliveryStatus = "queued" | "sent" | "failed" | "suppressed";
 export type NormalizedAlertEvent = {
   id: string;
   title: string;
+  quickTake?: string;
   tickers: string[];
   primaryTicker?: string;
   category: AlertCategory;
   sourceType: NormalizedAlertSourceType;
   sourceLabel?: string;
   severity?: NormalizedAlertSeverity;
+  score?: number;
+  signal?: "bullish" | "bearish" | "volatile" | "neutral";
+  impact?: "high" | "medium" | "low";
+  marketScope: "company" | "sector" | "theme" | "macro";
   publishedAt?: string;
   metadata?: Record<string, unknown>;
 };
@@ -103,6 +108,7 @@ export type RunAlertDeliveryResult = {
 export type QueuedAlertDeliveryRow = {
   id: string;
   user_id: string;
+  alert_event_id: string | null;
   ticker: string | null;
   title: string;
   category: AlertCategory | null;

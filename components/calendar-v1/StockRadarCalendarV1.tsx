@@ -26,6 +26,7 @@ import { MobileCalendarDateNavigation } from "@/components/calendar-v1/MobileCal
 import { CalendarView, ListView } from "@/components/calendar-v1/CalendarViews";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import { buildCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
 import {
   countActiveCalendarFilters,
   filterCalendarEvents,
@@ -52,8 +53,8 @@ import {
   getCalendarEventIdentity,
   selectCalendarPreviewEvent,
 } from "@/lib/calendar-v1/presentation";
-import type { Plan } from "@/lib/subscriptionPolicy";
-import type { FollowedCalendarEventItem } from "@/lib/alerts/types";
+import { getPlanLimits, type Plan } from "@/lib/subscriptionPolicy";
+import type { CalendarEventFollowsViewModel } from "@/lib/alerts/types";
 import styles from "./CalendarV1.module.css";
 
 export type CalendarPreviewState = "default" | "loading" | "error" | "empty";
@@ -83,6 +84,12 @@ export function StockRadarCalendarV1({
   const [sheetEventId, setSheetEventId] = useState<string | null>(null);
   const [watchlistOverrides, setWatchlistOverrides] = useState<Record<string, boolean>>({});
   const [followedEvents, setFollowedEvents] = useState<Record<string, boolean>>({});
+  const [followUsage, setFollowUsage] = useState(() =>
+    buildCalendarEventFollowUsage(
+      0,
+      getPlanLimits(viewerPlan).calendarEventFollowLimit,
+    ),
+  );
   const [followAction, setFollowAction] = useState("");
   const [followMessage, setFollowMessage] = useState("");
   const [sourceEvents, setSourceEvents] = useState<readonly CalendarEvent[]>(initialEvents);
@@ -122,15 +129,16 @@ export function StockRadarCalendarV1({
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as {
-          data?: FollowedCalendarEventItem[];
+          data?: CalendarEventFollowsViewModel;
           message?: string;
         } | null;
-        if (!response.ok || !Array.isArray(payload?.data)) {
+        if (!response.ok || !Array.isArray(payload?.data?.follows) || !payload.data.usage) {
           throw new Error(payload?.message || "Failed to load followed events.");
         }
         setFollowedEvents(
-          Object.fromEntries(payload.data.map((follow) => [follow.eventId, follow.enabled])),
+          Object.fromEntries(payload.data.follows.map((follow) => [follow.eventId, follow.enabled])),
         );
+        setFollowUsage(payload.data.usage);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -286,7 +294,7 @@ export function StockRadarCalendarV1({
         body: JSON.stringify({ eventId: event.id, enabled }),
       });
       const payload = (await response.json().catch(() => null)) as {
-        data?: { follows?: FollowedCalendarEventItem[] };
+        data?: CalendarEventFollowsViewModel & { followed?: boolean };
         message?: string;
       } | null;
       if (response.status === 401) {
@@ -294,7 +302,7 @@ export function StockRadarCalendarV1({
         window.location.assign(`/login?next=${encodeURIComponent(returnTo)}`);
         return;
       }
-      if (!response.ok || !Array.isArray(payload?.data?.follows)) {
+      if (!response.ok || !Array.isArray(payload?.data?.follows) || !payload.data.usage) {
         throw new Error(payload?.message || "Failed to update the event follow.");
       }
       setFollowedEvents(
@@ -302,6 +310,7 @@ export function StockRadarCalendarV1({
           payload.data.follows.map((follow) => [follow.eventId, follow.enabled]),
         ),
       );
+      setFollowUsage(payload.data.usage);
       setFollowMessage(
         enabled
           ? "Event followed. Schedule updates and the 30-minute reminder will appear in Alerts."
@@ -505,6 +514,7 @@ export function StockRadarCalendarV1({
             desktopEvent={desktopPreviewEvent}
             followAction={followAction}
             followMessage={followMessage}
+            followUsage={followUsage}
             followedEvents={followedEvents}
             onFollowToggle={(event) => void toggleFollowEvent(event)}
             onSheetDismiss={dismissSheet}

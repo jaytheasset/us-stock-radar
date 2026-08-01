@@ -255,6 +255,15 @@
   white-space: nowrap;
 }
 
+.cardHeader .calendarFollowUsage {
+  display: block;
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-body);
+}
+
 .addTickerRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px 136px;
@@ -265,10 +274,6 @@
 .tickerSearch {
   position: relative;
   min-width: 0;
-}
-
-.reliabilityNotice {
-  margin-top: var(--sr-space-4);
 }
 
 .tickerMessage,
@@ -558,6 +563,36 @@
 
 .settingRow .inlineToggle {
   grid-column: 4;
+}
+
+.telegramSettingRow {
+  padding-bottom: var(--sr-space-2);
+}
+
+.channelActions {
+  display: flex;
+  grid-column: 2 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
+.channelActions button {
+  min-height: var(--sr-size-control);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-control);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.channelActions button:disabled {
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
 }
 
 .settingRow[data-locked="true"] {
@@ -1121,6 +1156,11 @@
   outline-offset: var(--sr-focus-ring-offset);
 }
 
+.channelActions button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 @media (max-width: 1180px) {
   .pageShell {
     display: block;
@@ -1348,6 +1388,18 @@
       "icon text toggle"
       "icon lock toggle";
     min-height: 48px;
+  }
+
+  .deliveryCard .telegramSettingRow {
+    grid-template-areas:
+      "icon text toggle"
+      "icon lock toggle"
+      ". actions actions";
+  }
+
+  .telegramSettingRow .channelActions {
+    grid-area: actions;
+    justify-content: flex-start;
   }
 
   .deliveryCard .settingRow .lockGroup {

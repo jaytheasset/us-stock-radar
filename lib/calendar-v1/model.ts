@@ -104,6 +104,8 @@ type CalendarEventCommon = {
   eventType: CalendarEventType;
   title: string;
   detailHref?: string | null;
+  relatedAnalysisCount?: number;
+  analysisPending?: boolean;
   eventDate: string;
   eventEndDate: string | null;
   eventTime: string | null;

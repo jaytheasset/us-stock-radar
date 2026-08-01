@@ -45,20 +45,6 @@ export async function PATCH(request: NextRequest) {
     const plan = await getUserPlan(userId);
     const locked = getChannelLockState(plan, patch.channel);
 
-    if (
-      patch.enabled &&
-      !IMPLEMENTED_ALERT_CHANNELS.includes(patch.channel)
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "CHANNEL_COMING_LATER",
-          message: `${channelLabel(patch.channel)} delivery is coming later and cannot be enabled yet.`,
-        },
-        { status: 501, headers: NO_STORE_HEADERS },
-      );
-    }
-
     if (patch.enabled && locked) {
       return NextResponse.json(
         {
@@ -67,6 +53,17 @@ export async function PATCH(request: NextRequest) {
           message: buildChannelNotAvailableMessage(patch.channel),
         },
         { status: 403, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    if (patch.enabled && !IMPLEMENTED_ALERT_CHANNELS.includes(patch.channel)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "CHANNEL_NOT_IMPLEMENTED",
+          message: `${channelLabel(patch.channel)} delivery is not available.`,
+        },
+        { status: 501, headers: NO_STORE_HEADERS },
       );
     }
 

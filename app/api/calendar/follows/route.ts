@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   CalendarFollowError,
-  getUserCalendarFollows,
+  getUserCalendarFollowsViewModel,
   setUserCalendarFollow,
 } from "@/lib/alerts/calendarFollows";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
+import { getPlanLimits } from "@/lib/subscriptionPolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -17,16 +19,32 @@ export async function GET() {
     const userId = await getOptionalCurrentUserId();
     if (!userId) {
       return NextResponse.json(
-        { ok: true, guestMode: true, data: [] },
+        {
+          ok: true,
+          guestMode: true,
+          data: {
+            follows: [],
+            usage: {
+              activeCount: 0,
+              limit: getPlanLimits("free").calendarEventFollowLimit,
+              remaining: getPlanLimits("free").calendarEventFollowLimit,
+            },
+          },
+        },
         { headers: NO_STORE_HEADERS },
       );
     }
+
+    const planState = await getEffectiveUserPlan(userId);
 
     return NextResponse.json(
       {
         ok: true,
         guestMode: false,
-        data: await getUserCalendarFollows(userId),
+        data: await getUserCalendarFollowsViewModel(
+          userId,
+          planState.effectivePlan,
+        ),
       },
       { headers: NO_STORE_HEADERS },
     );
@@ -60,6 +78,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    const planState = await getEffectiveUserPlan(userId);
     return NextResponse.json(
       {
         ok: true,
@@ -67,6 +86,7 @@ export async function PATCH(request: NextRequest) {
           userId,
           eventId: body.eventId,
           enabled: body.enabled,
+          plan: planState.effectivePlan,
         }),
       },
       { headers: NO_STORE_HEADERS },
@@ -79,7 +99,12 @@ export async function PATCH(request: NextRequest) {
 function errorResponse(error: unknown, fallback: string) {
   if (error instanceof CalendarFollowError) {
     return NextResponse.json(
-      { ok: false, error: error.code, message: error.message },
+      {
+        ok: false,
+        error: error.code,
+        message: error.message,
+        ...error.details,
+      },
       { status: error.status, headers: NO_STORE_HEADERS },
     );
   }

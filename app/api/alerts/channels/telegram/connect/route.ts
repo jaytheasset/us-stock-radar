@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { buildChannelNotAvailableMessage, getChannelLockState, getUserPlan } from "@/lib/alerts/alertValidation";
+import { getAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
-import { buildTelegramDeepLink, createTelegramConnectToken } from "@/lib/telegram/telegramConnect";
+import {
+  buildTelegramDeepLink,
+  createTelegramConnectToken,
+  disconnectTelegramForUser,
+} from "@/lib/telegram/telegramConnect";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
@@ -20,7 +26,7 @@ export async function POST() {
           error: "ACCOUNT_REQUIRED",
           message: "Create an account or log in to connect Telegram alerts.",
         },
-        { headers: NO_STORE_HEADERS },
+        { status: 401, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -56,6 +62,47 @@ export async function POST() {
         message,
       },
       { status: message.includes("TELEGRAM_BOT_USERNAME") ? 500 : 502, headers: NO_STORE_HEADERS },
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    const userId = await getOptionalCurrentUserId();
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          guestMode: true,
+          error: "ACCOUNT_REQUIRED",
+          message: "Log in to disconnect Telegram alerts.",
+        },
+        { status: 401, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const result = await disconnectTelegramForUser(userId);
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "TELEGRAM_DISCONNECT_FAILED",
+          message: "Failed to disconnect Telegram alerts.",
+        },
+        { status: result.status || 502, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    const data = await getAlertSettingsViewModel(userId);
+    return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "TELEGRAM_DISCONNECT_FAILED",
+        message: "Failed to disconnect Telegram alerts.",
+      },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

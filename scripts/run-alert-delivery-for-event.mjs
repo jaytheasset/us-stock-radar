@@ -3,14 +3,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
-
-const PLAN_LIMITS = {
-  free: { alertDelayMinutes: 5, channels: ["web"] },
-  ad_free: { alertDelayMinutes: 5, channels: ["web"] },
-  pro: { alertDelayMinutes: 0, channels: ["web", "telegram"] },
-  advanced: { alertDelayMinutes: 0, channels: ["web", "telegram", "email"] },
-  ultimate: { alertDelayMinutes: 0, channels: ["web", "telegram", "email", "webhook", "api"] },
-};
+import {
+  getPlanLimits,
+  isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
+  isValidAlertCategory,
+} from "../lib/subscriptionPolicy.ts";
+import { buildTelegramAlertPresentation } from "../lib/telegram/telegramAlertMessage.ts";
 
 const PLAN_RANK = {
   free: 0,
@@ -19,27 +18,6 @@ const PLAN_RANK = {
   advanced: 3,
   ultimate: 4,
 };
-
-const ALERT_CATEGORIES = new Set([
-  "listing_risk",
-  "dilution_risk",
-  "earnings",
-  "sales_performance",
-  "product_update",
-  "leadership_governance",
-  "insider_ownership",
-  "ipo_listing",
-  "shareholder_vote",
-  "strategic_transaction",
-  "financial_risk",
-  "legal_risk",
-  "dividends",
-  "capital_return",
-  "fda_clinical",
-  "policy_regulation",
-  "macro_market",
-  "other",
-]);
 
 const args = parseArgs(process.argv.slice(2));
 const eventId = String(args.get("event-id") || args.get("eventId") || "").trim();
@@ -164,10 +142,11 @@ async function normalizeEvent(id) {
     uniqueTickers(tickerRows.filter((row) => row.role === "primary").map((row) => row.symbol))[0] ||
     normalizeTicker(event.ticker) ||
     tickers[0];
-  const score = readNumber(event.score, 0);
+  const score = readOptionalScore(event.score);
   const impact = readString(event.impact);
   const deliveryLevel = readDeliveryLevel(event.delivery_level);
-  const category = ALERT_CATEGORIES.has(readString(event.event_type)) ? readString(event.event_type) : "other";
+  const eventType = readString(event.event_type);
+  const category = isValidAlertCategory(eventType) ? eventType : "other";
   const sourceGroup = readString(event.source_group);
 
   return {
@@ -175,12 +154,17 @@ async function normalizeEvent(id) {
     event: {
       id,
       title: readString(event.title) || "Untitled alert event",
+      quickTake: readString(event.quick_take) || undefined,
       tickers,
       primaryTicker,
       category,
       sourceType: sourceGroup === "filings" ? "filing" : sourceGroup === "news" ? "news" : "other",
       sourceLabel: readString(event.source_name) || readString(event.source_code) || null,
-      severity: score >= 90 ? "critical" : score >= 75 || impact === "high" ? "high" : score >= 50 ? "medium" : "low",
+      severity: (score ?? 0) >= 90 ? "critical" : (score ?? 0) >= 75 || impact === "high" ? "high" : (score ?? 0) >= 50 ? "medium" : "low",
+      score,
+      signal: readSignal(event.signal),
+      impact: readImpact(event.impact),
+      marketScope: readMarketScope(event.market_scope),
       deliveryLevel,
       publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
     },
@@ -202,7 +186,7 @@ async function evaluate(event) {
 
   for (const userId of users) {
     const context = await fetchUserContext(userId);
-    const matchedTickers = event.tickers.filter((ticker) => context.watchlistTickers.has(ticker));
+    const matchedTickers = event.tickers.filter((ticker) => context.alertTickers.has(ticker));
     const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
 
     if (!eligibleChannels.length) {
@@ -211,6 +195,10 @@ async function evaluate(event) {
     }
 
     if (matchedTickers.length) {
+      if (!isTickerAlertCategoryAllowed(context.plan, event.category)) {
+        skipped.push({ userId, reason: "TICKER_ALERT_CATEGORY_NOT_ACTIVE", detail: event.category });
+        continue;
+      }
       const reason = getWatchlistSkipReason(event, context.preferences);
       if (reason) {
         skipped.push({ userId, reason });
@@ -222,6 +210,15 @@ async function evaluate(event) {
 
     if (!context.preferences.discoveryEnabled) {
       skipped.push({ userId, reason: "DISCOVERY_DISABLED" });
+      continue;
+    }
+
+    if (!isDiscoveryCategoryAllowed(context.plan, event.category)) {
+      skipped.push({
+        userId,
+        reason: "DISCOVERY_CATEGORY_NOT_ACTIVE",
+        detail: `${event.category} is not available for ${context.plan} market-wide Discovery.`,
+      });
       continue;
     }
 
@@ -240,7 +237,7 @@ async function fetchUserContext(userId) {
   const [planRow, preferencesRow, watchlistRows, categoryRows, channelRows] = await Promise.all([
     fetchOne("user_plan_subscriptions", { user_id: `eq.${userId}` }),
     fetchOne("alert_preferences", { user_id: `eq.${userId}` }),
-    fetchRows("watchlist_tickers", { select: "ticker", user_id: `eq.${userId}`, limit: "1000" }),
+    fetchRows("user_alert_tickers", { select: "ticker", user_id: `eq.${userId}`, enabled: "eq.true", limit: "1000" }),
     fetchRows("user_discovery_categories", { select: "category", user_id: `eq.${userId}`, enabled: "eq.true", limit: "100" }),
     fetchRows("user_delivery_channels", { select: "channel,enabled,destination,verified_at", user_id: `eq.${userId}`, limit: "20" }),
   ]);
@@ -251,10 +248,9 @@ async function fetchUserContext(userId) {
       watchlistNewsEnabled: readBoolean(preferencesRow?.watchlist_news_enabled, true),
       watchlistFilingsEnabled: readBoolean(preferencesRow?.watchlist_filings_enabled, true),
       watchlistCalendarEnabled: readBoolean(preferencesRow?.watchlist_calendar_enabled, true),
-      watchlistRiskEnabled: readBoolean(preferencesRow?.watchlist_risk_enabled, true),
       discoveryEnabled: readBoolean(preferencesRow?.discovery_enabled, true),
     },
-    watchlistTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
+    alertTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
     discoveryCategories: new Set(categoryRows.map((row) => readString(row.category)).filter(Boolean)),
     channels: channelRows,
   };
@@ -278,9 +274,6 @@ function getWatchlistSkipReason(event, preferences) {
   if (event.sourceType === "news" && !preferences.watchlistNewsEnabled) return "WATCHLIST_NEWS_DISABLED";
   if (event.sourceType === "filing" && !preferences.watchlistFilingsEnabled) return "WATCHLIST_FILINGS_DISABLED";
   if (event.sourceType === "calendar" && !preferences.watchlistCalendarEnabled) return "WATCHLIST_CALENDAR_DISABLED";
-  if (["listing_risk", "dilution_risk", "financial_risk", "legal_risk", "fda_clinical"].includes(event.category) && !preferences.watchlistRiskEnabled) {
-    return "WATCHLIST_RISK_DISABLED";
-  }
   return "";
 }
 
@@ -307,8 +300,13 @@ async function processImmediateChannels(event, candidate) {
     }
 
     if (channel.channel === "telegram") {
-      if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") continue;
-      const sent = await sendTelegramMessage(channel.destination || "", formatTelegramMessage(event));
+      if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") continue;
+      const presentation = buildTelegramAlertPresentation(event, {
+        baseUrl: env.APP_BASE_URL || "",
+        callbackSecret: env.TELEGRAM_WEBHOOK_SECRET || "",
+        callbackSubject: candidate.userId,
+      });
+      const sent = await sendTelegramMessage(channel.destination || "", presentation.text, presentation);
       if (sent.ok) channels.push("telegram");
       else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
       continue;
@@ -320,8 +318,8 @@ async function processImmediateChannels(event, candidate) {
   return { channels, errors };
 }
 
-async function sendTelegramMessage(chatId, text) {
-  if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") {
+async function sendTelegramMessage(chatId, text, options = {}) {
+  if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
     return { ok: false, error: "Telegram sending is disabled." };
   }
 
@@ -339,23 +337,17 @@ async function sendTelegramMessage(chatId, text) {
       body: JSON.stringify({
         chat_id: chatId,
         text,
+        ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
+        ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+        link_preview_options: { is_disabled: true },
       }),
     });
     const data = await response.json().catch(() => null);
     if (response.ok && data?.ok) return { ok: true };
     return { ok: false, error: readError(data, response.statusText) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Telegram send failed." };
+    return { ok: false, error: "Telegram request failed." };
   }
-}
-
-function formatTelegramMessage(event) {
-  const ticker = event.primaryTicker || event.tickers[0] || "Market";
-  return [`STOCK RADAR Alert`, `${ticker}: ${event.title}`, `Category: ${event.category || "other"}`].join("\n");
-}
-
-function getPlanLimits(plan) {
-  return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
 
 async function insertDelivery({ userId, event, candidate, deliveredChannels, lastError }) {
@@ -437,16 +429,15 @@ function readPlan(row) {
   const trialPlan = readString(row?.trial_plan);
   const trialStartedAt = readString(row?.trial_started_at);
   const trialEndsAt = readString(row?.trial_ends_at);
-  const trialCancelledAt = readString(row?.trial_cancelled_at);
   const trialEndsTime = Date.parse(trialEndsAt);
   if (
-    trialPlan === "pro" &&
+    (trialPlan === "pro" || trialPlan === "advanced") &&
     trialStartedAt &&
     Number.isFinite(trialEndsTime) &&
     trialEndsTime > Date.now() &&
-    !trialCancelledAt
+    PLAN_RANK[trialPlan] > PLAN_RANK[effectiveBasePlan]
   ) {
-    return "pro";
+    return trialPlan;
   }
 
   return effectiveBasePlan;
@@ -537,6 +528,26 @@ function readNumber(value, fallback) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return fallback;
+}
+
+function readOptionalScore(value) {
+  const number = readNumber(value, Number.NaN);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : undefined;
+}
+
+function readSignal(value) {
+  const signal = readString(value).toLowerCase();
+  return ["bullish", "bearish", "volatile", "neutral"].includes(signal) ? signal : undefined;
+}
+
+function readImpact(value) {
+  const impact = readString(value).toLowerCase();
+  return ["high", "medium", "low"].includes(impact) ? impact : undefined;
+}
+
+function readMarketScope(value) {
+  const scope = readString(value).toLowerCase();
+  return ["company", "sector", "theme", "macro"].includes(scope) ? scope : "company";
 }
 
 function readDeliveryLevel(value) {

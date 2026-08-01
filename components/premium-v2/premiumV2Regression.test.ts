@@ -63,15 +63,15 @@ test("keeps trial, current-plan, and preview-selection behavior visible in the s
   assert.match(componentSource, /data-testid="premium-v2-upgrade-status"/);
   assert.match(trialCtaSource, /Card required/);
   assert.match(trialCtaSource, /Renews as monthly Advanced after 14 days/);
-  assert.match(trialCtaSource, /Checkout coming soon/);
+  assert.match(trialCtaSource, /Checkout required/);
 });
 
 test("keeps coverage labels concise and comparison values free of repeated event badges", () => {
-  assert.match(dataSource, /badge: "Free–Pro"/);
+  assert.match(dataSource, /badge: "Pro\+"/);
   assert.match(dataSource, /badge: "Advanced\+"/);
   assert.match(
     dataSource,
-    /feature: "Market-Wide Discovery",[\s\S]*free: "12 Core types",[\s\S]*adFree: "12 Core types",[\s\S]*pro: "12 Core types",[\s\S]*advanced: "All 17 types",[\s\S]*ultimate: "All 17 types \+ rules"/,
+    /feature: "Market-Wide Discovery",[\s\S]*free: "Pro\+ required",[\s\S]*adFree: "Pro\+ required",[\s\S]*pro: "12 Core types",[\s\S]*advanced: "All 17 types",[\s\S]*ultimate: "All 17 types \+ rules"/,
   );
   assert.doesNotMatch(dataSource, /details:|emphasized:/);
   assert.match(componentSource, /className=\{styles\.coverageTier\}>\{group\.badge\}/);
