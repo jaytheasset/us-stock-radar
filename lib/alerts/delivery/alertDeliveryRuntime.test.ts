@@ -16,6 +16,9 @@ const eventDelivery = readProjectFile(
 const queuedDelivery = readProjectFile(
   "lib/alerts/delivery/processQueuedDeliveries.ts",
 );
+const publicTelegramDelivery = readProjectFile(
+  "lib/alerts/delivery/publicTelegramBroadcast.ts",
+);
 const deliveryEvaluation = readProjectFile(
   "lib/alerts/delivery/evaluateAlertDelivery.ts",
 );
@@ -46,10 +49,11 @@ test("manual POST compatibility stays dry-run by default and isolated from sched
   assert.match(cronRoute, /x-cron-secret/);
 });
 
-test("one scheduler lock covers event outbox, queued channels, and Calendar", () => {
+test("one scheduler lock covers member, public Telegram, and Calendar delivery", () => {
   assert.match(scheduler, /acquireJobLock/);
   assert.match(scheduler, /await runAlertDeliveryBatch/);
   assert.match(scheduler, /await processQueuedDeliveries/);
+  assert.match(scheduler, /await runPublicTelegramBroadcastDelivery/);
   assert.match(scheduler, /await runCalendarAlertDelivery/);
   assert.ok(
     scheduler.indexOf("await runAlertDeliveryBatch") <
@@ -57,8 +61,26 @@ test("one scheduler lock covers event outbox, queued channels, and Calendar", ()
   );
   assert.ok(
     scheduler.indexOf("await processQueuedDeliveries") <
+      scheduler.indexOf("await runPublicTelegramBroadcastDelivery"),
+  );
+  assert.ok(
+    scheduler.indexOf("await runPublicTelegramBroadcastDelivery") <
       scheduler.indexOf("await runCalendarAlertDelivery"),
   );
+});
+
+test("public Telegram stays separate from member delivery and fail-closed", () => {
+  assert.match(publicTelegramDelivery, /public_telegram_broadcast_deliveries/);
+  assert.match(publicTelegramDelivery, /normalizePublicTelegramDestination/);
+  assert.match(publicTelegramDelivery, /alertDeliverySendTelegramPublic/);
+  assert.match(publicTelegramDelivery, /claimPublicTelegramBroadcast/);
+  assert.match(publicTelegramDelivery, /finishPublicTelegramBroadcast/);
+  assert.doesNotMatch(
+    publicTelegramDelivery,
+    /user_alert_deliveries|user_delivery_channels|getEffectiveUserPlan/,
+  );
+  assert.match(cronRoute, /publicTelegramLimit/);
+  assert.match(cronRoute, /publicTelegram: result\.publicTelegram/);
 });
 
 test("events persist an outbox row before any external channel processing", () => {

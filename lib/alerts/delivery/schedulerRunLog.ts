@@ -135,6 +135,22 @@ function summarizeSchedulerResult(result: RunAlertDeliverySchedulerResult) {
     write: result.write,
     locked: result.locked,
     lockSkipped: result.lockSkipped === true,
+    publicTelegram: result.publicTelegram
+      ? {
+          ok: result.publicTelegram.ok,
+          write: result.publicTelegram.write,
+          scanned: result.publicTelegram.scanned,
+          processed: result.publicTelegram.processed,
+          wouldProcess: result.publicTelegram.wouldProcess,
+          sent: result.publicTelegram.sent,
+          failed: result.publicTelegram.failed,
+          suppressed: result.publicTelegram.suppressed,
+          disabled: result.publicTelegram.disabled,
+          duplicatesPrevented:
+            result.publicTelegram.duplicatesPrevented,
+          inProgress: result.publicTelegram.inProgress,
+        }
+      : null,
     calendar: result.calendar
       ? {
           ok: result.calendar.ok,

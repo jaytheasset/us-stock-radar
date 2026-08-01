@@ -635,6 +635,28 @@ Register and inspect the webhook only with the secret-safe PowerShell commands i
 `docs/TELEGRAM_CONNECT.md`. That procedure covers Production registration,
 `getWebhookInfo`, temporary local-tunnel switching, and mandatory restoration.
 
+### Free public Telegram broadcast
+
+The free public broadcast is independent from member Telegram connections and
+uses the same bot token with two additional server-only values:
+
+```bash
+TELEGRAM_PUBLIC_CHANNEL_ID=@channel_username_or_numeric_id
+ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC=false
+```
+
+Keep the public send gate false for local checks. The normal scheduler dry-run
+can inspect due rows without sending. For a locally approved write-path check,
+use a transaction or fixture destination and never point the local environment
+at the Production channel. Enabling the public gate requires an explicit
+Production operating window, the intended channel destination, and a bot that
+has only the required post-message administrator permission.
+
+Public rows are keyed by event and the fixed `telegram_public` channel. A
+provider-declared failure becomes retryable after five minutes. An uncertain
+network outcome is not automatically retried because doing so could duplicate a
+channel post.
+
 ## Safety Rules
 
 - Never print `SUPABASE_DB_URL`.
@@ -642,9 +664,12 @@ Register and inspect the webhook only with the secret-safe PowerShell commands i
 - Never print `ALERT_DELIVERY_CRON_SECRET` or `CRON_SECRET`.
 - Never print `TELEGRAM_BOT_TOKEN`.
 - Never print `TELEGRAM_WEBHOOK_SECRET`.
+- Never print `TELEGRAM_PUBLIC_CHANNEL_ID`.
 - Never log `Authorization` headers.
 - Never store raw Telegram connect tokens. Only token hashes belong in the DB.
 - Never let Telegram send run unless `ALERT_DELIVERY_SEND_TELEGRAM=true`.
+- Never let the free public broadcast send unless
+  `ALERT_DELIVERY_SEND_TELEGRAM_PUBLIC=true`.
 - For CLI scheduler, never run write mode unless `--write` is intentional.
 - For HTTP cron endpoint, never run write mode unless `ALERT_DELIVERY_CRON_WRITE_ENABLED=true`.
 - Keep dry-run as the default for manual commands.
