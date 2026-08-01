@@ -2322,7 +2322,8 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /document\.visibilityState === "visible"/);
   assert.match(inbox, /window\.addEventListener\("focus"/);
   assert.match(inbox, /LIVE_ROOM_UNREAD_REFRESH_EVENT/);
-  assert.match(inbox, /MessageSquareText/);
+  assert.match(inbox, /MessageCircle/);
+  assert.doesNotMatch(inbox, /MessageSquareText/);
   assert.match(inbox, /Rooms/);
   assert.match(inbox, /People/);
   assert.match(inbox, /Sign in to follow members/);
