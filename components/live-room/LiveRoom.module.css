@@ -5,12 +5,14 @@
   --live-room-mobile-composer-reply-height: 0px;
   --live-room-mobile-composer-media-height: 0px;
   --live-room-mobile-composer-error-height: 0px;
+  --live-room-mobile-composer-disclosure-height: 0px;
   --live-room-mobile-composer-height: calc(
     var(--live-room-mobile-composer-control-height) +
       var(--live-room-mobile-composer-reference-height) +
       var(--live-room-mobile-composer-reply-height) +
       var(--live-room-mobile-composer-media-height) +
-      var(--live-room-mobile-composer-error-height)
+      var(--live-room-mobile-composer-error-height) +
+      var(--live-room-mobile-composer-disclosure-height)
   );
   --live-room-workspace-height: max(560px, calc(100dvh - 240px));
 
@@ -2542,6 +2544,7 @@ button.messageReplyPreview:hover {
 @media (max-width: 760px) {
   .page:has(.roomLayout:not([hidden]) .composer) {
     --live-room-mobile-composer-control-height: 57px;
+    --live-room-mobile-composer-disclosure-height: 34px;
   }
 
   .page:has(.roomLayout:not([hidden]) .composer:focus-within) {

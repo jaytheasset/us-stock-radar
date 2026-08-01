@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
+import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { NewsV2MarketCapOption } from "@/components/news-v2/NewsV2MarketCapOption";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import {
@@ -36,6 +37,7 @@ export type NewsV2FilterBarProps = {
   onRemoveFilter: (group: NewsV2FilterGroup, value: string) => void;
   onReset: () => void;
   onSearch: () => void;
+  onTickerSelect: (ticker: string) => void;
   onToggleFilter: (group: NewsV2FilterGroup, value: string) => void;
   queryDraft: string;
 };
@@ -53,6 +55,7 @@ export function NewsV2FilterBar({
   onRemoveFilter,
   onReset,
   onSearch,
+  onTickerSelect,
   onToggleFilter,
   queryDraft,
 }: NewsV2FilterBarProps) {
@@ -102,18 +105,15 @@ export function NewsV2FilterBar({
     <section aria-label="News filters" className={styles.filterBar}>
       <div className={styles.filterUtilityRow}>
         <form className={styles.searchForm} id="news-v2-search-form" onSubmit={submitSearch}>
-          <label className={styles.searchField}>
-            <span aria-hidden="true" className={styles.searchIconCell}>
-              <Search size={17} />
-            </span>
-            <span className={styles.visuallyHidden}>Search news</span>
-            <input
-              onChange={(event) => onQueryDraftChange(event.target.value)}
-              placeholder="Search ticker, company, source or headline"
-              type="search"
-              value={queryDraft}
-            />
-          </label>
+          <TickerCompanyAutocomplete
+            className={styles.searchField}
+            id="news-v2-ticker-company-search"
+            label="Search news by ticker or company"
+            onSelect={(result) => onTickerSelect(result.ticker)}
+            onValueChange={onQueryDraftChange}
+            placeholder="Search ticker, company, source or headline"
+            value={queryDraft}
+          />
           <button className={styles.searchButton} type="submit">Search</button>
         </form>
 

@@ -17,6 +17,65 @@ test("distinguishes complete, partial, and unavailable filing loads", () => {
   assert.equal(resolveFilingsV2LoadState(0, 3), "unavailable");
 });
 
+test("filing detail embeds stored SEC source in the sandbox and resolves related filings broadly", () => {
+  const source = readFileSync(
+    new URL("../../app/filings/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /readStoredFilingSourceContent/);
+  assert.match(source, /<SecFilingHtmlViewer/);
+  assert.match(source, /fetchEventTickers\(item\.id\)/);
+  assert.match(source, /symbol: `eq\.\$\{ticker\}`/);
+  assert.match(source, /selectRelatedFilingRows/);
+  assert.match(source, /source_group: "eq\.filings"/);
+  assert.doesNotMatch(source, /dangerouslySetInnerHTML=\{\{ __html: embeddedHtml \}\}/);
+});
+
+test("news and filing analysis share one source-verification disclosure", () => {
+  const analysisSource = readFileSync(
+    new URL("../filing-analysis-v2/GenericFilingAnalysis.tsx", import.meta.url),
+    "utf8",
+  );
+  const filingSource = readFileSync(
+    new URL("../../app/filings/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(filingSource, /<GenericFilingAnalysis/);
+  assert.equal(
+    analysisSource.match(/AI-assisted analysis\. Verify material facts against the original source\. Scores, labels, and directional signals are not investment recommendations\./g)?.length,
+    1,
+  );
+  assert.equal(analysisSource.match(/\{AI_ANALYSIS_DISCLOSURE\}/g)?.length, 1);
+});
+
+test("filings preview rail keeps intrinsic ad widths constrained after route transitions", () => {
+  const adStyles = readFileSync(
+    new URL("./FilingsRailAdSlot.module.css", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("./StockRadarFilingsV2.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(adStyles, /\.slot\.mobileSlot\s*\{[\s\S]*display:\s*none;/);
+  assert.match(
+    adStyles,
+    /@media \(max-width: 1180px\)\s*\{[\s\S]*\.slot\.desktopSlot\s*\{[\s\S]*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /\.detailContent\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\);/,
+  );
+  assert.match(styles, /\.detailPreviewCard\s*\{[\s\S]*min-width:\s*0;/);
+  assert.match(
+    styles,
+    /\.detailAdArea\s*\{[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;/,
+  );
+});
+
 test("filing feed rows use watchlist density and plain representative event metadata", () => {
   const listSource = readFileSync(
     new URL("./FilingsV2List.tsx", import.meta.url),

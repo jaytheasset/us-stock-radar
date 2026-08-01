@@ -90,11 +90,13 @@ export function assertDiscoveryCategoriesAllowed(plan: Plan, categories: PublicA
 
 export function buildCategoryAvailabilityMessage(plan: Plan) {
   const planName = getPlanDisplayName(plan);
-  const upgradeText =
-    plan === "free" || plan === "ad_free" || plan === "pro"
-      ? " Upgrade to Advanced to unlock all 17 market-wide Discovery categories."
-      : "";
-  return `${planName} includes the approved Discovery category set for this plan.${upgradeText}`;
+  if (plan === "free" || plan === "ad_free") {
+    return `${planName} does not include Market Discovery. Upgrade to Pro for 12 core market-wide categories.`;
+  }
+  if (plan === "pro") {
+    return "Pro includes 12 core Market Discovery categories. Upgrade to Advanced to unlock all 17.";
+  }
+  return `${planName} includes all 17 Market Discovery categories.`;
 }
 
 export function getChannelLockState(plan: Plan, channel: AlertChannel) {

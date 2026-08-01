@@ -37,7 +37,7 @@ export function AdvancedTrialCta({
       >
         {children}
       </button>
-      <small>Card required · Renews as monthly Advanced after 14 days · Checkout coming soon</small>
+      <small>Card required · Renews as monthly Advanced after 14 days · Checkout required</small>
     </span>
   );
 }

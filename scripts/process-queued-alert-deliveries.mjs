@@ -3,6 +3,20 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
+import {
+  getPlanLimits,
+  isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
+} from "../lib/subscriptionPolicy.ts";
+import { buildTelegramAlertPresentation } from "../lib/telegram/telegramAlertMessage.ts";
+
+const PLAN_RANK = {
+  free: 0,
+  ad_free: 1,
+  pro: 2,
+  advanced: 3,
+  ultimate: 4,
+};
 
 const args = parseArgs(process.argv.slice(2));
 const write = args.has("write");
@@ -70,7 +84,7 @@ async function processQueuedDeliveries({ dryRun, write, limit }) {
 async function fetchDueQueuedRows(limit) {
   return await fetchRows("user_alert_deliveries", {
     select:
-      "id,user_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at",
+      "id,user_id,alert_event_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at",
     delivery_status: "eq.queued",
     scheduled_for: `lte.${new Date().toISOString()}`,
     order: "scheduled_for.asc,created_at.asc",
@@ -79,7 +93,27 @@ async function fetchDueQueuedRows(limit) {
 }
 
 async function processQueuedRow(row, { dryRun, write }) {
-  const channelResult = await processQueuedChannels(row, { dryRun });
+  const plan = readPlan(await fetchOne("user_plan_subscriptions", { user_id: `eq.${row.user_id}` }));
+  const policyError = getQueuedPolicyError(row, plan);
+  if (policyError) {
+    if (dryRun || !write) {
+      return printableItem(row, { action: "suppressed", channels: [], error: policyError });
+    }
+    const updated = await patchRows(
+      "user_alert_deliveries",
+      { id: `eq.${row.id}`, delivery_status: "eq.queued" },
+      {
+        delivery_status: "suppressed",
+        delivered_channels: [],
+        attempted_at: new Date().toISOString(),
+        last_error: policyError,
+      },
+    );
+    if (!updated.ok) return markFailed(row, sanitizeError(updated.error || policyError));
+    return printableItem(row, { action: "suppressed", channels: [], error: policyError });
+  }
+
+  const channelResult = await processQueuedChannels(row, { dryRun, plan });
   const channels = channelResult.channels;
   const noChannelsMessage = channelResult.errors.join("; ") || "No enabled delivery channels available at processing time.";
 
@@ -142,9 +176,10 @@ async function markFailed(row, error) {
   return printableItem(row, { action: "failed", channels: [], error });
 }
 
-async function processQueuedChannels(row, { dryRun }) {
+async function processQueuedChannels(row, { dryRun, plan }) {
   const requested = new Set(readChannels(row.delivered_channels));
   if (!requested.size) return { channels: [], errors: [] };
+  const entitledChannels = new Set(getPlanLimits(plan).channels);
 
   const channelRows = new Map();
   for (const channelRow of await fetchRows("user_delivery_channels", {
@@ -160,6 +195,10 @@ async function processQueuedChannels(row, { dryRun }) {
   const errors = [];
 
   for (const channel of requested) {
+    if (!entitledChannels.has(channel)) {
+      errors.push(`${channel}: channel is not available on the current plan.`);
+      continue;
+    }
     const channelRow = channelRows.get(channel);
     if (channel === "web") {
       if (channelRow?.enabled === true) channels.push("web");
@@ -174,7 +213,8 @@ async function processQueuedChannels(row, { dryRun }) {
           channels.push("telegram");
           continue;
         }
-        const sent = await sendTelegramMessage(destination, formatTelegramMessage(row));
+        const presentation = await buildQueuedTelegramPresentation(row);
+        const sent = await sendTelegramMessage(destination, presentation.text, presentation);
         if (sent.ok) channels.push("telegram");
         else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
       }
@@ -187,7 +227,19 @@ async function processQueuedChannels(row, { dryRun }) {
   return { channels, errors };
 }
 
-async function sendTelegramMessage(chatId, text) {
+function getQueuedPolicyError(row, plan) {
+  const category = readString(row.category);
+  if (readString(row.alert_lane) === "market_discovery") {
+    return isDiscoveryCategoryAllowed(plan, category)
+      ? ""
+      : `${category || "Unknown category"} is not available for ${plan} market-wide Discovery.`;
+  }
+  return isTickerAlertCategoryAllowed(plan, category)
+    ? ""
+    : `${category || "Unknown category"} is not a public ticker alert category.`;
+}
+
+async function sendTelegramMessage(chatId, text, options = {}) {
   if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
     return { ok: false, error: "Telegram sending is disabled." };
   }
@@ -206,13 +258,16 @@ async function sendTelegramMessage(chatId, text) {
       body: JSON.stringify({
         chat_id: chatId,
         text,
+        ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
+        ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+        link_preview_options: { is_disabled: true },
       }),
     });
     const data = await response.json().catch(() => null);
     if (response.ok && data?.ok) return { ok: true };
     return { ok: false, error: readError(data, response.statusText) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Telegram send failed." };
+    return { ok: false, error: "Telegram request failed." };
   }
 }
 
@@ -232,6 +287,11 @@ async function fetchRows(table, query) {
   const result = await supabaseRequest("GET", table, query);
   if (!result.ok) throw new Error(`${table} read failed: ${result.error || result.status}`);
   return Array.isArray(result.data) ? result.data : [];
+}
+
+async function fetchOne(table, query) {
+  const rows = await fetchRows(table, { select: "*", ...query, limit: "1" });
+  return rows[0] || null;
 }
 
 async function patchRows(table, query, payload) {
@@ -289,9 +349,45 @@ function normalizeLimit(value) {
   return Math.max(1, Math.min(Number.isFinite(limit) ? Math.trunc(limit) : 50, 250));
 }
 
-function formatTelegramMessage(row) {
-  const ticker = row.ticker || "Market";
-  return [`STOCK RADAR Alert`, `${ticker}: ${row.title}`, `Category: ${row.category || "other"}`].join("\n");
+async function buildQueuedTelegramPresentation(row) {
+  const source = readString(row.alert_event_id)
+    ? await fetchOne("events", { id: `eq.${readString(row.alert_event_id)}` })
+    : null;
+  const ticker = normalizeTicker(source?.ticker || row.ticker);
+  const score = readOptionalScore(source?.score);
+  const event = source
+    ? {
+        id: readString(source.id) || readString(row.alert_event_id) || readString(row.id),
+        title: readString(source.title) || readString(row.title) || "Untitled alert event",
+        quickTake: readString(source.quick_take) || undefined,
+        tickers: ticker ? [ticker] : [],
+        primaryTicker: ticker || undefined,
+        category: readString(source.event_type) || readString(row.category) || "other",
+        sourceType: readString(source.source_group) === "filings" ? "filing" : readString(source.source_group) === "news" ? "news" : "other",
+        sourceLabel: readString(source.source_name) || readString(source.source_code) || undefined,
+        severity: readString(row.severity) || undefined,
+        score,
+        signal: readSignal(source.signal),
+        impact: readImpact(source.impact),
+        marketScope: readMarketScope(source.market_scope),
+        publishedAt: readString(source.published_at) || readString(source.detected_at) || undefined,
+      }
+    : {
+        id: readString(row.alert_event_id) || readString(row.id),
+        title: readString(row.title) || "Untitled alert event",
+        tickers: ticker ? [ticker] : [],
+        primaryTicker: ticker || undefined,
+        category: readString(row.category) || "other",
+        sourceType: readString(row.source_type) || "other",
+        sourceLabel: readString(row.source_label) || undefined,
+        severity: readString(row.severity) || undefined,
+        marketScope: "macro",
+      };
+  return buildTelegramAlertPresentation(event, {
+    baseUrl: env.APP_BASE_URL || "",
+    callbackSecret: env.TELEGRAM_WEBHOOK_SECRET || "",
+    callbackSubject: readString(row.user_id),
+  });
 }
 
 function readChannels(value) {
@@ -302,6 +398,57 @@ function readChannels(value) {
 function readChannel(value) {
   const channel = readString(value);
   return ["web", "telegram", "email", "webhook", "api"].includes(channel) ? channel : "";
+}
+
+function readPlan(row) {
+  const plan = readString(row?.plan);
+  const status = readString(row?.status);
+  const basePlan = isPlan(plan) ? plan : "free";
+  const effectiveBasePlan = status && status !== "active" ? "free" : basePlan;
+  const trialPlan = readString(row?.trial_plan);
+  const trialStartedAt = readString(row?.trial_started_at);
+  const trialEndsTime = Date.parse(readString(row?.trial_ends_at));
+  if (
+    (trialPlan === "pro" || trialPlan === "advanced") &&
+    trialStartedAt &&
+    Number.isFinite(trialEndsTime) &&
+    trialEndsTime > Date.now() &&
+    PLAN_RANK[trialPlan] > PLAN_RANK[effectiveBasePlan]
+  ) {
+    return trialPlan;
+  }
+  return effectiveBasePlan;
+}
+
+function normalizeTicker(value) {
+  const ticker = readString(value).toUpperCase();
+  return /^[A-Z0-9][A-Z0-9.-]{0,11}$/.test(ticker) ? ticker : "";
+}
+
+function readOptionalScore(value) {
+  const number = Number(value);
+  return value !== null && value !== "" && Number.isFinite(number)
+    ? Math.max(0, Math.min(100, Math.round(number)))
+    : undefined;
+}
+
+function readSignal(value) {
+  const signal = readString(value).toLowerCase();
+  return ["bullish", "bearish", "volatile", "neutral"].includes(signal) ? signal : undefined;
+}
+
+function readImpact(value) {
+  const impact = readString(value).toLowerCase();
+  return ["high", "medium", "low"].includes(impact) ? impact : undefined;
+}
+
+function readMarketScope(value) {
+  const scope = readString(value).toLowerCase();
+  return ["company", "sector", "theme", "macro"].includes(scope) ? scope : "company";
+}
+
+function isPlan(value) {
+  return value === "free" || value === "ad_free" || value === "pro" || value === "advanced" || value === "ultimate";
 }
 
 function readString(value) {

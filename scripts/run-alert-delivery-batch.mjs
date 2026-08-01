@@ -146,7 +146,7 @@ function runEventDelivery(eventId) {
   if (write) childArgs.push("--write");
 
   try {
-    const stdout = execFileSync("node", childArgs, {
+    const stdout = execFileSync("node", ["--experimental-strip-types", ...childArgs], {
       cwd: process.cwd(),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],

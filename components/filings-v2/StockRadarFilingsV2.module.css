@@ -148,61 +148,8 @@
 }
 
 .searchControl {
-  box-sizing: border-box;
-  display: flex;
-  min-width: 0;
-  height: 38px;
-  align-items: center;
-  gap: var(--sr-space-2);
-  border: var(--sr-border-width) solid var(--sr-color-border-control);
-  border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-3);
-  color: var(--sr-color-text-muted);
-  background: var(--sr-color-surface-control);
-}
-
-.searchControl {
-  width: 100%;
-}
-
-.searchIconCell {
-  position: relative;
-  display: flex;
-  height: 100%;
-  flex: 0 0 28px;
-  align-items: center;
-  justify-content: center;
-}
-
-.searchIconCell::after {
-  position: absolute;
-  top: 7px;
-  right: 0;
-  bottom: 7px;
-  width: var(--sr-border-width);
-  background: var(--sr-color-divider);
-  content: "";
-}
-
-.searchControl input {
   min-width: 0;
   width: 100%;
-  border: 0;
-  outline: 0;
-  padding: 0;
-  color: var(--sr-color-text-primary);
-  background: transparent;
-  font: inherit;
-  font-size: var(--sr-font-size-xs);
-}
-
-.searchControl input::placeholder {
-  color: var(--sr-color-text-meta);
-}
-
-.searchControl:focus-within {
-  border-color: var(--sr-color-accent-border-active);
-  box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
 }
 
 .searchButton {
@@ -1064,12 +1011,14 @@
 .detailContent {
   display: grid;
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sr-space-4);
   padding: var(--sr-space-4);
 }
 
 .detailPreviewCard {
   display: grid;
+  min-width: 0;
   overflow: hidden;
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: var(--sr-radius-base);
@@ -1196,6 +1145,8 @@
 
 .detailAdArea {
   display: flex;
+  width: 100%;
+  min-width: 0;
   justify-content: center;
   padding: 0;
 }

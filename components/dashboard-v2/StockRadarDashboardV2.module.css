@@ -8,9 +8,11 @@
 
 .workspace {
   display: grid;
+  width: min(100%, 1600px);
   grid-template-columns: minmax(770px, 1fr) minmax(430px, 31.5vw);
   align-items: start;
   min-height: calc(100vh - var(--sr-size-header));
+  margin: 0 auto;
 }
 
 .rightRail {

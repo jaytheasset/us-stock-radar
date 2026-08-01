@@ -10,6 +10,7 @@ import {
   getAllAlertCategoryValues,
   getPlanLimits,
   isDiscoveryCategoryAllowed,
+  isTickerAlertCategoryAllowed,
   isValidAlertCategory,
   isValidPublicAlertCategory,
   type Plan,
@@ -41,23 +42,41 @@ test("watchlists are unlimited and alert ticker limits match the approved contra
     plans.map((plan) => getPlanLimits(plan).alertTickerLimit),
     [1, 5, 15, null, null],
   );
+  assert.deepEqual(
+    plans.map((plan) => getPlanLimits(plan).calendarEventFollowLimit),
+    [5, 20, 50, null, null],
+  );
 });
 
 test("market-wide Discovery uses an allowed category set, not arbitrary slots", () => {
   assert.deepEqual(
     plans.map((plan) => getPlanLimits(plan).discoveryCategories.length),
-    [12, 12, 12, 17, 17],
+    [0, 0, 12, 17, 17],
   );
 
-  for (const plan of ["free", "ad_free", "pro"] as const) {
-    assert.equal(isDiscoveryCategoryAllowed(plan, "earnings"), true);
+  for (const plan of ["free", "ad_free"] as const) {
+    assert.equal(isDiscoveryCategoryAllowed(plan, "earnings"), false);
     assert.equal(isDiscoveryCategoryAllowed(plan, "dilution_risk"), false);
     assert.equal(isDiscoveryCategoryAllowed(plan, "other"), false);
   }
 
+  assert.equal(isDiscoveryCategoryAllowed("pro", "earnings"), true);
+  assert.equal(isDiscoveryCategoryAllowed("pro", "dilution_risk"), false);
+  assert.equal(isDiscoveryCategoryAllowed("pro", "other"), false);
+
   for (const plan of ["advanced", "ultimate"] as const) {
     assert.equal(isDiscoveryCategoryAllowed(plan, "dilution_risk"), true);
     assert.equal(isDiscoveryCategoryAllowed(plan, "other"), false);
+  }
+});
+
+test("every alert-enabled ticker is monitored across all 17 public event types", () => {
+  for (const plan of plans) {
+    assert.equal(getPlanLimits(plan).tickerAlertCategories.length, 17);
+    for (const category of getAllAlertCategoryValues()) {
+      assert.equal(isTickerAlertCategoryAllowed(plan, category), true);
+    }
+    assert.equal(isTickerAlertCategoryAllowed(plan, "other"), false);
   }
 });
 

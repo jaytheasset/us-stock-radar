@@ -31,6 +31,8 @@ import {
   type DashboardV2Tab,
   type DashboardV2TickerDetail,
 } from "@/lib/dashboardV2Types";
+import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
+import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "@/components/dashboard-v2/StockRadarDashboardV2.module.css";
 
 const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashboardV2Tabs.map(
@@ -72,7 +74,7 @@ type MarketState = {
   tab: DashboardV2Tab;
 };
 
-export function StockRadarDashboardV2() {
+export function StockRadarDashboardV2({ viewerPlan }: { viewerPlan: Plan }) {
   const [activeMoverTab, setActiveMoverTab] = useState<DashboardV2Tab>("Top Gainers");
   const [activeSession, setActiveSession] = useState<DashboardV2Session>("Regular");
   const [selectedTicker, setSelectedTicker] = useState<DashboardV2TickerDetail | null>(null);
@@ -263,6 +265,7 @@ export function StockRadarDashboardV2() {
     () => filterDashboardV2Rows(sourceRows, filterState),
     [filterState, sourceRows],
   );
+  const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -310,6 +313,7 @@ export function StockRadarDashboardV2() {
               </p>
               {rows.length ? (
                 <MarketMoversTable
+                  adsEnabledForViewer={adsEnabledForViewer}
                   mobileValueMode={activeMoverTab === "Top Volume" ? "volume" : "change"}
                   onOpenChart={(row) => openTickerDetail(row, "chart")}
                   onSelectRow={(row) => openTickerDetail(row, "summary")}
@@ -346,7 +350,7 @@ export function StockRadarDashboardV2() {
               </span>
             </aside>
           )}
-          <DesktopRailAdSlot />
+          {adsEnabledForViewer ? <DesktopRailAdSlot /> : null}
         </div>
       </div>
       {selectedTicker ? (

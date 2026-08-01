@@ -2314,6 +2314,7 @@ test("member activity API stays service-only, privacy-safe, and avoids per-autho
 test("global Live Room inbox uses low-frequency visible polling plus focus refresh and stays distinct from Alerts", () => {
   const inbox = readSource("components/shell/LiveRoomUnreadMenu.tsx");
   const header = readSource("components/shell/StockRadarProductHeader.tsx");
+  const alerts = readSource("components/shell/AlertNotificationsMenu.tsx");
   const repository = readSource("lib/live-room/apiRepository.ts");
   const unreadRoute = readSource("app/api/live-room/unread/route.ts");
 
@@ -2321,7 +2322,8 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /document\.visibilityState === "visible"/);
   assert.match(inbox, /window\.addEventListener\("focus"/);
   assert.match(inbox, /LIVE_ROOM_UNREAD_REFRESH_EVENT/);
-  assert.match(inbox, /MessageSquareText/);
+  assert.match(inbox, /MessageCircle/);
+  assert.doesNotMatch(inbox, /MessageSquareText/);
   assert.match(inbox, /Rooms/);
   assert.match(inbox, /People/);
   assert.match(inbox, /Sign in to follow members/);
@@ -2329,8 +2331,12 @@ test("global Live Room inbox uses low-frequency visible polling plus focus refre
   assert.match(inbox, /Unfollow member/);
   assert.match(inbox, /All caught up/);
   assert.match(inbox, /Follow a company Live Room/);
-  assert.match(header, /<LiveRoomUnreadMenu \/>[\s\S]+aria-label="Alerts"/);
-  assert.match(header, /<Bell aria-hidden="true"/);
+  assert.match(
+    header,
+    /<LiveRoomUnreadMenu \/>[\s\S]+<AlertNotificationsMenu loginHref=\{loginHref\} \/>/,
+  );
+  assert.match(alerts, /aria-label=\{[\s\S]*`Alerts, \$\{unreadCount\} unread`/);
+  assert.match(alerts, /<Bell aria-hidden="true"/);
   assert.match(unreadRoute, /if \(!hasExistingIdentity\)[\s\S]+emptySummary/);
 });
 
@@ -2653,4 +2659,81 @@ test("all public member surfaces use the shared initial avatar contract", () => 
     avatarStyles,
     /\[data-avatar-size="large"\][\s\S]*font-size:\s*var\(--sr-font-size-md\)/,
   );
+});
+
+test("Live Room disclosure appears exactly once at the shared composer boundary", () => {
+  const disclosure = readSource(
+    "components/live-room/LiveRoomDisclosureNotice.tsx",
+  );
+  const disclosureStyles = readSource(
+    "components/live-room/LiveRoomDisclosureNotice.module.css",
+  );
+  const composer = readSource("components/live-room/MessageComposer.tsx");
+  const posts = readSource("components/live-room/PostsPanel.tsx");
+  const postDetail = readSource(
+    "components/live-room/PostDetailClient.tsx",
+  );
+  const proofCard = readSource(
+    "components/brokerage/BrokerageProofCard.tsx",
+  );
+  const companyRoom = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const communityRoom = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+  const roomStyles = readSource(
+    "components/live-room/LiveRoom.module.css",
+  );
+  const terms = readSource("app/terms/page.tsx");
+
+  assert.match(
+    disclosure,
+    /User posts and verified trades are not endorsed by Stock Radar and are not investment advice\. Verify independently\./,
+  );
+  assert.match(
+    disclosure,
+    /href="\/terms#live-room-community-disclosures"/,
+  );
+  assert.equal(
+    (composer.match(/<LiveRoomDisclosureNotice \/>/g) ?? []).length,
+    1,
+  );
+  for (const source of [posts, postDetail, companyRoom, communityRoom]) {
+    assert.doesNotMatch(source, /LiveRoomDisclosureNotice|showDisclosure/);
+    assert.doesNotMatch(source, /live-room-community-disclosures/);
+  }
+  assert.doesNotMatch(
+    proofCard,
+    /Verified means selected broker-linked data matched|About verified|proofInfo|BottomSheetShell/,
+  );
+  assert.match(
+    roomStyles,
+    /--live-room-mobile-composer-disclosure-height: 34px/,
+  );
+  assert.match(
+    roomStyles,
+    /var\(--live-room-mobile-composer-disclosure-height\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /font-size: var\(--sr-font-size-xs\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /color: var\(--sr-color-text-secondary\)/,
+  );
+  assert.match(
+    disclosureStyles,
+    /@media \(max-width: 760px\)[\s\S]*min-height: 34px/,
+  );
+  assert.doesNotMatch(disclosureStyles, /posts-sheet|post-detail/);
+  assert.doesNotMatch(disclosureStyles, /#[0-9a-f]{3,8}\b/i);
+  assert.match(terms, /id: "live-room-community-disclosures"/);
+  assert.match(terms, /not endorsed by Stock Radar, verified for investment merit/);
+  assert.match(terms, /selected broker-linked facts matched/);
+  assert.match(terms, /omitted accounts, profitability, future/);
+  assert.match(terms, /accept the risks of trading/);
+  assert.match(terms, /survive termination—including/);
+  assert.match(terms, /conduct—will survive/);
 });

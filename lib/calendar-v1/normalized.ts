@@ -23,6 +23,7 @@ import {
   parseDateOnly,
 } from "./dateUtils.ts";
 import { policyEventTypeSubcategories } from "./taxonomyManifest.ts";
+import { isPersistentEventId } from "../watchlist/stockOverview.ts";
 
 export const MAX_CALENDAR_RANGE_DAYS = 93;
 export const NORMALIZED_CALENDAR_PAGE_SIZE = 500;
@@ -51,6 +52,7 @@ export const NORMALIZED_CALENDAR_SELECT = [
   "sectors:calendar_event_sectors(sector,role)",
   "metrics:calendar_event_metrics(metric_key,name,actual,consensus,previous,actual_text,consensus_text,previous_text,unit,unit_raw,release_stage,released)",
   "details:calendar_event_details(detail,schema_version)",
+  "analysis_links:calendar_event_analysis_links!calendar_event_analysis_links_calendar_event_id_fkey(analysis_event_id,link_status,is_primary)",
 ].join(",");
 
 const UUID_PATTERN =
@@ -372,6 +374,7 @@ export function mapNormalizedCalendarRow(value: unknown): CalendarEvent {
     ),
   );
   const detail = readDetail(row.details);
+  const analysis = readCalendarAnalysisSummary(row.analysis_links);
   const metrics = relationRecords(row.metrics)
     .map(readMetric)
     .filter((metric): metric is MacroMetric => metric !== null)
@@ -385,6 +388,10 @@ export function mapNormalizedCalendarRow(value: unknown): CalendarEvent {
 
   const common = {
     affectedSectors: sectors,
+    analysisPending: analysis.pending,
+    detailHref: analysis.primaryAnalysisEventId
+      ? `/filings/${analysis.primaryAnalysisEventId}`
+      : null,
     eventDate,
     eventEndDate,
     eventTime,
@@ -395,6 +402,7 @@ export function mapNormalizedCalendarRow(value: unknown): CalendarEvent {
     lifecycleStatus,
     marketSession,
     provider: source?.provider ?? ("unknown" as const),
+    relatedAnalysisCount: analysis.relatedCount,
     relatedTickers,
     scheduleConfidence,
     source: source?.agency ?? "Calendar",
@@ -757,6 +765,24 @@ export function parseCalendarEventsApiPayload(value: unknown): CalendarEvent[] {
   return response.data as CalendarEvent[];
 }
 
+function readCalendarAnalysisSummary(value: unknown) {
+  const links = relationRecords(value)
+    .map((link) => ({
+      analysisEventId: optionalString(link.analysis_event_id),
+      isPrimary: link.is_primary === true,
+      status: optionalString(link.link_status),
+    }))
+    .filter((link) => Boolean(link.analysisEventId && UUID_PATTERN.test(link.analysisEventId)));
+  const linked = links.filter((link) => link.status === "linked");
+  const primary = linked.find((link) => link.isPrimary) ??
+    (linked.length === 1 ? linked[0] : null);
+  return {
+    pending: linked.length === 0 && links.some((link) => link.status === "candidate"),
+    primaryAnalysisEventId: primary?.analysisEventId ?? null,
+    relatedCount: primary ? Math.max(0, linked.length - 1) : 0,
+  };
+}
+
 export function normalizeCalendarProvider(value: unknown): CalendarProvider {
   const text = optionalString(value)?.toLocaleLowerCase("en-US") ?? "";
   const normalized = text.replaceAll("_", "-").replaceAll(" ", "-");
@@ -912,6 +938,13 @@ function normalizeMetricUnit(
 function readDetail(value: unknown): Record<string, unknown> {
   const relation = relationRecord(value);
   return relation ? optionalRecord(relation.detail) ?? {} : {};
+}
+
+export function normalizeCalendarAnalysisHref(value: unknown) {
+  const href = optionalString(value);
+  if (!href) return null;
+  const match = /^\/filings\/([^/?#]+)$/.exec(href);
+  return match && isPersistentEventId(match[1]) ? href : null;
 }
 
 function readDetailString(
@@ -1135,6 +1168,19 @@ function assertPublicCalendarEvent(value: unknown, field: string) {
   requireString(event.id, `${field}.id`);
   requireString(event.title, `${field}.title`);
   requireDateOnly(event.eventDate, `${field}.eventDate`);
+  if (event.detailHref !== null && normalizeCalendarAnalysisHref(event.detailHref) !== event.detailHref) {
+    throw invalid(`${field}.detailHref`, "Calendar analysis links must use the canonical filing route.");
+  }
+  if (
+    typeof event.relatedAnalysisCount !== "number" ||
+    !Number.isSafeInteger(event.relatedAnalysisCount) ||
+    event.relatedAnalysisCount < 0
+  ) {
+    throw invalid(`${field}.relatedAnalysisCount`, "Calendar analysis count is invalid.");
+  }
+  if (typeof event.analysisPending !== "boolean") {
+    throw invalid(`${field}.analysisPending`, "Calendar analysis pending state is invalid.");
+  }
   requireAllowed(
     event.marketSession,
     CALENDAR_MARKET_SESSIONS,

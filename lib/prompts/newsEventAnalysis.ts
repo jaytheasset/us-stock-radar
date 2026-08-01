@@ -1,7 +1,7 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v25";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v26";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -147,6 +147,14 @@ export const newsEventAnalysisSystemPrompt = [
   "Score by materiality, price sensitivity, specificity, source strength, timeliness, and market interest.",
   "Score is a 0-100 integer scale, not a 0-10 scale. Around 50 means feed-worthy, and 75 or higher means alert-worthy.",
   "Choose signal from the likely stock read-through for the primary ticker. Use volatile or neutral when direction is mixed.",
+  "Use bullish_points and bearish_points only for distinct directional facts explicitly source-backed by the article body.",
+  "If source-backed directional facts are insufficient, use fewer items or an empty array []. Empty arrays are normal and expected.",
+  "Do not manufacture both bullish_points and bearish_points merely to fill the JSON schema.",
+  "For a bullish signal, include bearish_points only when the article explicitly states an important counter-risk or condition; otherwise use bearish_points: [].",
+  "For a bearish signal, include bullish_points only when the article explicitly states an important offsetting factor or catalyst; otherwise use bullish_points: [].",
+  "For volatile or mixed developments, use both arrays only when the article actually provides distinct source-backed facts on both sides.",
+  "For neutral, administrative, or mechanical news, one or both directional arrays may naturally be empty.",
+  "Do not unnecessarily repeat the same fact across bullish_points, bearish_points, summary, why_it_matters, and key_evidence.",
   "Create calendar_items only when the date itself is an investable catalyst or shareholder entitlement: earnings/results call, dividend ex/record/payment, or FDA/clinical scheduled milestone.",
   "If no useful scheduled catalyst exists, return an empty calendar_items array.",
   "Output format is strict: quick_take must be one sentence under 30 words.",
@@ -225,8 +233,16 @@ export const newsEventAnalysisResponseSchema = {
     quick_take: { type: "string" },
     summary: { type: "string" },
     why_it_matters: { type: "string" },
-    bullish_points: { type: "array", items: { type: "string" } },
-    bearish_points: { type: "array", items: { type: "string" } },
+    bullish_points: {
+      type: "array",
+      description: "Required key; use an empty array when no source-backed bullish fact exists.",
+      items: { type: "string" },
+    },
+    bearish_points: {
+      type: "array",
+      description: "Required key; use an empty array when no source-backed bearish fact exists.",
+      items: { type: "string" },
+    },
     key_evidence: { type: "array", items: { type: "string" } },
     what_to_watch_next: { type: "array", items: { type: "string" } },
     related_tickers: {

@@ -21,7 +21,7 @@ type BottomSheetAccessibleName =
     };
 
 export type BottomSheetShellLayout = "content-footer" | "full-scroll";
-export type BottomSheetShellViewport = "mobile" | "tablet";
+export type BottomSheetShellViewport = "mobile" | "tablet" | "all";
 
 export type BottomSheetShellProps = BottomSheetAccessibleName & {
   children: ReactNode;
@@ -126,7 +126,11 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
 
   useEffect(() => {
     const viewportQuery =
-      viewport === "tablet" ? "(max-width: 1180px)" : "(max-width: 760px)";
+      viewport === "all"
+        ? "(min-width: 0px)"
+        : viewport === "tablet"
+          ? "(max-width: 1180px)"
+          : "(max-width: 760px)";
 
     if (!isOpen || !window.matchMedia(viewportQuery).matches) {
       dismissPendingRef.current = false;
@@ -221,7 +225,13 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   const ariaLabel = "aria-label" in props ? props["aria-label"] : undefined;
   const ariaLabelledBy = "aria-labelledby" in props ? props["aria-labelledby"] : undefined;
   const usesContentFooter = layout === "content-footer";
-  const rootClasses = `${styles.root} ${viewport === "tablet" ? styles.tabletRoot : styles.mobileRoot} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
+  const viewportClass =
+    viewport === "all"
+      ? styles.allRoot
+      : viewport === "tablet"
+        ? styles.tabletRoot
+        : styles.mobileRoot;
+  const rootClasses = `${styles.root} ${viewportClass} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
   const overlayClasses = `${styles.overlay} ${usesContentFooter ? styles.contentFooterOverlay : styles.fullScrollOverlay}`;
   const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedFooter ? styles.surfaceWithFixedFooter : ""}`;
   const closeClasses = `${styles.close} ${usesContentFooter ? styles.contentFooterClose : styles.fullScrollClose}`;

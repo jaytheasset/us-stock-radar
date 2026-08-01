@@ -100,6 +100,22 @@
   line-height: var(--sr-line-height-none);
 }
 
+.tickerLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tickerLink:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--sr-space-1);
+}
+
+.tickerLink:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .tickerCell > span:not(.tickerLogo) {
   overflow: hidden;
   color: var(--sr-color-text-secondary);

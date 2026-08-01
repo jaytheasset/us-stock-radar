@@ -28,6 +28,36 @@ export type FailedAlertDelivery = {
   deliveredChannels: string[];
 };
 
+export type AlertDeliveryRun = {
+  id: string;
+  runId: string;
+  status: string;
+  dryRun: boolean;
+  writeEnabled: boolean;
+  lockAcquired: boolean;
+  lockSkipped: boolean;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  scanned: number;
+  sent: number;
+  failed: number;
+  duplicates: number;
+  suppressed: number;
+  lastError: string | null;
+};
+
+export type AlertChannelAttemptError = {
+  id: string;
+  deliveryId: string;
+  userId: string;
+  channel: string;
+  status: string;
+  attemptCount: number;
+  createdAt: string;
+  lastError: string | null;
+};
+
 export async function listFailedSourceRuns(
   limit = 100,
 ): Promise<FailedSourceRun[]> {
@@ -78,6 +108,77 @@ export async function listFailedAlertDeliveries(
   }));
 }
 
+export async function listAlertDeliveryRuns(
+  limit = 50,
+): Promise<AlertDeliveryRun[]> {
+  const result = await supabaseSelect("alert_delivery_scheduler_runs", {
+    select:
+      "id,run_id,status,dry_run,write_enabled,lock_acquired,lock_skipped,started_at,finished_at,duration_ms,batch_summary,queued_summary,result_summary,last_error",
+    order: "started_at.desc",
+    limit: String(Math.max(1, Math.min(limit, 100))),
+  });
+
+  return readRows(result.data).map((row) => {
+    const batch = readObject(row.batch_summary);
+    const queued = readObject(row.queued_summary);
+    const summary = readObject(row.result_summary);
+    const calendar = readObject(summary.calendar);
+    return {
+      id: readString(row.id),
+      runId: readString(row.run_id),
+      status: readString(row.status),
+      dryRun: row.dry_run === true,
+      writeEnabled: row.write_enabled === true,
+      lockAcquired: row.lock_acquired === true,
+      lockSkipped: row.lock_skipped === true,
+      startedAt: readString(row.started_at),
+      finishedAt: readNullableString(row.finished_at),
+      durationMs: readNullableNumber(row.duration_ms),
+      scanned:
+        readNumber(batch.scanned) +
+        readNumber(queued.scanned) +
+        readNumber(calendar.scanned),
+      sent: readNumber(queued.sent) + readNumber(calendar.delivered),
+      failed:
+        readNumber(batch.failed) +
+        readNumber(queued.failed) +
+        readNumber(calendar.failed),
+      duplicates:
+        readNumber(batch.duplicatesSkipped) +
+        readNumber(queued.duplicatesPrevented) +
+        readNumber(calendar.duplicates),
+      suppressed:
+        readNumber(queued.suppressed) +
+        readNumber(calendar.disabled) +
+        readNumber(calendar.suppressed),
+      lastError: readNullableString(row.last_error),
+    };
+  });
+}
+
+export async function listAlertChannelAttemptErrors(
+  limit = 100,
+): Promise<AlertChannelAttemptError[]> {
+  const result = await supabaseSelect("alert_delivery_channel_attempts", {
+    select:
+      "id,delivery_id,user_id,channel,status,attempt_count,created_at,last_error",
+    status: "in.(failed,uncertain)",
+    order: "created_at.desc",
+    limit: String(Math.max(1, Math.min(limit, 250))),
+  });
+
+  return readRows(result.data).map((row) => ({
+    id: readString(row.id),
+    deliveryId: readString(row.delivery_id),
+    userId: readString(row.user_id),
+    channel: readString(row.channel),
+    status: readString(row.status),
+    attemptCount: readNumber(row.attempt_count),
+    createdAt: readString(row.created_at),
+    lastError: readNullableString(row.last_error),
+  }));
+}
+
 function readRows(value: unknown): Row[] {
   return Array.isArray(value)
     ? value.filter(
@@ -100,4 +201,15 @@ function readString(value: unknown) {
 function readNullableString(value: unknown) {
   const result = readString(value);
   return result || null;
+}
+
+function readNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function readNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }

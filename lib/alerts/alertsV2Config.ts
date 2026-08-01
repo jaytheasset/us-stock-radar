@@ -14,7 +14,6 @@ import {
   MonitorSmartphone,
   Search,
   Send,
-  Smartphone,
   Trash2,
 } from "lucide-react";
 import { ALERT_CATEGORIES, type AlertCategory } from "@/lib/subscriptionPolicy";
@@ -24,7 +23,7 @@ export type CoverageItem = {
   enabled: boolean;
   icon: LucideIcon;
   id: string;
-  locked?: boolean;
+  requiredTier: "PRO" | "ADVANCED";
   title: string;
 };
 
@@ -32,7 +31,7 @@ export type DeliveryItem = {
   enabled: boolean;
   icon: LucideIcon;
   id: string;
-  lockedTier?: "ADVANCED" | "ULTIMATE";
+  lockedTier?: "PRO" | "ADVANCED" | "ULTIMATE";
   title: string;
 };
 
@@ -80,16 +79,14 @@ export const coverageItems: readonly CoverageItem[] = ALERT_CATEGORIES.map((cate
     description: category.description,
     icon: COVERAGE_ICON_BY_CATEGORY[category.code] ?? Bell,
     enabled: !locked,
-    ...(locked ? { locked: true } : {}),
+    requiredTier: locked ? "ADVANCED" : "PRO",
   };
 });
 
 export const deliveryItems: readonly DeliveryItem[] = [
   { id: "web", title: "Web", icon: MonitorSmartphone, enabled: true },
-  { id: "telegram", title: "Telegram", icon: Send, enabled: false },
+  { id: "telegram", title: "Telegram", icon: Send, enabled: false, lockedTier: "PRO" },
   { id: "email", title: "Email", icon: Mail, enabled: false, lockedTier: "ADVANCED" },
-  { id: "webhook", title: "Webhook", icon: Smartphone, enabled: false, lockedTier: "ULTIMATE" },
-  { id: "api", title: "API", icon: Bell, enabled: false, lockedTier: "ULTIMATE" },
 ];
 
 export const alertSources = [

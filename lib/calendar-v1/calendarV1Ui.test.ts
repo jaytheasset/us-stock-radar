@@ -412,6 +412,11 @@ test("calendar UI reuses shared filters, segmented controls, detail panel, and b
   assert.match(detail, /BottomSheetShell/);
   assert.match(detail, /LiveRoomEntryButton/);
   assert.match(detail, /getStockRouteHref/);
+  assert.match(detail, /const analysisHref = event\.detailHref \?\? null/);
+  assert.match(detail, /\{analysisHref \? \([\s\S]*href=\{analysisHref\}[\s\S]*View Stock Radar Analysis/);
+  assert.match(detail, /Related analyses \{event\.relatedAnalysisCount\}/);
+  assert.match(detail, /: event\.analysisPending \? \([\s\S]*Analysis pending/);
+  assert.doesNotMatch(detail, /disabled[^\n]*analysis/i);
 });
 
 test("stock watching is ticker-scoped while event following remains event-scoped", async () => {
@@ -442,7 +447,15 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
+  assert.match(followAction, /formatCalendarEventFollowUsage\(followUsage\)/);
+  assert.match(workspace, /setFollowUsage\(payload\.data\.usage\)/);
+  assert.match(
+    workspace,
+    /if \(!response\.ok[\s\S]*throw new Error\(payload\?\.message[\s\S]*setFollowedEvents/,
+  );
   assert.match(detail, /saved to Alerts separately from Stock Watchlist tracking/);
+  assert.doesNotMatch(detail, /AlertReliabilityNotice/);
+  assert.doesNotMatch(detail, /Alerts may be delayed, changed, duplicated, or unavailable/);
   assert.match(
     styles,
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
@@ -452,6 +465,8 @@ test("stock watching is ticker-scoped while event following remains event-scoped
 
 test("category and grouped Type filters share a contradiction-free desktop and mobile contract", async () => {
   const filters = await read("components/calendar-v1/CalendarFilters.tsx");
+  const filterOption = await read("components/ui/FilterOption.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
   const model = await read("lib/calendar-v1/model.ts");
   const selector = await read("lib/calendar-v1/dateUtils.ts");
 
@@ -464,6 +479,24 @@ test("category and grouped Type filters share a contradiction-free desktop and m
   assert.match(filters, /label="Category"/);
   assert.match(filters, /<h3>Event type<\/h3>/);
   assert.match(filters, /updateCalendarCategoryFilter/);
+  assert.match(filters, /function CalendarFlatFilterOption/);
+  assert.match(filters, /selectedIndicator=\{<Check/);
+  assert.match(filters, /<CalendarFlatFilterOption[\s\S]*label="All types"/);
+  assert.match(filters, /<MobileFilterGroup\s+flat\s+label="Market session"/);
+  assert.match(filters, /<MobileFilterGroup\s+flat\s+label="Status"/);
+  assert.match(filterOption, /selectedIndicator\?: ReactNode/);
+  assert.match(filterOption, /selected && selectedIndicator/);
+  assert.match(
+    styles,
+    /\.flatFilterOption\s*\{[\s\S]*width:\s*100%;[\s\S]*border:\s*0;[\s\S]*border-radius:\s*0;[\s\S]*background:\s*transparent;/,
+  );
+  assert.match(
+    styles,
+    /\.flatFilterOption\[aria-pressed="true"\][\s\S]*color:\s*var\(--sr-color-accent-text\);[\s\S]*background:\s*var\(--sr-color-accent-active-soft\);/,
+  );
+  assert.match(styles, /\.flatFilterOption:hover\s*\{[\s\S]*var\(--sr-color-surface-muted-action\)/);
+  assert.match(styles, /\.typeMenuOptions\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*max-height:/);
+  assert.match(styles, /\.mobileFilterGroup > \.mobileFlatOptionList\s*\{[\s\S]*width:\s*100%;/);
   assert.match(
     filters,
     /Search events, agencies, industries, tickers/,
@@ -496,10 +529,12 @@ test("Macro and Policy presentation uses identity helpers, ET/TNA, impact, and c
   assert.match(detail, /Economic release metrics/);
   assert.match(detail, /Not released/);
   assert.doesNotMatch(detail, /Data provenance/);
-  assert.doesNotMatch(detail, /sourceAgency/);
+  assert.doesNotMatch(detail, /<h3>Source<\/h3>/);
+  assert.doesNotMatch(detail, /value=\{event\.sourceAgency\}/);
   assert.doesNotMatch(detail, /calendarProviderLabels/);
   assert.doesNotMatch(detail, /normalizeSafeCalendarSourceUrl/);
-  assert.doesNotMatch(detail, /sourceUrl/);
+  assert.doesNotMatch(detail, /event\.sourceUrl/);
+  assert.doesNotMatch(detail, /Open original source/);
   assert.doesNotMatch(detail, /titleCase\(event\.scheduleConfidence\)/);
   assert.doesNotMatch(detail, /sourceEventKey/);
   assert.doesNotMatch(detail, /value="Mock"/);

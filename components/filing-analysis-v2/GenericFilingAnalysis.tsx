@@ -19,6 +19,9 @@ import { FilingRailAdSlot } from "./FilingRailAdSlot";
 import { isScoreRationaleVisible, ScoreRationale } from "./ScoreRationale";
 import styles from "./GenericFilingAnalysis.module.css";
 
+export const AI_ANALYSIS_DISCLOSURE =
+  "AI-assisted analysis. Verify material facts against the original source. Scores, labels, and directional signals are not investment recommendations.";
+
 type GenericFilingRecentItem = {
   id?: string;
   eventType: string;
@@ -350,6 +353,8 @@ export function GenericFilingAnalysis({
                 ) : null}
               </div>
             ) : null}
+
+            <p className={styles.analysisDisclosure}>{AI_ANALYSIS_DISCLOSURE}</p>
 
             {hasSummaryAsideRenderer ? (
               <div

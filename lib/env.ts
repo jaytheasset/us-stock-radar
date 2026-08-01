@@ -13,6 +13,7 @@ const serverKeys = [
   "TELEGRAM_CHAT_ID",
   "ALERT_DELIVERY_CRON_SECRET",
   "ALERT_DELIVERY_CRON_WRITE_ENABLED",
+  "ALERT_DELIVERY_SEND_TELEGRAM",
   "DASHBOARD_MOVERS_CRON_SECRET",
   "CRON_SECRET",
   "SOURCE_INGEST_WORKFLOW_ENABLED_LANES",
@@ -65,6 +66,8 @@ export function getServerEnv() {
     alertDeliveryCronSecret: process.env.ALERT_DELIVERY_CRON_SECRET || "",
     alertDeliveryCronWriteEnabled:
       (process.env.ALERT_DELIVERY_CRON_WRITE_ENABLED || "false").toLowerCase() === "true",
+    alertDeliverySendTelegram:
+      (process.env.ALERT_DELIVERY_SEND_TELEGRAM || "false").toLowerCase() === "true",
     dashboardMoversCronSecret:
       process.env.DASHBOARD_MOVERS_CRON_SECRET || "",
     cronSecret: process.env.CRON_SECRET || "",
@@ -132,6 +135,7 @@ export function envStatus() {
     TELEGRAM_CHAT_ID: values.telegramChatId,
     ALERT_DELIVERY_CRON_SECRET: values.alertDeliveryCronSecret,
     ALERT_DELIVERY_CRON_WRITE_ENABLED: String(values.alertDeliveryCronWriteEnabled),
+    ALERT_DELIVERY_SEND_TELEGRAM: String(values.alertDeliverySendTelegram),
     DASHBOARD_MOVERS_CRON_SECRET: values.dashboardMoversCronSecret,
     CRON_SECRET: values.cronSecret,
     SOURCE_INGEST_WORKFLOW_ENABLED_LANES:

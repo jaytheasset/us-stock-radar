@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StockRadarProductHeader } from "@/components/shell/StockRadarProductHeader";
+import { StockRadarProductFooter } from "@/components/shell/StockRadarProductFooter";
 import {
   StockRadarThemeProvider,
   type StockRadarThemeMode,
@@ -27,6 +28,7 @@ export function StockRadarAppShell({
       <main className={styles.main} id="stock-radar-main-content">
         {children}
       </main>
+      <StockRadarProductFooter />
     </StockRadarThemeProvider>
   );
 }

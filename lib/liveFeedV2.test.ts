@@ -599,6 +599,10 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
     styleSource,
     /padding: var\(--sr-space-4-5\) var\(--sr-page-gutter-desktop\) var\(--sr-space-7\)/,
   );
+  assert.match(
+    styleSource,
+    /\.page\s*{[\s\S]*?width: min\(100%, 1600px\);[\s\S]*?margin: 0 auto;/,
+  );
   assert.match(styleSource, /box-shadow: var\(--sr-shadow-panel\)/);
   assert.match(styleSource, /\.feedColumn[\s\S]*border-radius: var\(--sr-radius-control\)/);
   assert.match(

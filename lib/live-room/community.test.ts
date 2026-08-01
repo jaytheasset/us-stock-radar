@@ -808,11 +808,11 @@ test("every company Live Room sign-in CTA preserves the exact ticker room return
   assert.equal(liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length, 7);
   assert.match(
     productHeader,
-    /const authReturnPath =[\s\S]*pathname\.startsWith\("\/"\)[\s\S]*const loginHref = `\/login\?next=\$\{encodeURIComponent\(authReturnPath\)\}`[\s\S]*<AuthStatus loginHref=\{loginHref\} signupHref=\{signupHref\}/,
+    /const authReturnPath =[\s\S]*pathname\.startsWith\("\/"\)[\s\S]*const loginHref = `\/login\?next=\$\{encodeURIComponent\(authReturnPath\)\}`[\s\S]*<AuthStatus[\s\S]{0,160}accountMenu[\s\S]{0,160}loginHref=\{loginHref\}[\s\S]{0,160}signupHref=\{signupHref\}/,
   );
   assert.match(
     mobileNavigation,
-    /loginHref:\s*string[\s\S]*signupHref:\s*string[\s\S]*<AuthStatus loginHref=\{loginHref\} signupHref=\{signupHref\}/,
+    /loginHref:\s*string[\s\S]*signupHref:\s*string[\s\S]*<AuthStatus accountMenu loginHref=\{loginHref\} signupHref=\{signupHref\}/,
   );
   assert.match(
     read("components/live-room/ChatNameSetup.tsx"),

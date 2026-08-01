@@ -8,12 +8,17 @@ export type AlertDeliveryStatus = "queued" | "sent" | "failed" | "suppressed";
 export type NormalizedAlertEvent = {
   id: string;
   title: string;
+  quickTake?: string;
   tickers: string[];
   primaryTicker?: string;
   category: AlertCategory;
   sourceType: NormalizedAlertSourceType;
   sourceLabel?: string;
   severity?: NormalizedAlertSeverity;
+  score?: number;
+  signal?: "bullish" | "bearish" | "volatile" | "neutral";
+  impact?: "high" | "medium" | "low";
+  marketScope: "company" | "sector" | "theme" | "macro";
   publishedAt?: string;
   metadata?: Record<string, unknown>;
 };
@@ -103,6 +108,7 @@ export type RunAlertDeliveryResult = {
 export type QueuedAlertDeliveryRow = {
   id: string;
   user_id: string;
+  alert_event_id: string | null;
   ticker: string | null;
   title: string;
   category: AlertCategory | null;
@@ -127,8 +133,9 @@ export type ProcessQueuedDeliveryItemResult = {
   userId: string;
   title: string;
   ticker?: string | null;
-  action: "would_send" | "sent" | "suppressed" | "failed";
+  action: "would_send" | "sent" | "suppressed" | "failed" | "in_progress";
   channels: AlertChannel[];
+  duplicatesPrevented: number;
   error?: string;
 };
 
@@ -142,7 +149,21 @@ export type ProcessQueuedDeliveryResult = {
   sent: number;
   failed: number;
   suppressed: number;
+  duplicatesPrevented: number;
+  inProgress: number;
   items: ProcessQueuedDeliveryItemResult[];
+  error?: string;
+};
+
+export type CalendarAlertDeliveryResult = {
+  ok: boolean;
+  write: boolean;
+  scanned: number;
+  delivered: number;
+  duplicates: number;
+  disabled: number;
+  suppressed: number;
+  failed?: number;
   error?: string;
 };
 
@@ -193,6 +214,8 @@ export type RunAlertDeliverySchedulerOptions = {
   queuedLimit?: number;
   skipBatch?: boolean;
   skipQueued?: boolean;
+  skipCalendar?: boolean;
+  calendarLimit?: number;
   lockTtlSeconds?: number;
   useLock?: boolean;
 };
@@ -206,5 +229,6 @@ export type RunAlertDeliverySchedulerResult = {
   lockSkipped?: boolean;
   batch?: RunAlertDeliveryBatchResult | null;
   queued?: ProcessQueuedDeliveryResult | null;
+  calendar?: CalendarAlertDeliveryResult | null;
   error?: string;
 };

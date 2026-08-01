@@ -277,6 +277,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /method: "DELETE"/);
   assert.match(componentSource, /payload\.persisted === false/);
   assert.match(componentSource, /viewport="tablet"/);
+  assert.match(componentSource, /viewport="all"/);
+  assert.match(componentSource, /TickerCompanyAutocomplete/);
+  assert.match(addRoute, /findTickerBySymbol/);
+  assert.match(addRoute, /company_name: catalogTicker\.companyName/);
   assert.match(componentSource, /viewerPlan|watchlist\.plan === "free"/);
   assert.match(componentSource, /selectionMode === "stock"/);
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
@@ -387,10 +391,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(headerSearchSource, /event\.key === "Escape"/);
   assert.match(headerSearchSource, /moveTickerSearchIndex/);
   assert.match(headerSearchSource, /router\.push\(href\)/);
-  assert.match(headerCss, /@media \(max-width: 1120px\)/);
+  assert.match(headerCss, /@media \(max-width: 820px\)/);
   assert.match(
     headerCss,
-    /@media \(max-width: 1120px\) \{[\s\S]*\.header \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*background: var\(--sr-color-surface-product-menu\);/,
+    /@media \(max-width: 820px\) \{[\s\S]*\.header \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*background: var\(--sr-color-surface-product-menu\);/,
   );
   assert.match(headerCss, /\.globalSearchPanel \{[\s\S]*position: fixed/);
   assert.match(headerCss, /left: var\(--sr-space-3\)/);

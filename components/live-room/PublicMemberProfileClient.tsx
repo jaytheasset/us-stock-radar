@@ -46,8 +46,10 @@ type MessageRequestTarget = {
 };
 
 export function PublicMemberProfileClient({
+  editOnLoad = false,
   publicProfileId,
 }: {
+  editOnLoad?: boolean;
   publicProfileId: string;
 }) {
   const router = useRouter();
@@ -100,7 +102,10 @@ export function PublicMemberProfileClient({
             await repository.readMemberActions(publicProfileId);
           if (nextActions.isSelf) {
             const currentProfile = await profileRepository.readProfile();
-            if (active) setOwnProfile(currentProfile);
+            if (active) {
+              setOwnProfile(currentProfile);
+              if (editOnLoad) setProfileOpen(true);
+            }
           }
         } catch (reason) {
           nextActionError = toLiveRoomApiError(reason).message;
@@ -121,7 +126,7 @@ export function PublicMemberProfileClient({
     return () => {
       active = false;
     };
-  }, [profileRepository, publicProfileId, repository]);
+  }, [editOnLoad, profileRepository, publicProfileId, repository]);
 
   const loadOlder = async () => {
     if (!cursor || loading) return;

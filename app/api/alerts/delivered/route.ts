@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { type DeliveryStatusFilter, getDeliveredAlertsForUser } from "@/lib/alerts/getAlertSettingsViewModel";
+import {
+  type DeliveryStatusFilter,
+  getDeliveredAlertsForUser,
+  getUnreadAlertCountForUser,
+} from "@/lib/alerts/getAlertSettingsViewModel";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { isValidAlertCategory, type AlertCategory } from "@/lib/subscriptionPolicy";
 import { supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
@@ -17,6 +21,8 @@ export async function GET(request: NextRequest) {
       headers: {
         ...NO_STORE_HEADERS,
         "X-Total-Count": "0",
+        "X-Unread-Count": "0",
+        "X-Auth-State": "guest",
       },
     });
   }
@@ -61,23 +67,32 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const result = await getDeliveredAlertsForUser({
-    userId,
-    limit,
-    offset,
-    lane,
-    category,
-    status: status || "sent",
-  });
+  const [result, unread] = await Promise.all([
+    getDeliveredAlertsForUser({
+      userId,
+      limit,
+      offset,
+      lane,
+      category,
+      status: status || "sent",
+    }),
+    getUnreadAlertCountForUser(userId),
+  ]);
 
-  if (!result.ok) {
+  if (!result.ok || !unread.ok) {
     return NextResponse.json(
       {
         ok: false,
         error: "DELIVERED_ALERTS_READ_FAILED",
-        message: result.error || "Failed to read delivered alerts.",
+        message:
+          result.error ||
+          unread.error ||
+          "Failed to read delivered alerts.",
       },
-      { status: result.status || 502, headers: NO_STORE_HEADERS },
+      {
+        status: result.status || unread.status || 502,
+        headers: NO_STORE_HEADERS,
+      },
     );
   }
 
@@ -85,6 +100,8 @@ export async function GET(request: NextRequest) {
     headers: {
       ...NO_STORE_HEADERS,
       "X-Total-Count": String(result.total),
+      "X-Unread-Count": String(unread.ok ? unread.count : 0),
+      "X-Auth-State": "authenticated",
     },
   });
 }
@@ -110,7 +127,10 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const query: Record<string, string> = { user_id: `eq.${userId}` };
+  const query: Record<string, string> = {
+    user_id: `eq.${userId}`,
+    delivery_status: "eq.sent",
+  };
   if (body.all !== true) {
     if (typeof body.id !== "string" || !UUID_PATTERN.test(body.id)) {
       return NextResponse.json(

@@ -75,6 +75,27 @@ test("all ad-free and paid plans disable advertising", () => {
   }
 });
 
+test("Dashboard resolves anonymous viewers as free and gates every placement centrally", () => {
+  const pageSource = read("../app/dashboard-v2/page.tsx");
+  const dashboardSource = read(
+    "../components/dashboard-v2/StockRadarDashboardV2.tsx",
+  );
+  const tableSource = read("../components/dashboard-v2/MarketMoversTable.tsx");
+
+  assert.equal(areAdsEnabledForPlan("free"), true);
+  for (const plan of ["ad_free", "pro", "advanced", "ultimate"] as const) {
+    assert.equal(areAdsEnabledForPlan(plan), false, plan);
+  }
+  assert.match(pageSource, /getCurrentViewerPlan\(\)/);
+  assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
+  assert.match(dashboardSource, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(
+    dashboardSource,
+    /adsEnabledForViewer \? <DesktopRailAdSlot \/> : null/,
+  );
+  assert.equal((tableSource.match(/adsEnabledForViewer &&/g) || []).length, 3);
+});
+
 test("Calendar resolves free-only ads and owns independent rail and mobile inventories", () => {
   const pageSource = read("../app/calendar/page.tsx");
   const workspaceSource = read(

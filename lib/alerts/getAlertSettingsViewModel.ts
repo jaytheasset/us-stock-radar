@@ -14,7 +14,8 @@ import {
 } from "@/lib/subscriptionPolicy";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
-import { getUserCalendarFollows } from "@/lib/alerts/calendarFollows";
+import { normalizeTelegramUsername } from "@/lib/telegram/telegramConnectPolicy";
+import { getUserCalendarFollowsViewModel } from "@/lib/alerts/calendarFollows";
 import {
   ALERT_FILING_TYPE_FILTERS,
   ALERT_MARKET_CAP_FILTERS,
@@ -43,6 +44,7 @@ type DeliveryChannelRow = {
   enabled?: unknown;
   destination?: unknown;
   verified_at?: unknown;
+  metadata?: unknown;
 };
 
 type DiscoveryCategoryRow = {
@@ -77,7 +79,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
     categoriesResult,
     channelsResult,
     deliveriesResult,
-    followedCalendarEvents,
+    calendarEventFollows,
   ] = await Promise.all([
     supabaseSelect("user_alert_tickers", {
       select: "id",
@@ -97,7 +99,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       limit: "100",
     }),
     supabaseSelect("user_delivery_channels", {
-      select: "channel,enabled,destination,verified_at",
+      select: "channel,enabled,destination,verified_at,metadata",
       user_id: `eq.${userId}`,
       limit: "20",
     }),
@@ -108,7 +110,7 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       order: "delivered_at.desc",
       limit: "5",
     }),
-    getUserCalendarFollows(userId),
+    getUserCalendarFollowsViewModel(userId, plan),
   ]);
 
   const alertTickers = Array.isArray(alertTickersResult.data)
@@ -144,7 +146,8 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       description: getCategoryDescription(category),
     })),
     channels,
-    followedCalendarEvents,
+    followedCalendarEvents: calendarEventFollows.follows,
+    calendarEventFollowUsage: calendarEventFollows.usage,
     recentDeliveredAlerts,
   };
 }
@@ -183,6 +186,11 @@ export function getGuestAlertSettingsViewModel(): AlertSettingsViewModel {
       },
     ]),
     followedCalendarEvents: [],
+    calendarEventFollowUsage: {
+      activeCount: 0,
+      limit: limits.calendarEventFollowLimit,
+      remaining: limits.calendarEventFollowLimit,
+    },
     recentDeliveredAlerts: [],
   };
 }
@@ -221,6 +229,23 @@ export async function getDeliveredAlertsForUser({
     status: result.status,
     data: mapDeliveredAlerts(Array.isArray(result.data) ? result.data : []),
     total: result.count ?? 0,
+    error: result.error,
+  };
+}
+
+export async function getUnreadAlertCountForUser(userId: string) {
+  const result = await supabaseSelect("user_alert_deliveries", {
+    select: "id",
+    user_id: `eq.${userId}`,
+    delivery_status: "eq.sent",
+    read_at: "is.null",
+    limit: "1",
+  });
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    count: result.count ?? 0,
     error: result.error,
   };
 }
@@ -278,9 +303,9 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
     const implemented = IMPLEMENTED_ALERT_CHANNELS.includes(channel);
     const locked = getChannelLockState(plan, channel);
     const available = !locked && implemented;
-    const comingLater = !implemented;
     const row = rowsByChannel.get(channel);
     const connected = isChannelConnected(channel, row);
+    const accountLabel = channel === "telegram" ? readTelegramAccountLabel(row?.metadata) : null;
     const enabled =
       available &&
       connected &&
@@ -293,13 +318,11 @@ function buildDeliveryChannels(plan: Parameters<typeof getChannelLockState>[0], 
       locked,
       connected,
       implemented,
-      comingLater,
-      availabilityLabel: comingLater
-        ? "Coming later"
-        : getChannelAvailabilityLabel(plan, channel),
-      statusLabel: comingLater
-        ? "Coming later"
-        : getChannelStatusLabel({ available, connected, enabled }),
+      availabilityLabel: getChannelAvailabilityLabel(plan, channel),
+      statusLabel: implemented
+        ? getChannelStatusLabel({ channel, available, connected, enabled, accountLabel })
+        : "Not available",
+      accountLabel,
     };
   });
 }
@@ -311,17 +334,29 @@ function isChannelConnected(channel: AlertChannel, row?: DeliveryChannelRow) {
 }
 
 function getChannelStatusLabel({
+  channel,
   available,
   connected,
   enabled,
+  accountLabel,
 }: {
+  channel: AlertChannel;
   available: boolean;
   connected: boolean;
   enabled: boolean;
+  accountLabel: string | null;
 }) {
+  if (channel === "telegram" && connected) {
+    return accountLabel ? `Connected · ${accountLabel}` : "Connected";
+  }
   if (!available) return "Locked";
   if (!connected) return "Not connected";
   return enabled ? "Enabled" : "Connected";
+}
+
+function readTelegramAccountLabel(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return normalizeTelegramUsername((value as { username?: unknown }).username);
 }
 
 function mapDeliveredAlerts(rows: unknown[]): DeliveredAlertItem[] {
