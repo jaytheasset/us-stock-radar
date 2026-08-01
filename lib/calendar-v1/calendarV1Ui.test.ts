@@ -465,6 +465,8 @@ test("stock watching is ticker-scoped while event following remains event-scoped
 
 test("category and grouped Type filters share a contradiction-free desktop and mobile contract", async () => {
   const filters = await read("components/calendar-v1/CalendarFilters.tsx");
+  const filterOption = await read("components/ui/FilterOption.tsx");
+  const styles = await read("components/calendar-v1/CalendarV1.module.css");
   const model = await read("lib/calendar-v1/model.ts");
   const selector = await read("lib/calendar-v1/dateUtils.ts");
 
@@ -477,6 +479,24 @@ test("category and grouped Type filters share a contradiction-free desktop and m
   assert.match(filters, /label="Category"/);
   assert.match(filters, /<h3>Event type<\/h3>/);
   assert.match(filters, /updateCalendarCategoryFilter/);
+  assert.match(filters, /function CalendarFlatFilterOption/);
+  assert.match(filters, /selectedIndicator=\{<Check/);
+  assert.match(filters, /<CalendarFlatFilterOption[\s\S]*label="All types"/);
+  assert.match(filters, /<MobileFilterGroup\s+flat\s+label="Market session"/);
+  assert.match(filters, /<MobileFilterGroup\s+flat\s+label="Status"/);
+  assert.match(filterOption, /selectedIndicator\?: ReactNode/);
+  assert.match(filterOption, /selected && selectedIndicator/);
+  assert.match(
+    styles,
+    /\.flatFilterOption\s*\{[\s\S]*width:\s*100%;[\s\S]*border:\s*0;[\s\S]*border-radius:\s*0;[\s\S]*background:\s*transparent;/,
+  );
+  assert.match(
+    styles,
+    /\.flatFilterOption\[aria-pressed="true"\][\s\S]*color:\s*var\(--sr-color-accent-text\);[\s\S]*background:\s*var\(--sr-color-accent-active-soft\);/,
+  );
+  assert.match(styles, /\.flatFilterOption:hover\s*\{[\s\S]*var\(--sr-color-surface-muted-action\)/);
+  assert.match(styles, /\.typeMenuOptions\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*max-height:/);
+  assert.match(styles, /\.mobileFilterGroup > \.mobileFlatOptionList\s*\{[\s\S]*width:\s*100%;/);
   assert.match(
     filters,
     /Search events, agencies, industries, tickers/,
