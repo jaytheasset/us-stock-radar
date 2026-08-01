@@ -848,12 +848,13 @@ export function StockRadarWatchlistV2({
                   ))}
                 </nav>
 
-                <div className={styles.heroGrid}>
-                  <RadarBrief event={latestEvent} ticker={selectedTicker} />
-                  <section
-                    aria-labelledby="watchlist-chart-title"
-                    className={styles.chartPanel}
-                  >
+                <div className={styles.workspaceGrid}>
+                  <div className={styles.workspaceMain}>
+                    <div className={styles.heroGrid}>
+                      <section
+                        aria-labelledby="watchlist-chart-title"
+                        className={styles.chartPanel}
+                      >
                     <div className={styles.panelHeading}>
                       <div>
                         <span>PRICE ACTION</span>
@@ -895,40 +896,42 @@ export function StockRadarWatchlistV2({
                         ticker={selectedTicker}
                       />
                     )}
-                    <MarketStats quote={quote} profile={profile} />
-                  </section>
-                </div>
+                        <MarketStats quote={quote} profile={profile} />
+                      </section>
+                      <div className={styles.responsiveRadarBrief}>
+                        <RadarBrief event={latestEvent} ticker={selectedTicker} />
+                      </div>
+                    </div>
 
-                <div className={styles.promoRow}>
-                  {allowAds ? (
-                    <>
-                      <AdSenseSlot
-                        className={styles.desktopInlineAd}
-                        enabledForViewer
-                        format="horizontal"
-                        height={90}
-                        inventory="dashboard-desktop-inline"
-                        mediaQuery="(min-width: 761px) and (max-width: 1180px)"
-                        placeholderSize="Responsive · max 970 × 90"
-                        width={970}
-                      />
-                      <AdSenseSlot
-                        className={styles.mobileInlineAd}
-                        enabledForViewer
-                        format="responsive"
-                        height={100}
-                        inventory="dashboard-mobile-inline"
-                        mediaQuery="(max-width: 760px)"
-                        placeholderSize="320 × 100"
-                        width={320}
-                      />
-                    </>
-                  ) : null}
-                  <WatchlistUpgradeCard watchlist={watchlist} />
-                </div>
+                    <div className={styles.promoRow}>
+                      {allowAds ? (
+                        <>
+                          <AdSenseSlot
+                            className={styles.desktopInlineAd}
+                            enabledForViewer
+                            format="horizontal"
+                            height={90}
+                            inventory="dashboard-desktop-inline"
+                            mediaQuery="(min-width: 761px) and (max-width: 1180px)"
+                            placeholderSize="Responsive · max 970 × 90"
+                            width={970}
+                          />
+                          <AdSenseSlot
+                            className={styles.mobileInlineAd}
+                            enabledForViewer
+                            format="responsive"
+                            height={100}
+                            inventory="dashboard-mobile-inline"
+                            mediaQuery="(max-width: 760px)"
+                            placeholderSize="320 × 100"
+                            width={320}
+                          />
+                        </>
+                      ) : null}
+                      <WatchlistUpgradeCard watchlist={watchlist} />
+                    </div>
 
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailMain}>
+                    <div className={styles.detailMain}>
                     <section
                       aria-labelledby="watchlist-events-title"
                       className={styles.section}
@@ -968,17 +971,14 @@ export function StockRadarWatchlistV2({
                       ownershipEvents={ownershipEvents}
                       snapshot={fundamentals}
                     />
+                    </div>
                   </div>
-
                   <aside
                     aria-label={`${selectedTicker} event context`}
                     className={styles.contextRail}
                   >
-                    <EventPreview event={selectedEvent} variant="desktop" />
-                    <StockCalendarEvents
-                      events={stockCalendarEvents}
-                      ticker={selectedTicker}
-                    />
+                    <RadarBrief event={latestEvent} ticker={selectedTicker} />
+                    <WatchlistUpgradeCard watchlist={watchlist} />
                     {allowAds ? (
                       <AdSenseSlot
                         className={styles.railAd}
@@ -990,6 +990,11 @@ export function StockRadarWatchlistV2({
                         width={300}
                       />
                     ) : null}
+                    <EventPreview event={selectedEvent} variant="desktop" />
+                    <StockCalendarEvents
+                      events={stockCalendarEvents}
+                      ticker={selectedTicker}
+                    />
                     <CompanyContext profile={profile} ticker={selectedTicker} />
                   </aside>
                 </div>
