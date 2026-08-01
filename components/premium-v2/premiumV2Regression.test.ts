@@ -85,6 +85,29 @@ test("keeps coverage labels concise and comparison values free of repeated event
   assert.doesNotMatch(styles, /\.comparisonRowEmphasized|\.comparisonDetailList/);
 });
 
+test("keeps public delayed and personalized premium delivery channels distinct", () => {
+  assert.match(dataSource, /"5-minute delayed Web alerts"/);
+  assert.match(dataSource, /"5-minute delayed Public Telegram channel"/);
+  assert.match(
+    dataSource,
+    /"Real-time personalized Web \+ Telegram \+ Mobile app push alerts"/,
+  );
+  assert.match(
+    dataSource,
+    /"Real-time personalized Web \+ Telegram \+ Mobile app push \+ Email alerts"/,
+  );
+  assert.match(dataSource, /"Webhook \+ API delivery"/);
+  assert.match(
+    dataSource,
+    /free: "Web \+ Public Telegram channel",[\s\S]*adFree: "Web \+ Public Telegram channel",[\s\S]*pro: "Personalized Web \+ Telegram \+ Mobile app push",[\s\S]*advanced: "Personalized Web \+ Telegram \+ Mobile app push \+ Email",[\s\S]*ultimate: "Personalized Web \+ Telegram \+ Mobile app push \+ Email \+ Webhook \+ API"/,
+  );
+  assert.match(
+    dataSource,
+    /Personalized Telegram alerts begin with Pro\./,
+  );
+  assert.doesNotMatch(dataSource, /Unlimited watchlist 쨌/);
+});
+
 test("uses the shared product shell width, typography, panels, and responsive plan grid", () => {
   assert.match(
     styles,

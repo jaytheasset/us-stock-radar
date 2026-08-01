@@ -76,6 +76,32 @@ test("filings preview rail keeps intrinsic ad widths constrained after route tra
   );
 });
 
+test("filings preview uses shared Saved and Watchlist actions with batched viewer state", () => {
+  const detailSource = readFileSync(
+    new URL("./FilingsV2Detail.tsx", import.meta.url),
+    "utf8",
+  );
+  const pageSource = readFileSync(
+    new URL("../../app/filings/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const clientSource = readFileSync(
+    new URL("./StockRadarFilingsV2.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(detailSource, /<WatchlistButton/);
+  assert.match(detailSource, /record\.ticker \? \(/);
+  assert.match(detailSource, /ticker=\{record\.ticker\}/);
+  assert.match(detailSource, /<SavedContentButton/);
+  assert.match(detailSource, /contentId=\{record\.id\}/);
+  assert.match(detailSource, /contentType="filing"/);
+  assert.match(pageSource, /getViewerContentState/);
+  assert.match(clientSource, /savedContentBatchSize = 100/);
+  assert.match(clientSource, /\/api\/saved\?\$\{search\.toString\(\)\}/);
+  assert.match(clientSource, /fetch\("\/api\/watchlist"/);
+});
+
 test("filing feed rows use watchlist density and plain representative event metadata", () => {
   const listSource = readFileSync(
     new URL("./FilingsV2List.tsx", import.meta.url),
@@ -96,7 +122,11 @@ test("filing feed rows use watchlist density and plain representative event meta
   assert.match(listSource, /className=\{styles\.mobileFilingFooter\}/);
   assert.match(
     styles,
-    /\.root \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 320px;/,
+    /\.root \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 380px;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: calc\(var\(--sr-size-close-button\) \* 3 \+ var\(--sr-space-3\)\);/,
   );
   assert.match(
     styles,

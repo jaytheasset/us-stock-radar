@@ -968,6 +968,35 @@
   font-size: var(--sr-font-size-base);
 }
 
+.detailIdentityLink {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--sr-space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.detailIdentityLink span {
+  overflow: hidden;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailIdentityLink:hover strong,
+.detailIdentityLink:hover span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.detailIdentityLink:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .detailHeader > div b {
   border-radius: var(--sr-radius-pill);
   padding: var(--sr-space-1) var(--sr-space-2);

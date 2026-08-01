@@ -157,10 +157,11 @@ test("webhook and delivery wiring keep callbacks server-owned and Telegram sends
   assert.match(webhook, /update\?\.callback_query/);
   assert.match(webhook, /isPrivateTelegramChat/);
   assert.match(webhook, /answerTelegramCallbackQuery/);
-  assert.match(webhook, /command === "settings"/);
-  assert.match(webhook, /command === "help"/);
+  assert.match(webhook, /command\.name === "settings"/);
+  assert.match(webhook, /command\.name === "help"/);
   assert.doesNotMatch(webhook, /user_metadata/);
-  assert.match(interactions, /destination: `eq\.\$\{input\.destination\}`/);
+  assert.match(interactions, /normalizeTelegramDestination\(destination\)/);
+  assert.match(interactions, /destination: `eq\.\$\{normalizedDestination\}`/);
   assert.match(interactions, /user_id: `eq\.\$\{userId\}`/);
   assert.match(interactions, /ticker: `eq\.\$\{ticker\}`/);
   assert.match(interactions, /\{ enabled: false \}/);

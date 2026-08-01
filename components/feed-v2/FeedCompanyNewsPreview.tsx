@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Bookmark, ChevronRight, Newspaper } from "lucide-react";
+import { ChevronRight, Newspaper } from "lucide-react";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
+import { WatchlistButton } from "@/components/actions/WatchlistButton";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import {
@@ -40,25 +42,43 @@ function FeedCompanyNewsPreviewContent({
 }: {
   news: LiveFeedV2CompanyNewsPreview;
 }) {
+  const stockHref = `/stocks/${encodeURIComponent(news.ticker)}`;
+  const returnHref = `/feed?preview=${encodeURIComponent(news.id)}`;
+  const hasTicker = /^[A-Z][A-Z0-9.-]{0,14}$/.test(news.ticker);
+
   return (
     <div className={styles.detailContent} data-preview-kind="company-news">
       <header className={styles.detailHeader}>
         <div className={styles.detailIdentity}>
           <MarketTickerLogo size="detail" ticker={news.ticker} />
-          <div>
-            <h2>{news.ticker}</h2>
-            <p>{previewValue(news.company)}</p>
+          {hasTicker ? (
+            <Link className={styles.identityLink} href={stockHref}>
+              <h2>{news.ticker}</h2>
+              <p>{previewValue(news.company)}</p>
+            </Link>
+          ) : (
+            <div className={styles.identityCopy}>
+              <h2>{news.ticker}</h2>
+              <p>{previewValue(news.company)}</p>
+            </div>
+          )}
+          <div className={styles.previewActions}>
+            {hasTicker ? (
+              <WatchlistButton
+                initialAuthenticated={news.authenticated}
+                initialWatched={news.watchlist}
+                returnHref={returnHref}
+                ticker={news.ticker}
+              />
+            ) : null}
+            <SavedContentButton
+              contentId={news.id}
+              contentType="news"
+              initialAuthenticated={news.authenticated}
+              initialSaved={news.saved}
+              returnHref={returnHref}
+            />
           </div>
-          <span className={styles.watchlistStatus}>
-            <Bookmark aria-hidden="true" size={14} />
-            <span className={styles.watchlistStatusText}>
-              {news.watchlist === null
-                ? "—"
-                : news.watchlist
-                  ? "Watchlist"
-                  : "Not watched"}
-            </span>
-          </span>
         </div>
 
         <div className={styles.detailClassification}>
@@ -96,7 +116,7 @@ function FeedCompanyNewsPreviewContent({
             ))}
           </ul>
         ) : (
-          <p className={styles.unavailable}>—</p>
+          <p className={styles.unavailable}>No key points available.</p>
         )}
       </section>
 

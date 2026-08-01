@@ -307,11 +307,7 @@ export function LiveRoomUnreadMenu() {
       <IconButton
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={
-          total
-            ? `Live Room activity, ${total} unread`
-            : "Live Room activity"
-        }
+        aria-label="Community inbox"
         className={styles.liveRoomInboxButton}
         onClick={() => {
           if (
@@ -342,30 +338,31 @@ export function LiveRoomUnreadMenu() {
 
       {open ? (
         <div
-          aria-label="Live Room activity"
+          aria-label="Community inbox"
           className={styles.liveRoomInboxPopover}
           role="dialog"
         >
           <div className={styles.liveRoomInboxHeading}>
             <div>
-              <span>Live Room activity</span>
+              <span>Community</span>
               <strong>
-                {total ? `${total} unread items` : "All caught up"}
+                {total
+                  ? `${total} new ${total === 1 ? "update" : "updates"}`
+                  : "No new updates"}
               </strong>
             </div>
             <div className={styles.liveRoomInboxHeadingActions}>
-              <small>Community + Messages</small>
               <Link
                 href="/community"
                 onClick={() => setOpen(false)}
               >
-                View all Community
+                Browse rooms
               </Link>
             </div>
           </div>
 
           <div
-            aria-label="Live Room activity sections"
+            aria-label="Community inbox sections"
             className={styles.liveRoomInboxTabs}
             role="tablist"
           >
@@ -377,7 +374,7 @@ export function LiveRoomUnreadMenu() {
               role="tab"
               type="button"
             >
-              Activity
+              Notifications
               {summary.activityUnreadCount ? (
                 <b>
                   {formatUnreadCount(
@@ -394,7 +391,7 @@ export function LiveRoomUnreadMenu() {
               role="tab"
               type="button"
             >
-              Rooms
+              My Rooms
               {roomsUnreadCount ? (
                 <b>{formatUnreadCount(roomsUnreadCount)}</b>
               ) : null}
@@ -407,7 +404,7 @@ export function LiveRoomUnreadMenu() {
               role="tab"
               type="button"
             >
-              People
+              Following
               {summary.peopleUnreadCount ? (
                 <b>
                   {formatUnreadCount(summary.peopleUnreadCount)}
@@ -441,7 +438,7 @@ export function LiveRoomUnreadMenu() {
           >
             {state === "loading" ? (
               <p className={styles.liveRoomInboxState}>
-                Loading Live Room activity...
+                Loading Community updates...
               </p>
             ) : activeTab === "activity" ? (
               <ActivityPanel
@@ -520,14 +517,14 @@ function ActivityPanel({
   if (error) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Community activity could not be refreshed.
+        Community notifications could not be refreshed.
       </p>
     );
   }
   if (!summary.activity.length) {
     return (
       <p className={styles.liveRoomInboxState}>
-        New comments, replies, and followed posts will appear here.
+        Replies, comments, and new posts from rooms or people you follow will appear here.
       </p>
     );
   }
@@ -616,14 +613,14 @@ function MessagesPanel({
   if (loading) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Loading member messages…
+        Loading messages…
       </p>
     );
   }
   if (error) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Member messages could not be refreshed.
+        Messages could not be refreshed.
       </p>
     );
   }
@@ -634,8 +631,7 @@ function MessagesPanel({
   ) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Open a registered member&apos;s Live Room message menu to start a
-        conversation or send one request.
+        Your direct messages and message requests will appear here.
       </p>
     );
   }
@@ -796,8 +792,8 @@ function RoomsPanel({
       <div className={styles.liveRoomInboxState}>
         <span>
           {error
-            ? "Live Room chats could not be refreshed."
-            : "Follow a company Live Room or Community Room to see new chats here."}
+            ? "Community rooms could not be refreshed."
+            : "Rooms you join or follow will appear here."}
         </span>
         {!error ? (
           <Link
@@ -805,7 +801,7 @@ function RoomsPanel({
             href="/live"
             onClick={onNavigate}
           >
-            Browse Community Rooms
+            Browse rooms
           </Link>
         ) : null}
       </div>
@@ -875,15 +871,14 @@ function PeoplePanel({
   if (error) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Member activity could not be refreshed.
+        Following activity could not be refreshed.
       </p>
     );
   }
   if (!summary.hasMemberFollows) {
     return (
       <p className={styles.liveRoomInboxState}>
-        Follow a registered member from a message menu to see their
-        activity here.
+        People you follow and their new activity will appear here.
       </p>
     );
   }
@@ -893,7 +888,7 @@ function PeoplePanel({
         <p
           className={`${styles.liveRoomInboxState} ${styles.liveRoomInboxStateCompact}`}
         >
-          No new chats from people you follow.
+          No new activity from people you follow.
         </p>
         <div
           aria-label="People you follow"

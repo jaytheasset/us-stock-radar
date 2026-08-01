@@ -95,6 +95,32 @@ export function normalizeAdminError(error: unknown) {
     "ADMIN_SOURCE_RUN_FAILED",
     "ADMIN_SOURCE_RUN_LIMIT_INVALID",
     "ADMIN_SOURCE_RUN_LOCK_UNAVAILABLE",
+    "ADMIN_TELEGRAM_AI_FAILED",
+    "ADMIN_TELEGRAM_AI_FACTS_REQUIRED",
+    "ADMIN_TELEGRAM_AI_NOT_CONFIGURED",
+    "ADMIN_TELEGRAM_AI_RATE_LIMITED",
+    "ADMIN_TELEGRAM_ACTION_INVALID",
+    "ADMIN_TELEGRAM_BODY_TOO_LONG",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_CANCELABLE",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_EDITABLE",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_FOUND",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_SCHEDULABLE",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_SENDABLE",
+    "ADMIN_TELEGRAM_CAMPAIGN_STATE_CONFLICT",
+    "ADMIN_TELEGRAM_CAMPAIGN_NOT_RECONCILABLE",
+    "ADMIN_TELEGRAM_CONTENT_REQUIRED",
+    "ADMIN_TELEGRAM_EXPECTED_VERSION_REQUIRED",
+    "ADMIN_TELEGRAM_LOCAL_RUN_CONFIRMATION_REQUIRED",
+    "ADMIN_TELEGRAM_LOCAL_RUN_UNAVAILABLE",
+    "ADMIN_TELEGRAM_NOTICE_TYPE_INVALID",
+    "ADMIN_TELEGRAM_PUBLIC_CHANNEL_NOT_CONFIGURED",
+    "ADMIN_TELEGRAM_PUBLIC_SENDING_DISABLED",
+    "ADMIN_TELEGRAM_RECONCILIATION_INVALID",
+    "ADMIN_TELEGRAM_SCHEDULE_INVALID",
+    "ADMIN_TELEGRAM_SOURCE_LABEL_TOO_LONG",
+    "ADMIN_TELEGRAM_TICKER_INVALID",
+    "ADMIN_TELEGRAM_TITLE_TOO_LONG",
+    "ADMIN_TELEGRAM_URL_INVALID",
     "ADMIN_TRIAGE_INVALID",
     "ADMIN_USER_ACTION_UNSUPPORTED",
     "ADMIN_USER_NOT_FOUND",
@@ -143,6 +169,57 @@ function adminErrorMessage(code: string) {
     ADMIN_SOURCE_RUN_LIMIT_INVALID: "Choose a supported ingest limit.",
     ADMIN_SOURCE_RUN_LOCK_UNAVAILABLE:
       "The ingest lock is temporarily unavailable.",
+    ADMIN_TELEGRAM_AI_FAILED:
+      "AI drafting failed. Manual campaign editing is still available.",
+    ADMIN_TELEGRAM_AI_FACTS_REQUIRED:
+      "Add at least one verified fact before requesting an AI draft.",
+    ADMIN_TELEGRAM_AI_NOT_CONFIGURED:
+      "AI drafting is not configured. Continue with manual editing.",
+    ADMIN_TELEGRAM_AI_RATE_LIMITED:
+      "This administrator has reached the hourly AI draft limit.",
+    ADMIN_TELEGRAM_ACTION_INVALID:
+      "Choose a supported Telegram campaign action.",
+    ADMIN_TELEGRAM_BODY_TOO_LONG:
+      "Keep the Telegram body within 3,500 characters.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_CANCELABLE:
+      "Only a campaign that has not started sending can be canceled.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_EDITABLE:
+      "This campaign has already entered delivery and cannot be edited.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_FOUND:
+      "That Telegram campaign no longer exists.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_SCHEDULABLE:
+      "This campaign can no longer be scheduled.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_SENDABLE:
+      "This campaign is not safe to send or retry.",
+    ADMIN_TELEGRAM_CAMPAIGN_STATE_CONFLICT:
+      "The campaign changed. Refresh before trying again.",
+    ADMIN_TELEGRAM_CAMPAIGN_NOT_RECONCILABLE:
+      "This campaign is not ready for delivery reconciliation.",
+    ADMIN_TELEGRAM_CONTENT_REQUIRED:
+      "Enter a title or body for the Telegram campaign.",
+    ADMIN_TELEGRAM_EXPECTED_VERSION_REQUIRED:
+      "Refresh the campaign before reconciling its delivery.",
+    ADMIN_TELEGRAM_LOCAL_RUN_CONFIRMATION_REQUIRED:
+      "Confirm the local mock scheduler run before continuing.",
+    ADMIN_TELEGRAM_LOCAL_RUN_UNAVAILABLE:
+      "The mock due-campaign runner is available only in local development.",
+    ADMIN_TELEGRAM_NOTICE_TYPE_INVALID:
+      "Choose a supported Telegram notice type.",
+    ADMIN_TELEGRAM_PUBLIC_CHANNEL_NOT_CONFIGURED:
+      "The public Telegram channel is not configured on the server.",
+    ADMIN_TELEGRAM_PUBLIC_SENDING_DISABLED:
+      "Public Telegram sending is disabled on the server.",
+    ADMIN_TELEGRAM_RECONCILIATION_INVALID:
+      "Choose a supported Telegram delivery reconciliation.",
+    ADMIN_TELEGRAM_SCHEDULE_INVALID:
+      "Choose a valid future time in Eastern Time.",
+    ADMIN_TELEGRAM_SOURCE_LABEL_TOO_LONG:
+      "Keep the source label within 120 characters.",
+    ADMIN_TELEGRAM_TICKER_INVALID: "Enter a valid ticker symbol.",
+    ADMIN_TELEGRAM_TITLE_TOO_LONG:
+      "Keep the Telegram title within 160 characters.",
+    ADMIN_TELEGRAM_URL_INVALID:
+      "Use a valid http or https URL. Script and data URLs are blocked.",
     ADMIN_TRIAGE_INVALID: "Choose a valid queue status and severity.",
     ADMIN_USER_ACTION_UNSUPPORTED:
       "User detail actions are limited to community suspension or restoration.",

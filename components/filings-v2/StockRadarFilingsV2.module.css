@@ -2,7 +2,7 @@
   display: grid;
   width: min(100%, 1600px);
   min-height: calc(100vh - var(--sr-size-header));
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   align-items: start;
   gap: var(--sr-space-4);
   margin: 0 auto;
@@ -1086,17 +1086,11 @@
   font-size: var(--sr-font-size-sm);
 }
 
-.watchlistStatus {
-  display: inline-flex;
+.previewActions {
+  display: flex;
   align-items: center;
-  gap: var(--sr-space-1);
-  color: var(--sr-color-text-subtle);
-  font-size: var(--sr-font-size-xs);
-  white-space: nowrap;
-}
-
-.watchlistStatus svg {
-  color: var(--sr-color-text-muted);
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
 }
 
 .detailClassification {
@@ -2002,31 +1996,13 @@
 
   .detailIdentity {
     grid-template-columns: var(--sr-space-8) minmax(0, 1fr);
-    padding-right: calc(var(--sr-size-close-button) * 2 + var(--sr-space-3));
+    padding-right: calc(var(--sr-size-close-button) * 3 + var(--sr-space-3));
   }
 
-  .watchlistStatus {
+  .previewActions {
     position: absolute;
     top: var(--sr-space-4);
     right: calc(var(--sr-space-4) + var(--sr-size-close-button) + var(--sr-space-1));
-    width: var(--sr-size-close-button);
-    height: var(--sr-size-close-button);
-    justify-content: center;
-  }
-
-  .watchlistStatus svg {
-    width: var(--sr-space-4);
-    height: var(--sr-space-4);
-  }
-
-  .watchlistStatusText {
-    position: absolute;
-    width: var(--sr-border-width);
-    height: var(--sr-border-width);
-    overflow: hidden;
-    margin: calc(var(--sr-border-width) * -1);
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
 
   .detailSection,

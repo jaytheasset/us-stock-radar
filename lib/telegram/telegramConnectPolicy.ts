@@ -3,8 +3,13 @@ export const TELEGRAM_DESTINATION_CONFLICT_MESSAGE =
   "This Telegram account is already connected to another Stock Radar account.";
 
 export function normalizeTelegramDestination(value: unknown) {
-  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
-  return typeof value === "string" ? value.trim() : "";
+  const destination =
+    typeof value === "number" && Number.isSafeInteger(value)
+      ? String(value)
+      : typeof value === "string"
+        ? value.trim()
+        : "";
+  return /^-?[1-9]\d{0,19}$/.test(destination) ? destination : "";
 }
 
 export function normalizeTelegramUsername(value: unknown) {

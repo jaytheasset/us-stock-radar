@@ -28,6 +28,13 @@ import {
 } from "@/lib/liveFeedV2Preview";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import type { RankedEvent } from "@/lib/radarRankings";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import {
+  getViewerContentState,
+  savedContentKey,
+  type ViewerContentState,
+} from "@/lib/saved/server";
+import { isSavedContentUuid } from "@/lib/saved/types";
 
 export type LiveFeedV2RailEvent = {
   detailHref: string | null;
@@ -48,13 +55,19 @@ export type LiveFeedV2InitialData = {
   situationItems: readonly SituationCardItem[];
 };
 
-export async function getLiveFeedV2InitialData(): Promise<LiveFeedV2InitialData> {
-  const viewModel = await getLiveFeedViewModel({
-    includeCharts: true,
-    limit: liveFeedV2BatchSize,
-    page: 1,
-    tab: "all",
-  });
+export async function getLiveFeedV2InitialData(
+  userId?: string | null,
+): Promise<LiveFeedV2InitialData> {
+  const [viewModel, resolvedUserId] = await Promise.all([
+    getLiveFeedViewModel({
+      includeCharts: true,
+      limit: liveFeedV2BatchSize,
+      page: 1,
+      tab: "all",
+    }),
+    userId === undefined ? getOptionalCurrentUserId() : Promise.resolve(userId),
+  ]);
+  const viewerState = await loadViewerState(viewModel.feedItems, resolvedUserId);
 
   return {
     alertFilings: viewModel.alertFilings.map((item) =>
@@ -65,7 +78,7 @@ export async function getLiveFeedV2InitialData(): Promise<LiveFeedV2InitialData>
     ),
     marketMovingNews: viewModel.marketMovingNews.map(mapMarketMovingEvent),
     marketPulse: viewModel.marketPulseItems,
-    page: mapViewModelPage(viewModel, "all", 1),
+    page: mapViewModelPage(viewModel, "all", 1, viewerState),
     situationItems: viewModel.situationCards,
   };
 }
@@ -97,14 +110,19 @@ export async function loadLiveFeedV2Page({
     page,
     tab: filter as FeedTab,
   });
+  const viewerState = await loadViewerState(
+    viewModel.feedItems,
+    await getOptionalCurrentUserId(),
+  );
 
-  return mapViewModelPage(viewModel, filter, page);
+  return mapViewModelPage(viewModel, filter, page, viewerState);
 }
 
 function mapViewModelPage(
   viewModel: Awaited<ReturnType<typeof getLiveFeedViewModel>>,
   filter: LiveFeedV2Filter,
   page: number,
+  viewerState: ViewerContentState,
 ): LiveFeedV2Page {
   return {
     availability: "available",
@@ -112,7 +130,7 @@ function mapViewModelPage(
     error: viewModel.ok ? undefined : viewModel.error,
     filter,
     items: viewModel.feedItems.map((item) =>
-      mapLiveFeedItem(item, viewModel.feedItems),
+      mapLiveFeedItem(item, viewModel.feedItems, viewerState),
     ),
     nextCursor: viewModel.hasNext
       ? encodeLiveFeedV2Cursor(page + 1)
@@ -124,8 +142,9 @@ function mapViewModelPage(
 function mapLiveFeedItem(
   item: LiveFeedItem,
   relatedItems: readonly LiveFeedItem[],
+  viewerState: ViewerContentState,
 ): LiveFeedV2Item {
-  const previewSource = mapPreviewSource(item);
+  const previewSource = mapPreviewSource(item, viewerState);
   const feedType = previewSource.feedType;
   const timestamp = item.detectedAtRaw;
   const formattedTime = formatLiveFeedV2Timestamp(timestamp);
@@ -161,12 +180,15 @@ function mapLiveFeedItem(
     timeLabel: formattedTime.timeLabel,
     preview: createLiveFeedV2Preview(
       previewSource,
-      relatedItems.map(mapPreviewSource),
+      relatedItems.map((related) => mapPreviewSource(related, viewerState)),
     ),
   };
 }
 
-function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
+function mapPreviewSource(
+  item: LiveFeedItem,
+  viewerState?: ViewerContentState,
+): LiveFeedV2PreviewSource {
   const feedType = resolveFeedType(item);
   const eventPresentation = getLiveFeedV2EventPresentation(
     item.eventType,
@@ -174,6 +196,7 @@ function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
   );
 
   return {
+    authenticated: viewerState?.authenticated === true,
     accessionNumber: item.accessionNumber,
     category: eventPresentation.label,
     companyName: item.companyName,
@@ -195,6 +218,15 @@ function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
     sentiment: formatSentiment(item.signal),
     source: item.source,
     sourceUrl: item.sourceUrl,
+    saved:
+      isSavedContentUuid(item.id) && feedType !== "market"
+        ? viewerState?.savedKeys.has(
+            savedContentKey(
+              feedType === "filings" ? "filing" : "news",
+              item.id,
+            ),
+          ) === true
+        : false,
     summary: item.quickTake || item.summary,
     themeLabel: formatMarketThemeLabel(
       item.subTheme ||
@@ -204,7 +236,30 @@ function mapPreviewSource(item: LiveFeedItem): LiveFeedV2PreviewSource {
         item.displayTicker,
     ),
     ticker: item.displayTicker,
+    watchlist:
+      viewerState?.watchedTickers.has(item.ticker.trim().toUpperCase()) === true,
   };
+}
+
+async function loadViewerState(
+  items: readonly LiveFeedItem[],
+  userId: string | null,
+) {
+  return getViewerContentState({
+    userId,
+    references: items.flatMap((item) => {
+      const feedType = resolveFeedType(item);
+      if (feedType === "market" || !isSavedContentUuid(item.id)) return [];
+      return [
+        {
+          contentId: item.id,
+          contentType:
+            feedType === "filings" ? ("filing" as const) : ("news" as const),
+        },
+      ];
+    }),
+    tickers: items.map((item) => item.ticker),
+  });
 }
 
 function formatMarketThemeLabel(value: string) {

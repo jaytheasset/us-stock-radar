@@ -3,7 +3,9 @@ import "server-only";
 import { runCalendarAlertDelivery } from "@/lib/alerts/calendarDelivery";
 import { acquireJobLock, createLockOwner, releaseJobLock } from "@/lib/alerts/delivery/jobLock";
 import { processQueuedDeliveries } from "@/lib/alerts/delivery/processQueuedDeliveries";
+import { runPublicTelegramBroadcastDelivery } from "@/lib/alerts/delivery/publicTelegramBroadcast";
 import { runAlertDeliveryBatch } from "@/lib/alerts/delivery/runAlertDeliveryBatch";
+import { runDueAdminTelegramCampaigns } from "@/lib/admin/telegramCampaignDelivery";
 import {
   createSchedulerRunLog,
   failSchedulerRunLog,
@@ -49,6 +51,8 @@ export async function runAlertDeliveryScheduler(
         lockSkipped: true,
         batch: null,
         queued: null,
+        publicTelegram: null,
+        telegramCampaigns: null,
         calendar: null,
         error: "LOCK_HELD",
       };
@@ -62,6 +66,8 @@ export async function runAlertDeliveryScheduler(
 
   let batch: RunAlertDeliverySchedulerResult["batch"] = null;
   let queued: RunAlertDeliverySchedulerResult["queued"] = null;
+  let publicTelegram: RunAlertDeliverySchedulerResult["publicTelegram"] = null;
+  let telegramCampaigns: RunAlertDeliverySchedulerResult["telegramCampaigns"] = null;
   let calendar: RunAlertDeliverySchedulerResult["calendar"] = null;
 
   try {
@@ -81,6 +87,19 @@ export async function runAlertDeliveryScheduler(
           write,
           limit: options.queuedLimit,
         });
+    publicTelegram = options.skipPublicTelegram
+      ? null
+      : await runPublicTelegramBroadcastDelivery({
+          dryRun,
+          write,
+          limit: options.publicTelegramLimit,
+        });
+    telegramCampaigns = options.skipTelegramCampaigns || !write
+      ? null
+      : await runDueAdminTelegramCampaigns({
+          limit: options.telegramCampaignLimit,
+          trigger: "scheduler",
+        });
     calendar = options.skipCalendar
       ? null
       : await runCalendarAlertDelivery({
@@ -88,13 +107,21 @@ export async function runAlertDeliveryScheduler(
           limit: options.calendarLimit,
         });
 
-    const error = [batch?.error, queued?.error, calendar?.error].find(
+    const error = [
+      batch?.error,
+      queued?.error,
+      publicTelegram?.error,
+      telegramCampaigns?.disabled ? undefined : telegramCampaigns?.error,
+      calendar?.error,
+    ].find(
       (value): value is string => Boolean(value),
     );
     const result: RunAlertDeliverySchedulerResult = {
       ok:
         Boolean(batch?.ok ?? true) &&
         Boolean(queued?.ok ?? true) &&
+        Boolean(publicTelegram?.ok ?? true) &&
+        Boolean(telegramCampaigns?.ok ?? true) &&
         Boolean(calendar?.ok ?? true),
       runId,
       dryRun,
@@ -102,6 +129,8 @@ export async function runAlertDeliveryScheduler(
       locked,
       batch,
       queued,
+      publicTelegram,
+      telegramCampaigns,
       calendar,
       error,
     };
@@ -118,6 +147,8 @@ export async function runAlertDeliveryScheduler(
       locked,
       batch,
       queued,
+      publicTelegram,
+      telegramCampaigns,
       calendar,
       error: sanitizeError(error instanceof Error ? error.message : "Alert delivery scheduler failed."),
     };

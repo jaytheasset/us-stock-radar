@@ -2,7 +2,6 @@ import {
   ADVANCED_TRIAL_POLICY,
   CORE_ALERT_CATEGORIES,
   RISK_CATALYST_ALERT_CATEGORIES,
-  formatChannels,
   formatLimit,
   getPlanLimits,
   type AlertCategory,
@@ -52,10 +51,6 @@ function tickerLimit(planKey: PremiumV2PlanKey) {
   return formatLimit(getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).alertTickerLimit);
 }
 
-function channels(planKey: PremiumV2PlanKey) {
-  return formatChannels(getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).channels);
-}
-
 function discoveryCount(planKey: PremiumV2PlanKey) {
   return getPlanLimits(CANONICAL_PLAN_BY_KEY[planKey]).discoveryCategories.length;
 }
@@ -65,8 +60,8 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
     benefits: [
       `Ticker Alerts for ${tickerLimit("free")} ticker`,
       "All 17 event types for that alert ticker",
-      "5-minute delivery delay",
-      channels("free"),
+      "5-minute delayed Web alerts",
+      "5-minute delayed Public Telegram channel",
       "Unlimited watchlist · Ads included",
     ],
     cta: "Start Free",
@@ -78,8 +73,8 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
     benefits: [
       `Ticker Alerts for ${tickerLimit("adFree")} tickers`,
       "All 17 event types for enabled tickers",
-      "5-minute delivery delay",
-      channels("adFree"),
+      "5-minute delayed Web alerts",
+      "5-minute delayed Public Telegram channel",
       "Unlimited watchlist · No ads",
     ],
     cta: "Choose Ad-Free",
@@ -92,11 +87,10 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
       `Ticker Alerts for ${tickerLimit("pro")} tickers`,
       "All 17 event types for enabled tickers",
       `${discoveryCount("pro")} Core categories for market-wide Discovery`,
-      "Real-time alerts",
-      channels("pro"),
+      "Real-time personalized Web + Telegram + Mobile app push alerts",
     ],
     cta: "Upgrade to Pro",
-    description: "Real-time company alerts with Telegram delivery.",
+    description: "Real-time personalized alerts across Web, Telegram, and Mobile app push.",
     monthlyPrice: "$19",
     name: "Pro",
   },
@@ -107,7 +101,7 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
       "All 17 event types for enabled tickers",
       `${discoveryCount("advanced")} categories across market-wide Discovery`,
       "Advanced filters",
-      channels("advanced"),
+      "Real-time personalized Web + Telegram + Mobile app push + Email alerts",
     ],
     cta: "Start 14-day Advanced Trial",
     description: "Full-market risk and catalyst detection for active traders.",
@@ -119,7 +113,8 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
       "Unlimited Ticker Alerts",
       "All 17 market-wide Discovery categories",
       "Custom rules",
-      channels("ultimate"),
+      "Real-time personalized Web + Telegram + Mobile app push + Email alerts",
+      "Webhook + API delivery",
       "Professional configuration",
     ],
     cta: "Contact Sales",
@@ -251,11 +246,11 @@ export const premiumV2ComparisonRows: readonly PremiumV2ComparisonRow[] = [
   {
     feature: "Delivery Channels",
     values: {
-      free: channels("free"),
-      adFree: channels("adFree"),
-      pro: channels("pro"),
-      advanced: channels("advanced"),
-      ultimate: channels("ultimate"),
+      free: "Web + Public Telegram channel",
+      adFree: "Web + Public Telegram channel",
+      pro: "Personalized Web + Telegram + Mobile app push",
+      advanced: "Personalized Web + Telegram + Mobile app push + Email",
+      ultimate: "Personalized Web + Telegram + Mobile app push + Email + Webhook + API",
     },
   },
   {
@@ -277,8 +272,13 @@ export const premiumV2FaqItems = [
   },
   {
     answer:
-      "Pro includes 15 real-time alert tickers, the 12 Core Discovery types, and Telegram. Advanced adds unlimited alert tickers, all 17 Discovery types, advanced filters, and email.",
+      "Pro includes 15 real-time alert tickers, the 12 Core Discovery types, and personalized Web, Telegram, and Mobile app push alerts. Advanced adds unlimited alert tickers, all 17 Discovery types, advanced filters, and Email alerts.",
     question: "Why choose Advanced instead of Pro?",
+  },
+  {
+    answer:
+      "Free and Ad-Free include 5-minute delayed Web alerts plus access to the shared 5-minute delayed Public Telegram channel. Personalized Telegram alerts begin with Pro.",
+    question: "Is Telegram personalized on every plan?",
   },
   {
     answer: "Yes. Every enabled ticker receives all 12 Core and all 5 Risk & Catalyst event types.",

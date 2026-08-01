@@ -7,9 +7,9 @@ https://us-stock-radar.com/api/telegram/webhook
 ```
 
 The webhook Route Handler explicitly uses the Node.js runtime. It accepts only
-Telegram private-chat `/start <token>` messages with the configured secret
-header. The bot token, webhook secret, Supabase service-role key, raw connect
-token, and Telegram chat ID are server-only values.
+Telegram private-chat updates with the configured secret header. The bot token,
+webhook secret, Supabase service-role key, raw connect token, and Telegram chat
+ID are server-only values.
 
 ## Vercel Production environment
 
@@ -52,7 +52,7 @@ $productionWebhook = "https://us-stock-radar.com/api/telegram/webhook"
 $payload = @{
   url = $productionWebhook
   secret_token = $env:TELEGRAM_WEBHOOK_SECRET
-  allowed_updates = @("message")
+  allowed_updates = @("message", "callback_query")
 } | ConvertTo-Json
 
 Invoke-RestMethod -Method Post -Uri "$telegramApi/setWebhook" -ContentType "application/json" -Body $payload
@@ -88,6 +88,27 @@ test window.
 
 No webhook or Vercel environment change is performed by repository tests or this
 runbook itself.
+
+## Bot command menu
+
+The implemented private-chat commands are `/stock`, `/watchlist`, `/rooms`,
+`/room`, `/settings`, and `/help`. Preview the command registration
+without network access or bot changes:
+
+```powershell
+npm run telegram:commands
+```
+
+For an explicitly approved operating window, set the bot token in the private
+operator shell and require both write gates:
+
+```powershell
+$env:TELEGRAM_BOT_COMMANDS_WRITE_ENABLED = "true"
+npm run telegram:commands -- --apply
+```
+
+The script registers the menu only for private chats. It never prints the bot
+token or request URL. Do not run `--apply` during ordinary development or tests.
 
 References:
 

@@ -5803,6 +5803,29 @@ td {
   font-size: 12px;
 }
 
+.analysis-company-link,
+.analysis-content-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-2);
+}
+
+.analysis-company-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.analysis-company-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.analysis-company-link:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .stock-detail-meta > span:not(.ticker-chip, .signal-badge, .source-badge) {
   display: inline-flex;
   align-items: center;

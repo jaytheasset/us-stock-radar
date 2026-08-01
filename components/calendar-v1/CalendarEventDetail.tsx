@@ -1,7 +1,7 @@
 "use client";
 
 import { type RefObject } from "react";
-import { Bell, BellOff, Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
+import { Bell, BellOff, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
@@ -149,11 +149,18 @@ function CalendarEventDetailContent({
       <header className={styles.detailHeader}>
         <CalendarEventTypeBadge eventType={event.eventType} size="small" />
         <div>
-          <strong>{identity.primaryLabel}</strong>
+          {ticker && stockHref ? (
+            <Link className={styles.detailIdentityLink} href={stockHref}>
+              <strong>{identity.primaryLabel}</strong>
+              <span>{identity.secondaryLabel}</span>
+            </Link>
+          ) : (
+            <strong>{identity.primaryLabel}</strong>
+          )}
           <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
         </div>
         <h2 id={titleId}>{event.title}</h2>
-        <p>{identity.secondaryLabel}</p>
+        {!ticker ? <p>{identity.secondaryLabel}</p> : null}
       </header>
 
       <dl className={styles.detailSummary}>
@@ -179,31 +186,28 @@ function CalendarEventDetailContent({
       </section>
 
       <div className={styles.detailActions}>
-        <div className={styles.detailAction}>
-          <div>
-            <strong>Stock watchlist</strong>
-            <span>Track this ticker across Stock Radar.</span>
+        {event.category === "company" && ticker ? (
+          <div className={styles.detailAction}>
+            <div>
+              <strong>Stock Watchlist</strong>
+              <span>Track this ticker across Stock Radar.</span>
+            </div>
+            <button
+              aria-label={watchActionLabel}
+              aria-pressed={watchlisted}
+              onClick={onWatchlistToggle}
+              title={watchActionLabel}
+              type="button"
+            >
+              <Star
+                aria-hidden="true"
+                fill={watchlisted ? "currentColor" : "none"}
+                size={18}
+              />
+              {watchLabel}
+            </button>
           </div>
-          <button
-            aria-label={watchActionLabel}
-            aria-pressed={ticker ? watchlisted : undefined}
-            disabled={!ticker}
-            onClick={onWatchlistToggle}
-            title={
-              ticker
-                ? watchActionLabel
-                : "Watch Stock unavailable because this event has no ticker."
-            }
-            type="button"
-          >
-            {watchlisted ? (
-              <BookmarkCheck aria-hidden="true" size={16} />
-            ) : (
-              <Bookmark aria-hidden="true" size={16} />
-            )}
-            {ticker ? watchLabel : "No ticker to watch"}
-          </button>
-        </div>
+        ) : null}
         <div className={styles.detailAction}>
           <div>
             <strong>Event alert</strong>

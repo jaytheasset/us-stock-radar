@@ -266,11 +266,18 @@
 }
 
 .card {
+  position: relative;
   min-width: 0;
-  padding: 18px;
+  padding: 18px 64px 18px 18px;
   border: var(--sr-border-width) solid var(--post-direction-border);
   border-radius: 12px;
   background: var(--post-direction-surface);
+}
+
+.postSaveAction {
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 .crossPostSource {

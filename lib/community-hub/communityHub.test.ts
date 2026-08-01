@@ -141,7 +141,7 @@ test("desktop popup and mobile header lead to the full Community hub without top
   );
   assert.match(
     header,
-    /href="\/community"[\s\S]+View all Community/,
+    /href="\/community"[\s\S]+Browse rooms/,
   );
   assert.match(
     account,
