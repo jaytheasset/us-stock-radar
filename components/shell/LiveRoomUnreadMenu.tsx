@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Ban,
   Check,
-  MessageSquareText,
+  MessageCircle,
   MoreHorizontal,
   UserMinus,
   X,
@@ -329,7 +329,7 @@ export function LiveRoomUnreadMenu() {
           }
         }}
       >
-        <MessageSquareText aria-hidden="true" size={18} />
+        <MessageCircle aria-hidden="true" size={18} />
         {total ? (
           <span
             aria-hidden="true"
