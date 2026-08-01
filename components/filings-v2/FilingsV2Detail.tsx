@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import Link from "next/link";
-import { Bookmark, ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText, Star } from "lucide-react";
 import { FilingsV2EventBadge } from "@/components/filings-v2/FilingsV2EventBadge";
 import { FilingsV2ImpactScore } from "@/components/filings-v2/FilingsV2ImpactScore";
 import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
@@ -43,7 +43,7 @@ export function FilingsV2DetailContent({
           </div>
           {record.watchlist !== undefined ? (
             <span className={styles.watchlistStatus}>
-              <Bookmark aria-hidden="true" size={14} />
+              <Star aria-hidden="true" size={14} />
               <span className={styles.watchlistStatusText}>
                 {record.watchlist ? "Watchlist" : "Not watched"}
               </span>

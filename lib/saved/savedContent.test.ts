@@ -45,7 +45,10 @@ test("Saved mutations preserve same-origin auth, ownership, and idempotency", ()
 test("Watchlist, Save, and Follow Event remain separate actions", () => {
   const savedButton = read("components/actions/SavedContentButton.tsx");
   const watchlistButton = read("components/actions/WatchlistButton.tsx");
+  const actionStyles = read("components/actions/ContentActionButtons.module.css");
   const calendar = read("components/calendar-v1/CalendarEventDetail.tsx");
+  const dashboardDetail = read("components/dashboard-v2/TickerDetailContent.tsx");
+  const filingsDetail = read("components/filings-v2/FilingsV2Detail.tsx");
   const stockPage = read("components/watchlist-v2/StockRadarWatchlistV2.tsx");
 
   assert.match(savedButton, /Bookmark/);
@@ -56,6 +59,19 @@ test("Watchlist, Save, and Follow Event remain separate actions", () => {
   assert.doesNotMatch(calendar, /SavedContentButton|Bookmark/);
   assert.match(stockPage, /Star/);
   assert.doesNotMatch(stockPage, /SavedContentButton/);
+  for (const watchlistSurface of [dashboardDetail, filingsDetail]) {
+    assert.match(watchlistSurface, /Star/);
+    assert.doesNotMatch(watchlistSurface, /Bookmark/);
+  }
+  assert.match(
+    actionStyles,
+    /\.button \{[\s\S]*width: 36px;[\s\S]*height: 36px;[\s\S]*border: 0;[\s\S]*color: var\(--sr-color-text-control-strong\);[\s\S]*background: transparent;/,
+  );
+  assert.match(
+    actionStyles,
+    /\.button\[aria-pressed="true"\] \{[\s\S]*color: var\(--sr-color-accent-text\);[\s\S]*background: var\(--sr-color-accent-selected\);/,
+  );
+  assert.doesNotMatch(actionStyles, /var\(--sr-color-warning\)/);
 });
 
 test("Feed actions are preview-only and Live Room saves posts, not messages", () => {
