@@ -9,6 +9,7 @@ import {
   isTickerAlertCategoryAllowed,
   isValidAlertCategory,
 } from "../lib/subscriptionPolicy.ts";
+import { buildTelegramAlertPresentation } from "../lib/telegram/telegramAlertMessage.ts";
 
 const PLAN_RANK = {
   free: 0,
@@ -141,7 +142,7 @@ async function normalizeEvent(id) {
     uniqueTickers(tickerRows.filter((row) => row.role === "primary").map((row) => row.symbol))[0] ||
     normalizeTicker(event.ticker) ||
     tickers[0];
-  const score = readNumber(event.score, 0);
+  const score = readOptionalScore(event.score);
   const impact = readString(event.impact);
   const deliveryLevel = readDeliveryLevel(event.delivery_level);
   const eventType = readString(event.event_type);
@@ -153,12 +154,17 @@ async function normalizeEvent(id) {
     event: {
       id,
       title: readString(event.title) || "Untitled alert event",
+      quickTake: readString(event.quick_take) || undefined,
       tickers,
       primaryTicker,
       category,
       sourceType: sourceGroup === "filings" ? "filing" : sourceGroup === "news" ? "news" : "other",
       sourceLabel: readString(event.source_name) || readString(event.source_code) || null,
-      severity: score >= 90 ? "critical" : score >= 75 || impact === "high" ? "high" : score >= 50 ? "medium" : "low",
+      severity: (score ?? 0) >= 90 ? "critical" : (score ?? 0) >= 75 || impact === "high" ? "high" : (score ?? 0) >= 50 ? "medium" : "low",
+      score,
+      signal: readSignal(event.signal),
+      impact: readImpact(event.impact),
+      marketScope: readMarketScope(event.market_scope),
       deliveryLevel,
       publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
     },
@@ -294,8 +300,13 @@ async function processImmediateChannels(event, candidate) {
     }
 
     if (channel.channel === "telegram") {
-      if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") continue;
-      const sent = await sendTelegramMessage(channel.destination || "", formatTelegramMessage(event));
+      if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") continue;
+      const presentation = buildTelegramAlertPresentation(event, {
+        baseUrl: env.APP_BASE_URL || "",
+        callbackSecret: env.TELEGRAM_WEBHOOK_SECRET || "",
+        callbackSubject: candidate.userId,
+      });
+      const sent = await sendTelegramMessage(channel.destination || "", presentation.text, presentation);
       if (sent.ok) channels.push("telegram");
       else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
       continue;
@@ -307,8 +318,8 @@ async function processImmediateChannels(event, candidate) {
   return { channels, errors };
 }
 
-async function sendTelegramMessage(chatId, text) {
-  if (env.ALERT_DELIVERY_SEND_TELEGRAM === "false") {
+async function sendTelegramMessage(chatId, text, options = {}) {
+  if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
     return { ok: false, error: "Telegram sending is disabled." };
   }
 
@@ -326,19 +337,17 @@ async function sendTelegramMessage(chatId, text) {
       body: JSON.stringify({
         chat_id: chatId,
         text,
+        ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
+        ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+        link_preview_options: { is_disabled: true },
       }),
     });
     const data = await response.json().catch(() => null);
     if (response.ok && data?.ok) return { ok: true };
     return { ok: false, error: readError(data, response.statusText) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Telegram send failed." };
+    return { ok: false, error: "Telegram request failed." };
   }
-}
-
-function formatTelegramMessage(event) {
-  const ticker = event.primaryTicker || event.tickers[0] || "Market";
-  return [`STOCK RADAR Alert`, `${ticker}: ${event.title}`, `Category: ${event.category || "other"}`].join("\n");
 }
 
 async function insertDelivery({ userId, event, candidate, deliveredChannels, lastError }) {
@@ -519,6 +528,26 @@ function readNumber(value, fallback) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return fallback;
+}
+
+function readOptionalScore(value) {
+  const number = readNumber(value, Number.NaN);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : undefined;
+}
+
+function readSignal(value) {
+  const signal = readString(value).toLowerCase();
+  return ["bullish", "bearish", "volatile", "neutral"].includes(signal) ? signal : undefined;
+}
+
+function readImpact(value) {
+  const impact = readString(value).toLowerCase();
+  return ["high", "medium", "low"].includes(impact) ? impact : undefined;
+}
+
+function readMarketScope(value) {
+  const scope = readString(value).toLowerCase();
+  return ["company", "sector", "theme", "macro"].includes(scope) ? scope : "company";
 }
 
 function readDeliveryLevel(value) {

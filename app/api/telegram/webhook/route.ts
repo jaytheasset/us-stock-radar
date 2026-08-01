@@ -1,5 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
 import { buildChannelNotAvailableMessage, getChannelLockState, getUserPlan } from "@/lib/alerts/alertValidation";
 import { getServerEnv } from "@/lib/env";
 import {
@@ -13,7 +13,15 @@ import {
   normalizeTelegramDestination,
   parseTelegramStartToken,
 } from "@/lib/telegram/telegramConnectPolicy";
-import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
+import { buildTelegramMuteConfirmationKeyboard } from "@/lib/telegram/telegramAlertMessage";
+import { parseTelegramMuteCallbackData } from "@/lib/telegram/telegramCallbackPolicy";
+import { resolveTelegramMuteAction } from "@/lib/telegram/telegramInteractions";
+import {
+  answerTelegramCallbackQuery,
+  editTelegramMessageText,
+  sendTelegramMessage,
+  type TelegramInlineKeyboardMarkup,
+} from "@/lib/telegram/sendTelegramMessage";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,25 +32,41 @@ const NO_STORE_HEADERS = {
 
 type TelegramUpdate = {
   message?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
 };
 
 type TelegramMessage = {
+  message_id?: unknown;
   text?: unknown;
-  chat?: {
-    id?: unknown;
-    type?: unknown;
-    username?: unknown;
-    first_name?: unknown;
-    last_name?: unknown;
+  chat?: TelegramChat;
+  from?: TelegramSender;
+};
+
+type TelegramCallbackQuery = {
+  id?: unknown;
+  data?: unknown;
+  from?: TelegramSender;
+  message?: {
+    message_id?: unknown;
+    chat?: TelegramChat;
   };
-  from?: {
-    id?: unknown;
-    is_bot?: unknown;
-    username?: unknown;
-    first_name?: unknown;
-    last_name?: unknown;
-    language_code?: unknown;
-  };
+};
+
+type TelegramChat = {
+  id?: unknown;
+  type?: unknown;
+  username?: unknown;
+  first_name?: unknown;
+  last_name?: unknown;
+};
+
+type TelegramSender = {
+  id?: unknown;
+  is_bot?: unknown;
+  username?: unknown;
+  first_name?: unknown;
+  last_name?: unknown;
+  language_code?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -61,11 +85,12 @@ export async function POST(request: NextRequest) {
   }
 
   const update = (await request.json().catch(() => null)) as TelegramUpdate | null;
+  if (update?.callback_query) return handleCallbackQuery(update.callback_query, secret);
+
   const message = update?.message;
   const chatId = normalizeTelegramDestination(message?.chat?.id);
   const chatType = stringValue(message?.chat?.type);
   const text = stringValue(message?.text);
-  const token = parseTelegramStartToken(text);
 
   if (
     !message ||
@@ -74,21 +99,51 @@ export async function POST(request: NextRequest) {
       chatType,
       senderId: message.from?.id,
       senderIsBot: message.from?.is_bot,
-    }) ||
-    !text.startsWith("/start")
+    })
   ) {
-    return NextResponse.json({ ok: true, ignored: true }, { headers: NO_STORE_HEADERS });
+    return webhookResponse({ ok: true, ignored: true });
   }
+
+  const command = parseTelegramCommand(text);
+  if (command === "settings") {
+    await sendTelegramMessage(
+      chatId,
+      "Manage watched tickers, Market Discovery, and delivery channels in Stock Radar Alerts.",
+      { replyMarkup: buildSiteKeyboard("Open Alert Settings", "/alerts") },
+    );
+    return webhookResponse({ ok: true, command: "settings" });
+  }
+
+  if (command === "help") {
+    await sendTelegramMessage(
+      chatId,
+      [
+        "Stock Radar Telegram is your alert inbox and settings remote.",
+        "",
+        "• Open a company Live Room from an alert.",
+        "• Mute a ticker after confirmation.",
+        "• Use /settings to manage all Alerts preferences.",
+        "",
+        "Free-form chat, comments, voting, and full analysis are available on the Stock Radar site.",
+      ].join("\n"),
+      { replyMarkup: buildSiteKeyboard("Open Stock Radar Alerts", "/alerts") },
+    );
+    return webhookResponse({ ok: true, command: "help" });
+  }
+
+  if (command !== "start") return webhookResponse({ ok: true, ignored: true });
+
+  const token = parseTelegramStartToken(text);
 
   if (!token) {
     await sendTelegramMessage(chatId, "Open STOCK RADAR and use Connect Telegram from Alert Center to link this chat.");
-    return NextResponse.json({ ok: true, ignored: true }, { headers: NO_STORE_HEADERS });
+    return webhookResponse({ ok: true, ignored: true });
   }
 
   const verification = await verifyTelegramConnectToken(token);
   if (!verification.ok) {
     await sendTelegramMessage(chatId, "This connection link is expired. Please generate a new link from STOCK RADAR.");
-    return NextResponse.json({ ok: true, linked: false }, { headers: NO_STORE_HEADERS });
+    return webhookResponse({ ok: true, linked: false });
   }
 
   const plan = await getUserPlan(verification.userId);
@@ -104,7 +159,7 @@ export async function POST(request: NextRequest) {
   const claimResult = await markTelegramConnectTokenUsed(verification.tokenId);
   if (!wasTelegramConnectTokenClaimed(claimResult)) {
     await sendTelegramMessage(chatId, "This connection link is expired. Please generate a new link from STOCK RADAR.");
-    return NextResponse.json({ ok: true, linked: false }, { headers: NO_STORE_HEADERS });
+    return webhookResponse({ ok: true, linked: false });
   }
 
   const result = await saveTelegramConnection({
@@ -125,7 +180,100 @@ export async function POST(request: NextRequest) {
 
   await sendTelegramMessage(chatId, "Telegram alerts are connected. You can manage delivery channels in STOCK RADAR.");
 
-  return NextResponse.json({ ok: true, linked: true }, { headers: NO_STORE_HEADERS });
+  return webhookResponse({ ok: true, linked: true });
+}
+
+async function handleCallbackQuery(callback: TelegramCallbackQuery, tokenSecret: string) {
+  const callbackQueryId = stringValue(callback.id);
+  if (!callbackQueryId) return webhookResponse({ ok: true, ignored: true });
+
+  const chat = callback.message?.chat;
+  const chatId = normalizeTelegramDestination(chat?.id);
+  if (
+    !isPrivateTelegramChat({
+      chatId: chat?.id,
+      chatType: stringValue(chat?.type),
+      senderId: callback.from?.id,
+      senderIsBot: callback.from?.is_bot,
+    })
+  ) {
+    await answerTelegramCallbackQuery(callbackQueryId, {
+      text: "This action is only available in your private bot chat.",
+      showAlert: true,
+    });
+    return webhookResponse({ ok: true, ignored: true });
+  }
+
+  const parsed = parseTelegramMuteCallbackData(callback.data);
+  if (!parsed) {
+    await answerTelegramCallbackQuery(callbackQueryId, { text: "This action is no longer available." });
+    return webhookResponse({ ok: true, ignored: true });
+  }
+
+  try {
+    const resolution = await resolveTelegramMuteAction({
+      destination: chatId,
+      token: parsed.token,
+      tokenSecret,
+      write: parsed.action === "confirm",
+    });
+    if (!resolution.ok) {
+      await answerTelegramCallbackQuery(callbackQueryId, {
+        text: callbackErrorMessage(resolution.error),
+        showAlert: true,
+      });
+      return webhookResponse({ ok: true, action: "rejected" });
+    }
+
+    if (parsed.action === "prompt") {
+      await answerTelegramCallbackQuery(callbackQueryId, { text: `Confirm mute for ${resolution.ticker}.` });
+      await sendTelegramMessage(chatId, `Mute ${resolution.ticker} ticker alerts?`, {
+        replyMarkup: buildTelegramMuteConfirmationKeyboard(
+          resolution.ticker,
+          tokenSecret,
+          resolution.userId,
+        ),
+      });
+      return webhookResponse({ ok: true, action: "mute_prompted" });
+    }
+
+    const messageId = numericValue(callback.message?.message_id);
+    if (parsed.action === "cancel") {
+      await answerTelegramCallbackQuery(callbackQueryId, { text: "Mute canceled." });
+      if (messageId !== null) await editTelegramMessageText(chatId, messageId, `Mute canceled for ${resolution.ticker}.`);
+      return webhookResponse({ ok: true, action: "mute_canceled" });
+    }
+
+    const confirmation = resolution.alreadyMuted
+      ? `${resolution.ticker} ticker alerts are already muted.`
+      : `${resolution.ticker} ticker alerts are now muted.`;
+    await answerTelegramCallbackQuery(callbackQueryId, { text: confirmation });
+    if (messageId !== null) await editTelegramMessageText(chatId, messageId, confirmation);
+    return webhookResponse({ ok: true, action: "ticker_muted" });
+  } catch {
+    await answerTelegramCallbackQuery(callbackQueryId, {
+      text: "Unable to process this action. Try again from a newer alert.",
+      showAlert: true,
+    });
+    return webhookResponse({ ok: true, action: "failed" });
+  }
+}
+
+function callbackErrorMessage(error: "CONNECTION_NOT_FOUND" | "ACTION_INVALID" | "READ_FAILED" | "WRITE_FAILED") {
+  if (error === "CONNECTION_NOT_FOUND") return "Connect this private chat to Stock Radar first.";
+  if (error === "ACTION_INVALID") return "This action is invalid or no longer available.";
+  return "Unable to update Alert settings right now.";
+}
+
+function buildSiteKeyboard(text: string, pathname: string): TelegramInlineKeyboardMarkup | undefined {
+  const baseUrl = normalizeBaseUrl(getServerEnv().appBaseUrl);
+  if (!baseUrl) return undefined;
+  return { inline_keyboard: [[{ text, url: new URL(pathname, baseUrl).toString() }]] };
+}
+
+function parseTelegramCommand(text: string) {
+  const match = text.match(/^\/(start|settings|help)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i);
+  return match?.[1]?.toLowerCase() || "";
 }
 
 function secretsMatch(actual: string, expected: string) {
@@ -146,6 +294,23 @@ function buildTelegramMetadata(message: TelegramMessage) {
 }
 
 function stringValue(value: unknown) {
-  if (typeof value === "number") return String(value);
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeBaseUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? `${url.origin}/` : "";
+  } catch {
+    return "";
+  }
+}
+
+function numericValue(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) ? value : null;
+}
+
+function webhookResponse(body: Record<string, unknown>) {
+  return NextResponse.json(body, { headers: NO_STORE_HEADERS });
 }

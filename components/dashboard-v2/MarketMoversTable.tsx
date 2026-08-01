@@ -12,6 +12,7 @@ import type { DashboardV2MarketMover } from "@/lib/dashboardV2Types";
 import { getStockRouteHref } from "@/lib/watchlist/stockOverview";
 
 type MarketMoversTableProps = {
+  adsEnabledForViewer: boolean;
   mobileValueMode?: "change" | "volume";
   onOpenChart?: (row: DashboardV2MarketMover) => void;
   onSelectRow?: (row: DashboardV2MarketMover) => void;
@@ -20,6 +21,7 @@ type MarketMoversTableProps = {
 };
 
 export function MarketMoversTable({
+  adsEnabledForViewer,
   mobileValueMode = "change",
   onOpenChart,
   onSelectRow,
@@ -123,8 +125,12 @@ export function MarketMoversTable({
                     tickerHref={tickerHref}
                     volume={row.volume}
                   />
-                  {rows.length > 25 && index === 24 ? <DesktopInlineAdSlot /> : null}
-                  {rows.length >= 50 && index === rows.length - 1 ? <DesktopInlineAdSlot /> : null}
+                  {adsEnabledForViewer && rows.length > 25 && index === 24 ? (
+                    <DesktopInlineAdSlot />
+                  ) : null}
+                  {adsEnabledForViewer && rows.length >= 50 && index === rows.length - 1 ? (
+                    <DesktopInlineAdSlot />
+                  ) : null}
                   <MobileMarketRow
                     company={row.company}
                     eventBadges={
@@ -152,7 +158,9 @@ export function MarketMoversTable({
                     ticker={row.ticker}
                     tickerHref={tickerHref}
                   />
-                  {rows.length >= 50 && index === 24 ? <MobileInlineAdSlot /> : null}
+                  {adsEnabledForViewer && rows.length >= 50 && index === 24 ? (
+                    <MobileInlineAdSlot />
+                  ) : null}
                 </Fragment>
               );
             })}

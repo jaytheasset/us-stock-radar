@@ -4,6 +4,9 @@ import {
   claimAlertDeliveryChannelAttempt,
   finishAlertDeliveryChannelAttempt,
 } from "@/lib/alerts/delivery/channelAttempts";
+import { normalizeAlertEvent } from "@/lib/alerts/delivery/normalizeAlertEvent";
+import { getServerEnv } from "@/lib/env";
+import { buildTelegramAlertPresentation } from "@/lib/telegram/telegramAlertMessage";
 import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
 import { getEffectiveUserPlan } from "@/lib/subscription/effectivePlan";
@@ -90,7 +93,7 @@ export async function processQueuedDeliveries(
 async function fetchDueQueuedDeliveries(limit: number) {
   const result = await supabaseSelect("user_alert_deliveries", {
     select:
-      "id,user_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at",
+      "id,user_id,alert_event_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at",
     delivery_status: "eq.queued",
     scheduled_for: `lte.${new Date().toISOString()}`,
     order: "scheduled_for.asc,created_at.asc",
@@ -361,9 +364,15 @@ async function processRequestedChannels(
     }
 
     if (channel === "telegram") {
+      const presentation = await buildQueuedTelegramPresentation(row);
       const sent = await sendTelegramMessage(
         readString(channelRow?.destination),
-        formatQueuedTelegramMessage(row),
+        presentation.text,
+        {
+          parseMode: presentation.parseMode,
+          replyMarkup: presentation.replyMarkup,
+          disableWebPagePreview: true,
+        },
       );
       const status = sent.ok
         ? "sent"
@@ -552,13 +561,29 @@ async function markDeliveryFailed(
   };
 }
 
-function formatQueuedTelegramMessage(row: QueuedAlertDeliveryRow) {
-  const ticker = row.ticker || "Market";
-  return [
-    "STOCK RADAR Alert",
-    `${ticker}: ${row.title}`,
-    `Category: ${row.category || "other"}`,
-  ].join("\n");
+async function buildQueuedTelegramPresentation(row: QueuedAlertDeliveryRow) {
+  const normalized = row.alert_event_id
+    ? await normalizeAlertEvent(row.alert_event_id)
+    : null;
+  const event = normalized?.ok
+    ? normalized.event
+    : {
+        id: row.alert_event_id || row.id,
+        title: row.title,
+        tickers: row.ticker ? [row.ticker] : [],
+        primaryTicker: row.ticker || undefined,
+        category: row.category || "other",
+        sourceType: row.source_type || "other",
+        sourceLabel: row.source_label || undefined,
+        severity: row.severity || undefined,
+        marketScope: "macro" as const,
+      };
+  const env = getServerEnv();
+  return buildTelegramAlertPresentation(event, {
+    baseUrl: env.appBaseUrl,
+    callbackSecret: env.telegramWebhookSecret,
+    callbackSubject: row.user_id,
+  });
 }
 
 function readQueuedRow(value: unknown): QueuedAlertDeliveryRow | null {
@@ -572,6 +597,7 @@ function readQueuedRow(value: unknown): QueuedAlertDeliveryRow | null {
   return {
     id,
     user_id: userId,
+    alert_event_id: readString(row.alert_event_id) || null,
     ticker: readString(row.ticker) || null,
     title,
     category: readString(row.category) as QueuedAlertDeliveryRow["category"],

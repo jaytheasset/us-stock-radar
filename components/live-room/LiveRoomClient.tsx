@@ -110,6 +110,7 @@ import styles from "./LiveRoom.module.css";
 
 type LiveRoomClientProps = {
   activityMessageId: string | null;
+  loginReturnPath: string;
   realtimeConfig: LiveRoomRealtimeConfig | null;
   roomAvailability: LiveRoomAvailability;
   ticker: string;
@@ -160,6 +161,7 @@ const EMPTY_QUOTE: StockOverviewQuote = {
 
 export function LiveRoomClient({
   activityMessageId,
+  loginReturnPath,
   realtimeConfig,
   roomAvailability,
   ticker,
@@ -314,6 +316,7 @@ export function LiveRoomClient({
   );
   const roomLoginHref = createLiveRoomMemberLoginHref(
     `/live/${ticker}`,
+    loginReturnPath,
   );
   const timelineTailId = timeline.at(-1)?.id ?? null;
 

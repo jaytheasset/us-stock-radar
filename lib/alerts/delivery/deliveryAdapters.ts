@@ -6,6 +6,8 @@ import type {
   NormalizedAlertEvent,
 } from "@/lib/alerts/delivery/types";
 import type { AlertChannel } from "@/lib/subscriptionPolicy";
+import { getServerEnv } from "@/lib/env";
+import { buildTelegramAlertPresentation } from "@/lib/telegram/telegramAlertMessage";
 import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
 
 export async function runDeliveryAdapters({
@@ -36,7 +38,16 @@ export async function runDeliveryAdapters({
         continue;
       }
       attemptedChannels.push("telegram");
-      const result = await sendTelegramMessage(channel.destination || "", formatTelegramAlertMessage(event));
+      const presentation = buildTelegramAlertPresentation(event, {
+        baseUrl: getServerEnv().appBaseUrl,
+        callbackSecret: getServerEnv().telegramWebhookSecret,
+        callbackSubject: candidate.userId,
+      });
+      const result = await sendTelegramMessage(channel.destination || "", presentation.text, {
+        parseMode: presentation.parseMode,
+        replyMarkup: presentation.replyMarkup,
+        disableWebPagePreview: true,
+      });
       if (result.ok) {
         deliveredChannels.push("telegram");
       } else {
@@ -49,9 +60,4 @@ export async function runDeliveryAdapters({
   }
 
   return { deliveredChannels, attemptedChannels, errors };
-}
-
-function formatTelegramAlertMessage(event: NormalizedAlertEvent) {
-  const ticker = event.primaryTicker || event.tickers[0] || "Market";
-  return [`STOCK RADAR Alert`, `${ticker}: ${event.title}`, `Category: ${event.category}`].join("\n");
 }
