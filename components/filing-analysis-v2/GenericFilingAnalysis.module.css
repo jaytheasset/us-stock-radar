@@ -106,6 +106,7 @@
 
 .heroTitleGroup {
   display: block;
+  padding-right: 310px;
 }
 
 .companyActionRow {
@@ -132,6 +133,19 @@
   gap: var(--sr-space-1);
   color: var(--sr-color-text-detail-secondary);
   font-size: var(--sr-font-size-sm);
+  text-decoration: none;
+}
+
+a.companyLine:hover .tickerLine strong,
+a.companyLine:hover .companyName {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.companyLine:focus-visible {
+  border-radius: var(--sr-radius-sm);
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
 }
 
 .tickerLine {
@@ -176,16 +190,6 @@
 
 .companyNameRow .companyName {
   flex: 0 1 auto;
-}
-
-.companyNameRow .bookmarkAction > button {
-  width: var(--sr-size-badge);
-  height: var(--sr-size-badge);
-}
-
-.companyNameRow .bookmarkAction svg {
-  width: var(--sr-font-size-sm);
-  height: var(--sr-font-size-sm);
 }
 
 .hero h1 {
@@ -937,6 +941,21 @@
 }
 
 @media (max-width: 1180px) {
+  .heroTitleGroup {
+    padding-right: 0;
+  }
+
+  .classificationActionRow {
+    display: flex;
+    align-items: center;
+    gap: var(--sr-space-3);
+  }
+
+  .heroActions {
+    position: static;
+    margin-left: auto;
+  }
+
   .caseGridWithCompanion {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -993,16 +1012,6 @@
     overflow: hidden;
   }
 
-  .bookmarkAction {
-    position: absolute;
-    top: var(--sr-space-4);
-    right: var(--sr-space-4);
-  }
-
-  .heroMetaRow {
-    padding-right: calc(var(--sr-size-control) + var(--sr-space-2));
-  }
-
   .heroIdentity {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -1052,16 +1061,6 @@
 
   .companyLine {
     flex-wrap: nowrap;
-  }
-
-  .companyNameRow .bookmarkAction > button {
-    width: var(--sr-size-control);
-    height: var(--sr-size-control);
-  }
-
-  .companyNameRow .bookmarkAction svg {
-    width: 18px;
-    height: 18px;
   }
 
   .companyLine span {

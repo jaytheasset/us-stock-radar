@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ import type {
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
 import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
+import { useSavedContentSet } from "@/lib/saved/useSavedContentSet";
 import { PostComments } from "./PostComments";
 import {
   PostDirectionBadge,
@@ -33,6 +35,7 @@ import styles from "./PostDetail.module.css";
 
 export function PostDetailClient({ postId }: { postId: string }) {
   const repository = useMemo(() => new LiveRoomPostApiRepository(), []);
+  const savedState = useSavedContentSet("live_room_post", [postId]);
   const [post, setPost] = useState<LiveRoomPost | null>(null);
   const [state, setState] = useState<"error" | "loading" | "ready">("loading");
   const [notice, setNotice] = useState<string | null>(null);
@@ -87,6 +90,15 @@ export function PostDetailClient({ postId }: { postId: string }) {
           </div>
         ) : (
           <article className={styles.article}>
+            <div className={styles.postSaveAction}>
+              <SavedContentButton
+                contentId={post.id}
+                contentType="live_room_post"
+                initialAuthenticated={post.canLike || savedState.authenticated}
+                initialSaved={savedState.savedIds.has(post.id.toLowerCase())}
+                returnHref={`/live/posts/${post.id}`}
+              />
+            </div>
             <Link className={styles.backLink} href={post.room.href}>
               <ArrowLeft aria-hidden="true" size={15} />
               Back to {post.room.label}

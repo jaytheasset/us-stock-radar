@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
+import { WatchlistButton } from "@/components/actions/WatchlistButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { isRealTicker, type DetailTone } from "@/app/events/[id]/detailTypes";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
@@ -13,7 +15,8 @@ import {
 } from "@/lib/advertisingPolicy";
 import { AnalysisCollapsedRailInlineAd } from "./AnalysisCollapsedRailInlineAd";
 import { AnalysisSignalCompanionAd } from "./AnalysisSignalCompanionAd";
-import { FilingBookmarkButton } from "./FilingBookmarkButton";
+import type { SavedContentType } from "@/lib/saved/types";
+import { isSavedContentUuid } from "@/lib/saved/types";
 import { FilingInlineAdSlot } from "./FilingInlineAdSlot";
 import { FilingRailAdSlot } from "./FilingRailAdSlot";
 import { isScoreRationaleVisible, ScoreRationale } from "./ScoreRationale";
@@ -76,6 +79,9 @@ type GenericFilingAnalysisProps = {
   eventTone: BadgeTone;
   filingId: string;
   filing: GenericFilingAnalysisData;
+  initialAuthenticated?: boolean;
+  initialSaved?: boolean;
+  initialWatched?: boolean;
   originalBodyRenderer?: ReactNode;
   originalLinkLabel?: string;
   originalRenderer?: ReactNode;
@@ -86,6 +92,7 @@ type GenericFilingAnalysisProps = {
   summaryHeaderActionRenderer?: ReactNode;
   summaryAsideRenderer?: ReactNode;
   timestampLabel?: string;
+  savedContentType?: SavedContentType;
 };
 
 export function GenericFilingAnalysis({
@@ -99,6 +106,9 @@ export function GenericFilingAnalysis({
   eventTone,
   filingId,
   filing,
+  initialAuthenticated = false,
+  initialSaved = false,
+  initialWatched = false,
   originalBodyRenderer,
   originalLinkLabel = "View Original Filing",
   originalRenderer,
@@ -109,6 +119,7 @@ export function GenericFilingAnalysis({
   summaryHeaderActionRenderer,
   summaryAsideRenderer,
   timestampLabel = "Filed",
+  savedContentType = "filing",
 }: GenericFilingAnalysisProps) {
   const filingBrief = cleanText(filing.filingBrief);
   const whyItMatters = cleanText(filing.whyItMatters);
@@ -184,7 +195,16 @@ export function GenericFilingAnalysis({
     bookmarkRenderer === false
       ? null
       : bookmarkRenderer === undefined
-        ? <FilingBookmarkButton filingId={filingId} />
+        ? isSavedContentUuid(filingId)
+          ? (
+              <SavedContentButton
+                contentId={filingId}
+                contentType={savedContentType}
+                initialAuthenticated={initialAuthenticated}
+                initialSaved={initialSaved}
+              />
+            )
+          : null
         : bookmarkRenderer;
   const liveRoomEvent = {
     id: filingId,
@@ -221,28 +241,12 @@ export function GenericFilingAnalysis({
                 <div className={styles.heroTitleGroup}>
                   <div className={styles.companyActionRow}>
                     {hasCompanyLine ? (
-                      <div className={styles.companyLine}>
-                        {hasTicker ? (
-                          <div className={styles.tickerLine}>
-                            <strong>{filing.ticker}</strong>
-                            {exchange ? <span>{exchange}</span> : null}
-                          </div>
-                        ) : null}
-                        {company ? (
-                          <div className={styles.companyNameRow}>
-                            <span className={styles.companyName}>{company}</span>
-                            {bookmark ? (
-                              <div className={styles.bookmarkAction}>{bookmark}</div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {!hasTicker && exchange ? (
-                          <span className={styles.exchangeOnly}>{exchange}</span>
-                        ) : null}
-                        {!company && bookmark ? (
-                          <div className={styles.bookmarkAction}>{bookmark}</div>
-                        ) : null}
-                      </div>
+                      <AnalysisCompanyIdentity
+                        company={company}
+                        exchange={exchange}
+                        hasTicker={hasTicker}
+                        ticker={filing.ticker}
+                      />
                     ) : null}
                   </div>
                   <h1>{filing.title}</h1>
@@ -286,14 +290,24 @@ export function GenericFilingAnalysis({
                         </span>
                       ) : null}
                     </div>
-                    {hasTicker ? (
+                    {hasTicker || bookmark ? (
                       <div className={styles.heroActions}>
-                        <LiveRoomEntryButton
-                          event={liveRoomEvent}
-                          issuer={company}
-                          label="Discuss in Live Room"
-                          ticker={filing.ticker}
-                        />
+                        {hasTicker ? (
+                          <WatchlistButton
+                            initialAuthenticated={initialAuthenticated}
+                            initialWatched={initialWatched}
+                            ticker={filing.ticker}
+                          />
+                        ) : null}
+                        {bookmark}
+                        {hasTicker ? (
+                          <LiveRoomEntryButton
+                            event={liveRoomEvent}
+                            issuer={company}
+                            label="Discuss in Live Room"
+                            ticker={filing.ticker}
+                          />
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -564,6 +578,48 @@ export function GenericFilingAnalysis({
         </div>
       </div>
     </div>
+  );
+}
+
+function AnalysisCompanyIdentity({
+  company,
+  exchange,
+  hasTicker,
+  ticker,
+}: {
+  company: string;
+  exchange: string;
+  hasTicker: boolean;
+  ticker: string;
+}) {
+  const content = (
+    <>
+      {hasTicker ? (
+        <div className={styles.tickerLine}>
+          <strong>{ticker}</strong>
+          {exchange ? <span>{exchange}</span> : null}
+        </div>
+      ) : null}
+      {company ? (
+        <div className={styles.companyNameRow}>
+          <span className={styles.companyName}>{company}</span>
+        </div>
+      ) : null}
+      {!hasTicker && exchange ? (
+        <span className={styles.exchangeOnly}>{exchange}</span>
+      ) : null}
+    </>
+  );
+
+  return hasTicker ? (
+    <Link
+      className={styles.companyLine}
+      href={`/stocks/${encodeURIComponent(ticker)}`}
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className={styles.companyLine}>{content}</div>
   );
 }
 

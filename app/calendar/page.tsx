@@ -11,6 +11,8 @@ import {
 import type { CalendarEvent } from "@/lib/calendar-v1/model";
 import { getNormalizedCalendarEvents } from "@/lib/calendar-v1/repository";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +27,14 @@ type CalendarPageProps = {
 };
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
-  const [params, viewerPlan] = await Promise.all([
+  const [params, viewerPlan, userId] = await Promise.all([
     searchParams,
     getCurrentViewerPlan(),
+    getOptionalCurrentUserId(),
   ]);
+  const initialWatchlistTickers = userId
+    ? (await getWatchlistViewModel(userId)).items.map((item) => item.ticker)
+    : [];
   const requestedState = firstParam(params.state);
   const previewState: CalendarPreviewState =
     requestedState === "loading" || requestedState === "error" || requestedState === "empty"
@@ -53,9 +59,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         initialEvents={initialEvents}
         initialLoadError={initialLoadError}
         initialRange={initialRange}
+        initialWatchlistTickers={initialWatchlistTickers}
         previewState={previewState}
         today={today}
         viewerPlan={viewerPlan}
+        viewerAuthenticated={Boolean(userId)}
       />
     </StockRadarAppShell>
   );

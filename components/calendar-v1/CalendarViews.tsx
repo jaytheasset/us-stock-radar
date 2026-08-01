@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { Bookmark, ChevronRight, MessageCircle } from "lucide-react";
+import { ChevronRight, MessageCircle, Star } from "lucide-react";
 import Link from "next/link";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import {
@@ -229,7 +229,7 @@ function CalendarEventRow({
         <strong>{identity.primaryLabel}</strong>
         <span>{identity.secondaryLabel}</span>
         {event.category === "company" && event.isWatchlisted ? (
-          <Bookmark aria-label="In mock watchlist" fill="currentColor" size={13} />
+          <Star aria-label="In Watchlist" fill="currentColor" size={13} />
         ) : null}
       </div>
       <div className={styles.eventDescription}>

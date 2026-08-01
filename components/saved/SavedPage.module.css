@@ -1,0 +1,285 @@
+.page {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: var(--sr-space-6) var(--sr-page-gutter-desktop) var(--sr-space-9);
+  color: var(--sr-color-text-primary);
+}
+
+.heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  margin-bottom: var(--sr-space-5);
+}
+
+.heading span,
+.itemMeta span {
+  color: var(--sr-color-text-section-label);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+  letter-spacing: var(--sr-letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin: var(--sr-space-1) 0 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-heading-md);
+}
+
+.heading p {
+  max-width: 640px;
+  margin: var(--sr-space-2) 0 0;
+  color: var(--sr-color-text-secondary);
+  line-height: var(--sr-line-height-default);
+}
+
+.heading > strong {
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-size: var(--sr-font-size-sm);
+  white-space: nowrap;
+}
+
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  gap: var(--sr-space-1);
+  margin-bottom: var(--sr-space-4);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.tabs a {
+  min-height: var(--sr-size-control);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  border-bottom: 2px solid transparent;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-label);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs a[aria-current="page"] {
+  border-color: var(--sr-color-accent);
+  color: var(--sr-color-text-heading);
+}
+
+.tabs a:focus-visible,
+.companyLink:focus-visible,
+.titleLink:focus-visible,
+.pagination a:focus-visible,
+.emptyState a:focus-visible,
+.item button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.listStatus {
+  min-height: var(--sr-space-4);
+  margin: 0 0 var(--sr-space-2);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.list {
+  display: grid;
+  gap: var(--sr-space-3);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.55fr) minmax(220px, 1fr) minmax(260px, 2fr) max-content;
+  align-items: center;
+  gap: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  background: var(--sr-color-surface-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.item[data-available="false"] {
+  background: var(--sr-color-surface-control);
+}
+
+.itemMeta,
+.companyLink,
+.unavailable {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-1);
+}
+
+.itemMeta time,
+.companyLink span,
+.unavailable span {
+  overflow: hidden;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companyLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.companyLink strong {
+  color: var(--sr-color-text-ticker);
+  font-family: var(--sr-font-family-mono);
+}
+
+.companyLink:hover strong,
+.companyLink:hover span,
+.titleLink:hover span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.titleLink {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-body);
+  font-weight: var(--sr-font-weight-strong);
+  text-decoration: none;
+}
+
+.titleLink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleLink svg {
+  flex: none;
+}
+
+.unavailable strong {
+  color: var(--sr-color-text-secondary);
+}
+
+.item button {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  cursor: pointer;
+}
+
+.item button:hover {
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-3);
+  margin-top: var(--sr-space-5);
+}
+
+.pagination a,
+.pagination span {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  align-items: center;
+  border-radius: var(--sr-radius-action);
+  padding: 0 var(--sr-space-3);
+}
+
+.pagination a {
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-control);
+  text-decoration: none;
+}
+
+.pagination span {
+  color: var(--sr-color-text-meta);
+}
+
+.emptyState,
+.errorState {
+  display: grid;
+  justify-items: start;
+  gap: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-section);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-6);
+  background: var(--sr-color-surface-panel);
+}
+
+.emptyState p,
+.errorState p {
+  margin: 0;
+  color: var(--sr-color-text-secondary);
+}
+
+.emptyState a {
+  color: var(--sr-color-text-primary-action);
+  font-weight: var(--sr-font-weight-label);
+}
+
+@media (max-width: 900px) {
+  .item {
+    grid-template-columns: minmax(100px, 0.6fr) minmax(180px, 1fr) minmax(220px, 1.7fr);
+  }
+
+  .item button {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: var(--sr-space-4) var(--sr-page-gutter-mobile) var(--sr-space-7);
+  }
+
+  .heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .item {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: var(--sr-space-3);
+  }
+
+  .itemMeta,
+  .companyLink,
+  .titleLink,
+  .unavailable {
+    grid-column: 1 / -1;
+  }
+
+  .itemMeta {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .titleLink span,
+  .companyLink span,
+  .unavailable span {
+    white-space: normal;
+  }
+
+  .item button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+}

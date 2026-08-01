@@ -6,12 +6,23 @@
 }
 
 .article {
+  position: relative;
   width: min(100%, 760px);
   margin: 0 auto;
   padding: clamp(20px, 4vw, 42px);
   border: var(--sr-border-width) solid var(--sr-color-border);
   border-radius: 18px;
   background: var(--sr-color-surface-panel);
+}
+
+.postSaveAction {
+  position: absolute;
+  top: clamp(18px, 4vw, 38px);
+  right: clamp(18px, 4vw, 38px);
+}
+
+.article > .backLink {
+  margin-right: 48px;
 }
 
 .backLink {

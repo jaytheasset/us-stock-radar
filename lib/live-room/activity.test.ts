@@ -31,7 +31,7 @@ test("community activity remains separate from paid market Alerts", () => {
     `${migration}${unreadRoute}${readRoute}${serverRepository}${apiRepository}${inbox}`,
     /alert_preferences|alert_deliveries|market_alert/i,
   );
-  assert.match(inbox, /Community \+ Messages/);
+  assert.match(inbox, /aria-label="Community inbox"/);
   assert.match(inbox, /live-room-inbox-tab-activity/);
 });
 
@@ -157,7 +157,7 @@ test("activity UI marks the item read and opens the canonical discussion", () =>
   );
   assert.match(
     inbox,
-    /New comments, replies, and followed posts will appear here/,
+    /Replies, comments, and new posts from rooms or people you follow will appear here/,
   );
   assert.match(
     inbox,

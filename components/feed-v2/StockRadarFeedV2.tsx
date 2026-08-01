@@ -28,11 +28,13 @@ type FilterState = LiveFeedV2Page & {
 
 type StockRadarFeedV2Props = {
   initialData: LiveFeedV2InitialData;
+  initialPreviewId?: string;
   viewerPlan: Plan;
 };
 
 export function StockRadarFeedV2({
   initialData,
+  initialPreviewId,
   viewerPlan,
 }: StockRadarFeedV2Props) {
   const feedColumnRef = useRef<HTMLElement>(null);
@@ -46,8 +48,20 @@ export function StockRadarFeedV2({
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(
-    initialData.page.items[0]?.id || null,
+    initialData.page.items.some((item) => item.id === initialPreviewId)
+      ? initialPreviewId || null
+      : initialData.page.items[0]?.id || null,
   );
+
+  useEffect(() => {
+    if (
+      initialPreviewId &&
+      initialData.page.items.some((item) => item.id === initialPreviewId) &&
+      window.matchMedia("(max-width: 760px)").matches
+    ) {
+      setMobilePreviewOpen(true);
+    }
+  }, [initialData.page.items, initialPreviewId]);
 
   useEffect(
     () => () => {

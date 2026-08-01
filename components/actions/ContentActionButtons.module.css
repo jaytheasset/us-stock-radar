@@ -1,0 +1,53 @@
+.button {
+  position: relative;
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: 0;
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.button:hover {
+  border-color: var(--sr-color-border-overlay-strong);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-control-strong);
+}
+
+.button[aria-pressed="true"] {
+  border-color: var(--sr-color-warning);
+  color: var(--sr-color-warning);
+}
+
+.button[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

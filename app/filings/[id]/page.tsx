@@ -104,6 +104,10 @@ import {
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
+import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getViewerContentState, savedContentKey } from "@/lib/saved/server";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
+import { WatchlistButton } from "@/components/actions/WatchlistButton";
 import {
   DilutionShareOverhang,
   type DilutionShareOverhangBarSegment,
@@ -4190,12 +4194,24 @@ export async function generateMetadata({ params }: FilingDetailPageProps): Promi
 }
 
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
-  const [{ id }, viewerPlan] = await Promise.all([
+  const [{ id }, viewerPlan, userId] = await Promise.all([
     params,
     getCurrentViewerPlan(),
+    getOptionalCurrentUserId(),
   ]);
   const allowAds = areAdsEnabledForPlan(viewerPlan);
   const filing = await resolveFilingEvent(id);
+  const viewerState = await getViewerContentState({
+    userId,
+    references: isUuid(id)
+      ? [{ contentId: id, contentType: "filing" as const }]
+      : [],
+    tickers: [filing.ticker],
+  });
+  const filingSaved = viewerState.savedKeys.has(savedContentKey("filing", id));
+  const tickerWatched = viewerState.watchedTickers.has(
+    filing.ticker.trim().toUpperCase(),
+  );
   const preferredSourceUrl = buildGooglePreferredSourceUrl();
   const eventBadge = getEventTypeBadge(filing.eventType);
   const hasRealFilingTicker = isRealTicker(filing.ticker);
@@ -4360,6 +4376,9 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             ) : undefined
           }
           filingId={id}
+          initialAuthenticated={viewerState.authenticated}
+          initialSaved={filingSaved}
+          initialWatched={tickerWatched}
           originalRenderer={
             isGenericFieldAvailable(filing, "originalHtml") ? (
               <OriginalFilingText
@@ -4445,8 +4464,20 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <div className="stock-detail-title-block">
               <h1>{filing.title}</h1>
               <div className="stock-detail-meta">
-                <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
-                <span>{filing.company}</span>
+                {hasRealFilingTicker ? (
+                  <Link
+                    className="analysis-company-link"
+                    href={`/stocks/${encodeURIComponent(filing.ticker)}`}
+                  >
+                    <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
+                    <span>{filing.company}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
+                    <span>{filing.company}</span>
+                  </>
+                )}
                 <span className="filing-form-pill">{filing.formType}</span>
                 <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
                 <span className={`source-badge impact-badge ${filing.signal}`}>
@@ -4455,6 +4486,23 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
                     {filing.score}
                   </span>
                 </span>
+                <div className="analysis-content-actions">
+                  {hasRealFilingTicker ? (
+                    <WatchlistButton
+                      initialAuthenticated={viewerState.authenticated}
+                      initialWatched={tickerWatched}
+                      ticker={filing.ticker}
+                    />
+                  ) : null}
+                  {isUuid(id) ? (
+                    <SavedContentButton
+                      contentId={id}
+                      contentType="filing"
+                      initialAuthenticated={viewerState.authenticated}
+                      initialSaved={filingSaved}
+                    />
+                  ) : null}
+                </div>
               </div>
             </div>
           </section>

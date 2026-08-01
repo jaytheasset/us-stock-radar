@@ -983,9 +983,10 @@ test("directory creation UI enforces required fields without free-form tags", ()
   assert.match(createDialog, /required/);
 });
 
-test("header adds one deliberate Community Room directory entry", () => {
-  const matches = unreadMenu.match(/Browse Community Rooms/g) ?? [];
-  assert.equal(matches.length, 1);
+test("header and room empty state expose concise room directory actions", () => {
+  const matches = unreadMenu.match(/Browse rooms/g) ?? [];
+  assert.equal(matches.length, 2);
+  assert.match(unreadMenu, /href="\/community"/);
   assert.match(unreadMenu, /href="\/live"/);
 });
 

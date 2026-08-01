@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Bookmark, ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
+import { SavedContentButton } from "@/components/actions/SavedContentButton";
+import { WatchlistButton } from "@/components/actions/WatchlistButton";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import {
@@ -17,10 +19,7 @@ type FeedFilingPreviewProps = {
   variant: "desktop" | "mobile";
 };
 
-export function FeedFilingPreview({
-  filing,
-  variant,
-}: FeedFilingPreviewProps) {
+export function FeedFilingPreview({ filing, variant }: FeedFilingPreviewProps) {
   const content = <FeedFilingPreviewContent filing={filing} />;
 
   if (variant === "mobile") return content;
@@ -40,31 +39,47 @@ function FeedFilingPreviewContent({
 }: {
   filing: LiveFeedV2FilingPreview;
 }) {
+  const stockHref = `/stocks/${encodeURIComponent(filing.ticker)}`;
+  const returnHref = `/feed?preview=${encodeURIComponent(filing.id)}`;
+  const hasTicker = /^[A-Z][A-Z0-9.-]{0,14}$/.test(filing.ticker);
+
   return (
     <div className={styles.detailContent} data-preview-kind="filing">
       <header className={styles.detailHeader}>
         <div className={styles.detailIdentity}>
           <MarketTickerLogo size="detail" ticker={filing.ticker} />
-          <div>
-            <h2>{filing.ticker}</h2>
-            <p>{previewValue(filing.company)}</p>
+          {hasTicker ? (
+            <Link className={styles.identityLink} href={stockHref}>
+              <h2>{filing.ticker}</h2>
+              <p>{previewValue(filing.company)}</p>
+            </Link>
+          ) : (
+            <div className={styles.identityCopy}>
+              <h2>{filing.ticker}</h2>
+              <p>{previewValue(filing.company)}</p>
+            </div>
+          )}
+          <div className={styles.previewActions}>
+            {hasTicker ? (
+              <WatchlistButton
+                initialAuthenticated={filing.authenticated}
+                initialWatched={filing.watchlist}
+                returnHref={returnHref}
+                ticker={filing.ticker}
+              />
+            ) : null}
+            <SavedContentButton
+              contentId={filing.id}
+              contentType="filing"
+              initialAuthenticated={filing.authenticated}
+              initialSaved={filing.saved}
+              returnHref={returnHref}
+            />
           </div>
-          <span className={styles.watchlistStatus}>
-            <Bookmark aria-hidden="true" size={14} />
-            <span className={styles.watchlistStatusText}>
-              {filing.watchlist === null
-                ? "—"
-                : filing.watchlist
-                  ? "Watchlist"
-                  : "Not watched"}
-            </span>
-          </span>
         </div>
 
         <div className={styles.detailClassification}>
-          <span className={styles.formLabel}>
-            {previewValue(filing.formType)}
-          </span>
+          <span className={styles.formLabel}>{previewValue(filing.formType)}</span>
           {filing.events.map((event) => (
             <FeedPreviewEventBadge
               category={event}
@@ -105,7 +120,7 @@ function FeedFilingPreviewContent({
             ))}
           </ul>
         ) : (
-          <p className={styles.unavailable}>—</p>
+          <p className={styles.unavailable}>No key points available.</p>
         )}
       </section>
 
