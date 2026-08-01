@@ -31,10 +31,14 @@ import {
 } from "./model.ts";
 import {
   formatCalendarEventTime,
+  formatUpcomingCalendarEventDateTime,
   formatEventCount,
+  getCalendarEventRouteHref,
   getCalendarEventIdentity,
   isCalendarEventWatchlistMatch,
+  parseCalendarEventRouteSelection,
   selectCalendarPreviewEvent,
+  selectUpcomingCompanyCalendarEvents,
   selectUpcomingCalendarEvents,
 } from "./presentation.ts";
 
@@ -325,6 +329,37 @@ test("upcoming events are conditional, stable, selected-date exclusive, and capp
     selectUpcomingCalendarEvents(noLaterEvents, selectedDate),
     [],
   );
+});
+
+test("stock upcoming events use exact company scope, chronological order, and canonical Calendar links", () => {
+  const base = createCalendarMockEvents("2026-07-29").find(
+    (event) => event.category === "company",
+  );
+  assert.ok(base?.category === "company");
+  const eventId = "177f0498-ca27-4da2-a149-716e92748080";
+  const events: CalendarEvent[] = [
+    { ...base, eventDate: "2026-08-05", eventTime: null, id: eventId, ticker: "AMD" },
+    { ...base, eventDate: "2026-08-04", eventTime: "16:05", id: "7c45b0bf-cd94-4b95-bf49-d00a17a4b039", ticker: "AMD" },
+    { ...base, eventDate: "2026-08-03", id: "bf99a7a4-1a14-43eb-b1ca-3c80095324f0", ticker: "JPM" },
+    { ...base, category: "company", eventDate: "2026-07-31", id: "83ec7d0e-0000-4000-8000-000000000001", ticker: "AMD" },
+  ];
+  const upcoming = selectUpcomingCompanyCalendarEvents(
+    events,
+    "amd",
+    "2026-08-01",
+  );
+  assert.deepEqual(upcoming.map((event) => event.eventDate), ["2026-08-04", "2026-08-05"]);
+  assert.ok(upcoming.every((event) => event.category === "company" && event.ticker === "AMD"));
+  assert.equal(
+    getCalendarEventRouteHref(upcoming[0]),
+    "/calendar?date=2026-08-04&event=7c45b0bf-cd94-4b95-bf49-d00a17a4b039",
+  );
+  assert.deepEqual(
+    parseCalendarEventRouteSelection(upcoming[0].id, upcoming[0].eventDate),
+    { eventDate: "2026-08-04", eventId: upcoming[0].id },
+  );
+  assert.equal(parseCalendarEventRouteSelection("not-an-id", "2026-08-04"), null);
+  assert.match(formatUpcomingCalendarEventDateTime(upcoming[0]), /Tue, Aug 4 · 4:05 PM ET/);
 });
 
 test("calendar category, event type, and policy subcategory contracts are closed and grouped", () => {

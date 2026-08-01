@@ -11,14 +11,18 @@ import {
   MAX_CALENDAR_RANGE_DAYS,
   NORMALIZED_CALENDAR_PAGE_SIZE,
   NORMALIZED_CALENDAR_SELECT,
+  UPCOMING_COMPANY_CALENDAR_LIMIT,
   buildNormalizedCalendarQuery,
+  buildUpcomingCompanyCalendarQuery,
   mapNormalizedCalendarRow,
   normalizeCalendarProvider,
   normalizeCalendarAnalysisHref,
+  normalizeCompanyCalendarTicker,
   normalizeSafeCalendarSourceUrl,
   parseCalendarEventsApiPayload,
   parseNormalizedCalendarRange,
   readNormalizedCalendarEvents,
+  readUpcomingCompanyCalendarEvents,
 } from "./normalized.ts";
 
 test("normalized range parser validates required dates, order, and maximum span", () => {
@@ -85,6 +89,45 @@ test("normalized query uses the date index contract and a public projection", ()
   ]) {
     assert.match(NORMALIZED_CALENDAR_SELECT, new RegExp(relation));
   }
+});
+
+test("upcoming company query is exact, primary-ticker scoped, ordered, and capped", async () => {
+  const range = { from: "2026-08-01", to: "2026-10-31" };
+  const query = buildUpcomingCompanyCalendarQuery(range, "amd");
+  assert.equal(query.category, "eq.company");
+  assert.equal(query["securities.role"], "eq.primary");
+  assert.equal(query["securities.ticker"], "eq.AMD");
+  assert.equal(query.limit, String(UPCOMING_COMPANY_CALENDAR_LIMIT));
+  assert.equal(query.order, "event_date.asc,event_time.asc.nullslast,id.asc");
+  assert.match(query.select, /calendar_event_securities!inner/);
+  assert.equal(normalizeCompanyCalendarTicker(" amd "), "AMD");
+  assert.equal(normalizeCompanyCalendarTicker("AMD&category=eq.policy"), null);
+
+  const amdRow = baseMacroRow({
+    category: "company",
+    details: { detail: { company_name: "Advanced Micro Devices" }, schema_version: 1 },
+    event_date: "2026-08-04",
+    event_type: "earnings",
+    impact_scope: "company",
+    securities: [{ role: "primary", ticker: "AMD" }],
+    title: "AMD earnings",
+    type_definition: { label: "Earnings", policy_subcategory: null, schema_version: 1 },
+  });
+  const otherRow = {
+    ...amdRow,
+    id: uuidFor(91),
+    securities: [{ role: "primary", ticker: "JPM" }],
+    title: "JPM earnings",
+  };
+  const events = await readUpcomingCompanyCalendarEvents(
+    range,
+    "AMD",
+    async (_table, receivedQuery) => {
+      assert.deepEqual(receivedQuery, query);
+      return { count: 2, data: [amdRow, otherRow], ok: true, status: 200 };
+    },
+  );
+  assert.deepEqual(events.map((event) => event.ticker), ["AMD"]);
 });
 
 test("mapper creates a Macro event from normalized relations and numeric text", () => {

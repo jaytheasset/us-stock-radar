@@ -22,10 +22,28 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
+import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
+import {
+  addDateOnlyDays,
+  getCalendarMarketDate,
+} from "@/lib/calendar-v1/dateUtils";
+import {
+  eventStatusLabels,
+  type CompanyCalendarEvent,
+} from "@/lib/calendar-v1/model";
+import {
+  MAX_CALENDAR_RANGE_DAYS,
+  parseCalendarEventsApiPayload,
+} from "@/lib/calendar-v1/normalized";
+import {
+  formatUpcomingCalendarEventDateTime,
+  getCalendarEventRouteHref,
+  selectUpcomingCompanyCalendarEvents,
+} from "@/lib/calendar-v1/presentation";
 import { formatLimit } from "@/lib/subscriptionPolicy";
 import {
   formatCompactMarketValue,
@@ -128,6 +146,9 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
+  const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<
+    CompanyCalendarEvent[]
+  >([]);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
   const [chartState, setChartState] = useState<LoadState>("idle");
   const [eventsState, setEventsState] = useState<LoadState>("idle");
@@ -257,6 +278,45 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [selectedTicker, selectedWatchlistItem?.companyName]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
+      setUpcomingCalendarEvents([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const today = getCalendarMarketDate();
+    const params = new URLSearchParams({
+      from: today,
+      ticker: selectedTicker,
+      to: addDateOnlyDays(today, MAX_CALENDAR_RANGE_DAYS - 1),
+    });
+    setUpcomingCalendarEvents([]);
+
+    void fetch(`/api/calendar/normalized?${params.toString()}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(readJsonResponse)
+      .then(parseCalendarEventsApiPayload)
+      .then((calendarEvents) => {
+        if (controller.signal.aborted) return;
+        setUpcomingCalendarEvents(
+          selectUpcomingCompanyCalendarEvents(
+            calendarEvents,
+            selectedTicker,
+            today,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setUpcomingCalendarEvents([]);
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -901,6 +961,10 @@ export function StockRadarWatchlistV2({
                     className={styles.contextRail}
                   >
                     <EventPreview event={selectedEvent} variant="desktop" />
+                    <UpcomingStockEvents
+                      events={upcomingCalendarEvents}
+                      ticker={selectedTicker}
+                    />
                     {allowAds ? (
                       <AdSenseSlot
                         className={styles.railAd}
@@ -1540,6 +1604,42 @@ function CompanyContext({
           <ExternalLink aria-hidden="true" size={12} />
         </a>
       ) : null}
+    </section>
+  );
+}
+
+function UpcomingStockEvents({
+  events,
+  ticker,
+}: {
+  events: readonly CompanyCalendarEvent[];
+  ticker: string;
+}) {
+  if (!events.length) return null;
+
+  const headingId = `upcoming-${ticker.replaceAll(".", "-").toLowerCase()}-events`;
+  return (
+    <section aria-labelledby={headingId} className={styles.upcomingEvents}>
+      <h2 id={headingId}>Upcoming events</h2>
+      <div className={styles.upcomingEventList}>
+        {events.map((event) => (
+          <Link
+            aria-label={`Open ${event.title} in Calendar`}
+            className={styles.upcomingEventRow}
+            href={getCalendarEventRouteHref(event)}
+            key={event.id}
+          >
+            <span className={styles.upcomingEventTopline}>
+              <CalendarEventTypeBadge eventType={event.eventType} size="micro" />
+            </span>
+            <strong>{event.title}</strong>
+            <span className={styles.upcomingEventMeta}>
+              <span>{formatUpcomingCalendarEventDateTime(event)}</span>
+              <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
+            </span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
