@@ -63,3 +63,24 @@ test("Markets ticker links use the canonical stock route without replacing row s
     assert.match(row, /onSelect\?\.\(\)/);
   }
 });
+
+test("Markets gates every ad placement with the shared viewer-plan decision", () => {
+  const page = read("app/dashboard-v2/page.tsx");
+  const dashboard = read("components/dashboard-v2/StockRadarDashboardV2.tsx");
+  const table = read("components/dashboard-v2/MarketMoversTable.tsx");
+
+  assert.match(page, /const viewerPlan = await getCurrentViewerPlan\(\)/);
+  assert.match(page, /<StockRadarDashboardV2 viewerPlan=\{viewerPlan\} \/>/);
+  assert.match(dashboard, /areAdsEnabledForPlan\(viewerPlan\)/);
+  assert.match(dashboard, /adsEnabledForViewer=\{adsEnabledForViewer\}/);
+  assert.match(
+    dashboard,
+    /adsEnabledForViewer \? <DesktopRailAdSlot \/> : null/,
+  );
+  assert.equal(
+    (table.match(/adsEnabledForViewer &&/g) || []).length,
+    3,
+    "desktop mid-list, desktop footer, and mobile inline ads must all be gated",
+  );
+  assert.doesNotMatch(table, /viewerPlan\s*===\s*["']free["']/);
+});
