@@ -21,9 +21,9 @@ export type DeliveryChannelState = {
   locked: boolean;
   connected: boolean;
   implemented: boolean;
-  comingLater: boolean;
   availabilityLabel: string;
   statusLabel: string;
+  accountLabel?: string | null;
 };
 
 export type SelectedAlertCategory = {
@@ -62,6 +62,17 @@ export type FollowedCalendarEventItem = {
   enabled: boolean;
 };
 
+export type CalendarEventFollowUsage = {
+  activeCount: number;
+  limit: number | null;
+  remaining: number | null;
+};
+
+export type CalendarEventFollowsViewModel = {
+  follows: FollowedCalendarEventItem[];
+  usage: CalendarEventFollowUsage;
+};
+
 export type AlertSettingsViewModel = {
   guestMode?: boolean;
   plan: Plan;
@@ -80,5 +91,6 @@ export type AlertSettingsViewModel = {
   selectedCategoryDetails: SelectedAlertCategory[];
   channels: DeliveryChannelState[];
   followedCalendarEvents: FollowedCalendarEventItem[];
+  calendarEventFollowUsage: CalendarEventFollowUsage;
   recentDeliveredAlerts: DeliveredAlertItem[];
 };

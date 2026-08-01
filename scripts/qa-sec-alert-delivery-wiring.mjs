@@ -79,12 +79,12 @@ for (const [label, source] of [
   ["queued delivery script", queuedScript],
 ]) {
   checks.push([
-    `${label} keeps Telegram enabled by default`,
-    !source.includes('ALERT_DELIVERY_SEND_TELEGRAM !== "true"'),
+    `${label} keeps Telegram disabled by default`,
+    source.includes('ALERT_DELIVERY_SEND_TELEGRAM !== "true"'),
   ]);
   checks.push([
-    `${label} allows explicit Telegram opt-out`,
-    source.includes('ALERT_DELIVERY_SEND_TELEGRAM === "false"'),
+    `${label} requires explicit Telegram opt-in`,
+    !source.includes('ALERT_DELIVERY_SEND_TELEGRAM === "false"'),
   ]);
 }
 

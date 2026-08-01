@@ -38,6 +38,8 @@ export type AlertCategoryDefinition<TCategory extends AlertCategory = AlertCateg
 export type PlanLimits = {
   watchlistLimit: PlanLimitValue;
   alertTickerLimit: PlanLimitValue;
+  calendarEventFollowLimit: PlanLimitValue;
+  tickerAlertCategories: readonly PublicAlertCategory[];
   discoveryCategories: readonly PublicAlertCategory[];
   alertDelayMinutes: number;
   channels: readonly AlertChannel[];
@@ -159,12 +161,15 @@ export const ALERT_CATEGORIES = PUBLIC_ALERT_CATEGORIES;
 
 const CORE_CATEGORY_VALUES = CORE_ALERT_CATEGORIES.map((category) => category.code);
 const PUBLIC_CATEGORY_VALUES = PUBLIC_ALERT_CATEGORIES.map((category) => category.code);
+const NO_DISCOVERY_CATEGORIES: readonly PublicAlertCategory[] = [];
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     watchlistLimit: null,
     alertTickerLimit: 1,
-    discoveryCategories: CORE_CATEGORY_VALUES,
+    calendarEventFollowLimit: 5,
+    tickerAlertCategories: PUBLIC_CATEGORY_VALUES,
+    discoveryCategories: NO_DISCOVERY_CATEGORIES,
     alertDelayMinutes: 5,
     channels: ["web"],
     realTime: false,
@@ -175,7 +180,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   ad_free: {
     watchlistLimit: null,
     alertTickerLimit: 5,
-    discoveryCategories: CORE_CATEGORY_VALUES,
+    calendarEventFollowLimit: 20,
+    tickerAlertCategories: PUBLIC_CATEGORY_VALUES,
+    discoveryCategories: NO_DISCOVERY_CATEGORIES,
     alertDelayMinutes: 5,
     channels: ["web"],
     realTime: false,
@@ -186,6 +193,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: {
     watchlistLimit: null,
     alertTickerLimit: 15,
+    calendarEventFollowLimit: 50,
+    tickerAlertCategories: PUBLIC_CATEGORY_VALUES,
     discoveryCategories: CORE_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram"],
@@ -197,6 +206,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   advanced: {
     watchlistLimit: null,
     alertTickerLimit: null,
+    calendarEventFollowLimit: null,
+    tickerAlertCategories: PUBLIC_CATEGORY_VALUES,
     discoveryCategories: PUBLIC_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email"],
@@ -208,6 +219,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   ultimate: {
     watchlistLimit: null,
     alertTickerLimit: null,
+    calendarEventFollowLimit: null,
+    tickerAlertCategories: PUBLIC_CATEGORY_VALUES,
     discoveryCategories: PUBLIC_CATEGORY_VALUES,
     alertDelayMinutes: 0,
     channels: ["web", "telegram", "email", "webhook", "api"],
@@ -290,6 +303,17 @@ export function getAllPublicAlertCategoryValues(): PublicAlertCategory[] {
 
 export function getDiscoveryCategoriesForPlan(plan: Plan): PublicAlertCategory[] {
   return [...PLAN_LIMITS[plan].discoveryCategories];
+}
+
+export function getTickerAlertCategoriesForPlan(plan: Plan): PublicAlertCategory[] {
+  return [...PLAN_LIMITS[plan].tickerAlertCategories];
+}
+
+export function isTickerAlertCategoryAllowed(plan: Plan, category: string): category is PublicAlertCategory {
+  return (
+    isValidPublicAlertCategory(category) &&
+    PLAN_LIMITS[plan].tickerAlertCategories.includes(category)
+  );
 }
 
 export function isDiscoveryCategoryAllowed(plan: Plan, category: string): category is PublicAlertCategory {

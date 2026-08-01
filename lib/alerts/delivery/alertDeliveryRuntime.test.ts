@@ -16,6 +16,11 @@ const eventDelivery = readProjectFile(
 const queuedDelivery = readProjectFile(
   "lib/alerts/delivery/processQueuedDeliveries.ts",
 );
+const deliveryEvaluation = readProjectFile(
+  "lib/alerts/delivery/evaluateAlertDelivery.ts",
+);
+const eventCli = readProjectFile("scripts/run-alert-delivery-for-event.mjs");
+const queuedCli = readProjectFile("scripts/process-queued-alert-deliveries.mjs");
 const headerMenu = readProjectFile(
   "components/shell/AlertNotificationsMenu.tsx",
 );
@@ -76,6 +81,26 @@ test("queued delivery claims each channel and blocks uncertain Telegram retries"
     queuedDelivery,
     /channels\.failedCount > 0 \|\| channels\.uncertain/,
   );
+});
+
+test("ticker and Market Discovery lanes recheck current centralized entitlements", () => {
+  assert.match(deliveryEvaluation, /isTickerAlertCategoryAllowed\(context\.plan, event\.category\)/);
+  assert.match(deliveryEvaluation, /isDiscoveryCategoryAllowed\(context\.plan, event\.category\)/);
+  assert.doesNotMatch(deliveryEvaluation, /WATCHLIST_RISK_DISABLED/);
+  assert.match(queuedDelivery, /getEffectiveUserPlan\(row\.user_id\)/);
+  assert.match(queuedDelivery, /isDiscoveryCategoryAllowed\(plan, row\.category\)/);
+  assert.match(queuedDelivery, /isTickerAlertCategoryAllowed\(plan, row\.category\)/);
+  assert.match(queuedDelivery, /new Set\(getPlanLimits\(plan\)\.channels\)/);
+});
+
+test("CLI and scheduler helper paths use the same policy and alert-enabled ticker table", () => {
+  assert.match(eventCli, /from "\.\.\/lib\/subscriptionPolicy\.ts"/);
+  assert.match(eventCli, /isDiscoveryCategoryAllowed\(context\.plan, event\.category\)/);
+  assert.match(eventCli, /isTickerAlertCategoryAllowed\(context\.plan, event\.category\)/);
+  assert.match(eventCli, /fetchRows\("user_alert_tickers"/);
+  assert.doesNotMatch(eventCli, /fetchRows\("watchlist_tickers"/);
+  assert.match(queuedCli, /isDiscoveryCategoryAllowed\(plan, category\)/);
+  assert.match(queuedCli, /new Set\(getPlanLimits\(plan\)\.channels\)/);
 });
 
 test("header notifications use real unread counts and read mutations", () => {

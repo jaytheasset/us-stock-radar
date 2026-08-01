@@ -447,6 +447,12 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
+  assert.match(followAction, /formatCalendarEventFollowUsage\(followUsage\)/);
+  assert.match(workspace, /setFollowUsage\(payload\.data\.usage\)/);
+  assert.match(
+    workspace,
+    /if \(!response\.ok[\s\S]*throw new Error\(payload\?\.message[\s\S]*setFollowedEvents/,
+  );
   assert.match(detail, /saved to Alerts separately from Stock Watchlist tracking/);
   assert.doesNotMatch(detail, /AlertReliabilityNotice/);
   assert.doesNotMatch(detail, /Alerts may be delayed, changed, duplicated, or unavailable/);

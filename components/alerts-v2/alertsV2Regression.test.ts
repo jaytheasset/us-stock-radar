@@ -27,6 +27,48 @@ const followsRouteSource = readFileSync(
   new URL("../../app/api/calendar/follows/route.ts", import.meta.url),
   "utf8",
 );
+const alertsConfigSource = readFileSync(
+  new URL("../../lib/alerts/alertsV2Config.ts", import.meta.url),
+  "utf8",
+);
+const channelsRouteSource = readFileSync(
+  new URL("../../app/api/alerts/channels/route.ts", import.meta.url),
+  "utf8",
+);
+const telegramConnectRouteSource = readFileSync(
+  new URL("../../app/api/alerts/channels/telegram/connect/route.ts", import.meta.url),
+  "utf8",
+);
+const telegramWebhookRouteSource = readFileSync(
+  new URL("../../app/api/telegram/webhook/route.ts", import.meta.url),
+  "utf8",
+);
+const telegramConnectSource = readFileSync(
+  new URL("../../lib/telegram/telegramConnect.ts", import.meta.url),
+  "utf8",
+);
+const telegramConnectPolicySource = readFileSync(
+  new URL("../../lib/telegram/telegramConnectPolicy.ts", import.meta.url),
+  "utf8",
+);
+const telegramMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260731180557_telegram_destination_ownership.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const calendarFollowsSource = readFileSync(
+  new URL("../../lib/alerts/calendarFollows.ts", import.meta.url),
+  "utf8",
+);
+const calendarFollowMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260731145536_calendar_follow_plan_limits.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const calendarDeliverySource = readFileSync(
   new URL("../../lib/alerts/calendarDelivery.ts", import.meta.url),
   "utf8",
@@ -136,10 +178,21 @@ test("Alerts V2 reads and persists the authenticated runtime instead of a mock p
   assert.match(settingsRouteSource, /getAlertSettingsViewModel\(userId\)/);
 });
 
-test("in-app delivery is real, readable, and unimplemented external channels stay explicit", () => {
+test("in-app delivery is real, readable, and external channel entitlements stay explicit", () => {
   assert.match(componentSource, /body: JSON\.stringify\(\{ action: "test" \}\)/);
   assert.match(componentSource, /body: JSON\.stringify\(\{ id: alert\.id, read: true \}\)/);
-  assert.match(componentSource, /COMING LATER/);
+  const deferredCopyPattern = new RegExp(
+    [`Coming`, `later`].join(" ") + "|" + [`Coming`, `soon`].join(" "),
+    "i",
+  );
+  assert.doesNotMatch(componentSource, deferredCopyPattern);
+  assert.match(componentSource, /item\.lockedTier/);
+  assert.match(componentSource, /disabled=\{locked \|\| !implemented \|\| settingsLoading\}/);
+  assert.match(alertsConfigSource, /id: "telegram"[\s\S]*lockedTier: "PRO"/);
+  assert.match(alertsConfigSource, /id: "email"[\s\S]*lockedTier: "ADVANCED"/);
+  assert.doesNotMatch(alertsConfigSource, /id: "webhook"|id: "api"/);
+  assert.match(channelsRouteSource, /CHANNEL_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(channelsRouteSource, deferredCopyPattern);
   assert.match(deliveredRouteSource, /export async function POST/);
   assert.match(deliveredRouteSource, /export async function PATCH/);
   assert.match(deliveredRouteSource, /read_at:/);
@@ -147,6 +200,64 @@ test("in-app delivery is real, readable, and unimplemented external channels sta
   assert.match(calendarDeliverySource, /user_delivery_channels/);
   assert.match(calendarDeliverySource, /ticker: nullableString\(event\.ticker\)/);
   assert.match(componentSource, /Followed Calendar events/);
+});
+
+test("Telegram connect, pause, account change, and disconnect stay distinct and private", () => {
+  assert.match(componentSource, /Connect Telegram/);
+  assert.match(componentSource, /Change account/);
+  assert.match(componentSource, /Disconnect/);
+  assert.match(componentSource, /method: "DELETE"/);
+  assert.match(componentSource, /updateDeliveryChannel\(\s*item\.id as AlertChannel/);
+  assert.match(telegramConnectRouteSource, /export async function DELETE/);
+  assert.match(telegramConnectRouteSource, /disconnectTelegramForUser\(userId\)/);
+  assert.match(telegramConnectSource, /used_at: "is\.null"/);
+  assert.match(telegramConnectSource, /enabled: currentRow \? currentRow\.enabled === true : true/);
+  assert.match(telegramConnectSource, /Failed to revoke the previous Telegram connection link/);
+  assert.match(telegramConnectSource, /channel: "eq\.telegram"/);
+  assert.match(telegramConnectSource, /select: "user_id"/);
+  assert.match(
+    telegramConnectPolicySource,
+    /This Telegram account is already connected to another Stock Radar account\./,
+  );
+  assert.match(telegramMigrationSource, /create unique index user_delivery_channels_telegram_destination_uidx/);
+  assert.match(telegramMigrationSource, /where channel = 'telegram'/);
+  assert.match(telegramMigrationSource, /nullif\(btrim\(destination\), ''\) is not null/);
+  assert.match(telegramWebhookRouteSource, /export const runtime = "nodejs"/);
+  assert.match(telegramWebhookRouteSource, /isPrivateTelegramChat/);
+  assert.match(telegramWebhookRouteSource, /wasTelegramConnectTokenClaimed/);
+  assert.match(telegramWebhookRouteSource, /getChannelLockState\(plan, "telegram"\)/);
+  assert.match(telegramWebhookRouteSource, /secretsMatch\(headerSecret, secret\)/);
+  assert.match(telegramWebhookRouteSource, /status: result\.status/);
+  assert.doesNotMatch(componentSource, /destination|chatId|chat_id/);
+});
+
+test("Telegram connected state exposes a safe optional username and never a chat id", () => {
+  assert.match(componentSource, /channel\?\.statusLabel \|\| "Loading\.\.\."/);
+  assert.match(telegramConnectSource, /metadata: input\.metadata/);
+  assert.doesNotMatch(telegramConnectRouteSource, /destination|chatId|chat_id/);
+});
+
+test("Market Discovery is distinct from all-category ticker monitoring", () => {
+  assert.match(componentSource, /Market Discovery coverage/);
+  assert.match(componentSource, /Each enabled ticker is monitored across all 17 event types\./);
+  assert.match(componentSource, /requiresProDiscovery[\s\S]*PRO\+/);
+  assert.match(componentSource, /Unlock 12 core Market Discovery categories with Pro/);
+  assert.match(componentSource, /item\.requiredTier/);
+  assert.doesNotMatch(componentSource, />Alert coverage</);
+});
+
+test("Calendar follows enforce effective-plan limits atomically on the server", () => {
+  assert.match(followsRouteSource, /getEffectiveUserPlan\(userId\)/);
+  assert.match(followsRouteSource, /plan:\s*planState\.effectivePlan/);
+  assert.match(followsRouteSource, /\.\.\.error\.details/);
+  assert.match(calendarFollowsSource, /calendarEventFollowLimit/);
+  assert.match(calendarFollowsSource, /CALENDAR_FOLLOW_LIMIT_REACHED/);
+  assert.match(calendarFollowsSource, /upgradeTarget:\s*upgradePlan \? "\/premium" : null/);
+  assert.match(calendarFollowMigrationSource, /pg_advisory_xact_lock/);
+  assert.match(calendarFollowMigrationSource, /event\.lifecycle_status not in \('released', 'completed', 'cancelled'\)/);
+  assert.match(calendarFollowMigrationSource, /follow\.enabled/);
+  assert.match(calendarFollowMigrationSource, /on conflict \(user_id, event_id\)/);
+  assert.match(componentSource, /formatCalendarEventFollowUsage\(settings\.calendarEventFollowUsage\)/);
 });
 
 test("auth bootstrap preserves a saved Web delivery preference", () => {
