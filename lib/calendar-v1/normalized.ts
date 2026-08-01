@@ -29,7 +29,7 @@ import { isPersistentEventId } from "../watchlist/stockOverview.ts";
 export const MAX_CALENDAR_RANGE_DAYS = 93;
 export const NORMALIZED_CALENDAR_PAGE_SIZE = 500;
 export const MAX_NORMALIZED_CALENDAR_RESULTS = 2_000;
-export const UPCOMING_COMPANY_CALENDAR_LIMIT = 5;
+export const STOCK_COMPANY_CALENDAR_LIMIT = 5;
 
 export const NORMALIZED_CALENDAR_SELECT = [
   "id",
@@ -62,7 +62,7 @@ const UUID_PATTERN =
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,14}$/;
 
-const UPCOMING_COMPANY_CALENDAR_SELECT = NORMALIZED_CALENDAR_SELECT.replace(
+const STOCK_COMPANY_CALENDAR_SELECT = NORMALIZED_CALENDAR_SELECT.replace(
   "securities:calendar_event_securities(ticker,role)",
   "securities:calendar_event_securities!inner(ticker,role)",
 );
@@ -190,23 +190,25 @@ export function normalizeCompanyCalendarTicker(value: unknown) {
   return ticker && TICKER_PATTERN.test(ticker) ? ticker : null;
 }
 
-export function buildUpcomingCompanyCalendarQuery(
+export function buildStockCompanyCalendarQuery(
   range: CalendarDateRange,
   ticker: string,
+  order: "asc" | "desc" = "asc",
 ) {
   const normalizedTicker = normalizeCompanyCalendarTicker(ticker);
   if (!normalizedTicker) {
-    throw new RangeError("Upcoming company Calendar queries require a valid ticker.");
+    throw new RangeError("Stock company Calendar queries require a valid ticker.");
   }
 
   return {
     ...buildNormalizedCalendarQuery(range),
     category: "eq.company",
-    limit: String(UPCOMING_COMPANY_CALENDAR_LIMIT),
+    limit: String(STOCK_COMPANY_CALENDAR_LIMIT),
     offset: "0",
+    order: `event_date.${order},event_time.${order}.nullslast,id.${order}`,
     "securities.role": "eq.primary",
     "securities.ticker": `eq.${normalizedTicker}`,
-    select: UPCOMING_COMPANY_CALENDAR_SELECT,
+    select: STOCK_COMPANY_CALENDAR_SELECT,
   };
 }
 
@@ -272,28 +274,29 @@ export async function readNormalizedCalendarEvents(
   );
 }
 
-export async function readUpcomingCompanyCalendarEvents(
+export async function readStockCompanyCalendarEvents(
   range: CalendarDateRange,
   ticker: string,
   select: CalendarSelect,
+  order: "asc" | "desc" = "asc",
 ): Promise<CompanyCalendarEvent[]> {
   const normalizedTicker = normalizeCompanyCalendarTicker(ticker);
   if (!normalizedTicker) return [];
 
   const result = await select(
     "calendar_events",
-    buildUpcomingCompanyCalendarQuery(range, normalizedTicker),
+    buildStockCompanyCalendarQuery(range, normalizedTicker, order),
   );
   if (!result.ok) {
     throw new CalendarRepositoryError(
       "CALENDAR_DATA_UNAVAILABLE",
-      "Upcoming company Calendar data could not be loaded.",
+      "Stock company Calendar data could not be loaded.",
     );
   }
   if (!Array.isArray(result.data)) {
     throw new CalendarRepositoryError(
       "CALENDAR_RESPONSE_INVALID",
-      "Upcoming company Calendar returned an invalid response.",
+      "Stock company Calendar returned an invalid response.",
     );
   }
 
@@ -303,12 +306,12 @@ export async function readUpcomingCompanyCalendarEvents(
         (event): event is CompanyCalendarEvent =>
           event.category === "company" && event.ticker === normalizedTicker,
       )
-      .slice(0, UPCOMING_COMPANY_CALENDAR_LIMIT);
+      .slice(0, STOCK_COMPANY_CALENDAR_LIMIT);
   } catch (error) {
     if (error instanceof CalendarRowValidationError) {
       throw new CalendarRepositoryError(
         "CALENDAR_RESPONSE_INVALID",
-        `Upcoming company Calendar row failed validation at ${error.field}.`,
+        `Stock company Calendar row failed validation at ${error.field}.`,
       );
     }
     throw error;

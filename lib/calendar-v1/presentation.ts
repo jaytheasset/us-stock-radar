@@ -46,21 +46,22 @@ export function parseCalendarEventRouteSelection(
   return { eventDate: date, eventId: id };
 }
 
-export function selectUpcomingCompanyCalendarEvents(
+export function selectStockCalendarEvents(
   events: readonly CalendarEvent[],
   ticker: string,
-  fromDate: string,
+  today: string,
   limit = 5,
 ): CompanyCalendarEvent[] {
   const normalizedTicker = ticker.trim().toUpperCase();
-  return events
+  const scoped = events
     .map((event, stableIndex) => ({ event, stableIndex }))
     .filter(
       ({ event }) =>
         event.category === "company" &&
-        event.ticker === normalizedTicker &&
-        event.eventDate >= fromDate,
-    )
+        event.ticker === normalizedTicker,
+    );
+  const upcoming = scoped
+    .filter(({ event }) => event.eventDate >= today)
     .sort(
       (left, right) =>
         left.event.eventDate.localeCompare(right.event.eventDate) ||
@@ -68,12 +69,24 @@ export function selectUpcomingCompanyCalendarEvents(
           right.event.eventTime ?? "99:99",
         ) ||
         left.stableIndex - right.stableIndex,
-    )
+    );
+  const recent = scoped
+    .filter(({ event }) => event.eventDate < today)
+    .sort(
+      (left, right) =>
+        right.event.eventDate.localeCompare(left.event.eventDate) ||
+        (right.event.eventTime ?? "").localeCompare(
+          left.event.eventTime ?? "",
+        ) ||
+        left.stableIndex - right.stableIndex,
+    );
+
+  return [...upcoming, ...recent]
     .slice(0, Math.max(0, limit))
     .map(({ event }) => event as CompanyCalendarEvent);
 }
 
-export function formatUpcomingCalendarEventDateTime(event: CalendarEvent) {
+export function formatStockCalendarEventDateTime(event: CalendarEvent) {
   const date = parseDateOnly(event.eventDate).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",

@@ -36,13 +36,12 @@ import {
   type CompanyCalendarEvent,
 } from "@/lib/calendar-v1/model";
 import {
-  MAX_CALENDAR_RANGE_DAYS,
   parseCalendarEventsApiPayload,
 } from "@/lib/calendar-v1/normalized";
 import {
-  formatUpcomingCalendarEventDateTime,
+  formatStockCalendarEventDateTime,
   getCalendarEventRouteHref,
-  selectUpcomingCompanyCalendarEvents,
+  selectStockCalendarEvents,
 } from "@/lib/calendar-v1/presentation";
 import { formatLimit } from "@/lib/subscriptionPolicy";
 import {
@@ -146,7 +145,7 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
-  const [upcomingCalendarEvents, setUpcomingCalendarEvents] = useState<
+  const [stockCalendarEvents, setStockCalendarEvents] = useState<
     CompanyCalendarEvent[]
   >([]);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
@@ -281,38 +280,53 @@ export function StockRadarWatchlistV2({
 
   useEffect(() => {
     if (!selectedTicker) {
-      setUpcomingCalendarEvents([]);
+      setStockCalendarEvents([]);
       return;
     }
 
     const controller = new AbortController();
     const today = getCalendarMarketDate();
-    const params = new URLSearchParams({
-      from: today,
-      ticker: selectedTicker,
-      to: addDateOnlyDays(today, MAX_CALENDAR_RANGE_DAYS - 1),
-    });
-    setUpcomingCalendarEvents([]);
+    const fetchCalendarRange = (
+      from: string,
+      to: string,
+      tickerOrder: "asc" | "desc",
+    ) => {
+      const params = new URLSearchParams({
+        from,
+        ticker: selectedTicker,
+        tickerOrder,
+        to,
+      });
+      return fetch(`/api/calendar/normalized?${params.toString()}`, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      })
+        .then(readJsonResponse)
+        .then(parseCalendarEventsApiPayload);
+    };
+    setStockCalendarEvents([]);
 
-    void fetch(`/api/calendar/normalized?${params.toString()}`, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    })
-      .then(readJsonResponse)
-      .then(parseCalendarEventsApiPayload)
-      .then((calendarEvents) => {
+    void Promise.all([
+      fetchCalendarRange(today, addDateOnlyDays(today, 89), "asc"),
+      fetchCalendarRange(
+        addDateOnlyDays(today, -30),
+        addDateOnlyDays(today, -1),
+        "desc",
+      ),
+    ])
+      .then(([upcomingEvents, recentEvents]) => {
         if (controller.signal.aborted) return;
-        setUpcomingCalendarEvents(
-          selectUpcomingCompanyCalendarEvents(
-            calendarEvents,
+        setStockCalendarEvents(
+          selectStockCalendarEvents(
+            [...upcomingEvents, ...recentEvents],
             selectedTicker,
             today,
           ),
         );
       })
       .catch(() => {
-        if (!controller.signal.aborted) setUpcomingCalendarEvents([]);
+        if (!controller.signal.aborted) setStockCalendarEvents([]);
       });
 
     return () => controller.abort();
@@ -961,8 +975,8 @@ export function StockRadarWatchlistV2({
                     className={styles.contextRail}
                   >
                     <EventPreview event={selectedEvent} variant="desktop" />
-                    <UpcomingStockEvents
-                      events={upcomingCalendarEvents}
+                    <StockCalendarEvents
+                      events={stockCalendarEvents}
                       ticker={selectedTicker}
                     />
                     {allowAds ? (
@@ -1608,7 +1622,7 @@ function CompanyContext({
   );
 }
 
-function UpcomingStockEvents({
+function StockCalendarEvents({
   events,
   ticker,
 }: {
@@ -1617,10 +1631,10 @@ function UpcomingStockEvents({
 }) {
   if (!events.length) return null;
 
-  const headingId = `upcoming-${ticker.replaceAll(".", "-").toLowerCase()}-events`;
+  const headingId = `calendar-${ticker.replaceAll(".", "-").toLowerCase()}-events`;
   return (
     <section aria-labelledby={headingId} className={styles.upcomingEvents}>
-      <h2 id={headingId}>Upcoming events</h2>
+      <h2 id={headingId}>Calendar events</h2>
       <div className={styles.upcomingEventList}>
         {events.map((event) => (
           <Link
@@ -1634,7 +1648,7 @@ function UpcomingStockEvents({
             </span>
             <strong>{event.title}</strong>
             <span className={styles.upcomingEventMeta}>
-              <span>{formatUpcomingCalendarEventDateTime(event)}</span>
+              <span>{formatStockCalendarEventDateTime(event)}</span>
               <b data-status={event.status}>{eventStatusLabels[event.status]}</b>
             </span>
           </Link>
