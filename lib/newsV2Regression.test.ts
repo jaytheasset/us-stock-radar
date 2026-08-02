@@ -389,7 +389,7 @@ test("news analysis detail preserves stored original source and partial market c
   );
 });
 
-test("mobile news analysis uses a scoped document flow without changing filings", () => {
+test("mobile news analysis uses wide shared cards with directional signal bands", () => {
   const adapterSource = readFileSync(
     new URL("../components/news-analysis-v2/NewsAnalysisAdapter.tsx", import.meta.url),
     "utf8",
@@ -415,7 +415,25 @@ test("mobile news analysis uses a scoped document flow without changing filings"
   assert.match(sharedAnalysisSource, /presentationVariant === "news-document"/);
   assert.match(
     mobileStyles,
-    /\.newsDocument \.card,[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+    /\.newsDocument \.workspace \{[^}]*padding-right: var\(--sr-space-2\);[^}]*padding-left: var\(--sr-space-2\);/,
+  );
+  assert.match(
+    styles,
+    /\.card,[\s\S]*?\.rendererCard \{[^}]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);[^}]*border-radius: var\(--sr-radius-base\);[^}]*background: var\(--sr-color-surface-panel\);[^}]*box-shadow: var\(--sr-shadow-panel\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.caseCard::before \{[^}]*display: block;/,
+  );
+  assert.match(
+    styles,
+    /\.caseCard::before \{[^}]*background: currentColor;/,
+  );
+  assert.match(styles, /\.bullish \{[^}]*color: var\(--sr-color-positive\);/);
+  assert.match(styles, /\.bearish \{[^}]*color: var\(--sr-color-negative\);/);
+  assert.doesNotMatch(
+    mobileStyles,
+    /\.newsDocument \.card,[\s\S]*?border-radius: 0;[\s\S]*?box-shadow: none;/,
   );
   assert.match(
     mobileStyles,
@@ -428,10 +446,6 @@ test("mobile news analysis uses a scoped document flow without changing filings"
   assert.match(
     mobileStyles,
     /\.newsDocument \.card p,[\s\S]*?font-size: 16px;[\s\S]*?line-height: 1\.6;/,
-  );
-  assert.match(
-    mobileStyles,
-    /\.newsDocument :global\(section\[aria-label="Score Rationale"\]\) \{[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
   );
 });
 
