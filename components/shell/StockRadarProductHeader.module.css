@@ -78,8 +78,7 @@
   text-decoration: none;
 }
 
-.primaryNavigation > a[aria-current="page"],
-.moreNavigationButton[aria-current="page"] {
+.primaryNavigation > a[aria-current="page"] {
   border-color: var(--sr-color-product-accent-border);
   color: var(--sr-color-product-accent);
   background: var(--sr-color-product-accent-selected);
@@ -110,7 +109,10 @@
 
 .moreNavigationButton {
   gap: var(--sr-space-1);
-  background: transparent;
+  border-color: var(--sr-color-product-accent-border);
+  color: var(--sr-color-product-accent);
+  background: var(--sr-color-product-accent-selected);
+  box-shadow: inset 0 -1px 0 var(--sr-color-product-accent-nav-line);
   font-family: inherit;
   cursor: pointer;
 }

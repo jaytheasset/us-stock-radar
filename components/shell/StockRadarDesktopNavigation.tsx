@@ -16,12 +16,8 @@ import {
 } from "@/components/shell/stockRadarNavigation";
 import styles from "./StockRadarProductHeader.module.css";
 
-const coreNavigationItems: readonly StockRadarLinkNavigationItem[] =
-  stockRadarPrimaryNavigationItems.filter((item) => !("premium" in item));
-const supplementaryNavigationItems: readonly StockRadarLinkNavigationItem[] =
-  stockRadarPrimaryNavigationItems.filter(
-    (item) => "premium" in item && item.premium,
-  );
+const navigationItems: readonly StockRadarLinkNavigationItem[] =
+  stockRadarPrimaryNavigationItems;
 
 export type StockRadarDesktopNavigationProps = {
   activeItem: StockRadarPrimaryNavigationKey | null;
@@ -38,13 +34,11 @@ export function StockRadarDesktopNavigation({
   const [visibleItemCount, setVisibleItemCount] = useState(3);
   const navigationRef = useRef<HTMLElement>(null);
   const measurementItemRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const measurementMoreRef = useRef<HTMLSpanElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const directNavigationItems = coreNavigationItems.slice(0, visibleItemCount);
-  const moreNavigationItems = [
-    ...coreNavigationItems.slice(visibleItemCount),
-    ...supplementaryNavigationItems,
-  ];
+  const directNavigationItems = navigationItems.slice(0, visibleItemCount);
+  const moreNavigationItems = navigationItems.slice(visibleItemCount);
   const moreIsCurrent = moreNavigationItems.some(
     (item) => item.key === activeItem,
   );
@@ -55,8 +49,8 @@ export function StockRadarDesktopNavigation({
     const navigation = navigationRef.current;
     const actions = actionsRef.current;
     const header = headerRef.current;
-    const moreButton = moreButtonRef.current;
-    if (!navigation || !actions || !header || !moreButton) return;
+    const measurementMore = measurementMoreRef.current;
+    if (!navigation || !actions || !header || !measurementMore) return;
 
     let animationFrame = 0;
     let disposed = false;
@@ -85,9 +79,10 @@ export function StockRadarDesktopNavigation({
           availableWidth,
           gap: navigationGap,
           itemWidths,
-          moreButtonWidth: moreButton.getBoundingClientRect().width,
+          moreButtonWidth: measurementMore.getBoundingClientRect().width,
         });
 
+        if (nextVisibleItemCount === navigationItems.length) setMoreOpen(false);
         setVisibleItemCount((current) =>
           current === nextVisibleItemCount ? current : nextVisibleItemCount,
         );
@@ -157,7 +152,7 @@ export function StockRadarDesktopNavigation({
         <NavigationLink activeItem={activeItem} item={item} key={item.key} />
       ))}
       <div aria-hidden="true" className={styles.navigationMeasurement}>
-        {coreNavigationItems.map((item, index) => (
+        {navigationItems.map((item, index) => (
           <span
             className={styles.navigationMeasurementItem}
             key={item.key}
@@ -168,44 +163,50 @@ export function StockRadarDesktopNavigation({
             {item.label}
           </span>
         ))}
-      </div>
-      <div className={styles.moreNavigation}>
-        <button
-          aria-current={moreIsCurrent ? "page" : undefined}
-          aria-expanded={moreOpen}
-          aria-haspopup="menu"
-          className={styles.moreNavigationButton}
-          onClick={() => (moreOpen ? setMoreOpen(false) : openMoreMenu())}
-          ref={moreButtonRef}
-          type="button"
-        >
+        <span className={styles.moreNavigationButton} ref={measurementMoreRef}>
           More
           <ChevronDown aria-hidden="true" size={14} />
-        </button>
-        {moreOpen ? (
-          <div
-            aria-label="More navigation"
-            className={styles.moreNavigationMenu}
-            ref={moreMenuRef}
-            role="menu"
-          >
-            {moreNavigationItems.map((item) => (
-              <Link
-                aria-current={item.key === activeItem ? "page" : undefined}
-                className={
-                  item.premium ? styles.moreNavigationPremium : undefined
-                }
-                href={item.href}
-                key={item.key}
-                onClick={() => setMoreOpen(false)}
-                role="menuitem"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ) : null}
+        </span>
       </div>
+      {moreNavigationItems.length > 0 ? (
+        <div className={styles.moreNavigation}>
+          <button
+            aria-current={moreIsCurrent ? "page" : undefined}
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            className={styles.moreNavigationButton}
+            onClick={() => (moreOpen ? setMoreOpen(false) : openMoreMenu())}
+            ref={moreButtonRef}
+            type="button"
+          >
+            More
+            <ChevronDown aria-hidden="true" size={14} />
+          </button>
+          {moreOpen ? (
+            <div
+              aria-label="More navigation"
+              className={styles.moreNavigationMenu}
+              ref={moreMenuRef}
+              role="menu"
+            >
+              {moreNavigationItems.map((item) => (
+                <Link
+                  aria-current={item.key === activeItem ? "page" : undefined}
+                  className={
+                    item.premium ? styles.moreNavigationPremium : undefined
+                  }
+                  href={item.href}
+                  key={item.key}
+                  onClick={() => setMoreOpen(false)}
+                  role="menuitem"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </nav>
   );
 }
