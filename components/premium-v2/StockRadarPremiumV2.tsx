@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { AdvancedTrialCta } from "@/components/AdvancedTrialCta";
 import { PremiumFeatureComparison } from "@/components/premium-v2/PremiumFeatureComparison";
+import { PremiumMarketMovingEvents } from "@/components/premium-v2/PremiumMarketMovingEvents";
 import {
   premiumV2FaqItems,
   premiumV2MarketCoverageGroups,
   premiumV2PlanOrder,
   premiumV2Plans,
   premiumV2RecommendedPlan,
-  premiumV2SampleAlerts,
   type PremiumV2PlanKey,
 } from "@/lib/mock/premiumV2Data";
 import styles from "./StockRadarPremiumV2.module.css";
@@ -189,28 +189,7 @@ export function StockRadarPremiumV2({ accountState }: StockRadarPremiumV2Props) 
             </div>
           </div>
 
-          <aside aria-label="Sample alerts" className={styles.alertPreview}>
-            <header>
-              <div>
-                <span>Market-Moving Events</span>
-                <strong>Catch market-moving risks early</strong>
-              </div>
-            </header>
-            <div className={styles.alertList}>
-              {premiumV2SampleAlerts.map((alert) => (
-                <article className={styles.alertRow} key={alert.title}>
-                  <span className={`${styles.alertDot} ${styles[alert.tone]}`} aria-hidden="true" />
-                  <div>
-                    <span className={styles.alertType}>{alert.type}</span>
-                    <strong>{alert.title}</strong>
-                  </div>
-                  <span className={`${styles.alertSignal} ${styles[`alertSignal-${alert.signalTone}`]}`}>
-                    {alert.signal}
-                  </span>
-                </article>
-              ))}
-            </div>
-          </aside>
+          <PremiumMarketMovingEvents />
         </section>
 
         <section aria-labelledby="premium-v2-plans-heading" className={styles.plansSection}>
