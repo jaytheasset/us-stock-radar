@@ -247,6 +247,8 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   assert.match(workspace, /data-calendar-header/);
   assert.match(workspace, /data-calendar-date-controls/);
   assert.match(workspace, /data-calendar-results/);
+  assert.match(workspace, /<h1>Market Events<\/h1>/);
+  assert.doesNotMatch(workspace, /<h1>Calendar<\/h1>/);
   assert.match(workspace, /<MobileCalendarDateNavigation/);
   assert.match(filters, /data-calendar-filters/);
   assert.match(filters, /Search events or tickers/);
@@ -261,6 +263,7 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
     filters,
     /surfaceClassName=\{styles\.calendarMobileSheetSurface\}/,
   );
+  assert.match(filters, /viewport="tablet"/);
   assert.match(bottomSheet, /surfaceClassName\?: string;/);
   assert.match(bottomSheet, /surfaceClassName \?\? ""/);
   assert.match(
@@ -283,7 +286,28 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
 
   assert.match(
     styles,
-    /@media \(max-width: 760px\)[\s\S]*\.calendarMobileSheetSurface\s*\{[\s\S]*scrollbar-gutter:\s*auto;/,
+    /\.calendarMobileSheetSurface\s*\{[\s\S]*scrollbar-gutter:\s*auto;[\s\S]*scrollbar-width:\s*none;/,
+  );
+  assert.match(styles, /\.calendarMobileSheetSurface::\-webkit-scrollbar\s*\{[\s\S]*display:\s*none;/);
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.page\s*\{[\s\S]*padding:\s*var\(--sr-space-2\) var\(--sr-space-2\) var\(--sr-space-7\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.page \.viewControl > button\s*\{[\s\S]*min-height:\s*40px;[\s\S]*font-size:\s*var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDateNavigation > button\s*\{[\s\S]*min-height:\s*44px;/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilterGroup button\s*\{[\s\S]*min-height:\s*44px;[\s\S]*font-size:\s*var\(--sr-font-size-lg\);/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilterActions button\s*\{[\s\S]*min-height:\s*46px;[\s\S]*font-size:\s*var\(--sr-font-size-lg\);/,
   );
   assert.match(
     styles,

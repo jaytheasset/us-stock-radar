@@ -454,7 +454,7 @@ export function StockRadarCalendarV1({
       <header className={styles.pageHeader} data-calendar-header>
         <div>
           <span>EVENT DISCOVERY</span>
-          <h1>Calendar</h1>
+          <h1>Market Events</h1>
           <p>{formatRangeLabel(range)}</p>
         </div>
         <SegmentedControl
