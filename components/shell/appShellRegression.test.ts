@@ -8,7 +8,7 @@ const read = (relativePath: string) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
 const disclaimer =
-  "Information only — not investment advice. Market data may be delayed, incomplete, or inaccurate. Investing involves risk, including loss of principal.";
+  "Information only. Not investment advice. Market data may be delayed, incomplete, or inaccurate. Investing involves risk, including loss of principal.";
 
 test("the shared App Shell renders one compact market-information footer", () => {
   const shell = read("components/shell/StockRadarAppShell.tsx");
@@ -32,6 +32,7 @@ test("the shared footer stays in normal flow and uses only Stock Radar tokens", 
   assert.match(shellStyles, /\.main\s*{[\s\S]*?flex: 1 0 auto;/);
   assert.match(footerStyles, /\.footer\s*{[\s\S]*?flex: 0 0 auto;/);
   assert.match(footerStyles, /overflow-wrap: anywhere/);
+  assert.match(footerStyles, /font-size: var\(--sr-font-size-sm\)/);
   assert.doesNotMatch(footerStyles, /position:\s*(?:fixed|sticky|absolute)/);
   assert.doesNotMatch(footerStyles, /#[0-9a-f]{3,8}\b/i);
 });
@@ -72,6 +73,6 @@ test("the footer is not duplicated in the header or Live Room surfaces", () => {
     "components/live-room/LiveRoomClient.tsx",
     "components/live-room/CommunityRoomClient.tsx",
   ]) {
-    assert.doesNotMatch(read(surface), /StockRadarProductFooter|Information only —/);
+    assert.doesNotMatch(read(surface), /StockRadarProductFooter|Information only\./);
   }
 });

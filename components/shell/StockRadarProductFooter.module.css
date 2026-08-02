@@ -10,7 +10,7 @@
 .footer p {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-sm);
   line-height: var(--sr-line-height-relaxed);
   text-align: center;
 }
