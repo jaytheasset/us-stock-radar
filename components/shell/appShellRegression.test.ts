@@ -36,6 +36,23 @@ test("the shared footer stays in normal flow and uses only Stock Radar tokens", 
   assert.doesNotMatch(footerStyles, /#[0-9a-f]{3,8}\b/i);
 });
 
+test("extra-small viewports release the legacy 320px document minimum", () => {
+  const globalStyles = read("app/globals.css");
+
+  assert.match(
+    globalStyles,
+    /html,\s*body\s*\{[\s\S]*?min-width: 320px;[\s\S]*?margin: 0;[\s\S]*?\}/,
+  );
+  assert.match(
+    globalStyles,
+    /@media \(max-width: 360px\)\s*\{[\s\S]*?html,\s*body\s*\{[\s\S]*?min-width: 0;[\s\S]*?\}/,
+  );
+  assert.doesNotMatch(
+    globalStyles,
+    /@media \(max-width: 360px\)\s*\{[\s\S]{0,160}overflow-x:\s*(?:hidden|clip)/,
+  );
+});
+
 test("auth-only and admin routes remain outside the shared App Shell", () => {
   for (const route of [
     "app/login/page.tsx",
