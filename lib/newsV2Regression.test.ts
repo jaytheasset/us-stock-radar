@@ -501,6 +501,34 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
 });
 
+test("all event news price charts reuse the accessible mobile disclosure", () => {
+  const eventPageSource = readFileSync(
+    new URL("../app/events/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const adapterSource = readFileSync(
+    new URL("../components/news-analysis-v2/NewsAnalysisAdapter.tsx", import.meta.url),
+    "utf8",
+  );
+  const chartSource = readFileSync(
+    new URL("../app/events/[id]/PriceChartCard.tsx", import.meta.url),
+    "utf8",
+  );
+  const eventChartCalls = eventPageSource.match(/<PriceChartCard[\s\S]*?\/>/g) ?? [];
+  const adapterChartCalls = adapterSource.match(/<PriceChartCard[\s\S]*?\/>/g) ?? [];
+
+  assert.equal(eventChartCalls.length, 2);
+  assert.equal(adapterChartCalls.length, 1);
+  for (const call of [...eventChartCalls, ...adapterChartCalls]) {
+    assert.match(call, /mobileCollapsible/);
+  }
+  assert.match(eventPageSource, /function NewsDilutionOfferingTemplate/);
+  assert.match(chartSource, /const \[isMobileChartExpanded, setIsMobileChartExpanded\] = useState\(false\)/);
+  assert.match(chartSource, /aria-controls=\{mobileChartRegionId\}/);
+  assert.match(chartSource, /aria-expanded=\{isMobileChartExpanded\}/);
+  assert.match(chartSource, /isMobileChartExpanded \? "Hide chart" : "Show chart"/);
+});
+
 test("news rows keep event classification separate from publisher source", () => {
   const rowSource = readFileSync(
     new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),

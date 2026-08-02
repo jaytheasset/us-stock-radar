@@ -648,6 +648,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
                 <PriceChartCard
                   change={profile.change}
                   changeAmount={profile.changeAmount}
+                  mobileCollapsible
                   price={profile.price}
                   series={profile.priceSeries}
                   ticker={event.ticker}
@@ -840,6 +841,7 @@ function NewsDilutionOfferingTemplate({ event, profile }: { event: FeedItem; pro
         <PriceChartCard
           change={profile.change}
           changeAmount={profile.changeAmount}
+          mobileCollapsible
           price={profile.price}
           series={profile.priceSeries}
           ticker={event.ticker}
