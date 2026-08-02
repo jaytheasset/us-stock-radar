@@ -2138,11 +2138,7 @@
     border-bottom-color: var(--sr-color-border);
     padding-block: 0;
     padding-inline: var(--sr-space-4);
-    background: linear-gradient(
-      180deg,
-      var(--sr-color-surface-table-header-start),
-      var(--sr-color-surface-table-header-end)
-    );
+    background: var(--sr-color-surface-control-strong);
   }
 
   .listHeaderTitle {
@@ -2636,6 +2632,7 @@
     align-items: stretch;
     flex-direction: column;
     padding: var(--sr-space-3) 0;
+    background: var(--sr-color-surface-control-strong);
   }
 
   .insightHeader > div > span {

@@ -1153,6 +1153,7 @@
     gap: var(--sr-space-2);
     padding-block: 0;
     padding-inline: var(--sr-space-4);
+    background: var(--sr-color-surface-control-strong);
   }
 
   .feedTitle {
@@ -1592,6 +1593,7 @@
     gap: var(--sr-space-3);
     padding: var(--sr-space-3) 0;
     border-bottom-color: var(--sr-color-border);
+    background: var(--sr-color-surface-control-strong);
   }
 
   .contextPanelHeading h2 {

@@ -548,11 +548,14 @@ test("mobile feed header keeps title and result count on one compact row", () =>
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
   );
+  const mobileFeedHeader =
+    [...styleSource.matchAll(/\.feedHeader\s*\{[^}]*\}/g)].at(-1)?.[0] ?? "";
 
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedHeader\s*\{[\s\S]*min-height: 40px;[\s\S]*flex-wrap: nowrap;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-block: 0;[\s\S]*padding-inline: var\(--sr-space-4\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedHeader\s*\{[\s\S]*min-height: 40px;[\s\S]*flex-wrap: nowrap;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-block: 0;[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: var\(--sr-color-surface-control-strong\);/,
   );
+  assert.doesNotMatch(mobileFeedHeader, /linear-gradient/);
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.feedTitle\s*\{[\s\S]*width: auto;[\s\S]*min-width: 0;[\s\S]*flex: 1 1 auto;[\s\S]*overflow: hidden;/,
@@ -576,6 +579,11 @@ test("mobile feed header keeps title and result count on one compact row", () =>
   assert.match(
     styleSource,
     /\.feedHeader\s*\{[\s\S]{0,180}min-height: var\(--sr-size-table-header-row\);/,
+  );
+  const desktopFeedHeader = styleSource.match(/^\.feedHeader \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(
+    desktopFeedHeader,
+    /background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)/,
   );
 });
 
@@ -822,8 +830,14 @@ test("mobile market context is flat and uses shared directional score tones", ()
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.contextPanelHeading h2 \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*\.contextPanelHeading span \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.contextPanelHeading \{[\s\S]*padding: var\(--sr-space-3\) 0;[\s\S]*border-bottom-color: var\(--sr-color-border\);[\s\S]*background: var\(--sr-color-surface-control-strong\);[\s\S]*\.contextPanelHeading h2 \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*\.contextPanelHeading span \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
   );
+  const mobileContextHeading =
+    [...styleSource.matchAll(/\.contextPanelHeading \{[^}]*\}/g)].at(-1)?.[0] ?? "";
+  assert.doesNotMatch(mobileContextHeading, /linear-gradient/);
+  const desktopContextHeading =
+    styleSource.match(/^\.contextPanelHeading \{[^}]*\}/m)?.[0] ?? "";
+  assert.doesNotMatch(desktopContextHeading, /surface-control-strong/);
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid \{[\s\S]*min-width: 0;[\s\S]*padding: 0;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*gap: 0;[\s\S]*\.marketPulseGrid article \{[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;/,
