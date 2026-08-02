@@ -1,0 +1,15 @@
+@media (max-width: 760px) {
+  .newsSurface[role="dialog"] {
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-top-left-radius: var(--sr-radius-sheet);
+    border-top-right-radius: var(--sr-radius-sheet);
+    background-color: var(--sr-color-surface-overlay);
+    background-image: linear-gradient(
+      180deg,
+      var(--sr-color-accent-active),
+      var(--sr-color-accent-transparent) 28%
+    );
+    background-clip: padding-box;
+  }
+}

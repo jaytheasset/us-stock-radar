@@ -6,6 +6,7 @@ import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import sheetStyles from "./MobileFeedPreviewSheet.module.css";
 
 type MobileFeedPreviewSheetProps = {
   isOpen: boolean;
@@ -26,6 +27,10 @@ export function MobileFeedPreviewSheet({
 
   const showNewsPreviewAd =
     viewerPlan === "free" && item.preview.kind !== "filing";
+  const newsSurfaceClassName =
+    item.preview.kind === "company-news" || item.preview.kind === "market-news"
+      ? sheetStyles.newsSurface
+      : undefined;
 
   const previewName =
     item.preview.kind === "filing"
@@ -44,6 +49,7 @@ export function MobileFeedPreviewSheet({
       onDismiss={onClose}
       openerRef={openerRef}
       overlayLabel="Close event preview"
+      surfaceClassName={newsSurfaceClassName}
     >
       <FeedPreviewPanel item={item} variant="mobile" />
       {showNewsPreviewAd ? <FeedMobilePreviewAd /> : null}
