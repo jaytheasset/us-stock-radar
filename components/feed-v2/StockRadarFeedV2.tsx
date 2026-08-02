@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -32,19 +33,30 @@ type StockRadarFeedV2Props = {
   viewerPlan: Plan;
 };
 
+const mobilePrimaryFilters = liveFeedV2Filters.filter(
+  (filter) => filter.value !== "alerts" && filter.value !== "watchlist",
+);
+const mobileMoreFilters = liveFeedV2Filters.filter(
+  (filter) => filter.value === "alerts" || filter.value === "watchlist",
+);
+
 export function StockRadarFeedV2({
   initialData,
   initialPreviewId,
   viewerPlan,
 }: StockRadarFeedV2Props) {
   const feedColumnRef = useRef<HTMLElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
+  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
   const mobileOpenerRef = useRef<HTMLElement | null>(null);
   const requestRef = useRef<AbortController | null>(null);
+  const mobileMoreId = useId();
   const [activeFilter, setActiveFilter] =
     useState<LiveFeedV2Filter>("all");
   const [filterStates, setFilterStates] = useState(() =>
     createInitialFilterStates(initialData.page),
   );
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(
@@ -69,6 +81,28 @@ export function StockRadarFeedV2({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!mobileMoreOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!mobileFilterRef.current?.contains(event.target as Node)) {
+        setMobileMoreOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileMoreOpen(false);
+      mobileMoreButtonRef.current?.focus({ preventScroll: true });
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMoreOpen]);
 
   const loadPage = useCallback(
     async (filter: LiveFeedV2Filter, cursor: string | null) => {
@@ -162,12 +196,21 @@ export function StockRadarFeedV2({
   const handleFilterChange = (filter: LiveFeedV2Filter) => {
     setActiveFilter(filter);
     setSelectedEventId(null);
+    setMobileMoreOpen(false);
     setMobilePreviewOpen(false);
 
     const nextState = filterStates[filter];
     if (!nextState.loaded && !nextState.isLoading) {
       void loadPage(filter, null);
     }
+  };
+
+  const handleMobileMoreFilterChange = (filter: LiveFeedV2Filter) => {
+    handleFilterChange(filter);
+    setMobileMoreOpen(false);
+    requestAnimationFrame(() => {
+      mobileMoreButtonRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const handlePreviewSelect = (
@@ -188,6 +231,9 @@ export function StockRadarFeedV2({
   const closeMobilePreview = useCallback(
     () => setMobilePreviewOpen(false),
     [],
+  );
+  const activeMobileMoreFilter = mobileMoreFilters.find(
+    (filter) => filter.value === activeFilter,
   );
 
   return (
@@ -220,21 +266,86 @@ export function StockRadarFeedV2({
             className={styles.filters}
             role="group"
           >
-            {liveFeedV2Filters.map((filter) => (
-              <button
-                aria-pressed={filter.value === activeFilter}
-                className={
-                  filter.value === activeFilter
-                    ? styles.filterActive
-                    : undefined
-                }
-                key={filter.value}
-                onClick={() => handleFilterChange(filter.value)}
-                type="button"
-              >
-                {filter.label}
-              </button>
-            ))}
+            <div className={styles.desktopFilters}>
+              {liveFeedV2Filters.map((filter) => (
+                <button
+                  aria-pressed={filter.value === activeFilter}
+                  className={
+                    filter.value === activeFilter
+                      ? styles.filterActive
+                      : undefined
+                  }
+                  key={filter.value}
+                  onClick={() => handleFilterChange(filter.value)}
+                  type="button"
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.mobileFilters} ref={mobileFilterRef}>
+              <div className={styles.mobileFilterRow}>
+                {mobilePrimaryFilters.map((filter) => (
+                  <button
+                    aria-pressed={filter.value === activeFilter}
+                    className={
+                      filter.value === activeFilter
+                        ? styles.filterActive
+                        : undefined
+                    }
+                    key={filter.value}
+                    onClick={() => handleFilterChange(filter.value)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+                <button
+                  aria-controls={mobileMoreId}
+                  aria-expanded={mobileMoreOpen}
+                  aria-label={
+                    activeMobileMoreFilter
+                      ? `More filters, ${activeMobileMoreFilter.label} selected`
+                      : "More filters"
+                  }
+                  aria-pressed={Boolean(activeMobileMoreFilter)}
+                  className={
+                    activeMobileMoreFilter ? styles.filterActive : undefined
+                  }
+                  onClick={() => setMobileMoreOpen((current) => !current)}
+                  ref={mobileMoreButtonRef}
+                  type="button"
+                >
+                  {activeMobileMoreFilter?.label || "More"}
+                </button>
+              </div>
+              {mobileMoreOpen ? (
+                <div
+                  aria-label="Additional feed filters"
+                  className={styles.mobileMoreFilters}
+                  id={mobileMoreId}
+                  role="group"
+                >
+                  {mobileMoreFilters.map((filter) => (
+                    <button
+                      aria-pressed={filter.value === activeFilter}
+                      className={
+                        filter.value === activeFilter
+                          ? styles.filterActive
+                          : undefined
+                      }
+                      key={filter.value}
+                      onClick={() =>
+                        handleMobileMoreFilterChange(filter.value)
+                      }
+                      type="button"
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <FeedEventList

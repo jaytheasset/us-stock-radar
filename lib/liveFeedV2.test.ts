@@ -472,6 +472,51 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(styleSource, /minmax\(0, 72fr\)[\s\S]*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\)/);
 });
 
+test("mobile feed filters keep one row and disclose alerts and watchlist", () => {
+  const clientSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.tsx",
+  );
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(clientSource, /mobilePrimaryFilters/);
+  assert.match(clientSource, /mobileMoreFilters/);
+  assert.match(
+    clientSource,
+    /filter\.value !== "alerts" && filter\.value !== "watchlist"/,
+  );
+  assert.match(
+    clientSource,
+    /filter\.value === "alerts" \|\| filter\.value === "watchlist"/,
+  );
+  assert.match(clientSource, /aria-controls=\{mobileMoreId\}/);
+  assert.match(clientSource, /aria-expanded=\{mobileMoreOpen\}/);
+  assert.match(clientSource, /Additional feed filters/);
+  assert.match(clientSource, /setMobileMoreOpen\(false\)/);
+  assert.match(clientSource, /event\.key !== "Escape"/);
+  assert.doesNotMatch(
+    styleSource,
+    /\.mobileFilterRow\s*\{[\s\S]{0,300}repeat\(3, minmax\(0, 1fr\)\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.filters\s*\{[\s\S]*display: flex;[\s\S]*overflow-x: auto;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.filters\s*\{[\s\S]*overflow: visible;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileFilterRow\s*\{[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileMoreFilters\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+  );
+});
+
 test("feed context rail keeps the product order without an unconnected watchlist card", () => {
   const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
   const orderedMarkers = [
