@@ -29,5 +29,12 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable both-edges;
+    scrollbar-width: none;
+  }
+
+  .newsScrollRegion::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
