@@ -13,6 +13,10 @@ import {
   type AnalysisPeerFillerBucket,
   type AnalysisPeerFillerBuckets,
 } from "@/lib/analysisPeerSelection";
+import {
+  loadAnalysisPeerProviderCompanies,
+  loadAnalysisPeerProviderFillers,
+} from "@/lib/analysisPeerProvider";
 import { supabaseSelect } from "@/lib/supabase";
 import {
   resolveCanonicalMarketGroup,
@@ -59,19 +63,54 @@ export async function resolveAnalysisMarketContext({
     .filter((candidate): candidate is AnalysisPeerCandidate => Boolean(candidate));
   const legacyFillers = legacyEventTickerFillers(eventTickerRows);
   const taxonomyFillers = await loadTaxonomyFillers(classification);
-  const fillerBuckets = mergeFillerBuckets(legacyFillers, taxonomyFillers);
+  let fillerBuckets = mergeFillerBuckets(legacyFillers, taxonomyFillers);
+  const localSelection = selectAnalysisPeers({
+    fillerBuckets,
+    primaryTicker: primarySymbol,
+    related,
+  });
+  if (localSelection.length < ANALYSIS_PEER_LIMIT) {
+    const providerFillers = await loadAnalysisPeerProviderFillers({
+      classification,
+      excludeSymbols: [
+        primarySymbol,
+        ...related.map((peer) => peer.symbol),
+        ...fillerBucketSymbols(fillerBuckets),
+      ],
+      limit: ANALYSIS_PEER_LIMIT - localSelection.length,
+    });
+    fillerBuckets = mergeFillerBuckets(fillerBuckets, providerFillers);
+  }
   const selected = selectAnalysisPeers({
     fillerBuckets,
     primaryTicker: primarySymbol,
     related,
   });
   const selectedCatalog = await loadTickerCatalog(selected.map((peer) => peer.symbol));
+  const providerCompanies = await loadAnalysisPeerProviderCompanies(
+    selected
+      .filter(
+        (peer) =>
+          !cleanValue(peer.companyName) &&
+          !cleanValue(selectedCatalog.get(peer.symbol)?.name),
+      )
+      .map((peer) => peer.symbol),
+  );
   const peers = selected.map((peer) => {
     const catalog = selectedCatalog.get(peer.symbol);
+    const providerCompany = providerCompanies.get(peer.symbol);
     return {
       ...peer,
-      companyName: peer.companyName || stringValue(catalog?.name) || undefined,
-      exchange: peer.exchange || stringValue(catalog?.exchange) || undefined,
+      companyName:
+        peer.companyName ||
+        stringValue(catalog?.name) ||
+        providerCompany?.companyName ||
+        undefined,
+      exchange:
+        peer.exchange ||
+        stringValue(catalog?.exchange) ||
+        providerCompany?.exchange ||
+        undefined,
     };
   });
   const relatedCount = peers.filter((peer) => peer.source === "related").length;
@@ -377,6 +416,12 @@ function mergeFillerBuckets(
     sub_theme: [...(first.sub_theme || []), ...(second.sub_theme || [])],
     theme: [...(first.theme || []), ...(second.theme || [])],
   };
+}
+
+function fillerBucketSymbols(buckets: AnalysisPeerFillerBuckets) {
+  return Object.values(buckets).flatMap((candidates) =>
+    (candidates || []).map((candidate) => candidate.symbol),
+  );
 }
 
 function buildMoverGroupName({

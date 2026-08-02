@@ -1678,6 +1678,24 @@ export function resolveCanonicalMarketGroup(value: string): CanonicalMarketGroup
   return canonicalMarketGroupLookup.get(normalizeTaxonomyLookupValue(value)) || null;
 }
 
+export function resolveFmpIndustriesForMarketGroup(value: string) {
+  const match = resolveCanonicalMarketGroup(value);
+  if (!match?.slug) return [];
+  const mapping = sectorMappings.find((item) => item.slug === match.slug);
+  if (!mapping) return [];
+
+  const normalizedValue = normalizeTaxonomyLookupValue(value);
+  const exactIndustry = mapping.fmpIndustries.find(
+    (industry) => normalizeTaxonomyLookupValue(industry) === normalizedValue,
+  );
+  return Array.from(
+    new Set([
+      ...(exactIndustry ? [exactIndustry] : []),
+      ...mapping.fmpIndustries,
+    ]),
+  );
+}
+
 function buildCanonicalMarketGroupLookup() {
   const lookup = new Map<string, CanonicalMarketGroupMatch>();
   const add = (value: string | undefined, match: CanonicalMarketGroupMatch) => {
