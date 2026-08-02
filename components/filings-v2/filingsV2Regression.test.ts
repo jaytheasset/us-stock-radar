@@ -102,6 +102,73 @@ test("filings preview uses shared Saved and Watchlist actions with batched viewe
   assert.match(clientSource, /fetch\("\/api\/watchlist"/);
 });
 
+test("filings mobile landing keeps one accessible preferred-source link and a flat full-width list", () => {
+  const filterSource = readFileSync(
+    new URL("./FilingsV2FilterBar.tsx", import.meta.url),
+    "utf8",
+  );
+  const listSource = readFileSync(
+    new URL("./FilingsV2List.tsx", import.meta.url),
+    "utf8",
+  );
+  const pageSource = readFileSync(
+    new URL("./StockRadarFilingsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("./StockRadarFilingsV2.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(filterSource, /import \{ ChevronDown, Search, SlidersHorizontal, X \} from "lucide-react";/);
+  assert.match(
+    filterSource,
+    /preferredSourceUrl\?: string \| null;[\s\S]*<button aria-label="Search" className=\{styles\.searchButton\} type="submit">[\s\S]*<Search aria-hidden="true" className=\{styles\.searchButtonIcon\}/,
+  );
+  assert.match(
+    filterSource,
+    /className=\{styles\.mobilePreferredSourceLink\}[\s\S]*<GooglePreferredSourceLink[\s\S]*ariaLabel="Add Stock Radar on Google"[\s\S]*header[\s\S]*href=\{preferredSourceUrl\}/,
+  );
+  assert.match(
+    listSource,
+    /<GooglePreferredSourceLink[\s\S]*ariaLabel="Add Stock Radar on Google"[\s\S]*header[\s\S]*href=\{preferredSourceUrl\}/,
+  );
+  assert.match(pageSource, /<FilingsV2FilterBar[\s\S]*preferredSourceUrl=\{preferredSourceUrl\}/);
+  assert.doesNotMatch(filterSource, /ariaLabel="Add Stock Radar on Google Google"/);
+  assert.doesNotMatch(listSource, /ariaLabel="Add Stock Radar on Google Google"/);
+
+  assert.match(styles, /\.mobilePreferredSourceLink \{[\s\S]*display: none;/);
+  assert.match(styles, /\.searchButtonIcon \{[\s\S]*display: none;/);
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*\.searchControl > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*\.searchButtonIcon \{[\s\S]*display: block;/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilterActions \.mobileFilterTrigger \{[\s\S]*min-height: 44px;[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";/,
+  );
+  assert.match(
+    styles,
+    /\.listPanel \{[\s\S]*width: calc\(100% \+ \(var\(--sr-page-gutter-mobile\) \* 2\)\);[\s\S]*margin-inline: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.match(
+    styles,
+    /\.listHeader \{[\s\S]*min-height: 52px;[\s\S]*flex-wrap: nowrap;[\s\S]*border-bottom-color: var\(--sr-color-border\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+  );
+  assert.match(styles, /\.filingItemSlot::after \{[\s\S]*background: var\(--sr-color-border\);/);
+  assert.match(styles, /\.listFooter \{[\s\S]*background: transparent;/);
+  assert.match(
+    styles,
+    /@media \(max-width: 340px\) \{[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*width: 44px;[\s\S]*padding: 0;[\s\S]*\.mobilePreferredSourceLink > a > span \{[\s\S]*clip-path: inset\(50%\);/,
+  );
+
+  assert.match(styles, /\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) max-content;/);
+  assert.match(
+    styles,
+    /\.listPanel \{[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*border-radius: var\(--sr-radius-base\);[\s\S]*box-shadow: var\(--sr-shadow-panel\);/,
+  );
+});
+
 test("filing feed rows use watchlist density and plain representative event metadata", () => {
   const listSource = readFileSync(
     new URL("./FilingsV2List.tsx", import.meta.url),

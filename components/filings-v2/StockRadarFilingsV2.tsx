@@ -512,6 +512,7 @@ export function StockRadarFilingsV2({
               setQuery(ticker);
             }}
             onToggleFilter={toggleFilter}
+            preferredSourceUrl={preferredSourceUrl}
             query={searchInput}
           />
         </div>

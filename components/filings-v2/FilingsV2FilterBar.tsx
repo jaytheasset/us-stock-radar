@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { FilingsV2MarketCapOption } from "@/components/filings-v2/FilingsV2MarketCapOption";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import {
   filingsV2DateOptions,
@@ -34,6 +35,7 @@ type FilingsV2FilterBarProps = {
   onSearch: () => void;
   onTickerSelect: (ticker: string) => void;
   onToggleFilter: (group: FilingsV2FilterGroup, value: string) => void;
+  preferredSourceUrl?: string | null;
   query: string;
 };
 
@@ -70,6 +72,7 @@ export function FilingsV2FilterBar({
   onSearch,
   onTickerSelect,
   onToggleFilter,
+  preferredSourceUrl,
   query,
 }: FilingsV2FilterBarProps) {
   const menuGroups = [
@@ -123,7 +126,10 @@ export function FilingsV2FilterBar({
             placeholder="Search ticker, company or filing"
             value={query}
           />
-          <button className={styles.searchButton} type="submit">Search</button>
+          <button aria-label="Search" className={styles.searchButton} type="submit">
+            <Search aria-hidden="true" className={styles.searchButtonIcon} size={18} />
+            <span className={styles.searchButtonLabel}>Search</span>
+          </button>
         </form>
 
         <div className={styles.mobileFilterActions}>
@@ -142,6 +148,16 @@ export function FilingsV2FilterBar({
             variant="compact"
           />
         </div>
+
+        {preferredSourceUrl ? (
+          <div className={styles.mobilePreferredSourceLink}>
+            <GooglePreferredSourceLink
+              ariaLabel="Add Stock Radar on Google"
+              header
+              href={preferredSourceUrl}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.desktopFilterMatrix}>

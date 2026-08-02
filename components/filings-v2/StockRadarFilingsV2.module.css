@@ -140,6 +140,10 @@
   gap: var(--sr-space-2);
 }
 
+.mobilePreferredSourceLink {
+  display: none;
+}
+
 .searchForm {
   display: grid;
   min-width: 0;
@@ -182,6 +186,10 @@
   width: calc(var(--sr-size-control) * 2);
   min-height: 38px;
   padding-inline: 0;
+}
+
+.searchButtonIcon {
+  display: none;
 }
 
 .summaryStrip {
@@ -1589,13 +1597,55 @@
 
   .filterUtilityRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: stretch;
     gap: var(--sr-space-2);
   }
 
+  .searchForm {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 0;
+  }
+
   .searchControl {
     width: 100%;
+  }
+
+  .searchControl > label {
+    height: 44px;
+    border-color: var(--sr-color-border-control);
+    border-right: 0;
+    border-radius: var(--sr-radius-control) 0 0 var(--sr-radius-control);
+  }
+
+  .searchControl > label > span:first-child {
+    display: none;
+  }
+
+  .searchControl > label input {
+    font-size: 16px;
+  }
+
+  .searchForm > .searchButton {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 0 var(--sr-radius-action) var(--sr-radius-action) 0;
+    padding: 0;
+  }
+
+  .searchButtonIcon {
+    display: block;
+    margin: auto;
+  }
+
+  .searchButtonLabel {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .summaryStrip {
@@ -1729,40 +1779,91 @@
   }
 
   .mobileFilterActions .mobileFilterTrigger {
-    min-height: var(--sr-size-control);
+    min-height: 44px;
+    border-color: var(--sr-color-border-control);
     padding-inline: var(--sr-space-3);
   }
 
+  .mobilePreferredSourceLink {
+    display: flex;
+    min-width: 0;
+  }
+
+  .mobilePreferredSourceLink > a {
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    gap: var(--sr-space-1);
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-action);
+    padding-inline: var(--sr-space-3);
+    background: var(--sr-color-surface-control);
+    font-size: var(--sr-font-size-md);
+  }
+
+  .mobilePreferredSourceLink > a > svg:last-child {
+    display: none;
+  }
+
+  .mobilePreferredSourceLink > a > span {
+    font-size: 0;
+  }
+
+  .mobilePreferredSourceLink > a > span::after {
+    content: "Google";
+    font-size: var(--sr-font-size-md);
+  }
+
+  .listPanel {
+    width: calc(100% + (var(--sr-page-gutter-mobile) * 2));
+    margin-inline: calc(var(--sr-page-gutter-mobile) * -1);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
   .listHeader {
-    min-height: auto;
-    flex-wrap: wrap;
+    min-height: 52px;
+    flex-wrap: nowrap;
     align-items: center;
-    row-gap: var(--sr-space-1);
-    padding-block: var(--sr-space-2);
-    padding-inline: var(--sr-space-2-5);
+    gap: var(--sr-space-2);
+    border-bottom-color: var(--sr-color-border);
+    padding-block: 0;
+    padding-inline: var(--sr-space-4);
+    background: transparent;
   }
 
   .listHeaderTitle {
     display: flex;
-    width: 100%;
+    width: auto;
     min-width: 0;
-    flex: 0 0 100%;
+    flex: 1 1 auto;
     align-items: center;
     gap: var(--sr-space-2);
     white-space: nowrap;
   }
 
   .listHeaderTitle > a {
-    margin-left: auto;
+    display: none;
   }
 
   .listHeaderCount {
-    width: 100%;
+    width: auto;
+    flex: 0 0 auto;
     text-align: right;
   }
 
   .listHeaderTitle h2 {
     font-size: var(--sr-font-size-md);
+  }
+
+  .filingItemSlot::after {
+    background: var(--sr-color-border);
+  }
+
+  .listFooter {
+    background: transparent;
   }
 
   .desktopInlineAdItem {
@@ -2026,6 +2127,26 @@
 
   .detailPreviewCard .detailActionArea {
     padding-bottom: calc(var(--sr-space-5) + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 340px) {
+  .mobilePreferredSourceLink > a {
+    width: 44px;
+    padding: 0;
+  }
+
+  .mobilePreferredSourceLink > a > span {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mobilePreferredSourceLink > a > span::after {
+    content: none;
   }
 }
 
