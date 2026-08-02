@@ -1966,10 +1966,12 @@
   }
 
   .listPanel {
-    border: var(--sr-border-width) solid var(--sr-color-border);
-    border-radius: var(--sr-radius-base);
-    background: var(--sr-color-surface-table-panel);
-    box-shadow: var(--sr-shadow-panel);
+    width: calc(100% + (var(--sr-page-gutter-mobile) * 2));
+    margin-inline: calc(var(--sr-page-gutter-mobile) * -1);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .searchForm {
@@ -2056,7 +2058,8 @@
     align-items: center;
     row-gap: var(--sr-space-1);
     padding-block: var(--sr-space-2);
-    padding-inline: var(--sr-space-2-5);
+    padding-inline: var(--sr-space-4);
+    background: transparent;
   }
 
   .listHeaderTitle {
@@ -2114,13 +2117,18 @@
   }
 
   .newsRow {
-    min-height: 112px;
+    min-height: 124px;
     grid-template-columns: minmax(40px, auto) minmax(0, 1fr) auto;
     grid-template-rows: auto auto auto;
     align-items: start;
     column-gap: var(--sr-space-2);
     row-gap: var(--sr-space-1);
-    padding: var(--sr-space-3);
+    padding: var(--sr-space-4);
+    background: transparent;
+  }
+
+  .newsList {
+    background: transparent;
   }
 
   .newsListItem {
@@ -2160,7 +2168,7 @@
     grid-column: 1;
     grid-row: 1;
     align-self: center;
-    font-size: var(--sr-font-size-lg);
+    font-size: 16px;
     font-weight: var(--sr-font-weight-heavy);
   }
 
@@ -2182,7 +2190,7 @@
     display: -webkit-box;
     overflow: hidden;
     color: var(--sr-color-text-heading);
-    font-size: var(--sr-font-size-lg);
+    font-size: 17px;
     font-weight: 600;
     line-height: 1.4;
     white-space: normal;
@@ -2226,13 +2234,15 @@
 
   .rowMobileBadges .newsEventTypeBadge {
     max-width: 100%;
-    font-size: var(--sr-font-size-md);
+    font-family: var(--sr-font-family-sans);
+    font-size: var(--sr-font-size-base);
+    text-transform: none;
   }
 
   .mobileTickerOverflow {
     display: inline;
     color: var(--sr-color-text-muted);
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     font-weight: var(--sr-font-weight-semibold);
     white-space: nowrap;
   }
@@ -2241,7 +2251,7 @@
     overflow: hidden;
     min-width: 0;
     align-self: center;
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -2259,7 +2269,7 @@
     align-self: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
@@ -2325,13 +2335,13 @@
   }
 
   .rowQuote strong {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     font-weight: 600;
     line-height: var(--sr-line-height-tight);
   }
 
   .rowQuote > span:not(.rowDataUnavailable) {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     line-height: var(--sr-line-height-tight);
   }
 
@@ -2356,7 +2366,7 @@
   }
 
   .rowSentiment {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-lg);
     font-weight: var(--sr-font-weight-semibold);
   }
 
@@ -2367,7 +2377,7 @@
 
   .rowScore strong {
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-lg);
     font-weight: 600;
   }
 
