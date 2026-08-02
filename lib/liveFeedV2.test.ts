@@ -506,7 +506,11 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   assert.match(
     previewSheetStyleSource,
-    /\.newsScrollRegion \{[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain/,
+    /\.newsScrollRegion \{[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain[\s\S]*scrollbar-gutter: stable both-edges[\s\S]*scrollbar-width: none/,
+  );
+  assert.match(
+    previewSheetStyleSource,
+    /\.newsScrollRegion::\-webkit-scrollbar \{[\s\S]*width: 0[\s\S]*height: 0[\s\S]*display: none/,
   );
   assert.match(
     previewStyleSource,
