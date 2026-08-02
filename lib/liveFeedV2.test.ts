@@ -1081,10 +1081,8 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     /\.quote > \.sentimentPositive \{[\s\S]*?color: var\(--sr-color-positive\);[\s\S]*?\.quote > \.sentimentNegative \{[\s\S]*?color: var\(--sr-color-negative\);[\s\S]*?\.quote > \.sentimentNeutral \{[\s\S]*?color: var\(--sr-color-text-muted\);/,
   );
   assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
-  assert.match(
-    listSource,
-    /className=\{styles\.eventDateMobile\}[\s\S]*\{item\.timeDateLabel\}[\s\S]*\{" "\}[\s\S]*className=\{styles\.eventClockMobile\}[\s\S]*\{item\.timeLabel\} ET/,
-  );
+  assert.match(listSource, /\{item\.timeDateLabel\} \{item\.timeLabel\} ET/);
+  assert.doesNotMatch(listSource, /styles\.eventDateMobile|styles\.eventClockMobile/);
   assert.doesNotMatch(
     listSource,
     /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/,
@@ -1107,8 +1105,9 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*\.eventDateMobile \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-weight: 400;[\s\S]*\.eventClockMobile \{[\s\S]*color: var\(--sr-color-text-primary\);[\s\S]*font-weight: 400;[\s\S]*\.source \{[\s\S]*overflow: hidden;[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;[\s\S]*\.source::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*\.source \{[\s\S]*overflow: hidden;[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;[\s\S]*\.source::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";/,
   );
+  assert.doesNotMatch(styleSource, /\.eventDateMobile|\.eventClockMobile/);
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.quote strong \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.quote span \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.impactScore span \{[\s\S]*overflow: visible;[\s\S]*font-size: 16px;[\s\S]*text-overflow: clip;[\s\S]*white-space: nowrap;[\s\S]*\.impactScore strong \{[\s\S]*font-size: 16px;/,

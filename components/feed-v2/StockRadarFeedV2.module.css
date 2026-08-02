@@ -1366,22 +1366,13 @@
     display: inline-flex;
     align-items: center;
     align-self: center;
+    color: var(--sr-color-text-muted);
     font-family: var(--sr-font-family-mono);
     font-size: var(--sr-font-size-base);
     font-weight: 400;
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
-  }
-
-  .eventDateMobile {
-    color: var(--sr-color-text-muted);
-    font-weight: 400;
-  }
-
-  .eventClockMobile {
-    color: var(--sr-color-text-primary);
-    font-weight: 400;
   }
 
   .source {
