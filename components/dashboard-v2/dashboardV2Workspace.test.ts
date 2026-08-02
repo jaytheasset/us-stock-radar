@@ -143,4 +143,8 @@ test("Markets availability hierarchy and mobile panels use the flat tokenized tr
     dashboardStyles,
     /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?border: 0;[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
   );
+  assert.match(
+    dashboardStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?box-sizing: border-box;[\s\S]*?width: calc\(\s*100% \+ var\(--sr-page-gutter-mobile\) \+ var\(--sr-page-gutter-mobile\)\s*\);[\s\S]*?margin-right: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*?margin-left: calc\(var\(--sr-page-gutter-mobile\) \* -1\);/,
+  );
 });

@@ -580,10 +580,16 @@
 
   .marketState,
   :global(.dashboard-v2-table-panel) {
+    box-sizing: border-box;
+    width: calc(
+      100% + var(--sr-page-gutter-mobile) + var(--sr-page-gutter-mobile)
+    );
     border: 0;
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
     border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
     border-radius: 0;
+    margin-right: calc(var(--sr-page-gutter-mobile) * -1);
+    margin-left: calc(var(--sr-page-gutter-mobile) * -1);
     background: transparent;
     box-shadow: none;
   }
