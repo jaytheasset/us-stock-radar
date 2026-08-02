@@ -278,6 +278,7 @@ export function StockRadarNewsV2({
               setQuery(ticker);
             }}
             onToggleFilter={toggleFilter}
+            preferredSourceUrl={preferredSourceUrl}
             queryDraft={queryDraft}
           />
 

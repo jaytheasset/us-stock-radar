@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from "rea
 import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
+import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { NewsV2MarketCapOption } from "@/components/news-v2/NewsV2MarketCapOption";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
@@ -39,6 +40,7 @@ export type NewsV2FilterBarProps = {
   onSearch: () => void;
   onTickerSelect: (ticker: string) => void;
   onToggleFilter: (group: NewsV2FilterGroup, value: string) => void;
+  preferredSourceUrl?: string | null;
   queryDraft: string;
 };
 
@@ -57,6 +59,7 @@ export function NewsV2FilterBar({
   onSearch,
   onTickerSelect,
   onToggleFilter,
+  preferredSourceUrl,
   queryDraft,
 }: NewsV2FilterBarProps) {
   const [openMenu, setOpenMenu] = useState<NewsV2MenuGroup | null>(null);
@@ -133,6 +136,16 @@ export function NewsV2FilterBar({
             variant="compact"
           />
         </div>
+
+        {preferredSourceUrl ? (
+          <div className={styles.mobilePreferredSourceLink}>
+            <GooglePreferredSourceLink
+              ariaLabel="Add Stock Radar on Google"
+              header
+              href={preferredSourceUrl}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.desktopFilterMatrix}>

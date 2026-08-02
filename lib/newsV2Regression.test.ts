@@ -274,12 +274,20 @@ test("Google preferred-source links always use the public Stock Radar domain", (
 });
 
 test("News Google preferred-source link has one exact accessible name", () => {
+  const filterSource = readFileSync(
+    new URL("../components/news-v2/NewsV2FilterBar.tsx", import.meta.url),
+    "utf8",
+  );
   const listSource = readFileSync(
     new URL("../components/news-v2/NewsV2List.tsx", import.meta.url),
     "utf8",
   );
   const linkSource = readFileSync(
     new URL("../components/ui/GooglePreferredSourceLink.tsx", import.meta.url),
+    "utf8",
+  );
+  const pageSource = readFileSync(
+    new URL("../components/news-v2/StockRadarNewsV2.tsx", import.meta.url),
     "utf8",
   );
 
@@ -289,7 +297,13 @@ test("News Google preferred-source link has one exact accessible name", () => {
     listSource,
     /<GooglePreferredSourceLink[\s\S]*ariaLabel="Add Stock Radar on Google"[\s\S]*header/,
   );
+  assert.match(
+    filterSource,
+    /preferredSourceUrl\?: string \| null;[\s\S]*className=\{styles\.mobilePreferredSourceLink\}[\s\S]*<GooglePreferredSourceLink[\s\S]*ariaLabel="Add Stock Radar on Google"[\s\S]*header[\s\S]*href=\{preferredSourceUrl\}/,
+  );
+  assert.match(pageSource, /<NewsV2FilterBar[\s\S]*preferredSourceUrl=\{preferredSourceUrl\}/);
   assert.doesNotMatch(listSource, /ariaLabel="Add Stock Radar on Google Google"/);
+  assert.doesNotMatch(filterSource, /ariaLabel="Add Stock Radar on Google Google"/);
 });
 
 test("news archive rejects missing data without exposing development fixtures", () => {
@@ -408,11 +422,19 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(130px, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*\.searchField > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchField::after \{[\s\S]*font-size: 16px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*\.searchField > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchField > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchField::after \{[\s\S]*left: var\(--sr-space-3\);[\s\S]*font-size: 16px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.listHeaderTitle > a::after \{[\s\S]*content: "Google";[\s\S]*\.listHeader h2 \{[\s\S]*font-size: 17px;/,
+    /\.mobilePreferredSourceLink \{[\s\S]*display: none;[\s\S]*@media \(max-width: 760px\) \{[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeader h2 \{[\s\S]*font-size: 17px;/,
+  );
+  assert.match(
+    styles,
+    /\.listHeader \{[\s\S]*min-height: 52px;[\s\S]*flex-wrap: nowrap;[\s\S]*border-bottom-color: var\(--sr-color-border\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.resultCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+  );
+  assert.match(
+    styles,
+    /\.newsListItem::after \{[\s\S]*background: var\(--sr-color-border\);[\s\S]*@media \(max-width: 340px\) \{[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*width: 44px;[\s\S]*padding: 0;[\s\S]*\.mobilePreferredSourceLink > a > span \{[\s\S]*clip-path: inset\(50%\);/,
   );
   assert.match(
     styles,
