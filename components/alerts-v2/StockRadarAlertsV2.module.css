@@ -1184,7 +1184,7 @@
 @media (max-width: 760px) {
   .page {
     min-height: calc(100vh - var(--sr-size-header));
-    padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-6);
+    padding: var(--sr-space-3) var(--sr-space-2) var(--sr-space-6);
   }
 
   .header,
@@ -1205,7 +1205,12 @@
     align-items: center;
     flex-direction: row;
     justify-content: space-between;
+    min-width: 0;
     margin-bottom: var(--sr-space-3);
+  }
+
+  .header > div:first-child {
+    min-width: 0;
   }
 
   .header h1 {
@@ -1221,8 +1226,13 @@
     margin-left: auto;
     flex-wrap: nowrap;
     gap: var(--sr-space-2);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     white-space: nowrap;
+  }
+
+  .planSummary span {
+    padding-inline: var(--sr-space-2);
+    font-size: var(--sr-font-size-md);
   }
 
   .notice {
@@ -1245,7 +1255,7 @@
     min-width: 0;
     overflow: hidden;
     color: var(--sr-color-text-primary);
-    font-size: var(--sr-font-size-md);
+    font-size: 16px;
     font-weight: var(--sr-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1262,7 +1272,7 @@
   .noticeMobileToggle em {
     min-width: 24px;
     color: var(--sr-color-text-muted);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     font-style: normal;
     font-weight: var(--sr-font-weight-semibold);
   }
@@ -1271,7 +1281,18 @@
     display: none;
   }
 
+  .notice > a {
+    display: inline-flex;
+    min-height: var(--sr-size-control);
+    align-items: center;
+    color: var(--sr-color-accent-text);
+    font-size: var(--sr-font-size-lg);
+    font-weight: var(--sr-font-weight-semibold);
+    overflow-wrap: anywhere;
+  }
+
   .card {
+    box-sizing: border-box;
     padding: var(--sr-space-3);
     box-shadow: none;
   }
@@ -1295,6 +1316,57 @@
     font-size: var(--sr-font-size-xl);
   }
 
+  .cardHeader p {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .cardHeader > span,
+  .cardHeader .calendarFollowUsage {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .cardHeader > a {
+    display: inline-flex;
+    min-height: var(--sr-size-control);
+    align-items: center;
+    color: var(--sr-color-accent-text);
+    font-size: var(--sr-font-size-lg);
+    font-weight: var(--sr-font-weight-semibold);
+    overflow-wrap: anywhere;
+  }
+
+  .tickerMessage,
+  .tickerEmpty,
+  .watchlistStatus {
+    font-size: var(--sr-font-size-lg);
+    overflow-wrap: anywhere;
+  }
+
+  .page .primaryButton,
+  .page .secondaryButton {
+    min-height: 44px;
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .tickerSearch > label {
+    height: 44px;
+  }
+
+  .tickerSearch input {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .tickerSearch [role="option"] strong {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .tickerSearch [role="option"] small,
+  .tickerSearch [role="option"] > span,
+  .tickerSearch [role="status"],
+  .tickerSearch [role="alert"] {
+    font-size: var(--sr-font-size-md);
+  }
+
   .addTickerRow {
     grid-template-columns: minmax(0, 1fr) 104px;
     gap: var(--sr-space-2);
@@ -1303,7 +1375,7 @@
   .addTickerRow .secondaryButton {
     grid-column: 1 / -1;
     justify-self: start;
-    min-height: var(--sr-size-filter-option);
+    min-height: var(--sr-size-control);
     border: 0;
     padding: 0;
     color: var(--sr-color-text-muted);
@@ -1313,6 +1385,12 @@
   .tickerCard .cardHeader {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .tickerCard .cardHeader > span {
+    margin-left: auto;
+    font-size: 16px;
   }
 
   .tickerCard .cardHeader p {
@@ -1325,6 +1403,20 @@
     gap: var(--sr-space-2);
     min-height: var(--sr-size-table-row);
     padding: var(--sr-space-1) 0;
+  }
+
+  .tickerRow strong,
+  .tickerSymbolLink {
+    font-size: 16px;
+  }
+
+  .tickerRow span,
+  .tickerCompanyLink {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .inlineToggle em {
+    font-size: var(--sr-font-size-md);
   }
 
   .tickerRow strong,
@@ -1356,7 +1448,17 @@
       "icon text toggle"
       "icon lock toggle";
     gap: var(--sr-space-2);
-    min-height: 54px;
+    min-height: 64px;
+    padding-block: var(--sr-space-2);
+  }
+
+  .settingRow strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .settingRow div:first-of-type > span {
+    font-size: var(--sr-font-size-lg);
+    overflow-wrap: anywhere;
   }
 
   .settingRow > svg {
@@ -1377,6 +1479,7 @@
 
   .lockGroup em {
     min-height: var(--sr-space-5);
+    font-size: var(--sr-font-size-md);
   }
 
   .settingRow .inlineToggle {
@@ -1388,7 +1491,15 @@
     grid-template-areas:
       "icon text toggle"
       "icon lock toggle";
-    min-height: 48px;
+    min-height: 58px;
+  }
+
+  .deliveryCard .settingRow strong {
+    font-size: 16px;
+  }
+
+  .deliveryCard .settingRow div:first-of-type > span {
+    font-size: var(--sr-font-size-md);
   }
 
   .deliveryCard .telegramSettingRow,
@@ -1403,6 +1514,15 @@
   .connectedSettingRow .channelActions {
     grid-area: actions;
     justify-content: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .channelActions button {
+    min-height: var(--sr-size-control);
+    max-width: 100%;
+    font-size: var(--sr-font-size-lg);
+    overflow-wrap: anywhere;
   }
 
   .deliveryCard .settingRow .lockGroup {
@@ -1419,6 +1539,7 @@
 
   .lockedBadge {
     width: fit-content;
+    font-size: var(--sr-font-size-sm);
   }
 
   .coverageCard .cardHeader {
@@ -1464,7 +1585,7 @@
 
   .mobileCoverageSummary small {
     color: var(--sr-color-text-muted);
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-md);
     font-weight: var(--sr-font-weight-medium);
     white-space: nowrap;
   }
@@ -1494,6 +1615,57 @@
     padding-left: 0;
   }
 
+  .sourceFilterOption,
+  .marketCapOption,
+  .filingTypeOption {
+    min-height: var(--sr-size-control);
+  }
+
+  .sourceFilterOption span,
+  .marketCapOption,
+  .marketCapOption strong,
+  .marketCapOption small,
+  .filingTypeOption,
+  .filingGroupToggle {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .filingGroupHeader {
+    align-items: flex-start;
+  }
+
+  .filingGroupHeader > strong {
+    overflow: visible;
+    font-size: var(--sr-font-size-lg);
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .filingTypeOption span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .upgradePanel,
+  .cardFooter,
+  .ultimateFooter {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .cardFooter {
+    display: grid;
+    justify-items: center;
+    gap: var(--sr-space-2);
+    text-align: center;
+  }
+
+  .settingsSaveBar > span {
+    font-size: var(--sr-font-size-lg);
+  }
+
   .marketCapGrid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -1510,11 +1682,12 @@
   }
 
   .recentRow {
-    grid-template-columns: 72px minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
       "ticker category status"
-      "ticker event time";
-    min-height: 56px;
+      "event event event"
+      "time time time";
+    min-height: 88px;
     gap: var(--sr-space-1) var(--sr-space-2);
     padding: var(--sr-space-2) 0;
   }
@@ -1522,25 +1695,52 @@
   .recentRow strong {
     grid-area: ticker;
     min-width: 60px;
+    font-size: 16px;
   }
 
   .recentRow span {
     grid-area: category;
+    font-size: var(--sr-font-size-md);
   }
 
   .recentRow p {
     grid-area: event;
+    overflow: visible;
+    font-size: var(--sr-font-size-lg);
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .recentRow time {
     grid-area: time;
     justify-self: end;
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-md);
   }
 
   .recentRow em {
     grid-area: status;
     justify-self: end;
+    font-size: var(--sr-font-size-md);
+  }
+
+  .recentEmpty,
+  .recentError {
+    font-size: var(--sr-font-size-lg);
+    overflow-wrap: anywhere;
+  }
+
+  .recentFooter span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .recentFooter button {
+    min-height: var(--sr-size-control);
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .recentCard .settingRow div:first-of-type > span {
+    font-size: var(--sr-font-size-md);
   }
 
   .watchlistOverlay {
@@ -1558,6 +1758,19 @@
     padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
   }
 
+  .watchlistPanel p {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .watchlistItems strong {
+    font-size: 16px;
+  }
+
+  .watchlistItems small,
+  .watchlistItems em {
+    font-size: var(--sr-font-size-md);
+  }
+
   .sheetHandle {
     position: absolute;
     top: var(--sr-space-3);
@@ -1568,5 +1781,11 @@
     border-radius: var(--sr-radius-pill);
     background: var(--sr-color-sheet-handle);
     transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 360px) {
+  .marketCapGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
