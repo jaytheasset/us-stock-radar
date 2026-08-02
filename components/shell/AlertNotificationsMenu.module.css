@@ -312,18 +312,9 @@
 
   .heading {
     padding-inline: var(--sr-space-3);
-    background: var(--sr-color-surface-product-popover-section);
   }
 
   .list {
     max-height: min(410px, calc(100dvh - 180px));
-  }
-
-  .list li[data-read="false"] {
-    background: var(--sr-color-surface-product-popover-unread);
-  }
-
-  .footer {
-    background: var(--sr-color-surface-product-popover-section);
   }
 }

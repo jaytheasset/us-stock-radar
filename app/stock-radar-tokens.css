@@ -111,11 +111,9 @@
   --sr-color-surface-product-header: rgba(10, 12, 15, 0.92);
   --sr-color-surface-product-menu: #0d1116;
   --sr-color-surface-product-popover-elevated: #151a20;
-  --sr-color-surface-product-popover-section: rgba(255, 255, 255, 0.025);
-  --sr-color-surface-product-popover-unread: rgba(255, 255, 255, 0.035);
   --sr-color-border-product-header: #20262c;
   --sr-color-border-product-menu: rgba(74, 82, 92, 0.82);
-  --sr-color-border-product-popover-elevated: rgba(104, 116, 130, 0.86);
+  --sr-color-border-product-popover-elevated: rgba(104, 116, 130, 0.42);
   --sr-color-backdrop-product-popover-mobile: rgba(3, 5, 8, 0.38);
   --sr-color-text-product-brand: #f5f6f7;
   --sr-color-text-product-status: #8a919a;
