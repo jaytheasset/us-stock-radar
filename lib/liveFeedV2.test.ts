@@ -516,6 +516,10 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
   assert.match(
     styleSource,
+    /@media \(max-width: 340px\)\s*\{\s*\.mobileFilterRow\s*\{\s*gap: var\(--sr-space-0-5\);\s*\}/,
+  );
+  assert.match(
+    styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.mobileFilters\s*\{[\s\S]*position: relative;/,
   );
   assert.match(
