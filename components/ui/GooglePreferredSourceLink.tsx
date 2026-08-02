@@ -2,11 +2,13 @@ import { ExternalLink } from "lucide-react";
 import styles from "./GooglePreferredSourceLink.module.css";
 
 export function GooglePreferredSourceLink({
+  ariaLabel,
   href,
   compact = false,
   header = false,
   summary = false,
 }: {
+  ariaLabel?: string;
   href: string;
   compact?: boolean;
   header?: boolean;
@@ -14,6 +16,7 @@ export function GooglePreferredSourceLink({
 }) {
   return (
     <a
+      aria-label={ariaLabel}
       className={`${styles.link}${compact ? ` ${styles.compact}` : ""}${
         header ? ` ${styles.header}` : ""
       }${

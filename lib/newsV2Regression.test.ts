@@ -273,6 +273,25 @@ test("Google preferred-source links always use the public Stock Radar domain", (
   }
 });
 
+test("News Google preferred-source link has one exact accessible name", () => {
+  const listSource = readFileSync(
+    new URL("../components/news-v2/NewsV2List.tsx", import.meta.url),
+    "utf8",
+  );
+  const linkSource = readFileSync(
+    new URL("../components/ui/GooglePreferredSourceLink.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(linkSource, /ariaLabel\?: string;/);
+  assert.match(linkSource, /aria-label=\{ariaLabel\}/);
+  assert.match(
+    listSource,
+    /<GooglePreferredSourceLink[\s\S]*ariaLabel="Add Stock Radar on Google"[\s\S]*header/,
+  );
+  assert.doesNotMatch(listSource, /ariaLabel="Add Stock Radar on Google Google"/);
+});
+
 test("news archive rejects missing data without exposing development fixtures", () => {
   const source = readFileSync(
     new URL("../app/news/archive/[id]/page.tsx", import.meta.url),
