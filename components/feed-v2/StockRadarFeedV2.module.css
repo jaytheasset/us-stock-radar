@@ -527,26 +527,26 @@
 }
 
 .impactScore strong[data-score-tone="bullish"],
-.contextEvent > strong span[data-score-tone="bullish"] {
+.contextEvent > strong[data-score-tone="bullish"] {
   color: var(--sr-color-positive);
 }
 
 .impactScore strong[data-score-tone="bearish"],
-.contextEvent > strong span[data-score-tone="bearish"] {
+.contextEvent > strong[data-score-tone="bearish"] {
   color: var(--sr-color-negative);
 }
 
 .impactScore strong[data-score-tone="volatile"],
-.contextEvent > strong span[data-score-tone="volatile"] {
+.contextEvent > strong[data-score-tone="volatile"] {
   color: var(--sr-color-warning);
 }
 
 .impactScore strong[data-score-tone="neutral"],
-.contextEvent > strong span[data-score-tone="neutral"] {
+.contextEvent > strong[data-score-tone="neutral"] {
   color: var(--sr-color-event-neutral);
 }
 
-.contextEvent > strong span[data-score-tone="default"] {
+.contextEvent > strong[data-score-tone="default"] {
   color: var(--sr-color-text-heading);
 }
 
@@ -798,7 +798,7 @@
   position: absolute;
   top: var(--sr-space-3);
   right: 0;
-  color: var(--sr-color-accent-text-soft);
+  color: var(--sr-color-text-heading);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-semibold);
 }
@@ -1500,8 +1500,138 @@
     display: none;
   }
 
+  .contextRail {
+    gap: var(--sr-space-4);
+  }
+
+  .contextPanel {
+    min-width: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .contextPanelHeading {
+    min-width: 0;
+    align-items: center;
+    gap: var(--sr-space-3);
+    padding: var(--sr-space-3) 0;
+    border-bottom-color: var(--sr-color-border);
+  }
+
+  .contextPanelHeading h2 {
+    min-width: 0;
+    margin: 0;
+    font-size: var(--sr-font-size-xl);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .contextPanelHeading span {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-none);
+  }
+
   .marketPulseGrid {
+    min-width: 0;
+    padding: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .marketPulseGroupTitle {
+    padding: var(--sr-space-3) 0;
+    border-top-color: var(--sr-color-border);
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .marketPulseGrid article {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: var(--sr-space-3);
+    background: transparent;
+  }
+
+  .marketPulseGrid article:nth-child(even) {
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .marketPulseGrid article:nth-child(n + 3) {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .marketPulseGrid span,
+  .marketPulseGrid small {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .marketPulseGrid strong {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .marketPulseChart {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .contextEventList {
+    padding: 0;
+  }
+
+  .contextEvent {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sr-space-1-5) var(--sr-space-2);
+    padding: var(--sr-space-3) 0;
+    border-bottom-color: var(--sr-color-border);
+  }
+
+  .contextEvent > div {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .contextEvent > div span {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .contextEvent > div small {
+    flex: 0 0 auto;
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-none);
+    white-space: nowrap;
+  }
+
+  .contextEvent p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0;
+    color: var(--sr-color-text-primary);
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .contextEvent > strong {
+    position: static;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    font-size: 16px;
+    line-height: var(--sr-line-height-none);
+    white-space: nowrap;
+  }
+
+  .railEmpty {
+    padding: var(--sr-space-4) 0;
+    font-size: var(--sr-font-size-base);
   }
 
   .inlineAdDesktopPlacement,

@@ -201,16 +201,14 @@ function RailEventSection({
                   <small>{item.timeLabel}</small>
                 </div>
                 <p>{item.headline}</p>
-                <strong>
-                  Impact{" "}
-                  <span
-                    data-score-tone={getDirectionalScoreTone(
-                      item.impactScore,
-                      item.sentiment,
-                    )}
-                  >
-                    {item.impactScore}
-                  </span>
+                <strong
+                  aria-label={`${item.sentiment} direction score ${item.impactScore} out of 99`}
+                  data-score-tone={getDirectionalScoreTone(
+                    item.impactScore,
+                    item.sentiment,
+                  )}
+                >
+                  {item.sentiment} {item.impactScore}
                 </strong>
               </>
             );

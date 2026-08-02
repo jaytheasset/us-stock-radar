@@ -740,6 +740,83 @@ test("feed context rail renders navigable events as Next links with a non-link f
   );
 });
 
+test("mobile market context is flat and uses shared directional score tones", () => {
+  const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(
+    railSource,
+    /aria-label=\{`\$\{item\.sentiment\} direction score \$\{item\.impactScore\} out of 99`\}/,
+  );
+  assert.match(
+    railSource,
+    /data-score-tone=\{getDirectionalScoreTone\([\s\S]*item\.impactScore,[\s\S]*item\.sentiment,[\s\S]*\)\}/,
+  );
+  assert.match(
+    railSource,
+    /\{item\.sentiment\} \{item\.impactScore\}/,
+  );
+  assert.doesNotMatch(railSource, /Impact\{" "\}/);
+  assert.match(
+    styleSource,
+    /\.contextEvent > strong\[data-score-tone="bullish"\] \{[\s\S]*color: var\(--sr-color-positive\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEvent > strong\[data-score-tone="bearish"\] \{[\s\S]*color: var\(--sr-color-negative\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEvent > strong\[data-score-tone="volatile"\] \{[\s\S]*color: var\(--sr-color-warning\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEvent > strong\[data-score-tone="neutral"\] \{[\s\S]*color: var\(--sr-color-event-neutral\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextEvent > strong\[data-score-tone="default"\] \{[\s\S]*color: var\(--sr-color-text-heading\);/,
+  );
+  assert.doesNotMatch(
+    styleSource,
+    /\.contextEvent > strong span\[data-score-tone=/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.contextPanel \{[\s\S]*min-width: 0;[\s\S]*overflow: visible;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.contextPanelHeading h2 \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*\.contextPanelHeading span \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid \{[\s\S]*min-width: 0;[\s\S]*padding: 0;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*gap: 0;[\s\S]*\.marketPulseGrid article \{[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid span,[\s\S]*\.marketPulseGrid small \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.marketPulseGrid strong \{[\s\S]*font-size: var\(--sr-font-size-2xl\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.contextEventList \{[\s\S]*padding: 0;[\s\S]*\.contextEvent \{[\s\S]*min-width: 0;[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*padding: var\(--sr-space-3\) 0;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.contextEvent p \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.4;[\s\S]*\.contextEvent > strong \{[\s\S]*position: static;[\s\S]*font-size: 16px;[\s\S]*white-space: nowrap;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.railEmpty \{[\s\S]*padding: var\(--sr-space-4\) 0;[\s\S]*font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.contextPanel,[\s\S]*\.previewEmpty,[\s\S]*\.premiumCard \{[\s\S]*overflow: hidden;[\s\S]*border-radius: var\(--sr-radius-base\);/,
+  );
+});
+
 test("feed rows use one centered dash for unavailable quote and chart", () => {
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
   const adapterSource = readSource("lib/liveFeed.ts");
