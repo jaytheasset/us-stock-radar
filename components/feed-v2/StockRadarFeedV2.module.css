@@ -1616,8 +1616,13 @@
   .marketPulseGroupTitle {
     padding: var(--sr-space-3) 0;
     border-top-color: var(--sr-color-border);
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
     font-size: var(--sr-font-size-md);
     line-height: var(--sr-line-height-none);
+  }
+
+  .marketPulseGroupTitle + .marketPulseGrid {
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
   .marketPulseGrid article {
