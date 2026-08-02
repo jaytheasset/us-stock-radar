@@ -522,6 +522,14 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.mobileMoreFilters\s*\{[\s\S]*position: absolute;[\s\S]*right: 0;[\s\S]*width: min\(176px, calc\(100% - var\(--sr-space-4\)\)\);/,
   );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileFilters button\s*\{[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*white-space: nowrap;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileFilters \.mobileMoreButton\s*\{[\s\S]*gap: var\(--sr-space-0-5\);[\s\S]*padding-inline: 0;/,
+  );
   assert.doesNotMatch(
     styleSource,
     /\.mobileMoreFilters\s*\{[\s\S]{0,400}grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
@@ -535,7 +543,7 @@ test("mobile feed header keeps title and result count on one compact row", () =>
 
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedHeader\s*\{[\s\S]*min-height: 40px;[\s\S]*flex-wrap: nowrap;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-block: 0;/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedHeader\s*\{[\s\S]*min-height: 40px;[\s\S]*flex-wrap: nowrap;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-block: 0;[\s\S]*padding-inline: var\(--sr-space-4\);/,
   );
   assert.match(
     styleSource,
@@ -543,15 +551,38 @@ test("mobile feed header keeps title and result count on one compact row", () =>
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedTitle h1\s*\{[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedTitle h1\s*\{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.resultCount\s*\{[\s\S]*width: auto;[\s\S]*max-width: 48%;[\s\S]*overflow: hidden;[\s\S]*flex: 0 0 auto;[\s\S]*text-overflow: ellipsis;/,
+    /@media \(max-width: 760px\)[\s\S]*\.liveIndicator\s*\{[\s\S]*font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.resultCount\s*\{[\s\S]*width: auto;[\s\S]*max-width: 48%;[\s\S]*overflow: hidden;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*text-overflow: ellipsis;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.filters\s*\{[\s\S]*padding: var\(--sr-space-2\) var\(--sr-space-4\);[\s\S]*overflow: visible;/,
   );
   assert.match(
     styleSource,
     /\.feedHeader\s*\{[\s\S]{0,180}min-height: var\(--sr-size-table-header-row\);/,
+  );
+});
+
+test("mobile feed uses a full-bleed flat list without changing desktop framing", () => {
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.feedColumn\s*\{[\s\S]*width: calc\(100% \+ \(var\(--sr-page-gutter-mobile\) \* 2\)\);[\s\S]*margin-inline: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.match(
+    styleSource,
+    /\.feedColumn\s*\{[\s\S]{0,180}border-radius: var\(--sr-radius-control\);[\s\S]{0,100}background: var\(--sr-color-surface-table-panel\);/,
   );
 });
 
@@ -702,7 +733,7 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
   );
   assert.match(
     styleSource,
-    /grid-template-columns:\s*auto minmax\(0, 1fr\) 58px/,
+    /@media \(max-width: 760px\)[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto/,
   );
   assert.match(
     bottomSheetStyleSource,
@@ -833,11 +864,31 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   assert.match(listSource, /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/);
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 96px;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1-5\);[\s\S]*padding: var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1\) var\(--sr-space-2\);[\s\S]*padding: var\(--sr-space-4\);/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+    /@media \(max-width: 760px\)[\s\S]*\.identity strong \{[\s\S]*overflow: visible;[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*white-space: normal;[\s\S]*\.identity \.identityMobile \{[\s\S]*font-family: var\(--sr-font-family-sans\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.eventBadge \{[\s\S]*max-width: 100%;[\s\S]*overflow: visible;[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*text-transform: none;[\s\S]*white-space: normal;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.4;[\s\S]*-webkit-line-clamp: 2;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.source \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.quote strong \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.quote span \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.impactScore span \{[\s\S]*overflow: visible;[\s\S]*font-size: 16px;[\s\S]*text-overflow: clip;[\s\S]*white-space: nowrap;[\s\S]*\.impactScore strong \{[\s\S]*font-size: 16px;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.situationCard strong \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*\.situationCard small \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
   );
   assert.match(
     styleSource,
