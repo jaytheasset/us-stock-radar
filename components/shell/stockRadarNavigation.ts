@@ -38,9 +38,3 @@ export const stockRadarPrimaryNavigationItems = [
 ] as const satisfies readonly StockRadarLinkNavigationItem[];
 
 export const stockRadarMobileNavigationItems = stockRadarPrimaryNavigationItems;
-
-export const stockRadarDirectNavigationKeys = new Set<StockRadarPrimaryNavigationKey>([
-  "markets",
-  "feed",
-  "watchlist",
-]);

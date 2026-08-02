@@ -39,6 +39,8 @@ export function StockRadarProductHeader({
   const loginHref = `/login?next=${encodeURIComponent(authReturnPath)}`;
   const signupHref = `/signup?next=${encodeURIComponent(authReturnPath)}`;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -129,7 +131,7 @@ export function StockRadarProductHeader({
 
   return (
     <>
-      <header className={styles.header}>
+      <header className={styles.header} ref={headerRef}>
         <Link
           aria-label={`${stockRadarProductName} 홈`}
           className={styles.brand}
@@ -141,11 +143,16 @@ export function StockRadarProductHeader({
           </span>
         </Link>
 
-        <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
+        <StockRadarDesktopNavigation
+          actionsRef={actionsRef}
+          activeItem={activeNavigationItem}
+          headerRef={headerRef}
+        />
 
         <div
           aria-label="Dashboard actions"
           className={styles.actions}
+          ref={actionsRef}
           role="group"
         >
           <StockRadarTickerSearch onOpen={() => closeMobileMenu()} />
