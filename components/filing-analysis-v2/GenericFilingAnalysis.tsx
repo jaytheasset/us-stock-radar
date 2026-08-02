@@ -87,6 +87,7 @@ type GenericFilingAnalysisProps = {
   originalRenderer?: ReactNode;
   originalSectionTitle?: string;
   priceRenderer?: ReactNode;
+  presentationVariant?: "default" | "news-document";
   sourceFooterActionRenderer?: ReactNode;
   sourceFooterLabel?: string;
   summaryHeaderActionRenderer?: ReactNode;
@@ -114,6 +115,7 @@ export function GenericFilingAnalysis({
   originalRenderer,
   originalSectionTitle,
   priceRenderer,
+  presentationVariant = "default",
   sourceFooterActionRenderer,
   sourceFooterLabel = "Source",
   summaryHeaderActionRenderer,
@@ -214,7 +216,11 @@ export function GenericFilingAnalysis({
   };
 
   return (
-    <div className={styles.page}>
+    <div
+      className={`${styles.page}${
+        presentationVariant === "news-document" ? ` ${styles.newsDocument}` : ""
+      }`}
+    >
       <div className={styles.workspace}>
         <div
           className={`${styles.layout}${

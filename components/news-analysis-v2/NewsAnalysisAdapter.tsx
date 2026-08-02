@@ -49,6 +49,7 @@ export function NewsAnalysisAdapter({
         originalBodyRenderer={detail.originalHtml ? <OriginalNewsArticle html={detail.originalHtml} /> : undefined}
         originalLinkLabel="View Original Article"
         originalSectionTitle="Original Article"
+        presentationVariant="news-document"
         priceRenderer={hasRealTicker ? (
           <PriceChartCard
             change={detail.priceChange}

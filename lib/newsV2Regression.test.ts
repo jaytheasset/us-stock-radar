@@ -389,6 +389,52 @@ test("news analysis detail preserves stored original source and partial market c
   );
 });
 
+test("mobile news analysis uses a scoped document flow without changing filings", () => {
+  const adapterSource = readFileSync(
+    new URL("../components/news-analysis-v2/NewsAnalysisAdapter.tsx", import.meta.url),
+    "utf8",
+  );
+  const sharedAnalysisSource = readFileSync(
+    new URL(
+      "../components/filing-analysis-v2/GenericFilingAnalysis.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL(
+      "../components/filing-analysis-v2/GenericFilingAnalysis.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 760px)"));
+
+  assert.match(adapterSource, /presentationVariant="news-document"/);
+  assert.match(sharedAnalysisSource, /presentationVariant\?: "default" \| "news-document"/);
+  assert.match(sharedAnalysisSource, /presentationVariant === "news-document"/);
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.card,[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.hero h1 \{[^}]*font-size: var\(--sr-font-size-heading-md\);[^}]*line-height: var\(--sr-line-height-control\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.sectionLabel,[\s\S]*?font-size: var\(--sr-font-size-2xl\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.card p,[\s\S]*?font-size: 16px;[\s\S]*?line-height: 1\.6;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument :global\(section\[aria-label="Score Rationale"\]\) \{[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+  );
+});
+
 test("legacy news detail surfaces sanitize stored or remote HTML at one server boundary", () => {
   const eventDetailSource = readFileSync(
     new URL("../app/events/[id]/page.tsx", import.meta.url),
