@@ -418,6 +418,14 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     /\.newsDocument \.workspace \{[^}]*padding-right: var\(--sr-space-2\);[^}]*padding-left: var\(--sr-space-2\);/,
   );
   assert.match(
+    mobileStyles,
+    /\.newsDocument \.summaryHeader \{[^}]*flex-direction: row;[^}]*align-items: center;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.summaryHeader > :last-child \{[^}]*min-width: 0;[^}]*flex: 0 1 auto;[^}]*white-space: nowrap;/,
+  );
+  assert.match(
     styles,
     /\.card,[\s\S]*?\.rendererCard \{[^}]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);[^}]*border-radius: var\(--sr-radius-base\);[^}]*background: var\(--sr-color-surface-panel\);[^}]*box-shadow: var\(--sr-shadow-panel\);/,
   );
@@ -447,6 +455,23 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     mobileStyles,
     /\.newsDocument \.card p,[\s\S]*?font-size: 16px;[\s\S]*?line-height: 1\.6;/,
   );
+  assert.match(
+    sharedAnalysisSource,
+    /presentationVariant === "news-document" && source[\s\S]*className=\{styles\.newsSource\}[\s\S]*\{source\}/,
+  );
+  assert.match(
+    styles,
+    /\.newsSource \{[^}]*display: block;[^}]*flex: 0 1 auto;[^}]*color: var\(--sr-color-text-meta\);[^}]*font-size: var\(--sr-font-size-base\);[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.classification \{[^}]*flex-basis: 100%;[^}]*flex-wrap: nowrap;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.newsDocument \.newsSource \{[^}]*flex: 1 1 auto;/,
+  );
+  assert.doesNotMatch(adapterSource, /Nasdaq Corporate Actions/);
 });
 
 test("legacy news detail surfaces sanitize stored or remote HTML at one server boundary", () => {
