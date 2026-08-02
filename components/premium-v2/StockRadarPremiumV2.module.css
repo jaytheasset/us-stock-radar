@@ -1145,6 +1145,48 @@
     font-size: var(--sr-font-size-xl);
   }
 
+  .mobileComparison summary,
+  .faqGrid summary {
+    min-height: 52px;
+    align-items: center;
+    gap: var(--sr-space-3);
+    padding-block: var(--sr-space-3);
+    padding-inline: var(--sr-space-3);
+  }
+
+  .faqGrid summary {
+    display: flex;
+    justify-content: space-between;
+    line-height: var(--sr-line-height-body);
+    list-style: none;
+  }
+
+  .faqGrid summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileComparison summary::after,
+  .faqGrid summary::after {
+    display: grid;
+    width: var(--sr-space-5);
+    height: var(--sr-space-5);
+    flex: 0 0 var(--sr-space-5);
+    place-items: center;
+    align-self: center;
+    font-size: var(--sr-font-size-xl);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .faqGrid summary::after {
+    color: var(--sr-color-text-meta);
+    font-weight: var(--sr-font-weight-label);
+    content: "+";
+  }
+
+  .faqGrid details[open] summary::after {
+    content: "−";
+  }
+
   .planState,
   .recommendedState,
   .coverageTier,
@@ -1161,7 +1203,15 @@
   }
 
   .mobileComparison dl > div {
-    padding: var(--sr-space-3);
+    padding-block: var(--sr-space-3);
+    padding-inline: var(--sr-space-3);
+  }
+
+  .faqGrid p {
+    padding-block: var(--sr-space-3);
+    padding-inline: var(--sr-space-3);
+    font-size: var(--sr-font-size-lg);
+    line-height: var(--sr-line-height-default);
   }
 
   .planDescription {
@@ -1173,8 +1223,9 @@
   }
 
   .categoryList > span {
-    min-height: var(--sr-size-filter-option);
+    min-height: 44px;
     max-width: 100%;
+    padding-block: var(--sr-space-1-5);
     padding-inline: var(--sr-space-2-5);
     overflow-wrap: anywhere;
   }

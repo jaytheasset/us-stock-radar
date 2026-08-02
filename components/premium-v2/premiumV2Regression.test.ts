@@ -46,6 +46,7 @@ const styles = readFileSync(
   new URL("./StockRadarPremiumV2.module.css", import.meta.url),
   "utf8",
 );
+const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 760px)"));
 
 test("keeps the five-plan product contract and recommendation", () => {
   assert.match(
@@ -249,4 +250,40 @@ test("uses the shared product shell width, typography, panels, and responsive pl
   assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.planCard \{[\s\S]*?width: 100%;[\s\S]*?margin-inline: 0;[\s\S]*?padding: var\(--sr-space-3\);/);
   assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.titleBlock h1 \{[\s\S]*?font-size: var\(--sr-font-size-heading-sm\);/);
   assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.planDescription,[\s\S]*?\.benefitList li,[\s\S]*?font-size: var\(--sr-font-size-lg\);/);
+});
+
+test("gives mobile FAQ and comparison disclosures comfortable touch height and readable hierarchy", () => {
+  assert.match(
+    mobileStyles,
+    /\.mobileComparison summary,\s*\.faqGrid summary \{[\s\S]*?min-height: 52px;[\s\S]*?padding-block: var\(--sr-space-3\);[\s\S]*?padding-inline: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.mobileComparison summary span,\s*\.faqGrid summary \{\s*font-size: var\(--sr-font-size-xl\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.mobileComparison summary::after,\s*\.faqGrid summary::after \{[\s\S]*?place-items: center;[\s\S]*?align-self: center;[\s\S]*?line-height: var\(--sr-line-height-none\);/,
+  );
+  assert.match(mobileStyles, /\.faqGrid summary::after \{[\s\S]*?content: "\+";/);
+  assert.match(
+    mobileStyles,
+    /\.faqGrid details\[open\] summary::after \{\s*content: "−";/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.faqGrid p \{[\s\S]*?padding-block: var\(--sr-space-3\);[\s\S]*?font-size: var\(--sr-font-size-lg\);[\s\S]*?line-height: var\(--sr-line-height-default\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.mobileComparison dl > div \{[\s\S]*?padding-block: var\(--sr-space-3\);[\s\S]*?padding-inline: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.categoryList > span \{[\s\S]*?min-height: 44px;[\s\S]*?padding-block: var\(--sr-space-1-5\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.categoryList > span,[\s\S]*?\.faqGrid p,[\s\S]*?font-size: var\(--sr-font-size-lg\);/,
+  );
 });
