@@ -1531,6 +1531,12 @@
   }
 }
 
+@media (max-width: 340px) {
+  .situationSummaryCell {
+    column-gap: var(--sr-space-1);
+  }
+}
+
 @media (min-width: 761px) {
   .feedList {
     font-family: var(--sr-font-family-sans);
