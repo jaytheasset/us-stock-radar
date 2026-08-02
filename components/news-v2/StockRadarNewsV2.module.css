@@ -2131,14 +2131,18 @@
   }
 
   .listHeader {
-    min-height: 52px;
+    min-height: 40px;
     flex-wrap: nowrap;
     align-items: center;
     gap: var(--sr-space-2);
     border-bottom-color: var(--sr-color-border);
     padding-block: 0;
     padding-inline: var(--sr-space-4);
-    background: transparent;
+    background: linear-gradient(
+      180deg,
+      var(--sr-color-surface-table-header-start),
+      var(--sr-color-surface-table-header-end)
+    );
   }
 
   .listHeaderTitle {
@@ -2159,6 +2163,7 @@
     width: auto;
     flex: 0 0 auto;
     font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-regular);
     text-align: right;
   }
 
@@ -2168,12 +2173,17 @@
     font-size: var(--sr-font-size-sm);
   }
 
+  .liveListIndicator {
+    font-weight: var(--sr-font-weight-label);
+  }
+
   .sectionEyebrow {
     display: none;
   }
 
   .listHeader h2 {
-    font-size: 17px;
+    font-size: var(--sr-font-size-xl);
+    font-weight: var(--sr-font-weight-display);
   }
 
   .newsRow {
@@ -2182,9 +2192,9 @@
     grid-template-rows: auto auto auto;
     align-items: start;
     column-gap: var(--sr-space-2);
-    row-gap: var(--sr-space-1);
+    row-gap: 7px;
     padding: var(--sr-space-4) var(--sr-space-3);
-    background: transparent;
+    background: var(--sr-color-surface-table-row);
   }
 
   .newsList {
@@ -2228,8 +2238,6 @@
     grid-column: 1;
     grid-row: 1;
     align-self: center;
-    font-size: 17px;
-    font-weight: var(--sr-font-weight-heavy);
   }
 
   .rowIdentityDesktop {
@@ -2238,10 +2246,24 @@
 
   .rowIdentityMobile {
     display: block;
-    overflow: hidden;
-    max-width: 108px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .rowIdentityMobile[data-mobile-identity-kind="ticker"] {
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-lg);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .rowIdentityMobile[data-mobile-identity-kind="market"] {
+    font-family: var(--sr-font-family-sans);
+    font-size: var(--sr-font-size-lg);
+    font-weight: 700;
+    letter-spacing: normal;
   }
 
   .rowHeadline {
@@ -2251,7 +2273,7 @@
     overflow: hidden;
     color: var(--sr-color-text-heading);
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 650;
     line-height: 1.4;
     white-space: normal;
     -webkit-box-orient: vertical;
@@ -2295,15 +2317,16 @@
   .rowMobileBadges .newsEventTypeBadge {
     max-width: 100%;
     font-family: var(--sr-font-family-sans);
-    font-size: 15px;
+    font-size: var(--sr-font-size-base);
+    font-weight: 650;
     text-transform: none;
   }
 
   .mobileTickerOverflow {
     display: inline;
     color: var(--sr-color-text-subtle);
-    font-size: 15px;
-    font-weight: var(--sr-font-weight-semibold);
+    font-size: var(--sr-font-size-base);
+    font-weight: 650;
     white-space: nowrap;
   }
 
@@ -2311,14 +2334,17 @@
     overflow: hidden;
     min-width: 0;
     align-self: center;
-    color: var(--sr-color-text-subtle);
-    font-size: 15px;
+    color: var(--sr-color-text-muted);
+    font-family: var(--sr-font-family-sans);
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-regular);
+    line-height: var(--sr-line-height-none);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .rowSource::before {
-    margin-right: var(--sr-space-1);
+    margin: 0 var(--sr-space-1);
     color: var(--sr-color-text-muted);
     content: "·";
   }
@@ -2328,9 +2354,10 @@
     flex: 0 0 auto;
     align-items: center;
     align-self: center;
-    gap: var(--sr-space-1);
+    color: var(--sr-color-text-muted);
     font-family: var(--sr-font-family-mono);
-    font-size: 15px;
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-regular);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
@@ -2348,22 +2375,6 @@
 
   .newsRowWithoutMarket .rowMobileFooter {
     grid-column: 1 / -1;
-  }
-
-  .rowMobileDate {
-    color: var(--sr-color-text-subtle);
-    font-weight: var(--sr-font-weight-regular);
-  }
-
-  .rowMobileDate::after {
-    margin-left: var(--sr-space-1);
-    color: var(--sr-color-text-muted);
-    content: "·";
-  }
-
-  .rowMobileTime {
-    color: var(--sr-color-text-primary);
-    font-weight: var(--sr-font-weight-regular);
   }
 
   .rowStoryFooter {
@@ -2406,6 +2417,7 @@
   .rowQuote > span:not(.rowDataUnavailable) {
     order: 1;
     font-size: 15px;
+    font-weight: 700;
     line-height: var(--sr-line-height-tight);
   }
 
@@ -2431,7 +2443,7 @@
 
   .rowSentiment {
     font-size: 16px;
-    font-weight: var(--sr-font-weight-semibold);
+    font-weight: 700;
   }
 
   .rowScore {

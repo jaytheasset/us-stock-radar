@@ -71,7 +71,12 @@ export function NewsV2Row({
             >
               {primaryTicker}
             </strong>
-            <strong className={styles.rowIdentityMobile}>{mobileIdentityLabel}</strong>
+            <strong
+              className={styles.rowIdentityMobile}
+              data-mobile-identity-kind={isCompanyNews ? "ticker" : "market"}
+            >
+              {mobileIdentityLabel}
+            </strong>
             <span>{identityMeta}</span>
           </span>
 
@@ -120,12 +125,8 @@ export function NewsV2Row({
               </span>
               <span className={styles.rowMobileFooter}>
                 <time className={styles.rowMobilePublishedAt} dateTime={item.publishedAt}>
-                  <span className={styles.rowMobileDate}>
-                    {formatMarketDateLabel(item.publishedAt, referenceDate)}
-                  </span>
-                  <span className={styles.rowMobileTime}>
-                    {formatNewsV2PublishedAt(item.publishedAt, "time")}
-                  </span>
+                  {formatMarketDateLabel(item.publishedAt, referenceDate)}{" "}
+                  {formatNewsV2PublishedAt(item.publishedAt, "time")}
                 </time>
                 <span className={styles.rowSource}>{item.source}</span>
               </span>

@@ -189,8 +189,7 @@ export function FilingsV2List({
                         </span>
                         <span className={styles.mobileFilingFooter}>
                           <time className={styles.mobileFiledAt} dateTime={record.filedAt}>
-                            <span className={styles.mobileFiledDate}>{filingDateLabel}</span>
-                            <span className={styles.mobileFiledTime}>{record.filedTime}</span>
+                            {filingDateLabel}{" "}{record.filedTime}
                           </time>
                           <span className={styles.mobileFilingSource}>{record.source}</span>
                         </span>
