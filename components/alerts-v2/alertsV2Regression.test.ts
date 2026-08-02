@@ -166,6 +166,29 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
   );
 });
 
+test("alerts mobile cards preserve readable type, full width, and narrow-screen wrapping", () => {
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.page \{[\s\S]*padding: var\(--sr-space-3\) var\(--sr-space-2\) var\(--sr-space-6\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.card \{[\s\S]*box-sizing: border-box;[\s\S]*padding: var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styles,
+    /\.tickerCard \.cardHeader > span \{[\s\S]*font-size: 16px;[\s\S]*\.deliveryCard \.settingRow strong \{[\s\S]*font-size: 16px;/,
+  );
+  assert.match(
+    styles,
+    /\.recentRow p \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*white-space: normal;[\s\S]*overflow-wrap: anywhere;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 360px\) \{[\s\S]*\.marketCapGrid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);/,
+  );
+});
+
 test("Alerts V2 reads and persists the authenticated runtime instead of a mock plan", () => {
   assert.doesNotMatch(componentSource, /getAlertsMockPlan|accountPlanId|setAccountPlanId/);
   assert.doesNotMatch(componentSource, /lib\/mock\/alertsV2Data/);
