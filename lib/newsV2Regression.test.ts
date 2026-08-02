@@ -443,7 +443,15 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.resultCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: var\(--sr-color-surface-control-strong\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.resultCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+  );
+  const mobileListHeader =
+    [...styles.matchAll(/\.listHeader \{[^}]*\}/g)].at(-1)?.[0] ?? "";
+  assert.doesNotMatch(mobileListHeader, /linear-gradient/);
+  const desktopListHeader = styles.match(/^\.listHeader \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(
+    desktopListHeader,
+    /background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)/,
   );
   assert.match(
     styles,
@@ -595,6 +603,118 @@ test("news mid-width layout keeps compact filters, feed, then a stable rail grid
   assert.match(
     styles,
     /@media \(max-width: 760px\) \{[\s\S]*?\.insightRailContent \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+  );
+});
+
+test("news mobile insight rail is a flat, readable three-section stream", () => {
+  const railSource = readFileSync(
+    new URL("../components/news-v2/NewsV2InsightRail.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL(
+      "../components/news-v2/StockRadarNewsV2.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const mobileStart = styles.indexOf("@media (max-width: 760px)");
+  const mobileEnd = styles.indexOf("@media (max-width: 340px)", mobileStart);
+
+  assert.notEqual(mobileStart, -1);
+  assert.notEqual(mobileEnd, -1);
+
+  const mobileStyles = styles.slice(mobileStart, mobileEnd);
+  const desktopInsightCard =
+    styles.match(/(?:^|\n)\.insightCard \{[^}]*\}/)?.[0] ?? "";
+  const mobileInsightCard =
+    mobileStyles.match(/(?:^|\n)  \.insightCard \{[^}]*\}/)?.[0] ?? "";
+  const insightCardSections = [
+    ...railSource.matchAll(
+      /<section className=\{`\$\{styles\.insightCard\} \$\{styles\.(\w+)\}`\}>/g,
+    ),
+  ].map((match) => match[1]);
+
+  assert.deepEqual(insightCardSections, [
+    "marketNewsRailCard",
+    "sectorRailCard",
+    "themeRailCard",
+  ]);
+  assert.equal((railSource.match(/styles\.insightCard/g) ?? []).length, 3);
+  assert.match(railSource, /<h2>Market News Radar<\/h2>/);
+  assert.match(railSource, /<h2>Sector Performance Radar<\/h2>/);
+  assert.match(railSource, /<h2>Trending Signal Map<\/h2>/);
+
+  assert.match(
+    desktopInsightCard,
+    /overflow: hidden;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*border-radius: var\(--sr-radius-base\);[\s\S]*background: var\(--sr-color-surface-panel\);[\s\S]*box-shadow: var\(--sr-shadow-panel\);/,
+  );
+  assert.match(
+    mobileInsightCard,
+    /overflow: visible;[\s\S]*border: 0;[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;/,
+  );
+  assert.doesNotMatch(mobileInsightCard, /surface-panel|shadow-panel/);
+  assert.match(
+    mobileStyles,
+    /\.insightRailContent \{[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*gap: 0;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.insightHeader \{[^}]*padding: var\(--sr-space-3\) 0;[^}]*background: var\(--sr-color-surface-control-strong\);/,
+  );
+  const mobileInsightHeader =
+    mobileStyles.match(/\.insightHeader \{[^}]*\}/)?.[0] ?? "";
+  assert.doesNotMatch(mobileInsightHeader, /linear-gradient/);
+  const desktopInsightHeader =
+    styles.match(/^\.insightHeader \{[^}]*\}/m)?.[0] ?? "";
+  assert.doesNotMatch(desktopInsightHeader, /surface-control-strong/);
+  assert.match(
+    mobileStyles,
+    /\.insightHeader > div > span \{[^}]*font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.insightHeader h2 \{[^}]*font-size: var\(--sr-font-size-2xl\);[^}]*font-weight: var\(--sr-font-weight-semibold\);[^}]*line-height: var\(--sr-line-height-control\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.insightHeader p \{[^}]*font-size: var\(--sr-font-size-base\);[^}]*line-height: 1\.4;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.rangeTabs button \{[^}]*min-height: 36px;[^}]*font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sourceActivityList,[\s\S]*?\.themeSignalList,[\s\S]*?\.sectorMap \{[^}]*padding-inline: 0;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sourceActivityList > \.detailEmptyMeta,[\s\S]*?\.themeSignalList > \.detailEmptyMeta,[\s\S]*?\.industryTable > \.detailEmptyMeta,[\s\S]*?\.insightCard > \.detailEmptyMeta \{[^}]*margin: 0;[^}]*padding: var\(--sr-space-4\) 0;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sourceActivityActions \{[^}]*padding-right: 0;[^}]*padding-left: 0;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sourceActivityRow \{[^}]*min-height: 48px;[\s\S]*?\.sourceActivityRow strong,[\s\S]*?\.sourceActivityRow b \{[^}]*font-size: var\(--sr-font-size-base\);[^}]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*?\.sourceActivityRow span \{[^}]*font-size: var\(--sr-font-size-md\);[\s\S]*?\.sourceActivityActions button \{[^}]*font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sectorMap \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?\.sectorMap button \{[^}]*min-height: 48px;[^}]*padding-block: var\(--sr-space-2\);[\s\S]*?\.sectorMap button strong \{[^}]*font-size: var\(--sr-font-size-sm\);[^}]*font-weight: 650;[\s\S]*?\.sectorMap button span \{[^}]*font-size: var\(--sr-font-size-base\);[^}]*font-weight: var\(--sr-font-weight-semibold\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.industryTableHeader,[\s\S]*?\.industryMoverChips span \{[^}]*font-size: var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.themeSignalRow summary \{[^}]*padding: var\(--sr-space-4\) 0;[\s\S]*?\.themeSignalTopline strong \{[^}]*font-size: 16px;[^}]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*?\.themeSignalMetrics,[\s\S]*?\.themeExpandCue \{[^}]*font-size: var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.themeSignalScore \{[^}]*flex-basis: 36px;[^}]*width: 36px;[^}]*min-width: 36px;[^}]*height: 36px;[^}]*min-height: 36px;[^}]*font-size: var\(--sr-font-size-2xl\);/,
   );
 });
 

@@ -166,7 +166,15 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: var\(--sr-color-surface-control-strong\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+  );
+  const mobileListHeader =
+    [...styles.matchAll(/\.listHeader \{[^}]*\}/g)].at(-1)?.[0] ?? "";
+  assert.doesNotMatch(mobileListHeader, /linear-gradient/);
+  const desktopListHeader = styles.match(/^\.listHeader \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(
+    desktopListHeader,
+    /background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)/,
   );
   assert.match(styles, /\.filingItemSlot::after \{[\s\S]*background: var\(--sr-color-border\);/);
   assert.match(styles, /\.listFooter \{[\s\S]*background: transparent;/);
