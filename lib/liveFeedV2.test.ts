@@ -488,14 +488,10 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
-  assert.match(sheetSource, /surfaceClassName=\{newsSurfaceClassName\}/);
+  assert.match(sheetSource, /surfaceClassName=\{sheetStyles\.previewSurface\}/);
   assert.match(
     sheetSource,
-    /const isNewsPreview =[\s\S]*item\.preview\.kind === "company-news" \|\| item\.preview\.kind === "market-news"/,
-  );
-  assert.match(
-    sheetSource,
-    /isNewsPreview \? \([\s\S]*className=\{sheetStyles\.newsScrollRegion\}[\s\S]*previewContent/,
+    /className=\{sheetStyles\.previewScrollRegion\}>\{previewContent\}/,
   );
   assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
   assert.match(sheetSource, /viewerPlan === "free" && item\.preview\.kind !== "filing"/);
@@ -507,19 +503,19 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(
     previewSheetStyleSource,
-    /\.newsSurface\[role="dialog"\][\s\S]*display: flex[\s\S]*overflow-x: hidden[\s\S]*overflow-y: hidden[\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-color: var\(--sr-color-accent-border-premium\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)[\s\S]*background-clip: border-box[\s\S]*var\(--sr-shadow-sheet-full-scroll\)[\s\S]*var\(--sr-color-accent-subtle\)[\s\S]*scrollbar-gutter: auto/,
+    /\.previewSurface\[role="dialog"\][\s\S]*display: flex[\s\S]*overflow-x: hidden[\s\S]*overflow-y: hidden[\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-color: var\(--sr-color-accent-border-premium\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)[\s\S]*background-clip: border-box[\s\S]*var\(--sr-shadow-sheet-full-scroll\)[\s\S]*var\(--sr-color-accent-subtle\)[\s\S]*scrollbar-gutter: auto/,
   );
   assert.match(
     previewSheetStyleSource,
-    /\.newsScrollRegion \{[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain[\s\S]*scrollbar-gutter: stable both-edges[\s\S]*scrollbar-width: none/,
+    /\.previewScrollRegion \{[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain[\s\S]*scrollbar-gutter: stable both-edges[\s\S]*scrollbar-width: none/,
   );
   assert.match(
     previewSheetStyleSource,
-    /\.newsScrollRegion::\-webkit-scrollbar \{[\s\S]*width: 0[\s\S]*height: 0[\s\S]*display: none/,
+    /\.previewScrollRegion::\-webkit-scrollbar \{[\s\S]*width: 0[\s\S]*height: 0[\s\S]*display: none/,
   );
   assert.match(
     previewStyleSource,
-    /\[data-preview-kind="company-news"\][\s\S]*\[data-preview-kind="market-news"\][\s\S]*font-size: var\(--sr-font-size-2xl\)/,
+    /\.detailContent \.detailIdentity h2,[\s\S]*\.detailContent \.detailSection h3 \{[\s\S]*font-size: var\(--sr-font-size-2xl\)/,
   );
   assert.match(
     previewStyleSource,
@@ -535,11 +531,11 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   assert.match(
     previewStyleSource,
-    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
+    /\.detailContent:is\([\s\S]*\[data-preview-kind="filing"\],[\s\S]*\[data-preview-kind="company-news"\][\s\S]*\)[\s\S]*\.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
   );
   assert.match(
     previewStyleSource,
-    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta svg \{[\s\S]*width: var\(--sr-space-5\)[\s\S]*height: var\(--sr-space-5\)/,
+    /\.detailCta[\s\S]*svg \{[\s\S]*width: var\(--sr-space-5\)[\s\S]*height: var\(--sr-space-5\)/,
   );
   assert.match(
     styleSource,

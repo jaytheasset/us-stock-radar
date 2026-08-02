@@ -1,5 +1,5 @@
 @media (max-width: 760px) {
-  .newsSurface[role="dialog"] {
+  .previewSurface[role="dialog"] {
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
@@ -20,7 +20,7 @@
     scrollbar-gutter: auto;
   }
 
-  .newsScrollRegion {
+  .previewScrollRegion {
     width: 100%;
     min-width: 0;
     min-height: 0;
@@ -32,7 +32,7 @@
     scrollbar-width: none;
   }
 
-  .newsScrollRegion::-webkit-scrollbar {
+  .previewScrollRegion::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
