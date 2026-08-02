@@ -60,3 +60,22 @@
     overflow-y: visible;
   }
 }
+
+@media (max-width: 760px) {
+  :global(html):has(.shell),
+  :global(body):has(.shell),
+  .shell,
+  .shell * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  :global(html):has(.shell)::-webkit-scrollbar,
+  :global(body):has(.shell)::-webkit-scrollbar,
+  .shell::-webkit-scrollbar,
+  .shell ::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}

@@ -54,6 +54,27 @@ test("extra-small viewports release the legacy 320px document minimum", () => {
   );
 });
 
+test("the shared App Shell hides scrollbar chrome only on mobile", () => {
+  const shellStyles = read("components/shell/StockRadarAppShell.module.css");
+
+  assert.match(
+    shellStyles,
+    /\.shell,\s*\.shell \*\s*\{[\s\S]*?scrollbar-width: thin;/,
+  );
+  assert.match(
+    shellStyles,
+    /\.shell ::-webkit-scrollbar\s*\{\s*width: 10px;\s*height: 10px;/,
+  );
+  assert.match(
+    shellStyles,
+    /@media \(max-width: 760px\)\s*\{[\s\S]*?:global\(html\):has\(\.shell\),\s*:global\(body\):has\(\.shell\),\s*\.shell,\s*\.shell \*\s*\{[\s\S]*?-ms-overflow-style: none;[\s\S]*?scrollbar-width: none;[\s\S]*?:global\(html\):has\(\.shell\)::-webkit-scrollbar,\s*:global\(body\):has\(\.shell\)::-webkit-scrollbar,\s*\.shell::-webkit-scrollbar,\s*\.shell ::-webkit-scrollbar\s*\{[\s\S]*?display: none;[\s\S]*?width: 0;[\s\S]*?height: 0;/,
+  );
+  assert.doesNotMatch(
+    shellStyles,
+    /@media \(max-width: 760px\)[\s\S]*overflow-(?:x|y):\s*(?:hidden|clip)/,
+  );
+});
+
 test("auth-only and admin routes remain outside the shared App Shell", () => {
   for (const route of [
     "app/login/page.tsx",
