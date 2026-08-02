@@ -389,7 +389,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(130px, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(130px, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*\.searchField > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchField::after \{[\s\S]*font-size: 16px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
   );
   assert.match(
     styles,
@@ -397,7 +397,19 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.rowMobileFooter \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 3;/,
+    /\.rowMobileFooter \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 3;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.rowQuote \{[\s\S]*display: flex;[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.rowQuoteUnavailable \{[\s\S]*display: none;/,
+  );
+  assert.match(
+    styles,
+    /\.liveListIndicator,[\s\S]*\.mobileFilterSheetContent header > span,[\s\S]*\.premiumCtaMobile \.premiumCtaCopy > span \{[\s\S]*font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilterActions \.mobileFilterTrigger > span:first-child \{[\s\S]*font-size: var\(--sr-font-size-lg\);/,
   );
   assert.match(
     styles,
