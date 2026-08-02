@@ -486,7 +486,11 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(sheetSource, /surfaceClassName=\{newsSurfaceClassName\}/);
   assert.match(
     sheetSource,
-    /item\.preview\.kind === "company-news" \|\| item\.preview\.kind === "market-news"/,
+    /const isNewsPreview =[\s\S]*item\.preview\.kind === "company-news" \|\| item\.preview\.kind === "market-news"/,
+  );
+  assert.match(
+    sheetSource,
+    /isNewsPreview \? \([\s\S]*className=\{sheetStyles\.newsScrollRegion\}[\s\S]*previewContent/,
   );
   assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
   assert.match(sheetSource, /viewerPlan === "free" && item\.preview\.kind !== "filing"/);
@@ -498,7 +502,11 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(
     previewSheetStyleSource,
-    /\.newsSurface\[role="dialog"\][\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-color: var\(--sr-color-accent-border-premium\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)[\s\S]*background-clip: border-box[\s\S]*var\(--sr-shadow-sheet-full-scroll\)[\s\S]*var\(--sr-color-accent-subtle\)/,
+    /\.newsSurface\[role="dialog"\][\s\S]*display: flex[\s\S]*overflow-x: hidden[\s\S]*overflow-y: hidden[\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-color: var\(--sr-color-accent-border-premium\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)[\s\S]*background-clip: border-box[\s\S]*var\(--sr-shadow-sheet-full-scroll\)[\s\S]*var\(--sr-color-accent-subtle\)[\s\S]*scrollbar-gutter: auto/,
+  );
+  assert.match(
+    previewSheetStyleSource,
+    /\.newsScrollRegion \{[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain/,
   );
   assert.match(
     previewStyleSource,
@@ -518,11 +526,15 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   assert.match(
     previewStyleSource,
-    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-2\)\)[\s\S]*font-size: var\(--sr-font-size-lg\)[\s\S]*white-space: nowrap/,
+    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
   );
   assert.match(
     previewStyleSource,
-    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta svg \{[\s\S]*width: var\(--sr-space-4-5\)[\s\S]*height: var\(--sr-space-4-5\)/,
+    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta svg \{[\s\S]*width: var\(--sr-space-5\)[\s\S]*height: var\(--sr-space-5\)/,
+  );
+  assert.match(
+    styleSource,
+    /\.mobilePreviewAd \{[\s\S]*display: none[\s\S]*@media \(max-width: 760px\)[\s\S]*\.mobilePreviewAd \{[\s\S]*display: flex/,
   );
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
