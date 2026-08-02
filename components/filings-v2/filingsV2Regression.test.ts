@@ -278,11 +278,11 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /\.mobileFilingClassification \{[\s\S]*font-size: 15px;[\s\S]*\.mobileFilingClassification \.formLabel,[\s\S]*\.mobileFilingClassification \.eventOverflow,[\s\S]*\.mobileFilingClassification \.metadataEmpty \{[\s\S]*font-size: 15px;/,
+    /\.mobileFilingClassification \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFilingClassification \.formLabel,[\s\S]*\.mobileFilingClassification \.eventOverflow,[\s\S]*\.mobileFilingClassification \.metadataEmpty \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);/,
   );
   assert.match(
     styles,
-    /\.mobileFilingFooter \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*\.mobileFiledAt \{[\s\S]*font-size: 15px;[\s\S]*\.mobileFiledDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.mobileFiledTime \{[\s\S]*color: var\(--sr-color-text-primary\);/,
+    /\.mobileFilingFooter \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFiledAt \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFiledDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.mobileFiledTime \{[\s\S]*color: var\(--sr-color-text-primary\);[\s\S]*\.mobileFilingSource \{[\s\S]*line-height: var\(--sr-line-height-none\);/,
   );
   assert.match(
     styles,

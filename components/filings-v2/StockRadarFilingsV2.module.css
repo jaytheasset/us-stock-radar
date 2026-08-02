@@ -1983,6 +1983,7 @@
     gap: var(--sr-space-1-5);
     overflow: hidden;
     font-size: 15px;
+    line-height: var(--sr-line-height-none);
   }
 
   .mobileFilingEvents {
@@ -1997,6 +1998,7 @@
   .mobileFilingClassification .eventOverflow,
   .mobileFilingClassification .metadataEmpty {
     font-size: 15px;
+    line-height: var(--sr-line-height-none);
   }
 
   .filingSource {
@@ -2021,6 +2023,7 @@
     overflow: hidden;
     color: var(--sr-color-text-subtle);
     font-size: 15px;
+    line-height: var(--sr-line-height-none);
   }
 
   .mobileFiledAt {
@@ -2054,6 +2057,7 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: var(--sr-line-height-none);
     white-space: nowrap;
   }
 

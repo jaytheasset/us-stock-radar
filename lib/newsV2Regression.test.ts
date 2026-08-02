@@ -483,6 +483,30 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
 });
 
+test("news rows keep event classification separate from publisher source", () => {
+  const rowSource = readFileSync(
+    new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
+    "utf8",
+  );
+  const dataSource = readFileSync(new URL("./newsV2Data.ts", import.meta.url), "utf8");
+
+  assert.match(
+    rowSource,
+    /className=\{styles\.rowEventTypeBadgeMobile\}[\s\S]*?eventType=\{item\.eventType\}[\s\S]*?eventTypeCode=\{item\.eventTypeCode\}/,
+  );
+  assert.match(
+    rowSource,
+    /className=\{styles\.rowMobileFooter\}[\s\S]*?className=\{styles\.rowSource\}>\{item\.source\}<\/span>/,
+  );
+  assert.match(dataSource, /const eventTypeCode = readString\(row\.event_type\) \|\| "event";/);
+  assert.match(dataSource, /source: readString\(row\.source\) \|\| "Unknown",/);
+  assert.match(
+    dataSource,
+    /eventType: getEventTypeBadge\(eventTypeCode\)\.label,[\s\S]*?eventTypeCode,/,
+  );
+  assert.doesNotMatch(dataSource, /source:\s*getEventTypeBadge\(/);
+});
+
 test("price chart reduces time ticks only for narrow plots", () => {
   assert.deepEqual(
     selectPriceChartXAxisIndexes(100, 260),
