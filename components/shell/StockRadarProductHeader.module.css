@@ -109,12 +109,21 @@
 
 .moreNavigationButton {
   gap: var(--sr-space-1);
-  border-color: var(--sr-color-product-accent-border);
-  color: var(--sr-color-product-accent);
-  background: var(--sr-color-product-accent-selected);
-  box-shadow: inset 0 -1px 0 var(--sr-color-product-accent-nav-line);
+  border-color: var(--sr-color-border-product-navigation-overflow);
+  color: var(--sr-color-text-product-navigation-overflow);
+  background: var(--sr-color-surface-product-navigation-overflow);
   font-family: inherit;
   cursor: pointer;
+}
+
+.moreNavigationButton:hover {
+  border-color: var(--sr-color-border-product-navigation-overflow-hover);
+  background: var(--sr-color-surface-product-navigation-overflow-hover);
+}
+
+.moreNavigationButton[aria-current="page"] {
+  color: var(--sr-color-product-accent);
+  box-shadow: inset 0 -1px 0 var(--sr-color-product-accent-nav-line);
 }
 
 .moreNavigationButton svg {

@@ -19,6 +19,7 @@ test("product header measures available desktop space before moving links into M
   const styles = readProjectFile(
     "components/shell/StockRadarProductHeader.module.css",
   );
+  const tokens = readProjectFile("app/stock-radar-tokens.css");
 
   assert.match(header, /href="\/dashboard-v2"/);
   assert.match(header, /aria-label=\{`\$\{stockRadarProductName\} 홈`\}/);
@@ -69,7 +70,32 @@ test("product header measures available desktop space before moving links into M
   );
   assert.match(
     styles,
-    /\.moreNavigationButton\s*\{[\s\S]*?border-color: var\(--sr-color-product-accent-border\);[\s\S]*?color: var\(--sr-color-product-accent\);[\s\S]*?background: var\(--sr-color-product-accent-selected\);[\s\S]*?box-shadow: inset 0 -1px 0 var\(--sr-color-product-accent-nav-line\);/,
+    /\.moreNavigationButton\s*\{[\s\S]*?border-color: var\(--sr-color-border-product-navigation-overflow\);[\s\S]*?color: var\(--sr-color-text-product-navigation-overflow\);[\s\S]*?background: var\(--sr-color-surface-product-navigation-overflow\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationButton:hover\s*\{[\s\S]*?border-color: var\(--sr-color-border-product-navigation-overflow-hover\);[\s\S]*?background: var\(--sr-color-surface-product-navigation-overflow-hover\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationButton\[aria-current="page"\]\s*\{[\s\S]*?color: var\(--sr-color-product-accent\);[\s\S]*?box-shadow: inset 0 -1px 0 var\(--sr-color-product-accent-nav-line\);/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.moreNavigationButton(?:\[aria-current="page"\])?\s*\{[^}]*?(?:border-color: var\(--sr-color-product-accent-border\)|background: var\(--sr-color-product-accent-selected\))/,
+  );
+  for (const token of [
+    "text-product-navigation-overflow",
+    "surface-product-navigation-overflow",
+    "surface-product-navigation-overflow-hover",
+    "border-product-navigation-overflow",
+    "border-product-navigation-overflow-hover",
+  ]) {
+    assert.match(tokens, new RegExp(`--sr-color-${token}:`));
+  }
+  assert.match(
+    styles,
+    /\.moreNavigationButton:focus-visible,[\s\S]*?outline: var\(--sr-focus-ring-width\) solid[\s\S]*?var\(--sr-focus-ring-product-header\);/,
   );
   assert.match(
     styles,

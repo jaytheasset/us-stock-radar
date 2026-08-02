@@ -118,6 +118,7 @@
   --sr-color-text-product-brand: #f5f6f7;
   --sr-color-text-product-status: #8a919a;
   --sr-color-text-product-navigation: #9ba3ad;
+  --sr-color-text-product-navigation-overflow: #c0c5cc;
   --sr-color-text-product-action: #d7dbe0;
   --sr-color-text-product-menu: #d8dde4;
   --sr-color-product-accent: #ff7a1a;
@@ -125,6 +126,10 @@
   --sr-color-product-accent-border: rgba(255, 122, 26, 0.58);
   --sr-color-product-accent-nav-line: rgba(255, 122, 26, 0.45);
   --sr-color-product-accent-menu: rgba(255, 122, 26, 0.032);
+  --sr-color-surface-product-navigation-overflow: #151a1f;
+  --sr-color-surface-product-navigation-overflow-hover: #1b2128;
+  --sr-color-border-product-navigation-overflow: rgba(86, 96, 108, 0.72);
+  --sr-color-border-product-navigation-overflow-hover: rgba(104, 116, 130, 0.82);
   --sr-color-product-premium: #bc8cff;
   --sr-color-product-premium-border: rgba(188, 140, 255, 0.36);
   --sr-color-product-premium-surface: rgba(188, 140, 255, 0.07);
