@@ -403,7 +403,8 @@
 
   .detailContent:is(
       [data-preview-kind="filing"],
-      [data-preview-kind="company-news"]
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
     )
     .detailCta {
     min-width: 0;
@@ -414,7 +415,8 @@
 
   .detailContent:is(
       [data-preview-kind="filing"],
-      [data-preview-kind="company-news"]
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
     )
     .detailCta
     svg {

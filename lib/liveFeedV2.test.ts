@@ -531,7 +531,7 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   assert.match(
     previewStyleSource,
-    /\.detailContent:is\([\s\S]*\[data-preview-kind="filing"\],[\s\S]*\[data-preview-kind="company-news"\][\s\S]*\)[\s\S]*\.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
+    /\.detailContent:is\([\s\S]*\[data-preview-kind="filing"\],[\s\S]*\[data-preview-kind="company-news"\],[\s\S]*\[data-preview-kind="market-news"\][\s\S]*\)[\s\S]*\.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
   );
   assert.match(
     previewStyleSource,
@@ -1536,5 +1536,42 @@ test("desktop and mobile preview dispatchers wire all three V2 preview types", (
   assert.doesNotMatch(
     `${dispatcherSource}\n${sheetSource}\n${combinedPreviewSource}`,
     /lib\/mock|feedV2Data|feedV2Repository|fake chart/i,
+  );
+});
+
+test("all three mobile feed previews share the enlarged CTA contract", () => {
+  const previewStyleSource = readSource(
+    "components/feed-v2/FeedFilingPreview.module.css",
+  );
+  const sheetSource = readSource(
+    "components/feed-v2/MobileFeedPreviewSheet.tsx",
+  );
+  const combinedPreviewSource = [
+    "components/feed-v2/FeedFilingPreview.tsx",
+    "components/feed-v2/FeedCompanyNewsPreview.tsx",
+    "components/feed-v2/FeedMarketNewsPreview.tsx",
+  ]
+    .map(readSource)
+    .join("\n");
+
+  for (const kind of ["filing", "company-news", "market-news"]) {
+    assert.match(combinedPreviewSource, new RegExp(`data-preview-kind="${kind}"`));
+  }
+
+  assert.match(
+    previewStyleSource,
+    /\.detailContent:is\([\s\S]*\[data-preview-kind="filing"\],[\s\S]*\[data-preview-kind="company-news"\],[\s\S]*\[data-preview-kind="market-news"\][\s\S]*\)[\s\S]*\.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\)[\s\S]*font-size: 16px[\s\S]*white-space: nowrap/,
+  );
+  assert.match(
+    previewStyleSource,
+    /\.detailContent:is\([\s\S]*\[data-preview-kind="filing"\],[\s\S]*\[data-preview-kind="company-news"\],[\s\S]*\[data-preview-kind="market-news"\][\s\S]*\)[\s\S]*\.detailCta[\s\S]*svg \{[\s\S]*width: var\(--sr-space-5\)[\s\S]*height: var\(--sr-space-5\)/,
+  );
+  assert.match(
+    sheetSource,
+    /viewerPlan === "free" && item\.preview\.kind !== "filing"/,
+  );
+  assert.match(
+    previewStyleSource,
+    /\.detailCta \{[\s\S]*min-height: var\(--sr-size-control\)[\s\S]*@media \(max-width: 760px\)/,
   );
 });
