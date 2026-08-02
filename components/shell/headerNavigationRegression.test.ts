@@ -65,6 +65,9 @@ test("product header keeps core tools and replaces horizontal scrolling with Mor
 
 test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {
   const header = readProjectFile("components/shell/StockRadarProductHeader.tsx");
+  const styles = readProjectFile(
+    "components/shell/StockRadarProductHeader.module.css",
+  );
 
   assert.match(header, /body\.style\.overflow = "hidden"/);
   assert.match(header, /body\.style\.overflow = previousBodyOverflow/);
@@ -75,6 +78,22 @@ test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {
   assert.match(header, /querySelectorAll<HTMLElement>/);
   assert.match(header, /document\.addEventListener\("pointerdown"/);
   assert.match(header, /mobileMenuButtonRef\.current\?\.focus/);
+  assert.match(
+    styles,
+    /@media \(max-width: 820px\)[\s\S]*\.mobileMenuList a,[\s\S]*?min-height: 40px;[\s\S]*?font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 820px\)[\s\S]*\.mobileMenuAccount :global\(\.auth-link-secondary\),[\s\S]*?min-height: 40px;[\s\S]*?font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 820px\)[\s\S]*\.mobileMenuAccount :global\(\.auth-user-pill strong\),[\s\S]*?\.mobileMenuAccount :global\(\.auth-account-popover button\)\s*\{\s*font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    styles,
+    /\.header \.desktopAccount :global\(\.auth-link-secondary\),[\s\S]*?font-size: var\(--sr-font-size-sm\);/,
+  );
 });
 
 test("mobile alert and search panels use isolated elevated surfaces and dismissible backdrops", () => {

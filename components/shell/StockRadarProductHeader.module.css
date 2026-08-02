@@ -1334,7 +1334,7 @@
   .mobileMenuList button {
     display: flex;
     width: 100%;
-    min-height: 36px;
+    min-height: 40px;
     align-items: center;
     justify-content: space-between;
     border: var(--sr-border-width) solid transparent;
@@ -1343,7 +1343,7 @@
     color: var(--sr-color-text-product-menu);
     background: transparent;
     font: inherit;
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     font-weight: var(--sr-font-weight-strong);
     text-align: left;
     text-decoration: none;
@@ -1392,11 +1392,11 @@
   .mobileMenuAccount :global(.auth-link-secondary),
   .mobileMenuAccount :global(.auth-link-primary),
   .mobileMenuAccount :global(.auth-logout-button) {
-    min-height: 34px;
+    min-height: 40px;
     flex: 1 1 0;
     border-radius: var(--sr-radius-action);
     padding-inline: var(--sr-space-2);
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-base);
   }
 
   .mobileMenuAccount :global(.auth-link-secondary),
@@ -1414,10 +1414,17 @@
 
   .mobileMenuAccount :global(.auth-user-pill) {
     max-width: 100%;
+    min-height: 40px;
     flex: 1 1 auto;
     border-color: var(--sr-color-border-product-menu);
     color: var(--sr-color-text-product-menu);
     background: transparent;
+  }
+
+  .mobileMenuAccount :global(.auth-user-pill strong),
+  .mobileMenuAccount :global(.auth-account-popover a),
+  .mobileMenuAccount :global(.auth-account-popover button) {
+    font-size: var(--sr-font-size-base);
   }
 
   .mobileMenuAccount :global(.auth-user-pill span) {
