@@ -55,11 +55,19 @@ export function getLiveFeedV2EventPresentation(
   eventType: string | null | undefined,
   feedType: LiveFeedV2Kind,
 ): LiveFeedV2EventPresentation {
+  const code = normalizeEventTypeCode(eventType);
+  if (code === "macro_market" || code === "policy_regulation") {
+    const eventTypeBadge = getEventTypeBadge(code);
+    return {
+      label: eventTypeBadge.label,
+      tone: eventTypeTones[eventTypeBadge.tone] || "neutral",
+    };
+  }
+
   if (feedType === "market") {
     return { label: "Market", tone: "neutral" };
   }
 
-  const code = normalizeEventTypeCode(eventType);
   if (!code || code === "event" || code === "news" || code === "filing") {
     return { label: "Other", tone: "neutral" };
   }

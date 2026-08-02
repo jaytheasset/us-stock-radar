@@ -21,6 +21,7 @@ import {
 } from "@/lib/supabase";
 import { hasValidLiveFeedPrimaryTicker } from "@/lib/liveFeedEventPolicy";
 import { liveFeedRailQueries } from "@/lib/liveFeedRailPolicy";
+import { resolveLiveFeedSource } from "@/lib/liveFeedSource";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -414,7 +415,10 @@ function mapEventRow(
     industryGroup: classification.industryGroup,
     themeGroup: classification.themeGroup,
     subTheme: classification.subTheme,
-    source: formatSource(readString(row, ["source_code", "source", "source_channel"])),
+    source: resolveLiveFeedSource(
+      readString(row, ["source_name"]),
+      readString(row, ["source_code", "source", "source_channel"]),
+    ),
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     formType,
     eventType: readString(row, ["event_type"]) || "event",
@@ -1037,30 +1041,6 @@ function daysAgo(now: Date, days: number) {
 
 function formatCount(value: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "N/A";
-}
-
-function formatSource(value: string) {
-  const normalized = value.toLowerCase();
-  const known: Record<string, string> = {
-    accesswire: "Accesswire",
-    sec_edgar: "SEC",
-    globe: "GlobeNewswire",
-    globenewswire: "GlobeNewswire",
-    businesswire: "Business Wire",
-    prnewswire: "PR Newswire",
-    newsfile: "Newsfile",
-    ofac: "OFAC",
-    doj: "DOJ",
-    dea: "DEA",
-    whitehouse: "White House",
-    "white-house": "White House",
-    fmp: "FMP",
-    nasdaq_corporate_actions: "Nasdaq Corporate Actions",
-    nasdaq_trader: "Nasdaq Trader",
-    polygon: "Polygon",
-  };
-
-  return known[normalized] || value || "Unknown";
 }
 
 function formatCurrency(value: number) {

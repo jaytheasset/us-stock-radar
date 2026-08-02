@@ -17,6 +17,7 @@ import {
   type LiveFeedV2PreviewSource,
 } from "./liveFeedV2Preview.ts";
 import { getLiveFeedV2EventPresentation } from "./liveFeedV2EventType.ts";
+import { resolveLiveFeedSource } from "./liveFeedSource.ts";
 import {
   hasValidLiveFeedPrimaryTicker,
   liveFeedEventVisibilityOrFilter,
@@ -73,6 +74,22 @@ test("live feed preserves news and filing event labels without dashboard abbrevi
   assert.deepEqual(
     getLiveFeedV2EventPresentation("event", "news"),
     { label: "Other", tone: "neutral" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("macro_market", "market"),
+    { label: "Macro Market", tone: "earnings" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("Macro Market", "market"),
+    { label: "Macro Market", tone: "earnings" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("policy_regulation", "market"),
+    { label: "Policy & Regulation", tone: "product" },
+  );
+  assert.deepEqual(
+    getLiveFeedV2EventPresentation("market", "market"),
+    { label: "Market", tone: "neutral" },
   );
 });
 
@@ -414,6 +431,10 @@ test("production feed is wired to real server data without mock repositories", (
     /lib\/mock|feedV2Data|feedV2Repository|feedMock/,
   );
   assert.match(feedSource, /fetchFeedPreviewContext/);
+  assert.match(
+    feedSource,
+    /source: resolveLiveFeedSource\(\s*readString\(row, \["source_name"\]\),\s*readString\(row, \["source_code", "source", "source_channel"\]\),\s*\),/,
+  );
   assert.match(feedSource, /event_analysis/);
   assert.match(feedSource, /raw_items/);
   assert.match(feedSource, /event_tickers/);
@@ -542,6 +563,16 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
     styleSource,
     /\.mobileMoreFilters\s*\{[\s\S]{0,400}grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
   );
+});
+
+test("live feed prefers human source names and safely formats source-code fallbacks", () => {
+  assert.equal(
+    resolveLiveFeedSource("Local QA News", "local-news-qa"),
+    "Local QA News",
+  );
+  assert.equal(resolveLiveFeedSource("", "prnewswire"), "PR Newswire");
+  assert.equal(resolveLiveFeedSource(null, "local-news-qa"), "local-news-qa");
+  assert.equal(resolveLiveFeedSource(undefined, undefined), "Unknown");
 });
 
 test("feed ticker rows map real company names without disguising the source", () => {
@@ -1165,6 +1196,10 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     /\.quote > \.sentimentPositive \{[\s\S]*?color: var\(--sr-color-positive\);[\s\S]*?\.quote > \.sentimentNegative \{[\s\S]*?color: var\(--sr-color-negative\);[\s\S]*?\.quote > \.sentimentNeutral \{[\s\S]*?color: var\(--sr-color-text-muted\);/,
   );
   assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
+  assert.match(
+    styleSource,
+    /^\.identity span,\s*\.quote span \{[\s\S]*?display: block;/m,
+  );
   assert.match(listSource, /\{item\.timeDateLabel\} \{item\.timeLabel\} ET/);
   assert.doesNotMatch(listSource, /styles\.eventDateMobile|styles\.eventClockMobile/);
   assert.doesNotMatch(
@@ -1177,7 +1212,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.identity \{[\s\S]*display: grid;[\s\S]*max-width: 34vw;[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*gap: var\(--sr-space-0-5\);[\s\S]*\.identity span \{[\s\S]*display: block;[\s\S]*font-size: var\(--sr-font-size-sm\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.identity \{[\s\S]*display: contents;[\s\S]*\.identity span \{[\s\S]*display: none;/,
   );
   assert.match(
     styleSource,

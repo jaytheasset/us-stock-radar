@@ -2221,31 +2221,19 @@
     display: none;
   }
 
-  .rowIdentity {
-    display: grid;
-    min-width: 0;
-    max-width: 34vw;
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    gap: var(--sr-space-0-5);
-  }
-
+  .rowIdentity,
   .rowStory {
     display: contents;
   }
 
   .rowIdentity > span {
-    display: block;
-    margin: 0;
-    font-size: var(--sr-font-size-sm);
-    line-height: var(--sr-line-height-none);
+    display: none;
   }
 
   .rowIdentity strong {
-    grid-column: auto;
-    grid-row: auto;
-    align-self: auto;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
   }
 
   .rowIdentityDesktop {
