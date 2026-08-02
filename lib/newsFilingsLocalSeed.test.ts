@@ -23,30 +23,56 @@ function fixtureLine(block: string, id: string) {
   return line;
 }
 
-function sqlTupleFieldCount(line: string) {
+function sqlTupleFields(line: string) {
   let depth = 0;
-  let fields = 1;
+  const fields: string[] = [];
+  let field = "";
   let inString = false;
 
   for (let index = 0; index < line.length; index += 1) {
     const character = line[index];
     if (character === "'" && inString && line[index + 1] === "'") {
+      field += "''";
       index += 1;
       continue;
     }
     if (character === "'") {
       inString = !inString;
+      field += character;
       continue;
     }
-    if (inString) continue;
-    if (character === "(") depth += 1;
-    if (character === ")") depth -= 1;
-    if (character === "," && depth === 1) fields += 1;
+    if (inString) {
+      field += character;
+      continue;
+    }
+    if (character === "(") {
+      depth += 1;
+      if (depth > 1) field += character;
+      continue;
+    }
+    if (character === ")") {
+      if (depth > 1) field += character;
+      if (depth === 1) fields.push(field.trim());
+      depth -= 1;
+      continue;
+    }
+    if (character === "," && depth === 1) {
+      fields.push(field.trim());
+      field = "";
+      continue;
+    }
+    if (depth >= 1) field += character;
   }
 
   assert.equal(inString, false, "fixture tuple must close every SQL string");
   assert.equal(depth, 0, "fixture tuple must balance parentheses");
   return fields;
+}
+
+function sqlString(field: string) {
+  const match = field.match(/'([^']+)'/);
+  assert.ok(match, `expected SQL string field, received ${field}`);
+  return match[1];
 }
 
 test("News and Filings seed sources are disabled synthetic local fixtures", async () => {
@@ -186,10 +212,26 @@ test("News fixtures preserve all linked IDs and cover public taxonomy", async ()
     .filter((line) => line.trimStart().startsWith("('") && line.includes("news-"));
 
   assert.equal(newsRows.length, 24);
-  for (const row of newsRows) assert.equal(sqlTupleFieldCount(row), 16);
+  for (const row of newsRows) assert.equal(sqlTupleFields(row).length, 16);
+  let searchVisibleCount = 0;
   for (const id of visibleNewsIds) {
-    assert.doesNotMatch(fixtureLine(newsBlock, id), /'archive'/);
+    const line = fixtureLine(newsBlock, id);
+    const fields = sqlTupleFields(line);
+    const score = Number(fields[8]);
+    const deliveryLevel = sqlString(fields[9]);
+    const marketScope = sqlString(fields[12]);
+    const passesSearchGate =
+      !["sector", "theme", "macro"].includes(marketScope) || score >= 75;
+
+    assert.notEqual(deliveryLevel, "archive", `${id} must not be archived`);
+    assert.equal(
+      passesSearchGate,
+      true,
+      `${id} must satisfy the search_news_v2 score and market-scope gate`,
+    );
+    searchVisibleCount += 1;
   }
+  assert.equal(searchVisibleCount, 22);
   for (const eventType of publicEventTypes) {
     assert.match(newsBlock, new RegExp(`'${eventType}'`));
   }
@@ -205,8 +247,16 @@ test("News fixtures preserve all linked IDs and cover public taxonomy", async ()
   assert.match(fixtureLine(newsBlock, visibleNewsIds[0]), /75, 'alert'/);
   assert.match(fixtureLine(newsBlock, visibleNewsIds[1]), /50, 'feed'/);
   assert.match(fixtureLine(newsBlock, visibleNewsIds[2]), /74, 'feed'/);
+  assert.match(
+    fixtureLine(newsBlock, "97000000-0000-4000-8000-000000000017"),
+    /73, 'feed', 'medium', 'volatile', 'company',[\s\S]*simulated JPM rate-sensitivity/,
+  );
   assert.match(fixtureLine(newsBlock, "97000000-0000-4000-8000-000000000022"), /49, 'archive'/);
   assert.match(fixtureLine(newsBlock, "97000000-0000-4000-8000-000000000023"), /35, 'archive'/);
+  assert.equal(
+    newsRows.filter((row) => sqlString(sqlTupleFields(row)[9]) === "archive").length,
+    2,
+  );
   assert.match(newsBlock, /transaction_timestamp\(\) - fixture\.age/);
   assert.match(newsBlock, /'local-qa:news:' \|\| fixture\.scenario_id/);
 });
@@ -227,7 +277,7 @@ test("Filings fixtures cover form, delivery, and archive scenarios", async () =>
     .filter((line) => line.trimStart().startsWith("('") && line.includes("filing-"));
 
   assert.equal(filingRows.length, 6);
-  for (const row of filingRows) assert.equal(sqlTupleFieldCount(row), 15);
+  for (const row of filingRows) assert.equal(sqlTupleFields(row).length, 15);
   for (const id of filingIds) fixtureLine(filingBlock, id);
   for (const formType of ["8-K", "10-Q", "S-3", "SC 13D", "4"]) {
     assert.match(filingBlock, new RegExp(`'${formType}'`));
