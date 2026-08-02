@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { buildChannelNotAvailableMessage, getChannelLockState, getUserPlan } from "@/lib/alerts/alertValidation";
 import { getAlertSettingsViewModel } from "@/lib/alerts/getAlertSettingsViewModel";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -15,7 +16,9 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
 };
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     if (!userId) {
@@ -66,7 +69,9 @@ export async function POST() {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     if (!userId) {

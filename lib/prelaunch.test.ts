@@ -306,6 +306,10 @@ test("access route rejects external return targets and logout clears the cookie"
   const logoutResponse = await logout(
     new NextRequest("https://radar.example/api/prelaunch/logout", {
       body: form,
+      headers: {
+        origin: "https://radar.example",
+        "sec-fetch-site": "same-origin",
+      },
       method: "POST",
     }),
   );
@@ -316,6 +320,23 @@ test("access route rejects external return targets and logout clears the cookie"
   assert.match(logoutResponse.headers.get("set-cookie") || "", /Max-Age=0/);
 });
 
+test("prelaunch cookie mutations reject cross-origin requests", async () => {
+  const form = new FormData();
+  form.set("password", "preview-secret");
+  const response = await access(
+    new NextRequest("https://radar.example/api/prelaunch/access", {
+      body: form,
+      headers: {
+        origin: "https://evil.example",
+        "sec-fetch-site": "cross-site",
+      },
+      method: "POST",
+    }),
+  );
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get("set-cookie"), null);
+});
+
 test("wiring keeps source schedules disabled and prelaunch routes server-only", () => {
   const vercelConfig = JSON.parse(readProjectFile("vercel.json")) as {
     crons: Array<{ path: string; schedule: string }>;
@@ -323,6 +344,10 @@ test("wiring keeps source schedules disabled and prelaunch routes server-only", 
   assert.deepEqual(vercelConfig.crons, [
     {
       path: "/api/cron/market-cache",
+      schedule: "*/5 * * * *",
+    },
+    {
+      path: "/api/cron/alert-delivery",
       schedule: "*/5 * * * *",
     },
   ]);
@@ -352,6 +377,10 @@ async function accessRequest(password: string, next: string) {
   return access(
     new NextRequest("https://radar.example/api/prelaunch/access", {
       body: form,
+      headers: {
+        origin: "https://radar.example",
+        "sec-fetch-site": "same-origin",
+      },
       method: "POST",
     }),
   );

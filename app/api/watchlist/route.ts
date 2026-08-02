@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseUpsert } from "@/lib/supabase";
 import { findTickerBySymbol } from "@/lib/alerts/tickers/getAlertTickersViewModel";
@@ -33,6 +34,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     const body = await request.json().catch(() => null);

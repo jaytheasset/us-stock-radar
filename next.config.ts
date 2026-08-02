@@ -1,8 +1,47 @@
 import { withWorkflow } from "workflow/next";
 import type { NextConfig } from "next";
+import {
+  buildSecurityHeaders,
+  COMING_SOON_CONTENT_SECURITY_POLICY,
+} from "./lib/security/securityHeaders";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
+  async headers() {
+    const securityHeaders = buildSecurityHeaders({
+      nodeEnv: process.env.NODE_ENV,
+      supabaseUrl: process.env.SUPABASE_URL,
+    });
+    const contentSecurityPolicy = securityHeaders.find(
+      (header) => header.key === "Content-Security-Policy",
+    );
+    const commonHeaders = securityHeaders.filter(
+      (header) => header.key !== "Content-Security-Policy",
+    );
+    return [
+      {
+        source: "/:path*",
+        headers: commonHeaders,
+      },
+      ...(contentSecurityPolicy
+        ? [
+            {
+              source: "/:path*",
+              headers: [contentSecurityPolicy],
+            },
+          ]
+        : []),
+      {
+        source: "/coming-soon",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: COMING_SOON_CONTENT_SECURITY_POLICY,
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

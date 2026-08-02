@@ -91,6 +91,19 @@ export function isSameOriginAuthRequest({
   }
 }
 
+export function isSameOriginRequest(request: Request) {
+  return isSameOriginAuthRequest({
+    requestUrl: resolveAuthRequestUrl({
+      requestUrl: request.url,
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    }),
+    origin: request.headers.get("origin"),
+    secFetchSite: request.headers.get("sec-fetch-site"),
+  });
+}
+
 export function resolveAuthRequestUrl({
   forwardedHost,
   forwardedProto,

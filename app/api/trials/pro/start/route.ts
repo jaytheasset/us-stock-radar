@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,9 @@ const NO_STORE_HEADERS = {
  * trial. Existing Pro trial rows are read by effectivePlan.ts until they end,
  * but no new Pro trial may be created.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   return NextResponse.json(
     {
       ok: false,

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildChannelNotAvailableMessage, getChannelLockState, getUserPlan } from "@/lib/alerts/alertValidation";
 import { getServerEnv } from "@/lib/env";
 import {
+  readBoundedRequestText,
+  RequestBodyTooLargeError,
+} from "@/lib/http/boundedRequestBody";
+import {
   markTelegramConnectTokenUsed,
   saveTelegramConnection,
   verifyTelegramConnectToken,
@@ -35,6 +39,8 @@ export const runtime = "nodejs";
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
 };
+
+const MAX_BODY_BYTES = 128 * 1024;
 
 type TelegramUpdate = {
   message?: TelegramMessage;
@@ -90,7 +96,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
-  const update = (await request.json().catch(() => null)) as TelegramUpdate | null;
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedRequestText(request, MAX_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json(
+        { ok: false, error: "PAYLOAD_TOO_LARGE" },
+        { status: 413, headers: NO_STORE_HEADERS },
+      );
+    }
+    return NextResponse.json(
+      { ok: false, error: "INVALID_PAYLOAD" },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
+  }
+  const update = parseTelegramUpdate(rawBody);
   if (update?.callback_query) return handleCallbackQuery(update.callback_query, secret);
 
   const message = update?.message;
@@ -199,6 +220,17 @@ export async function POST(request: NextRequest) {
   await sendTelegramMessage(chatId, "Telegram alerts are connected. You can manage delivery channels in STOCK RADAR.");
 
   return webhookResponse({ ok: true, linked: true });
+}
+
+function parseTelegramUpdate(value: string): TelegramUpdate | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as TelegramUpdate)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function handleCallbackQuery(callback: TelegramCallbackQuery, tokenSecret: string) {

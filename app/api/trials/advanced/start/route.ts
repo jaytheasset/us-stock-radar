@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { ADVANCED_TRIAL_POLICY } from "@/lib/subscriptionPolicy";
 
@@ -13,7 +14,9 @@ const NO_STORE_HEADERS = {
  * This endpoint deliberately performs no database write until the payment
  * integration can provide a verified checkout session.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   const userId = await getOptionalCurrentUserId();
   if (!userId) {
     return NextResponse.json(

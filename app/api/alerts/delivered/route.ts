@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import {
   type DeliveryStatusFilter,
   getDeliveredAlertsForUser,
@@ -107,6 +108,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   const userId = await getOptionalCurrentUserId();
   if (!userId) {
     return NextResponse.json(
@@ -160,6 +163,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   const userId = await getOptionalCurrentUserId();
   if (!userId) {
     return NextResponse.json(

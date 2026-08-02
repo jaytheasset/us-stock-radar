@@ -11,6 +11,9 @@ const read = (relativePath: string) =>
 const adminApi = read("lib/admin/api.ts");
 const publicHealth = read("app/api/health/route.ts");
 const detailedHealth = read("app/api/admin/system/health/route.ts");
+const secAnalysisPreview = read(
+  "app/api/ai/sec-filing-analysis-preview/route.ts",
+);
 
 const protectedRoutes = [
   {
@@ -104,4 +107,24 @@ test("detailed health is available only behind system.read", () => {
   assert.match(detailedHealth, /"system\.read"/);
   assert.match(detailedHealth, /getDetailedSystemHealth/);
   assert.match(detailedHealth, /respondToAdminReadHead\(request, "system\.read"\)/);
+});
+
+test("SEC analysis preview requires data.run for GET and POST", () => {
+  assert.match(
+    secAnalysisPreview,
+    /respondWithAdminReadAccess\([\s\S]*"data\.run"/,
+  );
+  assert.match(
+    secAnalysisPreview,
+    /export async function POST[\s\S]*assertSameOriginAuthRequest\(request\)[\s\S]*resolveAdminApiAccess\(request, "data\.run"\)/,
+  );
+  assert.match(secAnalysisPreview, /ADMIN_PRIVATE_RESPONSE_HEADERS/g);
+});
+
+test("admin errors preserve same-origin AuthError status", () => {
+  assert.match(adminApi, /import \{ AuthError \} from "@\/lib\/auth\/supabaseAuth"/);
+  assert.match(
+    adminApi,
+    /error instanceof AdminApiError \|\| error instanceof AuthError[\s\S]*code: error\.code,[\s\S]*status: error\.status/,
+  );
 });

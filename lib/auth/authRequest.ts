@@ -3,26 +3,14 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { AuthError } from "@/lib/auth/supabaseAuth";
 import {
-  isSameOriginAuthRequest,
-  resolveAuthRequestUrl,
+  isSameOriginRequest,
   sanitizeAuthRedirect,
   type AuthCallbackType,
 } from "@/lib/auth/authPolicy";
 import { getServerEnv } from "@/lib/env";
 
-export function assertSameOriginAuthRequest(request: NextRequest) {
-  const allowed = isSameOriginAuthRequest({
-    requestUrl: resolveAuthRequestUrl({
-      requestUrl: request.url,
-      host: request.headers.get("host"),
-      forwardedHost: request.headers.get("x-forwarded-host"),
-      forwardedProto: request.headers.get("x-forwarded-proto"),
-    }),
-    origin: request.headers.get("origin"),
-    secFetchSite: request.headers.get("sec-fetch-site"),
-  });
-
-  if (!allowed) {
+export function assertSameOriginAuthRequest(request: Request) {
+  if (!isSameOriginRequest(request)) {
     throw new AuthError("AUTH_ORIGIN_REJECTED", "Invalid request origin.", 403);
   }
 }

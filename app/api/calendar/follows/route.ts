@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import {
   CalendarFollowError,
   getUserCalendarFollowsViewModel,
@@ -54,6 +55,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     if (!userId) {

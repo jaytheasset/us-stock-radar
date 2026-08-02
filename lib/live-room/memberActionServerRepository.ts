@@ -10,6 +10,7 @@ import {
   normalizeLiveRoomUuid,
   type LiveRoomActor,
 } from "./policy";
+import { assertLiveRoomMutationRateLimit } from "./mutationRateLimit";
 import type {
   LiveRoomPublicMemberActions,
   LiveRoomPublicMemberFollowResult,
@@ -145,6 +146,7 @@ export async function updateLiveRoomPublicMemberFollow({
   }
 
   await ensureUserBootstrap({ id: actor.userId, email: actor.email });
+  await assertLiveRoomMutationRateLimit(actor, "follow");
   const result = await supabaseRpc("set_live_room_member_follow", {
     p_follower_user_id: actor.userId,
     p_room_id: target.roomId,

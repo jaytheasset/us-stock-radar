@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server.js";
 import { sanitizeInternalRedirect } from "../../lib/prelaunch.ts";
+import { COMING_SOON_CONTENT_SECURITY_POLICY } from "../../lib/security/securityHeaders.ts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export function GET(request: NextRequest) {
     headers: {
       "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
       "Content-Security-Policy":
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        COMING_SOON_CONTENT_SECURITY_POLICY,
       "Content-Type": "text/html; charset=utf-8",
       "X-Content-Type-Options": "nosniff",
       "X-Robots-Tag": "noindex, nofollow",

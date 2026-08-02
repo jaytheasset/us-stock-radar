@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseDelete } from "@/lib/supabase";
 import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
@@ -10,7 +11,9 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
 };
 
-export async function DELETE(_request: Request, context: { params: Promise<{ ticker: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ ticker: string }> }) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     const { ticker: tickerParam } = await context.params;
