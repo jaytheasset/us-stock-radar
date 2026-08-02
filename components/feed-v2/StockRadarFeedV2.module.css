@@ -485,6 +485,18 @@
   color: var(--sr-color-text-muted);
 }
 
+.quote > .sentimentPositive {
+  color: var(--sr-color-positive);
+}
+
+.quote > .sentimentNegative {
+  color: var(--sr-color-negative);
+}
+
+.quote > .sentimentNeutral {
+  color: var(--sr-color-text-muted);
+}
+
 .sparklineUnavailable {
   display: grid;
   height: 38px;
