@@ -1984,15 +1984,30 @@
 
   .searchForm {
     min-width: 0;
+    height: 44px;
+    min-height: 44px;
     grid-template-columns: minmax(0, 1fr) 44px;
     gap: 0;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-action);
+    background: var(--sr-color-surface-control);
+  }
+
+  .searchForm:focus-within {
+    border-color: var(--sr-color-accent-border-active);
+    box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
   }
 
   .searchField > label {
-    height: 44px;
-    border-color: var(--sr-color-border-control);
-    border-right: 0;
-    border-radius: var(--sr-radius-control) 0 0 var(--sr-radius-control);
+    height: 42px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .searchField > label:focus-within {
+    border: 0;
+    box-shadow: none;
   }
 
   .searchField > label > span:first-child {
@@ -2013,7 +2028,7 @@
     right: var(--sr-space-2);
     left: var(--sr-space-3);
     display: flex;
-    height: 44px;
+    height: 42px;
     align-items: center;
     overflow: hidden;
     color: var(--sr-color-text-meta);
@@ -2030,10 +2045,27 @@
 
   .searchForm > .searchButton {
     width: 44px;
-    height: 44px;
-    min-height: 44px;
-    border-radius: 0 var(--sr-radius-action) var(--sr-radius-action) 0;
+    height: 42px;
+    min-height: 42px;
+    border: 0;
+    border-left: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: 0;
     padding: 0;
+    color: var(--sr-color-text-control-strong);
+    background: transparent;
+  }
+
+  .searchForm > .searchButton:hover {
+    border-left-color: var(--sr-color-accent-border-active);
+    color: var(--sr-color-accent-text-soft);
+    background: var(--sr-color-accent-active-soft);
+  }
+
+  .searchForm > .searchButton:focus-visible {
+    outline: 0;
+    border-left-color: var(--sr-color-accent-border-active);
+    color: var(--sr-color-accent-text-soft);
+    background: var(--sr-color-accent-active-soft);
   }
 
   .searchButtonIcon {
