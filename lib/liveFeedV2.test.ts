@@ -805,6 +805,14 @@ test("mobile market context is flat and uses shared directional score tones", ()
   );
   assert.match(
     styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid article:nth-last-child\(2\):nth-child\(even\) \{[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);/,
+  );
+  const fillsOddGridBoundary = (itemCount: number) =>
+    (itemCount - 1) % 2 === 0;
+  for (const itemCount of [3, 5]) assert.equal(fillsOddGridBoundary(itemCount), true);
+  for (const itemCount of [4, 6]) assert.equal(fillsOddGridBoundary(itemCount), false);
+  assert.match(
+    styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid span,[\s\S]*\.marketPulseGrid small \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.marketPulseGrid strong \{[\s\S]*font-size: var\(--sr-font-size-2xl\);/,
   );
   assert.match(

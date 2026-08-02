@@ -1564,6 +1564,10 @@
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
+  .marketPulseGrid article:nth-last-child(2):nth-child(even) {
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
   .marketPulseGrid span,
   .marketPulseGrid small {
     font-size: var(--sr-font-size-md);
