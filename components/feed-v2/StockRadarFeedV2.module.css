@@ -78,7 +78,7 @@
 }
 
 .situationLabelCompact,
-.situationCard .situationToggle {
+.situationMobileGrid {
   display: none;
 }
 
@@ -968,45 +968,165 @@
   }
 
   .situationGrid {
-    display: block;
-  }
-
-  .situationCard {
     display: none;
-    min-height: var(--sr-size-filter-option);
-    padding: var(--sr-space-2) 46px var(--sr-space-2) var(--sr-space-3);
   }
 
-  .situationCard:first-child,
-  .situationSection[data-expanded="true"] .situationCard {
+  .situationMobileGrid {
     display: block;
   }
 
-  .situationSection[data-expanded="true"] .situationCard + .situationCard {
+  .situationDisclosure {
+    min-width: 0;
+    overflow: hidden;
+    border: var(--sr-border-width) solid var(--sr-color-divider);
+    border-radius: var(--sr-radius-base);
+    background: var(--sr-color-surface-panel);
+    box-shadow: var(--sr-shadow-panel);
+  }
+
+  .situationDisclosure > summary {
+    position: relative;
+    display: block;
+    min-height: var(--sr-size-control);
+    padding: 0;
+    color: var(--sr-color-text-control);
+    background: transparent;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .situationDisclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .situationDisclosure > summary:focus-visible {
+    outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+    outline-offset: var(--sr-focus-ring-offset);
+  }
+
+  .situationPrimaryMetrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .situationSummaryCell {
+    display: flex;
+    min-width: 0;
+    min-height: var(--sr-size-control);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sr-space-2);
+    padding: 0 var(--sr-space-3);
+  }
+
+  .situationSummaryCell + .situationSummaryCell {
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .situationSummaryCell:last-child {
+    padding-right: calc(var(--sr-space-3) + var(--sr-space-5));
+  }
+
+  .situationSummaryCell span {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--sr-color-text-subtle);
+    font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-none);
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .situationSummaryCell strong {
+    flex: 0 0 auto;
+    color: var(--sr-color-text-strong);
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-xl);
+    font-variant-numeric: var(--sr-font-variant-numeric);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .situationChevron {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    display: grid;
+    width: var(--sr-space-5);
+    place-items: center;
+    color: var(--sr-color-text-control);
+    pointer-events: none;
+  }
+
+  .situationChevron svg {
+    display: block;
+    transition: transform var(--sr-motion-duration-menu)
+      var(--sr-motion-easing-standard);
+  }
+
+  .situationDisclosure[open] .situationChevron svg {
+    transform: rotate(180deg);
+  }
+
+  .situationExpandedGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
-  .situationCard .situationToggle {
-    position: absolute;
-    top: 50%;
-    right: 9px;
-    display: inline-flex;
-    transform: translateY(-50%);
+  .situationExpandedItem {
+    display: grid;
+    min-width: 0;
+    min-height: calc(var(--sr-size-control) + var(--sr-space-3));
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: center;
+    gap: var(--sr-space-1) var(--sr-space-2);
+    padding: var(--sr-space-2) var(--sr-space-3);
   }
 
-  .situationSection[data-expanded="true"] .situationToggle {
-    transform: translateY(-50%) rotate(180deg);
+  .situationExpandedItem:nth-child(even) {
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
-  .situationCard strong {
-    display: inline;
-    margin-right: 8px;
-    font-size: var(--sr-font-size-xl);
+  .situationExpandedItem:nth-child(n + 3) {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
-  .situationCard small {
-    display: inline;
+  .situationExpandedItem > span,
+  .situationExpandedItem small {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--sr-color-text-subtle);
     font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-none);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .situationExpandedItem > span {
+    font-weight: var(--sr-font-weight-semibold);
+    text-transform: uppercase;
+  }
+
+  .situationExpandedItem strong {
+    color: var(--sr-color-text-strong);
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-xl);
+    font-variant-numeric: var(--sr-font-variant-numeric);
+    line-height: var(--sr-line-height-none);
+  }
+
+  .situationExpandedItem small {
+    grid-column: 1 / -1;
+  }
+
+  .situationMobileEmpty {
+    grid-column: 1 / -1;
+    padding: var(--sr-space-3);
+    color: var(--sr-color-text-muted);
+    font-size: var(--sr-font-size-md);
+    text-align: center;
   }
 
   .situationLabelFull {

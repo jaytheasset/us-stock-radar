@@ -586,6 +586,81 @@ test("mobile feed uses a full-bleed flat list without changing desktop framing",
   );
 });
 
+test("mobile feed summary uses existing counts in an accessible two-column disclosure", () => {
+  const boardSource = readSource(
+    "components/feed-v2/FeedSituationBoard.tsx",
+  );
+  const clientSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.tsx",
+  );
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+  const desktopStart = boardSource.indexOf(
+    '<div className={styles.situationGrid}>',
+  );
+  const mobileStart = boardSource.indexOf(
+    '<div className={styles.situationMobileGrid}>',
+  );
+  const desktopMarkup = boardSource.slice(desktopStart, mobileStart);
+  const mobileMarkup = boardSource.slice(mobileStart);
+
+  assert.ok(desktopStart >= 0 && mobileStart > desktopStart);
+  assert.match(desktopMarkup, /items\.map\(\(item\) =>/);
+  assert.doesNotMatch(desktopMarkup, /Total Events/);
+  assert.match(mobileMarkup, /<details className=\{styles\.situationDisclosure\}>/);
+  assert.match(
+    mobileMarkup,
+    /<summary aria-label="Toggle additional market summary metrics">/,
+  );
+  assert.match(mobileMarkup, /<span>Total Events<\/span>/);
+  assert.match(mobileMarkup, /<span>Alerts<\/span>/);
+  assert.match(
+    boardSource,
+    /const alertItem = items\.find\(\(item\) => item\.label === "Today's Alerts"\);/,
+  );
+  assert.match(
+    boardSource,
+    /totalEvents === null \? "—" : totalEvents\.toLocaleString\("en-US"\)/,
+  );
+  assert.match(boardSource, /alertItem\?\.value \?\? "—"/);
+  assert.match(
+    boardSource,
+    /const additionalSituationLabels = \[[\s\S]*"Dilution Risk",[\s\S]*"Listing Risk",[\s\S]*"Earnings",[\s\S]*"Insider \/ Ownership",[\s\S]*"Dividends",[\s\S]*"FDA \/ Clinical",[\s\S]*\] as const;/,
+  );
+  assert.match(boardSource, /additionalSituationLabels\.flatMap/);
+  assert.match(mobileMarkup, /<small>\{item\.window\}<\/small>/);
+  assert.doesNotMatch(boardSource, /useState|useId|IconButton|fetch\(/);
+  assert.match(
+    clientSource,
+    /<FeedSituationBoard[\s\S]*items=\{initialData\.situationItems\}[\s\S]*totalEvents=\{initialData\.page\.totalCount\}/,
+  );
+  assert.match(
+    styleSource,
+    /\.situationLabelCompact,[\s\S]*\.situationMobileGrid \{[\s\S]*display: none;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.situationGrid \{[\s\S]*display: none;[\s\S]*\.situationMobileGrid \{[\s\S]*display: block;/,
+  );
+  assert.match(
+    styleSource,
+    /\.situationDisclosure > summary \{[\s\S]*min-height: var\(--sr-size-control\);[\s\S]*list-style: none;[\s\S]*\.situationDisclosure > summary:focus-visible \{[\s\S]*outline: var\(--sr-focus-ring-width\) solid var\(--sr-focus-ring-color\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.situationPrimaryMetrics \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*\.situationSummaryCell \{[\s\S]*min-height: var\(--sr-size-control\);[\s\S]*\.situationSummaryCell \+ \.situationSummaryCell \{[\s\S]*border-left: var\(--sr-border-width\) solid var\(--sr-color-divider\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.situationSummaryCell:last-child \{[\s\S]*padding-right: calc\(var\(--sr-space-3\) \+ var\(--sr-space-5\)\);[\s\S]*\.situationChevron \{[\s\S]*right: 0;[\s\S]*width: var\(--sr-space-5\);/,
+  );
+  assert.match(
+    styleSource,
+    /\.situationDisclosure\[open\] \.situationChevron svg \{[\s\S]*transform: rotate\(180deg\);[\s\S]*\.situationExpandedGrid \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+  );
+});
+
 test("feed context rail keeps the product order without an unconnected watchlist card", () => {
   const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
   const orderedMarkers = [
@@ -885,10 +960,6 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.quote strong \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.quote span \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.impactScore span \{[\s\S]*overflow: visible;[\s\S]*font-size: 16px;[\s\S]*text-overflow: clip;[\s\S]*white-space: nowrap;[\s\S]*\.impactScore strong \{[\s\S]*font-size: 16px;/,
-  );
-  assert.match(
-    styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.situationCard strong \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*\.situationCard small \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
   );
   assert.match(
     styleSource,
