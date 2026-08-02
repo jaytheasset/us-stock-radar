@@ -401,6 +401,7 @@ export function StockRadarFeedV2({
         item={selectedItem}
         onClose={closeMobilePreview}
         openerRef={mobileOpenerRef}
+        viewerPlan={viewerPlan}
       />
     </div>
   );
