@@ -131,6 +131,7 @@ export function MobileCalendarDateNavigation({
         onDismiss={() => setIsOpen(false)}
         openerRef={openerRef}
         overlayLabel="Dismiss date range"
+        surfaceClassName={styles.calendarMobileSheetSurface}
       >
         <div
           className={styles.mobileRangeSheet}

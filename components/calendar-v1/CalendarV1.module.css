@@ -1564,6 +1564,10 @@
 }
 
 @media (max-width: 760px) {
+  .calendarMobileSheetSurface {
+    scrollbar-gutter: auto;
+  }
+
   .page {
     padding: var(--sr-space-2) var(--sr-page-gutter-mobile) var(--sr-space-7);
   }
