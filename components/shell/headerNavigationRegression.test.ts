@@ -98,7 +98,7 @@ test("mobile alert and search panels use isolated elevated surfaces and dismissi
   );
   assert.match(
     tokens,
-    /--sr-color-border-product-popover-elevated: rgba\(104, 116, 130, 0\.86\);/,
+    /--sr-color-border-product-popover-elevated: rgba\(104, 116, 130, 0\.42\);/,
   );
   assert.match(
     tokens,
@@ -131,9 +131,21 @@ test("mobile alert and search panels use isolated elevated surfaces and dismissi
     alertStyles,
     /@media \(max-width: 760px\)[\s\S]*\.popover\s*\{[\s\S]*border-color: var\(--sr-color-border-product-popover-elevated\);[\s\S]*background: var\(--sr-color-surface-product-popover-elevated\);[\s\S]*\.mobileBackdrop\s*\{[\s\S]*z-index: calc\(var\(--sr-z-mobile-menu\) - 1\);[\s\S]*background: var\(--sr-color-backdrop-product-popover-mobile\);/,
   );
+  assert.doesNotMatch(
+    tokens,
+    /--sr-color-surface-product-popover-(?:section|unread):/,
+  );
+  assert.doesNotMatch(
+    alertStyles,
+    /product-popover-(?:section|unread)|\.list li\[data-read="false"\]/,
+  );
   assert.match(
     alertStyles,
-    /\.list li\[data-read="false"\]\s*\{[\s\S]*background: var\(--sr-color-surface-product-popover-unread\);/,
+    /\.heading\s*\{[\s\S]*border-bottom: var\(--sr-border-width\) solid[\s\S]*var\(--sr-color-border-product-menu\);/,
+  );
+  assert.match(
+    alertStyles,
+    /\.footer\s*\{[\s\S]*border-top: var\(--sr-border-width\) solid[\s\S]*var\(--sr-color-border-product-menu\);/,
   );
   assert.doesNotMatch(
     headerStyles,
