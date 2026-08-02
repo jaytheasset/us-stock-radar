@@ -115,7 +115,14 @@ export function FeedEventList({
 
               <div className={styles.identity}>
                 <strong className={styles.identityDesktop}>{item.ticker}</strong>
-                <strong className={styles.identityMobile}>{mobileIdentityLabel}</strong>
+                <strong
+                  className={styles.identityMobile}
+                  data-mobile-identity-kind={
+                    item.feedType === "market" ? "market" : "ticker"
+                  }
+                >
+                  {mobileIdentityLabel}
+                </strong>
                 <span>{item.company}</span>
               </div>
 
@@ -133,7 +140,7 @@ export function FeedEventList({
                       className={styles.eventTimeMobile}
                       dateTime={item.timestamp}
                     >
-                      {item.timeDateLabel} · {item.timeLabel} ET
+                      {item.timeDateLabel} {item.timeLabel} ET
                     </time>
                     <span className={styles.source}>{item.source}</span>
                   </span>

@@ -26,14 +26,24 @@ test("client theme provider contains no inline script and reconciles both storag
   assert.match(source, /data-sr-theme-mode=\{mode\}/);
 });
 
-test("root layout owns the single beforeInteractive theme initializer", () => {
+test("root layout emits a parser-executed native theme initializer before body paint", () => {
   const source = readSource("app/layout.tsx");
 
-  assert.match(source, /import Script from "next\/script"/);
-  assert.match(source, /<Script/);
-  assert.match(source, /strategy="beforeInteractive"/);
+  assert.doesNotMatch(source, /import Script from "next\/script"/);
+  assert.doesNotMatch(source, /<Script\b/);
+  assert.doesNotMatch(source, /strategy="beforeInteractive"/);
+  assert.doesNotMatch(source, /self\.__next_s/);
+  assert.match(source, /<html[\s\S]*data-theme="light"/);
+  assert.match(source, /style=\{\{ colorScheme: "light" \}\}/);
+  assert.match(
+    source,
+    /<head>[\s\S]*<script[\s\S]*id="theme-init"[\s\S]*dangerouslySetInnerHTML=\{\{ __html: themeScript \}\}[\s\S]*<\/head>[\s\S]*<body>/,
+  );
   assert.match(source, /localStorage\.getItem\("sr-theme"\)/);
   assert.match(source, /localStorage\.getItem\("stock-radar-theme"\)/);
+  assert.match(source, /primaryTheme === "dark" \|\| primaryTheme === "light"/);
+  assert.match(source, /legacyTheme === "dark" \|\| legacyTheme === "light"/);
+  assert.match(source, /window\.matchMedia\("\(prefers-color-scheme: dark\)"\)/);
   assert.match(source, /document\.documentElement\.dataset\.theme = theme/);
   assert.match(source, /document\.documentElement\.style\.colorScheme = theme/);
 });
