@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getVisibleNavigationItemCount } from "./desktopNavigationLayout.ts";
 
-const itemWidths = [72, 88, 92, 68, 74, 70, 86];
+const itemWidths = [72, 88, 92, 68, 74, 70, 86, 82];
 
-test("keeps every core navigation item visible when the measured space fits", () => {
+test("does not reserve More when every navigation item fits directly", () => {
   assert.equal(
     getVisibleNavigationItemCount({
       availableWidth: 660,
@@ -16,7 +16,19 @@ test("keeps every core navigation item visible when the measured space fits", ()
   );
 });
 
-test("moves only the trailing items into More when measured space is short", () => {
+test("moves only one trailing item into More when that is sufficient", () => {
+  assert.equal(
+    getVisibleNavigationItemCount({
+      availableWidth: 657,
+      gap: 4,
+      itemWidths,
+      moreButtonWidth: 76,
+    }),
+    itemWidths.length - 1,
+  );
+});
+
+test("moves multiple trailing items into More when measured space is short", () => {
   assert.equal(
     getVisibleNavigationItemCount({
       availableWidth: 430,
@@ -28,7 +40,7 @@ test("moves only the trailing items into More when measured space is short", () 
   );
 });
 
-test("always reserves room for More and tolerates unusably small widths", () => {
+test("reserves room for More only after overflow and tolerates unusably small widths", () => {
   assert.equal(
     getVisibleNavigationItemCount({
       availableWidth: 60,

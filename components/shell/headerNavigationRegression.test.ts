@@ -42,14 +42,17 @@ test("product header measures available desktop space before moving links into M
     "filings",
     "alerts",
     "calendar",
+    "premium",
   ]) {
     assert.match(navigation, new RegExp(`"${key}"`));
   }
   assert.match(desktop, /navigation\.getBoundingClientRect\(\)/);
   assert.match(desktop, /actions\.getBoundingClientRect\(\)/);
   assert.match(desktop, /measurementItemRefs\.current\.map/);
+  assert.match(desktop, /measurementMoreRef/);
   assert.match(desktop, /new ResizeObserver\(measure\)/);
   assert.match(desktop, /getVisibleNavigationItemCount/);
+  assert.match(desktop, /moreNavigationItems\.length > 0 \? \(/);
   assert.match(desktop, /aria-haspopup="menu"/);
   assert.match(desktop, /aria-label="More navigation"/);
   assert.match(desktop, /event\.key !== "Escape"/);
@@ -59,6 +62,26 @@ test("product header measures available desktop space before moving links into M
   assert.match(
     styles,
     /\.moreNavigation\s*\{[\s\S]*?display:\s*flex[\s\S]*?\}/,
+  );
+  assert.match(
+    styles,
+    /\.primaryNavigation > a,\s*\.navigationMeasurementItem,\s*\.moreNavigationButton\s*\{[\s\S]*?height: var\(--sr-size-nav-item\);[\s\S]*?border-radius: var\(--sr-radius-sm\);[\s\S]*?padding: 0 var\(--sr-space-2-25\);[\s\S]*?font-size: var\(--sr-font-size-md\);[\s\S]*?font-weight: var\(--sr-font-weight-nav\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationButton\s*\{[\s\S]*?border-color: var\(--sr-color-product-accent-border\);[\s\S]*?color: var\(--sr-color-product-accent\);[\s\S]*?background: var\(--sr-color-product-accent-selected\);[\s\S]*?box-shadow: inset 0 -1px 0 var\(--sr-color-product-accent-nav-line\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationButton\[aria-expanded="true"\] svg\s*\{\s*transform: rotate\(180deg\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationMenu\s*\{[\s\S]*?border: var\(--sr-border-width\) solid var\(--sr-color-border-product-menu\);[\s\S]*?border-radius: var\(--sr-radius-popover\);[\s\S]*?background:[\s\S]*?var\(--sr-color-surface-product-menu\);[\s\S]*?box-shadow: var\(--sr-shadow-product-menu\);/,
+  );
+  assert.match(
+    styles,
+    /\.moreNavigationMenu a\s*\{[\s\S]*?min-height: 36px;[\s\S]*?border-radius: var\(--sr-radius-action\);[\s\S]*?padding: 0 var\(--sr-space-3\);[\s\S]*?font-size: var\(--sr-font-size-md\);/,
   );
   assert.doesNotMatch(styles, /navigationSecondary/);
   assert.match(styles, /@media \(max-width: 820px\)/);
