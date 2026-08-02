@@ -451,7 +451,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: transparent;[\s\S]*\.newsRow \{[\s\S]*min-height: 132px;[\s\S]*padding: var\(--sr-space-4\);[\s\S]*background: transparent;/,
+    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: transparent;[\s\S]*\.newsRow \{[\s\S]*min-height: 132px;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*background: transparent;/,
   );
   assert.match(
     styles,
@@ -621,9 +621,18 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
   assert.match(rowSource, /getNewsV2MobileIdentityLabel\(item\)/);
   assert.match(rowSource, /className=\{styles\.rowIdentityMobile\}/);
+  assert.ok(
+    rowSource.indexOf("{hasChange ? (") <
+      rowSource.indexOf("{hasPrice ? <strong>"),
+    "quote DOM should expose change before price for mobile reading order",
+  );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\);/,
+    /\.rowQuote strong \{[\s\S]*?order: 1;[\s\S]*?\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*?order: 2;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
   );
   assert.match(
     styles,
@@ -631,7 +640,7 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuote \{[\s\S]*?display: flex;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuote \{[\s\S]*?display: flex;[\s\S]*?\.rowQuote strong \{[\s\S]*?order: 2;[\s\S]*?\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*?order: 1;/,
   );
   assert.match(
     styles,

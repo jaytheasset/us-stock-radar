@@ -157,10 +157,10 @@ export function NewsV2Row({
               >
                 {hasQuote ? (
                   <>
-                    {hasPrice ? <strong>{marketReaction.priceLabel}</strong> : null}
                     {hasChange ? (
                       <span className={changeClass}>{marketReaction.changePercent}</span>
                     ) : null}
+                    {hasPrice ? <strong>{marketReaction.priceLabel}</strong> : null}
                   </>
                 ) : (
                   <span className={styles.rowDataUnavailable} title="Quote unavailable">

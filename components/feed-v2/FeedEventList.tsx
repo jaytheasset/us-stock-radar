@@ -152,6 +152,17 @@ export function FeedEventList({
                   </span>
                 ) : (
                   <div className={styles.quote}>
+                    <span
+                      className={
+                        item.changePercent === null
+                          ? styles.sentimentNeutral
+                          : negative
+                            ? styles.sentimentNegative
+                            : styles.sentimentPositive
+                      }
+                    >
+                      {formatChangePercent(item.changePercent)}
+                    </span>
                     <strong
                       aria-label={
                         item.price === null ? "Quote unavailable" : undefined
@@ -164,17 +175,6 @@ export function FeedEventList({
                     >
                       {item.price ?? "—"}
                     </strong>
-                    <span
-                      className={
-                        item.changePercent === null
-                          ? styles.sentimentNeutral
-                          : negative
-                            ? styles.sentimentNegative
-                            : styles.sentimentPositive
-                      }
-                    >
-                      {formatChangePercent(item.changePercent)}
-                    </span>
                   </div>
                 )}
                 <FeedSparkline closes={item.sparkline} />

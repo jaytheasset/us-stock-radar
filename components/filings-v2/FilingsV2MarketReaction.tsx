@@ -86,8 +86,8 @@ export function FilingsV2MarketReaction({ record }: FilingsV2MarketReactionProps
       >
         {hasQuote ? (
           <>
-            {hasPrice ? <strong>{priceLabel}</strong> : null}
             {hasChange ? <span className={marketToneClass}>{changeLabel}</span> : null}
+            {hasPrice ? <strong>{priceLabel}</strong> : null}
           </>
         ) : (
           <span className={styles.filingDataUnavailable} title="Quote unavailable">

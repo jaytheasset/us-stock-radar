@@ -886,12 +886,14 @@
 }
 
 .filingPrice strong {
+  order: 1;
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-emphasis);
 }
 
 .filingPrice > span:not(.filingDataUnavailable) {
+  order: 2;
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   white-space: nowrap;
@@ -1932,7 +1934,7 @@
     align-items: start;
     column-gap: var(--sr-space-2);
     row-gap: var(--sr-space-1);
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-4) var(--sr-space-3);
   }
 
   .filingItemTime {
@@ -2068,7 +2070,7 @@
   }
 
   .filingTitle {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     grid-row: 2;
     display: -webkit-box;
     overflow: hidden;
@@ -2088,7 +2090,7 @@
   .filingPrice {
     display: flex;
     grid-column: 3;
-    grid-row: 2 / 4;
+    grid-row: 3;
     flex-direction: column;
     align-items: flex-end;
     align-self: center;
@@ -2098,12 +2100,14 @@
   }
 
   .filingPrice strong {
+    order: 2;
     font-size: 15px;
     font-weight: 600;
     line-height: var(--sr-line-height-tight);
   }
 
   .filingPrice > span:not(.filingDataUnavailable) {
+    order: 1;
     font-size: 15px;
     line-height: var(--sr-line-height-tight);
   }
