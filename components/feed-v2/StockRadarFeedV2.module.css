@@ -1012,27 +1012,42 @@
   }
 
   .feedHeader {
-    min-height: auto;
-    flex-wrap: wrap;
+    min-height: 40px;
+    flex-wrap: nowrap;
     align-items: center;
-    row-gap: var(--sr-space-1);
-    padding-block: var(--sr-space-2);
+    gap: var(--sr-space-2);
+    padding-block: 0;
     padding-inline: var(--sr-space-2-5);
   }
 
   .feedTitle {
-    width: 100%;
-    flex: 0 0 100%;
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
     gap: var(--sr-space-2);
+    overflow: hidden;
   }
 
   .feedTitle h1 {
+    min-width: 0;
+    overflow: hidden;
     font-size: var(--sr-font-size-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .liveIndicator {
+    flex: 0 0 auto;
   }
 
   .resultCount {
-    width: 100%;
+    width: auto;
+    min-width: 0;
+    max-width: 48%;
+    overflow: hidden;
+    flex: 0 0 auto;
     text-align: right;
+    text-overflow: ellipsis;
   }
 
   .filters {

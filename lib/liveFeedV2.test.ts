@@ -528,6 +528,33 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
 });
 
+test("mobile feed header keeps title and result count on one compact row", () => {
+  const styleSource = readSource(
+    "components/feed-v2/StockRadarFeedV2.module.css",
+  );
+
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.feedHeader\s*\{[\s\S]*min-height: 40px;[\s\S]*flex-wrap: nowrap;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-block: 0;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.feedTitle\s*\{[\s\S]*width: auto;[\s\S]*min-width: 0;[\s\S]*flex: 1 1 auto;[\s\S]*overflow: hidden;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.feedTitle h1\s*\{[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.resultCount\s*\{[\s\S]*width: auto;[\s\S]*max-width: 48%;[\s\S]*overflow: hidden;[\s\S]*flex: 0 0 auto;[\s\S]*text-overflow: ellipsis;/,
+  );
+  assert.match(
+    styleSource,
+    /\.feedHeader\s*\{[\s\S]{0,180}min-height: var\(--sr-size-table-header-row\);/,
+  );
+});
+
 test("feed context rail keeps the product order without an unconnected watchlist card", () => {
   const railSource = readSource("components/feed-v2/FeedContextRail.tsx");
   const orderedMarkers = [

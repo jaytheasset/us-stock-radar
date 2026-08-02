@@ -77,6 +77,70 @@ test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {
   assert.match(header, /mobileMenuButtonRef\.current\?\.focus/);
 });
 
+test("mobile alert and search panels use isolated elevated surfaces and dismissible backdrops", () => {
+  const tokens = readProjectFile("app/stock-radar-tokens.css");
+  const search = readProjectFile(
+    "components/shell/StockRadarTickerSearch.tsx",
+  );
+  const headerStyles = readProjectFile(
+    "components/shell/StockRadarProductHeader.module.css",
+  );
+  const alerts = readProjectFile(
+    "components/shell/AlertNotificationsMenu.tsx",
+  );
+  const alertStyles = readProjectFile(
+    "components/shell/AlertNotificationsMenu.module.css",
+  );
+
+  assert.match(
+    tokens,
+    /--sr-color-surface-product-popover-elevated: #151a20;/,
+  );
+  assert.match(
+    tokens,
+    /--sr-color-border-product-popover-elevated: rgba\(104, 116, 130, 0\.86\);/,
+  );
+  assert.match(
+    tokens,
+    /--sr-color-backdrop-product-popover-mobile: rgba\(3, 5, 8, 0\.38\);/,
+  );
+
+  assert.match(
+    search,
+    /aria-hidden="true"[\s\S]{0,120}className=\{styles\.globalSearchBackdrop\}[\s\S]{0,120}onClick=\{\(\) => closeSearch\(true\)\}/,
+  );
+  assert.match(search, /role="dialog"/);
+  assert.match(search, /event\.key === "Escape"/);
+  assert.match(
+    headerStyles,
+    /\.globalSearchBackdrop\s*\{\s*display: none;/,
+  );
+  assert.match(
+    headerStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.globalSearchPanel\s*\{[\s\S]*border-color: var\(--sr-color-border-product-popover-elevated\);[\s\S]*background: var\(--sr-color-surface-product-popover-elevated\);[\s\S]*\.globalSearchBackdrop\s*\{[\s\S]*z-index: calc\(var\(--sr-z-mobile-menu\) - 1\);[\s\S]*top: var\(--sr-size-header\);[\s\S]*background: var\(--sr-color-backdrop-product-popover-mobile\);/,
+  );
+
+  assert.match(
+    alerts,
+    /aria-hidden="true"[\s\S]{0,120}className=\{styles\.mobileBackdrop\}[\s\S]{0,120}onClick=\{\(\) => closeAlerts\(true\)\}/,
+  );
+  assert.match(alerts, /role="dialog"/);
+  assert.match(alerts, /event\.key === "Escape"[\s\S]*closeAlerts\(true\)/);
+  assert.match(alertStyles, /\.mobileBackdrop\s*\{\s*display: none;/);
+  assert.match(
+    alertStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.popover\s*\{[\s\S]*border-color: var\(--sr-color-border-product-popover-elevated\);[\s\S]*background: var\(--sr-color-surface-product-popover-elevated\);[\s\S]*\.mobileBackdrop\s*\{[\s\S]*z-index: calc\(var\(--sr-z-mobile-menu\) - 1\);[\s\S]*background: var\(--sr-color-backdrop-product-popover-mobile\);/,
+  );
+  assert.match(
+    alertStyles,
+    /\.list li\[data-read="false"\]\s*\{[\s\S]*background: var\(--sr-color-surface-product-popover-unread\);/,
+  );
+  assert.doesNotMatch(
+    headerStyles,
+    /\.mobileMenuPopover\s*\{[^}]*product-popover-elevated/,
+  );
+});
+
 test("authenticated account menu reuses canonical routes and shared logout", () => {
   const authStatus = readProjectFile("components/AuthStatus.tsx");
   const memberPage = readProjectFile(

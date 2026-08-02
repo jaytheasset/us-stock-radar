@@ -21,6 +21,16 @@ export function AlertNotificationsMenu({ loginHref }: { loginHref: string }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const closeAlerts = useCallback((restoreFocus = false) => {
+    setOpen(false);
+
+    if (restoreFocus) {
+      requestAnimationFrame(() => {
+        buttonRef.current?.focus({ preventScroll: true });
+      });
+    }
+  }, []);
+
   const loadAlerts = useCallback(async () => {
     try {
       const response = await fetch(
@@ -91,12 +101,11 @@ export function AlertNotificationsMenu({ loginHref }: { loginHref: string }) {
     void loadAlerts();
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closeAlerts();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
-        buttonRef.current?.focus({ preventScroll: true });
+        closeAlerts(true);
       }
     };
     document.addEventListener("pointerdown", handlePointerDown);
@@ -105,7 +114,7 @@ export function AlertNotificationsMenu({ loginHref }: { loginHref: string }) {
       document.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [loadAlerts, open]);
+  }, [closeAlerts, loadAlerts, open]);
 
   async function markRead(alert: DeliveredAlertItem) {
     if (alert.isRead || busyId) return;
@@ -192,6 +201,14 @@ export function AlertNotificationsMenu({ loginHref }: { loginHref: string }) {
       ) : null}
 
       {open ? (
+        <div
+          aria-hidden="true"
+          className={styles.mobileBackdrop}
+          onClick={() => closeAlerts(true)}
+        />
+      ) : null}
+
+      {open ? (
         <section
           aria-label="Alert notifications"
           className={styles.popover}
@@ -265,7 +282,7 @@ export function AlertNotificationsMenu({ loginHref }: { loginHref: string }) {
           )}
 
           <footer className={styles.footer}>
-            <Link href="/alerts" onClick={() => setOpen(false)}>
+            <Link href="/alerts" onClick={() => closeAlerts()}>
               Open Alerts
             </Link>
           </footer>

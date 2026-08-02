@@ -205,6 +205,10 @@
   align-items: center;
 }
 
+.globalSearchBackdrop {
+  display: none;
+}
+
 .globalSearchPanel {
   position: absolute;
   z-index: var(--sr-z-mobile-menu);
@@ -1462,6 +1466,19 @@
     top: calc(var(--sr-size-header) + var(--sr-space-1));
     right: var(--sr-space-2);
     left: var(--sr-space-2);
+    border-color: var(--sr-color-border-product-popover-elevated);
+    background: var(--sr-color-surface-product-popover-elevated);
+  }
+
+  .globalSearchBackdrop {
+    position: fixed;
+    z-index: calc(var(--sr-z-mobile-menu) - 1);
+    top: var(--sr-size-header);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    background: var(--sr-color-backdrop-product-popover-mobile);
   }
 
   .liveRoomInboxPopover {
