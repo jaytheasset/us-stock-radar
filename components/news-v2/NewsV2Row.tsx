@@ -3,13 +3,13 @@ import { NewsV2EventBadge } from "@/components/news-v2/NewsV2EventBadge";
 import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge";
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
+import { getEventListIdentity } from "@/lib/eventListIdentity";
 import { formatMarketDateLabel } from "@/lib/marketDate";
 import {
   formatNewsV2PublishedAt,
   type NewsV2Item,
 } from "@/lib/newsV2";
 import {
-  getNewsV2MobileIdentityLabel,
   getNewsV2ScopeBadgeLabel,
 } from "@/lib/newsV2ScopeBadge";
 import styles from "./StockRadarNewsV2.module.css";
@@ -26,18 +26,20 @@ export function NewsV2Row({
   showMarketReaction,
 }: NewsV2RowProps) {
   const isCompanyNews = item.category === "Company";
+  const identity = getEventListIdentity({
+    companyName: item.companyName,
+    eventType: item.eventTypeCode,
+    marketScope: item.marketScope,
+    sector: item.sector,
+    subTheme: item.subThemeSlug || item.theme,
+    themeGroup: item.themeGroupSlug || item.theme,
+    ticker: item.relatedTickers[0],
+  });
   const scopeBadgeLabel = getNewsV2ScopeBadgeLabel(item);
   const visibleTickers = item.relatedTickers.slice(0, 2);
   const remainingTickerCount = Math.max(0, item.relatedTickers.length - visibleTickers.length);
   const sentimentClass = styles[`sentiment${item.sentiment}`];
-  const tickerUnavailable = isCompanyNews && !item.relatedTickers[0];
-  const primaryTicker = isCompanyNews ? item.relatedTickers[0] ?? "N/A" : "MARKET";
-  const mobileIdentityLabel = getNewsV2MobileIdentityLabel(item);
-  const identityMeta = item.relatedTickers.length > 1
-    ? `${item.relatedTickers.length} related tickers`
-    : item.marketCapBand
-      ? `${item.marketCapBand} cap`
-      : item.sector ?? "Market-wide";
+  const tickerUnavailable = identity.kind === "ticker" && identity.primary === "N/A";
   const marketReaction = {
     changePercent: item.changePercent,
     priceLabel: item.priceLabel,
@@ -69,15 +71,15 @@ export function NewsV2Row({
               className={styles.rowIdentityDesktop}
               title={tickerUnavailable ? "Ticker unavailable" : undefined}
             >
-              {primaryTicker}
+              {identity.primary}
             </strong>
             <strong
               className={styles.rowIdentityMobile}
-              data-mobile-identity-kind={isCompanyNews ? "ticker" : "market"}
+              data-mobile-identity-kind={identity.kind}
             >
-              {mobileIdentityLabel}
+              {identity.primary}
             </strong>
-            <span>{identityMeta}</span>
+            <span title={identity.secondary}>{identity.secondary}</span>
           </span>
 
           <span className={styles.rowStory}>

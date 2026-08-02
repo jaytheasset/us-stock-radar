@@ -52,6 +52,7 @@ export function NewsAnalysisAdapter({
           <PriceChartCard
             change={detail.priceChange}
             changeAmount={detail.priceChangeAmount}
+            mobileCollapsible
             price={detail.price}
             series={detail.priceSeries}
             storedOnly

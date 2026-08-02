@@ -13,7 +13,9 @@ export type NewsV2Item = {
   headline: string;
   summary: string;
   source: string;
+  companyName: string;
   category: NewsV2Category;
+  marketScope: string;
   relatedTickers: string[];
   sentiment: NewsV2Signal;
   score: number;
