@@ -2921,6 +2921,13 @@ body {
   margin: 0;
 }
 
+@media (max-width: 360px) {
+  html,
+  body {
+    min-width: 0;
+  }
+}
+
 body {
   color: var(--text);
   background: var(--background);
