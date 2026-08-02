@@ -136,7 +136,11 @@ export function FilingsV2List({
           <span className={styles.liveLabel}><i aria-hidden="true" />Live</span>
           <h2>SEC Filings</h2>
           {preferredSourceUrl ? (
-            <GooglePreferredSourceLink header href={preferredSourceUrl} />
+            <GooglePreferredSourceLink
+              ariaLabel="Add Stock Radar on Google"
+              header
+              href={preferredSourceUrl}
+            />
           ) : null}
         </div>
         <span className={styles.listHeaderCount}>{records.length} of {totalCount} filings</span>
