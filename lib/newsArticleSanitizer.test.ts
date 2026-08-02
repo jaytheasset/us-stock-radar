@@ -11,7 +11,7 @@ function sanitize(html: string) {
 function assertNoActiveContent(output: string) {
   assert.doesNotMatch(
     output,
-    /<(?:base|button|embed|form|iframe|input|link|object|script|style|svg|textarea)\b/i,
+    /<(?:base|button|embed|form|iframe|input|link|meta|object|script|style|svg|textarea)\b/i,
   );
   assert.doesNotMatch(output, /\s(?:on[a-z]+|srcdoc)\s*=/i);
   assert.doesNotMatch(output, /(?:javascript|vbscript):/i);
@@ -33,6 +33,8 @@ test("removes active content, event handlers, and dangerous URLs", async (t) => 
     ["style import", '<style>@import url("https://evil.example/style.css");</style><p>Safe</p>'],
     ["srcdoc", '<iframe srcdoc="<script>alert(1)</script>"></iframe><p srcdoc="unsafe">Safe</p>'],
     ["external stylesheet", '<link rel="stylesheet" href="https://evil.example/style.css"><p>Safe</p>'],
+    ["document base override", '<base href="https://evil.example/"><a href="report">Safe link</a>'],
+    ["document metadata", '<meta http-equiv="refresh" content="0;url=https://evil.example/"><p>Safe</p>'],
   ] as const;
 
   for (const [name, input] of attacks) {
@@ -95,6 +97,18 @@ test("preserves normal article structure including tables and code", () => {
   assert.match(output, /Quarterly update/);
   assert.match(output, /Revenue increased/);
   assert.match(output, /const value = 10;/);
+});
+
+test("is idempotent for already-sanitized article markup", () => {
+  const once = sanitize(`
+    <article>
+      <h2>Quarterly update</h2>
+      <p>Read the <a href="../report">full report</a>.</p>
+      <img src="./images/chart.png" alt="Revenue chart">
+    </article>
+  `);
+
+  assert.equal(sanitize(once), once);
 });
 
 test("does not throw for malformed HTML", () => {

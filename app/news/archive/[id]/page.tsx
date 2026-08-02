@@ -6,6 +6,7 @@ import { SectorThemeContextPanel } from "../../../events/[id]/SectorThemeContext
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
+import { sanitizeNewsArticleHtml } from "@/lib/newsArticleSanitizer";
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
 import { fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import type { DetailTone, SectorThemeContext } from "../../../events/[id]/detailTypes";
@@ -336,10 +337,11 @@ async function mapDbArchiveEvent(
     (ticker && ticker !== "N/A" ? ticker : "Company");
   const exchange = readString(eventRow, "market") || readString(metadata, "exchange") || "US";
   const briefSeed = item.quickTake || item.summary || item.title;
-  const originalHtml =
+  const unsafeOriginalHtml =
     readString(rawPayload, "full_text_html") ||
     bodyTextToHtml(readString(rawItem, "body_text")) ||
     (await fetchRemoteOriginalHtml(sourceUrl));
+  const originalHtml = sanitizeNewsArticleHtml(unsafeOriginalHtml, sourceUrl);
 
   return {
     ticker,
