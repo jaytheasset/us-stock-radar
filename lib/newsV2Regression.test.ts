@@ -426,7 +426,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.searchField > label \{[\s\S]*height: 42px;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchField > label:focus-within \{[\s\S]*border: 0;[\s\S]*box-shadow: none;[\s\S]*\.searchField > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchField::after \{[\s\S]*left: var\(--sr-space-3\);[\s\S]*height: 42px;[\s\S]*font-size: 16px;/,
+    /\.searchField > label \{[\s\S]*height: 42px;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchField > label:focus-within \{[\s\S]*border: 0;[\s\S]*box-shadow: none;[\s\S]*\.searchField > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchField > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchField::after \{[\s\S]*left: var\(--sr-space-3\);[\s\S]*height: 42px;[\s\S]*font-size: var\(--sr-font-size-base\);/,
   );
   assert.match(
     styles,
@@ -475,7 +475,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.mobileFilterActions \.mobileFilterTrigger > span:first-child \{[\s\S]*font-size: var\(--sr-font-size-lg\);/,
+    /\.mobileFilterActions \.mobileFilterTrigger \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.mobileFilterActions \.mobileFilterTrigger > span:first-child \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
   );
   assert.match(
     styles,
