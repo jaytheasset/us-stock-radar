@@ -282,7 +282,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /\.filingPrice strong \{[\s\S]*font-size: 15px;[\s\S]*\.filingPrice span \{[\s\S]*font-size: 15px;[\s\S]*\.filingImpact \.signal \{[\s\S]*font-size: 16px;[\s\S]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*\.filingImpact \.impactScore \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
+    /\.filingPrice strong \{[\s\S]*font-size: 15px;[\s\S]*\.filingPrice > span:not\(\.filingDataUnavailable\) \{[\s\S]*font-size: 15px;[\s\S]*\.filingImpact \.signal \{[\s\S]*font-size: 16px;[\s\S]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*\.filingImpact \.impactScore \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
   );
   assert.match(
     styles,
