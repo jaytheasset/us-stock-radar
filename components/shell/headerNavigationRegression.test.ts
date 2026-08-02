@@ -21,11 +21,16 @@ test("product header keeps core tools and replaces horizontal scrolling with Mor
   );
 
   assert.match(header, /href="\/dashboard-v2"/);
-  assert.match(header, /Markets dashboard/);
+  assert.match(header, /aria-label=\{`\$\{stockRadarProductName\} 홈`\}/);
+  assert.match(header, /className=\{styles\.brandFull\}/);
+  assert.match(header, /className=\{styles\.brandMonogram\}/);
   assert.match(header, /<LiveRoomUnreadMenu \/>/);
   assert.match(header, /<AlertNotificationsMenu loginHref=\{loginHref\} \/>/);
   assert.match(header, /<StockRadarTickerSearch/);
   assert.match(header, /<StockRadarThemeToggle \/>/);
+  assert.match(header, /showThemeToggle=\{showThemeToggle\}/);
+  assert.match(mobile, /className=\{styles\.mobileMenuTheme\}/);
+  assert.match(mobile, /<StockRadarThemeToggle \/>/);
   assert.doesNotMatch(header, /Settings|settingsButton/);
   assert.doesNotMatch(mobile, /Settings/);
 
@@ -44,6 +49,18 @@ test("product header keeps core tools and replaces horizontal scrolling with Mor
   );
   assert.match(styles, /\.moreNavigation\s*\{\s*display:\s*flex/);
   assert.match(styles, /@media \(max-width: 820px\)/);
+  assert.match(
+    styles,
+    /@media \(max-width: 360px\)[\s\S]*\.brandFull,[\s\S]*\.headerThemeToggle\s*\{[\s\S]*display: none;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 360px\)[\s\S]*\.brand \.brandMonogram\s*\{[\s\S]*display: inline-flex;[\s\S]*width: 30px;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 360px\)[\s\S]*\.mobileMenuTheme\s*\{[\s\S]*display: flex;/,
+  );
 });
 
 test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {

@@ -492,6 +492,9 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
   assert.match(clientSource, /aria-controls=\{mobileMoreId\}/);
   assert.match(clientSource, /aria-expanded=\{mobileMoreOpen\}/);
+  assert.match(clientSource, /<span>More<\/span>/);
+  assert.match(clientSource, /className=\{styles\.mobileMoreChevron\}/);
+  assert.match(clientSource, /<Check aria-hidden="true" size=\{15\} \/>/);
   assert.match(clientSource, /Additional feed filters/);
   assert.match(clientSource, /setMobileMoreOpen\(false\)/);
   assert.match(clientSource, /event\.key !== "Escape"/);
@@ -513,7 +516,15 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.mobileMoreFilters\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileFilters\s*\{[\s\S]*position: relative;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileMoreFilters\s*\{[\s\S]*position: absolute;[\s\S]*right: 0;[\s\S]*width: min\(176px, calc\(100% - var\(--sr-space-4\)\)\);/,
+  );
+  assert.doesNotMatch(
+    styleSource,
+    /\.mobileMoreFilters\s*\{[\s\S]{0,400}grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
   );
 });
 
