@@ -157,19 +157,34 @@ test("legacy filing chart mobile display override follows the desktop hidden rul
     new URL("../../app/globals.css", import.meta.url),
     "utf8",
   );
-  const desktopHiddenRule = `.filing-detail-page .price-chart-mobile-toggle {\n  display: none;`;
-  const mobileVisibleRule = `.filing-detail-page .price-chart-mobile-toggle {\n    display: inline-flex;`;
-  const desktopRuleIndex = globals.indexOf(desktopHiddenRule);
-  const mobileRuleIndex = globals.indexOf(mobileVisibleRule);
+  const desktopHiddenRule =
+    /\.filing-detail-page \.price-chart-mobile-toggle\s*\{\s*display:\s*none;/g;
+  const mobileVisibleRule =
+    /\.filing-detail-page \.price-chart-mobile-toggle\s*\{\s*display:\s*inline-flex;/g;
+  const desktopHiddenMatches = [...globals.matchAll(desktopHiddenRule)];
+  const mobileVisibleMatches = [...globals.matchAll(mobileVisibleRule)];
+  const desktopRuleIndex = desktopHiddenMatches[0]?.index ?? -1;
+  const mobileRuleIndex = mobileVisibleMatches[0]?.index ?? -1;
 
-  assert.ok(desktopRuleIndex >= 0, "desktop chart toggle must default to hidden");
+  assert.equal(
+    desktopHiddenMatches.length,
+    1,
+    "desktop chart toggle must have exactly one default hidden rule",
+  );
+  assert.equal(
+    mobileVisibleMatches.length,
+    1,
+    "mobile chart toggle must have exactly one visible override",
+  );
   assert.ok(
     mobileRuleIndex > desktopRuleIndex,
     "the equal-specificity mobile display override must follow the desktop rule",
   );
   assert.equal(
-    globals.indexOf(desktopHiddenRule, desktopRuleIndex + desktopHiddenRule.length),
-    -1,
+    desktopHiddenMatches.some(
+      (match) => (match.index ?? -1) > mobileRuleIndex,
+    ),
+    false,
     "no later desktop hidden rule may override the mobile chart toggle",
   );
   assert.match(
