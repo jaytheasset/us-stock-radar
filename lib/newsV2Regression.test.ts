@@ -416,11 +416,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: transparent;[\s\S]*\.newsRow \{[\s\S]*min-height: 124px;[\s\S]*padding: var\(--sr-space-4\);[\s\S]*background: transparent;/,
+    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: transparent;[\s\S]*\.newsRow \{[\s\S]*min-height: 132px;[\s\S]*padding: var\(--sr-space-4\);[\s\S]*background: transparent;/,
   );
   assert.match(
     styles,
-    /\.rowIdentity strong \{[\s\S]*font-size: 16px;[\s\S]*\.rowHeadline \{[\s\S]*font-size: 17px;[\s\S]*\.rowMobileBadges \.newsEventTypeBadge \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*text-transform: none;/,
+    /\.rowIdentity strong \{[\s\S]*font-size: 17px;[\s\S]*\.rowHeadline \{[\s\S]*font-size: 18px;[\s\S]*\.rowMobileBadges \.newsEventTypeBadge \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: 15px;[\s\S]*text-transform: none;/,
   );
   assert.match(
     styles,
@@ -428,11 +428,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.rowQuote \{[\s\S]*display: flex;[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*\.rowQuoteUnavailable \{[\s\S]*display: none;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.rowQuote \{[\s\S]*display: flex;[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*font-size: 15px;[\s\S]*\.rowQuoteUnavailable \{[\s\S]*display: none;/,
   );
   assert.match(
     styles,
-    /\.rowSource \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*\.rowMobilePublishedAt \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*\.rowSentiment \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.rowScore strong \{[\s\S]*font-size: var\(--sr-font-size-lg\);/,
+    /\.rowSource \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*\.rowMobilePublishedAt \{[\s\S]*font-size: 15px;[\s\S]*\.rowMobileDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.rowSentiment \{[\s\S]*font-size: 16px;[\s\S]*\.rowScore strong \{[\s\S]*font-size: 16px;/,
   );
   assert.match(
     styles,
@@ -564,11 +564,11 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   assert.match(rowSource, /className=\{styles\.rowIdentityMobile\}/);
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 124px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\);/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 17px;[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;/,
   );
   assert.match(
     styles,
