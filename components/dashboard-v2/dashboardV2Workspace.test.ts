@@ -88,6 +88,7 @@ test("Markets gates every ad placement with the shared viewer-plan decision", ()
 test("Markets mobile controls stay full-width, single-line, and locally sized", () => {
   const dashboard = read("components/dashboard-v2/StockRadarDashboardV2.tsx");
   const filterBar = read("components/dashboard-v2/FilterBar.tsx");
+  const filterTriggerStyles = read("components/ui/FilterTrigger.module.css");
   const segmentedControl = read("components/ui/SegmentedControl.module.css");
   const dashboardStyles = read(
     "components/dashboard-v2/StockRadarDashboardV2.module.css",
@@ -108,8 +109,12 @@ test("Markets mobile controls stay full-width, single-line, and locally sized", 
     2,
   );
   assert.match(
+    filterTriggerStyles,
+    /\.compact:global\(\.dashboard-v2-mobile-quick-filter\) \.label\s*{\s*font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.doesNotMatch(
     dashboardStyles,
-    /\.dashboard-v2-mobile-quick-filter span\)\s*{\s*font-size: var\(--sr-font-size-sm\);/,
+    /\.dashboard-v2-mobile-quick-filter span/,
   );
   assert.match(
     dashboardStyles,

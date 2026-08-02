@@ -78,6 +78,10 @@
   white-space: nowrap;
 }
 
+.compact:global(.dashboard-v2-mobile-quick-filter) .label {
+  font-size: var(--sr-font-size-sm);
+}
+
 .compact > svg {
   flex: 0 0 auto;
   width: 12px;
