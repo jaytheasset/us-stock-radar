@@ -5,7 +5,7 @@ import test from "node:test";
 const readProjectFile = (path: string) =>
   readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
-test("product header keeps core tools and replaces horizontal scrolling with More", () => {
+test("product header measures available desktop space before moving links into More", () => {
   const header = readProjectFile("components/shell/StockRadarProductHeader.tsx");
   const desktop = readProjectFile(
     "components/shell/StockRadarDesktopNavigation.tsx",
@@ -34,9 +34,22 @@ test("product header keeps core tools and replaces horizontal scrolling with Mor
   assert.doesNotMatch(header, /Settings|settingsButton/);
   assert.doesNotMatch(mobile, /Settings/);
 
-  for (const key of ["markets", "feed", "watchlist"]) {
+  for (const key of [
+    "markets",
+    "feed",
+    "watchlist",
+    "news",
+    "filings",
+    "alerts",
+    "calendar",
+  ]) {
     assert.match(navigation, new RegExp(`"${key}"`));
   }
+  assert.match(desktop, /navigation\.getBoundingClientRect\(\)/);
+  assert.match(desktop, /actions\.getBoundingClientRect\(\)/);
+  assert.match(desktop, /measurementItemRefs\.current\.map/);
+  assert.match(desktop, /new ResizeObserver\(measure\)/);
+  assert.match(desktop, /getVisibleNavigationItemCount/);
   assert.match(desktop, /aria-haspopup="menu"/);
   assert.match(desktop, /aria-label="More navigation"/);
   assert.match(desktop, /event\.key !== "Escape"/);
@@ -45,9 +58,9 @@ test("product header keeps core tools and replaces horizontal scrolling with Mor
   assert.match(styles, /@media \(min-width: 821px\) and \(max-width: 1340px\)/);
   assert.match(
     styles,
-    /\.primaryNavigation\s*>\s*a\.navigationSecondary\s*\{\s*display:\s*none/,
+    /\.moreNavigation\s*\{[\s\S]*?display:\s*flex[\s\S]*?\}/,
   );
-  assert.match(styles, /\.moreNavigation\s*\{\s*display:\s*flex/);
+  assert.doesNotMatch(styles, /navigationSecondary/);
   assert.match(styles, /@media \(max-width: 820px\)/);
   assert.match(
     styles,

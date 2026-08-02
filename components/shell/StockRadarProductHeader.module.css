@@ -52,7 +52,8 @@
   box-shadow: var(--sr-shadow-product-delay-dot);
 }
 .primaryNavigation {
-  flex: 1 1 auto;
+  position: relative;
+  flex: 1 1 0;
   min-width: 0;
   gap: var(--sr-space-1);
   overflow: visible;
@@ -60,6 +61,7 @@
 }
 
 .primaryNavigation > a,
+.navigationMeasurementItem,
 .moreNavigationButton {
   display: inline-flex;
   height: var(--sr-size-nav-item);
@@ -92,8 +94,18 @@
 
 .moreNavigation {
   position: relative;
-  display: none;
+  display: flex;
   align-items: center;
+}
+
+.navigationMeasurement {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  display: flex;
+  gap: inherit;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .moreNavigationButton {
@@ -1201,14 +1213,6 @@
     gap: var(--sr-space-2-5);
   }
 
-  .primaryNavigation > a.navigationSecondary {
-    display: none;
-  }
-
-  .moreNavigation {
-    display: flex;
-  }
-
   .actions {
     gap: var(--sr-space-2);
   }
@@ -1233,6 +1237,7 @@
   }
 
   .primaryNavigation > a,
+  .navigationMeasurementItem,
   .moreNavigationButton {
     padding-inline: var(--sr-space-1-75);
     font-size: var(--sr-font-size-sm);

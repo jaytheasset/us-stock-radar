@@ -52,7 +52,7 @@
     "verify:market-cache-workflow": "node --test --experimental-strip-types lib/marketCacheWorkflow.test.ts",
     "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
     "verify:shell": "node --test --experimental-strip-types components/shell/appShellRegression.test.ts",
-    "verify:auth": "node --test --experimental-strip-types lib/auth/authPolicy.test.ts components/shell/headerNavigationRegression.test.ts",
+    "verify:auth": "node --test --experimental-strip-types lib/auth/authPolicy.test.ts components/shell/desktopNavigationLayout.test.ts components/shell/headerNavigationRegression.test.ts",
     "verify:admin": "node --test --experimental-strip-types lib/admin/adminFoundation.test.ts lib/admin/internalReadoutApi.test.ts lib/admin/telegramCampaignPolicy.test.ts lib/admin/telegramCampaignAiPolicy.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts lib/originalSourceContent.test.ts",
     "verify:saved": "node --test --experimental-strip-types lib/saved/savedContent.test.ts",
