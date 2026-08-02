@@ -8,6 +8,8 @@ import {
 
 export const PREMIUM_MARKET_MOVING_LIMIT = 3;
 export const PREMIUM_MARKET_MOVING_POLL_INTERVAL_MS = 60_000;
+export const PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS = 60;
+export const PREMIUM_MARKET_MOVING_STALE_WHILE_REVALIDATE_SECONDS = 60;
 
 export type PremiumMarketMovingEvent = {
   eventTypeLabel: string;
@@ -35,7 +37,7 @@ const qaMarkerPattern =
 export function buildPremiumMarketMovingEventQuery() {
   return {
     limit: "50",
-    order: "published_at.desc.nullslast,detected_at.desc",
+    order: "detected_at.desc",
     score: "gte.90",
     select:
       "id,source_code,source_group,source_name,source_url,published_at,detected_at,ticker,event_type,score,signal,title",

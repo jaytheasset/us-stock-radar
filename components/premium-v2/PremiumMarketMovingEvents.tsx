@@ -27,7 +27,6 @@ export function PremiumMarketMovingEvents() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const request = fetch("/api/premium/market-moving-events", {
-      cache: "no-store",
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -75,7 +74,11 @@ export function PremiumMarketMovingEvents() {
         void refresh();
       }
     };
-    const handleFocus = () => void refresh();
+    const handleFocus = () => {
+      if (shouldPollPremiumMarketMoving(document.visibilityState)) {
+        void refresh();
+      }
+    };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);

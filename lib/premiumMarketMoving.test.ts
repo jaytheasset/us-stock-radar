@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   buildPremiumMarketMovingEventQuery,
   buildPremiumMarketMovingTickerQuery,
+  PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS,
   PREMIUM_MARKET_MOVING_LIMIT,
   PREMIUM_MARKET_MOVING_POLL_INTERVAL_MS,
+  PREMIUM_MARKET_MOVING_STALE_WHILE_REVALIDATE_SECONDS,
   selectPremiumMarketMovingEvents,
   shouldPollPremiumMarketMoving,
 } from "./premiumMarketMoving.ts";
@@ -37,7 +39,7 @@ const baseRow = {
 test("builds a server-enforced filing, source, score, sort, and minimal-select query", () => {
   assert.deepEqual(buildPremiumMarketMovingEventQuery(), {
     limit: "50",
-    order: "published_at.desc.nullslast,detected_at.desc",
+    order: "detected_at.desc",
     score: "gte.90",
     select:
       "id,source_code,source_group,source_name,source_url,published_at,detected_at,ticker,event_type,score,signal,title",
@@ -120,12 +122,47 @@ test("sorts by published/detected recency, limits to three, and maps canonical d
     ticker: "PRIMARY.L",
     title: baseRow.title,
   });
+  assert.deepEqual(Object.keys(events[0] || {}).sort(), [
+    "eventTypeLabel",
+    "href",
+    "id",
+    "score",
+    "signal",
+    "ticker",
+    "title",
+  ]);
   assert.equal(events[1]?.eventTypeLabel, "FDA / Clinical");
 });
 
-test("uses a 60-second visible-only polling policy", () => {
+test("keeps the public cache and visible-only polling policy aligned at 60 seconds", () => {
+  assert.equal(PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS, 60);
+  assert.equal(PREMIUM_MARKET_MOVING_STALE_WHILE_REVALIDATE_SECONDS, 60);
   assert.equal(PREMIUM_MARKET_MOVING_POLL_INTERVAL_MS, 60_000);
   assert.equal(shouldPollPremiumMarketMoving("visible"), true);
   assert.equal(shouldPollPremiumMarketMoving("hidden"), false);
   assert.equal(shouldPollPremiumMarketMoving("prerender"), false);
+});
+
+test("orders candidates by detected time so a newest null-published filing survives the candidate limit", () => {
+  const query = buildPremiumMarketMovingEventQuery();
+  assert.equal(query.limit, "50");
+  assert.equal(query.order, "detected_at.desc");
+  assert.doesNotMatch(query.order, /published_at/);
+
+  const events = selectPremiumMarketMovingEvents([
+    {
+      ...baseRow,
+      detected_at: "2026-08-03T12:00:00.000Z",
+      id: ids.newest,
+      published_at: null,
+    },
+    {
+      ...baseRow,
+      detected_at: "2026-08-03T11:00:00.000Z",
+      id: ids.second,
+      published_at: "2026-08-03T10:59:00.000Z",
+    },
+  ]);
+
+  assert.deepEqual(events.map((event) => event.id), [ids.newest, ids.second]);
 });

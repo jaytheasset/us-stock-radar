@@ -26,6 +26,14 @@ const marketMovingRouteSource = readFileSync(
   new URL("../../app/api/premium/market-moving-events/route.ts", import.meta.url),
   "utf8",
 );
+const marketMovingRateLimitSource = readFileSync(
+  new URL("../../lib/premiumMarketMovingRateLimit.server.ts", import.meta.url),
+  "utf8",
+);
+const marketMovingRateLimitPolicySource = readFileSync(
+  new URL("../../lib/premiumMarketMovingRateLimit.ts", import.meta.url),
+  "utf8",
+);
 const dataSource = readFileSync(
   new URL("../../lib/mock/premiumV2Data.ts", import.meta.url),
   "utf8",
@@ -124,12 +132,14 @@ test("keeps public delayed and personalized premium delivery channels distinct",
   assert.doesNotMatch(dataSource, /Unlimited watchlist 쨌/);
 });
 
-test("loads only real 90+ SEC filings through a minimal server-only API", () => {
+test("loads only real 90+ SEC filings through a fixed minimal server-only API", () => {
   assert.doesNotMatch(dataSource, /premiumV2SampleAlerts|MULN files|Bearish 88|Bullish 82/);
   assert.match(componentSource, /<PremiumMarketMovingEvents \/>/);
   assert.match(marketMovingDataSource, /source_group: "eq\.filings"/);
   assert.match(marketMovingDataSource, /source_code: "eq\.sec_edgar"/);
   assert.match(marketMovingDataSource, /score: "gte\.90"/);
+  assert.match(marketMovingDataSource, /order: "detected_at\.desc"/);
+  assert.doesNotMatch(marketMovingDataSource, /published_at\.desc\.nullslast/);
   assert.match(marketMovingDataSource, /\.slice\(0, PREMIUM_MARKET_MOVING_LIMIT\)/);
   assert.match(marketMovingDataSource, /href: `\/filings\/\$\{id\}`/);
   assert.match(marketMovingDataSource, /getEventTypeDefinition/);
@@ -137,7 +147,39 @@ test("loads only real 90+ SEC filings through a minimal server-only API", () => 
   assert.match(marketMovingServerSource, /supabaseSelect\(\s*"events"/);
   assert.match(marketMovingServerSource, /supabaseSelect\(\s*"event_tickers"/);
   assert.doesNotMatch(marketMovingRouteSource, /metadata|prompt|service.?role/i);
-  assert.match(marketMovingRouteSource, /no-store, max-age=0, must-revalidate/);
+  assert.match(marketMovingRouteSource, /if \(request\.nextUrl\.search\)/);
+  assert.match(marketMovingRouteSource, /Query parameters are not supported\./);
+  assert.match(marketMovingRouteSource, /headers: publicCacheHeaders/);
+  assert.match(
+    marketMovingRouteSource,
+    /public, max-age=0, s-maxage=\$\{PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS\}, stale-while-revalidate=\$\{PREMIUM_MARKET_MOVING_STALE_WHILE_REVALIDATE_SECONDS\}/,
+  );
+  assert.match(marketMovingRouteSource, /private, no-store, max-age=0/);
+  assert.match(marketMovingServerSource, /cachedResponse/);
+  assert.match(marketMovingServerSource, /pendingResponse/);
+  assert.match(
+    marketMovingServerSource,
+    /PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS \* 1_000/,
+  );
+});
+
+test("protects the public fixed endpoint from uncached request abuse", () => {
+  assert.match(marketMovingRouteSource, /consumePremiumMarketMovingReadLimit\(request\)/);
+  assert.match(marketMovingRouteSource, /"Retry-After"/);
+  assert.match(marketMovingRouteSource, /status: 429/);
+  assert.match(marketMovingRateLimitSource, /createHash\("sha256"\)/);
+  assert.match(
+    marketMovingRateLimitPolicySource,
+    /PREMIUM_MARKET_MOVING_IDENTITY_LIMIT = 30/,
+  );
+  assert.match(
+    marketMovingRateLimitPolicySource,
+    /PREMIUM_MARKET_MOVING_GLOBAL_LIMIT = 600/,
+  );
+  assert.match(
+    marketMovingRateLimitPolicySource,
+    /PREMIUM_MARKET_MOVING_MAX_IDENTITIES = 1_000/,
+  );
 });
 
 test("covers live event loading, empty, error, success, and resilient refresh states", () => {
@@ -154,9 +196,13 @@ test("polls at 60 seconds only while visible and refreshes on visibility and foc
   assert.match(marketMovingSource, /document\.visibilityState/);
   assert.match(marketMovingSource, /visibilitychange/);
   assert.match(marketMovingSource, /window\.addEventListener\("focus"/);
+  assert.match(
+    marketMovingSource,
+    /const handleFocus = \(\) => \{[\s\S]*shouldPollPremiumMarketMoving\(document\.visibilityState\)[\s\S]*void refresh\(\);[\s\S]*\};/,
+  );
   assert.match(marketMovingSource, /if \(inFlightRef\.current\) return inFlightRef\.current/);
   assert.match(marketMovingSource, /new AbortController\(\)/);
-  assert.match(marketMovingSource, /cache: "no-store"/);
+  assert.doesNotMatch(marketMovingSource, /cache: "no-store"/);
 });
 
 test("uses the shared product shell width, typography, panels, and responsive plan grid", () => {

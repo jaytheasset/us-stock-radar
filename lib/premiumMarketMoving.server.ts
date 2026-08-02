@@ -3,6 +3,7 @@ import "server-only";
 import {
   buildPremiumMarketMovingEventQuery,
   buildPremiumMarketMovingTickerQuery,
+  PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS,
   selectPremiumMarketMovingEvents,
   type PremiumMarketMovingResponse,
 } from "@/lib/premiumMarketMoving";
@@ -10,7 +11,36 @@ import { supabaseSelect } from "@/lib/supabase";
 
 type UnknownRow = Record<string, unknown>;
 
+let cachedResponse: {
+  expiresAt: number;
+  value: PremiumMarketMovingResponse;
+} | null = null;
+let pendingResponse: Promise<PremiumMarketMovingResponse> | null = null;
+
 export async function loadPremiumMarketMovingEvents(): Promise<PremiumMarketMovingResponse> {
+  const now = Date.now();
+  if (cachedResponse && cachedResponse.expiresAt > now) {
+    return cachedResponse.value;
+  }
+  if (pendingResponse) return pendingResponse;
+
+  pendingResponse = buildPremiumMarketMovingResponse()
+    .then((value) => {
+      cachedResponse = {
+        expiresAt:
+          Date.now() + PREMIUM_MARKET_MOVING_CACHE_TTL_SECONDS * 1_000,
+        value,
+      };
+      return value;
+    })
+    .finally(() => {
+      pendingResponse = null;
+    });
+
+  return pendingResponse;
+}
+
+async function buildPremiumMarketMovingResponse(): Promise<PremiumMarketMovingResponse> {
   const eventsResult = await supabaseSelect(
     "events",
     buildPremiumMarketMovingEventQuery(),
