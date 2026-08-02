@@ -62,6 +62,10 @@ GET /api/sources/health
 GET /api/sources/health?full=true
 ```
 
+The source registry requires an administrator with `data.read`. Source health
+uses the separate diagnostic secret/cron authorization policy. Neither route is
+an anonymous public status surface.
+
 `/api/sources/health` checks only the primary URL for each source.
 `/api/sources/health?full=true` checks all configured source URLs, including
 Business Wire category feeds and DEA/White House fallbacks.

@@ -3,7 +3,11 @@
 This project exposes registries and status pages for architecture-critical
 objects so future chats do not invent parallel structures.
 
-## API Read-Outs
+## Administrator API Read-Outs
+
+These endpoints require an authenticated administrator with the matching
+`system.read` or `data.read` permission. Anonymous and ordinary member requests
+must never reach the registry or probe functions.
 
 ```text
 GET /api/db/registry
@@ -13,6 +17,7 @@ GET /api/integrations/health
 GET /api/sources/registry
 GET /api/sources/health
 GET /api/sources/health?full=true
+GET /api/admin/system/health
 ```
 
 ## Admin Pages
@@ -29,7 +34,8 @@ GET /api/sources/health?full=true
 
 ## Rules
 
-- Read-outs are safe and read-only.
+- Read-outs are sensitive, read-only administrator surfaces.
+- `/api/health` is the only public liveness endpoint and returns only `{ "ok": true }`.
 - Schema changes must be implemented through migrations, not admin pages.
 - Prompt registry changes should be versioned.
 - Source job execution must stay explicit; source health checks must not run
