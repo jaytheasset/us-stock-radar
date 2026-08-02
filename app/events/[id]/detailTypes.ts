@@ -14,7 +14,12 @@ export type PriceChartSeries = {
 
 export type TopMover = {
   symbol: string;
+  companyName?: string;
+  exchange?: string;
+  source?: "related" | "filler";
+  fillerBucket?: "sub_theme" | "theme" | "industry_group" | "sector";
   change?: string;
+  price?: string;
   trend?: number[];
 };
 

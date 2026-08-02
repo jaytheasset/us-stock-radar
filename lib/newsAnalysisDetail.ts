@@ -4,6 +4,8 @@ import { bodyTextToSafeHtml, sanitizeNewsArticleHtml } from "@/lib/newsArticleSa
 import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
 import { readStoredNewsSourceContent } from "@/lib/originalSourceContent";
 import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import { resolveAnalysisMarketContext } from "@/lib/analysisMarketContext";
+import { loadAnalysisMarketData } from "@/lib/analysisMarketData";
 
 type DbRow = Record<string, unknown>;
 
@@ -41,11 +43,10 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
     readString(event, "ticker"),
     readString(primaryTickerRow, "symbol"),
   ));
-  const [relatedNewsResult, relatedFilingsResult, quote, chart, tickerCatalogResult] = await Promise.all([
+  const [relatedNewsResult, relatedFilingsResult, marketData, tickerCatalogResult] = await Promise.all([
     ticker ? fetchEventsByTicker({ ticker, sourceGroup: "news", excludeId: id, limit: 4 }) : emptyRowsResult(),
     ticker ? fetchEventsByTicker({ ticker, sourceGroup: "filings", excludeId: id, limit: 4 }) : emptyRowsResult(),
-    ticker ? fetchStoredQuote(ticker) : Promise.resolve(null),
-    ticker ? fetchStoredChart(ticker) : Promise.resolve(null),
+    ticker ? loadAnalysisMarketData(ticker) : Promise.resolve({ quote: null, series: null }),
     ticker
       ? supabaseSelect("tickers", {
           select: "symbol,name,exchange,fmp_sector,fmp_industry",
@@ -133,13 +134,25 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
   const snapshotContext = classification
     ? await fetchStoredMarketContext(classification)
     : null;
-  const marketContext = buildNewsMarketContext({
+  const storedMarketContext = buildNewsMarketContext({
     classification,
     company,
     exchange,
     snapshotContext,
     ticker,
   });
+  const marketContext = ticker
+    ? await resolveAnalysisMarketContext({
+        baseContext: storedMarketContext,
+        companyName: company,
+        eventTickerRows: tickerRows,
+        exchange,
+        primaryTicker: ticker,
+        score: score ?? 0,
+        signal: signal || "neutral",
+      })
+    : storedMarketContext;
+  const marketMovement = deriveStoredMarketMovement(marketData.series);
 
   return {
     eventType: readString(event, "event_type"),
@@ -173,10 +186,10 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
     fixture: false,
     marketContext,
     originalHtml,
-    price: formatMoney(quote?.price ?? chart?.latestPrice),
-    priceChange: formatPercent(quote?.changePercent ?? chart?.changePercent),
-    priceChangeAmount: formatMoneyChange(quote?.changeAmount ?? chart?.changeAmount),
-    priceSeries: chart?.series || null,
+    price: formatMoney(marketData.quote?.price ?? marketMovement?.latestPrice),
+    priceChange: formatPercent(marketData.quote?.changePercent ?? marketMovement?.changePercent),
+    priceChangeAmount: formatMoneyChange(marketData.quote?.changeAmount ?? marketMovement?.changeAmount),
+    priceSeries: marketData.series,
     timestampLabel: publishedAt ? "Published" : "Detected",
   };
 }
@@ -187,61 +200,16 @@ async function fetchRawItem(rawItemId: string) {
   return { data: toRows(result.data)[0] || null };
 }
 
-async function fetchStoredQuote(ticker: string) {
-  const result = await supabaseSelect("market_quotes", {
-    select: "price,change_amount,change_percent,previous_close,fetched_at",
-    symbol: `eq.${ticker}`,
-    order: "fetched_at.desc",
-    limit: "1",
-  });
-  const row = toRows(result.data)[0];
-  if (!row) return null;
-  return {
-    price: readNumber(row, "price") ?? undefined,
-    changeAmount: readNumber(row, "change_amount") ?? undefined,
-    changePercent: readNumber(row, "change_percent") ?? undefined,
-  };
-}
-
-async function fetchStoredChart(ticker: string) {
-  const result = await supabaseSelect("market_bars", {
-    select: "range,provider_label,previous_close,latest_price,change_amount,change_percent,bars,fetched_at",
-    symbol: `eq.${ticker}`,
-    order: "fetched_at.desc",
-    limit: "20",
-  });
-  const rows = toRows(result.data);
-  const periods: PriceChartSeries["periods"] = {};
-  let providerLabel = "";
-  let previousClose = 0;
-  let latestPrice: number | undefined;
-  let changeAmount: number | undefined;
-  let changePercent: number | undefined;
-
-  for (const row of rows) {
-    const range = readString(row, "range");
-    if (!isPriceRange(range) || periods[range]?.length) continue;
-    const points = readPricePoints(row.bars, range);
-    if (!points.length) continue;
-    periods[range] = points;
-    providerLabel ||= readString(row, "provider_label");
-    previousClose ||= readNumber(row, "previous_close") || 0;
-    latestPrice ??= readNumber(row, "latest_price") ?? undefined;
-    changeAmount ??= readNumber(row, "change_amount") ?? undefined;
-    changePercent ??= readNumber(row, "change_percent") ?? undefined;
-  }
-
-  if (!Object.values(periods).some((points) => points?.length)) return null;
-  const firstStoredPoint = Object.values(periods).find((points) => points?.length)?.[0];
+function deriveStoredMarketMovement(series: PriceChartSeries | null) {
+  if (!series) return null;
+  const points = series.periods["1D"] || Object.values(series.periods).find((item) => item?.length) || [];
+  const latestPrice = points[points.length - 1]?.close;
+  if (latestPrice === undefined || !series.previousClose) return null;
+  const changeAmount = latestPrice - series.previousClose;
   return {
     changeAmount,
-    changePercent,
+    changePercent: (changeAmount / series.previousClose) * 100,
     latestPrice,
-    series: {
-      periods,
-      previousClose: previousClose || firstStoredPoint?.open || firstStoredPoint?.close || 0,
-      ...(providerLabel ? { providerLabel } : {}),
-    },
   };
 }
 
@@ -416,8 +384,12 @@ function buildNewsAnalysisFixture(): NewsAnalysisDetail {
     themeScore: score,
     themeSignal: "bullish",
     topMovers: [
-      { symbol: "IPWR", change: "+7.84%", trend: [8.1, 8.3, 8.25, 8.6, 8.9, 9.05] },
-      { symbol: "PWR", change: "+2.31%", trend: [401, 403, 402, 408, 410, 412] },
+      { symbol: "IPWR", companyName: "Ideal Power Inc.", change: "+7.84%", trend: [8.1, 8.3, 8.25, 8.6, 8.9, 9.05] },
+      { symbol: "PWR", companyName: "Quanta Services, Inc.", change: "+2.31%", trend: [401, 403, 402, 408, 410, 412] },
+      { symbol: "ETN", companyName: "Eaton Corporation plc", change: "+1.84%", trend: [340, 342, 341, 345, 347, 349] },
+      { symbol: "GEV", companyName: "GE Vernova Inc.", change: "+1.42%", trend: [612, 616, 614, 620, 624, 626] },
+      { symbol: "VRT", companyName: "Vertiv Holdings Co", change: "+1.16%", trend: [138, 140, 139, 142, 143, 144] },
+      { symbol: "CEG", companyName: "Constellation Energy Corporation", change: "+0.91%", trend: [330, 332, 331, 334, 336, 338] },
     ],
   });
   const sourceUrl = "https://example.com/news/ipwr-grid-storage-long-form";
@@ -469,23 +441,9 @@ function buildNewsAnalysisFixture(): NewsAnalysisDetail {
   };
 }
 
-function readPricePoints(value: unknown, range: keyof PriceChartSeries["periods"]) {
-  return Array.isArray(value) ? value.flatMap((entry) => {
-    const row = asRecord(entry);
-    const time = firstString(readString(row, "time"), readString(row, "date"));
-    const open = readNumber(row, "open");
-    const high = readNumber(row, "high");
-    const low = readNumber(row, "low");
-    const close = readNumber(row, "close");
-    if (!time || open === null || high === null || low === null || close === null) return [];
-    return [{ time: formatChartPointTime(time, range), open, high, low, close, volume: readNumber(row, "volume") || 0, vwap: readNumber(row, "vwap") ?? close }];
-  }) : [];
-}
-
 function readDeliveryLevel(row: DbRow) { const value = readString(row, "delivery_level"); return value === "alert" || value === "archive" || value === "feed" ? value : null; }
 function readImpact(row: DbRow) { const value = readString(row, "impact"); return value === "high" || value === "medium" || value === "low" ? value : null; }
 function readSignal(row: DbRow): DetailTone | null { const value = readString(row, "signal"); return value === "bullish" || value === "bearish" || value === "volatile" || value === "neutral" ? value : null; }
-function isPriceRange(value: string): value is keyof PriceChartSeries["periods"] { return value === "1D" || value === "5D" || value === "1M" || value === "3M" || value === "1Y"; }
 function normalizeTicker(value: string) { const ticker = value.trim().toUpperCase(); return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : ""; }
 function normalizeLabel(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, ""); }
 function cleanCompanyName(value: string, source: string) {
@@ -519,7 +477,6 @@ function formatStoredSourceCode(value: string) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
-function formatChartPointTime(value: string, range: keyof PriceChartSeries["periods"]) { const date = new Date(value); if (Number.isNaN(date.getTime())) return value; if (range === "1D") return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }).format(date); if (range === "5D") return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", timeZone: "America/New_York" }).format(date); return date.toISOString(); }
 function asRecord(value: unknown): DbRow | null { return value && typeof value === "object" && !Array.isArray(value) ? value as DbRow : null; }
 function toRows(value: unknown): DbRow[] { return Array.isArray(value) ? value.map(asRecord).filter((row): row is DbRow => Boolean(row)) : []; }
 function readString(row: DbRow | null, key: string) { const value = row?.[key]; return typeof value === "string" ? value.trim() : ""; }
