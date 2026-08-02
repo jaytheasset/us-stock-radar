@@ -6,7 +6,6 @@ import type {
   LiveFeedV2Item,
   LiveFeedV2Sentiment,
 } from "@/lib/liveFeedV2Contract";
-import { getLiveFeedV2MobileIdentityLabel } from "@/lib/liveFeedV2Contract";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import type { Plan } from "@/lib/subscriptionPolicy";
@@ -89,7 +88,6 @@ export function FeedEventList({
           (item.changePercent === null || item.feedType !== "market");
         const position = index + 1;
         const insertAd = viewerPlan === "free" && position % 20 === 10;
-        const mobileIdentityLabel = getLiveFeedV2MobileIdentityLabel(item);
         const eventPresentation = getLiveFeedV2EventPresentation(
           item.category,
           item.feedType,
@@ -117,13 +115,11 @@ export function FeedEventList({
                 <strong className={styles.identityDesktop}>{item.ticker}</strong>
                 <strong
                   className={styles.identityMobile}
-                  data-mobile-identity-kind={
-                    item.feedType === "market" ? "market" : "ticker"
-                  }
+                  data-mobile-identity-kind={item.identityKind}
                 >
-                  {mobileIdentityLabel}
+                  {item.ticker}
                 </strong>
-                <span>{item.company}</span>
+                <span title={item.company}>{item.company}</span>
               </div>
 
               <div className={styles.eventCopy}>

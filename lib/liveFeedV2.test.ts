@@ -7,11 +7,11 @@ import {
   decodeLiveFeedV2Cursor,
   encodeLiveFeedV2Cursor,
   formatLiveFeedV2Timestamp,
-  getLiveFeedV2MobileIdentityLabel,
   liveFeedV2BatchSize,
   normalizeLiveFeedV2Filter,
   resolveLiveFeedV2MarketData,
 } from "./liveFeedV2Contract.ts";
+import { getEventListIdentity } from "./eventListIdentity.ts";
 import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
@@ -547,14 +547,15 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
 test("feed ticker rows map real company names without disguising the source", () => {
   const source = readSource("lib/liveFeedV2.ts");
 
-  assert.match(
-    source,
-    /company:\s*item\.displayKind === "ticker"\s*\? item\.companyName\.trim\(\) \|\| "Company name unavailable"\s*:\s*`\$\{formatMarketScope\(item\.marketScope\)\} market event`/,
-  );
-  assert.doesNotMatch(
-    source,
-    /item\.displayKind === "ticker"\s*\? item\.source/,
-  );
+  assert.match(source, /const identity = getEventListIdentity\(\{/);
+  assert.match(source, /companyName: item\.companyName,/);
+  assert.match(source, /eventType: item\.eventType,/);
+  assert.match(source, /marketScope: item\.marketScope,/);
+  assert.match(source, /company: identity\.secondary,/);
+  assert.match(source, /identityKind: identity\.kind,/);
+  assert.match(source, /ticker: identity\.primary,/);
+  assert.doesNotMatch(source, /company:\s*item\.source/);
+  assert.doesNotMatch(source, /Macro market event|\bMARKET\b/);
   assert.match(source, /source: item\.source,/);
 });
 
@@ -1044,54 +1045,42 @@ test("feed v2 surfaces follow the News and Filings product design tokens", () =>
   );
 });
 
-test("tickerless mobile market alerts use real scope identities", () => {
-  const marketPreviewSource: LiveFeedV2PreviewSource = {
-    category: "Market",
-    detailHref: "/events/market-1",
-    feedType: "market",
-    headline: "Market alert",
-    id: "market-1",
-    impactScore: 80,
-    marketScopeLabel: "Macro",
-    primaryTicker: null,
-    publishedAt: "2026-07-26T14:05:00.000Z",
-    sentiment: "Volatile",
-    source: "Market News",
-    themeLabel: "Monetary Policy",
-    ticker: "N/A",
-  };
-
-  assert.equal(
-    getLiveFeedV2MobileIdentityLabel({
-      category: "Macro Alert",
-      preview: createLiveFeedV2Preview(marketPreviewSource),
-      ticker: "N/A",
+test("feed normalizes company, macro, and policy identities without source fallbacks", () => {
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "NVIDIA Corporation",
+      eventType: "product_update",
+      marketScope: "company",
+      sector: "Technology",
+      ticker: "NVDA",
     }),
-    "MACRO",
+    { kind: "ticker", primary: "NVDA", secondary: "NVIDIA Corporation" },
   );
-  assert.equal(
-    getLiveFeedV2MobileIdentityLabel({
-      category: "Sector Alert",
-      preview: createLiveFeedV2Preview({
-        ...marketPreviewSource,
-        marketScopeLabel: "Sector",
-        themeLabel: "Technology",
-      }),
-      ticker: "N/A",
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "JPMorgan Chase & Co.",
+      eventType: "macro_market",
+      marketScope: "company",
+      sector: "Financial Services",
+      subTheme: "interest_rates",
+      ticker: "JPM",
     }),
-    "SECTOR",
+    { kind: "market", primary: "MACRO", secondary: "Interest Rates" },
   );
-  assert.equal(
-    getLiveFeedV2MobileIdentityLabel({
-      category: "Theme Alert",
-      preview: createLiveFeedV2Preview({
-        ...marketPreviewSource,
-        marketScopeLabel: "Theme",
-        themeLabel: "AI Infrastructure",
-      }),
-      ticker: "N/A",
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "Alphabet Inc.",
+      eventType: "policy_regulation",
+      marketScope: "company",
+      sector: "Communication Services",
+      subTheme: "antitrust_big_tech_scrutiny",
+      ticker: "GOOGL",
     }),
-    "AI Infrastructure",
+    {
+      kind: "market",
+      primary: "POLICY",
+      secondary: "Antitrust & Big Tech Scrutiny",
+    },
   );
 });
 
@@ -1137,11 +1126,10 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     styleSource,
     /@media \(min-width: 761px\)[\s\S]*\.impactScore span\s*\{[\s\S]*font-size: var\(--sr-font-size-xs\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.impactScore strong\s*\{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: 600;/,
   );
-  assert.match(listSource, /getLiveFeedV2MobileIdentityLabel\(item\)/);
   assert.match(listSource, /className=\{styles\.identityMobile\}/);
   assert.match(
     listSource,
-    /data-mobile-identity-kind=\{[\s\S]*item\.feedType === "market" \? "market" : "ticker"/,
+    /data-mobile-identity-kind=\{item\.identityKind\}/,
   );
   assert.match(listSource, /<strong>\{item\.timeLabel\} ET<\/strong>/);
   assert.equal(
@@ -1149,7 +1137,15 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     2,
     "desktop and mobile should each render one ET suffix",
   );
-  assert.match(listSource, /<span>\{item\.company\}<\/span>/);
+  assert.match(listSource, /<span title=\{item\.company\}>\{item\.company\}<\/span>/);
+  assert.match(
+    listSource,
+    /className=\{styles\.identityDesktop\}>\{item\.ticker\}<\/strong>/,
+  );
+  assert.match(
+    listSource,
+    /className=\{styles\.identityMobile\}[\s\S]*data-mobile-identity-kind=\{item\.identityKind\}[\s\S]*>\s*\{item\.ticker\}\s*<\/strong>/,
+  );
   assert.match(
     listSource,
     /<span className=\{styles\.source\}>\{item\.source\}<\/span>/,
@@ -1178,6 +1174,10 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*column-gap: var\(--sr-space-2\);[\s\S]*row-gap: 7px;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.identity \{[\s\S]*display: grid;[\s\S]*max-width: 34vw;[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*gap: var\(--sr-space-0-5\);[\s\S]*\.identity span \{[\s\S]*display: block;[\s\S]*font-size: var\(--sr-font-size-sm\);/,
   );
   assert.match(
     styleSource,

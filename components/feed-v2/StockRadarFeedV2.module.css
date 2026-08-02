@@ -1298,13 +1298,19 @@
   }
 
   .identity {
-    display: contents;
-  }
-
-  .identity strong {
+    display: grid;
+    min-width: 0;
+    max-width: 34vw;
     grid-column: 1;
     grid-row: 1;
     align-self: center;
+    gap: var(--sr-space-0-5);
+  }
+
+  .identity strong {
+    grid-column: auto;
+    grid-row: auto;
+    align-self: auto;
     overflow: visible;
     overflow-wrap: anywhere;
     text-overflow: clip;
@@ -1334,7 +1340,10 @@
   }
 
   .identity span {
-    display: none;
+    display: block;
+    margin-top: 0;
+    font-size: var(--sr-font-size-sm);
+    line-height: var(--sr-line-height-none);
   }
 
   .eventCopy {

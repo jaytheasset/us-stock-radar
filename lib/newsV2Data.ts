@@ -30,7 +30,7 @@ import {
   parseThemeActivity,
 } from "@/lib/newsV2ApiContract";
 import { hydrateNewsV2ItemMarketData } from "@/lib/newsV2MarketHydration";
-import { supabaseRpc } from "@/lib/supabase";
+import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -198,6 +198,7 @@ function mapNewsRow(row: UnknownRecord): NewsV2Item | null {
 
   const ticker = normalizeTicker(readString(row.ticker));
   const eventTypeCode = readString(row.event_type) || "event";
+  const marketScope = readString(row.market_scope) || "company";
   const sector = readString(row.sector);
   const themeGroup = readString(row.theme_group);
   const subTheme = readString(row.sub_theme);
@@ -213,7 +214,9 @@ function mapNewsRow(row: UnknownRecord): NewsV2Item | null {
     headline: readString(row.headline) || "Untitled event",
     summary: readString(row.summary) || "No summary available yet.",
     source: readString(row.source) || "Unknown",
-    category: newsMarketScopeToCategory(readString(row.market_scope) || "company"),
+    companyName: readString(row.company_name) || "",
+    category: newsMarketScopeToCategory(marketScope),
+    marketScope,
     relatedTickers: ticker ? [ticker] : [],
     sentiment: normalizeNewsV2Signal(readString(row.signal) || "neutral"),
     score: clampScore(finiteNumber(row.score) ?? 50),
@@ -235,19 +238,56 @@ async function enrichNewsItems(items: NewsV2Item[]) {
   const symbols = Array.from(
     new Set(items.flatMap((item) => item.relatedTickers).filter(Boolean)),
   );
-  const [quoteMap, chartMap] = await Promise.all([
+  const [companyNameMap, quoteMap, chartMap] = await Promise.all([
+    readNewsCompanyNameMap(
+      items
+        .filter(
+          (item) =>
+            item.marketScope === "company" &&
+            item.eventTypeCode !== "macro_market" &&
+            item.eventTypeCode !== "policy_regulation",
+        )
+        .map((item) => item.id),
+    ),
     readHydratedMarketQuoteMap(symbols),
     readMarketBarCacheMap(symbols, "1D"),
   ]);
 
   return items.map((item) => {
+    const companyName = item.companyName || companyNameMap.get(item.id) || "";
     const symbol = item.relatedTickers[0];
-    if (!symbol) return item;
+    if (!symbol) return { ...item, companyName };
 
     const quote = quoteMap.get(symbol);
     const chart = chartMap.get(symbol);
-    return hydrateNewsV2ItemMarketData(item, quote, chart);
+    return hydrateNewsV2ItemMarketData({ ...item, companyName }, quote, chart);
   });
+}
+
+async function readNewsCompanyNameMap(ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean))).slice(0, newsV2PageSize);
+  if (!uniqueIds.length) return new Map<string, string>();
+
+  const result = await supabaseSelect("events", {
+    id: `in.(${uniqueIds.join(",")})`,
+    limit: String(uniqueIds.length),
+    select: "id,metadata",
+    source_group: "eq.news",
+  });
+  if (!result.ok || !Array.isArray(result.data)) return new Map<string, string>();
+
+  return new Map(
+    result.data.flatMap((value) => {
+      const row = asRecord(value);
+      const metadata = asRecord(row?.metadata);
+      const id = readString(row?.id);
+      const companyName =
+        readString(metadata?.company_name) ||
+        readString(metadata?.company) ||
+        readString(metadata?.issuer);
+      return id && companyName ? [[id, companyName] as const] : [];
+    }),
+  );
 }
 
 function readCursor(value: UnknownRecord | null): NewsV2Cursor | null {

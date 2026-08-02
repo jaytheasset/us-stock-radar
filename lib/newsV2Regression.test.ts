@@ -4,13 +4,11 @@ import test from "node:test";
 import { parseNewsV2Statistics } from "./newsV2ApiContract.ts";
 import { hasResettableNewsV2State } from "./newsV2FilterState.ts";
 import { hydrateNewsV2ItemMarketData } from "./newsV2MarketHydration.ts";
+import { getEventListIdentity } from "./eventListIdentity.ts";
 import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
 import { selectPriceChartXAxisIndexes } from "./priceChartAxis.ts";
 import type { NewsV2FilterState, NewsV2Item } from "./newsV2.ts";
-import {
-  getNewsV2MobileIdentityLabel,
-  getNewsV2ScopeBadgeLabel,
-} from "./newsV2ScopeBadge.ts";
+import { getNewsV2ScopeBadgeLabel } from "./newsV2ScopeBadge.ts";
 
 const emptyFilters: NewsV2FilterState = {
   sentiments: [],
@@ -27,7 +25,9 @@ const baseItem: NewsV2Item = {
   headline: "Example",
   summary: "Example summary",
   source: "SEC",
+  companyName: "Test Corporation",
   category: "Company",
+  marketScope: "company",
   relatedTickers: ["TEST"],
   sentiment: "Neutral",
   score: 50,
@@ -131,34 +131,6 @@ test("news scope badges hide company scope and use source-backed market taxonomy
     }),
     "AI & Data Center",
   );
-  assert.equal(getNewsV2MobileIdentityLabel(baseItem), "TEST");
-  assert.equal(
-    getNewsV2MobileIdentityLabel({
-      ...baseItem,
-      category: "Macro",
-      relatedTickers: [],
-    }),
-    "MACRO",
-  );
-  assert.equal(
-    getNewsV2MobileIdentityLabel({
-      ...baseItem,
-      category: "Sector",
-      relatedTickers: [],
-      sector: "Technology",
-    }),
-    "SECTOR",
-  );
-  assert.equal(
-    getNewsV2MobileIdentityLabel({
-      ...baseItem,
-      category: "Theme",
-      relatedTickers: [],
-      theme: "AI Infrastructure",
-      subThemeSlug: "ai_infrastructure",
-    }),
-    "AI & Data Center",
-  );
   assert.equal(
     getNewsV2ScopeBadgeLabel({
       category: "Theme",
@@ -191,6 +163,66 @@ test("news scope badges hide company scope and use source-backed market taxonomy
   assert.match(rowSource, /const scopeBadgeLabel = getNewsV2ScopeBadgeLabel\(item\)/);
   assert.match(rowSource, /scopeBadgeLabel \? \(/);
   assert.match(rowSource, /label=\{scopeBadgeLabel\}/);
+});
+
+test("news and feed share exact company, macro, policy, sector, and theme identities", () => {
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "JPMorgan Chase & Co.",
+      eventType: "macro_market",
+      marketScope: "company",
+      sector: "Financial Services",
+      subTheme: "interest_rates",
+      themeGroup: "rates_credit_banks",
+      ticker: "JPM",
+    }),
+    { kind: "market", primary: "MACRO", secondary: "Interest Rates" },
+  );
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "Alphabet Inc.",
+      eventType: "policy_regulation",
+      marketScope: "sector",
+      sector: "Communication Services",
+      subTheme: "antitrust_big_tech_scrutiny",
+      themeGroup: "policy_regulation",
+      ticker: "GOOGL",
+    }),
+    {
+      kind: "market",
+      primary: "POLICY",
+      secondary: "Antitrust & Big Tech Scrutiny",
+    },
+  );
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName: "NVIDIA Corporation",
+      eventType: "product_update",
+      marketScope: "company",
+      sector: "Technology",
+      ticker: "NVDA",
+    }),
+    { kind: "ticker", primary: "NVDA", secondary: "NVIDIA Corporation" },
+  );
+  assert.deepEqual(
+    getEventListIdentity({ eventType: "earnings", marketScope: "company" }),
+    {
+      kind: "ticker",
+      primary: "N/A",
+      secondary: "Company name unavailable",
+    },
+  );
+  assert.deepEqual(
+    getEventListIdentity({ marketScope: "sector", sector: "Technology" }),
+    { kind: "market", primary: "SECTOR", secondary: "Technology" },
+  );
+  assert.deepEqual(
+    getEventListIdentity({
+      marketScope: "theme",
+      themeGroup: "ai_data_center",
+    }),
+    { kind: "market", primary: "THEME", secondary: "AI & Data Center" },
+  );
 });
 
 test("news, filings, alerts, and watchlist share one accessible ticker autocomplete", () => {
@@ -479,7 +511,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     rowSource,
-    /data-mobile-identity-kind=\{isCompanyNews \? "ticker" : "market"\}/,
+    /data-mobile-identity-kind=\{identity\.kind\}/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity \{[\s\S]*?display: grid;[\s\S]*?max-width: 34vw;[\s\S]*?gap: var\(--sr-space-0-5\);[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: block;/,
   );
   assert.match(
     rowSource,
@@ -544,8 +580,29 @@ test("news rows keep event classification separate from publisher source", () =>
     rowSource,
     /className=\{styles\.rowMobileFooter\}[\s\S]*?className=\{styles\.rowSource\}>\{item\.source\}<\/span>/,
   );
+  assert.match(rowSource, /const identity = getEventListIdentity\(\{/);
+  assert.match(rowSource, /companyName: item\.companyName,/);
+  assert.match(rowSource, /marketScope: item\.marketScope,/);
+  assert.match(rowSource, /\{identity\.primary\}/);
+  assert.match(rowSource, /\{identity\.secondary\}/);
+  assert.equal(
+    (rowSource.match(/\{identity\.primary\}/g) ?? []).length,
+    2,
+    "desktop and mobile identities must render the same normalized primary text",
+  );
+  assert.doesNotMatch(rowSource, /marketCapBand|identityMeta|item\.source\s*\|\|/);
   assert.match(dataSource, /const eventTypeCode = readString\(row\.event_type\) \|\| "event";/);
   assert.match(dataSource, /source: readString\(row\.source\) \|\| "Unknown",/);
+  assert.match(
+    dataSource,
+    /readNewsCompanyNameMap\([\s\S]*item\.marketScope === "company"[\s\S]*item\.eventTypeCode !== "macro_market"[\s\S]*item\.eventTypeCode !== "policy_regulation"[\s\S]*\.map\(\(item\) => item\.id\)/,
+  );
+  assert.match(dataSource, /select: "id,metadata"/);
+  assert.match(dataSource, /readString\(metadata\?\.company_name\)/);
+  assert.doesNotMatch(
+    dataSource,
+    /companyName\s*=\s*[^;]*item\.source|companyName:\s*readString\(row\.source\)/,
+  );
   assert.match(
     dataSource,
     /eventType: getEventTypeBadge\(eventTypeCode\)\.label,[\s\S]*?eventTypeCode,/,
@@ -807,8 +864,11 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
     styles,
     /@media \(max-width: 1440px\) and \(min-width: 761px\) \{[\s\S]*?\.rowSparklineCell \{[\s\S]*?display: none;/,
   );
-  assert.match(rowSource, /getNewsV2MobileIdentityLabel\(item\)/);
+  assert.match(rowSource, /getEventListIdentity\(\{/);
   assert.match(rowSource, /className=\{styles\.rowIdentityMobile\}/);
+  assert.match(rowSource, /data-mobile-identity-kind=\{identity\.kind\}/);
+  assert.match(rowSource, /<span title=\{identity\.secondary\}>\{identity\.secondary\}<\/span>/);
+  assert.doesNotMatch(rowSource, /\bMARKET\b/);
   assert.ok(
     rowSource.indexOf("{hasChange ? (") <
       rowSource.indexOf("{hasPrice ? <strong>"),
@@ -821,6 +881,10 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   assert.match(
     styles,
     /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: 7px;[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity \{[\s\S]*?display: grid;[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1;[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: block;[\s\S]*?font-size: var\(--sr-font-size-sm\);/,
   );
   assert.match(
     styles,

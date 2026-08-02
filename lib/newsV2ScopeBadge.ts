@@ -39,27 +39,6 @@ export function getNewsV2ScopeBadgeLabel(
   return item.category === "Macro" ? "MACRO" : undefined;
 }
 
-export function getNewsV2MobileIdentityLabel(
-  item: Pick<
-    NewsV2Item,
-    | "category"
-    | "relatedTickers"
-    | "sector"
-    | "theme"
-    | "themeGroupSlug"
-    | "subThemeSlug"
-  >,
-) {
-  if (item.category === "Company") {
-    return item.relatedTickers[0]?.trim() || "N/A";
-  }
-
-  if (item.category === "Macro") return "MACRO";
-  if (item.category === "Sector") return "SECTOR";
-
-  return getNewsV2ScopeBadgeLabel(item) || "THEME";
-}
-
 function normalizeTaxonomyValue(value?: string | null) {
   return String(value || "")
     .trim()

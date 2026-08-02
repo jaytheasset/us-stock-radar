@@ -27,6 +27,7 @@ import {
   type LiveFeedV2PreviewSource,
 } from "@/lib/liveFeedV2Preview";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
+import { getEventListIdentity } from "@/lib/eventListIdentity";
 import type { RankedEvent } from "@/lib/radarRankings";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import {
@@ -156,25 +157,32 @@ function mapLiveFeedItem(
     chartCloses: chartBars.map((bar) => bar.close),
     priceLabel: item.displayPrice,
   });
+  const identity = getEventListIdentity({
+    companyName: item.companyName,
+    eventType: item.eventType,
+    marketScope: item.marketScope,
+    sector: item.sector,
+    subTheme: item.subTheme,
+    themeGroup: item.themeGroup,
+    ticker: item.ticker,
+  });
 
   return {
     category: previewSource.category,
     changePercent: marketData.changePercent,
-    company:
-      item.displayKind === "ticker"
-        ? item.companyName.trim() || "Company name unavailable"
-        : `${formatMarketScope(item.marketScope)} market event`,
+    company: identity.secondary,
     detailHref: previewSource.detailHref,
     feedType,
     headline: item.title,
     id: item.id || `${item.ticker}-${item.title}`,
+    identityKind: identity.kind,
     impactScore: item.score,
     price: marketData.price,
     sentiment: formatSentiment(item.signal),
     source: item.source,
     sparkline: marketData.sparkline,
     summary: item.quickTake || item.summary,
-    ticker: item.displayTicker,
+    ticker: identity.primary,
     timestamp,
     timeDateLabel: formattedTime.dateLabel,
     timeLabel: formattedTime.timeLabel,
