@@ -374,6 +374,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /data-active=\{isSaved\}/);
   assert.match(componentSource, /className=\{styles\.liveAction\}/);
   assert.match(componentSource, /className=\{styles\.alertAction\}/);
+  assert.match(
+    componentSource,
+    /href=\{getAlertsRouteHref\(ticker\)\}/,
+  );
   assert.match(componentSource, /Ticker unavailable/);
   assert.match(componentSource, /"Stock research workspace"/);
   assert.match(componentSource, /"Stock Overview"/);

@@ -39,6 +39,7 @@ import {
 import {
   parseCalendarEventsApiPayload,
 } from "@/lib/calendar-v1/normalized";
+import { getAlertsRouteHref } from "@/lib/alerts/tickers/query";
 import {
   formatStockCalendarEventDateTime,
   getCalendarEventRouteHref,
@@ -1331,7 +1332,7 @@ function StockHeader({
           issuer={companyName}
           ticker={ticker}
         />
-        <Link className={styles.alertAction} href="/alerts">
+        <Link className={styles.alertAction} href={getAlertsRouteHref(ticker)}>
           <Bell aria-hidden="true" size={15} />
           Set Alert
         </Link>
