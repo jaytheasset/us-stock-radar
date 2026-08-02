@@ -578,10 +578,6 @@
     overflow-x: hidden;
   }
 
-  :global(.dashboard-v2-mobile-quick-filter span) {
-    font-size: var(--sr-font-size-sm);
-  }
-
   .marketState,
   :global(.dashboard-v2-table-panel) {
     border: 0;
