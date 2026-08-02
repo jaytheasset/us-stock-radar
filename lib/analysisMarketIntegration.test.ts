@@ -43,6 +43,13 @@ test("the market chart route preserves cache-first TTL behavior and 5Y handling"
   assert.ok(cacheRead >= 0 && cacheRead < providerRead);
   assert.match(route, /if \(!forceRefresh && range !== "5Y"\)/);
   assert.match(route, /range === "5Y"\s*\? \{ ok: false \}/);
+  assert.match(route, /coalesceMarketChartRequest\(/);
+  assert.ok(
+    route.indexOf("readMarketBarCache(symbol, range, interval)") <
+      route.indexOf("coalesceMarketChartRequest("),
+  );
+  assert.match(route, /quoteChangePercent: cachedChart\.data\.changePercent/);
+  assert.match(route, /rangeChangePercent: rangeMovement\?\.changePercent/);
   assert.match(cache, /case "1D":\s*return 60;/);
   assert.match(cache, /case "5D":\s*return 300;/);
   assert.match(cache, /case "1M":\s*return 1800;/);
@@ -55,7 +62,11 @@ test("Market Context exposes real quote fields, explicit unavailable states, and
   const styles = read("app/globals.css");
 
   assert.match(panel, /price: Number\.isFinite\(lastPrice\) \? formatCurrency\(lastPrice\) : ""/);
-  assert.match(panel, /data\.changePercent/);
+  assert.match(panel, /resolveMarketRangeChangePercent\(\{/);
+  assert.match(panel, /rangeChangePercent: data\.rangeChangePercent/);
+  assert.doesNotMatch(panel, /Number\(data\.changePercent\)/);
+  assert.match(panel, /index \+= marketContextRequestConcurrency/);
+  assert.match(panel, /const marketContextRequestConcurrency = 3/);
   assert.doesNotMatch(panel, /live\?\.change \|\| mover\.change/);
   assert.doesNotMatch(panel, /live\?\.values \|\| mover\.trend/);
   assert.match(panel, /Company name unavailable/);

@@ -10,8 +10,10 @@ import {
 } from "./detailTypes";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { paginateAnalysisPeers } from "@/lib/analysisPeerSelection";
+import { resolveMarketRangeChangePercent } from "@/lib/marketChartMovement";
 
 const contextRanges: ContextRange[] = ["1D", "5D", "30D"];
+const marketContextRequestConcurrency = 3;
 
 type ChartApiResponse = {
   ok: boolean;
@@ -20,7 +22,9 @@ type ChartApiResponse = {
   latestPrice?: number;
   points?: PricePoint[];
   providerLabel?: string;
+  quoteChangePercent?: number;
   range?: PriceRange;
+  rangeChangePercent?: number;
   symbol?: string;
 };
 
@@ -112,8 +116,18 @@ export function SectorThemeContextPanel({
       setLiveMovers({});
       setMarketDataStatus("loading");
 
-      const results = await Promise.allSettled(
-        symbols.map(async (symbol) => {
+      const responses: Array<readonly [string, LiveMover]> = [];
+      for (
+        let index = 0;
+        index < symbols.length;
+        index += marketContextRequestConcurrency
+      ) {
+        const batch = symbols.slice(
+          index,
+          index + marketContextRequestConcurrency,
+        );
+        const results = await Promise.allSettled(
+          batch.map(async (symbol) => {
             const response = await fetch(`/api/market/chart?symbol=${encodeURIComponent(symbol)}&range=${apiRange}`, {
               cache: "no-store",
               signal: controller.signal,
@@ -125,12 +139,16 @@ export function SectorThemeContextPanel({
 
             return [symbol, toLiveMover(data)] as const;
           }),
-      );
+        );
+        responses.push(
+          ...results.flatMap((result) =>
+            result.status === "fulfilled" ? [result.value] : [],
+          ),
+        );
+        if (controller.signal.aborted) return;
+      }
 
       if (controller.signal.aborted) return;
-      const responses = results.flatMap((result) =>
-        result.status === "fulfilled" ? [result.value] : [],
-      );
       setLiveMovers(Object.fromEntries(responses));
       setMarketDataStatus(responses.length ? "ready" : "unavailable");
     }
@@ -443,15 +461,17 @@ function toLiveMover(data: ChartApiResponse): LiveMover {
   const lastPoint = points[points.length - 1];
   const firstPrice = firstPoint?.close || firstPoint?.open || 0;
   const lastPrice = data.latestPrice || lastPoint?.close || firstPrice;
-  const changePercent = Number.isFinite(data.changePercent)
-    ? Number(data.changePercent)
-    : firstPrice
-      ? ((lastPrice - firstPrice) / firstPrice) * 100
-      : Number.NaN;
+  const changePercent = resolveMarketRangeChangePercent({
+    points,
+    rangeChangePercent: data.rangeChangePercent,
+  });
 
   return {
     cache: data.cache,
-    change: Number.isFinite(changePercent) ? formatSignedPercent(changePercent) : "",
+    change:
+      changePercent !== undefined && Number.isFinite(changePercent)
+        ? formatSignedPercent(changePercent)
+        : "",
     price: Number.isFinite(lastPrice) ? formatCurrency(lastPrice) : "",
     providerLabel: data.providerLabel,
     values: points.map((point) => point.close),

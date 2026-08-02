@@ -7,6 +7,11 @@ import {
   writeMarketBarCache,
   writeMarketQuoteCache,
 } from "@/lib/marketDataCache";
+import { deriveMarketRangeMovement } from "@/lib/marketChartMovement";
+import {
+  coalesceMarketChartRequest,
+  marketChartRequestKey,
+} from "@/lib/marketRequestCoalescing";
 import type { PriceChartRange as PriceRange, PricePoint } from "@/lib/marketTypes";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +51,29 @@ type PolygonRangeConfig = {
   timespan: "minute" | "hour" | "day";
 };
 
+type MarketChartPayload = {
+  ok: boolean;
+  cache?: "miss" | "bypass";
+  cacheWrite?: "ok" | "skipped";
+  changeAmount?: number;
+  changePercent?: number;
+  error?: string;
+  interval?: string;
+  latestPrice?: number;
+  points?: PricePoint[];
+  previousClose?: number;
+  provider?: "polygon" | "fmp";
+  providerLabel?: string;
+  quoteCache?: QuoteSnapshot["cacheStatus"];
+  quoteChangeAmount?: number;
+  quoteChangePercent?: number;
+  range?: PriceRange;
+  rangeChangeAmount?: number;
+  rangeChangePercent?: number;
+  symbol: string;
+  warning?: string;
+};
+
 export async function GET(request: NextRequest) {
   const env = getServerEnv();
   const symbol = normalizeSymbol(request.nextUrl.searchParams.get("symbol") || "AAPL");
@@ -57,6 +85,7 @@ export async function GET(request: NextRequest) {
   if (!forceRefresh && range !== "5Y") {
     const cachedChart = await readMarketBarCache(symbol, range, interval);
     if (cachedChart.hit && cachedChart.data) {
+      const rangeMovement = deriveMarketRangeMovement(cachedChart.data.points);
       return NextResponse.json({
         ok: true,
         cache: "hit",
@@ -69,30 +98,64 @@ export async function GET(request: NextRequest) {
         latestPrice: cachedChart.data.latestPrice,
         changeAmount: cachedChart.data.changeAmount,
         changePercent: cachedChart.data.changePercent,
+        quoteChangeAmount: cachedChart.data.changeAmount,
+        quoteChangePercent: cachedChart.data.changePercent,
+        rangeChangeAmount: rangeMovement?.changeAmount,
+        rangeChangePercent: rangeMovement?.changePercent,
         points: cachedChart.data.points,
       });
     }
   }
 
+  const payload = await coalesceMarketChartRequest(
+    marketChartRequestKey({ forceRefresh, interval, range, symbol }),
+    () =>
+      loadMarketChart({
+        fmpApiKey: env.fmpApiKey,
+        forceRefresh,
+        interval,
+        polygonApiKey: env.polygonApiKey,
+        range,
+        symbol,
+      }),
+  );
+
+  return NextResponse.json(payload, {
+    status: payload.ok || softUnavailable ? 200 : 502,
+  });
+}
+
+async function loadMarketChart({
+  fmpApiKey,
+  forceRefresh,
+  interval,
+  polygonApiKey,
+  range,
+  symbol,
+}: {
+  fmpApiKey: string;
+  forceRefresh: boolean;
+  interval: string;
+  polygonApiKey: string;
+  range: PriceRange;
+  symbol: string;
+}): Promise<MarketChartPayload> {
   const [polygonResult, quote] = await Promise.all([
-    fetchPolygonChart(symbol, range, env.polygonApiKey),
-    fetchQuoteSnapshot(symbol, env.fmpApiKey, forceRefresh),
+    fetchPolygonChart(symbol, range, polygonApiKey),
+    fetchQuoteSnapshot(symbol, fmpApiKey, forceRefresh),
   ]);
 
   const chartResult = polygonResult.ok
     ? polygonResult
-    : await fetchFmpChart(symbol, range, env.fmpApiKey);
+    : await fetchFmpChart(symbol, range, fmpApiKey);
 
   if (!chartResult.ok || !chartResult.points.length) {
-    return NextResponse.json(
-      {
-        ok: false,
-        symbol,
-        range,
-        error: chartResult.error || polygonResult.error || "No chart data returned",
-      },
-      { status: softUnavailable ? 200 : 502 },
-    );
+    return {
+      ok: false,
+      symbol,
+      range,
+      error: chartResult.error || polygonResult.error || "No chart data returned",
+    };
   }
 
   const latestPoint = chartResult.points[chartResult.points.length - 1];
@@ -106,6 +169,7 @@ export async function GET(request: NextRequest) {
   const changePercent =
     quote.changePercent ??
     (previousClose ? (changeAmount / previousClose) * 100 : 0);
+  const rangeMovement = deriveMarketRangeMovement(chartResult.points);
   const responsePayload = {
     ok: true,
     cache: forceRefresh ? "bypass" : "miss",
@@ -119,9 +183,17 @@ export async function GET(request: NextRequest) {
     latestPrice: roundPrice(latestPrice),
     changeAmount: roundPrice(changeAmount),
     changePercent: roundPrice(changePercent),
+    quoteChangeAmount: roundPrice(changeAmount),
+    quoteChangePercent: roundPrice(changePercent),
+    rangeChangeAmount: rangeMovement
+      ? roundPrice(rangeMovement.changeAmount)
+      : undefined,
+    rangeChangePercent: rangeMovement
+      ? roundPrice(rangeMovement.changePercent)
+      : undefined,
     points: chartResult.points,
     warning: polygonResult.ok ? undefined : polygonResult.error,
-  };
+  } satisfies Omit<MarketChartPayload, "cacheWrite">;
 
   const cacheWrite =
     range === "5Y"
@@ -144,10 +216,10 @@ export async function GET(request: NextRequest) {
           symbol,
         });
 
-  return NextResponse.json({
+  return {
     ...responsePayload,
     cacheWrite: cacheWrite.ok ? "ok" : "skipped",
-  });
+  };
 }
 
 async function fetchPolygonChart(
