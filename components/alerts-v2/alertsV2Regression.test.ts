@@ -187,6 +187,26 @@ test("alerts mobile cards preserve readable type, full width, and narrow-screen 
     styles,
     /@media \(max-width: 360px\) \{[\s\S]*\.marketCapGrid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);/,
   );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.sourceFilterOption,[\s\S]*\.marketCapOption,[\s\S]*\.filingTypeOption \{[\s\S]*min-height: 48px;[\s\S]*padding-block: var\(--sr-space-2\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.marketCapOption input,[\s\S]*\.sourceFilterOption input,[\s\S]*\.filingGroupToggle input,[\s\S]*\.filingTypeOption input \{[\s\S]*flex: 0 0 var\(--sr-space-4-5\);[\s\S]*width: var\(--sr-space-4-5\);[\s\S]*height: var\(--sr-space-4-5\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filingGroupToggle \{[\s\S]*min-height: 44px;[\s\S]*padding-inline: var\(--sr-space-1\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.marketCapOption input:checked::after,[\s\S]*width: var\(--sr-space-2\);[\s\S]*height: var\(--sr-space-1-25\);[\s\S]*border-width: 0 0 var\(--sr-space-0-5\) var\(--sr-space-0-5\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filingGroupToggle input:indeterminate::after \{[\s\S]*width: var\(--sr-space-3\);[\s\S]*height: var\(--sr-space-0-5\);/,
+  );
 });
 
 test("Alerts V2 reads and persists the authenticated runtime instead of a mock plan", () => {
