@@ -22,6 +22,7 @@ import {
   buildGoogleOAuthCallbackUrl,
   isSameOriginAuthRequest,
   normalizeAuthCallbackType,
+  resolveDevelopmentAuthOrigin,
   resolveAuthRequestUrl,
   sanitizeAuthRedirect,
   shouldRefreshAuthSession,
@@ -60,6 +61,8 @@ test("auth redirect sanitizer accepts only internal non-callback destinations", 
 test("Google OAuth uses the canonical callback contract and preserves only safe next paths", () => {
   const productionCallback = new URL(
     buildGoogleOAuthCallbackUrl({
+      devAllowedOrigins: "http://192.168.50.25:3110",
+      localOrigin: "http://192.168.50.25:3110",
       next: "/watchlist?view=events",
       production: true,
     }),
@@ -80,6 +83,25 @@ test("Google OAuth uses the canonical callback contract and preserves only safe 
   assert.equal(localCallback.origin, AUTH_LOCAL_CALLBACK_ORIGIN);
   assert.equal(localCallback.pathname, "/auth/callback");
   assert.equal(localCallback.searchParams.get("next"), "/alerts");
+
+  const lanCallback = new URL(
+    buildGoogleOAuthCallbackUrl({
+      devAllowedOrigins:
+        "http://192.168.50.25:3110,http://192.168.50.25:56321",
+      localOrigin: "http://192.168.50.25:3110",
+      next: "/alerts",
+      production: false,
+    }),
+  );
+  assert.equal(lanCallback.origin, "http://192.168.50.25:3110");
+
+  assert.equal(
+    resolveDevelopmentAuthOrigin(
+      "https://evil.example",
+      "http://192.168.50.25:3110",
+    ),
+    AUTH_LOCAL_CALLBACK_ORIGIN,
+  );
 
   const authorizeUrl = new URL(
     buildGoogleOAuthAuthorizeUrl({

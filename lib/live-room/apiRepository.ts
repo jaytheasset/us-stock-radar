@@ -30,6 +30,7 @@ import {
   type LiveRoomRealtimeChannelLease,
   type LiveRoomRealtimeConfig,
 } from "./realtimeClient";
+import { isHttpsOrAllowedDevelopmentUrl } from "../devAllowedOrigins.ts";
 
 export type { LiveRoomRealtimeConfig } from "./realtimeClient";
 
@@ -691,16 +692,10 @@ function isUsableRealtimeConfig(
   value: LiveRoomRealtimeConfig | null,
 ): value is LiveRoomRealtimeConfig {
   if (!value?.publishableKey) return false;
-  try {
-    const url = new URL(value.url);
-    return (
-      url.protocol === "https:" ||
-      url.hostname === "127.0.0.1" ||
-      url.hostname === "localhost"
-    );
-  } catch {
-    return false;
-  }
+  return isHttpsOrAllowedDevelopmentUrl(
+    value.url,
+    value.developmentAllowedOrigins,
+  );
 }
 
 export async function requestJson<T>(

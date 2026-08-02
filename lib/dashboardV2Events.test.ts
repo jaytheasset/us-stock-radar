@@ -105,8 +105,8 @@ test("keeps the sorted raw event list for filters and the top four detail events
   );
 });
 
-test("defines compact labels for all 17 registered event types", () => {
-  assert.equal(eventTypeDefinitions.length, 17);
+test("defines compact labels for all 19 registered storage event types", () => {
+  assert.equal(eventTypeDefinitions.length, 19);
   for (const definition of eventTypeDefinitions) {
     const shortLabel = getDashboardV2ShortEventLabel(
       fixtureEvent(

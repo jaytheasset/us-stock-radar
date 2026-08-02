@@ -49,8 +49,8 @@ Desktop's unauthenticated TCP daemon merely to run local analytics.
 ## Local Auth callbacks
 
 The local Auth redirect allowlist supports `/auth/callback` over HTTP for both
-`localhost` and `127.0.0.1` on ports 3000 and 3110. The default `site_url`
-remains `http://127.0.0.1:3000`.
+`localhost` and `127.0.0.1` on ports 3000 and 3110. The default `site_url` is
+`http://127.0.0.1:3110`, matching the normal Stock Radar development port.
 
 The local Google provider is disabled by default. To test Google OAuth locally,
 enable `[auth.external.google]` separately and reference the client ID and
@@ -96,6 +96,49 @@ npm run dev -- -p 3110
 PowerShell environment variables take precedence over values loaded from
 `.env.local`, and closing that shell clears the local override. Do not print,
 save, or commit the key fields returned by `supabase status`.
+
+## Test from a phone on the same Wi-Fi
+
+LAN access is an explicit development-only mode for a trusted private Wi-Fi
+network. Production continues to require HTTPS and ignores
+`DEV_ALLOWED_ORIGINS`. Wildcards, public IPs, non-loopback hostnames, URL paths,
+credentials, and non-RFC1918 IPv4 addresses are rejected.
+
+1. In PowerShell, run `ipconfig` and choose the active adapter's private IPv4
+   address (for example `192.168.50.25`). Do not use a VPN, public, or virtual
+   adapter address.
+2. From the repository root, apply it explicitly:
+
+   ```powershell
+   npm run dev:configure-lan -- --host 192.168.50.25
+   ```
+
+   The command changes only `APP_BASE_URL`, `SUPABASE_URL`, and
+   `DEV_ALLOWED_ORIGINS` in the ignored `.env.local`. Existing keys and secrets
+   are preserved and never printed. It refuses to overwrite a hosted or other
+   non-local `SUPABASE_URL`. It also replaces the local Auth `site_url` and
+   exact `/auth/callback` allowlist in `supabase/config.toml`; do not commit the
+   generated personal IP.
+3. Restart the Next.js dev server so it reloads `.env.local`, binding it to the
+   LAN interface:
+
+   ```powershell
+   npm run dev -- -H 0.0.0.0 -p 3110
+   ```
+
+4. Supabase Auth reads `config.toml` only at stack startup. The owner of the
+   shared local stack must deliberately stop/start it once for the new LAN
+   callback to take effect. A feature worktree must never stop, start, or reset
+   the shared stack. The configuration command does none of those actions.
+5. Open `http://<LAN-IP>:3110` on the phone. The app origin and local Supabase
+   API/Realtime origin (`http://<LAN-IP>:56321`) are exact development entries
+   in the same allowlist. Password login, refresh, `/auth/callback`, Next dev
+   assets/HMR, and Live Room Realtime therefore use the same host policy.
+
+When the computer's LAN IP changes, rerun the configuration command with the
+new address and repeat only the two required restarts above. The script never
+kills a dev server or changes database rows. Windows Firewall may prompt once
+for Node.js/Docker access; allow only the trusted Private network profile.
 
 ## Safety boundary
 

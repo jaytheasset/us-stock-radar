@@ -15,6 +15,10 @@ import {
   isValidPublicAlertCategory,
   type Plan,
 } from "./subscriptionPolicy.ts";
+import {
+  eventTypeDefinitions,
+  NEWS_EVENT_TYPE_VALUES,
+} from "./eventTypeRegistry.ts";
 
 const plans: Plan[] = ["free", "ad_free", "pro", "advanced", "ultimate"];
 
@@ -31,6 +35,36 @@ test("other remains an internal fallback and is never a public entitlement", () 
   assert.equal(isValidAlertCategory("other"), true);
   assert.equal(isValidPublicAlertCategory("other"), false);
   assert.equal(getAllAlertCategoryValues().includes("other" as never), false);
+});
+
+test("public alerts stay at 17 while storage keeps two internal event types", () => {
+  const publicCodes = new Set(ALERT_CATEGORIES.map((category) => category.code));
+  const storageCodes = new Set(
+    eventTypeDefinitions.map((definition) => definition.code),
+  );
+
+  assert.equal(publicCodes.size, 17);
+  assert.equal(storageCodes.size, 19);
+  assert.equal(publicCodes.has("policy_regulation"), true);
+  assert.equal(publicCodes.has("macro_market"), true);
+  assert.equal(publicCodes.has("operating_update" as never), false);
+  assert.equal(publicCodes.has("other" as never), false);
+  assert.equal(storageCodes.has("operating_update"), true);
+  assert.equal(storageCodes.has("other"), true);
+});
+
+test("news prompt values match the registry news source subset", () => {
+  const registryNewsCodes = eventTypeDefinitions
+    .filter((definition) => definition.sourceGroups.includes("news"))
+    .map((definition) => definition.code)
+    .sort();
+
+  assert.deepEqual(registryNewsCodes, [...NEWS_EVENT_TYPE_VALUES].sort());
+  assert.equal(NEWS_EVENT_TYPE_VALUES.length, 18);
+  assert.equal(
+    NEWS_EVENT_TYPE_VALUES.includes("operating_update" as never),
+    false,
+  );
 });
 
 test("watchlists are unlimited and alert ticker limits match the approved contract", () => {

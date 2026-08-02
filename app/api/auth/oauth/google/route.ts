@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
 
     const { challenge, verifier } = createOAuthPkcePair();
     const redirectTo = buildGoogleOAuthCallbackUrl({
+      devAllowedOrigins: process.env.DEV_ALLOWED_ORIGINS,
+      localOrigin: env.appBaseUrl || request.nextUrl.origin,
       next,
       production: process.env.NODE_ENV === "production",
     });

@@ -4,13 +4,18 @@ import {
   buildSecurityHeaders,
   COMING_SOON_CONTENT_SECURITY_POLICY,
 } from "./lib/security/securityHeaders";
+import { getAllowedDevHostnames } from "./lib/devAllowedOrigins.ts";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1"],
+  allowedDevOrigins: getAllowedDevHostnames({
+    nodeEnv: process.env.NODE_ENV,
+    value: process.env.DEV_ALLOWED_ORIGINS,
+  }),
   async headers() {
     const securityHeaders = buildSecurityHeaders({
       nodeEnv: process.env.NODE_ENV,
       supabaseUrl: process.env.SUPABASE_URL,
+      devAllowedOrigins: process.env.DEV_ALLOWED_ORIGINS,
     });
     const contentSecurityPolicy = securityHeaders.find(
       (header) => header.key === "Content-Security-Policy",

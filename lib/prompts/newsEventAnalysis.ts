@@ -1,4 +1,6 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
+import { NEWS_EVENT_TYPE_VALUES } from "@/lib/eventTypeRegistry";
+export { NEWS_EVENT_TYPE_VALUES } from "@/lib/eventTypeRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
 export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v26";
@@ -16,27 +18,6 @@ export const TICKER_ROLE_VALUES = [
   "supplier",
   "counterparty",
   "mentioned",
-] as const;
-
-export const NEWS_EVENT_TYPE_VALUES = [
-  "listing_risk",
-  "dilution_risk",
-  "earnings",
-  "sales_performance",
-  "product_update",
-  "leadership_governance",
-  "insider_ownership",
-  "shareholder_vote",
-  "strategic_transaction",
-  "financial_risk",
-  "legal_risk",
-  "dividends",
-  "capital_return",
-  "ipo_listing",
-  "fda_clinical",
-  "policy_regulation",
-  "macro_market",
-  "other",
 ] as const;
 
 export const THEME_GROUP_VALUES = [

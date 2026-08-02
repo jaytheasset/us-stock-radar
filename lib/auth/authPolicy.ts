@@ -1,3 +1,5 @@
+import { isAllowedDevelopmentOrigin } from "../devAllowedOrigins.ts";
+
 export const AUTH_PRIVATE_HEADERS = {
   "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
   Expires: "0",
@@ -34,18 +36,38 @@ export function normalizeAuthCallbackType(value: unknown): AuthCallbackType | nu
 }
 
 export function buildGoogleOAuthCallbackUrl({
+  devAllowedOrigins,
+  localOrigin,
   next,
   production,
 }: {
+  devAllowedOrigins?: string;
+  localOrigin?: string;
   next?: unknown;
   production: boolean;
 }) {
   const origin = production
     ? AUTH_PRODUCTION_CALLBACK_ORIGIN
-    : AUTH_LOCAL_CALLBACK_ORIGIN;
+    : resolveDevelopmentAuthOrigin(localOrigin, devAllowedOrigins);
   const callback = new URL("/auth/callback", origin);
   callback.searchParams.set("next", sanitizeAuthRedirect(next, "/alerts"));
   return callback.toString();
+}
+
+export function resolveDevelopmentAuthOrigin(
+  candidate: string | undefined,
+  devAllowedOrigins: string | undefined,
+) {
+  if (
+    candidate &&
+    isAllowedDevelopmentOrigin(candidate, {
+      nodeEnv: "development",
+      value: devAllowedOrigins,
+    })
+  ) {
+    return new URL(candidate).origin;
+  }
+  return AUTH_LOCAL_CALLBACK_ORIGIN;
 }
 
 export function buildGoogleOAuthAuthorizeUrl({
