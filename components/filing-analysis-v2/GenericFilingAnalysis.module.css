@@ -1406,6 +1406,173 @@ a.companyLine:focus-visible {
   .newsDocument .originalSourceIdentity span {
     font-size: var(--sr-font-size-md);
   }
+
+  /* Filing analysis follows the established news-document mobile scale while
+     preserving filing-only badges, source metadata, and specialized renderers. */
+  .filingDocument .workspace {
+    padding-right: var(--sr-space-2);
+    padding-left: var(--sr-space-2);
+  }
+
+  .filingDocument :is(.layout, .mainColumn, .originalColumn, .specializedBody),
+  .filingDocument :is(.hero, .card, .railCard, .rendererCard) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .filingDocument .summaryHeader {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sr-space-2);
+  }
+
+  .filingDocument .summaryHeader > :last-child {
+    min-width: 0;
+    flex: 0 1 auto;
+    white-space: nowrap;
+  }
+
+  .filingDocument .hero h1 {
+    font-size: var(--sr-font-size-heading-md);
+    font-weight: var(--sr-font-weight-display);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .filingDocument .heroTimestamp {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .filingDocument .heroTimestamp span,
+  .filingDocument .classification > span,
+  .filingDocument .classification :global([class*="badge"]) {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .filingDocument .companyLine {
+    font-size: 16px;
+    line-height: var(--sr-line-height-relaxed);
+  }
+
+  .filingDocument .classificationActionRow {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--sr-space-3);
+  }
+
+  .filingDocument .classification {
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .filingDocument .heroActions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    gap: var(--sr-space-2);
+  }
+
+  .filingDocument .heroActions :is(a, button),
+  .filingDocument .originalSourceLink,
+  .filingDocument .railHeadingRow > a {
+    min-height: 44px;
+  }
+
+  .filingDocument .analysisLiveRoomButton {
+    font-size: 16px;
+  }
+
+  .filingDocument .sectionLabel,
+  .filingDocument .caseCard h2,
+  .filingDocument .rendererCard :global(.stock-detail-card h2),
+  .filingDocument .rendererCard :global(.stock-detail-card h3),
+  .filingDocument .specializedBody :is(h2, h3) {
+    font-size: var(--sr-font-size-2xl);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .filingDocument .card p,
+  .filingDocument .caseCard ul,
+  .filingDocument .textList,
+  .filingDocument .numberedList,
+  .filingDocument .rendererCard :global(.stock-detail-card p),
+  .filingDocument .rendererCard :global(.full-text-content p),
+  .filingDocument .rendererCard :global(.full-text-content li),
+  .filingDocument .rendererCard :global(.context-empty-state),
+  .filingDocument .specializedBody :is(p, li, dd, td) {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .filingDocument .specializedBody :is(dt, th),
+  .filingDocument .specializedBody [class*="label" i] {
+    font-size: max(13px, 1em);
+  }
+
+  .filingDocument .caseCard {
+    overflow: hidden;
+  }
+
+  .filingDocument .caseCard::before {
+    display: block;
+  }
+
+  .filingDocument .analysisDisclosure {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .filingDocument :global(section[aria-label="Score Rationale"] h2) {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .filingDocument :global(section[aria-label="Score Rationale"] p) {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .filingDocument .rendererCard :global(.price-range-control button),
+  .filingDocument .rendererCard :global(.context-range-control button),
+  .filingDocument .rendererCard :global(.price-chart-mobile-toggle) {
+    min-height: 44px;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .filingDocument .rendererCard :global(.context-metric strong),
+  .filingDocument .rendererCard :global(.context-mover-copy strong) {
+    font-size: 16px;
+    line-height: var(--sr-line-height-relaxed);
+  }
+
+  .filingDocument .railHeadingRow > a {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .filingDocument .recentList strong,
+  .filingDocument .newsListItem strong {
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .filingDocument .recentList span:not(.formLabel),
+  .filingDocument .newsListItem > span {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .filingDocument .originalSourceIdentity strong,
+  .filingDocument .originalSourceLink {
+    font-size: 16px;
+  }
+
+  .filingDocument .originalSourceIdentity span {
+    font-size: var(--sr-font-size-md);
+  }
 }
 
 @media (max-width: 360px) {
@@ -1420,6 +1587,20 @@ a.companyLine:focus-visible {
   }
 
   .newsDocument .summaryHeader > :last-child > svg {
+    display: none;
+  }
+
+  .filingDocument .summaryHeader {
+    gap: var(--sr-space-1);
+  }
+
+  .filingDocument .summaryHeader > :last-child {
+    gap: 0;
+    padding-right: var(--sr-space-1);
+    padding-left: var(--sr-space-1);
+  }
+
+  .filingDocument .summaryHeader > :last-child > svg {
     display: none;
   }
 }

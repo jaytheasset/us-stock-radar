@@ -7650,6 +7650,7 @@ function CommonFilingTemplate({
         <PriceChartCard
           change={filing.change}
           changeAmount={filing.changeAmount}
+          mobileCollapsible
           price={filing.price}
           series={filing.priceSeries}
           ticker={filing.ticker}
@@ -7731,6 +7732,7 @@ function DilutionOfferingTemplate({
         <PriceChartCard
           change={filing.change}
           changeAmount={filing.changeAmount}
+          mobileCollapsible
           price={filing.price}
           series={filing.priceSeries}
           ticker={filing.ticker}
