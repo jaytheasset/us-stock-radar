@@ -732,6 +732,7 @@
 }
 
 .rowQuote strong {
+  order: 1;
   color: var(--sr-color-text-body);
   font-size: var(--sr-font-size-md);
   line-height: var(--sr-line-height-none);
@@ -739,6 +740,7 @@
 }
 
 .rowQuote > span:not(.rowDataUnavailable) {
+  order: 2;
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   line-height: var(--sr-line-height-none);
@@ -2181,7 +2183,7 @@
     align-items: start;
     column-gap: var(--sr-space-2);
     row-gap: var(--sr-space-1);
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-4) var(--sr-space-3);
     background: transparent;
   }
 
@@ -2394,12 +2396,14 @@
   }
 
   .rowQuote strong {
+    order: 2;
     font-size: 15px;
     font-weight: 600;
     line-height: var(--sr-line-height-tight);
   }
 
   .rowQuote > span:not(.rowDataUnavailable) {
+    order: 1;
     font-size: 15px;
     line-height: var(--sr-line-height-tight);
   }

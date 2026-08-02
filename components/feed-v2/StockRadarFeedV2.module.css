@@ -427,6 +427,7 @@
 }
 
 .quote strong {
+  order: 1;
   color: var(--sr-color-text-body);
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-emphasis);
@@ -439,6 +440,7 @@
 }
 
 .quote span {
+  order: 2;
   margin: 0;
   font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
@@ -1274,7 +1276,7 @@
     grid-template-rows: auto auto auto;
     align-items: start;
     gap: var(--sr-space-1) var(--sr-space-2);
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-4) var(--sr-space-3);
   }
 
   .time {
@@ -1373,7 +1375,7 @@
   }
 
   .eventCopy h2 {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     grid-row: 2;
     display: -webkit-box;
     margin: 0;
@@ -1397,7 +1399,7 @@
   .quote,
   .quoteUnavailable {
     grid-column: 3;
-    grid-row: 2 / 4;
+    grid-row: 3;
     align-self: center;
   }
 
@@ -1411,12 +1413,14 @@
   }
 
   .quote strong {
+    order: 2;
     font-size: var(--sr-font-size-lg);
     font-weight: 600;
     line-height: var(--sr-line-height-tight);
   }
 
   .quote span {
+    order: 1;
     margin-top: 0;
     font-size: var(--sr-font-size-lg);
     line-height: var(--sr-line-height-tight);

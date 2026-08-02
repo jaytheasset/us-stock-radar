@@ -1048,11 +1048,20 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(listSource, /getLiveFeedV2MobileIdentityLabel\(item\)/);
   assert.match(listSource, /className=\{styles\.identityMobile\}/);
+  assert.ok(
+    listSource.indexOf("{formatChangePercent(item.changePercent)}") <
+      listSource.indexOf('{item.price ?? "—"}'),
+    "quote DOM should expose change before price for mobile reading order",
+  );
+  assert.match(
+    styleSource,
+    /\.quote strong \{[\s\S]*?order: 1;[\s\S]*?\.quote span \{[\s\S]*?order: 2;/,
+  );
   assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
   assert.match(listSource, /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/);
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1\) var\(--sr-space-2\);[\s\S]*padding: var\(--sr-space-4\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1\) var\(--sr-space-2\);[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
   );
   assert.match(
     styleSource,
@@ -1064,7 +1073,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.4;[\s\S]*-webkit-line-clamp: 2;/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.4;[\s\S]*-webkit-line-clamp: 2;/,
   );
   assert.match(
     styleSource,
@@ -1076,7 +1085,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.quote,[\s\S]*\.quoteUnavailable \{[\s\S]*grid-column: 3;[\s\S]*grid-row: 2 \/ 4;[\s\S]*\.quote \{[\s\S]*flex-direction: column;[\s\S]*align-items: flex-end;/,
+    /@media \(max-width: 760px\)[\s\S]*\.quote,[\s\S]*\.quoteUnavailable \{[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.quote \{[\s\S]*flex-direction: column;[\s\S]*align-items: flex-end;[\s\S]*\.quote strong \{[\s\S]*order: 2;[\s\S]*\.quote span \{[\s\S]*order: 1;/,
   );
   assert.match(
     styleSource,
