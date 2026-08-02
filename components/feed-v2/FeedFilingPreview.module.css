@@ -430,7 +430,7 @@
     .relatedRow
     div
     span {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-md-plus);
   }
 
   .detailContent:is(
@@ -462,6 +462,28 @@
     )
     .relatedRow
     strong {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailFacts
+    > span {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+
+  .detailContent[data-preview-kind="company-news"] .detailCta {
+    min-width: 0;
+    min-height: calc(var(--sr-size-control) + var(--sr-space-2));
     font-size: var(--sr-font-size-lg);
+    white-space: nowrap;
+  }
+
+  .detailContent[data-preview-kind="company-news"] .detailCta svg {
+    width: var(--sr-space-4-5);
+    height: var(--sr-space-4-5);
+    flex: 0 0 auto;
   }
 }
