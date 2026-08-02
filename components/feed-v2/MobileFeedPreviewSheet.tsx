@@ -27,11 +27,6 @@ export function MobileFeedPreviewSheet({
 
   const showNewsPreviewAd =
     viewerPlan === "free" && item.preview.kind !== "filing";
-  const isNewsPreview =
-    item.preview.kind === "company-news" || item.preview.kind === "market-news";
-  const newsSurfaceClassName = isNewsPreview
-    ? sheetStyles.newsSurface
-    : undefined;
   const previewContent = (
     <>
       <FeedPreviewPanel item={item} variant="mobile" />
@@ -56,13 +51,9 @@ export function MobileFeedPreviewSheet({
       onDismiss={onClose}
       openerRef={openerRef}
       overlayLabel="Close event preview"
-      surfaceClassName={newsSurfaceClassName}
+      surfaceClassName={sheetStyles.previewSurface}
     >
-      {isNewsPreview ? (
-        <div className={sheetStyles.newsScrollRegion}>{previewContent}</div>
-      ) : (
-        previewContent
-      )}
+      <div className={sheetStyles.previewScrollRegion}>{previewContent}</div>
     </BottomSheetShell>
   );
 }

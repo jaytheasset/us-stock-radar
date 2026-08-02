@@ -374,114 +374,52 @@
     padding-bottom: calc(var(--sr-space-5) + env(safe-area-inset-bottom));
   }
 
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailIdentity
-    h2,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailSection
-    h3 {
+  .detailContent .detailIdentity h2,
+  .detailContent .detailSection h3 {
     font-size: var(--sr-font-size-2xl);
   }
 
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailIdentity
-    p,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailFacts
-    b,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailClassification
-    > span,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .sectionLabel,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .sourceMetadata
-    div,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .formLabel,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .relatedRow
-    div
-    span {
+  .detailContent .detailIdentity p,
+  .detailContent .detailFacts b,
+  .detailContent .detailClassification > span,
+  .detailContent .sectionLabel,
+  .detailContent .sourceMetadata div,
+  .detailContent .formLabel,
+  .detailContent .relatedRow div span {
     font-size: var(--sr-font-size-md-plus);
   }
 
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailFacts
-    > span,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .impactScore,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailSection
-    p,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailSection
-    li,
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .relatedRow
-    strong {
+  .detailContent .detailFacts > span,
+  .detailContent .impactScore,
+  .detailContent .detailSection p,
+  .detailContent .detailSection li,
+  .detailContent .relatedRow strong {
     font-size: var(--sr-font-size-lg-plus);
   }
 
-  .detailContent:is(
-      [data-preview-kind="company-news"],
-      [data-preview-kind="market-news"]
-    )
-    .detailFacts
-    > span {
+  .detailContent .detailFacts > span {
     grid-template-columns: 80px minmax(0, 1fr);
   }
 
-  .detailContent[data-preview-kind="company-news"] .detailCta {
+  .detailContent:is(
+      [data-preview-kind="filing"],
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailCta {
     min-width: 0;
     min-height: calc(var(--sr-size-control) + var(--sr-space-3));
     font-size: 16px;
     white-space: nowrap;
   }
 
-  .detailContent[data-preview-kind="company-news"] .detailCta svg {
+  .detailContent:is(
+      [data-preview-kind="filing"],
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailCta
+    svg {
     width: var(--sr-space-5);
     height: var(--sr-space-5);
     flex: 0 0 auto;
