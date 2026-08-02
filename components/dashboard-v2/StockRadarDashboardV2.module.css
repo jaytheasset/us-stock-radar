@@ -39,18 +39,19 @@
 .marketState strong,
 .detailState strong {
   color: var(--sr-color-text-primary);
-  font-size: var(--sr-font-size-lg);
+  font-size: var(--sr-font-size-xl);
 }
 
 .marketState span,
-.detailState span,
-.marketTimestamp {
+.detailState span {
   color: var(--sr-color-text-muted);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-base);
 }
 
 .marketTimestamp {
   margin: var(--sr-space-2) 0 0;
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-sm);
   text-align: right;
 }
 
@@ -574,6 +575,21 @@
     gap: var(--sr-space-1);
     margin-top: var(--sr-space-2-5);
     margin-bottom: var(--sr-space-1-75);
+    overflow-x: hidden;
+  }
+
+  :global(.dashboard-v2-mobile-quick-filter span) {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .marketState,
+  :global(.dashboard-v2-table-panel) {
+    border: 0;
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   :global(.dashboard-v2-table-scroll) {

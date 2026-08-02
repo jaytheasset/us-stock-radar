@@ -84,3 +84,58 @@ test("Markets gates every ad placement with the shared viewer-plan decision", ()
   );
   assert.doesNotMatch(table, /viewerPlan\s*===\s*["']free["']/);
 });
+
+test("Markets mobile controls stay full-width, single-line, and locally sized", () => {
+  const dashboard = read("components/dashboard-v2/StockRadarDashboardV2.tsx");
+  const filterBar = read("components/dashboard-v2/FilterBar.tsx");
+  const segmentedControl = read("components/ui/SegmentedControl.module.css");
+  const dashboardStyles = read(
+    "components/dashboard-v2/StockRadarDashboardV2.module.css",
+  );
+
+  assert.match(dashboard, /variant="marketsPrimary"/);
+  assert.match(dashboard, /variant="marketsCompact"/);
+  assert.match(
+    segmentedControl,
+    /@media \(max-width: 760px\)[\s\S]*?\.marketsPrimary,[\s\S]*?\.marketsCompact\s*{[\s\S]*?width: 100%;[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?overflow: hidden;/,
+  );
+  assert.match(
+    segmentedControl,
+    /\.marketsPrimary \.item,[\s\S]*?\.marketsCompact \.item\s*{[\s\S]*?font-size: var\(--sr-font-size-md\);[\s\S]*?white-space: nowrap;/,
+  );
+  assert.equal(
+    (filterBar.match(/className="dashboard-v2-mobile-quick-filter"/g) || []).length,
+    2,
+  );
+  assert.match(
+    dashboardStyles,
+    /\.dashboard-v2-mobile-quick-filter span\)\s*{\s*font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    dashboardStyles,
+    /\.dashboard-v2-mobile-filter-controls\)\s*{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow-x: hidden;/,
+  );
+});
+
+test("Markets availability hierarchy and mobile panels use the flat tokenized treatment", () => {
+  const dashboardStyles = read(
+    "components/dashboard-v2/StockRadarDashboardV2.module.css",
+  );
+
+  assert.match(
+    dashboardStyles,
+    /\.marketState strong,[\s\S]*?\.detailState strong\s*{[\s\S]*?font-size: var\(--sr-font-size-xl\);/,
+  );
+  assert.match(
+    dashboardStyles,
+    /\.marketState span,[\s\S]*?\.detailState span\s*{[\s\S]*?font-size: var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    dashboardStyles,
+    /\.marketTimestamp\s*{[\s\S]*?font-size: var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    dashboardStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?border: 0;[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+  );
+});

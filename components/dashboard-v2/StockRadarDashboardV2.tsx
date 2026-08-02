@@ -288,13 +288,14 @@ export function StockRadarDashboardV2({ viewerPlan }: { viewerPlan: Plan }) {
               items={marketMoverItems}
               onValueChange={setActiveMoverTab}
               value={activeMoverTab}
+              variant="marketsPrimary"
             />
             <SegmentedControl
               ariaLabel="Market session"
               items={marketSessionItems}
               onValueChange={setActiveSession}
               value={activeSession}
-              variant="compact"
+              variant="marketsCompact"
             />
           </div>
           <FilterBar

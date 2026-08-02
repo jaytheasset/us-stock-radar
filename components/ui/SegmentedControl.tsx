@@ -15,7 +15,7 @@ export type SegmentedControlProps<Value extends string> = {
   items: readonly SegmentedControlItem<Value>[];
   onValueChange: (value: Value) => void;
   value: Value;
-  variant?: "primary" | "compact";
+  variant?: "primary" | "compact" | "marketsPrimary" | "marketsCompact";
 };
 
 export function SegmentedControl<Value extends string>({
