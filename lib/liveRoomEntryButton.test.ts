@@ -37,7 +37,7 @@ test("stock and analysis surfaces use the shared entry button without list-row d
 
   assert.match(
     watchlist,
-    /<LiveRoomEntryButton issuer=\{companyName\} ticker=\{ticker\} \/>/,
+    /<LiveRoomEntryButton[\s\S]*className=\{styles\.liveAction\}[\s\S]*issuer=\{companyName\}[\s\S]*ticker=\{ticker\}[\s\S]*\/>/,
   );
   assert.match(analysis, /label="Discuss in Live Room"/);
   assert.match(analysis, /event=\{liveRoomEvent\}/);

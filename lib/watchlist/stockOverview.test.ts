@@ -367,7 +367,17 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /selectionMode === "stock"/);
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
   assert.match(componentSource, /getStockOverviewEventsApiHref\(selectedTicker\)/);
-  assert.match(componentSource, /isSaved \? "Watching" : "Add to Watchlist"/);
+  assert.match(componentSource, /className=\{styles\.watchDesktopLabel\}>Add to Watchlist/);
+  assert.match(componentSource, /className=\{styles\.watchMobileLabel\}>Watch/);
+  assert.match(componentSource, /<MarketTickerLogo size="detail" ticker=\{ticker\} \/>/);
+  assert.match(componentSource, /isSaved \? \([\s\S]*<Check aria-hidden="true" size=\{16\} \/>/);
+  assert.match(componentSource, /data-active=\{isSaved\}/);
+  assert.match(componentSource, /className=\{styles\.liveAction\}/);
+  assert.match(componentSource, /className=\{styles\.alertAction\}/);
+  assert.match(
+    componentSource,
+    /href=\{getAlertsRouteHref\(ticker\)\}/,
+  );
   assert.match(componentSource, /Ticker unavailable/);
   assert.match(componentSource, /"Stock research workspace"/);
   assert.match(componentSource, /"Stock Overview"/);
@@ -408,8 +418,25 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.stockActions \{[\s\S]*display: grid;[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-template-columns: minmax\(0, 1\.08fr\) minmax\(0, 0\.75fr\) minmax\(0, 1fr\);/,
   );
+  assert.match(
+    componentCss,
+    /\.stockActions button\[data-active="true"\] \{[\s\S]*color: var\(--sr-color-text-secondary\);[\s\S]*background: var\(--sr-color-surface-control-strong\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.stockActions \.liveAction \{[\s\S]*border-color: var\(--sr-color-accent-border-strong\);[\s\S]*color: var\(--sr-color-accent-text\);[\s\S]*background: var\(--sr-color-surface-control\);/,
+  );
+  assert.match(
+    componentCss,
+    /\.stockActions \.alertAction \{[\s\S]*color: var\(--sr-color-surface-product-menu\);[\s\S]*background: var\(--sr-color-accent\);/,
+  );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.pageTopline > div > span \{\s*display: none;[\s\S]*\.pageTopline h1 \{\s*margin: 0;/,
+  );
+  assert.doesNotMatch(componentCss, /\.stockActions > :last-child/);
   assert.match(
     componentCss,
     /\.sectionNavigation \{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*width: 100%;[\s\S]*max-width: 100%;[\s\S]*height: var\(--watchlist-section-navigation-height\);[\s\S]*background: var\(--sr-color-surface-panel\);[\s\S]*box-shadow: var\(--sr-shadow-header\);/,
@@ -430,7 +457,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.eventCopy > strong \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.eventCopy > strong \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.35;/,
   );
   assert.match(
     componentCss,
@@ -542,4 +569,48 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(addRoute, /DUPLICATE_TICKER/);
   assert.match(addRoute, /assertWatchlistLimit/);
   assert.match(deleteRoute, /persisted: false/);
+});
+
+test("mobile stock overview keeps card boundaries, wide gutters, and readable type", async () => {
+  const [overviewCss, fundamentalsCss] = await Promise.all([
+    readFile(
+      new URL(
+        "../../components/watchlist-v2/StockRadarWatchlistV2.module.css",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../../components/watchlist-v2/StockFundamentalsSections.module.css",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(
+    overviewCss,
+    /\.radarBrief,\s*\.chartPanel,\s*\.section,\s*\.eventPreview,[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*border-radius: var\(--sr-radius-base\);[\s\S]*box-shadow: var\(--sr-shadow-panel\);/,
+  );
+  assert.match(
+    overviewCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.page \{\s*padding: var\(--sr-space-3\) var\(--sr-space-2\) var\(--sr-space-7\);/,
+  );
+  assert.match(
+    overviewCss,
+    /\.radarBrief h2,\s*\.upcomingEvents h2,\s*\.companyContext h2 \{\s*font-size: var\(--sr-font-size-xl\);/,
+  );
+  assert.match(
+    overviewCss,
+    /\.radarBrief p,[\s\S]*\.previewEmpty \{\s*font-size: var\(--sr-font-size-lg\);/,
+  );
+  assert.match(
+    overviewCss,
+    /\.eventRow > \.eventTime span,[\s\S]*font-size: var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    fundamentalsCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.dataSectionHeader > span,[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.sourceNotice,[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*\.dataState strong,[\s\S]*font-size: var\(--sr-font-size-lg\);/,
+  );
 });

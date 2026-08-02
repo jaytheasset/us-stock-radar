@@ -24,6 +24,7 @@ import {
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
+import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
@@ -38,6 +39,7 @@ import {
 import {
   parseCalendarEventsApiPayload,
 } from "@/lib/calendar-v1/normalized";
+import { getAlertsRouteHref } from "@/lib/alerts/tickers/query";
 import {
   formatStockCalendarEventDateTime,
   getCalendarEventRouteHref,
@@ -1245,7 +1247,9 @@ function StockHeader({
   return (
     <header className={styles.stockHeader}>
       <div className={styles.stockIdentity}>
-        <span aria-hidden="true">{ticker.slice(0, 4)}</span>
+        <div className={styles.stockLogo}>
+          <MarketTickerLogo size="detail" ticker={ticker} />
+        </div>
         <div>
           <div>
             <h2>{ticker}</h2>
@@ -1293,6 +1297,7 @@ function StockHeader({
               : `Add ${ticker} to Watchlist`
           }
           aria-pressed={isSaved}
+          data-active={isSaved}
           disabled={
             mutationTicker === ticker || (!isSaved && limitReached)
           }
@@ -1307,16 +1312,27 @@ function StockHeader({
           {mutationTicker === ticker ? (
             <LoaderCircle aria-hidden="true" size={15} />
           ) : (
-            <Star
-              aria-hidden="true"
-              fill={isSaved ? "currentColor" : "none"}
-              size={18}
-            />
+            isSaved ? (
+              <Check aria-hidden="true" size={16} />
+            ) : (
+              <Star aria-hidden="true" fill="none" size={16} />
+            )
           )}
-          {isSaved ? "Watching" : "Add to Watchlist"}
+          {isSaved ? (
+            "Watching"
+          ) : (
+            <>
+              <span className={styles.watchDesktopLabel}>Add to Watchlist</span>
+              <span className={styles.watchMobileLabel}>Watch</span>
+            </>
+          )}
         </button>
-        <LiveRoomEntryButton issuer={companyName} ticker={ticker} />
-        <Link href="/alerts">
+        <LiveRoomEntryButton
+          className={styles.liveAction}
+          issuer={companyName}
+          ticker={ticker}
+        />
+        <Link className={styles.alertAction} href={getAlertsRouteHref(ticker)}>
           <Bell aria-hidden="true" size={15} />
           Set Alert
         </Link>

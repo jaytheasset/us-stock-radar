@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { normalizeAlertTickerSearchParam } from "../../lib/alerts/tickers/query.ts";
+import {
+  getAlertsLoginHref,
+  getAlertsRouteHref,
+  normalizeAlertTickerSearchParam,
+} from "../../lib/alerts/tickers/query.ts";
 
 const componentSource = readFileSync(
   new URL("./StockRadarAlertsV2.tsx", import.meta.url),
@@ -312,6 +316,12 @@ test("alerts ticker query prepares search selection without adding a ticker", ()
   assert.equal(normalizeAlertTickerSearchParam(["msft", "aapl"]), "MSFT");
   assert.equal(normalizeAlertTickerSearchParam("not a ticker"), "");
   assert.equal(normalizeAlertTickerSearchParam("AAPL<script>"), "");
+  assert.equal(getAlertsRouteHref(" nvda "), "/alerts?ticker=NVDA");
+  assert.equal(getAlertsRouteHref("not a ticker"), "/alerts");
+  assert.equal(
+    getAlertsLoginHref(" brk.b "),
+    "/login?next=%2Falerts%3Fticker%3DBRK.B",
+  );
 
   assert.match(pageSource, /await searchParams/);
   assert.match(
@@ -323,6 +333,10 @@ test("alerts ticker query prepares search selection without adding a ticker", ()
     /<StockRadarAlertsV2 initialTicker=\{initialTicker\}/,
   );
   assert.match(componentSource, /autoSelectExact/);
+  assert.match(
+    componentSource,
+    /href=\{getAlertsLoginHref\(normalizedInitialTicker\)\}/,
+  );
   assert.match(componentSource, /selectedTicker=\{selectedTicker\?\.ticker\}/);
   assert.match(tickerAutocompleteSource, /\/api\/tickers\/search\?q=/);
   assert.match(

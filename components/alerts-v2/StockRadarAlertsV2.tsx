@@ -7,6 +7,7 @@ import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
+import { getAlertsLoginHref } from "@/lib/alerts/tickers/query";
 import type {
   AlertSettingsViewModel,
   DeliveredAlertItem,
@@ -772,7 +773,7 @@ export function StockRadarAlertsV2({
             <section className={styles.notice} aria-label="Sign in required">
               <Lock aria-hidden="true" size={20} />
               <p>Sign in to save alert settings, follow Calendar events, and keep delivery history.</p>
-              <Link href="/login?next=%2Falerts">Sign in</Link>
+              <Link href={getAlertsLoginHref(normalizedInitialTicker)}>Sign in</Link>
             </section>
           ) : null}
 

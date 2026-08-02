@@ -1119,4 +1119,77 @@
   .dilutionEventStatus {
     justify-self: stretch;
   }
+
+  .dataSectionHeader > span,
+  .financialCardHeading time,
+  .earningsComparisonRow > strong small,
+  .financialChanges li span,
+  .keyFundamentals small,
+  .detailDisclosure summary span,
+  .ownershipDisclosure summary span,
+  .dilutionDisclosure summary span,
+  .methodNote,
+  .ownershipFilingDate,
+  .ownershipFilingDate small,
+  .ownershipSubheader p,
+  .ownershipChangeList article p,
+  .ownershipMixNote,
+  .ownershipLegend small,
+  .ownershipLegend strong,
+  .dilutionSummary small,
+  .dilutionStatus p,
+  .dilutionEventDetail small,
+  .disabledLink {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .sourceNotice,
+  .planCard,
+  .financialCardHeading span,
+  .earningsFooter span,
+  .keyFundamentalsHeading span,
+  .earningsComparisonRow > span::before,
+  .financialRow span::before,
+  .ownershipSummaryStrip dt,
+  .ownershipFilingBadge,
+  .ownershipTableRow span::before,
+  .dilutionSummary dt,
+  .dilutionStatus > span,
+  .dilutionEventStatus,
+  .dilutionEventRow,
+  .dilutionEventRow time::before,
+  .dilutionEventRow > span::before {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .dataState strong,
+  .planCard strong,
+  .financialCardHeading h3,
+  .earningsComparisonRow > strong,
+  .earningsComparisonRow > span,
+  .earningsFooter strong,
+  .financialChanges li strong,
+  .financialChanges li b,
+  .keyFundamentalsHeading strong,
+  .financialRow strong,
+  .financialRow span,
+  .ownershipSubheader h3,
+  .ownershipChangeList article strong,
+  .ownershipTableRow,
+  .dilutionStatus strong,
+  .dilutionEventDetail strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .keyFundamentals dd,
+  .ownershipSummaryStrip dd,
+  .dilutionSummary dd {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .detailDisclosure summary strong,
+  .ownershipDisclosure summary strong,
+  .dilutionDisclosure summary strong {
+    font-size: var(--sr-font-size-lg);
+  }
 }

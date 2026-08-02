@@ -85,19 +85,12 @@
   gap: var(--sr-space-3);
 }
 
-.stockIdentity > span {
+.stockLogo {
   display: grid;
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
   place-items: center;
-  border: var(--sr-border-width) solid var(--sr-color-accent-border);
-  border-radius: var(--sr-radius-base);
-  color: var(--sr-color-accent-text);
-  background: var(--sr-color-accent-selected);
-  font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-heavy);
 }
 
 .stockIdentity > div {
@@ -202,6 +195,10 @@
   border-color: var(--sr-color-accent-border-strong);
   color: var(--sr-color-text-primary-action);
   background: var(--sr-color-surface-primary-action);
+}
+
+.watchMobileLabel {
+  display: none;
 }
 
 .overviewLayout {
@@ -1570,7 +1567,7 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-7);
+    padding: var(--sr-space-3) var(--sr-space-2) var(--sr-space-7);
   }
 
   .pageTopline {
@@ -1578,43 +1575,75 @@
   }
 
   .pageTopline h1 {
-    font-size: var(--sr-font-size-lg);
+    font-size: var(--sr-font-size-2xl);
+  }
+
+  .tickerSheetTrigger {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .statusMessage,
+  .statusError {
+    font-size: var(--sr-font-size-md);
   }
 
   .stockHeader {
     min-height: 0;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--sr-space-3);
+    gap: var(--sr-space-2);
     padding: var(--sr-space-3);
   }
 
-  .stockIdentity > span {
+  .stockLogo {
     width: 38px;
     height: 38px;
   }
 
   .stockIdentity h2 {
+    flex: 0 0 auto;
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .stockIdentity {
+    gap: var(--sr-space-2);
+  }
+
+  .stockIdentity > div:last-child > div {
+    flex-wrap: wrap;
+    gap: var(--sr-space-0-5) var(--sr-space-2);
+  }
+
+  .stockIdentity small,
+  .stockIdentity p,
+  .stockQuote small {
     font-size: var(--sr-font-size-md);
   }
 
   .stockQuote {
+    min-width: 64px;
+    max-width: 42%;
     justify-content: flex-end;
     text-align: right;
   }
 
   .stockQuote strong {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-lg-plus);
   }
 
-  .stockIdentity p {
-    display: none;
+  .stockQuote span {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .stockQuote small {
+    max-width: 76px;
+    white-space: normal;
   }
 
   .stockActions {
     display: grid;
     width: 100%;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.75fr) minmax(0, 1fr);
     gap: var(--sr-space-2);
   }
 
@@ -1622,12 +1651,48 @@
   .stockActions a {
     width: 100%;
     min-width: 0;
-    padding: 0 var(--sr-space-2);
+    min-height: var(--sr-size-mobile-primary-tab);
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-base);
     white-space: nowrap;
   }
 
-  .stockActions > :last-child {
-    grid-column: 1 / -1;
+  .stockActions svg {
+    flex: 0 0 auto;
+  }
+
+  .watchDesktopLabel {
+    display: none;
+  }
+
+  .watchMobileLabel {
+    display: inline;
+  }
+
+  .stockActions button[data-active="true"] {
+    color: var(--sr-color-text-secondary);
+    background: var(--sr-color-surface-control-strong);
+  }
+
+  .stockActions .liveAction {
+    border-color: var(--sr-color-accent-border-strong);
+    color: var(--sr-color-accent-text);
+    background: var(--sr-color-surface-control);
+  }
+
+  .stockActions .alertAction {
+    border-color: var(--sr-color-accent);
+    color: var(--sr-color-surface-product-menu);
+    background: var(--sr-color-accent);
+  }
+
+  .pageTopline > div > span {
+    display: none;
+  }
+
+  .pageTopline h1 {
+    margin: 0;
   }
 
   .sectionNavigation {
@@ -1635,7 +1700,13 @@
   }
 
   .sectionNavigation a {
-    padding: 0 var(--sr-space-2);
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .sectionNavigation a[aria-current="location"]::after {
+    right: var(--sr-space-1);
+    left: var(--sr-space-1);
   }
 
   .sectionNavigation a span {
@@ -1652,9 +1723,52 @@
     width: 100%;
   }
 
+  .stockHeader,
+  .chartPanel,
+  .radarBrief,
+  .section,
+  .eventPreview,
+  .previewEmpty,
+  .upcomingEvents,
+  .companyContext,
+  .upgradeCard {
+    width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
   .chartPanel {
     order: -1;
     padding: var(--sr-space-3);
+  }
+
+  .panelHeading > span,
+  .sectionHeading > span,
+  .upgradeCard > span,
+  .emptyWatchlist > span {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .panelHeading h2 {
+    font-size: var(--sr-font-size-2xl);
+  }
+
+  .dataState,
+  .rangeControl button,
+  .eventToolbar [role="tab"] {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .chartReadout {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .chartReadout strong {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .chartAxisLabel {
+    font-size: var(--sr-font-size-sm);
   }
 
   .rangeControl {
@@ -1682,6 +1796,14 @@
     border-right: var(--sr-border-width) solid var(--sr-color-divider);
   }
 
+  .marketStats dt {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .marketStats dd {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
   .promoRow {
     display: flex;
     flex-direction: column;
@@ -1697,6 +1819,15 @@
 
   .upgradeCard {
     order: -1;
+    padding: var(--sr-space-3);
+  }
+
+  .upgradeCard strong {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .upgradeCard p {
+    font-size: var(--sr-font-size-lg);
   }
 
   .sectionHeading {
@@ -1705,7 +1836,7 @@
   }
 
   .sectionHeading h2 {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-xl);
   }
 
   .eventToolbar {
@@ -1715,6 +1846,10 @@
 
   .eventToolbar [role="tab"] {
     padding: 0 var(--sr-space-2);
+  }
+
+  .eventToolbar > span {
+    font-size: var(--sr-font-size-md);
   }
 
   .eventRow {
@@ -1751,7 +1886,7 @@
   .eventMobileIdentity b {
     overflow: hidden;
     color: var(--sr-color-accent-text);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
     font-weight: 600;
     text-overflow: ellipsis;
     text-transform: uppercase;
@@ -1773,7 +1908,7 @@
   .eventRow > .eventTime small {
     display: inline;
     margin: 0;
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     font-weight: var(--sr-font-weight-regular);
     line-height: var(--sr-line-height-none);
   }
@@ -1805,7 +1940,7 @@
   .eventMobileSource {
     display: block;
     max-width: none;
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
   }
 
   .eventMobileSource::before {
@@ -1819,7 +1954,7 @@
     grid-row: 2;
     display: -webkit-box;
     color: var(--sr-color-text-heading);
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-lg);
     font-weight: 600;
     line-height: 1.35;
     white-space: normal;
@@ -1835,12 +1970,12 @@
     align-self: center;
     justify-content: flex-end;
     gap: var(--sr-space-1);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
     font-weight: var(--sr-font-weight-regular);
   }
 
   .eventSignal strong {
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-lg);
     font-weight: 600;
   }
 
@@ -1852,7 +1987,7 @@
 
   .disclosureSummary {
     display: block;
-    padding: var(--sr-space-4);
+    padding: var(--sr-space-3);
   }
 
   .disclosureSummary dl {
@@ -1861,8 +1996,122 @@
 
   .disclosureDetails summary,
   .disclosureDetails ul {
-    padding-right: var(--sr-space-4);
-    padding-left: var(--sr-space-4);
+    padding-right: var(--sr-space-3);
+    padding-left: var(--sr-space-3);
+  }
+
+  .radarBrief,
+  .eventPreview,
+  .upcomingEvents,
+  .companyContext {
+    padding: var(--sr-space-3);
+  }
+
+  .briefTopline {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .briefTopline span:last-child,
+  .radarBrief > small {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .briefBadges span,
+  .previewClassification b,
+  .previewClassification span {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .radarBrief h2,
+  .upcomingEvents h2,
+  .companyContext h2 {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .radarBrief p,
+  .companyContext p,
+  .eventPreview > p,
+  .disclosureSummary p,
+  .disclosureDetails > p,
+  .sectionEmpty,
+  .briefEmpty,
+  .previewEmpty {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .radarBrief > a,
+  .eventPreview > a,
+  .companyContext > a,
+  .upgradeCard > a,
+  .emptyWatchlist > a,
+  .emptyWatchlist > button {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .upcomingEventRow > strong,
+  .eventPreview h3 {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .upcomingEventMeta,
+  .eventPreview header small,
+  .eventPreview header > span,
+  .previewUnavailable,
+  .eventPreview dt,
+  .eventPreview dd,
+  .companyContext dt,
+  .companyContext dd {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .upcomingEventMeta b,
+  .previewClassification span,
+  .previewClassification b,
+  .disclosureSummary > div > span {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .eventPreview header > div > span,
+  .disclosureSummary dd {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .disclosureSummary > div > strong {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .disclosureSummary dt,
+  .disclosureDetails time {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .disclosureDetails summary,
+  .disclosureDetails li {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .viewMore {
+    padding-right: var(--sr-space-3);
+    padding-left: var(--sr-space-3);
+    font-size: var(--sr-font-size-base);
+  }
+
+  .viewMore small {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .watchlistRailHeader strong,
+  .watchlistSelect strong,
+  .railEmpty strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .watchlistRailHeader span,
+  .watchlistSelect small,
+  .watchlistSelect > span:last-child,
+  .railEmpty span,
+  .sortMenu button {
+    font-size: var(--sr-font-size-md);
   }
 
   .emptyWatchlist {
@@ -1872,12 +2121,20 @@
   }
 
   .emptyWatchlist h2 {
+    font-size: var(--sr-font-size-2xl);
+  }
+
+  .emptyWatchlist p {
     font-size: var(--sr-font-size-lg);
   }
 
   .sheetContent {
     padding-right: var(--sr-space-3);
     padding-left: var(--sr-space-3);
+  }
+
+  .sheetHeading h2 {
+    font-size: var(--sr-font-size-xl);
   }
 }
 
