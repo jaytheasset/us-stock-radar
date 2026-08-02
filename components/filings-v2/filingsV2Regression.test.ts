@@ -191,6 +191,10 @@ test("filing feed rows use watchlist density and plain representative event meta
     new URL("./FilingsV2MarketReaction.tsx", import.meta.url),
     "utf8",
   );
+  const dataSource = readFileSync(
+    new URL("../../lib/filingsV2Data.ts", import.meta.url),
+    "utf8",
+  );
   const styles = readFileSync(
     new URL("./StockRadarFilingsV2.module.css", import.meta.url),
     "utf8",
@@ -283,8 +287,9 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 3;[\s\S]*?flex-direction: column;[\s\S]*?align-items: flex-end;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?min-width: max-content;[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 3;[\s\S]*?flex-direction: row;[\s\S]*?align-items: baseline;[\s\S]*?justify-self: end;[\s\S]*?gap: var\(--sr-space-1\);[\s\S]*?white-space: nowrap;/,
   );
+  assert.match(dataSource, /readHydratedMarketQuoteMap\(quoteSymbols\)/);
   assert.match(
     styles,
     /\.listHeaderCount \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.listHeaderTitle h2 \{[\s\S]*font-size: 17px;[\s\S]*\.liveLabel \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*\.identity strong \{[\s\S]*font-size: 17px;/,

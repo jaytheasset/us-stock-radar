@@ -6,6 +6,7 @@ import {
   readMarketQuoteCacheMap,
   type MarketGroupSnapshotPayload,
 } from "@/lib/marketDataCache";
+import { readHydratedMarketQuoteMap } from "@/lib/marketQuoteHydration";
 import {
   buildMarketPulseItems,
   marketPulseDefinitions,
@@ -212,12 +213,15 @@ async function buildLiveFeedViewModel({
     situationCards,
   } = sharedFeedData;
   const rankedRows = [...highImpactNewsRows, ...alertFilingRows];
-  const [quotes, charts, groupSnapshots, previewContext] = await Promise.all([
-    fetchQuoteMap([...feedRows, ...rankedRows]),
+  const [charts, groupSnapshots, previewContext] = await Promise.all([
     includeCharts === false ? Promise.resolve(new Map<string, ChartResult>()) : fetchChartMap(feedRows),
     fetchFeedGroupSnapshotLookup(feedRows),
     fetchFeedPreviewContext(feedRows),
   ]);
+  const quotes = await fetchQuoteMap(
+    [...feedRows, ...rankedRows],
+    previewContext.relatedTickers,
+  );
 
   const feedItems = feedRows.map((row) =>
     mapEventRow(row, quotes, charts, groupSnapshots, previewContext),
@@ -352,16 +356,25 @@ function mapEventRow(
   const analysis = previewContext?.analyses.get(id);
   const rawItem = previewContext?.rawItems.get(rawItemId);
   const ticker = readString(row, ["ticker", "symbol"]) || "N/A";
-  const quote = quotes.get(ticker.toUpperCase());
+  const relatedTickers = previewContext?.relatedTickers.get(id) || [];
+  const quoteSymbol = resolveEventQuoteSymbol(row, relatedTickers);
+  const quote = quotes.get(quoteSymbol);
   const chart = charts.get(ticker.toUpperCase());
   const canonical = resolveCanonicalEventFields(row);
   const classification = readEventClassification(row);
-  const groupDisplay = buildGroupDisplay(row, canonical.marketScope, classification, groupSnapshots);
   const detectedAt = readString(row, ["detected_at", "created_at", "event_date"]);
   const sourcePublishedAt =
     readString(row, ["published_at"]) ||
     readMetadataString(row, ["published_at", "publishedAt", "source_published_at", "published_time"]);
   const quoteValues = formatQuote(quote);
+  const groupDisplay = buildGroupDisplay(
+    row,
+    canonical.marketScope,
+    classification,
+    groupSnapshots,
+    quoteValues,
+    Boolean(quoteSymbol && (quoteValues.price || quoteValues.change)),
+  );
   const summary =
     readString(row, ["summary"]) ||
     readString(row, ["reason"]) ||
@@ -425,7 +438,7 @@ function mapEventRow(
     displayKind: groupDisplay ? groupDisplay.kind : "ticker",
     displayChartBars: groupDisplay ? groupDisplay.bars : chart?.bars || [],
     keyEvidence: readStringArray(analysis, ["key_evidence"]),
-    relatedTickers: previewContext?.relatedTickers.get(id) || [],
+    relatedTickers,
     watchNext: readStringArray(analysis, ["watch_next"]),
   };
 }
@@ -538,10 +551,12 @@ function buildGroupDisplay(
   marketScope: MarketScope,
   classification: EventClassification,
   snapshots: GroupSnapshotLookup,
+  quote: ReturnType<typeof formatQuote>,
+  hasTickerQuote: boolean,
 ):
   | {
       ticker: string;
-      price: "";
+      price: string;
       change: string;
       kind: "group" | "macro";
       bars: MarketBar[];
@@ -552,13 +567,17 @@ function buildGroupDisplay(
   const snapshot = resolveFeedGroupSnapshot(marketScope, classification, snapshots);
   const fallback = resolveFallbackGroupDisplay(row, marketScope, classification);
   const ticker = snapshot?.groupName || fallback.label;
-  const change = snapshot ? formatSignedPercent(snapshot.changePercent) : "";
+  const change = hasTickerQuote
+    ? quote.change
+    : snapshot
+      ? formatSignedPercent(snapshot.changePercent)
+      : "";
 
   return {
     bars: snapshot ? groupSnapshotToBars(snapshot) : [],
     change,
     kind: marketScope === "macro" && !snapshot ? "macro" : "group",
-    price: "",
+    price: hasTickerQuote ? quote.price : "",
     ticker,
   };
 }
@@ -774,22 +793,26 @@ async function fetchSituationCards(): Promise<SituationCardItem[]> {
   ];
 }
 
-async function fetchQuoteMap(rows: DbEventRow[]) {
+async function fetchQuoteMap(
+  rows: DbEventRow[],
+  relatedTickers?: Map<string, LiveFeedItem["relatedTickers"]>,
+) {
   const symbols = Array.from(
     new Set(
       rows
-        .map((row) => {
-          const canonical = resolveCanonicalEventFields(row);
-          if (canonical.marketScope !== "company") return "";
-          return readString(row, ["ticker", "symbol"]).toUpperCase();
-        })
+        .map((row) =>
+          resolveEventQuoteSymbol(
+            row,
+            relatedTickers?.get(readString(row, ["id"])),
+          ),
+        )
         .filter((ticker) => ticker && ticker !== "N/A")
     )
   ).slice(0, 40);
 
   if (!symbols.length) return new Map<string, QuoteRow>();
 
-  const cachedQuotes = await readMarketQuoteCacheMap(symbols);
+  const cachedQuotes = await readHydratedMarketQuoteMap(symbols);
   return new Map(
     Array.from(cachedQuotes.entries()).map(([symbol, quote]) => [
       symbol,
@@ -898,11 +921,54 @@ function formatQuote(quote?: QuoteRow) {
   const sign = change < 0 || changePct < 0 ? "-" : "+";
 
   return {
-    price: Number.isFinite(price) ? formatCurrency(price) : "N/A",
-    changeAmount: Number.isFinite(change) ? `$${formatAbs(change)}` : "$0.00",
-    change: Number.isFinite(changePct) ? `${sign}${Math.abs(changePct).toFixed(2)}%` : "+0.00%",
+    price: Number.isFinite(price) ? formatCurrency(price) : "",
+    changeAmount: Number.isFinite(change) ? `$${formatAbs(change)}` : "",
+    change: Number.isFinite(changePct) ? `${sign}${Math.abs(changePct).toFixed(2)}%` : "",
     updatedAt: timestamp ? formatDetectedTime(new Date(timestamp * 1000).toISOString()) : "",
   };
+}
+
+function resolveEventQuoteSymbol(
+  row: DbEventRow,
+  relatedTickers: LiveFeedItem["relatedTickers"] = [],
+) {
+  const candidates = [
+    readString(row, ["ticker", "symbol"]),
+    ...relatedTickers.map((item) => item.ticker),
+    ...readMetadataTickerCandidates(row),
+  ];
+
+  return (
+    candidates
+      .map((value) => value.trim().toUpperCase())
+      .find(hasValidLiveFeedPrimaryTicker) || ""
+  );
+}
+
+function readMetadataTickerCandidates(row: DbEventRow) {
+  if (!row.metadata || typeof row.metadata !== "object") return [];
+  const metadata = row.metadata as Record<string, unknown>;
+  const values = [
+    metadata.related_tickers,
+    metadata.relatedTickers,
+    metadata.tickers,
+  ];
+  const candidates: string[] = [];
+
+  for (const value of values) {
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (typeof item === "string") {
+        candidates.push(item);
+      } else if (item && typeof item === "object") {
+        candidates.push(
+          readString(item as Record<string, unknown>, ["ticker", "symbol"]),
+        );
+      }
+    }
+  }
+
+  return candidates.filter(Boolean).slice(0, 8);
 }
 
 function formatSignedPercent(value: number) {

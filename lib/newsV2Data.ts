@@ -4,8 +4,8 @@ import { unstable_cache } from "next/cache";
 import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import {
   readMarketBarCacheMap,
-  readMarketQuoteCacheMap,
 } from "@/lib/marketDataCache";
+import { readHydratedMarketQuoteMap } from "@/lib/marketQuoteHydration";
 import {
   canonicalNewsSubThemeSlug,
   canonicalNewsThemeGroupSlug,
@@ -236,7 +236,7 @@ async function enrichNewsItems(items: NewsV2Item[]) {
     new Set(items.flatMap((item) => item.relatedTickers).filter(Boolean)),
   );
   const [quoteMap, chartMap] = await Promise.all([
-    readMarketQuoteCacheMap(symbols),
+    readHydratedMarketQuoteMap(symbols),
     readMarketBarCacheMap(symbols, "1D"),
   ]);
 

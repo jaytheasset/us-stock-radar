@@ -2089,14 +2089,17 @@
 
   .filingPrice {
     display: flex;
+    min-width: max-content;
     grid-column: 3;
     grid-row: 3;
-    flex-direction: column;
-    align-items: flex-end;
+    flex-direction: row;
+    align-items: baseline;
     align-self: center;
-    justify-content: center;
-    gap: 2px;
+    justify-self: end;
+    justify-content: flex-end;
+    gap: var(--sr-space-1);
     text-align: right;
+    white-space: nowrap;
   }
 
   .filingPrice strong {
