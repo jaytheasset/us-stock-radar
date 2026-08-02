@@ -131,11 +131,14 @@ export function StockRadarProductHeader({
     <>
       <header className={styles.header}>
         <Link
-          aria-label={`${stockRadarProductName} Markets dashboard`}
+          aria-label={`${stockRadarProductName} 홈`}
           className={styles.brand}
           href="/dashboard-v2"
         >
-          <span>{stockRadarProductName}</span>
+          <span className={styles.brandFull}>{stockRadarProductName}</span>
+          <span aria-hidden="true" className={styles.brandMonogram}>
+            SR
+          </span>
         </Link>
 
         <StockRadarDesktopNavigation activeItem={activeNavigationItem} />
@@ -148,7 +151,11 @@ export function StockRadarProductHeader({
           <StockRadarTickerSearch onOpen={() => closeMobileMenu()} />
           <LiveRoomUnreadMenu />
           <AlertNotificationsMenu loginHref={loginHref} />
-          {showThemeToggle ? <StockRadarThemeToggle /> : null}
+          {showThemeToggle ? (
+            <div className={styles.headerThemeToggle}>
+              <StockRadarThemeToggle />
+            </div>
+          ) : null}
           <div className={styles.desktopAccount}>
             <AuthStatus
               accountMenu
@@ -176,6 +183,7 @@ export function StockRadarProductHeader({
           loginHref={loginHref}
           menuRef={mobileMenuRef}
           onItemActivate={handleItemActivate}
+          showThemeToggle={showThemeToggle}
           signupHref={signupHref}
         />
       ) : null}

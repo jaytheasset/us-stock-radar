@@ -1,5 +1,6 @@
 import type { Ref } from "react";
 import { AuthStatus } from "@/components/AuthStatus";
+import { StockRadarThemeToggle } from "@/components/shell/StockRadarThemeToggle";
 import {
   stockRadarMobileNavigationItems,
   type StockRadarNavigationItem,
@@ -14,6 +15,7 @@ export type StockRadarMobileNavigationMenuProps = {
   loginHref: string;
   menuRef: Ref<HTMLDivElement>;
   onItemActivate: (item: StockRadarNavigationItem) => void;
+  showThemeToggle: boolean;
   signupHref: string;
 };
 
@@ -22,6 +24,7 @@ export function StockRadarMobileNavigationMenu({
   loginHref,
   menuRef,
   onItemActivate,
+  showThemeToggle,
   signupHref,
 }: StockRadarMobileNavigationMenuProps) {
   return (
@@ -53,6 +56,12 @@ export function StockRadarMobileNavigationMenu({
           );
         })}
       </nav>
+      {showThemeToggle ? (
+        <div className={styles.mobileMenuTheme}>
+          <span>Theme</span>
+          <StockRadarThemeToggle />
+        </div>
+      ) : null}
       <div className={styles.mobileMenuAccount}>
         <AuthStatus accountMenu loginHref={loginHref} signupHref={signupHref} />
       </div>

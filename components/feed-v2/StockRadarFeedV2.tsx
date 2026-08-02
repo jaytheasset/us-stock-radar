@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { FeedContextRail } from "@/components/feed-v2/FeedContextRail";
 import { FeedEventList } from "@/components/feed-v2/FeedEventList";
 import { FeedSituationBoard } from "@/components/feed-v2/FeedSituationBoard";
@@ -310,13 +311,23 @@ export function StockRadarFeedV2({
                   }
                   aria-pressed={Boolean(activeMobileMoreFilter)}
                   className={
-                    activeMobileMoreFilter ? styles.filterActive : undefined
+                    [
+                      styles.mobileMoreButton,
+                      activeMobileMoreFilter ? styles.filterActive : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
                   }
                   onClick={() => setMobileMoreOpen((current) => !current)}
                   ref={mobileMoreButtonRef}
                   type="button"
                 >
-                  {activeMobileMoreFilter?.label || "More"}
+                  <span>More</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={styles.mobileMoreChevron}
+                    size={14}
+                  />
                 </button>
               </div>
               {mobileMoreOpen ? (
@@ -340,7 +351,10 @@ export function StockRadarFeedV2({
                       }
                       type="button"
                     >
-                      {filter.label}
+                      <span>{filter.label}</span>
+                      {filter.value === activeFilter ? (
+                        <Check aria-hidden="true" size={15} />
+                      ) : null}
                     </button>
                   ))}
                 </div>

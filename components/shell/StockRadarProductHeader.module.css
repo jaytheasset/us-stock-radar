@@ -32,6 +32,10 @@
   letter-spacing: var(--sr-letter-spacing-brand);
 }
 
+.brandMonogram {
+  display: none;
+}
+
 .brand small {
   display: inline-flex;
   align-items: center;
@@ -171,6 +175,11 @@
 .actions {
   flex: 0 0 auto;
   gap: var(--sr-space-3-5);
+}
+
+.headerThemeToggle {
+  display: flex;
+  align-items: center;
 }
 
 .searchButton {
@@ -375,7 +384,8 @@
 }
 
 .mobileMenuButton,
-.mobileMenuPopover {
+.mobileMenuPopover,
+.mobileMenuTheme {
   display: none;
 }
 
@@ -1468,5 +1478,67 @@
 
   .globalSearchResult {
     grid-template-columns: 86px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 360px) {
+  .header {
+    gap: var(--sr-space-1-5);
+    padding-inline: var(--sr-space-2);
+  }
+
+  .brandFull,
+  .headerThemeToggle {
+    display: none;
+  }
+
+  .brand .brandMonogram {
+    position: relative;
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    color: var(--sr-color-text-product-brand);
+    font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-display);
+    letter-spacing: -0.07em;
+  }
+
+  .brandMonogram::after {
+    position: absolute;
+    top: 4px;
+    right: 1px;
+    width: 4px;
+    height: 4px;
+    border-radius: var(--sr-radius-pill);
+    background: var(--sr-color-product-accent);
+    box-shadow: 0 0 0 2px var(--sr-color-product-accent-selected);
+    content: "";
+  }
+
+  .actions {
+    min-width: 0;
+    gap: var(--sr-space-1);
+  }
+
+  .mobileMenuTheme {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    border-top: var(--sr-border-width) solid
+      var(--sr-color-border-product-menu);
+    padding: var(--sr-space-2) var(--sr-space-3-5);
+    color: var(--sr-color-text-product-menu);
+    font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-strong);
+  }
+
+  .mobileMenuTheme button {
+    width: var(--sr-size-icon-button-mobile);
+    min-height: var(--sr-size-icon-button-mobile);
+    color: var(--sr-color-text-product-action);
+    cursor: pointer;
   }
 }
