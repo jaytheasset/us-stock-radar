@@ -1076,6 +1076,10 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     styleSource,
     /\.quote strong \{[\s\S]*?order: 1;[\s\S]*?\.quote span \{[\s\S]*?order: 2;/,
   );
+  assert.match(
+    styleSource,
+    /\.quote > \.sentimentPositive \{[\s\S]*?color: var\(--sr-color-positive\);[\s\S]*?\.quote > \.sentimentNegative \{[\s\S]*?color: var\(--sr-color-negative\);[\s\S]*?\.quote > \.sentimentNeutral \{[\s\S]*?color: var\(--sr-color-text-muted\);/,
+  );
   assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
   assert.match(listSource, /\{item\.timeDateLabel\} \{item\.timeLabel\} ET/);
   assert.doesNotMatch(
