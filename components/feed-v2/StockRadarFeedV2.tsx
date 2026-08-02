@@ -239,7 +239,10 @@ export function StockRadarFeedV2({
 
   return (
     <div className={styles.page}>
-      <FeedSituationBoard items={initialData.situationItems} />
+      <FeedSituationBoard
+        items={initialData.situationItems}
+        totalEvents={initialData.page.totalCount}
+      />
 
       <div className={styles.contentGrid}>
         <section
