@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   AUTH_ACCESS_COOKIE,
   AUTH_REFRESH_COOKIE,
@@ -21,6 +21,11 @@ export class AdminApiError extends Error {
     this.name = "AdminApiError";
   }
 }
+
+export const ADMIN_PRIVATE_RESPONSE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+  Vary: "Cookie, Authorization",
+} as const;
 
 export async function resolveAdminApiAccess(
   request: NextRequest,
@@ -61,6 +66,64 @@ export function applyAdminAuthCookies(
     });
   } else if (resolution.auth.shouldClearCookies) {
     clearAuthSessionCookies(response);
+  }
+}
+
+export async function respondWithAdminReadAccess<T>(
+  request: NextRequest,
+  permission: AdminPermission,
+  read: () => T | Promise<T>,
+  options?: { status?: (data: T) => number },
+) {
+  let resolution: Awaited<ReturnType<typeof resolveAdminApiAccess>> | null =
+    null;
+
+  try {
+    resolution = await resolveAdminApiAccess(request, permission);
+    const data = await read();
+    const response = NextResponse.json(data, {
+      status: options?.status?.(data),
+      headers: ADMIN_PRIVATE_RESPONSE_HEADERS,
+    });
+    applyAdminAuthCookies(response, resolution);
+    return response;
+  } catch (error) {
+    const normalized = normalizeAdminError(error);
+    const response = NextResponse.json(
+      { ok: false, error: normalized },
+      {
+        status: normalized.status,
+        headers: ADMIN_PRIVATE_RESPONSE_HEADERS,
+      },
+    );
+    if (resolution) applyAdminAuthCookies(response, resolution);
+    return response;
+  }
+}
+
+export async function respondToAdminReadHead(
+  request: NextRequest,
+  permission: AdminPermission,
+) {
+  let resolution: Awaited<ReturnType<typeof resolveAdminApiAccess>> | null =
+    null;
+
+  try {
+    resolution = await resolveAdminApiAccess(request, permission);
+    const response = new NextResponse(null, {
+      status: 200,
+      headers: ADMIN_PRIVATE_RESPONSE_HEADERS,
+    });
+    applyAdminAuthCookies(response, resolution);
+    return response;
+  } catch (error) {
+    const normalized = normalizeAdminError(error);
+    const response = new NextResponse(null, {
+      status: normalized.status,
+      headers: ADMIN_PRIVATE_RESPONSE_HEADERS,
+    });
+    if (resolution) applyAdminAuthCookies(response, resolution);
+    return response;
   }
 }
 
