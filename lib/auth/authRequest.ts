@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { AuthError } from "@/lib/auth/supabaseAuth";
 import {
   isSameOriginRequest,
+  resolveDevelopmentAuthOrigin,
   sanitizeAuthRedirect,
   type AuthCallbackType,
 } from "@/lib/auth/authPolicy";
@@ -56,5 +57,8 @@ function getTrustedAppOrigin(request: NextRequest) {
     }
   }
 
-  return request.nextUrl.origin;
+  return resolveDevelopmentAuthOrigin(
+    configured || request.nextUrl.origin,
+    process.env.DEV_ALLOWED_ORIGINS,
+  );
 }

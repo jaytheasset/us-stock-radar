@@ -8,6 +8,8 @@ import {
 
 test("production CSP preserves required app integrations without unsafe-eval", () => {
   const policy = buildContentSecurityPolicy({
+    devAllowedOrigins:
+      "http://192.168.50.25:3110,http://192.168.50.25:56321",
     nodeEnv: "production",
     supabaseUrl: "https://project.supabase.co/rest/v1",
   });
@@ -26,6 +28,8 @@ test("production CSP preserves required app integrations without unsafe-eval", (
   assert.ok(connectSources.includes("https://project.supabase.co"));
   assert.ok(connectSources.includes("wss://project.supabase.co"));
   assert.ok(!connectSources.includes("https:"));
+  assert.ok(!connectSources.includes("http://192.168.50.25:3110"));
+  assert.ok(!connectSources.includes("ws://192.168.50.25:3110"));
   assert.ok(!frameSources.includes("https:"));
   assert.deepEqual(baseSources, ["'self'", "https://www.sec.gov"]);
   assert.match(policy, /object-src 'none'/);
@@ -38,12 +42,16 @@ test("development CSP permits HMR and local Supabase only in development", () =>
   const policy = buildContentSecurityPolicy({
     nodeEnv: "development",
     supabaseUrl: "http://127.0.0.1:56321",
+    devAllowedOrigins:
+      "http://192.168.50.25:3110,http://192.168.50.25:56321",
   });
 
   assert.match(policy, /'unsafe-eval'/);
   assert.match(policy, /http:\/\/127\.0\.0\.1:56321/);
   assert.match(policy, /ws:\/\/127\.0\.0\.1:56321/);
-  assert.match(policy, /ws:\/\/127\.0\.0\.1:\*/);
+  assert.match(policy, /http:\/\/192\.168\.50\.25:56321/);
+  assert.match(policy, /ws:\/\/192\.168\.50\.25:3110/);
+  assert.doesNotMatch(policy, /ws:\/\/127\.0\.0\.1:\*/);
 });
 
 test("global response headers include browser isolation and privacy controls", () => {

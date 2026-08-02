@@ -26,7 +26,30 @@ export type EventTypeDefinition = {
 
 const currentReportForms = ["8-K", "8-K/A", "6-K", "6-K/A"];
 
-export const eventTypeDefinitions: EventTypeDefinition[] = [
+export const NEWS_EVENT_TYPE_VALUES = [
+  "listing_risk",
+  "dilution_risk",
+  "earnings",
+  "sales_performance",
+  "product_update",
+  "leadership_governance",
+  "insider_ownership",
+  "shareholder_vote",
+  "strategic_transaction",
+  "financial_risk",
+  "legal_risk",
+  "dividends",
+  "capital_return",
+  "ipo_listing",
+  "fda_clinical",
+  "policy_regulation",
+  "macro_market",
+  "other",
+] as const;
+
+const newsEventTypeCodes = new Set<string>(NEWS_EVENT_TYPE_VALUES);
+
+const eventTypeDefinitionSeeds: EventTypeDefinition[] = [
   {
     code: "listing_risk",
     label: "Listing Risk",
@@ -233,6 +256,28 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     examples: ["FDA approval", "clinical trial result", "complete response letter"],
   },
   {
+    code: "policy_regulation",
+    label: "Policy & Regulation",
+    category: "Cross-source Events",
+    tone: "regulatory",
+    sourceGroups: ["market"],
+    status: "active",
+    coveredForms: [],
+    description: "Policy decisions, agency actions, regulation changes, official rulings, or enforcement developments with market impact.",
+    examples: ["SEC rule change", "trade policy action", "agency enforcement decision"],
+  },
+  {
+    code: "macro_market",
+    label: "Macro Market",
+    category: "Cross-source Events",
+    tone: "market",
+    sourceGroups: ["market"],
+    status: "active",
+    coveredForms: [],
+    description: "Rates, inflation, employment, sanctions, geopolitics, or other market-wide macro catalyst.",
+    examples: ["Federal Reserve decision", "inflation report", "market-wide sanctions action"],
+  },
+  {
     code: "other",
     label: "Other",
     category: "Filing Events",
@@ -244,6 +289,17 @@ export const eventTypeDefinitions: EventTypeDefinition[] = [
     examples: ["administrative filing update", "miscellaneous disclosure"],
   },
 ];
+
+export const eventTypeDefinitions: EventTypeDefinition[] =
+  eventTypeDefinitionSeeds.map((definition) => ({
+    ...definition,
+    sourceGroups: newsEventTypeCodes.has(definition.code)
+      ? ([
+          "news",
+          ...definition.sourceGroups.filter((group) => group !== "news"),
+        ] as SourceGroup[])
+      : definition.sourceGroups,
+  }));
 
 const eventTypeByCode = new Map(eventTypeDefinitions.map((definition) => [definition.code, definition]));
 

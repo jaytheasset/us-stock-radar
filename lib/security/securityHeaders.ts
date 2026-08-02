@@ -1,3 +1,8 @@
+import {
+  getDevelopmentAllowedOrigins,
+  toWebSocketOrigin,
+} from "../devAllowedOrigins.ts";
+
 export type SecurityHeader = {
   key: string;
   value: string;
@@ -6,6 +11,7 @@ export type SecurityHeader = {
 type SecurityHeaderOptions = {
   nodeEnv?: string;
   supabaseUrl?: string;
+  devAllowedOrigins?: string;
 };
 
 const GOOGLE_AD_SCRIPT_SOURCES = [
@@ -30,6 +36,7 @@ export const COMING_SOON_CONTENT_SECURITY_POLICY =
 export function buildContentSecurityPolicy({
   nodeEnv,
   supabaseUrl,
+  devAllowedOrigins,
 }: SecurityHeaderOptions = {}) {
   const development = nodeEnv !== "production";
   const scriptSources = [
@@ -44,7 +51,10 @@ export function buildContentSecurityPolicy({
     "'self'",
     ...resolveSupabaseConnectSources(supabaseUrl),
     ...(development
-      ? ["ws://127.0.0.1:*", "ws://localhost:*"]
+      ? getDevelopmentAllowedOrigins({
+          nodeEnv,
+          value: devAllowedOrigins,
+        }).flatMap((origin) => [origin, toWebSocketOrigin(origin)])
       : []),
     ...GOOGLE_AD_RESOURCE_SOURCES,
   ];

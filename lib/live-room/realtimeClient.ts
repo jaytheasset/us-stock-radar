@@ -6,6 +6,7 @@ import {
 export type LiveRoomRealtimeConfig = {
   publishableKey: string;
   url: string;
+  developmentAllowedOrigins?: readonly string[];
 };
 
 type LiveRoomRealtimeStatus =
