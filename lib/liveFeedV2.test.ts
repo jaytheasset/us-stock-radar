@@ -455,6 +455,9 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   const sheetSource = readSource(
     "components/feed-v2/MobileFeedPreviewSheet.tsx",
   );
+  const previewAdSource = readSource(
+    "components/feed-v2/FeedMobilePreviewAd.tsx",
+  );
   const bottomSheetSource = readSource("components/ui/BottomSheetShell.tsx");
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
@@ -474,6 +477,12 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
+  assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
+  assert.match(sheetSource, /viewerPlan === "free" && item\.preview\.kind !== "filing"/);
+  assert.match(sheetSource, /<FeedMobilePreviewAd \/>/);
+  assert.match(previewAdSource, /inventory="feed-mobile-inline"/);
+  assert.match(previewAdSource, /height=\{100\}/);
+  assert.match(previewAdSource, /mediaQuery="\(max-width: 760px\)"/);
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(styleSource, /@media \(max-width: 1180px\)/);

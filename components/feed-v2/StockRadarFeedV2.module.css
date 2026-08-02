@@ -903,6 +903,15 @@
   display: none;
 }
 
+.mobilePreviewAd {
+  display: none;
+}
+
+.mobilePreviewAdSlot {
+  width: 100%;
+  max-width: 100%;
+}
+
 .railAdPlacement,
 .railAd {
   width: 100%;
@@ -963,6 +972,15 @@
 }
 
 @media (max-width: 760px) {
+  .mobilePreviewAd {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    padding: var(--sr-space-4);
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
   .page {
     padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-5);
   }

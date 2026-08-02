@@ -1,15 +1,18 @@
 "use client";
 
 import type { MutableRefObject } from "react";
+import { FeedMobilePreviewAd } from "@/components/feed-v2/FeedMobilePreviewAd";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
+import type { Plan } from "@/lib/subscriptionPolicy";
 
 type MobileFeedPreviewSheetProps = {
   isOpen: boolean;
   item: LiveFeedV2Item | null;
   onClose: () => void;
   openerRef: MutableRefObject<HTMLElement | null>;
+  viewerPlan: Plan;
 };
 
 export function MobileFeedPreviewSheet({
@@ -17,8 +20,12 @@ export function MobileFeedPreviewSheet({
   item,
   onClose,
   openerRef,
+  viewerPlan,
 }: MobileFeedPreviewSheetProps) {
   if (!item) return null;
+
+  const showNewsPreviewAd =
+    viewerPlan === "free" && item.preview.kind !== "filing";
 
   const previewName =
     item.preview.kind === "filing"
@@ -39,6 +46,7 @@ export function MobileFeedPreviewSheet({
       overlayLabel="Close event preview"
     >
       <FeedPreviewPanel item={item} variant="mobile" />
+      {showNewsPreviewAd ? <FeedMobilePreviewAd /> : null}
     </BottomSheetShell>
   );
 }
