@@ -80,7 +80,7 @@ test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {
   assert.match(header, /mobileMenuButtonRef\.current\?\.focus/);
   assert.match(
     styles,
-    /@media \(max-width: 820px\)[\s\S]*\.mobileMenuList a,[\s\S]*?min-height: 40px;[\s\S]*?font-size: var\(--sr-font-size-lg\);/,
+    /@media \(max-width: 820px\)[\s\S]*\.mobileMenuList a,[\s\S]*?min-height: 40px;[\s\S]*?font-size: 16px;/,
   );
   assert.match(
     styles,
