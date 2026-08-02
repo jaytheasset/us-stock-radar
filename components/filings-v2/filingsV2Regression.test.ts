@@ -141,8 +141,17 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   assert.match(styles, /\.searchButtonIcon \{[\s\S]*display: none;/);
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*\.searchControl > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*\.searchButtonIcon \{[\s\S]*display: block;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*height: 44px;[\s\S]*min-height: 44px;[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: var\(--sr-radius-action\);[\s\S]*background: var\(--sr-color-surface-control\);[\s\S]*\.searchForm:focus-within \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*box-shadow: 0 0 0 2px var\(--sr-color-accent-active-soft\);/,
   );
+  assert.match(
+    styles,
+    /\.searchControl > label \{[\s\S]*height: 42px;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchControl > label:focus-within \{[\s\S]*border: 0;[\s\S]*box-shadow: none;[\s\S]*\.searchControl > label > span:first-child \{[\s\S]*display: none;/,
+  );
+  assert.match(
+    styles,
+    /\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*height: 42px;[\s\S]*min-height: 42px;[\s\S]*border: 0;[\s\S]*border-left: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchForm > \.searchButton:focus-visible \{[\s\S]*outline: 0;[\s\S]*\.searchButtonIcon \{[\s\S]*display: block;/,
+  );
+  assert.doesNotMatch(styles, /\.searchForm \{[^}]*overflow:\s*hidden;/);
   assert.match(
     styles,
     /\.mobileFilterActions \.mobileFilterTrigger \{[\s\S]*min-height: 44px;[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";/,
@@ -245,7 +254,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) 58px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?column-gap: var\(--sr-space-2\);[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\);/,
   );
   assert.match(
     styles,
@@ -253,11 +262,27 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ 3;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ 3;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;[\s\S]*?-webkit-line-clamp: 2;/,
   );
   assert.match(
     styles,
     /@media \(max-width: 760px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 2 \/ 4;[\s\S]*?flex-direction: column;[\s\S]*?align-items: flex-end;/,
+  );
+  assert.match(
+    styles,
+    /\.listHeaderCount \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.listHeaderTitle h2 \{[\s\S]*font-size: 17px;[\s\S]*\.liveLabel \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*\.identity strong \{[\s\S]*font-size: 17px;/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilingClassification \{[\s\S]*font-size: 15px;[\s\S]*\.mobileFilingClassification \.formLabel,[\s\S]*\.mobileFilingClassification \.eventOverflow,[\s\S]*\.mobileFilingClassification \.metadataEmpty \{[\s\S]*font-size: 15px;/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilingFooter \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*\.mobileFiledAt \{[\s\S]*font-size: 15px;[\s\S]*\.mobileFiledDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.mobileFiledTime \{[\s\S]*color: var\(--sr-color-text-primary\);/,
+  );
+  assert.match(
+    styles,
+    /\.filingPrice strong \{[\s\S]*font-size: 15px;[\s\S]*\.filingPrice span \{[\s\S]*font-size: 15px;[\s\S]*\.filingImpact \.signal \{[\s\S]*font-size: 16px;[\s\S]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*\.filingImpact \.impactScore \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
   );
   assert.match(
     styles,

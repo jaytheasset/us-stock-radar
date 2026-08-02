@@ -422,7 +422,20 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*\.searchField > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchField > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchField::after \{[\s\S]*left: var\(--sr-space-3\);[\s\S]*font-size: 16px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*height: 44px;[\s\S]*min-height: 44px;[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: var\(--sr-radius-action\);[\s\S]*background: var\(--sr-color-surface-control\);[\s\S]*\.searchForm:focus-within \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*box-shadow: 0 0 0 2px var\(--sr-color-accent-active-soft\);/,
+  );
+  assert.match(
+    styles,
+    /\.searchField > label \{[\s\S]*height: 42px;[\s\S]*border: 0;[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchField > label:focus-within \{[\s\S]*border: 0;[\s\S]*box-shadow: none;[\s\S]*\.searchField > label > span:first-child \{[\s\S]*display: none;[\s\S]*\.searchField::after \{[\s\S]*left: var\(--sr-space-3\);[\s\S]*height: 42px;[\s\S]*font-size: 16px;/,
+  );
+  assert.match(
+    styles,
+    /\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*height: 42px;[\s\S]*min-height: 42px;[\s\S]*border: 0;[\s\S]*border-left: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: 0;[\s\S]*background: transparent;[\s\S]*\.searchForm > \.searchButton:focus-visible \{[\s\S]*outline: 0;/,
+  );
+  assert.doesNotMatch(styles, /\.searchForm \{[^}]*overflow:\s*hidden;/);
+  assert.match(
+    styles,
+    /\.searchForm \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: calc\(var\(--sr-size-control\) \* 2\);/,
   );
   assert.match(
     styles,

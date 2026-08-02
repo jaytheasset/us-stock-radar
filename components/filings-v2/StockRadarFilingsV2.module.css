@@ -1603,8 +1603,18 @@
   }
 
   .searchForm {
+    height: 44px;
+    min-height: 44px;
     grid-template-columns: minmax(0, 1fr) 44px;
     gap: 0;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-action);
+    background: var(--sr-color-surface-control);
+  }
+
+  .searchForm:focus-within {
+    border-color: var(--sr-color-accent-border-active);
+    box-shadow: 0 0 0 2px var(--sr-color-accent-active-soft);
   }
 
   .searchControl {
@@ -1612,10 +1622,15 @@
   }
 
   .searchControl > label {
-    height: 44px;
-    border-color: var(--sr-color-border-control);
-    border-right: 0;
-    border-radius: var(--sr-radius-control) 0 0 var(--sr-radius-control);
+    height: 42px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .searchControl > label:focus-within {
+    border: 0;
+    box-shadow: none;
   }
 
   .searchControl > label > span:first-child {
@@ -1628,10 +1643,27 @@
 
   .searchForm > .searchButton {
     width: 44px;
-    height: 44px;
-    min-height: 44px;
-    border-radius: 0 var(--sr-radius-action) var(--sr-radius-action) 0;
+    height: 42px;
+    min-height: 42px;
+    border: 0;
+    border-left: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: 0;
     padding: 0;
+    color: var(--sr-color-text-control-strong);
+    background: transparent;
+  }
+
+  .searchForm > .searchButton:hover {
+    border-left-color: var(--sr-color-accent-border-active);
+    color: var(--sr-color-accent-text-soft);
+    background: var(--sr-color-accent-active-soft);
+  }
+
+  .searchForm > .searchButton:focus-visible {
+    outline: 0;
+    border-left-color: var(--sr-color-accent-border-active);
+    color: var(--sr-color-accent-text-soft);
+    background: var(--sr-color-accent-active-soft);
   }
 
   .searchButtonIcon {
@@ -1851,11 +1883,16 @@
   .listHeaderCount {
     width: auto;
     flex: 0 0 auto;
+    font-size: var(--sr-font-size-md);
     text-align: right;
   }
 
   .listHeaderTitle h2 {
-    font-size: var(--sr-font-size-md);
+    font-size: 17px;
+  }
+
+  .liveLabel {
+    font-size: var(--sr-font-size-sm);
   }
 
   .filingItemSlot::after {
@@ -1880,12 +1917,13 @@
   }
 
   .filingItem {
-    min-height: 96px;
-    grid-template-columns: auto minmax(0, 1fr) 58px;
+    min-height: 132px;
+    grid-template-columns: minmax(40px, auto) minmax(0, 1fr) auto;
     grid-template-rows: auto auto auto;
     align-items: start;
-    gap: var(--sr-space-1-5);
-    padding: var(--sr-space-3);
+    column-gap: var(--sr-space-2);
+    row-gap: var(--sr-space-1);
+    padding: var(--sr-space-4);
   }
 
   .filingItemTime {
@@ -1905,7 +1943,7 @@
     grid-column: 1;
     grid-row: 1;
     align-self: center;
-    font-size: var(--sr-font-size-base);
+    font-size: 17px;
     font-weight: var(--sr-font-weight-heavy);
   }
 
@@ -1935,18 +1973,21 @@
     align-self: center;
     gap: var(--sr-space-1-5);
     overflow: hidden;
-    font-size: var(--sr-font-size-xs);
+    font-size: 15px;
   }
 
   .mobileFilingEvents {
     display: inline-flex;
     min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
   }
 
   .mobileFilingClassification .formLabel,
   .mobileFilingClassification .filingEventMeta,
-  .mobileFilingClassification .eventOverflow {
-    font-size: var(--sr-font-size-xs);
+  .mobileFilingClassification .eventOverflow,
+  .mobileFilingClassification .metadataEmpty {
+    font-size: 15px;
   }
 
   .filingSource {
@@ -1969,8 +2010,8 @@
     align-items: center;
     align-self: center;
     overflow: hidden;
-    color: var(--sr-color-text-meta);
-    font-size: var(--sr-font-size-xs);
+    color: var(--sr-color-text-subtle);
+    font-size: 15px;
   }
 
   .mobileFiledAt {
@@ -1978,14 +2019,14 @@
     align-items: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-xs);
+    font-size: 15px;
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
   }
 
   .mobileFiledDate {
-    color: var(--sr-color-text-meta);
+    color: var(--sr-color-text-subtle);
     font-weight: var(--sr-font-weight-regular);
   }
 
@@ -2019,9 +2060,9 @@
     display: -webkit-box;
     overflow: hidden;
     color: var(--sr-color-text-heading);
-    font-size: var(--sr-font-size-base);
+    font-size: 18px;
     font-weight: 600;
-    line-height: 1.35;
+    line-height: 1.4;
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -2044,13 +2085,13 @@
   }
 
   .filingPrice strong {
-    font-size: var(--sr-font-size-md);
+    font-size: 15px;
     font-weight: 600;
     line-height: var(--sr-line-height-tight);
   }
 
   .filingPrice span {
-    font-size: var(--sr-font-size-xs);
+    font-size: 15px;
     line-height: var(--sr-line-height-tight);
   }
 
@@ -2075,14 +2116,14 @@
   }
 
   .filingImpact .signal {
-    font-size: var(--sr-font-size-xs);
-    font-weight: var(--sr-font-weight-regular);
+    font-size: 16px;
+    font-weight: var(--sr-font-weight-semibold);
   }
 
   .filingImpact .impactScore {
     min-width: auto;
     height: auto;
-    font-size: var(--sr-font-size-md);
+    font-size: 16px;
     font-weight: 600;
   }
 
