@@ -61,7 +61,11 @@ export function NewsV2List({
           </span>
           <h2 id="news-v2-list-title">Market News</h2>
           {preferredSourceUrl ? (
-            <GooglePreferredSourceLink header href={preferredSourceUrl} />
+            <GooglePreferredSourceLink
+              ariaLabel="Add Stock Radar on Google"
+              header
+              href={preferredSourceUrl}
+            />
           ) : null}
         </div>
         <span className={styles.resultCount}>{countLabel}</span>
