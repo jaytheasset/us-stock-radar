@@ -596,6 +596,12 @@
   white-space: nowrap;
 }
 
+.rowSource::before {
+  margin: 0 var(--sr-space-1);
+  color: var(--sr-color-text-muted);
+  content: "·";
+}
+
 .rowHeadline {
   overflow: hidden;
   color: var(--sr-color-text-primary);

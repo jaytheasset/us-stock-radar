@@ -45,6 +45,7 @@ import { fetchNasdaqCorporateActionsRawItems } from "@/lib/sources/nasdaqtrader/
 import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
 import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 
 type SourceGroup = "news" | "filings" | "market";
 type MarketScope = "company" | "sector" | "theme" | "macro";
@@ -1220,6 +1221,7 @@ async function persistAnalyzedEvent({
     cross_group_event_key: buildAnalyzedEventDedupe(rawItem, analysis).key,
     metadata: {
       issuer: sourceEvidence.issuer,
+      company_name: sourceEvidence.companyName,
       source_type: sourceEvidence.sourceType,
       source_release_type: sourceEvidence.sourceReleaseType,
       confidence: stringValue(analysis.confidence),
@@ -1276,13 +1278,17 @@ async function persistAnalyzedEvent({
 }
 
 function sourceEvidenceForNewsItem(config: NewsSourceConfig, rawItem: NewsRawItem) {
-  const sourceName = sourceDisplayName(config.sourceCode);
-  const rawSourceName = nullableString(rawItem.raw_payload.source_name);
+  const companyName = resolveNewsCompanyName({
+    configuredSourceName: config.sourceName,
+    rawPayload: rawItem.raw_payload,
+    sourceCode: config.sourceCode,
+    title: rawItem.title,
+  });
 
   if (config.sourceCode === "nasdaq_trader") {
-    const tradeHalt = toRecord(rawItem.raw_payload.trade_halt);
     return {
-      issuer: nullableString(tradeHalt?.issueName) || rawSourceName || config.sourceName || sourceName,
+      companyName,
+      issuer: companyName,
       sourceReleaseType: "Nasdaq Trading Halt Notice",
       sourceType: "Exchange Trading Halt Notice",
     };
@@ -1290,14 +1296,16 @@ function sourceEvidenceForNewsItem(config: NewsSourceConfig, rawItem: NewsRawIte
 
   if (isGovernmentNewsSource(config.sourceCode)) {
     return {
-      issuer: sourceName,
+      companyName,
+      issuer: companyName,
       sourceReleaseType: "Official Release",
       sourceType: "Government Release",
     };
   }
 
   return {
-    issuer: rawSourceName || config.sourceName || sourceName,
+    companyName,
+    issuer: companyName,
     sourceReleaseType: "Official Release",
     sourceType: "Company Press Release",
   };
@@ -1983,10 +1991,11 @@ function buildCalendarRows({
   const eventId = stringValue(eventRow.id);
   const sourceUrl = stringValue(eventRow.source_url) || rawItem.source_url;
   const ticker = primaryTicker.ticker || null;
-  const companyName =
-    nullableString(rawItem.raw_payload.company_name) ||
-    nullableString(rawItem.raw_payload.source_name) ||
-    ticker;
+  const companyName = resolveNewsCompanyName({
+    rawPayload: rawItem.raw_payload,
+    sourceCode: rawItem.source_code,
+    title: rawItem.title,
+  }) || ticker;
 
   const rows: Record<string, unknown>[] = [];
 

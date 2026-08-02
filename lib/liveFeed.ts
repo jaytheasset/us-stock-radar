@@ -22,6 +22,7 @@ import {
 import { hasValidLiveFeedPrimaryTicker } from "@/lib/liveFeedEventPolicy";
 import { liveFeedRailQueries } from "@/lib/liveFeedRailPolicy";
 import { resolveLiveFeedSource } from "@/lib/liveFeedSource";
+import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
@@ -390,9 +391,22 @@ function mapEventRow(
     (canonical.sourceGroup === "filings" && isSecAccession(sourceUniqueId)
       ? sourceUniqueId
       : "");
-  const companyName =
-    readMetadataString(row, ["company_name", "companyName", "issuer_name", "issuerName", "company"]) ||
-    readMetadataString(rawItem, ["company_name", "companyName", "issuer_name", "issuerName", "company"]);
+  const sourceCode = readString(row, ["source_code", "source", "source_channel"]);
+  const sourceName = readString(row, ["source_name"]);
+  const companyName = canonical.sourceGroup === "news"
+    ? resolveNewsCompanyName({
+        configuredSourceName: sourceName,
+        rawPayload: readMetadataRecord(row),
+        sourceCode,
+        title: readString(row, ["title"]),
+      }) || resolveNewsCompanyName({
+        configuredSourceName: sourceName,
+        rawPayload: readMetadataRecord(rawItem),
+        sourceCode,
+        title: readString(row, ["title"]),
+      }) || ""
+    : readMetadataString(row, ["company_name", "companyName", "issuer_name", "issuerName", "company"]) ||
+      readMetadataString(rawItem, ["company_name", "companyName", "issuer_name", "issuerName", "company"]);
   const formType =
     readMetadataString(row, ["form_type", "formType", "form"]) ||
     readMetadataString(rawItem, ["form_type", "formType", "form"]);
@@ -416,8 +430,8 @@ function mapEventRow(
     themeGroup: classification.themeGroup,
     subTheme: classification.subTheme,
     source: resolveLiveFeedSource(
-      readString(row, ["source_name"]),
-      readString(row, ["source_code", "source", "source_channel"]),
+      sourceName,
+      sourceCode,
     ),
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     formType,
@@ -1113,6 +1127,12 @@ function readStringArray(row: DbEventRow | undefined, keys: string[]) {
 function readMetadataString(row: DbEventRow | undefined, keys: string[]) {
   if (!row || !row.metadata || typeof row.metadata !== "object") return "";
   return readString(row.metadata as Record<string, unknown>, keys);
+}
+
+function readMetadataRecord(row: DbEventRow | undefined) {
+  return row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata as Record<string, unknown>
+    : null;
 }
 
 function uniqueUuidValues(values: string[]) {

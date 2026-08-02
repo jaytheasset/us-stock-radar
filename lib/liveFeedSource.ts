@@ -12,7 +12,7 @@ const knownSourceNames: Record<string, string> = {
   whitehouse: "White House",
   "white-house": "White House",
   fmp: "FMP",
-  nasdaq_corporate_actions: "Nasdaq Corporate Actions",
+  nasdaq_corporate_actions: "Nasdaq Trader",
   nasdaq_trader: "Nasdaq Trader",
   polygon: "Polygon",
 };
@@ -21,9 +21,14 @@ export function resolveLiveFeedSource(
   sourceName?: string | null,
   sourceCode?: string | null,
 ) {
+  const code = String(sourceCode || "").trim();
+  const knownName = knownSourceNames[code.toLowerCase()];
+  if (knownName && code.toLowerCase() === "nasdaq_corporate_actions") {
+    return knownName;
+  }
+
   const displayName = String(sourceName || "").trim();
   if (displayName) return displayName;
 
-  const code = String(sourceCode || "").trim();
-  return knownSourceNames[code.toLowerCase()] || code || "Unknown";
+  return knownName || code || "Unknown";
 }
