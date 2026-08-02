@@ -27,10 +27,17 @@ export function MobileFeedPreviewSheet({
 
   const showNewsPreviewAd =
     viewerPlan === "free" && item.preview.kind !== "filing";
-  const newsSurfaceClassName =
-    item.preview.kind === "company-news" || item.preview.kind === "market-news"
-      ? sheetStyles.newsSurface
-      : undefined;
+  const isNewsPreview =
+    item.preview.kind === "company-news" || item.preview.kind === "market-news";
+  const newsSurfaceClassName = isNewsPreview
+    ? sheetStyles.newsSurface
+    : undefined;
+  const previewContent = (
+    <>
+      <FeedPreviewPanel item={item} variant="mobile" />
+      {showNewsPreviewAd ? <FeedMobilePreviewAd /> : null}
+    </>
+  );
 
   const previewName =
     item.preview.kind === "filing"
@@ -51,8 +58,11 @@ export function MobileFeedPreviewSheet({
       overlayLabel="Close event preview"
       surfaceClassName={newsSurfaceClassName}
     >
-      <FeedPreviewPanel item={item} variant="mobile" />
-      {showNewsPreviewAd ? <FeedMobilePreviewAd /> : null}
+      {isNewsPreview ? (
+        <div className={sheetStyles.newsScrollRegion}>{previewContent}</div>
+      ) : (
+        previewContent
+      )}
     </BottomSheetShell>
   );
 }

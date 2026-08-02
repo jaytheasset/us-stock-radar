@@ -476,14 +476,14 @@
 
   .detailContent[data-preview-kind="company-news"] .detailCta {
     min-width: 0;
-    min-height: calc(var(--sr-size-control) + var(--sr-space-2));
-    font-size: var(--sr-font-size-lg);
+    min-height: calc(var(--sr-size-control) + var(--sr-space-3));
+    font-size: 16px;
     white-space: nowrap;
   }
 
   .detailContent[data-preview-kind="company-news"] .detailCta svg {
-    width: var(--sr-space-4-5);
-    height: var(--sr-space-4-5);
+    width: var(--sr-space-5);
+    height: var(--sr-space-5);
     flex: 0 0 auto;
   }
 }

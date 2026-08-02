@@ -1,7 +1,9 @@
 @media (max-width: 760px) {
   .newsSurface[role="dialog"] {
+    display: flex;
+    flex-direction: column;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
     border-top-left-radius: var(--sr-radius-sheet);
     border-top-right-radius: var(--sr-radius-sheet);
     border-top-color: var(--sr-color-accent-border-premium);
@@ -15,5 +17,17 @@
     box-shadow:
       var(--sr-shadow-sheet-full-scroll),
       inset 0 var(--sr-border-width) 0 var(--sr-color-accent-subtle);
+    scrollbar-gutter: auto;
+  }
+
+  .newsScrollRegion {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
   }
 }
