@@ -127,6 +127,7 @@ export function FilterBar({
               aria-controls={isMobileFilterOpen ? "dashboard-v2-filter-sheet" : undefined}
               aria-haspopup="dialog"
               aria-label={`${dashboardV2FilterLabels[key]} filter${available ? "" : " unavailable"}`}
+              className="dashboard-v2-mobile-quick-filter"
               disabled={!available}
               expanded={isMobileFilterOpen}
               key={key}
@@ -141,6 +142,7 @@ export function FilterBar({
           active={secondaryActiveCount > 0}
           aria-controls={isMobileFilterOpen ? "dashboard-v2-filter-sheet" : undefined}
           aria-haspopup="dialog"
+          className="dashboard-v2-mobile-quick-filter"
           expanded={isMobileFilterOpen}
           label="More"
           onClick={(event) => onOpenMoreFilters(event.currentTarget)}
