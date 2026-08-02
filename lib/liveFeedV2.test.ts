@@ -832,6 +832,18 @@ test("mobile market context is flat and uses shared directional score tones", ()
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.marketPulseGrid article:nth-last-child\(2\):nth-child\(even\) \{[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);/,
   );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.marketPulseGroupTitle \{[\s\S]*border-top-color: var\(--sr-color-border\);[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*\.marketPulseGroupTitle \+ \.marketPulseGrid \{[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);/,
+  );
+  const desktopGroupTitleRule = styleSource.match(/^\.marketPulseGroupTitle \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(desktopGroupTitleRule, /border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);/);
+  assert.doesNotMatch(desktopGroupTitleRule, /border-bottom/);
+  assert.equal(
+    [...styleSource.matchAll(/\.marketPulseGroupTitle \+ \.marketPulseGrid/g)].length,
+    1,
+    "only the mobile futures grid should receive the closing divider",
+  );
   const fillsOddGridBoundary = (itemCount: number) =>
     (itemCount - 1) % 2 === 0;
   for (const itemCount of [3, 5]) assert.equal(fillsOddGridBoundary(itemCount), true);
