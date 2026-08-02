@@ -94,11 +94,11 @@ test("mobile alert and search panels use isolated elevated surfaces and dismissi
 
   assert.match(
     tokens,
-    /--sr-color-surface-product-popover-elevated: #151a20;/,
+    /--sr-color-surface-product-popover-elevated: #18212a;/,
   );
   assert.match(
     tokens,
-    /--sr-color-border-product-popover-elevated: rgba\(104, 116, 130, 0\.42\);/,
+    /--sr-color-border-product-popover-elevated: rgba\(104, 116, 130, 0\.28\);/,
   );
   assert.match(
     tokens,
