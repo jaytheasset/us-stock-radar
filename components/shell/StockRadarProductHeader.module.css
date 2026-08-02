@@ -1343,7 +1343,7 @@
     color: var(--sr-color-text-product-menu);
     background: transparent;
     font: inherit;
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-lg);
     font-weight: var(--sr-font-weight-strong);
     text-align: left;
     text-decoration: none;
