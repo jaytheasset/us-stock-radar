@@ -462,6 +462,12 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
   );
+  const previewStyleSource = readSource(
+    "components/feed-v2/FeedFilingPreview.module.css",
+  );
+  const previewSheetStyleSource = readSource(
+    "components/feed-v2/MobileFeedPreviewSheet.module.css",
+  );
 
   assert.match(clientSource, /new AbortController\(\)/);
   assert.match(clientSource, /params\.set\("cursor", cursor\)/);
@@ -477,6 +483,11 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
+  assert.match(sheetSource, /surfaceClassName=\{newsSurfaceClassName\}/);
+  assert.match(
+    sheetSource,
+    /item\.preview\.kind === "company-news" \|\| item\.preview\.kind === "market-news"/,
+  );
   assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
   assert.match(sheetSource, /viewerPlan === "free" && item\.preview\.kind !== "filing"/);
   assert.match(sheetSource, /<FeedMobilePreviewAd \/>/);
@@ -485,6 +496,16 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(previewAdSource, /mediaQuery="\(max-width: 760px\)"/);
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
+  assert.match(
+    previewSheetStyleSource,
+    /\.newsSurface\[role="dialog"\][\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)/,
+  );
+  assert.match(
+    previewStyleSource,
+    /\[data-preview-kind="company-news"\][\s\S]*\[data-preview-kind="market-news"\][\s\S]*font-size: var\(--sr-font-size-2xl\)/,
+  );
+  assert.match(previewStyleSource, /font-size: var\(--sr-font-size-lg\)/);
+  assert.match(previewStyleSource, /font-size: var\(--sr-font-size-md\)/);
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
   assert.match(

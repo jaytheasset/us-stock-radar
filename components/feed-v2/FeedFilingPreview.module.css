@@ -373,4 +373,95 @@
   .detailActionArea {
     padding-bottom: calc(var(--sr-space-5) + env(safe-area-inset-bottom));
   }
+
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailIdentity
+    h2,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailSection
+    h3 {
+    font-size: var(--sr-font-size-2xl);
+  }
+
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailIdentity
+    p,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailFacts
+    b,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailClassification
+    > span,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .sectionLabel,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .sourceMetadata
+    div,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .formLabel,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .relatedRow
+    div
+    span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailFacts
+    > span,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .impactScore,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailSection
+    p,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .detailSection
+    li,
+  .detailContent:is(
+      [data-preview-kind="company-news"],
+      [data-preview-kind="market-news"]
+    )
+    .relatedRow
+    strong {
+    font-size: var(--sr-font-size-lg);
+  }
 }
