@@ -463,7 +463,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.rowQuote \{[\s\S]*display: flex;[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*font-size: 15px;[\s\S]*\.rowQuoteUnavailable \{[\s\S]*display: none;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.rowQuote \{[\s\S]*display: flex;[\s\S]*min-width: max-content;[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*align-items: baseline;[\s\S]*gap: var\(--sr-space-1\);[\s\S]*white-space: nowrap;[\s\S]*\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*font-size: 15px;[\s\S]*\.rowQuoteUnavailable \{[\s\S]*display: none;/,
   );
   assert.match(
     styles,
@@ -704,7 +704,7 @@ test("news migration keeps page bounds, indexed search, real-time ET ranges, and
     /grant execute on function public\.search_news_v2[\s\S]+to service_role/i,
   );
   assert.doesNotMatch(rowSource, /\/api\/market\/chart/);
-  assert.match(dataSource, /readMarketQuoteCacheMap\(symbols\)/);
+  assert.match(dataSource, /readHydratedMarketQuoteMap\(symbols\)/);
   assert.match(dataSource, /readMarketBarCacheMap\(symbols, "1D"\)/);
   assert.match(dataSource, /unstable_cache/);
   assert.match(dataSource, /revalidate: 300/);

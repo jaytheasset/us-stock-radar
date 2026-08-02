@@ -1351,10 +1351,13 @@
 
   .source {
     display: block;
+    overflow: hidden;
     min-width: 0;
     align-self: center;
     font-size: var(--sr-font-size-lg);
     line-height: var(--sr-line-height-none);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .eventMobileFooter {
@@ -1405,11 +1408,14 @@
 
   .quote {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 2px;
+    min-width: max-content;
+    flex-direction: row;
+    align-items: baseline;
+    justify-self: end;
+    justify-content: flex-end;
+    gap: var(--sr-space-1);
     text-align: right;
+    white-space: nowrap;
   }
 
   .quote strong {

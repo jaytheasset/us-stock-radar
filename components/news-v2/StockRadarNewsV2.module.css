@@ -2384,12 +2384,13 @@
 
   .rowQuote {
     display: flex;
-    overflow: hidden;
-    min-width: 0;
+    overflow: visible;
+    min-width: max-content;
     grid-column: 3;
     grid-row: 3;
-    align-items: center;
+    align-items: baseline;
     align-self: center;
+    justify-self: end;
     justify-content: flex-end;
     gap: var(--sr-space-1);
     white-space: nowrap;

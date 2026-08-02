@@ -2,8 +2,8 @@ import "server-only";
 
 import {
   readMarketBarCacheMap,
-  readMarketQuoteCacheMap,
 } from "@/lib/marketDataCache";
+import { readHydratedMarketQuoteMap } from "@/lib/marketQuoteHydration";
 import {
   type FilingsV2Cursor,
   type FilingsV2EventType,
@@ -191,7 +191,7 @@ async function enrichRecordsWithMarketData(baseRecords: FilingsV2Record[]) {
   const quoteSymbols = symbols.slice(0, quoteLimit);
   const chartSymbols = symbols.slice(0, chartLimit);
   const [quoteMap, chartMap] = await Promise.all([
-    readMarketQuoteCacheMap(quoteSymbols),
+    readHydratedMarketQuoteMap(quoteSymbols),
     readMarketBarCacheMap(chartSymbols, "1D"),
   ]);
 

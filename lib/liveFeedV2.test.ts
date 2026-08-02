@@ -836,6 +836,7 @@ test("mobile market context is flat and uses shared directional score tones", ()
 test("feed rows use one centered dash for unavailable quote and chart", () => {
   const listSource = readSource("components/feed-v2/FeedEventList.tsx");
   const adapterSource = readSource("lib/liveFeed.ts");
+  const quoteHydrationSource = readSource("lib/marketQuoteHydration.ts");
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
   );
@@ -858,7 +859,7 @@ test("feed rows use one centered dash for unavailable quote and chart", () => {
   );
   assert.match(
     adapterSource,
-    /kind: marketScope === "macro" && !snapshot \? "macro" : "group",[\s\S]*price: ""/,
+    /kind: marketScope === "macro" && !snapshot \? "macro" : "group",[\s\S]*price: hasTickerQuote \? quote\.price : ""/,
   );
   assert.match(
     adapterSource,
@@ -866,7 +867,21 @@ test("feed rows use one centered dash for unavailable quote and chart", () => {
   );
   assert.match(
     adapterSource,
-    /change = snapshot \? formatSignedPercent\(snapshot\.changePercent\) : ""/,
+    /const change = hasTickerQuote[\s\S]*\? quote\.change[\s\S]*: snapshot[\s\S]*\? formatSignedPercent\(snapshot\.changePercent\)[\s\S]*: ""/,
+  );
+  assert.match(
+    adapterSource,
+    /price: Number\.isFinite\(price\) \? formatCurrency\(price\) : "",[\s\S]*changeAmount: Number\.isFinite\(change\) \? `\$\$\{formatAbs\(change\)\}` : "",[\s\S]*change: Number\.isFinite\(changePct\)[\s\S]*: ""/,
+  );
+  assert.doesNotMatch(adapterSource, /change: [^\n]*"\+0\.00%"/);
+  assert.doesNotMatch(adapterSource, /changeAmount: [^\n]*"\$0\.00"/);
+  assert.match(
+    adapterSource,
+    /resolveEventQuoteSymbol\([\s\S]*relatedTickers\?\.get\(readString\(row, \["id"\]\)\)[\s\S]*readHydratedMarketQuoteMap\(symbols\)/,
+  );
+  assert.match(
+    quoteHydrationSource,
+    /marketQuoteHydrationLimit = 25[\s\S]*readMarketQuoteCacheMap\(normalizedSymbols\)[\s\S]*missingSymbols[\s\S]*fetchFmpQuotes\(symbols\)[\s\S]*writeMarketQuoteCache/,
   );
   assert.doesNotMatch(
     adapterSource,
@@ -1085,7 +1100,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.quote,[\s\S]*\.quoteUnavailable \{[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.quote \{[\s\S]*flex-direction: column;[\s\S]*align-items: flex-end;[\s\S]*\.quote strong \{[\s\S]*order: 2;[\s\S]*\.quote span \{[\s\S]*order: 1;/,
+    /@media \(max-width: 760px\)[\s\S]*\.quote,[\s\S]*\.quoteUnavailable \{[\s\S]*grid-column: 3;[\s\S]*grid-row: 3;[\s\S]*\.quote \{[\s\S]*min-width: max-content;[\s\S]*flex-direction: row;[\s\S]*align-items: baseline;[\s\S]*justify-self: end;[\s\S]*gap: var\(--sr-space-1\);[\s\S]*white-space: nowrap;[\s\S]*\.quote strong \{[\s\S]*order: 2;[\s\S]*\.quote span \{[\s\S]*order: 1;/,
   );
   assert.match(
     styleSource,
