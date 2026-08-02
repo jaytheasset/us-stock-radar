@@ -76,6 +76,25 @@ test("product header measures available desktop space before moving links into M
   );
 });
 
+test("desktop measurement waits until the sibling actions ref is attached", () => {
+  const header = readProjectFile("components/shell/StockRadarProductHeader.tsx");
+  const desktop = readProjectFile(
+    "components/shell/StockRadarDesktopNavigation.tsx",
+  );
+
+  assert.match(header, /const actionsRef = useRef<HTMLDivElement>\(null\)/);
+  assert.match(header, /<StockRadarDesktopNavigation[\s\S]*actionsRef=\{actionsRef\}/);
+  assert.match(
+    header,
+    /className=\{styles\.actions\}[\s\S]{0,80}ref=\{actionsRef\}/,
+  );
+  assert.match(
+    desktop,
+    /useEffect\(\(\) => \{[\s\S]{0,240}const actions = actionsRef\.current;/,
+  );
+  assert.doesNotMatch(desktop, /useLayoutEffect/);
+});
+
 test("mobile menu retains focus, dismissal, and body-scroll safeguards", () => {
   const header = readProjectFile("components/shell/StockRadarProductHeader.tsx");
   const styles = readProjectFile(

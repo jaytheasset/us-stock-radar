@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   type RefObject,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -50,7 +49,9 @@ export function StockRadarDesktopNavigation({
     (item) => item.key === activeItem,
   );
 
-  useLayoutEffect(() => {
+  // The actions element is a later sibling in the parent header, so measure only
+  // after the full commit has attached every sibling ref.
+  useEffect(() => {
     const navigation = navigationRef.current;
     const actions = actionsRef.current;
     const header = headerRef.current;
