@@ -1010,6 +1010,7 @@ a.companyLine:focus-visible {
 
   .heroTimestamp {
     overflow: hidden;
+    font-size: var(--sr-font-size-md);
   }
 
   .heroIdentity {
@@ -1061,10 +1062,15 @@ a.companyLine:focus-visible {
 
   .companyLine {
     flex-wrap: nowrap;
+    font-size: var(--sr-font-size-md);
   }
 
   .companyLine span {
     max-width: 100%;
+  }
+
+  .tickerLine strong {
+    font-size: var(--sr-font-size-2xl);
   }
 
   .classification {
@@ -1074,11 +1080,23 @@ a.companyLine:focus-visible {
     margin-top: 0;
   }
 
+  .classification > span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .impactScore strong {
+    font-size: var(--sr-font-size-base);
+  }
+
   .heroActions {
     position: static;
     flex: none;
     margin-left: auto;
     justify-content: flex-end;
+  }
+
+  .analysisLiveRoomButton {
+    font-size: var(--sr-font-size-base);
   }
 
   .layout,
@@ -1099,6 +1117,18 @@ a.companyLine:focus-visible {
   .card,
   .railCard {
     padding: var(--sr-space-4);
+  }
+
+  .sectionLabel {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .card p {
+    font-size: var(--sr-font-size-lg-plus);
+  }
+
+  .analysisDisclosure {
+    font-size: var(--sr-font-size-sm);
   }
 
   .rendererCard :global(.stock-detail-card) {
@@ -1137,6 +1167,7 @@ a.companyLine:focus-visible {
 
   .rendererCard :global(.price-card-mobile-collapsible .detail-change) {
     margin-top: 0;
+    font-size: var(--sr-font-size-base);
   }
 
   .rendererCard :global(.price-card-mobile-collapsible .price-chart-details) {
@@ -1155,7 +1186,7 @@ a.companyLine:focus-visible {
     color: var(--sr-color-accent-text);
     background: transparent;
     font: inherit;
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-base);
     font-weight: var(--sr-font-weight-semibold);
     text-transform: uppercase;
     cursor: pointer;

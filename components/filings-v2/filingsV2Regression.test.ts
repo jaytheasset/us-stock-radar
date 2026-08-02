@@ -50,6 +50,66 @@ test("news and filing analysis share one source-verification disclosure", () => 
   assert.equal(analysisSource.match(/\{AI_ANALYSIS_DISCLOSURE\}/g)?.length, 1);
 });
 
+test("shared news and filing analysis use the readable mobile typography scale", () => {
+  const analysisSource = readFileSync(
+    new URL("../filing-analysis-v2/GenericFilingAnalysis.tsx", import.meta.url),
+    "utf8",
+  );
+  const analysisStyles = readFileSync(
+    new URL(
+      "../filing-analysis-v2/GenericFilingAnalysis.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const scoreStyles = readFileSync(
+    new URL("../filing-analysis-v2/ScoreRationale.module.css", import.meta.url),
+    "utf8",
+  );
+  const googleStyles = readFileSync(
+    new URL("../ui/GooglePreferredSourceLink.module.css", import.meta.url),
+    "utf8",
+  );
+  const liveRoomSource = readFileSync(
+    new URL("../live-room/LiveRoomEntryButton.tsx", import.meta.url),
+    "utf8",
+  );
+  const mobileAnalysisStyles = analysisStyles.slice(
+    analysisStyles.indexOf("@media (max-width: 760px)"),
+  );
+  const mobileScoreStyles = scoreStyles.slice(
+    scoreStyles.indexOf("@media (max-width: 760px)"),
+  );
+  const mobileGoogleStyles = googleStyles.slice(
+    googleStyles.indexOf("@media (max-width: 760px)"),
+  );
+
+  assert.match(mobileAnalysisStyles, /\.hero h1 \{[^}]*font-size: var\(--sr-font-size-heading-sm\);/);
+  assert.match(mobileAnalysisStyles, /\.heroTimestamp \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileAnalysisStyles, /\.companyLine \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileAnalysisStyles, /\.tickerLine strong \{[^}]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(mobileAnalysisStyles, /\.classification > span \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileAnalysisStyles, /\.impactScore strong \{[^}]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(mobileAnalysisStyles, /\.sectionLabel \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileAnalysisStyles, /\.card p \{[^}]*font-size: var\(--sr-font-size-lg-plus\);/);
+  assert.match(mobileAnalysisStyles, /\.analysisDisclosure \{[^}]*font-size: var\(--sr-font-size-sm\);/);
+  assert.match(mobileAnalysisStyles, /\.analysisLiveRoomButton \{[^}]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(mobileAnalysisStyles, /\.price-card-mobile-collapsible \.detail-price\)[^}]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(mobileAnalysisStyles, /\.price-card-mobile-collapsible \.detail-change\)[^}]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(mobileAnalysisStyles, /\.price-chart-mobile-toggle\)[^}]*font-size: var\(--sr-font-size-base\);/);
+
+  assert.match(mobileScoreStyles, /\.scoreBlock > span \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileScoreStyles, /\.headingRow h2 \{[^}]*font-size: var\(--sr-font-size-xl\);/);
+  assert.match(mobileScoreStyles, /\.signal \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileScoreStyles, /\.copy p \{[^}]*font-size: var\(--sr-font-size-lg-plus\);/);
+  assert.match(scoreStyles, /\.scoreBlock > strong \{[^}]*font-size: var\(--sr-font-size-heading-lg\);/);
+  assert.match(mobileGoogleStyles, /\.summary \{[^}]*font-size: var\(--sr-font-size-md\);/);
+
+  assert.match(analysisSource, /className=\{styles\.analysisLiveRoomButton\}[\s\S]*label="Discuss in Live Room"/);
+  assert.match(liveRoomSource, /className\?: string;/);
+  assert.match(liveRoomSource, /className=\{\[styles\.button, className\]\.filter\(Boolean\)\.join\(" "\)\}/);
+});
+
 test("filings preview rail keeps intrinsic ad widths constrained after route transitions", () => {
   const adStyles = readFileSync(
     new URL("./FilingsRailAdSlot.module.css", import.meta.url),

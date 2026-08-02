@@ -14,6 +14,7 @@ export type LiveRoomEntryEvent = {
 };
 
 type LiveRoomEntryButtonProps = {
+  className?: string;
   event?: LiveRoomEntryEvent;
   issuer?: string;
   label?: LiveRoomEntryLabel;
@@ -22,6 +23,7 @@ type LiveRoomEntryButtonProps = {
 };
 
 export function LiveRoomEntryButton({
+  className,
   event,
   issuer,
   label = "Live Room",
@@ -34,7 +36,7 @@ export function LiveRoomEntryButton({
   return (
     <Link
       aria-label={label}
-      className={styles.button}
+      className={[styles.button, className].filter(Boolean).join(" ")}
       data-live-room-event-id={event?.id || undefined}
       data-live-room-event-source={event?.source || undefined}
       data-live-room-event-title={event?.title || undefined}
