@@ -923,6 +923,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           rawItem,
           rawItemId: stringValue(persistedRaw.id),
           analysis,
+          marketContext: analysisRun.input.market_context,
           model: analysisRun.model || "",
           openAiResponseId: analysisRun.openAiResponseId || null,
           promptKey: analysisPromptKey,
@@ -1167,6 +1168,7 @@ async function persistAnalyzedEvent({
   rawItem,
   rawItemId,
   analysis,
+  marketContext,
   model,
   openAiResponseId,
   promptKey,
@@ -1176,6 +1178,7 @@ async function persistAnalyzedEvent({
   rawItem: NewsRawItem;
   rawItemId: string;
   analysis: Record<string, unknown>;
+  marketContext?: unknown;
   model: string;
   openAiResponseId: string | null;
   promptKey: string;
@@ -1236,6 +1239,7 @@ async function persistAnalyzedEvent({
       body_tickers: analysis.tickers || [],
       related_tickers: analysis.related_tickers || [],
       related_ticker_proxies: tickerProxies,
+      market_context: toRecord(marketContext) || null,
       ticker_canonicalization: analysis.ticker_canonicalization || null,
       llm_skipped: Boolean(analysis.llm_skipped),
       analysis_source: nullableString(analysis.analysis_source),

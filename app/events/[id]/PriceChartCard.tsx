@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { ChevronDown } from "lucide-react";
+import { hasStoredAnalysisChartRange } from "@/lib/analysisMarketDataContract";
 import { selectPriceChartXAxisIndexes } from "@/lib/priceChartAxis";
 import {
   derivePriceChartMovement,
@@ -21,7 +22,6 @@ type PriceChartCardProps = {
   price: string;
   rangeAppearance?: "default" | "neutral";
   series: PriceChartSeries | null;
-  storedOnly?: boolean;
   ticker: string;
   tone: DetailTone;
 };
@@ -58,7 +58,6 @@ export function PriceChartCard({
   price,
   rangeAppearance = "default",
   series,
-  storedOnly = false,
   ticker,
 }: PriceChartCardProps) {
   const mobileChartRegionId = useId();
@@ -71,7 +70,7 @@ export function PriceChartCard({
     const controller = new AbortController();
     const requestedRange = range;
 
-    if (storedOnly) {
+    if (hasStoredAnalysisChartRange(series, requestedRange)) {
       return () => controller.abort();
     }
 
@@ -101,7 +100,7 @@ export function PriceChartCard({
 
     loadChart();
     return () => controller.abort();
-  }, [range, storedOnly, ticker]);
+  }, [range, series, ticker]);
 
   const activeRemoteData = remoteDataByRange[range];
   const isLoadingActiveRange = loadingRange === range;
@@ -144,7 +143,7 @@ export function PriceChartCard({
       latestPrice: storedMovement?.latestPrice,
       points: storedPoints,
       previousClose: series.previousClose,
-      providerLabel: "Stored market data",
+      providerLabel: series.providerLabel || "Stored market data",
       remote: false,
     };
   }, [activeRemoteData, isLoadingActiveRange, range, series]);

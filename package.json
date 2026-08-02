@@ -50,6 +50,7 @@
     "verify:brokerage": "node --test --experimental-strip-types lib/brokerage/brokerage.test.ts && node scripts/verify-brokerage-schema.mjs",
     "verify:klipy": "node --test --experimental-strip-types lib/klipy/klipy.test.ts && node scripts/verify-klipy-schema.mjs",
     "verify:market-cache-workflow": "node --test --experimental-strip-types lib/marketCacheWorkflow.test.ts",
+    "verify:analysis-market-data": "node --test --experimental-strip-types lib/analysisPeerSelection.test.ts lib/analysisMarketDataContract.test.ts lib/analysisMarketIntegration.test.ts lib/marketChartMovement.test.ts lib/marketRequestCoalescing.test.ts",
     "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
     "verify:shell": "node --test --experimental-strip-types components/shell/appShellRegression.test.ts",
     "verify:auth": "node --test --experimental-strip-types lib/auth/authPolicy.test.ts components/shell/desktopNavigationLayout.test.ts components/shell/headerNavigationRegression.test.ts",

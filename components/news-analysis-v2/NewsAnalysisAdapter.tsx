@@ -7,6 +7,7 @@ import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSource
 import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegistry";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import type { NewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
+import { isRealTicker } from "@/app/events/[id]/detailTypes";
 import { OriginalNewsArticle } from "./OriginalNewsArticle";
 
 type NewsAnalysisAdapterProps = {
@@ -30,7 +31,7 @@ export function NewsAnalysisAdapter({
   const analysisFiling = { ...filing, filingBrief: "" };
   const badge = detail.eventType ? getEventTypeBadge(detail.eventType) : null;
   const chartTone = filing.signal || toneFromStoredChange(detail.priceChange);
-  const hasStoredChart = Boolean(filing.ticker && detail.priceSeries && Object.values(detail.priceSeries.periods).some((points) => points?.length));
+  const hasRealTicker = isRealTicker(filing.ticker);
   const preferredSourceUrl = buildGooglePreferredSourceUrl();
 
   return (
@@ -48,14 +49,13 @@ export function NewsAnalysisAdapter({
         originalBodyRenderer={detail.originalHtml ? <OriginalNewsArticle html={detail.originalHtml} /> : undefined}
         originalLinkLabel="View Original Article"
         originalSectionTitle="Original Article"
-        priceRenderer={hasStoredChart ? (
+        priceRenderer={hasRealTicker ? (
           <PriceChartCard
             change={detail.priceChange}
             changeAmount={detail.priceChangeAmount}
             mobileCollapsible
             price={detail.price}
             series={detail.priceSeries}
-            storedOnly
             ticker={filing.ticker}
             tone={chartTone}
           />
@@ -66,7 +66,7 @@ export function NewsAnalysisAdapter({
         }
         timestampLabel={detail.timestampLabel}
         contextRenderer={detail.marketContext ? (
-          <SectorThemeContextPanel context={detail.marketContext} storedOnly ticker={filing.ticker} />
+          <SectorThemeContextPanel context={detail.marketContext} ticker={filing.ticker} />
         ) : (
           <section className="stock-detail-card sector-theme-main-card">
             <div className="card-heading-row context-heading-row">

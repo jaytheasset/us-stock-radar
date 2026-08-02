@@ -11,6 +11,13 @@ import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { readStoredFilingSourceContent } from "@/lib/originalSourceContent";
 import { selectRelatedFilingRows } from "@/lib/relatedFilings";
 import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import { resolveAnalysisMarketContext } from "@/lib/analysisMarketContext";
+import {
+  formatAnalysisChangeAmount,
+  formatAnalysisChangePercent,
+  formatAnalysisPrice,
+  loadAnalysisMarketData,
+} from "@/lib/analysisMarketData";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
 import { SecFilingHtmlViewer } from "@/app/filings/SecFilingHtmlViewer";
@@ -4727,7 +4734,23 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     issuer: company,
     ticker,
   });
-  const marketContext = buildDbMarketContext(item, eventRow);
+  const baseMarketContext = buildDbMarketContext(item, eventRow);
+  const [marketContext, marketData] = await Promise.all([
+    resolveAnalysisMarketContext({
+      baseContext: baseMarketContext,
+      companyName: company,
+      eventTickerRows: tickerLinkRows,
+      exchange:
+        readRowString(eventRow, "market") ||
+        readMetadataString(eventRow, "exchange") ||
+        form25ListingStatus?.exchange ||
+        "",
+      primaryTicker: ticker,
+      score: item.score,
+      signal: item.signal,
+    }),
+    loadAnalysisMarketData(ticker),
+  ]);
   const filingBrief = cleanStoredAnalysisText(item.quickTake || item.summary);
   const whyItMatters = cleanStoredAnalysisText(readRowString(analysis, "why_it_matters"));
   const summary = cleanStoredAnalysisText(item.summary);
@@ -4771,9 +4794,13 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     deliveryLevel: item.deliveryLevel,
     score: item.score,
     signal: item.signal,
-    price: item.price,
-    changeAmount: item.changeAmount,
-    change: item.change,
+    price: formatAnalysisPrice(marketData.quote?.price) || item.price,
+    changeAmount:
+      formatAnalysisChangeAmount(marketData.quote?.changeAmount) ||
+      item.changeAmount,
+    change:
+      formatAnalysisChangePercent(marketData.quote?.changePercent) ||
+      item.change,
     filingFocus: readMetadataString(eventRow, "filing_focus"),
     filingBrief,
     whyItMatters,
@@ -4785,8 +4812,8 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     recentFilings,
     relatedNews,
     scoreRationale,
-    context: marketContext || emptySectorThemeContext(item.score, item.signal),
-    priceSeries: null,
+    context: marketContext,
+    priceSeries: marketData.series,
     originalTextNote: originalHtml ? "SEC filing text preserved from the raw item store." : "",
     originalHtml,
     listingFinancialRiskSnapshot,
