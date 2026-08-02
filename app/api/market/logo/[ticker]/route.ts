@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env";
+import { preferredCompanyLogoUrl } from "@/lib/companyLogoAsset";
 import {
   normalizeCompanyLogoSymbol,
   resolveCompanyLogoSource,
@@ -25,7 +26,7 @@ export async function GET(
   }
 
   const source = await resolveCompanyLogoSource(symbol);
-  const sourceUrl = source?.logoUrl || source?.iconUrl;
+  const sourceUrl = preferredCompanyLogoUrl(source);
   if (!sourceUrl) {
     return new Response(null, { status: 404, headers: MISSING_CACHE_HEADERS });
   }
