@@ -53,7 +53,10 @@ export function buildContentSecurityPolicy({
     "default-src 'self'",
     `script-src ${unique(scriptSources).join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: https://static.klipy.com ${GOOGLE_AD_RESOURCE_SOURCES.join(" ")}`,
+    // News sanitization intentionally preserves safe HTTPS publisher images,
+    // and SEC srcDoc documents may reference upstream HTTPS images. Keep this
+    // broad scheme allowance confined to images only.
+    `img-src 'self' data: blob: https: https://static.klipy.com ${GOOGLE_AD_RESOURCE_SOURCES.join(" ")}`,
     "font-src 'self' data:",
     `connect-src ${unique(connectSources).join(" ")}`,
     `frame-src 'self' ${GOOGLE_AD_RESOURCE_SOURCES.join(" ")}`,
@@ -61,7 +64,9 @@ export function buildContentSecurityPolicy({
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",
-    "base-uri 'self'",
+    // The sandboxed SEC srcDoc viewer injects a www.sec.gov base URL so its
+    // relative archive links and images resolve. Do not permit arbitrary bases.
+    "base-uri 'self' https://www.sec.gov",
     "form-action 'self'",
     "frame-ancestors 'none'",
   ].join("; ");

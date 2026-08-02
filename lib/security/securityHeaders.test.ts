@@ -11,18 +11,26 @@ test("production CSP preserves required app integrations without unsafe-eval", (
     nodeEnv: "production",
     supabaseUrl: "https://project.supabase.co/rest/v1",
   });
+  const scriptSources = readDirectiveSources(policy, "script-src");
+  const imageSources = readDirectiveSources(policy, "img-src");
+  const connectSources = readDirectiveSources(policy, "connect-src");
+  const frameSources = readDirectiveSources(policy, "frame-src");
+  const baseSources = readDirectiveSources(policy, "base-uri");
 
-  assert.match(policy, /script-src[^;]+'unsafe-inline'/);
-  assert.doesNotMatch(policy, /'unsafe-eval'/);
-  assert.match(policy, /https:\/\/pagead2\.googlesyndication\.com/);
-  assert.match(policy, /https:\/\/static\.klipy\.com/);
-  assert.match(policy, /https:\/\/project\.supabase\.co/);
-  assert.match(policy, /wss:\/\/project\.supabase\.co/);
+  assert.ok(scriptSources.includes("'unsafe-inline'"));
+  assert.ok(!scriptSources.includes("'unsafe-eval'"));
+  assert.ok(scriptSources.includes("https://pagead2.googlesyndication.com"));
+  assert.ok(!scriptSources.includes("https:"));
+  assert.ok(imageSources.includes("https:"));
+  assert.ok(imageSources.includes("https://static.klipy.com"));
+  assert.ok(connectSources.includes("https://project.supabase.co"));
+  assert.ok(connectSources.includes("wss://project.supabase.co"));
+  assert.ok(!connectSources.includes("https:"));
+  assert.ok(!frameSources.includes("https:"));
+  assert.deepEqual(baseSources, ["'self'", "https://www.sec.gov"]);
   assert.match(policy, /object-src 'none'/);
-  assert.match(policy, /base-uri 'self'/);
   assert.match(policy, /form-action 'self'/);
   assert.match(policy, /frame-ancestors 'none'/);
-  assert.doesNotMatch(policy, /(?:^|\s)https:(?:\s|;|$)/);
   assert.doesNotMatch(policy, /(?:^|\s)\*(?:\s|;|$)/);
 });
 
@@ -61,3 +69,12 @@ test("coming-soon keeps its standalone default-deny CSP", () => {
   assert.match(COMING_SOON_CONTENT_SECURITY_POLICY, /form-action 'self'/);
   assert.doesNotMatch(COMING_SOON_CONTENT_SECURITY_POLICY, /script-src/);
 });
+
+function readDirectiveSources(policy: string, directive: string) {
+  const value = policy
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${directive} `));
+  assert.ok(value, `${directive} is missing`);
+  return value.slice(directive.length).trim().split(/\s+/);
+}
