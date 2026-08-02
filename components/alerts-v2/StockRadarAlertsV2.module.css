@@ -1539,7 +1539,7 @@
 
   .lockedBadge {
     width: fit-content;
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-md);
   }
 
   .coverageCard .cardHeader {
@@ -1618,7 +1618,41 @@
   .sourceFilterOption,
   .marketCapOption,
   .filingTypeOption {
-    min-height: var(--sr-size-control);
+    box-sizing: border-box;
+    min-height: 48px;
+    padding-block: var(--sr-space-2);
+  }
+
+  .marketCapOption input,
+  .sourceFilterOption input,
+  .filingGroupToggle input,
+  .filingTypeOption input {
+    flex: 0 0 var(--sr-space-4-5);
+    width: var(--sr-space-4-5);
+    height: var(--sr-space-4-5);
+    min-height: var(--sr-space-4-5);
+    max-height: var(--sr-space-4-5);
+  }
+
+  .marketCapOption input:checked::after,
+  .sourceFilterOption input:checked::after,
+  .filingGroupToggle input:checked::after,
+  .filingTypeOption input:checked::after {
+    width: var(--sr-space-2);
+    height: var(--sr-space-1-25);
+    border-width: 0 0 var(--sr-space-0-5) var(--sr-space-0-5);
+  }
+
+  .filingGroupToggle input:indeterminate::after {
+    width: var(--sr-space-3);
+    height: var(--sr-space-0-5);
+  }
+
+  .filingGroupToggle {
+    min-height: 44px;
+    justify-content: center;
+    border-radius: var(--sr-radius-control);
+    padding-inline: var(--sr-space-1);
   }
 
   .sourceFilterOption span,
@@ -1631,7 +1665,7 @@
   }
 
   .filingGroupHeader {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .filingGroupHeader > strong {
