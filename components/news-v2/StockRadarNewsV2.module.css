@@ -2504,6 +2504,16 @@
 
   .insightRailContent {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .insightCard {
+    overflow: visible;
+    border: 0;
+    border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .premiumCtaDesktop {
@@ -2625,14 +2635,119 @@
   .insightHeader {
     align-items: stretch;
     flex-direction: column;
+    padding: var(--sr-space-3) 0;
+  }
+
+  .insightHeader > div > span {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .insightHeader h2 {
+    font-size: var(--sr-font-size-2xl);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .insightHeader p {
+    font-size: var(--sr-font-size-base);
+    line-height: 1.4;
   }
 
   .rangeTabs {
     justify-content: flex-start;
   }
 
+  .rangeTabs button {
+    min-height: 36px;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .sourceActivityList,
+  .themeSignalList,
+  .sectorMap {
+    padding-inline: 0;
+  }
+
+  .sourceActivityList > .detailEmptyMeta,
+  .themeSignalList > .detailEmptyMeta,
+  .industryTable > .detailEmptyMeta,
+  .insightCard > .detailEmptyMeta {
+    margin: 0;
+    padding: var(--sr-space-4) 0;
+  }
+
+  .sourceActivityRow {
+    min-height: 48px;
+  }
+
+  .sourceActivityRow strong,
+  .sourceActivityRow b {
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .sourceActivityRow span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .sourceActivityActions {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .sourceActivityActions button {
+    font-size: var(--sr-font-size-base);
+  }
+
   .sectorMap {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sectorMap button {
+    min-height: 48px;
+    padding-block: var(--sr-space-2);
+  }
+
+  .sectorMap button strong {
+    font-size: var(--sr-font-size-sm);
+    font-weight: 650;
+  }
+
+  .sectorMap button span {
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .industryTableHeader,
+  .industryRow strong,
+  .industryRow span,
+  .industryRow small,
+  .industryMoverChips span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .themeSignalRow summary {
+    padding: var(--sr-space-4) 0;
+  }
+
+  .themeSignalTopline strong {
+    font-size: 16px;
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .themeSignalMetrics,
+  .themeSignalMeta,
+  .themeExpandCue {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .themeSignalScore {
+    flex-basis: 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    font-size: var(--sr-font-size-2xl);
   }
 
   .keywordRow {
