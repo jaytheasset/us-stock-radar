@@ -1368,6 +1368,15 @@
   padding: var(--sr-space-7) var(--sr-space-4) var(--sr-space-5);
 }
 
+.calendarMobileSheetSurface {
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+}
+
+.calendarMobileSheetSurface::-webkit-scrollbar {
+  display: none;
+}
+
 .mobileFilterSheet header,
 .mobileRangeSheet header {
   padding-right: var(--sr-space-7);
@@ -1384,7 +1393,8 @@
 .mobileRangeSheet header p {
   margin: var(--sr-space-2) 0 0;
   color: var(--sr-color-text-muted);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-base);
+  line-height: var(--sr-line-height-default);
 }
 
 .mobileRangeSheet {
@@ -1398,6 +1408,15 @@
   margin-top: var(--sr-space-5);
   border-top: var(--sr-border-width) solid var(--sr-color-divider);
   padding-top: var(--sr-space-4);
+}
+
+.mobileRangeOptions button {
+  min-height: 44px;
+  padding: var(--sr-space-2-5) var(--sr-space-3);
+  font-size: var(--sr-font-size-lg);
+  line-height: var(--sr-line-height-relaxed);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mobileCustomRange {
@@ -1414,7 +1433,7 @@
   min-width: 0;
   gap: var(--sr-space-2);
   color: var(--sr-color-text-label);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-md);
   font-weight: var(--sr-font-weight-semibold);
   text-transform: uppercase;
 }
@@ -1422,23 +1441,24 @@
 .mobileCustomRange input {
   width: 100%;
   min-width: 0;
-  min-height: var(--sr-size-control);
+  min-height: 44px;
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-control);
-  padding: 0 var(--sr-space-2);
+  padding: 0 var(--sr-space-2-5);
   color: var(--sr-color-text-control-strong);
   background: var(--sr-color-surface-control);
   font-family: var(--sr-font-family-mono);
-  font-size: var(--sr-font-size-sm);
+  font-size: var(--sr-font-size-base);
 }
 
 .mobileCustomRange > button {
   grid-column: 1 / -1;
-  min-height: var(--sr-size-control);
+  min-height: 46px;
   border: var(--sr-border-width) solid var(--sr-color-accent-border-strong);
   border-radius: var(--sr-radius-action);
   color: var(--sr-color-text-primary-action);
   background: var(--sr-color-surface-primary-action);
+  font-size: var(--sr-font-size-lg);
   font-weight: var(--sr-font-weight-semibold);
   cursor: pointer;
 }
@@ -1452,7 +1472,7 @@
 .mobileFilterGroup h3 {
   margin: 0 0 var(--sr-space-3);
   color: var(--sr-color-text-label);
-  font-size: var(--sr-font-size-xs);
+  font-size: var(--sr-font-size-md);
   text-transform: uppercase;
 }
 
@@ -1460,6 +1480,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sr-space-2);
+}
+
+.mobileFilterGroup button {
+  min-height: 44px;
+  padding: var(--sr-space-2-5) var(--sr-space-3);
+  font-size: var(--sr-font-size-lg);
+  line-height: var(--sr-line-height-relaxed);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mobileFilterGroup > .mobileFlatOptionList {
@@ -1479,6 +1508,7 @@
 
 .mobileTypeOptionGroup h4 {
   margin-bottom: var(--sr-space-1);
+  font-size: var(--sr-font-size-md);
 }
 
 .mobileFilterActions {
@@ -1489,11 +1519,12 @@
 }
 
 .mobileFilterActions button {
-  min-height: var(--sr-size-control);
+  min-height: 46px;
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-action);
   color: var(--sr-color-text-control-strong);
   background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-lg);
   font-weight: var(--sr-font-weight-semibold);
 }
 
@@ -1564,17 +1595,19 @@
 }
 
 @media (max-width: 760px) {
-  .calendarMobileSheetSurface {
-    scrollbar-gutter: auto;
-  }
-
   .page {
-    padding: var(--sr-space-2) var(--sr-page-gutter-mobile) var(--sr-space-7);
+    overflow-x: clip;
+    padding: var(--sr-space-2) var(--sr-space-2) var(--sr-space-7);
   }
 
   .pageHeader {
     align-items: center;
+    gap: var(--sr-space-2);
     margin-bottom: var(--sr-space-2);
+  }
+
+  .pageHeader > div:first-child {
+    min-width: 0;
   }
 
   .pageHeader > div:first-child > span,
@@ -1584,7 +1617,8 @@
 
   .pageHeader h1 {
     margin: 0;
-    font-size: var(--sr-font-size-xl);
+    font-size: var(--sr-font-size-2xl);
+    white-space: nowrap;
   }
 
   .pageHeader p {
@@ -1592,8 +1626,15 @@
   }
 
   .viewControl {
+    flex: 0 0 auto;
     width: auto;
-    grid-template-columns: repeat(2, minmax(76px, 1fr));
+    grid-template-columns: repeat(2, minmax(68px, 1fr));
+  }
+
+  .page .viewControl > button {
+    min-height: 40px;
+    padding: var(--sr-space-1) var(--sr-space-2);
+    font-size: var(--sr-font-size-base);
   }
 
   .dateControls {
@@ -1610,17 +1651,17 @@
   .mobileDateNavigation {
     display: grid;
     grid-template-columns:
-      var(--sr-size-control)
+      44px
       minmax(0, 1fr)
-      var(--sr-size-control)
-      var(--sr-size-control);
+      44px
+      44px;
     gap: var(--sr-space-1);
   }
 
   .mobileDateNavigation > button {
     display: grid;
     min-width: 0;
-    min-height: var(--sr-size-control);
+    min-height: 44px;
     place-items: center;
     border: var(--sr-border-width) solid var(--sr-color-border-control);
     border-radius: var(--sr-radius-control);
@@ -1635,9 +1676,9 @@
     overflow: hidden;
     padding: 0 var(--sr-space-2);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-base);
     font-weight: var(--sr-font-weight-semibold);
-    line-height: var(--sr-size-control);
+    line-height: 44px;
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1645,6 +1686,11 @@
 
   .searchField {
     position: relative;
+    min-height: 44px;
+  }
+
+  .searchField input {
+    font-size: 16px;
   }
 
   .searchField input::placeholder {
@@ -1658,7 +1704,7 @@
     display: block;
     overflow: hidden;
     color: var(--sr-color-text-meta);
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     pointer-events: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1672,12 +1718,22 @@
     padding: var(--sr-space-2);
   }
 
+  .mobileFilterTrigger {
+    min-height: 44px;
+    padding: 0 var(--sr-space-2);
+  }
+
+  .mobileFilterTrigger > span {
+    font-size: var(--sr-font-size-base);
+  }
+
   .workspace {
     margin-top: var(--sr-space-3);
   }
 
   .resultsSummary {
-    min-height: 34px;
+    min-height: 40px;
+    font-size: var(--sr-font-size-md);
   }
 
   .resultsSummary b {
@@ -1701,7 +1757,7 @@
   .calendarWeekdays span {
     overflow: hidden;
     padding: var(--sr-space-1);
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .calendarGrid {
@@ -1767,7 +1823,7 @@
     color: var(--sr-color-text-heading);
     background: transparent;
     box-shadow: none;
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-lg);
     font-weight: var(--sr-font-weight-semibold);
   }
 
@@ -1799,7 +1855,7 @@
     padding: 0 var(--sr-space-1);
     color: var(--sr-color-text-meta);
     background: var(--sr-color-surface-muted-action);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: var(--sr-font-weight-semibold);
     line-height: 1;
     white-space: nowrap;
@@ -1817,6 +1873,23 @@
   .upcomingPanel > header,
   .dateGroup > header {
     padding: var(--sr-space-3);
+  }
+
+  .selectedDateSection > header span,
+  .upcomingPanel > header span {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .selectedDateSection h2,
+  .upcomingPanel h2,
+  .dateGroup h2 {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .selectedDateSection > header > b,
+  .upcomingPanel > header > b,
+  .dateGroup > header > b {
+    font-size: var(--sr-font-size-md);
   }
 
   .upcomingPanel {
@@ -1853,6 +1926,32 @@
     gap: var(--sr-space-2);
   }
 
+  .upcomingDate,
+  .upcomingIdentity span,
+  .upcomingDescription > small,
+  .upcomingMeta {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .upcomingDate strong,
+  .upcomingIdentity strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .upcomingDescription > strong {
+    overflow: visible;
+    font-size: 16px;
+    line-height: var(--sr-line-height-default);
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .upcomingDescription > small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .eventRow {
     min-height: 96px;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1866,6 +1965,14 @@
     grid-row: 1;
   }
 
+  .eventIdentity strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .eventIdentity span {
+    font-size: var(--sr-font-size-base);
+  }
+
   .eventDescription {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -1876,7 +1983,23 @@
   }
 
   .eventDescription strong {
+    overflow: visible;
+    font-size: 16px;
+    line-height: var(--sr-line-height-default);
+    text-overflow: clip;
     white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .eventDescription small,
+  .eventMeta span,
+  .eventMeta b {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .eventDescription small {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .eventMeta {
@@ -1907,11 +2030,41 @@
     padding: var(--sr-space-5);
   }
 
+  .selectedDateEmpty span,
+  .selectedDateEmpty p,
+  .upcomingEmpty,
+  .statePanel p,
+  .statePanel button {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .statePanel button {
+    min-height: 44px;
+  }
+
   .mobileDetailContent .detailContent {
     padding-right: var(--sr-space-4);
     padding-left: var(--sr-space-4);
   }
 
+  .mobileFilterSheet,
+  .mobileRangeSheet {
+    padding-right: var(--sr-space-3);
+    padding-left: var(--sr-space-3);
+  }
+
+  .mobileFilterSheet h2,
+  .mobileRangeSheet h2 {
+    font-size: 24px;
+  }
+
+}
+
+@media (max-width: 360px) {
+  .mobileCustomRange {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -367,6 +367,7 @@ function MobileCalendarFilterSheet({
       openerRef={openerRef}
       overlayLabel="Dismiss calendar filters"
       surfaceClassName={styles.calendarMobileSheetSurface}
+      viewport="tablet"
     >
       <div className={styles.mobileFilterSheet}>
         <header>
