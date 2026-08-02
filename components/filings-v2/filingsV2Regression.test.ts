@@ -317,3 +317,29 @@ test("filing feed rows use watchlist density and plain representative event meta
     /@media \(max-width: 760px\) \{[\s\S]*?\.filingPriceUnavailable \{[\s\S]*?display: none;/,
   );
 });
+
+test("mobile filings premium CTA is a flat list row while desktop keeps its premium card", () => {
+  const styles = readFileSync(
+    new URL("./StockRadarFilingsV2.module.css", import.meta.url),
+    "utf8",
+  );
+  const mobileRule = [...styles.matchAll(/\.premiumCtaMobile\s*\{[^}]*\}/g)].at(-1)?.[0] ?? "";
+
+  assert.match(
+    mobileRule,
+    /display: block;[\s\S]*min-width: 0;[\s\S]*min-height: 0;[\s\S]*margin: 0;[\s\S]*border: 0;[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*border-radius: 0;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*background: var\(--sr-color-surface-table-row\);[\s\S]*box-shadow: none;/,
+  );
+  assert.doesNotMatch(mobileRule, /border-top|gradient|accent-border-premium/);
+  assert.match(
+    styles,
+    /\.premiumCtaMobile \.premiumCtaCopy \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*align-items: center;[\s\S]*column-gap: var\(--sr-space-3\);[\s\S]*\.premiumCtaMobile \.premiumCtaCopy > span \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*font-weight: var\(--sr-font-weight-label\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.premiumCtaMobile \.premiumCtaCopy strong \{[\s\S]*font: 700 16px \/ 1\.25 var\(--sr-font-family-sans\);[\s\S]*\.premiumCtaMobile \.premiumCtaCopy p \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*line-height: 1\.4;/,
+  );
+  assert.match(
+    styles,
+    /\.premiumCtaMobile \.premiumCtaLink \{[\s\S]*grid-row: 1 \/ 4;[\s\S]*min-height: 40px;[\s\S]*align-self: center;[\s\S]*padding: 0 var\(--sr-space-3\);[\s\S]*background: var\(--sr-color-surface-primary-action\);[\s\S]*font: 700 var\(--sr-font-size-base\) \/ var\(--sr-line-height-none\)[\s\S]*\.premiumCtaMobile \.premiumCtaLinkIcon,[\s\S]*display: none;/,
+  );
+  assert.match(
+    styles,
+    /\.premiumCta \{[\s\S]*min-height: 152px;[\s\S]*var\(--sr-color-accent-cta-top\)[\s\S]*box-shadow: var\(--sr-shadow-cta\);/,
+  );
+});
