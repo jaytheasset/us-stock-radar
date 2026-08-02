@@ -284,6 +284,19 @@ a.companyLine:focus-visible {
   text-transform: capitalize;
 }
 
+.newsSource {
+  display: block;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-base);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-none);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .layout {
   display: grid;
   min-width: 0;
@@ -1243,6 +1256,18 @@ a.companyLine:focus-visible {
     padding-left: var(--sr-space-2);
   }
 
+  .newsDocument .summaryHeader {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sr-space-2);
+  }
+
+  .newsDocument .summaryHeader > :last-child {
+    min-width: 0;
+    flex: 0 1 auto;
+    white-space: nowrap;
+  }
+
   .newsDocument .hero h1 {
     font-size: var(--sr-font-size-heading-md);
     font-weight: var(--sr-font-weight-display);
@@ -1273,6 +1298,11 @@ a.companyLine:focus-visible {
 
   .newsDocument .classification {
     flex-basis: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .newsDocument .newsSource {
+    flex: 1 1 auto;
   }
 
   .newsDocument .heroActions {
@@ -1375,5 +1405,21 @@ a.companyLine:focus-visible {
 
   .newsDocument .originalSourceIdentity span {
     font-size: var(--sr-font-size-md);
+  }
+}
+
+@media (max-width: 360px) {
+  .newsDocument .summaryHeader {
+    gap: var(--sr-space-1);
+  }
+
+  .newsDocument .summaryHeader > :last-child {
+    gap: 0;
+    padding-right: var(--sr-space-1);
+    padding-left: var(--sr-space-1);
+  }
+
+  .newsDocument .summaryHeader > :last-child > svg {
+    display: none;
   }
 }

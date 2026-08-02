@@ -295,6 +295,11 @@ export function GenericFilingAnalysis({
                           </strong>
                         </span>
                       ) : null}
+                      {presentationVariant === "news-document" && source ? (
+                        <span className={styles.newsSource} title={source}>
+                          {source}
+                        </span>
+                      ) : null}
                     </div>
                     {hasTicker || bookmark ? (
                       <div className={styles.heroActions}>
