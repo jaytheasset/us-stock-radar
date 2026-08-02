@@ -357,6 +357,14 @@ test("legacy news detail surfaces sanitize stored or remote HTML at one server b
 });
 
 test("mobile news metadata uses a dedicated readable row", () => {
+  const filters = readFileSync(
+    new URL("../components/news-v2/NewsV2FilterBar.tsx", import.meta.url),
+    "utf8",
+  );
+  const filterSheet = readFileSync(
+    new URL("../components/news-v2/MobileNewsV2FilterSheet.tsx", import.meta.url),
+    "utf8",
+  );
   const rowSource = readFileSync(
     new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
     "utf8",
@@ -371,10 +379,29 @@ test("mobile news metadata uses a dedicated readable row", () => {
 
   assert.match(rowSource, /className=\{styles\.rowMobileBadges\}/);
   assert.match(rowSource, /className=\{styles\.rowMobileFooter\}/);
+  assert.match(filters, /<Search aria-hidden="true" className=\{styles\.searchButtonIcon\}/);
+  assert.match(filters, /className=\{styles\.searchButtonLabel\}>Search<\/span>/);
+  assert.match(filterSheet, /surfaceClassName=\{styles\.newsMobileFilterSurface\}/);
   assert.match(styles, /\.newsRow \{[\s\S]*grid-template-rows: auto auto auto;/);
   assert.match(
     styles,
-    /\.rowMobileFooter \{[\s\S]*grid-column: 1 \/ 3;[\s\S]*grid-row: 3;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.mainColumn \{[\s\S]*display: contents;[\s\S]*\.filterBar \{[\s\S]*background: transparent;[\s\S]*\.listPanel \{[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.searchForm \{[\s\S]*grid-template-columns: minmax\(130px, 1fr\) 44px;[\s\S]*\.searchField > label \{[\s\S]*height: 44px;[\s\S]*\.searchForm > \.searchButton \{[\s\S]*width: 44px;[\s\S]*min-height: 44px;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.listHeaderTitle > a::after \{[\s\S]*content: "Google";[\s\S]*\.listHeader h2 \{[\s\S]*font-size: 17px;/,
+  );
+  assert.match(
+    styles,
+    /\.rowMobileFooter \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 3;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.newsMobileFilterSurface \{[\s\S]*scrollbar-gutter: auto;[\s\S]*\.mobileFilterGroup > div > button \{[\s\S]*min-height: 44px;[\s\S]*font-size: var\(--sr-font-size-lg\);/,
   );
 });
 
@@ -494,15 +521,15 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   assert.match(rowSource, /className=\{styles\.rowIdentityMobile\}/);
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 96px;[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) 58px;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?gap: var\(--sr-space-1-5\);[\s\S]*?padding: var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 112px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-3\);/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ 3;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-base\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.35;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: var\(--sr-font-size-lg\);[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuote \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 2 \/ 4;[\s\S]*?flex-direction: column;[\s\S]*?align-items: flex-end;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuote \{[\s\S]*?display: none;/,
   );
   assert.match(
     styles,
