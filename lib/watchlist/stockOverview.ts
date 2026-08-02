@@ -10,11 +10,13 @@ import {
 export type { TickerSearchResult } from "../tickerSearchContract.ts";
 
 export type StockOverviewSignal = "bullish" | "bearish" | "volatile" | "neutral";
+export type StockOverviewDeliveryLevel = "archive" | "feed" | "alert";
 
 export type StockOverviewEvent = {
   category: string;
   companyName: string;
   detectedAt: string;
+  deliveryLevel: StockOverviewDeliveryLevel | null;
   detailHref: string | null;
   eventType: string;
   formType: string;
@@ -141,6 +143,13 @@ export function normalizeStockTicker(value: unknown) {
 export function getStockRouteHref(value: unknown) {
   const ticker = normalizeStockTicker(value);
   return ticker ? `/stocks/${encodeURIComponent(ticker)}` : null;
+}
+
+export function getStockOverviewEventsApiHref(value: unknown) {
+  const ticker = normalizeStockTicker(value);
+  return ticker
+    ? `/api/events?ticker=${encodeURIComponent(ticker)}&limit=50&include_archive=true`
+    : null;
 }
 
 export function hasStockOverviewData(
@@ -297,14 +306,21 @@ function mapStockOverviewEvent(value: unknown): StockOverviewEvent | null {
     readString(row, ["published_at", "detected_at", "created_at", "event_date"]);
   const signal = normalizeSignal(readString(row, ["signal"]));
   const score = readNumber(row, ["score"]);
+  const deliveryLevel = normalizeDeliveryLevel(
+    readString(row, ["delivery_level"]),
+  );
   const eventType = readString(row, ["event_type"]) || "event";
   const formType =
     readString(row, ["form_type"]) ||
     readMetadataString(row, ["form_type", "formType", "form"]);
   const detailHref = isPersistentEventId(id)
     ? sourceGroup === "filings"
-      ? `/filings/${encodeURIComponent(id)}`
-      : `/events/${encodeURIComponent(id)}`
+      ? deliveryLevel === "archive"
+        ? `/filings/archive/${encodeURIComponent(id)}`
+        : `/filings/${encodeURIComponent(id)}`
+      : sourceGroup === "news" && deliveryLevel === "archive"
+        ? `/news/archive/${encodeURIComponent(id)}`
+        : `/events/${encodeURIComponent(id)}`
     : null;
 
   return {
@@ -313,6 +329,7 @@ function mapStockOverviewEvent(value: unknown): StockOverviewEvent | null {
       readMetadataString(row, ["company_name", "companyName", "issuer_name"]) ||
       ticker,
     detectedAt,
+    deliveryLevel,
     detailHref,
     eventType,
     formType,
@@ -354,6 +371,18 @@ function normalizeSignal(value: string): StockOverviewSignal {
     return normalized;
   }
   return "neutral";
+}
+
+function normalizeDeliveryLevel(value: string): StockOverviewDeliveryLevel | null {
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "archive" ||
+    normalized === "feed" ||
+    normalized === "alert"
+  ) {
+    return normalized;
+  }
+  return null;
 }
 
 function humanizeEventType(value: string) {
