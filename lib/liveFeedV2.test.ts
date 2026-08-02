@@ -629,6 +629,18 @@ test("mobile feed summary uses existing counts in an accessible two-column discl
     /const additionalSituationLabels = \[[\s\S]*"Dilution Risk",[\s\S]*"Listing Risk",[\s\S]*"Earnings",[\s\S]*"Insider \/ Ownership",[\s\S]*"Dividends",[\s\S]*"FDA \/ Clinical",[\s\S]*\] as const;/,
   );
   assert.match(boardSource, /additionalSituationLabels\.flatMap/);
+  assert.match(
+    mobileMarkup,
+    /<span>\{compactLabels\[item\.label\] \?\? item\.label\}<\/span>/,
+  );
+  assert.doesNotMatch(
+    mobileMarkup,
+    /situationLabelFull|situationLabelCompact/,
+  );
+  assert.match(
+    boardSource,
+    /"Earnings",[\s\S]*"Dividends",[\s\S]*"FDA \/ Clinical",/,
+  );
   assert.match(mobileMarkup, /<small>\{item\.window\}<\/small>/);
   assert.doesNotMatch(boardSource, /useState|useId|IconButton|fetch\(/);
   assert.match(
@@ -637,7 +649,7 @@ test("mobile feed summary uses existing counts in an accessible two-column discl
   );
   assert.match(
     styleSource,
-    /\.situationLabelCompact,[\s\S]*\.situationMobileGrid \{[\s\S]*display: none;/,
+    /\.situationMobileGrid \{[\s\S]*display: none;/,
   );
   assert.match(
     styleSource,

@@ -73,14 +73,7 @@ export function FeedSituationBoard({
           <div className={styles.situationExpandedGrid}>
             {additionalItems.map((item) => (
               <article className={styles.situationExpandedItem} key={item.label}>
-                <span>
-                  <span className={styles.situationLabelFull}>{item.label}</span>
-                  {compactLabels[item.label] ? (
-                    <span className={styles.situationLabelCompact}>
-                      {compactLabels[item.label]}
-                    </span>
-                  ) : null}
-                </span>
+                <span>{compactLabels[item.label] ?? item.label}</span>
                 <strong>{item.value}</strong>
                 <small>{item.window}</small>
               </article>
