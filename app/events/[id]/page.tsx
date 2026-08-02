@@ -13,6 +13,7 @@ import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
 import { NewsAnalysisAdapter } from "@/components/news-analysis-v2/NewsAnalysisAdapter";
 import { NEWS_ANALYSIS_V2_FIXTURE_SLUG } from "@/lib/newsAnalysisConstants";
 import { loadNewsAnalysisDetail } from "@/lib/newsAnalysisDetail";
+import { sanitizeNewsArticleHtml } from "@/lib/newsArticleSanitizer";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -563,6 +564,7 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   if (!profile.fullTextHtml && fullTextUrl) {
     profile = await attachGlobeFullText(profile, fullTextUrl);
   }
+  profile = sanitizeDetailProfileFullText(profile);
   const eventBadge = getEventTypeBadge(event.eventType);
   const useDilutionOfferingTemplate = shouldUseNewsDilutionOfferingTemplate(event, profile);
   const isNasdaqCorporateAction = isNasdaqCorporateActionDetail(event, profile);
@@ -1495,6 +1497,18 @@ async function attachGlobeFullText(profile: DetailProfile, sourceUrl: string): P
   } catch {
     return profile;
   }
+}
+
+function sanitizeDetailProfileFullText(profile: DetailProfile): DetailProfile {
+  if (!profile.fullTextHtml) return profile;
+
+  return {
+    ...profile,
+    fullTextHtml: sanitizeNewsArticleHtml(
+      profile.fullTextHtml,
+      profile.fullTextSourceUrl || profile.sourceUrl,
+    ),
+  };
 }
 
 function isGlobeNewswireUrl(value: string) {

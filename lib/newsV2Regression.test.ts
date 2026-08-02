@@ -321,6 +321,39 @@ test("news analysis detail preserves stored original source and partial market c
   );
 });
 
+test("legacy news detail surfaces sanitize stored or remote HTML at one server boundary", () => {
+  const eventDetailSource = readFileSync(
+    new URL("../app/events/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const archiveDetailSource = readFileSync(
+    new URL("../app/news/archive/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(eventDetailSource, /import \{ sanitizeNewsArticleHtml \} from "@\/lib\/newsArticleSanitizer"/);
+  assert.match(eventDetailSource, /profile = sanitizeDetailProfileFullText\(profile\)/);
+  assert.match(
+    eventDetailSource,
+    /fullTextHtml: sanitizeNewsArticleHtml\([\s\S]*?profile\.fullTextHtml,[\s\S]*?profile\.fullTextSourceUrl \|\| profile\.sourceUrl,[\s\S]*?\)/,
+  );
+  assert.match(
+    eventDetailSource,
+    /dangerouslySetInnerHTML=\{\{ __html: profile\.fullTextHtml \}\}/,
+  );
+
+  assert.match(archiveDetailSource, /import \{ sanitizeNewsArticleHtml \} from "@\/lib\/newsArticleSanitizer"/);
+  assert.match(archiveDetailSource, /const unsafeOriginalHtml =/);
+  assert.match(
+    archiveDetailSource,
+    /const originalHtml = sanitizeNewsArticleHtml\(unsafeOriginalHtml, sourceUrl\)/,
+  );
+  assert.match(
+    archiveDetailSource,
+    /dangerouslySetInnerHTML=\{\{ __html: archiveEvent\.originalHtml \}\}/,
+  );
+});
+
 test("mobile news metadata uses a dedicated readable row", () => {
   const rowSource = readFileSync(
     new URL("../components/news-v2/NewsV2Row.tsx", import.meta.url),
