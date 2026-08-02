@@ -302,6 +302,7 @@ export function GenericFilingAnalysis({
                         {bookmark}
                         {hasTicker ? (
                           <LiveRoomEntryButton
+                            className={styles.analysisLiveRoomButton}
                             event={liveRoomEvent}
                             issuer={company}
                             label="Discuss in Live Room"

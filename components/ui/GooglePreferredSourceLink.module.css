@@ -89,6 +89,7 @@
     width: fit-content;
     max-width: 100%;
     justify-content: flex-start;
+    font-size: var(--sr-font-size-md);
     white-space: normal;
   }
 

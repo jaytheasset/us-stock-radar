@@ -150,4 +150,20 @@
     padding-right: 0;
     padding-bottom: var(--sr-space-3);
   }
+
+  .scoreBlock > span {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .headingRow h2 {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .signal {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .copy p {
+    font-size: var(--sr-font-size-lg-plus);
+  }
 }
