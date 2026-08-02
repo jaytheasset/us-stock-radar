@@ -10,6 +10,22 @@ const comparisonSource = readFileSync(
   new URL("./PremiumFeatureComparison.tsx", import.meta.url),
   "utf8",
 );
+const marketMovingSource = readFileSync(
+  new URL("./PremiumMarketMovingEvents.tsx", import.meta.url),
+  "utf8",
+);
+const marketMovingDataSource = readFileSync(
+  new URL("../../lib/premiumMarketMoving.ts", import.meta.url),
+  "utf8",
+);
+const marketMovingServerSource = readFileSync(
+  new URL("../../lib/premiumMarketMoving.server.ts", import.meta.url),
+  "utf8",
+);
+const marketMovingRouteSource = readFileSync(
+  new URL("../../app/api/premium/market-moving-events/route.ts", import.meta.url),
+  "utf8",
+);
 const dataSource = readFileSync(
   new URL("../../lib/mock/premiumV2Data.ts", import.meta.url),
   "utf8",
@@ -108,6 +124,41 @@ test("keeps public delayed and personalized premium delivery channels distinct",
   assert.doesNotMatch(dataSource, /Unlimited watchlist 쨌/);
 });
 
+test("loads only real 90+ SEC filings through a minimal server-only API", () => {
+  assert.doesNotMatch(dataSource, /premiumV2SampleAlerts|MULN files|Bearish 88|Bullish 82/);
+  assert.match(componentSource, /<PremiumMarketMovingEvents \/>/);
+  assert.match(marketMovingDataSource, /source_group: "eq\.filings"/);
+  assert.match(marketMovingDataSource, /source_code: "eq\.sec_edgar"/);
+  assert.match(marketMovingDataSource, /score: "gte\.90"/);
+  assert.match(marketMovingDataSource, /\.slice\(0, PREMIUM_MARKET_MOVING_LIMIT\)/);
+  assert.match(marketMovingDataSource, /href: `\/filings\/\$\{id\}`/);
+  assert.match(marketMovingDataSource, /getEventTypeDefinition/);
+  assert.match(marketMovingServerSource, /import "server-only"/);
+  assert.match(marketMovingServerSource, /supabaseSelect\(\s*"events"/);
+  assert.match(marketMovingServerSource, /supabaseSelect\(\s*"event_tickers"/);
+  assert.doesNotMatch(marketMovingRouteSource, /metadata|prompt|service.?role/i);
+  assert.match(marketMovingRouteSource, /no-store, max-age=0, must-revalidate/);
+});
+
+test("covers live event loading, empty, error, success, and resilient refresh states", () => {
+  assert.match(marketMovingSource, /Loading 90\+ filings/);
+  assert.match(marketMovingSource, /No 90\+ filings right now\./);
+  assert.match(marketMovingSource, /Market-moving filings are temporarily unavailable\./);
+  assert.match(marketMovingSource, /events\.map/);
+  assert.match(marketMovingSource, /Showing the latest available filings\./);
+  assert.match(marketMovingSource, /hasSuccessfulDataRef\.current/);
+});
+
+test("polls at 60 seconds only while visible and refreshes on visibility and focus", () => {
+  assert.match(marketMovingSource, /PREMIUM_MARKET_MOVING_POLL_INTERVAL_MS/);
+  assert.match(marketMovingSource, /document\.visibilityState/);
+  assert.match(marketMovingSource, /visibilitychange/);
+  assert.match(marketMovingSource, /window\.addEventListener\("focus"/);
+  assert.match(marketMovingSource, /if \(inFlightRef\.current\) return inFlightRef\.current/);
+  assert.match(marketMovingSource, /new AbortController\(\)/);
+  assert.match(marketMovingSource, /cache: "no-store"/);
+});
+
 test("uses the shared product shell width, typography, panels, and responsive plan grid", () => {
   assert.match(
     styles,
@@ -147,6 +198,9 @@ test("uses the shared product shell width, typography, panels, and responsive pl
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.root \{[\s\S]*?padding: var\(--sr-space-3\) var\(--sr-page-gutter-mobile\) var\(--sr-space-7\);[\s\S]*?\.planGrid,[\s\S]*?grid-template-columns: 1fr;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.root \{[\s\S]*?padding: var\(--sr-space-3\) var\(--sr-space-2\) var\(--sr-space-7\);[\s\S]*?\.planGrid,[\s\S]*?grid-template-columns: 1fr;/,
   );
+  assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.planCard \{[\s\S]*?width: 100%;[\s\S]*?margin-inline: 0;[\s\S]*?padding: var\(--sr-space-3\);/);
+  assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.titleBlock h1 \{[\s\S]*?font-size: var\(--sr-font-size-heading-sm\);/);
+  assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.planDescription,[\s\S]*?\.benefitList li,[\s\S]*?font-size: var\(--sr-font-size-lg\);/);
 });

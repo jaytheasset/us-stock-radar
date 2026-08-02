@@ -127,30 +127,6 @@ export const premiumV2Plans: Record<PremiumV2PlanKey, PremiumV2Plan> = {
 export const premiumV2CurrentPlan: PremiumV2PlanKey = "free";
 export const premiumV2RecommendedPlan: PremiumV2PlanKey = "advanced";
 
-export const premiumV2SampleAlerts = [
-  {
-    signal: "Bearish 94",
-    signalTone: "negative",
-    title: "MULN files $150M mixed-shelf offering",
-    tone: "critical",
-    type: "Dilution Risk",
-  },
-  {
-    signal: "Bearish 88",
-    signalTone: "negative",
-    title: "WE receives Nasdaq delisting notice",
-    tone: "warning",
-    type: "Listing Risk",
-  },
-  {
-    signal: "Bullish 82",
-    signalTone: "positive",
-    title: "MRNA reports FDA fast-track designation",
-    tone: "earnings",
-    type: "FDA Catalyst",
-  },
-] as const;
-
 function toneForCategory(category: AlertCategory): PremiumV2CategoryTone {
   if (category === "earnings" || category === "sales_performance" || category === "dividends" || category === "capital_return") {
     return "earnings";
