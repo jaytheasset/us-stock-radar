@@ -524,11 +524,15 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.mobileFilters button\s*\{[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*white-space: nowrap;/,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileFilters button\s*\{[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*min-height: var\(--sr-size-filter-chip\);[\s\S]*padding: 0 var\(--sr-space-0-5\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*white-space: nowrap;/,
   );
   assert.match(
     styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.mobileFilters \.mobileMoreButton\s*\{[\s\S]*gap: var\(--sr-space-0-5\);[\s\S]*padding-inline: 0;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileMoreFilters button\s*\{[\s\S]*min-height: 40px;[\s\S]*padding: 0 var\(--sr-space-3\);[\s\S]*font-size: var\(--sr-font-size-base\);/,
   );
   assert.doesNotMatch(
     styleSource,
@@ -1044,7 +1048,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventBadge \{[\s\S]*max-width: 100%;[\s\S]*overflow: visible;[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*text-transform: none;[\s\S]*white-space: normal;/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventBadge \{[\s\S]*max-width: 100%;[\s\S]*grid-column: 2;[\s\S]*grid-row: 1;[\s\S]*align-self: center;[\s\S]*overflow: visible;[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*text-transform: none;[\s\S]*white-space: normal;/,
   );
   assert.match(
     styleSource,

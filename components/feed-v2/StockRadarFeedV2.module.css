@@ -1218,7 +1218,7 @@
     min-width: 0;
     min-height: var(--sr-size-filter-chip);
     padding: 0 var(--sr-space-0-5);
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1251,7 +1251,7 @@
     padding: 0 var(--sr-space-3);
     color: var(--sr-color-text-control);
     background: transparent;
-    font-size: var(--sr-font-size-sm);
+    font-size: var(--sr-font-size-base);
     text-align: left;
   }
 
@@ -1323,6 +1323,7 @@
     min-width: 0;
     grid-column: 2;
     grid-row: 1;
+    align-self: center;
     justify-self: start;
     overflow: visible;
     font-family: var(--sr-font-family-sans);
