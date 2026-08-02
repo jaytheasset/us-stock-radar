@@ -29,6 +29,7 @@ import {
   parseSourceActivity,
   parseThemeActivity,
 } from "@/lib/newsV2ApiContract";
+import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import { hydrateNewsV2ItemMarketData } from "@/lib/newsV2MarketHydration";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 
@@ -271,7 +272,7 @@ async function readNewsCompanyNameMap(ids: string[]) {
   const result = await supabaseSelect("events", {
     id: `in.(${uniqueIds.join(",")})`,
     limit: String(uniqueIds.length),
-    select: "id,metadata",
+    select: "id,metadata,source_code,source_name",
     source_group: "eq.news",
   });
   if (!result.ok || !Array.isArray(result.data)) return new Map<string, string>();
@@ -281,10 +282,11 @@ async function readNewsCompanyNameMap(ids: string[]) {
       const row = asRecord(value);
       const metadata = asRecord(row?.metadata);
       const id = readString(row?.id);
-      const companyName =
-        readString(metadata?.company_name) ||
-        readString(metadata?.company) ||
-        readString(metadata?.issuer);
+      const companyName = resolveNewsCompanyName({
+        configuredSourceName: readString(row?.source_name),
+        rawPayload: metadata,
+        sourceCode: readString(row?.source_code),
+      });
       return id && companyName ? [[id, companyName] as const] : [];
     }),
   );

@@ -9,6 +9,7 @@ import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
 import { selectPriceChartXAxisIndexes } from "./priceChartAxis.ts";
 import type { NewsV2FilterState, NewsV2Item } from "./newsV2.ts";
 import { getNewsV2ScopeBadgeLabel } from "./newsV2ScopeBadge.ts";
+import { resolveNewsCompanyName } from "./newsCompanyIdentity.ts";
 
 const emptyFilters: NewsV2FilterState = {
   sentiments: [],
@@ -571,6 +572,10 @@ test("news rows keep event classification separate from publisher source", () =>
     "utf8",
   );
   const dataSource = readFileSync(new URL("./newsV2Data.ts", import.meta.url), "utf8");
+  const styleSource = readFileSync(
+    new URL("../components/news-v2/StockRadarNewsV2.module.css", import.meta.url),
+    "utf8",
+  );
 
   assert.match(
     rowSource,
@@ -579,6 +584,10 @@ test("news rows keep event classification separate from publisher source", () =>
   assert.match(
     rowSource,
     /className=\{styles\.rowMobileFooter\}[\s\S]*?className=\{styles\.rowSource\}>\{item\.source\}<\/span>/,
+  );
+  assert.match(
+    rowSource,
+    /className=\{styles\.rowEventTypeBadgeDesktop\}[\s\S]*?className=\{styles\.rowMobileFooter\}[\s\S]*?\{item\.source\}/,
   );
   assert.match(rowSource, /const identity = getEventListIdentity\(\{/);
   assert.match(rowSource, /companyName: item\.companyName,/);
@@ -597,8 +606,9 @@ test("news rows keep event classification separate from publisher source", () =>
     dataSource,
     /readNewsCompanyNameMap\([\s\S]*item\.marketScope === "company"[\s\S]*item\.eventTypeCode !== "macro_market"[\s\S]*item\.eventTypeCode !== "policy_regulation"[\s\S]*\.map\(\(item\) => item\.id\)/,
   );
-  assert.match(dataSource, /select: "id,metadata"/);
-  assert.match(dataSource, /readString\(metadata\?\.company_name\)/);
+  assert.match(dataSource, /select: "id,metadata,source_code,source_name"/);
+  assert.match(dataSource, /const companyName = resolveNewsCompanyName\(\{/);
+  assert.match(dataSource, /configuredSourceName: readString\(row\?\.source_name\)/);
   assert.doesNotMatch(
     dataSource,
     /companyName\s*=\s*[^;]*item\.source|companyName:\s*readString\(row\.source\)/,
@@ -608,6 +618,83 @@ test("news rows keep event classification separate from publisher source", () =>
     /eventType: getEventTypeBadge\(eventTypeCode\)\.label,[\s\S]*?eventTypeCode,/,
   );
   assert.doesNotMatch(dataSource, /source:\s*getEventTypeBadge\(/);
+  assert.match(styleSource, /\.rowSource::before \{[\s\S]*?content: "·";/);
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: none;/,
+  );
+});
+
+test("news company identity restores the real EA issuer without accepting provider names", () => {
+  const rawPayload = {
+    provider: "Nasdaq Trader",
+    source_name: "Nasdaq Trader",
+    analysis_text: "Electronic Arts Inc. completed a strategic transaction.",
+    corporate_action: {
+      company_name: "Electronic Arts Inc.",
+      symbol: "EA",
+    },
+  };
+
+  const companyName = resolveNewsCompanyName({
+      configuredSourceName: "Nasdaq Corporate Actions",
+      rawPayload,
+      sourceCode: "nasdaq_corporate_actions",
+      title: "Equity Corporate Actions Alert",
+    });
+  assert.equal(companyName, "Electronic Arts Inc.");
+  assert.deepEqual(
+    getEventListIdentity({
+      companyName,
+      eventType: "strategic_transaction",
+      marketScope: "company",
+      ticker: "EA",
+    }),
+    { kind: "ticker", primary: "EA", secondary: "Electronic Arts Inc." },
+  );
+  assert.equal(
+    resolveNewsCompanyName({
+      configuredSourceName: "Nasdaq Corporate Actions",
+      rawPayload: {
+        provider: "Nasdaq Trader",
+        source_name: "Nasdaq Trader",
+      },
+      sourceCode: "nasdaq_corporate_actions",
+    }),
+    null,
+  );
+  assert.equal(
+    resolveNewsCompanyName({
+      configuredSourceName: "Nasdaq Corporate Actions",
+      rawPayload: {
+        company_name: "Nasdaq Trader",
+        provider: "Nasdaq Trader",
+        source_name: "Nasdaq Trader",
+      },
+      sourceCode: "nasdaq_corporate_actions",
+    }),
+    null,
+  );
+});
+
+test("Nasdaq corporate-action repair is narrow, repeatable, and preserves stored source fields", () => {
+  const migration = readFileSync(
+    new URL(
+      "../supabase/migrations/20260803060000_nasdaq_corporate_action_company_repair.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(migration, /e\.source_group = 'news'/);
+  assert.match(migration, /e\.source_code = 'nasdaq_corporate_actions'/);
+  assert.match(migration, /r\.source_code = 'nasdaq_corporate_actions'/);
+  assert.match(migration, /\{corporate_action,company_name\}/);
+  assert.match(migration, /e\.metadata ->> 'issuer'[\s\S]*r\.raw_payload ->> 'source_name'/);
+  assert.match(migration, /'\{issuer\}'[\s\S]*'\{company_name\}'/);
+  assert.match(migration, /when 'nasdaq_corporate_actions' then 'Nasdaq Trader'/);
+  assert.doesNotMatch(migration, /1f610868-891b-407b-ab6e-eba19a491871/);
+  assert.doesNotMatch(migration, /set[\s\S]{0,120}source_name\s*=/i);
 });
 
 test("mobile news premium CTA is a flat list row while desktop keeps its premium card", () => {

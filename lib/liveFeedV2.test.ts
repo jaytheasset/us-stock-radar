@@ -431,9 +431,14 @@ test("production feed is wired to real server data without mock repositories", (
     /lib\/mock|feedV2Data|feedV2Repository|feedMock/,
   );
   assert.match(feedSource, /fetchFeedPreviewContext/);
+  assert.match(feedSource, /const sourceName = readString\(row, \["source_name"\]\);/);
   assert.match(
     feedSource,
-    /source: resolveLiveFeedSource\(\s*readString\(row, \["source_name"\]\),\s*readString\(row, \["source_code", "source", "source_channel"\]\),\s*\),/,
+    /const sourceCode = readString\(row, \["source_code", "source", "source_channel"\]\);/,
+  );
+  assert.match(
+    feedSource,
+    /source: resolveLiveFeedSource\(\s*sourceName,\s*sourceCode,\s*\),/,
   );
   assert.match(feedSource, /event_analysis/);
   assert.match(feedSource, /raw_items/);
@@ -637,10 +642,15 @@ test("live feed prefers human source names and safely formats source-code fallba
   assert.equal(resolveLiveFeedSource("", "prnewswire"), "PR Newswire");
   assert.equal(resolveLiveFeedSource(null, "local-news-qa"), "local-news-qa");
   assert.equal(resolveLiveFeedSource(undefined, undefined), "Unknown");
+  assert.equal(
+    resolveLiveFeedSource("Nasdaq Corporate Actions", "nasdaq_corporate_actions"),
+    "Nasdaq Trader",
+  );
 });
 
 test("feed ticker rows map real company names without disguising the source", () => {
   const source = readSource("lib/liveFeedV2.ts");
+  const feedSource = readSource("lib/liveFeed.ts");
 
   assert.match(source, /const identity = getEventListIdentity\(\{/);
   assert.match(source, /companyName: item\.companyName,/);
@@ -652,6 +662,30 @@ test("feed ticker rows map real company names without disguising the source", ()
   assert.doesNotMatch(source, /company:\s*item\.source/);
   assert.doesNotMatch(source, /Macro market event|\bMARKET\b/);
   assert.match(source, /source: item\.source,/);
+  assert.match(feedSource, /canonical\.sourceGroup === "news"[\s\S]*?resolveNewsCompanyName\(\{/);
+  assert.doesNotMatch(
+    feedSource,
+    /companyName\s*=\s*(?:sourceName|resolveLiveFeedSource)/,
+  );
+});
+
+test("feed rows show event type and source on desktop while keeping mobile identity compact", () => {
+  const listSource = readSource("components/feed-v2/FeedEventList.tsx");
+  const styleSource = readSource("components/feed-v2/StockRadarFeedV2.module.css");
+
+  assert.match(
+    listSource,
+    /className=\{styles\.eventBadge\}[\s\S]*?\{eventPresentation\.label\}[\s\S]*?className=\{styles\.eventMobileFooter\}[\s\S]*?className=\{styles\.source\}>\{item\.source\}/,
+  );
+  assert.match(styleSource, /\.source::before \{[\s\S]*?content: "·";/);
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*?\.identity span \{[\s\S]*?display: none;/,
+  );
+  assert.match(
+    listSource,
+    /className=\{styles\.eventTimeMobile\}[\s\S]*?\{item\.timeDateLabel\} \{item\.timeLabel\} ET[\s\S]*?className=\{styles\.source\}>\{item\.source\}/,
+  );
 });
 
 test("mobile feed header keeps title and result count on one compact row", () => {
