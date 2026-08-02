@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
@@ -114,7 +114,10 @@ export function NewsV2FilterBar({
             placeholder="Search ticker, company, source or headline"
             value={queryDraft}
           />
-          <button className={styles.searchButton} type="submit">Search</button>
+          <button className={styles.searchButton} type="submit">
+            <Search aria-hidden="true" className={styles.searchButtonIcon} size={18} />
+            <span className={styles.searchButtonLabel}>Search</span>
+          </button>
         </form>
 
         <div className={styles.mobileFilterActions}>

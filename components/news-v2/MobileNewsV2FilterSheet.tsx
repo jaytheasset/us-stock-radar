@@ -58,6 +58,7 @@ export function MobileNewsV2FilterSheet({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Dismiss news filter overlay"
+      surfaceClassName={styles.newsMobileFilterSurface}
     >
       <div className={styles.mobileFilterSheetContent}>
         <header>

@@ -117,6 +117,10 @@
   padding-inline: 0;
 }
 
+.searchButtonIcon {
+  display: none;
+}
+
 .resetButton:disabled,
 .secondaryAction:disabled {
   cursor: not-allowed;
@@ -1935,39 +1939,110 @@
 }
 
 @media (max-width: 760px) {
+  .newsMobileFilterSurface {
+    scrollbar-gutter: auto;
+  }
+
   .workspace {
     gap: var(--sr-space-3);
     padding: var(--sr-space-3) var(--sr-page-gutter-mobile) var(--sr-space-5);
   }
 
   .mainColumn {
-    display: block;
-    overflow: hidden;
-    min-width: 0;
+    display: contents;
+  }
+
+  .filterBar {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .filterBar {
+    gap: var(--sr-space-2);
+    padding: 0;
+  }
+
+  .listPanel {
     border: var(--sr-border-width) solid var(--sr-color-border);
     border-radius: var(--sr-radius-base);
     background: var(--sr-color-surface-table-panel);
     box-shadow: var(--sr-shadow-panel);
   }
 
-  .filterBar,
-  .listPanel {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .filterBar {
-    gap: var(--sr-space-2);
-    padding: var(--sr-space-3);
-  }
-
   .searchForm {
-    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    grid-template-columns: minmax(130px, 1fr) 44px;
+    gap: 0;
   }
 
-  .searchButton {
-    padding: 0 var(--sr-space-3);
+  .searchField > label {
+    height: 44px;
+    border-right: 0;
+    border-radius: var(--sr-radius-control) 0 0 var(--sr-radius-control);
+  }
+
+  .searchField > label input {
+    font-size: 16px;
+  }
+
+  .searchField > label input::placeholder {
+    color: transparent;
+  }
+
+  .searchField::after {
+    position: absolute;
+    top: 0;
+    right: var(--sr-space-2);
+    left: 48px;
+    display: flex;
+    height: 44px;
+    align-items: center;
+    overflow: hidden;
+    color: var(--sr-color-text-meta);
+    content: "Search news";
+    font-size: 16px;
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchField:has(input:not(:placeholder-shown))::after {
+    display: none;
+  }
+
+  .searchForm > .searchButton {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 0 var(--sr-radius-action) var(--sr-radius-action) 0;
+    padding: 0;
+  }
+
+  .searchButtonIcon {
+    display: block;
+    margin: auto;
+  }
+
+  .searchButtonLabel {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mobileFilterActions .mobileFilterTrigger {
+    min-height: 44px;
+    padding-inline: var(--sr-space-3);
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .mobileFilterActions .mobileFilterTrigger > span:first-child {
+    font-size: var(--sr-font-size-lg);
   }
 
   .mobileResetButton {
@@ -1976,7 +2051,7 @@
   }
 
   .listHeader {
-    min-height: auto;
+    min-height: 68px;
     flex-wrap: wrap;
     align-items: center;
     row-gap: var(--sr-space-1);
@@ -1996,11 +2071,38 @@
 
   .listHeaderTitle > a {
     margin-left: auto;
+    flex: 0 0 auto;
+    gap: var(--sr-space-1);
+    font-size: var(--sr-font-size-md);
+  }
+
+  .listHeaderTitle > a > span {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .listHeaderTitle > a > svg:last-child {
+    display: none;
+  }
+
+  .listHeaderTitle > a::after {
+    content: "Google";
   }
 
   .resultCount {
     width: 100%;
+    font-size: var(--sr-font-size-md);
     text-align: right;
+  }
+
+  .liveListIndicator,
+  .mobileFilterSheetContent header > span,
+  .premiumCtaMobile .premiumCtaCopy > span {
+    font-size: var(--sr-font-size-sm);
   }
 
   .sectionEyebrow {
@@ -2008,15 +2110,16 @@
   }
 
   .listHeader h2 {
-    font-size: var(--sr-font-size-md);
+    font-size: 17px;
   }
 
   .newsRow {
-    min-height: 96px;
-    grid-template-columns: auto minmax(0, 1fr) 58px;
+    min-height: 112px;
+    grid-template-columns: minmax(40px, auto) minmax(0, 1fr) auto;
     grid-template-rows: auto auto auto;
     align-items: start;
-    gap: var(--sr-space-1-5);
+    column-gap: var(--sr-space-2);
+    row-gap: var(--sr-space-1);
     padding: var(--sr-space-3);
   }
 
@@ -2057,7 +2160,7 @@
     grid-column: 1;
     grid-row: 1;
     align-self: center;
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-lg);
     font-weight: var(--sr-font-weight-heavy);
   }
 
@@ -2067,17 +2170,21 @@
 
   .rowIdentityMobile {
     display: block;
+    overflow: hidden;
+    max-width: 108px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rowHeadline {
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     grid-row: 2;
     display: -webkit-box;
     overflow: hidden;
     color: var(--sr-color-text-heading);
-    font-size: var(--sr-font-size-base);
+    font-size: var(--sr-font-size-lg);
     font-weight: 600;
-    line-height: 1.35;
+    line-height: 1.4;
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -2118,13 +2225,14 @@
   }
 
   .rowMobileBadges .newsEventTypeBadge {
-    font-size: var(--sr-font-size-xs);
+    max-width: 100%;
+    font-size: var(--sr-font-size-md);
   }
 
   .mobileTickerOverflow {
     display: inline;
     color: var(--sr-color-text-muted);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     font-weight: var(--sr-font-weight-semibold);
     white-space: nowrap;
   }
@@ -2133,7 +2241,7 @@
     overflow: hidden;
     min-width: 0;
     align-self: center;
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -2151,7 +2259,7 @@
     align-self: center;
     gap: var(--sr-space-1);
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     font-variant-numeric: var(--sr-font-variant-numeric);
     line-height: var(--sr-line-height-none);
     white-space: nowrap;
@@ -2165,6 +2273,10 @@
     align-items: center;
     align-self: center;
     overflow: hidden;
+  }
+
+  .newsRowWithoutMarket .rowMobileFooter {
+    grid-column: 1 / -1;
   }
 
   .rowMobileDate {
@@ -2201,14 +2313,15 @@
 
   .rowQuote {
     display: flex;
+    overflow: hidden;
+    min-width: 0;
     grid-column: 3;
-    grid-row: 2 / 4;
-    flex-direction: column;
-    align-items: flex-end;
+    grid-row: 3;
+    align-items: center;
     align-self: center;
-    justify-content: center;
-    gap: 2px;
-    text-align: right;
+    justify-content: flex-end;
+    gap: var(--sr-space-1);
+    white-space: nowrap;
   }
 
   .rowQuote strong {
@@ -2218,7 +2331,7 @@
   }
 
   .rowQuote > span:not(.rowDataUnavailable) {
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-md);
     line-height: var(--sr-line-height-tight);
   }
 
@@ -2243,8 +2356,8 @@
   }
 
   .rowSentiment {
-    font-size: var(--sr-font-size-xs);
-    font-weight: var(--sr-font-weight-regular);
+    font-size: var(--sr-font-size-md);
+    font-weight: var(--sr-font-weight-semibold);
   }
 
   .rowScore {
@@ -2254,8 +2367,46 @@
 
   .rowScore strong {
     font-family: var(--sr-font-family-mono);
-    font-size: var(--sr-font-size-md);
+    font-size: var(--sr-font-size-base);
     font-weight: 600;
+  }
+
+  .mobileFilterSheetContent {
+    padding: calc(var(--sr-space-8) * 2) var(--sr-space-4) var(--sr-space-6);
+  }
+
+  .mobileFilterSheetContent header p,
+  .mobileFilterGroup h3 {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .mobileFilterGroup > div > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: var(--sr-space-2) var(--sr-space-2-5);
+    font-size: var(--sr-font-size-lg);
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .mobileFilterGroup .marketCapFilterOption {
+    flex-wrap: wrap;
+    column-gap: var(--sr-space-1);
+    row-gap: 2px;
+  }
+
+  .mobileFilterGroup .marketCapFilterOption strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .mobileFilterGroup .marketCapFilterOption small {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .mobileFilterSheetActions > button {
+    min-height: 44px;
+    font-size: var(--sr-font-size-lg);
   }
 
   .rowSourceMeta {
@@ -2307,7 +2458,7 @@
   }
 
   .premiumCtaMobile .premiumCtaCopy p {
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-sm);
     line-height: var(--sr-line-height-relaxed);
   }
 
@@ -2317,6 +2468,7 @@
     align-self: end;
     margin-top: 0;
     padding: 0 var(--sr-space-3);
+    font-size: var(--sr-font-size-sm);
   }
 
   .premiumCtaMobile .premiumCtaLinkIcon,
