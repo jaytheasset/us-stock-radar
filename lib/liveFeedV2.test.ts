@@ -544,6 +544,20 @@ test("mobile feed filters keep one row and disclose alerts and watchlist", () =>
   );
 });
 
+test("feed ticker rows map real company names without disguising the source", () => {
+  const source = readSource("lib/liveFeedV2.ts");
+
+  assert.match(
+    source,
+    /company:\s*item\.displayKind === "ticker"\s*\? item\.companyName\.trim\(\) \|\| "Company name unavailable"\s*:\s*`\$\{formatMarketScope\(item\.marketScope\)\} market event`/,
+  );
+  assert.doesNotMatch(
+    source,
+    /item\.displayKind === "ticker"\s*\? item\.source/,
+  );
+  assert.match(source, /source: item\.source,/);
+});
+
 test("mobile feed header keeps title and result count on one compact row", () => {
   const styleSource = readSource(
     "components/feed-v2/StockRadarFeedV2.module.css",
@@ -1129,6 +1143,18 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     listSource,
     /data-mobile-identity-kind=\{[\s\S]*item\.feedType === "market" \? "market" : "ticker"/,
   );
+  assert.match(listSource, /<strong>\{item\.timeLabel\} ET<\/strong>/);
+  assert.equal(
+    (listSource.match(/\{item\.timeLabel\} ET/g) ?? []).length,
+    2,
+    "desktop and mobile should each render one ET suffix",
+  );
+  assert.match(listSource, /<span>\{item\.company\}<\/span>/);
+  assert.match(
+    listSource,
+    /<span className=\{styles\.source\}>\{item\.source\}<\/span>/,
+  );
+  assert.match(listSource, /<h2>\{item\.headline\}<\/h2>/);
   assert.ok(
     listSource.indexOf("{formatChangePercent(item.changePercent)}") <
       listSource.indexOf('{item.price ?? "—"}'),

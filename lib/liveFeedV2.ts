@@ -162,7 +162,7 @@ function mapLiveFeedItem(
     changePercent: marketData.changePercent,
     company:
       item.displayKind === "ticker"
-        ? item.source
+        ? item.companyName.trim() || "Company name unavailable"
         : `${formatMarketScope(item.marketScope)} market event`,
     detailHref: previewSource.detailHref,
     feedType,
