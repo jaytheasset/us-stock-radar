@@ -2033,7 +2033,7 @@
     overflow: hidden;
     color: var(--sr-color-text-meta);
     content: "Search news";
-    font-size: 16px;
+    font-size: var(--sr-font-size-base);
     pointer-events: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2086,11 +2086,11 @@
     min-height: 44px;
     border-color: var(--sr-color-border-control);
     padding-inline: var(--sr-space-3);
-    font-size: var(--sr-font-size-lg);
+    font-size: var(--sr-font-size-md);
   }
 
   .mobileFilterActions .mobileFilterTrigger > span:first-child {
-    font-size: var(--sr-font-size-lg);
+    font-size: var(--sr-font-size-md);
   }
 
   .mobileResetButton {
