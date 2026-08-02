@@ -110,7 +110,7 @@ export function FeedEventList({
             >
               <time className={styles.time} dateTime={item.timestamp}>
                 <span>{item.timeDateLabel}</span>
-                <strong>{item.timeLabel}</strong>
+                <strong>{item.timeLabel} ET</strong>
               </time>
 
               <div className={styles.identity}>
