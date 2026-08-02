@@ -7,6 +7,7 @@ import {
   type LiveRoomActor,
 } from "@/lib/live-room/policy";
 import { buildLiveRoomAvatarUrl } from "@/lib/live-room/profileAvatar";
+import { assertLiveRoomMutationRateLimit } from "@/lib/live-room/mutationRateLimit";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import { evaluateDirectMessage } from "./moderation";
@@ -372,12 +373,15 @@ export async function reportDirectMessage({
       400,
     );
   }
+  const normalizedConversationId = normalizeLiveRoomUuid(conversationId);
+  const normalizedMessageId = normalizeLiveRoomUuid(messageId);
+  await assertLiveRoomMutationRateLimit(actor, "report");
   const result = await supabaseRpc(
     "report_live_room_direct_message",
     {
       p_requester_user_id: member.userId,
-      p_conversation_public_id: normalizeLiveRoomUuid(conversationId),
-      p_message_id: normalizeLiveRoomUuid(messageId),
+      p_conversation_public_id: normalizedConversationId,
+      p_message_id: normalizedMessageId,
       p_reason: reason,
     },
   );

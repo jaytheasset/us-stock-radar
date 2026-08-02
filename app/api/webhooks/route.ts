@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
 import { supabaseRpc } from "@/lib/supabase";
+import {
+  readBoundedRequestText,
+  RequestBodyTooLargeError,
+} from "@/lib/http/boundedRequestBody";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +17,15 @@ let requestsInWindow = 0;
 
 export async function POST(request: NextRequest) {
   if (!allowRequest()) return NextResponse.json({ ok: false }, { status: 429 });
-  const declaredLength = Number(request.headers.get("content-length") || 0);
-  if (declaredLength > MAX_BODY_BYTES) return NextResponse.json({ ok: false }, { status: 413 });
-  const payload = await request.text();
-  if (Buffer.byteLength(payload, "utf8") > MAX_BODY_BYTES) return NextResponse.json({ ok: false }, { status: 413 });
+  let payload: string;
+  try {
+    payload = await readBoundedRequestText(request, MAX_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ ok: false }, { status: 413 });
+    }
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
 
   const config = getAlertEmailConfig();
   const id = request.headers.get("svix-id") || "";

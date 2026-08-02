@@ -92,7 +92,8 @@ test("Resend adapter is fail-closed, idempotent, one-click unsubscribe aware, an
 test("email webhook verifies raw Svix payload and suppresses only the Email channel", () => {
   const route = readFileSync(new URL("../../app/api/webhooks/route.ts", import.meta.url), "utf8");
   const migration = readFileSync(new URL("../../supabase/migrations/20260801155839_alert_email_delivery.sql", import.meta.url), "utf8");
-  assert.match(route, /await request\.text\(\)/);
+  assert.match(route, /await readBoundedRequestText\(request, MAX_BODY_BYTES\)/);
+  assert.match(route, /RequestBodyTooLargeError[\s\S]*status: 413/);
   assert.match(route, /svix-signature/);
   assert.match(route, /webhooks\.verify/);
   assert.match(migration, /where user_id = v_user_id and channel = 'email'/);

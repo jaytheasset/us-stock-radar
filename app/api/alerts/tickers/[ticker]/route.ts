@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import {
   getAlertTickersViewModel,
@@ -20,6 +21,8 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ ticker: string }> },
 ) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     const { ticker: tickerParam } = await context.params;
@@ -73,9 +76,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ ticker: string }> },
 ) {
+  const originRejection = rejectCrossOriginMutationRequest(request, NO_STORE_HEADERS);
+  if (originRejection) return originRejection;
   try {
     const userId = await getOptionalCurrentUserId();
     const { ticker: tickerParam } = await context.params;

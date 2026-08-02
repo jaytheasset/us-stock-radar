@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server.js";
+import { rejectCrossOriginMutationRequest } from "../../../../lib/auth/mutationOrigin.ts";
 import {
   PRELAUNCH_ACCESS_COOKIE,
   PRELAUNCH_ACCESS_MAX_AGE_SECONDS,
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const originRejection = rejectCrossOriginMutationRequest(request);
+  if (originRejection) return originRejection;
   const formData = await request.formData().catch(() => null);
   const returnTo = sanitizeInternalRedirect(formData?.get("next"));
 

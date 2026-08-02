@@ -16,6 +16,7 @@ import {
   type CommunityHubRoomsPage,
 } from "./types";
 import { buildLiveRoomAvatarUrl } from "@/lib/live-room/profileAvatar";
+import { assertLiveRoomMutationRateLimit } from "@/lib/live-room/mutationRateLimit";
 
 type PeopleCursor = {
   at: string;
@@ -119,11 +120,13 @@ export async function setCommunityHubMemberFollow({
       400,
     );
   }
+  const normalizedPublicProfileId = normalizeLiveRoomUuid(publicProfileId);
+  await assertLiveRoomMutationRateLimit(actor, "follow");
   const result = await supabaseRpc(
     "set_live_room_member_follow_by_profile",
     {
       p_requester_user_id: member.userId,
-      p_public_profile_id: normalizeLiveRoomUuid(publicProfileId),
+      p_public_profile_id: normalizedPublicProfileId,
       p_followed: followed,
     },
   );
@@ -132,7 +135,7 @@ export async function setCommunityHubMemberFollow({
   }
   return {
     followed: result.data === true,
-    publicProfileId: normalizeLiveRoomUuid(publicProfileId),
+    publicProfileId: normalizedPublicProfileId,
   };
 }
 

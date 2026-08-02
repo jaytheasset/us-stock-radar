@@ -23,6 +23,7 @@ import { listCommunityHubRooms } from "@/lib/community-hub/serverRepository";
 import { getCommunityRoomIdentity } from "./communityServerRepository";
 import { isLiveRoomChatNameSet } from "./chatIdentity";
 import { evaluateLiveRoomMessage } from "./moderation";
+import { assertLiveRoomMutationRateLimit } from "./mutationRateLimit";
 import {
   listLiveRoomPosts,
   mapLiveRoomPostRows,
@@ -717,6 +718,7 @@ export async function setLiveRoomMessageLike({
   const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   await ensureMemberBootstrap(actor);
+  await assertLiveRoomMutationRateLimit(actor, "like");
   const result = await supabaseRpc("set_live_room_message_like", {
     p_room_id: room.id,
     p_message_id: messageId,
@@ -760,6 +762,7 @@ export async function reportLiveRoomMessage({
   const reason = normalizeLiveRoomReportReason(rawReason);
   const room = await resolveLiveRoom({ slug, ticker: rawTicker });
   await ensureMemberBootstrap(actor);
+  await assertLiveRoomMutationRateLimit(actor, "report");
   const result = await supabaseRpc("report_live_room_message", {
     p_room_id: room.id,
     p_message_id: messageId,
@@ -1523,6 +1526,7 @@ export async function updateLiveRoomMembership({
   }
   const room = await resolveLiveRoom({ slug, ticker });
   await getLiveRoomProfile(actor);
+  await assertLiveRoomMutationRateLimit(actor, "follow");
   const result = await supabaseRpc("set_live_room_membership", {
     p_joined: joined,
     p_member_user_id: actor.userId,
@@ -1929,6 +1933,7 @@ export async function updateLiveRoomMemberFollow({
   const room = await getOrCreateLiveRoom(ticker);
   const messageId = normalizeLiveRoomUuid(rawMessageId);
   await ensureMemberBootstrap(actor);
+  await assertLiveRoomMutationRateLimit(actor, "follow");
   const result = await supabaseRpc("set_live_room_member_follow", {
     p_follower_user_id: actor.userId,
     p_room_id: room.id,

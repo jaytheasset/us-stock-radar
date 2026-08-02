@@ -8,6 +8,7 @@ import {
   setAuthSessionCookies,
 } from "@/lib/auth/authCookies";
 import { resolveAuthSession } from "@/lib/auth/sessionResolution";
+import { AuthError } from "@/lib/auth/supabaseAuth";
 import { rolesHavePermission, type AdminPermission } from "./policy";
 import { getAdminAccessForUser } from "./server";
 
@@ -128,7 +129,7 @@ export async function respondToAdminReadHead(
 }
 
 export function normalizeAdminError(error: unknown) {
-  if (error instanceof AdminApiError) {
+  if (error instanceof AdminApiError || error instanceof AuthError) {
     return {
       code: error.code,
       message: error.message,

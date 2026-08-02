@@ -12,6 +12,7 @@ import {
   supabaseUpsert,
 } from "@/lib/supabase";
 import { getCommunityRoomIdentity } from "./communityServerRepository";
+import { assertLiveRoomMutationRateLimit } from "./mutationRateLimit";
 import {
   LiveRoomPolicyError,
   normalizeLiveRoomReportReason,
@@ -361,6 +362,7 @@ export async function toggleLiveRoomPostLike({
     "The post ID is invalid.",
   );
   await ensureLiveRoomMember(actor);
+  await assertLiveRoomMutationRateLimit(actor, "like");
   const result = await supabaseRpc("toggle_live_room_post_like", {
     p_post_id: postId,
     p_actor_user_id: actor.userId,
@@ -396,6 +398,7 @@ export async function reportLiveRoomPost({
   );
   const reason = normalizeLiveRoomReportReason(rawReason);
   if (actor.kind === "member") await ensureLiveRoomMember(actor);
+  await assertLiveRoomMutationRateLimit(actor, "report");
   const result = await supabaseRpc("report_live_room_post", {
     p_post_id: postId,
     p_reporter_kind: actor.kind,
@@ -680,6 +683,7 @@ export async function reportLiveRoomPostComment({
   await assertCommentBelongsToPost(commentId, postId);
   const reason = normalizeLiveRoomReportReason(rawReason);
   if (actor.kind === "member") await ensureLiveRoomMember(actor);
+  await assertLiveRoomMutationRateLimit(actor, "report");
   const result = await supabaseRpc("report_live_room_post_comment", {
     p_comment_id: commentId,
     p_reporter_kind: actor.kind,

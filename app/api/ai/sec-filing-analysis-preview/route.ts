@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  ADMIN_PRIVATE_RESPONSE_HEADERS,
+  applyAdminAuthCookies,
+  normalizeAdminError,
+  resolveAdminApiAccess,
+  respondWithAdminReadAccess,
+} from "@/lib/admin/api";
+import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
+import {
   runSecFilingAnalysisPreview,
   runSecFilingAnalysisPreviewForRawItem,
 } from "@/lib/ai/secFilingAnalysisPreview";
@@ -7,48 +15,69 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const params = request.nextUrl.searchParams;
-  const result = await runSecFilingAnalysisPreview({
-    dryRun: params.get("dryRun") === "true",
-    rawItemId: params.get("rawItemId") || undefined,
-    accessionNumber: params.get("accessionNumber") || undefined,
-    ticker: params.get("ticker") || undefined,
-    calendarCandidate: params.get("calendarCandidate") === "true",
-    llmProvider: params.get("llmProvider") || undefined,
-    llmModel: params.get("llmModel") || undefined,
-    secPromptVariant: params.get("secPromptVariant") || undefined,
-  });
-
-  return NextResponse.json(result, {
-    status: result.ok ? 200 : result.status || 502,
-  });
+  return respondWithAdminReadAccess(
+    request,
+    "data.run",
+    async () => {
+      const params = request.nextUrl.searchParams;
+      return runSecFilingAnalysisPreview({
+        dryRun: params.get("dryRun") === "true",
+        rawItemId: params.get("rawItemId") || undefined,
+        accessionNumber: params.get("accessionNumber") || undefined,
+        ticker: params.get("ticker") || undefined,
+        calendarCandidate: params.get("calendarCandidate") === "true",
+        llmProvider: params.get("llmProvider") || undefined,
+        llmModel: params.get("llmModel") || undefined,
+        secPromptVariant: params.get("secPromptVariant") || undefined,
+      });
+    },
+    { status: (result) => (result.ok ? 200 : result.status || 502) },
+  );
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const rawItem = readRecord(body?.rawItem) || readRecord(body?.raw_item);
-  if (!rawItem) {
-    return NextResponse.json(
-      {
-        ok: false,
-        stage: "raw_item",
-        status: 400,
-        error: "rawItem is required",
-      },
-      { status: 400 },
+  let resolution: Awaited<ReturnType<typeof resolveAdminApiAccess>> | null = null;
+  try {
+    assertSameOriginAuthRequest(request);
+    resolution = await resolveAdminApiAccess(request, "data.run");
+    const body = await request.json().catch(() => null);
+    const rawItem = readRecord(body?.rawItem) || readRecord(body?.raw_item);
+    if (!rawItem) {
+      const response = NextResponse.json(
+        {
+          ok: false,
+          stage: "raw_item",
+          status: 400,
+          error: "rawItem is required",
+        },
+        { status: 400, headers: ADMIN_PRIVATE_RESPONSE_HEADERS },
+      );
+      applyAdminAuthCookies(response, resolution);
+      return response;
+    }
+
+    const result = await runSecFilingAnalysisPreviewForRawItem(rawItem, {
+      dryRun: body?.dryRun !== false,
+      llmProvider: stringValue(body?.llmProvider) || undefined,
+      llmModel: stringValue(body?.llmModel) || undefined,
+      secPromptVariant: stringValue(body?.secPromptVariant) || undefined,
+    });
+
+    const response = NextResponse.json(result, {
+      status: result.ok ? 200 : readResultStatus(result),
+      headers: ADMIN_PRIVATE_RESPONSE_HEADERS,
+    });
+    applyAdminAuthCookies(response, resolution);
+    return response;
+  } catch (error) {
+    const normalized = normalizeAdminError(error);
+    const response = NextResponse.json(
+      { ok: false, error: normalized },
+      { status: normalized.status, headers: ADMIN_PRIVATE_RESPONSE_HEADERS },
     );
+    if (resolution) applyAdminAuthCookies(response, resolution);
+    return response;
   }
-
-  const result = await runSecFilingAnalysisPreviewForRawItem(rawItem, {
-    dryRun: body?.dryRun !== false,
-    llmProvider: stringValue(body?.llmProvider) || undefined,
-    llmModel: stringValue(body?.llmModel) || undefined,
-    secPromptVariant: stringValue(body?.secPromptVariant) || undefined,
-  });
-
-  return NextResponse.json(result, {
-    status: result.ok ? 200 : readResultStatus(result),
-  });
 }
 
 function readResultStatus(result: unknown) {
