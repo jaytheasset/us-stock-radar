@@ -498,14 +498,32 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(
     previewSheetStyleSource,
-    /\.newsSurface\[role="dialog"\][\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)/,
+    /\.newsSurface\[role="dialog"\][\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto[\s\S]*border-top-left-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-right-radius: var\(--sr-radius-sheet\)[\s\S]*border-top-color: var\(--sr-color-accent-border-premium\)[\s\S]*background-image: linear-gradient\([\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\)[\s\S]*background-clip: border-box[\s\S]*var\(--sr-shadow-sheet-full-scroll\)[\s\S]*var\(--sr-color-accent-subtle\)/,
   );
   assert.match(
     previewStyleSource,
     /\[data-preview-kind="company-news"\][\s\S]*\[data-preview-kind="market-news"\][\s\S]*font-size: var\(--sr-font-size-2xl\)/,
   );
-  assert.match(previewStyleSource, /font-size: var\(--sr-font-size-lg\)/);
-  assert.match(previewStyleSource, /font-size: var\(--sr-font-size-md\)/);
+  assert.match(
+    previewStyleSource,
+    /\.detailFacts[\s\S]*> span \{[\s\S]*grid-template-columns: 80px minmax\(0, 1fr\)/,
+  );
+  assert.match(
+    previewStyleSource,
+    /font-size: var\(--sr-font-size-lg-plus\)/,
+  );
+  assert.match(
+    previewStyleSource,
+    /font-size: var\(--sr-font-size-md-plus\)/,
+  );
+  assert.match(
+    previewStyleSource,
+    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-2\)\)[\s\S]*font-size: var\(--sr-font-size-lg\)[\s\S]*white-space: nowrap/,
+  );
+  assert.match(
+    previewStyleSource,
+    /\.detailContent\[data-preview-kind="company-news"\] \.detailCta svg \{[\s\S]*width: var\(--sr-space-4-5\)[\s\S]*height: var\(--sr-space-4-5\)/,
+  );
   assert.match(styleSource, /@media \(max-width: 1180px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
   assert.match(

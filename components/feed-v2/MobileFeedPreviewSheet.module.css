@@ -4,12 +4,16 @@
     overflow-y: auto;
     border-top-left-radius: var(--sr-radius-sheet);
     border-top-right-radius: var(--sr-radius-sheet);
+    border-top-color: var(--sr-color-accent-border-premium);
     background-color: var(--sr-color-surface-overlay);
     background-image: linear-gradient(
       180deg,
       var(--sr-color-accent-active),
       var(--sr-color-accent-transparent) 28%
     );
-    background-clip: padding-box;
+    background-clip: border-box;
+    box-shadow:
+      var(--sr-shadow-sheet-full-scroll),
+      inset 0 var(--sr-border-width) 0 var(--sr-color-accent-subtle);
   }
 }
