@@ -235,6 +235,10 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   const filters = await read("components/calendar-v1/CalendarFilters.tsx");
   const views = await read("components/calendar-v1/CalendarViews.tsx");
   const styles = await read("components/calendar-v1/CalendarV1.module.css");
+  const bottomSheet = await read("components/ui/BottomSheetShell.tsx");
+  const bottomSheetStyles = await read(
+    "components/ui/BottomSheetShell.module.css",
+  );
   const compactNavigation = mobileDates.slice(
     mobileDates.indexOf('aria-label="Mobile date navigation"'),
     mobileDates.indexOf("<BottomSheetShell"),
@@ -249,6 +253,20 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   assert.match(filters, /Search events, agencies, industries, tickers/);
 
   assert.match(mobileDates, /BottomSheetShell/);
+  assert.match(
+    mobileDates,
+    /surfaceClassName=\{styles\.calendarMobileSheetSurface\}/,
+  );
+  assert.match(
+    filters,
+    /surfaceClassName=\{styles\.calendarMobileSheetSurface\}/,
+  );
+  assert.match(bottomSheet, /surfaceClassName\?: string;/);
+  assert.match(bottomSheet, /surfaceClassName \?\? ""/);
+  assert.match(
+    bottomSheetStyles,
+    /\.fullScrollSurface\s*\{[\s\S]*overflow-y:\s*auto;[\s\S]*scrollbar-gutter:\s*stable both-edges;/,
+  );
   assert.match(mobileDates, /openerRef=\{openerRef\}/);
   assert.match(mobileDates, /aria-expanded=\{isOpen\}/);
   assert.match(mobileDates, /formatCompactRangeLabel\(range\)/);
@@ -263,6 +281,10 @@ test("mobile Calendar header and date navigation remove duplicate controls", asy
   assert.match(mobileDates, /Apply range/);
   assert.doesNotMatch(compactNavigation, />\s*Today\s*</);
 
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.calendarMobileSheetSurface\s*\{[\s\S]*scrollbar-gutter:\s*auto;/,
+  );
   assert.match(
     styles,
     /@media \(max-width: 760px\)[\s\S]*\.pageHeader > div:first-child > span,[\s\S]*\.pageHeader p\s*\{[\s\S]*display:\s*none;/,

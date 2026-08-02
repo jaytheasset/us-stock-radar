@@ -33,6 +33,7 @@ export type BottomSheetShellProps = BottomSheetAccessibleName & {
   onDismiss: () => void;
   openerRef: RefObject<HTMLElement | null>;
   overlayLabel: string;
+  surfaceClassName?: string;
   viewport?: BottomSheetShellViewport;
 };
 
@@ -105,6 +106,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     onDismiss,
     openerRef,
     overlayLabel,
+    surfaceClassName,
     viewport = "mobile",
   } = props;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -233,7 +235,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         : styles.mobileRoot;
   const rootClasses = `${styles.root} ${viewportClass} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
   const overlayClasses = `${styles.overlay} ${usesContentFooter ? styles.contentFooterOverlay : styles.fullScrollOverlay}`;
-  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedFooter ? styles.surfaceWithFixedFooter : ""}`;
+  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedFooter ? styles.surfaceWithFixedFooter : ""} ${surfaceClassName ?? ""}`;
   const closeClasses = `${styles.close} ${usesContentFooter ? styles.contentFooterClose : styles.fullScrollClose}`;
 
   return (
