@@ -671,6 +671,14 @@ test("mobile feed summary uses existing counts in an accessible two-column discl
     styleSource,
     /\.situationDisclosure\[open\] \.situationChevron svg \{[\s\S]*transform: rotate\(180deg\);[\s\S]*\.situationExpandedGrid \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
   );
+  assert.match(
+    styleSource,
+    /\.situationSummaryCell span \{[\s\S]*font-size: var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 340px\) \{[\s\S]*\.situationSummaryCell \{[\s\S]*column-gap: var\(--sr-space-1\);/,
+  );
 });
 
 test("feed context rail keeps the product order without an unconnected watchlist card", () => {
