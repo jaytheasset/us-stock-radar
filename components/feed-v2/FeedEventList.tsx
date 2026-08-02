@@ -140,7 +140,12 @@ export function FeedEventList({
                       className={styles.eventTimeMobile}
                       dateTime={item.timestamp}
                     >
-                      {item.timeDateLabel} {item.timeLabel} ET
+                      <span className={styles.eventDateMobile}>
+                        {item.timeDateLabel}
+                      </span>{" "}
+                      <span className={styles.eventClockMobile}>
+                        {item.timeLabel} ET
+                      </span>
                     </time>
                     <span className={styles.source}>{item.source}</span>
                   </span>
