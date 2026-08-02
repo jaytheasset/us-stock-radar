@@ -745,7 +745,7 @@ test("news mobile insight rail is a flat, readable three-section stream", () => 
   );
   assert.match(
     mobileStyles,
-    /\.insightHeader \{[^}]*padding: var\(--sr-space-3\) 0;[^}]*background: var\(--sr-color-surface-control-strong\);/,
+    /\.insightHeader \{[^}]*box-sizing: border-box;[^}]*width: calc\(100% \+ \(var\(--sr-page-gutter-mobile\) \* 2\)\);[^}]*margin-inline: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[^}]*padding: var\(--sr-space-3\) var\(--sr-page-gutter-mobile\);[^}]*background: var\(--sr-color-surface-control-strong\);/,
   );
   const mobileInsightHeader =
     mobileStyles.match(/\.insightHeader \{[^}]*\}/)?.[0] ?? "";
