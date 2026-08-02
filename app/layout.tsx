@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { AdSensePublisherLoader } from "@/components/ads/AdSensePublisherLoader";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
@@ -45,11 +44,15 @@ export default async function RootLayout({
   const viewerPlan = await getCurrentViewerPlan();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      data-theme="light"
+      lang="en"
+      style={{ colorScheme: "light" }}
+      suppressHydrationWarning
+    >
       <head>
-        <Script
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
       </head>

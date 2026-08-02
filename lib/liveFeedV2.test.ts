@@ -1063,6 +1063,10 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(listSource, /getLiveFeedV2MobileIdentityLabel\(item\)/);
   assert.match(listSource, /className=\{styles\.identityMobile\}/);
+  assert.match(
+    listSource,
+    /data-mobile-identity-kind=\{[\s\S]*item\.feedType === "market" \? "market" : "ticker"/,
+  );
   assert.ok(
     listSource.indexOf("{formatChangePercent(item.changePercent)}") <
       listSource.indexOf('{item.price ?? "—"}'),
@@ -1073,26 +1077,30 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
     /\.quote strong \{[\s\S]*?order: 1;[\s\S]*?\.quote span \{[\s\S]*?order: 2;/,
   );
   assert.match(styleSource, /\.identity \.identityMobile\s*\{\s*display: none;/);
-  assert.match(listSource, /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/);
-  assert.match(
-    styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*gap: var\(--sr-space-1\) var\(--sr-space-2\);[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
+  assert.match(listSource, /\{item\.timeDateLabel\} \{item\.timeLabel\} ET/);
+  assert.doesNotMatch(
+    listSource,
+    /\{item\.timeDateLabel\} · \{item\.timeLabel\} ET/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.identity strong \{[\s\S]*overflow: visible;[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*white-space: normal;[\s\S]*\.identity \.identityMobile \{[\s\S]*font-family: var\(--sr-font-family-sans\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.feedItem \{[\s\S]*min-height: 132px;[\s\S]*grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*grid-template-rows: auto auto auto;[\s\S]*column-gap: var\(--sr-space-2\);[\s\S]*row-gap: 7px;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventBadge \{[\s\S]*max-width: 100%;[\s\S]*grid-column: 2;[\s\S]*grid-row: 1;[\s\S]*align-self: center;[\s\S]*overflow: visible;[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*text-transform: none;[\s\S]*white-space: normal;/,
+    /@media \(max-width: 760px\)[\s\S]*\.identity strong \{[\s\S]*overflow: visible;[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*white-space: normal;[\s\S]*\.identityMobile\[data-mobile-identity-kind="ticker"\] \{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 800;[\s\S]*letter-spacing: 0\.02em;[\s\S]*\.identityMobile\[data-mobile-identity-kind="market"\] \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 700;[\s\S]*letter-spacing: normal;/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*font-weight: 600;[\s\S]*line-height: 1\.4;[\s\S]*-webkit-line-clamp: 2;/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventBadge \{[\s\S]*max-width: 100%;[\s\S]*grid-column: 2;[\s\S]*grid-row: 1;[\s\S]*align-self: center;[\s\S]*overflow: visible;[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 650;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*overflow-wrap: anywhere;[\s\S]*text-overflow: clip;[\s\S]*text-transform: none;[\s\S]*white-space: normal;/,
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.source \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*line-height: var\(--sr-line-height-none\);/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventCopy h2 \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 2;[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*font-weight: 650;[\s\S]*line-height: 1\.4;[\s\S]*-webkit-line-clamp: 2;/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*\.source \{[\s\S]*overflow: hidden;[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;[\s\S]*\.source::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";/,
   );
   assert.match(
     styleSource,
