@@ -48,6 +48,7 @@ import {
   formatCompactMarketValue,
   formatStockOverviewEt,
   getStockRouteHref,
+  getStockOverviewEventsApiHref,
   hasStockOverviewData,
   mapStockOverviewChart,
   mapStockOverviewEvents,
@@ -212,7 +213,8 @@ export function StockRadarWatchlistV2({
   const dilutionEvents = selectStockOverviewEvents(events, "dilution");
 
   useEffect(() => {
-    if (!selectedTicker) {
+    const eventsApiHref = getStockOverviewEventsApiHref(selectedTicker);
+    if (!selectedTicker || !eventsApiHref) {
       setOverviewState("idle");
       setEvents([]);
       setProfile(emptyProfile);
@@ -239,10 +241,10 @@ export function StockRadarWatchlistV2({
         cache: "no-store",
         signal: controller.signal,
       }).then(readJsonResponse),
-      fetch(
-        `/api/events?ticker=${encodeURIComponent(selectedTicker)}&limit=50`,
-        { cache: "no-store", signal: controller.signal },
-      ).then(readJsonResponse),
+      fetch(eventsApiHref, {
+        cache: "no-store",
+        signal: controller.signal,
+      }).then(readJsonResponse),
     ]).then(([profileResult, quoteResult, eventResult]) => {
       if (controller.signal.aborted) return;
       const mappedProfile =

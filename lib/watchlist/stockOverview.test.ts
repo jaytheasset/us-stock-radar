@@ -4,6 +4,7 @@ import test from "node:test";
 import { moveTickerSearchIndex } from "../tickerSearchNavigation.ts";
 import {
   getStockRouteHref,
+  getStockOverviewEventsApiHref,
   hasStockOverviewData,
   mapStockOverviewChart,
   mapStockOverviewEvents,
@@ -30,6 +31,11 @@ test("stock routes accept safe tickers without requiring a saved watchlist item"
   assert.equal(normalizeStockTicker("A".repeat(13)), null);
   assert.equal(getStockRouteHref(" brk.b "), "/stocks/BRK.B");
   assert.equal(getStockRouteHref("A/B"), null);
+  assert.equal(
+    getStockOverviewEventsApiHref(" brk.b "),
+    "/api/events?ticker=BRK.B&limit=50&include_archive=true",
+  );
+  assert.equal(getStockOverviewEventsApiHref("A/B"), null);
   assert.equal(
     resolveStockOverviewTicker("TSLA", ["NVDA", "AMD"], "stock"),
     "TSLA",
@@ -118,7 +124,7 @@ test("chart mapper rejects incomplete points instead of inventing a line", () =>
   );
 });
 
-test("event mapper creates real analysis routes only for persistent UUIDs and applies score tones", () => {
+test("event mapper creates canonical detail routes only for persistent UUIDs and applies score tones", () => {
   const events = mapStockOverviewEvents({
     data: [
       {
@@ -127,6 +133,7 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
         source_group: "news",
         source_code: "reuters",
         event_type: "earnings",
+        delivery_level: "alert",
         score: 75,
         signal: "bullish",
         title: "Company raises guidance",
@@ -138,10 +145,60 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
         ticker: "AMD",
         source_group: "filings",
         event_type: "offering",
+        delivery_level: "feed",
         score: 74,
         signal: "bearish",
         title: "Registration statement",
         detected_at: "2026-07-24T14:30:00Z",
+      },
+      {
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd6",
+        ticker: "AMD",
+        source_group: "news",
+        event_type: "earnings",
+        delivery_level: " ARCHIVE ",
+        score: 49,
+        title: "Routine company update",
+        detected_at: "2026-07-23T14:30:00Z",
+      },
+      {
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd7",
+        ticker: "AMD",
+        source_group: "filings",
+        event_type: "ownership",
+        delivery_level: "archive",
+        score: 20,
+        title: "Routine ownership filing",
+        detected_at: "2026-07-22T14:30:00Z",
+      },
+      {
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd8",
+        ticker: "AMD",
+        source_group: "filings",
+        event_type: "corporate_update",
+        delivery_level: " FEED ",
+        score: 50,
+        title: "Material filing update",
+        detected_at: "2026-07-21T14:30:00Z",
+      },
+      {
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdd9",
+        ticker: "AMD",
+        source_group: "news",
+        event_type: "corporate_update",
+        delivery_level: "unexpected",
+        score: 10,
+        title: "Event with invalid delivery metadata",
+        detected_at: "2026-07-20T14:30:00Z",
+      },
+      {
+        id: "4b51454b-c7ca-4bc9-96a5-3a55390acdda",
+        ticker: "AMD",
+        source_group: "filings",
+        event_type: "corporate_update",
+        score: 10,
+        title: "Event without delivery metadata",
+        detected_at: "2026-07-19T14:30:00Z",
       },
     ],
   });
@@ -151,9 +208,34 @@ test("event mapper creates real analysis routes only for persistent UUIDs and ap
     "/events/4b51454b-c7ca-4bc9-96a5-3a55390acdd1",
   );
   assert.equal(events[0]?.scoreTone, "bullish");
+  assert.equal(events[0]?.deliveryLevel, "alert");
   assert.equal(events[1]?.detailHref, null);
   assert.equal(events[1]?.scoreTone, "default");
-  assert.equal(selectStockOverviewEvents(events, "financials").length, 1);
+  assert.equal(
+    events[2]?.detailHref,
+    "/news/archive/4b51454b-c7ca-4bc9-96a5-3a55390acdd6",
+  );
+  assert.equal(events[2]?.deliveryLevel, "archive");
+  assert.equal(
+    events[3]?.detailHref,
+    "/filings/archive/4b51454b-c7ca-4bc9-96a5-3a55390acdd7",
+  );
+  assert.equal(
+    events[4]?.detailHref,
+    "/filings/4b51454b-c7ca-4bc9-96a5-3a55390acdd8",
+  );
+  assert.equal(events[4]?.deliveryLevel, "feed");
+  assert.equal(
+    events[5]?.detailHref,
+    "/events/4b51454b-c7ca-4bc9-96a5-3a55390acdd9",
+  );
+  assert.equal(events[5]?.deliveryLevel, null);
+  assert.equal(
+    events[6]?.detailHref,
+    "/filings/4b51454b-c7ca-4bc9-96a5-3a55390acdda",
+  );
+  assert.equal(events[6]?.deliveryLevel, null);
+  assert.equal(selectStockOverviewEvents(events, "financials").length, 2);
   assert.equal(selectStockOverviewEvents(events, "dilution").length, 1);
 });
 
@@ -284,6 +366,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /viewerPlan|watchlist\.plan === "free"/);
   assert.match(componentSource, /selectionMode === "stock"/);
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
+  assert.match(componentSource, /getStockOverviewEventsApiHref\(selectedTicker\)/);
   assert.match(componentSource, /isSaved \? "Watching" : "Add to Watchlist"/);
   assert.match(componentSource, /Ticker unavailable/);
   assert.match(componentSource, /"Stock research workspace"/);

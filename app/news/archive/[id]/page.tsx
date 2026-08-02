@@ -270,7 +270,12 @@ async function loadDbArchivePayload(id: string): Promise<DbArchivePayload | null
   const liveItem = liveResult.item;
   const eventRow = toRecord(eventResult.data);
 
-  if (!liveItem || !eventRow) {
+  if (
+    !liveItem ||
+    !eventRow ||
+    readString(eventRow, "source_group") !== "news" ||
+    readString(eventRow, "delivery_level") !== "archive"
+  ) {
     return null;
   }
 

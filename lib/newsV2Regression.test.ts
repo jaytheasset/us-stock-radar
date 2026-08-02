@@ -281,6 +281,8 @@ test("news archive rejects missing data without exposing development fixtures", 
 
   assert.match(source, /if \(!isUuid\(id\)\) notFound\(\)/);
   assert.match(source, /if \(!dbPayload\) notFound\(\)/);
+  assert.match(source, /readString\(eventRow, "source_group"\) !== "news"/);
+  assert.match(source, /readString\(eventRow, "delivery_level"\) !== "archive"/);
   assert.match(source, /series=\{null\}/);
   assert.match(source, /original article text is currently unavailable/i);
   assert.doesNotMatch(source, /mockArchiveEvent|buildMockPriceSeries|Trinity Bank/);
