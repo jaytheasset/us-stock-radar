@@ -650,6 +650,14 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
   assert.match(
     styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?\.rowHeadline \{[\s\S]*?-webkit-line-clamp: 2;[\s\S]*?\.rowQuote strong \{[\s\S]*?line-height: var\(--sr-line-height-none\);[\s\S]*?\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*?line-height: var\(--sr-line-height-none\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowSentiment \{[\s\S]*?font-size: 16px;[\s\S]*?line-height: var\(--sr-line-height-none\);[\s\S]*?\.rowScore \{[\s\S]*?line-height: var\(--sr-line-height-none\);[\s\S]*?\.rowScore strong \{[\s\S]*?font-size: 16px;[\s\S]*?line-height: var\(--sr-line-height-none\);/,
+  );
+  assert.match(
+    styles,
     /@media \(max-width: 760px\) \{[\s\S]*?\.rowQuote \{[\s\S]*?display: flex;[\s\S]*?\.rowQuote strong \{[\s\S]*?order: 2;[\s\S]*?\.rowQuote > span:not\(\.rowDataUnavailable\) \{[\s\S]*?order: 1;/,
   );
   assert.match(

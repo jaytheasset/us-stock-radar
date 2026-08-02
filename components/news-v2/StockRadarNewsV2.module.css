@@ -2411,14 +2411,14 @@
     order: 2;
     font-size: 15px;
     font-weight: 600;
-    line-height: var(--sr-line-height-tight);
+    line-height: var(--sr-line-height-none);
   }
 
   .rowQuote > span:not(.rowDataUnavailable) {
     order: 1;
     font-size: 15px;
     font-weight: 700;
-    line-height: var(--sr-line-height-tight);
+    line-height: var(--sr-line-height-none);
   }
 
   .rowSparklineCell {
@@ -2444,17 +2444,20 @@
   .rowSentiment {
     font-size: 16px;
     font-weight: 700;
+    line-height: var(--sr-line-height-none);
   }
 
   .rowScore {
     display: flex;
     align-items: baseline;
+    line-height: var(--sr-line-height-none);
   }
 
   .rowScore strong {
     font-family: var(--sr-font-family-mono);
     font-size: 16px;
     font-weight: 600;
+    line-height: var(--sr-line-height-none);
   }
 
   .mobileFilterSheetContent {
