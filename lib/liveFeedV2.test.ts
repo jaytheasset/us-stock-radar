@@ -858,6 +858,17 @@ test("mobile market context is flat and uses shared directional score tones", ()
   );
   assert.match(
     styleSource,
+    /@media \(max-width: 760px\)[\s\S]*\.contextEvent:last-child \{[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-border\);/,
+  );
+  const desktopLastContextEventRule = styleSource.match(/^\.contextEvent:last-child \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(desktopLastContextEventRule, /border-bottom: 0;/);
+  assert.equal(
+    [...styleSource.matchAll(/\.contextEvent:last-child/g)].length,
+    2,
+    "desktop and mobile should each define the final context-event border",
+  );
+  assert.match(
+    styleSource,
     /@media \(max-width: 760px\)[\s\S]*\.contextEvent p \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.4;[\s\S]*\.contextEvent > strong \{[\s\S]*position: static;[\s\S]*font-size: 16px;[\s\S]*white-space: nowrap;/,
   );
   assert.match(

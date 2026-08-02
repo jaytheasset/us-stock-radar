@@ -1674,6 +1674,10 @@
     border-bottom-color: var(--sr-color-border);
   }
 
+  .contextEvent:last-child {
+    border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+  }
+
   .contextEvent > div {
     min-width: 0;
     grid-column: 1;
