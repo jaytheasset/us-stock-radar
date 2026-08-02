@@ -166,7 +166,7 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*min-height: 52px;[\s\S]*flex-wrap: nowrap;[\s\S]*border-bottom-color: var\(--sr-color-border\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+    /\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
   );
   assert.match(styles, /\.filingItemSlot::after \{[\s\S]*background: var\(--sr-color-border\);/);
   assert.match(styles, /\.listFooter \{[\s\S]*background: transparent;/);
@@ -275,7 +275,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?column-gap: var\(--sr-space-2\);[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?column-gap: var\(--sr-space-2\);[\s\S]*?row-gap: 7px;[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*?background: var\(--sr-color-surface-table-row\);/,
   );
   assert.match(
     styles,
@@ -283,7 +283,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;[\s\S]*?-webkit-line-clamp: 2;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 650;[\s\S]*?line-height: 1\.4;[\s\S]*?-webkit-line-clamp: 2;/,
   );
   assert.match(
     styles,
@@ -292,20 +292,26 @@ test("filing feed rows use watchlist density and plain representative event meta
   assert.match(dataSource, /readHydratedMarketQuoteMap\(quoteSymbols\)/);
   assert.match(
     styles,
-    /\.listHeaderCount \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.listHeaderTitle h2 \{[\s\S]*font-size: 17px;[\s\S]*\.liveLabel \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*\.identity strong \{[\s\S]*font-size: 17px;/,
+    /\.listHeaderCount \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.listHeaderTitle h2 \{[\s\S]*font-size: var\(--sr-font-size-xl\);[\s\S]*font-weight: var\(--sr-font-weight-display\);[\s\S]*\.liveLabel \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*font-weight: var\(--sr-font-weight-label\);[\s\S]*\.identity strong \{[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 800;[\s\S]*letter-spacing: 0\.02em;/,
   );
   assert.match(
     styles,
-    /\.mobileFilingClassification \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFilingClassification \.formLabel,[\s\S]*\.mobileFilingClassification \.eventOverflow,[\s\S]*\.mobileFilingClassification \.metadataEmpty \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);/,
+    /\.mobileFilingClassification \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFilingClassification \.formLabel,[\s\S]*\.mobileFilingClassification \.filingEventMeta,[\s\S]*\.mobileFilingClassification \.eventOverflow,[\s\S]*\.mobileFilingClassification \.metadataEmpty \{[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 650;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFilingClassification \.filingEventMeta \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*text-transform: none;/,
   );
   assert.match(
     styles,
-    /\.mobileFilingFooter \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFiledAt \{[\s\S]*font-size: 15px;[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*\.mobileFiledDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.mobileFiledTime \{[\s\S]*color: var\(--sr-color-text-primary\);[\s\S]*\.mobileFilingSource \{[\s\S]*line-height: var\(--sr-line-height-none\);/,
+    /\.mobileFilingFooter \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.mobileFiledAt \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.mobileFilingSource \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.mobileFilingSource::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";/,
   );
   assert.match(
     styles,
-    /\.filingPrice strong \{[\s\S]*order: 2;[\s\S]*font-size: 15px;[\s\S]*\.filingPrice > span:not\(\.filingDataUnavailable\) \{[\s\S]*order: 1;[\s\S]*font-size: 15px;[\s\S]*\.filingImpact \.signal \{[\s\S]*font-size: 16px;[\s\S]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*\.filingImpact \.impactScore \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
+    /\.filingPrice strong \{[\s\S]*order: 2;[\s\S]*font-size: 15px;[\s\S]*font-weight: 600;[\s\S]*\.filingPrice > span:not\(\.filingDataUnavailable\) \{[\s\S]*order: 1;[\s\S]*font-size: 15px;[\s\S]*font-weight: 700;[\s\S]*\.filingImpact \.signal \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 700;[\s\S]*\.filingImpact \.impactScore \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
   );
+  assert.match(
+    listSource,
+    /className=\{styles\.mobileFiledAt\}[\s\S]*\{filingDateLabel\}\{" "\}\{record\.filedTime\}/,
+  );
+  assert.doesNotMatch(listSource, /mobileFiledDate|mobileFiledTime/);
+  assert.doesNotMatch(styles, /\.mobileFiledDate::after/);
   assert.match(
     styles,
     /@media \(max-width: 760px\) \{[\s\S]*?\.filingPriceUnavailable \{[\s\S]*?display: none;/,

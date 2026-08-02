@@ -439,11 +439,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.mobilePreferredSourceLink \{[\s\S]*display: none;[\s\S]*@media \(max-width: 760px\) \{[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeader h2 \{[\s\S]*font-size: 17px;/,
+    /\.mobilePreferredSourceLink \{[\s\S]*display: none;[\s\S]*@media \(max-width: 760px\) \{[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeader h2 \{[\s\S]*font-size: var\(--sr-font-size-xl\);/,
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*min-height: 52px;[\s\S]*flex-wrap: nowrap;[\s\S]*border-bottom-color: var\(--sr-color-border\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.resultCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+    /\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: linear-gradient\([\s\S]*var\(--sr-color-surface-table-header-start\),[\s\S]*var\(--sr-color-surface-table-header-end\)[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.resultCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
   );
   assert.match(
     styles,
@@ -451,11 +451,11 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: transparent;[\s\S]*\.newsRow \{[\s\S]*min-height: 132px;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*background: transparent;/,
+    /\.listHeader \{[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*\.newsRow \{[\s\S]*min-height: 132px;[\s\S]*row-gap: 7px;[\s\S]*padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*background: var\(--sr-color-surface-table-row\);/,
   );
   assert.match(
     styles,
-    /\.rowIdentity strong \{[\s\S]*font-size: 17px;[\s\S]*\.rowHeadline \{[\s\S]*font-size: 18px;[\s\S]*\.rowMobileBadges \.newsEventTypeBadge \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: 15px;[\s\S]*text-transform: none;/,
+    /\.rowIdentityMobile\[data-mobile-identity-kind="ticker"\] \{[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 800;[\s\S]*letter-spacing: 0\.02em;[\s\S]*\.rowIdentityMobile\[data-mobile-identity-kind="market"\] \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: 700;[\s\S]*\.rowHeadline \{[\s\S]*font-size: 18px;[\s\S]*font-weight: 650;[\s\S]*\.rowMobileBadges \.newsEventTypeBadge \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 650;[\s\S]*text-transform: none;/,
   );
   assert.match(
     styles,
@@ -467,8 +467,18 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /\.rowSource \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*font-size: 15px;[\s\S]*\.rowMobilePublishedAt \{[\s\S]*font-size: 15px;[\s\S]*\.rowMobileDate \{[\s\S]*color: var\(--sr-color-text-subtle\);[\s\S]*\.rowSentiment \{[\s\S]*font-size: 16px;[\s\S]*\.rowScore strong \{[\s\S]*font-size: 16px;/,
+    /\.rowSource \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.rowSource::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";[\s\S]*\.rowMobilePublishedAt \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-family: var\(--sr-font-family-mono\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);[\s\S]*\.rowSentiment \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 700;[\s\S]*\.rowScore strong \{[\s\S]*font-size: 16px;[\s\S]*font-weight: 600;/,
   );
+  assert.match(
+    rowSource,
+    /data-mobile-identity-kind=\{isCompanyNews \? "ticker" : "market"\}/,
+  );
+  assert.match(
+    rowSource,
+    /className=\{styles\.rowMobilePublishedAt\}[\s\S]*\{formatMarketDateLabel\(item\.publishedAt, referenceDate\)\}\{" "\}[\s\S]*\{formatNewsV2PublishedAt\(item\.publishedAt, "time"\)\}/,
+  );
+  assert.doesNotMatch(rowSource, /rowMobileDate|rowMobileTime/);
+  assert.doesNotMatch(styles, /\.rowMobileDate::after/);
   assert.match(
     styles,
     /\.liveListIndicator,[\s\S]*\.mobileFilterSheetContent header > span,[\s\S]*\.premiumCtaMobile \.premiumCtaCopy > span \{[\s\S]*font-size: var\(--sr-font-size-sm\);/,
@@ -632,11 +642,11 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: var\(--sr-space-1\);[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.newsRow \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?row-gap: 7px;[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 600;[\s\S]*?line-height: 1\.4;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowHeadline \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 650;[\s\S]*?line-height: 1\.4;/,
   );
   assert.match(
     styles,
