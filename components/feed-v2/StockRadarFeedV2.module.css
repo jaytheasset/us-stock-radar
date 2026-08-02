@@ -77,7 +77,6 @@
   grid-column: 1 / -1;
 }
 
-.situationLabelCompact,
 .situationMobileGrid {
   display: none;
 }
@@ -1127,14 +1126,6 @@
     color: var(--sr-color-text-muted);
     font-size: var(--sr-font-size-md);
     text-align: center;
-  }
-
-  .situationLabelFull {
-    display: none;
-  }
-
-  .situationLabelCompact {
-    display: inline;
   }
 
   .contentGrid {
