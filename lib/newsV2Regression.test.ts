@@ -515,7 +515,7 @@ test("mobile news metadata uses a dedicated readable row", () => {
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity \{[\s\S]*?display: grid;[\s\S]*?max-width: 34vw;[\s\S]*?gap: var\(--sr-space-0-5\);[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: block;/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity,[\s\S]*?\.rowStory \{[\s\S]*?display: contents;[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: none;/,
   );
   assert.match(
     rowSource,
@@ -869,6 +869,10 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   assert.match(rowSource, /data-mobile-identity-kind=\{identity\.kind\}/);
   assert.match(rowSource, /<span title=\{identity\.secondary\}>\{identity\.secondary\}<\/span>/);
   assert.doesNotMatch(rowSource, /\bMARKET\b/);
+  const desktopIdentitySecondary =
+    styles.match(/^\.rowIdentity span \{[^}]*\}/m)?.[0] ?? "";
+  assert.match(desktopIdentitySecondary, /color: var\(--sr-color-text-secondary\);/);
+  assert.doesNotMatch(desktopIdentitySecondary, /display: none;/);
   assert.ok(
     rowSource.indexOf("{hasChange ? (") <
       rowSource.indexOf("{hasPrice ? <strong>"),
@@ -884,7 +888,7 @@ test("news feed rows use watchlist density, plain metadata, and a compact rail",
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity \{[\s\S]*?display: grid;[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1;[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: block;[\s\S]*?font-size: var\(--sr-font-size-sm\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*?\.rowIdentity,[\s\S]*?\.rowStory \{[\s\S]*?display: contents;[\s\S]*?\.rowIdentity > span \{[\s\S]*?display: none;[\s\S]*?\.rowIdentity strong \{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1;/,
   );
   assert.match(
     styles,
