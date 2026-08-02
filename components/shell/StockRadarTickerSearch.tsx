@@ -173,6 +173,14 @@ export function StockRadarTickerSearch({
       </button>
 
       {isOpen ? (
+        <div
+          aria-hidden="true"
+          className={styles.globalSearchBackdrop}
+          onClick={() => closeSearch(true)}
+        />
+      ) : null}
+
+      {isOpen ? (
         <section
           aria-label="Search stocks"
           className={styles.globalSearchPanel}

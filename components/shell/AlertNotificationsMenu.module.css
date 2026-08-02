@@ -8,6 +8,10 @@
   cursor: pointer;
 }
 
+.mobileBackdrop {
+  display: none;
+}
+
 .badge {
   position: absolute;
   z-index: 1;
@@ -291,13 +295,35 @@
     right: var(--sr-space-2);
     left: var(--sr-space-2);
     width: auto;
+    border-color: var(--sr-color-border-product-popover-elevated);
+    background: var(--sr-color-surface-product-popover-elevated);
+  }
+
+  .mobileBackdrop {
+    position: fixed;
+    z-index: calc(var(--sr-z-mobile-menu) - 1);
+    top: var(--sr-size-header);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    background: var(--sr-color-backdrop-product-popover-mobile);
   }
 
   .heading {
     padding-inline: var(--sr-space-3);
+    background: var(--sr-color-surface-product-popover-section);
   }
 
   .list {
     max-height: min(410px, calc(100dvh - 180px));
+  }
+
+  .list li[data-read="false"] {
+    background: var(--sr-color-surface-product-popover-unread);
+  }
+
+  .footer {
+    background: var(--sr-color-surface-product-popover-section);
   }
 }
