@@ -1388,7 +1388,7 @@
   }
 
   .source::before {
-    margin-right: var(--sr-space-1);
+    margin: 0 var(--sr-space-1);
     color: var(--sr-color-text-muted);
     content: "·";
   }

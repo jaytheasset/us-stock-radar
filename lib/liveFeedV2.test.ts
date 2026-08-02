@@ -1100,7 +1100,7 @@ test("desktop feed rows follow the Watchlist typography and selection hierarchy"
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*\.source \{[\s\S]*overflow: hidden;[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;[\s\S]*\.source::before \{[\s\S]*content: "·";/,
+    /@media \(max-width: 760px\)[\s\S]*\.eventTimeMobile \{[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*\.source \{[\s\S]*overflow: hidden;[\s\S]*color: var\(--sr-color-text-muted\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: 400;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;[\s\S]*\.source::before \{[\s\S]*margin: 0 var\(--sr-space-1\);[\s\S]*content: "·";/,
   );
   assert.match(
     styleSource,
