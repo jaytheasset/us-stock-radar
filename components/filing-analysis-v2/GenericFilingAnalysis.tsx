@@ -218,7 +218,9 @@ export function GenericFilingAnalysis({
   return (
     <div
       className={`${styles.page}${
-        presentationVariant === "news-document" ? ` ${styles.newsDocument}` : ""
+        presentationVariant === "news-document"
+          ? ` ${styles.newsDocument}`
+          : ` ${styles.filingDocument}`
       }`}
     >
       <div className={styles.workspace}>

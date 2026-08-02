@@ -1528,6 +1528,10 @@
 }
 
 @media (max-width: 760px) {
+  .filingsMobileFilterSurface {
+    scrollbar-gutter: auto;
+  }
+
   .root {
     display: block;
     min-width: 0;
@@ -1535,6 +1539,12 @@
   }
 
   .primaryColumn {
+    display: grid;
+    gap: var(--sr-space-3);
+    padding: 0;
+  }
+
+  .controlBand {
     padding: 0;
   }
 
@@ -1667,7 +1677,28 @@
   }
 
   .searchControl > label input::placeholder {
+    color: transparent;
+  }
+
+  .searchControl::after {
+    position: absolute;
+    top: 0;
+    right: var(--sr-space-2);
+    left: var(--sr-space-3);
+    display: flex;
+    height: 42px;
+    align-items: center;
+    overflow: hidden;
+    color: var(--sr-color-text-meta);
+    content: "Search filings";
     font-size: var(--sr-font-size-base);
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .searchControl:has(input:not(:placeholder-shown))::after {
+    display: none;
   }
 
   .searchForm > .searchButton {
@@ -1710,7 +1741,7 @@
   }
 
   .summaryStrip {
-    display: block;
+    display: none;
   }
 
   .summaryDesktopGrid {
@@ -2171,6 +2202,47 @@
     height: auto;
     font-size: 16px;
     font-weight: 600;
+  }
+
+  .mobileFilterSheetContent {
+    padding: calc(var(--sr-space-8) * 2) var(--sr-space-4) var(--sr-space-6);
+  }
+
+  .mobileFilterSheetContent header p,
+  .mobileFilterGroup h3 {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .mobileFilterGroup > div > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: var(--sr-space-2) var(--sr-space-2-5);
+    overflow-wrap: anywhere;
+    font-size: var(--sr-font-size-lg);
+    white-space: normal;
+  }
+
+  .mobileFilterGroup .marketCapFilterOption {
+    flex-wrap: wrap;
+    column-gap: var(--sr-space-1);
+    row-gap: 2px;
+  }
+
+  .mobileFilterGroup .marketCapFilterOption strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .mobileFilterGroup .marketCapFilterOption small {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .mobileFilterSheetActions > button {
+    min-height: 44px;
+    padding: 0 var(--sr-space-4);
+    font-size: var(--sr-font-size-lg);
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-none);
   }
 
   .detailContent {

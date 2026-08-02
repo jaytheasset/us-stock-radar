@@ -34,6 +34,15 @@ test("News always mounts a real-ticker chart and only missing ranges use the cha
   assert.match(chart, /Chart unavailable/);
 });
 
+test("Filings always mount the shared real-ticker chart and keep it collapsible on mobile", () => {
+  const filings = read("app/filings/[id]/page.tsx");
+
+  assert.match(filings, /const hasRealFilingTicker = isRealTicker\(filing\.ticker\)/);
+  assert.match(filings, /priceRenderer=\{hasRealFilingTicker \? \(/);
+  assert.ok((filings.match(/mobileCollapsible/g) || []).length >= 3);
+  assert.doesNotMatch(filings, /storedOnly/);
+});
+
 test("the market chart route preserves cache-first TTL behavior and 5Y handling", () => {
   const route = read("app/api/market/chart/route.ts");
   const cache = read("lib/marketDataCache.ts");

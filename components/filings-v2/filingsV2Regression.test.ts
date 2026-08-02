@@ -110,6 +110,78 @@ test("shared news and filing analysis use the readable mobile typography scale",
   assert.match(liveRoomSource, /className=\{\[styles\.button, className\]\.filter\(Boolean\)\.join\(" "\)\}/);
 });
 
+test("filing analysis inherits the final news-document mobile gutter and type hierarchy", () => {
+  const analysisSource = readFileSync(
+    new URL("../filing-analysis-v2/GenericFilingAnalysis.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("../filing-analysis-v2/GenericFilingAnalysis.module.css", import.meta.url),
+    "utf8",
+  );
+  const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 760px)"));
+
+  assert.match(analysisSource, /styles\.filingDocument/);
+  assert.match(
+    mobileStyles,
+    /\.filingDocument \.workspace \{[\s\S]*padding-right: var\(--sr-space-2\);[\s\S]*padding-left: var\(--sr-space-2\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.filingDocument :is\(\.hero, \.card, \.railCard, \.rendererCard\) \{[\s\S]*box-sizing: border-box;[\s\S]*width: 100%;[\s\S]*max-width: 100%;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.filingDocument \.summaryHeader \{[\s\S]*flex-direction: row;[\s\S]*align-items: center;/,
+  );
+  assert.match(mobileStyles, /\.filingDocument \.hero h1 \{[^}]*font-size: var\(--sr-font-size-heading-md\);/);
+  assert.match(mobileStyles, /\.filingDocument \.heroTimestamp \{[^}]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(mobileStyles, /\.filingDocument \.companyLine \{[^}]*font-size: 16px;/);
+  assert.match(
+    mobileStyles,
+    /\.filingDocument \.sectionLabel,[\s\S]*\.filingDocument \.specializedBody :is\(h2, h3\) \{[\s\S]*font-size: var\(--sr-font-size-2xl\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.filingDocument \.card p,[\s\S]*\.filingDocument \.specializedBody :is\(p, li, dd, td\) \{[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.6;/,
+  );
+  assert.match(mobileStyles, /\.filingDocument \.specializedBody \[class\*="label" i\] \{[\s\S]*font-size: max\(13px, 1em\);/);
+  assert.match(
+    mobileStyles,
+    /\.filingDocument \.rendererCard :global\(\.context-mover-copy strong\) \{[\s\S]*font-size: 16px;/,
+  );
+});
+
+test("legacy filing chart mobile display override follows the desktop hidden rule", () => {
+  const globals = readFileSync(
+    new URL("../../app/globals.css", import.meta.url),
+    "utf8",
+  );
+  const desktopHiddenRule = `.filing-detail-page .price-chart-mobile-toggle {\n  display: none;`;
+  const mobileVisibleRule = `.filing-detail-page .price-chart-mobile-toggle {\n    display: inline-flex;`;
+  const desktopRuleIndex = globals.indexOf(desktopHiddenRule);
+  const mobileRuleIndex = globals.indexOf(mobileVisibleRule);
+
+  assert.ok(desktopRuleIndex >= 0, "desktop chart toggle must default to hidden");
+  assert.ok(
+    mobileRuleIndex > desktopRuleIndex,
+    "the equal-specificity mobile display override must follow the desktop rule",
+  );
+  assert.equal(
+    globals.indexOf(desktopHiddenRule, desktopRuleIndex + desktopHiddenRule.length),
+    -1,
+    "no later desktop hidden rule may override the mobile chart toggle",
+  );
+  assert.match(
+    globals.slice(desktopRuleIndex, mobileRuleIndex),
+    /@media \(max-width: 760px\)/,
+  );
+  assert.match(
+    globals.slice(mobileRuleIndex),
+    /data-mobile-chart-expanded="false"[\s\S]*:is\(\.price-range-control, \.price-chart-details\) \{[\s\S]*display: none;/,
+  );
+});
+
 test("filings preview rail keeps intrinsic ad widths constrained after route transitions", () => {
   const adStyles = readFileSync(
     new URL("./FilingsRailAdSlot.module.css", import.meta.url),
@@ -209,7 +281,7 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   );
   assert.match(
     styles,
-    /\.searchControl > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchControl > label input::placeholder \{[\s\S]*font-size: var\(--sr-font-size-base\);/,
+    /\.searchControl > label input \{[\s\S]*font-size: 16px;[\s\S]*\.searchControl > label input::placeholder \{[\s\S]*color: transparent;[\s\S]*\.searchControl::after \{[\s\S]*content: "Search filings";[\s\S]*font-size: var\(--sr-font-size-base\);/,
   );
   assert.match(
     styles,
@@ -219,6 +291,14 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   assert.match(
     styles,
     /\.mobileFilterActions \.mobileFilterTrigger \{[\s\S]*min-height: 44px;[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.mobileFilterActions \.mobileFilterTrigger > span:first-child \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.mobilePreferredSourceLink \{[\s\S]*display: flex;[\s\S]*\.mobilePreferredSourceLink > a \{[\s\S]*height: 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*\.mobilePreferredSourceLink > a > span::after \{[\s\S]*content: "Google";/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.primaryColumn \{[\s\S]*display: grid;[\s\S]*gap: var\(--sr-space-3\);[\s\S]*\.controlBand \{[\s\S]*padding: 0;[\s\S]*\.summaryStrip \{[\s\S]*display: none;/,
+  );
+  assert.match(
+    styles,
+    /\.mobileFilterSheetContent \{[\s\S]*padding: calc\(var\(--sr-space-8\) \* 2\) var\(--sr-space-4\) var\(--sr-space-6\);[\s\S]*\.mobileFilterSheetContent header p,[\s\S]*\.mobileFilterGroup h3 \{[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*\.mobileFilterGroup > div > button \{[\s\S]*min-height: 44px;[\s\S]*padding: var\(--sr-space-2\) var\(--sr-space-2-5\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*\.mobileFilterSheetActions > button \{[\s\S]*min-height: 44px;[\s\S]*padding: 0 var\(--sr-space-4\);[\s\S]*font-size: var\(--sr-font-size-lg\);[\s\S]*font-weight: var\(--sr-font-weight-semibold\);[\s\S]*line-height: var\(--sr-line-height-none\);/,
   );
   assert.match(
     styles,

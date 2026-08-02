@@ -6139,6 +6139,99 @@ td {
   gap: 8px;
 }
 
+.filing-detail-page .price-chart-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .filing-detail-page .stock-detail-shell {
+    box-sizing: border-box;
+    width: calc(100% - 16px);
+    max-width: 100%;
+    padding-top: var(--sr-space-3);
+  }
+
+  .filing-detail-page .stock-detail-title-block h1 {
+    font-size: var(--sr-font-size-heading-md);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .filing-detail-page :is(.stock-detail-card h2, .analysis-title) {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .filing-detail-page :is(.stock-detail-card p, .analysis-card li) {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .filing-detail-page :is(.stock-detail-kicker-row, .stock-detail-meta) {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible .price-card-heading {
+    display: contents;
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible .price-card-heading > div:first-child {
+    display: none;
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible .price-range-control {
+    order: 2;
+    margin-top: var(--sr-space-4);
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible .price-card-topline {
+    width: 100%;
+    align-items: center;
+    order: 1;
+    flex-wrap: nowrap;
+  }
+
+  .filing-detail-page .price-card-mobile-collapsible .price-chart-details {
+    order: 3;
+  }
+
+  .filing-detail-page .price-chart-mobile-toggle {
+    display: inline-flex;
+    min-height: var(--sr-size-mobile-quick-filter);
+    align-items: center;
+    justify-content: center;
+    gap: var(--sr-space-1);
+    margin-left: auto;
+    border: 0;
+    padding: 0;
+    color: var(--sr-color-accent-text);
+    background: transparent;
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .filing-detail-page .price-chart-mobile-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  .filing-detail-page .price-chart-mobile-toggle:focus-visible {
+    outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+    outline-offset: var(--sr-focus-ring-offset);
+  }
+
+  .filing-detail-page
+    .price-card-mobile-collapsible[data-mobile-chart-expanded="false"]
+    :is(.price-range-control, .price-chart-details) {
+    display: none;
+  }
+}
+
 .detail-price {
   display: block;
   color: #07122f;

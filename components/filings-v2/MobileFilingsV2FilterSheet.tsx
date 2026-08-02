@@ -69,6 +69,7 @@ export function MobileFilingsV2FilterSheet({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Dismiss filing filter overlay"
+      surfaceClassName={styles.filingsMobileFilterSurface}
     >
       <div className={styles.mobileFilterSheetContent}>
         <header>
