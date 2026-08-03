@@ -2452,6 +2452,12 @@ test("public writing uses the default identity and profile setup opens only manu
   const postRepository = readSource(
     "lib/live-room/postServerRepository.ts",
   );
+  const identityDatabaseTest = readSource(
+    "supabase/tests/live_room_chat_name_identity.sql",
+  );
+  const bioDatabaseTest = readSource(
+    "supabase/tests/live_room_member_profile_bio.sql",
+  );
 
   assert.match(setup, /\.showModal\(\)/);
   assert.match(setup, /dialog\?\.open[\s\S]*dialog\.close\(\)/);
@@ -2476,6 +2482,22 @@ test("public writing uses the default identity and profile setup opens only manu
   assert.doesNotMatch(posts, /ChatNameSetup|profileSetupOpen|resumeCreateRef/);
   assert.match(posts, /onClick=\{\(\) => setFormOpen\(\(value\) => !value\)\}/);
   assert.doesNotMatch(comments, /ChatNameSetup|profileSetupOpen|resumeCommentRef/);
+  assert.match(
+    identityDatabaseTest,
+    /where user_id in \([\s\S]+97000000-0000-4000-8000-000000000002[\s\S]+97000000-0000-4000-8000-000000000003[\s\S]+and display_name = 'fr'/,
+  );
+  assert.match(
+    bioDatabaseTest,
+    /insert into public\.user_profiles \(id, email\)[\s\S]+bio-one@tes\.t[\s\S]+bio-two@tes\.t/,
+  );
+  assert.match(
+    bioDatabaseTest,
+    /insert into public\.live_room_member_profiles \([\s\S]+is_display_name_custom[\s\S]+000000000001', 'bi', null, false[\s\S]+000000000002', 'bi', null, false/,
+  );
+  assert.match(
+    bioDatabaseTest,
+    /where user_id = '98000000-0000-4000-8000-000000000002'[\s\S]+\),\s*'bi',\s*'an invalid bio cannot partially save the chat name'/,
+  );
   assert.doesNotMatch(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
   assert.doesNotMatch(postRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
   assert.match(avatar, /getLiveRoomChatNameInitials\(displayName\)/);
