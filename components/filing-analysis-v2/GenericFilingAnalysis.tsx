@@ -12,6 +12,7 @@ import { getEventTypeBadge, type EventTypeBadgeTone } from "@/lib/eventTypeRegis
 import {
   shouldShowAnalysisCollapsedRailInlineAd,
   shouldShowAnalysisSignalCompanionAd,
+  shouldShowAnalysisTabletRailInlineAd,
 } from "@/lib/advertisingPolicy";
 import { AnalysisCollapsedRailInlineAd } from "./AnalysisCollapsedRailInlineAd";
 import { AnalysisSignalCompanionAd } from "./AnalysisSignalCompanionAd";
@@ -194,6 +195,10 @@ export function GenericFilingAnalysis({
     adsAllowed: allowAds,
     hasRelatedContent,
     scoreRationaleVisible: Boolean(scoreRationaleProps),
+  });
+  const showTabletRailInlineAd = shouldShowAnalysisTabletRailInlineAd({
+    adsAllowed: allowAds,
+    hasRelatedContent,
   });
   const bookmark =
     bookmarkRenderer === false
@@ -416,6 +421,12 @@ export function GenericFilingAnalysis({
             {showCollapsedRailInlineAd ? (
               <div className={styles.scoreRationaleRailFallback}>
                 <AnalysisCollapsedRailInlineAd />
+              </div>
+            ) : null}
+
+            {showTabletRailInlineAd ? (
+              <div className={styles.tabletRailInlineAd}>
+                <AnalysisCollapsedRailInlineAd tabletOnly />
               </div>
             ) : null}
 
