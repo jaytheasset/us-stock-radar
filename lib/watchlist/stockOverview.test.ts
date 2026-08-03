@@ -205,7 +205,7 @@ test("event mapper creates canonical detail routes only for persistent UUIDs and
 
   assert.equal(
     events[0]?.detailHref,
-    "/events/4b51454b-c7ca-4bc9-96a5-3a55390acdd1",
+    "/news/4b51454b-c7ca-4bc9-96a5-3a55390acdd1",
   );
   assert.equal(events[0]?.scoreTone, "bullish");
   assert.equal(events[0]?.deliveryLevel, "alert");
@@ -227,7 +227,7 @@ test("event mapper creates canonical detail routes only for persistent UUIDs and
   assert.equal(events[4]?.deliveryLevel, "feed");
   assert.equal(
     events[5]?.detailHref,
-    "/events/4b51454b-c7ca-4bc9-96a5-3a55390acdd9",
+    "/news/4b51454b-c7ca-4bc9-96a5-3a55390acdd9",
   );
   assert.equal(events[5]?.deliveryLevel, null);
   assert.equal(

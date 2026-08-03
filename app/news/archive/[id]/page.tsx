@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PriceChartCard } from "../../../events/[id]/PriceChartCard";
@@ -8,7 +10,13 @@ import { getEventTypeBadge } from "@/lib/eventTypeRegistry";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { sanitizeNewsArticleHtml } from "@/lib/newsArticleSanitizer";
 import { parseGlobeNewswireArticleHtml } from "@/lib/sources/globe/parser";
-import { fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import { fetchEventAnalysis, fetchEventById, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
+import {
+  buildAnalysisMetadata,
+  hasMeaningfulAnalysisPayload,
+  latestIsoTimestamp,
+  type AnalysisSeoDocument,
+} from "@/lib/analysisSeo";
 import type { DetailTone, SectorThemeContext } from "../../../events/[id]/detailTypes";
 
 type NewsArchiveDetailPageProps = {
@@ -55,7 +63,18 @@ type DbArchivePayload = {
   event: ArchiveEvent;
   recentFilings: ArchiveRecentFiling[];
   relatedNews: ArchiveRelatedStory[];
+  seo: AnalysisSeoDocument;
 };
+
+export async function generateMetadata({
+  params,
+}: NewsArchiveDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  if (!isUuid(id)) notFound();
+  const payload = await loadDbArchivePayload(id);
+  if (!payload) notFound();
+  return buildAnalysisMetadata(payload.seo, `/news/archive/${encodeURIComponent(id)}`);
+}
 
 export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetailPageProps) {
   const { id } = await params;
@@ -265,10 +284,17 @@ export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetai
   );
 }
 
-async function loadDbArchivePayload(id: string): Promise<DbArchivePayload | null> {
-  const [liveResult, eventResult] = await Promise.all([getLiveEventDetail(id), fetchEventById(id)]);
+const loadDbArchivePayload = cache(async function loadDbArchivePayload(
+  id: string,
+): Promise<DbArchivePayload | null> {
+  const [liveResult, eventResult, analysisResult] = await Promise.all([
+    getLiveEventDetail(id),
+    fetchEventById(id),
+    fetchEventAnalysis(id),
+  ]);
   const liveItem = liveResult.item;
   const eventRow = toRecord(eventResult.data);
+  const analysis = toRecord(analysisResult.data);
 
   if (
     !liveItem ||
@@ -294,8 +320,30 @@ async function loadDbArchivePayload(id: string): Promise<DbArchivePayload | null
     event: await mapDbArchiveEvent(liveItem, eventRow, rawItem),
     recentFilings: mapRecentFilingRows(toRows(recentFilingsResult.data)),
     relatedNews: mapRelatedNewsRows(toRows(relatedNewsResult.data)),
+    seo: {
+      analysisMetadata: analysis?.metadata,
+      brief: liveItem.quickTake,
+      hasStoredAnalysis: hasMeaningfulAnalysisPayload(analysis),
+      id,
+      kind: "news",
+      metadata: eventRow.metadata,
+      modifiedAt: latestIsoTimestamp(
+        readString(analysis, "updated_at"),
+        readString(rawItem, "fetched_at"),
+        readString(eventRow, "detected_at"),
+        readString(eventRow, "published_at"),
+      ),
+      publishedAt:
+        readString(eventRow, "published_at") ||
+        readString(eventRow, "detected_at"),
+      sourceCode: readString(eventRow, "source_code"),
+      sourceName: liveItem.source,
+      summary: liveItem.summary,
+      ticker: liveItem.ticker,
+      title: liveItem.title,
+    },
   };
-}
+});
 
 async function fetchRawItem(rawItemId: string) {
   if (!isUuid(rawItemId)) {

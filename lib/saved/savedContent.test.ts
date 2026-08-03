@@ -103,7 +103,7 @@ test("Bookmarks page keeps the saved route, server pagination, and account navig
   const shell = read("components/shell/StockRadarAppShell.tsx");
 
   assert.match(page, /getSavedContentPage/);
-  assert.match(page, /title: "Bookmarks \| Stock Radar"/);
+  assert.match(page, /title: "Bookmarks"/);
   assert.match(page, /<h1>Bookmarks<\/h1>/);
   assert.match(page, /Filter bookmarks by content type/);
   assert.match(page, /Bookmarks pagination/);

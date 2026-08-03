@@ -225,7 +225,7 @@ export async function fetchRecentEventsByTickers({
   }
 
   const result = await supabaseRest("events", {
-    select: "id,ticker,event_type,score,signal,impact,title,detected_at,published_at,delivery_level",
+    select: "id,ticker,event_type,score,signal,impact,title,detected_at,published_at,delivery_level,source_group",
     ticker: `in.(${normalizedTickers.join(",")})`,
     detected_at: `gte.${detectedAfter}`,
     delivery_level: "neq.archive",

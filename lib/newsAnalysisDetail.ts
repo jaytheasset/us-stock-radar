@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { DetailTone, PriceChartSeries, SectorThemeContext } from "@/app/events/[id]/detailTypes";
 import type { GenericFilingAnalysisData } from "@/components/filing-analysis-v2/GenericFilingAnalysis";
 import { bodyTextToSafeHtml, sanitizeNewsArticleHtml } from "@/lib/newsArticleSanitizer";
@@ -6,6 +7,12 @@ import { readStoredNewsSourceContent } from "@/lib/originalSourceContent";
 import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { resolveAnalysisMarketContext } from "@/lib/analysisMarketContext";
 import { loadAnalysisMarketData } from "@/lib/analysisMarketData";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
+import {
+  hasMeaningfulAnalysisPayload,
+  latestIsoTimestamp,
+  type AnalysisSeoDocument,
+} from "@/lib/analysisSeo";
 
 type DbRow = Record<string, unknown>;
 
@@ -20,9 +27,12 @@ export type NewsAnalysisDetail = {
   priceSeries: PriceChartSeries | null;
   timestampLabel: "Detected" | "Published";
   marketContext: SectorThemeContext | null;
+  seo: AnalysisSeoDocument;
 };
 
-export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDetail | null> {
+export const loadNewsAnalysisDetail = cache(async function loadNewsAnalysisDetail(
+  id: string,
+): Promise<NewsAnalysisDetail | null> {
   if (id === NEWS_ANALYSIS_V2_FIXTURE_SLUG) return buildNewsAnalysisFixture();
 
   const eventResult = await fetchEventById(id);
@@ -190,9 +200,29 @@ export async function loadNewsAnalysisDetail(id: string): Promise<NewsAnalysisDe
     priceChange: formatPercent(marketData.quote?.changePercent ?? marketMovement?.changePercent),
     priceChangeAmount: formatMoneyChange(marketData.quote?.changeAmount ?? marketMovement?.changeAmount),
     priceSeries: marketData.series,
+    seo: {
+      analysisMetadata: analysis?.metadata,
+      brief: firstString(readString(event, "quick_take"), readString(metadata, "quick_take")),
+      hasStoredAnalysis: hasMeaningfulAnalysisPayload(analysis),
+      id,
+      kind: "news",
+      metadata,
+      modifiedAt: latestIsoTimestamp(
+        readString(analysis, "updated_at"),
+        readString(rawItem, "fetched_at"),
+        detectedAt,
+        publishedAt,
+      ),
+      publishedAt: publishedAt || detectedAt,
+      sourceCode: readString(event, "source_code"),
+      sourceName: source,
+      summary: readString(event, "summary"),
+      ticker,
+      title: readString(event, "title"),
+    },
     timestampLabel: publishedAt ? "Published" : "Detected",
   };
-}
+});
 
 async function fetchRawItem(rawItemId: string) {
   if (!rawItemId) return { data: null };
@@ -346,6 +376,12 @@ function mapRelatedNews(row: DbRow) {
     age: formatDate(readString(row, "published_at") || readString(row, "detected_at")),
     eventId: readString(row, "id"),
     eventType: readString(row, "event_type"),
+    href: getCanonicalAnalysisPath({
+      deliveryLevel: readString(row, "delivery_level"),
+      id: readString(row, "id"),
+      metadata: row.metadata,
+      sourceGroup: "news",
+    }) || undefined,
     source: firstString(
       readString(row, "source_name"),
       formatStoredSourceCode(readString(row, "source_code")),
@@ -363,6 +399,12 @@ function mapRelatedFiling(row: DbRow) {
     filedAt: formatDate(readString(row, "published_at") || readString(row, "detected_at")),
     form: firstString(readString(row, "form_type"), readString(metadata, "form_type")),
     id: readString(row, "id"),
+    href: getCanonicalAnalysisPath({
+      deliveryLevel: readString(row, "delivery_level"),
+      id: readString(row, "id"),
+      metadata: row.metadata,
+      sourceGroup: "filings",
+    }) || undefined,
     score,
     title: readString(row, "title"),
   };
@@ -437,6 +479,19 @@ function buildNewsAnalysisFixture(): NewsAnalysisDetail {
     priceChange: "+7.84%",
     priceChangeAmount: "+$0.68",
     priceSeries: { periods: { "1D": points, "5D": points, "1M": points, "3M": points, "1Y": points }, previousClose: 8.69, providerLabel: "Fixture stored bars" },
+    seo: {
+      brief: "A development fixture for the news analysis interface.",
+      fixture: true,
+      hasStoredAnalysis: false,
+      id: NEWS_ANALYSIS_V2_FIXTURE_SLUG,
+      kind: "news",
+      publishedAt: "2026-07-21T13:15:00.000Z",
+      sourceCode: "fixture",
+      sourceName: "Fixture Wire",
+      summary: "A development fixture for the news analysis interface.",
+      ticker: "IPWR",
+      title: "Fixture: Ideal Power analysis",
+    },
     timestampLabel: "Published",
   };
 }

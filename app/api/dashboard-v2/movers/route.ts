@@ -905,10 +905,18 @@ function normalizeEvent(row: EventRow): DashboardV2Event | null {
     label: badge.label,
     score: normalizeDashboardV2EventScore(row.score),
     signal: normalizeSignal(row.signal),
+    sourceGroup: normalizeSourceGroup(row.source_group),
     timestamp,
     title,
     tone: badgeTone(badge.tone),
   };
+}
+
+function normalizeSourceGroup(value: unknown): DashboardV2Event["sourceGroup"] {
+  const sourceGroup = textValue(value).toLowerCase();
+  return sourceGroup === "filings" || sourceGroup === "market" || sourceGroup === "news"
+    ? sourceGroup
+    : undefined;
 }
 
 function badgeTone(tone: EventTypeBadgeTone): BadgeTone {

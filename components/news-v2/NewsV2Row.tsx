@@ -4,6 +4,7 @@ import { NewsV2EventTypeBadge } from "@/components/news-v2/NewsV2EventTypeBadge"
 import { NewsV2Sparkline } from "@/components/news-v2/NewsV2Sparkline";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { getEventListIdentity } from "@/lib/eventListIdentity";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
 import { formatMarketDateLabel } from "@/lib/marketDate";
 import {
   formatNewsV2PublishedAt,
@@ -57,7 +58,14 @@ export function NewsV2Row({
 
   return (
     <li className={styles.newsListItem}>
-      <Link className={styles.newsRowLink} href={`/events/${item.id}`}>
+      <Link
+        className={styles.newsRowLink}
+        href={getCanonicalAnalysisPath({
+          deliveryLevel: item.deliveryLevel,
+          id: item.id,
+          sourceGroup: "news",
+        }) || "/news"}
+      >
         <article className={`${styles.newsRow}${showMarketReaction ? "" : ` ${styles.newsRowWithoutMarket}`}`}>
           <span className={styles.rowTime}>
             <span className={styles.rowDate}>

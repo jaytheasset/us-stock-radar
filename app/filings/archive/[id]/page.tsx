@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { PriceChartCard } from "@/app/events/[id]/PriceChartCard";
 import { SectorThemeContextPanel } from "@/app/events/[id]/SectorThemeContextPanel";
@@ -18,6 +20,13 @@ import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { readMarketGroupSnapshotCache, type MarketGroupSnapshotPayload } from "@/lib/marketDataCache";
 import { fetchEventAnalysis, fetchEventById, supabaseSelect } from "@/lib/supabase";
 import { sectorMappings } from "@/lib/taxonomyRegistry";
+import { shouldUseCompactFilingArchiveRoute } from "@/lib/analysisRoutes";
+import {
+  buildAnalysisMetadata,
+  hasMeaningfulAnalysisPayload,
+  latestIsoTimestamp,
+  type AnalysisSeoDocument,
+} from "@/lib/analysisSeo";
 
 type FilingArchiveDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -53,6 +62,7 @@ type ArchiveFilingEvent = {
   marketContext: SectorThemeContext | null;
   displayPayloadType: string;
   proxyProposals: ArchiveProxyProposalItem[];
+  seo: AnalysisSeoDocument;
 };
 
 type ArchiveProxyProposalItem = {
@@ -95,12 +105,32 @@ const ARCHIVE_SUMMARY_SUFFIX =
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params,
+}: FilingArchiveDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  if (!isUuid(id)) notFound();
+  if (!(await shouldUseCompactArchiveRoute(id))) {
+    return {
+      alternates: { canonical: `/filings/${encodeURIComponent(id)}` },
+      robots: { follow: false, index: false },
+      title: "Filing Analysis",
+    };
+  }
+  const filing = await loadArchiveFilingEvent(id);
+  if (!filing) notFound();
+  return buildAnalysisMetadata(
+    filing.seo,
+    `/filings/archive/${encodeURIComponent(id)}`,
+  );
+}
+
 export default async function FilingArchiveDetailPage({ params }: FilingArchiveDetailPageProps) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
   if (!(await shouldUseCompactArchiveRoute(id))) {
-    redirect(`/filings/${id}`);
+    permanentRedirect(`/filings/${id}`);
   }
 
   const archiveEvent = await loadArchiveFilingEvent(id);
@@ -367,32 +397,27 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
 }
 
 async function shouldUseCompactArchiveRoute(eventId: string) {
-  const result = await fetchEventById(eventId);
-  const eventRow = toRecord(result.data);
+  const eventRow = await loadFilingArchiveEventRow(eventId);
   if (!eventRow) return true;
-
-  const deliveryLevel = readString(eventRow, "delivery_level");
-  if (deliveryLevel && deliveryLevel !== "archive") return false;
-
-  const metadata = toRecord(eventRow.metadata);
-  const archiveRoute = readString(metadata, "archive_route");
-  if (archiveRoute === "common_filing_detail") return false;
-  if (archiveRoute === "compact_archive") return true;
-
-  const runtimeSource = readString(metadata, "analysis_runtime_source");
-  if (runtimeSource === "llm") return false;
-  if (runtimeSource === "parser_deterministic") return true;
-
-  return !readString(metadata, "openai_response_id");
+  return shouldUseCompactFilingArchiveRoute(
+    readString(eventRow, "delivery_level"),
+    eventRow.metadata,
+  );
 }
 
-async function loadArchiveFilingEvent(id: string): Promise<ArchiveFilingEvent | null> {
-  const [eventResult, analysisResult, liveResult] = await Promise.all([
-    fetchEventById(id),
+const loadFilingArchiveEventRow = cache(async (id: string) => {
+  const result = await fetchEventById(id);
+  return toRecord(result.data);
+});
+
+const loadArchiveFilingEvent = cache(async function loadArchiveFilingEvent(
+  id: string,
+): Promise<ArchiveFilingEvent | null> {
+  const [eventRow, analysisResult, liveResult] = await Promise.all([
+    loadFilingArchiveEventRow(id),
     fetchEventAnalysis(id),
     getLiveEventDetail(id),
   ]);
-  const eventRow = toRecord(eventResult.data);
 
   if (!eventRow || readString(eventRow, "source_group") !== "filings" || readString(eventRow, "delivery_level") !== "archive") {
     return null;
@@ -401,7 +426,7 @@ async function loadArchiveFilingEvent(id: string): Promise<ArchiveFilingEvent | 
   const rawItem = await loadRawItem(readString(eventRow, "raw_item_id"));
   const analysis = toRecord(analysisResult.data);
   return mapArchiveFilingEvent(eventRow, analysis, rawItem, liveResult.item);
-}
+});
 
 async function loadRawItem(rawItemId: string) {
   if (!isUuid(rawItemId)) return null;
@@ -497,6 +522,30 @@ async function mapArchiveFilingEvent(
     marketContext,
     displayPayloadType: readString(displayPayload, "display_type"),
     proxyProposals: buildArchiveProxyProposals(displayPayloadData),
+    seo: {
+      analysisMetadata: analysis?.metadata,
+      brief:
+        readString(displayPayloadData, "filing_summary") ||
+        readString(eventRow, "quick_take"),
+      hasStoredAnalysis: hasMeaningfulAnalysisPayload(analysis),
+      id: readString(eventRow, "id"),
+      kind: "filing",
+      metadata,
+      modifiedAt: latestIsoTimestamp(
+        readString(analysis, "updated_at"),
+        readString(rawItem, "fetched_at"),
+        readString(eventRow, "detected_at"),
+        readString(eventRow, "published_at"),
+      ),
+      publishedAt:
+        readString(eventRow, "published_at") ||
+        readString(eventRow, "detected_at"),
+      sourceCode: readString(eventRow, "source_code"),
+      sourceName: readString(eventRow, "source_name") || "SEC EDGAR",
+      summary: readString(eventRow, "summary"),
+      ticker,
+      title: readString(eventRow, "title"),
+    },
   };
 }
 

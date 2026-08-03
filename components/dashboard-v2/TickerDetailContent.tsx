@@ -15,6 +15,7 @@ import { EventTimeline } from "@/components/dashboard-v2/EventTimeline";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { FmpChart, type FmpMarketSnapshot } from "@/components/dashboard-v2/FmpChart";
 import type { DashboardV2TickerDetail } from "@/lib/dashboardV2Types";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
 
 type TickerDetailContentProps = {
   mobileSheetHeader?: boolean;
@@ -143,7 +144,7 @@ export function TickerDetailContent({
       {ticker.recentEvents[0] ? (
         <Link
           className="dashboard-v2-analysis-button"
-          href={`/events/${encodeURIComponent(ticker.recentEvents[0].id)}`}
+          href={getTickerEventHref(ticker.recentEvents[0])}
         >
           <span>View latest {ticker.ticker} event</span>
           <ChevronRight aria-hidden="true" size={22} />
@@ -156,6 +157,17 @@ export function TickerDetailContent({
       )}
     </>
   );
+}
+
+function getTickerEventHref(event: DashboardV2TickerDetail["recentEvents"][number]) {
+  if (event.sourceGroup === "filings" || event.sourceGroup === "news") {
+    return getCanonicalAnalysisPath({
+      deliveryLevel: "feed",
+      id: event.id,
+      sourceGroup: event.sourceGroup,
+    }) || "/feed";
+  }
+  return `/events/${encodeURIComponent(event.id)}`;
 }
 
 type WatchlistButtonProps = {
