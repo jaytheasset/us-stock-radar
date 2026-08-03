@@ -1928,7 +1928,18 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           ],
         },
         {
-          title: "4. Event choices",
+          title: "4. Preview / analysis copy contract",
+          items: [
+            "Applies to 10-K / 10-Q / 20-F and 10-K/A / 10-Q/A / 20-F/A",
+            "Filing Brief = analysis_output.quick_take",
+            "Key Points = event_analysis.key_evidence (max 3)",
+            "material_events.event_summary is not required for periodic-report previews",
+            "Analysis page primary copy normally uses analysis_output.why_it_matters; analysis_output.summary is shown separately",
+            "analysis_output.quick_take is primarily preview, feed, and alert copy",
+          ],
+        },
+        {
+          title: "5. Event choices",
           items: [
             "earnings",
             "sales_performance",
