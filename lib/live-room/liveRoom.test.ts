@@ -174,6 +174,23 @@ test("company chat leads with one compact linked latest event without changing C
     styles,
     /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip[\s\S]+min-height: 48px/,
   );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip time,\s*\.latestChatEventStrip > svg\s*\{\s*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /\.latestChatEventStrip time\s*\{[\s\S]*font-family:\s*var\(--sr-font-family-mono\);/,
+  );
+  assert.match(
+    styles,
+    /\.latestChatEventStrip > svg\s*\{\s*color:\s*var\(--sr-color-text-secondary\);/,
+  );
+  const narrowMobileStyles = styles.slice(
+    styles.indexOf("@media (max-width: 360px)"),
+    styles.indexOf("@media (prefers-reduced-motion: reduce)"),
+  );
+  assert.doesNotMatch(narrowMobileStyles, /latestChatEventStrip/);
 });
 
 test("event references keep only compact structured identity", () => {
@@ -774,7 +791,15 @@ test("mobile company header is a stable two-row company-first summary", () => {
   );
   assert.match(
     header,
-    /mobileRoomCounts[\s\S]*roomCounts\.memberCount\} members[\s\S]*roomCounts\.onlineCount\} online/,
+    /mobileRoomCounts[\s\S]*formatMemberCount\(roomCounts\.memberCount\)[\s\S]*roomCounts\.onlineCount\} online/,
+  );
+  assert.equal(
+    header.match(/formatMemberCount\(roomCounts\.memberCount\)/g)?.length,
+    2,
+  );
+  assert.match(
+    header,
+    /function formatMemberCount\(memberCount: number\)[\s\S]*memberCount === 1 \? "member" : "members"/,
   );
   assert.doesNotMatch(header, /participantCount\} participants/);
   assert.match(header, /<RoomMembershipControl[\s\S]*<LiveRoomInviteMenu/);
@@ -788,7 +813,11 @@ test("mobile company header is a stable two-row company-first summary", () => {
   );
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.mobileRoomTitle\s*\{[\s\S]*display:\s*block !important;/,
+    /\.page\[data-room-kind="company"\] \.mobileRoomTitle\s*\{[\s\S]*display:\s*block !important;[\s\S]*font-family:\s*var\(--sr-font-family-sans\);/,
+  );
+  assert.match(
+    styles,
+    /\.page\[data-room-kind="company"\] \.mobileTicker\s*\{[\s\S]*font-family:\s*var\(--sr-font-family-mono\);/,
   );
   assert.match(
     styles,
