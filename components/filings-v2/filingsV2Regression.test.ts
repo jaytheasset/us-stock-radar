@@ -206,6 +206,183 @@ test("8-K/6-K earnings previews hide the complete business-update section when t
   assert.equal(liveFeedPreview.showKeyPoints, false);
 });
 
+test("GME-style 8-K/6-K ATM capacity maps stored snapshot metrics on both surfaces", () => {
+  const filingBrief = "GameStop disclosed additional at-the-market offering capacity.";
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "capital_financing",
+      data: {
+        capital_mode: "atm_capacity",
+        display_version: "sec_8k_6k_capital_financing_v1",
+        snapshot_metrics: [
+          { label: "  ATM capacity  ", value: "  $100 million  " },
+          { label: "ATM capacity", value: "$100 million" },
+          { label: "Shares sold", value: "12 million" },
+          { label: "Average price", value: "$8.25" },
+          { label: "Remaining capacity", value: "$25 million" },
+          { label: "Excluded fifth metric", value: "Not shown" },
+        ],
+      },
+    },
+    keyEvidence: ["Generic evidence must not replace the capital snapshot."],
+    materialEvents: [
+      { event_summary: filingBrief, event_type: "dilution_risk", role: "primary" },
+    ],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    category: "Dilution",
+    detailHref: "/filings/1d877a76-51d9-46eb-a6f4-6971b872b251",
+    feedType: "filings",
+    headline: "ATM capacity update",
+    id: "1d877a76-51d9-46eb-a6f4-6971b872b251",
+    impactScore: 80,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-04T00:00:00.000Z",
+    sentiment: "Bearish",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "GME",
+  });
+
+  assert.equal(filingsPreview.filingBrief, filingBrief);
+  assert.deepEqual(filingsPreview.keyPoints, [
+    "ATM capacity: $100 million",
+    "Shares sold: 12 million",
+    "Average price: $8.25",
+    "Remaining capacity: $25 million",
+  ]);
+  assert.equal(filingsPreview.keyPointsLabel, "Capital Snapshot");
+  assert.equal(filingsPreview.showKeyPoints, true);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, filingsPreview.keyPoints);
+  assert.equal(liveFeedPreview.filingBrief, filingsPreview.filingBrief);
+  assert.equal(liveFeedPreview.keyPointsLabel, filingsPreview.keyPointsLabel);
+  assert.equal(liveFeedPreview.showKeyPoints, filingsPreview.showKeyPoints);
+});
+
+test("AMC-style 8-K/6-K equity issuance maps valid snapshot rows", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "capital_financing",
+      data: {
+        capital_mode: "equity_issuance",
+        display_version: "sec_8k_6k_capital_financing_v1",
+        snapshot_metrics: [
+          { label: "Shares issued", value: "50 million" },
+          { label: "Gross proceeds", value: "$150 million" },
+        ],
+      },
+    },
+    keyEvidence: [],
+    materialEvents: [
+      {
+        event_summary: "AMC completed an equity issuance.",
+        event_type: "dilution_risk",
+        role: "primary",
+      },
+    ],
+  });
+
+  assert.deepEqual(preview.keyPoints, [
+    "Shares issued: 50 million",
+    "Gross proceeds: $150 million",
+  ]);
+  assert.equal(preview.keyPointsLabel, "Capital Snapshot");
+  assert.equal(preview.showKeyPoints, true);
+});
+
+test("capital snapshots hide the complete section when stored rows are empty or invalid", () => {
+  for (const snapshotMetrics of [
+    [],
+    [null, {}, { label: " " }, { value: "$10 million" }, { label: 10, value: 20 }],
+  ]) {
+    const preview = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "capital_financing",
+        data: {
+          capital_mode: "share_linked_financing",
+          display_version: "sec_8k_6k_capital_financing_v1",
+          snapshot_metrics: snapshotMetrics,
+        },
+      },
+      keyEvidence: ["This fallback must stay hidden."],
+      materialEvents: [
+        { event_summary: "Financing brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    });
+
+    assert.deepEqual(preview.keyPoints, []);
+    assert.equal(preview.keyPointsLabel, "Capital Snapshot");
+    assert.equal(preview.showKeyPoints, false);
+  }
+});
+
+test("debt liquidity and capital return modes remain outside the dilution snapshot rule", () => {
+  for (const capitalMode of ["debt_liquidity", "capital_return"]) {
+    const preview = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "capital_financing",
+        data: {
+          capital_mode: capitalMode,
+          display_version: "sec_8k_6k_capital_financing_v1",
+          snapshot_metrics: [{ label: "Must not render", value: "$1" }],
+        },
+      },
+      keyEvidence: ["Existing generic point"],
+      materialEvents: [
+        { event_summary: "Capital brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    });
+
+    assert.deepEqual(preview.keyPoints, ["Existing generic point"]);
+    assert.equal(preview.keyPointsLabel, "Key Points");
+    assert.equal(preview.showKeyPoints, true);
+  }
+});
+
+test("other filing families and mismatched primary events retain the generic preview", () => {
+  for (const input of [
+    {
+      displayPayload: {
+        display_type: "offering_terms",
+        data: {
+          capital_mode: "equity_issuance",
+          display_version: "sec_8k_6k_capital_financing_v1",
+          snapshot_metrics: [{ label: "S-3 metric", value: "$25 million" }],
+        },
+      },
+      materialEvents: [
+        { event_summary: "S-3 brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    },
+    {
+      displayPayload: {
+        display_type: "capital_financing",
+        data: {
+          capital_mode: "equity_issuance",
+          display_version: "sec_8k_6k_capital_financing_v1",
+          snapshot_metrics: [{ label: "Secondary dilution", value: "$25 million" }],
+        },
+      },
+      materialEvents: [
+        { event_summary: "Operating brief.", event_type: "operating_update", role: "primary" },
+        { event_summary: "Dilution detail.", event_type: "dilution_risk", role: "secondary" },
+      ],
+    },
+  ]) {
+    const preview = resolveFilingPreviewFields({
+      ...input,
+      keyEvidence: ["Existing generic point"],
+    });
+
+    assert.deepEqual(preview.keyPoints, ["Existing generic point"]);
+    assert.equal(preview.keyPointsLabel, "Key Points");
+    assert.equal(preview.showKeyPoints, true);
+  }
+});
+
 test("non-earnings 8-K/6-K operating events retain the generic Key Points contract", () => {
   const preview = resolveFilingPreviewFields({
     displayPayload: {
@@ -340,9 +517,13 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /display_version:metadata->display_payload->data->>display_version/);
   assert.match(source, /operating_mode:metadata->display_payload->data->>operating_mode/);
   assert.match(source, /business_catalysts:metadata->display_payload->data->business_catalysts/);
-  assert.match(source, /displayType !== "operating_event"/);
-  assert.match(source, /displayVersion !== "sec_8k_6k_operating_event_v1"/);
-  assert.match(source, /operatingMode !== "earnings"/);
+  assert.match(source, /capital_mode:metadata->display_payload->data->>capital_mode/);
+  assert.match(source, /snapshot_metrics:metadata->display_payload->data->snapshot_metrics/);
+  assert.match(source, /displayType === "operating_event"/);
+  assert.match(source, /displayVersion === "sec_8k_6k_operating_event_v1"/);
+  assert.match(source, /operatingMode === "earnings"/);
+  assert.match(source, /displayType === "capital_financing"/);
+  assert.match(source, /displayVersion === "sec_8k_6k_capital_financing_v1"/);
   assert.doesNotMatch(source, /select: "id,metadata"/);
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
   assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);

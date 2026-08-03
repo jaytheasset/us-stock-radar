@@ -55,7 +55,11 @@ export type LiveFeedItem = {
   eventType: string;
   filingBrief: string;
   filingKeyPoints: string[];
-  filingKeyPointsLabel: "Key Business Updates" | "Key Changes" | "Key Points";
+  filingKeyPointsLabel:
+    | "Capital Snapshot"
+    | "Key Business Updates"
+    | "Key Changes"
+    | "Key Points";
   showFilingKeyPoints: boolean;
   title: string;
   quickTake: string;

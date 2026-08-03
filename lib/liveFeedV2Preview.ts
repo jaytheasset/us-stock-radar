@@ -22,7 +22,11 @@ export type LiveFeedV2PreviewSource = {
   id: string;
   impactScore: number;
   keyEvidence?: readonly string[];
-  keyPointsLabel?: "Key Business Updates" | "Key Changes" | "Key Points";
+  keyPointsLabel?:
+    | "Capital Snapshot"
+    | "Key Business Updates"
+    | "Key Changes"
+    | "Key Points";
   marketScopeLabel?: string | null;
   primaryTicker?: string | null;
   publishedAt: string;

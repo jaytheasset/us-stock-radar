@@ -76,7 +76,11 @@ export type LiveFeedV2FilingPreview = LiveFeedV2PreviewBase & {
   filingBrief: string | null;
   formType: string | null;
   keyPoints: readonly string[];
-  keyPointsLabel: "Key Business Updates" | "Key Changes" | "Key Points";
+  keyPointsLabel:
+    | "Capital Snapshot"
+    | "Key Business Updates"
+    | "Key Changes"
+    | "Key Points";
   kind: "filing";
   relatedFilings: readonly LiveFeedV2RelatedItem[];
   saved: boolean;
