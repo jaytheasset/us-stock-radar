@@ -1275,16 +1275,18 @@ function StockHeader({
         <strong>
           {quote.price === null ? "—" : formatCurrency(quote.price)}
         </strong>
-        <span data-tone={isPositive ? "positive" : "negative"}>
-          {quote.changePercent === null
-            ? "—"
-            : `${isPositive ? "+" : ""}${quote.changePercent.toFixed(2)}%`}
-        </span>
-        <small>
-          {quote.change === null
-            ? "Change unavailable"
-            : `${quote.change >= 0 ? "+" : ""}${formatCurrency(quote.change)}`}
-        </small>
+        <div className={styles.stockQuoteChange}>
+          <span data-tone={isPositive ? "positive" : "negative"}>
+            {quote.changePercent === null
+              ? "—"
+              : `${isPositive ? "+" : ""}${quote.changePercent.toFixed(2)}%`}
+          </span>
+          <small>
+            {quote.change === null
+              ? "Change unavailable"
+              : `${quote.change >= 0 ? "+" : ""}${formatCurrency(quote.change)}`}
+          </small>
+        </div>
       </div>
       <div className={styles.stockStatus}>
         <span>

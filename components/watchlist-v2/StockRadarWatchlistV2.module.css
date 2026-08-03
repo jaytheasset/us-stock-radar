@@ -138,6 +138,10 @@
   font-variant-numeric: var(--sr-font-variant-numeric);
 }
 
+.stockQuoteChange {
+  display: contents;
+}
+
 .stockQuote strong {
   width: 100%;
   color: var(--sr-color-text-heading);
@@ -1580,18 +1584,23 @@
   }
 
   .pageTitleBlock {
+    overflow: hidden;
+    flex: 1 1 auto;
     min-width: 0;
   }
 
   .pageTitleRow {
     display: flex;
+    width: 100%;
     min-width: 0;
-    align-items: baseline;
-    gap: var(--sr-space-1);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sr-space-0-5);
   }
 
   .mobileMemberSummary {
-    display: inline;
+    display: block;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
     color: var(--sr-color-text-muted);
@@ -1607,6 +1616,7 @@
   }
 
   .tickerSheetTrigger {
+    height: var(--sr-size-mobile-list-row);
     flex: 0 0 auto;
     gap: var(--sr-space-1);
     padding: 0 var(--sr-space-1);
@@ -1655,14 +1665,19 @@
   }
 
   .stockQuote {
-    min-width: 64px;
-    max-width: 42%;
+    min-width: max-content;
+    max-width: 50%;
+    flex-direction: column;
+    align-items: flex-end;
     justify-content: flex-end;
+    gap: var(--sr-space-0-5);
     text-align: right;
   }
 
   .stockQuote strong {
+    width: auto;
     font-size: var(--sr-font-size-lg-plus);
+    white-space: nowrap;
   }
 
   .stockQuote span {
@@ -1670,8 +1685,17 @@
   }
 
   .stockQuote small {
-    max-width: 76px;
-    white-space: normal;
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  .stockQuoteChange {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: var(--sr-space-2);
+    white-space: nowrap;
   }
 
   .stockActions {
@@ -2166,18 +2190,6 @@
 
   .sheetHeading h2 {
     font-size: var(--sr-font-size-xl);
-  }
-}
-
-@media (max-width: 350px) {
-  .pageTopline {
-    align-items: flex-start;
-  }
-
-  .pageTitleRow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--sr-space-0-5);
   }
 }
 
