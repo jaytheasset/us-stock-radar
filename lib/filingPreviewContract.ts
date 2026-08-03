@@ -10,7 +10,7 @@ export type FilingPreviewFieldsInput = {
 export type FilingPreviewFields = {
   filingBrief: string;
   keyPoints: string[];
-  keyPointsLabel: "Key Changes" | "Key Points";
+  keyPointsLabel: "Key Business Updates" | "Key Changes" | "Key Points";
   showKeyPoints: boolean;
 };
 
@@ -32,14 +32,28 @@ export function resolveFilingPreviewFields({
   const firstEventSummary = events
     .map((event) => readText(event.event_summary))
     .find(Boolean);
+  const primaryEventType = events
+    .filter((event) => readText(event.role).toLowerCase() === "primary")
+    .map((event) => readText(event.event_type).toLowerCase())
+    .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
   const isGovernanceEvent =
     display?.display_type === "governance_event" || governanceEvent;
+  const isSec8k6kEarningsEvent =
+    display?.display_type === "operating_event" &&
+    readText(displayData?.display_version) === "sec_8k_6k_operating_event_v1" &&
+    readText(displayData?.operating_mode) === "earnings" &&
+    primaryEventType === "earnings";
   const governanceKeyChanges = Array.isArray(displayData?.key_changes)
     ? displayData.key_changes
         .filter(isRecord)
         .map((change) => readText(change.title))
+    : [];
+  const earningsBusinessUpdates = Array.isArray(displayData?.business_catalysts)
+    ? displayData.business_catalysts
+        .filter(isRecord)
+        .map((update) => readText(update.title))
     : [];
   const evidence = Array.isArray(keyEvidence)
     ? keyEvidence
@@ -47,7 +61,15 @@ export function resolveFilingPreviewFields({
         .map((value) => value.trim())
     : [];
   const keyPoints = Array.from(
-    new Set((isGovernanceEvent ? governanceKeyChanges : evidence).filter(Boolean)),
+    new Set(
+      (
+        isSec8k6kEarningsEvent
+          ? earningsBusinessUpdates
+          : isGovernanceEvent
+            ? governanceKeyChanges
+            : evidence
+      ).filter(Boolean),
+    ),
   ).slice(0, 3);
 
   return {
@@ -58,8 +80,15 @@ export function resolveFilingPreviewFields({
       readText(summary) ||
       "",
     keyPoints,
-    keyPointsLabel: isGovernanceEvent ? "Key Changes" : "Key Points",
-    showKeyPoints: !isGovernanceEvent || keyPoints.length > 0,
+    keyPointsLabel: isSec8k6kEarningsEvent
+      ? "Key Business Updates"
+      : isGovernanceEvent
+        ? "Key Changes"
+        : "Key Points",
+    showKeyPoints:
+      isSec8k6kEarningsEvent || isGovernanceEvent
+        ? keyPoints.length > 0
+        : true,
   };
 }
 
