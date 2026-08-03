@@ -77,6 +77,8 @@
   align-items: center;
 }
 
+.mobileRoomTitle,
+.mobileTicker,
 .mobileExchange,
 .mobileRoomCounts {
   display: none !important;
@@ -2226,6 +2228,85 @@ button.messageReplyPreview:hover {
   align-items: stretch;
 }
 
+.roomMenuButton {
+  display: none;
+}
+
+.roomMenuSheet {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-8) var(--sr-page-gutter-mobile)
+    calc(var(--sr-space-6) + env(safe-area-inset-bottom));
+}
+
+.roomMenuHeading {
+  display: grid;
+  gap: var(--sr-space-1);
+  padding-right: var(--sr-space-8);
+}
+
+.roomMenuHeading h2,
+.roomMenuHeading p {
+  margin: 0;
+}
+
+.roomMenuHeading h2 {
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-lg);
+}
+
+.roomMenuHeading p {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.roomMenuSections {
+  display: grid;
+  min-width: 0;
+  border-block: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.roomMenuSections button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  gap: var(--sr-space-3);
+  border: 0;
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-primary);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  text-align: left;
+}
+
+.roomMenuSections button:last-child {
+  border-bottom: 0;
+}
+
+.roomMenuSections .roomMenuActiveItem {
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-soft);
+}
+
+.roomMenuBrokerage {
+  min-width: 0;
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding-bottom: var(--sr-space-2);
+}
+
+.roomMenuButton:focus-visible,
+.roomMenuSections button:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
 .profileControl {
   position: relative;
 }
@@ -2582,6 +2663,22 @@ button.messageReplyPreview:hover {
       );
   }
 
+  .page[data-room-kind="company"] {
+    --live-room-mobile-tabs-height: 0px;
+    --live-room-mobile-composer-disclosure-height: 0px;
+    display: flex;
+    height: calc(100dvh - var(--sr-size-header));
+    flex-direction: column;
+    overflow: hidden;
+    padding: var(--sr-space-2) 0 0;
+  }
+
+  .page[data-room-kind="company"] .roomHeaderRow {
+    width: calc(100% - 16px);
+    flex: 0 0 auto;
+    margin-inline: 8px;
+  }
+
   .roomHeader {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
@@ -2591,6 +2688,15 @@ button.messageReplyPreview:hover {
     row-gap: var(--sr-space-0-5);
     margin: 0;
     padding: var(--sr-space-3);
+  }
+
+  .page[data-room-kind="company"] .roomHeader {
+    min-height: 68px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(20px, auto) 44px;
+    column-gap: var(--sr-space-1);
+    row-gap: 0;
+    padding: var(--sr-space-1) var(--sr-space-2);
   }
 
   .communityRoomHeader {
@@ -2628,6 +2734,12 @@ button.messageReplyPreview:hover {
     margin: var(--sr-space-2) 0;
   }
 
+  .page[data-room-kind="company"] .mobileInlineAd {
+    width: calc(100% - 16px);
+    flex: 0 0 auto;
+    margin: var(--sr-space-1) 8px;
+  }
+
   .roomTitleLine {
     display: contents;
   }
@@ -2637,6 +2749,35 @@ button.messageReplyPreview:hover {
     grid-column: 1 / 3;
     grid-row: 1;
     gap: var(--sr-space-1);
+  }
+
+  .page[data-room-kind="company"] .desktopRoomTitle,
+  .page[data-room-kind="company"] .mobileExchange,
+  .page[data-room-kind="company"] .roomCompanyName {
+    display: none !important;
+  }
+
+  .page[data-room-kind="company"] .mobileRoomTitle {
+    display: block !important;
+    flex: 1 1 auto;
+  }
+
+  .page[data-room-kind="company"] .mobileTicker {
+    display: inline-flex !important;
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+    border-left: var(--sr-border-width) solid var(--sr-color-divider);
+    padding-left: var(--sr-space-1);
+    color: var(--sr-color-text-ticker);
+    font-family: var(--sr-font-family-mono);
+    font-size: var(--sr-font-size-xs);
+    font-weight: var(--sr-font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  .page[data-room-kind="company"] .roomTitlePrimary {
+    grid-column: 1 / 2;
   }
 
   .roomTitleLine h1 {
@@ -2705,6 +2846,39 @@ button.messageReplyPreview:hover {
     grid-row: 3;
     justify-self: end;
     gap: var(--sr-space-0-5);
+  }
+
+  .page[data-room-kind="company"] .marketSummary {
+    grid-column: 2 / 4;
+    grid-row: 1;
+  }
+
+  .page[data-room-kind="company"] .marketSummaryValues {
+    gap: var(--sr-space-1);
+  }
+
+  .page[data-room-kind="company"] .marketSummaryValues strong {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .page[data-room-kind="company"] .marketSummaryValues b {
+    font-size: var(--sr-font-size-xs);
+  }
+
+  .page[data-room-kind="company"] .roomActions {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+
+  .page[data-room-kind="company"] .roomMeta {
+    grid-column: 1 / 2;
+    grid-row: 2;
+  }
+
+  .page[data-room-kind="company"] .roomActions button,
+  .page[data-room-kind="company"] .membershipJoinedStatus {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .communityRoomHeader .roomActions {
@@ -2807,6 +2981,20 @@ button.messageReplyPreview:hover {
     height: 100%;
   }
 
+  .page[data-room-kind="company"] .workspaceLayout {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .page[data-room-kind="company"] .primaryColumn {
+    overflow: hidden;
+  }
+
+  .page[data-room-kind="company"] .roomAvailabilityNotice {
+    margin-inline: 8px;
+  }
+
   .workspaceLayout {
     overflow: hidden;
   }
@@ -2824,19 +3012,57 @@ button.messageReplyPreview:hover {
     border-radius: var(--sr-radius-action);
   }
 
+  .page[data-room-kind="company"] .chatPanel {
+    grid-template-rows: minmax(0, 1fr) auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
   .timeline {
     padding: var(--sr-space-2);
   }
 
   .latestChatEventStrip {
-    min-height: 58px;
+    min-height: 48px;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: var(--sr-space-2);
-    padding: var(--sr-space-2) var(--sr-space-2-5);
+    gap: var(--sr-space-1-5);
+    margin-bottom: var(--sr-space-1);
+    border-width: 0 0 var(--sr-border-width);
+    border-radius: 0;
+    padding: var(--sr-space-1) var(--sr-space-2);
+    background: transparent;
   }
 
   .latestChatEventCopy small {
-    font-size: 0.65rem;
+    display: none;
+  }
+
+  .latestChatEventCopy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sr-space-1-5);
+  }
+
+  .latestChatEventDetails {
+    flex-wrap: nowrap;
+    gap: var(--sr-space-1);
+    overflow: hidden;
+  }
+
+  .latestChatEventKind {
+    min-height: 22px;
+    padding: 0 var(--sr-space-1-5);
+  }
+
+  .latestChatEventLoading {
+    min-height: 48px;
+    margin-bottom: var(--sr-space-1);
+    border-width: 0 0 var(--sr-border-width);
+    border-radius: 0;
+    padding: var(--sr-space-2);
+    background: transparent;
   }
 
   .myMessage {
@@ -2934,9 +3160,44 @@ button.messageReplyPreview:hover {
     background: var(--sr-color-surface-panel);
   }
 
+  .page[data-room-kind="company"] .composer {
+    position: relative;
+    z-index: var(--sr-z-sticky-action);
+    right: auto;
+    bottom: auto;
+    left: auto;
+    flex: 0 0 auto;
+    padding: var(--sr-space-1-5) 8px
+      calc(var(--sr-space-1-5) + env(safe-area-inset-bottom));
+  }
+
   .composerRow {
     grid-template-columns: 42px minmax(0, 1fr) 42px 42px 42px;
     gap: var(--sr-space-1-5);
+  }
+
+  .page[data-room-kind="company"] .composerRow {
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px 44px;
+    gap: var(--sr-space-1);
+  }
+
+  .page[data-room-kind="company"] .desktopBrokeragePicker {
+    display: none;
+  }
+
+  .page[data-room-kind="company"] .roomMenuButton {
+    display: inline-flex;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-chat-control);
+    padding: 0;
+    color: var(--sr-color-text-control-strong);
+    background: var(--sr-color-surface-control);
+    cursor: pointer;
   }
 
   .profileButton {
@@ -2949,6 +3210,14 @@ button.messageReplyPreview:hover {
     border: 0;
     padding: 0;
     background: transparent;
+  }
+
+  .page[data-room-kind="company"] .profileButton,
+  .page[data-room-kind="company"] .sendButton {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 
   .profileButton:disabled {
@@ -2984,8 +3253,17 @@ button.messageReplyPreview:hover {
       var(--sr-motion-easing-standard);
   }
 
+  .page[data-room-kind="company"] .messageField textarea {
+    height: 44px;
+    min-height: 44px;
+  }
+
   .messageField textarea:focus {
     height: 74px;
+  }
+
+  .page[data-room-kind="company"] .messageField textarea:focus {
+    height: 76px;
   }
 
   .sendButton {
@@ -3085,6 +3363,11 @@ button.messageReplyPreview:hover {
 }
 
 @media (max-width: 360px) {
+  .latestChatEventStrip time,
+  .latestChatEventStrip > svg {
+    display: none;
+  }
+
   .roomActions .membershipButton,
   .roomActions .membershipLeaveButton,
   .membershipJoinedStatus {
@@ -3107,6 +3390,14 @@ button.messageReplyPreview:hover {
 
   .roomMeta .roomCounts {
     display: contents;
+  }
+
+  .page[data-room-kind="company"] .roomActions .membershipButton,
+  .page[data-room-kind="company"] .roomActions .membershipLeaveButton,
+  .page[data-room-kind="company"] .membershipJoinedStatus {
+    width: 44px;
+    min-width: 44px;
+    flex-basis: 44px;
   }
 }
 

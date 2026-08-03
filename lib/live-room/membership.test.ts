@@ -19,6 +19,7 @@ const server = read("lib/live-room/serverRepository.ts");
 const api = read("lib/live-room/apiRepository.ts");
 const types = read("lib/live-room/types.ts");
 const companyClient = read("components/live-room/LiveRoomClient.tsx");
+const composer = read("components/live-room/MessageComposer.tsx");
 const companyHeader = read("components/live-room/CompanyRoomHeader.tsx");
 const communityClient = read("components/live-room/CommunityRoomClient.tsx");
 const communityHeader = read("components/live-room/CommunityRoomHeader.tsx");
@@ -271,9 +272,10 @@ test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile,
   );
   assert.match(desktopPanel, /label: "My Rooms"[\s\S]*value: "rooms"/);
   assert.match(
-    companyClient,
-    /label: "Rooms"[\s\S]*value: "rooms"[\s\S]*mobileSheet === "rooms"/,
+    composer,
+    /label: "Rooms"[\s\S]*value: "rooms"/,
   );
+  assert.match(companyClient, /mobileSheet === "rooms"/);
   assert.match(
     companyClient,
     /profile\?\.isGuest[\s\S]*href=\{roomLoginHref\}[\s\S]*Sign in to view My Rooms/,
@@ -407,7 +409,7 @@ test("joined room resume reuses the canonical read cursor with visible block-saf
   }
 });
 
-test("membership controls and five-tab mobile navigation remain compact without arbitrary tokens", () => {
+test("membership controls and the company Room menu remain compact without arbitrary tokens", () => {
   assert.match(
     liveStyles,
     /@media \(max-width: 760px\)[\s\S]*\.roomActions \.membershipButton,[\s\S]*\.roomActions \.membershipLeaveButton[\s\S]*width:\s*auto[\s\S]*min-width:\s*0/,
@@ -433,11 +435,13 @@ test("membership controls and five-tab mobile navigation remain compact without 
     /repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
   );
   assert.equal(
-    (
-      companyClient.match(
-        /controlsId: "live-room-(?:posts|events|members|rooms)-sheet"/g,
-      ) ?? []
-    ).length,
-    4,
+    (composer.match(/label: "(?:Chat|Posts|Events|Members|Rooms)"/g) ?? [])
+      .length,
+    5,
+  );
+  assert.doesNotMatch(companyClient, /dockOnMobile|controlsId:/);
+  assert.match(
+    liveStyles,
+    /\.page\[data-room-kind="company"\] \.roomActions button,[\s\S]*\.membershipJoinedStatus\s*\{[\s\S]*min-width:\s*44px;[\s\S]*min-height:\s*44px;/,
   );
 });

@@ -1,7 +1,24 @@
 "use client";
 
-import { Send, UserRound, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  CalendarDays,
+  DoorOpen,
+  FileText,
+  Menu,
+  MessageCircle,
+  Send,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
@@ -35,6 +52,7 @@ type MessageComposerProps = {
   eventReference: CompanyEventReference | null;
   focusRequestId?: number;
   loginHref: string;
+  mobileRoomMenuOpenerRef?: RefObject<HTMLButtonElement | null>;
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
@@ -46,6 +64,7 @@ type MessageComposerProps = {
   ) => Promise<LiveRoomProfile>;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
+  onMobileSectionChange?: (section: MobileLiveRoomSection) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
   onSend: (profileOverride?: LiveRoomProfile) => void;
   profile: LiveRoomProfile | null;
@@ -60,6 +79,21 @@ type MessageComposerProps = {
   showPresence: boolean | null;
 };
 
+export type MobileLiveRoomSection =
+  | "chat"
+  | "posts"
+  | "events"
+  | "members"
+  | "rooms";
+
+const mobileRoomMenuItems = [
+  { icon: MessageCircle, label: "Chat", value: "chat" },
+  { icon: FileText, label: "Posts", value: "posts" },
+  { icon: CalendarDays, label: "Events", value: "events" },
+  { icon: Users, label: "Members", value: "members" },
+  { icon: DoorOpen, label: "Rooms", value: "rooms" },
+] as const;
+
 export function MessageComposer({
   body,
   decision,
@@ -67,6 +101,7 @@ export function MessageComposer({
   eventReference,
   focusRequestId = 0,
   loginHref,
+  mobileRoomMenuOpenerRef,
   onBodyChange,
   onClearReference,
   onCancelReply,
@@ -74,6 +109,7 @@ export function MessageComposer({
   onProfileSave,
   onPresenceSettingChange,
   onMediaChange,
+  onMobileSectionChange,
   onProofChange,
   onSend,
   profile,
@@ -92,6 +128,7 @@ export function MessageComposer({
   const resumeSendRef = useRef(false);
   const [proofPickerOpen, setProofPickerOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const requiresChatName =
     profile?.isGuest === false && profile.isChatNameSet === false;
   const handleProofPickerOpenChange = useCallback(
@@ -99,6 +136,7 @@ export function MessageComposer({
       setProofPickerOpen(nextOpen);
       if (nextOpen) {
         setMediaPickerOpen(false);
+        setRoomMenuOpen(false);
         setProfileOpen(false);
       }
     },
@@ -109,6 +147,7 @@ export function MessageComposer({
       setMediaPickerOpen(nextOpen);
       if (nextOpen) {
         setProofPickerOpen(false);
+        setRoomMenuOpen(false);
         setProfileOpen(false);
       }
     },
@@ -132,10 +171,19 @@ export function MessageComposer({
     if (!profileOpen) return;
     setProofPickerOpen(false);
     setMediaPickerOpen(false);
+    setRoomMenuOpen(false);
   }, [profileOpen]);
 
+  const handleMobileSectionChange = (section: MobileLiveRoomSection) => {
+    setRoomMenuOpen(false);
+    window.requestAnimationFrame(() => onMobileSectionChange?.(section));
+  };
+
   return (
-    <div className={styles.composer}>
+    <div
+      className={styles.composer}
+      data-mobile-room-menu={onMobileSectionChange ? "true" : undefined}
+    >
       {eventReference ? (
         <div className={styles.composerReference}>
           <span>
@@ -199,6 +247,7 @@ export function MessageComposer({
               if (profile?.isGuest === false) {
                 setProofPickerOpen(false);
                 setMediaPickerOpen(false);
+                setRoomMenuOpen(false);
                 setProfileOpen(!profileOpen);
               }
             }}
@@ -304,14 +353,38 @@ export function MessageComposer({
             {body.length}/{LIVE_ROOM_MESSAGE_MAX_LENGTH}
           </small>
         </label>
-        <BrokerageEvidencePicker
-          isOpen={proofPickerOpen}
-          loginHref={loginHref}
-          onChange={onProofChange}
-          onOpenChange={handleProofPickerOpenChange}
-          placement="composer"
-          value={proof}
-        />
+        <div className={styles.desktopBrokeragePicker}>
+          <BrokerageEvidencePicker
+            isOpen={proofPickerOpen}
+            loginHref={loginHref}
+            onChange={onProofChange}
+            onOpenChange={handleProofPickerOpenChange}
+            placement="composer"
+            value={proof}
+          />
+        </div>
+        {onMobileSectionChange && mobileRoomMenuOpenerRef ? (
+          <button
+            aria-controls="live-room-mobile-room-menu"
+            aria-expanded={roomMenuOpen}
+            aria-haspopup="dialog"
+            aria-label="Open Room menu"
+            className={styles.roomMenuButton}
+            onClick={() => {
+              const nextOpen = !roomMenuOpen;
+              setRoomMenuOpen(nextOpen);
+              if (nextOpen) {
+                setProofPickerOpen(false);
+                setMediaPickerOpen(false);
+                setProfileOpen(false);
+              }
+            }}
+            ref={mobileRoomMenuOpenerRef}
+            type="button"
+          >
+            <Menu aria-hidden="true" size={20} />
+          </button>
+        ) : null}
         <KlipyPicker
           disabled={disabled || sending}
           isOpen={mediaPickerOpen}
@@ -344,7 +417,56 @@ export function MessageComposer({
           </span>
         ) : null}
       </div>
-      <LiveRoomDisclosureNotice />
+      <LiveRoomDisclosureNotice hideOnMobile={Boolean(onMobileSectionChange)} />
+      {onMobileSectionChange && mobileRoomMenuOpenerRef ? (
+        <BottomSheetShell
+          aria-label="Room menu"
+          closeLabel="Close Room menu"
+          id="live-room-mobile-room-menu"
+          isOpen={roomMenuOpen}
+          layout="full-scroll"
+          onDismiss={() => setRoomMenuOpen(false)}
+          openerRef={mobileRoomMenuOpenerRef}
+          overlayLabel="Close Room menu"
+          viewport="mobile"
+        >
+          <div className={styles.roomMenuSheet}>
+            <header className={styles.roomMenuHeading}>
+              <h2>Room menu</h2>
+              <p>Browse this room or add verified trading evidence.</p>
+            </header>
+            <nav aria-label="Room sections" className={styles.roomMenuSections}>
+              {mobileRoomMenuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    aria-current={item.value === "chat" ? "page" : undefined}
+                    className={
+                      item.value === "chat"
+                        ? styles.roomMenuActiveItem
+                        : undefined
+                    }
+                    key={item.value}
+                    onClick={() => handleMobileSectionChange(item.value)}
+                    type="button"
+                  >
+                    <Icon aria-hidden="true" size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+            <div className={styles.roomMenuBrokerage}>
+              <BrokerageEvidencePicker
+                loginHref={loginHref}
+                onChange={onProofChange}
+                placement="room-menu"
+                value={proof}
+              />
+            </div>
+          </div>
+        </BottomSheetShell>
+      ) : null}
     </div>
   );
 }
