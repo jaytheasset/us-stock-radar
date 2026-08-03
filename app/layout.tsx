@@ -3,10 +3,8 @@ import { AdSensePublisherLoader } from "@/components/ads/AdSensePublisherLoader"
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
-import {
-  isPrelaunchMode,
-  prelaunchRobotsMetadata,
-} from "@/lib/prelaunch";
+import { isPrelaunchMode } from "@/lib/prelaunch";
+import { buildRootMetadata } from "@/lib/seo";
 import "./stock-radar-tokens.css";
 import "./globals.css";
 
@@ -29,11 +27,7 @@ const themeScript = `
 `;
 
 export function generateMetadata(): Metadata {
-  return {
-    title: "US Stock Radar",
-    description: "US stock alert radar dashboard",
-    robots: prelaunchRobotsMetadata(isPrelaunchMode()),
-  };
+  return buildRootMetadata(isPrelaunchMode());
 }
 
 export default async function RootLayout({

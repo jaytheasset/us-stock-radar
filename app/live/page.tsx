@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/live" },
   description:
     "Browse public member-created Community Rooms by ticker, market theme, industry, topic, style, focus, and language.",
-  title: "Community Rooms | Stock Radar",
+  title: "Community Rooms",
 };
 
 type DirectoryPageProps = {

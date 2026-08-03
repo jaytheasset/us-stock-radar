@@ -26,14 +26,14 @@ export async function generateMetadata({
   if (!ticker) {
     return {
       description: "Review a stock's quote, chart, news, and filings.",
-      title: "Stock unavailable | Stock Radar",
+      title: "Stock unavailable",
     };
   }
 
   return {
     alternates: { canonical: getStockRouteHref(ticker) ?? undefined },
     description: `Review ${ticker} quote, chart, news, filings, and tracked disclosures on Stock Radar.`,
-    title: `${ticker} Stock Overview | Stock Radar`,
+    title: `${ticker} Stock Overview`,
   };
 }
 

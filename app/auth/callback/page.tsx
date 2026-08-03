@@ -4,7 +4,7 @@ import { AuthCallbackClient } from "@/components/AuthCallbackClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Secure Sign-in | US Stock Radar",
+  title: "Secure Sign-in",
   robots: {
     index: false,
     follow: false,

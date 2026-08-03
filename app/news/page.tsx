@@ -6,7 +6,7 @@ import { getNewsV2PageData } from "@/lib/newsV2Data";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 
 export const metadata: Metadata = {
-  title: "News | Stock Radar",
+  title: "News",
 };
 
 export const dynamic = "force-dynamic";

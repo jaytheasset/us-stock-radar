@@ -20,7 +20,7 @@ export async function generateMetadata({
   const slug = getCommunityRoomSlugOrNull(rawSlug);
   if (!slug) {
     return {
-      title: "Community Room unavailable | Stock Radar",
+      title: "Community Room unavailable",
     };
   }
   try {
@@ -28,11 +28,11 @@ export async function generateMetadata({
     return {
       alternates: { canonical: `/live/community/${room.slug}` },
       description: room.summary,
-      title: `${room.name} Community Room | Stock Radar`,
+      title: `${room.name} Community Room`,
     };
   } catch {
     return {
-      title: "Community Room unavailable | Stock Radar",
+      title: "Community Room unavailable",
     };
   }
 }

@@ -3,7 +3,7 @@ import { PublicMemberProfileClient } from "@/components/live-room/PublicMemberPr
 
 export const metadata: Metadata = {
   description: "Public Live Room member posts.",
-  title: "Live Room Member | Stock Radar",
+  title: "Live Room Member",
 };
 
 export default async function LiveRoomMemberPage({

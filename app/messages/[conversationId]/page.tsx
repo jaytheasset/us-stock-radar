@@ -4,7 +4,7 @@ import { DirectMessageClient } from "@/components/direct-messages/DirectMessageC
 export const metadata: Metadata = {
   description: "Private member conversation in Stock Radar.",
   robots: { follow: false, index: false },
-  title: "Member Messages | Stock Radar",
+  title: "Member Messages",
 };
 
 type DirectMessagePageProps = {

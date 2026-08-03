@@ -4194,8 +4194,8 @@ export async function generateMetadata({ params }: FilingDetailPageProps): Promi
 
   return {
     title: fixture && family
-      ? `${family.label} Fixture | Stock Radar`
-      : "Filing Analysis | Stock Radar",
+      ? `${family.label} Fixture`
+      : "Filing Analysis",
     robots: fixture ? { follow: false, index: false } : undefined,
   };
 }
