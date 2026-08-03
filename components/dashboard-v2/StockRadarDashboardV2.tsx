@@ -74,9 +74,15 @@ type MarketState = {
   tab: DashboardV2Tab;
 };
 
-export function StockRadarDashboardV2({ viewerPlan }: { viewerPlan: Plan }) {
+export function StockRadarDashboardV2({
+  initialSession,
+  viewerPlan,
+}: {
+  initialSession: DashboardV2Session;
+  viewerPlan: Plan;
+}) {
   const [activeMoverTab, setActiveMoverTab] = useState<DashboardV2Tab>("Top Gainers");
-  const [activeSession, setActiveSession] = useState<DashboardV2Session>("Regular");
+  const [activeSession, setActiveSession] = useState<DashboardV2Session>(initialSession);
   const [selectedTicker, setSelectedTicker] = useState<DashboardV2TickerDetail | null>(null);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false);

@@ -1,5 +1,8 @@
 import type { DashboardV2Session } from "./dashboardV2Types";
-import { getUsEquityMarketDaySchedule } from "./usEquityMarketCalendar.ts";
+import {
+  classifyUsEquityMarketMinute,
+  getUsEquityMarketDaySchedule,
+} from "./usEquityMarketCalendar.ts";
 
 export type DashboardMoverPhase = "active" | "finalizing" | "closed";
 
@@ -97,6 +100,13 @@ export function getDashboardMoverLifecycle(
   }
 
   return closedLifecycle(clock.date);
+}
+
+export function getPreferredDashboardSession(
+  value: number | Date | string = Date.now(),
+): DashboardV2Session {
+  const clock = getNewYorkClock(value);
+  return classifyUsEquityMarketMinute(clock.date, clock.minute) || "Regular";
 }
 
 export function shouldFinalizeDashboardMoverSnapshot({

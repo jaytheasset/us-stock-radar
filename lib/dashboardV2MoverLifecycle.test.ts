@@ -2,9 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getDashboardMoverLifecycle,
+  getPreferredDashboardSession,
   isDashboardMoverFinalizationEligible,
   shouldFinalizeDashboardMoverSnapshot,
 } from "./dashboardV2MoverLifecycle.ts";
+
+test("prefers the currently active New York market session", () => {
+  assert.equal(getPreferredDashboardSession("2026-08-03T13:27:00.000Z"), "Pre");
+  assert.equal(getPreferredDashboardSession("2026-08-03T15:00:00.000Z"), "Regular");
+  assert.equal(getPreferredDashboardSession("2026-08-03T21:00:00.000Z"), "After");
+});
+
+test("falls back to the regular snapshot outside active market sessions", () => {
+  assert.equal(getPreferredDashboardSession("2026-08-03T02:00:00.000Z"), "Regular");
+  assert.equal(getPreferredDashboardSession("2026-08-02T15:00:00.000Z"), "Regular");
+});
 
 test("keeps pre-market in finalization while delayed data catches up", () => {
   const lifecycle = getDashboardMoverLifecycle(

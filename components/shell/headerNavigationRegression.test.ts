@@ -111,13 +111,13 @@ test("product header measures available desktop space before moving links into M
   );
   assert.doesNotMatch(styles, /navigationSecondary/);
   assert.match(styles, /@media \(max-width: 820px\)/);
-  assert.match(
+  assert.doesNotMatch(
     styles,
-    /@media \(max-width: 360px\)[\s\S]*\.brandFull,[\s\S]*\.headerThemeToggle\s*\{[\s\S]*display: none;/,
+    /\.brandFull,\s*\.headerThemeToggle\s*\{\s*display: none;/,
   );
-  assert.match(
+  assert.doesNotMatch(
     styles,
-    /@media \(max-width: 360px\)[\s\S]*\.brand \.brandMonogram\s*\{[\s\S]*display: inline-flex;[\s\S]*width: 30px;/,
+    /@media \(max-width: 360px\)[\s\S]*?\.brand \.brandMonogram\s*\{/,
   );
   assert.match(
     styles,

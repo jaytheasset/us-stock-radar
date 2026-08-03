@@ -70,7 +70,15 @@ test("Markets gates every ad placement with the shared viewer-plan decision", ()
   const table = read("components/dashboard-v2/MarketMoversTable.tsx");
 
   assert.match(page, /const viewerPlan = await getCurrentViewerPlan\(\)/);
-  assert.match(page, /<StockRadarDashboardV2 viewerPlan=\{viewerPlan\} \/>/);
+  assert.match(page, /const initialSession = getPreferredDashboardSession\(\)/);
+  assert.match(
+    page,
+    /<StockRadarDashboardV2[\s\S]*initialSession=\{initialSession\}[\s\S]*viewerPlan=\{viewerPlan\}/,
+  );
+  assert.match(
+    dashboard,
+    /useState<DashboardV2Session>\(initialSession\)/,
+  );
   assert.match(dashboard, /areAdsEnabledForPlan\(viewerPlan\)/);
   assert.match(dashboard, /adsEnabledForViewer=\{adsEnabledForViewer\}/);
   assert.match(

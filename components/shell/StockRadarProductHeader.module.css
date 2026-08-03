@@ -1527,36 +1527,6 @@
     padding-inline: var(--sr-space-2);
   }
 
-  .brandFull,
-  .headerThemeToggle {
-    display: none;
-  }
-
-  .brand .brandMonogram {
-    position: relative;
-    display: inline-flex;
-    width: 30px;
-    height: 30px;
-    align-items: center;
-    justify-content: center;
-    color: var(--sr-color-text-product-brand);
-    font-size: var(--sr-font-size-md);
-    font-weight: var(--sr-font-weight-display);
-    letter-spacing: -0.07em;
-  }
-
-  .brandMonogram::after {
-    position: absolute;
-    top: 4px;
-    right: 1px;
-    width: 4px;
-    height: 4px;
-    border-radius: var(--sr-radius-pill);
-    background: var(--sr-color-product-accent);
-    box-shadow: 0 0 0 2px var(--sr-color-product-accent-selected);
-    content: "";
-  }
-
   .actions {
     min-width: 0;
     gap: var(--sr-space-1);
