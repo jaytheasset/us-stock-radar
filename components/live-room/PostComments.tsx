@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { LoaderCircle, MessageCircle, Reply } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  LiveRoomApiRepository,
   LiveRoomPostApiRepository,
   toLiveRoomApiError,
 } from "@/lib/live-room/apiRepository";
 import type {
   LiveRoomPostComment,
-  LiveRoomProfile,
   LiveRoomReportReason,
 } from "@/lib/live-room/types";
-import { ChatNameSetup } from "./ChatNameSetup";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
 import styles from "./PostDetail.module.css";
@@ -26,10 +23,6 @@ export function PostComments({
   postId: string;
 }) {
   const repository = useMemo(() => new LiveRoomPostApiRepository(), []);
-  const profileRepository = useMemo(
-    () => new LiveRoomApiRepository("BBLG"),
-    [],
-  );
   const [comments, setComments] = useState<LiveRoomPostComment[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [canComment, setCanComment] = useState(false);
@@ -40,13 +33,6 @@ export function PostComments({
   const [replyTo, setReplyTo] = useState<LiveRoomPostComment | null>(null);
   const [editing, setEditing] = useState<LiveRoomPostComment | null>(null);
   const [editBody, setEditBody] = useState("");
-  const [profile, setProfile] = useState<LiveRoomProfile | null>(null);
-  const [profileSetupOpen, setProfileSetupOpen] = useState(false);
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
-  const profileOpenerRef = useRef<HTMLElement | null>(null);
-  const resumeCommentRef = useRef(false);
-  const resumeEditRef = useRef(false);
-  const suppressNextProfilePromptRef = useRef(false);
 
   const load = useCallback(
     async (after?: string | null) => {
@@ -77,10 +63,6 @@ export function PostComments({
     };
   }, [load]);
 
-  useEffect(() => {
-    void profileRepository.readProfile().then(setProfile).catch(() => undefined);
-  }, [profileRepository]);
-
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
     setNotice(null);
@@ -93,16 +75,7 @@ export function PostComments({
     }
   };
 
-  const createComment = async (skipProfileCheck = false) => {
-    if (
-      !skipProfileCheck &&
-      profile?.isGuest === false &&
-      profile.isChatNameSet === false
-    ) {
-      resumeCommentRef.current = true;
-      setProfileSetupOpen(true);
-      return;
-    }
+  const createComment = async () => {
     await run(async () => {
       const created = await repository.createComment(postId, {
         body,
@@ -117,17 +90,8 @@ export function PostComments({
     });
   };
 
-  const updateComment = async (skipProfileCheck = false) => {
+  const updateComment = async () => {
     if (!editing) return;
-    if (
-      !skipProfileCheck &&
-      profile?.isGuest === false &&
-      profile.isChatNameSet === false
-    ) {
-      resumeEditRef.current = true;
-      setProfileSetupOpen(true);
-      return;
-    }
     await run(async () => {
       const updated = await repository.updateComment(postId, editing.id, {
         body: editBody,
@@ -172,19 +136,6 @@ export function PostComments({
             aria-label={replyTo ? "Write a reply" : "Write a comment"}
             maxLength={2000}
             onChange={(event) => setBody(event.target.value)}
-            onFocus={() => {
-              profileOpenerRef.current = commentInputRef.current;
-              if (suppressNextProfilePromptRef.current) {
-                suppressNextProfilePromptRef.current = false;
-                return;
-              }
-              if (
-                profile?.isGuest === false &&
-                profile.isChatNameSet === false
-              ) {
-                setProfileSetupOpen(true);
-              }
-            }}
             placeholder={
               replyTo
                 ? `Reply to ${formatPublicChatName(replyTo.author.displayName)}`
@@ -193,7 +144,6 @@ export function PostComments({
             required
             rows={3}
             value={body}
-            ref={commentInputRef}
           />
           <div className={styles.composerFooter}>
             <span>{body.length}/2000</span>
@@ -213,43 +163,6 @@ export function PostComments({
           </Link>
         </div>
       )}
-
-      {profile?.isGuest === false ? (
-        <ChatNameSetup
-          isOpen={profileSetupOpen}
-          onAvatarChange={async (photo) => {
-            const saved = photo
-              ? await profileRepository.writeProfileAvatar(photo)
-              : await profileRepository.removeProfileAvatar();
-            setProfile(saved);
-            return saved;
-          }}
-          onDismiss={() => {
-            suppressNextProfilePromptRef.current = true;
-            resumeCommentRef.current = false;
-            resumeEditRef.current = false;
-            setProfileSetupOpen(false);
-          }}
-          onPresenceSettingChange={() => undefined}
-          onSave={async (nextProfile) => {
-            const saved =
-              await profileRepository.writeProfile(nextProfile);
-            setProfile(saved);
-            if (resumeCommentRef.current) {
-              resumeCommentRef.current = false;
-              window.setTimeout(() => void createComment(true), 0);
-            } else if (resumeEditRef.current) {
-              resumeEditRef.current = false;
-              window.setTimeout(() => void updateComment(true), 0);
-            }
-            return saved;
-          }}
-          openerRef={profileOpenerRef}
-          presenceSettingBusy={false}
-          profile={profile}
-          showPresence={null}
-        />
-      ) : null}
 
       {notice ? (
         <p className={styles.commentNotice} role="status">{notice}</p>
@@ -294,19 +207,6 @@ export function PostComments({
                   <textarea
                     maxLength={2000}
                     onChange={(event) => setEditBody(event.target.value)}
-                    onFocus={(event) => {
-                      profileOpenerRef.current = event.currentTarget;
-                      if (suppressNextProfilePromptRef.current) {
-                        suppressNextProfilePromptRef.current = false;
-                        return;
-                      }
-                      if (
-                        profile?.isGuest === false &&
-                        profile.isChatNameSet === false
-                      ) {
-                        setProfileSetupOpen(true);
-                      }
-                    }}
                     required
                     rows={3}
                     value={editBody}

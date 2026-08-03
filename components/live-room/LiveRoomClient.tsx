@@ -1031,20 +1031,12 @@ export function LiveRoomClient({
     [],
   );
 
-  const handleSend = async (profileOverride?: LiveRoomProfile) => {
+  const handleSend = async () => {
     if (roomReadOnly) {
       setRoomNotice(roomAvailabilityMessage);
       return;
     }
-    const activeProfile = profileOverride ?? profile;
-    if (!activeProfile || sending) return;
-    if (
-      activeProfile.isGuest === false &&
-      activeProfile.isChatNameSet === false
-    ) {
-      setProfileOpen(true);
-      return;
-    }
+    if (!profile || sending) return;
     const currentUserHistory = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -1618,8 +1610,6 @@ export function LiveRoomClient({
             onLoad={handleLoadPosts}
             onPostsChange={setPosts}
             onCreated={handlePostCreated}
-            onProfileAvatarChange={handleProfileAvatarChange}
-            onProfileSave={handleProfileSave}
             posts={posts}
             profile={profile}
             repository={repository}
@@ -1835,8 +1825,6 @@ export function LiveRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
-                onProfileAvatarChange={handleProfileAvatarChange}
-                onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}
                 repository={repository}

@@ -21,7 +21,6 @@ import type { Plan } from "@/lib/subscriptionPolicy";
 import { getLiveRoomSocialBadgeMap } from "@/lib/social-verification/serverRepository";
 import { listCommunityHubRooms } from "@/lib/community-hub/serverRepository";
 import { getCommunityRoomIdentity } from "./communityServerRepository";
-import { isLiveRoomChatNameSet } from "./chatIdentity";
 import { evaluateLiveRoomMessage } from "./moderation";
 import { assertLiveRoomMutationRateLimit } from "./mutationRateLimit";
 import {
@@ -612,13 +611,6 @@ export async function sendLiveRoomMessage({
     );
   }
   const profile = await getLiveRoomProfile(actor);
-  if (actor.kind === "member" && !profile.isChatNameSet) {
-    throw new LiveRoomPolicyError(
-      "LIVE_ROOM_CHAT_NAME_REQUIRED",
-      "Choose a chat name before posting publicly.",
-      409,
-    );
-  }
   const history = await getRecentActorMessages(actor);
   const decision = evaluateLiveRoomMessage(
     typeof body === "string" ? body : "",
@@ -992,6 +984,12 @@ export async function moderateLiveRoomMessage({
 export async function getLiveRoomProfile(
   actor: LiveRoomActor,
 ): Promise<LiveRoomProfile> {
+  if (actor.kind === "member") {
+    await ensureUserBootstrap({
+      id: actor.userId,
+      email: actor.email,
+    });
+  }
   const table =
     actor.kind === "member"
       ? "live_room_member_profiles"
@@ -1003,7 +1001,7 @@ export async function getLiveRoomProfile(
   const selected = await supabaseSelect(table, {
     select:
       actor.kind === "member"
-        ? "display_name,emoji,bio,avatar_path,public_profile_id"
+        ? "display_name,is_display_name_custom,emoji,bio,avatar_path,public_profile_id"
         : "display_name,emoji",
     [key]: `eq.${id}`,
     limit: "1",
@@ -1019,17 +1017,12 @@ export async function getLiveRoomProfile(
   }
 
   if (!row) {
-    if (actor.kind === "member") {
-      await ensureUserBootstrap({
-        id: actor.userId,
-        email: actor.email,
-      });
-    }
     const defaults =
       actor.kind === "member"
         ? {
-            display_name: null,
+            display_name: getDefaultLiveRoomDisplayName(actor),
             emoji: null,
+            is_display_name_custom: false,
             [key]: id,
           }
         : {
@@ -1071,8 +1064,8 @@ export async function getLiveRoomProfile(
     displayName:
       displayName || getDefaultLiveRoomDisplayName(actor),
     emoji: readString(row.emoji) || "👋",
-    isChatNameSet:
-      actor.kind === "guest" || isLiveRoomChatNameSet(displayName),
+    isDisplayNameCustom:
+      actor.kind === "member" && row.is_display_name_custom === true,
     isGuest: actor.kind === "guest",
     plan,
     publicProfileId:
@@ -2952,11 +2945,6 @@ function mapLiveRoomActionError(
       "LIVE_ROOM_INVALID_REPORT_REASON",
       "Choose spam, harassment, misinformation, or other.",
       400,
-    ],
-    LIVE_ROOM_CHAT_NAME_REQUIRED: [
-      "LIVE_ROOM_CHAT_NAME_REQUIRED",
-      "Choose a chat name before posting publicly.",
-      409,
     ],
     LIVE_ROOM_MESSAGE_NOT_FOUND: [
       "LIVE_ROOM_MESSAGE_NOT_FOUND",

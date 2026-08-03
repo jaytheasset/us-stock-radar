@@ -66,7 +66,6 @@ import {
   PostSignalChips,
   PostSignalSelector,
 } from "./PostSignals";
-import { ChatNameSetup } from "./ChatNameSetup";
 import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import styles from "./Posts.module.css";
 
@@ -76,8 +75,6 @@ export function PostsPanel({
   events = [],
   loginHref,
   onLoad: controlledLoad,
-  onProfileAvatarChange,
-  onProfileSave,
   onPostsChange: controlledPostsChange,
   onCreated,
   posts: controlledPosts,
@@ -91,12 +88,6 @@ export function PostsPanel({
   events?: readonly CompanyEvent[];
   loginHref: string;
   onLoad?: (before?: string | null) => Promise<void>;
-  onProfileAvatarChange: (
-    photo: File | null,
-  ) => Promise<LiveRoomProfile>;
-  onProfileSave: (
-    profile: Pick<LiveRoomProfile, "bio" | "displayName">,
-  ) => Promise<LiveRoomProfile>;
   onPostsChange?: (
     update: (current: LiveRoomPost[]) => LiveRoomPost[],
   ) => void;
@@ -114,7 +105,6 @@ export function PostsPanel({
     useState<"error" | "loading" | "ready">("loading");
   const [notice, setNotice] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [profileSetupOpen, setProfileSetupOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [brokerageProof, setBrokerageProof] =
@@ -145,7 +135,6 @@ export function PostsPanel({
   const selectedEvent = events.find((event) => event.eventId === eventId);
   const tickerInputRef = useRef<HTMLInputElement>(null);
   const newPostButtonRef = useRef<HTMLButtonElement>(null);
-  const resumeCreateRef = useRef(false);
   const tickerListboxId = `live-room-post-ticker-results-${useId()}`;
   const tickerInputContext = useMemo(
     () => getLiveRoomPostTickerInputContext(tickers),
@@ -286,16 +275,7 @@ export function PostsPanel({
     }
   };
 
-  const handleCreate = async (skipProfileCheck = false) => {
-    if (
-      !skipProfileCheck &&
-      profile?.isGuest === false &&
-      profile.isChatNameSet === false
-    ) {
-      resumeCreateRef.current = true;
-      setProfileSetupOpen(true);
-      return;
-    }
+  const handleCreate = async () => {
     const relatedTickers = parseLiveRoomPostMentionedTickers(tickers);
     const draft: LiveRoomPostDraft = {
       body,
@@ -429,13 +409,7 @@ export function PostsPanel({
         </div>
         {profile?.isGuest === false && !writeDisabled ? (
           <button
-            onClick={() => {
-              if (profile.isChatNameSet === false) {
-                setProfileSetupOpen(true);
-                return;
-              }
-              setFormOpen((value) => !value);
-            }}
+            onClick={() => setFormOpen((value) => !value)}
             ref={newPostButtonRef}
             type="button"
           >
@@ -458,32 +432,6 @@ export function PostsPanel({
           <strong>This room is read-only.</strong>
           <span>Existing public posts remain available.</span>
         </div>
-      ) : null}
-
-      {profile?.isGuest === false ? (
-        <ChatNameSetup
-          isOpen={profileSetupOpen}
-          onAvatarChange={onProfileAvatarChange}
-          onDismiss={() => {
-            resumeCreateRef.current = false;
-            setProfileSetupOpen(false);
-          }}
-          onPresenceSettingChange={() => undefined}
-          onSave={async (nextProfile) => {
-            const saved = await onProfileSave(nextProfile);
-            if (resumeCreateRef.current) {
-              resumeCreateRef.current = false;
-              window.setTimeout(() => void handleCreate(true), 0);
-            } else {
-              setFormOpen(true);
-            }
-            return saved;
-          }}
-          openerRef={newPostButtonRef}
-          presenceSettingBusy={false}
-          profile={profile}
-          showPresence={null}
-        />
       ) : null}
 
       {formOpen && profile?.isGuest === false && !writeDisabled ? (

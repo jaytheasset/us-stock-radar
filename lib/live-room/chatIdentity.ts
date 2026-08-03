@@ -57,6 +57,7 @@ export function isLiveRoomChatNameSet(value: unknown) {
 export function formatPublicChatName(value: unknown) {
   const normalized = normalizeLiveRoomChatName(value);
   if (normalized.toLowerCase() === "guest") return "Guest";
+  if (/^[a-z0-9]{2}$/.test(normalized)) return normalized;
   const validation = validateLiveRoomChatName(normalized);
   return validation.ok ? validation.value : "Name unavailable";
 }

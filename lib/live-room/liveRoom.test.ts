@@ -36,6 +36,7 @@ import {
 import {
   createServerOwnedAuthorSnapshot,
   getDefaultLiveRoomDisplayName,
+  getDefaultLiveRoomMemberDisplayName,
   getLiveRoomActorFilter,
   isLiveRoomMessageMine,
   LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
@@ -1095,6 +1096,18 @@ test("server-owned actor identity prevents guest and member impersonation", () =
     ),
     true,
   );
+  const memberSnapshot = createServerOwnedAuthorSnapshot({
+    actor: member,
+    profile: {
+      ...profile,
+      displayName: getDefaultLiveRoomDisplayName(member),
+      isDisplayNameCustom: false,
+      isGuest: false,
+    },
+  });
+  assert.equal(memberSnapshot.displayName, "me");
+  assert.equal(JSON.stringify(memberSnapshot).includes(member.email), false);
+  assert.equal(JSON.stringify(memberSnapshot).includes("@"), false);
 });
 
 test("actor filters use each table's discriminator column", () => {
@@ -1128,14 +1141,24 @@ test("guest last-seen writes are throttled to one update per five minutes", () =
   assert.equal(shouldRefreshLiveRoomGuestLastSeen("invalid", now), true);
 });
 
-test("member default display names never derive from email addresses", () => {
+test("member default display names expose only two safe email-local characters", () => {
   assert.equal(
     getDefaultLiveRoomDisplayName({
       kind: "member",
       userId: "22222222-2222-4222-8222-222222222222",
-      email: "private.local-part@example.com",
+      email: "ult@tes.t",
     }),
-    "",
+    "ul",
+  );
+  assert.equal(getDefaultLiveRoomMemberDisplayName("free@tes.t"), "fr");
+  assert.equal(getDefaultLiveRoomMemberDisplayName("9alpha@tes.t"), "9a");
+  assert.equal(formatPublicChatName("9a"), "9a");
+  assert.equal(getDefaultLiveRoomMemberDisplayName("x@tes.t"), "sr");
+  assert.equal(getDefaultLiveRoomMemberDisplayName(".private@tes.t"), "sr");
+  assert.equal(getDefaultLiveRoomMemberDisplayName(null), "sr");
+  assert.equal(
+    getDefaultLiveRoomMemberDisplayName("private.local-part@example.com"),
+    "pr",
   );
   assert.equal(
     getDefaultLiveRoomDisplayName({
@@ -2184,9 +2207,12 @@ test("administrator room states keep public history readable while blocking ever
   );
 });
 
-test("member chat identity is service-owned, unique, and required by every public write path", () => {
-  const migration = readSource(
+test("member public identity defaults are server-owned while custom names stay unique", () => {
+  const originalMigration = readSource(
     "supabase/migrations/20260730175310_live_room_chat_name_identity.sql",
+  );
+  const migration = readSource(
+    "supabase/migrations/20260803060001_live_room_default_member_identity.sql",
   );
   const serverRepository = readSource(
     "lib/live-room/serverRepository.ts",
@@ -2197,7 +2223,47 @@ test("member chat identity is service-owned, unique, and required by every publi
 
   assert.match(
     migration,
-    /create unique index live_room_member_profiles_chat_name_unique_idx[\s\S]+pg_catalog\.lower\(display_name\)[\s\S]+where display_name is not null/i,
+    /add column is_display_name_custom boolean not null default false/i,
+  );
+  assert.match(
+    migration,
+    /set is_display_name_custom = true[\s\S]+where display_name is not null/i,
+  );
+  assert.match(
+    migration,
+    /live_room_default_member_display_name[\s\S]+\^\[a-z0-9\]\{2\}[\^@\]\*@\[\^@\]\+\$[\s\S]+else 'sr'/i,
+  );
+  assert.match(
+    migration,
+    /set display_name = private\.live_room_default_member_display_name\([\s\S]+user_profile\.email[\s\S]+profile\.display_name is null/i,
+  );
+  assert.match(
+    migration,
+    /alter column display_name set not null/i,
+  );
+  assert.match(
+    migration,
+    /not is_display_name_custom[\s\S]+display_name ~ '\^\[a-z0-9\]\{2\}\$'[\s\S]+is_display_name_custom[\s\S]+display_name ~ '\^\[A-Za-z\]\[A-Za-z0-9 _-\]\{1,23\}\$'/i,
+  );
+  assert.match(
+    migration,
+    /create unique index live_room_member_profiles_chat_name_unique_idx[\s\S]+pg_catalog\.lower\(display_name\)[\s\S]+where is_display_name_custom/i,
+  );
+  assert.match(
+    migration,
+    /create trigger live_room_member_profiles_normalize_display_name_state[\s\S]+before insert or update of user_id, display_name, is_display_name_custom/i,
+  );
+  assert.match(
+    migration,
+    /not new\.is_display_name_custom[\s\S]+new\.display_name <> v_default_display_name[\s\S]+new\.is_display_name_custom := true/i,
+  );
+  assert.match(
+    migration,
+    /create trigger user_profiles_sync_live_room_default_display_name[\s\S]+after update of email on public\.user_profiles/i,
+  );
+  assert.match(
+    migration,
+    /set display_name = private\.live_room_default_member_display_name\(new\.email\)[\s\S]+not is_display_name_custom/i,
   );
   assert.match(
     migration,
@@ -2212,19 +2278,65 @@ test("member chat identity is service-owned, unique, and required by every publi
     /grant execute on function public\.set_live_room_member_chat_name\(uuid, text\)[\s\S]+to service_role/i,
   );
   assert.match(migration, /LIVE_ROOM_CHAT_NAME_TAKEN/);
-  assert.match(migration, /LIVE_ROOM_CHAT_NAME_REQUIRED/g);
-  assert.match(migration, /live_room_messages_require_chat_name/);
-  assert.match(migration, /live_room_posts_require_chat_name/);
-  assert.match(migration, /live_room_post_comments_require_chat_name/);
+  assert.match(
+    migration,
+    /display_name = excluded\.display_name,[\s\S]+is_display_name_custom = true/i,
+  );
+  assert.match(
+    migration,
+    /new\.author_display_name := v_display_name/,
+  );
+  assert.match(
+    migration,
+    /drop trigger if exists live_room_messages_require_chat_name[\s\S]+create trigger live_room_messages_set_member_identity/i,
+  );
+  assert.match(migration, /drop trigger if exists live_room_posts_require_chat_name/i);
+  assert.match(
+    migration,
+    /drop trigger if exists live_room_post_comments_require_chat_name/i,
+  );
+  assert.doesNotMatch(migration, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
   assert.doesNotMatch(migration, /security definer/i);
+  assert.match(originalMigration, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
   assert.match(
     serverRepository,
     /supabaseRpc\("set_live_room_member_profile"[\s\S]+p_member_user_id: actor\.userId/,
   );
   assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_TAKEN[\s\S]+409/);
-  assert.match(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
-  assert.match(postRepository, /assertLiveRoomMemberChatName/g);
-  assert.match(postRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED[\s\S]+409/);
+  assert.match(
+    serverRepository,
+    /display_name: getDefaultLiveRoomDisplayName\(actor\)[\s\S]+is_display_name_custom: false/,
+  );
+  assert.match(
+    serverRepository,
+    /getLiveRoomProfile[\s\S]+actor\.kind === "member"[\s\S]+ensureUserBootstrap\([\s\S]+email: actor\.email/,
+  );
+  assert.match(
+    postRepository,
+    /display_name: getDefaultLiveRoomDisplayName\(actor\)[\s\S]+is_display_name_custom: false/,
+  );
+  assert.doesNotMatch(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
+  assert.doesNotMatch(postRepository, /assertLiveRoomMemberChatName|LIVE_ROOM_CHAT_NAME_REQUIRED/);
+});
+
+test("post member bootstrap never overwrites a concurrently customized profile", () => {
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
+  const ensureMemberSource =
+    postRepository.match(
+      /async function ensureLiveRoomMember\([\s\S]*?\n\}/,
+    )?.[0] ?? "";
+
+  assert.match(ensureMemberSource, /onConflict: "user_id"/);
+  assert.match(
+    ensureMemberSource,
+    /prefer: "resolution=ignore-duplicates,return=minimal"/,
+  );
+  assert.doesNotMatch(
+    ensureMemberSource,
+    /resolution=merge-duplicates|return=representation/,
+  );
 });
 
 test("optional member bio stays service-owned and limited to profile detail", () => {
@@ -2265,7 +2377,7 @@ test("optional member bio stays service-owned and limited to profile detail", ()
   assert.doesNotMatch(migration, /security definer/i);
   assert.match(
     serverRepository,
-    /actor\.kind === "member"[\s\S]+display_name,emoji,bio/,
+    /actor\.kind === "member"[\s\S]+display_name,is_display_name_custom,emoji,bio/,
   );
   assert.match(serverRepository, /bio:\s*actor\.kind === "member"/);
   assert.match(
@@ -2299,7 +2411,7 @@ test("optional member bio stays service-owned and limited to profile detail", ()
   );
 });
 
-test("first public writing preserves drafts while shared chat identity works on desktop and mobile", () => {
+test("public writing uses the default identity and profile setup opens only manually", () => {
   const setup = readSource("components/live-room/ChatNameSetup.tsx");
   const composer = readSource("components/live-room/MessageComposer.tsx");
   const chatTimeline = readSource("components/live-room/ChatTimeline.tsx");
@@ -2312,6 +2424,18 @@ test("first public writing preserves drafts while shared chat identity works on 
   const requestModal = readSource(
     "components/direct-messages/DirectMessageRequestModal.tsx",
   );
+  const companyClient = readSource(
+    "components/live-room/LiveRoomClient.tsx",
+  );
+  const communityClient = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
+  const serverRepository = readSource(
+    "lib/live-room/serverRepository.ts",
+  );
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
 
   assert.match(setup, /\.showModal\(\)/);
   assert.match(setup, /dialog\?\.open[\s\S]*dialog\.close\(\)/);
@@ -2320,13 +2444,24 @@ test("first public writing preserves drafts while shared chat identity works on 
   assert.match(setup, /<BottomSheetShell/);
   assert.match(setup, /validateLiveRoomChatName\(displayName\)/);
   assert.doesNotMatch(setup, /emoji/i);
-  assert.match(composer, /onFocus=\{\(\) => \{[\s\S]+requiresChatName/);
-  assert.match(composer, /resumeSendRef\.current = true/);
-  assert.match(composer, /window\.setTimeout\(\(\) => onSend\(saved\), 0\)/);
-  assert.match(posts, /resumeCreateRef\.current = true/);
-  assert.match(posts, /handleCreate\(true\)/);
-  assert.match(comments, /resumeCommentRef\.current = true/);
-  assert.match(comments, /createComment\(true\)/);
+  assert.match(
+    composer,
+    /className=\{styles\.profileButton\}[\s\S]+onClick=\{\(\) => \{[\s\S]+setProfileOpen\(!profileOpen\)/,
+  );
+  assert.match(composer, /const requestSend = \(\) => \{\s*onSend\(\);\s*\}/);
+  assert.doesNotMatch(
+    composer,
+    /requiresChatName|resumeSendRef|<textarea[\s\S]{0,320}onFocus=/,
+  );
+  assert.doesNotMatch(companyClient, /isDisplayNameCustom[\s\S]{0,160}setProfileOpen/);
+  assert.doesNotMatch(communityClient, /isDisplayNameCustom[\s\S]{0,160}setProfileOpen/);
+  assert.match(companyClient, /const handleSend = async \(\) =>[\s\S]+repository\.send\(/);
+  assert.match(communityClient, /const handleSend = async \(\) =>[\s\S]+repository\.send\(/);
+  assert.doesNotMatch(posts, /ChatNameSetup|profileSetupOpen|resumeCreateRef/);
+  assert.match(posts, /onClick=\{\(\) => setFormOpen\(\(value\) => !value\)\}/);
+  assert.doesNotMatch(comments, /ChatNameSetup|profileSetupOpen|resumeCommentRef/);
+  assert.doesNotMatch(serverRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
+  assert.doesNotMatch(postRepository, /LIVE_ROOM_CHAT_NAME_REQUIRED/);
   assert.match(avatar, /getLiveRoomChatNameInitials\(displayName\)/);
   assert.doesNotMatch(chatTimeline, /replyPreview\.authorEmoji/);
   assert.match(

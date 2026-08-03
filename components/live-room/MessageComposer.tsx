@@ -66,7 +66,7 @@ type MessageComposerProps = {
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
   onMobileSectionChange?: (section: MobileLiveRoomSection) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
-  onSend: (profileOverride?: LiveRoomProfile) => void;
+  onSend: () => void;
   profile: LiveRoomProfile | null;
   profileOpen: boolean;
   replyPreview: LiveRoomReplyPreview | null;
@@ -125,12 +125,9 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
-  const resumeSendRef = useRef(false);
   const [proofPickerOpen, setProofPickerOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [roomMenuOpen, setRoomMenuOpen] = useState(false);
-  const requiresChatName =
-    profile?.isGuest === false && profile.isChatNameSet === false;
   const handleProofPickerOpenChange = useCallback(
     (nextOpen: boolean) => {
       setProofPickerOpen(nextOpen);
@@ -155,11 +152,6 @@ export function MessageComposer({
   );
 
   const requestSend = () => {
-    if (requiresChatName) {
-      resumeSendRef.current = true;
-      setProfileOpen(true);
-      return;
-    }
     onSend();
   };
 
@@ -236,7 +228,7 @@ export function MessageComposer({
               profile
                 ? profile.isGuest
                   ? "Guest Live Room identity"
-                  : `${profile.isChatNameSet ? "Edit" : "Set"} Live Room chat name: ${formatPublicChatName(profile.displayName)}`
+                  : `${profile.isDisplayNameCustom ? "Edit" : "Customize"} Live Room profile: ${formatPublicChatName(profile.displayName)}`
                 : "Loading Live Room identity"
             }
             aria-expanded={profile?.isGuest === false ? profileOpen : false}
@@ -263,9 +255,7 @@ export function MessageComposer({
                 />
                 <span>
                   <strong>
-                    {profile.isChatNameSet
-                      ? formatPublicChatName(profile.displayName)
-                      : "Set chat name"}
+                    {formatPublicChatName(profile.displayName)}
                   </strong>
                   <MemberPlanBadge
                     plan={profile.isGuest ? "visitor" : profile.plan}
@@ -292,17 +282,11 @@ export function MessageComposer({
               isOpen={profileOpen}
               onAvatarChange={onProfileAvatarChange}
               onDismiss={() => {
-                resumeSendRef.current = false;
                 setProfileOpen(false);
               }}
               onPresenceSettingChange={onPresenceSettingChange}
               onSave={async (nextProfile) => {
-                const saved = await onProfileSave(nextProfile);
-                if (resumeSendRef.current) {
-                  resumeSendRef.current = false;
-                  window.setTimeout(() => onSend(saved), 0);
-                }
-                return saved;
+                return onProfileSave(nextProfile);
               }}
               openerRef={profileButtonRef}
               presenceSettingBusy={presenceSettingBusy}
@@ -321,13 +305,6 @@ export function MessageComposer({
             disabled={disabled || sending}
             maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
             onChange={(event) => onBodyChange(event.target.value)}
-            onFocus={() => {
-              if (requiresChatName) {
-                setProofPickerOpen(false);
-                setMediaPickerOpen(false);
-                setProfileOpen(true);
-              }
-            }}
             onKeyDown={(event) => {
               if (
                 event.key === "Enter" &&

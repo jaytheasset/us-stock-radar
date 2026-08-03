@@ -140,7 +140,9 @@ export function ChatNameSetup({
         <div>
           <span>Public identity</span>
           <h2 id={titleId}>
-            {profile.isChatNameSet ? "Edit profile" : "Choose a chat name"}
+            {profile.isDisplayNameCustom
+              ? "Edit profile"
+              : "Customize profile"}
           </h2>
           <p>
             This name appears on new messages, posts, comments, and your member
