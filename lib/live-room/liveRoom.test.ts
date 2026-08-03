@@ -266,7 +266,14 @@ test("a simulated company update is always newer than the current latest event",
 
 test("Live Room uses the shared wide shell and no selected product navigation", () => {
   const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
+  const communitySource = readSource(
+    "components/live-room/CommunityRoomClient.tsx",
+  );
   const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const shellSource = readSource("components/shell/StockRadarAppShell.tsx");
+  const shellStyles = readSource(
+    "components/shell/StockRadarAppShell.module.css",
+  );
   const styleSource = readSource("components/live-room/LiveRoom.module.css");
 
   assert.equal(styleSource.startsWith("\uFEFF"), false);
@@ -275,6 +282,17 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     /\.page\s*\{[\s\S]*--live-room-mobile-tabs-height:\s*60px/,
   );
   assert.match(clientSource, /activeNavigationItem=\{null\}/);
+  assert.match(
+    clientSource,
+    /<StockRadarAppShell[\s\S]{0,160}hideFooterOnMobile/,
+  );
+  assert.doesNotMatch(communitySource, /hideFooterOnMobile/);
+  assert.match(shellSource, /hideFooterOnMobile\?: boolean/);
+  assert.match(shellSource, /<StockRadarProductFooter \/>/);
+  assert.match(
+    shellStyles,
+    /@media \(max-width: 760px\)\s*\{\s*\.hideFooterOnMobile > footer\s*\{\s*display: none;/,
+  );
   assert.match(
     headerSource,
     /<h1 className=\{styles\.desktopRoomTitle\}>[\s\S]*\{identity\.ticker\} Live Room[\s\S]*<\/h1>/,

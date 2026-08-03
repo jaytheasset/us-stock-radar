@@ -1498,6 +1498,7 @@ export function LiveRoomClient({
     <>
       <StockRadarAppShell
         activeNavigationItem={null}
+        hideFooterOnMobile
         themeMode="user-selectable"
       >
         <div

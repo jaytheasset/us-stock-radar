@@ -37,6 +37,30 @@ test("the shared footer stays in normal flow and uses only Stock Radar tokens", 
   assert.doesNotMatch(footerStyles, /#[0-9a-f]{3,8}\b/i);
 });
 
+test("mobile footer hiding is an explicit opt-in reserved for the company Live Room", () => {
+  const shell = read("components/shell/StockRadarAppShell.tsx");
+  const shellStyles = read("components/shell/StockRadarAppShell.module.css");
+  const companyRoom = read("components/live-room/LiveRoomClient.tsx");
+  const communityRoom = read("components/live-room/CommunityRoomClient.tsx");
+
+  assert.match(shell, /hideFooterOnMobile\?: boolean/);
+  assert.match(shell, /hideFooterOnMobile = false/);
+  assert.match(
+    shell,
+    /hideFooterOnMobile \? ` \$\{styles\.hideFooterOnMobile\}` : ""/,
+  );
+  assert.equal(shell.match(/<StockRadarProductFooter \/>/g)?.length, 1);
+  assert.match(
+    shellStyles,
+    /@media \(max-width: 760px\)\s*\{\s*\.hideFooterOnMobile > footer\s*\{\s*display: none;/,
+  );
+  assert.match(
+    companyRoom,
+    /<StockRadarAppShell[\s\S]{0,160}activeNavigationItem=\{null\}[\s\S]{0,80}hideFooterOnMobile/,
+  );
+  assert.doesNotMatch(communityRoom, /hideFooterOnMobile/);
+});
+
 test("extra-small viewports release the legacy 320px document minimum", () => {
   const globalStyles = read("app/globals.css");
 

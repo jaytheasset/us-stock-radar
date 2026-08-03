@@ -11,16 +11,21 @@ import styles from "./StockRadarAppShell.module.css";
 export type StockRadarAppShellProps = {
   activeNavigationItem: StockRadarPrimaryNavigationKey | null;
   children: ReactNode;
+  hideFooterOnMobile?: boolean;
   themeMode?: StockRadarThemeMode;
 };
 
 export function StockRadarAppShell({
   activeNavigationItem,
   children,
+  hideFooterOnMobile = false,
   themeMode = "fixed-dark",
 }: StockRadarAppShellProps) {
   return (
-    <StockRadarThemeProvider className={styles.shell} mode={themeMode}>
+    <StockRadarThemeProvider
+      className={`${styles.shell}${hideFooterOnMobile ? ` ${styles.hideFooterOnMobile}` : ""}`}
+      mode={themeMode}
+    >
       <StockRadarProductHeader
         activeNavigationItem={activeNavigationItem}
         showThemeToggle={themeMode === "user-selectable"}

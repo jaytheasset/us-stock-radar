@@ -62,6 +62,10 @@
 }
 
 @media (max-width: 760px) {
+  .hideFooterOnMobile > footer {
+    display: none;
+  }
+
   :global(html):has(.shell),
   :global(body):has(.shell),
   .shell,
