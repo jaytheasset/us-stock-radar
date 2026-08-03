@@ -449,7 +449,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
   const issues = [
     ...getSec8k6kValidationRepairIssues(input.analysisResult, promptPayload, sourceBlocks),
     ...getSec8k6kSourceConsistencyRepairIssues(input.analysisResult, sourceBlocks),
-  ];
+  ].filter((issue) => issue.code !== "key_evidence_word_limit_exceeded");
   if (!issues.length) return null;
 
   const additionalSourceBlocks = input.additionalSourceBlocks?.() || [];

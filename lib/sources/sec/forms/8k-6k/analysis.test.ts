@@ -452,14 +452,17 @@ const longKeyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
     text: "Nasdaq will suspend trading after the bankruptcy filing, and the company will not appeal the determination.",
   }),
 });
-assert.ok(longKeyEvidenceRepairPlan);
-assert.deepEqual(
-  longKeyEvidenceRepairPlan.issues
-    .filter((issue) => issue.code.startsWith("key_evidence_"))
-    .map((issue) => issue.code),
-  ["key_evidence_word_limit_exceeded"],
+assert.equal(longKeyEvidenceRepairPlan, null);
+assert.equal(
+  getSec8k6kValidationSemanticWarnings(
+    keyEvidenceRepairDisplayPayload,
+    {
+      key_evidence: ["Short proof point.", nineteenWordEvidence, "Another short proof point."],
+      listing_status_snapshot: keyEvidenceRepairDisplayPayload.data.snapshot_metrics,
+    },
+  ).some((warning) => warning.includes("18-word contract")),
+  true,
 );
-assert.deepEqual(longKeyEvidenceRepairPlan.allowedPatchPaths, ["/analysis_output/key_evidence"]);
 const combinedKeyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
   analysisResult: {
     analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
@@ -480,7 +483,7 @@ assert.deepEqual(
   combinedKeyEvidenceRepairPlan.issues
     .filter((issue) => issue.code.startsWith("key_evidence_"))
     .map((issue) => issue.code),
-  ["key_evidence_count_exceeded", "key_evidence_word_limit_exceeded"],
+  ["key_evidence_count_exceeded"],
 );
 assert.match(combinedKeyEvidenceRepairPlan.prompt.system, /Each item must be no more than 18 words/);
 const keyEvidenceRepairApplied = applySec8k6kValidationRepairPatches({
@@ -519,7 +522,7 @@ const rejectedLongKeyEvidenceRepair = applySec8k6kValidationRepairPatches({
     }],
     unresolved_warning_codes: [],
   },
-  allowedPatchPaths: longKeyEvidenceRepairPlan.allowedPatchPaths,
+  allowedPatchPaths: keyEvidenceRepairPlan.allowedPatchPaths,
 });
 assert.deepEqual(rejectedLongKeyEvidenceRepair.appliedPatchPaths, []);
 assert.deepEqual(rejectedLongKeyEvidenceRepair.ignoredPatchPaths, ["/analysis_output/key_evidence"]);
