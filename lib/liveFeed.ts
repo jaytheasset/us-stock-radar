@@ -24,6 +24,7 @@ import { liveFeedRailQueries } from "@/lib/liveFeedRailPolicy";
 import { resolveLiveFeedSource } from "@/lib/liveFeedSource";
 import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
+import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 export type SourceGroup = "news" | "filings" | "market";
@@ -52,6 +53,7 @@ export type LiveFeedItem = {
   sourceUrl: string;
   formType: string;
   eventType: string;
+  filingBrief: string;
   title: string;
   quickTake: string;
   summary: string;
@@ -383,6 +385,11 @@ function mapEventRow(
     readString(row, ["reason"]) ||
     "No summary available yet.";
   const quickTake = canonical.quickTake || summary;
+  const filingBrief = resolveFilingPreviewFields({
+    materialEvents: readMetadataRecord(row)?.material_events,
+    quickTake,
+    summary,
+  }).filingBrief;
   const sourceUniqueId = readString(rawItem, ["source_unique_id"]);
   const metadataAccession =
     readMetadataString(row, ["accession_number", "accessionNumber", "accession"]) ||
@@ -437,6 +444,7 @@ function mapEventRow(
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     formType,
     eventType: readString(row, ["event_type"]) || "event",
+    filingBrief,
     title: readString(row, ["title"]) || "Untitled event",
     quickTake,
     summary,
