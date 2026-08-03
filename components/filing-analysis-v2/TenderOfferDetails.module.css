@@ -136,4 +136,25 @@
   .change p {
     grid-column: 1;
   }
+
+  .heading h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .heading span,
+  .rows dt,
+  .changeLabel,
+  .arrow {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .rows strong,
+  .comparison strong,
+  .comparison > span:first-child,
+  .rows dd span,
+  .change p {
+    font-size: 16px;
+    line-height: 1.6;
+  }
 }

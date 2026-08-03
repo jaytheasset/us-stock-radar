@@ -108,6 +108,12 @@
     padding: var(--sr-space-4);
   }
 
+  .snapshot h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+    text-transform: none;
+  }
+
   .grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
@@ -122,6 +128,21 @@
 
   .item:nth-child(n + 2) {
     border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .item dt {
+    min-height: 0;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .item strong {
+    font-size: 16px;
+    line-height: var(--sr-line-height-default);
+  }
+
+  .item span {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-body);
   }
 
   .grid::before,

@@ -395,4 +395,48 @@
     gap: var(--sr-space-1);
     padding-right: 0;
   }
+
+  .panelHeading h2,
+  .performanceHeading h3,
+  .detailGroup h3 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .updateHeading strong,
+  .secondaryList strong,
+  .performanceRow > strong,
+  .guidanceRow strong,
+  .guidanceFooter strong,
+  .detailGroup strong,
+  .projectGrid strong {
+    font-size: 16px;
+    line-height: var(--sr-line-height-default);
+  }
+
+  .panelHeading span,
+  .detailGroup dt,
+  .projectGrid dt,
+  .secondaryList article > span,
+  .updateHeading span,
+  .updateList > li::before {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .performanceHeading span,
+  .performanceRow > span,
+  .guidanceFooter span,
+  .guidanceRow > span,
+  .guidanceFooter small,
+  .guidanceRow small,
+  .detailGroup small,
+  .projectGrid small {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .updateList p,
+  .secondaryList p {
+    font-size: 16px;
+    line-height: 1.6;
+  }
 }
