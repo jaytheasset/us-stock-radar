@@ -189,6 +189,10 @@ test("alerts mobile cards preserve readable type, full width, and narrow-screen 
   );
   assert.match(
     styles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.recentRow strong \{[\s\S]*width: fit-content;[\s\S]*min-width: 54px;[\s\S]*min-height: 27px;[\s\S]*padding-inline: var\(--sr-space-2\);[\s\S]*font-size: var\(--sr-font-size-base\);[\s\S]*font-weight: var\(--sr-font-weight-heavy\);[\s\S]*line-height: var\(--sr-line-height-none\);[\s\S]*white-space: nowrap;/,
+  );
+  assert.match(
+    styles,
     /@media \(max-width: 360px\) \{[\s\S]*\.marketCapGrid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);/,
   );
   assert.match(
