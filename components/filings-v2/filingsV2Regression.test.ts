@@ -150,6 +150,14 @@ test("filing analysis inherits the final news-document mobile gutter and type hi
     mobileStyles,
     /\.filingDocument \.summaryHeader \{[\s\S]*flex-direction: row;[\s\S]*align-items: center;/,
   );
+  assert.match(
+    mobileStyles,
+    /@media \(max-width: 360px\) \{[\s\S]*\.filingDocument \.summaryHeader > :last-child > svg:last-child \{[^}]*display: none;/,
+  );
+  assert.doesNotMatch(
+    mobileStyles,
+    /\.filingDocument \.summaryHeader > :last-child > svg \{[^}]*display: none;/,
+  );
   assert.match(mobileStyles, /\.filingDocument \.hero h1 \{[^}]*font-size: var\(--sr-font-size-heading-md\);/);
   assert.match(mobileStyles, /\.filingDocument \.heroTimestamp \{[^}]*font-size: var\(--sr-font-size-base\);/);
   assert.match(mobileStyles, /\.filingDocument \.companyLine \{[^}]*font-size: 16px;/);
