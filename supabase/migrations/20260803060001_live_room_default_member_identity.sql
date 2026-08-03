@@ -35,6 +35,8 @@ alter table public.live_room_member_profiles
 alter table public.live_room_member_profiles
   drop constraint if exists live_room_member_profiles_display_name_check;
 
+drop index if exists public.live_room_member_profiles_chat_name_unique_idx;
+
 update public.live_room_member_profiles
 set is_display_name_custom = true
 where display_name is not null;
@@ -149,7 +151,6 @@ after update of email on public.user_profiles
 for each row
 execute function private.sync_live_room_member_default_display_name();
 
-drop index if exists public.live_room_member_profiles_chat_name_unique_idx;
 create unique index live_room_member_profiles_chat_name_unique_idx
   on public.live_room_member_profiles (pg_catalog.lower(display_name))
   where is_display_name_custom;

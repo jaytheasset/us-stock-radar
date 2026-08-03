@@ -2249,6 +2249,22 @@ test("member public identity defaults are server-owned while custom names stay u
     migration,
     /create unique index live_room_member_profiles_chat_name_unique_idx[\s\S]+pg_catalog\.lower\(display_name\)[\s\S]+where is_display_name_custom/i,
   );
+  const oldUniqueIndexDrop = migration.indexOf(
+    "drop index if exists public.live_room_member_profiles_chat_name_unique_idx",
+  );
+  const defaultNameBackfill = migration.indexOf(
+    "update public.live_room_member_profiles as profile",
+  );
+  const displayNameConstraint = migration.indexOf(
+    "add constraint live_room_member_profiles_display_name_check",
+  );
+  const customUniqueIndexCreate = migration.indexOf(
+    "create unique index live_room_member_profiles_chat_name_unique_idx",
+  );
+  assert.ok(oldUniqueIndexDrop >= 0);
+  assert.ok(oldUniqueIndexDrop < defaultNameBackfill);
+  assert.ok(customUniqueIndexCreate > defaultNameBackfill);
+  assert.ok(customUniqueIndexCreate > displayNameConstraint);
   assert.match(
     migration,
     /create trigger live_room_member_profiles_normalize_display_name_state[\s\S]+before insert or update of user_id, display_name, is_display_name_custom/i,
