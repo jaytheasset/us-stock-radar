@@ -1,6 +1,7 @@
 .badge {
   display: inline-flex;
   box-sizing: border-box;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border: var(--sr-border-width) solid currentColor;
@@ -8,6 +9,7 @@
   font-weight: var(--sr-font-weight-label);
   line-height: var(--sr-line-height-none);
   letter-spacing: var(--sr-letter-spacing-default);
+  white-space: nowrap;
 }
 
 .small {

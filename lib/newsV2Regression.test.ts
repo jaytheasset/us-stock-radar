@@ -408,7 +408,12 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     ),
     "utf8",
   );
+  const badgeStyles = readFileSync(
+    new URL("../components/ui/Badge.module.css", import.meta.url),
+    "utf8",
+  );
   const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 760px)"));
+  const narrowStyles = styles.slice(styles.indexOf("@media (max-width: 360px)"));
 
   assert.match(adapterSource, /presentationVariant="news-document"/);
   assert.match(sharedAnalysisSource, /presentationVariant\?: "default" \| "news-document"/);
@@ -468,9 +473,18 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     /\.newsDocument \.classification \{[^}]*flex-basis: 100%;[^}]*flex-wrap: nowrap;/,
   );
   assert.match(
+    narrowStyles,
+    /\.newsDocument \.classification \{[^}]*flex-wrap: wrap;/,
+  );
+  assert.match(
     mobileStyles,
     /\.newsDocument \.newsSource \{[^}]*flex: 1 1 auto;/,
   );
+  assert.match(
+    badgeStyles,
+    /\.badge \{[^}]*flex-shrink: 0;[^}]*white-space: nowrap;/,
+  );
+  assert.match(styles, /\.impactScore \{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
   assert.doesNotMatch(adapterSource, /Nasdaq Corporate Actions/);
 });
 

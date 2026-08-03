@@ -218,6 +218,7 @@ a.companyLine:focus-visible {
 .formLabel,
 .signal {
   display: inline-flex;
+  flex: 0 0 auto;
   min-height: var(--sr-size-badge);
   align-items: center;
   justify-content: center;
@@ -242,6 +243,7 @@ a.companyLine:focus-visible {
 
 .impactScore {
   display: inline-flex;
+  flex: 0 0 auto;
   min-height: var(--sr-size-badge);
   align-items: center;
   gap: var(--sr-space-1);
@@ -1576,6 +1578,10 @@ a.companyLine:focus-visible {
 }
 
 @media (max-width: 360px) {
+  .newsDocument .classification {
+    flex-wrap: wrap;
+  }
+
   .newsDocument .summaryHeader {
     gap: var(--sr-space-1);
   }
