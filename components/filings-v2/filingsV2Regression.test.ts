@@ -112,6 +112,142 @@ test("governance filing previews use up to three unique key-change titles on bot
   assert.equal(liveFeedPreview.showKeyPoints, filingsPreview.showKeyPoints);
 });
 
+test("8-K/6-K earnings previews share up to three stored business-update titles in order", () => {
+  const filingBrief = "Stored primary earnings event summary.";
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "operating_event",
+      data: {
+        business_catalysts: [
+          { summary: "Long body is not preview copy.", title: "Revenue outlook" },
+          { title: "Margin outlook", value: "74%" },
+          { title: "Capital return" },
+          { title: "Fourth item is excluded" },
+        ],
+        display_version: "sec_8k_6k_operating_event_v1",
+        operating_mode: "earnings",
+      },
+    },
+    keyEvidence: ["Generic evidence must not be used for this earnings preview."],
+    materialEvents: [
+      { event_summary: filingBrief, event_type: "earnings", role: "primary" },
+    ],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    category: "Earnings",
+    detailHref: "/filings/earnings-event",
+    feedType: "filings",
+    headline: "Earnings update",
+    id: "earnings-event",
+    impactScore: 82,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-04T00:00:00.000Z",
+    sentiment: "Bullish",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "TEST",
+  });
+
+  assert.deepEqual(filingsPreview.keyPoints, [
+    "Revenue outlook",
+    "Margin outlook",
+    "Capital return",
+  ]);
+  assert.equal(filingsPreview.filingBrief, filingBrief);
+  assert.equal(filingsPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(filingsPreview.showKeyPoints, true);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, filingsPreview.keyPoints);
+  assert.equal(liveFeedPreview.filingBrief, filingBrief);
+  assert.equal(liveFeedPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(liveFeedPreview.showKeyPoints, true);
+});
+
+test("8-K/6-K earnings previews hide the complete business-update section when titles are absent", () => {
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "operating_event",
+      data: {
+        business_catalysts: [{ summary: "Body without title." }, { title: "  " }],
+        display_version: "sec_8k_6k_operating_event_v1",
+        operating_mode: "earnings",
+      },
+    },
+    keyEvidence: ["Do not fall back to generic evidence."],
+    materialEvents: [
+      { event_summary: "Stored earnings brief.", event_type: "earnings", role: "primary" },
+    ],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    category: "Earnings",
+    detailHref: "/filings/earnings-without-updates",
+    feedType: "filings",
+    headline: "Earnings without business updates",
+    id: "earnings-without-updates",
+    impactScore: 60,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-04T00:00:00.000Z",
+    sentiment: "Neutral",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "TEST",
+  });
+
+  assert.deepEqual(filingsPreview.keyPoints, []);
+  assert.equal(filingsPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(filingsPreview.showKeyPoints, false);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, []);
+  assert.equal(liveFeedPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(liveFeedPreview.showKeyPoints, false);
+});
+
+test("non-earnings 8-K/6-K operating events retain the generic Key Points contract", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "operating_event",
+      data: {
+        business_catalysts: [{ title: "Must remain detail-only" }],
+        display_version: "sec_8k_6k_operating_event_v1",
+        operating_mode: "operating_update",
+      },
+    },
+    keyEvidence: ["Existing generic point"],
+    materialEvents: [
+      { event_summary: "Operating brief.", event_type: "operating_update", role: "primary" },
+    ],
+  });
+
+  assert.deepEqual(preview.keyPoints, ["Existing generic point"]);
+  assert.equal(preview.keyPointsLabel, "Key Points");
+  assert.equal(preview.showKeyPoints, true);
+});
+
+test("earnings display copy does not override a non-earnings canonical material event", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "operating_event",
+      data: {
+        business_catalysts: [{ title: "Must not leak into the preview" }],
+        display_version: "sec_8k_6k_operating_event_v1",
+        operating_mode: "earnings",
+      },
+    },
+    keyEvidence: ["Existing non-earnings key point"],
+    materialEvents: [
+      { event_summary: "Canonical operating brief.", event_type: "operating_update", role: "primary" },
+    ],
+  });
+
+  assert.deepEqual(preview.keyPoints, ["Existing non-earnings key point"]);
+  assert.equal(preview.keyPointsLabel, "Key Points");
+  assert.equal(preview.showKeyPoints, true);
+});
+
 test("governance previews hide empty key changes without falling back to evidence", () => {
   const preview = resolveFilingPreviewFields({
     displayPayload: {
@@ -200,6 +336,14 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /supabaseSelect\("event_analysis", \{[\s\S]*select: "event_id,key_evidence"/);
   assert.match(source, /event_id: `in\.\(\$\{eventIds\.join\(","\)\}\)`/);
   assert.equal(source.match(/supabaseSelect\("event_analysis"/g)?.length, 1);
+  assert.match(source, /supabaseSelect\("events", \{[\s\S]*display_type:metadata->display_payload->>display_type/);
+  assert.match(source, /display_version:metadata->display_payload->data->>display_version/);
+  assert.match(source, /operating_mode:metadata->display_payload->data->>operating_mode/);
+  assert.match(source, /business_catalysts:metadata->display_payload->data->business_catalysts/);
+  assert.match(source, /displayType !== "operating_event"/);
+  assert.match(source, /displayVersion !== "sec_8k_6k_operating_event_v1"/);
+  assert.match(source, /operatingMode !== "earnings"/);
+  assert.doesNotMatch(source, /select: "id,metadata"/);
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
   assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);
   assert.match(source, /materialEvents: metadata\?\.material_events/);

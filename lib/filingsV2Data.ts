@@ -159,15 +159,17 @@ export async function loadFilingsV2Page({
   const baseRecords = rows
     .map(mapEventRow)
     .filter((record): record is FilingsV2Record => Boolean(record));
-  const [marketRecords, keyEvidenceByEventId] = await Promise.all([
+  const [marketRecords, keyEvidenceByEventId, displayPayloadByEventId] = await Promise.all([
     enrichRecordsWithMarketData(baseRecords),
     loadFilingPreviewKeyEvidence(baseRecords),
+    loadFilingPreviewDisplayPayloads(baseRecords),
   ]);
   const records = marketRecords.map((record) => {
     const row = rowsById.get(record.id);
     const metadata = asRecord(row?.metadata);
     const previewFields = resolveFilingPreviewFields({
-      displayPayload: metadata?.display_payload,
+      displayPayload:
+        displayPayloadByEventId.get(record.id) || metadata?.display_payload,
       governanceEvent: record.events.includes("governance"),
       keyEvidence: keyEvidenceByEventId.get(record.id),
       materialEvents: metadata?.material_events,
@@ -262,6 +264,53 @@ async function loadFilingPreviewKeyEvidence(
       .map((row) => [readString(row.event_id), row.key_evidence] as const)
       .filter((entry): entry is [string, unknown] => Boolean(entry[0])),
   );
+}
+
+async function loadFilingPreviewDisplayPayloads(
+  records: readonly FilingsV2Record[],
+) {
+  const eventIds = records.map((record) => record.id);
+  if (!eventIds.length) return new Map<string, unknown>();
+
+  const result = await supabaseSelect("events", {
+    select: [
+      "id",
+      "display_type:metadata->display_payload->>display_type",
+      "display_version:metadata->display_payload->data->>display_version",
+      "operating_mode:metadata->display_payload->data->>operating_mode",
+      "business_catalysts:metadata->display_payload->data->business_catalysts",
+    ].join(","),
+    id: `in.(${eventIds.join(",")})`,
+    limit: String(eventIds.length),
+  });
+  if (!result.ok || !Array.isArray(result.data)) {
+    return new Map<string, unknown>();
+  }
+
+  const displayPayloads = new Map<string, unknown>();
+  for (const row of result.data.filter(isRecord)) {
+    const id = readString(row.id);
+    const displayType = readString(row.display_type);
+    const displayVersion = readString(row.display_version);
+    const operatingMode = readString(row.operating_mode);
+    if (
+      !id ||
+      displayType !== "operating_event" ||
+      displayVersion !== "sec_8k_6k_operating_event_v1" ||
+      operatingMode !== "earnings"
+    ) {
+      continue;
+    }
+    displayPayloads.set(id, {
+      display_type: displayType,
+      data: {
+        business_catalysts: row.business_catalysts,
+        display_version: displayVersion,
+        operating_mode: operatingMode,
+      },
+    });
+  }
+  return displayPayloads;
 }
 
 function mapEventRow(row: UnknownRecord): FilingsV2Record | null {

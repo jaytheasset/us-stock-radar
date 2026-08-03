@@ -22,7 +22,7 @@ export type LiveFeedV2PreviewSource = {
   id: string;
   impactScore: number;
   keyEvidence?: readonly string[];
-  keyPointsLabel?: "Key Changes" | "Key Points";
+  keyPointsLabel?: "Key Business Updates" | "Key Changes" | "Key Points";
   marketScopeLabel?: string | null;
   primaryTicker?: string | null;
   publishedAt: string;
@@ -52,7 +52,10 @@ export function createLiveFeedV2Preview(
     sourceUrl: availableText(item.sourceUrl),
     title: availableText(item.headline) || "—",
   };
-  const keyEvidence = compactTextList(item.keyEvidence);
+  const keyEvidence = compactTextList(
+    item.keyEvidence,
+    item.keyPointsLabel === "Key Business Updates" ? 3 : 4,
+  );
   const companyName = availableText(item.companyName);
   const primaryTicker = normalizeTicker(item.primaryTicker);
 
@@ -161,14 +164,17 @@ function clampImpact(value: number) {
   return Math.min(99, Math.max(0, Math.round(value)));
 }
 
-function compactTextList(values: readonly string[] | null | undefined) {
+function compactTextList(
+  values: readonly string[] | null | undefined,
+  limit = 4,
+) {
   return Array.from(
     new Set(
       (values || [])
         .map((value) => availableText(value))
         .filter((value): value is string => Boolean(value)),
     ),
-  ).slice(0, 4);
+  ).slice(0, limit);
 }
 
 function formatRelatedMetadata(item: LiveFeedV2PreviewSource) {

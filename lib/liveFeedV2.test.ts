@@ -16,6 +16,7 @@ import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
 } from "./liveFeedV2Preview.ts";
+import { resolveFilingPreviewFields } from "./filingPreviewContract.ts";
 import { getLiveFeedV2EventPresentation } from "./liveFeedV2EventType.ts";
 import { resolveLiveFeedSource } from "./liveFeedSource.ts";
 import {
@@ -1395,6 +1396,50 @@ test("feed preview mapper preserves filing-specific fields and related filings",
   assert.deepEqual(filing.keyPoints, ["Evidence one", "Evidence two"]);
   assert.equal(filing.relatedFilings.length, 1);
   assert.equal(filing.relatedFilings[0]?.href, "/events/filing-2");
+});
+
+test("feed filing preview hides an empty 8-K/6-K earnings business-update section", () => {
+  const fields = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "operating_event",
+      data: {
+        business_catalysts: [],
+        display_version: "sec_8k_6k_operating_event_v1",
+        operating_mode: "earnings",
+      },
+    },
+    keyEvidence: ["Generic fallback must stay hidden."],
+    materialEvents: [
+      { event_summary: "Canonical filing brief.", event_type: "earnings", role: "primary" },
+    ],
+  });
+  const filing = createLiveFeedV2Preview({
+    ...basePreviewSource,
+    feedType: "filings",
+    keyEvidence: fields.keyPoints,
+    keyPointsLabel: fields.keyPointsLabel,
+    showKeyPoints: fields.showKeyPoints,
+    summary: fields.filingBrief,
+  });
+
+  assert.equal(filing.kind, "filing");
+  assert.equal(filing.filingBrief, "Canonical filing brief.");
+  assert.deepEqual(filing.keyPoints, []);
+  assert.equal(filing.keyPointsLabel, "Key Business Updates");
+  assert.equal(filing.showKeyPoints, false);
+});
+
+test("feed filing preview caps 8-K/6-K earnings business-update titles at three", () => {
+  const filing = createLiveFeedV2Preview({
+    ...basePreviewSource,
+    feedType: "filings",
+    keyEvidence: ["First", "Second", "Third", "Fourth"],
+    keyPointsLabel: "Key Business Updates",
+    showKeyPoints: true,
+  });
+
+  assert.equal(filing.kind, "filing");
+  assert.deepEqual(filing.keyPoints, ["First", "Second", "Third"]);
 });
 
 test("feed preview mapper preserves company-news hierarchy without fake values", () => {
