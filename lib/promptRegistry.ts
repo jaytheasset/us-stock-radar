@@ -13,6 +13,14 @@ import {
   secFilingAnalysisSystemPrompt,
 } from "@/lib/prompts/secFilingAnalysis";
 import {
+  SEC_8K_6K_ANALYSIS_PROMPT_KEYS,
+  SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
+  getSec8k6kSpecializedRuntimeResponseSchema,
+  sec8k6kAnalysisSystemPrompt,
+  sec8k6kFinalOutputCheckPrompt,
+  sec8k6kFinancingDilutionCapitalStructurePrompt,
+} from "@/lib/sources/sec/forms/8k-6k/analysisPrompt";
+import {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION,
   secS3AmendmentTriageResponseSchema,
@@ -86,6 +94,28 @@ export const promptTemplates: PromptTemplateDraft[] = [
     responseSchema: secFilingAnalysisResponseSchema,
     runtimeNotes:
       "OpenAI call: instructions = systemPrompt, input = JSON.stringify({ filing_package }), text.format = responseSchema.",
+  },
+  {
+    key: SEC_8K_6K_ANALYSIS_PROMPT_KEYS.capitalFinancing,
+    version: SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
+    task: "SEC 8-K/6-K capital financing analysis",
+    model: "gpt-5-mini",
+    status: "active",
+    owner: "ai",
+    inputTables: ["raw_items", "events", "market_snapshots"],
+    outputTarget:
+      "events + event_analysis + capital_financing display_payload",
+    notes:
+      "Dynamic 8-K/6-K capital room for equity, share-linked, ATM, debt, capital-structure, and capital-return events. ATM transaction method is modeled separately from fixed-share or dollar capacity units.",
+    systemPrompt: [
+      sec8k6kAnalysisSystemPrompt,
+      sec8k6kFinancingDilutionCapitalStructurePrompt,
+      sec8k6kFinalOutputCheckPrompt,
+    ].join("\n"),
+    responseSchema:
+      getSec8k6kSpecializedRuntimeResponseSchema("capital_financing"),
+    runtimeNotes:
+      "Runtime selects this key dynamically after the 8-K/6-K router chooses the capital_financing family. ai_runs and SEC debug output record this key and version. Registry access remains admin read-only.",
   },
   {
     key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,

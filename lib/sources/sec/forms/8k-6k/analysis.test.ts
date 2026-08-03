@@ -12,6 +12,7 @@ import {
   normalizeSec8k6kOperatingDisplayPayloadForPersistence,
   repairSec8k6kDisplayPayloadEncoding,
 } from "../../../../ai/sec8k6kAnalysisAdapter";
+import { getPromptRegistry } from "../../../../promptRegistry";
 import { buildSecFilingAnalysisPackage } from "../../../../prompts/secFilingAnalysisPackage";
 import {
   buildSec8k6kAnalysisPromptDraft,
@@ -119,6 +120,7 @@ const analysisUserPayload = JSON.parse(prompt.user) as Record<string, any>;
 
 assert.equal(prompt.key, SEC_8K_6K_ANALYSIS_PROMPT_KEY);
 assert.equal(prompt.version, SEC_8K_6K_ANALYSIS_PROMPT_VERSION);
+assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v43-atm-capacity-unit-model");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "listing_risk" }), "risk_status");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "financial_risk" }), "risk_status");
 assert.equal(
@@ -2455,7 +2457,11 @@ assert.deepEqual(
 );
 assert.ok(SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES.includes("atm_capacity"));
 assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("current unsold ATM capacity"));
-assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.toLowerCase().includes("never convert the dollar capacity into an implied share count"));
+assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("ATM is the transaction method; capacity unit is a separate economic fact"));
+assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("fixed-share-capped ATM"));
+assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("dollar-capped ATM"));
+assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("never mix shares and usd in one calculation"));
+assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("follow runtime schema property order"));
 assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("SEC active offering and dilution scoring guide"));
 assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("Mid cap: 20%+ = feed upper range; 30%+ = alert possible."));
 assert.ok(sec8k6kFinancingDilutionCapitalStructurePrompt.includes("15-30% = 60-69, 30-50% = 70-74"));
@@ -2479,6 +2485,35 @@ assert.deepEqual(
 assert.deepEqual(
   Object.keys(sec8k6kAnalysisResponseSchema.properties.display_payload.properties.data.properties.share_overhang.properties).slice(0, 7),
   ["chart_title", "subtitle", "basis", "rows", "total_note", "status_label", "status_value"],
+);
+assert.deepEqual(
+  Object.keys(capitalRuntimeSchema.properties.display_payload.properties.data.properties).slice(0, 6),
+  [
+    "display_version",
+    "capital_mode",
+    "snapshot_metrics",
+    "share_overhang",
+    "instrument_details",
+    "offering_details",
+  ],
+);
+
+const capitalPromptRegistryEntries = getPromptRegistry().prompts.filter(
+  (entry) => entry.key === SEC_8K_6K_ANALYSIS_PROMPT_KEYS.capitalFinancing,
+);
+assert.equal(capitalPromptRegistryEntries.length, 1);
+assert.equal(
+  capitalPromptRegistryEntries[0]?.version,
+  SEC_8K_6K_ANALYSIS_PROMPT_VERSION,
+);
+assert.ok(
+  capitalPromptRegistryEntries[0]?.systemPrompt?.includes(
+    "fixed-share-capped ATM",
+  ),
+);
+assert.deepEqual(
+  (capitalPromptRegistryEntries[0]?.responseSchema as any).properties.display_payload.properties.display_type.enum,
+  ["capital_financing"],
 );
 assert.ok(prompt.user.includes("fda_clinical"));
 assert.ok(prompt.user.includes("cleaned_source_blocks"));
@@ -2682,7 +2717,190 @@ const atmCapacityWarnings = getSec8k6kCapitalSecurityCoverageWarnings(
   },
   [],
 );
-assert.equal(atmCapacityWarnings.some((warning) => warning.includes("no counted row")), false);
+assert.deepEqual(atmCapacityWarnings, []);
+const normalizedDollarAtm = normalizeSec8k6kCapitalDisplayPayloadForPersistence({
+  display_type: "capital_financing",
+  data: {
+    capital_mode: "atm_capacity",
+    snapshot_metrics: [
+      { label: "Program Limit", value: "$500M", note: null },
+      { label: "Sold to Date", value: "$100M", note: null },
+      { label: "Remaining Capacity", value: "$400M", note: null },
+      { label: "Capacity vs Market Cap", value: "12.5%", note: null },
+    ],
+    share_overhang: {
+      basis: {
+        label: "Market Cap",
+        value: "$3.2B",
+        numeric_value: 3_200_000_000,
+        unit: "usd",
+      },
+      rows: [
+        {
+          row_role: "reference",
+          supply_type: "atm_capacity",
+          label: "Remaining ATM Capacity",
+          value: "$400M",
+          numeric_value: 400_000_000,
+          unit: "usd",
+        },
+      ],
+      total_note: {
+        numerator: "$400M",
+        denominator: "$3.2B",
+        ratio: "12.5%",
+      },
+      status_value: "12.5%",
+    },
+  },
+}) as any;
+assert.notEqual(normalizedDollarAtm.data.share_overhang, null);
+assert.equal(normalizedDollarAtm.data.share_overhang.status_value, "12.5%");
+
+const fixedShareAtm = {
+  display_type: "capital_financing",
+  data: {
+    capital_mode: "atm_capacity",
+    snapshot_metrics: [
+      { label: "Program Limit", value: "24,000,000 shares", note: null },
+      { label: "Sold to Date", value: "4,000,000 shares", note: null },
+      { label: "Remaining Capacity", value: "20,000,000 shares", note: null },
+      { label: "Capacity vs Shares", value: "25.0%", note: null },
+    ],
+    share_overhang: {
+      basis: {
+        label: "Shares Outstanding",
+        value: "80,000,000 shares",
+        numeric_value: 80_000_000,
+        unit: "shares",
+      },
+      rows: [
+        {
+          row_role: "reference",
+          supply_type: "atm_capacity",
+          label: "Remaining ATM Capacity",
+          value: "20,000,000 shares",
+          numeric_value: 20_000_000,
+          unit: "shares",
+        },
+      ],
+      total_note: {
+        numerator: "20,000,000 shares",
+        denominator: "80,000,000 shares",
+        ratio: "25.0%",
+      },
+      status_value: "25.0%",
+    },
+  },
+};
+assert.deepEqual(
+  getSec8k6kCapitalSecurityCoverageWarnings(fixedShareAtm, []),
+  [],
+);
+const normalizedFixedShareAtm = normalizeSec8k6kCapitalDisplayPayloadForPersistence(
+  fixedShareAtm,
+) as any;
+assert.notEqual(normalizedFixedShareAtm.data.share_overhang, null);
+assert.equal(normalizedFixedShareAtm.data.share_overhang.status_value, "25.0%");
+
+const mixedUnitAtm = {
+  display_type: "capital_financing",
+  data: {
+    capital_mode: "atm_capacity",
+    snapshot_metrics: [
+      { label: "Program Limit", value: "20,000,000 shares", note: null },
+      { label: "Sale Method", value: "At the market", note: null },
+      { label: "Company Value", value: "$2B", note: null },
+      { label: "Capacity as % of Market Cap", value: "1.0%", note: null },
+    ],
+    share_overhang: {
+      basis: {
+        label: "Market Cap",
+        value: "$2B",
+        numeric_value: 2_000_000_000,
+        unit: "usd",
+      },
+      rows: [
+        {
+          row_role: "reference",
+          supply_type: "atm_capacity",
+          label: "Remaining ATM Capacity",
+          value: "20,000,000 shares",
+          numeric_value: 20_000_000,
+          unit: "shares",
+        },
+      ],
+      total_note: {
+        numerator: "20,000,000 shares",
+        denominator: "$2B",
+        ratio: "1.0%",
+      },
+      status_value: "1.0%",
+    },
+  },
+};
+const mixedUnitAtmWarnings = getSec8k6kCapitalSecurityCoverageWarnings(
+  mixedUnitAtm,
+  [],
+);
+assert.ok(
+  mixedUnitAtmWarnings.some((warning) =>
+    warning.includes("one compatible unit model"),
+  ),
+);
+const mixedUnitSemanticWarnings = getSec8k6kValidationSemanticWarnings(
+  mixedUnitAtm,
+  { score: 70, event_type: "dilution_risk", signal: "bearish" },
+);
+assert.ok(
+  mixedUnitSemanticWarnings.some((warning) =>
+    warning.includes("one compatible unit model"),
+  ),
+);
+const normalizedMixedUnitAtm = normalizeSec8k6kCapitalDisplayPayloadForPersistence(
+  mixedUnitAtm,
+) as any;
+assert.equal(normalizedMixedUnitAtm.data.share_overhang, null);
+assert.equal(
+  normalizedMixedUnitAtm.data.snapshot_metrics[3].value,
+  "Not calculable",
+);
+assert.ok(
+  normalizedMixedUnitAtm.data.display_warnings.some((warning: string) =>
+    warning.includes("one compatible unit model"),
+  ),
+);
+const mixedUnitAtmRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput(
+      "dilution_risk",
+      "atm_capacity_source",
+    ),
+    display_payload: mixedUnitAtm,
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "atm_capacity_source",
+    item_number: "1.01",
+    label: "At-the-market sales agreement",
+    text: "The issuer may sell up to 20,000,000 shares through an at-the-market sales agreement.",
+  }),
+});
+assert.ok(mixedUnitAtmRepairPlan);
+assert.ok(
+  mixedUnitAtmRepairPlan.issues.some(
+    (issue) => issue.code === "capital_atm_capacity_unit_mismatch",
+  ),
+);
+assert.ok(
+  mixedUnitAtmRepairPlan.allowedPatchPaths.includes(
+    "/display_payload/data/share_overhang/basis/unit",
+  ),
+);
+assert.ok(
+  mixedUnitAtmRepairPlan.allowedPatchPaths.includes(
+    "/display_payload/data/share_overhang/rows/0/unit",
+  ),
+);
 
 const ipoPrompt = buildSec8k6kAnalysisPromptDraft({
   filing_package: fixture as Record<string, unknown>,
