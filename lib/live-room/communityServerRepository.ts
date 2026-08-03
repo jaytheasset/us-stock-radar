@@ -18,6 +18,7 @@ import {
   normalizeCommunityRoomCreateInput,
   normalizeCommunityRoomDirectoryFilters,
   normalizeCommunityRoomSlug,
+  resolveCompanyLiveRoomDirectoryResult,
   type CommunityRoom,
   type CommunityRoomCreateInput,
   type CommunityRoomDirectoryFilters,
@@ -29,7 +30,9 @@ import {
   type CommunityRoomStyle,
   type CommunityRoomTheme,
   type CommunityRoomTopic,
+  type CompanyLiveRoomDirectoryResult,
 } from "./community";
+export type { CompanyLiveRoomDirectoryResult } from "./community";
 import {
   COMMUNITY_ROOM_CREATE_WINDOW_MS,
   resolveCommunityRoomCreateEligibility,
@@ -44,12 +47,6 @@ type CommunityCursor = {
   at: string;
   slug: string;
   sort: CommunityRoomSort;
-};
-
-export type CompanyLiveRoomDirectoryResult = {
-  companyName: string;
-  exchange: string | null;
-  ticker: string;
 };
 
 export async function getCommunityRoomCreateEligibility(
@@ -118,42 +115,51 @@ export async function findCompanyLiveRoomDirectoryResult(
   const ticker = normalizeLiveRoomTicker(rawSearch);
   if (!ticker) return null;
 
-  const result = await supabaseSelect("tickers", {
-    select: "symbol,name,exchange",
-    symbol: `eq.${ticker}`,
-    is_active: "eq.true",
-    limit: "1",
+  const [roomLookup, registryLookup] = await Promise.allSettled([
+    supabaseSelect("live_room_rooms", {
+      select: "admin_status",
+      room_kind: "eq.company",
+      ticker: `eq.${ticker}`,
+      limit: "1",
+    }),
+    supabaseSelect("tickers", {
+      select: "symbol,name,exchange",
+      symbol: `eq.${ticker}`,
+      is_active: "eq.true",
+      limit: "1",
+    }),
+  ]);
+  const roomResult =
+    roomLookup.status === "fulfilled" ? roomLookup.value : null;
+  const registryResult =
+    registryLookup.status === "fulfilled" ? registryLookup.value : null;
+  const room = roomResult?.ok ? readRecord(roomResult.data) : null;
+  const registry = registryResult?.ok
+    ? readRecord(registryResult.data)
+    : null;
+  const registrySymbol = normalizeLiveRoomTicker(registry?.symbol);
+  const resolution = resolveCompanyLiveRoomDirectoryResult({
+    registry: {
+      available: registryResult?.ok === true,
+      companyName: readString(registry?.name) || null,
+      exchange: readString(registry?.exchange) || null,
+      exists: Boolean(registry) && registrySymbol === ticker,
+    },
+    room: {
+      adminStatus: readString(room?.admin_status) || null,
+      available: roomResult?.ok === true,
+      exists: Boolean(room),
+    },
+    ticker,
   });
-  if (!result.ok) {
+  if (resolution.status === "unavailable") {
     throw new LiveRoomPolicyError(
       "COMMUNITY_ROOM_COMPANY_LOOKUP_UNAVAILABLE",
       "The matching Company Live Room could not be checked.",
-      result.status || 502,
+      roomResult?.status || registryResult?.status || 502,
     );
   }
-
-  const row = readRecord(result.data);
-  const symbol = normalizeLiveRoomTicker(row?.symbol);
-  if (!row || symbol !== ticker) return null;
-  const roomResult = await supabaseSelect("live_room_rooms", {
-    select: "admin_status",
-    room_kind: "eq.company",
-    ticker: `eq.${ticker}`,
-    limit: "1",
-  });
-  const room = readRecord(roomResult.data);
-  if (
-    roomResult.ok &&
-    readString(room?.admin_status) === "archived"
-  ) {
-    return null;
-  }
-
-  return {
-    companyName: readString(row.name) || `${ticker} company`,
-    exchange: readString(row.exchange) || null,
-    ticker,
-  };
+  return resolution.status === "found" ? resolution.value : null;
 }
 
 export async function createCommunityRoom(

@@ -161,23 +161,45 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--sr-space-2);
   border: var(--sr-border-width) solid var(--sr-color-border-control);
   border-radius: var(--sr-radius-action);
-  padding-left: var(--sr-space-2-5);
   color: var(--sr-color-text-meta);
   background: var(--sr-color-surface-control);
 }
 
 .searchField {
+  display: grid;
+  min-width: 0;
   grid-column: span 2;
+  gap: var(--sr-space-1-5);
 }
 
 .searchField > div input {
   border: 0;
-  padding-left: 0;
   background: transparent;
   outline: none;
+}
+
+.searchSubmit {
+  display: inline-flex;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border: 0;
+  border-left: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: 0 var(--sr-radius-action) var(--sr-radius-action) 0;
+  padding: 0;
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control-strong);
+  cursor: pointer;
+}
+
+.searchSubmit:hover {
+  color: var(--sr-color-text-strong);
+  background: var(--sr-color-surface-panel);
 }
 
 .filterActions {

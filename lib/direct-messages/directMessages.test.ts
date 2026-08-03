@@ -702,7 +702,7 @@ test("direct-message bubbles share the financial-chat colors, radii, and respons
   );
 });
 
-test("Live Room and direct messages consume the exact shared financial-chat token contract", () => {
+test("Live Room and direct messages share chat surfaces while only DMs keep bubble borders", () => {
   const darkTokens = themeTokens.slice(
     0,
     themeTokens.indexOf('[data-sr-theme="light"]'),
@@ -775,17 +775,26 @@ test("Live Room and direct messages consume the exact shared financial-chat toke
     );
     assert.match(
       styles,
-      /var\(--sr-color-chat-bubble-mine-border\)/,
-    );
-    assert.match(
-      styles,
       /border-radius:\s*var\(--sr-radius-chat-control\)/,
     );
   }
 
   assert.match(
+    conversationStyles,
+    /var\(--sr-color-chat-bubble-other-border\)/,
+  );
+  assert.match(
+    conversationStyles,
+    /var\(--sr-color-chat-bubble-mine-border\)/,
+  );
+  assert.doesNotMatch(
     liveRoomStyles,
-    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?min-width:\s*0[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
+    /var\(--sr-color-chat-bubble-(?:other|mine)-border\)/,
+  );
+
+  assert.match(
+    liveRoomStyles,
+    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?min-width:\s*0[\s\S]*?border:\s*0;[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
   );
   assert.match(
     liveRoomStyles,

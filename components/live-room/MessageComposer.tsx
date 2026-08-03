@@ -4,7 +4,7 @@ import {
   CalendarDays,
   DoorOpen,
   FileText,
-  Menu,
+  LayoutGrid,
   MessageCircle,
   Send,
   UserRound,
@@ -359,7 +359,7 @@ export function MessageComposer({
             ref={mobileRoomMenuOpenerRef}
             type="button"
           >
-            <Menu aria-hidden="true" size={20} />
+            <LayoutGrid aria-hidden="true" size={20} />
           </button>
         ) : null}
         <KlipyPicker

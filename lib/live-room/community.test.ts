@@ -14,6 +14,7 @@ import {
   getCommunityRoomSlugOrNull,
   normalizeCommunityRoomCreateInput,
   normalizeCommunityRoomDirectoryFilters,
+  resolveCompanyLiveRoomDirectoryResult,
 } from "./community.ts";
 import {
   COMMUNITY_ROOM_CREATE_LOGIN_HREF,
@@ -754,12 +755,28 @@ test("directory query uses FTS, stable cursors, filters, and a bounded one-query
   assert.match(directoryPage, /name="theme"/);
   assert.match(directoryPage, /name="industry"/);
   assert.match(directoryPage, /name="sort"/);
+  assert.match(
+    directoryPage,
+    /<form className=\{styles\.directoryFilters\} method="get">[\s\S]*<input[\s\S]*name="q"[\s\S]*<button[\s\S]*aria-label="Search rooms"[\s\S]*type="submit"/,
+  );
+  assert.doesNotMatch(
+    directoryPage,
+    /<Search aria-hidden="true" size=\{16\} \/>[\s\S]*<input/,
+  );
+  assert.match(
+    communityStyles,
+    /\.searchSubmit\s*\{[\s\S]*width:\s*44px;[\s\S]*min-height:\s*44px;[\s\S]*border-left:/,
+  );
 });
 
 test("ticker search labels and links the matching Company Live Room beside Community results", () => {
   assert.match(
     communityRepository,
-    /findCompanyLiveRoomDirectoryResult[\s\S]*normalizeLiveRoomTicker\(rawSearch\)[\s\S]*supabaseSelect\("tickers", \{[\s\S]*symbol:\s*`eq\.\$\{ticker\}`[\s\S]*is_active:\s*"eq\.true"/,
+    /findCompanyLiveRoomDirectoryResult[\s\S]*normalizeLiveRoomTicker\(rawSearch\)[\s\S]*Promise\.allSettled\(\[[\s\S]*supabaseSelect\("live_room_rooms", \{[\s\S]*room_kind:\s*"eq\.company"[\s\S]*ticker:\s*`eq\.\$\{ticker\}`[\s\S]*supabaseSelect\("tickers", \{[\s\S]*symbol:\s*`eq\.\$\{ticker\}`[\s\S]*is_active:\s*"eq\.true"/,
+  );
+  assert.match(
+    communityRepository,
+    /resolveCompanyLiveRoomDirectoryResult\(\{[\s\S]*available: registryResult\?\.ok === true[\s\S]*available: roomResult\?\.ok === true/,
   );
   assert.match(
     directoryPage,
@@ -797,6 +814,98 @@ test("ticker search labels and links the matching Company Live Room beside Commu
   assert.match(
     communityStyles,
     /@media \(max-width:\s*700px\)[\s\S]*\.companyRoomResult\s*\{[\s\S]*grid-template-columns:\s*1fr[\s\S]*\.openCompanyRoomLink\s*\{[\s\S]*width:\s*100%/,
+  );
+});
+
+test("exact ticker company lookup keeps room rows canonical and registry fallback lazy", () => {
+  const bblg = resolveCompanyLiveRoomDirectoryResult({
+    registry: {
+      available: true,
+      companyName: null,
+      exchange: null,
+      exists: false,
+    },
+    room: { adminStatus: "active", available: true, exists: true },
+    ticker: "BBLG",
+  });
+  assert.deepEqual(bblg, {
+    status: "found",
+    value: {
+      companyName: "BBLG company",
+      exchange: null,
+      ticker: "BBLG",
+    },
+  });
+
+  const archived = resolveCompanyLiveRoomDirectoryResult({
+    registry: {
+      available: true,
+      companyName: "Archived Corp",
+      exchange: "NASDAQ",
+      exists: true,
+    },
+    room: { adminStatus: "archived", available: true, exists: true },
+    ticker: "OLD",
+  });
+  assert.deepEqual(archived, { status: "missing" });
+
+  const registryFallback = resolveCompanyLiveRoomDirectoryResult({
+    registry: {
+      available: true,
+      companyName: "Lazy Corp",
+      exchange: "NYSE",
+      exists: true,
+    },
+    room: { adminStatus: null, available: true, exists: false },
+    ticker: "LAZY",
+  });
+  assert.deepEqual(registryFallback, {
+    status: "found",
+    value: {
+      companyName: "Lazy Corp",
+      exchange: "NYSE",
+      ticker: "LAZY",
+    },
+  });
+
+  assert.equal(
+    resolveCompanyLiveRoomDirectoryResult({
+      registry: {
+        available: false,
+        companyName: null,
+        exchange: null,
+        exists: false,
+      },
+      room: { adminStatus: "active", available: true, exists: true },
+      ticker: "ROOM",
+    }).status,
+    "found",
+  );
+  assert.equal(
+    resolveCompanyLiveRoomDirectoryResult({
+      registry: {
+        available: true,
+        companyName: "Registry Only",
+        exchange: null,
+        exists: true,
+      },
+      room: { adminStatus: null, available: false, exists: false },
+      ticker: "REG",
+    }).status,
+    "found",
+  );
+  assert.deepEqual(
+    resolveCompanyLiveRoomDirectoryResult({
+      registry: {
+        available: false,
+        companyName: null,
+        exchange: null,
+        exists: false,
+      },
+      room: { adminStatus: null, available: false, exists: false },
+      ticker: "DOWN",
+    }),
+    { status: "unavailable" },
   );
 });
 
