@@ -41,11 +41,13 @@ test("filings and Live Feed previews share the stored CRM brief and key evidence
     id: "6b038d6e-a5a1-4150-ab0e-b41c8e30e1f5",
     impactScore: 75,
     keyEvidence,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
     primaryTicker: "CRM",
     publishedAt: "2025-05-27T00:00:00.000Z",
     sentiment: "Neutral",
     source: "SEC",
     summary: filingsPreview.filingBrief,
+    showKeyPoints: filingsPreview.showKeyPoints,
     ticker: "CRM",
   };
   const liveFeedPreview = createLiveFeedV2Preview(liveFeedSource);
@@ -54,7 +56,88 @@ test("filings and Live Feed previews share the stored CRM brief and key evidence
   assert.equal(filingsPreview.filingBrief, filingBrief);
   assert.equal(filingsPreview.filingBrief, liveFeedPreview.filingBrief);
   assert.deepEqual(filingsPreview.keyPoints, liveFeedPreview.keyPoints);
+  assert.equal(filingsPreview.keyPointsLabel, liveFeedPreview.keyPointsLabel);
+  assert.equal(filingsPreview.showKeyPoints, liveFeedPreview.showKeyPoints);
   assert.equal(filingsPreview.keyPoints.length, 3);
+});
+
+test("governance filing previews use up to three unique key-change titles on both surfaces", () => {
+  const displayPayload = {
+    display_type: "governance_event",
+    data: {
+      key_changes: [
+        { title: "  Director appointed  " },
+        { title: "" },
+        { title: "Director appointed" },
+        { title: "Committee membership changed" },
+        { title: "New chair elected" },
+        { title: "This fourth unique title is excluded" },
+      ],
+    },
+  };
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload,
+    keyEvidence: ["Event-analysis evidence must not be used."],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    accessionNumber: null,
+    category: "Governance",
+    companyName: "Example, Inc.",
+    detailHref: "/filings/governance-event",
+    feedType: "filings",
+    formType: "8-K",
+    headline: "Board update",
+    id: "governance-event",
+    impactScore: 50,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-04T00:00:00.000Z",
+    sentiment: "Neutral",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "TEST",
+  });
+
+  assert.deepEqual(filingsPreview.keyPoints, [
+    "Director appointed",
+    "Committee membership changed",
+    "New chair elected",
+  ]);
+  assert.equal(filingsPreview.keyPointsLabel, "Key Changes");
+  assert.equal(filingsPreview.showKeyPoints, true);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, filingsPreview.keyPoints);
+  assert.equal(liveFeedPreview.keyPointsLabel, filingsPreview.keyPointsLabel);
+  assert.equal(liveFeedPreview.showKeyPoints, filingsPreview.showKeyPoints);
+});
+
+test("governance previews hide empty key changes without falling back to evidence", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "governance_event",
+      data: { key_changes: [{ title: "  " }, {}, null] },
+    },
+    keyEvidence: ["Do not render this fallback."],
+  });
+
+  assert.deepEqual(preview.keyPoints, []);
+  assert.equal(preview.keyPointsLabel, "Key Changes");
+  assert.equal(preview.showKeyPoints, false);
+});
+
+test("non-governance previews retain event-analysis evidence and the Key Points label", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "financing_event",
+      data: { key_changes: [{ title: "Do not use this governance field." }] },
+    },
+    keyEvidence: [" One ", "", "One", "Two", "Three", "Four"],
+  });
+
+  assert.deepEqual(preview.keyPoints, ["One", "Two", "Three"]);
+  assert.equal(preview.keyPointsLabel, "Key Points");
+  assert.equal(preview.showKeyPoints, true);
 });
 
 test("filing preview brief prefers primary material event then preserves fallbacks", () => {
@@ -86,7 +169,7 @@ test("filing preview brief prefers primary material event then preserves fallbac
   );
 });
 
-test("filings preview batches event analysis evidence without material-event fallback", () => {
+test("filings preview batches evidence and shares governance presentation fields", () => {
   const source = readFileSync(
     new URL("../../lib/filingsV2Data.ts", import.meta.url),
     "utf8",
@@ -107,17 +190,30 @@ test("filings preview batches event analysis evidence without material-event fal
     new URL("../../lib/liveFeedV2.ts", import.meta.url),
     "utf8",
   );
+  const filingsDetailSource = readFileSync(
+    new URL("./FilingsV2Detail.tsx", import.meta.url),
+    "utf8",
+  );
+  const feedPreviewSource = readFileSync(
+    new URL("../feed-v2/FeedFilingPreview.tsx", import.meta.url),
+    "utf8",
+  );
 
   assert.match(
     liveFeedSource,
-    /const filingBrief = resolveFilingPreviewFields\(\{[\s\S]*materialEvents: readMetadataRecord\(row\)\?\.material_events,[\s\S]*quickTake,[\s\S]*summary/,
+    /const filingPreviewFields = resolveFilingPreviewFields\(\{[\s\S]*displayPayload: readMetadataRecord\(row\)\?\.display_payload,[\s\S]*keyEvidence,[\s\S]*materialEvents: readMetadataRecord\(row\)\?\.material_events,[\s\S]*quickTake,[\s\S]*summary/,
   );
-  assert.match(liveFeedV2Source, /feedType === "filings"[\s\S]*resolveFilingPreviewFields/);
-  assert.match(liveFeedV2Source, /keyEvidence: item\.keyEvidence/);
+  assert.match(liveFeedV2Source, /keyPoints: item\.filingKeyPoints/);
+  assert.match(liveFeedV2Source, /keyPointsLabel: item\.filingKeyPointsLabel/);
+  assert.match(liveFeedV2Source, /showKeyPoints: item\.showFilingKeyPoints/);
   assert.match(
     liveFeedV2Source,
     /summary: filingPreviewFields\?\.filingBrief \|\| item\.quickTake \|\| item\.summary/,
   );
+  assert.match(filingsDetailSource, /record\.showKeyPoints && record\.keyPoints\.length/);
+  assert.match(filingsDetailSource, /\{record\.keyPointsLabel\}/);
+  assert.match(feedPreviewSource, /filing\.showKeyPoints \?/);
+  assert.match(feedPreviewSource, /\{filing\.keyPointsLabel\}/);
 });
 
 test("does not keep a stale filing selection when filtered results are empty", () => {
