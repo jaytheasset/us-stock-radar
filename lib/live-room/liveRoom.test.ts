@@ -2319,6 +2319,26 @@ test("member public identity defaults are server-owned while custom names stay u
   assert.doesNotMatch(postRepository, /assertLiveRoomMemberChatName|LIVE_ROOM_CHAT_NAME_REQUIRED/);
 });
 
+test("post member bootstrap never overwrites a concurrently customized profile", () => {
+  const postRepository = readSource(
+    "lib/live-room/postServerRepository.ts",
+  );
+  const ensureMemberSource =
+    postRepository.match(
+      /async function ensureLiveRoomMember\([\s\S]*?\n\}/,
+    )?.[0] ?? "";
+
+  assert.match(ensureMemberSource, /onConflict: "user_id"/);
+  assert.match(
+    ensureMemberSource,
+    /prefer: "resolution=ignore-duplicates,return=minimal"/,
+  );
+  assert.doesNotMatch(
+    ensureMemberSource,
+    /resolution=merge-duplicates|return=representation/,
+  );
+});
+
 test("optional member bio stays service-owned and limited to profile detail", () => {
   const migration = readSource(
     "supabase/migrations/20260731031022_live_room_member_profile_bio.sql",

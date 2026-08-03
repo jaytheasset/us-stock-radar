@@ -1028,7 +1028,7 @@ async function ensureLiveRoomMember(
     },
     {
       onConflict: "user_id",
-      prefer: "resolution=merge-duplicates,return=representation",
+      prefer: "resolution=ignore-duplicates,return=minimal",
     },
   );
   if (!created.ok) {
