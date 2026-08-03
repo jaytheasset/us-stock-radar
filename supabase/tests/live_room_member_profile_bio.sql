@@ -86,19 +86,26 @@ select ok(
   'the existing chat-name setter remains available'
 );
 
-insert into public.user_profiles (id)
+insert into public.user_profiles (id, email)
 values
-  ('98000000-0000-4000-8000-000000000001'),
-  ('98000000-0000-4000-8000-000000000002');
+  (
+    '98000000-0000-4000-8000-000000000001',
+    'bio-one@tes.t'
+  ),
+  (
+    '98000000-0000-4000-8000-000000000002',
+    'bio-two@tes.t'
+  );
 
 insert into public.live_room_member_profiles (
   user_id,
   display_name,
-  emoji
+  emoji,
+  is_display_name_custom
 )
 values
-  ('98000000-0000-4000-8000-000000000001', null, null),
-  ('98000000-0000-4000-8000-000000000002', null, null);
+  ('98000000-0000-4000-8000-000000000001', 'bi', null, false),
+  ('98000000-0000-4000-8000-000000000002', 'bi', null, false);
 
 select lives_ok(
   $$
@@ -255,7 +262,7 @@ select is(
     from public.live_room_member_profiles
     where user_id = '98000000-0000-4000-8000-000000000002'
   ),
-  null,
+  'bi',
   'an invalid bio cannot partially save the chat name'
 );
 

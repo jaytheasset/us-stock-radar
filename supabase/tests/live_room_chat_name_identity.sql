@@ -117,7 +117,11 @@ select is(
   (
     select pg_catalog.count(*)::integer
     from public.live_room_member_profiles
-    where display_name = 'fr'
+    where user_id in (
+        '97000000-0000-4000-8000-000000000002',
+        '97000000-0000-4000-8000-000000000003'
+      )
+      and display_name = 'fr'
       and not is_display_name_custom
   ),
   2,
