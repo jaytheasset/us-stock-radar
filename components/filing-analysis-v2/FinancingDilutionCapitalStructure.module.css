@@ -758,9 +758,11 @@
   }
 
   .scaleHeader p,
+  .headline span,
   .sectionHeading span,
   .headline small,
   .extremeScaleReadouts span,
+  .extremeScaleRail b,
   .extremeScaleRail span,
   .extremeScale > p,
   .barMetric > i,
@@ -774,7 +776,9 @@
   }
 
   .extremeScaleReadouts strong,
+  .extremeScaleRail i > strong,
   .barMetric strong,
+  .legendCopy > strong,
   .legendValue > b,
   .equation > strong,
   .detailRows strong,
@@ -782,6 +786,10 @@
   .instrumentTable tbody td {
     font-size: 16px;
     line-height: var(--sr-line-height-default);
+  }
+
+  .legendValue i {
+    font-size: var(--sr-font-size-base);
   }
 
   .detailRows dd span {
