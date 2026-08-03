@@ -154,7 +154,7 @@ test("member and visitor aggregates stay separate while total cannot trail onlin
   );
   assert.match(
     companyHeader,
-    /roomCounts\.memberCount\} members[\s\S]*roomCounts\.visitorCount\} visitors[\s\S]*roomCounts\.onlineCount\} online/,
+    /formatMemberCount\(roomCounts\.memberCount\)[\s\S]*roomCounts\.visitorCount\} visitors[\s\S]*roomCounts\.onlineCount\} online/,
   );
 });
 

@@ -78,7 +78,7 @@ export function CompanyRoomHeader({
               <small
                 className={`${styles.roomCounts} ${styles.desktopRoomCounts}`}
               >
-                <strong>{roomCounts.memberCount} members</strong>
+                <strong>{formatMemberCount(roomCounts.memberCount)}</strong>
                 {roomCounts.visitorCount > 0 ? (
                   <>
                     <span aria-hidden="true">·</span>
@@ -94,9 +94,7 @@ export function CompanyRoomHeader({
               <small
                 className={`${styles.roomCounts} ${styles.mobileRoomCounts}`}
               >
-                <strong>
-                  {roomCounts.memberCount} members
-                </strong>
+                <strong>{formatMemberCount(roomCounts.memberCount)}</strong>
                 <span aria-hidden="true">·</span>
                 <span className={styles.onlineCount}>
                   <i aria-hidden="true" />
@@ -159,6 +157,10 @@ function formatQuotePrice(value: number | null) {
     minimumFractionDigits: 2,
     style: "currency",
   }).format(value);
+}
+
+function formatMemberCount(memberCount: number) {
+  return `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
 }
 
 function formatQuotePercent(value: number | null) {

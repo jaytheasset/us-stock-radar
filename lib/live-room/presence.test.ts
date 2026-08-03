@@ -356,7 +356,7 @@ test("header distinguishes joined members and visitors before aggregate online c
   assert.match(client, /roomCounts=\{roomCounts\}/);
   assert.match(
     header,
-    /roomCounts\.memberCount\} members[\s\S]*?roomCounts\.visitorCount\} visitors[\s\S]*?<span aria-hidden="true">·<\/span>[\s\S]*?roomCounts\.onlineCount\} online/,
+    /formatMemberCount\(roomCounts\.memberCount\)[\s\S]*?roomCounts\.visitorCount\} visitors[\s\S]*?<span aria-hidden="true">·<\/span>[\s\S]*?roomCounts\.onlineCount\} online/,
   );
   assert.doesNotMatch(header, /onlineCount\s*!==|onlineCount\s*>\s*0/);
   assert.match(

@@ -2760,6 +2760,7 @@ button.messageReplyPreview:hover {
   .page[data-room-kind="company"] .mobileRoomTitle {
     display: block !important;
     flex: 1 1 auto;
+    font-family: var(--sr-font-family-sans);
   }
 
   .page[data-room-kind="company"] .mobileTicker {
@@ -3054,6 +3055,11 @@ button.messageReplyPreview:hover {
   .latestChatEventKind {
     min-height: 22px;
     padding: 0 var(--sr-space-1-5);
+  }
+
+  .latestChatEventStrip time,
+  .latestChatEventStrip > svg {
+    display: none;
   }
 
   .latestChatEventLoading {
@@ -3363,11 +3369,6 @@ button.messageReplyPreview:hover {
 }
 
 @media (max-width: 360px) {
-  .latestChatEventStrip time,
-  .latestChatEventStrip > svg {
-    display: none;
-  }
-
   .roomActions .membershipButton,
   .roomActions .membershipLeaveButton,
   .membershipJoinedStatus {
