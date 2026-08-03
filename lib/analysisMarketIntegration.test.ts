@@ -86,8 +86,16 @@ test("Market Context exposes real quote fields, explicit unavailable states, and
   assert.match(panel, /event\.key === "ArrowRight"/);
   assert.match(panel, /event\.key === "ArrowLeft"/);
   assert.match(panel, /aria-current=\{currentPage === pageIndex \? "page" : undefined\}/);
+  assert.match(panel, /className="context-mover-head"[\s\S]*<strong>\{mover\.symbol\}<\/strong>[\s\S]*className="context-mover-quote"[\s\S]*<b>\{price\}<\/b>[\s\S]*<span>\{change\}<\/span>/);
+  assert.match(panel, /<small title=\{companyName\}>\{companyName\}<\/small>/);
+  assert.match(panel, /<span aria-hidden="true" \/>/);
+  assert.match(panel, /const x = 2 \+ \(index \/ Math\.max\(points\.length - 1, 1\)\) \* 80/);
   assert.match(styles, /\.context-mover-slide \{[\s\S]*flex: 0 0 100%;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*scroll-snap-align: start;/);
   assert.match(styles, /\.context-mover-slider \{[\s\S]*overflow-x: auto;[\s\S]*overflow-y: hidden;[\s\S]*scroll-snap-type: x mandatory;[\s\S]*scrollbar-width: none;/);
+  assert.match(styles, /\.context-mover-slide \.context-mover-head \{[\s\S]*display: flex;[\s\S]*align-items: baseline;[\s\S]*justify-content: space-between;/);
+  assert.match(styles, /\.context-mover-pagination button \{[\s\S]*width: 24px;[\s\S]*height: 24px;[\s\S]*background: transparent;/);
+  assert.match(styles, /\.context-mover-pagination button > span \{[\s\S]*background: #7f8fa6;/);
+  assert.match(styles, /button\[aria-current="page"\] > span \{[\s\S]*width: 14px;[\s\S]*background: #0f55ff;/);
 });
 
 test("future News events retain prompt market context without changing old-event compatibility", () => {
