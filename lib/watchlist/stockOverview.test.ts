@@ -376,6 +376,10 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /className=\{styles\.alertAction\}/);
   assert.match(
     componentSource,
+    /className=\{styles\.stockQuoteChange\}[\s\S]*data-tone=\{isPositive \? "positive" : "negative"\}[\s\S]*quote\.changePercent\.toFixed\(2\)[\s\S]*formatCurrency\(quote\.change\)/,
+  );
+  assert.match(
+    componentSource,
     /href=\{getAlertsRouteHref\(ticker\)\}/,
   );
   assert.match(componentSource, /Ticker unavailable/);
@@ -446,11 +450,15 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.pageTitleRow \{[\s\S]*display: flex;[\s\S]*align-items: baseline;[\s\S]*\.mobileMemberSummary \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*white-space: nowrap;[\s\S]*\.desktopMemberSummary \{\s*display: none;/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.pageTitleBlock \{[\s\S]*overflow: hidden;[\s\S]*flex: 1 1 auto;[\s\S]*\.pageTitleRow \{[\s\S]*flex-direction: column;[\s\S]*align-items: flex-start;[\s\S]*\.mobileMemberSummary \{[\s\S]*display: block;[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*white-space: nowrap;[\s\S]*\.tickerSheetTrigger \{[\s\S]*height: var\(--sr-size-mobile-list-row\);[\s\S]*\.desktopMemberSummary \{\s*display: none;/,
   );
   assert.match(
     componentCss,
-    /@media \(max-width: 350px\) \{[\s\S]*\.pageTitleRow \{[\s\S]*flex-direction: column;/,
+    /\.stockQuoteChange \{\s*display: contents;\s*\}/,
+  );
+  assert.match(
+    componentCss,
+    /@media \(max-width: 760px\) \{[\s\S]*\.stockQuote \{[\s\S]*min-width: max-content;[\s\S]*flex-direction: column;[\s\S]*align-items: flex-end;[\s\S]*\.stockQuote strong \{[\s\S]*white-space: nowrap;[\s\S]*\.stockQuote small \{[\s\S]*white-space: nowrap;[\s\S]*\.stockQuoteChange \{[\s\S]*display: flex;[\s\S]*align-items: flex-start;[\s\S]*white-space: nowrap;/,
   );
   assert.doesNotMatch(componentCss, /\.stockActions > :last-child/);
   assert.match(
