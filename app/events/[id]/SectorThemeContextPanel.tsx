@@ -266,18 +266,19 @@ function TopMoverTile({
       tabIndex={0}
     >
       <div className="context-mover-copy">
-        <div>
+        <div className="context-mover-head">
           <strong>{mover.symbol}</strong>
-          <small title={companyName}>{companyName}</small>
+          {hasMarketData ? (
+            <div className="context-mover-quote">
+              <b>{price}</b>
+              <span>{change}</span>
+            </div>
+          ) : null}
         </div>
-        {hasMarketData ? (
-          <div className="context-mover-quote">
-            <b>{price}</b>
-            <span>{change}</span>
-          </div>
-        ) : (
+        <small title={companyName}>{companyName}</small>
+        {!hasMarketData ? (
           <span className="context-mover-unavailable">{status}</span>
-        )}
+        ) : null}
       </div>
       {hasMarketData ? (
         <TopMoverSparkline values={values} tone={tone} />
@@ -383,7 +384,9 @@ function MarketContextMobileSlider({
             key={page.map((mover) => mover.symbol).join("-")}
             onClick={() => scrollToPage(pageIndex)}
             type="button"
-          />
+          >
+            <span aria-hidden="true" />
+          </button>
         ))}
       </div>
     </div>
@@ -398,15 +401,15 @@ function TopMoverSparkline({ values, tone }: { values: number[]; tone: DetailTon
   const range = max - min || 1;
   const coordinates = points
     .map((value, index) => {
-      const x = 4 + (index / Math.max(points.length - 1, 1)) * 76;
-      const y = 35 - ((value - min) / range) * 31;
+      const x = 2 + (index / Math.max(points.length - 1, 1)) * 80;
+      const y = 42 - ((value - min) / range) * 38;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
 
   return (
     <svg className={`top-mover-sparkline ${tone}`} viewBox="0 0 84 46" role="img" aria-label={`${tone} trend`}>
-      <line x1="4" x2="80" y1="44" y2="44" />
+      <line x1="2" x2="82" y1="44" y2="44" />
       <polyline points={coordinates} />
     </svg>
   );
