@@ -12,6 +12,11 @@ export type AnalysisCollapsedRailInlineAdInput = {
   scoreRationaleVisible: boolean;
 };
 
+export type AnalysisTabletRailInlineAdInput = {
+  adsAllowed: boolean;
+  hasRelatedContent: boolean;
+};
+
 export function areAdsEnabledForPlan(plan: Plan) {
   return plan === "free";
 }
@@ -22,6 +27,13 @@ export function shouldShowAnalysisCollapsedRailInlineAd({
   scoreRationaleVisible,
 }: AnalysisCollapsedRailInlineAdInput) {
   return adsAllowed && !hasRelatedContent && scoreRationaleVisible;
+}
+
+export function shouldShowAnalysisTabletRailInlineAd({
+  adsAllowed,
+  hasRelatedContent,
+}: AnalysisTabletRailInlineAdInput) {
+  return adsAllowed && hasRelatedContent;
 }
 
 export function shouldShowAnalysisSignalCompanionAd({

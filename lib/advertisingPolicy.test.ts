@@ -5,6 +5,7 @@ import {
   areAdsEnabledForPlan,
   shouldShowAnalysisCollapsedRailInlineAd,
   shouldShowAnalysisSignalCompanionAd,
+  shouldShowAnalysisTabletRailInlineAd,
 } from "./advertisingPolicy.ts";
 import type { Plan } from "./subscriptionPolicy.ts";
 
@@ -187,6 +188,30 @@ test("a missing score rationale suppresses the collapsed rail fallback", () => {
   );
 });
 
+test("related-content rails use a tablet-only inline replacement", () => {
+  assert.equal(
+    shouldShowAnalysisTabletRailInlineAd({
+      adsAllowed: true,
+      hasRelatedContent: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldShowAnalysisTabletRailInlineAd({
+      adsAllowed: true,
+      hasRelatedContent: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldShowAnalysisTabletRailInlineAd({
+      adsAllowed: false,
+      hasRelatedContent: true,
+    }),
+    false,
+  );
+});
+
 test("news and filing detail routes wire the shared analysis ad contract", () => {
   const genericSource = read("../components/filing-analysis-v2/GenericFilingAnalysis.tsx");
   const genericStyles = read(
@@ -225,9 +250,22 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
   assert.match(genericSource, /shouldShowAnalysisSignalCompanionAd/);
   assert.match(genericSource, /<AnalysisSignalCompanionAd \/>/);
   assert.match(genericSource, /shouldShowAnalysisCollapsedRailInlineAd/);
+  assert.match(genericSource, /shouldShowAnalysisTabletRailInlineAd/);
   assert.match(
     genericSource,
     /showCollapsedRailInlineAd[\s\S]*<AnalysisCollapsedRailInlineAd \/>[\s\S]*scoreRationaleProps[\s\S]*<ScoreRationale/,
+  );
+  assert.match(
+    genericSource,
+    /showTabletRailInlineAd[\s\S]*styles\.tabletRailInlineAd[\s\S]*<AnalysisCollapsedRailInlineAd tabletOnly \/>[\s\S]*scoreRationaleProps[\s\S]*<ScoreRationale/,
+  );
+  assert.match(
+    genericStyles,
+    /@media \(min-width: 761px\) and \(max-width: 1180px\) \{[\s\S]*\.tabletRailInlineAd \{[\s\S]*display: block;/,
+  );
+  assert.match(
+    collapsedRailSource,
+    /tabletOnly[\s\S]*"\(min-width: 761px\) and \(max-width: 1180px\)"/,
   );
   assert.match(genericSource, /allowAds \? <FilingInlineAdSlot \/> : null/);
   assert.match(genericSource, /allowAds \? <FilingRailAdSlot format="rectangle" \/> : null/);
@@ -277,7 +315,10 @@ test("news and filing detail routes wire the shared analysis ad contract", () =>
     collapsedRailSource,
     /inventory="analysis-collapsed-rail-inline"/,
   );
-  assert.match(collapsedRailSource, /mediaQuery="\(max-width: 1180px\)"/);
+  assert.match(
+    collapsedRailSource,
+    /tabletOnly[\s\S]*"\(min-width: 761px\) and \(max-width: 1180px\)"[\s\S]*"\(max-width: 1180px\)"/,
+  );
   assert.match(collapsedRailSource, /height=\{90\}/);
   assert.match(collapsedRailSource, /width=\{970\}/);
   assert.match(collapsedRailSource, /mobileHeight=\{100\}/);
