@@ -751,20 +751,12 @@ export function CommunityRoomClient({
     [],
   );
 
-  const handleSend = async (profileOverride?: LiveRoomProfile) => {
+  const handleSend = async () => {
     if (roomReadOnly) {
       setNotice(roomAvailabilityMessage);
       return;
     }
-    const activeProfile = profileOverride ?? profile;
-    if (!activeProfile || sending) return;
-    if (
-      activeProfile.isGuest === false &&
-      activeProfile.isChatNameSet === false
-    ) {
-      setProfileOpen(true);
-      return;
-    }
+    if (!profile || sending) return;
     const history = timeline
       .filter(
         (item): item is LiveRoomChatMessage =>
@@ -1285,8 +1277,6 @@ export function CommunityRoomClient({
                   onCreated={handlePostCreated}
                   onLoad={handleLoadPosts}
                   onPostsChange={setPosts}
-                  onProfileAvatarChange={handleProfileAvatarChange}
-                  onProfileSave={handleProfileSave}
                   posts={posts}
                   profile={profile}
                   repository={repository}
@@ -1587,8 +1577,6 @@ export function CommunityRoomClient({
                 onCreated={handlePostCreated}
                 onLoad={handleLoadPosts}
                 onPostsChange={setPosts}
-                onProfileAvatarChange={handleProfileAvatarChange}
-                onProfileSave={handleProfileSave}
                 posts={posts}
                 profile={profile}
                 repository={repository}

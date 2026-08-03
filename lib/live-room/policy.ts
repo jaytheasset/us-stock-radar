@@ -234,5 +234,14 @@ export function shouldRefreshLiveRoomGuestLastSeen(
 }
 
 export function getDefaultLiveRoomDisplayName(actor: LiveRoomActor) {
-  return actor.kind === "guest" ? "Guest" : "";
+  return actor.kind === "guest"
+    ? "Guest"
+    : getDefaultLiveRoomMemberDisplayName(actor.email);
+}
+
+export function getDefaultLiveRoomMemberDisplayName(email: unknown) {
+  if (typeof email !== "string") return "sr";
+  const normalized = email.trim().toLowerCase();
+  if (!/^[a-z0-9]{2}[^@]*@[^@]+$/.test(normalized)) return "sr";
+  return normalized.slice(0, 2);
 }
