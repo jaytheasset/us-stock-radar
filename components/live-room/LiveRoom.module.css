@@ -1655,6 +1655,7 @@
   width: fit-content;
   max-width: min(720px, calc(100% - 46px));
   min-width: 0;
+  border: 0;
   border-radius: var(--sr-radius-chat-message);
   padding: var(--sr-space-3);
 }
@@ -2040,12 +2041,10 @@ button.messageReplyPreview:hover {
 }
 
 .otherMessage article {
-  border: var(--sr-border-width) solid var(--sr-color-chat-bubble-other-border);
   background: var(--sr-color-chat-bubble-other-background);
 }
 
 .myMessage article {
-  border: var(--sr-border-width) solid var(--sr-color-chat-bubble-mine-border);
   background: var(--sr-color-chat-bubble-mine-background);
 }
 

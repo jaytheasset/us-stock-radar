@@ -130,6 +130,59 @@ export type CommunityRoomDirectoryPage = {
   nextCursor: string | null;
 };
 
+export type CompanyLiveRoomDirectoryResult = {
+  companyName: string;
+  exchange: string | null;
+  ticker: string;
+};
+
+export type CompanyLiveRoomDirectoryResolution =
+  | { status: "found"; value: CompanyLiveRoomDirectoryResult }
+  | { status: "missing" }
+  | { status: "unavailable" };
+
+export function resolveCompanyLiveRoomDirectoryResult({
+  registry,
+  room,
+  ticker,
+}: {
+  registry: {
+    available: boolean;
+    companyName: string | null;
+    exchange: string | null;
+    exists: boolean;
+  };
+  room: {
+    adminStatus: string | null;
+    available: boolean;
+    exists: boolean;
+  };
+  ticker: string;
+}): CompanyLiveRoomDirectoryResolution {
+  if (!room.available && !registry.available) {
+    return { status: "unavailable" };
+  }
+  if (
+    room.available &&
+    room.exists &&
+    room.adminStatus?.toLowerCase() === "archived"
+  ) {
+    return { status: "missing" };
+  }
+  if (!room.exists && !registry.exists) {
+    return { status: "missing" };
+  }
+
+  return {
+    status: "found",
+    value: {
+      companyName: registry.companyName?.trim() || `${ticker} company`,
+      exchange: registry.exchange?.trim() || null,
+      ticker,
+    },
+  };
+}
+
 export type CommunityRoomCreateInput = {
   focusTags: CommunityRoomFocusTag[];
   industries: CommunityRoomIndustry[];

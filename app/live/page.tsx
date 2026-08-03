@@ -134,18 +134,25 @@ export default async function CommunityRoomDirectoryPage({
         </header>
 
         <form className={styles.directoryFilters} method="get">
-          <label className={styles.searchField}>
-            <span>Search rooms</span>
+          <div className={styles.searchField}>
+            <label htmlFor="live-room-directory-search">Search rooms</label>
             <div>
-              <Search aria-hidden="true" size={16} />
               <input
+                id="live-room-directory-search"
                 defaultValue={page.filters.search}
                 maxLength={80}
                 name="q"
                 placeholder="Search name or introduction"
               />
+              <button
+                aria-label="Search rooms"
+                className={styles.searchSubmit}
+                type="submit"
+              >
+                <Search aria-hidden="true" size={17} />
+              </button>
             </div>
-          </label>
+          </div>
           <label>
             <span>Theme</span>
             <select

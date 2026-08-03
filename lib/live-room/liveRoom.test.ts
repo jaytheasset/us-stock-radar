@@ -368,7 +368,8 @@ test("company Live Room replaces mobile dock tabs with an accessible composer Ro
     5,
   );
   assert.match(composer, /aria-label="Open Room menu"/);
-  assert.match(composer, /<Menu aria-hidden="true"/);
+  assert.match(composer, /<LayoutGrid aria-hidden="true"/);
+  assert.doesNotMatch(composer, /<Menu aria-hidden="true"/);
   assert.match(composer, /aria-label="Room menu"/);
   assert.match(composer, /aria-current=\{item\.value === "chat" \? "page"/);
   assert.match(composer, /placement="room-menu"/);
@@ -409,7 +410,7 @@ test("company Live Room replaces mobile dock tabs with an accessible composer Ro
   );
 });
 
-test("Live Room message bubbles use the shared financial-chat color and radius contract", () => {
+test("Live Room message bubbles keep shared backgrounds and radius without outer borders", () => {
   const tokens = readSource("app/stock-radar-tokens.css");
   const timeline = readSource("components/live-room/ChatTimeline.tsx");
   const styles = readSource("components/live-room/LiveRoom.module.css");
@@ -452,16 +453,25 @@ test("Live Room message bubbles use the shared financial-chat color and radius c
   );
   assert.match(
     styles,
-    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?max-width:\s*min\(720px, calc\(100% - 46px\)\)[\s\S]*?min-width:\s*0[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
+    /\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?max-width:\s*min\(720px, calc\(100% - 46px\)\)[\s\S]*?min-width:\s*0[\s\S]*?border:\s*0;[\s\S]*?border-radius:\s*var\(--sr-radius-chat-message\)/,
   );
   assert.match(
     styles,
-    /\.otherMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-other-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-other-background\)/,
+    /\.otherMessage article\s*\{[^}]*background:\s*var\(--sr-color-chat-bubble-other-background\)/,
   );
   assert.match(
     styles,
-    /\.myMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-mine-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
+    /\.myMessage article\s*\{[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
   );
+  const otherMessageRule =
+    styles.match(/\.otherMessage article\s*\{([^}]*)\}/)?.[1] ?? "";
+  const myMessageRule =
+    styles.match(/\.myMessage article\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.doesNotMatch(
+    `${otherMessageRule}\n${myMessageRule}`,
+    /--sr-color-chat-bubble-(?:other|mine)-border|border:\s*var/,
+  );
+  assert.match(styles, /\.highlightedMessage\s*\{[\s\S]*outline:/);
   assert.match(
     planBadgeStyles,
     /\.badge\s*\{[\s\S]*?border-radius:\s*var\(--sr-radius-chat-control\)/,
