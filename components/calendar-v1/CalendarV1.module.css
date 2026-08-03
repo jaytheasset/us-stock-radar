@@ -2048,6 +2048,115 @@
     padding-left: var(--sr-space-4);
   }
 
+  .mobileDetailContent .detailHeader > [data-calendar-event-type] {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 var(--sr-space-2);
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .mobileDetailContent .detailHeader > div {
+    min-width: 0;
+  }
+
+  .mobileDetailContent .detailIdentityLink {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobileDetailContent .detailHeader > div strong {
+    font-size: 16px;
+  }
+
+  .mobileDetailContent .detailIdentityLink span,
+  .mobileDetailContent .detailHeader p {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .mobileDetailContent .detailHeader > div b {
+    display: inline-flex;
+    min-height: 24px;
+    flex: 0 0 auto;
+    align-items: center;
+    padding: 0 var(--sr-space-2);
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .mobileDetailContent .detailHeader h2 {
+    font-size: 20px;
+    font-weight: var(--sr-font-weight-semibold);
+    line-height: var(--sr-line-height-body);
+    overflow-wrap: anywhere;
+  }
+
+  .mobileDetailContent .detailSummary dt,
+  .mobileDetailContent .detailSection dt,
+  .mobileDetailContent .detailSection h3 {
+    font-size: var(--sr-font-size-md);
+  }
+
+  .mobileDetailContent .detailSummary dd,
+  .mobileDetailContent .detailSection dd {
+    font-size: var(--sr-font-size-lg);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .mobileDetailContent .macroMetrics > div {
+    grid-template-columns: minmax(72px, 1.2fr) repeat(3, minmax(0, 0.8fr));
+    gap: var(--sr-space-1);
+  }
+
+  .mobileDetailContent .macroMetrics b,
+  .mobileDetailContent .macroMetrics strong,
+  .mobileDetailContent .macroMetrics span {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-body);
+  }
+
+  .mobileDetailContent .detailAction {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 144px);
+    gap: var(--sr-space-2);
+  }
+
+  .mobileDetailContent .detailAction strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .mobileDetailContent .detailAction span,
+  .mobileDetailContent .detailAction .followUsage {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .mobileDetailContent .detailAction button {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--sr-space-2) var(--sr-space-2-5);
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .mobileDetailContent .analysisEntry > span,
+  .mobileDetailContent .analysisPending,
+  .mobileDetailContent .mockNotice {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .mobileDetailContent .analysisLink {
+    min-height: 44px;
+    align-items: center;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .mobileDetailContent .detailLinks > a,
+  .mobileDetailContent .detailLinks > span {
+    min-height: 44px;
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-control);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .mobileFilterSheet,
   .mobileRangeSheet {
     padding-right: var(--sr-space-3);
