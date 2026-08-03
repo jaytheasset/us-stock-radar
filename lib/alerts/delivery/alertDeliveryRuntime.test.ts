@@ -31,6 +31,9 @@ const headerMenu = readProjectFile(
   "components/shell/AlertNotificationsMenu.tsx",
 );
 const deliveredRoute = readProjectFile("app/api/alerts/delivered/route.ts");
+const webDeliveryVisibility = readProjectFile(
+  "lib/alerts/webDeliveryVisibility.ts",
+);
 const adminAlerts = readProjectFile("app/admin/alerts/page.tsx");
 const vercelConfig = JSON.parse(readProjectFile("vercel.json")) as {
   crons?: Array<{ path?: string; schedule?: string }>;
@@ -154,7 +157,16 @@ test("header notifications use real unread counts and read mutations", () => {
   assert.match(headerMenu, /body: JSON\.stringify\(\{ all: true, read: true \}\)/);
   assert.match(headerMenu, /href="\/alerts"/);
   assert.match(deliveredRoute, /"X-Auth-State": "guest"/);
-  assert.match(deliveredRoute, /delivery_status: "eq\.sent"/);
+  assert.match(deliveredRoute, /getWebDeliveredAlertIdsForUser/);
+  assert.match(webDeliveryVisibility, /sent_web_delivery_attempts\.status.*"eq\.sent"/);
+  assert.match(webDeliveryVisibility, /delivered_channels\.cs\.\{web\}/);
+});
+
+test("Web visibility does not finalize or cancel Email retries", () => {
+  assert.doesNotMatch(webDeliveryVisibility, /supabaseUpdate|finishAlertDeliveryChannelAttempt|next_retry_at/);
+  assert.match(queuedDelivery, /claim\.attemptNumber < 3/);
+  assert.match(queuedDelivery, /A bounded retry is scheduled/);
+  assert.match(queuedDelivery, /claim\.status === "sent"/);
 });
 
 test("admin reuses Alerts operations and reports cron delivery outcomes", () => {

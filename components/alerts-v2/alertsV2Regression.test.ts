@@ -27,6 +27,10 @@ const deliveredRouteSource = readFileSync(
   new URL("../../app/api/alerts/delivered/route.ts", import.meta.url),
   "utf8",
 );
+const webDeliveryVisibilitySource = readFileSync(
+  new URL("../../lib/alerts/webDeliveryVisibility.ts", import.meta.url),
+  "utf8",
+);
 const followsRouteSource = readFileSync(
   new URL("../../app/api/calendar/follows/route.ts", import.meta.url),
   "utf8",
@@ -248,6 +252,9 @@ test("in-app delivery is real, readable, and external channel entitlements stay 
   assert.match(deliveredRouteSource, /export async function POST/);
   assert.match(deliveredRouteSource, /export async function PATCH/);
   assert.match(deliveredRouteSource, /read_at:/);
+  assert.match(webDeliveryVisibilitySource, /web_delivery_attempts:alert_delivery_channel_attempts/);
+  assert.match(webDeliveryVisibilitySource, /delivery_status: "sent"/);
+  assert.match(webDeliveryVisibilitySource, /delivered_channels: \["web"\]/);
   assert.match(followsRouteSource, /setUserCalendarFollow/);
   assert.match(calendarDeliverySource, /user_delivery_channels/);
   assert.match(calendarDeliverySource, /ticker: nullableString\(event\.ticker\)/);

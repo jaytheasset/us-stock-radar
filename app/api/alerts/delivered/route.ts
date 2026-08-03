@@ -4,6 +4,7 @@ import {
   type DeliveryStatusFilter,
   getDeliveredAlertsForUser,
   getUnreadAlertCountForUser,
+  getWebDeliveredAlertIdsForUser,
 } from "@/lib/alerts/getAlertSettingsViewModel";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { isValidAlertCategory, type AlertCategory } from "@/lib/subscriptionPolicy";
@@ -75,7 +76,6 @@ export async function GET(request: NextRequest) {
       offset,
       lane,
       category,
-      status: status || "sent",
     }),
     getUnreadAlertCountForUser(userId),
   ]);
@@ -130,10 +130,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const query: Record<string, string> = {
-    user_id: `eq.${userId}`,
-    delivery_status: "eq.sent",
-  };
+  let visibleIds: string[] = [];
   if (body.all !== true) {
     if (typeof body.id !== "string" || !UUID_PATTERN.test(body.id)) {
       return NextResponse.json(
@@ -141,23 +138,48 @@ export async function PATCH(request: NextRequest) {
         { status: 400, headers: NO_STORE_HEADERS },
       );
     }
-    query.id = `eq.${body.id}`;
+    const visible = await getWebDeliveredAlertIdsForUser({
+      userId,
+      deliveryId: body.id,
+      limit: 1,
+    });
+    if (!visible.ok) return readStateLookupFailed(visible.status, visible.error);
+    if (visible.ids.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "ALERT_NOT_FOUND", message: "The Web alert was not found." },
+        { status: 404, headers: NO_STORE_HEADERS },
+      );
+    }
+    visibleIds = visible.ids;
+  } else {
+    const visible = await getAllWebDeliveredAlertIds(userId, body.read === true);
+    if (!visible.ok) return readStateLookupFailed(visible.status, visible.error);
+    visibleIds = visible.ids;
   }
 
-  const result = await supabaseUpdate(
-    "user_alert_deliveries",
-    query,
-    { read_at: body.read ? new Date().toISOString() : null },
-  );
-  if (!result.ok) {
-    return NextResponse.json(
+  // Keep accepting historical status query values, but this user-facing
+  // endpoint always represents successful Web-channel delivery.
+
+  const readAt = body.read ? new Date().toISOString() : null;
+  for (const ids of chunk(visibleIds, 50)) {
+    const result = await supabaseUpdate(
+      "user_alert_deliveries",
       {
-        ok: false,
-        error: "ALERT_READ_STATE_SAVE_FAILED",
-        message: result.error || "Failed to update alert read state.",
+        user_id: `eq.${userId}`,
+        id: `in.(${ids.join(",")})`,
       },
-      { status: result.status || 502, headers: NO_STORE_HEADERS },
+      { read_at: readAt },
     );
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "ALERT_READ_STATE_SAVE_FAILED",
+          message: result.error || "Failed to update alert read state.",
+        },
+        { status: result.status || 502, headers: NO_STORE_HEADERS },
+      );
+    }
   }
   return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
 }
@@ -234,6 +256,45 @@ function normalizeStatus(value: string | null): DeliveryStatusFilter | undefined
     return status;
   }
   return undefined;
+}
+
+async function getAllWebDeliveredAlertIds(userId: string, unreadOnly: boolean) {
+  const ids: string[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await getWebDeliveredAlertIdsForUser({
+      userId,
+      unreadOnly,
+      limit: 100,
+      offset,
+    });
+    if (!page.ok) return page;
+    ids.push(...page.ids);
+    offset += page.ids.length;
+    if (page.ids.length === 0 || offset >= page.total) break;
+  }
+
+  return { ok: true as const, status: 200, ids, total: ids.length, error: undefined };
+}
+
+function readStateLookupFailed(status: number, error?: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "ALERT_READ_STATE_LOOKUP_FAILED",
+      message: error || "Failed to verify the Web alert.",
+    },
+    { status: status || 502, headers: NO_STORE_HEADERS },
+  );
+}
+
+function chunk<T>(values: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function clampLimit(value: number) {

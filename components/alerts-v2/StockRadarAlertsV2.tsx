@@ -77,7 +77,7 @@ async function fetchDeliveredAlertPage({
   signal?: AbortSignal;
 }) {
   const response = await fetch(
-    `/api/alerts/delivered?limit=${limit}&offset=${offset}&status=all`,
+    `/api/alerts/delivered?limit=${limit}&offset=${offset}&status=sent`,
     {
       cache: "no-store",
       signal,
