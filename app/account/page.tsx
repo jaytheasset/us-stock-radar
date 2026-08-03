@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Account | Stock Radar",
-  description: "View your Stock Radar account, plan, and saved market tools.",
+  description: "View your Stock Radar account, plan, and market tools.",
   robots: {
     index: false,
     follow: false,
@@ -63,7 +63,7 @@ export default async function AccountPage() {
             <span className={styles.eyebrow}>Account</span>
             <h1>Your Stock Radar account</h1>
             <p>
-              Review your sign-in status, current plan, and shortcuts to the market tools saved to this account.
+              Review your sign-in status, current plan, and shortcuts to your market tools.
             </p>
           </div>
           <MemberPlanBadge
@@ -133,7 +133,7 @@ export default async function AccountPage() {
                 Watchlist
               </AccountLink>
               <AccountLink href="/saved" icon={<Bookmark size={16} />}>
-                Saved
+                Bookmarks
               </AccountLink>
               <AccountLink href="/account/creator" icon={<BadgeCheck size={16} />}>
                 Social account verification

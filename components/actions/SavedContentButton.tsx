@@ -58,8 +58,8 @@ export function SavedContentButton({
         ? "post"
         : "news";
   const actionLabel = saved
-    ? `Remove ${contentLabel} from Saved`
-    : `Save ${contentLabel}`;
+    ? `Remove ${contentLabel} bookmark`
+    : `Add ${contentLabel} bookmark`;
 
   async function toggleSaved() {
     if (busy) return;
@@ -72,7 +72,7 @@ export function SavedContentButton({
     const next = !previous;
     setSaved(next);
     setBusy(true);
-    setMessage(next ? "Saving…" : "Removing…");
+    setMessage(next ? "Adding bookmark…" : "Removing bookmark…");
     publishUserContentChange({
       kind: "saved",
       contentId,
@@ -101,9 +101,9 @@ export function SavedContentButton({
         return;
       }
       if (!response.ok || payload.saved !== next) {
-        throw new Error(payload.error || "Saved content update failed");
+        throw new Error(payload.error || "Bookmark update failed");
       }
-      setMessage(next ? "Saved." : "Removed from Saved.");
+      setMessage(next ? "Bookmarked." : "Bookmark removed.");
     } catch {
       setSaved(previous);
       publishUserContentChange({
@@ -112,7 +112,7 @@ export function SavedContentButton({
         contentType,
         value: previous,
       });
-      setMessage("Could not update Saved. Try again.");
+      setMessage("Could not update bookmark. Try again.");
     } finally {
       setBusy(false);
     }

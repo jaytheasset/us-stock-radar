@@ -228,7 +228,7 @@ export function AuthStatus({
               Account settings
             </Link>
             <Link href="/saved" onClick={() => setMenuOpen(false)} role="menuitem">
-              Saved
+              Bookmarks
             </Link>
             <Link
               href="/account/brokerage"

@@ -187,7 +187,7 @@ export function StockRadarWatchlistV2({
   );
   const selectedWatchlistItem =
     watchlist.items.find((item) => item.ticker === selectedTicker) ?? null;
-  const memberSummary = `${watchlist.usage} saved · Unlimited on ${watchlist.planLabel}`;
+  const memberSummary = `${watchlist.usage} on Watchlist · Unlimited on ${watchlist.planLabel}`;
   const hasStandaloneStatus = watchlist.guestMode || Boolean(statusMessage);
   const allowAds = watchlist.plan === "free";
   const limitReached =
@@ -1134,7 +1134,7 @@ function WatchlistRail({
               role="menu"
             >
               {([
-                ["saved", "Saved order"],
+                ["saved", "Watchlist order"],
                 ["symbol", "Symbol A–Z"],
               ] as const).map(([value, label]) => (
                 <button
@@ -1218,7 +1218,7 @@ function WatchlistRail({
       {!watchlistItems.length ? (
         <div className={styles.railEmpty}>
           <Star aria-hidden="true" size={18} />
-          <strong>No saved tickers</strong>
+          <strong>No tickers on your Watchlist</strong>
           <span>Use search above to add your first stock.</span>
         </div>
       ) : null}

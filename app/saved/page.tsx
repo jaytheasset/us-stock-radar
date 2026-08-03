@@ -15,8 +15,8 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Saved | Stock Radar",
-  description: "Review news, filings, and public Live Room posts saved to your account.",
+  title: "Bookmarks | Stock Radar",
+  description: "Review your bookmarked news, filings, and public Live Room posts.",
   robots: { follow: false, index: false },
 };
 
@@ -45,9 +45,8 @@ export default async function SavedPage({
   let errorMessage = "";
   try {
     contentPage = await getSavedContentPage({ page, tab, userId });
-  } catch (error) {
-    errorMessage =
-      error instanceof Error ? error.message : "Saved content is unavailable.";
+  } catch {
+    errorMessage = "Bookmarks are unavailable.";
   }
 
   return (
@@ -56,15 +55,19 @@ export default async function SavedPage({
         <header className={styles.heading}>
           <div>
             <span>Account library</span>
-            <h1>Saved</h1>
+            <h1>Bookmarks</h1>
             <p>
-              Individual news, filings, and public Live Room posts. Stock Watchlist and Calendar Follow Event stay separate.
+              News, filings, and public Live Room posts you bookmark. Stock Watchlist and Calendar Follow Event stay separate.
             </p>
           </div>
-          <strong>{contentPage ? `${contentPage.totalCount} items` : "Unavailable"}</strong>
+          <strong>
+            {contentPage
+              ? `${contentPage.totalCount} bookmark${contentPage.totalCount === 1 ? "" : "s"}`
+              : "Unavailable"}
+          </strong>
         </header>
 
-        <nav aria-label="Saved content types" className={styles.tabs}>
+        <nav aria-label="Filter bookmarks by content type" className={styles.tabs}>
           {tabs.map((item) => (
             <Link
               aria-current={item.value === tab ? "page" : undefined}
@@ -78,14 +81,14 @@ export default async function SavedPage({
 
         {errorMessage || !contentPage ? (
           <div className={styles.errorState} role="alert">
-            <strong>Saved content could not be loaded</strong>
+            <strong>Bookmarks could not be loaded</strong>
             <p>{errorMessage || "Try again in a moment."}</p>
           </div>
         ) : (
           <>
             <SavedContentList initialItems={contentPage.items} />
             {contentPage.totalPages > 1 ? (
-              <nav aria-label="Saved pages" className={styles.pagination}>
+              <nav aria-label="Bookmarks pagination" className={styles.pagination}>
                 {contentPage.page > 1 ? (
                   <Link href={buildSavedHref(tab, contentPage.page - 1)}>Previous</Link>
                 ) : null}

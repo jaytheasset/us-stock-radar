@@ -53,7 +53,7 @@ const watchlistToggleRows: {
   {
     key: "watchlistNewsEnabled",
     label: "News Alerts",
-    detail: "Company news, press releases, and source updates for your saved tickers.",
+    detail: "Company news, press releases, and source updates for your Watchlist tickers.",
   },
   {
     key: "watchlistFilingsEnabled",
@@ -68,7 +68,7 @@ const watchlistToggleRows: {
   {
     key: "watchlistRiskEnabled",
     label: "Risk Alerts",
-    detail: "Important risk signals detected for your saved tickers.",
+    detail: "Important risk signals detected for your Watchlist tickers.",
   },
 ];
 
@@ -433,7 +433,7 @@ export default function AlertsClient({ initialSettings }: AlertsClientProps) {
                       </b>
                     </div>
                     <p className="alerts-inline-note">
-                      These alerts apply to saved tickers and do not use your Market Discovery category limit.
+                      These alerts apply to Watchlist tickers and do not use your Market Discovery category limit.
                     </p>
                     <div className="alerts-toggle-list">
                       {watchlistToggleRows.map((item) => (
