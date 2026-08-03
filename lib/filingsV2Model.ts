@@ -40,11 +40,13 @@ export type FilingsV2Record = {
   id: string;
   impact: number;
   keyPoints: readonly string[];
+  keyPointsLabel: "Key Changes" | "Key Points";
   marketCap?: FilingsV2MarketCap;
   price?: number;
   relatedFilings: readonly FilingsV2RelatedFiling[];
   signal: FilingsV2Signal;
   source: "SEC";
+  showKeyPoints: boolean;
   summary: string;
   ticker?: string;
   title: string;

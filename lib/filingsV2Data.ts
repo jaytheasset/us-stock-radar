@@ -151,6 +151,11 @@ export async function loadFilingsV2Page({
   }
 
   const rows = Array.isArray(payload.records) ? payload.records.filter(isRecord) : [];
+  const rowsById = new Map<string, UnknownRecord>();
+  for (const row of rows) {
+    const id = readString(row.id);
+    if (id) rowsById.set(id, row);
+  }
   const baseRecords = rows
     .map(mapEventRow)
     .filter((record): record is FilingsV2Record => Boolean(record));
@@ -158,13 +163,25 @@ export async function loadFilingsV2Page({
     enrichRecordsWithMarketData(baseRecords),
     loadFilingPreviewKeyEvidence(baseRecords),
   ]);
-  const records = marketRecords.map((record) => ({
-    ...record,
-    keyPoints: resolveFilingPreviewFields({
+  const records = marketRecords.map((record) => {
+    const row = rowsById.get(record.id);
+    const metadata = asRecord(row?.metadata);
+    const previewFields = resolveFilingPreviewFields({
+      displayPayload: metadata?.display_payload,
       keyEvidence: keyEvidenceByEventId.get(record.id),
-      quickTake: record.summary,
-    }).keyPoints,
-  }));
+      materialEvents: metadata?.material_events,
+      quickTake: row?.quick_take,
+      summary: row?.summary,
+    });
+
+    return {
+      ...record,
+      keyPoints: previewFields.keyPoints,
+      keyPointsLabel: previewFields.keyPointsLabel,
+      showKeyPoints: previewFields.showKeyPoints,
+      summary: previewFields.filingBrief,
+    };
+  });
   const cursorPayload = asRecord(payload.next_cursor);
   const nextCursor = readCursor(cursorPayload);
 
@@ -285,11 +302,12 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     firstFiniteNumber(contexts, ["score", "impact", "impact_score"]) ?? 50,
   );
   const signal = normalizeSignal(firstString(contexts, ["signal"]));
-  const summary = resolveFilingPreviewFields({
+  const previewFields = resolveFilingPreviewFields({
+    displayPayload: metadata?.display_payload,
     materialEvents: metadata?.material_events,
     quickTake: row.quick_take,
     summary: row.summary,
-  }).filingBrief;
+  });
   const storedPrice = firstFiniteNumber(
     [row, marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
     ["price", "latest_price", "current_price"],
@@ -322,7 +340,8 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
       firstString(contexts, ["form_type", "form", "filing_type"]) || "SEC filing",
     id,
     impact: score,
-    keyPoints: [],
+    keyPoints: previewFields.keyPoints,
+    keyPointsLabel: previewFields.keyPointsLabel,
     marketCap: classifyMarketCap(
       firstValue(contexts, [
         "market_cap",
@@ -335,7 +354,8 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     relatedFilings: collectRelatedFilings(metadata),
     signal,
     source: "SEC",
-    summary,
+    showKeyPoints: previewFields.showKeyPoints,
+    summary: previewFields.filingBrief,
     ticker,
     title:
       firstString(contexts, ["title", "headline", "analysis_title"]) ||

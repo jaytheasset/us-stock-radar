@@ -22,6 +22,7 @@ export type LiveFeedV2PreviewSource = {
   id: string;
   impactScore: number;
   keyEvidence?: readonly string[];
+  keyPointsLabel?: "Key Changes" | "Key Points";
   marketScopeLabel?: string | null;
   primaryTicker?: string | null;
   publishedAt: string;
@@ -29,6 +30,7 @@ export type LiveFeedV2PreviewSource = {
   sentiment: LiveFeedV2Sentiment;
   source: string;
   sourceUrl?: string | null;
+  showKeyPoints?: boolean;
   saved?: boolean;
   summary?: string | null;
   themeLabel?: string | null;
@@ -64,6 +66,7 @@ export function createLiveFeedV2Preview(
       filingBrief: availableSummary(item.summary),
       formType: availableText(item.formType),
       keyPoints: keyEvidence,
+      keyPointsLabel: item.keyPointsLabel || "Key Points",
       kind: "filing",
       relatedFilings: relatedItems
         .filter(
@@ -80,6 +83,7 @@ export function createLiveFeedV2Preview(
           title: availableText(related.headline) || "—",
         })),
       saved: item.saved === true,
+      showKeyPoints: item.showKeyPoints !== false,
       ticker: primaryTicker || normalizeTicker(item.ticker) || "N/A",
       watchlist: item.watchlist === true,
     };

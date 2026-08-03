@@ -111,18 +111,20 @@ function FeedFilingPreviewContent({
         <p>{previewValue(filing.filingBrief)}</p>
       </section>
 
-      <section className={styles.detailSection}>
-        <span className={styles.sectionLabel}>Key points</span>
-        {filing.keyPoints.length ? (
-          <ul>
-            {filing.keyPoints.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className={styles.unavailable}>No key points available.</p>
-        )}
-      </section>
+      {filing.showKeyPoints ? (
+        <section className={styles.detailSection}>
+          <span className={styles.sectionLabel}>{filing.keyPointsLabel}</span>
+          {filing.keyPoints.length ? (
+            <ul>
+              {filing.keyPoints.map((point) => (
+                <li key={point}>{point}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.unavailable}>No key points available.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className={styles.sourceMetadata}>
         <div>

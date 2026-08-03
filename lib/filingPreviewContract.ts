@@ -1,16 +1,25 @@
 export type FilingPreviewFieldsInput = {
+  displayPayload?: unknown;
   keyEvidence?: unknown;
   materialEvents?: unknown;
   quickTake?: unknown;
   summary?: unknown;
 };
 
+export type FilingPreviewFields = {
+  filingBrief: string;
+  keyPoints: string[];
+  keyPointsLabel: "Key Changes" | "Key Points";
+  showKeyPoints: boolean;
+};
+
 export function resolveFilingPreviewFields({
+  displayPayload,
   keyEvidence,
   materialEvents,
   quickTake,
   summary,
-}: FilingPreviewFieldsInput) {
+}: FilingPreviewFieldsInput): FilingPreviewFields {
   const events = Array.isArray(materialEvents)
     ? materialEvents.filter(isRecord)
     : [];
@@ -21,6 +30,22 @@ export function resolveFilingPreviewFields({
   const firstEventSummary = events
     .map((event) => readText(event.event_summary))
     .find(Boolean);
+  const display = isRecord(displayPayload) ? displayPayload : null;
+  const displayData = isRecord(display?.data) ? display.data : null;
+  const isGovernanceEvent = display?.display_type === "governance_event";
+  const governanceKeyChanges = Array.isArray(displayData?.key_changes)
+    ? displayData.key_changes
+        .filter(isRecord)
+        .map((change) => readText(change.title))
+    : [];
+  const evidence = Array.isArray(keyEvidence)
+    ? keyEvidence
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+    : [];
+  const keyPoints = Array.from(
+    new Set((isGovernanceEvent ? governanceKeyChanges : evidence).filter(Boolean)),
+  ).slice(0, 3);
 
   return {
     filingBrief:
@@ -29,14 +54,9 @@ export function resolveFilingPreviewFields({
       readText(quickTake) ||
       readText(summary) ||
       "",
-    keyPoints: Array.from(
-      new Set(
-        (Array.isArray(keyEvidence) ? keyEvidence : [])
-          .filter((value): value is string => typeof value === "string")
-          .map((value) => value.trim())
-          .filter(Boolean),
-      ),
-    ).slice(0, 3),
+    keyPoints,
+    keyPointsLabel: isGovernanceEvent ? "Key Changes" : "Key Points",
+    showKeyPoints: !isGovernanceEvent || keyPoints.length > 0,
   };
 }
 

@@ -54,6 +54,9 @@ export type LiveFeedItem = {
   formType: string;
   eventType: string;
   filingBrief: string;
+  filingKeyPoints: string[];
+  filingKeyPointsLabel: "Key Changes" | "Key Points";
+  showFilingKeyPoints: boolean;
   title: string;
   quickTake: string;
   summary: string;
@@ -385,11 +388,14 @@ function mapEventRow(
     readString(row, ["reason"]) ||
     "No summary available yet.";
   const quickTake = canonical.quickTake || summary;
-  const filingBrief = resolveFilingPreviewFields({
+  const keyEvidence = readStringArray(analysis, ["key_evidence"]);
+  const filingPreviewFields = resolveFilingPreviewFields({
+    displayPayload: readMetadataRecord(row)?.display_payload,
+    keyEvidence,
     materialEvents: readMetadataRecord(row)?.material_events,
     quickTake,
     summary,
-  }).filingBrief;
+  });
   const sourceUniqueId = readString(rawItem, ["source_unique_id"]);
   const metadataAccession =
     readMetadataString(row, ["accession_number", "accessionNumber", "accession"]) ||
@@ -444,7 +450,9 @@ function mapEventRow(
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     formType,
     eventType: readString(row, ["event_type"]) || "event",
-    filingBrief,
+    filingBrief: filingPreviewFields.filingBrief,
+    filingKeyPoints: filingPreviewFields.keyPoints,
+    filingKeyPointsLabel: filingPreviewFields.keyPointsLabel,
     title: readString(row, ["title"]) || "Untitled event",
     quickTake,
     summary,
@@ -464,8 +472,9 @@ function mapEventRow(
     displayChange: groupDisplay ? groupDisplay.change : quoteValues.change,
     displayKind: groupDisplay ? groupDisplay.kind : "ticker",
     displayChartBars: groupDisplay ? groupDisplay.bars : chart?.bars || [],
-    keyEvidence: readStringArray(analysis, ["key_evidence"]),
+    keyEvidence,
     relatedTickers,
+    showFilingKeyPoints: filingPreviewFields.showKeyPoints,
     watchNext: readStringArray(analysis, ["watch_next"]),
   };
 }

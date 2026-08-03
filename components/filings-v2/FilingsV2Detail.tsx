@@ -95,9 +95,9 @@ export function FilingsV2DetailContent({
         {record.summary ? <p>{record.summary}</p> : null}
       </section>
 
-      {record.keyPoints.length ? (
+      {record.showKeyPoints && record.keyPoints.length ? (
         <section className={styles.detailSection}>
-          <span className={styles.sectionLabel}>Key points</span>
+          <span className={styles.sectionLabel}>{record.keyPointsLabel}</span>
           <ul>
             {record.keyPoints.map((point) => <li key={point}>{point}</li>)}
           </ul>

@@ -28,7 +28,6 @@ import {
 } from "@/lib/liveFeedV2Preview";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import { getEventListIdentity } from "@/lib/eventListIdentity";
-import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import type { RankedEvent } from "@/lib/radarRankings";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import {
@@ -203,14 +202,14 @@ function mapPreviewSource(
     item.eventType,
     feedType,
   );
-  const filingPreviewFields =
-    feedType === "filings"
-      ? resolveFilingPreviewFields({
-          keyEvidence: item.keyEvidence,
-          quickTake: item.filingBrief,
-          summary: item.summary,
-        })
-      : null;
+  const filingPreviewFields = feedType === "filings"
+    ? {
+        filingBrief: item.filingBrief,
+        keyPoints: item.filingKeyPoints,
+        keyPointsLabel: item.filingKeyPointsLabel,
+        showKeyPoints: item.showFilingKeyPoints,
+      }
+    : null;
 
   return {
     authenticated: viewerState?.authenticated === true,
@@ -236,6 +235,7 @@ function mapPreviewSource(
         : feedType === "market"
         ? [...item.keyEvidence, ...item.watchNext]
         : item.keyEvidence,
+    keyPointsLabel: filingPreviewFields?.keyPointsLabel,
     marketScopeLabel: formatMarketScope(item.marketScope),
     primaryTicker: item.ticker,
     publishedAt: item.detectedAtRaw,
@@ -243,6 +243,7 @@ function mapPreviewSource(
     sentiment: formatSentiment(item.signal),
     source: item.source,
     sourceUrl: item.sourceUrl,
+    showKeyPoints: filingPreviewFields?.showKeyPoints,
     saved:
       isSavedContentUuid(item.id) && feedType !== "market"
         ? viewerState?.savedKeys.has(
