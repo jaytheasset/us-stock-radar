@@ -770,6 +770,39 @@
   left: auto;
 }
 
+.evidencePicker[data-placement="room-menu"] {
+  display: grid;
+  width: 100%;
+  height: auto;
+  gap: var(--sr-space-2);
+}
+
+.evidencePicker[data-placement="room-menu"] .evidenceButton {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: var(--sr-space-3);
+  border-color: transparent;
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-primary);
+  background: transparent;
+}
+
+.evidencePicker[data-placement="room-menu"] .evidenceButtonChevron {
+  margin-left: auto;
+}
+
+.evidencePicker[data-placement="room-menu"] .evidenceMenu {
+  position: static;
+  width: 100%;
+  max-height: min(48dvh, 420px);
+  overflow-y: auto;
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-action);
+  padding: var(--sr-space-3);
+  box-shadow: none;
+}
+
 .evidenceMenuContent > .evidenceRemoveButton {
   display: inline-flex;
   width: fit-content;

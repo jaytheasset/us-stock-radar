@@ -29,7 +29,7 @@ export function BrokerageEvidencePicker({
   loginHref: string;
   onChange: (proof: BrokerageProofSummary | null) => void;
   onOpenChange?: (open: boolean) => void;
-  placement?: "composer" | "default";
+  placement?: "composer" | "default" | "room-menu";
   value: BrokerageProofSummary | null;
 }) {
   const id = `brokerage-evidence-${useId().replace(/:/g, "")}`;
@@ -112,7 +112,7 @@ export function BrokerageEvidencePicker({
       <strong>Verified trading</strong>
       {loading ? (
         <p aria-live="polite">Checking brokerage connection...</p>
-      ) : value && placement === "composer" ? (
+      ) : value && placement !== "default" ? (
         <>
           <BrokerageProofCard compact proof={value} />
           <button
@@ -195,8 +195,12 @@ export function BrokerageEvidencePicker({
         <button
           aria-controls={id}
           aria-expanded={open}
-          aria-haspopup="dialog"
-          aria-label="Verified trading"
+          aria-haspopup={placement === "room-menu" ? undefined : "dialog"}
+          aria-label={
+            placement === "room-menu"
+              ? "Verified trade / position"
+              : "Verified trading"
+          }
           aria-pressed={value ? true : undefined}
           className={styles.evidenceButton}
           onClick={() => void toggle()}
@@ -204,7 +208,11 @@ export function BrokerageEvidencePicker({
           type="button"
         >
           <BadgeDollarSign aria-hidden="true" size={16} />
-          <span className={styles.evidenceButtonText}>Verified trading</span>
+          <span className={styles.evidenceButtonText}>
+            {placement === "room-menu"
+              ? "Verified trade / position"
+              : "Verified trading"}
+          </span>
           <ChevronDown
             aria-hidden="true"
             className={styles.evidenceButtonChevron}
@@ -218,7 +226,7 @@ export function BrokerageEvidencePicker({
           className={styles.evidenceMenu}
           id={id}
           ref={panelRef}
-          role="dialog"
+          role={placement === "room-menu" ? "region" : "dialog"}
           tabIndex={-1}
         >
           {content}

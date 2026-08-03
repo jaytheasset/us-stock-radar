@@ -451,12 +451,14 @@ test("Live Room message and post writes use transactional proof wrappers", () =>
   const klipyPicker = read("components/klipy/KlipyPicker.tsx");
   assert.match(picker, /linked=\{false\}/);
   assert.match(picker, /aria-label="Verified trading"/);
-  assert.match(picker, />Verified trading<\/span>/);
+  assert.match(picker, /: "Verified trading"/);
+  assert.match(picker, /"Verified trade \/ position"/);
   assert.match(picker, /BadgeDollarSign/);
   assert.match(proofCard, /BadgeDollarSign/);
   assert.doesNotMatch(picker + proofCard, /BadgeCheck/);
   assert.doesNotMatch(picker, />Evidence<\/span>|Add proof|Verified proof/);
   assert.match(picker, /placement="composer"|data-placement=\{placement\}/);
+  assert.match(picker, /placement === "room-menu" \? "region" : "dialog"/);
   assert.match(picker, /event\.key !== "Escape"/);
   assert.match(picker, /contains\(event\.target as Node\)/);
   assert.match(picker, /<BottomSheetShell/);

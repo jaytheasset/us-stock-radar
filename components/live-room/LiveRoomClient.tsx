@@ -90,7 +90,10 @@ import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { JoinedRoomsList } from "./JoinedRoomsList";
 import { LiveRoomLatestButton } from "./LiveRoomLatestButton";
-import { MessageComposer } from "./MessageComposer";
+import {
+  MessageComposer,
+  type MobileLiveRoomSection,
+} from "./MessageComposer";
 import {
   LiveRoomHeaderAdSlot,
   LiveRoomMobileInlineAdSlot,
@@ -120,31 +123,6 @@ type LiveRoomClientProps = {
 type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
 type MobileLiveRoomSheet = "events" | "members" | "posts" | "rooms";
-type MobileLiveRoomTab = "chat" | MobileLiveRoomSheet;
-
-const mobileLiveRoomTabs = [
-  { label: "Chat", value: "chat" },
-  {
-    controlsId: "live-room-posts-sheet",
-    label: "Posts",
-    value: "posts",
-  },
-  {
-    controlsId: "live-room-events-sheet",
-    label: "Events",
-    value: "events",
-  },
-  {
-    controlsId: "live-room-members-sheet",
-    label: "Members",
-    value: "members",
-  },
-  {
-    controlsId: "live-room-rooms-sheet",
-    label: "Rooms",
-    value: "rooms",
-  },
-] as const;
 
 const EMPTY_QUOTE: StockOverviewQuote = {
   change: null,
@@ -259,10 +237,7 @@ export function LiveRoomClient({
   const latestEventIdRef = useRef<string | null>(null);
   const membershipRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
-  const mobileEventsOpenerRef = useRef<HTMLButtonElement>(null);
-  const mobileMembersOpenerRef = useRef<HTMLButtonElement>(null);
-  const mobilePostsOpenerRef = useRef<HTMLButtonElement>(null);
-  const mobileRoomsOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileRoomMenuOpenerRef = useRef<HTMLButtonElement>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
@@ -1048,20 +1023,10 @@ export function LiveRoomClient({
     setActiveTab(tab);
   };
 
-  const handleMobileTabChange = useCallback((tab: MobileLiveRoomTab) => {
-    setActiveTab("chat");
-    setMobileSheet(tab === "chat" ? null : tab);
-  }, []);
-
-  const handleMobileTabElementChange = useCallback(
-    (
-      tab: "chat" | MobileLiveRoomSheet,
-      element: HTMLButtonElement | null,
-    ) => {
-      if (tab === "events") mobileEventsOpenerRef.current = element;
-      if (tab === "members") mobileMembersOpenerRef.current = element;
-      if (tab === "posts") mobilePostsOpenerRef.current = element;
-      if (tab === "rooms") mobileRoomsOpenerRef.current = element;
+  const handleMobileSectionChange = useCallback(
+    (tab: MobileLiveRoomSection) => {
+      setActiveTab("chat");
+      setMobileSheet(tab === "chat" ? null : tab);
     },
     [],
   );
@@ -1538,6 +1503,7 @@ export function LiveRoomClient({
         <div
           className={styles.page}
           data-ad-enabled={adsEnabledForViewer ? "true" : "false"}
+          data-room-kind="company"
         >
         <div
           className={styles.roomHeaderRow}
@@ -1591,16 +1557,6 @@ export function LiveRoomClient({
           onChange={handleDesktopTabChange}
           visibility="desktop"
         />
-        <RoomTabs
-          active={mobileSheet ?? "chat"}
-          dockOnMobile
-          idPrefix="live-room-mobile"
-          items={mobileLiveRoomTabs}
-          onChange={handleMobileTabChange}
-          onItemElementChange={handleMobileTabElementChange}
-          visibility="mobile"
-        />
-
         <div className={styles.workspaceLayout}>
           <div className={styles.primaryColumn}>
         <section
@@ -1763,6 +1719,7 @@ export function LiveRoomClient({
               eventReference={reference}
               focusRequestId={composerFocusRequestId}
               loginHref={roomLoginHref}
+              mobileRoomMenuOpenerRef={mobileRoomMenuOpenerRef}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
                 setDecision(null);
@@ -1780,6 +1737,7 @@ export function LiveRoomClient({
                 setKlipyMedia(media);
                 if (media) setBrokerageProof(null);
               }}
+              onMobileSectionChange={handleMobileSectionChange}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
@@ -1855,16 +1813,6 @@ export function LiveRoomClient({
                   : "My Rooms"
           }
           closeLabel={`Close ${mobileSheet}`}
-          fixedFooter={
-            <RoomTabs
-              active={mobileSheet}
-              dockInMobileSheet
-              idPrefix="live-room-sheet"
-              items={mobileLiveRoomTabs}
-              onChange={handleMobileTabChange}
-              visibility="mobile"
-            />
-          }
           id={`live-room-${mobileSheet}-sheet`}
           isOpen
           layout="full-scroll"
@@ -1872,15 +1820,7 @@ export function LiveRoomClient({
             setMobileSheet(null);
             setActiveTab("chat");
           }}
-          openerRef={
-            mobileSheet === "posts"
-              ? mobilePostsOpenerRef
-              : mobileSheet === "events"
-                ? mobileEventsOpenerRef
-                : mobileSheet === "members"
-                  ? mobileMembersOpenerRef
-                  : mobileRoomsOpenerRef
-          }
+          openerRef={mobileRoomMenuOpenerRef}
           overlayLabel={`Close ${mobileSheet}`}
           viewport="mobile"
         >

@@ -52,7 +52,13 @@ export function CompanyRoomHeader({
       <div className={styles.roomIdentity}>
         <div className={styles.roomTitleLine}>
           <div className={styles.roomTitlePrimary}>
-            <h1>{identity.ticker} Live Room</h1>
+            <h1 className={styles.desktopRoomTitle}>
+              {identity.ticker} Live Room
+            </h1>
+            <h1 className={styles.mobileRoomTitle}>
+              {identity.companyName}
+            </h1>
+            <small className={styles.mobileTicker}>{identity.ticker}</small>
             <small className={styles.mobileExchange}>
               {identity.exchange}
             </small>
@@ -89,7 +95,7 @@ export function CompanyRoomHeader({
                 className={`${styles.roomCounts} ${styles.mobileRoomCounts}`}
               >
                 <strong>
-                  {roomCounts.participantCount} participants
+                  {roomCounts.memberCount} members
                 </strong>
                 <span aria-hidden="true">·</span>
                 <span className={styles.onlineCount}>

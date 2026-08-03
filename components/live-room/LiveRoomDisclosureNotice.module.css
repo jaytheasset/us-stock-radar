@@ -28,6 +28,10 @@
 }
 
 @media (max-width: 760px) {
+  .notice[data-mobile-hidden="true"] {
+    display: none;
+  }
+
   .notice {
     box-sizing: border-box;
     min-height: 34px;

@@ -172,7 +172,7 @@ test("company chat leads with one compact linked latest event without changing C
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip[\s\S]+min-height: 58px/,
+    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip[\s\S]+min-height: 48px/,
   );
 });
 
@@ -258,7 +258,10 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
     /\.page\s*\{[\s\S]*--live-room-mobile-tabs-height:\s*60px/,
   );
   assert.match(clientSource, /activeNavigationItem=\{null\}/);
-  assert.match(headerSource, /<h1>\{identity\.ticker\} Live Room<\/h1>/);
+  assert.match(
+    headerSource,
+    /<h1 className=\{styles\.desktopRoomTitle\}>[\s\S]*\{identity\.ticker\} Live Room[\s\S]*<\/h1>/,
+  );
   assert.match(
     headerSource,
     /className=\{styles\.roomCompanyName\}[\s\S]*\{identity\.companyName\}/,
@@ -279,7 +282,8 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
   assert.doesNotMatch(clientSource, /Company discussion/);
   assert.doesNotMatch(clientSource, /\{ticker\} Live Room<\/h2>/);
-  assert.match(clientSource, /dockOnMobile/);
+  assert.doesNotMatch(clientSource, /dockOnMobile/);
+  assert.match(clientSource, /onMobileSectionChange=\{handleMobileSectionChange\}/);
   assert.match(styleSource, /height:\s*var\(--live-room-workspace-height\)/);
   assert.doesNotMatch(
     clientSource,
@@ -287,306 +291,85 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
 });
 
-test("Live Room keeps Chat above the composer and bottom nav while secondary mobile tabs use one sheet", () => {
-  const clientSource = readSource("components/live-room/LiveRoomClient.tsx");
-  const bottomSheetSource = readSource("components/ui/BottomSheetShell.tsx");
-  const bottomSheetStyles = readSource(
-    "components/ui/BottomSheetShell.module.css",
+test("company Live Room replaces mobile dock tabs with an accessible composer Room menu", () => {
+  const client = readSource("components/live-room/LiveRoomClient.tsx");
+  const composer = readSource("components/live-room/MessageComposer.tsx");
+  const picker = readSource(
+    "components/brokerage/BrokerageEvidencePicker.tsx",
   );
-  const communitySource = readSource(
+  const bottomSheet = readSource("components/ui/BottomSheetShell.tsx");
+  const styles = readSource("components/live-room/LiveRoom.module.css");
+  const community = readSource(
     "components/live-room/CommunityRoomClient.tsx",
   );
-  const tabsSource = readSource("components/live-room/RoomTabs.tsx");
-  const timelineSource = readSource("components/live-room/ChatTimeline.tsx");
-  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
-  const composerSource = readSource("components/live-room/MessageComposer.tsx");
-  const liveRoomStyles = readSource("components/live-room/LiveRoom.module.css");
-  const postStyles = readSource("components/live-room/Posts.module.css");
 
-  const desktopTabs =
-    clientSource.match(
-      /<RoomTabs\s+active=\{activeTab\}[\s\S]*?visibility="desktop"\s*\/>/,
-    )?.[0] ?? "";
-  const mobileTabs =
-    clientSource.match(
-      /<RoomTabs\s+active=\{mobileSheet \?\? "chat"\}[\s\S]*?visibility="mobile"\s*\/>/,
-    )?.[0] ?? "";
-  const mobileTabItems =
-    clientSource.match(
-      /const mobileLiveRoomTabs = \[[\s\S]*?\] as const;/,
-    )?.[0] ?? "";
+  assert.match(
+    client,
+    /<RoomTabs[\s\S]*active=\{activeTab\}[\s\S]*visibility="desktop"/,
+  );
+  assert.doesNotMatch(client, /dockOnMobile|dockInMobileSheet/);
+  assert.doesNotMatch(client, /mobileLiveRoomTabs|mobilePostsOpenerRef/);
+  assert.match(client, /data-room-kind="company"/);
+  assert.match(
+    client,
+    /mobileRoomMenuOpenerRef=\{mobileRoomMenuOpenerRef\}[\s\S]*onMobileSectionChange=\{handleMobileSectionChange\}/,
+  );
+  assert.match(
+    client,
+    /const handleMobileSectionChange = useCallback\([\s\S]*\(tab: MobileLiveRoomSection\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*setMobileSheet\(tab === "chat" \? null : tab\)/,
+  );
+  assert.match(
+    client,
+    /<BottomSheetShell[\s\S]*id=\{\`live-room-\$\{mobileSheet\}-sheet\`\}[\s\S]*openerRef=\{mobileRoomMenuOpenerRef\}[\s\S]*viewport="mobile"/,
+  );
 
-  assert.match(desktopTabs, /label: "Chat"/);
-  assert.match(desktopTabs, /label: "Posts"/);
-  assert.match(desktopTabs, /label: "Events"/);
-  assert.doesNotMatch(desktopTabs, /label: "Members"/);
-  assert.match(mobileTabItems, /label: "Chat"/);
-  assert.match(mobileTabItems, /label: "Posts"/);
-  assert.match(mobileTabItems, /label: "Events"/);
-  assert.match(mobileTabItems, /label: "Members"/);
-  assert.match(mobileTabItems, /label: "Rooms"/);
-  assert.match(mobileTabItems, /controlsId: "live-room-posts-sheet"/);
-  assert.match(mobileTabItems, /controlsId: "live-room-events-sheet"/);
-  assert.match(mobileTabItems, /controlsId: "live-room-members-sheet"/);
-  assert.match(mobileTabItems, /controlsId: "live-room-rooms-sheet"/);
-  assert.match(mobileTabs, /idPrefix="live-room-mobile"/);
-  assert.match(mobileTabs, /dockOnMobile/);
-  assert.match(mobileTabs, /items=\{mobileLiveRoomTabs\}/);
-  assert.match(mobileTabs, /onChange=\{handleMobileTabChange\}/);
-  assert.match(
-    mobileTabs,
-    /onItemElementChange=\{handleMobileTabElementChange\}/,
-  );
-  assert.match(tabsSource, /dockInMobileSheet\?: boolean/);
-  assert.match(tabsSource, /dockOnMobile\?: boolean/);
-  assert.match(tabsSource, /styles\.mobileDock/);
-  assert.match(tabsSource, /styles\.mobileSheetDock/);
-  assert.match(tabsSource, /styles\.desktopOnlyTabs/);
-  assert.match(tabsSource, /styles\.mobileOnlyTabs/);
-  assert.match(tabsSource, /nextIndex = \(index \+ 1\) % items\.length/);
-  assert.match(tabsSource, /nextIndex = items\.length - 1/);
-  assert.doesNotMatch(tabsSource, /mobileOnly\?: boolean/);
-  assert.match(tabsSource, /"--live-room-mobile-tab-count": items\.length/);
-  assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*position:\s*fixed/);
-  assert.match(
-    postStyles,
-    /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*grid-template-columns:\s*repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
-  );
-  assert.match(
-    postStyles,
-    /\.tabs\.mobileSheetDock\s*\{[\s\S]*position:\s*relative/,
-  );
-  assert.match(postStyles, /\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*none/);
-  assert.match(
-    postStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.tabs\.desktopOnlyTabs\s*\{[\s\S]*display:\s*none[\s\S]*\.tabs\.mobileOnlyTabs\s*\{[\s\S]*display:\s*grid/,
-  );
-  assert.doesNotMatch(postStyles, /\.mobileOnlyTab\s*\{/);
-  assert.match(postStyles, /\.tabs\.mobileDock\s*\{[\s\S]*bottom:\s*0/);
-  assert.match(
-    postStyles,
-    /\.tabs\.mobileDock,\s*\.tabs\.mobileSheetDock\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*height:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
-  );
-  assert.match(clientSource, /useState<CompanyLiveRoomTab>\("chat"\)/);
-  assert.match(clientSource, /useState<MobileLiveRoomSheet \| null>\(null\)/);
-  assert.match(
-    clientSource,
-    /import \{ BottomSheetShell \} from "@\/components\/ui\/BottomSheetShell"/,
-  );
-  assert.match(
-    clientSource,
-    /<BottomSheetShell[\s\S]*id=\{`live-room-\$\{mobileSheet\}-sheet`\}[\s\S]*layout="full-scroll"[\s\S]*viewport="mobile"/,
-  );
-  assert.match(
-    clientSource,
-    /mobileSheet === "posts"[\s\S]*<PostsPanel[\s\S]*mobileSheet === "events"[\s\S]*<EventHistoryPanel[\s\S]*mobileSheet === "members"[\s\S]*<LiveRoomMemberList/,
-  );
-  assert.match(
-    clientSource,
-    /onDismiss=\{\(\) => \{[\s\S]*setMobileSheet\(null\);[\s\S]*setActiveTab\("chat"\)/,
-  );
-  assert.match(
-    clientSource,
-    /const handleMobileTabChange = useCallback\(\(tab: MobileLiveRoomTab\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*setMobileSheet\(tab === "chat" \? null : tab\)/,
-  );
-  assert.match(clientSource, /mobilePostsOpenerRef/);
-  assert.match(clientSource, /mobileEventsOpenerRef/);
-  assert.match(clientSource, /mobileMembersOpenerRef/);
-  assert.match(
-    clientSource,
-    /tab === "events"[\s\S]*mobileEventsOpenerRef\.current = element[\s\S]*tab === "members"[\s\S]*mobileMembersOpenerRef\.current = element[\s\S]*tab === "posts"[\s\S]*mobilePostsOpenerRef\.current = element/,
-  );
-  assert.match(tabsSource, /onItemElementChange\?\.\(item\.value, element\)/);
-  assert.match(bottomSheetSource, /event\.key === "Escape"/);
-  assert.match(bottomSheetSource, /role="dialog"/);
-  assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
-  assert.match(
-    bottomSheetSource,
-    /const anotherModalIsOpen = document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\);[\s\S]*if \(!anotherModalIsOpen\) \{[\s\S]*restoreFocus\(opener\)/,
-  );
-  assert.match(bottomSheetSource, /document\.body\.style\.overflow = "hidden"/);
-  assert.match(
-    bottomSheetStyles,
-    /\.fullScrollRoot\s*\{[\s\S]*z-index:\s*var\(--sr-z-sheet-full-scroll\)/,
-  );
-  assert.doesNotMatch(clientSource, /StockRadarThemeToggle|fixedAction=/);
-  assert.doesNotMatch(bottomSheetSource, /fixedAction/);
-  assert.doesNotMatch(bottomSheetStyles, /fixedAction|surfaceWithFixedAction/);
-  assert.match(bottomSheetSource, /fixedFooter\?: ReactNode/);
-  assert.match(
-    bottomSheetSource,
-    /styles\.footerScrollRegion[\s\S]*styles\.fixedFooter/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.surfaceWithFixedFooter\s*\{[\s\S]*display:\s*flex[\s\S]*overflow:\s*hidden/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.footerScrollRegion\s*\{[\s\S]*overflow-y:\s*auto/,
-  );
-  assert.match(bottomSheetStyles, /\.fixedFooter\s*\{[\s\S]*flex:\s*0 0 auto/);
-  assert.match(
-    clientSource,
-    /fixedFooter=\{\s*<RoomTabs[\s\S]*active=\{mobileSheet\}[\s\S]*dockInMobileSheet[\s\S]*idPrefix="live-room-sheet"[\s\S]*items=\{mobileLiveRoomTabs\}[\s\S]*onChange=\{handleMobileTabChange\}[\s\S]*visibility="mobile"/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.root,\s*\.root \*\s*\{[\s\S]*box-sizing:\s*border-box/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.surface\s*\{[\s\S]*width:\s*100%[\s\S]*max-width:\s*100vw/,
-  );
-  assert.match(
-    bottomSheetStyles,
-    /\.fullScrollSurface\s*\{[\s\S]*overflow-x:\s*hidden/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.mobileSheetContent\s*\{[\s\S]*padding:\s*var\(--sr-space-8\) var\(--sr-space-4\)[\s\S]*calc\(var\(--sr-space-6\) \+ env\(safe-area-inset-bottom\)\)/,
-  );
+  for (const section of ["Chat", "Posts", "Events", "Members", "Rooms"]) {
+    assert.match(composer, new RegExp(`label: "${section}"`));
+  }
   assert.equal(
-    (clientSource.match(/mobileMembersSheetContent/g) || []).length,
-    1,
+    (composer.match(/label: "(?:Chat|Posts|Events|Members|Rooms)"/g) ?? [])
+      .length,
+    5,
+  );
+  assert.match(composer, /aria-label="Open Room menu"/);
+  assert.match(composer, /<Menu aria-hidden="true"/);
+  assert.match(composer, /aria-label="Room menu"/);
+  assert.match(composer, /aria-current=\{item\.value === "chat" \? "page"/);
+  assert.match(composer, /placement="room-menu"/);
+  assert.match(composer, /add verified trading evidence/);
+  assert.match(
+    picker,
+    /placement\?: "composer" \| "default" \| "room-menu"/,
+  );
+  assert.match(picker, /"Verified trade \/ position"/);
+  assert.match(picker, /placement === "room-menu" \? "region" : "dialog"/);
+  assert.match(bottomSheet, /event\.key === "Escape"/);
+  assert.match(bottomSheet, /restoreFocus\(opener\)/);
+  assert.match(bottomSheet, /overlayLabel/);
+
+  assert.match(
+    styles,
+    /\.page\[data-room-kind="company"\]\s*\{[\s\S]*--live-room-mobile-tabs-height:\s*0px;[\s\S]*display:\s*flex;[\s\S]*height:\s*calc\(100dvh - var\(--sr-size-header\)\)/,
   );
   assert.match(
-    clientSource,
-    /mobileSheet === "members"[\s\S]*className=\{`\$\{styles\.mobileSheetContent\} \$\{styles\.mobileMembersSheetContent\}`\}[\s\S]*<LiveRoomMemberList/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.chatPanel\s*\{[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\) auto;[\s\S]*border:\s*0;[\s\S]*border-radius:\s*0;/,
   );
   assert.match(
-    liveRoomStyles,
-    /\.mobileSheetHeading\s*\{[\s\S]*margin-bottom:\s*var\(--sr-space-3\)/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.composer\s*\{[\s\S]*position:\s*relative;[\s\S]*bottom:\s*auto;[\s\S]*env\(safe-area-inset-bottom\)/,
   );
   assert.match(
-    liveRoomStyles,
-    /\.mobileMembersSheetContent \.mobileSheetHeading\s*\{[\s\S]*margin-bottom:\s*var\(--sr-space-1\)/,
-  );
-  const appShellCloseIndex = clientSource.lastIndexOf("</StockRadarAppShell>");
-  const mobileSheetIndex = clientSource.indexOf("<BottomSheetShell");
-  assert.ok(mobileSheetIndex > 0);
-  assert.ok(appShellCloseIndex > mobileSheetIndex);
-  assert.doesNotMatch(
-    clientSource,
-    /mobileMembersOpen\b|data-mobile-members-open|styles\.membersPanel/,
-  );
-  assert.doesNotMatch(
-    liveRoomStyles,
-    /data-mobile-members-open|\.membersPanel/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.roomMenuButton\s*\{[\s\S]*width:\s*44px;[\s\S]*min-height:\s*44px;/,
   );
   assert.match(
-    communitySource,
-    /<BottomSheetShell[\s\S]*fixedFooter=\{[\s\S]*dockInMobileSheet[\s\S]*items=\{communityMobileTabs\}/,
+    styles,
+    /\.latestChatEventStrip\s*\{[\s\S]*min-height:\s*48px;[\s\S]*border-width:\s*0 0 var\(--sr-border-width\);[\s\S]*border-radius:\s*0;/,
   );
   assert.match(
-    communitySource,
-    /mobileSheet === "posts"[\s\S]*mobileSheet === "about"[\s\S]*mobileSheet === "members"[\s\S]*mobileSheet === "rooms"/,
-  );
-  assert.match(
-    clientSource,
-    /mobileSheet === "members"[\s\S]*onMessageMember=\{handleMobileMessageMember\}[\s\S]*<\/BottomSheetShell>[\s\S]*\{messageRequestTarget \? \([\s\S]*<DirectMessageRequestModal/,
-  );
-  assert.match(liveRoomStyles, /\.desktopTabPanel\s*\{[\s\S]*display:\s*none/);
-  assert.match(
-    liveRoomStyles,
-    /\.roomLayout\[data-desktop-hidden="true"\]\s*\{[\s\S]*display:\s*block/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.page\s*\{[\s\S]*height:\s*calc\(100dvh - var\(--sr-size-header\)\)[\s\S]*env\(safe-area-inset-bottom\)/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.page:has\(\.roomLayout:not\(\[hidden\]\) \.composer:focus-within\)\s*\{[\s\S]*--live-room-mobile-composer-control-height:\s*89px/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.composer\s*\{[\s\S]{0,300}position:\s*fixed[\s\S]{0,300}bottom:\s*calc\([\s\S]*var\(--live-room-mobile-tabs-height\)[\s\S]*env\(safe-area-inset-bottom\)/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.messageField textarea\s*\{[\s\S]*height:\s*42px;[\s\S]*max-height:\s*74px/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.messageField textarea:focus\s*\{[\s\S]*height:\s*74px/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*\.otherMessage article,[\s\S]*\.myMessage article\s*\{[\s\S]*max-width:\s*85%/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.timelineList\s*\{\s*gap:\s*var\(--sr-space-1-5\);\s*\}/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage,\s*\.myMessage\s*\{\s*gap:\s*var\(--sr-space-1-5\);\s*\}/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageAvatar\s*\{\s*width:\s*30px;\s*height:\s*30px;\s*\}/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article,\s*\.myMessage article\s*\{[\s\S]*?padding:\s*var\(--sr-space-1-5\) var\(--sr-space-2\);/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > header,\s*\.myMessage article > header\s*\{\s*gap:\s*var\(--sr-space-1\);\s*\}/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageActionsTrigger\s*\{\s*width:\s*var\(--sr-space-5\);\s*height:\s*var\(--sr-space-5\);\s*\}[\s\S]*?\.messageEngagementControl\[data-action="like"\]\[data-has-count="false"\]\s*\{[\s\S]*?opacity:\s*1/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.otherMessage article > p,\s*\.myMessage article > p\s*\{\s*margin-top:\s*var\(--sr-space-0-5\);\s*line-height:\s*1\.45;\s*\}/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.messageReplyPreview\s*\{\s*gap:\s*var\(--sr-space-0-5\);\s*margin-top:\s*var\(--sr-space-1-5\);\s*padding:\s*var\(--sr-space-1\) var\(--sr-space-1-5\);\s*\}/,
-  );
-  assert.match(composerSource, /rows=\{1\}/);
-  assert.doesNotMatch(
-    composerSource,
-    /Server moderation is enforced when you send\./,
-  );
-  assert.match(
-    timelineSource,
-    /<MemberPlanBadge[\s\S]*plan=\{item\.author\.isGuest \? "visitor" : item\.author\.plan\}/,
-  );
-  assert.match(
-    headerSource,
-    /identity\.companyName\.trim\(\)\.toUpperCase\(\)\s*!==\s*identity\.ticker/,
-  );
-  assert.doesNotMatch(headerSource, /Market data|Latest available quote/);
-  assert.doesNotMatch(
-    clientSource,
-    /Realtime updates · 45-second polling fallback/,
-  );
-  assert.doesNotMatch(clientSource, /styles\.chatToolbar/);
-  assert.doesNotMatch(clientSource, /aria-label="Blocked Live Room authors"/);
-  assert.doesNotMatch(clientSource, /aria-label="Hidden Live Room messages"/);
-  assert.match(
-    liveRoomStyles,
-    /\.roomActions \.followingButton\s*\{[\s\S]*color:\s*var\(--sr-color-warning\)/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.roomActions button\s*\{[\s\S]*border:\s*0;[\s\S]*background:\s*transparent/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.roomActions \.followingButton svg\s*\{[\s\S]*fill:\s*currentColor/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.otherMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-other-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-other-background\)/,
-  );
-  assert.match(
-    liveRoomStyles,
-    /\.myMessage article\s*\{[^}]*var\(--sr-color-chat-bubble-mine-border\);[^}]*background:\s*var\(--sr-color-chat-bubble-mine-background\)/,
+    community,
+    /<RoomTabs[\s\S]*dockOnMobile[\s\S]*items=\{communityMobileTabs\}/,
   );
 });
 
@@ -973,93 +756,51 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   );
 });
 
-test("mobile company header uses three compact rows without changing desktop structure", () => {
-  const headerSource = readSource("components/live-room/CompanyRoomHeader.tsx");
-  const styleSource = readSource("components/live-room/LiveRoom.module.css");
-  const mobileStart = styleSource.indexOf("@media (max-width: 760px)");
-  const mobileEnd = styleSource.indexOf(
-    "@media (max-width: 420px)",
-    mobileStart,
-  );
-  const mobileStyles = styleSource.slice(mobileStart, mobileEnd);
-  const mobileHeader =
-    mobileStyles.match(/\.roomHeader\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileIdentity =
-    mobileStyles.match(/\.roomIdentity\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileTitleLine =
-    mobileStyles.match(/\.roomTitleLine\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileTitlePrimary =
-    mobileStyles.match(/\.roomTitlePrimary\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileCompanyName =
-    mobileStyles.match(/\.roomCompanyName\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileMeta = mobileStyles.match(/\.roomMeta\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileMarket =
-    mobileStyles.match(/\.marketSummary\s*\{([^}]*)\}/)?.[1] ?? "";
-  const mobileActions =
-    mobileStyles.match(/\.roomActions\s*\{([^}]*)\}/)?.[1] ?? "";
+test("mobile company header is a stable two-row company-first summary", () => {
+  const header = readSource("components/live-room/CompanyRoomHeader.tsx");
+  const styles = readSource("components/live-room/LiveRoom.module.css");
 
   assert.match(
-    headerSource,
-    /className=\{styles\.roomIdentity\}[\s\S]*className=\{styles\.marketSummary\}[\s\S]*className=\{styles\.roomActions\}/,
+    header,
+    /className=\{styles\.desktopRoomTitle\}[\s\S]*\{identity\.ticker\} Live Room/,
   );
   assert.match(
-    headerSource,
-    /className=\{styles\.roomTitlePrimary\}[\s\S]*className=\{styles\.mobileExchange\}[\s\S]*identity\.exchange/,
+    header,
+    /className=\{styles\.mobileRoomTitle\}[\s\S]*\{identity\.companyName\}/,
   );
   assert.match(
-    headerSource,
-    /className=\{styles\.desktopExchange\}[\s\S]*className=\{`\$\{styles\.roomCounts\} \$\{styles\.desktopRoomCounts\}`\}/,
+    header,
+    /className=\{styles\.mobileTicker\}>\{identity\.ticker\}/,
   );
   assert.match(
-    headerSource,
-    /className=\{`\$\{styles\.roomCounts\} \$\{styles\.mobileRoomCounts\}`\}[\s\S]*roomCounts\.participantCount\} participants[\s\S]*roomCounts\.onlineCount\} online/,
+    header,
+    /mobileRoomCounts[\s\S]*roomCounts\.memberCount\} members[\s\S]*roomCounts\.onlineCount\} online/,
+  );
+  assert.doesNotMatch(header, /participantCount\} participants/);
+  assert.match(header, /<RoomMembershipControl[\s\S]*<LiveRoomInviteMenu/);
+  assert.match(
+    styles,
+    /\.page\[data-room-kind="company"\] \.roomHeader\s*\{[\s\S]*min-height:\s*68px;[\s\S]*grid-template-rows:\s*minmax\(20px, auto\) 44px;/,
   );
   assert.match(
-    styleSource,
-    /^\.roomHeader\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto auto;/m,
+    styles,
+    /\.page\[data-room-kind="company"\] \.desktopRoomTitle,[\s\S]*\.mobileExchange,[\s\S]*\.roomCompanyName\s*\{[\s\S]*display:\s*none !important;/,
   );
   assert.match(
-    mobileHeader,
-    /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\) auto;/,
-  );
-  assert.match(mobileHeader, /grid-template-rows:\s*auto auto auto;/);
-  assert.match(mobileHeader, /padding:\s*var\(--sr-space-3\);/);
-  assert.doesNotMatch(mobileHeader, /\bheight:/);
-  assert.match(mobileIdentity, /display:\s*contents;/);
-  assert.match(mobileTitleLine, /display:\s*contents;/);
-  assert.match(mobileTitlePrimary, /grid-column:\s*1 \/ 3;/);
-  assert.match(mobileTitlePrimary, /grid-row:\s*1;/);
-  assert.match(mobileCompanyName, /grid-column:\s*1 \/ 3;/);
-  assert.match(mobileCompanyName, /grid-row:\s*2;/);
-  assert.match(mobileCompanyName, /text-overflow:\s*ellipsis;/);
-  assert.match(mobileMeta, /grid-column:\s*1 \/ 2;/);
-  assert.match(mobileMeta, /grid-row:\s*3;/);
-  assert.match(mobileMeta, /flex-wrap:\s*nowrap;/);
-  assert.match(mobileMarket, /grid-column:\s*3;/);
-  assert.match(mobileMarket, /grid-row:\s*1;/);
-  assert.match(mobileMarket, /justify-self:\s*end;/);
-  assert.match(mobileMarket, /border-top:\s*0;/);
-  assert.match(mobileMarket, /border-left:\s*0;/);
-  assert.match(mobileMarket, /padding-top:\s*0;/);
-  assert.match(mobileMarket, /padding-left:\s*0;/);
-  assert.match(
-    mobileStyles,
-    /\.marketSummaryValues strong\s*\{[^}]*font-size:\s*var\(--sr-font-size-lg\);/,
-  );
-  assert.match(mobileActions, /grid-column:\s*2 \/ 4;/);
-  assert.match(mobileActions, /grid-row:\s*3;/);
-  assert.match(mobileActions, /justify-self:\s*end;/);
-  assert.match(
-    mobileStyles,
-    /\.mobileExchange\s*\{[\s\S]*display:\s*inline-flex !important;[\s\S]*border-left:\s*var\(--sr-border-width\) solid var\(--sr-color-border\);[\s\S]*color:\s*var\(--sr-color-text-meta\);/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.mobileRoomTitle\s*\{[\s\S]*display:\s*block !important;/,
   );
   assert.match(
-    mobileStyles,
-    /\.desktopExchange,[\s\S]*\.desktopRoomCounts\s*\{[\s\S]*display:\s*none !important;/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.marketSummary\s*\{[\s\S]*grid-row:\s*1;/,
   );
   assert.match(
-    mobileStyles,
-    /\.roomMeta \.mobileRoomCounts\s*\{[\s\S]*display:\s*inline-flex !important;[\s\S]*flex-wrap:\s*nowrap;[\s\S]*white-space:\s*nowrap;/,
+    styles,
+    /\.page\[data-room-kind="company"\] \.roomActions\s*\{[\s\S]*grid-row:\s*2;/,
+  );
+  assert.match(
+    styles,
+    /\.roomActions \.historyTrigger\s*\{[\s\S]*display:\s*none !important;/,
   );
 });
 
@@ -2703,9 +2444,14 @@ test("Live Room disclosure appears exactly once at the shared composer boundary"
     /href="\/terms#live-room-community-disclosures"/,
   );
   assert.equal(
-    (composer.match(/<LiveRoomDisclosureNotice \/>/g) ?? []).length,
+    (composer.match(/<LiveRoomDisclosureNotice /g) ?? []).length,
     1,
   );
+  assert.match(
+    composer,
+    /<LiveRoomDisclosureNotice hideOnMobile=\{Boolean\(onMobileSectionChange\)\} \/>/,
+  );
+  assert.match(disclosure, /data-mobile-hidden=\{hideOnMobile \|\| undefined\}/);
   for (const source of [posts, postDetail, companyRoom, communityRoom]) {
     assert.doesNotMatch(source, /LiveRoomDisclosureNotice|showDisclosure/);
     assert.doesNotMatch(source, /live-room-community-disclosures/);
@@ -2720,7 +2466,7 @@ test("Live Room disclosure appears exactly once at the shared composer boundary"
   );
   assert.match(
     roomStyles,
-    /var\(--live-room-mobile-composer-disclosure-height\)/,
+    /\.page\[data-room-kind="company"\][\s\S]*--live-room-mobile-composer-disclosure-height: 0px/,
   );
   assert.match(
     disclosureStyles,
@@ -2732,7 +2478,7 @@ test("Live Room disclosure appears exactly once at the shared composer boundary"
   );
   assert.match(
     disclosureStyles,
-    /@media \(max-width: 760px\)[\s\S]*min-height: 34px/,
+    /@media \(max-width: 760px\)[\s\S]*\.notice\[data-mobile-hidden="true"\][\s\S]*display: none[\s\S]*min-height: 34px/,
   );
   assert.doesNotMatch(disclosureStyles, /posts-sheet|post-detail/);
   assert.doesNotMatch(disclosureStyles, /#[0-9a-f]{3,8}\b/i);
