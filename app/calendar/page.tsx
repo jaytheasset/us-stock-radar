@@ -18,7 +18,7 @@ import { getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Calendar | Stock Radar",
+  title: "Calendar",
   description:
     "Explore upcoming Company, Macro, and Policy events across the U.S. market.",
 };

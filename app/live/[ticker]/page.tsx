@@ -28,11 +28,11 @@ export function generateMetadata({
       ? {
           alternates: { canonical: getLiveRoomHref(ticker) ?? undefined },
           description: `Discuss the latest ${ticker} company news and filings in one company Live Room.`,
-          title: `${ticker} Live Room | Stock Radar`,
+          title: `${ticker} Live Room`,
         }
       : {
           description: "Company Live Room unavailable.",
-          title: "Live Room unavailable | Stock Radar",
+          title: "Live Room unavailable",
         };
   });
 }

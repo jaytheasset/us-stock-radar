@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Stock Radar SR icon</title>
+  <desc id="description">SR monogram with a restrained orange radar sweep on a dark product surface.</desc>
+  <rect width="512" height="512" rx="112" fill="#0d1014"/>
+  <rect x="18" y="18" width="476" height="476" rx="96" fill="none" stroke="#2c333a" stroke-width="18"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#20262c" stroke-width="12"/>
+  <circle cx="256" cy="256" r="92" fill="none" stroke="#2c333a" stroke-width="10"/>
+  <path d="M256 256 407 166A176 176 0 0 1 430 256Z" fill="#ff7a1a" opacity=".14"/>
+  <path d="M256 256 407 166" fill="none" stroke="#ff7a1a" stroke-linecap="round" stroke-width="18"/>
+  <circle cx="407" cy="166" r="18" fill="#ff7a1a"/>
+  <circle cx="256" cy="256" r="14" fill="#ff8b2e"/>
+  <text x="256" y="304" fill="#f5f6f7" font-family="Arial, Helvetica, sans-serif" font-size="150" font-weight="800" letter-spacing="-14" text-anchor="middle">SR</text>
+</svg>

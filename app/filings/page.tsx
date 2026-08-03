@@ -11,7 +11,7 @@ import styles from "./page.module.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Filings | Stock Radar",
+  title: "Filings",
   description: "Search and review investor-relevant SEC filings.",
 };
 

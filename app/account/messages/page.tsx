@@ -10,7 +10,7 @@ import { getOptionalCurrentUserId } from "@/lib/currentUser";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Message privacy | Stock Radar",
+  title: "Message privacy",
   description: "Choose who may send you private member message requests.",
   robots: { index: false, follow: false },
 };

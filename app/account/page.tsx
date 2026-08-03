@@ -27,7 +27,7 @@ import { getPlanDisplayName } from "@/lib/subscriptionPolicy";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Account | Stock Radar",
+  title: "Account",
   description: "View your Stock Radar account, plan, and market tools.",
   robots: {
     index: false,

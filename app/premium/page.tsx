@@ -12,7 +12,7 @@ import type { Plan } from "@/lib/subscriptionPolicy";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Premium | Stock Radar",
+  title: "Premium",
   description: "Compare Stock Radar alert coverage, delivery, and market scanning plans.",
 };
 

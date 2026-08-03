@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: {
-    default: "Admin | Stock Radar",
+    default: "Admin",
     template: "%s | Stock Radar Admin",
   },
   robots: {

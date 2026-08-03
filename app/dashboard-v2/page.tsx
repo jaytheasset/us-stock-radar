@@ -6,7 +6,7 @@ import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Markets Dashboard | Stock Radar",
+  title: "Markets Dashboard",
   description: "Live U.S. market movers with Stock Radar event context.",
 };
 

@@ -8,7 +8,7 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { legalPolicyMeta } from "@/lib/legalPolicy";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Stock Radar",
+  title: "Privacy Policy",
   description: "How Stock Radar collects, uses, shares, and retains data.",
 };
 

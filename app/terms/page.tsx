@@ -8,7 +8,7 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { legalPolicyMeta } from "@/lib/legalPolicy";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Stock Radar",
+  title: "Terms of Service",
   description: "Terms governing use of the Stock Radar service.",
 };
 

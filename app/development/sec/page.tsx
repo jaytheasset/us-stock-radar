@@ -10,7 +10,7 @@ import styles from "./sec-development.module.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "SEC Debug Console | Stock Radar",
+  title: "SEC Debug Console",
   robots: { follow: false, index: false },
 };
 

@@ -7,7 +7,7 @@ import { getOptionalCurrentUserId } from "@/lib/currentUser";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Community | Stock Radar",
+  title: "Community",
   description:
     "Manage member messages, people, joined rooms, and Community activity.",
   robots: {

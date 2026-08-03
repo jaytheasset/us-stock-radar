@@ -5,8 +5,9 @@ import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import { normalizeAlertTickerSearchParam } from "@/lib/alerts/tickers/query";
 
 export const metadata: Metadata = {
-  title: "Alerts | Stock Radar",
+  title: "Alerts",
   description: "Configure Stock Radar alert coverage, sources, delivery, and SEC filing rules.",
+  robots: { follow: false, index: false },
 };
 
 export const dynamic = "force-dynamic";

@@ -7,7 +7,7 @@ import { getLiveFeedV2InitialData } from "@/lib/liveFeedV2";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Live Feed | Stock Radar",
+  title: "Live Feed",
   description:
     "Live market-moving news, filings, alerts, and market context.",
 };

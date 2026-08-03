@@ -353,7 +353,7 @@ test("wiring keeps source schedules disabled and prelaunch routes server-only", 
   ]);
 
   const layout = readProjectFile("app/layout.tsx");
-  assert.match(layout, /prelaunchRobotsMetadata\(isPrelaunchMode\(\)\)/);
+  assert.match(layout, /buildRootMetadata\(isPrelaunchMode\(\)\)/);
 
   const comingSoonRoute = readProjectFile("app/coming-soon/route.ts");
   assert.equal(comingSoonRoute.includes("ThemeToggle"), false);
@@ -366,8 +366,7 @@ test("wiring keeps source schedules disabled and prelaunch routes server-only", 
   assert.equal(environmentExample.includes("NEXT_PUBLIC_PRELAUNCH"), false);
 
   const robots = readProjectFile("app/robots.ts");
-  assert.match(robots, /disallow: "\/"/);
-  assert.match(robots, /allow: "\/"/);
+  assert.match(robots, /buildRobots\(isPrelaunchMode\(\)\)/);
 });
 
 async function accessRequest(password: string, next: string) {

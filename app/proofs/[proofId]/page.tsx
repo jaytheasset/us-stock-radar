@@ -10,7 +10,7 @@ import { getBrokerageProof } from "@/lib/brokerage/serverRepository";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Brokerage proof | Stock Radar",
+  title: "Brokerage proof",
   robots: { follow: false, index: false },
 };
 

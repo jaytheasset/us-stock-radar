@@ -4,7 +4,7 @@ import { UpdatePasswordForm } from "@/components/UpdatePasswordForm";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Update Password | US Stock Radar",
+  title: "Update Password",
   robots: {
     index: false,
     follow: false,

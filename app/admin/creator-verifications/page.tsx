@@ -6,7 +6,7 @@ import { requireAdminPermission } from "@/lib/admin/server";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Creator verification review | Stock Radar",
+  title: "Creator verification review",
   robots: { index: false, follow: false },
 };
 

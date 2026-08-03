@@ -7,7 +7,7 @@ import { getBrokerageConnectionStatus } from "@/lib/brokerage/serverRepository";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Brokerage verification | Stock Radar",
+  title: "Brokerage verification",
   robots: { follow: false, index: false },
 };
 

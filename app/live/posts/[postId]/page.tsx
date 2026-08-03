@@ -3,7 +3,7 @@ import { PostDetailClient } from "@/components/live-room/PostDetailClient";
 
 export const metadata: Metadata = {
   description: "Read a member post from a Stock Radar Live Room.",
-  title: "Live Room Post | Stock Radar",
+  title: "Live Room Post",
 };
 
 export default async function LiveRoomPostPage({

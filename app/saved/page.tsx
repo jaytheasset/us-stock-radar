@@ -15,7 +15,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Bookmarks | Stock Radar",
+  title: "Bookmarks",
   description: "Review your bookmarked news, filings, and public Live Room posts.",
   robots: { follow: false, index: false },
 };
