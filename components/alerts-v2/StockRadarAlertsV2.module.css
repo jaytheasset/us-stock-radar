@@ -477,7 +477,7 @@
 .settingsGrid {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.94fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sr-space-4);
   width: 100%;
   margin: var(--sr-space-4) auto 0 0;
@@ -489,17 +489,37 @@
 }
 
 .settingsSideColumn {
-  display: grid;
-  gap: var(--sr-space-4);
-  min-width: 0;
+  display: contents;
+}
+
+.coverageCard {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.coverageCard .settingList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--sr-space-6);
+}
+
+.coverageCard .settingRow:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.settingsSideColumn .sourceCard {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .settingsSideColumn .marketCapCard {
-  order: 1;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .settingsSideColumn .deliveryCard {
-  order: 2;
+  align-self: stretch;
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .settingsSaveBar {
@@ -1174,6 +1194,37 @@
 
   .settingsGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settingsSideColumn {
+    display: grid;
+    gap: var(--sr-space-4);
+    min-width: 0;
+  }
+
+  .coverageCard,
+  .settingsSideColumn .sourceCard,
+  .settingsSideColumn .marketCapCard,
+  .settingsSideColumn .deliveryCard {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .coverageCard .settingList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coverageCard .settingRow:nth-child(2) {
+    border-top: var(--sr-border-width) solid var(--sr-color-divider);
+  }
+
+  .settingsSideColumn .marketCapCard {
+    order: 1;
+  }
+
+  .settingsSideColumn .deliveryCard {
+    align-self: start;
+    order: 2;
   }
 
   .filingTypeGrid {

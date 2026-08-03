@@ -166,7 +166,19 @@ test("alerts preserves the plan-aware rail and mobile settings flow", () => {
   );
   assert.match(
     styles,
-    /\.settingsSideColumn \.marketCapCard \{[\s\S]*order: 1;[\s\S]*\.settingsSideColumn \.deliveryCard \{[\s\S]*order: 2;/,
+    /\.coverageCard \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: 3;/,
+  );
+  assert.match(
+    styles,
+    /\.coverageCard \.settingList \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+  );
+  assert.match(
+    styles,
+    /\.settingsSideColumn \.sourceCard \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 1;[\s\S]*\.settingsSideColumn \.marketCapCard \{[\s\S]*grid-column: 1;[\s\S]*grid-row: 2;[\s\S]*\.settingsSideColumn \.deliveryCard \{[\s\S]*align-self: stretch;[\s\S]*grid-column: 2;[\s\S]*grid-row: 1 \/ span 2;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 1180px\) \{[\s\S]*\.coverageCard \.settingList \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);/,
   );
   assert.match(
     styles,
