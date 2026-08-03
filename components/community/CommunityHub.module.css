@@ -687,7 +687,7 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: var(--sr-space-3) var(--sr-space-3) var(--sr-space-6);
+    padding: var(--sr-space-3) var(--sr-space-2) var(--sr-space-6);
   }
 
   .hero {
@@ -698,9 +698,10 @@
   }
 
   .settingsLink {
-    min-height: 28px;
+    min-height: 40px;
     justify-self: start;
-    padding: 0;
+    padding: 0 var(--sr-space-2);
+    font-size: var(--sr-font-size-base);
   }
 
   .hero h1 {
@@ -708,34 +709,63 @@
   }
 
   .hero p {
-    font-size: var(--sr-font-size-xs);
+    font-size: var(--sr-font-size-base);
+    line-height: 1.5;
+  }
+
+  .hero > div > span,
+  .panelHeading > span,
+  .sectionHeading span {
+    font-size: var(--sr-font-size-md);
   }
 
   .separationNote {
     align-items: flex-start;
     padding: var(--sr-space-1-5) 0;
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .separationNote svg {
+    margin-top: 2px;
   }
 
   .tabs {
     overflow: hidden;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
   }
 
   .tabs button {
     min-width: 0;
-    min-height: 38px;
-    gap: var(--sr-space-1);
-    padding: 0 var(--sr-space-1);
-    font-size: var(--sr-font-size-xs);
+    min-height: 44px;
+    gap: var(--sr-space-0-5);
+    padding: 0 var(--sr-space-0-5);
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .tabs button b,
+  .subtabs button b,
+  .unreadBadge {
+    min-width: 18px;
+    min-height: 20px;
+    padding: 0 var(--sr-space-0-5);
+    font-size: var(--sr-font-size-sm);
   }
 
   .panelHeading {
     padding: var(--sr-space-3);
   }
 
+  .panelHeading p {
+    font-size: var(--sr-font-size-base);
+    line-height: 1.5;
+  }
+
   .inboxSections > section {
-    padding: var(--sr-space-3);
+    padding: var(--sr-space-3) var(--sr-space-2);
   }
 
   .requestGrid {
@@ -745,6 +775,11 @@
   .requestActions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .requestActions button {
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
   }
 
   .rowLink {
@@ -761,18 +796,21 @@
     display: grid;
     overflow: hidden;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding: 0 var(--sr-space-3);
+    padding: 0 var(--sr-space-2);
   }
 
   .subtabs button {
     min-width: 0;
+    min-height: 44px;
     padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
   }
 
   .peopleRows,
   .roomRows,
   .activityRows {
-    margin: var(--sr-space-3);
+    margin: var(--sr-space-2);
   }
 
   .personRow,
@@ -827,6 +865,76 @@
   .empty {
     min-height: 156px;
     padding: var(--sr-space-4);
+  }
+
+  .state strong,
+  .empty strong {
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .state > span,
+  .empty p {
+    font-size: var(--sr-font-size-base);
+    line-height: 1.5;
+  }
+
+  .empty a,
+  .state button,
+  .loadMore,
+  .requestActions button,
+  .personActions button,
+  .secondaryAction {
+    min-height: 44px;
+    font-size: var(--sr-font-size-base);
+  }
+
+  .sectionHeading h3,
+  .identity strong,
+  .roomOpen strong,
+  .activityMeta strong {
+    font-size: var(--sr-font-size-lg);
+  }
+
+  .identity [data-plan] {
+    height: 20px;
+    min-height: 20px;
+    padding: 0 var(--sr-space-1);
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .roomOpen {
+    min-height: 44px;
+  }
+
+  .requestCard > p,
+  .rowPreview small,
+  .activityRow > span:nth-child(2) > small {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .requestCard > time,
+  .rowPreview time,
+  .rowPreview b,
+  .warning,
+  .relationshipLabel,
+  .readLabel,
+  .roomOpen small,
+  .roomScope small,
+  .roomScope b,
+  .activityMeta b,
+  .activityMeta time {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
+  }
+
+  .sectionHeading > b {
+    font-size: var(--sr-font-size-sm);
+  }
+
+  .notice {
+    font-size: var(--sr-font-size-md);
+    line-height: var(--sr-line-height-default);
   }
 
   .activityMeta {

@@ -20,6 +20,7 @@ const communityFollowRoute = read(
   "app/api/live-room/community/[slug]/follow/route.ts",
 );
 const hub = read("components/community/CommunityHubClient.tsx");
+const hubStyles = read("components/community/CommunityHub.module.css");
 const header = read("components/shell/LiveRoomUnreadMenu.tsx");
 const account = read("app/account/page.tsx");
 
@@ -166,5 +167,56 @@ test("message requests retain Accept, Decline, and Block before conversations", 
   assert.match(
     hub,
     /directRepository\.respond\([\s\S]+requestDirectMessageRefresh\(\)/,
+  );
+});
+
+test("mobile Community hub uses the readable full-width hierarchy without changing desktop styles", () => {
+  const mobileStyles = hubStyles.slice(
+    hubStyles.indexOf("@media (max-width: 760px)"),
+  );
+
+  assert.match(
+    mobileStyles,
+    /\.page\s*\{[\s\S]*padding:\s*var\(--sr-space-3\) var\(--sr-space-2\) var\(--sr-space-6\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.hero p\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-base\);[\s\S]*line-height:\s*1\.5;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.settingsLink\s*\{[\s\S]*min-height:\s*40px;[\s\S]*font-size:\s*var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.tabs button\s*\{[\s\S]*min-height:\s*44px;[\s\S]*font-size:\s*var\(--sr-font-size-base\);[\s\S]*font-weight:\s*var\(--sr-font-weight-semibold\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);[\s\S]*gap:\s*0;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.panelHeading p\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-base\);[\s\S]*line-height:\s*1\.5;/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.peopleRows,[\s\S]*\.activityRows\s*\{[\s\S]*margin:\s*var\(--sr-space-2\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.empty a,[\s\S]*\.secondaryAction\s*\{[\s\S]*min-height:\s*44px;[\s\S]*font-size:\s*var\(--sr-font-size-base\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.sectionHeading h3,[\s\S]*\.activityMeta strong\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-lg\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.identity \[data-plan\]\s*\{[\s\S]*min-height:\s*20px;[\s\S]*font-size:\s*var\(--sr-font-size-sm\);/,
+  );
+  assert.match(
+    mobileStyles,
+    /\.requestCard > time,[\s\S]*\.activityMeta time\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-md\);/,
   );
 });
