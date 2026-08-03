@@ -28,6 +28,10 @@ import {
 import type { AlertPreferences, AlertSettingsViewModel, DeliveredAlertItem, DeliveryChannelState } from "@/lib/alerts/types";
 import { getAuthUserById, getVerifiedAuthEmail, maskEmailAddress } from "@/lib/auth/getAuthUserById";
 import { getAlertEmailConfig } from "@/lib/alerts/emailConfig";
+import {
+  buildWebDeliveredAlertsQuery,
+  normalizeWebDeliveredRows,
+} from "@/lib/alerts/webDeliveryVisibility";
 
 type AlertPreferencesRow = {
   watchlist_news_enabled?: unknown;
@@ -109,13 +113,10 @@ export async function getAlertSettingsViewModel(userId: string): Promise<AlertSe
       user_id: `eq.${userId}`,
       limit: "20",
     }),
-    supabaseSelect("user_alert_deliveries", {
-      select: "*",
-      user_id: `eq.${userId}`,
-      delivery_status: "eq.sent",
-      order: "delivered_at.desc",
-      limit: "5",
-    }),
+    supabaseSelect(
+      "user_alert_deliveries",
+      buildWebDeliveredAlertsQuery({ userId, limit: 5 }),
+    ),
     getUserCalendarFollowsViewModel(userId, plan),
     getAuthUserById(userId),
     supabaseSelect("alert_delivery_channel_attempts", {
@@ -220,26 +221,20 @@ export async function getDeliveredAlertsForUser({
   offset = 0,
   lane,
   category,
-  status = "sent",
 }: {
   userId: string;
   limit?: number;
   offset?: number;
   lane?: "watchlist" | "market_discovery" | "calendar_follow";
   category?: AlertCategory;
-  status?: DeliveryStatusFilter;
 }) {
-  const query: Record<string, string> = {
-    select: "*",
-    user_id: `eq.${userId}`,
-    order: "delivered_at.desc",
-    limit: String(Math.max(1, Math.min(limit, 100))),
-    offset: String(Math.max(0, Math.floor(offset))),
-  };
-
-  if (lane) query.alert_lane = `eq.${lane}`;
-  if (category) query.category = `eq.${category}`;
-  if (status !== "all") query.delivery_status = `eq.${status}`;
+  const query = buildWebDeliveredAlertsQuery({
+    userId,
+    limit,
+    offset,
+    lane,
+    category,
+  });
 
   const result = await supabaseSelect("user_alert_deliveries", query);
 
@@ -253,18 +248,56 @@ export async function getDeliveredAlertsForUser({
 }
 
 export async function getUnreadAlertCountForUser(userId: string) {
-  const result = await supabaseSelect("user_alert_deliveries", {
-    select: "id",
-    user_id: `eq.${userId}`,
-    delivery_status: "eq.sent",
-    read_at: "is.null",
-    limit: "1",
-  });
+  const result = await supabaseSelect(
+    "user_alert_deliveries",
+    buildWebDeliveredAlertsQuery({
+      userId,
+      select: "id",
+      unreadOnly: true,
+      limit: 1,
+    }),
+  );
 
   return {
     ok: result.ok,
     status: result.status,
     count: result.count ?? 0,
+    error: result.error,
+  };
+}
+
+export async function getWebDeliveredAlertIdsForUser({
+  userId,
+  deliveryId,
+  unreadOnly = false,
+  limit = 100,
+  offset = 0,
+}: {
+  userId: string;
+  deliveryId?: string;
+  unreadOnly?: boolean;
+  limit?: number;
+  offset?: number;
+}) {
+  const result = await supabaseSelect(
+    "user_alert_deliveries",
+    buildWebDeliveredAlertsQuery({
+      userId,
+      select: "id,delivery_status,delivered_channels,delivered_at",
+      deliveryId,
+      unreadOnly,
+      limit,
+      offset,
+    }),
+  );
+
+  return {
+    ok: result.ok,
+    status: result.status,
+    ids: normalizeWebDeliveredRows(Array.isArray(result.data) ? result.data : [])
+      .map((row) => stringValue(row.id))
+      .filter(Boolean),
+    total: result.count ?? 0,
     error: result.error,
   };
 }
@@ -432,7 +465,7 @@ function readTelegramAccountLabel(value: unknown) {
 }
 
 function mapDeliveredAlerts(rows: unknown[]): DeliveredAlertItem[] {
-  return rows.flatMap((rowValue) => {
+  return normalizeWebDeliveredRows(rows).flatMap((rowValue) => {
     const row = rowValue as DeliveredAlertRow;
     const id = stringValue(row.id);
     const title = stringValue(row.title);
