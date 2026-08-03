@@ -384,6 +384,22 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /"Personal market workspace"/);
   assert.match(
     componentSource,
+    /`\$\{watchlist\.usage\} saved · Unlimited on \$\{watchlist\.planLabel\}`/,
+  );
+  assert.match(
+    componentSource,
+    /!hasStandaloneStatus[\s\S]*className=\{styles\.mobileMemberSummary\}[\s\S]*\{memberSummary\}/,
+  );
+  assert.match(
+    componentSource,
+    /hasStandaloneStatus \? \([\s\S]*aria-live=\{statusTone === "error" \? "assertive" : "polite"\}/,
+  );
+  assert.match(
+    componentSource,
+    /styles\.statusMessage\} \$\{styles\.desktopMemberSummary\}[\s\S]*\{memberSummary\}/,
+  );
+  assert.match(
+    componentSource,
     /className=\{styles\.contextRail\}[\s\S]*<RadarBrief[\s\S]*<WatchlistUpgradeCard[\s\S]*className=\{styles\.railAd\}[\s\S]*<EventPreview[\s\S]*<StockCalendarEvents[\s\S]*<CompanyContext/,
   );
   assert.match(
@@ -422,19 +438,19 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentCss,
-    /\.stockActions button\[data-active="true"\] \{[\s\S]*color: var\(--sr-color-text-secondary\);[\s\S]*background: var\(--sr-color-surface-control-strong\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.stockActions button,[\s\S]*\.stockActions a \{[\s\S]*height: var\(--sr-size-mobile-primary-tab\);[\s\S]*border-color: var\(--sr-color-border-control\);[\s\S]*border-radius: var\(--sr-radius-action\);[\s\S]*color: var\(--sr-color-text-control-strong\);[\s\S]*background: var\(--sr-color-surface-control\);/,
+  );
+  assert.doesNotMatch(
+    componentCss,
+    /\.stockActions button\[data-active="true"\]|\.stockActions \.liveAction|\.stockActions \.alertAction/,
   );
   assert.match(
     componentCss,
-    /\.stockActions \.liveAction \{[\s\S]*border-color: var\(--sr-color-accent-border-strong\);[\s\S]*color: var\(--sr-color-accent-text\);[\s\S]*background: var\(--sr-color-surface-control\);/,
+    /@media \(max-width: 760px\) \{[\s\S]*\.pageTitleRow \{[\s\S]*display: flex;[\s\S]*align-items: baseline;[\s\S]*\.mobileMemberSummary \{[\s\S]*font-size: var\(--sr-font-size-sm\);[\s\S]*white-space: nowrap;[\s\S]*\.desktopMemberSummary \{\s*display: none;/,
   );
   assert.match(
     componentCss,
-    /\.stockActions \.alertAction \{[\s\S]*color: var\(--sr-color-surface-product-menu\);[\s\S]*background: var\(--sr-color-accent\);/,
-  );
-  assert.match(
-    componentCss,
-    /@media \(max-width: 760px\) \{[\s\S]*\.pageTopline > div > span \{\s*display: none;[\s\S]*\.pageTopline h1 \{\s*margin: 0;/,
+    /@media \(max-width: 350px\) \{[\s\S]*\.pageTitleRow \{[\s\S]*flex-direction: column;/,
   );
   assert.doesNotMatch(componentCss, /\.stockActions > :last-child/);
   assert.match(

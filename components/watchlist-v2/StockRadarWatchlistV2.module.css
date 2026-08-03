@@ -41,6 +41,10 @@
   line-height: var(--sr-line-height-none);
 }
 
+.mobileMemberSummary {
+  display: none;
+}
+
 .tickerSheetTrigger {
   display: none;
 }
@@ -1572,6 +1576,30 @@
 
   .pageTopline {
     align-items: center;
+    gap: var(--sr-space-2);
+  }
+
+  .pageTitleBlock {
+    min-width: 0;
+  }
+
+  .pageTitleRow {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: var(--sr-space-1);
+  }
+
+  .mobileMemberSummary {
+    display: inline;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--sr-color-text-muted);
+    font-size: var(--sr-font-size-sm);
+    font-weight: var(--sr-font-weight-medium);
+    line-height: var(--sr-line-height-none);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pageTopline h1 {
@@ -1579,12 +1607,19 @@
   }
 
   .tickerSheetTrigger {
+    flex: 0 0 auto;
+    gap: var(--sr-space-1);
+    padding: 0 var(--sr-space-1);
     font-size: var(--sr-font-size-base);
   }
 
   .statusMessage,
   .statusError {
     font-size: var(--sr-font-size-md);
+  }
+
+  .desktopMemberSummary {
+    display: none;
   }
 
   .stockHeader {
@@ -1650,12 +1685,25 @@
   .stockActions button,
   .stockActions a {
     width: 100%;
+    height: var(--sr-size-mobile-primary-tab);
     min-width: 0;
     min-height: var(--sr-size-mobile-primary-tab);
     gap: var(--sr-space-1);
+    border-color: var(--sr-color-border-control);
+    border-radius: var(--sr-radius-action);
     padding: 0 var(--sr-space-1);
+    color: var(--sr-color-text-control-strong);
+    background: var(--sr-color-surface-control);
     font-size: var(--sr-font-size-base);
+    font-weight: var(--sr-font-weight-semibold);
     white-space: nowrap;
+  }
+
+  .stockActions button:hover,
+  .stockActions a:hover {
+    border-color: var(--sr-color-border-control);
+    color: var(--sr-color-text-control-strong);
+    background: var(--sr-color-surface-control-strong);
   }
 
   .stockActions svg {
@@ -1668,23 +1716,6 @@
 
   .watchMobileLabel {
     display: inline;
-  }
-
-  .stockActions button[data-active="true"] {
-    color: var(--sr-color-text-secondary);
-    background: var(--sr-color-surface-control-strong);
-  }
-
-  .stockActions .liveAction {
-    border-color: var(--sr-color-accent-border-strong);
-    color: var(--sr-color-accent-text);
-    background: var(--sr-color-surface-control);
-  }
-
-  .stockActions .alertAction {
-    border-color: var(--sr-color-accent);
-    color: var(--sr-color-surface-product-menu);
-    background: var(--sr-color-accent);
   }
 
   .pageTopline > div > span {
@@ -2135,6 +2166,18 @@
 
   .sheetHeading h2 {
     font-size: var(--sr-font-size-xl);
+  }
+}
+
+@media (max-width: 350px) {
+  .pageTopline {
+    align-items: flex-start;
+  }
+
+  .pageTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sr-space-0-5);
   }
 }
 

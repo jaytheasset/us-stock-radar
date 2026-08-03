@@ -187,6 +187,8 @@ export function StockRadarWatchlistV2({
   );
   const selectedWatchlistItem =
     watchlist.items.find((item) => item.ticker === selectedTicker) ?? null;
+  const memberSummary = `${watchlist.usage} saved · Unlimited on ${watchlist.planLabel}`;
+  const hasStandaloneStatus = watchlist.guestMode || Boolean(statusMessage);
   const allowAds = watchlist.plan === "free";
   const limitReached =
     watchlist.limit !== null && watchlist.usage >= watchlist.limit;
@@ -747,15 +749,22 @@ export function StockRadarWatchlistV2({
     >
       <div className={styles.page}>
         <div className={styles.pageTopline}>
-          <div>
+          <div className={styles.pageTitleBlock}>
             <span>
               {selectionMode === "stock"
                 ? "Stock research workspace"
                 : "Personal market workspace"}
             </span>
-            <h1>
-              {selectionMode === "stock" ? "Stock Overview" : "Watchlist"}
-            </h1>
+            <div className={styles.pageTitleRow}>
+              <h1>
+                {selectionMode === "stock" ? "Stock Overview" : "Watchlist"}
+              </h1>
+              {!hasStandaloneStatus ? (
+                <small className={styles.mobileMemberSummary}>
+                  {memberSummary}
+                </small>
+              ) : null}
+            </div>
           </div>
           <button
             aria-controls="watchlist-ticker-sheet"
@@ -771,17 +780,21 @@ export function StockRadarWatchlistV2({
           </button>
         </div>
 
-        <p
-          aria-live={statusTone === "error" ? "assertive" : "polite"}
-          className={
-            statusTone === "error" ? styles.statusError : styles.statusMessage
-          }
-        >
-          {statusMessage ||
-            (watchlist.guestMode
-              ? "Preview mode. Create an account to save tickers and sync alerts."
-              : `${watchlist.usage} saved · Unlimited watchlist on ${watchlist.planLabel}.`)}
-        </p>
+        {hasStandaloneStatus ? (
+          <p
+            aria-live={statusTone === "error" ? "assertive" : "polite"}
+            className={
+              statusTone === "error" ? styles.statusError : styles.statusMessage
+            }
+          >
+            {statusMessage ||
+              "Preview mode. Create an account to save tickers and sync alerts."}
+          </p>
+        ) : (
+          <p className={`${styles.statusMessage} ${styles.desktopMemberSummary}`}>
+            {memberSummary}
+          </p>
+        )}
 
         {selectedTicker &&
         (selectionMode === "stock" || selectedWatchlistItem) ? (
