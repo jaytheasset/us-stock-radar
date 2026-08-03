@@ -98,6 +98,19 @@ test("Market Context exposes real quote fields, explicit unavailable states, and
   assert.match(styles, /button\[aria-current="page"\] > span \{[\s\S]*width: 14px;[\s\S]*background: #0f55ff;/);
 });
 
+test("Market Context omits the main subject Company metric but preserves peer company names", () => {
+  const panel = read("app/events/[id]/SectorThemeContextPanel.tsx");
+  const metricsStart = panel.indexOf("const metrics = [");
+  const metricsEnd = panel.indexOf("].filter((metric)", metricsStart);
+  const metrics = panel.slice(metricsStart, metricsEnd);
+
+  assert.ok(metricsStart >= 0 && metricsEnd > metricsStart);
+  assert.doesNotMatch(metrics, /context\.companyName/);
+  assert.doesNotMatch(metrics, /label: "Company"/);
+  assert.match(panel, /const companyName = mover\.companyName \|\| "Company name unavailable"/);
+  assert.match(panel, /<small title=\{companyName\}>\{companyName\}<\/small>/);
+});
+
 test("future News events retain prompt market context without changing old-event compatibility", () => {
   const ingest = read("lib/newsIngest.ts");
   assert.match(ingest, /marketContext: analysisRun\.input\.market_context/);
