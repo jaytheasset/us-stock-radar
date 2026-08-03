@@ -412,6 +412,14 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     new URL("../components/ui/Badge.module.css", import.meta.url),
     "utf8",
   );
+  const scoreSource = readFileSync(
+    new URL("../components/filing-analysis-v2/ScoreRationale.tsx", import.meta.url),
+    "utf8",
+  );
+  const scoreStyles = readFileSync(
+    new URL("../components/filing-analysis-v2/ScoreRationale.module.css", import.meta.url),
+    "utf8",
+  );
   const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 760px)"));
   const narrowStyles = styles.slice(styles.indexOf("@media (max-width: 360px)"));
 
@@ -485,6 +493,13 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     /\.badge \{[^}]*flex-shrink: 0;[^}]*white-space: nowrap;/,
   );
   assert.match(styles, /\.impactScore \{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
+  assert.match(sharedAnalysisSource, /scoreRationaleProps \? <ScoreRationale \{\.\.\.scoreRationaleProps\} \/>/);
+  assert.match(scoreSource, /const scoreTone = getDirectionalScoreTone\(score, signal\);/);
+  assert.match(scoreSource, /data-score-tone=\{scoreTone\}[\s\S]*\{signal\}/);
+  assert.match(
+    scoreStyles.slice(scoreStyles.indexOf("@media (max-width: 760px)")),
+    /\.scoreBlock > span \{[^}]*grid-column: 1;[^}]*grid-row: 1;[\s\S]*\.scoreBlock > strong \{[^}]*grid-column: 2;[^}]*grid-row: 1;[\s\S]*\.signal \{[^}]*grid-column: 3;[^}]*grid-row: 1;/,
+  );
   assert.doesNotMatch(adapterSource, /Nasdaq Corporate Actions/);
 });
 

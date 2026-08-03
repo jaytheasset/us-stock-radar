@@ -92,7 +92,15 @@ test("Market Context exposes real quote fields, explicit unavailable states, and
   assert.match(panel, /const x = 2 \+ \(index \/ Math\.max\(points\.length - 1, 1\)\) \* 80/);
   assert.match(styles, /\.context-mover-slide \{[\s\S]*flex: 0 0 100%;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*scroll-snap-align: start;/);
   assert.match(styles, /\.context-mover-slider \{[\s\S]*overflow-x: auto;[\s\S]*overflow-y: hidden;[\s\S]*scroll-snap-type: x mandatory;[\s\S]*scrollbar-width: none;/);
-  assert.match(styles, /\.context-mover-slide \.context-mover-head \{[\s\S]*display: flex;[\s\S]*align-items: baseline;[\s\S]*justify-content: space-between;/);
+  assert.match(styles, /\.context-mover-head \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*justify-content: space-between;/);
+  assert.match(styles, /\.context-movers \.context-mover-quote b \{[\s\S]*border: 0;[\s\S]*padding: 0;[\s\S]*color: var\(--sr-color-text-secondary\);[\s\S]*background: transparent;[\s\S]*white-space: nowrap;/);
+  assert.match(styles, /\.context-movers \.context-mover-quote span \{[\s\S]*border: var\(--sr-border-width\) solid color-mix\(in srgb, var\(--sr-color-positive\) 24%, transparent\);[\s\S]*color: var\(--sr-color-positive\);[\s\S]*background: color-mix\(in srgb, var\(--sr-color-positive\) 9%, transparent\);[\s\S]*white-space: nowrap;/);
+  assert.match(styles, /\.context-mover-tile\.bearish \.context-mover-quote span \{[\s\S]*var\(--sr-color-negative\)[\s\S]*var\(--sr-color-negative\)/);
+  assert.match(styles, /\.context-mover-tile\.neutral \.context-mover-quote span \{[\s\S]*var\(--sr-color-event-neutral\)[\s\S]*var\(--sr-color-event-neutral-surface\)/);
+  assert.match(styles, /\.context-mover-slide \.context-mover-head \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*justify-content: space-between;/);
+  assert.match(panel, /return change\.includes\("0\.00"\) \? "neutral" : "bullish";/);
+  assert.match(panel, /formatSignedPercent\(changePercent\)/);
+  assert.match(panel, /formatCurrency\(lastPrice\)/);
   assert.match(styles, /\.context-mover-pagination button \{[\s\S]*width: 24px;[\s\S]*height: 24px;[\s\S]*background: transparent;/);
   assert.match(styles, /\.context-mover-pagination button > span \{[\s\S]*background: #7f8fa6;/);
   assert.match(styles, /button\[aria-current="page"\] > span \{[\s\S]*width: 14px;[\s\S]*background: #0f55ff;/);

@@ -13862,7 +13862,11 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 }
 
 .context-mover-head {
-  display: contents;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-1);
 }
 
 .context-mover-copy > div {
@@ -13870,6 +13874,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 }
 
 .context-mover-copy strong {
+  flex: 0 1 auto;
   grid-row: 1;
   overflow: hidden;
   color: #07122f;
@@ -14024,6 +14029,44 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
   background: #f3fbf6;
   font-size: 11px;
   line-height: 1;
+}
+
+.context-movers .context-mover-quote b {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: var(--sr-color-text-secondary);
+  background: transparent;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-movers .context-mover-quote span {
+  display: inline-flex;
+  min-height: var(--sr-space-4-5);
+  flex: 0 0 auto;
+  align-items: center;
+  border: var(--sr-border-width) solid color-mix(in srgb, var(--sr-color-positive) 24%, transparent);
+  border-radius: var(--sr-radius-pill);
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-positive);
+  background: color-mix(in srgb, var(--sr-color-positive) 9%, transparent);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-none);
+  white-space: nowrap;
+}
+
+.context-mover-tile.bearish .context-mover-quote span {
+  border-color: color-mix(in srgb, var(--sr-color-negative) 24%, transparent);
+  color: var(--sr-color-negative);
+  background: color-mix(in srgb, var(--sr-color-negative) 9%, transparent);
+}
+
+.context-mover-tile.neutral .context-mover-quote span {
+  border-color: color-mix(in srgb, var(--sr-color-event-neutral) 24%, transparent);
+  color: var(--sr-color-event-neutral);
+  background: var(--sr-color-event-neutral-surface);
 }
 
 .alert-card {
@@ -16602,7 +16645,7 @@ html[data-theme="dark"] .proxy-agenda-explanation span {
 
   .context-mover-slide .context-mover-head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 4px;
     min-width: 0;
@@ -17490,6 +17533,9 @@ html[data-theme="dark"] .context-mover-copy .context-mover-unavailable {
 }
 
 html[data-theme="dark"] .context-mover-quote b {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   color: var(--text);
   background: transparent;
 }
