@@ -28,6 +28,7 @@ import {
 import {
   buildDynamicSitemapEntries,
   buildSitemapWithDynamicLoader,
+  collectPaginatedRows,
 } from "./seoSitemapCore.ts";
 
 test("root metadata uses the canonical production origin and shared brand defaults", () => {
@@ -395,6 +396,25 @@ test("sitemap keeps all static URLs when the database read fails", async () => {
   assert.deepEqual(sitemap, buildSitemap());
   assert.match(readProjectFile("app/sitemap.ts"), /dynamic\s*=\s*"force-dynamic"/);
   assert.match(readProjectFile("lib/seoSitemap.ts"), /unstable_cache[\s\S]*revalidate:\s*900/);
+});
+
+test("sitemap pagination reads beyond the Data API row cap and respects the URL limit", async () => {
+  const source = Array.from({ length: 7 }, (_, index) => `row-${index}`);
+  const requests: Array<{ limit: number; offset: number }> = [];
+  const rows = await collectPaginatedRows(
+    async (offset, limit) => {
+      requests.push({ limit, offset });
+      return source.slice(offset, offset + limit);
+    },
+    { maxRows: 5, pageSize: 2 },
+  );
+
+  assert.deepEqual(rows, source.slice(0, 5));
+  assert.deepEqual(requests, [
+    { limit: 2, offset: 0 },
+    { limit: 2, offset: 2 },
+    { limit: 1, offset: 4 },
+  ]);
 });
 
 test("legacy news URLs permanently redirect while public news producers use canonical routes", () => {

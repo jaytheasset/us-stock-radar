@@ -19,6 +19,24 @@ export type DynamicSitemapRows = {
 
 export const SITEMAP_URL_LIMIT = 50_000;
 
+export async function collectPaginatedRows<T>(
+  loadPage: (offset: number, limit: number) => Promise<T[]>,
+  options: { maxRows?: number; pageSize?: number } = {},
+) {
+  const maxRows = Math.max(0, options.maxRows ?? SITEMAP_URL_LIMIT);
+  const pageSize = Math.max(1, options.pageSize ?? 1_000);
+  const rows: T[] = [];
+
+  while (rows.length < maxRows) {
+    const limit = Math.min(pageSize, maxRows - rows.length);
+    const page = await loadPage(rows.length, limit);
+    rows.push(...page.slice(0, limit));
+    if (page.length < limit) break;
+  }
+
+  return rows;
+}
+
 export async function buildSitemapWithDynamicLoader(
   loadRows: () => Promise<DynamicSitemapRows>,
 ): Promise<MetadataRoute.Sitemap> {
