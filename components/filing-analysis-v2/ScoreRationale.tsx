@@ -35,16 +35,23 @@ export function ScoreRationale({
     return null;
   }
 
+  const scoreTone = getDirectionalScoreTone(score, signal);
+
   return (
     <section aria-label="Score Rationale" className={styles.band}>
       <div className={styles.scoreBlock}>
         <span>Score</span>
-        <strong data-score-tone={getDirectionalScoreTone(score, signal)}>{score}</strong>
+        <strong data-score-tone={scoreTone}>{score}</strong>
       </div>
       <div className={styles.copy}>
         <div className={styles.headingRow}>
           <h2>Score Rationale</h2>
-          <span className={`${styles.signal} ${styles[signal]}`}>{signal}</span>
+          <span
+            className={`${styles.signal} ${styles[signal]}`}
+            data-score-tone={scoreTone}
+          >
+            {signal}
+          </span>
         </div>
         <p>{rationale}</p>
       </div>

@@ -66,6 +66,10 @@ test("shared news and filing analysis use the readable mobile typography scale",
     new URL("../filing-analysis-v2/ScoreRationale.module.css", import.meta.url),
     "utf8",
   );
+  const scoreSource = readFileSync(
+    new URL("../filing-analysis-v2/ScoreRationale.tsx", import.meta.url),
+    "utf8",
+  );
   const googleStyles = readFileSync(
     new URL("../ui/GooglePreferredSourceLink.module.css", import.meta.url),
     "utf8",
@@ -99,10 +103,22 @@ test("shared news and filing analysis use the readable mobile typography scale",
   assert.match(mobileAnalysisStyles, /\.price-chart-mobile-toggle\)[^}]*font-size: var\(--sr-font-size-base\);/);
 
   assert.match(mobileScoreStyles, /\.scoreBlock > span \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileScoreStyles, /\.scoreBlock \{[^}]*display: contents;/);
+  assert.match(mobileScoreStyles, /\.scoreBlock > span \{[^}]*grid-column: 1;[^}]*grid-row: 1;/);
+  assert.match(mobileScoreStyles, /\.scoreBlock > strong \{[^}]*grid-column: 2;[^}]*grid-row: 1;/);
+  assert.match(mobileScoreStyles, /\.signal \{[^}]*grid-column: 3;[^}]*grid-row: 1;/);
   assert.match(mobileScoreStyles, /\.headingRow h2 \{[^}]*font-size: var\(--sr-font-size-xl\);/);
+  assert.match(mobileScoreStyles, /\.headingRow h2 \{[^}]*grid-column: 1 \/ -1;[^}]*grid-row: 2;[^}]*border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);/);
+  assert.match(mobileScoreStyles, /\.copy p \{[^}]*grid-column: 1 \/ -1;[^}]*grid-row: 3;/);
   assert.match(mobileScoreStyles, /\.signal \{[^}]*font-size: var\(--sr-font-size-md\);/);
+  assert.match(mobileScoreStyles, /\.signal\[data-score-tone="default"\],[\s\S]*\.signal\[data-score-tone="neutral"\] \{[^}]*color: var\(--sr-color-text-muted\);/);
+  assert.match(mobileScoreStyles, /:global\(\[data-sr-theme="light"\]\) \.signal\[data-score-tone="default"\],[\s\S]*:global\(\[data-sr-theme="light"\]\) \.signal\[data-score-tone="neutral"\] \{[^}]*color: var\(--sr-color-text-muted\);/);
   assert.match(mobileScoreStyles, /\.copy p \{[^}]*font-size: var\(--sr-font-size-lg-plus\);/);
   assert.match(scoreStyles, /\.scoreBlock > strong \{[^}]*font-size: var\(--sr-font-size-heading-lg\);/);
+  assert.match(scoreSource, /const scoreTone = getDirectionalScoreTone\(score, signal\);/);
+  assert.match(scoreSource, /<strong data-score-tone=\{scoreTone\}>\{score\}<\/strong>/);
+  assert.match(scoreSource, /<h2>Score Rationale<\/h2>[\s\S]*data-score-tone=\{scoreTone\}[\s\S]*\{signal\}/);
+  assert.equal(scoreSource.match(/\{signal\}/g)?.length, 1);
   assert.match(mobileGoogleStyles, /\.summary \{[^}]*font-size: var\(--sr-font-size-md\);/);
 
   assert.match(analysisSource, /className=\{styles\.analysisLiveRoomButton\}[\s\S]*label="Discuss in Live Room"/);
