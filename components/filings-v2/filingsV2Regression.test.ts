@@ -203,6 +203,9 @@ test("specialized filing cards define their own readable mobile typography", () 
   assert.match(operatingStyles, /\.updateList p,[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.6;/);
 
   assert.match(financingStyles, /\.sectionHeading h2 \{[^}]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(financingStyles, /\.headline span,[\s\S]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(financingStyles, /\.legendCopy > strong,[\s\S]*font-size: 16px;/);
+  assert.match(financingStyles, /\.legendValue i \{[^}]*font-size: var\(--sr-font-size-base\);/);
   assert.match(financingStyles, /\.detailRows strong,[\s\S]*font-size: 16px;/);
 
   for (const styles of remainingStyles) {
