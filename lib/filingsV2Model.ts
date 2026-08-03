@@ -40,7 +40,11 @@ export type FilingsV2Record = {
   id: string;
   impact: number;
   keyPoints: readonly string[];
-  keyPointsLabel: "Key Business Updates" | "Key Changes" | "Key Points";
+  keyPointsLabel:
+    | "Capital Snapshot"
+    | "Key Business Updates"
+    | "Key Changes"
+    | "Key Points";
   marketCap?: FilingsV2MarketCap;
   price?: number;
   relatedFilings: readonly FilingsV2RelatedFiling[];

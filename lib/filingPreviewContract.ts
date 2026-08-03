@@ -1,3 +1,5 @@
+import { resolveSec8k6kCapitalFinancingPreview } from "./filingPreviewAdapters/sec8k6kCapitalFinancing.ts";
+
 export type FilingPreviewFieldsInput = {
   displayPayload?: unknown;
   governanceEvent?: boolean;
@@ -10,7 +12,11 @@ export type FilingPreviewFieldsInput = {
 export type FilingPreviewFields = {
   filingBrief: string;
   keyPoints: string[];
-  keyPointsLabel: "Key Business Updates" | "Key Changes" | "Key Points";
+  keyPointsLabel:
+    | "Capital Snapshot"
+    | "Key Business Updates"
+    | "Key Changes"
+    | "Key Points";
   showKeyPoints: boolean;
 };
 
@@ -38,6 +44,10 @@ export function resolveFilingPreviewFields({
     .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
+  const capitalFinancingPreview = resolveSec8k6kCapitalFinancingPreview({
+    displayPayload,
+    primaryEventType: primaryEventType || "",
+  });
   const isGovernanceEvent =
     display?.display_type === "governance_event" || governanceEvent;
   const isSec8k6kEarningsEvent =
@@ -60,17 +70,16 @@ export function resolveFilingPreviewFields({
         .filter((value): value is string => typeof value === "string")
         .map((value) => value.trim())
     : [];
+  const keyPointCandidates = capitalFinancingPreview
+    ? capitalFinancingPreview.keyPoints
+    : isSec8k6kEarningsEvent
+      ? earningsBusinessUpdates
+      : isGovernanceEvent
+        ? governanceKeyChanges
+        : evidence;
   const keyPoints = Array.from(
-    new Set(
-      (
-        isSec8k6kEarningsEvent
-          ? earningsBusinessUpdates
-          : isGovernanceEvent
-            ? governanceKeyChanges
-            : evidence
-      ).filter(Boolean),
-    ),
-  ).slice(0, 3);
+    new Set(keyPointCandidates.filter(Boolean)),
+  ).slice(0, capitalFinancingPreview ? 4 : 3);
 
   return {
     filingBrief:
@@ -80,15 +89,19 @@ export function resolveFilingPreviewFields({
       readText(summary) ||
       "",
     keyPoints,
-    keyPointsLabel: isSec8k6kEarningsEvent
-      ? "Key Business Updates"
-      : isGovernanceEvent
-        ? "Key Changes"
-        : "Key Points",
+    keyPointsLabel:
+      capitalFinancingPreview?.keyPointsLabel ||
+      (isSec8k6kEarningsEvent
+        ? "Key Business Updates"
+        : isGovernanceEvent
+          ? "Key Changes"
+          : "Key Points"),
     showKeyPoints:
-      isSec8k6kEarningsEvent || isGovernanceEvent
-        ? keyPoints.length > 0
-        : true,
+      capitalFinancingPreview
+        ? capitalFinancingPreview.showKeyPoints
+        : isSec8k6kEarningsEvent || isGovernanceEvent
+          ? keyPoints.length > 0
+          : true,
   };
 }
 

@@ -279,6 +279,8 @@ async function loadFilingPreviewDisplayPayloads(
       "display_version:metadata->display_payload->data->>display_version",
       "operating_mode:metadata->display_payload->data->>operating_mode",
       "business_catalysts:metadata->display_payload->data->business_catalysts",
+      "capital_mode:metadata->display_payload->data->>capital_mode",
+      "snapshot_metrics:metadata->display_payload->data->snapshot_metrics",
     ].join(","),
     id: `in.(${eventIds.join(",")})`,
     limit: String(eventIds.length),
@@ -293,11 +295,17 @@ async function loadFilingPreviewDisplayPayloads(
     const displayType = readString(row.display_type);
     const displayVersion = readString(row.display_version);
     const operatingMode = readString(row.operating_mode);
+    const capitalMode = readString(row.capital_mode);
+    const isEarningsPreview =
+      displayType === "operating_event" &&
+      displayVersion === "sec_8k_6k_operating_event_v1" &&
+      operatingMode === "earnings";
+    const isCapitalFinancingPreview =
+      displayType === "capital_financing" &&
+      displayVersion === "sec_8k_6k_capital_financing_v1";
     if (
       !id ||
-      displayType !== "operating_event" ||
-      displayVersion !== "sec_8k_6k_operating_event_v1" ||
-      operatingMode !== "earnings"
+      (!isEarningsPreview && !isCapitalFinancingPreview)
     ) {
       continue;
     }
@@ -305,8 +313,10 @@ async function loadFilingPreviewDisplayPayloads(
       display_type: displayType,
       data: {
         business_catalysts: row.business_catalysts,
+        capital_mode: capitalMode,
         display_version: displayVersion,
         operating_mode: operatingMode,
+        snapshot_metrics: row.snapshot_metrics,
       },
     });
   }
