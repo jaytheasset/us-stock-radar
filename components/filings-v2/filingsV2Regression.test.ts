@@ -1,8 +1,124 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { resolveFilingPreviewFields } from "../../lib/filingPreviewContract.ts";
+import {
+  createLiveFeedV2Preview,
+  type LiveFeedV2PreviewSource,
+} from "../../lib/liveFeedV2Preview.ts";
 import { resolveFilingsV2LoadState } from "../../lib/filingsV2LoadState.ts";
 import { resolveFilingsV2SelectedRecord } from "./filingsV2Selection.ts";
+
+test("filings and Live Feed previews share the stored CRM brief and key evidence", () => {
+  const quickTake =
+    "Salesforce announced a definitive agreement to acquire Informatica for approximately $8 billion, subject to closing conditions.";
+  const filingBrief =
+    "Salesforce, Inc. has entered into a definitive agreement to acquire Informatica Inc. for approximately $8 billion.";
+  const materialEvents = [
+    {
+      event_summary: filingBrief,
+      role: "primary",
+    },
+  ];
+  const keyEvidence = [
+    "Salesforce and Informatica issued a joint press release announcing a definitive agreement to acquire Informatica.",
+    "The transaction is valued at approximately $8 billion in equity value.",
+    "The deal is subject to required regulatory clearances and other customary closing conditions.",
+  ];
+  const filingsPreview = resolveFilingPreviewFields({
+    keyEvidence,
+    materialEvents,
+    quickTake,
+  });
+  const liveFeedSource: LiveFeedV2PreviewSource = {
+    accessionNumber: "0001193125-25-126271",
+    category: "Strategic Transaction",
+    companyName: "Salesforce, Inc.",
+    detailHref: "/filings/6b038d6e-a5a1-4150-ab0e-b41c8e30e1f5",
+    feedType: "filings",
+    formType: "8-K",
+    headline: "Salesforce to Acquire Informatica",
+    id: "6b038d6e-a5a1-4150-ab0e-b41c8e30e1f5",
+    impactScore: 75,
+    keyEvidence,
+    primaryTicker: "CRM",
+    publishedAt: "2025-05-27T00:00:00.000Z",
+    sentiment: "Neutral",
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "CRM",
+  };
+  const liveFeedPreview = createLiveFeedV2Preview(liveFeedSource);
+
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.equal(filingsPreview.filingBrief, filingBrief);
+  assert.equal(filingsPreview.filingBrief, liveFeedPreview.filingBrief);
+  assert.deepEqual(filingsPreview.keyPoints, liveFeedPreview.keyPoints);
+  assert.equal(filingsPreview.keyPoints.length, 3);
+});
+
+test("filing preview brief prefers primary material event then preserves fallbacks", () => {
+  assert.equal(
+    resolveFilingPreviewFields({
+      materialEvents: [
+        { event_summary: "Secondary event.", role: "secondary" },
+        { event_summary: "Primary event.", role: "primary" },
+      ],
+      quickTake: "Quick take.",
+      summary: "Summary.",
+    }).filingBrief,
+    "Primary event.",
+  );
+  assert.equal(
+    resolveFilingPreviewFields({
+      materialEvents: [
+        { event_summary: "First valid event." },
+        { event_summary: "Later event." },
+      ],
+      quickTake: "Quick take.",
+    }).filingBrief,
+    "First valid event.",
+  );
+  assert.equal(
+    resolveFilingPreviewFields({ quickTake: "Quick take.", summary: "Summary." })
+      .filingBrief,
+    "Quick take.",
+  );
+});
+
+test("filings preview batches event analysis evidence without material-event fallback", () => {
+  const source = readFileSync(
+    new URL("../../lib/filingsV2Data.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /supabaseSelect\("event_analysis", \{[\s\S]*select: "event_id,key_evidence"/);
+  assert.match(source, /event_id: `in\.\(\$\{eventIds\.join\(","\)\}\)`/);
+  assert.equal(source.match(/supabaseSelect\("event_analysis"/g)?.length, 1);
+  assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
+  assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);
+  assert.match(source, /materialEvents: metadata\?\.material_events/);
+
+  const liveFeedSource = readFileSync(
+    new URL("../../lib/liveFeed.ts", import.meta.url),
+    "utf8",
+  );
+  const liveFeedV2Source = readFileSync(
+    new URL("../../lib/liveFeedV2.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    liveFeedSource,
+    /const filingBrief = resolveFilingPreviewFields\(\{[\s\S]*materialEvents: readMetadataRecord\(row\)\?\.material_events,[\s\S]*quickTake,[\s\S]*summary/,
+  );
+  assert.match(liveFeedV2Source, /feedType === "filings"[\s\S]*resolveFilingPreviewFields/);
+  assert.match(liveFeedV2Source, /keyEvidence: item\.keyEvidence/);
+  assert.match(
+    liveFeedV2Source,
+    /summary: filingPreviewFields\?\.filingBrief \|\| item\.quickTake \|\| item\.summary/,
+  );
+});
 
 test("does not keep a stale filing selection when filtered results are empty", () => {
   const records = [{ id: "visible" }];

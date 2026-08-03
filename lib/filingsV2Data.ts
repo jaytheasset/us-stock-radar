@@ -15,7 +15,8 @@ import {
   type FilingsV2SummaryMetrics,
 } from "@/lib/filingsV2Model";
 import type { FilingsV2LoadState } from "@/lib/filingsV2LoadState";
-import { supabaseRpc } from "@/lib/supabase";
+import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
+import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 
 type FilingsV2Data = {
   formOptions: string[];
@@ -153,7 +154,17 @@ export async function loadFilingsV2Page({
   const baseRecords = rows
     .map(mapEventRow)
     .filter((record): record is FilingsV2Record => Boolean(record));
-  const records = await enrichRecordsWithMarketData(baseRecords);
+  const [marketRecords, keyEvidenceByEventId] = await Promise.all([
+    enrichRecordsWithMarketData(baseRecords),
+    loadFilingPreviewKeyEvidence(baseRecords),
+  ]);
+  const records = marketRecords.map((record) => ({
+    ...record,
+    keyPoints: resolveFilingPreviewFields({
+      keyEvidence: keyEvidenceByEventId.get(record.id),
+      quickTake: record.summary,
+    }).keyPoints,
+  }));
   const cursorPayload = asRecord(payload.next_cursor);
   const nextCursor = readCursor(cursorPayload);
 
@@ -212,6 +223,29 @@ async function enrichRecordsWithMarketData(baseRecords: FilingsV2Record[]) {
   });
 }
 
+async function loadFilingPreviewKeyEvidence(
+  records: readonly FilingsV2Record[],
+) {
+  const eventIds = records.map((record) => record.id);
+  if (!eventIds.length) return new Map<string, unknown>();
+
+  const result = await supabaseSelect("event_analysis", {
+    select: "event_id,key_evidence",
+    event_id: `in.(${eventIds.join(",")})`,
+    limit: String(eventIds.length),
+  });
+  if (!result.ok || !Array.isArray(result.data)) {
+    return new Map<string, unknown>();
+  }
+
+  return new Map(
+    result.data
+      .filter(isRecord)
+      .map((row) => [readString(row.event_id), row.key_evidence] as const)
+      .filter((entry): entry is [string, unknown] => Boolean(entry[0])),
+  );
+}
+
 function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
   const id = readString(row.id);
   if (!id || !uuidPattern.test(id)) return null;
@@ -251,14 +285,11 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     firstFiniteNumber(contexts, ["score", "impact", "impact_score"]) ?? 50,
   );
   const signal = normalizeSignal(firstString(contexts, ["signal"]));
-  const summary =
-    firstString(contexts, [
-      "quick_take",
-      "why_it_matters",
-      "summary",
-      "filing_brief",
-      "investor_takeaway",
-    ]) || "";
+  const summary = resolveFilingPreviewFields({
+    materialEvents: metadata?.material_events,
+    quickTake: row.quick_take,
+    summary: row.summary,
+  }).filingBrief;
   const storedPrice = firstFiniteNumber(
     [row, marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
     ["price", "latest_price", "current_price"],
@@ -291,7 +322,7 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
       firstString(contexts, ["form_type", "form", "filing_type"]) || "SEC filing",
     id,
     impact: score,
-    keyPoints: collectKeyPoints(metadata, analysisOutput, displayData),
+    keyPoints: [],
     marketCap: classifyMarketCap(
       firstValue(contexts, [
         "market_cap",
@@ -379,37 +410,6 @@ function mapEventType(value: string | undefined): FilingsV2EventType | null {
     default:
       return null;
   }
-}
-
-function collectKeyPoints(
-  metadata: UnknownRecord | null,
-  analysisOutput: UnknownRecord | null,
-  displayData: UnknownRecord | null,
-) {
-  const candidates = [
-    metadata?.key_evidence,
-    metadata?.key_points,
-    analysisOutput?.key_evidence,
-    analysisOutput?.key_points,
-    displayData?.key_evidence,
-    displayData?.key_points,
-    displayData?.key_changes,
-  ];
-  const points = candidates.flatMap(readTextList);
-  const materialEvents = Array.isArray(metadata?.material_events)
-    ? metadata.material_events
-    : [];
-
-  for (const event of materialEvents) {
-    const record = asRecord(event);
-    const text = firstString(
-      [record].filter((value): value is UnknownRecord => Boolean(value)),
-      ["event_summary", "summary", "value", "title"],
-    );
-    if (text) points.push(text);
-  }
-
-  return Array.from(new Set(points.map(cleanText).filter(Boolean))).slice(0, 3);
 }
 
 function collectRelatedFilings(metadata: UnknownRecord | null) {
@@ -545,20 +545,6 @@ function parseMagnitude(value: unknown) {
             ? 1_000
             : 1;
   return Number.isFinite(number) ? number * multiplier : undefined;
-}
-
-function readTextList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") return item;
-      const record = asRecord(item);
-      if (!record) return "";
-      const title = firstString([record], ["title", "label"]);
-      const detail = firstString([record], ["value", "text", "summary", "description"]);
-      return [title, detail].filter(Boolean).join(": ");
-    })
-    .filter(Boolean);
 }
 
 function firstDateString(records: UnknownRecord[], keys: string[]) {

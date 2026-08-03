@@ -28,6 +28,7 @@ import {
 } from "@/lib/liveFeedV2Preview";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import { getEventListIdentity } from "@/lib/eventListIdentity";
+import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import type { RankedEvent } from "@/lib/radarRankings";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import {
@@ -202,6 +203,14 @@ function mapPreviewSource(
     item.eventType,
     feedType,
   );
+  const filingPreviewFields =
+    feedType === "filings"
+      ? resolveFilingPreviewFields({
+          keyEvidence: item.keyEvidence,
+          quickTake: item.filingBrief,
+          summary: item.summary,
+        })
+      : null;
 
   return {
     authenticated: viewerState?.authenticated === true,
@@ -222,7 +231,9 @@ function mapPreviewSource(
     id: item.id || `${item.ticker}-${item.title}`,
     impactScore: item.score,
     keyEvidence:
-      feedType === "market"
+      filingPreviewFields
+        ? filingPreviewFields.keyPoints
+        : feedType === "market"
         ? [...item.keyEvidence, ...item.watchNext]
         : item.keyEvidence,
     marketScopeLabel: formatMarketScope(item.marketScope),
@@ -241,7 +252,7 @@ function mapPreviewSource(
             ),
           ) === true
         : false,
-    summary: item.quickTake || item.summary,
+    summary: filingPreviewFields?.filingBrief || item.quickTake || item.summary,
     themeLabel: formatMarketThemeLabel(
       item.subTheme ||
         item.themeGroup ||
