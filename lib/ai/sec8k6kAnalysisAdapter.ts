@@ -20,7 +20,10 @@ import {
   SEC_8K_6K_ROUTER_PROMPT_KEY,
   SEC_8K_6K_ROUTER_PROMPT_VERSION,
 } from "@/lib/sources/sec/forms/8k-6k/routerPrompt";
-import { SEC_8K_6K_APPROVED_EVENT_TYPES } from "@/lib/sources/sec/forms/8k-6k/types";
+import {
+  SEC_8K_6K_APPROVED_EVENT_TYPES,
+  SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES,
+} from "@/lib/sources/sec/forms/8k-6k/types";
 
 export {
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
@@ -541,6 +544,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For capital_reverse_split_alert_policy, use event_type dilution_risk, a bearish signal, and a score of at least 75. Explain listing, price, or capital pressure and do not describe the proportional share consolidation itself as mechanical dilution.",
         "For capital_severe_dilution_alert_policy, apply the shared active-offering dilution bands to the fixed counted ratio already shown in Share Overhang. A ratio of 100% or more is severe: use dilution_risk, bearish, and a score of at least 84, then explain the supply pressure and any material funding offset without repeating the transaction terms.",
         "For capital_conditional_proceeds_snapshot, distinguish cash expected at closing from additional proceeds available only if warrants or another instrument are exercised. Do not present their sum as closed Gross Proceeds or an unconditional Offering Size. Keep both source-backed amounts in one compact row when needed and state the condition in the note.",
+        "For capital_atm_mode_mismatch, capital_atm_capacity_row_count, capital_atm_capacity_unit_mismatch, capital_atm_total_note_unit_mismatch, capital_atm_capacity_role_mismatch, capital_atm_capacity_supply_type_mismatch, capital_atm_capacity_numeric_basis_missing, or capital_atm_capacity_value_mismatch, preserve ATM as the transaction method and recover the source-stated capacity unit. Use shares only with compatible shares outstanding, or usd only with a compatible dollar company-value basis. Never convert between shares and dollars. Keep exactly one ATM row as reference with supply_type atm_capacity, and make its current capacity and basis exactly match total_note numerator and denominator. If the sources do not support one compatible model, leave the warning unresolved; persistence will omit the unsafe share_overhang.",
         "For governance_auditor_icfr_scope_misclassified_as_qualification, separate the financial-statement audit opinion from the scope of the internal-control audit. An auditor statement that it was not engaged to opine on ICFR is not an exception to, or qualification of, the financial-statement opinion.",
         "For key_evidence_count_exceeded or key_evidence_word_limit_exceeded, replace the complete key_evidence array with the strongest two or three non-duplicative source-backed proof points. Preserve compliant items when they remain among the strongest evidence, rewrite every overlong item, and do not simply keep the first three. Each item must be no more than 18 words.",
         "For score_rationale_meta_language, rewrite score_reason and score_explanation.summary as investor-impact conclusions. Do not mention a score, rating, impact band, alert/feed/archive level, or why a number was assigned.",
@@ -1063,7 +1067,28 @@ export function normalizeSec8k6kCapitalDisplayPayloadForPersistence(displayPaylo
   if (stringValue(displayPayload.display_type) !== "capital_financing") return displayPayload;
 
   const originalData = readRecord(displayPayload.data) || {};
-  const normalizedShareOverhang = normalizeCapitalShareOverhangRatio(readRecord(originalData.share_overhang));
+  const capitalMode = stringValue(originalData.capital_mode);
+  const atmCapacityIssues = getSec8k6kAtmCapacityCompatibilityIssues(originalData);
+  if (atmCapacityIssues.length) {
+    return {
+      ...displayPayload,
+      data: {
+        ...originalData,
+        snapshot_metrics: suppressInvalidAtmCapacityRatios(
+          readRecordArray(originalData.snapshot_metrics),
+        ),
+        share_overhang: null,
+        display_warnings: uniqueStrings([
+          ...readStringArray(originalData.display_warnings),
+          ...atmCapacityIssues.map((issue) => issue.warning),
+        ]),
+      },
+    };
+  }
+  const normalizedShareOverhang = normalizeCapitalShareOverhangRatio(
+    readRecord(originalData.share_overhang),
+    capitalMode,
+  );
   let data = normalizedShareOverhang
     ? { ...originalData, share_overhang: normalizedShareOverhang }
     : originalData;
@@ -1134,7 +1159,10 @@ function isPlainEquityInstrumentType(value: string) {
   );
 }
 
-function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknown> | null) {
+function normalizeCapitalShareOverhangRatio(
+  shareOverhang: Record<string, unknown> | null,
+  capitalMode = "",
+) {
   if (!shareOverhang) return null;
   const totalNoteKey = shareOverhang.total_note ? "total_note" : shareOverhang.totalNote ? "totalNote" : "total_note";
   const totalNote = readRecord(shareOverhang.total_note || shareOverhang.totalNote);
@@ -1146,19 +1174,30 @@ function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknow
   const hasVisiblePercentage = [statusValue, totalRatioValue, ratioValue].some((value) => value.includes("%"));
   if (!hasVisiblePercentage) return shareOverhang;
 
-  const countedSupply = readRecordArray(shareOverhang.rows)
+  const rows = readRecordArray(shareOverhang.rows);
+  const countedSupply = rows
     .filter((row) => stringValue(row.row_role || row.rowRole) === "counted")
     .reduce((sum, row) => sum + (capitalShareOverhangNumber(row.numeric_value ?? row.numericValue) || 0), 0);
-  const hasConditionalSupply = readRecordArray(shareOverhang.rows).some(
+  const hasConditionalSupply = rows.some(
     (row) => stringValue(row.row_role || row.rowRole) === "conditional",
   );
   const basis = readRecord(shareOverhang.basis);
-  const numerator = countedSupply > 0
-    ? countedSupply
-    : capitalShareOverhangNumber(totalNote.numerator ?? totalNote.supply_value ?? totalNote.supplyValue);
+  const atmCapacityRow = rows.find(
+    (row) => stringValue(row.supply_type || row.supplyType) === "atm_capacity",
+  );
+  const numerator = capitalMode === "atm_capacity"
+    ? atmCapacityNumber(atmCapacityRow?.numeric_value ?? atmCapacityRow?.numericValue) ??
+      atmCapacityNumber(totalNote.numerator ?? totalNote.supply_value ?? totalNote.supplyValue)
+    : countedSupply > 0
+      ? countedSupply
+      : capitalShareOverhangNumber(totalNote.numerator ?? totalNote.supply_value ?? totalNote.supplyValue);
   const denominator =
-    capitalShareOverhangNumber(basis?.numeric_value ?? basis?.numericValue) ??
-    capitalShareOverhangNumber(totalNote.denominator ?? totalNote.current_value ?? totalNote.currentValue);
+    (capitalMode === "atm_capacity" ? atmCapacityNumber : capitalShareOverhangNumber)(
+      basis?.numeric_value ?? basis?.numericValue,
+    ) ??
+    (capitalMode === "atm_capacity" ? atmCapacityNumber : capitalShareOverhangNumber)(
+      totalNote.denominator ?? totalNote.current_value ?? totalNote.currentValue,
+    );
   if (numerator == null || numerator <= 0 || denominator == null || denominator <= 0) return shareOverhang;
 
   const normalizedRatio = `${(((numerator / denominator) * 100) + Number.EPSILON).toFixed(1)}%`;
@@ -1182,6 +1221,232 @@ function normalizeCapitalShareOverhangRatio(shareOverhang: Record<string, unknow
   return normalized;
 }
 
+function suppressInvalidAtmCapacityRatios(rows: Array<Record<string, unknown>>) {
+  return rows.map((row) => {
+    const label = stringValue(row.label);
+    const value = stringValue(row.value);
+    if (!value.includes("%") || !/\bcapacity\b/i.test(label)) {
+      return row;
+    }
+    return {
+      ...row,
+      value: "Not calculable",
+      note: "Capacity and comparison basis use incompatible units.",
+    };
+  });
+}
+
+type AtmCapacityUnit = "shares" | "usd" | "mixed" | null;
+
+function getSec8k6kAtmCapacityCompatibilityIssues(
+  data: Record<string, unknown>,
+): Sec8k6kValidationRepairIssue[] {
+  const capitalMode = stringValue(data.capital_mode);
+  const shareOverhang = readRecord(data.share_overhang);
+  if (!shareOverhang) return [];
+
+  const rows = readRecordArray(shareOverhang.rows);
+  const atmRowEntries = rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) =>
+      stringValue(row.supply_type || row.supplyType) === "atm_capacity" ||
+      /\batm\b[\s\S]*\bcapacity\b|\bcapacity\b[\s\S]*\batm\b/i.test(
+        `${stringValue(row.label)} ${stringValue(row.note)}`,
+      ),
+    );
+  const issues: Sec8k6kValidationRepairIssue[] = [];
+  const capitalModePath = "/display_payload/data/capital_mode";
+  const shareOverhangPath = "/display_payload/data/share_overhang";
+
+  if (capitalMode !== "atm_capacity" && atmRowEntries.length) {
+    issues.push({
+      code: "capital_atm_mode_mismatch",
+      warning:
+        "ATM sale capacity is present but capital_mode does not identify the ATM transaction method.",
+      field_paths: [capitalModePath, `${shareOverhangPath}/rows`],
+      allowed_patch_paths: [capitalModePath],
+      candidate_source_block_ids: [],
+    });
+    return issues;
+  }
+  if (capitalMode !== "atm_capacity") return issues;
+
+  if (atmRowEntries.length !== 1) {
+    issues.push({
+      code: "capital_atm_capacity_row_count",
+      warning:
+        "ATM capacity must use exactly one current-capacity reference row before a scale ratio can be shown.",
+      field_paths: [`${shareOverhangPath}/rows`],
+      allowed_patch_paths: [`${shareOverhangPath}/rows`],
+      candidate_source_block_ids: [],
+    });
+    return issues;
+  }
+
+  const { row: atmRow, index: atmRowIndex } = atmRowEntries[0];
+  const basis = readRecord(shareOverhang.basis) || {};
+  const totalNoteKey = shareOverhang.total_note ? "total_note" : "totalNote";
+  const totalNote = readRecord(shareOverhang[totalNoteKey]) || {};
+  const numeratorKey = "numerator" in totalNote
+    ? "numerator"
+    : "supply_value" in totalNote
+      ? "supply_value"
+      : "supplyValue";
+  const denominatorKey = "denominator" in totalNote
+    ? "denominator"
+    : "current_value" in totalNote
+      ? "current_value"
+      : "currentValue";
+  const rowBasePath = `${shareOverhangPath}/rows/${atmRowIndex}`;
+  const basisUnitPath = `${shareOverhangPath}/basis/unit`;
+  const rowRoleKey = "row_role" in atmRow ? "row_role" : "rowRole";
+  const supplyTypeKey = "supply_type" in atmRow ? "supply_type" : "supplyType";
+  const basisUnit = atmCapacityUnit(basis.unit);
+  const rowUnit = atmCapacityUnit(atmRow.unit);
+
+  if (
+    !basisUnit ||
+    !rowUnit ||
+    basisUnit === "mixed" ||
+    rowUnit === "mixed" ||
+    basisUnit !== rowUnit
+  ) {
+    issues.push({
+      code: "capital_atm_capacity_unit_mismatch",
+      warning:
+        "ATM capacity and its comparison basis must use one compatible unit model: shares with shares, or usd with usd.",
+      field_paths: [basisUnitPath, `${rowBasePath}/unit`],
+      allowed_patch_paths: [basisUnitPath, `${rowBasePath}/unit`],
+      candidate_source_block_ids: [],
+    });
+  }
+
+  if (stringValue(atmRow[rowRoleKey]) !== "reference") {
+    issues.push({
+      code: "capital_atm_capacity_role_mismatch",
+      warning:
+        "ATM capacity is potential future sale capacity and must use row_role reference rather than counted issuance.",
+      field_paths: [`${rowBasePath}/${rowRoleKey}`],
+      allowed_patch_paths: [`${rowBasePath}/${rowRoleKey}`],
+      candidate_source_block_ids: [],
+    });
+  }
+  if (stringValue(atmRow[supplyTypeKey]) !== "atm_capacity") {
+    issues.push({
+      code: "capital_atm_capacity_supply_type_mismatch",
+      warning: "The ATM current-capacity row must use supply_type atm_capacity.",
+      field_paths: [`${rowBasePath}/${supplyTypeKey}`],
+      allowed_patch_paths: [`${rowBasePath}/${supplyTypeKey}`],
+      candidate_source_block_ids: [],
+    });
+  }
+
+  const numeratorUnit = atmCapacityUnit(totalNote[numeratorKey]);
+  const denominatorUnit = atmCapacityUnit(totalNote[denominatorKey]);
+  if (
+    (numeratorUnit && numeratorUnit !== basisUnit) ||
+    (denominatorUnit && denominatorUnit !== basisUnit)
+  ) {
+    issues.push({
+      code: "capital_atm_total_note_unit_mismatch",
+      warning:
+        "ATM total_note numerator and denominator must preserve the same shares-or-usd unit used by the capacity row and basis.",
+      field_paths: [
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      allowed_patch_paths: [
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      candidate_source_block_ids: [],
+    });
+  }
+
+  const rowNumeric = atmCapacityNumber(atmRow.numeric_value ?? atmRow.numericValue);
+  const basisNumeric = atmCapacityNumber(basis.numeric_value ?? basis.numericValue);
+  const numerator = atmCapacityNumber(totalNote[numeratorKey]);
+  const denominator = atmCapacityNumber(totalNote[denominatorKey]);
+  if (
+    rowNumeric == null ||
+    rowNumeric <= 0 ||
+    basisNumeric == null ||
+    basisNumeric <= 0 ||
+    numerator == null ||
+    numerator <= 0 ||
+    denominator == null ||
+    denominator <= 0
+  ) {
+    issues.push({
+      code: "capital_atm_capacity_numeric_basis_missing",
+      warning:
+        "ATM capacity scale requires positive numeric capacity and same-unit basis values; otherwise share_overhang must be omitted.",
+      field_paths: [
+        `${rowBasePath}/numeric_value`,
+        `${shareOverhangPath}/basis/numeric_value`,
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      allowed_patch_paths: [
+        `${rowBasePath}/numeric_value`,
+        `${shareOverhangPath}/basis/numeric_value`,
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      candidate_source_block_ids: [],
+    });
+  } else if (
+    capitalShareOverhangDiffers(rowNumeric, numerator) ||
+    capitalShareOverhangDiffers(basisNumeric, denominator)
+  ) {
+    issues.push({
+      code: "capital_atm_capacity_value_mismatch",
+      warning:
+        "ATM total_note must use the same current-capacity numerator and comparison-basis denominator shown in the structured model.",
+      field_paths: [
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      allowed_patch_paths: [
+        `${shareOverhangPath}/${totalNoteKey}/${numeratorKey}`,
+        `${shareOverhangPath}/${totalNoteKey}/${denominatorKey}`,
+      ],
+      candidate_source_block_ids: [],
+    });
+  }
+
+  return issues;
+}
+
+function atmCapacityUnit(value: unknown): AtmCapacityUnit {
+  const text = stringValue(value).trim().toLowerCase();
+  if (!text) return null;
+  const hasUsd = /\busd\b|\bus\s*dollars?\b|\bdollars?\b|\$/.test(text);
+  const hasShares = /\bshares?\b|\bads(?:s)?\b|\bamerican depositary shares?\b/.test(text);
+  if (hasUsd && hasShares) return "mixed";
+  if (hasUsd) return "usd";
+  if (hasShares) return "shares";
+  return null;
+}
+
+function atmCapacityNumber(value: unknown) {
+  const direct = numberValue(value);
+  if (direct != null) return direct;
+  const text = stringValue(value).replace(/,/g, "").trim();
+  const matched = text.match(/-?\d+(?:\.\d+)?/);
+  if (!matched) return null;
+  const parsed = Number(matched[0]);
+  if (!Number.isFinite(parsed)) return null;
+  const multiplier = /\b(?:billion|bn)\b|\d\s*b\b/i.test(text)
+    ? 1_000_000_000
+    : /\b(?:million|mn)\b|\d\s*m\b/i.test(text)
+      ? 1_000_000
+      : /\bthousand\b|\d\s*k\b/i.test(text)
+        ? 1_000
+        : 1;
+  return parsed * multiplier;
+}
+
 export function getSec8k6kCapitalSecurityCoverageWarnings(
   displayPayload: Record<string, unknown>,
   securityInventory: Array<Record<string, unknown>>,
@@ -1199,6 +1464,12 @@ export function getSec8k6kCapitalSecurityCoverageWarnings(
   if (!securityInventory.length && ["equity_issuance", "share_linked_financing"].includes(capitalMode)) {
     warnings.push("Capital security inventory was empty for an equity or share-linked financing analysis.");
   }
+
+  warnings.push(
+    ...getSec8k6kAtmCapacityCompatibilityIssues(data).map(
+      (issue) => issue.warning,
+    ),
+  );
 
   for (const item of securityInventory) {
     if (stringValue(item.display_target) !== "instrument_details") continue;
@@ -1232,8 +1503,15 @@ function getSec8k6kShareOverhangWarnings(shareOverhang: Record<string, unknown> 
   const countedRows = rows.filter((row) => stringValue(row.row_role || row.rowRole) === "counted");
   const countedSum = countedRows.reduce((sum, row) => sum + (capitalShareOverhangNumber(row.numeric_value ?? row.numericValue) || 0), 0);
   const totalNote = readRecord(shareOverhang.total_note || shareOverhang.totalNote) || {};
-  const numerator = capitalShareOverhangNumber(totalNote.numerator ?? totalNote.supply_value ?? totalNote.supplyValue);
-  const denominator = capitalShareOverhangNumber(totalNote.denominator ?? totalNote.current_value ?? totalNote.currentValue);
+  const capacityNumber = capitalMode === "atm_capacity"
+    ? atmCapacityNumber
+    : capitalShareOverhangNumber;
+  const numerator = capacityNumber(
+    totalNote.numerator ?? totalNote.supply_value ?? totalNote.supplyValue,
+  );
+  const denominator = capacityNumber(
+    totalNote.denominator ?? totalNote.current_value ?? totalNote.currentValue,
+  );
   const totalRatioValue = stringValue(totalNote.ratio ?? totalNote.ratio_value ?? totalNote.ratioValue);
   const totalRatio = capitalShareOverhangPercent(totalRatioValue);
   const statusValue = stringValue(shareOverhang.status_value || shareOverhang.statusValue);
@@ -1826,7 +2104,9 @@ function getSec8k6kCapitalRepairIssues(
 ): Sec8k6kValidationRepairIssue[] {
   if (stringValue(displayPayload.display_type) !== "capital_financing") return [];
   const data = readRecord(displayPayload.data) || {};
-  const issues: Sec8k6kValidationRepairIssue[] = [];
+  const issues: Sec8k6kValidationRepairIssue[] = [
+    ...getSec8k6kAtmCapacityCompatibilityIssues(data),
+  ];
   if (isReverseSplitCapitalDisplay(displayPayload)) {
     const score = numberValue(analysisOutput.score);
     const eventType = stringValue(analysisOutput.event_type);
@@ -3311,7 +3591,7 @@ function selectValidationRepairSourceBlocks(
       if (hasRiskIssue && /^(?:1\.03|2\.04|2\.05|2\.06|3\.01|4\.02|8\.01)$/.test(itemNumber)) score += 80;
       if (hasRiskIssue && /delist|suspend|default|bankrupt|going concern|non-reliance|restatement/i.test(sourceText)) score += 35;
       if (hasCapitalIssue && /^(?:1\.01|2\.03|3\.02|5\.07|8\.01)$/.test(itemNumber)) score += 80;
-      if (hasCapitalIssue && /warrant|convertible|preferred|pre-funded|offering|financing|credit agreement|indenture/i.test(sourceText)) score += 35;
+      if (hasCapitalIssue && /warrant|convertible|preferred|pre-funded|offering|financing|credit agreement|indenture|at-the-market|\batm\b|sales agreement|capacity/i.test(sourceText)) score += 35;
       if (hasStrategicIssue && /^(?:2\.01|3\.01|5\.07|8\.01)$/.test(itemNumber)) score += 80;
       if (hasStrategicIssue && /merger|acquisition|tender offer|business combination|closing|transaction/i.test(sourceText)) score += 35;
       if (hasGovernanceAuditorIssue && itemNumber === "4.01") score += 80;
@@ -3585,6 +3865,38 @@ function normalizeValidationRepairPatchValue(path: string, value: unknown): unkn
   if (path === "/display_payload/data/business_catalysts") {
     return normalizeValidationRepairBusinessCatalysts(value);
   }
+  if (path === "/display_payload/data/share_overhang/rows") {
+    const parsed = parseValidationRepairCollection(value);
+    if (!parsed) return undefined;
+    const rows = parsed.slice(0, 7).flatMap((item) => {
+      const row = readRecord(item);
+      if (!row) return [];
+      const rowRole = stringValue(row.row_role);
+      const unit = stringValue(row.unit).toLowerCase();
+      const label = stringValue(row.label).slice(0, 80);
+      const rowValue = stringValue(row.value).slice(0, 90);
+      if (
+        !["counted", "conditional", "alternative", "reference"].includes(rowRole) ||
+        (unit !== "shares" && unit !== "usd") ||
+        !label ||
+        !rowValue
+      ) {
+        return [];
+      }
+      const numericValue = numberValue(row.numeric_value);
+      return [{
+        row_role: rowRole,
+        supply_type: nullableString(row.supply_type),
+        label,
+        value: rowValue,
+        numeric_value: numericValue,
+        unit,
+        class_basis: nullableString(row.class_basis),
+        note: nullableString(row.note),
+      }];
+    });
+    return rows.length ? rows : undefined;
+  }
   if (path === "/analysis_output/key_evidence") {
     const parsed = parseValidationRepairCollection(value);
     if (!parsed) return undefined;
@@ -3606,6 +3918,31 @@ function normalizeValidationRepairPatchValue(path: string, value: unknown): unkn
     return ["earnings", "operating_update", "product_or_regulatory", "legal_or_accounting", "routine_archive"].includes(mode)
       ? mode
       : undefined;
+  }
+  if (path === "/display_payload/data/capital_mode") {
+    const mode = stringValue(value);
+    return SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES.includes(
+      mode as (typeof SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES)[number],
+    )
+      ? mode
+      : undefined;
+  }
+  if (/\/share_overhang\/(?:basis|rows\/\d+)\/unit$/.test(path)) {
+    const unit = stringValue(value).toLowerCase();
+    return unit === "shares" || unit === "usd" ? unit : undefined;
+  }
+  if (/\/share_overhang\/rows\/\d+\/(?:row_role|rowRole)$/.test(path)) {
+    const role = stringValue(value);
+    return ["counted", "conditional", "alternative", "reference"].includes(role)
+      ? role
+      : undefined;
+  }
+  if (/\/share_overhang\/rows\/\d+\/(?:supply_type|supplyType)$/.test(path)) {
+    return stringValue(value) === "atm_capacity" ? "atm_capacity" : undefined;
+  }
+  if (/\/share_overhang\/(?:basis|rows\/\d+)\/numeric_value$/.test(path)) {
+    const numericValue = Number(value.replace(/,/g, "").trim());
+    return Number.isFinite(numericValue) ? numericValue : undefined;
   }
   if (path === "/analysis_output/score") {
     const score = Number(value.trim());

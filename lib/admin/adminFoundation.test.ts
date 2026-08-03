@@ -32,6 +32,8 @@ const telegramLeaseMigration = read(
 const adminLayout = read("app/admin/layout.tsx");
 const adminServer = read("lib/admin/server.ts");
 const adminApi = read("lib/admin/api.ts");
+const promptRegistry = read("lib/promptRegistry.ts");
+const promptRegistryApi = read("app/api/prompts/registry/route.ts");
 const dashboardRepository = read("lib/admin/dashboard.ts");
 const dashboardPage = read("app/admin/page.tsx");
 const usersRepository = read("lib/admin/users.ts");
@@ -101,6 +103,25 @@ test("anonymous users and ordinary members are rejected before admin content ren
   );
   assert.doesNotMatch(adminServer, /redirect\("\/"\)/);
   assert.doesNotMatch(adminServer, /user_metadata|app_metadata/);
+});
+
+test("the specialized 8-K/6-K capital prompt is exposed only through the admin prompt registry", () => {
+  assert.match(
+    promptRegistry,
+    /key:\s*SEC_8K_6K_ANALYSIS_PROMPT_KEYS\.capitalFinancing/,
+  );
+  assert.match(
+    promptRegistry,
+    /getSec8k6kSpecializedRuntimeResponseSchema\("capital_financing"\)/,
+  );
+  assert.match(
+    promptRegistryApi,
+    /respondWithAdminReadAccess\(request, "system\.read"/,
+  );
+  assert.match(
+    promptRegistryApi,
+    /respondToAdminReadHead\(request, "system\.read"\)/,
+  );
 });
 
 test("admin exit links return to the current markets dashboard", () => {

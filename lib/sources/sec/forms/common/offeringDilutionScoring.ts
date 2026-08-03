@@ -26,7 +26,9 @@ export const SEC_ACTIVE_OFFERING_DILUTION_SCORING_GUIDE = [
   "If offering price is below recent market price: 0-5% discount = no major score change; 5-15% discount = +3 to +6; 15-30% discount = +6 to +10; 30%+ discount = +10 to +15, with alert possible for small or microcap issuers.",
   "If warrants, pre-funded warrants, reset provisions, variable conversion, or other equity-linked securities are included, apply the mixed-components rule without double-counting.",
   "ATM offering:",
-  "ATM is current possible sale capacity, not completed issuance. Compare current active unsold ATM capacity against the best source-backed compatible dollar company-value denominator. If sold-to-date information is unavailable, use the source-backed current program limit as capacity.",
+  "ATM is current possible sale capacity, not completed issuance. First preserve the source-stated capacity unit: compare a fixed share cap with compatible shares outstanding, or a dollar cap with a compatible dollar company-value denominator. Never cross units or infer one capacity unit from the other. If sold-to-date information is unavailable, use the source-backed current program limit in its disclosed unit as capacity.",
+  "For a fixed-share-capped ATM, use remaining fixed shares divided by compatible current shares outstanding and apply the primary-offering percentage ranges for the issuer tier, while reflecting that ATM sales remain optional and may occur over time rather than being completed issuance.",
+  "For a dollar-capped ATM, use the company-value comparison rules and ATM tier thresholds below.",
   "For ATM company-value comparisons, first use a filing-date value if the filing provides enough source-backed inputs to calculate it, such as shares outstanding multiplied by a stated last sale price.",
   "When using shares outstanding multiplied by a stated last sale price, label that denominator Market Value at Last Sale Price, not Market Cap. Use Market Cap only when the filing explicitly states market capitalization or when using site-provided market_context.market_cap.",
   "If the filing does not provide enough inputs for a filing-date dollar denominator, use site-provided market_context.market_cap and identify it as latest market context.",
@@ -63,7 +65,7 @@ export const SEC_ACTIVE_OFFERING_DILUTION_SCORING_GUIDE = [
 
 export const SEC_ACTIVE_OFFERING_DILUTION_ALERT_GUARDS = [
   "Active offering and dilution alert gate:",
-  "Score 75+ only when source-backed scale and sale-readiness support alert-level impact: a confirmed primary offering is large for the issuer's market-cap tier; resale overhang is large relative to public float; ATM capacity is very large for the market-cap tier and sales are actionable; warrant, convertible, or rights terms create large actual or potential dilution; or deep discount, reset, variable conversion, repricing, toxic financing, liquidity crisis, or financing failure is central to the current event.",
+  "Score 75+ only when source-backed scale and sale-readiness support alert-level impact: a confirmed primary offering is large for the issuer's market-cap tier; resale overhang is large relative to public float; ATM capacity is very large under its compatible fixed-share or dollar-cap model and sales are actionable; warrant, convertible, or rights terms create large actual or potential dilution; or deep discount, reset, variable conversion, repricing, toxic financing, liquidity crisis, or financing failure is central to the current event.",
   "Do not score 75+ from shelf capacity alone, generic securities lists, base-prospectus boilerplate, registration status alone, or an unavailable or unreliable denominator.",
   "Do not treat resale registration as company financing unless issuer proceeds are source-backed.",
   "If market cap, public float, and compatible shares outstanding are missing, use lower confidence and usually cap at 74 unless original source facts are obviously alert-level.",
