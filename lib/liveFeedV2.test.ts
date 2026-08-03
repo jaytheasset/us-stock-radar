@@ -189,7 +189,7 @@ test("server query policy protects exact pagination and count before rows reach 
   );
   assert.match(
     feedSource,
-    /fetchEvents\(\{[\s\S]*excludeTickerlessNonAlertMarketNews: true,[\s\S]*\.\.\.feedFilters/,
+    /fetchEvents\(\{[\s\S]*page,[\s\S]*limit,[\s\S]*order: "published_at\.desc\.nullslast,detected_at\.desc,id\.desc",[\s\S]*excludeTickerlessNonAlertMarketNews: true,[\s\S]*\.\.\.feedFilters/,
   );
   assert.match(
     supabaseSource,
@@ -241,6 +241,13 @@ test("three rail queries enforce alert delivery, score floor, category, and boun
   );
   assert.match(feedSource, /fetchEvents\(liveFeedRailQueries\.alertFilings\)/);
   assert.match(feedSource, /fetchEvents\(liveFeedRailQueries\.marketMoving\)/);
+  assert.doesNotMatch(
+    feedSource.slice(
+      feedSource.indexOf("async function fetchSharedFeedData"),
+      feedSource.indexOf("export async function getRankingViewModel"),
+    ),
+    /published_at\.desc/,
+  );
   assert.doesNotMatch(
     feedSource.slice(
       feedSource.indexOf("async function fetchSharedFeedData"),

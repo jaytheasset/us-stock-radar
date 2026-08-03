@@ -199,6 +199,7 @@ async function buildLiveFeedViewModel({
     fetchEvents({
       page,
       limit,
+      order: "published_at.desc.nullslast,detected_at.desc,id.desc",
       excludeDeliveryLevel: "archive",
       excludeTickerlessNonAlertMarketNews: true,
       ...feedFilters,

@@ -5,7 +5,10 @@ import { buildEventAlertScoreFilters } from "@/lib/supabaseEventFilters";
 export type FetchEventsParams = {
   limit: number;
   page?: number;
-  order?: "detected_at.desc" | "score.desc,detected_at.desc";
+  order?:
+    | "detected_at.desc"
+    | "published_at.desc.nullslast,detected_at.desc,id.desc"
+    | "score.desc,detected_at.desc";
   ticker?: string;
   sourceCode?: string;
   impact?: string;
