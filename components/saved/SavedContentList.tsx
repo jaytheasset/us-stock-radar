@@ -42,9 +42,9 @@ export function SavedContentList({
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok || payload?.saved !== false) {
-        throw new Error(payload?.message || "Could not remove saved content.");
+        throw new Error("Could not remove bookmark.");
       }
-      setMessage("Removed from Saved.");
+      setMessage("Bookmark removed.");
     } catch (error) {
       setItems(previous);
       publishUserContentChange({
@@ -54,7 +54,7 @@ export function SavedContentList({
         value: true,
       });
       setMessage(
-        error instanceof Error ? error.message : "Could not remove saved content.",
+        error instanceof Error ? error.message : "Could not remove bookmark.",
       );
     } finally {
       setBusyId(null);
@@ -64,8 +64,8 @@ export function SavedContentList({
   if (!items.length) {
     return (
       <div className={styles.emptyState}>
-        <strong>No saved items in this view</strong>
-        <p>Use the bookmark on news, filings, or public Live Room posts.</p>
+        <strong>No bookmarks in this view</strong>
+        <p>Add bookmarks from news, filings, or public Live Room posts.</p>
         <Link href="/feed">Browse Live Feed</Link>
       </div>
     );
@@ -111,10 +111,10 @@ export function SavedContentList({
             )}
 
             <button
-              aria-label={`Remove ${getSavedContentTypeLabel(item.contentType)} from Saved`}
+              aria-label={`Remove ${getSavedContentTypeLabel(item.contentType).toLowerCase()} bookmark`}
               disabled={busyId === item.contentId}
               onClick={() => void remove(item)}
-              title="Remove from Saved"
+              title="Remove bookmark"
               type="button"
             >
               <BookmarkMinus aria-hidden="true" size={17} />

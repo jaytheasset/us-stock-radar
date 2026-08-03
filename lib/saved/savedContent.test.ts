@@ -93,14 +93,26 @@ test("Feed actions are preview-only and Live Room saves posts, not messages", ()
   assert.doesNotMatch(messages, /SavedContentButton/);
 });
 
-test("Saved page uses server pagination and account navigation only", () => {
+test("Bookmarks page keeps the saved route, server pagination, and account navigation", () => {
   const page = read("app/saved/page.tsx");
+  const list = read("components/saved/SavedContentList.tsx");
+  const button = read("components/actions/SavedContentButton.tsx");
   const server = read("lib/saved/server.ts");
   const accountMenu = read("components/AuthStatus.tsx");
+  const accountPage = read("app/account/page.tsx");
   const shell = read("components/shell/StockRadarAppShell.tsx");
 
   assert.match(page, /getSavedContentPage/);
+  assert.match(page, /title: "Bookmarks \| Stock Radar"/);
+  assert.match(page, /<h1>Bookmarks<\/h1>/);
+  assert.match(page, /Filter bookmarks by content type/);
+  assert.match(page, /Bookmarks pagination/);
+  assert.match(list, /No bookmarks in this view/);
+  assert.match(list, /Remove .* bookmark/);
+  assert.match(button, /Add \$\{contentLabel\} bookmark/);
+  assert.match(button, /Remove \$\{contentLabel\} bookmark/);
   assert.match(server, /pageSize = 20/);
-  assert.match(accountMenu, /href="\/saved"/);
+  assert.match(accountMenu, /href="\/saved"[\s\S]{0,120}Bookmarks/);
+  assert.match(accountPage, /href="\/saved"[\s\S]{0,120}Bookmarks/);
   assert.doesNotMatch(shell, /href="\/saved"/);
 });

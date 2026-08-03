@@ -388,7 +388,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /"Personal market workspace"/);
   assert.match(
     componentSource,
-    /`\$\{watchlist\.usage\} saved · Unlimited on \$\{watchlist\.planLabel\}`/,
+    /`\$\{watchlist\.usage\} on Watchlist · Unlimited on \$\{watchlist\.planLabel\}`/,
   );
   assert.match(
     componentSource,

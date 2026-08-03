@@ -154,7 +154,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
     <AuthShell
       description={
         isSignup
-          ? "Create one account for your watchlist, alert settings, and saved market views."
+          ? "Create one account for your watchlist, alert settings, and bookmarks."
           : "Continue to your watchlist, alerts, and delivered market activity."
       }
       eyebrow={isSignup ? "Free account" : "Secure access"}

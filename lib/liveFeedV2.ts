@@ -95,7 +95,7 @@ export async function loadLiveFeedV2Page({
     return {
       availability: "unavailable",
       emptyMessage:
-        "Watchlist activity is not available in Live Feed yet. Your saved tickers remain available on the Watchlist page.",
+        "Watchlist activity is not available in Live Feed yet. Your Watchlist tickers remain available on the Watchlist page.",
       filter,
       items: [],
       nextCursor: null,

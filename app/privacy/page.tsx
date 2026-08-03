@@ -52,7 +52,7 @@ const sections: LegalDocumentSection[] = [
             message and presence settings, and account preferences.
           </li>
           <li>
-            <strong>Saved market preferences:</strong> watchlist tickers, alert
+            <strong>Account market preferences:</strong> watchlist tickers, alert
             tickers, categories, thresholds, schedules, delivery choices, and
             bookmarks.
           </li>
