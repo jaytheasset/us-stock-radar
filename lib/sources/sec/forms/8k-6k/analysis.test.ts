@@ -202,6 +202,10 @@ assert.equal(capitalRuntimeSchema.properties.display_payload.properties.data.pro
 assert.equal(capitalRuntimeSchema.properties.display_payload.properties.data.properties.snapshot_metrics.maxItems, 4);
 assert.equal(strategicRuntimeSchema.properties.display_payload.properties.data.properties.snapshot_metrics.minItems, 4);
 assert.equal(strategicRuntimeSchema.properties.display_payload.properties.data.properties.snapshot_metrics.maxItems, 4);
+assert.match(
+  strategicRuntimeSchema.properties.analysis_output.properties.key_evidence.description,
+  /each no more than 18 words/i,
+);
 assert.equal(capitalRuntimeSchema.properties.analysis_output.required.includes("key_evidence"), false);
 assert.equal(capitalRuntimeSchema.properties.analysis_output.required.includes("what_to_watch_next"), false);
 assert.equal(Object.keys(governanceRuntimeSchema.properties)[0], "amendment_delta");
@@ -411,6 +415,74 @@ const keyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
 });
 assert.ok(keyEvidenceRepairPlan);
 assert.ok(keyEvidenceRepairPlan.issues.some((issue) => issue.code === "key_evidence_count_exceeded"));
+assert.equal(keyEvidenceRepairPlan.issues.some((issue) => issue.code === "key_evidence_word_limit_exceeded"), false);
+const exactlyEighteenWordEvidence = Array.from(
+  { length: 18 },
+  (_, index) => `evidence${index + 1}${index === 0 ? "," : ""}`,
+).join(" ");
+const nineteenWordEvidence = `${exactlyEighteenWordEvidence} evidence19.`;
+const keyEvidenceRepairDisplayPayload = {
+  display_type: "generic",
+  data: {
+    snapshot_metrics: [
+      { label: "Exchange", value: "Nasdaq", note: null },
+      { label: "Status", value: "Delisting notice received", note: null },
+      { label: "Trading", value: "Suspension scheduled", note: null },
+      { label: "Appeal", value: "Not planned", note: null },
+    ],
+  },
+};
+assert.equal(
+  getSec8k6kValidationSemanticWarnings({}, { key_evidence: [exactlyEighteenWordEvidence, "Second proof point."] })
+    .some((warning) => warning.includes("18-word contract")),
+  false,
+);
+const longKeyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
+      key_evidence: ["Short proof point.", nineteenWordEvidence, "Another short proof point."],
+      listing_status_snapshot: keyEvidenceRepairDisplayPayload.data.snapshot_metrics,
+    }),
+    display_payload: keyEvidenceRepairDisplayPayload,
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "nkla_item_3_01",
+    item_number: "3.01",
+    label: "Nasdaq delisting notice",
+    text: "Nasdaq will suspend trading after the bankruptcy filing, and the company will not appeal the determination.",
+  }),
+});
+assert.ok(longKeyEvidenceRepairPlan);
+assert.deepEqual(
+  longKeyEvidenceRepairPlan.issues
+    .filter((issue) => issue.code.startsWith("key_evidence_"))
+    .map((issue) => issue.code),
+  ["key_evidence_word_limit_exceeded"],
+);
+assert.deepEqual(longKeyEvidenceRepairPlan.allowedPatchPaths, ["/analysis_output/key_evidence"]);
+const combinedKeyEvidenceRepairPlan = buildSec8k6kValidationRepairPlan({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
+      key_evidence: ["Evidence one", "Evidence two", nineteenWordEvidence, "Evidence four"],
+      listing_status_snapshot: keyEvidenceRepairDisplayPayload.data.snapshot_metrics,
+    }),
+    display_payload: keyEvidenceRepairDisplayPayload,
+  },
+  analysisPromptUser: repairSourceBlocks({
+    block_id: "nkla_item_3_01",
+    item_number: "3.01",
+    label: "Nasdaq delisting notice",
+    text: "Nasdaq will suspend trading after the bankruptcy filing, and the company will not appeal the determination.",
+  }),
+});
+assert.ok(combinedKeyEvidenceRepairPlan);
+assert.deepEqual(
+  combinedKeyEvidenceRepairPlan.issues
+    .filter((issue) => issue.code.startsWith("key_evidence_"))
+    .map((issue) => issue.code),
+  ["key_evidence_count_exceeded", "key_evidence_word_limit_exceeded"],
+);
+assert.match(combinedKeyEvidenceRepairPlan.prompt.system, /Each item must be no more than 18 words/);
 const keyEvidenceRepairApplied = applySec8k6kValidationRepairPatches({
   analysisResult: {
     analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
@@ -430,6 +502,27 @@ assert.equal(
   ((keyEvidenceRepairApplied.analysisResult.analysis_output as Record<string, unknown>).key_evidence as string[]).length,
   3,
 );
+assert.ok(
+  ((keyEvidenceRepairApplied.analysisResult.analysis_output as Record<string, unknown>).key_evidence as string[])
+    .every((item) => item.trim().split(/\s+/).length <= 18),
+);
+const rejectedLongKeyEvidenceRepair = applySec8k6kValidationRepairPatches({
+  analysisResult: {
+    analysis_output: repairAnalysisOutput("listing_risk", "nkla_item_3_01", {
+      key_evidence: ["Existing evidence one.", nineteenWordEvidence],
+    }),
+  },
+  repairResult: {
+    patches: [{
+      path: "/analysis_output/key_evidence",
+      value: JSON.stringify(["Valid replacement.", nineteenWordEvidence]),
+    }],
+    unresolved_warning_codes: [],
+  },
+  allowedPatchPaths: longKeyEvidenceRepairPlan.allowedPatchPaths,
+});
+assert.deepEqual(rejectedLongKeyEvidenceRepair.appliedPatchPaths, []);
+assert.deepEqual(rejectedLongKeyEvidenceRepair.ignoredPatchPaths, ["/analysis_output/key_evidence"]);
 
 const riskRepairPlan = buildSec8k6kValidationRepairPlan({
   analysisResult: {
@@ -2328,6 +2421,11 @@ assert.ok(
 assert.ok(
   sec8k6kAnalysisResponseSchema.properties.analysis_output.properties.key_evidence.description.includes(
     "Rank all candidates first",
+  ),
+);
+assert.ok(
+  sec8k6kAnalysisResponseSchema.properties.analysis_output.properties.key_evidence.description.includes(
+    "Each item must be no more than 18 words",
   ),
 );
 assert.ok(sec8k6kAnalysisResponseSchema.properties.analysis_output.required.includes("material_events"));

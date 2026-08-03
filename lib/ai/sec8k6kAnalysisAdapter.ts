@@ -59,7 +59,7 @@ export type Sec8k6kValidationRepairPlan = {
 };
 
 export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY = "sec_8k_6k_validation_repair";
-export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v6-source-backed-regression-guards";
+export const SEC_8K_6K_VALIDATION_REPAIR_PROMPT_VERSION = "v7-key-evidence-18-word-limit";
 
 export function isSec8k6kFilingInput(input: SecFilingAnalysisInput) {
   const parserOutput = readSec8k6kParserOutput(input);
@@ -542,7 +542,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
         "For capital_severe_dilution_alert_policy, apply the shared active-offering dilution bands to the fixed counted ratio already shown in Share Overhang. A ratio of 100% or more is severe: use dilution_risk, bearish, and a score of at least 84, then explain the supply pressure and any material funding offset without repeating the transaction terms.",
         "For capital_conditional_proceeds_snapshot, distinguish cash expected at closing from additional proceeds available only if warrants or another instrument are exercised. Do not present their sum as closed Gross Proceeds or an unconditional Offering Size. Keep both source-backed amounts in one compact row when needed and state the condition in the note.",
         "For governance_auditor_icfr_scope_misclassified_as_qualification, separate the financial-statement audit opinion from the scope of the internal-control audit. An auditor statement that it was not engaged to opine on ICFR is not an exception to, or qualification of, the financial-statement opinion.",
-        "For key_evidence_count_exceeded, replace the complete key_evidence array with the strongest two or three non-duplicative source-backed proof points. Rank them by direct support for the central conclusion; do not simply keep the first three. Each item must be no more than 18 words.",
+        "For key_evidence_count_exceeded or key_evidence_word_limit_exceeded, replace the complete key_evidence array with the strongest two or three non-duplicative source-backed proof points. Preserve compliant items when they remain among the strongest evidence, rewrite every overlong item, and do not simply keep the first three. Each item must be no more than 18 words.",
         "For score_rationale_meta_language, rewrite score_reason and score_explanation.summary as investor-impact conclusions. Do not mention a score, rating, impact band, alert/feed/archive level, or why a number was assigned.",
         "For score_rationale_filing_recap, rewrite only the flagged score rationale fields as a 12-24 word analyst bottom line. Explain the practical scoring principle through immediacy, economic scale, dilution mechanics, financing quality, balance-sheet effect, or another controlling investor consequence. Do not repeat exact share counts, prices, proceeds, dates, transaction mechanics, or facts already visible in the snapshot and details. Use at most two controlling drivers and one material offset when it changes the reading. Begin with the investor consequence or economic principle, such as Immediate equity supply, Large actionable overhang, or Severe liquidity pressure. Never begin with The offering, The financing, The transaction, The company, an issuer name, The score, or This score.",
         "Do not fix an incompatible-period comparison by relabeling a value. Replace the labels, displayed values, numeric values, comparison basis, and change note only when the supplied source blocks contain a complete comparable pair; otherwise leave it unresolved.",
@@ -1791,14 +1791,32 @@ function getSec8k6kKeyEvidenceRepairIssues(
   analysisOutput: Record<string, unknown>,
 ): Sec8k6kValidationRepairIssue[] {
   const keyEvidence = readStringArray(analysisOutput.key_evidence);
-  if (keyEvidence.length <= 3) return [];
-  return [{
-    code: "key_evidence_count_exceeded",
-    warning: "Key Evidence exceeds the two-to-three-item contract and must be re-ranked from the original evidence rather than truncated by position.",
+  const issueFields = {
     field_paths: ["/analysis_output/key_evidence"],
     allowed_patch_paths: ["/analysis_output/key_evidence"],
     candidate_source_block_ids: primaryMaterialEventSourceIds(analysisOutput),
-  }];
+  };
+  const issues: Sec8k6kValidationRepairIssue[] = [];
+  if (keyEvidence.length > 3) {
+    issues.push({
+      code: "key_evidence_count_exceeded",
+      warning: "Key Evidence exceeds the two-to-three-item contract and must be re-ranked from the original evidence rather than truncated by position.",
+      ...issueFields,
+    });
+  }
+  if (keyEvidence.some((item) => countWhitespaceDelimitedWords(item) > 18)) {
+    issues.push({
+      code: "key_evidence_word_limit_exceeded",
+      warning: "A Key Evidence item exceeds the 18-word contract and must be rewritten without changing its source-backed meaning.",
+      ...issueFields,
+    });
+  }
+  return issues;
+}
+
+function countWhitespaceDelimitedWords(value: string) {
+  const normalized = value.trim();
+  return normalized ? normalized.split(/\s+/).length : 0;
 }
 
 function getSec8k6kCapitalRepairIssues(
@@ -3571,7 +3589,11 @@ function normalizeValidationRepairPatchValue(path: string, value: unknown): unkn
     const parsed = parseValidationRepairCollection(value);
     if (!parsed) return undefined;
     const evidence = parsed.map(stringValue).map((item) => item.trim()).filter(Boolean);
-    return evidence.length >= 2 && evidence.length <= 3 ? evidence : undefined;
+    return evidence.length >= 2 &&
+        evidence.length <= 3 &&
+        evidence.every((item) => countWhitespaceDelimitedWords(item) <= 18)
+      ? evidence
+      : undefined;
   }
   if (path === "/analysis_output/event_type" || /\/material_events\/\d+\/event_type$/.test(path)) {
     const eventType = stringValue(value);
@@ -3917,7 +3939,7 @@ const sec8k6kRuntimeAnalysisResponseSchema = {
           type: "array",
           maxItems: 3,
           description:
-            "Return only the two or three strongest proof points for the central investor conclusion. Rank all candidates first, remove duplicates and lower-priority facts, and never return more than three items.",
+            "Return only the two or three strongest proof points for the central investor conclusion. Rank all candidates first, remove duplicates and lower-priority facts, and never return more than three items. Each item must be no more than 18 words.",
           items: { type: "string" },
         },
         what_to_watch_next: { type: "array", items: { type: "string" } },

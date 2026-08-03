@@ -28,7 +28,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v41-source-backed-regression-guards";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v42-key-evidence-18-word-limit";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -250,7 +250,7 @@ const analysisOutputSchema = {
       type: "array",
       maxItems: 3,
       description:
-        "Return only the two or three strongest proof points for the central investor conclusion. Rank all candidates first, remove duplicates and lower-priority facts, and never return more than three items.",
+        "Return only the two or three strongest proof points for the central investor conclusion. Rank all candidates first, remove duplicates and lower-priority facts, and never return more than three items. Each item must be no more than 18 words.",
       items: { type: "string" },
     },
     what_to_watch_next: { type: "array", items: { type: "string" } },
@@ -482,7 +482,12 @@ function buildRuntimeAnalysisOutputSchema(options: Sec8k6kFamilySchemaOptions) {
     score_explanation: sec8k6kScoreExplanationSchema,
     signal: { type: "string", enum: ["bullish", "bearish", "volatile", "neutral"] },
     quick_take: { type: "string" },
-    key_evidence: { type: "array", maxItems: 3, items: { type: "string" } },
+    key_evidence: {
+      type: "array",
+      maxItems: 3,
+      description: "Return two or three strongest proof points, each no more than 18 words.",
+      items: { type: "string" },
+    },
     what_to_watch_next: { type: "array", maxItems: 3, items: { type: "string" } },
     confidence: { type: "string", enum: SEC_8K_6K_ROUTER_CONFIDENCE_VALUES },
     needs_human_review: { type: "boolean" },
@@ -1373,7 +1378,7 @@ export const sec8k6kFinalOutputCheckPrompt = [
   "Never use score, rating, impact band, alert-level, feed-level, archive-level, warrants an alert, or similar system-delivery language in an investor-facing score rationale.",
   "Keep each score rationale to one plain-language analyst conclusion using the strongest one or two drivers and only one material offset when it changes the reading.",
   "Recheck every visible label, value, note, and summary relationship. Separate independent disclosure dimensions, preserve proposed/approved/conditional/effective/completed states, and remove any except, but, cause, condition, or note relationship that the original source does not explicitly support.",
-  "When the selected response schema includes key_evidence, rank candidates by direct support for the central investor conclusion and keep only the strongest two or three. Never return four or more items, and do not rely on downstream truncation. For capital_financing, do not return key_evidence.",
+  "When the selected response schema includes key_evidence, rank candidates by direct support for the central investor conclusion and keep only the strongest two or three, each no more than 18 words. Never return four or more items, and do not rely on downstream truncation. For capital_financing, do not return key_evidence.",
   "When analysis_prompt_family is capital_financing, verify that source-backed warrant, convertible, preferred-conversion, pre-funded, or similar instrument mechanics appear in instrument_details rather than only in prose or Offering Details. Correct misplaced mechanics before returning.",
   "For capital_financing, compare security_inventory with instrument_details. Every current-event non-common security whose display_target is instrument_details must be represented by its exact instrument_details_type Type row; restore any omitted family or series before returning.",
   "For capital_financing, remove any instrument_details Type group for plain Common Stock, Ordinary Shares, or ADSs when it only repeats a quantity already shown in snapshot_metrics or share_overhang. Keep the instrument table for securities with distinct mechanics.",
