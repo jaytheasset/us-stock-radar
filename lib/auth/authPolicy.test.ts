@@ -529,6 +529,17 @@ test("auth route contract covers callback verification, revoke, reset, and priva
   }
 });
 
+test("local email signups require confirmation", () => {
+  const config = readProjectFile("supabase/config.toml");
+  const emailSection = config.match(
+    /\[auth\.email\]([\s\S]*?)(?=\n\[[^\]]+\]|$)/,
+  );
+
+  assert.ok(emailSection, "supabase/config.toml must include [auth.email]");
+  assert.match(emailSection[1], /^enable_signup\s*=\s*true$/m);
+  assert.match(emailSection[1], /^enable_confirmations\s*=\s*true$/m);
+});
+
 function jwtWithExpiry(exp: number) {
   const encode = (value: object) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
