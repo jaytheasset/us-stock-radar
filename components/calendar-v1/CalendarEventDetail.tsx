@@ -1,7 +1,7 @@
 "use client";
 
 import { type RefObject } from "react";
-import { Bell, BellOff, ExternalLink, Star } from "lucide-react";
+import { Bell, BellRing, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
 import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTypeBadge";
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
@@ -229,7 +229,7 @@ function CalendarEventDetailContent({
             type="button"
           >
             {followed ? (
-              <BellOff aria-hidden="true" size={16} />
+              <BellRing aria-hidden="true" size={16} />
             ) : (
               <Bell aria-hidden="true" size={16} />
             )}

@@ -519,6 +519,10 @@ test("stock watching is ticker-scoped while event following remains event-scoped
   assert.match(followAction, /Follow this event&apos;s schedule and reminders\./);
   assert.match(followAction, /Follow Event/);
   assert.match(followAction, /Event Followed/);
+  assert.match(detail, /import \{ Bell, BellRing, ExternalLink, Star \} from "lucide-react"/);
+  assert.match(followAction, /<BellRing aria-hidden="true" size=\{16\} \/>/);
+  assert.match(followAction, /<Bell aria-hidden="true" size=\{16\} \/>/);
+  assert.doesNotMatch(detail, /BellOff/);
   assert.match(followAction, /formatCalendarEventFollowUsage\(followUsage\)/);
   assert.match(workspace, /setFollowUsage\(payload\.data\.usage\)/);
   assert.match(
@@ -533,6 +537,30 @@ test("stock watching is ticker-scoped while event following remains event-scoped
     /\.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(128px, auto\);/,
   );
   assert.match(styles, /\.detailAction button:disabled/);
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailHeader h2\s*\{[\s\S]*font-size:\s*20px;[\s\S]*font-weight:\s*var\(--sr-font-weight-semibold\);[\s\S]*line-height:\s*var\(--sr-line-height-body\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailSummary dt,[\s\S]*\.mobileDetailContent \.detailSection h3\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-md\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailSummary dd,[\s\S]*\.mobileDetailContent \.detailSection dd\s*\{[\s\S]*font-size:\s*var\(--sr-font-size-lg\);[\s\S]*line-height:\s*var\(--sr-line-height-default\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailAction\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(112px, 144px\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailAction button\s*\{[\s\S]*min-height:\s*44px;[\s\S]*font-size:\s*var\(--sr-font-size-lg\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobileDetailContent \.detailLinks > a,[\s\S]*\.mobileDetailContent \.detailLinks > span\s*\{[\s\S]*min-height:\s*44px;[\s\S]*font-size:\s*var\(--sr-font-size-base\);/,
+  );
 });
 
 test("category and grouped Type filters share a contradiction-free desktop and mobile contract", async () => {
