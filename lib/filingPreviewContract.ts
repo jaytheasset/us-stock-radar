@@ -1,5 +1,6 @@
 export type FilingPreviewFieldsInput = {
   displayPayload?: unknown;
+  governanceEvent?: boolean;
   keyEvidence?: unknown;
   materialEvents?: unknown;
   quickTake?: unknown;
@@ -15,6 +16,7 @@ export type FilingPreviewFields = {
 
 export function resolveFilingPreviewFields({
   displayPayload,
+  governanceEvent = false,
   keyEvidence,
   materialEvents,
   quickTake,
@@ -32,7 +34,8 @@ export function resolveFilingPreviewFields({
     .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
-  const isGovernanceEvent = display?.display_type === "governance_event";
+  const isGovernanceEvent =
+    display?.display_type === "governance_event" || governanceEvent;
   const governanceKeyChanges = Array.isArray(displayData?.key_changes)
     ? displayData.key_changes
         .filter(isRecord)

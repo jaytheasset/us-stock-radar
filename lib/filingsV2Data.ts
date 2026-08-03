@@ -168,6 +168,7 @@ export async function loadFilingsV2Page({
     const metadata = asRecord(row?.metadata);
     const previewFields = resolveFilingPreviewFields({
       displayPayload: metadata?.display_payload,
+      governanceEvent: record.events.includes("governance"),
       keyEvidence: keyEvidenceByEventId.get(record.id),
       materialEvents: metadata?.material_events,
       quickTake: row?.quick_take,
@@ -304,6 +305,7 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
   const signal = normalizeSignal(firstString(contexts, ["signal"]));
   const previewFields = resolveFilingPreviewFields({
     displayPayload: metadata?.display_payload,
+    governanceEvent: eventTypes.includes("governance"),
     materialEvents: metadata?.material_events,
     quickTake: row.quick_take,
     summary: row.summary,

@@ -126,6 +126,28 @@ test("governance previews hide empty key changes without falling back to evidenc
   assert.equal(preview.showKeyPoints, false);
 });
 
+test("filings RPC governance identity recovers key changes when display_type is omitted", () => {
+  const preview = resolveFilingPreviewFields({
+    displayPayload: {
+      data: {
+        key_changes: [
+          { title: "  Chief executive transition  " },
+          { title: "Board committee reassignment" },
+        ],
+      },
+    },
+    governanceEvent: true,
+    keyEvidence: ["Event-analysis evidence must remain ignored."],
+  });
+
+  assert.deepEqual(preview.keyPoints, [
+    "Chief executive transition",
+    "Board committee reassignment",
+  ]);
+  assert.equal(preview.keyPointsLabel, "Key Changes");
+  assert.equal(preview.showKeyPoints, true);
+});
+
 test("non-governance previews retain event-analysis evidence and the Key Points label", () => {
   const preview = resolveFilingPreviewFields({
     displayPayload: {
@@ -181,6 +203,8 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
   assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);
   assert.match(source, /materialEvents: metadata\?\.material_events/);
+  assert.match(source, /governanceEvent: record\.events\.includes\("governance"\)/);
+  assert.match(source, /governanceEvent: eventTypes\.includes\("governance"\)/);
 
   const liveFeedSource = readFileSync(
     new URL("../../lib/liveFeed.ts", import.meta.url),
