@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
-import { notFound } from "next/navigation";
+import { cache } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import {
@@ -104,10 +105,13 @@ import {
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
 import {
-  filingUiFamilies,
-  registeredFilingUiFixtures,
-} from "@/lib/development/filingUiRegistry";
+  buildAnalysisMetadata,
+  hasMeaningfulAnalysisPayload,
+  latestIsoTimestamp,
+  type AnalysisSeoDocument,
+} from "@/lib/analysisSeo";
 import { buildGooglePreferredSourceUrl } from "@/lib/googlePreferredSource";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { getCurrentViewerPlan } from "@/lib/currentViewerPlan";
@@ -190,6 +194,7 @@ type FilingEvent = {
   offeringTerms?: Record<string, unknown> | null;
   s3Case?: string | null;
   genericAvailability?: GenericFilingAvailability;
+  seo?: AnalysisSeoDocument;
 };
 
 type Form25ListingStatusData = {
@@ -215,6 +220,7 @@ type GenericFilingAvailability = {
 };
 
 type RecentFiling = {
+  href?: string;
   id?: string;
   form: string;
   eventType: string;
@@ -226,6 +232,7 @@ type RecentFiling = {
 type RelatedStory = {
   eventId?: string;
   eventType?: string;
+  href?: string;
   title: string;
   source: string;
   sourceUrl?: string;
@@ -4185,19 +4192,32 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: FilingDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const fixture = registeredFilingUiFixtures.find(
-    (entry) => entry.route === `/filings/${id}`,
-  );
-  const family = fixture
-    ? filingUiFamilies.find((entry) => entry.id === fixture.family)
+  const filing = await resolveFilingEvent(id);
+  const canonicalPath = filing.seo
+    ? getCanonicalAnalysisPath({
+        deliveryLevel: filing.deliveryLevel,
+        id,
+        metadata: filing.seo.metadata,
+        sourceGroup: "filings",
+      })
     : null;
-
-  return {
-    title: fixture && family
-      ? `${family.label} Fixture`
-      : "Filing Analysis",
-    robots: fixture ? { follow: false, index: false } : undefined,
+  const seo = filing.seo || {
+    brief: filing.filingBrief,
+    fixture: true,
+    hasStoredAnalysis: false,
+    id,
+    kind: "filing" as const,
+    publishedAt: null,
+    sourceName: filing.source,
+    summary: filing.summary,
+    ticker: filing.ticker,
+    title: filing.title,
   };
+
+  return buildAnalysisMetadata(
+    seo,
+    canonicalPath || `/filings/${encodeURIComponent(id)}`,
+  );
 }
 
 export default async function FilingDetailPage({ params }: FilingDetailPageProps) {
@@ -4208,6 +4228,17 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   ]);
   const allowAds = areAdsEnabledForPlan(viewerPlan);
   const filing = await resolveFilingEvent(id);
+  const canonicalPath = filing.seo
+    ? getCanonicalAnalysisPath({
+        deliveryLevel: filing.deliveryLevel,
+        id,
+        metadata: filing.seo.metadata,
+        sourceGroup: "filings",
+      })
+    : null;
+  if (canonicalPath?.startsWith("/filings/archive/")) {
+    permanentRedirect(canonicalPath);
+  }
   const viewerState = await getViewerContentState({
     userId,
     references: isUuid(id)
@@ -4541,7 +4572,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             </div>
             <div className="recent-filings-list">
               {filing.recentFilings.slice(0, 4).map((item) => (
-                <Link href={item.id ? `/filings/${item.id}` : "/filings"} key={`${item.form}-${item.title}`}>
+                <Link href={item.href || (item.id ? `/filings/${item.id}` : "/filings")} key={`${item.form}-${item.title}`}>
                   <span className="filing-form-chip">{item.form}</span>
                   <div>
                     <strong>{item.title}</strong>
@@ -4574,7 +4605,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             </div>
             <div className="related-news-list">
               {filing.relatedNews.slice(0, 4).map((story) => (
-                <Link href="/news" key={story.title}>
+                <Link href={story.href || "/news"} key={story.title}>
                   <strong>{story.title}</strong>
                   <span>{story.source} - {story.age}</span>
                 </Link>
@@ -4610,7 +4641,9 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   );
 }
 
-async function resolveFilingEvent(id: string): Promise<FilingEvent> {
+const resolveFilingEvent = cache(async function resolveFilingEvent(
+  id: string,
+): Promise<FilingEvent> {
   const fixture = commonFilingEvents[id];
   if (fixture) return fixture;
 
@@ -4626,7 +4659,7 @@ async function resolveFilingEvent(id: string): Promise<FilingEvent> {
   }
 
   return buildDbFilingEvent(item);
-}
+});
 
 async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
   const [eventResult, analysisResult, tickerLinksResult] = await Promise.all([
@@ -4843,6 +4876,29 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
       readRowString(metadata, "s3_case") ||
       null,
     genericAvailability,
+    seo: {
+      analysisMetadata,
+      brief: filingBrief,
+      hasStoredAnalysis: hasMeaningfulAnalysisPayload(analysis),
+      id: item.id,
+      kind: "filing",
+      metadata,
+      modifiedAt: latestIsoTimestamp(
+        readRowString(analysis, "updated_at"),
+        readRowString(rawItem, "fetched_at"),
+        readRowString(eventRow, "detected_at"),
+        readRowString(eventRow, "published_at"),
+      ),
+      publishedAt:
+        readRowString(eventRow, "published_at") ||
+        item.detectedAtRaw ||
+        readRowString(eventRow, "detected_at"),
+      sourceCode: readRowString(eventRow, "source_code"),
+      sourceName: formatGenericFilingSource(item.source),
+      summary,
+      ticker,
+      title: item.title,
+    },
   };
 }
 
@@ -10085,6 +10141,12 @@ function mapRecentFilingRows(rows: Record<string, unknown>[], currentId: string)
 
       return {
         id: readRowString(row, "id"),
+        href: getCanonicalAnalysisPath({
+          deliveryLevel: readRowString(row, "delivery_level"),
+          id: readRowString(row, "id"),
+          metadata: row.metadata,
+          sourceGroup: "filings",
+        }) || undefined,
         eventType: badge.label,
         filedAt: formatShortDate(readRowString(row, "detected_at") || readRowString(row, "published_at")),
         form: readFilingFormType(row, toRecord(row.metadata), readRowString(row, "title")),
@@ -10099,6 +10161,12 @@ function mapRelatedNewsRows(rows: Record<string, unknown>[]): RelatedStory[] {
     age: formatShortDate(readRowString(row, "detected_at") || readRowString(row, "published_at")),
     eventId: readRowString(row, "id") || undefined,
     eventType: readRowString(row, "event_type") || undefined,
+    href: getCanonicalAnalysisPath({
+      deliveryLevel: readRowString(row, "delivery_level"),
+      id: readRowString(row, "id"),
+      metadata: row.metadata,
+      sourceGroup: "news",
+    }) || undefined,
     source: formatSourceLabel(readRowString(row, "source_code")),
     sourceUrl: firstHttpUrl([
       readRowString(row, "source_url"),

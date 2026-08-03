@@ -75,7 +75,7 @@ export async function getLiveFeedV2InitialData(
       mapRankedEvent(item, "filings"),
     ),
     highImpactNews: viewModel.highImpactNews.map((item) =>
-      mapRankedEvent(item, "events"),
+      mapRankedEvent(item, "news"),
     ),
     marketMovingNews: viewModel.marketMovingNews.map(mapMarketMovingEvent),
     marketPulse: viewModel.marketPulseItems,
@@ -209,7 +209,13 @@ function mapPreviewSource(
     category: eventPresentation.label,
     companyName: item.companyName,
     detailHref:
-      feedType === "filings" ? `/filings/${item.id}` : `/events/${item.id}`,
+      item.sourceGroup === "filings"
+        ? `/filings/${item.id}`
+        : item.sourceGroup === "news"
+          ? item.deliveryLevel === "archive"
+            ? `/news/archive/${item.id}`
+            : `/news/${item.id}`
+          : `/events/${item.id}`,
     feedType,
     formType: item.formType,
     headline: item.title,
@@ -303,7 +309,7 @@ function mapMarketMovingEvent(
 ): LiveFeedV2RailEvent {
   return {
     ...createLiveFeedV2RailEventIdentity({
-      destination: "events",
+      destination: "news",
       eventId: item.id,
       fallbackId: `market-moving-${item.label}-${item.title}`,
     }),

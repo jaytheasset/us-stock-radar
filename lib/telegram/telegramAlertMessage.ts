@@ -113,7 +113,7 @@ export function formatEventTimeEt(value?: string) {
 export function getCanonicalAlertAnalysisPath(event: NormalizedAlertEvent) {
   if (!event.id.trim()) return "";
   if (event.sourceType === "filing") return `/filings/${encodeURIComponent(event.id)}`;
-  if (event.sourceType === "news") return `/events/${encodeURIComponent(event.id)}`;
+  if (event.sourceType === "news") return `/news/${encodeURIComponent(event.id)}`;
   return "";
 }
 

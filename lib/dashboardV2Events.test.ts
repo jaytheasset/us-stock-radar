@@ -129,7 +129,7 @@ test("dashboard query selects score and preserves the non-Archive contract", asy
   );
   assert.match(
     source,
-    /select: "id,ticker,event_type,score,signal,impact,title,detected_at,published_at,delivery_level"/,
+    /select: "id,ticker,event_type,score,signal,impact,title,detected_at,published_at,delivery_level,source_group"/,
   );
   assert.match(source, /delivery_level: "neq\.archive"/);
   assert.doesNotMatch(source, /delivery_level: "eq\.alert"/);

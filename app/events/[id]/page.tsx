@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
 import { PriceChartCard } from "./PriceChartCard";
 import { SectorThemeContextPanel } from "./SectorThemeContextPanel";
@@ -20,6 +21,7 @@ import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { getViewerContentState, savedContentKey } from "@/lib/saved/server";
 import { fetchEventAnalysis, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
 import {
   DilutionShareOverhang,
   type DilutionShareOverhangBarSegment,
@@ -28,6 +30,14 @@ import {
 import type { ContextRange, DetailTone, PriceChartSeries, PricePoint, PriceRange, SectorThemeContext, TopMover } from "./detailTypes";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: {
+    follow: false,
+    index: false,
+    nocache: true,
+  },
+};
 
 type StockDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -540,16 +550,13 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
     redirect(`/filings/${liveItem.id}`);
   }
   if (liveItem?.sourceGroup === "news") {
-    const detail = await loadNewsAnalysisDetail(id);
-    if (!detail) notFound();
-    return (
-      <NewsAnalysisAdapter
-        allowAds={allowAds}
-        detail={detail}
-        newsId={id}
-        viewerState={await getNewsViewerState(userId, id, detail.filing.ticker)}
-      />
-    );
+    const canonicalPath = getCanonicalAnalysisPath({
+      deliveryLevel: liveItem.deliveryLevel,
+      id: liveItem.id,
+      sourceGroup: "news",
+    });
+    if (!canonicalPath) notFound();
+    permanentRedirect(canonicalPath);
   }
   const event = liveItem ? toDetailEvent(liveItem) : getFeedItem(id) || defaultEvent;
   let profile = liveItem

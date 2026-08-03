@@ -15,6 +15,7 @@ export type DashboardV2Event = {
   label: string;
   score: number;
   signal?: DashboardV2Signal;
+  sourceGroup?: "filings" | "market" | "news";
   timestamp: string;
   title: string;
   tone: BadgeTone;

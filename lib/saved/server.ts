@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseSelect } from "@/lib/supabase";
+import { getCanonicalAnalysisPath } from "@/lib/analysisRoutes";
 import type {
   SavedContentListItem,
   SavedContentPage,
@@ -18,7 +19,9 @@ type SavedRow = {
 };
 
 type EventRow = {
+  delivery_level?: unknown;
   id?: unknown;
+  metadata?: unknown;
   source_group?: unknown;
   ticker?: unknown;
   title?: unknown;
@@ -205,7 +208,7 @@ async function hydrateSavedRows(
   const [eventsResult, postsResult, blocksResult] = await Promise.all([
     eventIds.length
       ? supabaseSelect("events", {
-          select: "id,source_group,ticker,title",
+          select: "id,source_group,ticker,title,delivery_level,metadata",
           id: `in.(${eventIds.join(",")})`,
           limit: String(eventIds.length),
         })
@@ -334,9 +337,12 @@ async function hydrateSavedRows(
       contentId,
       contentType,
       href:
-        contentType === "filing"
-          ? `/filings/${contentId}`
-          : `/events/${contentId}`,
+        getCanonicalAnalysisPath({
+          deliveryLevel: event.delivery_level,
+          id: contentId,
+          metadata: event.metadata,
+          sourceGroup: contentType === "filing" ? "filings" : "news",
+        }) || (contentType === "filing" ? "/filings" : "/news"),
       savedAt,
       ticker,
       title: readString(event.title) || "Saved market content",

@@ -897,10 +897,10 @@ test("feed context rail renders navigable events as Next links with a non-link f
   );
 
   assert.match(adapterSource, /mapRankedEvent\(item, "filings"\)/);
-  assert.match(adapterSource, /mapRankedEvent\(item, "events"\)/);
+  assert.match(adapterSource, /mapRankedEvent\(item, "news"\)/);
   assert.match(
     adapterSource,
-    /destination: "events",[\s\S]*eventId: item\.id,[\s\S]*fallbackId: `market-moving-/,
+    /destination: "news",[\s\S]*eventId: item\.id,[\s\S]*fallbackId: `market-moving-/,
   );
   assert.match(railSource, /import Link from "next\/link"/);
   assert.match(

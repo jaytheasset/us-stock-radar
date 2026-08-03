@@ -26,6 +26,7 @@ export const AI_ANALYSIS_DISCLOSURE =
   "AI-assisted analysis. Verify material facts against the original source. Scores, labels, and directional signals are not investment recommendations.";
 
 type GenericFilingRecentItem = {
+  href?: string;
   id?: string;
   eventType: string;
   filedAt: string;
@@ -38,6 +39,7 @@ type GenericFilingRelatedNewsItem = {
   age: string;
   eventId?: string;
   eventType?: string;
+  href?: string;
   source: string;
   sourceUrl?: string;
   title: string;
@@ -486,7 +488,7 @@ export function GenericFilingAnalysis({
                   <div className={styles.recentList}>
                     {recentFilings.slice(0, 4).map((item) => (
                       <Link
-                        href={item.id ? `/filings/${item.id}` : "/filings"}
+                        href={item.href || (item.id ? `/filings/${item.id}` : "/filings")}
                         key={`${item.id || item.form}-${item.title}`}
                       >
                         {cleanText(item.form) ? (
@@ -639,6 +641,7 @@ function AnalysisCompanyIdentity({
 
 function RelatedNewsItem({ story }: { story: GenericFilingRelatedNewsItem }) {
   const eventId = cleanText(story.eventId);
+  const detailHref = cleanText(story.href);
   const eventType = cleanText(story.eventType);
   const eventBadge = eventType ? getEventTypeBadge(eventType) : null;
   const sourceUrl = cleanText(story.sourceUrl);
@@ -658,9 +661,12 @@ function RelatedNewsItem({ story }: { story: GenericFilingRelatedNewsItem }) {
     </>
   );
 
-  if (eventId) {
+  if (detailHref || eventId) {
     return (
-      <Link className={styles.newsListItem} href={`/events/${encodeURIComponent(eventId)}`}>
+      <Link
+        className={styles.newsListItem}
+        href={detailHref || `/news/${encodeURIComponent(eventId)}`}
+      >
         {content}
       </Link>
     );

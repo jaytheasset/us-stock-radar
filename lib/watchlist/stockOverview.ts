@@ -6,6 +6,7 @@ import {
   mapTickerSearchResults as mapSharedTickerSearchResults,
   type TickerSearchResult,
 } from "../tickerSearchContract.ts";
+import { getCanonicalAnalysisPath } from "../analysisRoutes.ts";
 
 export type { TickerSearchResult } from "../tickerSearchContract.ts";
 
@@ -314,13 +315,14 @@ function mapStockOverviewEvent(value: unknown): StockOverviewEvent | null {
     readString(row, ["form_type"]) ||
     readMetadataString(row, ["form_type", "formType", "form"]);
   const detailHref = isPersistentEventId(id)
-    ? sourceGroup === "filings"
-      ? deliveryLevel === "archive"
-        ? `/filings/archive/${encodeURIComponent(id)}`
-        : `/filings/${encodeURIComponent(id)}`
-      : sourceGroup === "news" && deliveryLevel === "archive"
-        ? `/news/archive/${encodeURIComponent(id)}`
-        : `/events/${encodeURIComponent(id)}`
+    ? sourceGroup === "filings" || sourceGroup === "news"
+      ? getCanonicalAnalysisPath({
+          deliveryLevel,
+          id,
+          metadata: row.metadata,
+          sourceGroup,
+        })
+      : `/events/${encodeURIComponent(id)}`
     : null;
 
   return {
