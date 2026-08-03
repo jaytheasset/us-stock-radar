@@ -1602,7 +1602,7 @@ a.companyLine:focus-visible {
     padding-left: var(--sr-space-1);
   }
 
-  .newsDocument .summaryHeader > :last-child > svg {
+  .newsDocument .summaryHeader > :last-child > svg:last-child {
     display: none;
   }
 
@@ -1616,7 +1616,7 @@ a.companyLine:focus-visible {
     padding-left: var(--sr-space-1);
   }
 
-  .filingDocument .summaryHeader > :last-child > svg {
+  .filingDocument .summaryHeader > :last-child > svg:last-child {
     display: none;
   }
 }

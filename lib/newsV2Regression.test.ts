@@ -485,6 +485,14 @@ test("mobile news analysis uses wide shared cards with directional signal bands"
     /\.newsDocument \.classification \{[^}]*flex-wrap: wrap;/,
   );
   assert.match(
+    narrowStyles,
+    /\.newsDocument \.summaryHeader > :last-child > svg:last-child \{[^}]*display: none;/,
+  );
+  assert.doesNotMatch(
+    narrowStyles,
+    /\.newsDocument \.summaryHeader > :last-child > svg \{[^}]*display: none;/,
+  );
+  assert.match(
     mobileStyles,
     /\.newsDocument \.newsSource \{[^}]*flex: 1 1 auto;/,
   );
