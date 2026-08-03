@@ -751,4 +751,41 @@
   .scaleNote {
     padding-inline: var(--sr-space-4);
   }
+
+  .sectionHeading h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .scaleHeader p,
+  .sectionHeading span,
+  .headline small,
+  .extremeScaleReadouts span,
+  .extremeScaleRail span,
+  .extremeScale > p,
+  .barMetric > i,
+  .barMetric small,
+  .legendCode,
+  .legendItem small,
+  .scaleNote,
+  .detailRows dt,
+  .instrumentTable thead th {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .extremeScaleReadouts strong,
+  .barMetric strong,
+  .legendValue > b,
+  .equation > strong,
+  .detailRows strong,
+  .instrumentTable tbody th,
+  .instrumentTable tbody td {
+    font-size: 16px;
+    line-height: var(--sr-line-height-default);
+  }
+
+  .detailRows dd span {
+    font-size: var(--sr-font-size-base);
+    line-height: var(--sr-line-height-body);
+  }
 }

@@ -175,4 +175,24 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sr-space-1);
   }
+
+  .heading h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .heading > span,
+  .meta,
+  .detail dt,
+  .index {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .copyBody h3,
+  .detail strong,
+  .explanation p,
+  .detail span {
+    font-size: 16px;
+    line-height: 1.6;
+  }
 }

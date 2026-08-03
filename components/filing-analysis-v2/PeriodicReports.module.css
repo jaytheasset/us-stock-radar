@@ -95,4 +95,21 @@
   .list > li {
     padding-inline: var(--sr-space-4);
   }
+
+  .heading h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .changeHeading strong,
+  .change p {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .heading > span,
+  .changeHeading span,
+  .index {
+    font-size: var(--sr-font-size-base);
+  }
 }

@@ -90,4 +90,20 @@
     grid-template-columns: 1fr;
     gap: var(--sr-space-2);
   }
+
+  .heading h2 {
+    font-size: var(--sr-font-size-2xl);
+    line-height: var(--sr-line-height-control);
+  }
+
+  .heading span,
+  .row dt {
+    font-size: var(--sr-font-size-base);
+  }
+
+  .row strong,
+  .row dd span {
+    font-size: 16px;
+    line-height: 1.6;
+  }
 }

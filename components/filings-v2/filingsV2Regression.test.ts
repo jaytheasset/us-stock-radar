@@ -168,6 +168,50 @@ test("filing analysis inherits the final news-document mobile gutter and type hi
   );
 });
 
+test("specialized filing cards define their own readable mobile typography", () => {
+  const readMobileStyles = (name: string, breakpoint: number) => {
+    const styles = readFileSync(
+      new URL(`../filing-analysis-v2/${name}.module.css`, import.meta.url),
+      "utf8",
+    );
+    const marker = `@media (max-width: ${breakpoint}px)`;
+    const mobileStyles = styles.slice(styles.indexOf(marker));
+
+    assert.ok(mobileStyles.startsWith(marker), `${name} must define mobile styles`);
+    return mobileStyles;
+  };
+
+  const snapshotStyles = readMobileStyles("ListingFinancialRiskSnapshot", 760);
+  const operatingStyles = readMobileStyles("OperatingLegalRoutine", 700);
+  const financingStyles = readMobileStyles("FinancingDilutionCapitalStructure", 760);
+  const remainingStyles = [
+    readMobileStyles("GovernanceEventDetails", 640),
+    readMobileStyles("OwnershipDetails", 760),
+    readMobileStyles("PeriodicReports", 700),
+    readMobileStyles("ProxyVoteDetails", 640),
+    readMobileStyles("S8Details", 700),
+    readMobileStyles("TenderOfferDetails", 640),
+  ];
+
+  assert.match(snapshotStyles, /\.snapshot h2 \{[^}]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(snapshotStyles, /\.item dt \{[^}]*font-size: var\(--sr-font-size-base\);/);
+  assert.match(snapshotStyles, /\.item strong \{[^}]*font-size: 16px;/);
+  assert.match(snapshotStyles, /\.item span \{[^}]*font-size: var\(--sr-font-size-base\);/);
+
+  assert.match(operatingStyles, /\.panelHeading h2,[\s\S]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(operatingStyles, /\.updateHeading strong,[\s\S]*font-size: 16px;/);
+  assert.match(operatingStyles, /\.updateList p,[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.6;/);
+
+  assert.match(financingStyles, /\.sectionHeading h2 \{[^}]*font-size: var\(--sr-font-size-2xl\);/);
+  assert.match(financingStyles, /\.detailRows strong,[\s\S]*font-size: 16px;/);
+
+  for (const styles of remainingStyles) {
+    assert.match(styles, /font-size: var\(--sr-font-size-2xl\);/);
+    assert.match(styles, /font-size: var\(--sr-font-size-base\);/);
+    assert.match(styles, /font-size: 16px;/);
+  }
+});
+
 test("legacy filing chart mobile display override follows the desktop hidden rule", () => {
   const globals = readFileSync(
     new URL("../../app/globals.css", import.meta.url),
