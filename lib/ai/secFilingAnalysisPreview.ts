@@ -351,6 +351,7 @@ export type SecFilingAnalysisRunResult = {
       key: string;
       version: string;
       system?: string;
+      user?: string;
       responseFormat?: unknown;
     };
   };
@@ -1072,6 +1073,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -1103,6 +1105,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -1327,6 +1330,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: validationRepairPrompt.key,
               version: validationRepairPrompt.version,
               system: validationRepairPrompt.system,
+              user: validationRepairPrompt.user,
               responseFormat: validationRepairPrompt.responseFormat,
             }
           : undefined,
@@ -1576,7 +1580,17 @@ export async function runSecFilingAnalysisForRawRow(
           key: SEC_8K_6K_ROUTER_PROMPT_KEY,
           version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
         },
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
+      validationRepair: readRecord(sec8k6kDebug?.validation_repair),
     };
   }
 
@@ -1664,6 +1678,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -1695,6 +1710,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -1786,6 +1802,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -1817,6 +1834,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -1908,6 +1926,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -1939,6 +1958,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2030,6 +2050,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2061,6 +2082,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2149,6 +2171,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2180,6 +2203,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2270,6 +2294,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2313,6 +2338,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2405,6 +2431,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2436,6 +2463,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2549,6 +2577,7 @@ export async function runSecFilingAnalysisForRawRow(
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2588,6 +2617,7 @@ export async function runSecFilingAnalysisForRawRow(
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2725,16 +2755,29 @@ if (isForm25FilingInput(input)) {
       status: analysisRun.status,
       model: analysisRun.model,
       openAiResponseId: analysisRun.openAiResponseId,
+      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: form25Analysis.analysis,
       form25ValidationRepair,
       outputText: analysisRun.outputText,
+      repairOutputText: repairRun?.outputText,
       usage,
+      repairUsage: repairRun?.usage,
       costEstimate: estimateCost(analysisRun.model, usage),
+      validationRepair: form25ValidationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
+        repair: repairPlan
+          ? {
+              key: repairPlan.prompt.key,
+              version: repairPlan.prompt.version,
+              system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
+              responseFormat: repairPlan.prompt.responseFormat,
+            }
+          : undefined,
       },
     };
   }
@@ -2828,6 +2871,7 @@ if (isForm25FilingInput(input)) {
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2859,6 +2903,7 @@ if (isForm25FilingInput(input)) {
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,
@@ -2953,6 +2998,7 @@ if (isForm25FilingInput(input)) {
                 key: repairPlan.prompt.key,
                 version: repairPlan.prompt.version,
                 system: repairPlan.prompt.system,
+                user: repairPlan.prompt.user,
                 responseFormat: repairPlan.prompt.responseFormat,
               }
             : undefined,
@@ -2984,6 +3030,7 @@ if (isForm25FilingInput(input)) {
               key: repairPlan.prompt.key,
               version: repairPlan.prompt.version,
               system: repairPlan.prompt.system,
+              user: repairPlan.prompt.user,
               responseFormat: repairPlan.prompt.responseFormat,
             }
           : undefined,

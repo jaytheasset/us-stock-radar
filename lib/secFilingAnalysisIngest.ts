@@ -47,6 +47,27 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     secPromptVariant: options.secPromptVariant,
   });
   if (!analysisRun.ok || !analysisRun.analysis) {
+    const failedValidationRepair = readValidationRepair(analysisRun);
+    if (failedValidationRepair?.attempted === true) {
+      await saveSecFilingAiTrace({
+        rawItemId: stringValue(rawResult.rawItem.id),
+        eventId: null,
+        analysis: analysisRun.analysis || null,
+        outputText: analysisRun.outputText || "",
+        repairOutputText: analysisRun.repairOutputText,
+        usage: analysisRun.usage || null,
+        repairUsage: analysisRun.repairUsage || null,
+        costEstimate: analysisRun.costEstimate || null,
+        model: analysisRun.model || "",
+        openAiResponseId: analysisRun.openAiResponseId || null,
+        repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
+        promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
+        promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+        prompt: readRecord(analysisRun.prompt),
+        validationRepair: failedValidationRepair,
+        error: analysisRun.error || "SEC filing analysis failed after validation repair",
+      }).catch(() => null);
+    }
     return {
       ok: false,
       stage: analysisRun.stage,
@@ -57,6 +78,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
       outputText: analysisRun.outputText,
       rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+      validationRepair: failedValidationRepair,
     };
   }
 
@@ -76,6 +98,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       costEstimate: analysisRun.costEstimate,
       model: analysisRun.model,
       prompt: analysisRun.prompt,
+      validationRepairTrace: buildRuntimeValidationRepairTrace(analysisRun),
     };
   }
 
@@ -114,7 +137,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     force: Boolean(options.force),
   });
 
-  await saveSecFilingAiTrace({
+  const validationRepairTrace = await saveSecFilingAiTrace({
     rawItemId: stringValue(rawResult.rawItem.id),
     eventId: stringValue(persistedEvent.id),
     analysis: analysisRun.analysis,
@@ -125,6 +148,11 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     openAiResponseId: analysisRun.openAiResponseId || null,
     promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
     promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+    prompt: readRecord(analysisRun.prompt),
+    repairOutputText: analysisRun.repairOutputText,
+    repairUsage: analysisRun.repairUsage || null,
+    repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
+    validationRepair: readValidationRepair(analysisRun),
   });
 
   const calendarItems = await fetchSecFilingCalendarItemsForEvent(stringValue(persistedEvent.id));
@@ -150,6 +178,29 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     prompt: analysisRun.prompt,
     calendarItems,
     alertDelivery,
+    validationRepairTrace,
+  };
+}
+
+function readValidationRepair(analysisRun: unknown) {
+  const run = readRecord(analysisRun);
+  const direct = readRecord(run?.validationRepair);
+  if (direct) return direct;
+  const form25 = readRecord(run?.form25ValidationRepair);
+  if (form25) return form25;
+  return readRecord(readRecord(run?.sec8k6kDebug)?.validation_repair);
+}
+
+function buildRuntimeValidationRepairTrace(analysisRun: unknown) {
+  const validationRepair = readValidationRepair(analysisRun);
+  return {
+    attempted: validationRepair?.attempted === true,
+    status: validationRepair?.attempted === true
+      ? validationRepair.succeeded === true || validationRepair.run_ok === true
+        ? "succeeded"
+        : "failed"
+      : "not_attempted",
+    detail: validationRepair,
   };
 }
 

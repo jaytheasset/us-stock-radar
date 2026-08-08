@@ -9,6 +9,7 @@ import {
   runSecDevResetAnalysis,
   runSecDevRouteOnly,
 } from "@/lib/development/secFormDevDashboard";
+import { respondWithAdminReadAccess } from "@/lib/admin/api";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,10 +19,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Development SEC dashboard is disabled in production." }, { status: 404 });
   }
 
-  const body = await request.json().catch(() => null);
-  const record = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
-  const room = readString(record.room);
-  const mode = readString(record.mode);
+  return respondWithAdminReadAccess(request, "data.run", async () => {
+    const body = await request.json().catch(() => null);
+    const record = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
+    const room = readString(record.room);
+    const mode = readString(record.mode);
 
   const detail =
     mode === "raw_ingest_only"
@@ -90,11 +92,10 @@ export async function POST(request: NextRequest) {
               dateTo: readString(record.dateTo),
             });
 
-  if (!detail) {
-    return NextResponse.json({ ok: false, error: "Unknown SEC form room." }, { status: 404 });
-  }
-
-  return NextResponse.json({ ok: true, detail });
+    return detail
+      ? { ok: true, detail }
+      : { ok: false, error: "Unknown SEC form room." };
+  }, { status: (data) => data.ok ? 200 : 404 });
 }
 
 function readString(value: unknown) {
