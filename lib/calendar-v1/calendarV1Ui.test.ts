@@ -389,7 +389,7 @@ test("mobile Calendar dates form one continuous accessible week strip", async ()
   );
 });
 
-test("Calendar owns free-viewer rail and mobile ad placements", async () => {
+test("Calendar owns free-viewer rail and breakpoint-specific inline ad placements", async () => {
   const page = await read("app/calendar/page.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
   const ads = await read("components/calendar-v1/CalendarAdSlots.tsx");
@@ -399,7 +399,7 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
 
   assert.match(page, /getCurrentViewerPlan/);
   assert.match(workspace, /areAdsEnabledForPlan\(viewerPlan\)/);
-  assert.match(workspace, /<CalendarMobileAdSlot enabledForViewer=\{adsEnabledForViewer\}/);
+  assert.match(workspace, /<CalendarInlineAdSlots enabledForViewer=\{adsEnabledForViewer\}/);
   assert.match(
     workspace,
     /<CalendarDesktopRail[\s\S]*activeEventId=\{selectedEventId\}[\s\S]*desktopPreviewEvent/,
@@ -448,9 +448,21 @@ test("Calendar owns free-viewer rail and mobile ad placements", async () => {
   assert.match(ads, /height=\{250\}/);
   assert.match(ads, /width=\{336\}/);
   assert.match(ads, /inventory="calendar-mobile-inline"/);
-  assert.match(ads, /mediaQuery="\(max-width: 1180px\)"/);
+  assert.match(ads, /mediaQuery="\(max-width: 760px\)"/);
   assert.match(ads, /placeholderSize="320 × 50"/);
   assert.match(ads, /height=\{50\}/);
+  assert.match(
+    ads,
+    /format="responsive"[\s\S]*height=\{90\}[\s\S]*mediaQuery="\(min-width: 761px\) and \(max-width: 1180px\)"[\s\S]*placeholderSize="Responsive horizontal · 90px minimum"[\s\S]*width=\{1180\}/,
+  );
+  assert.match(
+    adStyles,
+    /@media \(min-width: 761px\) and \(max-width: 1180px\)[\s\S]*\.responsiveInline\s*\{[\s\S]*display:\s*block;[\s\S]*width:\s*100%;/,
+  );
+  assert.match(
+    adStyles,
+    /@media \(max-width: 760px\)[\s\S]*\.mobile\s*\{[\s\S]*display:\s*block;/,
+  );
   assert.doesNotMatch(
     ads,
     new RegExp(["calendar", "desktop", "inline"].join("-")),

@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./CalendarAdSlots.module.css";
 
-export function CalendarMobileAdSlot({
+export function CalendarInlineAdSlots({
   enabledForViewer,
 }: {
   enabledForViewer: boolean;
@@ -12,21 +12,38 @@ export function CalendarMobileAdSlot({
   if (!enabledForViewer) return null;
 
   return (
-    <section
-      aria-label="Calendar mobile advertising"
-      className={styles.mobile}
-      data-calendar-mobile-ad=""
-    >
-      <AdSenseSlot
-        enabledForViewer={enabledForViewer}
-        format="fixed"
-        height={50}
-        inventory="calendar-mobile-inline"
-        mediaQuery="(max-width: 1180px)"
-        placeholderSize="320 × 50"
-        width={320}
-      />
-    </section>
+    <>
+      <section
+        aria-label="Calendar responsive inline advertising"
+        className={styles.responsiveInline}
+        data-calendar-responsive-inline-ad=""
+      >
+        <AdSenseSlot
+          enabledForViewer={enabledForViewer}
+          format="responsive"
+          height={90}
+          inventory="calendar-mobile-inline"
+          mediaQuery="(min-width: 761px) and (max-width: 1180px)"
+          placeholderSize="Responsive horizontal · 90px minimum"
+          width={1180}
+        />
+      </section>
+      <section
+        aria-label="Calendar mobile advertising"
+        className={styles.mobile}
+        data-calendar-mobile-ad=""
+      >
+        <AdSenseSlot
+          enabledForViewer={enabledForViewer}
+          format="fixed"
+          height={50}
+          inventory="calendar-mobile-inline"
+          mediaQuery="(max-width: 760px)"
+          placeholderSize="320 × 50"
+          width={320}
+        />
+      </section>
+    </>
   );
 }
 

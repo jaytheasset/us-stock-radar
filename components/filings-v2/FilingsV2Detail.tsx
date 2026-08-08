@@ -179,3 +179,31 @@ export function MobileFilingsV2DetailSheet({
     </BottomSheetShell>
   );
 }
+
+export function TabletFilingsV2DetailDrawer({
+  isOpen,
+  onDismiss,
+  openerRef,
+  ...contentProps
+}: FilingsV2DetailProps & {
+  isOpen: boolean;
+  onDismiss: () => void;
+  openerRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <BottomSheetShell
+      aria-label={`${contentProps.record.formType} filing preview`}
+      closeLabel="Close filing preview"
+      id="filings-v2-detail-drawer"
+      isOpen={isOpen}
+      layout="full-scroll"
+      onDismiss={onDismiss}
+      openerRef={openerRef}
+      overlayLabel="Close filing preview"
+      surfaceClassName={styles.tabletDetailDrawerSurface}
+      viewport="intermediate"
+    >
+      <FilingsV2DetailContent {...contentProps} />
+    </BottomSheetShell>
+  );
+}

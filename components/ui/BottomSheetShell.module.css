@@ -171,6 +171,15 @@
   }
 }
 
+@media (min-width: 761px) and (max-width: 1023px) {
+  .intermediateRoot {
+    position: fixed;
+    display: block;
+    inset: 0;
+    backdrop-filter: blur(4px);
+  }
+}
+
 @media (min-width: 1181px) {
   .allRoot {
     position: fixed;

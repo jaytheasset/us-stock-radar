@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FilingsV2DetailPanel, MobileFilingsV2DetailSheet } from "@/components/filings-v2/FilingsV2Detail";
+import {
+  FilingsV2DetailPanel,
+  MobileFilingsV2DetailSheet,
+  TabletFilingsV2DetailDrawer,
+} from "@/components/filings-v2/FilingsV2Detail";
 import { FilingsV2FilterBar } from "@/components/filings-v2/FilingsV2FilterBar";
 import { FilingsV2List, type FilingsV2ListState } from "@/components/filings-v2/FilingsV2List";
 import { FilingsRailAdSlot } from "@/components/filings-v2/FilingsRailAdSlot";
@@ -191,6 +195,7 @@ export function StockRadarFilingsV2({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedId, setSelectedId] = useState(records[0]?.id ?? "");
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+  const [isTabletDetailDrawerOpen, setIsTabletDetailDrawerOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [viewerAuthenticated, setViewerAuthenticated] = useState(
     initialAuthenticated,
@@ -285,6 +290,7 @@ export function StockRadarFilingsV2({
     const controller = new AbortController();
     setIsRefreshing(true);
     setIsDetailSheetOpen(false);
+    setIsTabletDetailDrawerOpen(false);
 
     void fetch(buildFilingsV2RequestUrl(filters, query, null, true), {
       cache: "no-store",
@@ -324,6 +330,22 @@ export function StockRadarFilingsV2({
   }, []);
 
   useEffect(() => {
+    const intermediateViewport = window.matchMedia(
+      "(min-width: 761px) and (max-width: 1023px)",
+    );
+    const dismissDrawerOutsideViewport = () => {
+      if (!intermediateViewport.matches) {
+        setIsTabletDetailDrawerOpen(false);
+      }
+    };
+
+    intermediateViewport.addEventListener("change", dismissDrawerOutsideViewport);
+    return () => {
+      intermediateViewport.removeEventListener("change", dismissDrawerOutsideViewport);
+    };
+  }, []);
+
+  useEffect(() => {
     if (previewRequestId === 0) return;
 
     const selectionAnchor = detailSelectionAnchorRef.current;
@@ -345,7 +367,7 @@ export function StockRadarFilingsV2({
   }, [previewRequestId]);
 
   useEffect(() => {
-    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    const desktopRailQuery = window.matchMedia("(min-width: 1024px)");
     let previousScrollY = window.scrollY;
     let pendingScrollDelta = 0;
     let animationFrameId: number | null = null;
@@ -471,20 +493,28 @@ export function StockRadarFilingsV2({
     setIsFilterSheetOpen(false);
   };
   const selectRecord = (record: FilingsV2Record, opener: HTMLElement) => {
-    const usesDesktopRail = window.matchMedia("(min-width: 1181px)").matches;
+    const usesDesktopRail = window.matchMedia("(min-width: 1024px)").matches;
+    const usesMobileSheet = window.matchMedia("(max-width: 760px)").matches;
 
     setSelectedId(record.id);
+    detailOpenerRef.current = opener;
     if (usesDesktopRail) {
+      setIsDetailSheetOpen(false);
+      setIsTabletDetailDrawerOpen(false);
       setPreviewRequestId((current) => current + 1);
-    }
-    if (window.matchMedia("(max-width: 760px)").matches) {
-      detailOpenerRef.current = opener;
+    } else if (usesMobileSheet) {
+      setIsTabletDetailDrawerOpen(false);
       setIsFilterSheetOpen(false);
       setIsDetailSheetOpen(true);
+    } else {
+      setIsDetailSheetOpen(false);
+      setIsFilterSheetOpen(false);
+      setIsTabletDetailDrawerOpen(true);
     }
   };
   const openMobileFilters = () => {
     setIsDetailSheetOpen(false);
+    setIsTabletDetailDrawerOpen(false);
     setIsFilterSheetOpen(true);
   };
 
@@ -532,14 +562,6 @@ export function StockRadarFilingsV2({
       </section>
 
       <aside className={styles.detailRail} ref={detailRailRef}>
-        {viewerPlan !== "ultimate" ? (
-          <div>
-            <PremiumUpgradeCard
-              className={styles.premiumCtaDesktop}
-              viewerPlan={viewerPlan}
-            />
-          </div>
-        ) : null}
         {selectedRecord ? (
           <div
             className={styles.detailRailPreview}
@@ -555,6 +577,14 @@ export function StockRadarFilingsV2({
             />
           </div>
         ) : null}
+        {viewerPlan !== "ultimate" ? (
+          <div>
+            <PremiumUpgradeCard
+              className={styles.premiumCtaDesktop}
+              viewerPlan={viewerPlan}
+            />
+          </div>
+        ) : null}
         {viewerPlan === "free" ? (
           <div className={styles.detailRailAdFill}>
             {Array.from({ length: tallRailAdCount }, (_, index) => (
@@ -567,17 +597,30 @@ export function StockRadarFilingsV2({
       </aside>
 
       {selectedRecord ? (
-        <MobileFilingsV2DetailSheet
-          initialAuthenticated={viewerAuthenticated}
-          initialSaved={selectedSaved}
-          initialWatched={selectedWatched}
-          isOpen={isDetailSheetOpen}
-          onDismiss={() => setIsDetailSheetOpen(false)}
-          openerRef={detailOpenerRef}
-          record={selectedRecord}
-          relatedRecords={relatedRecords}
-          showAds={viewerPlan === "free"}
-        />
+        <>
+          <TabletFilingsV2DetailDrawer
+            initialAuthenticated={viewerAuthenticated}
+            initialSaved={selectedSaved}
+            initialWatched={selectedWatched}
+            isOpen={isTabletDetailDrawerOpen}
+            onDismiss={() => setIsTabletDetailDrawerOpen(false)}
+            openerRef={detailOpenerRef}
+            record={selectedRecord}
+            relatedRecords={relatedRecords}
+            showAds={viewerPlan === "free"}
+          />
+          <MobileFilingsV2DetailSheet
+            initialAuthenticated={viewerAuthenticated}
+            initialSaved={selectedSaved}
+            initialWatched={selectedWatched}
+            isOpen={isDetailSheetOpen}
+            onDismiss={() => setIsDetailSheetOpen(false)}
+            openerRef={detailOpenerRef}
+            record={selectedRecord}
+            relatedRecords={relatedRecords}
+            showAds={viewerPlan === "free"}
+          />
+        </>
       ) : null}
       <MobileFilingsV2FilterSheet
         filters={filters}
