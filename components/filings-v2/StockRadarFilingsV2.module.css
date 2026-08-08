@@ -2,7 +2,7 @@
   display: grid;
   width: min(100%, 1600px);
   min-height: calc(100vh - var(--sr-size-header));
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 25vw, 380px);
   align-items: start;
   gap: var(--sr-space-4);
   margin: 0 auto;
@@ -1407,6 +1407,18 @@
   to { transform: rotate(1turn); }
 }
 
+@keyframes filings-v2-drawer-slide-in {
+  from {
+    opacity: 0.82;
+    transform: translateX(var(--sr-motion-distance-drawer));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @media (min-width: 761px) {
   .filingTitle {
     font-size: var(--sr-font-size-sm);
@@ -1489,7 +1501,7 @@
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1023px) {
   .root {
     min-height: calc(100vh - var(--sr-size-header));
     grid-template-columns: 1fr;
@@ -1497,15 +1509,7 @@
   }
 
   .detailRail {
-    position: static;
-    max-height: none;
-    display: grid;
-    gap: var(--sr-space-4);
-    overflow-x: visible;
-    overflow-y: visible;
-    overscroll-behavior: auto;
-    scrollbar-gutter: auto;
-    min-height: 0;
+    display: none;
   }
 
   .detailRailAdFill {
@@ -1521,9 +1525,33 @@
   }
 }
 
-@media (min-width: 1181px) {
+@media (min-width: 1024px) {
   .detailContent {
     padding: 0;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1023px) {
+  .tabletDetailDrawerSurface.tabletDetailDrawerSurface {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: clamp(360px, 46vw, 440px);
+    max-width: calc(100vw - var(--sr-space-8));
+    height: 100dvh;
+    border-bottom: var(--sr-border-width) solid var(--sr-color-border-overlay);
+    border-radius: var(--sr-radius-sheet) 0 0 var(--sr-radius-sheet);
+    animation: filings-v2-drawer-slide-in var(--sr-motion-duration-sheet)
+      var(--sr-motion-easing-standard);
+  }
+
+  .tabletDetailDrawerSurface > div[aria-hidden="true"] {
+    display: none;
+  }
+
+  .tabletDetailDrawerSurface .detailIdentity {
+    padding-right: calc(var(--sr-size-close-button) + var(--sr-space-3));
   }
 }
 

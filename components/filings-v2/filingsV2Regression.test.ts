@@ -855,6 +855,65 @@ test("filings preview rail keeps intrinsic ad widths constrained after route tra
   );
 });
 
+test("filings preview uses a 1024px rail breakpoint and an accessible intermediate drawer", () => {
+  const clientSource = readFileSync(
+    new URL("./StockRadarFilingsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const detailSource = readFileSync(
+    new URL("./FilingsV2Detail.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("./StockRadarFilingsV2.module.css", import.meta.url),
+    "utf8",
+  );
+  const shellSource = readFileSync(
+    new URL("../ui/BottomSheetShell.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    styles,
+    /grid-template-columns:\s*minmax\(0, 1fr\) clamp\(340px, 25vw, 380px\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 1023px\)[\s\S]*\.root\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*\.detailRail\s*\{\s*display:\s*none;/,
+  );
+  assert.match(styles, /@media \(min-width: 1024px\)/);
+  assert.match(
+    clientSource,
+    /window\.matchMedia\("\(min-width: 1024px\)"\)/,
+  );
+  assert.match(
+    clientSource,
+    /usesMobileSheet[\s\S]*setIsTabletDetailDrawerOpen\(true\)/,
+  );
+  assert.match(
+    clientSource,
+    /setIsTabletDetailDrawerOpen\(false\)[\s\S]*intermediateViewport\.addEventListener\("change", dismissDrawerOutsideViewport\)[\s\S]*intermediateViewport\.removeEventListener\("change", dismissDrawerOutsideViewport\)/,
+  );
+  assert.ok(
+    clientSource.indexOf("className={styles.detailRailPreview}") <
+      clientSource.indexOf("className={styles.premiumCtaDesktop}"),
+    "the selected filing preview must precede the upgrade card in the rail",
+  );
+  assert.match(detailSource, /TabletFilingsV2DetailDrawer/);
+  assert.match(detailSource, /viewport="intermediate"/);
+  assert.match(detailSource, /closeLabel="Close filing preview"/);
+  assert.match(
+    shellSource,
+    /viewport === "intermediate"[\s\S]*"\(min-width: 761px\) and \(max-width: 1023px\)"/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\) and \(max-width: 1023px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;/,
+  );
+  assert.match(detailSource, /MobileFilingsV2DetailSheet/);
+  assert.match(clientSource, /window\.matchMedia\("\(max-width: 760px\)"\)/);
+});
+
 test("filings preview uses shared Saved and Watchlist actions with batched viewer state", () => {
   const detailSource = readFileSync(
     new URL("./FilingsV2Detail.tsx", import.meta.url),
@@ -1014,7 +1073,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /\.root \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) 380px;/,
+    /\.root \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) clamp\(340px, 25vw, 380px\);/,
   );
   assert.match(
     styles,

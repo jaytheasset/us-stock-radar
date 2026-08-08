@@ -21,7 +21,7 @@ type BottomSheetAccessibleName =
     };
 
 export type BottomSheetShellLayout = "content-footer" | "full-scroll";
-export type BottomSheetShellViewport = "mobile" | "tablet" | "all";
+export type BottomSheetShellViewport = "mobile" | "tablet" | "intermediate" | "all";
 
 export type BottomSheetShellProps = BottomSheetAccessibleName & {
   children: ReactNode;
@@ -130,8 +130,10 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     const viewportQuery =
       viewport === "all"
         ? "(min-width: 0px)"
-        : viewport === "tablet"
-          ? "(max-width: 1180px)"
+        : viewport === "intermediate"
+          ? "(min-width: 761px) and (max-width: 1023px)"
+          : viewport === "tablet"
+            ? "(max-width: 1180px)"
           : "(max-width: 760px)";
 
     if (!isOpen || !window.matchMedia(viewportQuery).matches) {
@@ -230,7 +232,9 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
   const viewportClass =
     viewport === "all"
       ? styles.allRoot
-      : viewport === "tablet"
+      : viewport === "intermediate"
+        ? styles.intermediateRoot
+        : viewport === "tablet"
         ? styles.tabletRoot
         : styles.mobileRoot;
   const rootClasses = `${styles.root} ${viewportClass} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;

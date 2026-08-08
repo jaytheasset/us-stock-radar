@@ -97,7 +97,7 @@ test("Dashboard resolves anonymous viewers as free and gates every placement cen
   assert.equal((tableSource.match(/adsEnabledForViewer &&/g) || []).length, 3);
 });
 
-test("Calendar resolves free-only ads and owns independent rail and mobile inventories", () => {
+test("Calendar resolves free-only ads across rail, responsive inline, and mobile placements", () => {
   const pageSource = read("../app/calendar/page.tsx");
   const workspaceSource = read(
     "../components/calendar-v1/StockRadarCalendarV1.tsx",
@@ -118,6 +118,14 @@ test("Calendar resolves free-only ads and owns independent rail and mobile inven
   assert.match(placementSource, /calendar-rail-top/);
   assert.match(placementSource, /calendar-rail-bottom/);
   assert.match(placementSource, /inventory="calendar-mobile-inline"/);
+  assert.match(
+    placementSource,
+    /format="responsive"[\s\S]*height=\{90\}[\s\S]*mediaQuery="\(min-width: 761px\) and \(max-width: 1180px\)"[\s\S]*width=\{1180\}/,
+  );
+  assert.match(
+    placementSource,
+    /format="fixed"[\s\S]*height=\{50\}[\s\S]*mediaQuery="\(max-width: 760px\)"[\s\S]*placeholderSize="320 × 50"[\s\S]*width=\{320\}/,
+  );
   assert.match(configSource, /"calendar-rail-top"/);
   assert.match(configSource, /"calendar-rail-bottom"/);
   assert.match(configSource, /"calendar-mobile-inline"/);

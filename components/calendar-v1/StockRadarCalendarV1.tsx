@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import {
   CalendarDesktopRail,
-  CalendarMobileAdSlot,
+  CalendarInlineAdSlots,
 } from "@/components/calendar-v1/CalendarAdSlots";
 import { CalendarFilters } from "@/components/calendar-v1/CalendarFilters";
 import { CalendarEventDetail } from "@/components/calendar-v1/CalendarEventDetail";
@@ -565,7 +565,7 @@ export function StockRadarCalendarV1({
         setFilters={setFilters}
       />
 
-      <CalendarMobileAdSlot enabledForViewer={adsEnabledForViewer} />
+      <CalendarInlineAdSlots enabledForViewer={adsEnabledForViewer} />
 
       <div
         className={styles.workspace}
