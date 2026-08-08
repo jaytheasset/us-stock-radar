@@ -1077,8 +1077,17 @@ async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunR
       .slice(0, 10);
     if (!rows.length) return [];
 
-    const analysisByEventId = await readRecentEventAnalysisMap(rows.map((row) => stringValue(row.id)).filter(Boolean));
-    return rows.map((row) => buildRecentPersistedRun(room, row, analysisByEventId.get(stringValue(row.id)) || null));
+    const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
+    const [analysisByEventId, repairTraceByEventId] = await Promise.all([
+      readRecentEventAnalysisMap(eventIds),
+      readRecentRepairTraceMap(eventIds),
+    ]);
+    return rows.map((row) => buildRecentPersistedRun(
+      room,
+      row,
+      analysisByEventId.get(stringValue(row.id)) || null,
+      repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
+    ));
   } catch {
     return [];
   }
@@ -1100,7 +1109,11 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
       .filter((row): row is Record<string, unknown> => Boolean(row));
     if (!rows.length) return runsByRoom;
 
-    const analysisByEventId = await readRecentEventAnalysisMap(rows.map((row) => stringValue(row.id)).filter(Boolean));
+    const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
+    const [analysisByEventId, repairTraceByEventId] = await Promise.all([
+      readRecentEventAnalysisMap(eventIds),
+      readRecentRepairTraceMap(eventIds),
+    ]);
 
     for (const room of SEC_DEV_ROOMS) {
       const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
@@ -1108,7 +1121,12 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
       if (!roomRows.length) continue;
       runsByRoom.set(
         room.key,
-        roomRows.map((row) => buildRecentPersistedRun(room, row, analysisByEventId.get(stringValue(row.id)) || null)),
+        roomRows.map((row) => buildRecentPersistedRun(
+          room,
+          row,
+          analysisByEventId.get(stringValue(row.id)) || null,
+          repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
+        )),
       );
     }
   } catch {
@@ -1151,6 +1169,7 @@ function buildRecentPersistedRun(
   room: SecDevRoom,
   row: Record<string, unknown>,
   eventAnalysis: Record<string, unknown> | null,
+  validationRepairTrace: Record<string, unknown>,
 ): SecDevLiveRunResult {
   const metadata = readRecord(row.metadata) || {};
   const displayPayload = readRecord(metadata.display_payload);
@@ -1219,6 +1238,7 @@ function buildRecentPersistedRun(
           cost_estimate: null,
         },
         alert_delivery: null,
+        validation_repair_trace: validationRepairTrace,
       },
     ],
     diagnostics: {
@@ -1226,6 +1246,64 @@ function buildRecentPersistedRun(
       event_id: stringValue(row.id) || null,
     },
     error: null,
+  };
+}
+
+async function readRecentRepairTraceMap(eventIds: string[]) {
+  const result = new Map<string, Record<string, unknown>>();
+  if (!eventIds.length) return result;
+
+  try {
+    const runResponse = await supabaseSelect("ai_runs", {
+      select: "*",
+      event_id: `in.(${eventIds.join(",")})`,
+      order: "finished_at.desc",
+      limit: String(Math.max(eventIds.length * 3, 30)),
+    });
+    const runs = Array.isArray(runResponse.data)
+      ? runResponse.data.map(readRecord).filter((row): row is Record<string, unknown> => Boolean(row))
+      : [];
+    if (!runs.length) return result;
+
+    const latestRunByEventId = new Map<string, Record<string, unknown>>();
+    for (const run of runs) {
+      const eventId = stringValue(run.event_id);
+      if (eventId && !latestRunByEventId.has(eventId)) latestRunByEventId.set(eventId, run);
+    }
+    const runIds = [...latestRunByEventId.values()].map((run) => stringValue(run.id)).filter(Boolean);
+    if (!runIds.length) return result;
+
+    const outputResponse = await supabaseSelect("ai_outputs", {
+      select: "*",
+      ai_run_id: `in.(${runIds.join(",")})`,
+      order: "created_at.desc",
+      limit: String(runIds.length),
+    });
+    const traceByRunId = new Map<string, Record<string, unknown>>();
+    if (Array.isArray(outputResponse.data)) {
+      for (const rawOutput of outputResponse.data) {
+        const output = readRecord(rawOutput);
+        const trace = readRecord(readRecord(output?.payload)?.validation_repair_trace);
+        const runId = stringValue(output?.ai_run_id);
+        if (runId && trace && !traceByRunId.has(runId)) {
+          traceByRunId.set(runId, { availability: "available", ...trace });
+        }
+      }
+    }
+
+    for (const [eventId, run] of latestRunByEventId) {
+      result.set(eventId, traceByRunId.get(stringValue(run.id)) || buildHistoricalRepairTraceNotice());
+    }
+  } catch {
+    return result;
+  }
+  return result;
+}
+
+function buildHistoricalRepairTraceNotice() {
+  return {
+    availability: "historical_missing",
+    message: "과거 실행이라 세부 교정 기록 없음",
   };
 }
 
@@ -1806,6 +1884,8 @@ export async function runSecDevControlledPersist(
               }
             : null,
           alert_delivery: analysis.alertDelivery || null,
+          validation_repair_trace:
+            readRecord(analysis.validationRepairTrace) || buildHistoricalRepairTraceNotice(),
         },
       ],
       diagnostics: {

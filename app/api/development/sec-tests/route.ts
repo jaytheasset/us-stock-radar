@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runSecDevRoomTests } from "@/lib/development/secFormDevDashboard";
+import { respondWithAdminReadAccess } from "@/lib/admin/api";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,14 +10,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Development SEC dashboard is disabled in production." }, { status: 404 });
   }
 
-  const body = await request.json().catch(() => null);
-  const room = readString((body as Record<string, unknown> | null)?.room);
-  const detail = await runSecDevRoomTests(room);
-  if (!detail) {
-    return NextResponse.json({ ok: false, error: "Unknown SEC form room." }, { status: 404 });
-  }
-
-  return NextResponse.json({ ok: true, detail });
+  return respondWithAdminReadAccess(request, "data.run", async () => {
+    const body = await request.json().catch(() => null);
+    const room = readString((body as Record<string, unknown> | null)?.room);
+    const detail = await runSecDevRoomTests(room);
+    return detail
+      ? { ok: true, detail }
+      : { ok: false, error: "Unknown SEC form room." };
+  }, { status: (data) => data.ok ? 200 : 404 });
 }
 
 function readString(value: unknown) {

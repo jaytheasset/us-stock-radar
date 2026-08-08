@@ -4,6 +4,7 @@ import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calenda
 import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secIntegrationContract";
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
 import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/lib/secStores/alertQueue";
+import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
 
 type SourceGroup = "filings";
@@ -725,10 +726,16 @@ export async function saveSecFilingAiTrace({
   openAiResponseId,
   promptKey,
   promptVersion,
+  prompt,
+  repairOutputText,
+  repairUsage,
+  repairOpenAiResponseId,
+  validationRepair,
+  error,
 }: {
   rawItemId: string;
-  eventId: string;
-  analysis: Record<string, unknown>;
+  eventId: string | null;
+  analysis: Record<string, unknown> | null;
   outputText: string;
   usage: Record<string, unknown> | null;
   costEstimate: Record<string, unknown> | null;
@@ -736,9 +743,28 @@ export async function saveSecFilingAiTrace({
   openAiResponseId: string | null;
   promptKey: string;
   promptVersion: string;
+  prompt: Record<string, unknown> | null;
+  repairOutputText?: string;
+  repairUsage?: Record<string, unknown> | null;
+  repairOpenAiResponseId?: string | null;
+  validationRepair: Record<string, unknown> | null;
+  error?: string | null;
 }) {
   const aiRunId = randomUUID();
   const now = new Date().toISOString();
+  const repairTrace = buildSecValidationRepairTrace({
+    analysis,
+    outputText,
+    repairOutputText,
+    usage,
+    repairUsage,
+    model,
+    openAiResponseId,
+    repairOpenAiResponseId,
+    prompt,
+    validationRepair,
+    error,
+  });
   await assertMutation(
     supabaseUpsertSanitized(
       "ai_runs",
@@ -749,13 +775,26 @@ export async function saveSecFilingAiTrace({
         prompt_key: promptKey,
         prompt_version: promptVersion,
         model,
-        status: "completed",
+        status: error ? "failed" : "completed",
         started_at: now,
         finished_at: now,
         usage: usage || {},
+        error_message: error || null,
         metadata: {
           openai_response_id: openAiResponseId,
           cost_estimate: costEstimate,
+          validation_repair: {
+            schema_version: repairTrace.schema_version,
+            attempted: repairTrace.attempted,
+            status: repairTrace.status,
+            warning_count: repairTrace.warnings.length,
+            applied_change_count: repairTrace.applied_changes.length,
+            repair_prompt_key: repairTrace.repair_prompt?.key || null,
+            repair_prompt_version: repairTrace.repair_prompt?.version || null,
+            repair_response_id: repairOpenAiResponseId || null,
+            repair_usage: repairUsage || null,
+            error_summary: repairTrace.error_summary,
+          },
         },
       },
       { onConflict: "id" },
@@ -776,12 +815,15 @@ export async function saveSecFilingAiTrace({
           output_text: outputText,
           usage,
           cost_estimate: costEstimate,
+          validation_repair_trace: repairTrace,
         },
       },
       { onConflict: "id" },
     ),
     "insert SEC filing ai output",
   );
+
+  return repairTrace;
 }
 
 async function findExistingEvent(groupDedupeKey: string) {

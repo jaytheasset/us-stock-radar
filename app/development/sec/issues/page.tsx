@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SecDevelopmentAllIssuesClient } from "@/app/development/sec/SecDevelopmentAllIssuesClient";
 import { getSecDevAllRoomIssueData } from "@/lib/development/secFormDevDashboard";
+import { requireAdminPermission } from "@/lib/admin/server";
 import styles from "../sec-development.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function SecDevelopmentIssuesPage() {
   if (process.env.NODE_ENV === "production") notFound();
+  await requireAdminPermission("system.read");
 
   const rooms = await getSecDevAllRoomIssueData();
 

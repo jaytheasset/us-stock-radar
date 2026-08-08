@@ -944,6 +944,7 @@ function LiveRunCard({
                     ) : null}
                   </div>
                   <RuntimeOutputCard value={item.runtime_output} />
+                  <ValidationRepairTraceCard value={item.validation_repair_trace} />
                   <pre>{JSON.stringify(item, null, 2)}</pre>
                 </article>
               );
@@ -951,6 +952,101 @@ function LiveRunCard({
           </div>
           {run.diagnostics ? <pre className={styles.outputBlock}>{JSON.stringify(run.diagnostics, null, 2)}</pre> : null}
         </section>
+  );
+}
+
+function ValidationRepairTraceCard({ value }: { value: unknown }) {
+  const trace = readClientRecord(value);
+  if (!trace) return null;
+  if (clientString(trace.availability) === "historical_missing") {
+    return (
+      <div className={styles.runtimeOutputCard}>
+        <div className={styles.runtimeOutputHeader}>
+          <strong>검증 후 교정</strong>
+          <span>기록 상태</span>
+        </div>
+        <div className={styles.emptyState}>{clientString(trace.message) || "과거 실행이라 세부 교정 기록 없음"}</div>
+      </div>
+    );
+  }
+
+  if (trace.attempted !== true || clientString(trace.status) === "not_attempted") {
+    return (
+      <div className={styles.runtimeOutputCard}>
+        <div className={styles.runtimeOutputHeader}>
+          <strong>검증 후 교정</strong>
+          <span>미실행</span>
+        </div>
+        <div className={styles.emptyState}>교정 없음</div>
+      </div>
+    );
+  }
+
+  const initial = readClientRecord(trace.initial_analysis);
+  const repair = readClientRecord(trace.repair_analysis);
+  const prompt = readClientRecord(trace.repair_prompt);
+  const sourceSelection = readClientRecord(trace.source_selection);
+  const warnings = clientRecordArray(trace.warnings);
+  const changes = clientRecordArray(trace.applied_changes);
+
+  return (
+    <div className={styles.runtimeOutputCard}>
+      <div className={styles.runtimeOutputHeader}>
+        <strong>검증 후 교정</strong>
+        <span>{clientString(trace.status) === "succeeded" ? "성공" : "실패"}</span>
+      </div>
+      <div className={styles.outputMetaGrid}>
+        <PreviewField label="Model" value={clientString(initial?.model) || clientString(repair?.model)} />
+        <PreviewField label="Repair prompt" value={[clientString(prompt?.key), clientString(prompt?.version)].filter(Boolean).join(" · ")} />
+        <PreviewField label="Warnings" value={String(warnings.length)} />
+        <PreviewField label="Applied changes" value={String(changes.length)} />
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>첫 분석</span>
+        <pre>{JSON.stringify(initial?.parsed_result ?? initial?.output_text ?? null, null, 2)}</pre>
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>검증 경고</span>
+        {warnings.length ? (
+          <div className={styles.displayDataGrid}>
+            {warnings.map((warning, index) => (
+              <PreviewField
+                key={`${clientString(warning.code)}-${index}`}
+                label={clientString(warning.code) || `warning ${index + 1}`}
+                value={clientString(warning.description) || "설명 기록 없음"}
+              />
+            ))}
+          </div>
+        ) : (
+          <p>경고 세부 항목 기록 없음</p>
+        )}
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>교정 프롬프트</span>
+        <pre>{JSON.stringify(prompt, null, 2)}</pre>
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>교정 결과</span>
+        <pre>{JSON.stringify(repair?.parsed_result ?? repair?.output_text ?? null, null, 2)}</pre>
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>실제 반영 변화</span>
+        <pre>{JSON.stringify(changes, null, 2)}</pre>
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>입력 원문 범위</span>
+        <p>{clientString(sourceSelection?.description) || "원문 범위 설명 기록 없음"}</p>
+      </div>
+      <div className={styles.outputTextBlock}>
+        <span>모델·토큰·오류</span>
+        <pre>{JSON.stringify({
+          initial_usage: initial?.usage || null,
+          repair_usage: repair?.usage || null,
+          combined_usage: trace.combined_usage || null,
+          error_summary: trace.error_summary || null,
+        }, null, 2)}</pre>
+      </div>
+    </div>
   );
 }
 
@@ -3596,6 +3692,12 @@ function formatParentContextSummary(value: unknown) {
 
 function readClientRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function clientRecordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map(readClientRecord).filter((item): item is Record<string, unknown> => Boolean(item))
+    : [];
 }
 
 function clientString(value: unknown) {
