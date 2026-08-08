@@ -136,7 +136,6 @@ export function GenericFilingAnalysis({
   );
   const hasDetailRenderer = Boolean(detailRenderer);
   const hasSummaryAsideRenderer = Boolean(summaryAsideRenderer);
-  const isFilingDocument = presentationVariant !== "news-document";
   const showInlineSummary = showSummary && !hasDetailRenderer && !hasSummaryAsideRenderer;
   const bullishPoints = compactItems(filing.bullishPoints);
   const bearishPoints = compactItems(filing.bearishPoints);
@@ -337,54 +336,7 @@ export function GenericFilingAnalysis({
               </div>
             </header>
 
-            {isFilingDocument ? (
-              <>
-                {priceRenderer ? (
-                  <section
-                    aria-label={`${filing.ticker} market reaction`}
-                    className={`${styles.rendererCard} ${styles.filingPriceCard}`}
-                  >
-                    {priceRenderer}
-                  </section>
-                ) : null}
-
-                {primaryAnalysis || hasDetailRenderer ? (
-                  <div
-                    className={`${styles.filingOverviewGrid}${
-                      primaryAnalysis && hasDetailRenderer
-                        ? ""
-                        : ` ${styles.filingOverviewGridSingle}`
-                    }`}
-                  >
-                    {primaryAnalysis ? (
-                      <section className={`${styles.card} ${styles.analysisCopyCard}`}>
-                        <SectionLabel>{primaryAnalysisLabel}</SectionLabel>
-                        <p>{primaryAnalysis}</p>
-                      </section>
-                    ) : null}
-                    {hasDetailRenderer ? (
-                      <div className={styles.detailColumn}>{detailRenderer}</div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {showSummary ? (
-                  <section className={`${styles.card} ${styles.analysisCopyCard}`}>
-                    <div className={styles.summaryHeader}>
-                      <SectionLabel>Summary</SectionLabel>
-                      {summaryHeaderActionRenderer}
-                    </div>
-                    <p>{summary}</p>
-                  </section>
-                ) : null}
-
-                {hasSummaryAsideRenderer ? (
-                  <div className={`${styles.summaryCompanion} ${styles.filingSummaryCompanion}`}>
-                    {summaryAsideRenderer}
-                  </div>
-                ) : null}
-              </>
-            ) : priceRenderer || primaryAnalysis || showSummary || hasDetailRenderer ? (
+            {priceRenderer || primaryAnalysis || showSummary || hasDetailRenderer ? (
               <div
                 className={`${styles.chartSummaryGrid}${
                   useSplitAnalysisLayout ? ` ${styles.chartSummaryGridSplit}` : ""
@@ -439,7 +391,7 @@ export function GenericFilingAnalysis({
 
             <p className={styles.analysisDisclosure}>{AI_ANALYSIS_DISCLOSURE}</p>
 
-            {!isFilingDocument && hasSummaryAsideRenderer ? (
+            {hasSummaryAsideRenderer ? (
               <div
                 className={`${styles.summaryCompanionGrid}${
                   showSummary ? "" : ` ${styles.summaryCompanionGridSingle}`
@@ -456,7 +408,7 @@ export function GenericFilingAnalysis({
                 ) : null}
                 <div className={styles.summaryCompanion}>{summaryAsideRenderer}</div>
               </div>
-            ) : !isFilingDocument && hasDetailRenderer && showSummary && !useNoChartDetailSplit ? (
+            ) : hasDetailRenderer && showSummary && !useNoChartDetailSplit ? (
               <section className={`${styles.card} ${styles.analysisCopyCard}`}>
                 <div className={styles.summaryHeader}>
                   <SectionLabel>Summary</SectionLabel>

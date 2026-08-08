@@ -737,34 +737,6 @@ test("filing analysis inherits the final news-document mobile gutter and type hi
   );
 });
 
-test("filing analysis uses the approved chart, overview, and summary layout", () => {
-  const analysisSource = readFileSync(
-    new URL("../filing-analysis-v2/GenericFilingAnalysis.tsx", import.meta.url),
-    "utf8",
-  );
-  const styles = readFileSync(
-    new URL("../filing-analysis-v2/GenericFilingAnalysis.module.css", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(
-    analysisSource,
-    /isFilingDocument \? \([\s\S]*styles\.filingPriceCard[\s\S]*styles\.filingOverviewGrid[\s\S]*<SectionLabel>Summary<\/SectionLabel>/,
-  );
-  assert.match(
-    styles,
-    /\.filingOverviewGrid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*align-items: start;/,
-  );
-  assert.match(
-    styles,
-    /\.filingPriceCard :global\(\.price-volume-chart\) \{[^}]*height: 236px;/,
-  );
-  assert.match(
-    styles,
-    /@media \(max-width: 1180px\) \{[\s\S]*\.filingOverviewGrid \{[^}]*grid-template-columns: minmax\(0, 1fr\);/,
-  );
-});
-
 test("specialized filing cards define their own readable mobile typography", () => {
   const readMobileStyles = (name: string, breakpoint: number) => {
     const styles = readFileSync(
