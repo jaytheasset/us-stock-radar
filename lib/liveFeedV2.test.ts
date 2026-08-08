@@ -512,10 +512,15 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
+  assert.match(sheetSource, /showCloseButton=\{viewport === "mobile"\}/);
   assert.match(sheetSource, /surfaceClassName=\{sheetStyles\.previewSurface\}/);
   assert.match(
     sheetSource,
-    /className=\{sheetStyles\.previewScrollRegion\}>\{previewContent\}/,
+    /topControls=\{[\s\S]*viewport === "mobile"[\s\S]*<FeedPreviewActions preview=\{item\.preview\} \/>/,
+  );
+  assert.match(
+    sheetSource,
+    /viewport === "mobile" \? \([\s\S]*previewContent[\s\S]*className=\{sheetStyles\.previewScrollRegion\}>\{previewContent\}/,
   );
   assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
   assert.match(sheetSource, /viewerPlan === "free"/);
@@ -525,12 +530,22 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(previewAdSource, /"\(max-width: 760px\)" : "\(min-width: 761px\)"/);
   assert.match(bottomSheetSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
   assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
+  assert.match(bottomSheetSource, /showCloseButton = true/);
+  assert.match(bottomSheetSource, /const closeButton = showCloseButton \? \(/);
+  assert.match(
+    bottomSheetSource,
+    /aria-label="Preview controls"[\s\S]*styles\.controlStripActions[\s\S]*\{topControls\}[\s\S]*\{closeButton\}/,
+  );
   const bottomSheetStyles = readSource(
     "components/ui/BottomSheetShell.module.css",
   );
   assert.match(
     bottomSheetStyles,
     /\.intermediateRoot \.overlay\s*\{[\s\S]*inset:\s*0;/,
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.surfaceWithTopControls \{[\s\S]*display: flex;[\s\S]*overflow: hidden;[\s\S]*\.controlStrip \{[\s\S]*flex: 0 0 auto;[\s\S]*background: var\(--sr-color-surface-overlay\);[\s\S]*\.topControlsScrollRegion \{[\s\S]*overflow-y: auto;/,
   );
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);

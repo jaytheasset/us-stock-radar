@@ -875,13 +875,17 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
 
   assert.match(
     styles,
-    /grid-template-columns:\s*minmax\(0, 1fr\) clamp\(340px, 25vw, 380px\);/,
+    /@media \(min-width: 960px\)[\s\S]*grid-template-columns:\s*minmax\(0, 72fr\)\s*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\);/,
   );
   assert.match(
     styles,
     /@media \(max-width: 959\.98px\)[\s\S]*\.root\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*\.detailRail\s*\{\s*display:\s*none;/,
   );
   assert.match(styles, /@media \(min-width: 960px\)/);
+  assert.match(
+    styles,
+    /@media \(min-width: 960px\) and \(max-width: 1180px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 300px;[\s\S]*gap:\s*var\(--sr-space-4\);/,
+  );
   assert.match(
     clientSource,
     /window\.matchMedia\("\(min-width: 960px\)"\)/,
@@ -902,6 +906,11 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   assert.match(detailSource, /TabletFilingsV2DetailDrawer/);
   assert.match(detailSource, /viewport="intermediate"/);
   assert.match(detailSource, /closeLabel="Close filing preview"/);
+  assert.equal(
+    detailSource.match(/showCloseButton=\{false\}/g)?.length,
+    1,
+    "only the intermediate filing preview should hide the close control",
+  );
   assert.match(detailSource, /showHandle=\{false\}/);
   assert.match(
     shellSource,
@@ -909,11 +918,29 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   );
   assert.match(
     styles,
-    /@media \(min-width: 761px\) and \(max-width: 959\.98px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;/,
+    /@media \(min-width: 761px\) and \(max-width: 959\.98px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;[\s\S]*display:\s*flex;[\s\S]*overflow:\s*hidden;/,
+  );
+  assert.match(detailSource, /className=\{styles\.tabletDetailScrollRegion\}/);
+  assert.match(
+    detailSource,
+    /TabletFilingsV2DetailDrawer[\s\S]*className=\{styles\.tabletDetailScrollRegion\}[\s\S]*<FilingsV2DetailContent/,
+  );
+  assert.doesNotMatch(
+    detailSource.slice(
+      detailSource.indexOf("export function MobileFilingsV2DetailSheet"),
+      detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+    ),
+    /tabletDetailScrollRegion/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\)[\s\S]*\.detailHeader\s*\{[\s\S]*border-bottom:\s*var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*padding:\s*var\(--sr-space-6\) var\(--sr-space-5\);/,
   );
   assert.doesNotMatch(styles, /> div\[aria-hidden="true"\]/);
   assert.match(shellSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
   assert.match(shellSource, /restoreFocus\(opener\)/);
+  assert.match(shellSource, /showCloseButton = true/);
+  assert.match(shellSource, /const closeButton = showCloseButton \? \(/);
   const shellStyles = readFileSync(
     new URL("../ui/BottomSheetShell.module.css", import.meta.url),
     "utf8",
@@ -924,6 +951,26 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   );
   assert.match(detailSource, /MobileFilingsV2DetailSheet/);
   assert.match(clientSource, /window\.matchMedia\("\(max-width: 760\.98px\)"\)/);
+  const mobileDetailSource = detailSource.slice(
+    detailSource.indexOf("export function MobileFilingsV2DetailSheet"),
+    detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+  );
+  const tabletDetailSource = detailSource.slice(
+    detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+  );
+  assert.match(
+    mobileDetailSource,
+    /topControls=\{[\s\S]*<FilingsV2PreviewActions[\s\S]*showHeaderActions=\{false\}/,
+  );
+  assert.doesNotMatch(tabletDetailSource, /topControls=/);
+  assert.match(
+    shellSource,
+    /aria-label="Preview controls"[\s\S]*styles\.controlStripActions[\s\S]*\{topControls\}[\s\S]*\{closeButton\}/,
+  );
+  assert.match(
+    shellStyles,
+    /\.surfaceWithTopControls \{[\s\S]*display: flex;[\s\S]*overflow: hidden;[\s\S]*\.controlStrip \{[\s\S]*flex: 0 0 auto;[\s\S]*background: var\(--sr-color-surface-overlay\);[\s\S]*\.topControlsScrollRegion \{[\s\S]*overflow-y: auto;/,
+  );
 });
 
 test("filings preview renders exactly one plan-gated responsive ad after its CTA", () => {
@@ -1112,7 +1159,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: calc\(var\(--sr-size-close-button\) \* 3 \+ var\(--sr-space-3\)\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: 0;/,
   );
   assert.match(
     styles,

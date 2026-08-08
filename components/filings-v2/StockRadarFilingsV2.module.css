@@ -1537,9 +1537,72 @@
   }
 }
 
+@media (min-width: 761px) {
+  .detailPanel {
+    min-height: 0;
+    overflow: hidden;
+    border: var(--sr-border-width) solid var(--sr-color-divider);
+    border-radius: var(--sr-radius-control);
+    box-shadow: var(--sr-shadow-panel);
+  }
+
+  .detailPreviewCard {
+    display: block;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .detailPreviewCard .detailHeader {
+    border: 0;
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+    border-radius: 0;
+    padding: var(--sr-space-6) var(--sr-space-5);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .detailIdentity h2 {
+    font-family: var(--sr-font-family-sans);
+    font-size: var(--sr-font-size-xl);
+  }
+
+  .detailFacts > span {
+    column-gap: var(--sr-space-2);
+  }
+
+  .detailPreviewCard .detailSection,
+  .detailPreviewCard .sourceMetadata {
+    border: 0;
+    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+    padding: var(--sr-space-5);
+  }
+
+  .detailPreviewCard .detailActionArea {
+    border: 0;
+    padding: var(--sr-space-5);
+  }
+}
+
 @media (min-width: 960px) {
+  .root {
+    grid-template-columns:
+      minmax(0, 72fr)
+      minmax(calc(300px + var(--sr-space-3)), 28fr);
+    gap: var(--sr-space-5);
+  }
+
   .detailContent {
     padding: 0;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1180px) {
+  .root {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--sr-space-4);
   }
 }
 
@@ -1552,14 +1615,25 @@
     width: clamp(360px, 46vw, 440px);
     max-width: calc(100vw - var(--sr-space-8));
     height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     border-bottom: var(--sr-border-width) solid var(--sr-color-border-overlay);
     border-radius: var(--sr-radius-sheet) 0 0 var(--sr-radius-sheet);
     animation: filings-v2-drawer-slide-in var(--sr-motion-duration-sheet)
       var(--sr-motion-easing-standard);
+    scrollbar-gutter: auto;
   }
 
-  .tabletDetailDrawerSurface .detailIdentity {
-    padding-right: calc(var(--sr-size-close-button) + var(--sr-space-3));
+  .tabletDetailScrollRegion {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
   }
 }
 
@@ -2292,7 +2366,7 @@
 
   .detailIdentity {
     grid-template-columns: var(--sr-space-8) minmax(0, 1fr);
-    padding-right: calc(var(--sr-size-close-button) * 3 + var(--sr-space-3));
+    padding-right: 0;
   }
 
   .previewActions {

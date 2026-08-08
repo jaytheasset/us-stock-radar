@@ -2,6 +2,7 @@
 
 import type { MutableRefObject } from "react";
 import { FeedPreviewAd } from "@/components/feed-v2/FeedMobilePreviewAd";
+import { FeedPreviewActions } from "@/components/feed-v2/FeedPreviewActions";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
@@ -57,11 +58,19 @@ export function MobileFeedPreviewSheet({
       onDismiss={onClose}
       openerRef={openerRef}
       overlayLabel="Close event preview"
+      showCloseButton={viewport === "mobile"}
       showHandle={viewport === "mobile"}
       surfaceClassName={sheetStyles.previewSurface}
+      topControls={
+        viewport === "mobile" ? <FeedPreviewActions preview={item.preview} /> : undefined
+      }
       viewport={viewport}
     >
-      <div className={sheetStyles.previewScrollRegion}>{previewContent}</div>
+      {viewport === "mobile" ? (
+        previewContent
+      ) : (
+        <div className={sheetStyles.previewScrollRegion}>{previewContent}</div>
+      )}
     </BottomSheetShell>
   );
 }

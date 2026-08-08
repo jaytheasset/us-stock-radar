@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Newspaper } from "lucide-react";
-import { SavedContentButton } from "@/components/actions/SavedContentButton";
-import { WatchlistButton } from "@/components/actions/WatchlistButton";
+import { FeedPreviewActions } from "@/components/feed-v2/FeedPreviewActions";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import {
@@ -23,7 +22,12 @@ export function FeedCompanyNewsPreview({
   news,
   variant,
 }: FeedCompanyNewsPreviewProps) {
-  const content = <FeedCompanyNewsPreviewContent news={news} />;
+  const content = (
+    <FeedCompanyNewsPreviewContent
+      news={news}
+      showHeaderActions={variant !== "mobile"}
+    />
+  );
 
   if (variant === "mobile") return content;
 
@@ -39,11 +43,12 @@ export function FeedCompanyNewsPreview({
 
 function FeedCompanyNewsPreviewContent({
   news,
+  showHeaderActions,
 }: {
   news: LiveFeedV2CompanyNewsPreview;
+  showHeaderActions: boolean;
 }) {
   const stockHref = `/stocks/${encodeURIComponent(news.ticker)}`;
-  const returnHref = `/feed?preview=${encodeURIComponent(news.id)}`;
   const hasTicker = /^[A-Z][A-Z0-9.-]{0,14}$/.test(news.ticker);
 
   return (
@@ -62,23 +67,11 @@ function FeedCompanyNewsPreviewContent({
               <p>{previewValue(news.company)}</p>
             </div>
           )}
-          <div className={styles.previewActions}>
-            {hasTicker ? (
-              <WatchlistButton
-                initialAuthenticated={news.authenticated}
-                initialWatched={news.watchlist}
-                returnHref={returnHref}
-                ticker={news.ticker}
-              />
-            ) : null}
-            <SavedContentButton
-              contentId={news.id}
-              contentType="news"
-              initialAuthenticated={news.authenticated}
-              initialSaved={news.saved}
-              returnHref={returnHref}
-            />
-          </div>
+          {showHeaderActions ? (
+            <div className={styles.previewActions}>
+              <FeedPreviewActions preview={news} />
+            </div>
+          ) : null}
         </div>
 
         <div className={styles.detailClassification}>

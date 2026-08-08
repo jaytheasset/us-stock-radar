@@ -23,7 +23,36 @@ type FilingsV2DetailContentProps = {
   record: FilingsV2Record;
   relatedRecords: readonly FilingsV2RelatedFiling[];
   previewAdSize: "300x250" | "320x100" | null;
+  showHeaderActions?: boolean;
 };
+
+function FilingsV2PreviewActions({
+  initialAuthenticated,
+  initialSaved,
+  initialWatched,
+  record,
+}: Pick<
+  FilingsV2DetailContentProps,
+  "initialAuthenticated" | "initialSaved" | "initialWatched" | "record"
+>) {
+  return (
+    <>
+      {record.ticker ? (
+        <WatchlistButton
+          initialAuthenticated={initialAuthenticated}
+          initialWatched={initialWatched}
+          ticker={record.ticker}
+        />
+      ) : null}
+      <SavedContentButton
+        contentId={record.id}
+        contentType="filing"
+        initialAuthenticated={initialAuthenticated}
+        initialSaved={initialSaved}
+      />
+    </>
+  );
+}
 
 export function FilingsV2DetailContent({
   initialAuthenticated,
@@ -32,6 +61,7 @@ export function FilingsV2DetailContent({
   record,
   relatedRecords,
   previewAdSize,
+  showHeaderActions = true,
 }: FilingsV2DetailContentProps) {
   return (
     <div className={styles.detailContent}>
@@ -49,21 +79,16 @@ export function FilingsV2DetailContent({
             </h2>
             <p>{record.company}</p>
           </div>
-          <div className={styles.previewActions}>
-            {record.ticker ? (
-              <WatchlistButton
+          {showHeaderActions ? (
+            <div className={styles.previewActions}>
+              <FilingsV2PreviewActions
                 initialAuthenticated={initialAuthenticated}
+                initialSaved={initialSaved}
                 initialWatched={initialWatched}
-                ticker={record.ticker}
+                record={record}
               />
-            ) : null}
-            <SavedContentButton
-              contentId={record.id}
-              contentType="filing"
-              initialAuthenticated={initialAuthenticated}
-              initialSaved={initialSaved}
-            />
-          </div>
+            </div>
+          ) : null}
         </div>
 
         <div className={styles.detailClassification}>
@@ -173,8 +198,16 @@ export function MobileFilingsV2DetailSheet({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Close filing detail"
+      topControls={
+        <FilingsV2PreviewActions
+          initialAuthenticated={contentProps.initialAuthenticated}
+          initialSaved={contentProps.initialSaved}
+          initialWatched={contentProps.initialWatched}
+          record={contentProps.record}
+        />
+      }
     >
-      <FilingsV2DetailContent {...contentProps} />
+      <FilingsV2DetailContent {...contentProps} showHeaderActions={false} />
     </BottomSheetShell>
   );
 }
@@ -199,11 +232,14 @@ export function TabletFilingsV2DetailDrawer({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Close filing preview"
+      showCloseButton={false}
       showHandle={false}
       surfaceClassName={styles.tabletDetailDrawerSurface}
       viewport="intermediate"
     >
-      <FilingsV2DetailContent {...contentProps} />
+      <div className={styles.tabletDetailScrollRegion}>
+        <FilingsV2DetailContent {...contentProps} />
+      </div>
     </BottomSheetShell>
   );
 }

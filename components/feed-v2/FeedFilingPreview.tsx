@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, FileText } from "lucide-react";
-import { SavedContentButton } from "@/components/actions/SavedContentButton";
-import { WatchlistButton } from "@/components/actions/WatchlistButton";
+import { FeedPreviewActions } from "@/components/feed-v2/FeedPreviewActions";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { DetailPanelShell } from "@/components/ui/DetailPanelShell";
 import {
@@ -20,7 +19,12 @@ type FeedFilingPreviewProps = {
 };
 
 export function FeedFilingPreview({ filing, variant }: FeedFilingPreviewProps) {
-  const content = <FeedFilingPreviewContent filing={filing} />;
+  const content = (
+    <FeedFilingPreviewContent
+      filing={filing}
+      showHeaderActions={variant !== "mobile"}
+    />
+  );
 
   if (variant === "mobile") return content;
 
@@ -36,11 +40,12 @@ export function FeedFilingPreview({ filing, variant }: FeedFilingPreviewProps) {
 
 function FeedFilingPreviewContent({
   filing,
+  showHeaderActions,
 }: {
   filing: LiveFeedV2FilingPreview;
+  showHeaderActions: boolean;
 }) {
   const stockHref = `/stocks/${encodeURIComponent(filing.ticker)}`;
-  const returnHref = `/feed?preview=${encodeURIComponent(filing.id)}`;
   const hasTicker = /^[A-Z][A-Z0-9.-]{0,14}$/.test(filing.ticker);
 
   return (
@@ -59,23 +64,11 @@ function FeedFilingPreviewContent({
               <p>{previewValue(filing.company)}</p>
             </div>
           )}
-          <div className={styles.previewActions}>
-            {hasTicker ? (
-              <WatchlistButton
-                initialAuthenticated={filing.authenticated}
-                initialWatched={filing.watchlist}
-                returnHref={returnHref}
-                ticker={filing.ticker}
-              />
-            ) : null}
-            <SavedContentButton
-              contentId={filing.id}
-              contentType="filing"
-              initialAuthenticated={filing.authenticated}
-              initialSaved={filing.saved}
-              returnHref={returnHref}
-            />
-          </div>
+          {showHeaderActions ? (
+            <div className={styles.previewActions}>
+              <FeedPreviewActions preview={filing} />
+            </div>
+          ) : null}
         </div>
 
         <div className={styles.detailClassification}>
