@@ -41,6 +41,10 @@ import {
 } from "@/lib/sources/sec/forms/proxy/analysisPrompt";
 import { parseProxyFiling } from "@/lib/sources/sec/forms/proxy/parser";
 import { supabaseDelete, supabaseSelect } from "@/lib/supabase";
+import {
+  getSecCorrectionPromptsForRoom,
+  type SecCorrectionPromptCatalogEntry,
+} from "@/lib/development/secCorrectionPromptCatalog";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -141,6 +145,8 @@ export type SecDevPromptPreview = {
     name: string;
     displayName?: string;
     description?: string;
+    role?: string;
+    status?: string;
     text: string;
   }>;
 };
@@ -160,6 +166,7 @@ export type SecDevRoomDetail = SecDevRoomSnapshot & {
   liveRuns: SecDevLiveRunResult[];
   outputPreviews: SecDevOutputPreview[];
   promptPreviews: SecDevPromptPreview[];
+  correctionPromptCatalog: SecCorrectionPromptCatalogEntry[];
 };
 
 export type SecDevRoomIssueData = SecDevRoomSnapshot & {
@@ -227,6 +234,7 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     liveRuns: mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns),
     outputPreviews,
     promptPreviews,
+    correctionPromptCatalog: getSecCorrectionPromptsForRoom(room.key),
   };
 }
 
@@ -2386,9 +2394,10 @@ async function readPromptPreviews(room: SecDevRoom): Promise<SecDevPromptPreview
               ? buildProxyPromptVariantPreviews()
               : room.key === "periodic-reports" && file === "analysisPrompt.ts"
                 ? await buildPeriodicReportsPromptVariantPreviews(base)
-            : extractPromptTemplateLiterals(raw);
+            : extractPromptTemplateLiterals(raw, { allowReturnedFallback: file.endsWith("Prompt.ts") });
       if (prompts.length) {
-        previews.push({ file, prompts: applyPromptPreviewDisplayLabels(room, prompts) });
+        const labeledPrompts = applyPromptPreviewDisplayLabels(room, file, prompts);
+        if (labeledPrompts.length) previews.push({ file, prompts: labeledPrompts });
       }
     } catch {
       // Prompt files are optional per form room.
@@ -2490,44 +2499,195 @@ function buildProxyPromptVariantPreviews() {
 
 function applyPromptPreviewDisplayLabels(
   room: SecDevRoom,
+  file: string,
   prompts: SecDevPromptPreview["prompts"],
 ): SecDevPromptPreview["prompts"] {
-  if (room.key !== "8k-6k") return prompts;
-
-  return prompts.map((prompt) => {
-    const label = SEC_8K_6K_PROMPT_DISPLAY_LABELS[prompt.name];
-    return label ? { ...prompt, ...label } : prompt;
+  return prompts.flatMap((prompt) => {
+    if (/_PROMPT_KEY$/.test(prompt.name)) return [];
+    const label = SEC_ANALYSIS_PROMPT_DISPLAY_LABELS[`${room.key}:${file}:${prompt.name}`];
+    return label ? [{ ...prompt, ...label }] : [];
   });
 }
 
-const SEC_8K_6K_PROMPT_DISPLAY_LABELS: Record<string, { displayName: string; description: string }> = {
-  sec8k6kRouterSystemPrompt: {
-    displayName: "Router prompt - route planner",
+type SecAnalysisPromptDisplayLabel = {
+  displayName: string;
+  role: string;
+  status: string;
+  description?: string;
+};
+
+const SEC_ANALYSIS_PROMPT_DISPLAY_LABELS: Record<string, SecAnalysisPromptDisplayLabel> = {
+  "ownership:analysisPrompt.ts:OWNERSHIP_ANALYSIS_PROMPT": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "8k-6k:routerPrompt.ts:sec8k6kRouterSystemPrompt": {
+    displayName: "Active router prompt",
+    role: "Routing",
+    status: "Current live flow",
     description: "Chooses analysis families and source block IDs. It does not write the final analysis.",
   },
-  sec8k6kAnalysisSystemPrompt: {
-    displayName: "Common analysis rules - base prompt",
+  "8k-6k:analysisPrompt.ts:sec8k6kAnalysisSystemPrompt": {
+    displayName: "Active analysis prompt — Common rules",
+    role: "Analysis base",
+    status: "Current live flow",
     description: "Shared writing, evidence, scoring, and output rules for every 8-K / 6-K analysis family.",
   },
-  sec8k6kListingFinancialRiskPrompt: {
-    displayName: "Analysis family - Listing / Financial Risk",
+  "8k-6k:analysisPrompt.ts:sec8k6kListingFinancialRiskPrompt": {
+    displayName: "Active analysis prompt — Listing / Financial Risk",
+    role: "Analysis family",
+    status: "Conditional active",
     description: "Delisting, suspension, bankruptcy, default, liquidity, restatement, and financial distress.",
   },
-  sec8k6kFinancingDilutionCapitalStructurePrompt: {
-    displayName: "Analysis family - Financing / Dilution / Capital Structure",
+  "8k-6k:analysisPrompt.ts:sec8k6kFinancingDilutionCapitalStructurePrompt": {
+    displayName: "Active analysis prompt — Financing / Dilution / Capital Structure",
+    role: "Analysis family",
+    status: "Conditional active",
     description: "Offerings, warrants, convertibles, reverse splits, dividends, buybacks, debt, and capital changes.",
   },
-  sec8k6kStrategicTransactionPrompt: {
-    displayName: "Analysis family - Strategic Transaction",
+  "8k-6k:analysisPrompt.ts:sec8k6kStrategicTransactionPrompt": {
+    displayName: "Active analysis prompt — Strategic Transaction",
+    role: "Analysis family",
+    status: "Conditional active",
     description: "Mergers, acquisitions, de-SPAC status, closings, terminations, amendments, and asset transactions.",
   },
-  sec8k6kGovernanceVoteLeadershipPrompt: {
-    displayName: "Analysis family - Governance / Vote / Leadership",
+  "8k-6k:analysisPrompt.ts:sec8k6kGovernanceVoteLeadershipPrompt": {
+    displayName: "Active analysis prompt — Governance / Vote / Leadership",
+    role: "Analysis family",
+    status: "Conditional active",
     description: "Shareholder votes, executive and board changes, auditors, governance contests, and control updates.",
   },
-  sec8k6kOperatingLegalRoutinePrompt: {
-    displayName: "Analysis family - Operating / Legal / Routine",
+  "8k-6k:analysisPrompt.ts:sec8k6kOperatingLegalRoutinePrompt": {
+    displayName: "Active analysis prompt — Operating / Legal / Routine",
+    role: "Analysis family",
+    status: "Conditional active",
     description: "Earnings, operating updates, legal and regulatory matters, FDA and clinical events, and routine filings.",
+  },
+  "s1-f1:analysisPrompt.ts:Default active (pending terms)": {
+    displayName: "Active analysis prompt — Pending terms",
+    role: "Primary analysis",
+    status: "Current default",
+  },
+  "s1-f1:analysisPrompt.ts:Legacy backup (pre-pending terms)": {
+    displayName: "Legacy backup — pre-pending terms",
+    role: "Legacy variant",
+    status: "Backup",
+  },
+  "s3-f3:routerPrompt.ts:secS3F3RouterSystemPrompt": {
+    displayName: "Active router prompt",
+    role: "Routing",
+    status: "Current live flow",
+  },
+  "s3-f3:analysisPrompt.ts:secS3F3AnalysisSystemPrompt": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "s4-f4:analysisPrompt.ts:RETURNED_ARRAY_PROMPT_1": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "425:routerPrompt.ts:sec425RouterSystemPrompt": {
+    displayName: "Active router prompt",
+    role: "Routing",
+    status: "Current live flow",
+  },
+  "425:analysisPrompt.ts:sec425AnalysisSystemPrompt": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "424b:analysisPrompt.ts:Default sectioned (active)": {
+    displayName: "Active analysis prompt — Sectioned",
+    role: "Primary analysis",
+    status: "Current default",
+  },
+  "424b:analysisPrompt.ts:Backup legacy (pre-sectioned)": {
+    displayName: "Legacy backup — pre-sectioned",
+    role: "Legacy variant",
+    status: "Backup",
+  },
+  "tender:analysisPrompt.ts:secTenderAnalysisSystemPrompt": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "tender:analysisPrompt.ts:secTenderCommonOutputRules": {
+    displayName: "Supporting rules — Output",
+    role: "Analysis rules",
+    status: "Included in active prompt",
+  },
+  "tender:analysisPrompt.ts:secTenderCommonEvidenceRules": {
+    displayName: "Supporting rules — Evidence",
+    role: "Analysis rules",
+    status: "Included in active prompt",
+  },
+  "tender:analysisPrompt.ts:secTenderCommonWritingRules": {
+    displayName: "Supporting rules — Writing",
+    role: "Analysis rules",
+    status: "Included in active prompt",
+  },
+  "tender:analysisPrompt.ts:secTenderCommonEventTypeRules": {
+    displayName: "Supporting rules — Event types",
+    role: "Analysis rules",
+    status: "Included in active prompt",
+  },
+  "tender:analysisPrompt.ts:secTenderCommonSignalRules": {
+    displayName: "Supporting rules — Signals",
+    role: "Analysis rules",
+    status: "Included in active prompt",
+  },
+  "proxy:analysisPrompt.ts:Default proxy": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "periodic-reports:analysisPrompt.ts:Periodic report analysis (10-K / 10-Q / 20-F)": {
+    displayName: "Active analysis prompt — Periodic reports",
+    role: "Primary analysis",
+    status: "Current for 10-K / 10-Q / 20-F",
+  },
+  "periodic-reports:analysisPrompt.ts:Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A)": {
+    displayName: "Active analysis prompt — Amendments",
+    role: "Amendment analysis",
+    status: "Current for amendments",
+  },
+  "s8:routerPrompt.ts:RETURNED_ARRAY_PROMPT_1": {
+    displayName: "Router reference — test-only",
+    role: "Reference",
+    status: "Not in current live flow",
+  },
+  "s8:analysisPrompt.ts:RETURNED_ARRAY_PROMPT_1": {
+    displayName: "Active analysis prompt — General",
+    role: "Primary analysis",
+    status: "Conditional active",
+  },
+  "s8:analysisPrompt.ts:RETURNED_ARRAY_PROMPT_2": {
+    displayName: "Active analysis prompt — Dilution",
+    role: "Specialized analysis",
+    status: "Conditional active",
+  },
+  "sc13:routerPrompt.ts:RETURNED_ARRAY_PROMPT_1": {
+    displayName: "Router reference — not in live flow",
+    role: "Reference",
+    status: "Not in current live flow",
+  },
+  "sc13:analysisPrompt.ts:RETURNED_PROMPT_1": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "nt:analysisPrompt.ts:secNtAnalysisSystemPrompt": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
+  },
+  "form25:analysisPrompt.ts:secForm25AnalysisSystemPrompt": {
+    displayName: "Primary analysis prompt",
+    role: "Analysis",
+    status: "Current live flow",
   },
 };
 
@@ -2581,7 +2741,7 @@ async function buildPeriodicReportsPromptVariantPreviews(base: string) {
   return previews;
 }
 
-function extractPromptTemplateLiterals(source: string) {
+function extractPromptTemplateLiterals(source: string, options: { allowReturnedFallback: boolean }) {
   const prompts: Array<{ name: string; text: string }> = [];
   const seen = new Set<string>();
   const namedStringArrays = extractNamedStringArrays(source);
@@ -2620,7 +2780,7 @@ function extractPromptTemplateLiterals(source: string) {
     prompts.push({ name, text });
   }
 
-  if (!prompts.length) {
+  if (!prompts.length && options.allowReturnedFallback) {
     const returnedTemplates = /return\s+`([\s\S]*?)`\s*;/g;
     let index = 1;
     while ((match = returnedTemplates.exec(source))) {
@@ -2631,7 +2791,7 @@ function extractPromptTemplateLiterals(source: string) {
     }
   }
 
-  if (!prompts.length) {
+  if (!prompts.length && options.allowReturnedFallback) {
     const returnedArrayPrompt = /return\s+\[([\s\S]*?)\]\.join\(\s*(["'`])\\n\2\s*\)\s*;/g;
     let index = 1;
     while ((match = returnedArrayPrompt.exec(source))) {
@@ -2642,10 +2802,12 @@ function extractPromptTemplateLiterals(source: string) {
     }
   }
 
-  for (const prompt of extractReturnedStringArrayPromptFunctions(source, namedStringArrays)) {
-    if (seen.has(prompt.name)) continue;
-    seen.add(prompt.name);
-    prompts.push(prompt);
+  if (options.allowReturnedFallback) {
+    for (const prompt of extractReturnedStringArrayPromptFunctions(source, namedStringArrays)) {
+      if (seen.has(prompt.name)) continue;
+      seen.add(prompt.name);
+      prompts.push(prompt);
+    }
   }
 
   return prompts.slice(0, 6);
