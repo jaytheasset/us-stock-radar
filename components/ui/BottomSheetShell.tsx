@@ -36,6 +36,7 @@ export type BottomSheetShellProps = BottomSheetAccessibleName & {
   showCloseButton?: boolean;
   showHandle?: boolean;
   surfaceClassName?: string;
+  topControls?: ReactNode;
   viewport?: BottomSheetShellViewport;
 };
 
@@ -111,6 +112,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     showCloseButton = true,
     showHandle = true,
     surfaceClassName,
+    topControls,
     viewport = "mobile",
   } = props;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -245,8 +247,19 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         : styles.mobileRoot;
   const rootClasses = `${styles.root} ${viewportClass} ${usesContentFooter ? styles.contentFooterRoot : styles.fullScrollRoot}`;
   const overlayClasses = `${styles.overlay} ${usesContentFooter ? styles.contentFooterOverlay : styles.fullScrollOverlay}`;
-  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedFooter ? styles.surfaceWithFixedFooter : ""} ${surfaceClassName ?? ""}`;
+  const surfaceClasses = `${styles.surface} ${usesContentFooter ? styles.contentFooterSurface : styles.fullScrollSurface} ${fixedFooter ? styles.surfaceWithFixedFooter : ""} ${topControls ? styles.surfaceWithTopControls : ""} ${surfaceClassName ?? ""}`;
   const closeClasses = `${styles.close} ${usesContentFooter ? styles.contentFooterClose : styles.fullScrollClose}`;
+  const closeButton = showCloseButton ? (
+    <button
+      aria-label={closeLabel}
+      className={closeClasses}
+      onClick={requestDismiss}
+      ref={closeButtonRef}
+      type="button"
+    >
+      <X aria-hidden="true" size={18} />
+    </button>
+  ) : null;
 
   return (
     <div
@@ -283,23 +296,27 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         role="dialog"
         tabIndex={-1}
       >
-        {showHandle ? <div aria-hidden="true" className={styles.handle} /> : null}
-        {showCloseButton ? (
-          <button
-            aria-label={closeLabel}
-            className={closeClasses}
-            onClick={requestDismiss}
-            ref={closeButtonRef}
-            type="button"
-          >
-            <X aria-hidden="true" size={18} />
-          </button>
-        ) : null}
+        {topControls ? (
+          <div aria-label="Preview controls" className={styles.controlStrip} role="group">
+            {showHandle ? <div aria-hidden="true" className={styles.handle} /> : null}
+            <div className={styles.controlStripActions}>
+              {topControls}
+              {closeButton}
+            </div>
+          </div>
+        ) : (
+          <>
+            {showHandle ? <div aria-hidden="true" className={styles.handle} /> : null}
+            {closeButton}
+          </>
+        )}
         {fixedFooter ? (
           <>
             <div className={styles.footerScrollRegion}>{children}</div>
             <div className={styles.fixedFooter}>{fixedFooter}</div>
           </>
+        ) : topControls ? (
+          <div className={styles.topControlsScrollRegion}>{children}</div>
         ) : (
           children
         )}

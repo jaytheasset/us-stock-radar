@@ -2366,7 +2366,7 @@
 
   .detailIdentity {
     grid-template-columns: var(--sr-space-8) minmax(0, 1fr);
-    padding-right: calc(var(--sr-size-close-button) * 3 + var(--sr-space-3));
+    padding-right: 0;
   }
 
   .previewActions {

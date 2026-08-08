@@ -940,7 +940,7 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   assert.match(shellSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
   assert.match(shellSource, /restoreFocus\(opener\)/);
   assert.match(shellSource, /showCloseButton = true/);
-  assert.match(shellSource, /\{showCloseButton \? \(/);
+  assert.match(shellSource, /const closeButton = showCloseButton \? \(/);
   const shellStyles = readFileSync(
     new URL("../ui/BottomSheetShell.module.css", import.meta.url),
     "utf8",
@@ -951,6 +951,26 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   );
   assert.match(detailSource, /MobileFilingsV2DetailSheet/);
   assert.match(clientSource, /window\.matchMedia\("\(max-width: 760\.98px\)"\)/);
+  const mobileDetailSource = detailSource.slice(
+    detailSource.indexOf("export function MobileFilingsV2DetailSheet"),
+    detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+  );
+  const tabletDetailSource = detailSource.slice(
+    detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+  );
+  assert.match(
+    mobileDetailSource,
+    /topControls=\{[\s\S]*<FilingsV2PreviewActions[\s\S]*showHeaderActions=\{false\}/,
+  );
+  assert.doesNotMatch(tabletDetailSource, /topControls=/);
+  assert.match(
+    shellSource,
+    /aria-label="Preview controls"[\s\S]*styles\.controlStripActions[\s\S]*\{topControls\}[\s\S]*\{closeButton\}/,
+  );
+  assert.match(
+    shellStyles,
+    /\.surfaceWithTopControls \{[\s\S]*display: flex;[\s\S]*overflow: hidden;[\s\S]*\.controlStrip \{[\s\S]*flex: 0 0 auto;[\s\S]*background: var\(--sr-color-surface-overlay\);[\s\S]*\.topControlsScrollRegion \{[\s\S]*overflow-y: auto;/,
+  );
 });
 
 test("filings preview renders exactly one plan-gated responsive ad after its CTA", () => {
@@ -1139,7 +1159,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: calc\(var\(--sr-size-close-button\) \* 3 \+ var\(--sr-space-3\)\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: 0;/,
   );
   assert.match(
     styles,
