@@ -1,7 +1,7 @@
 "use client";
 
 import type { MutableRefObject } from "react";
-import { FeedMobilePreviewAd } from "@/components/feed-v2/FeedMobilePreviewAd";
+import { FeedPreviewAd } from "@/components/feed-v2/FeedMobilePreviewAd";
 import { FeedPreviewPanel } from "@/components/feed-v2/FeedPreviewPanel";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import type { LiveFeedV2Item } from "@/lib/liveFeedV2Contract";
@@ -13,6 +13,7 @@ type MobileFeedPreviewSheetProps = {
   item: LiveFeedV2Item | null;
   onClose: () => void;
   openerRef: MutableRefObject<HTMLElement | null>;
+  viewport: "mobile" | "intermediate";
   viewerPlan: Plan;
 };
 
@@ -21,16 +22,21 @@ export function MobileFeedPreviewSheet({
   item,
   onClose,
   openerRef,
+  viewport,
   viewerPlan,
 }: MobileFeedPreviewSheetProps) {
   if (!item) return null;
 
-  const showNewsPreviewAd =
-    viewerPlan === "free" && item.preview.kind !== "filing";
+  const previewAdSize =
+    viewerPlan === "free"
+      ? viewport === "mobile"
+        ? "320x100"
+        : "300x250"
+      : null;
   const previewContent = (
     <>
       <FeedPreviewPanel item={item} variant="mobile" />
-      {showNewsPreviewAd ? <FeedMobilePreviewAd /> : null}
+      {previewAdSize ? <FeedPreviewAd size={previewAdSize} /> : null}
     </>
   );
 
@@ -51,7 +57,9 @@ export function MobileFeedPreviewSheet({
       onDismiss={onClose}
       openerRef={openerRef}
       overlayLabel="Close event preview"
+      showHandle={viewport === "mobile"}
       surfaceClassName={sheetStyles.previewSurface}
+      viewport={viewport}
     >
       <div className={sheetStyles.previewScrollRegion}>{previewContent}</div>
     </BottomSheetShell>

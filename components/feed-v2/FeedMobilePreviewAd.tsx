@@ -1,20 +1,26 @@
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import styles from "./StockRadarFeedV2.module.css";
 
-export function FeedMobilePreviewAd() {
+type FeedPreviewAdProps = {
+  size: "300x250" | "320x100";
+};
+
+export function FeedPreviewAd({ size }: FeedPreviewAdProps) {
+  const isMobile = size === "320x100";
+
   return (
-    <section aria-label="Advertisement" className={styles.mobilePreviewAd}>
+    <div className={isMobile ? styles.mobilePreviewAd : styles.desktopPreviewAd}>
       <AdSenseSlot
-        className={styles.mobilePreviewAdSlot}
+        className={styles.previewAdSlot}
         format="responsive"
-        height={100}
-        inventory="feed-mobile-inline"
-        mediaQuery="(max-width: 760px)"
-        mobileHeight={100}
-        mobileWidth={320}
-        placeholderSize="Responsive display"
-        width={480}
+        height={isMobile ? 100 : 250}
+        inventory={isMobile ? "feed-mobile-inline" : "feed-rail-300x250"}
+        mediaQuery={isMobile ? "(max-width: 760.98px)" : "(min-width: 761px)"}
+        mobileHeight={isMobile ? 100 : undefined}
+        mobileWidth={isMobile ? 320 : undefined}
+        placeholderSize={size}
+        width={isMobile ? 320 : 300}
       />
-    </section>
+    </div>
   );
 }

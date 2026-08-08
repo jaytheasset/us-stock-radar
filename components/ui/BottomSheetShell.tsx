@@ -33,6 +33,7 @@ export type BottomSheetShellProps = BottomSheetAccessibleName & {
   onDismiss: () => void;
   openerRef: RefObject<HTMLElement | null>;
   overlayLabel: string;
+  showHandle?: boolean;
   surfaceClassName?: string;
   viewport?: BottomSheetShellViewport;
 };
@@ -106,6 +107,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     onDismiss,
     openerRef,
     overlayLabel,
+    showHandle = true,
     surfaceClassName,
     viewport = "mobile",
   } = props;
@@ -131,10 +133,10 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
       viewport === "all"
         ? "(min-width: 0px)"
         : viewport === "intermediate"
-          ? "(min-width: 761px) and (max-width: 1023px)"
+          ? "(min-width: 761px) and (max-width: 959.98px)"
           : viewport === "tablet"
             ? "(max-width: 1180px)"
-          : "(max-width: 760px)";
+          : "(max-width: 760.98px)";
 
     if (!isOpen || !window.matchMedia(viewportQuery).matches) {
       dismissPendingRef.current = false;
@@ -277,7 +279,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         role="dialog"
         tabIndex={-1}
       >
-        <div aria-hidden="true" className={styles.handle} />
+        {showHandle ? <div aria-hidden="true" className={styles.handle} /> : null}
         <button
           aria-label={closeLabel}
           className={closeClasses}

@@ -7,13 +7,13 @@
   display: none;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 760.98px) {
   .slot.desktopSlot {
     display: none;
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760.98px) {
   .slot.mobileSlot {
     display: flex;
   }

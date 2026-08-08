@@ -913,7 +913,14 @@
   display: none;
 }
 
-.mobilePreviewAdSlot {
+.desktopPreviewAd {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+}
+
+.previewAdSlot {
   width: 100%;
   max-width: 100%;
 }
@@ -924,7 +931,7 @@
   max-width: 100%;
 }
 
-@media (max-width: 1380px) and (min-width: 1181px) {
+@media (max-width: 1380px) and (min-width: 960px) {
   .contentGrid {
     grid-template-columns: minmax(0, 72fr) minmax(300px, 28fr);
   }
@@ -941,7 +948,7 @@
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 959.98px) {
   .contentGrid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -954,6 +961,27 @@
   }
 
   .railAdPlacement {
+    display: none;
+  }
+
+  .contextRailPreview {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 960px) {
+  .contentGrid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--sr-space-4);
+  }
+
+  .feedItem {
+    grid-template-columns: 56px 64px minmax(0, 1fr) 88px 48px;
+    gap: var(--sr-space-2);
+    padding-inline: var(--sr-space-3);
+  }
+
+  .eventCopy p {
     display: none;
   }
 }
@@ -977,7 +1005,11 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760.98px) {
+  .desktopPreviewAd {
+    display: none;
+  }
+
   .mobilePreviewAd {
     display: flex;
     width: 100%;

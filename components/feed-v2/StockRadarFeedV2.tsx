@@ -34,6 +34,8 @@ type StockRadarFeedV2Props = {
   viewerPlan: Plan;
 };
 
+type PreviewViewport = "mobile" | "intermediate";
+
 const mobilePrimaryFilters = liveFeedV2Filters.filter(
   (filter) => filter.value !== "alerts" && filter.value !== "watchlist",
 );
@@ -58,7 +60,8 @@ export function StockRadarFeedV2({
     createInitialFilterStates(initialData.page),
   );
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [previewViewport, setPreviewViewport] =
+    useState<PreviewViewport | null>(null);
   const [previewRequestId, setPreviewRequestId] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(
     initialData.page.items.some((item) => item.id === initialPreviewId)
@@ -70,11 +73,31 @@ export function StockRadarFeedV2({
     if (
       initialPreviewId &&
       initialData.page.items.some((item) => item.id === initialPreviewId) &&
-      window.matchMedia("(max-width: 760px)").matches
+      window.matchMedia("(max-width: 959.98px)").matches
     ) {
-      setMobilePreviewOpen(true);
+      setPreviewViewport(
+        window.matchMedia("(max-width: 760.98px)").matches
+          ? "mobile"
+          : "intermediate",
+      );
     }
   }, [initialData.page.items, initialPreviewId]);
+
+  useEffect(() => {
+    if (!previewViewport) return;
+
+    const query = window.matchMedia(
+      previewViewport === "mobile"
+        ? "(max-width: 760.98px)"
+        : "(min-width: 761px) and (max-width: 959.98px)",
+    );
+    const dismissOutsideViewport = () => {
+      if (!query.matches) setPreviewViewport(null);
+    };
+
+    query.addEventListener("change", dismissOutsideViewport);
+    return () => query.removeEventListener("change", dismissOutsideViewport);
+  }, [previewViewport]);
 
   useEffect(
     () => () => {
@@ -198,7 +221,7 @@ export function StockRadarFeedV2({
     setActiveFilter(filter);
     setSelectedEventId(null);
     setMobileMoreOpen(false);
-    setMobilePreviewOpen(false);
+    setPreviewViewport(null);
 
     const nextState = filterStates[filter];
     if (!nextState.loaded && !nextState.isLoading) {
@@ -219,20 +242,21 @@ export function StockRadarFeedV2({
     opener: HTMLButtonElement,
   ) => {
     setSelectedEventId(item.id);
-    if (window.matchMedia("(max-width: 760px)").matches) {
-      mobileOpenerRef.current = opener;
-      setMobilePreviewOpen(true);
+    mobileOpenerRef.current = opener;
+    if (window.matchMedia("(max-width: 760.98px)").matches) {
+      setPreviewViewport("mobile");
       return;
     }
 
-    if (window.matchMedia("(min-width: 1181px)").matches) {
+    if (window.matchMedia("(min-width: 960px)").matches) {
+      setPreviewViewport(null);
       setPreviewRequestId((value) => value + 1);
+      return;
     }
+
+    setPreviewViewport("intermediate");
   };
-  const closeMobilePreview = useCallback(
-    () => setMobilePreviewOpen(false),
-    [],
-  );
+  const closePreview = useCallback(() => setPreviewViewport(null), []);
   const activeMobileMoreFilter = mobileMoreFilters.find(
     (filter) => filter.value === activeFilter,
   );
@@ -397,10 +421,11 @@ export function StockRadarFeedV2({
       </div>
 
       <MobileFeedPreviewSheet
-        isOpen={mobilePreviewOpen}
+        isOpen={previewViewport !== null}
         item={selectedItem}
-        onClose={closeMobilePreview}
+        onClose={closePreview}
         openerRef={mobileOpenerRef}
+        viewport={previewViewport ?? "mobile"}
         viewerPlan={viewerPlan}
       />
     </div>
