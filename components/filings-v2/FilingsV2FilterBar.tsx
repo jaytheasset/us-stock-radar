@@ -18,12 +18,15 @@ import {
   type FilingsV2FilterGroup,
   type FilingsV2FilterState,
 } from "@/lib/filingsV2Model";
+import {
+  filingsV2FilingGroupLabel,
+  filingsV2FilingGroupOptions,
+} from "@/lib/filingsV2FilingGroups";
 import styles from "./StockRadarFilingsV2.module.css";
 
 type FilingsV2FilterBarProps = {
   appliedQuery: string;
   filters: FilingsV2FilterState;
-  formOptions: readonly string[];
   isMobileSheetOpen: boolean;
   mobileFilterOpenerRef: RefObject<HTMLButtonElement | null>;
   onClearQuery: () => void;
@@ -39,7 +42,7 @@ type FilingsV2FilterBarProps = {
   query: string;
 };
 
-type FilingsV2MenuGroup = "formTypes" | "eventTypes" | "impacts" | "dateRanges";
+type FilingsV2MenuGroup = "filingGroups" | "eventTypes" | "impacts" | "dateRanges";
 
 function filterLabel(group: FilingsV2FilterGroup, value: string) {
   if (group === "signals") {
@@ -47,6 +50,11 @@ function filterLabel(group: FilingsV2FilterGroup, value: string) {
   }
   if (group === "eventTypes") {
     return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
+  }
+  if (group === "filingGroups") {
+    return filingsV2FilingGroupLabel[
+      value as keyof typeof filingsV2FilingGroupLabel
+    ];
   }
   return value;
 }
@@ -60,7 +68,6 @@ export function getActiveFilingsV2Filters(filters: FilingsV2FilterState) {
 export function FilingsV2FilterBar({
   appliedQuery,
   filters,
-  formOptions,
   isMobileSheetOpen,
   mobileFilterOpenerRef,
   onClearQuery,
@@ -76,10 +83,29 @@ export function FilingsV2FilterBar({
   query,
 }: FilingsV2FilterBarProps) {
   const menuGroups = [
-    { group: "formTypes" as const, label: "Form Type", options: formOptions },
-    { group: "eventTypes" as const, label: "Event Type", options: filingsV2EventOptions },
-    { group: "impacts" as const, label: "Impact", options: filingsV2ImpactOptions },
-    { group: "dateRanges" as const, label: "Date Range", options: filingsV2DateOptions },
+    {
+      group: "filingGroups" as const,
+      label: "Filing Group",
+      options: filingsV2FilingGroupOptions,
+    },
+    {
+      group: "eventTypes" as const,
+      label: "Event Type",
+      options: filingsV2EventOptions.map((value) => ({
+        label: filingsV2EventLabels[value],
+        value,
+      })),
+    },
+    {
+      group: "impacts" as const,
+      label: "Impact",
+      options: filingsV2ImpactOptions.map((value) => ({ label: value, value })),
+    },
+    {
+      group: "dateRanges" as const,
+      label: "Date Range",
+      options: filingsV2DateOptions.map((value) => ({ label: value, value })),
+    },
   ];
   const [openMenu, setOpenMenu] = useState<FilingsV2MenuGroup | null>(null);
   const filterMenusRef = useRef<HTMLDivElement>(null);
@@ -221,10 +247,10 @@ export function FilingsV2FilterBar({
                     {options.map((option) => (
                       <FilterOption
                         className={styles.filterMenuOption}
-                        key={option}
-                        label={filterLabel(group, option)}
-                        onClick={() => onToggleFilter(group, option)}
-                        selected={filters[group].includes(option as never)}
+                        key={option.value}
+                        label={option.label}
+                        onClick={() => onToggleFilter(group, option.value)}
+                        selected={filters[group].includes(option.value as never)}
                       />
                     ))}
                   </div>

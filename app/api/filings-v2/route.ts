@@ -8,6 +8,7 @@ import {
   type FilingsV2Cursor,
   type FilingsV2FilterState,
 } from "@/lib/filingsV2Model";
+import { filingsV2FilingGroupValues } from "@/lib/filingsV2FilingGroups";
 import { loadFilingsV2Page } from "@/lib/filingsV2Data";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,11 @@ function readFilters(searchParams: URLSearchParams): FilingsV2FilterState {
   return {
     dateRanges: readValues(searchParams, "date_ranges", filingsV2DateOptions),
     eventTypes: readValues(searchParams, "event_types", filingsV2EventOptions),
-    formTypes: readStringValues(searchParams, "form_types"),
+    filingGroups: readValues(
+      searchParams,
+      "filing_groups",
+      filingsV2FilingGroupValues,
+    ),
     impacts: readValues(searchParams, "impacts", filingsV2ImpactOptions),
     marketCaps: readValues(searchParams, "market_caps", filingsV2MarketCapOptions),
     signals: readValues(searchParams, "signals", filingsV2SignalOptions),

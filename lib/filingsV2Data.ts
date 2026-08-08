@@ -14,12 +14,15 @@ import {
   type FilingsV2Signal,
   type FilingsV2SummaryMetrics,
 } from "@/lib/filingsV2Model";
+import {
+  formatFilingsV2FormType,
+  resolveFilingsV2FilingGroupQuery,
+} from "@/lib/filingsV2FilingGroups";
 import type { FilingsV2LoadState } from "@/lib/filingsV2LoadState";
 import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
 
 type FilingsV2Data = {
-  formOptions: string[];
   hasMore: boolean;
   nextCursor: FilingsV2Cursor | null;
   records: FilingsV2Record[];
@@ -94,7 +97,6 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
 
   if (page.state === "unavailable") {
     return {
-      formOptions: [],
       hasMore: false,
       nextCursor: null,
       records: [],
@@ -106,7 +108,6 @@ async function buildFilingsV2Data(): Promise<FilingsV2Data> {
   }
 
   return {
-    formOptions: facets?.formOptions ?? [],
     hasMore: page.hasMore,
     nextCursor: page.nextCursor,
     records: page.records,
@@ -125,12 +126,17 @@ export async function loadFilingsV2Page({
   referenceDate = new Date().toISOString(),
 }: LoadFilingsV2PageParams = {}): Promise<FilingsV2PageResponse> {
   const publishedAfter = readPublishedAfter(filters, referenceDate);
+  const filingGroupQuery = resolveFilingsV2FilingGroupQuery(
+    filters?.filingGroups ?? [],
+  );
   const result = await supabaseRpc("search_filings_v2", {
     p_cursor_id: cursor?.id ?? null,
     p_cursor_published_at: cursor?.publishedAt ?? null,
     p_event_types: filters?.eventTypes ?? [],
-    p_form_types: filters?.formTypes ?? [],
+    p_effective_filing_forms: filingGroupQuery.effectiveFilingForms,
+    p_form_types: filingGroupQuery.formTypes,
     p_impacts: filters?.impacts ?? [],
+    p_include_effectiveness: filingGroupQuery.includeEffectiveness,
     p_include_total: includeTotal,
     p_limit: filingsV2PageSize,
     p_market_caps: filters?.marketCaps ?? [],
@@ -202,15 +208,9 @@ async function loadFilingsV2Facets() {
   const payload = asRecord(result.data);
   if (!result.ok || !payload) return null;
 
-  const formOptions = Array.isArray(payload.form_options)
-    ? payload.form_options
-      .map(readString)
-      .filter((value): value is string => Boolean(value))
-    : [];
   const summaryPayload = asRecord(payload.summary);
 
   return {
-    formOptions,
     summary: readSummary(summaryPayload),
   };
 }
@@ -377,6 +377,12 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     [row, marketContext, metadata].filter((value): value is UnknownRecord => Boolean(value)),
     ["change_percent", "change_percentage", "changes_percentage"],
   );
+  const storedFormType =
+    firstString(contexts, ["form_type", "form", "filing_type"]) ||
+    "SEC filing";
+  const effectiveFilingForm = firstString(contexts, [
+    "effective_filing_form",
+  ]);
 
   return {
     accession:
@@ -397,8 +403,7 @@ function mapEventRow(row: UnknownRecord): FilingsV2Record | null {
     filedDate: dateFormatter.format(new Date(filedAt)),
     filedDateTime: formatDateTime(filedAt),
     filedTime: `${timeFormatter.format(new Date(filedAt))} ET`,
-    formType:
-      firstString(contexts, ["form_type", "form", "filing_type"]) || "SEC filing",
+    formType: formatFilingsV2FormType(storedFormType, effectiveFilingForm),
     id,
     impact: score,
     keyPoints: previewFields.keyPoints,
