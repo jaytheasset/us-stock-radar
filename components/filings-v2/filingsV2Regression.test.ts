@@ -875,13 +875,17 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
 
   assert.match(
     styles,
-    /grid-template-columns:\s*minmax\(0, 1fr\) clamp\(340px, 25vw, 380px\);/,
+    /@media \(min-width: 960px\)[\s\S]*grid-template-columns:\s*minmax\(0, 72fr\)\s*minmax\(calc\(300px \+ var\(--sr-space-3\)\), 28fr\);/,
   );
   assert.match(
     styles,
     /@media \(max-width: 959\.98px\)[\s\S]*\.root\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*\.detailRail\s*\{\s*display:\s*none;/,
   );
   assert.match(styles, /@media \(min-width: 960px\)/);
+  assert.match(
+    styles,
+    /@media \(min-width: 960px\) and \(max-width: 1180px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 300px;[\s\S]*gap:\s*var\(--sr-space-4\);/,
+  );
   assert.match(
     clientSource,
     /window\.matchMedia\("\(min-width: 960px\)"\)/,
@@ -904,8 +908,8 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   assert.match(detailSource, /closeLabel="Close filing preview"/);
   assert.equal(
     detailSource.match(/showCloseButton=\{false\}/g)?.length,
-    2,
-    "only the mobile and intermediate filing previews should hide the close control",
+    1,
+    "only the intermediate filing preview should hide the close control",
   );
   assert.match(detailSource, /showHandle=\{false\}/);
   assert.match(
@@ -914,7 +918,23 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   );
   assert.match(
     styles,
-    /@media \(min-width: 761px\) and \(max-width: 959\.98px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;/,
+    /@media \(min-width: 761px\) and \(max-width: 959\.98px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;[\s\S]*display:\s*flex;[\s\S]*overflow:\s*hidden;/,
+  );
+  assert.match(detailSource, /className=\{styles\.tabletDetailScrollRegion\}/);
+  assert.match(
+    detailSource,
+    /TabletFilingsV2DetailDrawer[\s\S]*className=\{styles\.tabletDetailScrollRegion\}[\s\S]*<FilingsV2DetailContent/,
+  );
+  assert.doesNotMatch(
+    detailSource.slice(
+      detailSource.indexOf("export function MobileFilingsV2DetailSheet"),
+      detailSource.indexOf("export function TabletFilingsV2DetailDrawer"),
+    ),
+    /tabletDetailScrollRegion/,
+  );
+  assert.match(
+    styles,
+    /@media \(min-width: 761px\)[\s\S]*\.detailHeader\s*\{[\s\S]*border-bottom:\s*var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*padding:\s*var\(--sr-space-6\) var\(--sr-space-5\);/,
   );
   assert.doesNotMatch(styles, /> div\[aria-hidden="true"\]/);
   assert.match(shellSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);

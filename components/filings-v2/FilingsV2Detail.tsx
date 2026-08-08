@@ -173,7 +173,6 @@ export function MobileFilingsV2DetailSheet({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Close filing detail"
-      showCloseButton={false}
     >
       <FilingsV2DetailContent {...contentProps} />
     </BottomSheetShell>
@@ -205,7 +204,9 @@ export function TabletFilingsV2DetailDrawer({
       surfaceClassName={styles.tabletDetailDrawerSurface}
       viewport="intermediate"
     >
-      <FilingsV2DetailContent {...contentProps} />
+      <div className={styles.tabletDetailScrollRegion}>
+        <FilingsV2DetailContent {...contentProps} />
+      </div>
     </BottomSheetShell>
   );
 }

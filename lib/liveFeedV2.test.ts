@@ -512,7 +512,7 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
-  assert.match(sheetSource, /showCloseButton=\{false\}/);
+  assert.match(sheetSource, /showCloseButton=\{viewport === "mobile"\}/);
   assert.match(sheetSource, /surfaceClassName=\{sheetStyles\.previewSurface\}/);
   assert.match(
     sheetSource,
