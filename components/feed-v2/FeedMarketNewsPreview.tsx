@@ -13,7 +13,7 @@ import styles from "./FeedFilingPreview.module.css";
 
 type FeedMarketNewsPreviewProps = {
   news: LiveFeedV2MarketNewsPreview;
-  variant: "desktop" | "mobile";
+  variant: "desktop" | "intermediate" | "mobile";
 };
 
 export function FeedMarketNewsPreview({
@@ -22,7 +22,7 @@ export function FeedMarketNewsPreview({
 }: FeedMarketNewsPreviewProps) {
   const content = <FeedMarketNewsPreviewContent news={news} />;
 
-  if (variant === "mobile") return content;
+  if (variant !== "desktop") return content;
 
   return (
     <DetailPanelShell

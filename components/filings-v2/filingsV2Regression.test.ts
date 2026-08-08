@@ -964,12 +964,33 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   );
   assert.doesNotMatch(tabletDetailSource, /topControls=/);
   assert.match(
+    tabletDetailSource,
+    /className=\{styles\.tabletDetailScrollRegion\}[\s\S]*<FilingsV2DetailContent \{\.\.\.contentProps\} \/>/,
+  );
+  assert.doesNotMatch(tabletDetailSource, /showHeaderActions=\{false\}/);
+  assert.match(
+    detailSource,
+    /showHeaderActions \? \([\s\S]*className=\{styles\.previewActions\}[\s\S]*<FilingsV2PreviewActions/,
+  );
+  assert.match(
     shellSource,
     /aria-label="Preview controls"[\s\S]*styles\.controlStripActions[\s\S]*\{topControls\}[\s\S]*\{closeButton\}/,
   );
   assert.match(
     shellStyles,
     /\.surfaceWithTopControls \{[\s\S]*display: flex;[\s\S]*overflow: hidden;[\s\S]*\.controlStrip \{[\s\S]*flex: 0 0 auto;[\s\S]*background: var\(--sr-color-surface-overlay\);[\s\S]*\.topControlsScrollRegion \{[\s\S]*overflow-y: auto;/,
+  );
+  assert.match(
+    shellStyles,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.surfaceWithTopControls \{[\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\) 28%[\s\S]*\.surfaceWithTopControls \.controlStrip \{[\s\S]*background: transparent;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.detailPreviewCard \{[\s\S]*border: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;[\s\S]*\.detailPreviewCard \.detailHeader \{[\s\S]*border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.detailContent \.detailIdentity h2 \{[\s\S]*font-family: var\(--sr-font-family-sans\);[\s\S]*font-size: var\(--sr-font-size-2xl\);[\s\S]*\.detailContent \.detailFacts > span,[\s\S]*font-size: var\(--sr-font-size-lg-plus\);[\s\S]*\.detailContent \.detailCta \{[\s\S]*min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\);[\s\S]*font-size: 16px;/,
   );
 });
 

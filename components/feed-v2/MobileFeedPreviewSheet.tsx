@@ -36,7 +36,7 @@ export function MobileFeedPreviewSheet({
       : null;
   const previewContent = (
     <>
-      <FeedPreviewPanel item={item} variant="mobile" />
+      <FeedPreviewPanel item={item} variant={viewport} />
       {previewAdSize ? <FeedPreviewAd size={previewAdSize} /> : null}
     </>
   );

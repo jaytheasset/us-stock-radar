@@ -15,7 +15,7 @@ import styles from "./FeedFilingPreview.module.css";
 
 type FeedCompanyNewsPreviewProps = {
   news: LiveFeedV2CompanyNewsPreview;
-  variant: "desktop" | "mobile";
+  variant: "desktop" | "intermediate" | "mobile";
 };
 
 export function FeedCompanyNewsPreview({
@@ -29,7 +29,7 @@ export function FeedCompanyNewsPreview({
     />
   );
 
-  if (variant === "mobile") return content;
+  if (variant !== "desktop") return content;
 
   return (
     <DetailPanelShell
