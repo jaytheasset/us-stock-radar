@@ -1,5 +1,15 @@
 # Stock Radar 운영 코드 일치 규칙
 
+## Mandatory worktree acceptance and merge gate
+
+- A worktree completion report, code review, or passing tests alone never authorizes a merge. The main integration agent must independently verify the original user request before merging.
+- Before delegation, write concrete acceptance checks from the user's request: affected screens or APIs, expected behavior, relevant account or plan states, and required viewport sizes.
+- Before merging, compare every changed file and behavior in the candidate branch to those acceptance checks. Any unrequested change blocks the merge until it is removed, split into a separate task, or explicitly approved by the user.
+- For every UI, route, authentication, permission, redirect, data, or plan change, verify the actual user journey on the task branch before merge. Test the exact direct URLs the user uses, logged-out and relevant logged-in states, and PC, intermediate, and 390px mobile views when affected.
+- For visual work, inspect the rendered screen and DOM layout where needed. Source code and automated tests are supporting evidence only, never completion evidence.
+- Mark checks that could not be performed as unverified. Unverified or ambiguous behavior blocks merging and must return to the task branch rather than being assumed correct.
+- After merging, repeat the critical user-journey checks on local `main`. If the merged result differs from the task result, stop further integration and report the discrepancy before making more changes.
+
 이 문서는 Stock Radar의 로컬 코드, GitHub 코드, Vercel 운영 코드가 서로 달라지는 사고를 막기 위한 필수 운영 규칙이다. 모든 메인 통합 작업, push, 배포, 롤백, 새 작업방 인계에서 반드시 확인한다.
 
 ## 1. 가장 중요한 원칙
