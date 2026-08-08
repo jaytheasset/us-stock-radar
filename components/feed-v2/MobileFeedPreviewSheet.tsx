@@ -57,6 +57,7 @@ export function MobileFeedPreviewSheet({
       onDismiss={onClose}
       openerRef={openerRef}
       overlayLabel="Close event preview"
+      showCloseButton={false}
       showHandle={viewport === "mobile"}
       surfaceClassName={sheetStyles.previewSurface}
       viewport={viewport}

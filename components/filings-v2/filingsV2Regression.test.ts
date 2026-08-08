@@ -902,6 +902,11 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   assert.match(detailSource, /TabletFilingsV2DetailDrawer/);
   assert.match(detailSource, /viewport="intermediate"/);
   assert.match(detailSource, /closeLabel="Close filing preview"/);
+  assert.equal(
+    detailSource.match(/showCloseButton=\{false\}/g)?.length,
+    2,
+    "only the mobile and intermediate filing previews should hide the close control",
+  );
   assert.match(detailSource, /showHandle=\{false\}/);
   assert.match(
     shellSource,
@@ -914,6 +919,8 @@ test("filings preview uses a 960px rail breakpoint and an accessible intermediat
   assert.doesNotMatch(styles, /> div\[aria-hidden="true"\]/);
   assert.match(shellSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
   assert.match(shellSource, /restoreFocus\(opener\)/);
+  assert.match(shellSource, /showCloseButton = true/);
+  assert.match(shellSource, /\{showCloseButton \? \(/);
   const shellStyles = readFileSync(
     new URL("../ui/BottomSheetShell.module.css", import.meta.url),
     "utf8",

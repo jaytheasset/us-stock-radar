@@ -512,6 +512,7 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(railAdSource, /railAdPlacement/);
   assert.match(sheetSource, /BottomSheetShell/);
   assert.match(sheetSource, /layout="full-scroll"/);
+  assert.match(sheetSource, /showCloseButton=\{false\}/);
   assert.match(sheetSource, /surfaceClassName=\{sheetStyles\.previewSurface\}/);
   assert.match(
     sheetSource,
@@ -525,6 +526,8 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   assert.match(previewAdSource, /"\(max-width: 760px\)" : "\(min-width: 761px\)"/);
   assert.match(bottomSheetSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
   assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
+  assert.match(bottomSheetSource, /showCloseButton = true/);
+  assert.match(bottomSheetSource, /\{showCloseButton \? \(/);
   const bottomSheetStyles = readSource(
     "components/ui/BottomSheetShell.module.css",
   );

@@ -33,6 +33,7 @@ export type BottomSheetShellProps = BottomSheetAccessibleName & {
   onDismiss: () => void;
   openerRef: RefObject<HTMLElement | null>;
   overlayLabel: string;
+  showCloseButton?: boolean;
   showHandle?: boolean;
   surfaceClassName?: string;
   viewport?: BottomSheetShellViewport;
@@ -107,6 +108,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
     onDismiss,
     openerRef,
     overlayLabel,
+    showCloseButton = true,
     showHandle = true,
     surfaceClassName,
     viewport = "mobile",
@@ -207,7 +209,9 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     const initialFocus =
-      layout === "full-scroll" ? surfaceRef.current : closeButtonRef.current ?? surfaceRef.current;
+      layout === "full-scroll" || !showCloseButton
+        ? surfaceRef.current
+        : closeButtonRef.current ?? surfaceRef.current;
     initialFocus?.focus({ preventScroll: true });
 
     return () => {
@@ -222,7 +226,7 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         }
       });
     };
-  }, [isOpen, layout, openerRef, requestDismiss, viewport]);
+  }, [isOpen, layout, openerRef, requestDismiss, showCloseButton, viewport]);
 
   if (!isOpen) {
     return null;
@@ -280,15 +284,17 @@ export function BottomSheetShell(props: BottomSheetShellProps) {
         tabIndex={-1}
       >
         {showHandle ? <div aria-hidden="true" className={styles.handle} /> : null}
-        <button
-          aria-label={closeLabel}
-          className={closeClasses}
-          onClick={requestDismiss}
-          ref={closeButtonRef}
-          type="button"
-        >
-          <X aria-hidden="true" size={18} />
-        </button>
+        {showCloseButton ? (
+          <button
+            aria-label={closeLabel}
+            className={closeClasses}
+            onClick={requestDismiss}
+            ref={closeButtonRef}
+            type="button"
+          >
+            <X aria-hidden="true" size={18} />
+          </button>
+        ) : null}
         {fixedFooter ? (
           <>
             <div className={styles.footerScrollRegion}>{children}</div>
