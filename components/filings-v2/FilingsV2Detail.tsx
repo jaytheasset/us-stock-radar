@@ -22,7 +22,7 @@ type FilingsV2DetailContentProps = {
   initialWatched: boolean;
   record: FilingsV2Record;
   relatedRecords: readonly FilingsV2RelatedFiling[];
-  showAds: boolean;
+  previewAdSize: "300x250" | "320x100" | null;
 };
 
 export function FilingsV2DetailContent({
@@ -31,7 +31,7 @@ export function FilingsV2DetailContent({
   initialWatched,
   record,
   relatedRecords,
-  showAds,
+  previewAdSize,
 }: FilingsV2DetailContentProps) {
   return (
     <div className={styles.detailContent}>
@@ -118,10 +118,9 @@ export function FilingsV2DetailContent({
       </div>
       </div>
 
-      {showAds ? (
+      {previewAdSize ? (
         <section className={styles.detailAdArea}>
-          <FilingsRailAdSlot size="300x250" />
-          <FilingsRailAdSlot size="320x100" />
+          <FilingsRailAdSlot size={previewAdSize} />
         </section>
       ) : null}
 
@@ -200,6 +199,7 @@ export function TabletFilingsV2DetailDrawer({
       onDismiss={onDismiss}
       openerRef={openerRef}
       overlayLabel="Close filing preview"
+      showHandle={false}
       surfaceClassName={styles.tabletDetailDrawerSurface}
       viewport="intermediate"
     >

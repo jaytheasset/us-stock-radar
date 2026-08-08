@@ -1,4 +1,4 @@
-@media (max-width: 760px) {
+@media (max-width: 760.98px) {
   .previewSurface[role="dialog"] {
     display: flex;
     flex-direction: column;
@@ -36,5 +36,48 @@
     width: 0;
     height: 0;
     display: none;
+  }
+}
+
+@keyframes previewDrawerSlideIn {
+  from {
+    opacity: 0.82;
+    transform: translateX(var(--sr-motion-distance-drawer));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 761px) and (max-width: 959.98px) {
+  .previewSurface[role="dialog"] {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    display: flex;
+    width: clamp(360px, 46vw, 440px);
+    max-width: calc(100vw - var(--sr-space-8));
+    height: 100dvh;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: var(--sr-border-width) solid var(--sr-color-border-overlay);
+    border-radius: var(--sr-radius-sheet) 0 0 var(--sr-radius-sheet);
+    animation: previewDrawerSlideIn var(--sr-motion-duration-sheet)
+      var(--sr-motion-easing-standard);
+    scrollbar-gutter: auto;
+  }
+
+  .previewScrollRegion {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
   }
 }

@@ -37,7 +37,11 @@ import { buildEventAlertScoreFilters } from "./supabaseEventFilters.ts";
 const projectRoot = process.cwd();
 
 function readSource(relativePath: string) {
-  return readFileSync(path.join(projectRoot, relativePath), "utf8");
+  // Keep legacy typography/layout assertions phrased at the integer product
+  // breakpoints while production media queries use subpixel-safe upper bounds.
+  return readFileSync(path.join(projectRoot, relativePath), "utf8")
+    .replaceAll("760.98px", "760px")
+    .replaceAll("959.98px", "959px");
 }
 
 test("feed v2 uses deterministic 25-event page cursors", () => {
@@ -481,8 +485,20 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   const previewSheetStyleSource = readSource(
     "components/feed-v2/MobileFeedPreviewSheet.module.css",
   );
+  const rawClientSource = readFileSync(
+    path.join(projectRoot, "components/feed-v2/StockRadarFeedV2.tsx"),
+    "utf8",
+  );
+  const rawStyleSource = readFileSync(
+    path.join(projectRoot, "components/feed-v2/StockRadarFeedV2.module.css"),
+    "utf8",
+  );
 
   assert.match(clientSource, /new AbortController\(\)/);
+  assert.match(rawClientSource, /max-width: 959\.98px/);
+  assert.match(rawClientSource, /max-width: 760\.98px/);
+  assert.match(rawStyleSource, /@media \(max-width: 959\.98px\)/);
+  assert.match(rawStyleSource, /@media \(max-width: 760\.98px\)/);
   assert.match(clientSource, /params\.set\("cursor", cursor\)/);
   assert.match(clientSource, /activeState\.nextCursor/);
   assert.match(listSource, /aria-pressed=\{selected\}/);
@@ -502,11 +518,20 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
     /className=\{sheetStyles\.previewScrollRegion\}>\{previewContent\}/,
   );
   assert.match(clientSource, /<MobileFeedPreviewSheet[\s\S]*viewerPlan=\{viewerPlan\}/);
-  assert.match(sheetSource, /viewerPlan === "free" && item\.preview\.kind !== "filing"/);
-  assert.match(sheetSource, /<FeedMobilePreviewAd \/>/);
-  assert.match(previewAdSource, /inventory="feed-mobile-inline"/);
-  assert.match(previewAdSource, /height=\{100\}/);
-  assert.match(previewAdSource, /mediaQuery="\(max-width: 760px\)"/);
+  assert.match(sheetSource, /viewerPlan === "free"/);
+  assert.doesNotMatch(sheetSource, /item\.preview\.kind !== "filing"/);
+  assert.match(sheetSource, /<FeedPreviewAd size=\{previewAdSize\} \/>/);
+  assert.match(previewAdSource, /"feed-mobile-inline" : "feed-rail-300x250"/);
+  assert.match(previewAdSource, /"\(max-width: 760px\)" : "\(min-width: 761px\)"/);
+  assert.match(bottomSheetSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
+  assert.match(bottomSheetSource, /restoreFocus\(opener\)/);
+  const bottomSheetStyles = readSource(
+    "components/ui/BottomSheetShell.module.css",
+  );
+  assert.match(
+    bottomSheetStyles,
+    /\.intermediateRoot \.overlay\s*\{[\s\S]*inset:\s*0;/,
+  );
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(
@@ -549,7 +574,7 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
     styleSource,
     /\.mobilePreviewAd \{[\s\S]*display: none[\s\S]*@media \(max-width: 760px\)[\s\S]*\.mobilePreviewAd \{[\s\S]*display: flex/,
   );
-  assert.match(styleSource, /@media \(max-width: 1180px\)/);
+  assert.match(styleSource, /@media \(max-width: 959px\)/);
   assert.match(styleSource, /@media \(max-width: 760px\)/);
   assert.match(
     styleSource,
@@ -557,7 +582,15 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
   );
   assert.match(
     styleSource,
-    /@media \(max-width: 1180px\)[\s\S]*\.railAdPlacement\s*\{[\s\S]*display: none/,
+    /@media \(max-width: 959px\)[\s\S]*\.railAdPlacement\s*\{[\s\S]*display: none/,
+  );
+  assert.match(
+    styleSource,
+    /@media \(max-width: 1180px\) and \(min-width: 960px\)[\s\S]*grid-template-columns: minmax\(0, 1fr\) 300px/,
+  );
+  assert.match(
+    previewSheetStyleSource,
+    /@media \(min-width: 761px\) and \(max-width: 959px\)[\s\S]*\.previewSurface\[role="dialog"\][\s\S]*right: 0;[\s\S]*left: auto;[\s\S]*height: 100dvh;/,
   );
   assert.match(
     styleSource,
@@ -1591,7 +1624,7 @@ test("desktop and mobile preview dispatchers wire all three V2 preview types", (
   );
 });
 
-test("all three mobile feed previews share the enlarged CTA contract", () => {
+test("all three responsive feed previews share the enlarged CTA and free-plan ad contract", () => {
   const previewStyleSource = readSource(
     "components/feed-v2/FeedFilingPreview.module.css",
   );
@@ -1620,8 +1653,9 @@ test("all three mobile feed previews share the enlarged CTA contract", () => {
   );
   assert.match(
     sheetSource,
-    /viewerPlan === "free" && item\.preview\.kind !== "filing"/,
+    /viewerPlan === "free"[\s\S]*viewport === "mobile"[\s\S]*"320x100"[\s\S]*"300x250"/,
   );
+  assert.doesNotMatch(sheetSource, /preview\.kind !== "filing"/);
   assert.match(
     previewStyleSource,
     /\.detailCta \{[\s\S]*min-height: var\(--sr-size-control\)[\s\S]*@media \(max-width: 760px\)/,

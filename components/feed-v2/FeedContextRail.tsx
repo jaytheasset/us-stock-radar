@@ -39,7 +39,7 @@ export function FeedContextRail({
   const futuresPulse = marketPulse.filter((item) => item.group === "futures");
 
   useEffect(() => {
-    if (!previewRequestId || !window.matchMedia("(min-width: 1181px)").matches) {
+    if (!previewRequestId || !window.matchMedia("(min-width: 960px)").matches) {
       return;
     }
 
@@ -61,7 +61,7 @@ export function FeedContextRail({
   }, [previewRequestId]);
 
   useEffect(() => {
-    const desktopRailQuery = window.matchMedia("(min-width: 1181px)");
+    const desktopRailQuery = window.matchMedia("(min-width: 960px)");
     let previousPageScrollY = window.scrollY;
 
     const syncRailToPageScroll = () => {

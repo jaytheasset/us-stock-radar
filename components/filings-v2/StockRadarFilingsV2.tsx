@@ -331,7 +331,7 @@ export function StockRadarFilingsV2({
 
   useEffect(() => {
     const intermediateViewport = window.matchMedia(
-      "(min-width: 761px) and (max-width: 1023px)",
+      "(min-width: 761px) and (max-width: 959.98px)",
     );
     const dismissDrawerOutsideViewport = () => {
       if (!intermediateViewport.matches) {
@@ -367,7 +367,7 @@ export function StockRadarFilingsV2({
   }, [previewRequestId]);
 
   useEffect(() => {
-    const desktopRailQuery = window.matchMedia("(min-width: 1024px)");
+    const desktopRailQuery = window.matchMedia("(min-width: 960px)");
     let previousScrollY = window.scrollY;
     let pendingScrollDelta = 0;
     let animationFrameId: number | null = null;
@@ -493,8 +493,8 @@ export function StockRadarFilingsV2({
     setIsFilterSheetOpen(false);
   };
   const selectRecord = (record: FilingsV2Record, opener: HTMLElement) => {
-    const usesDesktopRail = window.matchMedia("(min-width: 1024px)").matches;
-    const usesMobileSheet = window.matchMedia("(max-width: 760px)").matches;
+    const usesDesktopRail = window.matchMedia("(min-width: 960px)").matches;
+    const usesMobileSheet = window.matchMedia("(max-width: 760.98px)").matches;
 
     setSelectedId(record.id);
     detailOpenerRef.current = opener;
@@ -573,7 +573,7 @@ export function StockRadarFilingsV2({
               initialWatched={selectedWatched}
               record={selectedRecord}
               relatedRecords={relatedRecords}
-              showAds={viewerPlan === "free"}
+              previewAdSize={viewerPlan === "free" ? "300x250" : null}
             />
           </div>
         ) : null}
@@ -607,7 +607,7 @@ export function StockRadarFilingsV2({
             openerRef={detailOpenerRef}
             record={selectedRecord}
             relatedRecords={relatedRecords}
-            showAds={viewerPlan === "free"}
+            previewAdSize={viewerPlan === "free" ? "300x250" : null}
           />
           <MobileFilingsV2DetailSheet
             initialAuthenticated={viewerAuthenticated}
@@ -618,7 +618,7 @@ export function StockRadarFilingsV2({
             openerRef={detailOpenerRef}
             record={selectedRecord}
             relatedRecords={relatedRecords}
-            showAds={viewerPlan === "free"}
+            previewAdSize={viewerPlan === "free" ? "320x100" : null}
           />
         </>
       ) : null}

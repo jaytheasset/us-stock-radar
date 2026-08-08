@@ -171,12 +171,16 @@
   }
 }
 
-@media (min-width: 761px) and (max-width: 1023px) {
+@media (min-width: 761px) and (max-width: 959.98px) {
   .intermediateRoot {
     position: fixed;
     display: block;
     inset: 0;
     backdrop-filter: blur(4px);
+  }
+
+  .intermediateRoot .overlay {
+    inset: 0;
   }
 }
 

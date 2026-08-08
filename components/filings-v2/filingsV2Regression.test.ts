@@ -842,7 +842,7 @@ test("filings preview rail keeps intrinsic ad widths constrained after route tra
   assert.match(adStyles, /\.slot\.mobileSlot\s*\{[\s\S]*display:\s*none;/);
   assert.match(
     adStyles,
-    /@media \(max-width: 1180px\)\s*\{[\s\S]*\.slot\.desktopSlot\s*\{[\s\S]*display:\s*none;/,
+    /@media \(max-width: 760\.98px\)\s*\{[\s\S]*\.slot\.desktopSlot\s*\{[\s\S]*display:\s*none;/,
   );
   assert.match(
     styles,
@@ -855,7 +855,7 @@ test("filings preview rail keeps intrinsic ad widths constrained after route tra
   );
 });
 
-test("filings preview uses a 1024px rail breakpoint and an accessible intermediate drawer", () => {
+test("filings preview uses a 960px rail breakpoint and an accessible intermediate drawer", () => {
   const clientSource = readFileSync(
     new URL("./StockRadarFilingsV2.tsx", import.meta.url),
     "utf8",
@@ -879,12 +879,12 @@ test("filings preview uses a 1024px rail breakpoint and an accessible intermedia
   );
   assert.match(
     styles,
-    /@media \(max-width: 1023px\)[\s\S]*\.root\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*\.detailRail\s*\{\s*display:\s*none;/,
+    /@media \(max-width: 959\.98px\)[\s\S]*\.root\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*\.detailRail\s*\{\s*display:\s*none;/,
   );
-  assert.match(styles, /@media \(min-width: 1024px\)/);
+  assert.match(styles, /@media \(min-width: 960px\)/);
   assert.match(
     clientSource,
-    /window\.matchMedia\("\(min-width: 1024px\)"\)/,
+    /window\.matchMedia\("\(min-width: 960px\)"\)/,
   );
   assert.match(
     clientSource,
@@ -902,16 +902,51 @@ test("filings preview uses a 1024px rail breakpoint and an accessible intermedia
   assert.match(detailSource, /TabletFilingsV2DetailDrawer/);
   assert.match(detailSource, /viewport="intermediate"/);
   assert.match(detailSource, /closeLabel="Close filing preview"/);
+  assert.match(detailSource, /showHandle=\{false\}/);
   assert.match(
     shellSource,
-    /viewport === "intermediate"[\s\S]*"\(min-width: 761px\) and \(max-width: 1023px\)"/,
+    /viewport === "intermediate"[\s\S]*"\(min-width: 761px\) and \(max-width: 959\.98px\)"/,
   );
   assert.match(
     styles,
-    /@media \(min-width: 761px\) and \(max-width: 1023px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;/,
+    /@media \(min-width: 761px\) and \(max-width: 959\.98px\)[\s\S]*\.tabletDetailDrawerSurface\.tabletDetailDrawerSurface\s*\{[\s\S]*right:\s*0;[\s\S]*left:\s*auto;[\s\S]*height:\s*100dvh;/,
+  );
+  assert.doesNotMatch(styles, /> div\[aria-hidden="true"\]/);
+  assert.match(shellSource, /directOverlayActivation[\s\S]*requestDismiss\(\)/);
+  assert.match(shellSource, /restoreFocus\(opener\)/);
+  const shellStyles = readFileSync(
+    new URL("../ui/BottomSheetShell.module.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    shellStyles,
+    /\.intermediateRoot \.overlay\s*\{[\s\S]*inset:\s*0;/,
   );
   assert.match(detailSource, /MobileFilingsV2DetailSheet/);
-  assert.match(clientSource, /window\.matchMedia\("\(max-width: 760px\)"\)/);
+  assert.match(clientSource, /window\.matchMedia\("\(max-width: 760\.98px\)"\)/);
+});
+
+test("filings preview renders exactly one plan-gated responsive ad after its CTA", () => {
+  const clientSource = readFileSync(
+    new URL("./StockRadarFilingsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const detailSource = readFileSync(
+    new URL("./FilingsV2Detail.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    detailSource,
+    /detailActionArea[\s\S]*previewAdSize \? \([\s\S]*<FilingsRailAdSlot size=\{previewAdSize\} \/>/,
+  );
+  assert.equal(
+    detailSource.match(/<FilingsRailAdSlot/g)?.length,
+    1,
+    "the reusable preview content must render one ad slot at most",
+  );
+  assert.match(clientSource, /viewerPlan === "free" \? "300x250" : null/);
+  assert.match(clientSource, /viewerPlan === "free" \? "320x100" : null/);
 });
 
 test("filings preview uses shared Saved and Watchlist actions with batched viewer state", () => {
@@ -979,7 +1014,7 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   assert.match(styles, /\.searchButtonIcon \{[\s\S]*display: none;/);
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*height: 44px;[\s\S]*min-height: 44px;[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: var\(--sr-radius-action\);[\s\S]*background: var\(--sr-color-surface-control\);[\s\S]*\.searchForm:focus-within \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*box-shadow: 0 0 0 2px var\(--sr-color-accent-active-soft\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.filterUtilityRow \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto auto;[\s\S]*\.searchForm \{[\s\S]*height: 44px;[\s\S]*min-height: 44px;[\s\S]*grid-template-columns: minmax\(0, 1fr\) 44px;[\s\S]*border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);[\s\S]*border-radius: var\(--sr-radius-action\);[\s\S]*background: var\(--sr-color-surface-control\);[\s\S]*\.searchForm:focus-within \{[\s\S]*border-color: var\(--sr-color-accent-border-active\);[\s\S]*box-shadow: 0 0 0 2px var\(--sr-color-accent-active-soft\);/,
   );
   assert.match(
     styles,
@@ -1000,7 +1035,7 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.primaryColumn \{[\s\S]*display: grid;[\s\S]*gap: var\(--sr-space-3\);[\s\S]*\.controlBand \{[\s\S]*padding: 0;[\s\S]*\.summaryStrip \{[\s\S]*display: none;/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.primaryColumn \{[\s\S]*display: grid;[\s\S]*gap: var\(--sr-space-3\);[\s\S]*\.controlBand \{[\s\S]*padding: 0;[\s\S]*\.summaryStrip \{[\s\S]*display: none;/,
   );
   assert.match(
     styles,
@@ -1012,7 +1047,7 @@ test("filings mobile landing keeps one accessible preferred-source link and a fl
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: var\(--sr-color-surface-control-strong\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*\.listHeader \{[\s\S]*min-height: 40px;[\s\S]*gap: var\(--sr-space-2\);[\s\S]*padding-inline: var\(--sr-space-4\);[\s\S]*background: var\(--sr-color-surface-control-strong\);[\s\S]*\.listHeaderTitle \{[\s\S]*width: auto;[\s\S]*flex: 1 1 auto;[\s\S]*\.listHeaderTitle > a \{[\s\S]*display: none;[\s\S]*\.listHeaderCount \{[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;[\s\S]*font-size: var\(--sr-font-size-md\);[\s\S]*font-weight: var\(--sr-font-weight-regular\);/,
   );
   const mobileListHeader =
     [...styles.matchAll(/\.listHeader \{[^}]*\}/g)].at(-1)?.[0] ?? "";
@@ -1077,7 +1112,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: calc\(var\(--sr-size-close-button\) \* 3 \+ var\(--sr-space-3\)\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.detailIdentity \{[\s\S]*?padding-right: calc\(var\(--sr-size-close-button\) \* 3 \+ var\(--sr-space-3\)\);/,
   );
   assert.match(
     styles,
@@ -1129,7 +1164,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?column-gap: var\(--sr-space-2\);[\s\S]*?row-gap: 7px;[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*?background: var\(--sr-color-surface-table-row\);/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.filingItem \{[\s\S]*?min-height: 132px;[\s\S]*?grid-template-columns: minmax\(40px, auto\) minmax\(0, 1fr\) auto;[\s\S]*?grid-template-rows: auto auto auto;[\s\S]*?column-gap: var\(--sr-space-2\);[\s\S]*?row-gap: 7px;[\s\S]*?padding: var\(--sr-space-4\) var\(--sr-space-3\);[\s\S]*?background: var\(--sr-color-surface-table-row\);/,
   );
   assert.match(
     styles,
@@ -1137,11 +1172,11 @@ test("filing feed rows use watchlist density and plain representative event meta
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 650;[\s\S]*?line-height: 1\.4;[\s\S]*?-webkit-line-clamp: 2;/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.filingTitle \{[\s\S]*?grid-column: 1 \/ -1;[\s\S]*?grid-row: 2;[\s\S]*?font-size: 18px;[\s\S]*?font-weight: 650;[\s\S]*?line-height: 1\.4;[\s\S]*?-webkit-line-clamp: 2;/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?min-width: max-content;[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 3;[\s\S]*?flex-direction: row;[\s\S]*?align-items: baseline;[\s\S]*?justify-self: end;[\s\S]*?gap: var\(--sr-space-1\);[\s\S]*?white-space: nowrap;/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.filingPrice \{[\s\S]*?min-width: max-content;[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 3;[\s\S]*?flex-direction: row;[\s\S]*?align-items: baseline;[\s\S]*?justify-self: end;[\s\S]*?gap: var\(--sr-space-1\);[\s\S]*?white-space: nowrap;/,
   );
   assert.match(dataSource, /readHydratedMarketQuoteMap\(quoteSymbols\)/);
   assert.match(
@@ -1168,7 +1203,7 @@ test("filing feed rows use watchlist density and plain representative event meta
   assert.doesNotMatch(styles, /\.mobileFiledDate::after/);
   assert.match(
     styles,
-    /@media \(max-width: 760px\) \{[\s\S]*?\.filingPriceUnavailable \{[\s\S]*?display: none;/,
+    /@media \(max-width: 760\.98px\) \{[\s\S]*?\.filingPriceUnavailable \{[\s\S]*?display: none;/,
   );
 });
 

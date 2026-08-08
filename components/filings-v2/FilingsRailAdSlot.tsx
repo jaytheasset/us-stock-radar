@@ -8,12 +8,14 @@ type FilingsRailAdSlotProps = {
 export function FilingsRailAdSlot({ size }: FilingsRailAdSlotProps) {
   const isMobile = size === "320x100";
   const isRectangle = size === "300x250";
+  const height = isMobile ? 100 : isRectangle ? 250 : 600;
+  const width = isMobile ? 320 : 300;
 
   return (
     <AdSenseSlot
       className={`${styles.slot} ${isMobile ? styles.mobileSlot : styles.desktopSlot}`}
       format="responsive"
-      height={isMobile ? 100 : 250}
+      height={height}
       inventory={
         isMobile
           ? "filings-mobile-inline"
@@ -21,9 +23,11 @@ export function FilingsRailAdSlot({ size }: FilingsRailAdSlotProps) {
             ? "filings-rail-300x250"
             : "filings-rail-300x600"
       }
-      mediaQuery={isMobile ? "(max-width: 760px)" : "(min-width: 1181px)"}
-      placeholderSize="Responsive display"
-      width={isMobile ? 480 : 336}
+      mediaQuery={isMobile ? "(max-width: 760.98px)" : "(min-width: 761px)"}
+      mobileHeight={isMobile ? 100 : undefined}
+      mobileWidth={isMobile ? 320 : undefined}
+      placeholderSize={size}
+      width={width}
     />
   );
 }
