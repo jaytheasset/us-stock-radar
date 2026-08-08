@@ -371,6 +371,28 @@ a.companyLine:focus-visible {
   min-width: 0;
 }
 
+.filingOverviewGrid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--sr-space-4);
+}
+
+.filingOverviewGridSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.filingOverviewGrid > *,
+.filingPriceCard,
+.filingSummaryCompanion {
+  align-self: start;
+}
+
+.filingPriceCard :global(.price-volume-chart) {
+  height: 236px;
+}
+
 .card,
 .railCard,
 .rendererCard {
@@ -983,6 +1005,10 @@ a.companyLine:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .filingOverviewGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .rail {
     grid-column: 1;
     grid-row: 2;
@@ -1158,6 +1184,10 @@ a.companyLine:focus-visible {
 
   .rendererCard :global(.stock-detail-card) {
     padding: var(--sr-space-4);
+  }
+
+  .filingPriceCard :global(.price-volume-chart) {
+    height: 218px;
   }
 
   .rendererCard :global(.price-card-mobile-collapsible) {
