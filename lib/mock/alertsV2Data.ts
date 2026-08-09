@@ -23,6 +23,7 @@ import {
   type AlertCategory,
   type Plan,
 } from "@/lib/subscriptionPolicy";
+import { marketCapRangeLabels } from "@/lib/marketCapBands";
 
 export type AlertTicker = {
   company: string;
@@ -248,11 +249,11 @@ export const alertSources: readonly AlertSource[] = [
 ];
 
 export const marketCapFilters: readonly MarketCapFilter[] = [
-  { id: "mega", label: "Mega", range: "$50B+" },
-  { id: "large", label: "Large", range: "$10B-$50B" },
-  { id: "mid", label: "Mid", range: "$1B-$10B" },
-  { id: "small", label: "Small", range: "$50M-$1B" },
-  { id: "micro", label: "Micro", range: "<$50M" },
+  { id: "mega", label: "Mega", range: marketCapRangeLabels.Mega },
+  { id: "large", label: "Large", range: marketCapRangeLabels.Large },
+  { id: "mid", label: "Mid", range: marketCapRangeLabels.Mid },
+  { id: "small", label: "Small", range: marketCapRangeLabels.Small },
+  { id: "micro", label: "Micro", range: marketCapRangeLabels.Micro },
 ];
 
 export const filingAlertGroups: readonly FilingAlertGroup[] = [

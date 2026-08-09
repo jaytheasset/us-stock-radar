@@ -5,9 +5,9 @@ import {
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v11-quarterly-scope-and-quick-take";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v12-resolved-market-cap";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
-export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v2-material-delta-priority";
+export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v3-resolved-market-cap";
 
 export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput;
 
@@ -25,6 +25,7 @@ const analysisOutputSchema = {
     "industry_group",
     "theme_group",
     "sub_theme",
+    "resolved_market_cap",
     "scoring_assessment",
     "score",
     "score_reason",
@@ -61,11 +62,20 @@ const analysisOutputSchema = {
     industry_group: { type: ["string", "null"] },
     theme_group: { type: ["string", "null"] },
     sub_theme: { type: ["string", "null"] },
+    resolved_market_cap: {
+      type: "object",
+      additionalProperties: false,
+      required: ["value", "source", "filing_evidence"],
+      properties: {
+        value: { type: ["number", "null"], minimum: 0 },
+        source: { type: "string", enum: ["filing", "fmp", "unavailable"] },
+        filing_evidence: { type: ["string", "null"], maxLength: 260 },
+      },
+    },
     scoring_assessment: {
       type: "object",
       additionalProperties: false,
       required: [
-        "market_cap_tier",
         "primary_change_severity",
         "operating_direction",
         "cash_flow_direction",
@@ -75,9 +85,6 @@ const analysisOutputSchema = {
         "alert_driver",
       ],
       properties: {
-        market_cap_tier: {
-          type: "string",
-        },
         primary_change_severity: {
           type: "string",
         },
@@ -347,12 +354,13 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "A routine dividend, buyback, or capital-allocation disclosure must not displace material annual operating performance as the representative event or as the focus of report_ui, quick_take, summary, and score_reason. Treat capital returns as secondary unless the filing is genuinely dominated by a new extraordinary capital-return event.",
   "Score measures investor attention and urgency, not bullishness or bearishness. Signal expresses direction. A large positive or negative surprise can both receive a high score.",
   "Complete report_ui performance comparisons and scoring_assessment before assigning score, signal, score_reason, quick_take, or summary.",
-  "Use only these scoring_assessment values: market_cap_tier micro/small/mid/large/mega/unknown; primary_change_severity routine/meaningful/strong/major/critical; operating_direction and cash_flow_direction positive/negative/mixed/neutral/unknown; guidance_direction positive/negative/mixed/neutral/absent; earnings_quality high/mixed/low/unknown.",
-  "Choose the market-cap threshold tier by this absolute source priority: an explicit total market capitalization stated in current-filing original source blocks; otherwise site-provided market_context.market_cap; otherwise unknown. Never replace a filing-stated market capitalization with market context.",
-  "The filing phrase aggregate market value held by non-affiliates is public float value, not total market capitalization. Do not use it as Market Cap or as the market_cap_tier input. A filing-derived shares-outstanding-times-price value is Market Value at Last Sale Price, not Market Cap.",
+  "Use only these scoring_assessment values: primary_change_severity routine/meaningful/strong/major/critical; operating_direction and cash_flow_direction positive/negative/mixed/neutral/unknown; guidance_direction positive/negative/mixed/neutral/absent; earnings_quality high/mixed/low/unknown.",
+  "Populate resolved_market_cap by this absolute source priority: if current-filing original source blocks explicitly state the issuer's total market capitalization, return that exact numeric USD value with source filing and a short verbatim filing_evidence excerpt; otherwise return site-provided market_context.market_cap unchanged with source fmp and filing_evidence null; otherwise return value null, source unavailable, and filing_evidence null. Never replace a filing-stated total market capitalization with market context.",
+  "The filing phrase aggregate market value held by non-affiliates is public float value, not total market capitalization. Do not use it as resolved_market_cap. A filing-derived shares-outstanding-times-price value is Market Value at Last Sale Price, not total market capitalization.",
+  "Do not return a market-cap tier, size grade, or Mega/Large/Mid/Small/Micro label in resolved_market_cap or scoring_assessment. Use the resolved numeric value internally only to choose thresholds from the fixed table below.",
   "Market capitalization changes percentage thresholds only; never add or subtract score points merely because a company is larger or smaller.",
   "Market-cap tiers are fixed: micro below $100M; small $100M to below $500M; mid $500M to below $2B; large $2B to below $10B; mega $10B or more. Use unknown when market cap is absent or unusable.",
-  "For revenue or sales changes, meaningful / strong / major percentage thresholds are: micro 25% / 50% / 100%; small 15% / 30% / 60%; mid 10% / 20% / 40%; large 7% / 15% / 30%; mega 5% / 10% / 20%. If market-cap tier is unknown, use mid thresholds conservatively and set market_cap_tier to unknown.",
+  "For revenue or sales changes, meaningful / strong / major percentage thresholds are: micro 25% / 50% / 100%; small 15% / 30% / 60%; mid 10% / 20% / 40%; large 7% / 15% / 30%; mega 5% / 10% / 20%. If market capitalization is unavailable, use mid thresholds conservatively.",
   "For operating income, net income, or EPS changes, meaningful / strong / major thresholds are: micro 50% / 100% / 200%; small 30% / 60% / 120%; mid 20% / 40% / 80%; large 15% / 30% / 60%; mega 10% / 20% / 40%. Apply these percentages only when both periods are positive, comparable, and use the same accounting basis.",
   "Do not calculate or score a profit percentage when the comparison crosses zero or the prior-period denominator is near zero. Label negative-to-positive as turned profitable, positive-to-negative as turned unprofitable, and two negative periods as loss narrowed or loss widened using absolute loss amounts.",
   "Assess earnings quality before direction. Material tax benefits, fair-value gains, asset-sale gains, warrant or derivative remeasurement, impairment reversals, or other non-operating and non-cash items must not be presented as pure operating improvement.",
@@ -395,6 +403,8 @@ export const secPeriodicReportsAmendmentAnalysisSystemPrompt = [
   "Analyze one SEC periodic-report amendment: 10-K/A, 10-Q/A, or 20-F/A.",
   "Return only the strict investor-analysis JSON object matching the response schema.",
   "Use cleaned_source_blocks as evidence. The current amendment blocks are primary evidence; parent_filing_context is comparison context, not proof of a new change by itself.",
+  "Populate resolved_market_cap by this absolute source priority: if current-filing original source blocks explicitly state the issuer's total market capitalization, return that exact numeric USD value with source filing and a short verbatim filing_evidence excerpt; otherwise return site-provided market_context.market_cap unchanged with source fmp and filing_evidence null; otherwise return value null, source unavailable, and filing_evidence null.",
+  "Aggregate market value held by non-affiliates, public float value, and shares-outstanding-times-price are not total market capitalization. Do not return a market-cap tier, size grade, or Mega/Large/Mid/Small/Micro label in resolved_market_cap or scoring_assessment.",
   "Analyze only what the amendment changes. Do not reconstruct or resummarize the full parent annual or quarterly report.",
   "Classify amendment_type as administrative_correction for exhibit, certification, signature, XBRL, typo, or other non-substantive corrections; disclosure_update for a substantive narrative or disclosure change without restated financial statements; material_restatement when financial statements, material accounting amounts, non-reliance, or material controls are changed.",
   "If the parent filing is not matched with high confidence, do not invent previous values or claim that a field changed. Set unknown comparison values to null and explain the limitation briefly.",

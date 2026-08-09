@@ -1,13 +1,6 @@
 import type { NewsV2MarketCapBand } from "@/lib/newsV2";
+import { marketCapRangeLabels } from "@/lib/marketCapBands";
 import styles from "./StockRadarNewsV2.module.css";
-
-const marketCapRanges: Record<NewsV2MarketCapBand, string> = {
-  Mega: "$200B+",
-  Large: "$10B-$200B",
-  Mid: "$2B-$10B",
-  Small: "$300M-$2B",
-  Micro: "<$300M",
-};
 
 export type NewsV2MarketCapOptionProps = {
   marketCap: NewsV2MarketCapBand;
@@ -20,7 +13,7 @@ export function NewsV2MarketCapOption({
   onClick,
   selected,
 }: NewsV2MarketCapOptionProps) {
-  const range = marketCapRanges[marketCap];
+  const range = marketCapRangeLabels[marketCap];
 
   return (
     <button

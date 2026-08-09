@@ -125,6 +125,12 @@ test("future News events retain prompt market context without changing old-event
   assert.match(ingest, /market_context: toRecord\(marketContext\) \|\| null/);
 });
 
+test("periodic filing events persist the LLM-resolved market-cap selection separately", () => {
+  const eventStore = read("lib/secStores/eventStore.ts");
+  assert.match(eventStore, /resolved_market_cap: resolvedMarketCap/);
+  assert.match(eventStore, /market_context: marketContext/);
+});
+
 function read(relativePath: string) {
   return readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
 }

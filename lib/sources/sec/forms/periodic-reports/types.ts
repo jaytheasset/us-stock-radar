@@ -244,8 +244,12 @@ export type PeriodicAnalysisOutput = {
   industry_group: string | null;
   theme_group: string | null;
   sub_theme: string | null;
+  resolved_market_cap: {
+    value: number | null;
+    source: "filing" | "fmp" | "unavailable";
+    filing_evidence: string | null;
+  };
   scoring_assessment: {
-    market_cap_tier: "micro" | "small" | "mid" | "large" | "mega" | "unknown";
     primary_change_severity: "routine" | "meaningful" | "strong" | "major" | "critical";
     operating_direction: "positive" | "negative" | "mixed" | "neutral" | "unknown";
     cash_flow_direction: "positive" | "negative" | "mixed" | "neutral" | "unknown";

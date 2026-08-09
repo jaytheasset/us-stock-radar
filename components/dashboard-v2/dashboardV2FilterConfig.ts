@@ -3,6 +3,7 @@ import type {
   DashboardV2MarketMover,
   DashboardV2Signal,
 } from "@/lib/dashboardV2Types";
+import { marketCapRangeLabels, matchesMarketCapBand } from "../../lib/marketCapBands.ts";
 
 export type DashboardV2FilterKey =
   | "marketCap"
@@ -144,6 +145,12 @@ export function getDashboardV2FilterChipLabel(key: DashboardV2FilterKey, value: 
   return `${dashboardV2MobileFilterLabels[key]}: ${value}`;
 }
 
+export function getDashboardV2FilterOptionLabel(key: DashboardV2FilterKey, value: string) {
+  if (key !== "marketCap" || value === dashboardV2AllFilterValue) return value;
+  const range = marketCapRangeLabels[value as keyof typeof marketCapRangeLabels];
+  return range ? `${value} (${range})` : value;
+}
+
 function section(
   key: DashboardV2FilterKey,
   options: string[],
@@ -154,12 +161,7 @@ function section(
 
 function matchesMarketCap(value: number | undefined, filter: string) {
   if (filter === dashboardV2AllFilterValue) return true;
-  if (value === undefined) return false;
-  if (filter === "Micro") return value < 300_000_000;
-  if (filter === "Small") return value >= 300_000_000 && value < 2_000_000_000;
-  if (filter === "Mid") return value >= 2_000_000_000 && value < 10_000_000_000;
-  if (filter === "Large") return value >= 10_000_000_000 && value < 200_000_000_000;
-  return filter === "Mega" && value >= 200_000_000_000;
+  return matchesMarketCapBand(value, filter);
 }
 
 function matchesPrice(value: number, filter: string) {

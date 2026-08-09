@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import {
+  getDashboardV2FilterOptionLabel,
   type DashboardV2FilterKey,
   type DashboardV2FilterSection,
   type DashboardV2FilterState,
@@ -55,7 +56,7 @@ export function MobileFilterBottomSheet({
                   return (
                     <FilterOption
                       key={option}
-                      label={option}
+                      label={getDashboardV2FilterOptionLabel(section.key, option)}
                       onClick={() => onChangeFilter(section.key, option)}
                       selected={isActive}
                     />

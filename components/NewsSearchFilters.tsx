@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { marketCapBands, marketCapRangeLabels } from "@/lib/marketCapBands";
 import { sectorMappings, themeGroups } from "@/lib/taxonomyRegistry";
 
 const eventTypeOptions = [
@@ -35,13 +36,9 @@ const sourceOptions = [
 const sectorOptions = ["All", ...Array.from(new Set(sectorMappings.map((sector) => sector.sector)))];
 const themeOptions = ["All", ...themeGroups.map((theme) => theme.name)];
 const signalOptions = ["Bullish", "Bearish", "Volatile", "Neutral"];
-const capOptions = [
-  ["Mega", "$50B+"],
-  ["Large", "$10B-$50B"],
-  ["Mid", "$1B-$10B"],
-  ["Small", "$50M-$1B"],
-  ["Micro", "<$50M"],
-];
+const capOptions = [...marketCapBands]
+  .reverse()
+  .map((label) => [label, marketCapRangeLabels[label]] as const);
 
 type FilterMenuKey = "Event Type" | "Source" | "Sector" | "Theme";
 

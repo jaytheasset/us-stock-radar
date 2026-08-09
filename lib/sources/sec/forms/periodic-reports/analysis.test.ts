@@ -71,6 +71,9 @@ assert.ok(secPeriodicReportsAnalysisResponseSchema.properties.event_type.enum.in
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.parser_output, undefined, "analysis schema omits parser output");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.display_payload, undefined, "analysis schema omits display payload");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.fixture_expected, undefined, "analysis schema omits fixture expectations");
+assert.ok(secPeriodicReportsAnalysisResponseSchema.required.includes("resolved_market_cap"), "analysis requires resolved market cap");
+assert.deepEqual(secPeriodicReportsAnalysisResponseSchema.properties.resolved_market_cap.properties.source.enum, ["filing", "fmp", "unavailable"], "analysis bounds resolved market-cap sources");
+assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.scoring_assessment.properties.market_cap_tier, undefined, "scoring assessment omits market-cap tier");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /below 50 is archive/i, "analysis prompt archive band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /50 to 59 is routine or limited change/i, "analysis prompt routine band");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /75 to 84 requires a major inflection/i, "analysis prompt alert band");
@@ -78,8 +81,11 @@ assert.match(secPeriodicReportsAnalysisSystemPrompt, /Score measures investor at
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro below \$100M/i, "analysis defines market-cap tiers");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /micro 25% \/ 50% \/ 100%/i, "analysis defines revenue thresholds by market cap");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Neutral signal must have score below 75/i, "analysis prevents neutral alerts");
-assert.match(secPeriodicReportsAnalysisSystemPrompt, /explicit total market capitalization stated in current-filing original source blocks; otherwise site-provided market_context\.market_cap/i, "analysis uses filing-first market cap priority");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /current-filing original source blocks explicitly state the issuer's total market capitalization[\s\S]*otherwise return site-provided market_context\.market_cap/i, "analysis uses filing-first market cap priority");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /aggregate market value held by non-affiliates is public float value, not total market capitalization/i, "analysis distinguishes public float from market cap");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /market_context\.market_cap unchanged with source fmp/i, "analysis preserves the FMP fallback value");
+assert.match(secPeriodicReportsAnalysisSystemPrompt, /short verbatim filing_evidence excerpt/i, "analysis returns filing evidence for filing-selected market cap");
+assert.doesNotMatch(secPeriodicReportsAnalysisSystemPrompt, /market_cap_tier/i, "analysis prompt does not request a market-cap tier field");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Use market context only when supplied in the site_market_context source block and only after checking current-filing/i, "analysis uses supplied market context only as fallback");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Choose event_type directly/i, "analysis chooses representative event type");
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /Do not return parser_output, display_payload, fixture_expected/i, "analysis omits integration-owned output");
@@ -91,6 +97,8 @@ assert.match(secPeriodicReportsAnalysisSystemPrompt, /quarterly_core_performance
 assert.match(secPeriodicReportsAnalysisSystemPrompt, /discontinued operations materially change the comparison base/i, "analysis keeps continuing operations comparable");
 assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /quick_take as one self-contained investor-facing sentence of roughly 14 to 28 words/i, "amendment analysis defines quick take purpose and length");
 assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /name the exact amended item or exhibit instead of inventing a number/i, "amendment quick take handles metric-free corrections");
+assert.match(secPeriodicReportsAmendmentAnalysisSystemPrompt, /market_context\.market_cap unchanged with source fmp/i, "amendment analysis uses the same FMP fallback policy");
+assert.doesNotMatch(secPeriodicReportsAmendmentAnalysisSystemPrompt, /market_cap_tier/i, "amendment prompt does not request a market-cap tier field");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.key_evidence.maxItems, 3, "analysis limits key evidence");
 assert.ok(secPeriodicReportsAnalysisResponseSchema.required.includes("scoring_assessment"), "analysis requires scoring assessment");
 assert.equal(secPeriodicReportsAnalysisResponseSchema.properties.scoring_assessment.properties.material_offsets.maxItems, 3, "analysis bounds material offsets");
@@ -283,7 +291,6 @@ const segmentScopeWarnings = collectSecPeriodicReportsScoringWarnings(
     summary: "Revenue reached $14.5 billion in FY2025.",
     score_reason: "Profitability weakened despite $14.5 billion of revenue.",
     scoring_assessment: {
-      market_cap_tier: "mega",
       primary_change_severity: "major",
       operating_direction: "mixed",
       cash_flow_direction: "negative",
@@ -532,7 +539,6 @@ const nonAdjacentAnnualWarnings = collectSecPeriodicReportsScoringWarnings(
     score: 75,
     signal: "bullish",
     scoring_assessment: {
-      market_cap_tier: "large",
       primary_change_severity: "major",
       operating_direction: "positive",
       cash_flow_direction: "positive",
@@ -582,7 +588,6 @@ const displacedAnnualWarnings = collectSecPeriodicReportsScoringWarnings(
     score: 55,
     signal: "neutral",
     scoring_assessment: {
-      market_cap_tier: "large",
       primary_change_severity: "routine",
       operating_direction: "neutral",
       cash_flow_direction: "neutral",
@@ -624,8 +629,12 @@ const scoringWarnings = collectSecPeriodicReportsScoringWarnings(
   {
     score: 78,
     signal: "neutral",
+    resolved_market_cap: {
+      value: 12_000_000_000,
+      source: "fmp",
+      filing_evidence: null,
+    },
     scoring_assessment: {
-      market_cap_tier: "small",
       primary_change_severity: "meaningful",
       operating_direction: "positive",
       cash_flow_direction: "negative",
@@ -646,7 +655,7 @@ const scoringWarnings = collectSecPeriodicReportsScoringWarnings(
   },
   { filing_package: { market_context: { market_cap: 12_000_000_000 } } },
 );
-assert.ok(scoringWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), "validator checks market-cap tier");
+assert.equal(scoringWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), false, "validator does not compare a market-cap tier");
 assert.ok(scoringWarnings.some((warning) => warning.code === "neutral_alert_score_conflict"), "validator checks neutral alert conflict");
 assert.ok(scoringWarnings.some((warning) => warning.code === "missing_alert_driver"), "validator requires alert driver");
 assert.ok(scoringWarnings.some((warning) => warning.code === "score_severity_mismatch"), "validator checks severity band");
@@ -702,7 +711,6 @@ const fiscalPeriodWarnings = collectSecPeriodicReportsScoringWarnings(
     score: 60,
     signal: "bullish",
     scoring_assessment: {
-      market_cap_tier: "mid",
       primary_change_severity: "meaningful",
       operating_direction: "positive",
       cash_flow_direction: "neutral",
@@ -744,38 +752,30 @@ const filingMarketCapParserOutput = parseSecPeriodicReport({
     company_name: "Filing Market Cap Priority Corp.",
   },
 });
-const filingFirstWarnings = collectSecPeriodicReportsScoringWarnings(
-  {
-    score: 65,
-    signal: "bullish",
-    scoring_assessment: {
-      market_cap_tier: "small",
-      primary_change_severity: "strong",
-      operating_direction: "positive",
-      cash_flow_direction: "neutral",
-      guidance_direction: "absent",
-      earnings_quality: "high",
-      material_offsets: [],
-      alert_driver: null,
-    },
-    report_ui: { performance_comparisons: [] },
-  },
-  {
-    filing_package: {
-      hard_parsers: { "periodic-reports": filingMarketCapParserOutput },
-      market_context: { market_cap: 12_000_000_000 },
-    },
-  },
+const marketCapPromptPayload = JSON.parse(buildSecPeriodicReportsAnalysisPromptDraft({
+  parser_output: filingMarketCapParserOutput,
+  market_context: { market_cap: 12_000_000_000 },
+}).user) as { cleaned_source_blocks: Array<Record<string, unknown>> };
+const explicitFilingCapBlockIndex = marketCapPromptPayload.cleaned_source_blocks.findIndex((block) =>
+  /total market capitalization was approximately \$350 million/i.test(String(block.text || "")),
 );
-assert.equal(filingFirstWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), false, "validator prefers explicit filing market cap over site market cap");
+const fmpMarketContextBlockIndex = marketCapPromptPayload.cleaned_source_blocks.findIndex((block) =>
+  block.block_type === "site_market_context" && /12000000000/.test(String(block.text || "")),
+);
+assert.ok(explicitFilingCapBlockIndex >= 0, "analysis input retains the filing market-cap source block");
+assert.ok(fmpMarketContextBlockIndex > explicitFilingCapBlockIndex, "analysis input retains FMP market context after filing source blocks");
 
-const wrongFilingTierWarnings = collectSecPeriodicReportsScoringWarnings(
+const resolvedMarketCapWarnings = collectSecPeriodicReportsScoringWarnings(
   {
-    score: 65,
+    score: 55,
     signal: "bullish",
+    resolved_market_cap: {
+      value: 350_000_000,
+      source: "filing",
+      filing_evidence: "our total market capitalization was approximately $350 million",
+    },
     scoring_assessment: {
-      market_cap_tier: "mega",
-      primary_change_severity: "strong",
+      primary_change_severity: "routine",
       operating_direction: "positive",
       cash_flow_direction: "neutral",
       guidance_direction: "absent",
@@ -783,7 +783,13 @@ const wrongFilingTierWarnings = collectSecPeriodicReportsScoringWarnings(
       material_offsets: [],
       alert_driver: null,
     },
-    report_ui: { performance_comparisons: [] },
+    report_ui: {
+      performance_comparisons: [{
+        label: "Revenue",
+        current_numeric: 120,
+        comparison_numeric: 100,
+      }],
+    },
   },
   {
     filing_package: {
@@ -792,7 +798,10 @@ const wrongFilingTierWarnings = collectSecPeriodicReportsScoringWarnings(
     },
   },
 );
-assert.ok(wrongFilingTierWarnings.some((warning) => warning.code === "market_cap_tier_mismatch" && /Current-filing explicit market capitalization maps to small/.test(warning.warning)), "validator explains filing-first tier mismatch");
+const resolvedMarketCapThresholdWarning = resolvedMarketCapWarnings.find((warning) => warning.code === "performance_threshold_understated");
+assert.ok(resolvedMarketCapThresholdWarning, "validator keeps the existing threshold-based scoring warning using the resolved numeric value");
+assert.equal(resolvedMarketCapWarnings.some((warning) => warning.code === "market_cap_tier_mismatch"), false, "validator never compares a returned market-cap tier");
+assert.equal(resolvedMarketCapThresholdWarning.allowed_patch_paths.some((path) => path.startsWith("/resolved_market_cap")), false, "repair cannot modify the LLM market-cap selection");
 
 for (const fixtureName of fixtureNames) {
   const fixture = readJson<Fixture>(join(roomDir, "fixtures", `${fixtureName}.json`));

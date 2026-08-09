@@ -3,6 +3,7 @@ import "server-only";
 import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
 import { fetchEventById, fetchEventTickers } from "@/lib/supabase";
 import { type AlertCategory, isValidAlertCategory } from "@/lib/subscriptionPolicy";
+import { readStoredEventMarketCap } from "@/lib/marketCapBands";
 import type { NormalizedAlertEvent, NormalizedAlertSeverity, NormalizedAlertSourceType } from "@/lib/alerts/delivery/types";
 
 type DbRow = Record<string, unknown>;
@@ -96,6 +97,7 @@ export async function normalizeAlertEvent(eventId: string): Promise<
         impact: canonical.impact,
         signal: canonical.signal,
         market_scope: canonical.marketScope,
+        market_cap: readStoredEventMarketCap(eventMetadata),
       },
     },
   };

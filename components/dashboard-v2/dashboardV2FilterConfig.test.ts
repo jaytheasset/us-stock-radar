@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   dashboardV2DefaultFilterState,
   filterDashboardV2Rows,
+  getDashboardV2FilterOptionLabel,
   getDashboardV2FilterSections,
   sanitizeDashboardV2FilterState,
 } from "./dashboardV2FilterConfig.ts";
@@ -37,6 +38,12 @@ test("clear all restores all rows and unavailable filters are sanitized", () => 
     sections,
   );
   assert.equal(sanitized.volume, "All");
+});
+
+test("dashboard market-cap options expose the shared range labels", () => {
+  assert.equal(getDashboardV2FilterOptionLabel("marketCap", "Micro"), "Micro (<$100M)");
+  assert.equal(getDashboardV2FilterOptionLabel("marketCap", "Small"), "Small ($100M-$2B)");
+  assert.equal(getDashboardV2FilterOptionLabel("marketCap", "Mega"), "Mega ($200B+)");
 });
 
 function filter(overrides: Partial<typeof dashboardV2DefaultFilterState>) {
