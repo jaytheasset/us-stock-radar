@@ -1,0 +1,272 @@
+.rail {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-header);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-none);
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sr-space-0-5);
+  border-right: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: 0 var(--sr-space-2);
+}
+
+.tabs button {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid transparent;
+  border-radius: var(--sr-radius-sm);
+  padding: 0 var(--sr-space-1-5);
+  color: var(--sr-color-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  border-color: var(--sr-color-accent-border-premium);
+  color: var(--sr-color-accent-text);
+  background: var(--sr-color-accent-selected);
+}
+
+.tabs button:focus-visible,
+.indexViewport:focus-visible,
+.chatLink:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: -2px;
+}
+
+.content,
+.indexViewport,
+.chatPanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.indexViewport {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 var(--sr-space-3);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.indexViewport::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.indexTrack {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  align-items: center;
+  animation: market-activity-scroll 42s linear infinite;
+  will-change: transform;
+}
+
+.indexViewport:hover .indexTrack,
+.indexViewport:focus-within .indexTrack,
+.indexTrack.paused {
+  animation-play-state: paused;
+}
+
+.indexSet {
+  display: flex;
+  height: 100%;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sr-space-6);
+  padding-right: var(--sr-space-6);
+}
+
+.indexItem {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: var(--sr-space-1-5);
+  white-space: nowrap;
+}
+
+.indexItem strong {
+  color: var(--sr-color-text-primary);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.indexItem > span {
+  color: var(--sr-color-text-secondary);
+  font-family: var(--sr-font-family-mono);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+}
+
+.indexItem b {
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.indexItem b[data-tone="positive"] {
+  color: var(--sr-color-positive);
+}
+
+.indexItem b[data-tone="negative"] {
+  color: var(--sr-color-negative);
+}
+
+.staticTrack {
+  animation: none;
+}
+
+.staticTrack .duplicate {
+  display: none;
+}
+
+.chatPanel,
+.chatLink {
+  height: 100%;
+}
+
+.chatLink {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sr-space-3);
+  padding: 0 var(--sr-space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.roomIdentity {
+  display: flex;
+  min-width: 0;
+  max-width: 190px;
+  align-items: baseline;
+  gap: var(--sr-space-1-5);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.roomIdentity strong,
+.roomIdentity small,
+.chatMessage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roomIdentity strong {
+  flex: 0 1 auto;
+  color: var(--sr-color-accent-text);
+  font-family: var(--sr-font-family-mono);
+  font-size: inherit;
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.roomIdentity small {
+  min-width: 0;
+  color: var(--sr-color-text-muted);
+  font-size: inherit;
+}
+
+.chatMessage {
+  color: var(--sr-color-text-secondary);
+}
+
+.chatLink time {
+  color: var(--sr-color-text-meta);
+  font-family: var(--sr-font-family-mono);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  white-space: nowrap;
+}
+
+.chatLink:hover .chatMessage {
+  color: var(--sr-color-text-primary);
+}
+
+.status {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 var(--sr-space-3);
+  color: var(--sr-color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes market-activity-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 760px) {
+  .rail {
+    height: 32px;
+  }
+
+  .tabs {
+    padding: 0 var(--sr-space-1);
+  }
+
+  .tabs button {
+    padding: 0 var(--sr-space-1-25);
+  }
+
+  .indexViewport,
+  .chatLink,
+  .status {
+    padding-right: var(--sr-space-1-5);
+    padding-left: var(--sr-space-1-5);
+  }
+
+  .indexSet {
+    gap: var(--sr-space-4);
+    padding-right: var(--sr-space-4);
+  }
+
+  .chatLink {
+    grid-template-columns: minmax(52px, 84px) minmax(0, 1fr) auto;
+    gap: var(--sr-space-1-5);
+  }
+
+  .roomIdentity {
+    max-width: 84px;
+  }
+
+  .roomIdentity small {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indexTrack {
+    animation: none;
+    will-change: auto;
+  }
+
+  .duplicate {
+    display: none;
+  }
+}

@@ -10,6 +10,7 @@ import type { PricePoint } from "@/lib/marketTypes";
 
 const fmpQuoteTargets = [
   { cacheSymbol: "^GSPC", providerSymbol: "^GSPC" },
+  { cacheSymbol: "^DJI", providerSymbol: "^DJI" },
   { cacheSymbol: "^RUT", providerSymbol: "^RUT" },
   { cacheSymbol: "^VIX", providerSymbol: "^VIX" },
   { cacheSymbol: "ESUSD", providerSymbol: "ESUSD" },
