@@ -393,8 +393,12 @@ function mapEventRow(
     "No summary available yet.";
   const quickTake = canonical.quickTake || summary;
   const keyEvidence = readStringArray(analysis, ["key_evidence"]);
+  const formType =
+    readMetadataString(row, ["form_type", "formType", "form"]) ||
+    readMetadataString(rawItem, ["form_type", "formType", "form"]);
   const filingPreviewFields = resolveFilingPreviewFields({
     displayPayload: readMetadataRecord(row)?.display_payload,
+    formType,
     keyEvidence,
     materialEvents: readMetadataRecord(row)?.material_events,
     quickTake,
@@ -425,10 +429,6 @@ function mapEventRow(
       }) || ""
     : readMetadataString(row, ["company_name", "companyName", "issuer_name", "issuerName", "company"]) ||
       readMetadataString(rawItem, ["company_name", "companyName", "issuer_name", "issuerName", "company"]);
-  const formType =
-    readMetadataString(row, ["form_type", "formType", "form"]) ||
-    readMetadataString(rawItem, ["form_type", "formType", "form"]);
-
   return {
     accessionNumber,
     companyName,

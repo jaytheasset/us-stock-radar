@@ -5,28 +5,45 @@ const capitalSnapshotModes = new Set([
   "share_linked_financing",
 ]);
 
-export type Sec8k6kCapitalFinancingPreview = {
+export type CapitalSnapshotPreview = {
   keyPoints: string[];
   keyPointsLabel: "Capital Snapshot";
   showKeyPoints: boolean;
 };
 
-export function resolveSec8k6kCapitalFinancingPreview({
+export function resolveCapitalSnapshotPreview({
   displayPayload,
+  formType,
   primaryEventType,
 }: {
   displayPayload: unknown;
+  formType: unknown;
   primaryEventType: string;
-}): Sec8k6kCapitalFinancingPreview | null {
+}): CapitalSnapshotPreview | null {
   const display = isRecord(displayPayload) ? displayPayload : null;
   const data = isRecord(display?.data) ? display.data : null;
-  const matchesCapitalSnapshot =
-    readText(display?.display_type) === "capital_financing" &&
-    readText(data?.display_version) === "sec_8k_6k_capital_financing_v1" &&
+  const displayType = readText(display?.display_type);
+  const displayVersion =
+    readText(display?.display_version) || readText(data?.display_version);
+  const normalizedFormType = readText(formType).toUpperCase().replace(/\s+/g, "");
+  const matchesSec8k6kCapitalSnapshot =
+    displayType === "capital_financing" &&
+    displayVersion === "sec_8k_6k_capital_financing_v1" &&
     primaryEventType === "dilution_risk" &&
     capitalSnapshotModes.has(readText(data?.capital_mode));
+  const matchesS3OfferingCapitalSnapshot =
+    normalizedFormType === "S-3" &&
+    displayType === "offering_terms" &&
+    Array.isArray(data?.snapshot_metrics);
+  const matchesOfferingCapitalSnapshot =
+    matchesS3OfferingCapitalSnapshot ||
+    (normalizedFormType === "424B5" &&
+      displayType === "offering_terms" &&
+      displayVersion === "424b-display-payload-v1");
 
-  if (!matchesCapitalSnapshot) return null;
+  if (!matchesSec8k6kCapitalSnapshot && !matchesOfferingCapitalSnapshot) {
+    return null;
+  }
 
   const keyPoints = Array.from(
     new Set(

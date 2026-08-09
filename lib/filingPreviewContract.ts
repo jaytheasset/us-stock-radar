@@ -1,7 +1,8 @@
-import { resolveSec8k6kCapitalFinancingPreview } from "./filingPreviewAdapters/sec8k6kCapitalFinancing.ts";
+import { resolveCapitalSnapshotPreview } from "./filingPreviewAdapters/sec8k6kCapitalFinancing.ts";
 
 export type FilingPreviewFieldsInput = {
   displayPayload?: unknown;
+  formType?: unknown;
   governanceEvent?: boolean;
   keyEvidence?: unknown;
   materialEvents?: unknown;
@@ -22,6 +23,7 @@ export type FilingPreviewFields = {
 
 export function resolveFilingPreviewFields({
   displayPayload,
+  formType,
   governanceEvent = false,
   keyEvidence,
   materialEvents,
@@ -44,12 +46,22 @@ export function resolveFilingPreviewFields({
     .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
-  const capitalFinancingPreview = resolveSec8k6kCapitalFinancingPreview({
+  const normalizedFormType = readText(formType)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  const capitalSnapshotPreview = resolveCapitalSnapshotPreview({
     displayPayload,
+    formType,
     primaryEventType: primaryEventType || "",
   });
   const isGovernanceEvent =
     display?.display_type === "governance_event" || governanceEvent;
+  const isPeriodic10kAmendment =
+    normalizedFormType === "10-K/A" &&
+    display?.display_type === "periodic_amendment";
+  const isPeriodicReport =
+    ["10-K", "10-Q", "20-F"].includes(normalizedFormType) &&
+    display?.display_type === "periodic_report";
   const isSec8k6kEarningsEvent =
     display?.display_type === "operating_event" &&
     readText(displayData?.display_version) === "sec_8k_6k_operating_event_v1" &&
@@ -60,6 +72,20 @@ export function resolveFilingPreviewFields({
         .filter(isRecord)
         .map((change) => readText(change.title))
     : [];
+  const amendmentKeyChanges = Array.isArray(displayData?.amended_items)
+    ? displayData.amended_items.map(readText)
+    : [];
+  const periodicBusinessUpdates = Array.isArray(
+    displayData?.key_business_updates,
+  )
+    ? displayData.key_business_updates
+        .filter(isRecord)
+        .map((update) => readText(update.title))
+    : [];
+  const usesPeriodicBusinessUpdates =
+    isPeriodicReport &&
+    readText(displayData?.event_type).toLowerCase() === "earnings" &&
+    periodicBusinessUpdates.some(Boolean);
   const earningsBusinessUpdates = Array.isArray(displayData?.business_catalysts)
     ? displayData.business_catalysts
         .filter(isRecord)
@@ -70,16 +96,20 @@ export function resolveFilingPreviewFields({
         .filter((value): value is string => typeof value === "string")
         .map((value) => value.trim())
     : [];
-  const keyPointCandidates = capitalFinancingPreview
-    ? capitalFinancingPreview.keyPoints
-    : isSec8k6kEarningsEvent
-      ? earningsBusinessUpdates
-      : isGovernanceEvent
-        ? governanceKeyChanges
-        : evidence;
+  const keyPointCandidates = capitalSnapshotPreview
+    ? capitalSnapshotPreview.keyPoints
+    : isPeriodic10kAmendment
+      ? amendmentKeyChanges
+      : usesPeriodicBusinessUpdates
+        ? periodicBusinessUpdates
+        : isSec8k6kEarningsEvent
+          ? earningsBusinessUpdates
+          : isGovernanceEvent
+            ? governanceKeyChanges
+            : evidence;
   const keyPoints = Array.from(
     new Set(keyPointCandidates.filter(Boolean)),
-  ).slice(0, capitalFinancingPreview ? 4 : 3);
+  ).slice(0, capitalSnapshotPreview ? 4 : 3);
 
   return {
     filingBrief:
@@ -90,16 +120,23 @@ export function resolveFilingPreviewFields({
       "",
     keyPoints,
     keyPointsLabel:
-      capitalFinancingPreview?.keyPointsLabel ||
-      (isSec8k6kEarningsEvent
-        ? "Key Business Updates"
-        : isGovernanceEvent
-          ? "Key Changes"
-          : "Key Points"),
+      capitalSnapshotPreview?.keyPointsLabel ||
+      (isPeriodic10kAmendment
+        ? "Key Changes"
+        : usesPeriodicBusinessUpdates
+          ? "Key Business Updates"
+          : isSec8k6kEarningsEvent
+            ? "Key Business Updates"
+            : isGovernanceEvent
+              ? "Key Changes"
+              : "Key Points"),
     showKeyPoints:
-      capitalFinancingPreview
-        ? capitalFinancingPreview.showKeyPoints
-        : isSec8k6kEarningsEvent || isGovernanceEvent
+      capitalSnapshotPreview
+        ? capitalSnapshotPreview.showKeyPoints
+        : isPeriodic10kAmendment ||
+            isPeriodicReport ||
+            isSec8k6kEarningsEvent ||
+            isGovernanceEvent
           ? keyPoints.length > 0
           : true,
   };

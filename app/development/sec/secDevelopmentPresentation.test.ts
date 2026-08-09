@@ -16,7 +16,10 @@ test("periodic-report debug room documents the preview and analysis copy contrac
     periodicRoom,
     /Applies to 10-K \/ 10-Q \/ 20-F and 10-K\/A \/ 10-Q\/A \/ 20-F\/A/,
   );
-  assert.match(periodicRoom, /Filing Brief = analysis_output\.quick_take/);
+  assert.match(
+    periodicRoom,
+    /Filing Brief = primary material_events\.event_summary, then first material_events\.event_summary, then analysis_output\.quick_take, then analysis_output\.summary/,
+  );
   assert.match(
     periodicRoom,
     /Key Points = event_analysis\.key_evidence \(max 3\)/,

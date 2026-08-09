@@ -177,6 +177,7 @@ export async function loadFilingsV2Page({
     const previewFields = resolveFilingPreviewFields({
       displayPayload:
         displayPayloadByEventId.get(record.id) || metadata?.display_payload,
+      formType: record.formType,
       governanceEvent: record.events.includes("governance"),
       keyEvidence: keyEvidenceByEventId.get(record.id),
       materialEvents: metadata?.material_events,
@@ -272,14 +273,24 @@ async function loadFilingPreviewDisplayPayloads(
 ) {
   const eventIds = records.map((record) => record.id);
   if (!eventIds.length) return new Map<string, unknown>();
+  const formTypeByEventId = new Map(
+    records.map((record) => [
+      record.id,
+      record.formType.trim().toUpperCase().replace(/\s+/g, ""),
+    ]),
+  );
 
   const result = await supabaseSelect("events", {
     select: [
       "id",
       "display_type:metadata->display_payload->>display_type",
+      "payload_display_version:metadata->display_payload->>display_version",
       "display_version:metadata->display_payload->data->>display_version",
+      "event_type:metadata->display_payload->data->>event_type",
       "operating_mode:metadata->display_payload->data->>operating_mode",
       "business_catalysts:metadata->display_payload->data->business_catalysts",
+      "key_business_updates:metadata->display_payload->data->key_business_updates",
+      "amended_items:metadata->display_payload->data->amended_items",
       "capital_mode:metadata->display_payload->data->>capital_mode",
       "snapshot_metrics:metadata->display_payload->data->snapshot_metrics",
     ].join(","),
@@ -294,8 +305,11 @@ async function loadFilingPreviewDisplayPayloads(
   for (const row of result.data.filter(isRecord)) {
     const id = readString(row.id);
     const displayType = readString(row.display_type);
-    const displayVersion = readString(row.display_version);
+    const formType = id ? formTypeByEventId.get(id) : undefined;
+    const displayVersion =
+      readString(row.payload_display_version) || readString(row.display_version);
     const operatingMode = readString(row.operating_mode);
+    const eventType = readString(row.event_type);
     const capitalMode = readString(row.capital_mode);
     const isEarningsPreview =
       displayType === "operating_event" &&
@@ -304,18 +318,44 @@ async function loadFilingPreviewDisplayPayloads(
     const isCapitalFinancingPreview =
       displayType === "capital_financing" &&
       displayVersion === "sec_8k_6k_capital_financing_v1";
+    const isS3OfferingPreview =
+      formType === "S-3" &&
+      displayType === "offering_terms" &&
+      Array.isArray(row.snapshot_metrics);
+    const is424b5OfferingPreview =
+      displayType === "offering_terms" &&
+      displayVersion === "424b-display-payload-v1";
+    const isOfferingPreview =
+      isS3OfferingPreview || is424b5OfferingPreview;
+    const isPeriodicEarningsPreview =
+      ["10-K", "10-Q", "20-F"].includes(formType || "") &&
+      displayType === "periodic_report" &&
+      eventType === "earnings" &&
+      Array.isArray(row.key_business_updates);
+    const isPeriodic10kAmendmentPreview =
+      formType === "10-K/A" &&
+      displayType === "periodic_amendment" &&
+      Array.isArray(row.amended_items);
     if (
       !id ||
-      (!isEarningsPreview && !isCapitalFinancingPreview)
+      (!isEarningsPreview &&
+        !isCapitalFinancingPreview &&
+        !isOfferingPreview &&
+        !isPeriodicEarningsPreview &&
+        !isPeriodic10kAmendmentPreview)
     ) {
       continue;
     }
     displayPayloads.set(id, {
       display_type: displayType,
+      display_version: displayVersion,
       data: {
         business_catalysts: row.business_catalysts,
+        key_business_updates: row.key_business_updates,
+        amended_items: row.amended_items,
         capital_mode: capitalMode,
         display_version: displayVersion,
+        event_type: eventType,
         operating_mode: operatingMode,
         snapshot_metrics: row.snapshot_metrics,
       },
