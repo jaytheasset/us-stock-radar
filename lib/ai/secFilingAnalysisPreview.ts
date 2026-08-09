@@ -649,45 +649,6 @@ async function runSecFilingAnalysisWithoutLlmForRawRow(
     return buildDeterministicEffectRun(rawItem, input, deterministicEffect);
   }
 
-  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
-  if (deterministicOwnership) {
-    if (!deterministicOwnership.ok) {
-      return {
-        ok: false,
-        stage: "openai",
-        status: 0,
-        error: deterministicOwnership.error,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-        prompt: {
-          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
-          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
-        },
-      };
-    }
-
-    const archiveGuard = evaluateOwnershipArchiveContextGuard(input);
-    attachOwnershipArchiveContextGuard(input, archiveGuard);
-    if (!archiveGuard.analysis_needed) {
-      return {
-        ok: true,
-        stage: "complete",
-        status: 200,
-        model: getServerEnv().openAiModel,
-        openAiResponseId: null,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-        analysis: deterministicOwnership.analysis,
-        usage: null,
-        costEstimate: null,
-        prompt: {
-          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
-          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
-        },
-      };
-    }
-  }
-
   const deterministicSc13 = buildDeterministicSc13Analysis(input);
   if (deterministicSc13) {
     if (!deterministicSc13.ok) {
@@ -794,44 +755,6 @@ export async function runSecFilingAnalysisForRawRow(
       buildSecInvestableUniverseSkipAnalysis(input, investableUniverseGate),
       investableUniverseGate,
     );
-  }
-
-  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
-  if (deterministicOwnership) {
-    if (!deterministicOwnership.ok) {
-      return {
-        ok: false,
-        stage: "openai",
-        status: 0,
-        error: deterministicOwnership.error,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-      };
-    }
-
-    const archiveGuard = evaluateOwnershipArchiveContextGuard(input);
-    attachOwnershipArchiveContextGuard(input, archiveGuard);
-    if (archiveGuard.analysis_needed) {
-      // Keep going into the normal ownership LLM path below. The parser archive
-      // result is still available through deterministic_parser_archive.
-    } else {
-      return {
-        ok: true,
-        stage: "complete",
-        status: 200,
-        model: getServerEnv().openAiModel,
-        openAiResponseId: null,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-        analysis: deterministicOwnership.analysis,
-        usage: null,
-        costEstimate: null,
-        prompt: {
-          key: SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
-          version: SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
-        },
-      };
-    }
   }
 
   const deterministicSc13 = buildDeterministicSc13Analysis(input);

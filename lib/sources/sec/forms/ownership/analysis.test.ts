@@ -68,6 +68,9 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("There is no Ownership router LLM in this path"));
     assert.ok(prompt.includes("Use the provided display_payload/display_type"));
     assert.ok(prompt.includes("Do not create new display types"));
+    assert.ok(prompt.includes("preserve each transaction's actual source-backed"));
+    assert.ok(prompt.includes("Do not collapse distinct securities such as RSUs"));
+    assert.ok(prompt.includes("appear in the same filing"));
     assert.ok(prompt.includes("Do not fail when missing"));
     assert.ok(prompt.includes("Do not use additive point stacking"));
     assert.ok(prompt.includes("Keep score band reasoning"));
@@ -479,7 +482,7 @@ test("ownership FMP market context helper can shape supplied responses without l
     assert.ok(context.source_notes[0].includes("test-only"));
 });
 
-test("ownership analysis matches deterministic fixture outputs where LLM analysis is not needed", () => {
+test("ownership parser retains deterministic reference outputs for routing and display preservation", () => {
     const adminFixture = readJson<Record<string, unknown>>("fixtures/form4a-admin-amendment.json");
     const routineFixture = readJson<Record<string, unknown>>("fixtures/form144-routine-proposed-sale.json");
     const grantFixture = readJson<Record<string, unknown>>("fixtures/form4-routine-rsu-grant.json");
