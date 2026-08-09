@@ -323,8 +323,10 @@ async function loadFilingPreviewDisplayPayloads(
       displayType === "offering_terms" &&
       Array.isArray(row.snapshot_metrics);
     const is424b5OfferingPreview =
+      formType === "424B5" &&
       displayType === "offering_terms" &&
-      displayVersion === "424b-display-payload-v1";
+      ["", "1.0", "424b-display-payload-v1"].includes(displayVersion || "") &&
+      Array.isArray(row.snapshot_metrics);
     const isOfferingPreview =
       isS3OfferingPreview || is424b5OfferingPreview;
     const isPeriodicEarningsPreview =

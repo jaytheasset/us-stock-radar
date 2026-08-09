@@ -39,7 +39,8 @@ export function resolveCapitalSnapshotPreview({
     matchesS3OfferingCapitalSnapshot ||
     (normalizedFormType === "424B5" &&
       displayType === "offering_terms" &&
-      displayVersion === "424b-display-payload-v1");
+      ["", "1.0", "424b-display-payload-v1"].includes(displayVersion) &&
+      Array.isArray(data?.snapshot_metrics));
 
   if (!matchesSec8k6kCapitalSnapshot && !matchesOfferingCapitalSnapshot) {
     return null;

@@ -514,6 +514,8 @@ test("S-3, S-3ASR, and 424B5 previews share the primary Filing Brief and stored 
     { displayVersion: "1.0", formType: "S-3ASR" },
     { displayVersion: undefined, formType: "S-3ASR" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
+    { displayVersion: "1.0", formType: "424B5" },
+    { displayVersion: undefined, formType: "424B5" },
   ]) {
     const filingBrief = `${formType} primary material event summary.`;
     const preview = resolveFilingPreviewFields({
@@ -582,6 +584,8 @@ test("S-3, S-3ASR, and 424B5 offering previews hide Capital Snapshot without usa
     { displayVersion: "1.0", formType: "S-3ASR" },
     { displayVersion: undefined, formType: "S-3ASR" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
+    { displayVersion: "1.0", formType: "424B5" },
+    { displayVersion: undefined, formType: "424B5" },
   ]) {
     const preview = resolveFilingPreviewFields({
       displayPayload: {
@@ -698,7 +702,7 @@ test("other filing families and mismatched primary events retain the generic pre
       formType: "424B5",
       displayPayload: {
         display_type: "offering_terms",
-        display_version: "1.0",
+        display_version: "2.0",
         data: {
           snapshot_metrics: [{ label: "Wrong 424B5 version", value: "$25 million" }],
         },
@@ -884,7 +888,7 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /formType === "S-3ASR"/);
   assert.match(source, /Array\.isArray\(row\.snapshot_metrics\)/);
   assert.doesNotMatch(source, /displayVersion === "s3_offering_v1"/);
-  assert.match(source, /displayVersion === "424b-display-payload-v1"/);
+  assert.match(source, /\["", "1\.0", "424b-display-payload-v1"\]\.includes\(displayVersion \|\| ""\)/);
   assert.match(source, /displayType === "periodic_report"/);
   assert.match(source, /Array\.isArray\(row\.key_business_updates\)/);
   assert.match(source, /displayType === "periodic_amendment"/);
