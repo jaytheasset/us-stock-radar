@@ -58,6 +58,9 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(client, /Validation errors/);
   assert.match(client, /Correction execution and basis/);
   assert.match(client, /Before \/ after correction/);
+  assert.match(client, /Collection &amp; data lineage/);
+  assert.match(client, /Named data sources/);
+  assert.match(client, /detail\.diagnosticSnapshot/);
   assert.match(client, /detail\.liveRuns\.filter\(\(run\) => run\.mode !== "recent_persisted"\)/);
   assert.match(client, /Dry run \/ sample inspection/);
   assert.match(client, /Controlled persist/);
@@ -68,6 +71,8 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(dashboard, /filed_at: readPersistedEventFiledAt\(row\)/);
   assert.match(dashboard, /analyzed_at:/);
   assert.match(dashboard, /analysis_status:/);
+  assert.match(dashboard, /readRecentPersistenceContextMap/);
+  assert.match(dashboard, /buildRoomDiagnosticSnapshot/);
 
   assert.match(styles, /@media \(max-width: 1280px\) and \(min-width: 981px\)/);
   assert.match(styles, /html\[data-theme="dark"\]/);
