@@ -13,11 +13,14 @@ import {
   type FilingsV2FilterGroup,
   type FilingsV2FilterState,
 } from "@/lib/filingsV2Model";
+import {
+  filingsV2FilingGroupLabel,
+  filingsV2FilingGroupOptions,
+} from "@/lib/filingsV2FilingGroups";
 import styles from "./StockRadarFilingsV2.module.css";
 
 type MobileFilingsV2FilterSheetProps = {
   filters: FilingsV2FilterState;
-  formOptions: readonly string[];
   isOpen: boolean;
   onApply: () => void;
   onClearFilterGroup: (group: FilingsV2FilterGroup) => void;
@@ -34,6 +37,11 @@ function optionLabel(group: FilingsV2FilterGroup, value: string) {
   if (group === "eventTypes") {
     return filingsV2EventLabels[value as keyof typeof filingsV2EventLabels];
   }
+  if (group === "filingGroups") {
+    return filingsV2FilingGroupLabel[
+      value as keyof typeof filingsV2FilingGroupLabel
+    ];
+  }
   return value;
 }
 
@@ -41,7 +49,6 @@ const mobileFilterHeadingId = "filings-v2-mobile-filter-title";
 
 export function MobileFilingsV2FilterSheet({
   filters,
-  formOptions,
   isOpen,
   onApply,
   onClearFilterGroup,
@@ -53,7 +60,12 @@ export function MobileFilingsV2FilterSheet({
   const mobileGroups = [
     { group: "signals" as const, includeAll: false, label: "Signal", options: filingsV2SignalOptions },
     { group: "marketCaps" as const, includeAll: false, label: "Market cap", options: filingsV2MarketCapOptions },
-    { group: "formTypes" as const, includeAll: true, label: "Form type", options: formOptions },
+    {
+      group: "filingGroups" as const,
+      includeAll: true,
+      label: "Filing group",
+      options: filingsV2FilingGroupOptions.map((option) => option.value),
+    },
     { group: "eventTypes" as const, includeAll: true, label: "Event type", options: filingsV2EventOptions },
     { group: "impacts" as const, includeAll: true, label: "Impact", options: filingsV2ImpactOptions },
     { group: "dateRanges" as const, includeAll: true, label: "Date range", options: filingsV2DateOptions },
@@ -75,7 +87,7 @@ export function MobileFilingsV2FilterSheet({
         <header>
           <span>REFINE FILINGS</span>
           <h2 id={mobileFilterHeadingId}>Filters</h2>
-          <p>Select multiple values to narrow the filing list.</p>
+          <p>Select multiple values within a group; filter groups combine together.</p>
         </header>
 
         {mobileGroups.map(({ group, includeAll, label, options }) => (

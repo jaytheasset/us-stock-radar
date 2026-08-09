@@ -9,6 +9,35 @@ import {
 import { resolveFilingsV2LoadState } from "../../lib/filingsV2LoadState.ts";
 import { resolveFilingsV2SelectedRecord } from "./filingsV2Selection.ts";
 
+test("public filing filters expose analysis groups on desktop and mobile", () => {
+  const desktopFilter = readFileSync(
+    new URL("./FilingsV2FilterBar.tsx", import.meta.url),
+    "utf8",
+  );
+  const mobileFilter = readFileSync(
+    new URL("./MobileFilingsV2FilterSheet.tsx", import.meta.url),
+    "utf8",
+  );
+  const workspace = readFileSync(
+    new URL("./StockRadarFilingsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const route = readFileSync(
+    new URL("../../app/api/filings-v2/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(desktopFilter, /label: "Filing Group"/);
+  assert.match(desktopFilter, /filingsV2FilingGroupOptions/);
+  assert.match(mobileFilter, /label: "Filing group"/);
+  assert.match(mobileFilter, /filingsV2FilingGroupOptions/);
+  assert.match(workspace, /\["filing_groups", filters\.filingGroups\]/);
+  assert.match(route, /"filing_groups"/);
+  assert.doesNotMatch(desktopFilter, /Form Type|10-K\/A|8-K\/A/);
+  assert.doesNotMatch(mobileFilter, /Form type|10-K\/A|8-K\/A/);
+  assert.doesNotMatch(workspace, /form_types|filters\.formTypes/);
+});
+
 test("filings and Live Feed previews share the stored CRM brief and key evidence", () => {
   const quickTake =
     "Salesforce announced a definitive agreement to acquire Informatica for approximately $8 billion, subject to closing conditions.";

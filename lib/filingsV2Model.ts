@@ -1,4 +1,5 @@
 import { isSameMarketDate } from "@/lib/marketDate";
+import type { FilingsV2FilingGroup } from "@/lib/filingsV2FilingGroups";
 
 export type FilingsV2EventType =
   | "earnings"
@@ -82,7 +83,7 @@ export type FilingsV2PageResponse = {
 export type FilingsV2FilterGroup =
   | "signals"
   | "marketCaps"
-  | "formTypes"
+  | "filingGroups"
   | "eventTypes"
   | "impacts"
   | "dateRanges";
@@ -90,7 +91,7 @@ export type FilingsV2FilterGroup =
 export type FilingsV2FilterState = {
   signals: FilingsV2Signal[];
   marketCaps: FilingsV2MarketCap[];
-  formTypes: string[];
+  filingGroups: FilingsV2FilingGroup[];
   eventTypes: FilingsV2EventType[];
   impacts: FilingsV2ImpactFilter[];
   dateRanges: FilingsV2DateRange[];
@@ -103,7 +104,7 @@ export function isFilingsV2Today(filedAt: string, referenceDate: string) {
 export const filingsV2DefaultFilters: FilingsV2FilterState = {
   signals: [],
   marketCaps: [],
-  formTypes: [],
+  filingGroups: [],
   eventTypes: [],
   impacts: [],
   dateRanges: [],

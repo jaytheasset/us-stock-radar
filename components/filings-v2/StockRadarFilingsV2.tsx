@@ -132,7 +132,7 @@ function buildFilingsV2RequestUrl(
   const filterParams: Array<[string, readonly string[]]> = [
     ["signals", filters.signals],
     ["market_caps", filters.marketCaps],
-    ["form_types", filters.formTypes],
+    ["filing_groups", filters.filingGroups],
     ["event_types", filters.eventTypes],
     ["impacts", filters.impacts],
     ["date_ranges", filters.dateRanges],
@@ -152,7 +152,6 @@ function buildFilingsV2RequestUrl(
 }
 
 type StockRadarFilingsV2Props = {
-  formOptions: readonly string[];
   hasMore: boolean;
   initialAuthenticated: boolean;
   initialSavedIds: readonly string[];
@@ -168,7 +167,6 @@ type StockRadarFilingsV2Props = {
 };
 
 export function StockRadarFilingsV2({
-  formOptions,
   hasMore,
   initialAuthenticated,
   initialSavedIds,
@@ -527,7 +525,6 @@ export function StockRadarFilingsV2({
           <FilingsV2FilterBar
             appliedQuery={query}
             filters={filters}
-            formOptions={formOptions}
             isMobileSheetOpen={isFilterSheetOpen}
             mobileFilterOpenerRef={filterOpenerRef}
             onClearQuery={clearSearch}
@@ -624,7 +621,6 @@ export function StockRadarFilingsV2({
       ) : null}
       <MobileFilingsV2FilterSheet
         filters={filters}
-        formOptions={formOptions}
         isOpen={isFilterSheetOpen}
         onApply={closeMobileFilters}
         onClearFilterGroup={clearFilterGroup}
