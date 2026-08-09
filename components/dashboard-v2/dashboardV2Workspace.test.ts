@@ -67,13 +67,19 @@ test("Markets ticker links use the canonical stock route without replacing row s
 test("Markets gates every ad placement with the shared viewer-plan decision", () => {
   const page = read("app/dashboard-v2/page.tsx");
   const dashboard = read("components/dashboard-v2/StockRadarDashboardV2.tsx");
+  const mobilePreview = read(
+    "components/dashboard-v2/MobileTickerBottomSheet.tsx",
+  );
   const table = read("components/dashboard-v2/MarketMoversTable.tsx");
 
-  assert.match(page, /const viewerPlan = await getCurrentViewerPlan\(\)/);
+  assert.match(
+    page,
+    /const \[viewerPlan, userId\] = await Promise\.all\(\[[\s\S]*getCurrentViewerPlan\(\),[\s\S]*getOptionalCurrentUserId\(\),/,
+  );
   assert.match(page, /const initialSession = getPreferredDashboardSession\(\)/);
   assert.match(
     page,
-    /<StockRadarDashboardV2[\s\S]*initialSession=\{initialSession\}[\s\S]*viewerPlan=\{viewerPlan\}/,
+    /<StockRadarDashboardV2[\s\S]*initialAuthenticated=\{Boolean\(userId\)\}[\s\S]*initialSession=\{initialSession\}[\s\S]*viewerPlan=\{viewerPlan\}/,
   );
   assert.match(
     dashboard,
@@ -91,6 +97,47 @@ test("Markets gates every ad placement with the shared viewer-plan decision", ()
     "desktop mid-list, desktop footer, and mobile inline ads must all be gated",
   );
   assert.doesNotMatch(table, /viewerPlan\s*===\s*["']free["']/);
+  assert.match(
+    mobilePreview,
+    /<TickerDetailContent[\s\S]*\/>[\s\S]*viewerPlan === "free" \? <FeedPreviewAd size="320x100" \/>/,
+  );
+});
+
+test("Markets mobile preview reuses the Live Feed control and sheet contracts", () => {
+  const mobilePreview = read(
+    "components/dashboard-v2/MobileTickerBottomSheet.tsx",
+  );
+  const actions = read("components/dashboard-v2/MarketsPreviewActions.tsx");
+  const detail = read("components/dashboard-v2/TickerDetailContent.tsx");
+  const dashboardStyles = read(
+    "components/dashboard-v2/StockRadarDashboardV2.module.css",
+  );
+
+  assert.match(mobilePreview, /showCloseButton/);
+  assert.match(mobilePreview, /showHandle/);
+  assert.match(
+    mobilePreview,
+    /topControls=\{[\s\S]*<MarketsPreviewActions[\s\S]*\}/,
+  );
+  assert.match(mobilePreview, /viewport="mobile"/);
+  assert.match(mobilePreview, /overlayLabel="Close ticker detail overlay"/);
+  assert.match(
+    actions,
+    /<WatchlistButton[\s\S]*<SavedContentButton/,
+    "Watchlist must precede Bookmark like the Feed preview",
+  );
+  assert.match(actions, /event\.sourceGroup === "filings"[\s\S]*"filing"/);
+  assert.match(actions, /event\.sourceGroup === "news"[\s\S]*"news"/);
+  assert.match(detail, /mobileSheetHeader \? <LatestEventIcon/);
+  assert.doesNotMatch(detail, /dashboard-v2-mobile-favorite/);
+  assert.match(
+    dashboardStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-detail-header\)\s*\{[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?padding: var\(--sr-space-5\) var\(--sr-space-4\) var\(--sr-space-4\);/,
+  );
+  assert.match(
+    dashboardStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-analysis-button\)\s*\{[\s\S]*?position: static;[\s\S]*?min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\);[\s\S]*?font-size: 16px;/,
+  );
 });
 
 test("Markets mobile controls stay full-width, single-line, and locally sized", () => {

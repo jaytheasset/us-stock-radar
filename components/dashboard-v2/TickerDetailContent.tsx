@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState, type Ref } from "react";
 import Link from "next/link";
-import { ChevronRight, Star } from "lucide-react";
+import {
+  ChevronRight,
+  FileText,
+  Newspaper,
+  Star,
+  TrendingUp,
+} from "lucide-react";
 import {
   ChartRangeSelector,
   mobileChartRanges,
@@ -50,6 +56,13 @@ export function TickerDetailContent({
   const chartSummary = activeMarketData
     ? `FMP ${chartRange} chart for ${ticker.ticker}. Latest price ${activePrice}, change ${activeChangeAmount} (${activeChangePercent}).`
     : `Loading FMP ${chartRange} chart for ${ticker.ticker}.`;
+  const latestEvent = ticker.recentEvents[0];
+  const LatestEventIcon =
+    latestEvent?.sourceGroup === "filings"
+      ? FileText
+      : latestEvent?.sourceGroup === "news"
+        ? Newspaper
+        : TrendingUp;
   const handleFmpMarketData = useCallback((next: FmpMarketSnapshot) => {
     setFmpMarketData((current) =>
       current?.ticker === next.ticker &&
@@ -74,20 +87,13 @@ export function TickerDetailContent({
         ref={sectionRefs?.summary}
       >
         {mobileSheetHeader ? (
-          <>
-            <div className="dashboard-v2-mobile-detail-identity">
-              <MarketTickerLogo logoUrl={ticker.logoUrl} size="detail" ticker={ticker.ticker} />
-              <div className="dashboard-v2-detail-title">
-                <h1 id={titleId}>{ticker.ticker}</h1>
-                <span>{ticker.company}</span>
-              </div>
+          <div className="dashboard-v2-mobile-detail-identity">
+            <MarketTickerLogo logoUrl={ticker.logoUrl} size="detail" ticker={ticker.ticker} />
+            <div className="dashboard-v2-detail-title">
+              <h1 id={titleId}>{ticker.ticker}</h1>
+              <span>{ticker.company}</span>
             </div>
-            <WatchlistButton
-              className="dashboard-v2-mobile-favorite"
-              iconSize={14}
-              ticker={ticker.ticker}
-            />
-          </>
+          </div>
         ) : (
           <>
             <div className="dashboard-v2-detail-title">
@@ -141,18 +147,19 @@ export function TickerDetailContent({
         <EventTimeline events={ticker.recentEvents} />
       </div>
 
-      {ticker.recentEvents[0] ? (
+      {latestEvent ? (
         <Link
           className="dashboard-v2-analysis-button"
-          href={getTickerEventHref(ticker.recentEvents[0])}
+          href={getTickerEventHref(latestEvent)}
         >
+          {mobileSheetHeader ? <LatestEventIcon aria-hidden="true" size={17} /> : null}
           <span>View latest {ticker.ticker} event</span>
-          <ChevronRight aria-hidden="true" size={22} />
+          <ChevronRight aria-hidden="true" size={mobileSheetHeader ? 18 : 22} />
         </Link>
       ) : (
         <span className="dashboard-v2-analysis-button" aria-disabled="true">
           <span>Event details unavailable</span>
-          <ChevronRight aria-hidden="true" size={22} />
+          <ChevronRight aria-hidden="true" size={mobileSheetHeader ? 18 : 22} />
         </span>
       )}
     </>

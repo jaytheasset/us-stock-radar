@@ -75,9 +75,11 @@ type MarketState = {
 };
 
 export function StockRadarDashboardV2({
+  initialAuthenticated,
   initialSession,
   viewerPlan,
 }: {
+  initialAuthenticated: boolean;
   initialSession: DashboardV2Session;
   viewerPlan: Plan;
 }) {
@@ -362,11 +364,13 @@ export function StockRadarDashboardV2({
       </div>
       {selectedTicker ? (
         <MobileTickerBottomSheet
+          initialAuthenticated={initialAuthenticated}
           initialSection={mobileSheetSection}
           isOpen={isMobileSheetOpen}
           onClose={() => setIsMobileSheetOpen(false)}
           openerRef={mobileTickerOpenerRef}
           ticker={selectedTicker}
+          viewerPlan={viewerPlan}
         />
       ) : null}
       <MobileFilterBottomSheet
