@@ -30,6 +30,14 @@ export type MarketScope = "company" | "sector" | "theme" | "macro";
 export type DisplayType = "generic" | "offering_terms" | "candidate_special" | "spac_transaction_status";
 export type DisplayPayloadVersion424b = typeof DISPLAY_PAYLOAD_VERSION_424B;
 
+export interface SecOfferingMaterialEvent {
+  role: "primary" | "secondary";
+  event_type: Approved424bEventType;
+  event_summary: string;
+  key_terms: string[];
+  source_block_ids: string[];
+}
+
 export interface Sec424bIssuer {
   name?: string | null;
   ticker?: string | null;
@@ -124,6 +132,7 @@ export interface Sec424bAnalysisOutput {
   source_group: "filings";
   market_scope: MarketScope;
   event_type: Approved424bEventType;
+  material_events?: SecOfferingMaterialEvent[];
   event_title: string;
   primary_ticker: {
     ticker: string | null;

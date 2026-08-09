@@ -72,6 +72,16 @@ describe("424B analysis fixtures", () => {
     }
   });
 
+  it("adds the 424B5 material-events contract and source block IDs to a representative fixture", () => {
+    const fixture = loadJson<Sec424bFixtureInput>(join(fixturesDir, "atm-market-context.json"));
+    const prompt = build424bAnalysisPrompt(parse424bFiling(fixture));
+
+    assert.ok(prompt.includes("exactly one role=primary"));
+    assert.ok(prompt.includes('"material_events"'));
+    assert.ok(prompt.includes('"block_id": "424b_source_'));
+    assert.ok(prompt.includes("only for a separate event that would independently change an investor conclusion"));
+  });
+
   it("builds a one-pass source-backed repair plan for local 424B inconsistencies", () => {
     const parserOutput = parse424bFiling({
       formType: "424B5",

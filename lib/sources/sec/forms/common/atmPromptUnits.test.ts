@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION,
   SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION,
   buildSec424bAnalysisPromptForInput,
 } from "../../../../ai/sec424bAnalysisAdapter.ts";
@@ -14,6 +15,7 @@ import type { SecFilingAnalysisInput } from "../../../../prompts/secFilingAnalys
 import {
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
+  SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION,
   buildSecS3OfferingAnalysisPrompt,
   secS3RequiredOutputSystemPrompt,
 } from "../../../../prompts/secS3OfferingAnalysis.ts";
@@ -59,11 +61,13 @@ describe("SEC first-analysis ATM unit prompts", () => {
     );
 
     assert.equal(SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION, "v41-news-style-taxonomy-schema");
-    assert.equal(buildSec424bAnalysisPromptForInput(input424b).version, SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION);
+    assert.equal(SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION, "v42-material-events");
+    assert.equal(buildSec424bAnalysisPromptForInput(input424b).version, SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION);
     assert.equal(SEC_S1_F1_ANALYSIS_PROMPT_VERSION, "v32-pending-terms-default");
     assert.equal(buildSecS1F1AnalysisPromptForInput(inputS1F1).version, SEC_S1_F1_ANALYSIS_PROMPT_VERSION);
     assert.equal(SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION, "v63-news-style-taxonomy-schema");
-    assert.equal(buildSecS3OfferingAnalysisPrompt(inputS3).version, SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION);
+    assert.equal(SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION, "v64-material-events");
+    assert.equal(buildSecS3OfferingAnalysisPrompt(inputS3).version, SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION);
     assert.equal(registeredS3?.version, SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION);
   });
 });

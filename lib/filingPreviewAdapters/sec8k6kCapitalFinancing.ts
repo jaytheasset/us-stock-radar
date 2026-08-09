@@ -32,14 +32,15 @@ export function resolveCapitalSnapshotPreview({
     primaryEventType === "dilution_risk" &&
     capitalSnapshotModes.has(readText(data?.capital_mode));
   const matchesS3OfferingCapitalSnapshot =
-    normalizedFormType === "S-3" &&
+    (normalizedFormType === "S-3" || normalizedFormType === "S-3ASR") &&
     displayType === "offering_terms" &&
     Array.isArray(data?.snapshot_metrics);
   const matchesOfferingCapitalSnapshot =
     matchesS3OfferingCapitalSnapshot ||
     (normalizedFormType === "424B5" &&
       displayType === "offering_terms" &&
-      displayVersion === "424b-display-payload-v1");
+      ["", "1.0", "424b-display-payload-v1"].includes(displayVersion) &&
+      Array.isArray(data?.snapshot_metrics));
 
   if (!matchesSec8k6kCapitalSnapshot && !matchesOfferingCapitalSnapshot) {
     return null;

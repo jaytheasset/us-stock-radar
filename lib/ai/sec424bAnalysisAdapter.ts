@@ -1,6 +1,11 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
-import { build424bAnalysisPrompt, type Sec424bAnalysisPromptVariant } from "@/lib/sources/sec/forms/424b/analysisPrompt";
+import {
+  build424bAnalysisPrompt,
+  get424bAnalysisSourceBlockIds,
+  requires424b5MaterialEvents,
+  type Sec424bAnalysisPromptVariant,
+} from "@/lib/sources/sec/forms/424b/analysisPrompt";
 import { APPROVED_424B_EVENT_TYPES } from "@/lib/sources/sec/forms/424b/types";
 import type { Sec424bParserOutput } from "@/lib/sources/sec/forms/424b/types";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
@@ -21,6 +26,7 @@ import {
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
 export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v41-news-style-taxonomy-schema";
+export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v42-material-events";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_KEY = "sec_424b_validation_repair";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
@@ -84,8 +90,12 @@ export function buildSec424bAnalysisPromptForInput(
   }
   const parserOutputForPrompt = attach424bPromptMarketContext(parserOutput, input);
   const promptVariant = normalize424bPromptVariant(options.promptVariant);
-  const promptVersion =
-    promptVariant === "legacy" ? SEC_424B_ANALYSIS_PROMPT_VERSION : SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION;
+  const requiresMaterialEvents = requires424b5MaterialEvents(parserOutputForPrompt);
+  const promptVersion = requiresMaterialEvents
+    ? SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION
+    : promptVariant === "legacy"
+      ? SEC_424B_ANALYSIS_PROMPT_VERSION
+      : SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION;
 
   return {
     key: SEC_424B_ANALYSIS_PROMPT_KEY,
@@ -103,7 +113,7 @@ export function buildSec424bAnalysisPromptForInput(
       json_schema: {
         name: "sec_424b_required_output",
         strict: false,
-        schema: sec424bRequiredOutputSchema,
+        schema: requiresMaterialEvents ? sec424b5RequiredOutputSchema : sec424bRequiredOutputSchema,
       },
     },
   };
@@ -578,6 +588,18 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       ok: false,
       error: "SEC 424B result did not contain analysis_output and display_payload",
     };
+  }
+  if (requires424b5MaterialEvents(parserOutput)) {
+    const materialEventErrors = validateSecOfferingMaterialEvents(
+      analysisOutput,
+      get424bAnalysisSourceBlockIds(attach424bPromptMarketContext(parserOutput, input)),
+    );
+    if (materialEventErrors.length) {
+      return {
+        ok: false,
+        error: `SEC 424B5 analysis_output.material_events failed validation: ${materialEventErrors.join("; ")}`,
+      };
+    }
   }
   const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
   const scoreExplanation = normalizeScoreExplanation(
@@ -2045,6 +2067,87 @@ function shareBasisText(record: Record<string, unknown> | null) {
     .join(" ");
 }
 
+export function validateSecOfferingMaterialEvents(
+  analysisOutput: Record<string, unknown>,
+  allowedSourceBlockIds: string[],
+): string[] {
+  const errors: string[] = [];
+  const events = Array.isArray(analysisOutput.material_events) ? analysisOutput.material_events : null;
+  if (!events) return ["must be an array"];
+  if (events.length < 1 || events.length > 3) errors.push("must contain 1 to 3 rows");
+
+  const allowedFields = new Set(["role", "event_type", "event_summary", "key_terms", "source_block_ids"]);
+  const approvedEventTypes = new Set<string>(APPROVED_424B_EVENT_TYPES);
+  const sourceBlockIds = new Set(allowedSourceBlockIds);
+  let primaryCount = 0;
+  let primaryEventType = "";
+  let primaryEventSummary = "";
+
+  events.forEach((value, index) => {
+    const event = readRecord(value);
+    const path = `material_events[${index}]`;
+    if (!event) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    const extraFields = Object.keys(event).filter((key) => !allowedFields.has(key));
+    if (extraFields.length) errors.push(`${path} has unsupported field(s): ${extraFields.join(", ")}`);
+
+    const role = stringValue(event.role);
+    const eventType = stringValue(event.event_type);
+    const eventSummary = typeof event.event_summary === "string" ? event.event_summary.trim() : "";
+    if (role !== "primary" && role !== "secondary") errors.push(`${path}.role must be primary or secondary`);
+    if (!approvedEventTypes.has(eventType)) errors.push(`${path}.event_type is not approved`);
+    if (!eventSummary) errors.push(`${path}.event_summary must be non-empty`);
+    if (eventSummary.length > 300) errors.push(`${path}.event_summary must be 300 characters or fewer`);
+
+    const keyTerms = Array.isArray(event.key_terms) ? event.key_terms : null;
+    if (
+      !keyTerms ||
+      keyTerms.length < 1 ||
+      keyTerms.length > 5 ||
+      keyTerms.some((item) => typeof item !== "string" || !item.trim() || item.trim().length > 160)
+    ) {
+      errors.push(`${path}.key_terms must contain 1 to 5 non-empty strings`);
+    }
+    const citedSourceBlockIds = Array.isArray(event.source_block_ids) ? event.source_block_ids : null;
+    if (
+      !citedSourceBlockIds ||
+      citedSourceBlockIds.length < 1 ||
+      citedSourceBlockIds.length > 8 ||
+      citedSourceBlockIds.some(
+        (item) =>
+          typeof item !== "string" ||
+          !item.trim() ||
+          item.trim().length > 80 ||
+          !sourceBlockIds.has(item.trim()),
+      )
+    ) {
+      errors.push(`${path}.source_block_ids must cite 1 to 8 block_id values from the analysis source bundle`);
+    }
+
+    if (role === "primary") {
+      primaryCount += 1;
+      primaryEventType = eventType;
+      primaryEventSummary = eventSummary;
+    }
+  });
+
+  if (primaryCount !== 1) errors.push("must contain exactly one primary row");
+  if (primaryCount === 1 && primaryEventType !== stringValue(analysisOutput.event_type)) {
+    errors.push("primary event_type must match analysis_output.event_type");
+  }
+  if (primaryEventSummary) {
+    const normalizedPrimarySummary = primaryEventSummary.replace(/\s+/g, " ").trim().toLowerCase();
+    const copiedField = ["event_title", "quick_take", "summary"].find((field) => {
+      const value = stringValue(analysisOutput[field]).replace(/\s+/g, " ").trim().toLowerCase();
+      return value && value === normalizedPrimarySummary;
+    });
+    if (copiedField) errors.push(`primary event_summary must not copy analysis_output.${copiedField}`);
+  }
+  return errors;
+}
+
 // Required-output schema for 424B and S3/F3 main offering flows.
 // Shared offering sub-schemas live in secOfferingOutputSchemas so S1/F1 can reuse
 // common UI blocks while keeping its IPO/listing-specific output schema separate.
@@ -2161,6 +2264,53 @@ export const sec424bRequiredOutputSchema = {
     },
   },
 };
+
+export const secOfferingMaterialEventsSchema = {
+  type: "array",
+  minItems: 1,
+  maxItems: 3,
+  description: "Exactly one primary event and only independently decision-relevant secondary events.",
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["role", "event_type", "event_summary", "key_terms", "source_block_ids"],
+    properties: {
+      role: { type: "string", enum: ["primary", "secondary"] },
+      event_type: { type: "string", enum: APPROVED_424B_EVENT_TYPES },
+      event_summary: { type: "string", minLength: 1, maxLength: 300 },
+      key_terms: {
+        type: "array",
+        minItems: 1,
+        maxItems: 5,
+        items: { type: "string", minLength: 1, maxLength: 160 },
+      },
+      source_block_ids: {
+        type: "array",
+        minItems: 1,
+        maxItems: 8,
+        items: { type: "string", minLength: 1, maxLength: 80 },
+      },
+    },
+  },
+} as const;
+
+export const sec424b5RequiredOutputSchema = {
+  ...sec424bRequiredOutputSchema,
+  properties: {
+    ...sec424bRequiredOutputSchema.properties,
+    analysis_output: {
+      ...sec424bRequiredOutputSchema.properties.analysis_output,
+      required: [
+        ...sec424bRequiredOutputSchema.properties.analysis_output.required,
+        "material_events",
+      ],
+      properties: {
+        ...sec424bRequiredOutputSchema.properties.analysis_output.properties,
+        material_events: secOfferingMaterialEventsSchema,
+      },
+    },
+  },
+} as const;
 
 function keyCashTermFactSchema() {
   return {

@@ -3,9 +3,85 @@ import { describe, it } from "node:test";
 
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
+  adaptSecS3AnalysisPromptResultForAnalysis,
   applySecS3ValidationRepairPatches,
   buildSecS3ValidationRepairPlan,
 } from "@/lib/ai/secS3AnalysisAdapter";
+import {
+  buildSecS3OfferingAnalysisPrompt,
+  getSecS3OfferingSourceBlockIds,
+} from "@/lib/prompts/secS3OfferingAnalysis";
+
+describe("S-3 material events output contract", () => {
+  it("requires and preserves one primary plus a genuinely separate secondary for S-3ASR", () => {
+    const input = buildS3MaterialEventsInput("S-3ASR");
+    const sourceBlockIds = getSecS3OfferingSourceBlockIds(input);
+    const result = buildS3MaterialEventsResult(sourceBlockIds, [
+      {
+        role: "primary",
+        event_type: "dilution_risk",
+        event_summary: "The automatic shelf registration creates future equity issuance capacity without launching a current sale.",
+        key_terms: ["automatic shelf", "$500 million capacity"],
+        source_block_ids: [sourceBlockIds[0]],
+      },
+      {
+        role: "secondary",
+        event_type: "legal_risk",
+        event_summary: "A separately disclosed court order could independently restrict the issuer's principal operating asset.",
+        key_terms: ["court order", "operating restriction"],
+        source_block_ids: [sourceBlockIds[1]],
+      },
+    ]);
+
+    const prompt = buildSecS3OfferingAnalysisPrompt(input);
+    const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
+    const analysisSchema = schema.properties.analysis_output as Record<string, any>;
+    const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
+
+    assert.equal(prompt.version, "v64-material-events");
+    assert.ok(prompt.system.includes("exactly one role=primary"));
+    assert.ok(prompt.user.includes(`"block_id":"${sourceBlockIds[0]}"`));
+    assert.ok(analysisSchema.required.includes("material_events"));
+    assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    assert.deepEqual(adapted.analysis.material_events, result.analysis_output.material_events);
+  });
+
+  it("keeps a routine analyzed S-3 as one primary event and rejects duplicate primaries", () => {
+    const input = buildS3MaterialEventsInput("S-3");
+    const sourceBlockIds = getSecS3OfferingSourceBlockIds(input);
+    const primary = {
+      role: "primary",
+      event_type: "dilution_risk",
+      event_summary: "The registration statement preserves future shelf capacity but does not start an active sale.",
+      key_terms: ["future shelf capacity", "no active sale"],
+      source_block_ids: [sourceBlockIds[0]],
+    };
+    const routine = buildS3MaterialEventsResult(sourceBlockIds, [primary], 25);
+    const duplicatePrimary = buildS3MaterialEventsResult(sourceBlockIds, [primary, { ...primary }], 25);
+
+    assert.equal(adaptSecS3AnalysisPromptResultForAnalysis(routine, input).ok, true);
+    const rejected = adaptSecS3AnalysisPromptResultForAnalysis(duplicatePrimary, input);
+    assert.equal(rejected.ok, false);
+    if (rejected.ok) return;
+    assert.match(rejected.error, /exactly one primary/);
+  });
+
+  it("does not impose the new output contract on the shared F-3 path", () => {
+    const input = buildS3MaterialEventsInput("F-3");
+    const prompt = buildSecS3OfferingAnalysisPrompt(input);
+    const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
+    const analysisSchema = schema.properties.analysis_output as Record<string, any>;
+    const result = buildS3MaterialEventsResult([], undefined);
+    delete (result.analysis_output as Record<string, unknown>).material_events;
+
+    assert.equal(prompt.version, "v63-news-style-taxonomy-schema");
+    assert.ok(!prompt.system.includes("exactly one role=primary"));
+    assert.ok(!analysisSchema.required.includes("material_events"));
+    assert.equal(adaptSecS3AnalysisPromptResultForAnalysis(result, input).ok, true);
+  });
+});
 
 describe("S-3/F-3 validation repair", () => {
   it("selects original source blocks and limits repair to local scalar fields", () => {
@@ -309,6 +385,94 @@ function buildS3RepairAnalysis(): Record<string, unknown> {
           },
         },
       },
+    },
+  };
+}
+
+function buildS3MaterialEventsInput(formType: string) {
+  return {
+    filing_package: {
+      form_type: formType,
+      company_name: "Example Shelf Corp.",
+      primary_ticker: { ticker: "SHELF", exchange: "NASDAQ" },
+      hard_parsers: {
+        s3: {
+          form_type: formType,
+          cleaned_source_blocks: [
+            {
+              block_type: "offering_terms",
+              label: "Automatic shelf capacity",
+              source: "registration statement",
+              text: "The issuer registers up to $500 million of securities for future offerings and is not commencing a sale with this filing.",
+            },
+            {
+              block_type: "legal_update",
+              label: "Separate court order",
+              source: "registration statement",
+              text: "A court order separately restricts operation of the issuer's principal asset pending further review.",
+            },
+          ],
+        },
+      },
+    },
+  } as unknown as SecFilingAnalysisInput;
+}
+
+function buildS3MaterialEventsResult(
+  sourceBlockIds: string[],
+  materialEvents?: Array<Record<string, unknown>>,
+  score = 70,
+) {
+  return {
+    analysis_output: {
+      source_group: "filings",
+      market_scope: "company",
+      event_type: "dilution_risk",
+      material_events: materialEvents || [
+        {
+          role: "primary",
+          event_type: "dilution_risk",
+          event_summary: "The shelf registration creates future issuance capacity without launching a current sale.",
+          key_terms: ["future issuance capacity"],
+          source_block_ids: [sourceBlockIds[0]],
+        },
+      ],
+      event_title: "Shelf registration preserves future issuance capacity",
+      primary_ticker: null,
+      tickers: [],
+      sector: null,
+      industry_group: null,
+      theme_group: null,
+      sub_theme: null,
+      score,
+      score_reason: "Future issuance capacity matters, while the absence of an active sale limits immediacy.",
+      score_explanation: { summary: "Future issuance capacity is meaningful but no sale starts now." },
+      signal: "neutral",
+      quick_take: "The filing registers future capacity without current sale terms.",
+      summary: "The issuer registered shelf capacity for possible later offerings, with no active sale launched in this filing.",
+      why_it_matters: "Future offerings could add supply when the issuer later activates the shelf.",
+      bullish_points: [],
+      bearish_points: [],
+      key_evidence: [],
+      what_to_watch_next: [],
+      related_tickers: [],
+      calendar_items: [],
+      confidence: "high",
+      needs_human_review: false,
+    },
+    display_payload: {
+      display_type: "offering_terms",
+      display_version: "1.0",
+      data: {
+        display_mode: "shelf_capacity",
+        snapshot_metrics: [{ label: "Shelf capacity", value: "$500 million" }],
+        share_overhang: { rows: [] },
+        instrument_details: [],
+        investor_takeaway: "The shelf creates future capacity but no current sale.",
+        needs_human_review: false,
+      },
+      evidence: [],
+      notes: [],
     },
   };
 }

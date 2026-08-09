@@ -1,9 +1,21 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
-import { sec424bRequiredOutputSchema } from "@/lib/ai/sec424bAnalysisAdapter";
+import {
+  sec424b5RequiredOutputSchema,
+  sec424bRequiredOutputSchema,
+} from "@/lib/ai/sec424bAnalysisAdapter";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v63-news-style-taxonomy-schema";
+export const SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION = "v64-material-events";
+
+const secS3MaterialEventsSystemPrompt = [
+  "Populate analysis_output.material_events before event_title, quick_take, score_reason, score_explanation, or summary. This is the source-backed event plan used by filing previews.",
+  "material_events must contain exactly one role=primary row whose event_type matches analysis_output.event_type. Keep a routine or low-importance analyzed filing as one primary event instead of omitting material_events.",
+  "Add a role=secondary row only for a separate event that would independently change an investor conclusion. Offering amount, price, security terms, use of proceeds, conditions, rationale, and background belong in the primary row and must not be split into secondary rows.",
+  "Each material_events row must include role, event_type, a concise investor-facing event_summary, key_terms, and source_block_ids. Cite only block_id values present in cleaned_source_blocks.",
+  "Write each event_summary directly from cited source blocks. Do not copy event_title, quick_take, or summary into event_summary, and do not use parser text as evidence.",
+].join("\n");
 
 export const secS3RequiredOutputSystemPrompt = [
   "Analyze one SEC S-3/F-3 family filing from source-backed SEC text.",
@@ -276,16 +288,21 @@ export const secS3RequiredOutputSystemPrompt = [
 export const secS3OfferingAnalysisResponseSchema = sec424bRequiredOutputSchema;
 
 export function buildSecS3OfferingAnalysisPrompt(input: SecFilingAnalysisInput) {
+  const requiresMaterialEvents = requiresSecS3MaterialEvents(input);
   return {
     key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
-    version: SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
-    system: secS3RequiredOutputSystemPrompt,
+    version: requiresMaterialEvents
+      ? SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION
+      : SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
+    system: requiresMaterialEvents
+      ? `${secS3RequiredOutputSystemPrompt}\n${secS3MaterialEventsSystemPrompt}`
+      : secS3RequiredOutputSystemPrompt,
     user: JSON.stringify(buildSecS3OfferingPromptInput(input)),
     responseFormat: {
       json_schema: {
         name: "sec_s3_required_output",
         strict: false,
-        schema: sec424bRequiredOutputSchema,
+        schema: requiresMaterialEvents ? sec424b5RequiredOutputSchema : sec424bRequiredOutputSchema,
       },
     },
   };
@@ -309,9 +326,18 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
     maxBlocks: 60,
     maxBlockChars: 5_000,
   });
+  const identifiedSourceBlocks = requiresSecS3MaterialEvents(input)
+    ? {
+        ...sourceBlocks,
+        cleaned_source_blocks: sourceBlocks.cleaned_source_blocks.map((block, index) => ({
+          ...block,
+          block_id: `s3_source_${index + 1}`,
+        })),
+      }
+    : sourceBlocks;
 
   return {
-    ...sourceBlocks,
+    ...identifiedSourceBlocks,
     filing_package: {
       package_version: filingPackage.package_version || null,
       source_group: filingPackage.source_group || null,
@@ -355,6 +381,19 @@ function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
       package_stats: filingPackage.package_stats || null,
     },
   };
+}
+
+export function getSecS3OfferingSourceBlockIds(input: SecFilingAnalysisInput): string[] {
+  return buildSecS3OfferingPromptInput(input).cleaned_source_blocks
+    .filter((block) => !["current_filing", "filing_metadata", "site_market_context"].includes(block.block_type))
+    .map((block) => ("block_id" in block ? String(block.block_id) : ""))
+    .filter(Boolean);
+}
+
+export function requiresSecS3MaterialEvents(input: SecFilingAnalysisInput): boolean {
+  const filingPackage = readRecord(input.filing_package);
+  const normalizedFormType = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
+  return normalizedFormType === "S-3" || normalizedFormType === "S-3ASR";
 }
 
 function buildS3ParserPromptOutput(

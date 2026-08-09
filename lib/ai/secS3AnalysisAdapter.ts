@@ -7,11 +7,14 @@ import {
 } from "@/lib/prompts/secS3AmendmentTriage";
 import {
   buildSecS3OfferingAnalysisPrompt,
+  getSecS3OfferingSourceBlockIds,
+  requiresSecS3MaterialEvents,
   SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
 } from "@/lib/prompts/secS3OfferingAnalysis";
 import {
   collect424bDisplayPayloadWarnings,
   normalize424bOfferingDisplayModel,
+  validateSecOfferingMaterialEvents,
   validate424bDisplayPayload,
 } from "@/lib/ai/sec424bAnalysisAdapter";
 import { collectSecOfferingMarketContextWarnings } from "@/lib/secOfferingMarketContext";
@@ -540,6 +543,18 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
       ok: false,
       error: "SEC S3 result did not contain analysis_output and display_payload",
     };
+  }
+  if (requiresSecS3MaterialEvents(input)) {
+    const materialEventErrors = validateSecOfferingMaterialEvents(
+      analysisOutput,
+      getSecS3OfferingSourceBlockIds(input),
+    );
+    if (materialEventErrors.length) {
+      return {
+        ok: false,
+        error: `SEC S3 analysis_output.material_events failed validation: ${materialEventErrors.join("; ")}`,
+      };
+    }
   }
 
   const rawDisplayPayloadError = validate424bDisplayPayload(displayPayload, {
