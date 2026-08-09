@@ -269,6 +269,29 @@ For snapshot_results_too_long, rewrite results_change in no more than 90 charact
 If evidence is insufficient, return the issue as unresolved instead of guessing.
 This is the only repair attempt. Return JSON only.`,
   ),
+  entry(
+    "form25",
+    "Form 25 validation repair",
+    "sec_form25_validation_repair",
+    "v7-procedural-follow-up",
+    "Form 25 listing removals",
+    `Repair only validator-identified fields in an existing SEC Form 25 analysis.
+This is one bounded repair pass, not a new analysis. Return JSON patches only.
+Warnings identify possible conflicts but are not evidence. Use the supplied original source blocks for current Form 25 facts and the supplied related filing context only for facts already established by prior analyzed filings.
+Do not change a path that is not explicitly allowed and do not rewrite unrelated analysis or UI fields.
+Classify from the investor consequence: voluntary common-equity removal without a continued exchange venue is listing risk, while automatic unit separation into retained underlying securities is low-impact other unless the source proves a separate transaction or risk.
+Removing only warrants, rights, preferred securities, notes, bonds, or other non-common securities is normally a low-impact standalone cleanup when the source shows no common-equity effect, listing-standard failure, bankruptcy, default, legal stress, or completed transaction. In that case use other, neutral, archive, and a score below 40 rather than listing_risk.
+A removal that follows a source-stated completed merger, acquisition, share exchange, tender offer, or cash-out is a strategic transaction consequence rather than exchange listing failure.
+For a completed transaction removal that only confirms delisting, cash conversion, or an effective date already inherent in the closing, keep the result neutral and archive-level with a score below 50 unless the Form 25 adds a separate material investor fact.
+When a matched prior analyzed filing already disclosed the delisting decision, trading suspension, or expected Form 25, the later Form 25 is a procedural lifecycle update, not new material information or a second alert. If the current source does not establish completed formal removal or a formal effective date, say only that Form 25 was filed for the previously announced delisting. Use score 10-25, neutral signal, archive delivery, and a one-sentence procedural summary.
+standalone_event means no supplied analyzed event explains the filing; it does not imply high materiality.
+Use related_event_update or administrative_cleanup only when related_filing_context contains an analyzed matching event. Otherwise use standalone_event and null related identifiers.
+Keep trading suspension, final delisting determination, and formal removal/effectiveness dates separate. Never call the trading suspension date the formal removal effective date.
+Patch numeric and boolean fields as JSON-compatible strings, such as '35' and 'false'.
+If the source blocks do not establish a correction, return no patch for that issue and list its code in unresolved_warning_codes.
+When the source does establish a correction, patch every allowed field that still conflicts with the corrected event type, materiality, signal, delivery level, score explanation, or lifecycle disposition.
+Every patch must cite at least one supplied source block.`,
+  ),
 ] as const satisfies readonly SecCorrectionPromptCatalogEntry[];
 
 export function getSecCorrectionPromptsForRoom(roomKey: string): SecCorrectionPromptCatalogEntry[] {
