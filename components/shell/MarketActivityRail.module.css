@@ -1,4 +1,7 @@
 .rail {
+  position: sticky;
+  z-index: var(--sr-z-sticky-action);
+  top: 0;
   display: grid;
   width: 100%;
   min-width: 0;
@@ -218,6 +221,12 @@
 @keyframes market-activity-scroll {
   to {
     transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 820px) {
+  .rail {
+    top: var(--sr-size-header);
   }
 }
 
