@@ -8,6 +8,7 @@ import {
   type EventTypeBadgeTone,
 } from "@/lib/eventTypeRegistry";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
+import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
 import { readStoredFilingSourceContent } from "@/lib/originalSourceContent";
 import { selectRelatedFilingRows } from "@/lib/relatedFilings";
@@ -4784,9 +4785,13 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     }),
     loadAnalysisMarketData(ticker),
   ]);
-  const filingBrief = cleanStoredAnalysisText(item.quickTake || item.summary);
-  const whyItMatters = cleanStoredAnalysisText(readRowString(analysis, "why_it_matters"));
   const summary = cleanStoredAnalysisText(item.summary);
+  const filingBrief = resolveFilingPreviewFields({
+    materialEvents: metadata?.material_events,
+    quickTake: cleanStoredAnalysisText(item.quickTake),
+    summary,
+  }).filingBrief;
+  const whyItMatters = cleanStoredAnalysisText(readRowString(analysis, "why_it_matters"));
   const bullishPoints = toStringArray(analysis?.bullish_points, []);
   const bearishPoints = toStringArray(analysis?.bearish_points, []);
   const keyEvidence = toStringArray(analysis?.key_evidence, []);

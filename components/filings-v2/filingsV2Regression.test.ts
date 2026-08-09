@@ -969,6 +969,14 @@ test("filing detail embeds stored SEC source in the sandbox and resolves related
   assert.match(source, /symbol: `eq\.\$\{ticker\}`/);
   assert.match(source, /selectRelatedFilingRows/);
   assert.match(source, /source_group: "eq\.filings"/);
+  assert.match(
+    source,
+    /const filingBrief = resolveFilingPreviewFields\(\{[\s\S]*materialEvents: metadata\?\.material_events,[\s\S]*quickTake: cleanStoredAnalysisText\(item\.quickTake\),[\s\S]*summary,[\s\S]*\}\)\.filingBrief/,
+  );
+  assert.doesNotMatch(
+    source,
+    /const filingBrief = cleanStoredAnalysisText\(item\.quickTake \|\| item\.summary\)/,
+  );
   assert.doesNotMatch(source, /dangerouslySetInnerHTML=\{\{ __html: embeddedHtml \}\}/);
 });
 
