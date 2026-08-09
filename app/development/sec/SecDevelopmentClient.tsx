@@ -824,7 +824,9 @@ function AnalysisReviewWorkspace({
             value={query}
           />
         </label>
-        <p>{query.trim() ? `${visibleResults.length} matches` : "Newest saved results first"}</p>
+        <p>{query.trim()
+          ? `${visibleResults.length} matches`
+          : `${formatDiagnosticSummaryStatus(snapshot.summary.status)} · Newest saved results first`}</p>
       </div>
       {visibleResults.length ? (
         <div className={styles.analysisReviewWorkspace}>
@@ -859,7 +861,11 @@ function AnalysisReviewWorkspace({
         </div>
       ) : (
         <div className={styles.reviewEmptyState} role="status">
-          {query.trim() ? `No actual analysis result matches “${query.trim()}”.` : "No saved analysis result is available for this room."}
+          {snapshot.summary.status === "read_failed"
+            ? "Persisted analysis read unavailable. No empty result was inferred; retry after the data source recovers."
+            : query.trim()
+              ? `No actual analysis result matches “${query.trim()}”.`
+              : "No saved analysis result is available for this room."}
         </div>
       )}
     </section>
@@ -4115,6 +4121,14 @@ function formatDiagnosticOverallStatus(value: string) {
   if (value === "warning") return "Warnings";
   if (value === "error") return "Error";
   return formatDiagnosticState(value);
+}
+
+function formatDiagnosticSummaryStatus(value: SecDiagnosticSnapshot["summary"]["status"]) {
+  if (value === "read_failed") return "Read unavailable";
+  if (value === "not_found") return "Exact result not found";
+  if (value === "partial") return "Partial lineage";
+  if (value === "empty") return "No recent saved results";
+  return "Persisted diagnostics available";
 }
 
 function formatDiagnosticState(value: string) {

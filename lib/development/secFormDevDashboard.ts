@@ -48,8 +48,14 @@ import {
 import {
   buildSecDiagnosticSnapshot,
   type SecDiagnosticFilters,
+  type SecDiagnosticReadContext,
   type SecDiagnosticSnapshot,
 } from "@/lib/development/secDiagnosticSnapshot";
+import {
+  limitSecPersistedRoomRows,
+  readSecPersistedEventRows,
+  type SecPersistedDiagnosticQuery,
+} from "@/lib/development/secPersistedDiagnosticRead";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -192,6 +198,11 @@ type RecentPersistenceContext = {
   rawItem: Record<string, unknown> | null;
   sourceRun: Record<string, unknown> | null;
 };
+type SecPersistedRoomReadResult = {
+  status: SecDiagnosticReadContext["status"];
+  query: SecPersistedDiagnosticQuery;
+  runs: SecDevLiveRunResult[];
+};
 
 export const SEC_DEV_ROOMS: SecDevRoom[] = [
   ...SEC_FORM_ROOM_MANIFEST.map((room) => ({
@@ -228,14 +239,14 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
   const liveCache = await readLiveCache();
   const testResults = testFiles.map((file) => cache[file] || buildNotRunResult(file));
   const snapshot = buildRoomSnapshot(room, testFiles, testResults);
-  const [files, outputPreviews, promptPreviews, recentPersistedRuns] = await Promise.all([
+  const [files, outputPreviews, promptPreviews, persistedRead] = await Promise.all([
     readRoomFiles(room, testFiles, fixtures, expected),
     readOutputPreviews(room, expected),
     readPromptPreviews(room),
-    readRecentPersistedRuns(room),
+    readPersistedRoomResults(room, {}),
   ]);
 
-  const liveRuns = mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns);
+  const liveRuns = mergeLiveRuns(liveCache[room.key] || [], persistedRead.runs);
   return {
     ...snapshot,
     files,
@@ -246,7 +257,7 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     outputPreviews,
     promptPreviews,
     correctionPromptCatalog: getSecCorrectionPromptsForRoom(room.key),
-    diagnosticSnapshot: buildRoomDiagnosticSnapshot(room, liveRuns),
+    diagnosticSnapshot: buildRoomDiagnosticSnapshot(room, persistedRead.runs, undefined, persistedRead),
   };
 }
 
@@ -254,9 +265,10 @@ export async function getSecDevRoomDiagnostics(
   roomKey: string,
   filters: SecDiagnosticFilters,
 ): Promise<SecDiagnosticSnapshot | null> {
-  const detail = await getSecDevRoomDetail(roomKey);
-  if (!detail) return null;
-  return buildRoomDiagnosticSnapshot(detail, detail.liveRuns, filters);
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+  const persistedRead = await readPersistedRoomResults(room, filters);
+  return buildRoomDiagnosticSnapshot(room, persistedRead.runs, filters, persistedRead);
 }
 
 export async function getSecDevAllRoomIssueData(): Promise<SecDevRoomIssueData[]> {
@@ -1088,23 +1100,20 @@ function countExcludedItems(items: Array<Record<string, unknown>>) {
   return items.filter((item) => item.is_excluded === true || stringValue(item.skip_gate)).length;
 }
 
-async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunResult[]> {
-  try {
-    const result = await supabaseSelect("events", {
-      select: "*",
-      source_group: "eq.filings",
-      order: "detected_at.desc",
-      limit: "120",
-    });
-    if (!result.ok || !Array.isArray(result.data)) return [];
+async function readPersistedRoomResults(
+  room: SecDevRoom,
+  filters: Partial<SecDiagnosticFilters>,
+): Promise<SecPersistedRoomReadResult> {
+  const eventRead = await readSecPersistedEventRows({ filters, select: supabaseSelect });
+  if (eventRead.status === "read_failed") {
+    return { status: "read_failed", query: eventRead.query, runs: [] };
+  }
 
+  try {
     const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
-    const rows = result.data
-      .map((row) => readRecord(row))
-      .filter((row): row is Record<string, unknown> => Boolean(row))
-      .filter((row) => persistedEventMatchesRoom(row, allowedForms))
-      .slice(0, 10);
-    if (!rows.length) return [];
+    const matchingRows = eventRead.rows.filter((row) => persistedEventMatchesRoom(row, allowedForms));
+    const rows = limitSecPersistedRoomRows(matchingRows, eventRead.query);
+    if (!rows.length) return { status: "ok", query: eventRead.query, runs: [] };
 
     const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
     const rawItemIds = rows.map((row) => stringValue(row.raw_item_id)).filter(Boolean);
@@ -1113,15 +1122,19 @@ async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunR
       readRecentRepairTraceMap(eventIds),
       readRecentPersistenceContextMap(rawItemIds),
     ]);
-    return rows.map((row) => buildRecentPersistedRun(
-      room,
-      row,
-      analysisByEventId.get(stringValue(row.id)) || null,
-      repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
-      persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
-    ));
+    return {
+      status: "ok",
+      query: eventRead.query,
+      runs: rows.map((row) => buildRecentPersistedRun(
+        room,
+        row,
+        analysisByEventId.get(stringValue(row.id)) || null,
+        repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
+        persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
+      )),
+    };
   } catch {
-    return [];
+    return { status: "read_failed", query: eventRead.query, runs: [] };
   }
 }
 
@@ -1451,11 +1464,12 @@ function buildRoomDiagnosticSnapshot(
   room: Pick<SecDevRoom, "key" | "label" | "forms">,
   liveRuns: SecDevLiveRunResult[],
   filters?: SecDiagnosticFilters,
+  read?: SecDiagnosticReadContext,
 ) {
   const records = liveRuns
     .filter((run) => run.mode === "recent_persisted")
     .flatMap((run) => run.items);
-  return buildSecDiagnosticSnapshot({ room, records, filters });
+  return buildSecDiagnosticSnapshot({ room, records, filters, read });
 }
 
 function mergeLiveRuns(cachedRuns: SecDevLiveRunResult[], persistedRuns: SecDevLiveRunResult[]) {

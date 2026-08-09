@@ -6,6 +6,12 @@ does not define a new runtime, data model, or execution path.
 
 ## Start here
 
+Resolve the current local application origin from the
+[Local Auth callbacks](SUPABASE_LOCAL_DEVELOPMENT.md#local-auth-callbacks)
+section, which is the single reference for the normal Stock Radar development
+origin. Append the paths below to that origin; this guide does not start or stop
+a server.
+
 Use the human console when reviewing results interactively:
 
 ```text
@@ -34,18 +40,23 @@ normalized to uppercase and must be 1-10 characters from `A-Z`, `0-9`, `.`, or
 `-`. Accession uses the SEC `0000000000-00-000000` format. Start with one
 identifier; multiple supplied filters are applied together.
 
+`eventId` and `accession` use bounded exact persisted lookups, so they are not
+limited to the room's latest ten results. Ticker remains a multi-result filter
+over the bounded recent room list; it is not treated as an exact identifier.
+
 The regular room-detail response contains `detail.diagnosticSnapshot`. The
-structured form above returns `diagnostics`. Both are built from the same
-recent persisted room data and snapshot builder, so the UI is not a second
-source of truth and should not be scraped to reconstruct diagnostics.
+structured form above returns `diagnostics`. Both use the same persisted room
+reader and snapshot builder. The UI uses its bounded recent mode, while exact
+API identifiers select a bounded exact mode; neither has a separate diagnostic
+meaning or should be reconstructed by scraping UI output.
 
 ## Read-only investigation flow
 
 1. Confirm that the server is a development instance and that the session has
    the administrator `system.read` permission.
 2. Choose the form room that owns the filing. In the UI, narrow recent saved
-   results by ticker or accession; for an exact event UUID, use the structured
-   diagnostics filter.
+   results by ticker or accession. For an exact event UUID or an accession that
+   may be older than the recent list, use the structured diagnostics filter.
 3. Match `identity` and `timestamps` first. Then inspect collection, background
    analysis, and source-run status before interpreting the analysis trace.
 4. Follow the named lineage records and their timestamps. Review `warnings`
@@ -70,12 +81,16 @@ Interpret absence conservatively:
 
 | State | Meaning |
 | --- | --- |
-| `available` | The diagnostic adapter found the named record or trace. |
+| `available` | The persisted read succeeded and the requested result has complete named lineage, or the named source record is present. |
+| `partial` | A persisted result was found, but one or more named lineage records or recorded statuses are not available. |
 | `missing` | An identifier exists, but the corresponding record was not available to the snapshot. |
 | `unavailable` | The adapter has no record or identifier with which to establish that source. |
 | `unknown` | A status value was not recorded; it is neither success nor failure. |
 | `record_missing` | A historical analysis or correction trace was not recorded. |
-| `empty` | The current room and filters matched no recent persisted diagnostic result. |
+| `empty` | A bounded recent/ticker read succeeded but matched zero persisted results. |
+| `not_found` | A bounded exact `eventId` or `accession` read succeeded but found no matching persisted result in the requested room and combined filters. |
+| `read_failed` | The persisted event read failed. No database or internal error detail is exposed, and the result is not reported as `empty`. |
+| `persisted_only` | The diagnostic scope contains saved results only. Pre-persist execution is explicitly outside the scope, not evidence for `empty` or `not_found`. |
 | `not_used` | Persisted review read named database records directly; browser or application cache state was not inferred. |
 
 Domain statuses such as `completed` or `failed` may also appear where the
@@ -120,6 +135,8 @@ When checking this document for drift, compare it with:
 - `app/api/development/sec-live/route.ts`
 - `app/api/development/sec-tests/route.ts`
 - `lib/development/secFormDevDashboard.ts`
+- `lib/development/secPersistedDiagnosticRead.ts`
 - `lib/development/secDiagnosticSnapshot.ts`
+- `lib/development/secPersistedDiagnosticRead.test.ts`
 - `lib/development/secDiagnosticSnapshot.test.ts`
 - `lib/development/secRepairObservability.test.ts`

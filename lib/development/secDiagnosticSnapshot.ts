@@ -1,4 +1,9 @@
-export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v1" as const;
+export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v2" as const;
+
+export type SecDiagnosticReadContext = {
+  status: "ok" | "read_failed";
+  query: "recent" | "exact_event" | "exact_accession";
+};
 
 export type SecDiagnosticFilters = {
   eventId: string | null;
@@ -17,9 +22,14 @@ export type SecDiagnosticSnapshot = {
     page: "/development/sec";
     room: { key: string; label: string; forms: string[] };
     filters: SecDiagnosticFilters;
+    scope: {
+      status: "persisted_only";
+      query: SecDiagnosticReadContext["query"];
+      excludes: ["pre_persist_execution"];
+    };
   };
   summary: {
-    status: "available" | "empty";
+    status: "available" | "partial" | "empty" | "not_found" | "read_failed";
     result_count: number;
     warning_count: number;
     error_count: number;
@@ -92,6 +102,7 @@ type SnapshotInput = {
   records: Array<Record<string, unknown>>;
   filters?: Partial<SecDiagnosticFilters>;
   generatedAt?: string;
+  read?: SecDiagnosticReadContext;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -128,14 +139,17 @@ export function parseSecDiagnosticFilters(input: {
 }
 
 export function buildSecDiagnosticSnapshot(input: SnapshotInput): SecDiagnosticSnapshot {
+  const read = input.read || { status: "ok", query: "recent" };
   const filters: SecDiagnosticFilters = {
     eventId: stringValue(input.filters?.eventId) || null,
     ticker: stringValue(input.filters?.ticker).toUpperCase() || null,
     accessionNumber: stringValue(input.filters?.accessionNumber) || null,
   };
-  const results = input.records
-    .filter((record) => matchesFilters(record, filters))
-    .map(buildDiagnosticResult);
+  const results = read.status === "read_failed"
+    ? []
+    : input.records
+      .filter((record) => matchesFilters(record, filters))
+      .map(buildDiagnosticResult);
 
   return {
     schema_version: SEC_DIAGNOSTIC_SCHEMA_VERSION,
@@ -148,15 +162,42 @@ export function buildSecDiagnosticSnapshot(input: SnapshotInput): SecDiagnosticS
         forms: [...input.room.forms],
       },
       filters,
+      scope: {
+        status: "persisted_only",
+        query: read.query,
+        excludes: ["pre_persist_execution"],
+      },
     },
     summary: {
-      status: results.length ? "available" : "empty",
+      status: diagnosticSummaryStatus(read, results),
       result_count: results.length,
       warning_count: results.reduce((count, result) => count + result.warnings.length, 0),
       error_count: results.reduce((count, result) => count + result.errors.length, 0),
     },
     results,
   };
+}
+
+function diagnosticSummaryStatus(
+  read: SecDiagnosticReadContext,
+  results: SecDiagnosticResult[],
+): SecDiagnosticSnapshot["summary"]["status"] {
+  if (read.status === "read_failed") return "read_failed";
+  if (!results.length) return read.query === "recent" ? "empty" : "not_found";
+  return results.some(hasPartialLineage) ? "partial" : "available";
+}
+
+function hasPartialLineage(result: SecDiagnosticResult) {
+  return result.sources.some((source) => source.status !== "available") ||
+    [result.status.collection, result.status.analysis, result.status.background].some(isUnknownDiagnosticState) ||
+    [result.background.workflow_analysis_status, result.background.source_run_status].some(isUnknownDiagnosticState) ||
+    result.analysis.first_result.availability === "record_missing" ||
+    result.analysis.validation.availability === "record_missing" ||
+    result.analysis.correction.availability === "record_missing";
+}
+
+function isUnknownDiagnosticState(value: string) {
+  return value === "unknown" || value === "unavailable" || value === "record_missing";
 }
 
 function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResult {
