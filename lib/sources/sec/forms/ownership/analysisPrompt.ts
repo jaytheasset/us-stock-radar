@@ -44,6 +44,10 @@ Event and display rules:
   display_payload.data empty.
 - For Form 4 or Form 4/A, include compact form4 display data when the source
   supports it.
+- For Form 4 or Form 4/A, preserve each transaction's actual source-backed
+  security title/type. Do not collapse distinct securities such as RSUs,
+  performance units, options, or common stock into one type merely because they
+  appear in the same filing.
 - For Form 144 or Form 144/A, include compact form144 display data when the
   source supports it.
 - If parser facts provide issuer.ticker, preserve it in

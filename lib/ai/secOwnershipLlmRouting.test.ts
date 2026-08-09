@@ -1,0 +1,214 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import {
+  buildOwnershipAnalysisInput,
+  buildOwnershipAnalysisPrompt,
+} from "../sources/sec/forms/ownership/analysisPrompt.ts";
+import {
+  buildOwnershipDisplayPayload,
+  buildOwnershipRoutingDecision,
+  parseOwnershipFiling,
+} from "../sources/sec/forms/ownership/parser.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const ownershipRoot = join(here, "../sources/sec/forms/ownership");
+
+const cases = [
+  { formType: "4", fixture: "form4-insider-purchase.json" },
+  { formType: "4/A", fixture: "form4a-admin-amendment.json" },
+  { formType: "144", fixture: "form144-routine-proposed-sale.json" },
+  { formType: "144/A", fixture: "form144a-material-increase.json" },
+] as const;
+
+test("every Ownership form reaches the common LLM branch with parser routing and display input preserved", async () => {
+  const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
+  const runtimeSource = extractRuntimeFunction(previewSource);
+
+  assert.equal(runtimeSource.includes("buildDeterministicOwnershipAnalysis(input)"), false);
+  assert.ok(runtimeSource.includes("if (isOwnershipFilingInput(input))"));
+  assert.ok(runtimeSource.includes("buildSecOwnershipAnalysisPrompt(input)"));
+  assert.ok(runtimeSource.includes("runOpenAiJsonPrompt(env, prompt, llmConfig)"));
+
+  const providerCalls: Array<{ formType: string; prompt: string }> = [];
+  const runSecFilingAnalysisForRawRow = compileRuntimeFunction({
+    providerCalls,
+  });
+
+  for (const item of cases) {
+    const fixture = readFixture(item.fixture);
+    const parserOutput = parseOwnershipFiling(fixture as never);
+    const routing = buildOwnershipRoutingDecision(parserOutput);
+    const displayPayload = buildOwnershipDisplayPayload(parserOutput);
+    const analysisInput = buildOwnershipAnalysisInput(parserOutput);
+    const input = {
+      filing_package: {
+        form_adapter: { analysisMode: "ownership_direct_analysis" },
+        hard_parsers: { ownership: parserOutput },
+      },
+    };
+    const rawItem = {
+      id: `mock-${item.formType}`,
+      formType: item.formType,
+      input,
+      parserOutput,
+    };
+
+    const result = await runSecFilingAnalysisForRawRow(rawItem);
+
+    assert.equal(result.ok, true, item.formType);
+    assert.equal(result.openAiResponseId, `mock-llm-${item.formType}`, item.formType);
+    assert.equal(result.prompt.key, "sec_ownership_analysis", item.formType);
+    assert.equal(result.analysis.event_title, `LLM title for ${item.formType}`, item.formType);
+    assert.equal(result.analysis.summary, `LLM summary for ${item.formType}`, item.formType);
+    assert.equal(result.analysis.score, 61, item.formType);
+    assert.equal(result.analysis.signal, "neutral", item.formType);
+    assert.strictEqual(result.input, input, item.formType);
+    assert.strictEqual(
+      result.input.filing_package.hard_parsers.ownership,
+      parserOutput,
+      item.formType,
+    );
+    assert.deepEqual(buildOwnershipRoutingDecision(parserOutput), routing, item.formType);
+    assert.deepEqual(buildOwnershipDisplayPayload(parserOutput), displayPayload, item.formType);
+    assert.deepEqual(buildOwnershipAnalysisInput(parserOutput), analysisInput, item.formType);
+  }
+
+  assert.deepEqual(
+    providerCalls.map((call) => call.formType),
+    cases.map((item) => item.formType),
+  );
+  for (const call of providerCalls) {
+    assert.ok(call.prompt.includes("You are the final SEC Ownership filing analysis LLM"));
+    assert.ok(call.prompt.includes("preserve each transaction's actual source-backed"));
+  }
+});
+
+test("Ownership LLM-disabled execution reports that analysis is required instead of returning parser final copy", () => {
+  const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
+  const start = previewSource.indexOf("async function runSecFilingAnalysisWithoutLlmForRawRow(");
+  const end = previewSource.indexOf("\nexport async function runSecFilingAnalysisForRawRow(", start);
+  assert.ok(start >= 0 && end > start);
+
+  const withoutLlmSource = previewSource.slice(start, end);
+  assert.equal(withoutLlmSource.includes("buildDeterministicOwnershipAnalysis(input)"), false);
+  assert.ok(withoutLlmSource.includes("LLM required but disabled for SEC analysis dry-run"));
+  assert.ok(withoutLlmSource.includes("buildSecFilingPromptForInput(input, options)"));
+});
+
+function compileRuntimeFunction({
+  providerCalls,
+}: {
+  providerCalls: Array<{ formType: string; prompt: string }>;
+}) {
+  const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
+  const runtimeSource = extractRuntimeFunction(previewSource).replace(
+    "export async function runSecFilingAnalysisForRawRow",
+    "async function runSecFilingAnalysisForRawRow",
+  );
+  const executableSource = stripTypeScriptTypes(runtimeSource, {
+    mode: "transform",
+  });
+  const factory = new Function(
+    "mocks",
+    `const {
+      buildInputFromSecRawRowWithParentContext,
+      attachSecMarketContext,
+      attachOwnershipFilingContext,
+      buildDeterministicEffectAnalysis,
+      evaluateSecInvestableUniverse,
+      buildDeterministicSc13Analysis,
+      buildDeterministicS8ArchiveAnalysis,
+      getServerEnv,
+      resolveSecLlmConfig,
+      isS3AmendmentInput,
+      isOwnershipFilingInput,
+      buildSecOwnershipAnalysisPrompt,
+      runOpenAiJsonPrompt,
+      buildSecOwnershipValidationRepairPlan,
+      combineUsage,
+      adaptOwnershipPromptResultForAnalysis,
+      estimateCost,
+      summarizeRawRow
+    } = mocks;
+    ${executableSource}
+    return runSecFilingAnalysisForRawRow;`,
+  );
+
+  return factory({
+    buildInputFromSecRawRowWithParentContext: async (rawItem: { input: unknown }) => rawItem.input,
+    attachSecMarketContext: async () => undefined,
+    attachOwnershipFilingContext: async () => undefined,
+    buildDeterministicEffectAnalysis: () => null,
+    evaluateSecInvestableUniverse: () => null,
+    buildDeterministicSc13Analysis: () => null,
+    buildDeterministicS8ArchiveAnalysis: () => null,
+    getServerEnv: () => ({ openAiModel: "mock-model" }),
+    resolveSecLlmConfig: () => ({
+      provider: "openai",
+      model: "mock-model",
+      apiKey: "mock-key",
+      apiKeyEnvName: "OPENAI_API_KEY",
+    }),
+    isS3AmendmentInput: () => false,
+    isOwnershipFilingInput: () => true,
+    buildSecOwnershipAnalysisPrompt: (input: Record<string, any>) => {
+      const parserOutput = input.filing_package.hard_parsers.ownership;
+      return {
+        key: "sec_ownership_analysis",
+        version: "v1",
+        system: "mock system",
+        user: buildOwnershipAnalysisPrompt(parserOutput),
+        responseFormat: { json_schema: {} },
+      };
+    },
+    runOpenAiJsonPrompt: async (
+      _env: unknown,
+      prompt: { user: string },
+      _config: unknown,
+    ) => {
+      const formType = cases.find((item) => prompt.user.includes(`\"form_type\": \"${item.formType}\"`))?.formType;
+      assert.ok(formType);
+      providerCalls.push({ formType, prompt: prompt.user });
+      return {
+        ok: true,
+        status: 200,
+        openAiResponseId: `mock-llm-${formType}`,
+        parsed: {
+          analysis_output: {
+            event_title: `LLM title for ${formType}`,
+            summary: `LLM summary for ${formType}`,
+            key_evidence: [`LLM evidence for ${formType}`],
+            score: 61,
+            signal: "neutral",
+          },
+        },
+        outputText: "mocked ownership JSON",
+        usage: null,
+        rawOpenAIResponse: null,
+      };
+    },
+    buildSecOwnershipValidationRepairPlan: () => null,
+    combineUsage: () => null,
+    adaptOwnershipPromptResultForAnalysis: (value: Record<string, any>) => ({
+      ok: true,
+      analysis: value.analysis_output,
+    }),
+    estimateCost: () => null,
+    summarizeRawRow: (rawItem: { id: string }) => ({ id: rawItem.id }),
+  }) as (rawItem: Record<string, unknown>) => Promise<Record<string, any>>;
+}
+
+function extractRuntimeFunction(previewSource: string) {
+  const start = previewSource.indexOf("export async function runSecFilingAnalysisForRawRow(");
+  const end = previewSource.indexOf("\nfunction resolveSecLlmConfig(", start);
+  assert.ok(start >= 0 && end > start);
+  return previewSource.slice(start, end);
+}
+
+function readFixture(filename: string) {
+  return JSON.parse(readFileSync(join(ownershipRoot, "fixtures", filename), "utf8")) as Record<string, unknown>;
+}
