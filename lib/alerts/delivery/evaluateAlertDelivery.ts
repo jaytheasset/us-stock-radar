@@ -69,7 +69,22 @@ const DEFAULT_PREFERENCES: UserAlertPreferences = {
 
 const ALL_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
 
-export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent): Promise<AlertDeliveryEvaluation> {
+export type AlertDeliveryEvaluationDependencies = {
+  fetchUsers: typeof fetchUsers;
+  fetchUserContext: typeof fetchUserContext;
+  now: () => Date;
+};
+
+const DEFAULT_EVALUATION_DEPENDENCIES: AlertDeliveryEvaluationDependencies = {
+  fetchUsers,
+  fetchUserContext,
+  now: () => new Date(),
+};
+
+export async function evaluateAlertDeliveryForEvent(
+  event: NormalizedAlertEvent,
+  dependencies: AlertDeliveryEvaluationDependencies = DEFAULT_EVALUATION_DEPENDENCIES,
+): Promise<AlertDeliveryEvaluation> {
   if (event.category === "other") {
     return {
       event,
@@ -78,21 +93,13 @@ export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent)
     };
   }
 
-  if (!event.tickers.length) {
-    return {
-      event,
-      candidates: [],
-      skipped: [{ reason: "EVENT_HAS_NO_TICKERS", detail: "Watchlist and Discovery delivery require ticker linkage." }],
-    };
-  }
-
-  const users = await fetchUsers();
+  const users = await dependencies.fetchUsers();
   const candidates: AlertDeliveryCandidate[] = [];
   const skipped: AlertDeliverySkip[] = [];
-  const now = new Date();
+  const now = dependencies.now();
 
   for (const userId of users) {
-    const context = await fetchUserContext(userId);
+    const context = await dependencies.fetchUserContext(userId);
     const matchedTickers = matchWatchedEventTickers(
       event.tickers,
       context.watchlistTickers,

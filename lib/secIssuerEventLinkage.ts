@@ -1,13 +1,34 @@
+import { validFmpServiceTickerSymbols } from "./serviceTickerCatalogPolicy.ts";
+
 export type SecIssuerSecurity = {
   exchange: string | null;
   ticker: string;
 };
 
-export type SecIssuerSecurityLinkage = {
+export type SecIssuerSecurityEvidence = {
+  candidateSecurities: SecIssuerSecurity[];
   displaySecurity: SecIssuerSecurity;
   issuerCik: string;
-  securities: SecIssuerSecurity[];
   source: string;
+};
+
+export type SecIssuerSecurityLinkage = SecIssuerSecurityEvidence & {
+  excludedSecurities: SecIssuerSecurity[];
+  securities: SecIssuerSecurity[];
+};
+
+export type SecIssuerProductTickerState = {
+  primarySecurity: {
+    exchange: string | null;
+    ticker: string | null;
+  };
+};
+
+export type SecAnalysisContextTicker = {
+  exchange: string | null;
+  reason: string | null;
+  role: string;
+  ticker: string;
 };
 
 export type SecIssuerEventTickerRow = {
@@ -43,7 +64,34 @@ const trustedIssuerCatalogSources = new Set([
 
 export function resolveSecIssuerSecurityLinkage(
   rawPayload: Record<string, unknown>,
+  fmpTickerRows: readonly unknown[] = [],
 ): SecIssuerSecurityLinkage | null {
+  const evidence = resolveSecIssuerSecurityEvidence(rawPayload);
+  if (!evidence) return null;
+  const allowedSymbols = validFmpServiceTickerSymbols(fmpTickerRows);
+  if (!allowedSymbols.has(evidence.displaySecurity.ticker)) return null;
+  const securities = [
+    evidence.displaySecurity,
+    ...evidence.candidateSecurities.filter(
+      (security) =>
+        security.ticker !== evidence.displaySecurity.ticker &&
+        allowedSymbols.has(security.ticker),
+    ),
+  ];
+  const includedSymbols = new Set(securities.map((security) => security.ticker));
+
+  return {
+    ...evidence,
+    excludedSecurities: evidence.candidateSecurities.filter(
+      (security) => !includedSymbols.has(security.ticker),
+    ),
+    securities,
+  };
+}
+
+export function resolveSecIssuerSecurityEvidence(
+  rawPayload: Record<string, unknown>,
+): SecIssuerSecurityEvidence | null {
   const issuerCik = normalizeCik(
     rawPayload.cik ||
       rawPayload.cik_padded ||
@@ -53,16 +101,78 @@ export function resolveSecIssuerSecurityLinkage(
   const source = stringValue(resolution?.source);
   if (!issuerCik || !trustedIssuerCatalogSources.has(source)) return null;
 
-  const securities = uniqueSecurities(rawPayload.tickers);
-  if (!securities.length) return null;
-  const displaySecurity = selectSecIssuerDisplaySecurity(securities);
+  const candidateSecurities = uniqueSecurities([
+    {
+      ticker: rawPayload.ticker,
+      exchange: rawPayload.exchange,
+    },
+    ...(Array.isArray(rawPayload.tickers) ? rawPayload.tickers : []),
+  ]);
+  if (!candidateSecurities.length) return null;
+  const sourceTicker = stringValue(rawPayload.ticker).toUpperCase();
+  const displaySecurity =
+    candidateSecurities.find((security) => security.ticker === sourceTicker) ||
+    selectSecIssuerDisplaySecurity(candidateSecurities);
   if (!displaySecurity) return null;
 
   return {
+    candidateSecurities,
     displaySecurity,
     issuerCik,
-    securities,
     source,
+  };
+}
+
+export function resolveSecIssuerProductTickerState({
+  evidence,
+  fallback,
+  linkage,
+}: {
+  evidence: SecIssuerSecurityEvidence | null;
+  fallback: SecIssuerProductTickerState["primarySecurity"];
+  linkage: SecIssuerSecurityLinkage | null;
+}): SecIssuerProductTickerState {
+  const rejectedIssuerLinkage = Boolean(evidence && !linkage);
+  return {
+    primarySecurity:
+      linkage?.displaySecurity ||
+      (rejectedIssuerLinkage ? { exchange: null, ticker: null } : fallback),
+  };
+}
+
+export function readSecAnalysisContextTickers(
+  analysis: Record<string, unknown>,
+): SecAnalysisContextTicker[] {
+  const candidates: SecAnalysisContextTicker[] = [];
+  const append = (value: unknown, forcedRole?: string) => {
+    const row = toRecord(value);
+    const ticker = stringValue(row?.ticker).toUpperCase();
+    if (!ticker) return;
+    candidates.push({
+      exchange: nullableString(row?.exchange),
+      reason: nullableString(row?.reason),
+      role: forcedRole || stringValue(row?.role) || "related",
+      ticker,
+    });
+  };
+
+  if (Array.isArray(analysis.tickers)) {
+    for (const value of analysis.tickers) append(value);
+  }
+  if (Array.isArray(analysis.related_tickers)) {
+    for (const value of analysis.related_tickers) append(value, "related");
+  }
+  return candidates;
+}
+
+export function buildSecIssuerSecurityLinkageMetadata(
+  linkage: SecIssuerSecurityLinkage,
+) {
+  return {
+    display_ticker: linkage.displaySecurity.ticker,
+    issuer_cik: linkage.issuerCik,
+    source: linkage.source,
+    tickers: linkage.securities.map((security) => security.ticker),
   };
 }
 
@@ -90,7 +200,7 @@ export function buildSecIssuerEventTickerRows(
       },
       reason:
         security.ticker === linkage.displaySecurity.ticker
-          ? "Display ticker selected deterministically from SEC issuer CIK securities"
+          ? "Primary ticker preserved from source-backed SEC filing evidence"
           : `Verified same-issuer security for CIK ${linkage.issuerCik}`,
       role:
         security.ticker === linkage.displaySecurity.ticker

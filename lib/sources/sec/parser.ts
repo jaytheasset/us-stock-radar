@@ -15,6 +15,10 @@ import {
   type PeriodicReportIngestSourceBlock,
   type PeriodicReportIngestXbrlFact,
 } from "@/lib/sources/sec/forms/periodic-reports/ingestSourceExtract";
+import {
+  selectSourceBackedSecTickerRow,
+  type SecTickerSelectionRow,
+} from "@/lib/sources/sec/sourceTickerSelection";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -119,12 +123,7 @@ type FilingIdentity = {
   accessionNoDashes: string | null;
 };
 
-type TickerRow = {
-  cik: string;
-  ticker: string;
-  exchange: string | null;
-  name: string | null;
-};
+type TickerRow = SecTickerSelectionRow;
 
 type TickerResolution = {
   rows: TickerRow[];
@@ -1282,12 +1281,11 @@ async function resolveTrustedTickerRows({
   const primaryCusip = cusips[0] || null;
 
   if (issuerTicker) {
-    const exact = issuerRows.find((row) => row.ticker === issuerTicker) || null;
+    const exact = selectSourceBackedSecTickerRow(issuerRows, issuerTicker);
     if (exact) {
-      const primary = selectPrimaryTickerRow(issuerRows) || exact;
       return {
         rows: issuerRows,
-        primary,
+        primary: exact,
         source: "issuer_trading_symbol_and_cik_sec",
         confidence: "high",
         reason:

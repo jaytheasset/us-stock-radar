@@ -5,13 +5,13 @@ import { fetchEventById, fetchEventTickers } from "@/lib/supabase";
 import { type AlertCategory, isValidAlertCategory } from "@/lib/subscriptionPolicy";
 import { readStoredEventMarketCap } from "@/lib/marketCapBands";
 import type { NormalizedAlertEvent, NormalizedAlertSeverity, NormalizedAlertSourceType } from "@/lib/alerts/delivery/types";
+import {
+  normalizeStoredAlertTickers,
+  type StoredAlertTickerRow,
+} from "@/lib/alerts/delivery/alertTickerNormalization";
 
 type DbRow = Record<string, unknown>;
-type EventTickerRow = {
-  symbol?: unknown;
-  role?: unknown;
-  sort_order?: unknown;
-};
+type EventTickerRow = StoredAlertTickerRow;
 
 export async function normalizeAlertEvent(eventId: string): Promise<
   | {
@@ -41,15 +41,10 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   const eventMetadata = readRecord(row.metadata);
   const canonical = resolveCanonicalEventFields(row);
   const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];
-  const eventTicker = readTicker(row.ticker);
-  const tickers = normalizeTickers([
-    ...tickerRows.map((tickerRow) => readTicker(tickerRow.symbol)),
-    eventTicker,
-  ]);
-  const primaryTicker =
-    readPrimaryTicker(tickerRows) ||
-    (eventTicker && tickers.includes(eventTicker) ? eventTicker : undefined) ||
-    tickers[0];
+  const { primaryTicker, tickers } = normalizeStoredAlertTickers(
+    row.ticker,
+    tickerRows,
+  );
   const category = normalizeCategory(readString(row.event_type));
   const sourceType = normalizeSourceType(canonical.sourceGroup);
   const title = readString(row.title) || "Untitled alert event";
@@ -136,33 +131,6 @@ function normalizeSeverity(score: number, impact: string): NormalizedAlertSeveri
   if (score >= 75 || impact === "high") return "high";
   if (score >= 50 || impact === "medium") return "medium";
   return "low";
-}
-
-function readPrimaryTicker(rows: EventTickerRow[]) {
-  const candidates = rows
-    .filter((row) => readString(row.role) === "primary")
-    .sort((left, right) => readNumber(left.sort_order) - readNumber(right.sort_order))
-    .map((row) => readTicker(row.symbol))
-    .filter(Boolean);
-  return candidates[0];
-}
-
-function normalizeTickers(values: string[]) {
-  const seen = new Set<string>();
-  const tickers: string[] = [];
-  for (const value of values) {
-    const ticker = readTicker(value);
-    if (!ticker || seen.has(ticker)) continue;
-    seen.add(ticker);
-    tickers.push(ticker);
-  }
-  return tickers;
-}
-
-function readTicker(value: unknown) {
-  const ticker = readString(value).toUpperCase();
-  if (!ticker || ticker === "N/A" || ticker === "NA" || ticker === "UNKNOWN" || ticker === "-") return "";
-  return /^[A-Z0-9][A-Z0-9.-]{0,11}$/.test(ticker) ? ticker : "";
 }
 
 function readString(value: unknown) {
