@@ -34,3 +34,39 @@ test("periodic-report debug room documents the preview and analysis copy contrac
     /analysis_output\.quick_take is primarily preview, feed, and alert copy/,
   );
 });
+
+test("SEC analysis review separates saved results from execution controls", () => {
+  const client = readFileSync(
+    new URL("./SecDevelopmentClient.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("./sec-development.module.css", import.meta.url),
+    "utf8",
+  );
+  const dashboard = readFileSync(
+    new URL("../../../lib/development/secFormDevDashboard.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(client, /Recent analysis results/);
+  assert.match(client, /Accession, ticker, company, or CIK/);
+  assert.match(client, /First analysis result/);
+  assert.match(client, /Validation errors/);
+  assert.match(client, /Correction execution and basis/);
+  assert.match(client, /Before \/ after correction/);
+  assert.match(client, /detail\.liveRuns\.filter\(\(run\) => run\.mode !== "recent_persisted"\)/);
+  assert.match(client, /Dry run \/ sample inspection/);
+  assert.match(client, /Controlled persist/);
+  assert.match(client, /기록 없음/);
+
+  assert.match(dashboard, /company_name: readPersistedEventCompanyName\(row\)/);
+  assert.match(dashboard, /cik: readPersistedEventCik\(row\)/);
+  assert.match(dashboard, /filed_at: readPersistedEventFiledAt\(row\)/);
+  assert.match(dashboard, /analyzed_at:/);
+  assert.match(dashboard, /analysis_status:/);
+
+  assert.match(styles, /@media \(max-width: 1280px\) and \(min-width: 981px\)/);
+  assert.match(styles, /html\[data-theme="dark"\]/);
+  assert.match(styles, /\.analysisReviewWorkspace/);
+});

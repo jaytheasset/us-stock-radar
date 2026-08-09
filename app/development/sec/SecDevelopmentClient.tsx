@@ -24,9 +24,9 @@ export function SecDevelopmentClient({
   initialRooms: SecDevRoomSnapshot[];
 }) {
   const searchParams = useSearchParams();
-  const requestedRoom = searchParams.get("room") || "";
-  const requestedTab = searchParams.get("tab") || "";
-  const requestedFilingUiFamily = searchParams.get("family") || "";
+  const requestedRoom = searchParams?.get("room") || "";
+  const requestedTab = searchParams?.get("tab") || "";
+  const requestedFilingUiFamily = searchParams?.get("family") || "";
   const initialRoom = initialRooms.some((room) => room.key === requestedRoom) ? requestedRoom : initialRooms[0]?.key || "";
   const initialTab = isTabKey(requestedTab) ? requestedTab : "overview";
   const [rooms, setRooms] = useState(initialRooms);
@@ -385,36 +385,53 @@ export function SecDevelopmentClient({
             >
               {running ? "Running..." : selectedRoomHasTests ? "Run room tests" : "No room tests"}
             </button>
-            <label className={styles.countControl}>
-              <span>Live count</span>
-              <input
-                max={100}
-                min={1}
-                onBlur={() => setLiveSampleCount(String(clampLiveSampleCount(liveSampleCount)))}
-                onChange={(event) => setLiveSampleCount(event.target.value)}
-                type="number"
-                value={liveSampleCount}
-              />
-            </label>
-            <button className={styles.secondaryButton} disabled={runningLive || loading || !selectedRoom} onClick={runLiveDryRun} type="button">
-              {runningLive ? "Fetching..." : `Run ${selectedRunLabel}live SEC dry-run (${selectedRunCountLabel})`}
-            </button>
-            <label className={styles.checkboxControl}>
-              <input checked={allowLlm} onChange={(event) => setAllowLlm(event.target.checked)} type="checkbox" />
-              <span>Allow LLM</span>
-            </label>
-            <button
-              className={styles.secondaryButton}
-              disabled={runningLatestAnalysis || loading || !selectedRoom}
-              onClick={runLatestAnalysisDryRun}
-              type="button"
-            >
-              {runningLatestAnalysis ? "Analyzing..." : `Analyze ${selectedRunLabel}latest samples, no persist (${selectedRunCountLabel})`}
-            </button>
           </div>
         </header> : null}
 
-        {tab !== "filing-ui" ? <section className={styles.liveControls}>
+        {tab !== "filing-ui" ? <details className={styles.executionControls}>
+          <summary className={styles.executionControlsHeader}>
+            <div>
+              <span>Execution workspace</span>
+              <h3>Run and dry-run controls</h3>
+              <p>Operational controls are kept separate from the saved-result review area below.</p>
+            </div>
+            <span className={styles.executionBadge}>Actions</span>
+          </summary>
+          <div className={styles.controlGroup}>
+            <div className={styles.controlGroupHeading}>
+              <div>
+                <strong>Dry run / sample inspection</strong>
+                <p>No saved analysis result is created by these controls.</p>
+              </div>
+              <span>No persist</span>
+            </div>
+            <div className={styles.liveControls}>
+          <label className={styles.countControl}>
+            <span>Live count</span>
+            <input
+              max={100}
+              min={1}
+              onBlur={() => setLiveSampleCount(String(clampLiveSampleCount(liveSampleCount)))}
+              onChange={(event) => setLiveSampleCount(event.target.value)}
+              type="number"
+              value={liveSampleCount}
+            />
+          </label>
+          <button className={styles.secondaryButton} disabled={runningLive || loading || !selectedRoom} onClick={runLiveDryRun} type="button">
+            {runningLive ? "Fetching..." : `Run ${selectedRunLabel}live SEC dry-run (${selectedRunCountLabel})`}
+          </button>
+          <label className={styles.checkboxControl}>
+            <input checked={allowLlm} onChange={(event) => setAllowLlm(event.target.checked)} type="checkbox" />
+            <span>Allow LLM</span>
+          </label>
+          <button
+            className={styles.secondaryButton}
+            disabled={runningLatestAnalysis || loading || !selectedRoom}
+            onClick={runLatestAnalysisDryRun}
+            type="button"
+          >
+            {runningLatestAnalysis ? "Analyzing..." : `Analyze ${selectedRunLabel}latest samples, no persist (${selectedRunCountLabel})`}
+          </button>
           <label className={styles.compactControl}>
             <span>Form filter</span>
             <select onChange={(event) => setLiveFormFilter(event.target.value)} value={liveFormFilter}>
@@ -490,6 +507,17 @@ export function SecDevelopmentClient({
           >
             {runningRouteOnly ? "Routing..." : "Route only"}
           </button>
+            </div>
+          </div>
+          <div className={`${styles.controlGroup} ${styles.persistControlGroup}`}>
+            <div className={styles.controlGroupHeading}>
+              <div>
+                <strong>Controlled persist</strong>
+                <p>Writes one selected analysis with alerts disabled. Existing safeguards are unchanged.</p>
+              </div>
+              <span>Writes DB</span>
+            </div>
+            <div className={styles.liveControls}>
           <label>
             <span>Controlled persist accession</span>
             <input
@@ -526,7 +554,9 @@ export function SecDevelopmentClient({
           >
             {persisting ? "Persisting..." : resetExistingAnalysis ? "Reset + persist, alerts off" : "Persist one, alerts off"}
           </button>
-        </section> : null}
+            </div>
+          </div>
+        </details> : null}
 
         {error ? <div className={styles.errorBox}>{error}</div> : null}
 
@@ -538,7 +568,7 @@ export function SecDevelopmentClient({
             ["outputs", "Site Output"],
             ["results", "Fixtures / Results"],
             ["tests", "Tests"],
-            ["live", "Live / Persist"],
+            ["live", "Analysis Review"],
             ["issues", "Issues"],
             ["excluded", "Excluded"],
             ["filing-ui", "Filing UI"],
@@ -681,21 +711,274 @@ function RoomDetail({
     return <IssueReviewSections detail={detail} liveFormFilter={liveFormFilter} onUseAccession={onUseAccession} />;
   }
 
+  const executionRuns = detail.liveRuns.filter((run) => run.mode !== "recent_persisted");
+
   return (
-    <div className={styles.testStack}>
-      {!detail.liveRuns.length ? (
-        <div className={styles.emptyState}>No live SEC dry-run or controlled persist result yet.</div>
-      ) : null}
-      {detail.liveRuns.map((run, index) => (
-        <LiveRunCard
-          key={`${run.mode}-${run.ranAt}-${index}`}
-          liveFormFilter={liveFormFilter}
-          onUseAccession={onUseAccession}
-          run={run}
-        />
-      ))}
+    <div className={styles.analysisReviewTab}>
+      <AnalysisReviewWorkspace
+        key={detail.key}
+        liveFormFilter={liveFormFilter}
+        onUseAccession={onUseAccession}
+        runs={detail.liveRuns}
+      />
+      <section className={styles.executionHistorySection}>
+        <div className={styles.reviewSectionHeading}>
+          <div>
+            <span>Execution diagnostics</span>
+            <h3>Dry-run and controlled-persist history</h3>
+            <p>Operational runs stay outside the saved-result review list.</p>
+          </div>
+          <strong>{executionRuns.length}</strong>
+        </div>
+        {executionRuns.length ? (
+          <div className={styles.testStack}>
+            {executionRuns.map((run, index) => (
+              <LiveRunCard
+                key={`${run.mode}-${run.ranAt}-${index}`}
+                liveFormFilter={liveFormFilter}
+                onUseAccession={onUseAccession}
+                run={run}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className={styles.reviewEmptyState}>No dry-run or controlled-persist execution history for this room.</div>
+        )}
+      </section>
     </div>
   );
+}
+
+type AnalysisReviewEntry = {
+  item: Record<string, unknown>;
+  key: string;
+  run: SecDevRoomDetail["liveRuns"][number];
+};
+
+function AnalysisReviewWorkspace({
+  liveFormFilter,
+  onUseAccession,
+  runs,
+}: {
+  liveFormFilter: string;
+  onUseAccession: (value: string) => void;
+  runs: SecDevRoomDetail["liveRuns"];
+}) {
+  const allResults = useMemo<AnalysisReviewEntry[]>(() => runs
+    .filter((run) => run.mode === "recent_persisted")
+    .flatMap((run, runIndex) => filterLiveItemsByForm(run.items, liveFormFilter)
+      .filter((item) => !isExcludedLiveItem(item))
+      .map((item, itemIndex) => ({
+        item,
+        run,
+        key: clientString(item.event_id) || `${run.ranAt}-${runIndex}-${itemIndex}`,
+      }))), [liveFormFilter, runs]);
+  const [query, setQuery] = useState("");
+  const [selectedKey, setSelectedKey] = useState(allResults[0]?.key || "");
+  const visibleResults = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    if (!normalizedQuery) return allResults;
+    return allResults.filter(({ item }) => [
+      item.accession_number,
+      item.ticker,
+      item.company_name,
+      item.cik,
+      item.form_type,
+      item.title,
+    ].some((value) => clientString(value).toLocaleLowerCase().includes(normalizedQuery)));
+  }, [allResults, query]);
+  const selectedResult = visibleResults.find((result) => result.key === selectedKey) || visibleResults[0] || null;
+
+  useEffect(() => {
+    if (selectedResult && selectedResult.key !== selectedKey) setSelectedKey(selectedResult.key);
+  }, [selectedKey, selectedResult]);
+
+  return (
+    <section className={styles.analysisReviewSection} aria-labelledby="analysis-review-heading">
+      <div className={styles.reviewSectionHeading}>
+        <div>
+          <span>Saved database results</span>
+          <h3 id="analysis-review-heading">Recent analysis results</h3>
+          <p>Select a filing to review the first analysis, validation warnings, and correction trace in one place.</p>
+        </div>
+        <strong>{allResults.length}</strong>
+      </div>
+      <div className={styles.analysisReviewToolbar}>
+        <label>
+          <span>Find a result</span>
+          <input
+            autoComplete="off"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Accession, ticker, company, or CIK"
+            type="search"
+            value={query}
+          />
+        </label>
+        <p>{query.trim() ? `${visibleResults.length} matches` : "Newest saved results first"}</p>
+      </div>
+      {visibleResults.length ? (
+        <div className={styles.analysisReviewWorkspace}>
+          <div className={styles.analysisResultList}>
+            {visibleResults.map((result) => {
+              const { item } = result;
+              const company = clientString(item.company_name);
+              const ticker = clientString(item.ticker);
+              return (
+                <button
+                  aria-current={result.key === selectedResult?.key ? "true" : undefined}
+                  className={`${styles.analysisResultRow} ${result.key === selectedResult?.key ? styles.analysisResultRowActive : ""}`}
+                  key={result.key}
+                  onClick={() => setSelectedKey(result.key)}
+                  type="button"
+                >
+                  <span className={styles.analysisResultIdentity}>
+                    <strong>{company || ticker || clientString(item.title) || "Company record unavailable"}</strong>
+                    <small>{[ticker, clientString(item.form_type)].filter(Boolean).join(" · ") || "—"}</small>
+                  </span>
+                  <span className={styles.analysisResultStatus}>{formatAnalysisStatus(item.analysis_status)}</span>
+                  <code>{clientString(item.accession_number) || "Accession unavailable"}</code>
+                  <span className={styles.analysisResultTimes}>
+                    <small>Filed {formatFiledDate(clientString(item.filed_at))}</small>
+                    <small>Analyzed {formatAnalysisDate(clientString(item.analyzed_at) || result.run.ranAt)}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <AnalysisReviewDetail entry={selectedResult} onUseAccession={onUseAccession} />
+        </div>
+      ) : (
+        <div className={styles.reviewEmptyState} role="status">
+          {query.trim() ? `No actual analysis result matches “${query.trim()}”.` : "No saved analysis result is available for this room."}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AnalysisReviewDetail({
+  entry,
+  onUseAccession,
+}: {
+  entry: AnalysisReviewEntry | null;
+  onUseAccession: (value: string) => void;
+}) {
+  if (!entry) return <aside className={styles.analysisDetailEmpty}>Select an analysis result.</aside>;
+
+  const { item, run } = entry;
+  const runtimeOutput = readClientRecord(item.runtime_output);
+  const trace = readClientRecord(item.validation_repair_trace);
+  const availability = clientString(trace?.availability);
+  const hasTrace = Boolean(trace && availability !== "historical_missing");
+  const initial = readClientRecord(trace?.initial_analysis);
+  const repair = readClientRecord(trace?.repair_analysis);
+  const repairPrompt = readClientRecord(trace?.repair_prompt);
+  const sourceSelection = readClientRecord(trace?.source_selection);
+  const warnings = clientRecordArray(trace?.warnings);
+  const unresolved = clientRecordArray(trace?.unresolved);
+  const appliedChanges = clientRecordArray(trace?.applied_changes);
+  const correctionAttempted = trace?.attempted === true;
+  const accession = clientString(item.accession_number);
+  const company = clientString(item.company_name);
+
+  return (
+    <aside className={styles.analysisDetailPanel} aria-label="Selected analysis result detail">
+      <header className={styles.analysisDetailHeader}>
+        <div>
+          <span>{[clientString(item.ticker), clientString(item.form_type)].filter(Boolean).join(" · ") || "SEC filing"}</span>
+          <h3>{company || clientString(item.title) || "Analysis result"}</h3>
+          <p>{clientString(item.title) || "Title unavailable"}</p>
+        </div>
+        <span className={styles.analysisResultStatus}>{formatAnalysisStatus(item.analysis_status)}</span>
+      </header>
+      <dl className={styles.analysisDetailFacts}>
+        <div><dt>Accession</dt><dd>{accession || "—"}</dd></div>
+        <div><dt>CIK</dt><dd>{clientString(item.cik) || "—"}</dd></div>
+        <div><dt>Filed</dt><dd>{formatFiledDate(clientString(item.filed_at))}</dd></div>
+        <div><dt>Analyzed</dt><dd>{formatAnalysisDate(clientString(item.analyzed_at) || run.ranAt)}</dd></div>
+      </dl>
+      <div className={styles.analysisDetailActions}>
+        {accession ? <button onClick={() => onUseAccession(accession)} type="button">Use accession</button> : null}
+        {clientString(item.detail_url) ? <a href={clientString(item.detail_url)}>Open filing detail</a> : null}
+      </div>
+
+      <section className={styles.analysisReviewCard}>
+        <div className={styles.analysisReviewCardHeader}>
+          <div><span>01</span><h4>First analysis result</h4></div>
+          <strong>{hasTrace && initial ? "Recorded" : "기록 없음"}</strong>
+        </div>
+        {hasTrace && initial ? (
+          <pre>{formatDebugValue(initial.parsed_result ?? initial.output_text)}</pre>
+        ) : (
+          <RecordMissing message="교정 추적 데이터에 첫 분석 결과가 없습니다." />
+        )}
+      </section>
+
+      <section className={styles.analysisReviewCard}>
+        <div className={styles.analysisReviewCardHeader}>
+          <div><span>02</span><h4>Validation errors</h4></div>
+          <strong>{hasTrace ? `${warnings.length} recorded` : "기록 없음"}</strong>
+        </div>
+        {hasTrace ? (
+          warnings.length ? (
+            <div className={styles.validationWarningList}>
+              {warnings.map((warning, index) => (
+                <article key={`${clientString(warning.code)}-${index}`}>
+                  <strong>{clientString(warning.code) || `Warning ${index + 1}`}</strong>
+                  <p>{clientString(warning.description) || clientString(warning.message) || "Description unavailable"}</p>
+                </article>
+              ))}
+            </div>
+          ) : <div className={styles.analysisCleanState}>No validation errors were recorded.</div>
+        ) : <RecordMissing message="이 분석에는 검증 오류 추적 데이터가 없습니다." />}
+      </section>
+
+      <section className={styles.analysisReviewCard}>
+        <div className={styles.analysisReviewCardHeader}>
+          <div><span>03</span><h4>Correction execution and basis</h4></div>
+          <strong>{hasTrace ? formatCorrectionStatus(trace) : "기록 없음"}</strong>
+        </div>
+        {hasTrace ? (
+          <div className={styles.correctionDecisionBody}>
+            <dl>
+              <div><dt>Attempted</dt><dd>{correctionAttempted ? "Yes" : "No"}</dd></div>
+              <div><dt>Prompt</dt><dd>{[clientString(repairPrompt?.key), clientString(repairPrompt?.version)].filter(Boolean).join(" · ") || "Not used"}</dd></div>
+              <div><dt>Applied changes</dt><dd>{appliedChanges.length}</dd></div>
+              <div><dt>Unresolved</dt><dd>{unresolved.length}</dd></div>
+            </dl>
+            <div>
+              <span>Source-backed basis</span>
+              <p>{clientString(sourceSelection?.description) || (correctionAttempted ? "Basis description not recorded" : "Correction was not executed.")}</p>
+            </div>
+          </div>
+        ) : <RecordMissing message="이 분석에는 교정 실행 여부·근거 추적 데이터가 없습니다." />}
+      </section>
+
+      <section className={styles.analysisReviewCard}>
+        <div className={styles.analysisReviewCardHeader}>
+          <div><span>04</span><h4>Before / after correction</h4></div>
+          <strong>{hasTrace && correctionAttempted ? "Compare" : hasTrace ? "Not executed" : "기록 없음"}</strong>
+        </div>
+        {hasTrace ? (
+          correctionAttempted ? (
+            <div className={styles.analysisComparisonGrid}>
+              <div><span>Before</span><pre>{formatDebugValue(initial?.parsed_result ?? initial?.output_text)}</pre></div>
+              <div><span>After</span><pre>{formatDebugValue(repair?.parsed_result ?? repair?.output_text ?? trace?.final_analysis)}</pre></div>
+            </div>
+          ) : <div className={styles.analysisCleanState}>Correction was not executed, so there is no before/after comparison.</div>
+        ) : <RecordMissing message="교정 전후 결과 기록이 없습니다." />}
+      </section>
+
+      <details className={styles.analysisRawDetails}>
+        <summary>Raw debugging payload</summary>
+        <pre>{formatDebugValue({ item, diagnostics: run.diagnostics, runtime_output: runtimeOutput })}</pre>
+      </details>
+    </aside>
+  );
+}
+
+function RecordMissing({ message }: { message: string }) {
+  return <div className={styles.recordMissing}><strong>기록 없음</strong><p>{message}</p></div>;
 }
 
 function IssueReviewSections({
@@ -3454,9 +3737,9 @@ function PromptPreviewSections({
       <section aria-labelledby="correction-prompts-heading" className={styles.promptCatalogSection}>
         <div className={styles.promptCatalogHeading}>
           <div>
-            <span>Correction prompts</span>
-            <h3 id="correction-prompts-heading">Fixed correction instructions</h3>
-            <p>Static reference copy of the fixed correction instructions. This is not actual run data.</p>
+            <span>Common correction prompt</span>
+            <h3 id="correction-prompts-heading">Fixed instructions for this filing group</h3>
+            <p>Static reference copy of the fixed correction instructions. This is not actual run data. It does not add an empty-input run or a separate analysis path.</p>
           </div>
           <strong>{correctionPrompts.length}</strong>
         </div>
@@ -3770,6 +4053,47 @@ function roomFromDetail(detail: SecDevRoomDetail): SecDevRoomSnapshot {
 
 function isTabKey(value: string): value is TabKey {
   return ["overview", "parser", "prompt", "outputs", "results", "tests", "live", "issues", "excluded", "filing-ui"].includes(value);
+}
+
+function formatAnalysisStatus(value: unknown) {
+  const status = clientString(value);
+  if (status === "completed") return "Completed";
+  if (status === "failed") return "Failed";
+  if (status === "running") return "Running";
+  if (status === "record_missing") return "Record missing";
+  return status || "Saved";
+}
+
+function formatCorrectionStatus(trace: Record<string, unknown> | null) {
+  if (!trace || trace.attempted !== true) return "Not executed";
+  const status = clientString(trace.status);
+  if (status === "succeeded") return "Corrected";
+  if (status === "failed") return "Failed";
+  return status || "Executed";
+}
+
+function formatFiledDate(value: string) {
+  if (!value) return "—";
+  try {
+    return `${new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "America/New_York",
+    }).format(new Date(value))} ET`;
+  } catch {
+    return value;
+  }
+}
+
+function formatAnalysisDate(value: string) {
+  if (!value) return "—";
+  return formatDate(value);
+}
+
+function formatDebugValue(value: unknown) {
+  if (typeof value === "string") return value || "기록 없음";
+  if (value === undefined || value === null) return "기록 없음";
+  return JSON.stringify(value, null, 2) || "기록 없음";
 }
 
 function formatLiveRunMode(mode: string) {

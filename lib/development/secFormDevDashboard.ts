@@ -1194,6 +1194,7 @@ function buildRecentPersistedRun(
   const accessionNumber = readPersistedEventAccession(row);
   const ticker = readPersistedEventTicker(row);
   const ranAt = readPersistedEventTime(row);
+  const analysisRun = readRecord(validationRepairTrace.analysis_run);
 
   return {
     mode: "recent_persisted",
@@ -1213,6 +1214,15 @@ function buildRecentPersistedRun(
         form_type: formType || null,
         title: stringValue(row.title) || null,
         ticker: ticker || null,
+        company_name: readPersistedEventCompanyName(row) || null,
+        cik: readPersistedEventCik(row) || null,
+        filed_at: readPersistedEventFiledAt(row) || null,
+        analyzed_at:
+          stringValue(analysisRun?.finished_at) ||
+          stringValue(analysisRun?.started_at) ||
+          null,
+        analysis_status: stringValue(analysisRun?.status) || (eventAnalysis ? "completed" : "record_missing"),
+        analysis_exists: Boolean(eventAnalysis),
         event_type: stringValue(row.event_type) || null,
         score,
         delivery_level: deliveryLevel,
@@ -1300,7 +1310,11 @@ async function readRecentRepairTraceMap(eventIds: string[]) {
     }
 
     for (const [eventId, run] of latestRunByEventId) {
-      result.set(eventId, traceByRunId.get(stringValue(run.id)) || buildHistoricalRepairTraceNotice());
+      const analysisRun = summarizeAnalysisRun(run);
+      const trace = traceByRunId.get(stringValue(run.id));
+      result.set(eventId, trace
+        ? { ...trace, analysis_run: analysisRun }
+        : buildHistoricalRepairTraceNotice(analysisRun));
     }
   } catch {
     return result;
@@ -1308,10 +1322,22 @@ async function readRecentRepairTraceMap(eventIds: string[]) {
   return result;
 }
 
-function buildHistoricalRepairTraceNotice() {
+function buildHistoricalRepairTraceNotice(analysisRun: Record<string, unknown> | null = null) {
   return {
     availability: "historical_missing",
-    message: "과거 실행이라 세부 교정 기록 없음",
+    message: "기록 없음",
+    analysis_run: analysisRun,
+  };
+}
+
+function summarizeAnalysisRun(run: Record<string, unknown>) {
+  return {
+    id: stringValue(run.id) || null,
+    status: stringValue(run.status) || null,
+    provider: stringValue(run.provider) || null,
+    model: stringValue(run.model) || null,
+    started_at: stringValue(run.started_at) || null,
+    finished_at: stringValue(run.finished_at) || null,
   };
 }
 
@@ -1370,6 +1396,45 @@ function readPersistedEventTicker(row: Record<string, unknown>) {
     stringValue(metadata.ticker) ||
     stringValue(marketContext?.ticker) ||
     stringValue(marketContext?.symbol)
+  );
+}
+
+function readPersistedEventCompanyName(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const marketContext = readRecord(metadata.market_context);
+  const issuer = readRecord(metadata.issuer);
+  return (
+    stringValue(metadata.issuer) ||
+    stringValue(issuer?.name) ||
+    stringValue(metadata.company_name) ||
+    stringValue(marketContext?.name)
+  );
+}
+
+function readPersistedEventCik(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const rawPayload = readRecord(metadata.raw_payload);
+  const filing = readRecord(metadata.filing);
+  const issuer = readRecord(metadata.issuer);
+  return (
+    stringValue(metadata.cik) ||
+    stringValue(metadata.issuer_cik) ||
+    stringValue(issuer?.cik) ||
+    stringValue(rawPayload?.cik) ||
+    stringValue(filing?.cik)
+  );
+}
+
+function readPersistedEventFiledAt(row: Record<string, unknown>) {
+  const metadata = readRecord(row.metadata) || {};
+  const rawPayload = readRecord(metadata.raw_payload);
+  const filing = readRecord(metadata.filing);
+  return (
+    stringValue(row.published_at) ||
+    stringValue(metadata.filed_at) ||
+    stringValue(metadata.published_at) ||
+    stringValue(rawPayload?.filed_at) ||
+    stringValue(filing?.filed_at)
   );
 }
 
