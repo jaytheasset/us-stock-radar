@@ -6,7 +6,7 @@ import styles from "./StockRadarFeedV2.module.css";
 
 type FeedPreviewPanelProps = {
   item: LiveFeedV2Item | null;
-  variant: "desktop" | "mobile";
+  variant: "desktop" | "intermediate" | "mobile";
 };
 
 export function FeedPreviewPanel({

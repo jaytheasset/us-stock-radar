@@ -547,6 +547,10 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
     bottomSheetStyles,
     /\.surfaceWithTopControls \{[\s\S]*display: flex;[\s\S]*overflow: hidden;[\s\S]*\.controlStrip \{[\s\S]*flex: 0 0 auto;[\s\S]*background: var\(--sr-color-surface-overlay\);[\s\S]*\.topControlsScrollRegion \{[\s\S]*overflow-y: auto;/,
   );
+  assert.match(
+    bottomSheetStyles,
+    /@media \(max-width: 760px\) \{[\s\S]*\.surfaceWithTopControls \{[\s\S]*var\(--sr-color-accent-active\)[\s\S]*var\(--sr-color-accent-transparent\) 28%[\s\S]*\.surfaceWithTopControls \.controlStrip \{[\s\S]*background: transparent;/,
+  );
   assert.match(bottomSheetSource, /role="dialog"/);
   assert.match(bottomSheetSource, /event\.key === "Escape"/);
   assert.match(
@@ -1609,7 +1613,7 @@ test("market pulse preserves safe cache misses and formats US 10Y in percent and
   assert.equal(treasury?.tone, "volatile");
 });
 
-test("desktop and mobile preview dispatchers wire all three V2 preview types", () => {
+test("responsive preview dispatchers wire all three V2 preview types", () => {
   const dispatcherSource = readSource(
     "components/feed-v2/FeedPreviewPanel.tsx",
   );
@@ -1627,7 +1631,21 @@ test("desktop and mobile preview dispatchers wire all three V2 preview types", (
   assert.match(dispatcherSource, /item\.preview\.kind === "filing"/);
   assert.match(dispatcherSource, /item\.preview\.kind === "market-news"/);
   assert.match(dispatcherSource, /FeedCompanyNewsPreview/);
-  assert.match(sheetSource, /FeedPreviewPanel item=\{item\} variant="mobile"/);
+  assert.match(sheetSource, /FeedPreviewPanel item=\{item\} variant=\{viewport\}/);
+  assert.match(
+    dispatcherSource,
+    /variant: "desktop" \| "intermediate" \| "mobile"/,
+  );
+  assert.equal(
+    combinedPreviewSource.match(/showHeaderActions=\{variant !== "mobile"\}/g)?.length,
+    2,
+    "company-news and filing previews must keep header actions in the intermediate drawer",
+  );
+  assert.equal(
+    combinedPreviewSource.match(/if \(variant !== "desktop"\) return content;/g)?.length,
+    3,
+    "mobile and intermediate previews must avoid the permanent rail wrapper",
+  );
   assert.match(combinedPreviewSource, /data-preview-kind="filing"/);
   assert.match(combinedPreviewSource, /data-preview-kind="company-news"/);
   assert.match(combinedPreviewSource, /data-preview-kind="market-news"/);

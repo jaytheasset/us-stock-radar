@@ -212,6 +212,26 @@
   }
 }
 
+@media (max-width: 760.98px) {
+  .surfaceWithTopControls {
+    border-top-color: var(--sr-color-accent-border-premium);
+    background-color: var(--sr-color-surface-overlay);
+    background-image: linear-gradient(
+      180deg,
+      var(--sr-color-accent-active),
+      var(--sr-color-accent-transparent) 28%
+    );
+    background-clip: border-box;
+    box-shadow:
+      var(--sr-shadow-sheet-full-scroll),
+      inset 0 var(--sr-border-width) 0 var(--sr-color-accent-subtle);
+  }
+
+  .surfaceWithTopControls .controlStrip {
+    background: transparent;
+  }
+}
+
 @media (min-width: 761px) and (max-width: 959.98px) {
   .intermediateRoot {
     position: fixed;

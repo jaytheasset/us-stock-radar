@@ -15,7 +15,7 @@ import styles from "./FeedFilingPreview.module.css";
 
 type FeedFilingPreviewProps = {
   filing: LiveFeedV2FilingPreview;
-  variant: "desktop" | "mobile";
+  variant: "desktop" | "intermediate" | "mobile";
 };
 
 export function FeedFilingPreview({ filing, variant }: FeedFilingPreviewProps) {
@@ -26,7 +26,7 @@ export function FeedFilingPreview({ filing, variant }: FeedFilingPreviewProps) {
     />
   );
 
-  if (variant === "mobile") return content;
+  if (variant !== "desktop") return content;
 
   return (
     <DetailPanelShell
