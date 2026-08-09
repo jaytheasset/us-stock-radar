@@ -87,8 +87,11 @@ test("every Ownership form reaches the common LLM branch with parser routing and
   }
 });
 
-test("Ownership LLM-disabled execution reports that analysis is required instead of returning parser final copy", () => {
+test("all Ownership forms require LLM execution in developer dry-run", async () => {
   const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
+  const parserSource = readFileSync(join(ownershipRoot, "parser.ts"), "utf8");
+  const formAdapterSource = readFileSync(join(ownershipRoot, "adapter.ts"), "utf8");
+  const analysisAdapterSource = readFileSync(join(here, "secOwnershipAnalysisAdapter.ts"), "utf8");
   const start = previewSource.indexOf("async function runSecFilingAnalysisWithoutLlmForRawRow(");
   const end = previewSource.indexOf("\nexport async function runSecFilingAnalysisForRawRow(", start);
   assert.ok(start >= 0 && end > start);
@@ -97,7 +100,61 @@ test("Ownership LLM-disabled execution reports that analysis is required instead
   assert.equal(withoutLlmSource.includes("buildDeterministicOwnershipAnalysis(input)"), false);
   assert.ok(withoutLlmSource.includes("LLM required but disabled for SEC analysis dry-run"));
   assert.ok(withoutLlmSource.includes("buildSecFilingPromptForInput(input, options)"));
+  assert.equal(previewSource.includes("attachOwnershipArchiveContextGuardPreview"), false);
+  assert.equal(parserSource.includes("buildDeterministicOwnershipResult"), false);
+  assert.equal(formAdapterSource.includes("tryDeterministicResult"), false);
+  assert.equal(formAdapterSource.includes("buildDeterministicResult"), false);
+  assert.equal(analysisAdapterSource.includes("buildDeterministicOwnershipAnalysis"), false);
+
+  const runWithoutLlm = compileWithoutLlmFunction(withoutLlmSource);
+  for (const item of cases) {
+    const fixture = readFixture(item.fixture);
+    const parserOutput = parseOwnershipFiling(fixture as never);
+    const input = {
+      filing_package: {
+        form_type: item.formType,
+        form_adapter: { analysisMode: "ownership_direct_analysis" },
+        hard_parsers: { ownership: parserOutput },
+      },
+    };
+    const result = await runWithoutLlm({ id: `dry-run-${item.formType}` }, input);
+
+    assert.equal(result.ok, false, item.formType);
+    assert.equal(result.stage, "openai", item.formType);
+    assert.equal(result.error, "LLM required but disabled for SEC analysis dry-run", item.formType);
+    assert.equal(result.prompt.key, "sec_ownership_analysis", item.formType);
+  }
 });
+
+function compileWithoutLlmFunction(withoutLlmSource: string) {
+  const executableSource = stripTypeScriptTypes(withoutLlmSource, { mode: "transform" });
+  const factory = new Function(
+    "mocks",
+    `const {
+      isS3AmendmentInput,
+      buildDeterministicEffectAnalysis,
+      buildDeterministicSc13Analysis,
+      buildDeterministicS8ArchiveAnalysis,
+      buildSecFilingPromptForInput,
+      summarizeRawRow
+    } = mocks;
+    ${executableSource}
+    return runSecFilingAnalysisWithoutLlmForRawRow;`,
+  );
+
+  return factory({
+    isS3AmendmentInput: () => false,
+    buildDeterministicEffectAnalysis: () => null,
+    buildDeterministicSc13Analysis: () => null,
+    buildDeterministicS8ArchiveAnalysis: () => null,
+    buildSecFilingPromptForInput: (input: Record<string, any>) => ({
+      key: "sec_ownership_analysis",
+      version: "v1",
+      input,
+    }),
+    summarizeRawRow: (rawItem: { id: string }) => ({ id: rawItem.id }),
+  }) as (rawItem: Record<string, unknown>, input: Record<string, unknown>) => Promise<Record<string, any>>;
+}
 
 function compileRuntimeFunction({
   providerCalls,

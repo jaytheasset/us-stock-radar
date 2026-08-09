@@ -4,10 +4,8 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  ARCHIVE_SUMMARY_SUFFIX,
   APPROVED_EVENT_TYPES,
   OWNERSHIP_FORM_SCOPE,
-  buildDeterministicOwnershipResult,
   deriveDeliveryLevel,
   parseOwnershipFiling,
 } from "./parser.ts";
@@ -116,74 +114,12 @@ test("ownership parser keeps source inventory and selected evidence without fili
     assert.ok(Array.isArray(parsed.raw.selected_evidence));
 });
 
-test("ownership parser proves deterministic archive cases from parser output", () => {
-    const adminFixture = readJson<Record<string, unknown>>("fixtures/form4a-admin-amendment.json");
-    const routineFixture = readJson<Record<string, unknown>>("fixtures/form144-routine-proposed-sale.json");
-    const grantFixture = readJson<Record<string, unknown>>("fixtures/form4-routine-rsu-grant.json");
-
-    const adminResult = buildDeterministicOwnershipResult(parseOwnershipFiling(adminFixture as never));
-    const routineResult = buildDeterministicOwnershipResult(parseOwnershipFiling(routineFixture as never));
-    const grantResult = buildDeterministicOwnershipResult(parseOwnershipFiling(grantFixture as never));
-
-    assert.equal(adminResult, null);
-    assert.equal(routineResult?.analysis_output.score, 32);
-    assert.equal(deriveDeliveryLevel(routineResult?.analysis_output.score ?? 100), "archive");
-    assert.equal(routineResult?.analysis_output.event_type, "insider_ownership");
-    assert.ok(routineResult?.analysis_output.summary.endsWith(ARCHIVE_SUMMARY_SUFFIX));
-    assert.equal(grantResult?.analysis_output.score, 28);
-    assert.equal(deriveDeliveryLevel(grantResult?.analysis_output.score ?? 100), "archive");
-    assert.equal(grantResult?.analysis_output.event_type, "insider_ownership");
-    assert.ok((grantResult?.display_payload.data as any).filing_summary.includes("reported an insider equity award/grant to"));
-    assert.ok(!(grantResult?.display_payload.data as any).filing_summary.includes("parser"));
-    assert.ok(grantResult?.analysis_output.summary.endsWith(ARCHIVE_SUMMARY_SUFFIX));
-});
-
-test("ownership parser makes unsupported or empty sources persistable archive outputs", () => {
+test("ownership parser preserves unsupported-source facts for downstream LLM analysis", () => {
     const fixture = readJson<Record<string, unknown>>("fixtures/form4-empty-unsupported.json");
     const parsed = parseOwnershipFiling(fixture as never);
-    const result = buildDeterministicOwnershipResult(parsed);
 
     assert.ok(parsed.signals.includes("unsupported_or_empty_document"));
-    assert.equal(result?.analysis_output.score, 5);
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.equal(result?.parser_output.accessionNumber, fixture.accessionNumber);
-    assert.ok(result?.analysis_output.summary.endsWith(ARCHIVE_SUMMARY_SUFFIX));
-});
-
-test("ownership parser completes only low-score clean Form 4 buy/sale cases and defers feed candidates", () => {
-    const highSaleFixture = readJson<Record<string, unknown>>("fixtures/form4-10b5-1-sale.json");
-    const parserArchivePurchaseFixture = readJson<Record<string, unknown>>("fixtures/form4-insider-purchase.json");
-    const highPercentPurchaseFixture = readJson<Record<string, unknown>>("fixtures/source-agig-form4-purchase.json");
-    const smallSaleFixture = readJson<Record<string, unknown>>("fixtures/form4-small-open-market-sale.json");
-    const multiFixture = readJson<Record<string, unknown>>("fixtures/form4-multi-owner-10b5-1-conversion.json");
-    const derivativeFixture = readJson<Record<string, unknown>>("fixtures/form4-derivative-gift-section16-exit.json");
-    const material144Fixture = readJson<Record<string, unknown>>("fixtures/form144a-material-increase.json");
-    const purchaseResult = buildDeterministicOwnershipResult(parseOwnershipFiling(parserArchivePurchaseFixture as never));
-    const saleResult = buildDeterministicOwnershipResult(parseOwnershipFiling(smallSaleFixture as never));
-
-    assert.equal(purchaseResult?.analysis_output.event_title, "Maya Chen open-market stock purchase");
-    assert.equal(purchaseResult?.analysis_output.signal, "bullish");
-    assert.equal(deriveDeliveryLevel(purchaseResult?.analysis_output.score ?? 100), "archive");
-    assert.equal(purchaseResult?.analysis_output.why_it_matters, "");
-    assert.deepEqual(purchaseResult?.analysis_output.bullish_points, []);
-    assert.deepEqual(purchaseResult?.analysis_output.bearish_points, []);
-    assert.deepEqual(purchaseResult?.analysis_output.what_to_watch_next, []);
-    assert.ok((purchaseResult?.display_payload.data as any).filing_summary.includes("Form 4 reported that"));
-    assert.ok((purchaseResult?.display_payload.data as any).filing_summary.includes("bought"));
-    assert.ok(purchaseResult?.analysis_output.summary.includes("bought 25,000 common shares"));
-    assert.ok(purchaseResult?.analysis_output.key_evidence.includes("Transaction code: P"));
-    assert.equal(saleResult?.analysis_output.event_title, "Jordan Small open-market stock sale");
-    assert.equal(saleResult?.analysis_output.signal, "bearish");
-    assert.equal(deriveDeliveryLevel(saleResult?.analysis_output.score ?? 100), "archive");
-    assert.equal(saleResult?.analysis_output.why_it_matters, "");
-    assert.ok((saleResult?.display_payload.data as any).filing_summary.includes("Form 4 reported that"));
-    assert.ok((saleResult?.display_payload.data as any).filing_summary.includes("sold"));
-    assert.ok(saleResult?.analysis_output.key_evidence.includes("Transaction code: S"));
-    assert.equal(buildDeterministicOwnershipResult(parseOwnershipFiling(highPercentPurchaseFixture as never)), null);
-    assert.equal(buildDeterministicOwnershipResult(parseOwnershipFiling(highSaleFixture as never)), null);
-    assert.equal(buildDeterministicOwnershipResult(parseOwnershipFiling(multiFixture as never)), null);
-    assert.equal(buildDeterministicOwnershipResult(parseOwnershipFiling(derivativeFixture as never)), null);
-    assert.equal(buildDeterministicOwnershipResult(parseOwnershipFiling(material144Fixture as never)), null);
+    assert.equal(parsed.accessionNumber, fixture.accessionNumber);
 });
 
 test("ownership parser caps small Form 4 P/S by absolute value even when holdings percent or context words are high", () => {
@@ -230,26 +166,20 @@ test("ownership parser caps small Form 4 P/S by absolute value even when holding
   assert.equal(highPercentFacts.parser_completion.can_finish_without_llm, false);
   assert.equal(highPercentFacts.parser_completion.metrics.requires_llm, true);
   assert.ok((highPercentFacts.parser_completion.metrics.score_drivers as string[]).includes("pre_holding_10pct_plus"));
-  assert.equal(buildDeterministicOwnershipResult(smallHighPercentPurchase), null);
 
   for (const parsed of [smallEntitySale]) {
     const facts = parsed.facts as Record<string, any>;
-    const result = buildDeterministicOwnershipResult(parsed);
     assert.equal(facts.parser_completion.can_finish_without_llm, true);
     assert.ok((facts.parser_completion.metrics.score_drivers as string[]).includes("parser_archive_cap_under_form4_llm_threshold"));
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.ok((result?.display_payload.data as any).filing_summary.includes("Form 4 reported"));
   }
 
   assert.equal((privatePlacementPurchase.facts as any).parser_completion.can_finish_without_llm, false);
-  assert.equal(buildDeterministicOwnershipResult(privatePlacementPurchase), null);
 });
 
 test("ownership parser completes mixed Form 4 P/S position-exit cases without forcing bullish or bearish direction", () => {
   const fixture = readJson<Record<string, unknown>>("fixtures/form4-mixed-buy-sell-position-exit.json");
   const parsed = parseOwnershipFiling(fixture as never);
   const facts = parsed.facts as Record<string, any>;
-  const result = buildDeterministicOwnershipResult(parsed);
 
   assert.ok(parsed.signals.includes("insider_purchase"));
   assert.ok(parsed.signals.includes("insider_sale"));
@@ -258,14 +188,6 @@ test("ownership parser completes mixed Form 4 P/S position-exit cases without fo
   assert.equal(facts.parser_completion.can_finish_without_llm, true);
   assert.equal(facts.parser_completion.metrics.position_exit, true);
   assert.equal(facts.parser_completion.metrics.signal, "volatile");
-  assert.equal(result?.analysis_output.signal, "volatile");
-  assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-  assert.ok(result?.analysis_output.event_title.includes("exits reported position after mixed buy/sell"));
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("mixed buy/sell activity"));
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("1,535,850 common shares bought"));
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("2,619,607 common shares sold"));
-  assert.deepEqual(result?.analysis_output.bullish_points, []);
-  assert.deepEqual(result?.analysis_output.bearish_points, []);
 });
 
 test("ownership parser extracts multi-owner Form 4 10b5-1 conversion structure", () => {
@@ -921,7 +843,7 @@ test("ownership parser locally classifies Form 4/A added line, footnote-only, me
   assert.equal(added.signals.includes("insider_purchase"), false);
 });
 
-test("ownership parser uses parser-only ownership_original_filing for clean Form 4/A comparison before archive", () => {
+test("ownership parser uses parser-only ownership_original_filing for clean Form 4/A comparison facts", () => {
   const original = form4TransactionXml();
   const parsed = parseOwnershipFiling({
     formType: "4/A",
@@ -937,16 +859,11 @@ test("ownership parser uses parser-only ownership_original_filing for clean Form
     },
   } as never);
   const facts = parsed.facts as Record<string, any>;
-  const result = buildDeterministicOwnershipResult(parsed);
 
   assert.equal(facts.amendment.local_comparison.local_parent_available, true);
   assert.ok((facts.amendment.local_comparison.labels as string[]).includes("FOOTNOTE_ONLY"));
   assert.equal(facts.ownership_handoff.analysis_llm_needed, false);
   assert.equal(parsed.raw.deterministic_result_available, true);
-  assert.equal(result?.analysis_output.score, 20);
-  assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-  assert.equal(result?.analysis_output.event_type, "insider_ownership");
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("footnote-only amendment"));
 });
 
 test("ownership parser locally handles Form 4/A omitted, derivative changed, ambiguous, and parent-unavailable cases safely", () => {
@@ -993,11 +910,6 @@ test("ownership parser locally handles Form 4/A omitted, derivative changed, amb
   assert.equal((noParent.facts as any).amendment.local_comparison.local_parent_available, false);
   assert.ok(((noParent.facts as any).amendment.local_comparison.labels as string[]).includes("UNKNOWN_AMENDMENT"));
   assert.equal(noParent.signals.includes("insider_purchase"), false);
-  assert.equal(buildDeterministicOwnershipResult(omitted), null);
-  assert.equal(buildDeterministicOwnershipResult(derivativeChanged), null);
-  assert.equal(buildDeterministicOwnershipResult(ambiguous), null);
-  assert.equal(buildDeterministicOwnershipResult(correction), null);
-  assert.equal(buildDeterministicOwnershipResult(noParent), null);
 });
 
 test("ownership parser locally classifies Form 144/A proposed amount, date, class, and broker amendments", () => {
@@ -1035,10 +947,9 @@ test("ownership parser locally classifies Form 144/A acquisition, prior sales, p
   assert.ok(((metadataOnly.facts as any).amendment.local_comparison.labels as string[]).includes("METADATA_ONLY"));
   assert.ok(((correction.facts as any).amendment.local_comparison.labels as string[]).includes("VOID_OR_ERROR_CANDIDATE"));
   assert.equal((correction.facts as any).form144.sale_status, "proposed_not_executed");
-  assert.equal(buildDeterministicOwnershipResult(correction), null);
 });
 
-test("ownership parser uses rawPayload ownership_original_filing for clean Form 144/A metadata comparison before archive", () => {
+test("ownership parser uses rawPayload ownership_original_filing for clean Form 144/A metadata comparison facts", () => {
   const parsed = parseOwnershipFiling({
     formType: "144/A",
     accessionNumber: "0000000000-26-014601",
@@ -1052,16 +963,12 @@ test("ownership parser uses rawPayload ownership_original_filing for clean Form 
     },
   } as never);
   const facts = parsed.facts as Record<string, any>;
-  const result = buildDeterministicOwnershipResult(parsed);
 
   assert.equal(facts.amendment.local_comparison.local_parent_available, true);
   assert.ok((facts.amendment.local_comparison.labels as string[]).includes("METADATA_ONLY"));
   assert.equal(facts.ownership_handoff.analysis_llm_needed, false);
   assert.equal(parsed.raw.deterministic_result_available, true);
   assert.equal(facts.form144.sale_status, "proposed_not_executed");
-  assert.equal(result?.analysis_output.score, 20);
-  assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("metadata-only amendment"));
 });
 
 test("ownership parser locally keeps Form 144/A parent-unavailable and ambiguous multi-row comparisons safe", () => {
@@ -1083,7 +990,6 @@ test("ownership parser locally keeps Form 144/A parent-unavailable and ambiguous
   assert.equal((noParent.facts as any).amendment.local_comparison.local_parent_available, false);
   assert.ok(((noParent.facts as any).amendment.local_comparison.labels as string[]).includes("UNKNOWN_AMENDMENT"));
   assert.equal((noParent.facts as any).form144.sale_status, "proposed_not_executed");
-  assert.equal(buildDeterministicOwnershipResult(noParent), null);
   assert.ok(((ambiguous.facts as any).amendment.local_comparison.labels as string[]).includes("UNKNOWN_AMENDMENT"));
   assert.ok(ambiguous.warnings.includes("Local Form 144/A row comparison is ambiguous; parser did not guess row mapping."));
 });
@@ -1201,7 +1107,7 @@ test("ownership parser safety classifies clean Form 4 non-market rows as parser-
   }
 });
 
-test("ownership parser completes clean Form 4 low-noise rows as limited archive outputs", () => {
+test("ownership parser classifies clean Form 4 low-noise rows as limited archive facts", () => {
   const fOnly = parseOwnershipFiling(readJson<Record<string, unknown>>("fixtures/form4-code-f-tax-withholding-safety.json") as never);
   const mOnly = parseOwnershipFiling(readJson<Record<string, unknown>>("fixtures/form4-code-m-option-exercise-safety.json") as never);
   const mixedNonMarket = parseOwnershipFiling({
@@ -1214,17 +1120,8 @@ test("ownership parser completes clean Form 4 low-noise rows as limited archive 
 
   for (const parsed of [fOnly, mOnly, mixedNonMarket]) {
     const facts = parsed.facts as Record<string, any>;
-    const result = buildDeterministicOwnershipResult(parsed);
     assert.equal(facts.parser_completion.completion_kind, "limited_archive");
     assert.equal(facts.parser_completion.can_finish_without_llm, true);
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.equal(result?.analysis_output.event_type, "insider_ownership");
-    assert.ok(/tax\/payment purposes|derivative exercise\/conversion|tax-withholding activity/.test(result?.analysis_output.summary ?? ""));
-    assert.equal(result?.analysis_output.why_it_matters, "");
-    assert.deepEqual(result?.analysis_output.what_to_watch_next, []);
-    assert.ok((result?.display_payload.data as any).filing_summary.startsWith("Form 4 reported"));
-    assert.ok(!(result?.display_payload.data as any).filing_summary.includes("The parser"));
-    assert.ok(result?.analysis_output.summary.endsWith(ARCHIVE_SUMMARY_SUFFIX));
   }
   assert.ok(((mixedNonMarket.facts as any).parser_completion.labels as string[]).includes("MIXED_NON_MARKET_FORM4"));
   assert.ok(((mixedNonMarket.facts as any).parser_safety_classification.labels as string[]).includes("MIXED_NON_MARKET_FORM4"));
@@ -1282,16 +1179,12 @@ test("ownership parser treats routine previously-reported equity-plan footnotes 
 
   for (const parsed of [aOnlyPreviouslyReported, fOnlyPreviouslyReported, mixedPreviouslyReported]) {
     const facts = parsed.facts as Record<string, any>;
-    const result = buildDeterministicOwnershipResult(parsed);
     assert.equal(facts.parser_completion.completion_kind, "limited_archive");
     assert.equal(facts.parser_completion.can_finish_without_llm, true);
     assert.equal(safetyOf(parsed).status, "parser_resolvable_low_noise");
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.ok((result?.display_payload.data as any).filing_summary.includes("No open-market"));
   }
 
   assert.equal((correctionPreviouslyReported.facts as any).parser_completion.can_finish_without_llm, false);
-  assert.equal(buildDeterministicOwnershipResult(correctionPreviouslyReported), null);
 });
 
 test("ownership parser completes clear equity-plan D/F/A adjustments including low-noise entity ownership context", () => {
@@ -1325,21 +1218,14 @@ test("ownership parser completes clear equity-plan D/F/A adjustments including l
   } as never);
 
   const adminFacts = equityPlanAdmin.facts as Record<string, any>;
-  const adminResult = buildDeterministicOwnershipResult(equityPlanAdmin);
   assert.equal(adminFacts.parser_completion.completion_kind, "limited_archive");
   assert.equal(adminFacts.parser_completion.can_finish_without_llm, true);
   assert.ok((adminFacts.parser_completion.labels as string[]).includes("EQUITY_PLAN_ADMIN_ADJUSTMENT"));
-  assert.equal(deriveDeliveryLevel(adminResult?.analysis_output.score ?? 100), "archive");
-  assert.ok((adminResult?.display_payload.data as any).filing_summary.includes("equity-plan adjustments"));
-  assert.ok((adminResult?.display_payload.data as any).filing_summary.includes("No open-market purchase or sale was reported."));
 
   const entityFacts = entityAmbiguous.facts as Record<string, any>;
-  const entityResult = buildDeterministicOwnershipResult(entityAmbiguous);
   assert.equal(entityFacts.parser_completion.completion_kind, "limited_archive");
   assert.equal(entityFacts.parser_completion.can_finish_without_llm, true);
   assert.ok((entityFacts.parser_completion.labels as string[]).includes("EQUITY_PLAN_ADMIN_ADJUSTMENT"));
-  assert.equal(deriveDeliveryLevel(entityResult?.analysis_output.score ?? 100), "archive");
-  assert.ok((entityResult?.display_payload.data as any).filing_summary.includes("No open-market purchase or sale was reported."));
 });
 
 test("ownership parser completes clean G gifts and no-consideration J exchanges without treating them as market trades", () => {
@@ -1397,13 +1283,8 @@ test("ownership parser completes clean G gifts and no-consideration J exchanges 
 
   for (const parsed of [giftOnly, jExchangeOnly, familyTrustGift]) {
     const facts = parsed.facts as Record<string, any>;
-    const result = buildDeterministicOwnershipResult(parsed);
     assert.equal(facts.parser_completion.completion_kind, "limited_archive");
     assert.equal(facts.parser_completion.can_finish_without_llm, true);
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.ok((result?.display_payload.data as any).filing_summary.includes("No open-market purchase or sale was reported."));
-    assert.equal(result?.analysis_output.why_it_matters, "");
-    assert.deepEqual(result?.analysis_output.what_to_watch_next, []);
   }
 
   assert.ok(((giftOnly.facts as any).parser_completion.labels as string[]).includes("G_ONLY_GIFT_NON_MARKET"));
@@ -1412,9 +1293,7 @@ test("ownership parser completes clean G gifts and no-consideration J exchanges 
   assert.ok(((giftOnly.facts as any).parser_safety_classification.labels as string[]).includes("G_ONLY_GIFT_NON_MARKET"));
   assert.ok(((jExchangeOnly.facts as any).parser_safety_classification.labels as string[]).includes("J_ONLY_NO_CONSIDERATION_EXCHANGE"));
   assert.equal((jPlusSale.facts as any).parser_completion.can_finish_without_llm, false);
-  assert.equal(buildDeterministicOwnershipResult(jPlusSale), null);
   assert.equal((derivativeGift.facts as any).parser_completion.can_finish_without_llm, false);
-  assert.equal(buildDeterministicOwnershipResult(derivativeGift), null);
 });
 
 test("ownership parser completes only small source-backed S sell-to-cover tax rows as limited archive", () => {
@@ -1453,16 +1332,10 @@ test("ownership parser completes only small source-backed S sell-to-cover tax ro
     ),
   } as never);
 
-  const result = buildDeterministicOwnershipResult(sellToCover);
   const facts = sellToCover.facts as Record<string, any>;
   assert.equal(facts.parser_completion.completion_kind, "limited_archive");
   assert.equal(facts.parser_completion.can_finish_without_llm, true);
   assert.ok((facts.parser_completion.labels as string[]).includes("S_ONLY_SELL_TO_COVER_TAX"));
-  assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("sell-to-cover/tax withholding sale"));
-  assert.ok((result?.display_payload.data as any).filing_summary.includes("tax withholding or equity-award vesting"));
-  assert.equal(result?.analysis_output.why_it_matters, "");
-  assert.deepEqual(result?.analysis_output.what_to_watch_next, []);
 
   assert.ok(!((ordinarySmallSale.facts as any).parser_completion.labels as string[]).includes("S_ONLY_SELL_TO_COVER_TAX"));
   assert.ok(!((multiRowSellToCover.facts as any).parser_completion.labels as string[]).includes("S_ONLY_SELL_TO_COVER_TAX"));
@@ -1486,7 +1359,6 @@ test("ownership parser blocks limited archive completion when non-sale codes con
     const facts = parsed.facts as Record<string, any>;
     assert.equal(facts.parser_completion.can_finish_without_llm, false);
     assert.ok(facts.parser_completion.blockers.length > 0);
-    assert.equal(buildDeterministicOwnershipResult(parsed), null);
   }
 });
 
@@ -1569,7 +1441,7 @@ test("ownership parser safety keeps Form 144 proposed-sale and local Form 4 cand
   assert.ok((safetyOf(ordinary).labels as string[]).includes("FORM_144_PROPOSED_ONLY"));
 });
 
-test("ownership parser limits Form 144 parser-completed archive to small clean proposed-sale notices", () => {
+test("ownership parser identifies small clean Form 144 proposed-sale facts without final analysis", () => {
   const cleanSmall = parseOwnershipFiling({
     formType: "144",
     filingText: form144Xml({ submissionType: "144", noPriorSales: true, omitPlanDate: true }),
@@ -1804,34 +1676,23 @@ test("ownership parser limits Form 144 parser-completed archive to small clean p
     withModeratePlanDateNoPriorSalesLowOutstandingPercent,
     withLargePriorSales,
   ]) {
-    const result = buildDeterministicOwnershipResult(parsed);
     assert.ok(parsed.signals.includes("routine_form_144"));
-    assert.equal(deriveDeliveryLevel(result?.analysis_output.score ?? 100), "archive");
-    assert.ok((result?.display_payload.data as any).filing_summary.includes("filed a Form 144 notice to sell"));
-    assert.ok((result?.display_payload.data as any).filing_summary.includes("planned-sale notice"));
   }
-  assert.ok((buildDeterministicOwnershipResult(withSmallPriorSales)?.display_payload.data as any).filing_summary.includes("prior sales"));
   assert.equal((withSmallThreePriorSales.facts as any).form144.prior_sales.length, 3);
-  assert.ok((buildDeterministicOwnershipResult(withSmallThreePriorSales)?.display_payload.data as any).filing_summary.includes("3 sales"));
-  assert.ok((buildDeterministicOwnershipResult(withMediumPlanDateNoPriorSales)?.display_payload.data as any).filing_summary.includes("Plan date disclosed"));
-  assert.ok((buildDeterministicOwnershipResult(withClassACommonStockTitle)?.display_payload.data as any).filing_summary.includes("Class A common shares"));
-  assert.ok((buildDeterministicOwnershipResult(withCommonSharesNoParValueTitle)?.display_payload.data as any).filing_summary.includes("common shares"));
-  assert.equal((buildDeterministicOwnershipResult(withCommonSharesNoParValueTitle)?.display_payload.data as any).filing_summary.includes("no par value"), false);
-  assert.ok((buildDeterministicOwnershipResult(withCommonStockParValueTitle)?.display_payload.data as any).filing_summary.includes("common shares"));
-  assert.equal((buildDeterministicOwnershipResult(withCommonStockParValueTitle)?.display_payload.data as any).filing_summary.includes("par value"), false);
-  assert.ok((buildDeterministicOwnershipResult(withClassOnlyTitle)?.display_payload.data as any).filing_summary.includes("Class B shares"));
-  assert.ok((buildDeterministicOwnershipResult(withNoPlanNoPriorUnderOneMillion)?.display_payload.data as any).filing_summary.includes("$836,454"));
+  assert.deepEqual((withMediumPlanDateNoPriorSales.facts as any).form144.plan_adoption_dates, ["2026-01-01"]);
+  assert.equal((withClassACommonStockTitle.facts as any).form144.securities_class_title, "Class A Common Stock");
+  assert.equal((withCommonSharesNoParValueTitle.facts as any).form144.securities_class_title, "Common Shares no par value");
+  assert.equal((withCommonStockParValueTitle.facts as any).form144.securities_class_title, "Common Stock, par value $0.01 per share");
+  assert.equal((withClassOnlyTitle.facts as any).form144.securities_class_title, "Class B");
+  assert.equal((withNoPlanNoPriorUnderOneMillion.facts as any).form144.aggregate_market_value, 836454);
   assert.equal((withPriorModerateAggregate.facts as any).form144.prior_sales.length, 3);
-  assert.ok((buildDeterministicOwnershipResult(withPriorModerateAggregate)?.display_payload.data as any).filing_summary.includes("3 sales"));
   assert.equal((withSmallRoutineTwoPriorSales.facts as any).form144.prior_sales.length, 2);
-  assert.ok((buildDeterministicOwnershipResult(withSmallRoutineTwoPriorSales)?.display_payload.data as any).filing_summary.includes("prior sales"));
   assert.equal((withSmallPlanAndThreePriorSales.facts as any).form144.prior_sales.length, 3);
-  assert.ok((buildDeterministicOwnershipResult(withSmallPlanAndThreePriorSales)?.display_payload.data as any).filing_summary.includes("Plan date disclosed"));
-  assert.ok((buildDeterministicOwnershipResult(withBrokerLlcInPriorSellerName)?.display_payload.data as any).filing_summary.includes("$94,050"));
-  assert.ok((buildDeterministicOwnershipResult(withModeratePlanDateNoPriorSalesLowOutstandingPercent)?.display_payload.data as any).filing_summary.includes("$1,326,900"));
-  assert.ok((buildDeterministicOwnershipResult(withSmallPlanDate)?.display_payload.data as any).filing_summary.includes("Plan date disclosed"));
-  assert.ok((buildDeterministicOwnershipResult(withSmallRoutineTwoPriorSalesAndPlan)?.display_payload.data as any).filing_summary.includes("Plan date disclosed"));
-  assert.ok((buildDeterministicOwnershipResult(withLargePriorSales)?.display_payload.data as any).filing_summary.includes("$6,000,000"));
+  assert.equal((withBrokerLlcInPriorSellerName.facts as any).form144.aggregate_market_value, 94050);
+  assert.equal((withModeratePlanDateNoPriorSalesLowOutstandingPercent.facts as any).form144.aggregate_market_value, 1326900);
+  assert.deepEqual((withSmallPlanDate.facts as any).form144.plan_adoption_dates, ["2026-01-01"]);
+  assert.deepEqual((withSmallRoutineTwoPriorSalesAndPlan.facts as any).form144.plan_adoption_dates, ["2026-01-01"]);
+  assert.equal((withLargePriorSales.facts as any).form144.prior_sales[0].gross_proceeds, 6000000);
   assert.equal((withAffiliateOnlyModerateSale.facts as any).form144.issuer_relationships[0], "May be deemed affiliate");
   assert.equal((withSmallFivePriorSalesNoPlan.facts as any).form144.prior_sales.length, 5);
 
@@ -1843,7 +1704,6 @@ test("ownership parser limits Form 144 parser-completed archive to small clean p
     largeProposedSale,
   ]) {
     assert.equal(parsed.signals.includes("routine_form_144"), false);
-    assert.equal(buildDeterministicOwnershipResult(parsed), null);
   }
 });
 
