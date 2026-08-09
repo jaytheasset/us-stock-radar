@@ -86,7 +86,7 @@ export function MarketActivityRail() {
           role="tab"
           type="button"
         >
-          지수
+          Indices
         </button>
         <button
           aria-controls="market-activity-chat"
@@ -95,7 +95,7 @@ export function MarketActivityRail() {
           role="tab"
           type="button"
         >
-          채팅
+          Chat
         </button>
       </div>
 
@@ -135,8 +135,8 @@ function IndexRail({
   reducedMotion: boolean;
 }) {
   const items = data?.indices ?? [];
-  if (!data) return <RailStatus id="market-activity-indices" text="시장 활동을 불러오는 중입니다." />;
-  if (!items.length) return <RailStatus id="market-activity-indices" text="시장 지수 정보를 사용할 수 없습니다." />;
+  if (!data) return <RailStatus id="market-activity-indices" text="Loading market activity." />;
+  if (!items.length) return <RailStatus id="market-activity-indices" text="Market indices are currently unavailable." />;
 
   const trackClassName = [
     styles.indexTrack,
@@ -191,8 +191,8 @@ function ChatRail({
   data: MarketActivityPayload | null;
   item: MarketActivityPayload["chats"][number] | null;
 }) {
-  if (!data) return <RailStatus id="market-activity-chat" text="공개 대화를 불러오는 중입니다." />;
-  if (!item) return <RailStatus id="market-activity-chat" text="오늘 활발한 공개 대화가 아직 없습니다." />;
+  if (!data) return <RailStatus id="market-activity-chat" text="Loading public conversations." />;
+  if (!item) return <RailStatus id="market-activity-chat" text="No active public conversations yet today." />;
 
   return (
     <div className={styles.chatPanel} id="market-activity-chat" role="tabpanel">
