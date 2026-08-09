@@ -46,6 +46,19 @@ test("stock routes accept safe tickers without requiring a saved watchlist item"
   );
 });
 
+test("GOOG and GOOGL keep separate stock routes while loading issuer-linked events", () => {
+  assert.equal(getStockRouteHref("GOOG"), "/stocks/GOOG");
+  assert.equal(getStockRouteHref("GOOGL"), "/stocks/GOOGL");
+  assert.equal(
+    getStockOverviewEventsApiHref("GOOG"),
+    "/api/events?ticker=GOOG&limit=50&include_archive=true",
+  );
+  assert.equal(
+    getStockOverviewEventsApiHref("GOOGL"),
+    "/api/events?ticker=GOOGL&limit=50&include_archive=true",
+  );
+});
+
 test("header search arrow navigation wraps without selecting an invalid index", () => {
   assert.equal(moveTickerSearchIndex(-1, 3, "ArrowDown"), 0);
   assert.equal(moveTickerSearchIndex(-1, 3, "ArrowUp"), 2);

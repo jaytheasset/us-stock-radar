@@ -5,7 +5,20 @@ import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secI
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
 import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/lib/secStores/alertQueue";
 import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
+import {
+  buildSecIssuerEventTickerRows,
+  buildSecFilingGroupDedupe,
+  resolveSecIssuerSecurityLinkage,
+  type SecIssuerSecurityLinkage,
+} from "@/lib/secIssuerEventLinkage";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+
+export {
+  buildSecFilingGroupDedupe,
+  buildSecFilingGroupDedupeKey,
+  buildSecFilingLegacyGroupDedupeKey,
+  isSecOwnershipFormType,
+} from "@/lib/secIssuerEventLinkage";
 
 type SourceGroup = "filings";
 type MarketScope = "company" | "sector" | "theme" | "macro";
@@ -56,7 +69,9 @@ export async function saveAnalyzedSecFilingEvent({
   const eventType = normalizeEventType(stringValue(analysis.event_type));
   const signal = normalizeSignal(stringValue(analysis.signal));
   const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
-  const primaryTicker = readPrimaryTicker(analysis, rawPayload, filingPackage);
+  const issuerSecurityLinkage = resolveSecIssuerSecurityLinkage(rawPayload);
+  const primaryTicker = issuerSecurityLinkage?.displaySecurity ||
+    readPrimaryTicker(analysis, rawPayload, filingPackage);
   const groupDedupe = buildSecFilingGroupDedupe(rawRow);
   const groupDedupeKey = groupDedupe.groupDedupeKey;
   const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
@@ -107,6 +122,14 @@ export async function saveAnalyzedSecFilingEvent({
       accession_number: nullableString(rawPayload.accession_number) || nullableString(rawRow.source_unique_id),
       form_type: nullableString(rawPayload.form_type),
       cik: nullableString(rawPayload.cik),
+      issuer_security_linkage: issuerSecurityLinkage
+        ? {
+            display_ticker: issuerSecurityLinkage.displaySecurity.ticker,
+            issuer_cik: issuerSecurityLinkage.issuerCik,
+            source: issuerSecurityLinkage.source,
+            tickers: issuerSecurityLinkage.securities.map((security) => security.ticker),
+          }
+        : null,
       primary_document_url: nullableString(rawPayload.primary_document_url),
       confidence: stringValue(analysis.confidence),
       needs_human_review: Boolean(analysis.needs_human_review),
@@ -164,7 +187,12 @@ export async function saveAnalyzedSecFilingEvent({
       promptKey,
       promptVersion,
     }),
-    replaceEventTickers(stringValue(eventRow.id), analysis, primaryTicker),
+    replaceEventTickers(
+      stringValue(eventRow.id),
+      analysis,
+      primaryTicker,
+      issuerSecurityLinkage,
+    ),
     replaceEventCalendarItems({
       eventRow,
       rawRow,
@@ -521,9 +549,15 @@ async function replaceEventTickers(
   eventId: string,
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
+  issuerSecurityLinkage: SecIssuerSecurityLinkage | null,
 ) {
   await assertMutation(supabaseDelete("event_tickers", { event_id: `eq.${eventId}` }), "delete event tickers");
-  const rows = buildTickerRows(eventId, analysis, primaryTicker);
+  const rows = buildTickerRows(
+    eventId,
+    analysis,
+    primaryTicker,
+    issuerSecurityLinkage,
+  );
   if (!rows.length) return;
 
   const result = await supabaseUpsertSanitized("event_tickers", rows, {
@@ -564,6 +598,7 @@ function buildTickerRows(
   eventId: string,
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
+  issuerSecurityLinkage: SecIssuerSecurityLinkage | null,
 ) {
   const rows: Array<Record<string, unknown>> = [];
   const seen = new Set<string>();
@@ -573,13 +608,13 @@ function buildTickerRows(
     role?: string | null;
     reason?: string | null;
     sortOrder?: number;
+    metadata?: Record<string, unknown>;
   }) => {
     const symbol = stringValue(input.symbol).toUpperCase();
     if (!symbol) return;
     const role = normalizeTickerRole(input.role || "related");
-    const key = `${symbol}:${role}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+    if (seen.has(symbol)) return;
+    seen.add(symbol);
     rows.push({
       event_id: eventId,
       symbol,
@@ -587,17 +622,33 @@ function buildTickerRows(
       role,
       sort_order: input.sortOrder ?? rows.length + 1,
       reason: nullableString(input.reason),
-      metadata: {},
+      metadata: input.metadata || {},
     });
   };
 
-  push({
-    symbol: primaryTicker.ticker,
-    exchange: primaryTicker.exchange,
-    role: "primary",
-    reason: "Primary ticker from SEC filing analysis",
-    sortOrder: 1,
-  });
+  if (issuerSecurityLinkage) {
+    for (const row of buildSecIssuerEventTickerRows(
+      eventId,
+      issuerSecurityLinkage,
+    )) {
+      push({
+        symbol: row.symbol,
+        exchange: row.exchange,
+        role: row.role,
+        reason: row.reason,
+        sortOrder: row.sort_order,
+        metadata: row.metadata,
+      });
+    }
+  } else {
+    push({
+      symbol: primaryTicker.ticker,
+      exchange: primaryTicker.exchange,
+      role: "primary",
+      reason: "Primary ticker from trusted SEC filing package",
+      sortOrder: 1,
+    });
+  }
 
   for (const item of recordArray(analysis.tickers)) {
     push({
@@ -1240,103 +1291,20 @@ function readPrimaryTicker(
   rawPayload: Record<string, unknown>,
   filingPackage: Record<string, unknown>,
 ) {
-  const primary = toRecord(analysis.primary_ticker);
   const packagePrimary = toRecord(filingPackage.primary_ticker);
+  const primary = toRecord(analysis.primary_ticker);
   const ticker =
-    nullableString(primary?.ticker) ||
+    nullableString(rawPayload.ticker) ||
     nullableString(packagePrimary?.ticker) ||
-    nullableString(rawPayload.ticker);
+    nullableString(primary?.ticker);
   const exchange =
-    nullableString(primary?.exchange) ||
+    nullableString(rawPayload.exchange) ||
     nullableString(packagePrimary?.exchange) ||
-    nullableString(rawPayload.exchange);
+    nullableString(primary?.exchange);
   return {
     ticker: ticker ? ticker.toUpperCase() : null,
     exchange,
   };
-}
-
-export type SecFilingGroupDedupeResult = {
-  groupDedupeKey: string;
-  legacyGroupDedupeKey: string;
-  lookupGroupDedupeKeys: string[];
-  isOwnershipFiling: boolean;
-  formType: string | null;
-  accessionNumber: string | null;
-};
-
-export function buildSecFilingGroupDedupe(rawRow: Record<string, unknown>): SecFilingGroupDedupeResult {
-  const rawPayload = toRecord(rawRow.raw_payload) || {};
-  const formType = normalizeSecFormTypeForDedupe(
-    stringValue(rawPayload.form_type) ||
-      stringValue(rawPayload.formType) ||
-      stringValue(toRecord(rawRow.metadata)?.form_type) ||
-      stringValue(rawRow.form_type),
-  );
-  const legacyGroupDedupeKey = buildSecFilingLegacyGroupDedupeKey(rawRow);
-  const isOwnershipFiling = isSecOwnershipFormType(formType);
-
-  if (!isOwnershipFiling) {
-    return {
-      groupDedupeKey: legacyGroupDedupeKey,
-      legacyGroupDedupeKey,
-      lookupGroupDedupeKeys: [legacyGroupDedupeKey],
-      isOwnershipFiling: false,
-      formType,
-      accessionNumber: null,
-    };
-  }
-
-  const accessionNumber = readSecAccessionNumberForDedupe(rawRow, rawPayload);
-  const rawItemId = stringValue(rawRow.id);
-  const groupDedupeKey = accessionNumber
-    ? `sec_edgar:ownership:accession:${accessionNumber}`
-    : `sec_edgar:ownership:raw_item:${rawItemId || "unknown"}`;
-
-  return {
-    groupDedupeKey,
-    legacyGroupDedupeKey,
-    lookupGroupDedupeKeys: uniqueStrings([groupDedupeKey, legacyGroupDedupeKey]),
-    isOwnershipFiling: true,
-    formType,
-    accessionNumber,
-  };
-}
-
-export function buildSecFilingGroupDedupeKey(rawRow: Record<string, unknown>) {
-  return buildSecFilingGroupDedupe(rawRow).groupDedupeKey;
-}
-
-export function buildSecFilingLegacyGroupDedupeKey(rawRow: Record<string, unknown>) {
-  return `sec_edgar:${stringValue(rawRow.source_unique_id) || stringValue(rawRow.dedupe_key) || stringValue(rawRow.id)}`;
-}
-
-export function isSecOwnershipFormType(formType: unknown) {
-  const normalized = normalizeSecFormTypeForDedupe(formType);
-  return normalized === "4" || normalized === "4/A" || normalized === "144" || normalized === "144/A";
-}
-
-function normalizeSecFormTypeForDedupe(value: unknown) {
-  const normalized = stringValue(value).toUpperCase().replace(/\s+/g, " ").trim();
-  return normalized.replace(/^FORM\s+/, "");
-}
-
-function readSecAccessionNumberForDedupe(rawRow: Record<string, unknown>, rawPayload: Record<string, unknown>) {
-  const rawPayloadAccession = stringValue(rawPayload.accession_number) || stringValue(rawPayload.accessionNumber);
-  if (rawPayloadAccession) return rawPayloadAccession;
-
-  const sourceUniqueId = stringValue(rawRow.source_unique_id);
-  if (isSecAccessionLike(sourceUniqueId)) return sourceUniqueId;
-
-  return null;
-}
-
-function isSecAccessionLike(value: string) {
-  return /^\d{10}-?\d{2}-?\d{6}$/i.test(value);
-}
-
-function uniqueStrings(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function buildCrossGroupEventKey(ticker: string | null, eventType: string, title: string | null) {

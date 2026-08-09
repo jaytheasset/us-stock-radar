@@ -2,6 +2,9 @@ import "server-only";
 
 import { supabaseUpsert } from "@/lib/supabase";
 import type { CreateAlertDeliveryInput, CreateAlertDeliveryResult } from "@/lib/alerts/delivery/types";
+import { buildDeliveryDedupeKey } from "@/lib/alerts/delivery/eventDeliveryDedupe";
+
+export { buildDeliveryDedupeKey } from "@/lib/alerts/delivery/eventDeliveryDedupe";
 
 export async function createUserAlertDelivery(input: CreateAlertDeliveryInput): Promise<CreateAlertDeliveryResult> {
   const dedupeKey = buildDeliveryDedupeKey(input.event.id);
@@ -48,8 +51,4 @@ export async function createUserAlertDelivery(input: CreateAlertDeliveryInput): 
     ok: true,
     row,
   };
-}
-
-export function buildDeliveryDedupeKey(eventId: string) {
-  return `event:${eventId}`;
 }
