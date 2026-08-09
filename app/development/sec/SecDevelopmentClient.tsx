@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilingUiConsoleClient, type FilingUiConsoleEntry } from "@/app/development/filings-ui/FilingUiConsoleClient";
 import { filingUiConsoleFamilies } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./sec-development.module.css";
@@ -627,7 +627,12 @@ function RoomDetail({
   }
 
   if (tab === "prompt") {
-    return <PromptPreviewSections previews={detail.promptPreviews} />;
+    return (
+      <PromptPreviewSections
+        correctionPrompts={detail.correctionPromptCatalog}
+        previews={detail.promptPreviews}
+      />
+    );
   }
 
   if (tab === "outputs") {
@@ -3360,31 +3365,169 @@ async function copyTextToClipboard(text: string) {
   }
 }
 
-function PromptPreviewSections({ previews }: { previews: SecDevRoomDetail["promptPreviews"] }) {
-  if (!previews.length) return <div className={styles.emptyState}>No prompt preview found for this room.</div>;
+function PromptPreviewSections({
+  correctionPrompts,
+  previews,
+}: {
+  correctionPrompts: SecDevRoomDetail["correctionPromptCatalog"];
+  previews: SecDevRoomDetail["promptPreviews"];
+}) {
+  const [isDesktopPromptViewport, setIsDesktopPromptViewport] = useState(false);
+  const [selectedPromptKey, setSelectedPromptKey] = useState<string | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const selectedPrompt = correctionPrompts.find((prompt) => prompt.promptKey === selectedPromptKey) || null;
+
+  const closeCorrectionPrompt = useCallback(() => {
+    const opener = openerRef.current;
+    setSelectedPromptKey(null);
+    requestAnimationFrame(() => opener?.focus({ preventScroll: true }));
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 761px)");
+    const syncViewport = () => {
+      setIsDesktopPromptViewport(mediaQuery.matches);
+      if (!mediaQuery.matches) setSelectedPromptKey(null);
+    };
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPrompt || !isDesktopPromptViewport) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeCorrectionPrompt();
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (workspaceRef.current?.contains(event.target as Node)) return;
+      closeCorrectionPrompt();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [closeCorrectionPrompt, isDesktopPromptViewport, selectedPrompt]);
 
   return (
     <div className={styles.previewStack}>
-      {previews.map((file) => (
-        <section className={styles.previewCard} key={file.file}>
-          <div className={styles.previewHeader}>
-            <div>
-              <strong>{file.file}</strong>
-              <p>Prompt body extracted from the TypeScript source.</p>
-            </div>
+      <section aria-labelledby="analysis-prompts-heading" className={styles.promptCatalogSection}>
+        <div className={styles.promptCatalogHeading}>
+          <div>
+            <span>Analysis prompts</span>
+            <h3 id="analysis-prompts-heading">Registered analysis prompts</h3>
           </div>
-            {file.prompts.map((prompt) => (
-              <article className={styles.promptPreview} key={`${file.file}-${prompt.name}`}>
-                <div className={styles.promptPreviewTitle}>
-                  <h3>{prompt.displayName || prompt.name}</h3>
-                  {prompt.displayName ? <p>{prompt.name}</p> : null}
-                  {prompt.description ? <p>{prompt.description}</p> : null}
+          <strong>{previews.reduce((count, file) => count + file.prompts.length, 0)}</strong>
+        </div>
+        {previews.length ? previews.map((file) => (
+          <div className={styles.analysisPromptFile} key={file.file}>
+            <div className={styles.previewHeader}>
+              <div>
+                <strong>{file.file}</strong>
+                <p>Prompt body extracted from the TypeScript source.</p>
+              </div>
+            </div>
+              {file.prompts.map((prompt) => (
+                <article className={styles.promptPreview} key={`${file.file}-${prompt.name}`}>
+                  <div className={styles.promptPreviewTitle}>
+                    <h3>{prompt.displayName || prompt.name}</h3>
+                    {prompt.role || prompt.status ? (
+                      <div className={styles.promptRoleBadges}>
+                        {prompt.role ? <span>{prompt.role}</span> : null}
+                        {prompt.status ? <span>{prompt.status}</span> : null}
+                      </div>
+                    ) : null}
+                    {prompt.description ? <p>{prompt.description}</p> : null}
+                  </div>
+                  <pre>{prompt.text}</pre>
+              </article>
+            ))}
+          </div>
+        )) : (
+          <div className={styles.promptCatalogEmpty}>No analysis prompt preview found for this room.</div>
+        )}
+      </section>
+
+      <section aria-labelledby="correction-prompts-heading" className={styles.promptCatalogSection}>
+        <div className={styles.promptCatalogHeading}>
+          <div>
+            <span>Correction prompts</span>
+            <h3 id="correction-prompts-heading">Fixed correction instructions</h3>
+            <p>Static reference copy of the fixed correction instructions. This is not actual run data.</p>
+          </div>
+          <strong>{correctionPrompts.length}</strong>
+        </div>
+        {!isDesktopPromptViewport ? (
+          <div className={styles.correctionPromptDesktopNotice}>View SEC debug console prompt details on desktop.</div>
+        ) : correctionPrompts.length ? (
+          <div className={styles.correctionPromptWorkspace} ref={workspaceRef}>
+            <div className={styles.correctionPromptList}>
+              {correctionPrompts.map((prompt) => {
+                const isSelected = prompt.promptKey === selectedPromptKey;
+                return (
+                  <button
+                    aria-controls="sec-correction-prompt-preview"
+                    aria-expanded={isSelected}
+                    className={`${styles.correctionPromptRow} ${isSelected ? styles.correctionPromptRowActive : ""}`}
+                    key={prompt.promptKey}
+                    onClick={(event) => {
+                      openerRef.current = event.currentTarget;
+                      setSelectedPromptKey(prompt.promptKey);
+                    }}
+                    type="button"
+                  >
+                    <span className={styles.correctionPromptIdentity}>
+                      <strong>{prompt.displayName}</strong>
+                      <code>{prompt.promptKey}</code>
+                    </span>
+                    <span className={styles.correctionPromptMetadata}>
+                      <span><b>Version</b>{prompt.version}</span>
+                      <span><b>Form group</b>{prompt.formGroup}</span>
+                    </span>
+                    <span aria-hidden="true" className={styles.correctionPromptChevron}>›</span>
+                  </button>
+                );
+              })}
+            </div>
+            <aside
+              aria-label="Correction prompt preview"
+              className={`${styles.correctionPromptDrawer} ${selectedPrompt ? styles.correctionPromptDrawerOpen : ""}`}
+              id="sec-correction-prompt-preview"
+            >
+              {selectedPrompt ? (
+                <div className={styles.correctionPromptPreviewContent}>
+                  <header className={styles.correctionPromptPreviewHeader}>
+                    <div>
+                      <span>Correction prompt</span>
+                      <h3>{selectedPrompt.displayName}</h3>
+                      <code>{selectedPrompt.promptKey}</code>
+                    </div>
+                    <button aria-label="Close correction prompt preview" onClick={closeCorrectionPrompt} type="button">×</button>
+                  </header>
+                  <dl className={styles.correctionPromptFacts}>
+                    <div><dt>Version</dt><dd>{selectedPrompt.version}</dd></div>
+                    <div><dt>Form group</dt><dd>{selectedPrompt.formGroup}</dd></div>
+                  </dl>
+                  <section className={styles.correctionPromptInstructions}>
+                    <h4>Complete fixed correction instructions</h4>
+                    <pre>{selectedPrompt.instructions}</pre>
+                  </section>
                 </div>
-                <pre>{prompt.text}</pre>
-            </article>
-          ))}
-        </section>
-      ))}
+              ) : (
+                <div className={styles.correctionPromptDrawerEmpty}>
+                  <strong>Select a correction prompt</strong>
+                  <p>Its complete fixed instructions will appear here.</p>
+                </div>
+              )}
+            </aside>
+          </div>
+        ) : (
+          <div className={styles.promptCatalogEmpty}>No fixed correction prompt is registered for this room.</div>
+        )}
+      </section>
     </div>
   );
 }

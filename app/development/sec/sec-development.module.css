@@ -849,6 +849,33 @@
   line-height: 1.35;
 }
 
+.promptRoleBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.promptRoleBadges span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.promptRoleBadges span:last-child {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .promptPreview pre {
   overflow: auto;
   max-height: 680px;
@@ -859,6 +886,296 @@
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.promptCatalogSection {
+  overflow: hidden;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.promptCatalogHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.promptCatalogHeading span {
+  display: block;
+  margin-bottom: 4px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.promptCatalogHeading h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.promptCatalogHeading p {
+  max-width: 720px;
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.promptCatalogHeading > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.analysisPromptFile + .analysisPromptFile {
+  border-top: 1px solid #e2e8f0;
+}
+
+.promptCatalogEmpty,
+.correctionPromptDesktopNotice {
+  padding: 24px 16px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+
+.correctionPromptDesktopNotice {
+  background: #f8fafc;
+}
+
+.correctionPromptWorkspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  min-height: 430px;
+}
+
+.correctionPromptList {
+  min-width: 0;
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.correctionPromptRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 15px;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #17202a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.correctionPromptRow:hover,
+.correctionPromptRowActive {
+  background: #eff6ff;
+}
+
+.correctionPromptRow:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.correctionPromptIdentity,
+.correctionPromptMetadata {
+  min-width: 0;
+}
+
+.correctionPromptIdentity strong,
+.correctionPromptIdentity code {
+  display: block;
+}
+
+.correctionPromptIdentity strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.correctionPromptIdentity code {
+  overflow: hidden;
+  margin-top: 5px;
+  color: #475569;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.correctionPromptMetadata {
+  display: grid;
+  gap: 5px;
+  max-width: 190px;
+}
+
+.correctionPromptMetadata span {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 6px;
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.correctionPromptMetadata b {
+  color: #64748b;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.correctionPromptChevron {
+  color: #64748b;
+  font-size: 22px;
+}
+
+.correctionPromptDrawer {
+  min-width: 0;
+  background: #f8fafc;
+}
+
+.correctionPromptDrawerOpen {
+  background: #ffffff;
+}
+
+.correctionPromptDrawerEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 430px;
+  padding: 24px;
+  color: #64748b;
+  text-align: center;
+}
+
+.correctionPromptDrawerEmpty strong {
+  color: #334155;
+  font-size: 14px;
+}
+
+.correctionPromptDrawerEmpty p {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.correctionPromptPreviewContent {
+  min-width: 0;
+}
+
+.correctionPromptPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.correctionPromptPreviewHeader span,
+.correctionPromptInstructions h4 {
+  display: block;
+  margin: 0 0 5px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.correctionPromptPreviewHeader h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.correctionPromptPreviewHeader code {
+  display: block;
+  margin-top: 6px;
+  color: #475569;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.correctionPromptPreviewHeader button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.correctionPromptFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.correctionPromptFacts div {
+  min-width: 0;
+}
+
+.correctionPromptFacts dt {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.correctionPromptFacts dd {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.correctionPromptInstructions {
+  padding: 14px 16px 16px;
+}
+
+.correctionPromptInstructions pre {
+  overflow: auto;
+  max-height: min(620px, 68vh);
+  margin: 0;
+  padding: 14px;
+  border-radius: 7px;
+  background: #101827;
+  color: #e5e7eb;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .outputMetaGrid,
@@ -1287,5 +1604,24 @@
   .detailGuideGrid,
   .issueSummaryGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .previewStack {
+    padding: 12px;
+  }
+
+  .correctionPromptWorkspace {
+    display: none;
+  }
+
+  .promptCatalogHeading {
+    gap: 10px;
+    padding: 13px 14px;
+  }
+
+  .correctionPromptDesktopNotice {
+    padding: 20px 14px;
   }
 }
