@@ -134,6 +134,12 @@ test("SEC debug pages and APIs require administrator permissions", () => {
   assert.match(page, /requireAdminPermission\("system\.read"\)/);
   assert.match(issuesPage, /requireAdminPermission\("system\.read"\)/);
   assert.match(readApi, /respondWithAdminReadAccess\(request, "system\.read"/);
+  assert.match(readApi, /process\.env\.NODE_ENV === "production"/);
+  assert.doesNotMatch(readApi, /export async function POST/);
+  assert.match(readApi, /view !== "detail" && view !== "diagnostics"/);
+  assert.match(readApi, /parseSecDiagnosticFilters/);
+  assert.match(readApi, /getSecDevRoomDiagnostics/);
+  assert.match(readApi, /DIAGNOSTIC_QUERY_KEYS/);
   assert.match(liveApi, /respondWithAdminReadAccess\(request, "data\.run"/);
   assert.match(testsApi, /respondWithAdminReadAccess\(request, "data\.run"/);
   assert.match(client, /교정 없음/);

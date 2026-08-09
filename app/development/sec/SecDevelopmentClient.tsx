@@ -6,6 +6,7 @@ import { FilingUiConsoleClient, type FilingUiConsoleEntry } from "@/app/developm
 import { filingUiConsoleFamilies } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./sec-development.module.css";
 import type { SecDevRoomDetail, SecDevRoomSnapshot } from "@/lib/development/secFormDevDashboard";
+import type { SecDiagnosticResult, SecDiagnosticSnapshot } from "@/lib/development/secDiagnosticSnapshot";
 import {
   buildIssueCopyText,
   collectSecDevIssues,
@@ -720,6 +721,7 @@ function RoomDetail({
         liveFormFilter={liveFormFilter}
         onUseAccession={onUseAccession}
         runs={detail.liveRuns}
+        snapshot={detail.diagnosticSnapshot}
       />
       <section className={styles.executionHistorySection}>
         <div className={styles.reviewSectionHeading}>
@@ -750,6 +752,7 @@ function RoomDetail({
 }
 
 type AnalysisReviewEntry = {
+  diagnostic: SecDiagnosticResult | null;
   item: Record<string, unknown>;
   key: string;
   run: SecDevRoomDetail["liveRuns"][number];
@@ -759,20 +762,27 @@ function AnalysisReviewWorkspace({
   liveFormFilter,
   onUseAccession,
   runs,
+  snapshot,
 }: {
   liveFormFilter: string;
   onUseAccession: (value: string) => void;
   runs: SecDevRoomDetail["liveRuns"];
+  snapshot: SecDiagnosticSnapshot;
 }) {
+  const diagnosticByEventId = useMemo(
+    () => new Map(snapshot.results.map((result) => [result.identity.event_id, result])),
+    [snapshot],
+  );
   const allResults = useMemo<AnalysisReviewEntry[]>(() => runs
     .filter((run) => run.mode === "recent_persisted")
     .flatMap((run, runIndex) => filterLiveItemsByForm(run.items, liveFormFilter)
       .filter((item) => !isExcludedLiveItem(item))
       .map((item, itemIndex) => ({
+        diagnostic: diagnosticByEventId.get(clientString(item.event_id)) || null,
         item,
         run,
         key: clientString(item.event_id) || `${run.ranAt}-${runIndex}-${itemIndex}`,
-      }))), [liveFormFilter, runs]);
+      }))), [diagnosticByEventId, liveFormFilter, runs]);
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState(allResults[0]?.key || "");
   const visibleResults = useMemo(() => {
@@ -865,7 +875,7 @@ function AnalysisReviewDetail({
 }) {
   if (!entry) return <aside className={styles.analysisDetailEmpty}>Select an analysis result.</aside>;
 
-  const { item, run } = entry;
+  const { diagnostic, item, run } = entry;
   const runtimeOutput = readClientRecord(item.runtime_output);
   const trace = readClientRecord(item.validation_repair_trace);
   const availability = clientString(trace?.availability);
@@ -904,7 +914,43 @@ function AnalysisReviewDetail({
 
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
-          <div><span>01</span><h4>First analysis result</h4></div>
+          <div><span>01</span><h4>Collection &amp; data lineage</h4></div>
+          <strong>{diagnostic ? formatDiagnosticOverallStatus(diagnostic.status.overall) : "기록 없음"}</strong>
+        </div>
+        {diagnostic ? (
+          <div className={styles.diagnosticLineageBody}>
+            <dl className={styles.diagnosticStatusGrid}>
+              <div><dt>Collection</dt><dd>{formatDiagnosticState(diagnostic.status.collection)}</dd></div>
+              <div><dt>Background analysis</dt><dd>{formatDiagnosticState(diagnostic.status.background)}</dd></div>
+              <div><dt>Source run</dt><dd>{formatDiagnosticState(diagnostic.background.source_run_status)}</dd></div>
+              <div><dt>Review cache</dt><dd>{formatDiagnosticState(diagnostic.cache.status)}</dd></div>
+              <div><dt>Collected</dt><dd>{formatAnalysisDate(diagnostic.timestamps.collected_at || "")}</dd></div>
+              <div><dt>Workflow updated</dt><dd>{formatAnalysisDate(diagnostic.timestamps.background_updated_at || "")}</dd></div>
+            </dl>
+            <div className={styles.diagnosticSources}>
+              <span>Named data sources</span>
+              <ul>
+                {diagnostic.sources.map((source) => (
+                  <li key={source.name}>
+                    <code>{source.name}</code>
+                    <strong data-status={source.status}>{formatDiagnosticState(source.status)}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {diagnostic.errors.length || diagnostic.warnings.length ? (
+              <div className={styles.diagnosticNoticeList}>
+                {diagnostic.errors.map((message, index) => <p data-tone="error" key={`error-${index}`}>{message}</p>)}
+                {diagnostic.warnings.map((message, index) => <p data-tone="warning" key={`warning-${index}`}>{message}</p>)}
+              </div>
+            ) : <div className={styles.analysisCleanState}>No collection or lineage errors were recorded.</div>}
+          </div>
+        ) : <RecordMissing message="이 분석의 수집·데이터 출처 기록을 읽을 수 없습니다." />}
+      </section>
+
+      <section className={styles.analysisReviewCard}>
+        <div className={styles.analysisReviewCardHeader}>
+          <div><span>02</span><h4>First analysis result</h4></div>
           <strong>{hasTrace && initial ? "Recorded" : "기록 없음"}</strong>
         </div>
         {hasTrace && initial ? (
@@ -916,7 +962,7 @@ function AnalysisReviewDetail({
 
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
-          <div><span>02</span><h4>Validation errors</h4></div>
+          <div><span>03</span><h4>Validation errors</h4></div>
           <strong>{hasTrace ? `${warnings.length} recorded` : "기록 없음"}</strong>
         </div>
         {hasTrace ? (
@@ -935,7 +981,7 @@ function AnalysisReviewDetail({
 
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
-          <div><span>03</span><h4>Correction execution and basis</h4></div>
+          <div><span>04</span><h4>Correction execution and basis</h4></div>
           <strong>{hasTrace ? formatCorrectionStatus(trace) : "기록 없음"}</strong>
         </div>
         {hasTrace ? (
@@ -956,7 +1002,7 @@ function AnalysisReviewDetail({
 
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
-          <div><span>04</span><h4>Before / after correction</h4></div>
+          <div><span>05</span><h4>Before / after correction</h4></div>
           <strong>{hasTrace && correctionAttempted ? "Compare" : hasTrace ? "Not executed" : "기록 없음"}</strong>
         </div>
         {hasTrace ? (
@@ -4062,6 +4108,25 @@ function formatAnalysisStatus(value: unknown) {
   if (status === "running") return "Running";
   if (status === "record_missing") return "Record missing";
   return status || "Saved";
+}
+
+function formatDiagnosticOverallStatus(value: string) {
+  if (value === "available") return "Available";
+  if (value === "warning") return "Warnings";
+  if (value === "error") return "Error";
+  return formatDiagnosticState(value);
+}
+
+function formatDiagnosticState(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized === "unknown") return "Unknown";
+  if (normalized === "unavailable") return "Unavailable";
+  if (normalized === "record_missing" || normalized === "missing") return "기록 없음";
+  if (normalized === "not_used") return "Not used";
+  return normalized
+    .split("_")
+    .map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : "")
+    .join(" ");
 }
 
 function formatCorrectionStatus(trace: Record<string, unknown> | null) {

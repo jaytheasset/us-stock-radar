@@ -2039,6 +2039,102 @@
   margin: 0;
 }
 
+.diagnosticLineageBody {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+}
+
+.diagnosticStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+}
+
+.diagnosticStatusGrid div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.diagnosticStatusGrid dt,
+.diagnosticSources > span {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.diagnosticStatusGrid dd {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.diagnosticSources ul {
+  display: grid;
+  gap: 6px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diagnosticSources li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.diagnosticSources code {
+  min-width: 0;
+  color: #334155;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.diagnosticSources strong {
+  color: #166534;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.diagnosticSources strong[data-status="missing"],
+.diagnosticSources strong[data-status="unavailable"] {
+  color: #9a3412;
+}
+
+.diagnosticNoticeList {
+  display: grid;
+  gap: 6px;
+}
+
+.diagnosticNoticeList p {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.diagnosticNoticeList p[data-tone="error"] {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.diagnosticNoticeList p[data-tone="warning"] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .correctionDecisionBody > div > span,
 .analysisComparisonGrid > div > span {
   display: block;
@@ -2142,6 +2238,7 @@
 :global(html[data-theme="dark"]) .controlGroupHeading,
 :global(html[data-theme="dark"]) .analysisResultList,
 :global(html[data-theme="dark"]) .recordMissing,
+:global(html[data-theme="dark"]) .diagnosticStatusGrid div,
 :global(html[data-theme="dark"]) .analysisComparisonGrid > div > span {
   border-color: #334155;
   background: #111827;
@@ -2197,8 +2294,32 @@
 :global(html[data-theme="dark"]) .analysisResultIdentity strong,
 :global(html[data-theme="dark"]) .analysisDetailHeader h3,
 :global(html[data-theme="dark"]) .analysisDetailFacts dd,
+:global(html[data-theme="dark"]) .diagnosticStatusGrid dd,
+:global(html[data-theme="dark"]) .diagnosticSources code,
 :global(html[data-theme="dark"]) .analysisReviewCardHeader h4 {
   color: #f8fafc;
+}
+
+:global(html[data-theme="dark"]) .diagnosticSources li {
+  border-color: #334155;
+}
+
+:global(html[data-theme="dark"]) .diagnosticSources strong {
+  color: #86efac;
+}
+
+:global(html[data-theme="dark"]) .analysisReviewCardHeader > strong {
+  color: #cbd5e1;
+}
+
+:global(html[data-theme="dark"]) .diagnosticNoticeList p[data-tone="error"] {
+  background: #3f1218;
+  color: #fecaca;
+}
+
+:global(html[data-theme="dark"]) .diagnosticNoticeList p[data-tone="warning"] {
+  background: #3b2413;
+  color: #fed7aa;
 }
 
 :global(html[data-theme="dark"]) .promptCatalogHeading h3,
@@ -2296,6 +2417,10 @@
 }
 
 @media (max-width: 760px) {
+  .diagnosticStatusGrid {
+    grid-template-columns: 1fr;
+  }
+
   .previewStack {
     padding: 12px;
   }

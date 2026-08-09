@@ -45,6 +45,11 @@ import {
   getSecCorrectionPromptsForRoom,
   type SecCorrectionPromptCatalogEntry,
 } from "@/lib/development/secCorrectionPromptCatalog";
+import {
+  buildSecDiagnosticSnapshot,
+  type SecDiagnosticFilters,
+  type SecDiagnosticSnapshot,
+} from "@/lib/development/secDiagnosticSnapshot";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -167,6 +172,7 @@ export type SecDevRoomDetail = SecDevRoomSnapshot & {
   outputPreviews: SecDevOutputPreview[];
   promptPreviews: SecDevPromptPreview[];
   correctionPromptCatalog: SecCorrectionPromptCatalogEntry[];
+  diagnosticSnapshot: SecDiagnosticSnapshot;
 };
 
 export type SecDevRoomIssueData = SecDevRoomSnapshot & {
@@ -182,6 +188,10 @@ const FILE_CHAR_LIMIT = 80_000;
 const LLM_DISABLED_DRY_RUN_MESSAGE = "LLM required but disabled for SEC analysis dry-run";
 
 type RawItemRow = Record<string, unknown>;
+type RecentPersistenceContext = {
+  rawItem: Record<string, unknown> | null;
+  sourceRun: Record<string, unknown> | null;
+};
 
 export const SEC_DEV_ROOMS: SecDevRoom[] = [
   ...SEC_FORM_ROOM_MANIFEST.map((room) => ({
@@ -225,17 +235,28 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     readRecentPersistedRuns(room),
   ]);
 
+  const liveRuns = mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns);
   return {
     ...snapshot,
     files,
     fixtures,
     expected,
     testResults,
-    liveRuns: mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns),
+    liveRuns,
     outputPreviews,
     promptPreviews,
     correctionPromptCatalog: getSecCorrectionPromptsForRoom(room.key),
+    diagnosticSnapshot: buildRoomDiagnosticSnapshot(room, liveRuns),
   };
+}
+
+export async function getSecDevRoomDiagnostics(
+  roomKey: string,
+  filters: SecDiagnosticFilters,
+): Promise<SecDiagnosticSnapshot | null> {
+  const detail = await getSecDevRoomDetail(roomKey);
+  if (!detail) return null;
+  return buildRoomDiagnosticSnapshot(detail, detail.liveRuns, filters);
 }
 
 export async function getSecDevAllRoomIssueData(): Promise<SecDevRoomIssueData[]> {
@@ -1086,15 +1107,18 @@ async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunR
     if (!rows.length) return [];
 
     const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
-    const [analysisByEventId, repairTraceByEventId] = await Promise.all([
+    const rawItemIds = rows.map((row) => stringValue(row.raw_item_id)).filter(Boolean);
+    const [analysisByEventId, repairTraceByEventId, persistenceContextByRawItemId] = await Promise.all([
       readRecentEventAnalysisMap(eventIds),
       readRecentRepairTraceMap(eventIds),
+      readRecentPersistenceContextMap(rawItemIds),
     ]);
     return rows.map((row) => buildRecentPersistedRun(
       room,
       row,
       analysisByEventId.get(stringValue(row.id)) || null,
       repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
+      persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
     ));
   } catch {
     return [];
@@ -1118,9 +1142,11 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
     if (!rows.length) return runsByRoom;
 
     const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
-    const [analysisByEventId, repairTraceByEventId] = await Promise.all([
+    const rawItemIds = rows.map((row) => stringValue(row.raw_item_id)).filter(Boolean);
+    const [analysisByEventId, repairTraceByEventId, persistenceContextByRawItemId] = await Promise.all([
       readRecentEventAnalysisMap(eventIds),
       readRecentRepairTraceMap(eventIds),
+      readRecentPersistenceContextMap(rawItemIds),
     ]);
 
     for (const room of SEC_DEV_ROOMS) {
@@ -1134,6 +1160,7 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
           row,
           analysisByEventId.get(stringValue(row.id)) || null,
           repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
+          persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
         )),
       );
     }
@@ -1142,6 +1169,54 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
   }
 
   return runsByRoom;
+}
+
+async function readRecentPersistenceContextMap(rawItemIds: string[]) {
+  const result = new Map<string, RecentPersistenceContext>();
+  if (!rawItemIds.length) return result;
+
+  try {
+    const rawResponse = await supabaseSelect("raw_items", {
+      select: "id,run_id,source_code,published_at,fetched_at,metadata",
+      id: `in.(${rawItemIds.join(",")})`,
+      limit: String(rawItemIds.length),
+    });
+    if (!rawResponse.ok || !Array.isArray(rawResponse.data)) return result;
+
+    const rawItems = rawResponse.data
+      .map(readRecord)
+      .filter((row): row is Record<string, unknown> => Boolean(row));
+    const sourceRunIds = rawItems.map((row) => stringValue(row.run_id)).filter(Boolean);
+    const sourceRunById = new Map<string, Record<string, unknown>>();
+
+    if (sourceRunIds.length) {
+      const sourceRunResponse = await supabaseSelect("source_runs", {
+        select: "id,status,started_at,finished_at,error_message",
+        id: `in.(${sourceRunIds.join(",")})`,
+        limit: String(sourceRunIds.length),
+      });
+      if (sourceRunResponse.ok && Array.isArray(sourceRunResponse.data)) {
+        for (const rawRun of sourceRunResponse.data) {
+          const run = readRecord(rawRun);
+          const runId = stringValue(run?.id);
+          if (run && runId) sourceRunById.set(runId, run);
+        }
+      }
+    }
+
+    for (const rawItem of rawItems) {
+      const rawItemId = stringValue(rawItem.id);
+      if (!rawItemId) continue;
+      result.set(rawItemId, {
+        rawItem,
+        sourceRun: sourceRunById.get(stringValue(rawItem.run_id)) || null,
+      });
+    }
+  } catch {
+    return result;
+  }
+
+  return result;
 }
 
 async function readRecentEventAnalysisMap(eventIds: string[]) {
@@ -1178,6 +1253,7 @@ function buildRecentPersistedRun(
   row: Record<string, unknown>,
   eventAnalysis: Record<string, unknown> | null,
   validationRepairTrace: Record<string, unknown>,
+  persistenceContext: RecentPersistenceContext | null,
 ): SecDevLiveRunResult {
   const metadata = readRecord(row.metadata) || {};
   const displayPayload = readRecord(metadata.display_payload);
@@ -1195,6 +1271,7 @@ function buildRecentPersistedRun(
   const ticker = readPersistedEventTicker(row);
   const ranAt = readPersistedEventTime(row);
   const analysisRun = readRecord(validationRepairTrace.analysis_run);
+  const collectionDiagnostics = buildCollectionDiagnostics(row, persistenceContext, validationRepairTrace);
 
   return {
     mode: "recent_persisted",
@@ -1223,6 +1300,7 @@ function buildRecentPersistedRun(
           null,
         analysis_status: stringValue(analysisRun?.status) || (eventAnalysis ? "completed" : "record_missing"),
         analysis_exists: Boolean(eventAnalysis),
+        collection_diagnostics: collectionDiagnostics,
         event_type: stringValue(row.event_type) || null,
         score,
         delivery_level: deliveryLevel,
@@ -1304,7 +1382,11 @@ async function readRecentRepairTraceMap(eventIds: string[]) {
         const trace = readRecord(readRecord(output?.payload)?.validation_repair_trace);
         const runId = stringValue(output?.ai_run_id);
         if (runId && trace && !traceByRunId.has(runId)) {
-          traceByRunId.set(runId, { availability: "available", ...trace });
+          traceByRunId.set(runId, {
+            availability: "available",
+            trace_record_id: stringValue(output?.id) || null,
+            ...trace,
+          });
         }
       }
     }
@@ -1339,6 +1421,41 @@ function summarizeAnalysisRun(run: Record<string, unknown>) {
     started_at: stringValue(run.started_at) || null,
     finished_at: stringValue(run.finished_at) || null,
   };
+}
+
+function buildCollectionDiagnostics(
+  event: Record<string, unknown>,
+  context: RecentPersistenceContext | null,
+  validationRepairTrace: Record<string, unknown>,
+) {
+  const rawItem = context?.rawItem || null;
+  const sourceRun = context?.sourceRun || null;
+  const rawMetadata = readRecord(rawItem?.metadata);
+  return {
+    collection_status: rawItem ? "collected" : "unavailable",
+    collected_at: stringValue(rawItem?.fetched_at) || null,
+    source_code: stringValue(rawItem?.source_code) || null,
+    source_run_id: stringValue(rawItem?.run_id) || null,
+    source_run_status: sourceRun ? stringValue(sourceRun.status) || "unknown" : "unavailable",
+    source_run_started_at: stringValue(sourceRun?.started_at) || null,
+    source_run_finished_at: stringValue(sourceRun?.finished_at) || null,
+    source_run_error: sanitizeDiagnosticError(sourceRun?.error_message) || null,
+    event_observed_at: readPersistedEventTime(event),
+    workflow_analysis_status: stringValue(rawMetadata?.workflow_analysis_status) || "unknown",
+    workflow_analysis_updated_at: stringValue(rawMetadata?.workflow_analysis_updated_at) || null,
+    repair_trace_record_id: stringValue(validationRepairTrace.trace_record_id) || null,
+  };
+}
+
+function buildRoomDiagnosticSnapshot(
+  room: Pick<SecDevRoom, "key" | "label" | "forms">,
+  liveRuns: SecDevLiveRunResult[],
+  filters?: SecDiagnosticFilters,
+) {
+  const records = liveRuns
+    .filter((run) => run.mode === "recent_persisted")
+    .flatMap((run) => run.items);
+  return buildSecDiagnosticSnapshot({ room, records, filters });
 }
 
 function mergeLiveRuns(cachedRuns: SecDevLiveRunResult[], persistedRuns: SecDevLiveRunResult[]) {
@@ -3572,6 +3689,13 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function sanitizeDiagnosticError(value: unknown) {
+  return stringValue(value)
+    .replace(/https?:\/\/\S+/gi, "[redacted-url]")
+    .replace(/\b(authorization|cookie|password|secret|token|api[_-]?key)\s*[:=]\s*\S+/gi, "$1=[redacted]")
+    .slice(0, 500);
 }
 
 function stringValue(value: unknown) {
