@@ -72,6 +72,9 @@ test("SEC diagnostic snapshot fixes the read-only schema and named data lineage"
 
   assert.equal(snapshot.schema_version, SEC_DIAGNOSTIC_SCHEMA_VERSION);
   assert.equal(snapshot.context.page, "/development/sec");
+  assert.equal(snapshot.context.scope.status, "persisted_only");
+  assert.deepEqual(snapshot.context.scope.excludes, ["pre_persist_execution"]);
+  assert.equal(snapshot.summary.status, "available");
   assert.equal(snapshot.summary.result_count, 1);
   assert.deepEqual(snapshot.results[0]?.sources.map((source) => source.name), [
     "raw_items",
@@ -110,11 +113,82 @@ test("SEC diagnostic filters are exact allowlisted identifiers", () => {
 test("missing collection and repair records stay explicit instead of inferred", () => {
   const snapshot = buildSecDiagnosticSnapshot({
     room,
-    records: [{ ...record, collection_diagnostics: null, validation_repair_trace: { availability: "historical_missing" } }],
+    records: [{
+      ...record,
+      analysis_exists: false,
+      analysis_status: "record_missing",
+      collection_diagnostics: null,
+      validation_repair_trace: { availability: "historical_missing" },
+    }],
   });
   const result = snapshot.results[0];
+  assert.equal(snapshot.summary.status, "partial");
   assert.equal(result?.status.collection, "unavailable");
   assert.equal(result?.status.background, "unknown");
   assert.equal(result?.analysis.first_result.availability, "record_missing");
   assert.equal(result?.analysis.correction.availability, "record_missing");
+  assert.equal(result?.sources.find((source) => source.name === "raw_items")?.status, "missing");
+  assert.equal(result?.sources.find((source) => source.name === "event_analysis")?.status, "missing");
+  assert.equal(result?.sources.some((source) => source.status === "read_unavailable"), false);
+});
+
+test("secondary lineage read failures are partial and never historical record_missing", () => {
+  const snapshot = buildSecDiagnosticSnapshot({
+    room,
+    records: [{
+      ...record,
+      analysis_exists: false,
+      analysis_status: "read_unavailable",
+      collection_diagnostics: {
+        ...record.collection_diagnostics,
+        collection_status: "read_unavailable",
+        source_run_status: "read_unavailable",
+        source_read_statuses: {
+          raw_items: "read_failed",
+          source_runs: "read_failed",
+          event_analysis: "read_failed",
+          ai_runs: "read_failed",
+          ai_outputs: "read_failed",
+        },
+      },
+      validation_repair_trace: {
+        availability: "read_unavailable",
+        message: "safe status only",
+        private_error: "must-not-leak",
+      },
+    }],
+  });
+  const result = snapshot.results[0];
+
+  assert.equal(snapshot.summary.status, "partial");
+  assert.equal(result?.sources.find((source) => source.name === "raw_items")?.status, "read_unavailable");
+  assert.equal(result?.sources.find((source) => source.name === "event_analysis")?.status, "read_unavailable");
+  assert.equal(result?.sources.find((source) => source.name === "ai_outputs.validation_repair_trace")?.status, "read_unavailable");
+  assert.equal(result?.analysis.first_result.availability, "read_unavailable");
+  assert.equal(result?.analysis.validation.availability, "read_unavailable");
+  assert.equal(result?.analysis.correction.availability, "read_unavailable");
+  assert.equal(result?.analysis.correction.status, "read_unavailable");
+  assert.doesNotMatch(JSON.stringify(snapshot), /must-not-leak|private_error/);
+});
+
+test("successful empty, exact not-found, and read failure remain distinct", () => {
+  const empty = buildSecDiagnosticSnapshot({ room, records: [] });
+  const notFound = buildSecDiagnosticSnapshot({
+    room,
+    records: [],
+    filters: { eventId: "5c12efff-d839-4e72-b983-52990312aaf1" },
+    read: { status: "ok", query: "exact_event" },
+  });
+  const failed = buildSecDiagnosticSnapshot({
+    room,
+    records: [record],
+    read: { status: "read_failed", query: "recent" },
+  });
+
+  assert.equal(empty.summary.status, "empty");
+  assert.equal(notFound.summary.status, "not_found");
+  assert.equal(failed.summary.status, "read_failed");
+  assert.equal(failed.summary.result_count, 0);
+  assert.deepEqual(failed.results, []);
+  assert.doesNotMatch(JSON.stringify(failed), /SUPABASE|must-not-leak/);
 });

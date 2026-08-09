@@ -6,6 +6,12 @@ does not define a new runtime, data model, or execution path.
 
 ## Start here
 
+Resolve the current local application origin from the
+[Local Auth callbacks](SUPABASE_LOCAL_DEVELOPMENT.md#local-auth-callbacks)
+section, which is the single reference for the normal Stock Radar development
+origin. Append the paths below to that origin; this guide does not start or stop
+a server.
+
 Use the human console when reviewing results interactively:
 
 ```text
@@ -28,24 +34,33 @@ GET /api/development/sec-form-room?room=<ROOM_KEY>&view=diagnostics&accession=<A
 GET /api/development/sec-form-room?room=<ROOM_KEY>&view=diagnostics&eventId=<EVENT_UUID>
 ```
 
-The only accepted query keys for `view=diagnostics` are `room`, `view`,
+The only accepted query keys for the room detail and `view=diagnostics` GETs are `room`, `view`,
 `eventId`, `ticker`, and `accession`. `eventId` must be a UUID. Ticker input is
 normalized to uppercase and must be 1-10 characters from `A-Z`, `0-9`, `.`, or
 `-`. Accession uses the SEC `0000000000-00-000000` format. Start with one
 identifier; multiple supplied filters are applied together.
 
+`eventId` and `accession` use bounded exact persisted lookups, so they are not
+limited to the room's latest ten results. Ticker remains a multi-result filter
+over the bounded recent room list; it is not treated as an exact identifier.
+
 The regular room-detail response contains `detail.diagnosticSnapshot`. The
-structured form above returns `diagnostics`. Both are built from the same
-recent persisted room data and snapshot builder, so the UI is not a second
-source of truth and should not be scraped to reconstruct diagnostics.
+structured form above returns `diagnostics`. Both use the same persisted room
+reader and snapshot builder. The UI starts in bounded recent mode. When its
+search value is a complete accession or event UUID, **Find exact saved result**
+uses the detail GET's bounded exact mode and renders that returned detail in the
+same review workspace. A zero-match recent filter is therefore not evidence
+that an exact persisted identifier does not exist. Neither UI nor structured
+GET has a separate diagnostic meaning, and agents should not scrape UI output.
 
 ## Read-only investigation flow
 
 1. Confirm that the server is a development instance and that the session has
    the administrator `system.read` permission.
 2. Choose the form room that owns the filing. In the UI, narrow recent saved
-   results by ticker or accession; for an exact event UUID, use the structured
-   diagnostics filter.
+   results by ticker, company, CIK, accession, or event UUID. For a complete
+   accession or event UUID that may be older than the recent list, use **Find
+   exact saved result** or the equivalent structured diagnostics filter.
 3. Match `identity` and `timestamps` first. Then inspect collection, background
    analysis, and source-run status before interpreting the analysis trace.
 4. Follow the named lineage records and their timestamps. Review `warnings`
@@ -70,12 +85,17 @@ Interpret absence conservatively:
 
 | State | Meaning |
 | --- | --- |
-| `available` | The diagnostic adapter found the named record or trace. |
-| `missing` | An identifier exists, but the corresponding record was not available to the snapshot. |
+| `available` | The persisted read succeeded and the requested result has complete named lineage, or the named source record is present. |
+| `partial` | A persisted result was found, but one or more named lineage records or recorded statuses are not available. |
+| `missing` | The named child read succeeded and an identifier exists, but the corresponding persisted record was absent. |
 | `unavailable` | The adapter has no record or identifier with which to establish that source. |
+| `read_unavailable` | A named secondary lineage read failed or could not be completed. The persisted event may still be shown as `partial`; this is distinct from a successful read with a missing child record, and no internal error detail is exposed. |
 | `unknown` | A status value was not recorded; it is neither success nor failure. |
-| `record_missing` | A historical analysis or correction trace was not recorded. |
-| `empty` | The current room and filters matched no recent persisted diagnostic result. |
+| `record_missing` | The relevant persisted child read succeeded, but a historical analysis or correction trace was not recorded. |
+| `empty` | A bounded recent/ticker read succeeded but matched zero persisted results. |
+| `not_found` | A bounded exact `eventId` or `accession` read succeeded but found no matching persisted result in the requested room and combined filters. |
+| `read_failed` | The persisted event read failed. No database or internal error detail is exposed, and the result is not reported as `empty`. |
+| `persisted_only` | The diagnostic scope contains saved results only. Pre-persist execution is explicitly outside the scope, not evidence for `empty` or `not_found`. |
 | `not_used` | Persisted review read named database records directly; browser or application cache state was not inferred. |
 
 Domain statuses such as `completed` or `failed` may also appear where the
@@ -120,6 +140,8 @@ When checking this document for drift, compare it with:
 - `app/api/development/sec-live/route.ts`
 - `app/api/development/sec-tests/route.ts`
 - `lib/development/secFormDevDashboard.ts`
+- `lib/development/secPersistedDiagnosticRead.ts`
 - `lib/development/secDiagnosticSnapshot.ts`
+- `lib/development/secPersistedDiagnosticRead.test.ts`
 - `lib/development/secDiagnosticSnapshot.test.ts`
 - `lib/development/secRepairObservability.test.ts`

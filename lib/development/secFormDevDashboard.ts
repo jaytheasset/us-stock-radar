@@ -48,8 +48,24 @@ import {
 import {
   buildSecDiagnosticSnapshot,
   type SecDiagnosticFilters,
+  type SecDiagnosticReadContext,
   type SecDiagnosticSnapshot,
 } from "@/lib/development/secDiagnosticSnapshot";
+import {
+  limitSecPersistedRoomRows,
+  readSecPersistedEventRows,
+  type SecPersistedDiagnosticQuery,
+} from "@/lib/development/secPersistedDiagnosticRead";
+import {
+  readSecEventAnalysisMap,
+  readSecPersistenceContextMap,
+  readSecRepairTraceMap,
+  type EventAnalysisRead,
+  type PersistenceContextRead,
+  type RecentPersistenceContext,
+  type RepairTraceRead,
+  type SecLineageReadStatus,
+} from "@/lib/development/secPersistedLineageRead";
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -188,9 +204,17 @@ const FILE_CHAR_LIMIT = 80_000;
 const LLM_DISABLED_DRY_RUN_MESSAGE = "LLM required but disabled for SEC analysis dry-run";
 
 type RawItemRow = Record<string, unknown>;
-type RecentPersistenceContext = {
-  rawItem: Record<string, unknown> | null;
-  sourceRun: Record<string, unknown> | null;
+type SecLineageReadStatuses = {
+  raw_items: SecLineageReadStatus;
+  source_runs: SecLineageReadStatus;
+  event_analysis: SecLineageReadStatus;
+  ai_runs: SecLineageReadStatus;
+  ai_outputs: SecLineageReadStatus;
+};
+type SecPersistedRoomReadResult = {
+  status: SecDiagnosticReadContext["status"];
+  query: SecPersistedDiagnosticQuery;
+  runs: SecDevLiveRunResult[];
 };
 
 export const SEC_DEV_ROOMS: SecDevRoom[] = [
@@ -215,7 +239,10 @@ export async function getSecDevRoomSnapshots(): Promise<SecDevRoomSnapshot[]> {
   );
 }
 
-export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDetail | null> {
+export async function getSecDevRoomDetail(
+  roomKey: string,
+  filters: Partial<SecDiagnosticFilters> = {},
+): Promise<SecDevRoomDetail | null> {
   const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
   if (!room) return null;
 
@@ -228,14 +255,19 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
   const liveCache = await readLiveCache();
   const testResults = testFiles.map((file) => cache[file] || buildNotRunResult(file));
   const snapshot = buildRoomSnapshot(room, testFiles, testResults);
-  const [files, outputPreviews, promptPreviews, recentPersistedRuns] = await Promise.all([
+  const [files, outputPreviews, promptPreviews, persistedRead] = await Promise.all([
     readRoomFiles(room, testFiles, fixtures, expected),
     readOutputPreviews(room, expected),
     readPromptPreviews(room),
-    readRecentPersistedRuns(room),
+    readPersistedRoomResults(room, filters),
   ]);
 
-  const liveRuns = mergeLiveRuns(liveCache[room.key] || [], recentPersistedRuns);
+  const hasPersistedFilter = Boolean(
+    stringValue(filters.eventId) || stringValue(filters.ticker) || stringValue(filters.accessionNumber),
+  );
+  const liveRuns = hasPersistedFilter
+    ? persistedRead.runs
+    : mergeLiveRuns(liveCache[room.key] || [], persistedRead.runs);
   return {
     ...snapshot,
     files,
@@ -246,7 +278,7 @@ export async function getSecDevRoomDetail(roomKey: string): Promise<SecDevRoomDe
     outputPreviews,
     promptPreviews,
     correctionPromptCatalog: getSecCorrectionPromptsForRoom(room.key),
-    diagnosticSnapshot: buildRoomDiagnosticSnapshot(room, liveRuns),
+    diagnosticSnapshot: buildRoomDiagnosticSnapshot(room, persistedRead.runs, filters, persistedRead),
   };
 }
 
@@ -254,9 +286,10 @@ export async function getSecDevRoomDiagnostics(
   roomKey: string,
   filters: SecDiagnosticFilters,
 ): Promise<SecDiagnosticSnapshot | null> {
-  const detail = await getSecDevRoomDetail(roomKey);
-  if (!detail) return null;
-  return buildRoomDiagnosticSnapshot(detail, detail.liveRuns, filters);
+  const room = SEC_DEV_ROOMS.find((item) => item.key === roomKey);
+  if (!room) return null;
+  const persistedRead = await readPersistedRoomResults(room, filters);
+  return buildRoomDiagnosticSnapshot(room, persistedRead.runs, filters, persistedRead);
 }
 
 export async function getSecDevAllRoomIssueData(): Promise<SecDevRoomIssueData[]> {
@@ -1088,40 +1121,43 @@ function countExcludedItems(items: Array<Record<string, unknown>>) {
   return items.filter((item) => item.is_excluded === true || stringValue(item.skip_gate)).length;
 }
 
-async function readRecentPersistedRuns(room: SecDevRoom): Promise<SecDevLiveRunResult[]> {
-  try {
-    const result = await supabaseSelect("events", {
-      select: "*",
-      source_group: "eq.filings",
-      order: "detected_at.desc",
-      limit: "120",
-    });
-    if (!result.ok || !Array.isArray(result.data)) return [];
+async function readPersistedRoomResults(
+  room: SecDevRoom,
+  filters: Partial<SecDiagnosticFilters>,
+): Promise<SecPersistedRoomReadResult> {
+  const eventRead = await readSecPersistedEventRows({ filters, select: supabaseSelect });
+  if (eventRead.status === "read_failed") {
+    return { status: "read_failed", query: eventRead.query, runs: [] };
+  }
 
+  try {
     const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
-    const rows = result.data
-      .map((row) => readRecord(row))
-      .filter((row): row is Record<string, unknown> => Boolean(row))
-      .filter((row) => persistedEventMatchesRoom(row, allowedForms))
-      .slice(0, 10);
-    if (!rows.length) return [];
+    const matchingRows = eventRead.rows.filter((row) => persistedEventMatchesRoom(row, allowedForms));
+    const rows = limitSecPersistedRoomRows(matchingRows, eventRead.query);
+    if (!rows.length) return { status: "ok", query: eventRead.query, runs: [] };
 
     const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
     const rawItemIds = rows.map((row) => stringValue(row.raw_item_id)).filter(Boolean);
-    const [analysisByEventId, repairTraceByEventId, persistenceContextByRawItemId] = await Promise.all([
+    const [analysisRead, repairTraceRead, persistenceContextRead] = await Promise.all([
       readRecentEventAnalysisMap(eventIds),
       readRecentRepairTraceMap(eventIds),
       readRecentPersistenceContextMap(rawItemIds),
     ]);
-    return rows.map((row) => buildRecentPersistedRun(
-      room,
-      row,
-      analysisByEventId.get(stringValue(row.id)) || null,
-      repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
-      persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
-    ));
+    const lineageReadStatuses = buildLineageReadStatuses(analysisRead, repairTraceRead, persistenceContextRead);
+    return {
+      status: "ok",
+      query: eventRead.query,
+      runs: rows.map((row) => buildRecentPersistedRun(
+        room,
+        row,
+        analysisRead.data.get(stringValue(row.id)) || null,
+        repairTraceRead.data.get(stringValue(row.id)) || fallbackRepairTrace(repairTraceRead),
+        persistenceContextRead.data.get(stringValue(row.raw_item_id)) || null,
+        lineageReadStatuses,
+      )),
+    };
   } catch {
-    return [];
+    return { status: "read_failed", query: eventRead.query, runs: [] };
   }
 }
 
@@ -1143,11 +1179,12 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
 
     const eventIds = rows.map((row) => stringValue(row.id)).filter(Boolean);
     const rawItemIds = rows.map((row) => stringValue(row.raw_item_id)).filter(Boolean);
-    const [analysisByEventId, repairTraceByEventId, persistenceContextByRawItemId] = await Promise.all([
+    const [analysisRead, repairTraceRead, persistenceContextRead] = await Promise.all([
       readRecentEventAnalysisMap(eventIds),
       readRecentRepairTraceMap(eventIds),
       readRecentPersistenceContextMap(rawItemIds),
     ]);
+    const lineageReadStatuses = buildLineageReadStatuses(analysisRead, repairTraceRead, persistenceContextRead);
 
     for (const room of SEC_DEV_ROOMS) {
       const allowedForms = new Set(room.forms.map(normalizeFormForPreviewFilter));
@@ -1158,9 +1195,10 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
         roomRows.map((row) => buildRecentPersistedRun(
           room,
           row,
-          analysisByEventId.get(stringValue(row.id)) || null,
-          repairTraceByEventId.get(stringValue(row.id)) || buildHistoricalRepairTraceNotice(),
-          persistenceContextByRawItemId.get(stringValue(row.raw_item_id)) || null,
+          analysisRead.data.get(stringValue(row.id)) || null,
+          repairTraceRead.data.get(stringValue(row.id)) || fallbackRepairTrace(repairTraceRead),
+          persistenceContextRead.data.get(stringValue(row.raw_item_id)) || null,
+          lineageReadStatuses,
         )),
       );
     }
@@ -1171,76 +1209,12 @@ async function readRecentPersistedRunsByRoom(): Promise<Map<string, SecDevLiveRu
   return runsByRoom;
 }
 
-async function readRecentPersistenceContextMap(rawItemIds: string[]) {
-  const result = new Map<string, RecentPersistenceContext>();
-  if (!rawItemIds.length) return result;
-
-  try {
-    const rawResponse = await supabaseSelect("raw_items", {
-      select: "id,run_id,source_code,published_at,fetched_at,metadata",
-      id: `in.(${rawItemIds.join(",")})`,
-      limit: String(rawItemIds.length),
-    });
-    if (!rawResponse.ok || !Array.isArray(rawResponse.data)) return result;
-
-    const rawItems = rawResponse.data
-      .map(readRecord)
-      .filter((row): row is Record<string, unknown> => Boolean(row));
-    const sourceRunIds = rawItems.map((row) => stringValue(row.run_id)).filter(Boolean);
-    const sourceRunById = new Map<string, Record<string, unknown>>();
-
-    if (sourceRunIds.length) {
-      const sourceRunResponse = await supabaseSelect("source_runs", {
-        select: "id,status,started_at,finished_at,error_message",
-        id: `in.(${sourceRunIds.join(",")})`,
-        limit: String(sourceRunIds.length),
-      });
-      if (sourceRunResponse.ok && Array.isArray(sourceRunResponse.data)) {
-        for (const rawRun of sourceRunResponse.data) {
-          const run = readRecord(rawRun);
-          const runId = stringValue(run?.id);
-          if (run && runId) sourceRunById.set(runId, run);
-        }
-      }
-    }
-
-    for (const rawItem of rawItems) {
-      const rawItemId = stringValue(rawItem.id);
-      if (!rawItemId) continue;
-      result.set(rawItemId, {
-        rawItem,
-        sourceRun: sourceRunById.get(stringValue(rawItem.run_id)) || null,
-      });
-    }
-  } catch {
-    return result;
-  }
-
-  return result;
+async function readRecentPersistenceContextMap(rawItemIds: string[]): Promise<PersistenceContextRead> {
+  return readSecPersistenceContextMap(rawItemIds, supabaseSelect);
 }
 
-async function readRecentEventAnalysisMap(eventIds: string[]) {
-  const result = new Map<string, Record<string, unknown>>();
-  if (!eventIds.length) return result;
-
-  try {
-    const response = await supabaseSelect("event_analysis", {
-      select: "*",
-      event_id: `in.(${eventIds.join(",")})`,
-      limit: String(eventIds.length),
-    });
-    if (!response.ok || !Array.isArray(response.data)) return result;
-
-    for (const row of response.data) {
-      const record = readRecord(row);
-      const eventId = stringValue(record?.event_id);
-      if (record && eventId) result.set(eventId, record);
-    }
-  } catch {
-    return result;
-  }
-
-  return result;
+async function readRecentEventAnalysisMap(eventIds: string[]): Promise<EventAnalysisRead> {
+  return readSecEventAnalysisMap(eventIds, supabaseSelect);
 }
 
 function persistedEventMatchesRoom(row: Record<string, unknown>, allowedForms: Set<string>) {
@@ -1254,6 +1228,7 @@ function buildRecentPersistedRun(
   eventAnalysis: Record<string, unknown> | null,
   validationRepairTrace: Record<string, unknown>,
   persistenceContext: RecentPersistenceContext | null,
+  lineageReadStatuses: SecLineageReadStatuses,
 ): SecDevLiveRunResult {
   const metadata = readRecord(row.metadata) || {};
   const displayPayload = readRecord(metadata.display_payload);
@@ -1271,7 +1246,12 @@ function buildRecentPersistedRun(
   const ticker = readPersistedEventTicker(row);
   const ranAt = readPersistedEventTime(row);
   const analysisRun = readRecord(validationRepairTrace.analysis_run);
-  const collectionDiagnostics = buildCollectionDiagnostics(row, persistenceContext, validationRepairTrace);
+  const collectionDiagnostics = buildCollectionDiagnostics(
+    row,
+    persistenceContext,
+    validationRepairTrace,
+    lineageReadStatuses,
+  );
 
   return {
     mode: "recent_persisted",
@@ -1298,7 +1278,9 @@ function buildRecentPersistedRun(
           stringValue(analysisRun?.finished_at) ||
           stringValue(analysisRun?.started_at) ||
           null,
-        analysis_status: stringValue(analysisRun?.status) || (eventAnalysis ? "completed" : "record_missing"),
+        analysis_status: lineageReadStatuses.event_analysis === "read_failed"
+          ? "read_unavailable"
+          : stringValue(analysisRun?.status) || (eventAnalysis ? "completed" : "record_missing"),
         analysis_exists: Boolean(eventAnalysis),
         collection_diagnostics: collectionDiagnostics,
         event_type: stringValue(row.event_type) || null,
@@ -1345,63 +1327,36 @@ function buildRecentPersistedRun(
   };
 }
 
-async function readRecentRepairTraceMap(eventIds: string[]) {
-  const result = new Map<string, Record<string, unknown>>();
-  if (!eventIds.length) return result;
+async function readRecentRepairTraceMap(eventIds: string[]): Promise<RepairTraceRead> {
+  return readSecRepairTraceMap(eventIds, supabaseSelect);
+}
 
-  try {
-    const runResponse = await supabaseSelect("ai_runs", {
-      select: "*",
-      event_id: `in.(${eventIds.join(",")})`,
-      order: "finished_at.desc",
-      limit: String(Math.max(eventIds.length * 3, 30)),
-    });
-    const runs = Array.isArray(runResponse.data)
-      ? runResponse.data.map(readRecord).filter((row): row is Record<string, unknown> => Boolean(row))
-      : [];
-    if (!runs.length) return result;
+function buildLineageReadStatuses(
+  analysisRead: EventAnalysisRead,
+  repairTraceRead: RepairTraceRead,
+  persistenceContextRead: PersistenceContextRead,
+): SecLineageReadStatuses {
+  return {
+    raw_items: persistenceContextRead.rawItems,
+    source_runs: persistenceContextRead.sourceRuns,
+    event_analysis: analysisRead.status,
+    ai_runs: repairTraceRead.aiRuns,
+    ai_outputs: repairTraceRead.aiOutputs,
+  };
+}
 
-    const latestRunByEventId = new Map<string, Record<string, unknown>>();
-    for (const run of runs) {
-      const eventId = stringValue(run.event_id);
-      if (eventId && !latestRunByEventId.has(eventId)) latestRunByEventId.set(eventId, run);
-    }
-    const runIds = [...latestRunByEventId.values()].map((run) => stringValue(run.id)).filter(Boolean);
-    if (!runIds.length) return result;
+function fallbackRepairTrace(read: RepairTraceRead) {
+  return read.aiRuns === "read_failed" || read.aiOutputs === "read_failed"
+    ? buildReadUnavailableRepairTraceNotice()
+    : buildHistoricalRepairTraceNotice();
+}
 
-    const outputResponse = await supabaseSelect("ai_outputs", {
-      select: "*",
-      ai_run_id: `in.(${runIds.join(",")})`,
-      order: "created_at.desc",
-      limit: String(runIds.length),
-    });
-    const traceByRunId = new Map<string, Record<string, unknown>>();
-    if (Array.isArray(outputResponse.data)) {
-      for (const rawOutput of outputResponse.data) {
-        const output = readRecord(rawOutput);
-        const trace = readRecord(readRecord(output?.payload)?.validation_repair_trace);
-        const runId = stringValue(output?.ai_run_id);
-        if (runId && trace && !traceByRunId.has(runId)) {
-          traceByRunId.set(runId, {
-            availability: "available",
-            trace_record_id: stringValue(output?.id) || null,
-            ...trace,
-          });
-        }
-      }
-    }
-
-    for (const [eventId, run] of latestRunByEventId) {
-      const analysisRun = summarizeAnalysisRun(run);
-      const trace = traceByRunId.get(stringValue(run.id));
-      result.set(eventId, trace
-        ? { ...trace, analysis_run: analysisRun }
-        : buildHistoricalRepairTraceNotice(analysisRun));
-    }
-  } catch {
-    return result;
-  }
-  return result;
+function buildReadUnavailableRepairTraceNotice(analysisRun: Record<string, unknown> | null = null) {
+  return {
+    availability: "read_unavailable",
+    message: "Persisted repair trace read unavailable.",
+    analysis_run: analysisRun,
+  };
 }
 
 function buildHistoricalRepairTraceNotice(analysisRun: Record<string, unknown> | null = null) {
@@ -1412,31 +1367,25 @@ function buildHistoricalRepairTraceNotice(analysisRun: Record<string, unknown> |
   };
 }
 
-function summarizeAnalysisRun(run: Record<string, unknown>) {
-  return {
-    id: stringValue(run.id) || null,
-    status: stringValue(run.status) || null,
-    provider: stringValue(run.provider) || null,
-    model: stringValue(run.model) || null,
-    started_at: stringValue(run.started_at) || null,
-    finished_at: stringValue(run.finished_at) || null,
-  };
-}
-
 function buildCollectionDiagnostics(
   event: Record<string, unknown>,
   context: RecentPersistenceContext | null,
   validationRepairTrace: Record<string, unknown>,
+  lineageReadStatuses: SecLineageReadStatuses,
 ) {
   const rawItem = context?.rawItem || null;
   const sourceRun = context?.sourceRun || null;
   const rawMetadata = readRecord(rawItem?.metadata);
   return {
-    collection_status: rawItem ? "collected" : "unavailable",
+    collection_status: lineageReadStatuses.raw_items === "read_failed"
+      ? "read_unavailable"
+      : rawItem ? "collected" : "unavailable",
     collected_at: stringValue(rawItem?.fetched_at) || null,
     source_code: stringValue(rawItem?.source_code) || null,
     source_run_id: stringValue(rawItem?.run_id) || null,
-    source_run_status: sourceRun ? stringValue(sourceRun.status) || "unknown" : "unavailable",
+    source_run_status: lineageReadStatuses.source_runs === "read_failed"
+      ? "read_unavailable"
+      : sourceRun ? stringValue(sourceRun.status) || "unknown" : "unavailable",
     source_run_started_at: stringValue(sourceRun?.started_at) || null,
     source_run_finished_at: stringValue(sourceRun?.finished_at) || null,
     source_run_error: sanitizeDiagnosticError(sourceRun?.error_message) || null,
@@ -1444,18 +1393,20 @@ function buildCollectionDiagnostics(
     workflow_analysis_status: stringValue(rawMetadata?.workflow_analysis_status) || "unknown",
     workflow_analysis_updated_at: stringValue(rawMetadata?.workflow_analysis_updated_at) || null,
     repair_trace_record_id: stringValue(validationRepairTrace.trace_record_id) || null,
+    source_read_statuses: lineageReadStatuses,
   };
 }
 
 function buildRoomDiagnosticSnapshot(
   room: Pick<SecDevRoom, "key" | "label" | "forms">,
   liveRuns: SecDevLiveRunResult[],
-  filters?: SecDiagnosticFilters,
+  filters?: Partial<SecDiagnosticFilters>,
+  read?: SecDiagnosticReadContext,
 ) {
   const records = liveRuns
     .filter((run) => run.mode === "recent_persisted")
     .flatMap((run) => run.items);
-  return buildSecDiagnosticSnapshot({ room, records, filters });
+  return buildSecDiagnosticSnapshot({ room, records, filters, read });
 }
 
 function mergeLiveRuns(cachedRuns: SecDevLiveRunResult[], persistedRuns: SecDevLiveRunResult[]) {

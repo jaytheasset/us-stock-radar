@@ -758,6 +758,13 @@ type AnalysisReviewEntry = {
   run: SecDevRoomDetail["liveRuns"][number];
 };
 
+type ExactReviewFilter = { key: "eventId" | "accession"; value: string };
+type ExactReviewLookup = {
+  identifier: string;
+  status: "loading" | "done" | "error";
+  detail: SecDevRoomDetail | null;
+};
+
 function AnalysisReviewWorkspace({
   liveFormFilter,
   onUseAccession,
@@ -769,11 +776,18 @@ function AnalysisReviewWorkspace({
   runs: SecDevRoomDetail["liveRuns"];
   snapshot: SecDiagnosticSnapshot;
 }) {
+  const [query, setQuery] = useState("");
+  const [exactLookup, setExactLookup] = useState<ExactReviewLookup | null>(null);
+  const exactFilter = useMemo(() => parseExactReviewFilter(query), [query]);
+  const activeExactLookup = exactLookup?.identifier === query.trim() ? exactLookup : null;
+  const activeDetail = activeExactLookup?.status === "done" ? activeExactLookup.detail : null;
+  const activeRuns = activeDetail?.liveRuns || runs;
+  const activeSnapshot = activeDetail?.diagnosticSnapshot || snapshot;
   const diagnosticByEventId = useMemo(
-    () => new Map(snapshot.results.map((result) => [result.identity.event_id, result])),
-    [snapshot],
+    () => new Map(activeSnapshot.results.map((result) => [result.identity.event_id, result])),
+    [activeSnapshot],
   );
-  const allResults = useMemo<AnalysisReviewEntry[]>(() => runs
+  const allResults = useMemo<AnalysisReviewEntry[]>(() => activeRuns
     .filter((run) => run.mode === "recent_persisted")
     .flatMap((run, runIndex) => filterLiveItemsByForm(run.items, liveFormFilter)
       .filter((item) => !isExcludedLiveItem(item))
@@ -782,8 +796,7 @@ function AnalysisReviewWorkspace({
         item,
         run,
         key: clientString(item.event_id) || `${run.ranAt}-${runIndex}-${itemIndex}`,
-      }))), [diagnosticByEventId, liveFormFilter, runs]);
-  const [query, setQuery] = useState("");
+      }))), [activeRuns, diagnosticByEventId, liveFormFilter]);
   const [selectedKey, setSelectedKey] = useState(allResults[0]?.key || "");
   const visibleResults = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -795,6 +808,7 @@ function AnalysisReviewWorkspace({
       item.cik,
       item.form_type,
       item.title,
+      item.event_id,
     ].some((value) => clientString(value).toLocaleLowerCase().includes(normalizedQuery)));
   }, [allResults, query]);
   const selectedResult = visibleResults.find((result) => result.key === selectedKey) || visibleResults[0] || null;
@@ -802,6 +816,31 @@ function AnalysisReviewWorkspace({
   useEffect(() => {
     if (selectedResult && selectedResult.key !== selectedKey) setSelectedKey(selectedResult.key);
   }, [selectedKey, selectedResult]);
+
+  async function findExactPersistedResult() {
+    if (!exactFilter) return;
+    const identifier = query.trim();
+    setExactLookup({ identifier, status: "loading", detail: null });
+    const params = new URLSearchParams({
+      room: snapshot.context.room.key,
+      view: "detail",
+      [exactFilter.key]: exactFilter.value,
+    });
+    try {
+      const response = await fetch(`/api/development/sec-form-room?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = readClientRecord(await response.json());
+      if (!response.ok || payload?.ok !== true || !payload.detail) {
+        setExactLookup({ identifier, status: "error", detail: null });
+        return;
+      }
+      setExactLookup({ identifier, status: "done", detail: payload.detail as SecDevRoomDetail });
+    } catch {
+      setExactLookup({ identifier, status: "error", detail: null });
+    }
+  }
 
   return (
     <section className={styles.analysisReviewSection} aria-labelledby="analysis-review-heading">
@@ -814,17 +853,32 @@ function AnalysisReviewWorkspace({
         <strong>{allResults.length}</strong>
       </div>
       <div className={styles.analysisReviewToolbar}>
-        <label>
-          <span>Find a result</span>
-          <input
-            autoComplete="off"
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Accession, ticker, company, or CIK"
-            type="search"
-            value={query}
-          />
-        </label>
-        <p>{query.trim() ? `${visibleResults.length} matches` : "Newest saved results first"}</p>
+        <div className={styles.analysisReviewSearch}>
+          <label>
+            <span>Find a result</span>
+            <input
+              autoComplete="off"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Accession, event ID, ticker, company, or CIK"
+              type="search"
+              value={query}
+            />
+          </label>
+          {exactFilter ? (
+            <button
+              disabled={activeExactLookup?.status === "loading"}
+              onClick={findExactPersistedResult}
+              type="button"
+            >
+              {activeExactLookup?.status === "loading" ? "Finding…" : "Find exact saved result"}
+            </button>
+          ) : null}
+        </div>
+        <p>{query.trim()
+          ? activeExactLookup?.status === "done"
+            ? `${visibleResults.length} exact matches`
+            : `${visibleResults.length} recent matches`
+          : `${formatDiagnosticSummaryStatus(activeSnapshot.summary.status)} · Newest saved results first`}</p>
       </div>
       {visibleResults.length ? (
         <div className={styles.analysisReviewWorkspace}>
@@ -859,7 +913,15 @@ function AnalysisReviewWorkspace({
         </div>
       ) : (
         <div className={styles.reviewEmptyState} role="status">
-          {query.trim() ? `No actual analysis result matches “${query.trim()}”.` : "No saved analysis result is available for this room."}
+          {activeSnapshot.summary.status === "read_failed" || activeExactLookup?.status === "error"
+            ? "Persisted analysis read unavailable. No empty result was inferred; retry after the data source recovers."
+            : activeExactLookup?.status === "done" && activeSnapshot.summary.status === "not_found"
+              ? "No matching persisted result was found for this exact identifier."
+              : exactFilter
+                ? "No recent match. Use the exact persisted lookup to check this accession or event ID."
+                : query.trim()
+                  ? `No recent saved result matches “${query.trim()}”.`
+              : "No saved analysis result is available for this room."}
         </div>
       )}
     </section>
@@ -879,7 +941,8 @@ function AnalysisReviewDetail({
   const runtimeOutput = readClientRecord(item.runtime_output);
   const trace = readClientRecord(item.validation_repair_trace);
   const availability = clientString(trace?.availability);
-  const hasTrace = Boolean(trace && availability !== "historical_missing");
+  const traceReadUnavailable = availability === "read_unavailable";
+  const hasTrace = Boolean(trace && availability !== "historical_missing" && !traceReadUnavailable);
   const initial = readClientRecord(trace?.initial_analysis);
   const repair = readClientRecord(trace?.repair_analysis);
   const repairPrompt = readClientRecord(trace?.repair_prompt);
@@ -951,9 +1014,11 @@ function AnalysisReviewDetail({
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
           <div><span>02</span><h4>First analysis result</h4></div>
-          <strong>{hasTrace && initial ? "Recorded" : "기록 없음"}</strong>
+          <strong>{traceReadUnavailable ? "Read unavailable" : hasTrace && initial ? "Recorded" : "기록 없음"}</strong>
         </div>
-        {hasTrace && initial ? (
+        {traceReadUnavailable ? (
+          <TraceReadUnavailable />
+        ) : hasTrace && initial ? (
           <pre>{formatDebugValue(initial.parsed_result ?? initial.output_text)}</pre>
         ) : (
           <RecordMissing message="교정 추적 데이터에 첫 분석 결과가 없습니다." />
@@ -963,9 +1028,11 @@ function AnalysisReviewDetail({
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
           <div><span>03</span><h4>Validation errors</h4></div>
-          <strong>{hasTrace ? `${warnings.length} recorded` : "기록 없음"}</strong>
+          <strong>{traceReadUnavailable ? "Read unavailable" : hasTrace ? `${warnings.length} recorded` : "기록 없음"}</strong>
         </div>
-        {hasTrace ? (
+        {traceReadUnavailable ? (
+          <TraceReadUnavailable />
+        ) : hasTrace ? (
           warnings.length ? (
             <div className={styles.validationWarningList}>
               {warnings.map((warning, index) => (
@@ -982,9 +1049,11 @@ function AnalysisReviewDetail({
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
           <div><span>04</span><h4>Correction execution and basis</h4></div>
-          <strong>{hasTrace ? formatCorrectionStatus(trace) : "기록 없음"}</strong>
+          <strong>{traceReadUnavailable ? "Read unavailable" : hasTrace ? formatCorrectionStatus(trace) : "기록 없음"}</strong>
         </div>
-        {hasTrace ? (
+        {traceReadUnavailable ? (
+          <TraceReadUnavailable />
+        ) : hasTrace ? (
           <div className={styles.correctionDecisionBody}>
             <dl>
               <div><dt>Attempted</dt><dd>{correctionAttempted ? "Yes" : "No"}</dd></div>
@@ -1003,9 +1072,11 @@ function AnalysisReviewDetail({
       <section className={styles.analysisReviewCard}>
         <div className={styles.analysisReviewCardHeader}>
           <div><span>05</span><h4>Before / after correction</h4></div>
-          <strong>{hasTrace && correctionAttempted ? "Compare" : hasTrace ? "Not executed" : "기록 없음"}</strong>
+          <strong>{traceReadUnavailable ? "Read unavailable" : hasTrace && correctionAttempted ? "Compare" : hasTrace ? "Not executed" : "기록 없음"}</strong>
         </div>
-        {hasTrace ? (
+        {traceReadUnavailable ? (
+          <TraceReadUnavailable />
+        ) : hasTrace ? (
           correctionAttempted ? (
             <div className={styles.analysisComparisonGrid}>
               <div><span>Before</span><pre>{formatDebugValue(initial?.parsed_result ?? initial?.output_text)}</pre></div>
@@ -1025,6 +1096,15 @@ function AnalysisReviewDetail({
 
 function RecordMissing({ message }: { message: string }) {
   return <div className={styles.recordMissing}><strong>기록 없음</strong><p>{message}</p></div>;
+}
+
+function TraceReadUnavailable() {
+  return (
+    <div className={styles.recordMissing}>
+      <strong>Read unavailable</strong>
+      <p>The persisted repair lineage could not be read. No missing historical record was inferred.</p>
+    </div>
+  );
 }
 
 function IssueReviewSections({
@@ -4115,6 +4195,25 @@ function formatDiagnosticOverallStatus(value: string) {
   if (value === "warning") return "Warnings";
   if (value === "error") return "Error";
   return formatDiagnosticState(value);
+}
+
+function formatDiagnosticSummaryStatus(value: SecDiagnosticSnapshot["summary"]["status"]) {
+  if (value === "read_failed") return "Read unavailable";
+  if (value === "not_found") return "Exact result not found";
+  if (value === "partial") return "Partial lineage";
+  if (value === "empty") return "No recent saved results";
+  return "Persisted diagnostics available";
+}
+
+function parseExactReviewFilter(value: string): ExactReviewFilter | null {
+  const normalized = value.trim();
+  if (/^\d{10}-\d{2}-\d{6}$/.test(normalized)) {
+    return { key: "accession", value: normalized };
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    return { key: "eventId", value: normalized };
+  }
+  return null;
 }
 
 function formatDiagnosticState(value: string) {
