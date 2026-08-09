@@ -507,12 +507,15 @@ test("AMC-style 8-K/6-K equity issuance maps valid snapshot rows", () => {
   assert.equal(preview.showKeyPoints, true);
 });
 
-test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
+test("S-3, S-3ASR, and 424B5 previews share the primary Filing Brief and stored Capital Snapshot", () => {
   for (const { displayVersion, formType } of [
     { displayVersion: "1.0", formType: "S-3" },
     { displayVersion: undefined, formType: "S-3" },
+    { displayVersion: "1.0", formType: "S-3ASR" },
+    { displayVersion: undefined, formType: "S-3ASR" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
   ]) {
+    const filingBrief = `${formType} primary material event summary.`;
     const preview = resolveFilingPreviewFields({
       displayPayload: {
         display_type: "offering_terms",
@@ -530,6 +533,32 @@ test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
       },
       formType,
       keyEvidence: ["Generic evidence must not replace the offering snapshot."],
+      materialEvents: [
+        {
+          role: "primary",
+          event_type: "dilution_risk",
+          event_summary: filingBrief,
+          key_terms: ["$100 million", "20 million shares"],
+          source_block_ids: ["offering_source_1"],
+        },
+      ],
+    });
+    const liveFeedPreview = createLiveFeedV2Preview({
+      category: "Dilution",
+      detailHref: `/filings/${formType.toLowerCase()}`,
+      feedType: "filings",
+      formType,
+      headline: `${formType} offering update`,
+      id: `${formType}-${displayVersion || "versionless"}`,
+      impactScore: 70,
+      keyEvidence: preview.keyPoints,
+      keyPointsLabel: preview.keyPointsLabel,
+      publishedAt: "2026-08-10T00:00:00.000Z",
+      sentiment: "Neutral",
+      showKeyPoints: preview.showKeyPoints,
+      source: "SEC",
+      summary: preview.filingBrief,
+      ticker: "TEST",
     });
 
     assert.deepEqual(preview.keyPoints, [
@@ -540,18 +569,24 @@ test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
     ]);
     assert.equal(preview.keyPointsLabel, "Capital Snapshot");
     assert.equal(preview.showKeyPoints, true);
+    assert.equal(preview.filingBrief, filingBrief);
+    assert.equal(liveFeedPreview.kind, "filing");
+    assert.equal(liveFeedPreview.filingBrief, filingBrief);
+    assert.deepEqual(liveFeedPreview.keyPoints, preview.keyPoints);
   }
 });
 
-test("S-3 and 424B5 offering previews hide Capital Snapshot without usable values", () => {
+test("S-3, S-3ASR, and 424B5 offering previews hide Capital Snapshot without usable values", () => {
   for (const { displayVersion, formType } of [
     { displayVersion: "1.0", formType: "S-3" },
+    { displayVersion: "1.0", formType: "S-3ASR" },
+    { displayVersion: undefined, formType: "S-3ASR" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
   ]) {
     const preview = resolveFilingPreviewFields({
       displayPayload: {
         display_type: "offering_terms",
-        display_version: displayVersion,
+        ...(displayVersion ? { display_version: displayVersion } : {}),
         data: {
           snapshot_metrics: [
             null,
@@ -846,6 +881,7 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /displayType === "offering_terms"/);
   assert.match(source, /const formType = id \? formTypeByEventId\.get\(id\) : undefined/);
   assert.match(source, /formType === "S-3"/);
+  assert.match(source, /formType === "S-3ASR"/);
   assert.match(source, /Array\.isArray\(row\.snapshot_metrics\)/);
   assert.doesNotMatch(source, /displayVersion === "s3_offering_v1"/);
   assert.match(source, /displayVersion === "424b-display-payload-v1"/);
@@ -896,6 +932,12 @@ test("filings preview batches evidence and shares governance presentation fields
   );
   assert.match(feedPreviewSource, /\{filing\.keyPointsLabel\}/);
   assert.doesNotMatch(feedPreviewSource, /No key points available/);
+
+  const eventStoreSource = readFileSync(
+    new URL("../../lib/secStores/eventStore.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(eventStoreSource, /material_events: normalizeJsonArray\(analysis\.material_events\)/);
 });
 
 test("does not keep a stale filing selection when filtered results are empty", () => {

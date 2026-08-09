@@ -153,6 +153,17 @@ export function build424bAnalysisPromptSectioned(parserOutput: Sec424bParserOutp
   return build424bAnalysisPrompt(parserOutput, { variant: "sectioned" });
 }
 
+export function get424bAnalysisSourceBlockIds(parserOutput: Sec424bParserOutput): string[] {
+  return build424bAnalysisSourceBundle(parserOutput).cleaned_source_blocks
+    .filter((block) => !["current_filing", "filing_metadata", "site_market_context"].includes(block.block_type))
+    .map((block) => ("block_id" in block ? String(block.block_id) : ""))
+    .filter(Boolean);
+}
+
+export function requires424b5MaterialEvents(parserOutput: Sec424bParserOutput): boolean {
+  return parserOutput.formType.toUpperCase().replace(/\s+/g, "") === "424B5";
+}
+
 function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string[] {
   const marketContext = read424bPromptMarketContext(parserOutput);
   return [
@@ -173,6 +184,15 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "Do not write reasoning, self-talk, instructions, prompt restatements, or analysis process text inside any JSON field. Return only final investor-facing values.",
     "In event_title, do not add resale shares and warrant-underlying shares into one headline total unless the filing itself gives that exact non-overlapping total. Keep components separate, such as 'Registers 320.4M resale shares and 14.2M warrant shares'.",
     "Choose the final event_type from the approved list by reading the cleaned source blocks.",
+    ...(requires424b5MaterialEvents(parserOutput)
+      ? [
+          "Populate analysis_output.material_events before event_title, quick_take, score_reason, score_explanation, or summary. This is the source-backed event plan used by filing previews.",
+          "material_events must contain exactly one role=primary row whose event_type matches analysis_output.event_type. Keep a routine or low-importance analyzed filing as one primary event instead of omitting material_events.",
+          "Add a role=secondary row only for a separate event that would independently change an investor conclusion. Offering amount, price, security terms, use of proceeds, conditions, rationale, and background belong in the primary row and must not be split into secondary rows.",
+          "Each material_events row must include role, event_type, a concise investor-facing event_summary, key_terms, and source_block_ids. Cite only block_id values present in analysis_source_bundle.",
+          "Write each event_summary directly from cited source blocks. Do not copy event_title, quick_take, or summary into event_summary, and do not use parser text as evidence.",
+        ]
+      : []),
     "Choose the final display_payload.display_type from the supported display types by reading the cleaned source blocks.",
     "Supported display types are generic, offering_terms, candidate_special, and spac_transaction_status.",
     "Use generic when the filing should use the common filing detail page.",
@@ -603,7 +623,20 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
         analysis_output: {
           source_group: "filings",
           market_scope: "company | sector | theme | macro",
-          event_type: "other",
+          event_type: requires424b5MaterialEvents(parserOutput) ? "dilution_risk" : "other",
+          ...(requires424b5MaterialEvents(parserOutput)
+            ? {
+                material_events: [
+                  {
+                    role: "primary",
+                    event_type: "dilution_risk",
+                    event_summary: "The prospectus opens a source-backed share-sale or registration path with the principal terms stated in this filing.",
+                    key_terms: ["principal source-backed amount or term"],
+                    source_block_ids: ["424b_source_3"],
+                  },
+                ],
+              }
+            : {}),
           event_title: "string",
           primary_ticker: null,
           tickers: [],
@@ -670,16 +703,31 @@ function build424bAnalysisPromptLines(parserOutput: Sec424bParserOutput): string
     "- Do not describe an ATM program as a resale pool unless source blocks explicitly disclose resale by selling stockholders/securityholders.",
     "- Set needs_human_review true when facts conflict, filing excerpts are too thin, or the investor impact depends on missing parent context.",
     "",
-    "cleaned_source_blocks:",
+    requires424b5MaterialEvents(parserOutput) ? "analysis_source_bundle:" : "cleaned_source_blocks:",
     JSON.stringify(
-      buildSecSourceBlockPromptInput({
-        parserOutput: parserOutput as unknown as Record<string, unknown>,
-        marketContext,
-      }),
+      build424bAnalysisSourceBundle(parserOutput, marketContext),
       null,
       2,
     ),
   ];
+}
+
+function build424bAnalysisSourceBundle(
+  parserOutput: Sec424bParserOutput,
+  marketContext = read424bPromptMarketContext(parserOutput),
+) {
+  const sourceBundle = buildSecSourceBlockPromptInput({
+    parserOutput: parserOutput as unknown as Record<string, unknown>,
+    marketContext,
+  });
+  if (!requires424b5MaterialEvents(parserOutput)) return sourceBundle;
+  return {
+    ...sourceBundle,
+    cleaned_source_blocks: sourceBundle.cleaned_source_blocks.map((block, index) => ({
+      ...block,
+      block_id: `424b_source_${index + 1}`,
+    })),
+  };
 }
 
 function read424bPromptMarketContext(parserOutput: Sec424bParserOutput): Record<string, unknown> | null {

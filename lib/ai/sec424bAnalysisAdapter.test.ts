@@ -3,12 +3,66 @@ import { describe, it } from "node:test";
 
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
+  adaptSec424bAnalysisPromptResultForAnalysis,
   applySec424bValidationRepairPatches,
+  buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
   collect424bDisplayPayloadWarnings,
   normalize424bOfferingDisplayModel,
   synchronize424bAnalysisOverhangPercentages,
 } from "@/lib/ai/sec424bAnalysisAdapter";
+import { get424bAnalysisSourceBlockIds } from "@/lib/sources/sec/forms/424b/analysisPrompt";
+
+describe("424B5 material events output contract", () => {
+  it("requires a source-backed primary event and preserves it through the ingest adapter", () => {
+    const input = build424b5MaterialEventsInput("424B5");
+    const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
+    const sourceBlockIds = get424bAnalysisSourceBlockIds(parserOutput);
+    const result = build424b5MaterialEventsResult(sourceBlockIds);
+    const prompt = buildSec424bAnalysisPromptForInput(input);
+    const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
+    const analysisSchema = schema.properties.analysis_output as Record<string, any>;
+    const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
+
+    assert.equal(prompt.version, "v42-material-events");
+    assert.ok(prompt.user.includes("exactly one role=primary"));
+    assert.ok(prompt.user.includes(`\"block_id\": \"${sourceBlockIds[0]}\"`));
+    assert.ok(analysisSchema.required.includes("material_events"));
+    assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    assert.deepEqual(adapted.analysis.material_events, result.analysis_output.material_events);
+  });
+
+  it("retains a primary event for a routine analyzed 424B5 and rejects uncited source IDs", () => {
+    const input = build424b5MaterialEventsInput("424B5");
+    const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
+    const sourceBlockIds = get424bAnalysisSourceBlockIds(parserOutput);
+    const routine = build424b5MaterialEventsResult(sourceBlockIds, 20);
+    const invalid = build424b5MaterialEventsResult(sourceBlockIds, 20);
+    invalid.analysis_output.material_events[0].source_block_ids = ["invented_source_block"];
+
+    assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(routine, input).ok, true);
+    const rejected = adaptSec424bAnalysisPromptResultForAnalysis(invalid, input);
+    assert.equal(rejected.ok, false);
+    if (rejected.ok) return;
+    assert.match(rejected.error, /analysis source bundle/);
+  });
+
+  it("does not impose the new output contract on 424B3", () => {
+    const input = build424b5MaterialEventsInput("424B3");
+    const prompt = buildSec424bAnalysisPromptForInput(input);
+    const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
+    const analysisSchema = schema.properties.analysis_output as Record<string, any>;
+    const result = build424b5MaterialEventsResult([]);
+    delete (result.analysis_output as Record<string, unknown>).material_events;
+
+    assert.equal(prompt.version, "v41-news-style-taxonomy-schema");
+    assert.ok(!prompt.user.includes("exactly one role=primary"));
+    assert.ok(!analysisSchema.required.includes("material_events"));
+    assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(result, input).ok, true);
+  });
+});
 
 describe("424B validation repair", () => {
   it("repairs an orphan pre-funded pool and lets normalization recalculate the full counted supply", () => {
@@ -239,4 +293,97 @@ function buildDuplicatePrefundedAnalysis(): Record<string, unknown> {
     ratio: "3,589.4%",
   };
   return analysis;
+}
+
+function build424b5MaterialEventsInput(formType: string) {
+  const parserOutput = {
+    parserVersion: "424b-parser-v1",
+    parserGroup: "424b",
+    formType,
+    accessionNumber: "0000000000-26-000425",
+    isSupported: true,
+    summary: null,
+    facts: {},
+    signals: [],
+    calendarItems: [],
+    warnings: [],
+    raw: {
+      cleaned_source_blocks: [
+        {
+          block_type: "offering_terms",
+          label: "Prospectus supplement",
+          source: "primary document",
+          text: "The issuer may sell up to $75 million of common stock from time to time under the prospectus supplement.",
+        },
+      ],
+    },
+  };
+  return {
+    filing_package: {
+      form_type: formType,
+      company_name: "Example 424B Corp.",
+      primary_ticker: { ticker: "B424", exchange: "NASDAQ" },
+      hard_parsers: { "424b": parserOutput },
+    },
+  } as unknown as SecFilingAnalysisInput;
+}
+
+function build424b5MaterialEventsResult(sourceBlockIds: string[], score = 68) {
+  return {
+    parser_output: {
+      parserVersion: "424b-parser-v1",
+      parserGroup: "424b",
+      formType: "424B5",
+      accessionNumber: "0000000000-26-000425",
+      isSupported: true,
+      facts: {},
+      signals: [],
+      calendarItems: [],
+      warnings: [],
+      raw: {},
+    },
+    analysis_output: {
+      source_group: "filings",
+      market_scope: "company",
+      event_type: "dilution_risk",
+      material_events: [
+        {
+          role: "primary",
+          event_type: "dilution_risk",
+          event_summary: "The prospectus supplement authorizes up to $75 million of common-stock sales over time.",
+          key_terms: ["up to $75 million", "common stock", "sales over time"],
+          source_block_ids: [sourceBlockIds[0]],
+        },
+      ],
+      event_title: "Issuer opens a $75 million stock-sale program",
+      primary_ticker: null,
+      tickers: [],
+      sector: null,
+      industry_group: null,
+      theme_group: null,
+      sub_theme: null,
+      score,
+      score_reason: "The sale capacity is material, while timing and final share count remain variable.",
+      score_explanation: { summary: "Material sale capacity is offset by uncertain timing and final issuance." },
+      signal: "bearish",
+      quick_take: "The prospectus opens up to $75 million of common-stock sale capacity.",
+      summary: "The issuer may sell common stock over time under a prospectus supplement with a $75 million maximum.",
+      why_it_matters: "Future sales can increase share supply and pressure existing holders.",
+      bullish_points: [],
+      bearish_points: [],
+      key_evidence: [],
+      what_to_watch_next: [],
+      related_tickers: [],
+      calendar_items: [],
+      confidence: "high",
+      needs_human_review: false,
+    },
+    display_payload: {
+      display_type: "generic",
+      display_version: "424b-display-payload-v1",
+      data: {},
+      evidence: [],
+      notes: [],
+    },
+  };
 }

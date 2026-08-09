@@ -319,7 +319,7 @@ async function loadFilingPreviewDisplayPayloads(
       displayType === "capital_financing" &&
       displayVersion === "sec_8k_6k_capital_financing_v1";
     const isS3OfferingPreview =
-      formType === "S-3" &&
+      (formType === "S-3" || formType === "S-3ASR") &&
       displayType === "offering_terms" &&
       Array.isArray(row.snapshot_metrics);
     const is424b5OfferingPreview =
