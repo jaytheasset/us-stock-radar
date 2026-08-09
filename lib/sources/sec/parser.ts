@@ -129,7 +129,13 @@ type TickerRow = {
 type TickerResolution = {
   rows: TickerRow[];
   primary: TickerRow | null;
-  source: "issuer_trading_symbol" | "issuer_cik_sec" | "accession_cik_sec" | "cusip_fmp_verified" | "unresolved";
+  source:
+    | "issuer_trading_symbol"
+    | "issuer_trading_symbol_and_cik_sec"
+    | "issuer_cik_sec"
+    | "accession_cik_sec"
+    | "cusip_fmp_verified"
+    | "unresolved";
   confidence: "high" | "none";
   reason: string;
   cusip: string | null;
@@ -1277,7 +1283,20 @@ async function resolveTrustedTickerRows({
 
   if (issuerTicker) {
     const exact = issuerRows.find((row) => row.ticker === issuerTicker) || null;
-    const row: TickerRow = exact || {
+    if (exact) {
+      const primary = selectPrimaryTickerRow(issuerRows) || exact;
+      return {
+        rows: issuerRows,
+        primary,
+        source: "issuer_trading_symbol_and_cik_sec",
+        confidence: "high",
+        reason:
+          "Issuer trading symbol and CIK matched the SEC company ticker table.",
+        cusip: primaryCusip,
+      };
+    }
+
+    const row: TickerRow = {
       cik: issuer?.cik || "",
       ticker: issuerTicker,
       exchange: null,

@@ -9,7 +9,7 @@ const checks = [];
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 try {
-  const ingest = await import(tsFileDataUrl("lib/secStores/eventStore.ts", secIngestImportReplacements()));
+  const ingest = await import(tsFileDataUrl("lib/secIssuerEventLinkage.ts"));
 
   const form4 = makeRawFiling({ formType: "4", accession: "0001234567-26-000001", rawItemId: "raw-form4-a" });
   const form4Repeat = makeRawFiling({ formType: "4", accession: "0001234567-26-000001", rawItemId: "raw-form4-b" });
@@ -80,8 +80,8 @@ try {
     ingest.buildSecFilingGroupDedupe(multiTransactionForm4),
   );
   check(
-    "ownership key uses explicit accession format",
-    form4Dedupe.groupDedupeKey === "sec_edgar:ownership:accession:0001234567-26-000001",
+    "ownership key uses issuer-wide accession format",
+    form4Dedupe.groupDedupeKey === "sec_edgar:accession:0001234567-26-000001",
     form4Dedupe,
   );
   check(
@@ -102,9 +102,14 @@ try {
     form4Dedupe,
   );
   check(
-    "non-ownership S-3 key remains unchanged",
-    ingest.buildSecFilingGroupDedupeKey(s3) === ingest.buildSecFilingLegacyGroupDedupeKey(s3) &&
-      ingest.buildSecFilingGroupDedupeKey(s3) === "sec_edgar:0001234567-26-000005",
+    "non-ownership S-3 uses the same accession identity as every SEC form",
+    ingest.buildSecFilingGroupDedupeKey(s3) ===
+      "sec_edgar:accession:0001234567-26-000005" &&
+      ingest
+        .buildSecFilingGroupDedupe(s3)
+        .lookupGroupDedupeKeys.includes(
+          ingest.buildSecFilingLegacyGroupDedupeKey(s3),
+        ),
     ingest.buildSecFilingGroupDedupe(s3),
   );
   check("Form 144/A is recognized as ownership", ingest.isSecOwnershipFormType("144/A") === true);
@@ -121,7 +126,7 @@ try {
       {
         ok,
         summary: {
-          ownershipKeyFormat: "sec_edgar:ownership:accession:{accession_number}",
+          accessionKeyFormat: "sec_edgar:accession:{accession_number}",
           ownershipFallbackKeyFormat: "sec_edgar:ownership:raw_item:{raw_item_id}",
           persistedRowsCreated: false,
           alertRowsCreated: false,
@@ -168,80 +173,6 @@ function findExistingByLookupKeys(lookupKeys, existingEvents) {
 
 function check(name, ok, detail) {
   checks.push({ name, ok: Boolean(ok), detail: ok ? undefined : detail });
-}
-
-function secIngestImportReplacements() {
-  const stubs = {
-    "@/lib/calendarPolicy": `
-      export function evaluateCalendarItemPolicy() {
-        return { include: false };
-      }
-    `,
-    "@/lib/calendarEventRegistry": `
-      export function getCalendarEventGroup() {
-        return "other";
-      }
-      export function normalizeCalendarEventType(value) {
-        return String(value || "other");
-      }
-    `,
-    "@/lib/prompts/secFilingAnalysis": `
-      export const SEC_EVENT_TYPE_VALUES = [
-        "listing_risk",
-        "dilution_risk",
-        "earnings",
-        "sales_performance",
-        "product_update",
-        "leadership_governance",
-        "insider_ownership",
-        "shareholder_vote",
-        "strategic_transaction",
-        "financial_risk",
-        "legal_risk",
-        "dividends",
-        "capital_return",
-        "fda_clinical",
-        "other",
-      ];
-      export const SEC_FILING_ANALYSIS_PROMPT_KEY = "qa-sec-filing";
-      export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "qa";
-    `,
-    "@/lib/prompts/newsEventAnalysis": `
-      export const SIGNAL_VALUES = ["bullish", "bearish", "volatile", "neutral"];
-    `,
-    "@/lib/secStores/alertQueue": `
-      export function buildSecFilingAlertCandidate() {
-        return null;
-      }
-      export async function enqueueSecFilingAlertCandidate() {
-        return { ok: true, queued: false, queueMode: "events.delivery_level", reason: "stubbed" };
-      }
-    `,
-    "@/lib/ai/secFilingAnalysisPreview": `
-      export async function findSecRawItem() {
-        return { ok: false, status: 404, error: "stubbed" };
-      }
-      export async function runSecFilingAnalysisForRawRow() {
-        return { ok: false, stage: "stubbed", status: 500, error: "stubbed" };
-      }
-    `,
-    "@/lib/supabase": `
-      export async function supabaseDelete() {
-        return { ok: true, status: 200, data: [] };
-      }
-      export async function supabaseSelect() {
-        return { ok: true, status: 200, data: [] };
-      }
-      export async function supabaseUpsert() {
-        return { ok: true, status: 200, data: [] };
-      }
-    `,
-  };
-
-  return Object.entries(stubs).map(([specifier, source]) => [
-    `from "${specifier}"`,
-    `from "${moduleDataUrl(source)}"`,
-  ]);
 }
 
 function tsFileDataUrl(relativePath, replacements = []) {

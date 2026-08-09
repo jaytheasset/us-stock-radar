@@ -1,4 +1,9 @@
 import { getServerEnv } from "@/lib/env";
+import {
+  applyEventTickerRelationshipFilter,
+  normalizeEventRows,
+  normalizeEventTickers,
+} from "@/lib/eventTickerLinkage";
 import { liveFeedEventVisibilityOrFilter } from "@/lib/liveFeedEventPolicy";
 import { buildEventAlertScoreFilters } from "@/lib/supabaseEventFilters";
 
@@ -73,30 +78,37 @@ export async function probeEventsTable() {
 export async function fetchEvents(params: FetchEventsParams) {
   const limit = Math.max(1, Math.min(params.limit || 50, 100));
   const page = Math.max(1, params.page || 1);
+  const linkedTickers = params.ticker
+    ? await resolveIssuerLinkedTickers([params.ticker])
+    : [];
   const search = buildEventSearch(params, {
     limit: String(limit),
     offset: String((page - 1) * limit),
-  });
+  }, linkedTickers);
 
   const result = await supabaseRest("events", search);
+  const data = normalizeEventRows(result.data);
 
   return {
     ok: result.ok,
     status: result.status,
-    data: Array.isArray(result.data) ? result.data : [],
-    count: Array.isArray(result.data) ? result.data.length : 0,
+    data,
+    count: data.length,
     total: result.count,
     error: result.error,
   };
 }
 
 export async function fetchEventCount(params: FetchEventCountParams): Promise<SupabaseCountResult> {
+  const linkedTickers = params.ticker
+    ? await resolveIssuerLinkedTickers([params.ticker])
+    : [];
   const result = await supabaseRest(
     "events",
     buildEventSearch(params, {
       limit: "1",
       select: "id",
-    }),
+    }, linkedTickers),
   );
 
   return {
@@ -190,12 +202,13 @@ export async function fetchEventsByTicker({
   excludeId?: string;
   limit?: number;
 }) {
+  const linkedTickers = await resolveIssuerLinkedTickers([ticker]);
   const search: Record<string, string> = {
     select: "*",
-    ticker: `eq.${ticker.toUpperCase()}`,
     order: "detected_at.desc",
     limit: String(Math.max(1, Math.min(limit, 20))),
   };
+  applyEventTickerRelationshipFilter(search, linkedTickers);
 
   if (sourceGroup) search.source_group = `eq.${sourceGroup}`;
   if (excludeId) search.id = `neq.${excludeId}`;
@@ -205,7 +218,7 @@ export async function fetchEventsByTicker({
   return {
     ok: result.ok,
     status: result.status,
-    data: Array.isArray(result.data) ? result.data : [],
+    data: normalizeEventRows(result.data),
     error: result.error,
   };
 }
@@ -217,29 +230,27 @@ export async function fetchRecentEventsByTickers({
   tickers: string[];
   detectedAfter: string;
 }) {
-  const normalizedTickers = [...new Set(
-    tickers
-      .map((ticker) => ticker.trim().toUpperCase())
-      .filter((ticker) => /^[A-Z0-9.-]+$/.test(ticker)),
-  )].slice(0, 50);
+  const normalizedTickers = normalizeEventTickers(tickers).slice(0, 50);
 
   if (!normalizedTickers.length) {
     return { ok: true, status: 200, data: [], error: undefined };
   }
 
-  const result = await supabaseRest("events", {
+  const linkedTickers = await resolveIssuerLinkedTickers(normalizedTickers);
+  const search = {
     select: "id,ticker,event_type,score,signal,impact,title,detected_at,published_at,delivery_level,source_group",
-    ticker: `in.(${normalizedTickers.join(",")})`,
     detected_at: `gte.${detectedAfter}`,
     delivery_level: "neq.archive",
     order: "detected_at.desc",
     limit: "1000",
-  });
+  };
+  applyEventTickerRelationshipFilter(search, linkedTickers);
+  const result = await supabaseRest("events", search);
 
   return {
     ok: result.ok,
     status: result.status,
-    data: Array.isArray(result.data) ? result.data : [],
+    data: normalizeEventRows(result.data),
     error: result.error,
   };
 }
@@ -251,6 +262,7 @@ function buildEventSearch(
     offset?: string;
     select?: string;
   },
+  linkedTickers: readonly string[] = [],
 ) {
   const search: Record<string, string> = {
     select: options.select || "*",
@@ -261,12 +273,14 @@ function buildEventSearch(
   if (options.offset) search.offset = options.offset;
 
   applyEventFilters(search, params);
+  if (params.ticker) {
+    applyEventTickerRelationshipFilter(search, linkedTickers);
+  }
 
   return search;
 }
 
 function applyEventFilters(search: Record<string, string>, params: EventFilterParams) {
-  if (params.ticker) search.ticker = `eq.${params.ticker.toUpperCase()}`;
   if (params.sourceCode) search.source_code = `eq.${params.sourceCode}`;
   if (params.eventType) search.event_type = `eq.${params.eventType}`;
   if (params.eventTypes?.length) search.event_type = `in.(${params.eventTypes.join(",")})`;
@@ -284,6 +298,69 @@ function applyEventFilters(search: Record<string, string>, params: EventFilterPa
   if (params.excludeTickerlessNonAlertMarketNews) {
     search.or = `(${liveFeedEventVisibilityOrFilter})`;
   }
+}
+
+async function resolveIssuerLinkedTickers(tickers: readonly string[]) {
+  const normalizedTickers = normalizeEventTickers(tickers);
+  if (!normalizedTickers.length) return [];
+
+  const requestedRows = await supabaseRest("tickers", {
+    select: "symbol,metadata",
+    symbol:
+      normalizedTickers.length === 1
+        ? `eq.${normalizedTickers[0]}`
+        : `in.(${normalizedTickers.join(",")})`,
+    is_active: "eq.true",
+    limit: String(normalizedTickers.length),
+  });
+  if (!requestedRows.ok || !Array.isArray(requestedRows.data)) {
+    return normalizedTickers;
+  }
+
+  const issuerCiks = Array.from(
+    new Set(
+      requestedRows.data
+        .map((row) => readSecCikFromTickerRow(row))
+        .filter(Boolean),
+    ),
+  );
+  if (!issuerCiks.length) return normalizedTickers;
+
+  const siblingRows = await supabaseRest("tickers", {
+    select: "symbol,metadata",
+    "metadata->>sec_cik":
+      issuerCiks.length === 1
+        ? `eq.${issuerCiks[0]}`
+        : `in.(${issuerCiks.join(",")})`,
+    is_active: "eq.true",
+    limit: "250",
+  });
+  if (!siblingRows.ok || !Array.isArray(siblingRows.data)) {
+    return normalizedTickers;
+  }
+
+  return normalizeEventTickers([
+    ...normalizedTickers,
+    ...siblingRows.data.map((row) => readTickerSymbol(row)),
+  ]);
+}
+
+function readSecCikFromTickerRow(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const metadata = (value as Record<string, unknown>).metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return "";
+  }
+  const rawCik = (metadata as Record<string, unknown>).sec_cik;
+  return typeof rawCik === "string" && /^\d{1,10}$/.test(rawCik.trim())
+    ? rawCik.trim()
+    : "";
+}
+
+function readTickerSymbol(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const symbol = (value as Record<string, unknown>).symbol;
+  return typeof symbol === "string" ? symbol : "";
 }
 
 async function supabaseRest(table: string, search: Record<string, string>) {

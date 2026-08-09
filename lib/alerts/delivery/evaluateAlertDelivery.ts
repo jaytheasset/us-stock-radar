@@ -14,6 +14,7 @@ import {
   ALERT_MARKET_CAP_FILTERS,
 } from "@/lib/alerts/alertValidation";
 import { matchesAlertMarketCapFilters } from "@/lib/alerts/marketCapFilter";
+import { matchWatchedEventTickers } from "@/lib/alerts/delivery/eventDeliveryDedupe";
 import type {
   AlertDeliveryCandidate,
   AlertDeliveryEvaluation,
@@ -92,7 +93,10 @@ export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent)
 
   for (const userId of users) {
     const context = await fetchUserContext(userId);
-    const matchedTickers = event.tickers.filter((ticker) => context.watchlistTickers.has(ticker));
+    const matchedTickers = matchWatchedEventTickers(
+      event.tickers,
+      context.watchlistTickers,
+    );
     const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
 
     if (!eligibleChannels.length) {
