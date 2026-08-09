@@ -51,6 +51,7 @@ export async function saveAnalyzedSecFilingEvent({
   const marketContext = toRecord(filingPackage.market_context);
   const dilutionMetrics = toRecord(filingPackage.dilution_metrics);
   const offeringSecurityAudit = toRecord(analysis.offering_security_audit) || toRecord(filingPackage.offering_security_audit);
+  const resolvedMarketCap = toRecord(analysis.resolved_market_cap);
   const score = clampScore(numberValue(analysis.score));
   const eventType = normalizeEventType(stringValue(analysis.event_type));
   const signal = normalizeSignal(stringValue(analysis.signal));
@@ -136,6 +137,7 @@ export async function saveAnalyzedSecFilingEvent({
       material_events: normalizeJsonArray(analysis.material_events),
       sec_8k_6k_amendment_delta: toRecord(analysis.sec_8k_6k_amendment_delta),
       sec_8k_6k_prompt_metadata: toRecord(analysis.sec_8k_6k_prompt_metadata),
+      ...(resolvedMarketCap ? { resolved_market_cap: resolvedMarketCap } : {}),
       market_context: marketContext,
       dilution_metrics: dilutionMetrics,
       related_tickers: analysis.related_tickers || [],

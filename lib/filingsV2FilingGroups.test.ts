@@ -94,7 +94,7 @@ test("filings RPC reads and filters only persisted EFFECT relationship data", ()
       process.cwd(),
       "supabase",
       "migrations",
-      "20260808221621_filings_v2_filing_groups.sql",
+      "20260809183000_common_market_cap_filter_bands.sql",
     ),
     "utf8",
   );
@@ -106,6 +106,28 @@ test("filings RPC reads and filters only persisted EFFECT relationship data", ()
   assert.match(sql, /p_include_effectiveness/);
   assert.match(sql, /= any\(p_effective_filing_forms\)/);
   assert.match(sql, /'effective_filing_form', v\.effective_filing_form/);
+});
+
+test("filings RPC prefers resolved market cap, keeps legacy fallback, and uses shared bands", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase", "migrations", "20260809183000_common_market_cap_filter_bands.sql"),
+    "utf8",
+  );
+  const resolvedIndex = sql.indexOf("metadata -> 'resolved_market_cap' ->> 'value'");
+  const legacyIndex = sql.indexOf("metadata -> 'market_context' ->> 'market_cap'");
+  const optionSource = readFileSync(
+    join(process.cwd(), "components", "filings-v2", "FilingsV2MarketCapOption.tsx"),
+    "utf8",
+  );
+
+  assert.ok(resolvedIndex >= 0 && legacyIndex > resolvedIndex);
+  assert.match(optionSource, /marketCapRangeLabels\[marketCap\]/);
+  assert.match(sql, /when jsonb_typeof\(e\.metadata -> 'resolved_market_cap'\) = 'object'/);
+  assert.match(sql, /'Micro' = any\(p_market_caps\) and n\.market_cap >= 0 and n\.market_cap < 100000000/);
+  assert.match(sql, /'Small' = any\(p_market_caps\) and n\.market_cap >= 100000000 and n\.market_cap < 2000000000/);
+  assert.match(sql, /'Mid' = any\(p_market_caps\) and n\.market_cap >= 2000000000 and n\.market_cap < 10000000000/);
+  assert.match(sql, /'Large' = any\(p_market_caps\) and n\.market_cap >= 10000000000 and n\.market_cap < 200000000000/);
+  assert.match(sql, /'Mega' = any\(p_market_caps\) and n\.market_cap >= 200000000000/);
 });
 
 function readExpectedEffect(name: string) {

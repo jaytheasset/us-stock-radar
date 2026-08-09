@@ -40,6 +40,29 @@ const baseItem: NewsV2Item = {
   deliveryLevel: "feed",
 };
 
+test("News V2 uses the shared market-cap labels and DB filter bands", () => {
+  const optionSource = readFileSync(
+    new URL("../components/news-v2/NewsV2MarketCapOption.tsx", import.meta.url),
+    "utf8",
+  );
+  const legacyOptionSource = readFileSync(
+    new URL("../components/NewsSearchFilters.tsx", import.meta.url),
+    "utf8",
+  );
+  const migration = readFileSync(
+    new URL("../supabase/migrations/20260809183000_common_market_cap_filter_bands.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(optionSource, /marketCapRangeLabels\[marketCap\]/);
+  assert.match(legacyOptionSource, /marketCapRangeLabels\[label\]/);
+  assert.match(migration, /when t\.market_cap >= 200000000000 then 'Mega'/);
+  assert.match(migration, /when t\.market_cap >= 10000000000 then 'Large'/);
+  assert.match(migration, /when t\.market_cap >= 2000000000 then 'Mid'/);
+  assert.match(migration, /when t\.market_cap >= 100000000 then 'Small'/);
+  assert.match(migration, /when t\.market_cap >= 0 then 'Micro'/);
+});
+
 test("filtered statistics contract parses numeric fields and fixed ET ranges", () => {
   const statistics = parseNewsV2Statistics({
     as_of: "2026-07-25T12:00:00.000Z",

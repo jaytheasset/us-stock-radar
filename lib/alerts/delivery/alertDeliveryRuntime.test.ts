@@ -25,6 +25,7 @@ const adminTelegramDelivery = readProjectFile(
 const deliveryEvaluation = readProjectFile(
   "lib/alerts/delivery/evaluateAlertDelivery.ts",
 );
+const alertsConfig = readProjectFile("lib/alerts/alertsV2Config.ts");
 const eventCli = readProjectFile("scripts/run-alert-delivery-for-event.mjs");
 const queuedCli = readProjectFile("scripts/process-queued-alert-deliveries.mjs");
 const headerMenu = readProjectFile(
@@ -139,6 +140,16 @@ test("ticker and Market Discovery lanes recheck current centralized entitlements
   assert.match(queuedDelivery, /isDiscoveryCategoryAllowed\(plan, row\.category\)/);
   assert.match(queuedDelivery, /isTickerAlertCategoryAllowed\(plan, row\.category\)/);
   assert.match(queuedDelivery, /new Set\(getPlanLimits\(plan\)\.channels\)/);
+});
+
+test("alert delivery applies stored market-cap preferences through the shared classifier", () => {
+  assert.match(alertsConfig, /range: marketCapRangeLabels\.Mega/);
+  assert.match(alertsConfig, /range: marketCapRangeLabels\.Micro/);
+  assert.match(deliveryEvaluation, /market_cap_filters/);
+  assert.match(deliveryEvaluation, /matchesAlertMarketCapFilters\(event\.metadata\?\.market_cap/);
+  assert.match(deliveryEvaluation, /reason: "MARKET_CAP_FILTERED"/);
+  assert.match(eventCli, /matchesAlertMarketCapFilters\(event\.marketCap/);
+  assert.match(eventCli, /readStoredEventMarketCap\(metadata\)/);
 });
 
 test("CLI and scheduler helper paths use the same policy and alert-enabled ticker table", () => {

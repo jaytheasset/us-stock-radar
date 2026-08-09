@@ -2120,7 +2120,7 @@ function getDisplayLabelGuide(roomKey: string): DisplayLabelGuide | null {
           groups: [
             {
               title: "Scoring assessment",
-              items: ["market_cap_tier", "primary_change_severity", "operating_direction", "cash_flow_direction", "guidance_direction", "earnings_quality"],
+              items: ["resolved_market_cap (value/source/filing_evidence)", "primary_change_severity", "operating_direction", "cash_flow_direction", "guidance_direction", "earnings_quality"],
             },
             {
               title: "Visible output",

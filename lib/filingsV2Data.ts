@@ -18,6 +18,7 @@ import {
   formatFilingsV2FormType,
   resolveFilingsV2FilingGroupQuery,
 } from "@/lib/filingsV2FilingGroups";
+import { classifyMarketCapBand } from "@/lib/marketCapBands";
 import type { FilingsV2LoadState } from "@/lib/filingsV2LoadState";
 import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import { supabaseRpc, supabaseSelect } from "@/lib/supabase";
@@ -534,12 +535,7 @@ function collectRelatedFilings(metadata: UnknownRecord | null) {
 
 function classifyMarketCap(value: unknown): FilingsV2MarketCap | undefined {
   const marketCap = parseMagnitude(value);
-  if (!marketCap || marketCap <= 0) return undefined;
-  if (marketCap >= 50_000_000_000) return "Mega";
-  if (marketCap >= 10_000_000_000) return "Large";
-  if (marketCap >= 1_000_000_000) return "Mid";
-  if (marketCap >= 50_000_000) return "Small";
-  return "Micro";
+  return classifyMarketCapBand(marketCap) || undefined;
 }
 
 function readPublishedAfter(

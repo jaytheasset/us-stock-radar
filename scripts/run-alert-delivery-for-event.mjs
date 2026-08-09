@@ -10,6 +10,11 @@ import {
   isValidAlertCategory,
 } from "../lib/subscriptionPolicy.ts";
 import { buildTelegramAlertPresentation } from "../lib/telegram/telegramAlertMessage.ts";
+import { readStoredEventMarketCap } from "../lib/marketCapBands.ts";
+import {
+  allAlertMarketCapFilterIds,
+  matchesAlertMarketCapFilters,
+} from "../lib/alerts/marketCapFilter.ts";
 
 const PLAN_RANK = {
   free: 0,
@@ -148,6 +153,7 @@ async function normalizeEvent(id) {
   const eventType = readString(event.event_type);
   const category = isValidAlertCategory(eventType) ? eventType : "other";
   const sourceGroup = readString(event.source_group);
+  const metadata = readRecord(event.metadata);
 
   return {
     ok: true,
@@ -167,6 +173,7 @@ async function normalizeEvent(id) {
       marketScope: readMarketScope(event.market_scope),
       deliveryLevel,
       publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
+      marketCap: readStoredEventMarketCap(metadata),
     },
   };
 }
@@ -191,6 +198,11 @@ async function evaluate(event) {
 
     if (!eligibleChannels.length) {
       skipped.push({ userId, reason: "NO_ENABLED_CHANNELS" });
+      continue;
+    }
+
+    if (!matchesAlertMarketCapFilters(event.marketCap, context.preferences.marketCapFilters)) {
+      skipped.push({ userId, reason: "MARKET_CAP_FILTERED" });
       continue;
     }
 
@@ -249,6 +261,7 @@ async function fetchUserContext(userId) {
       watchlistFilingsEnabled: readBoolean(preferencesRow?.watchlist_filings_enabled, true),
       watchlistCalendarEnabled: readBoolean(preferencesRow?.watchlist_calendar_enabled, true),
       discoveryEnabled: readBoolean(preferencesRow?.discovery_enabled, true),
+      marketCapFilters: readStringArray(preferencesRow?.market_cap_filters, allAlertMarketCapFilterIds),
     },
     alertTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
     discoveryCategories: new Set(categoryRows.map((row) => readString(row.category)).filter(Boolean)),
@@ -275,6 +288,10 @@ function getWatchlistSkipReason(event, preferences) {
   if (event.sourceType === "filing" && !preferences.watchlistFilingsEnabled) return "WATCHLIST_FILINGS_DISABLED";
   if (event.sourceType === "calendar" && !preferences.watchlistCalendarEnabled) return "WATCHLIST_CALENDAR_DISABLED";
   return "";
+}
+
+function readStringArray(value, fallback) {
+  return Array.isArray(value) ? value.map(readString).filter(Boolean) : [...fallback];
 }
 
 function resolveEligibleChannels(plan, rows) {
@@ -528,6 +545,10 @@ function readNumber(value, fallback) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
   return fallback;
+}
+
+function readRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 function readOptionalScore(value) {

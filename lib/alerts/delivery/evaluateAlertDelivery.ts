@@ -10,6 +10,10 @@ import {
 } from "@/lib/subscriptionPolicy";
 import { getEffectivePlanFromSubscription, type UserPlanSubscriptionRow } from "@/lib/subscription/effectivePlan";
 import { supabaseSelect } from "@/lib/supabase";
+import {
+  ALERT_MARKET_CAP_FILTERS,
+} from "@/lib/alerts/alertValidation";
+import { matchesAlertMarketCapFilters } from "@/lib/alerts/marketCapFilter";
 import type {
   AlertDeliveryCandidate,
   AlertDeliveryEvaluation,
@@ -28,6 +32,7 @@ type PreferenceRow = {
   watchlist_calendar_enabled?: unknown;
   watchlist_risk_enabled?: unknown;
   discovery_enabled?: unknown;
+  market_cap_filters?: unknown;
 };
 
 type WatchlistRow = {
@@ -50,6 +55,7 @@ type UserAlertPreferences = {
   watchlistFilingsEnabled: boolean;
   watchlistCalendarEnabled: boolean;
   discoveryEnabled: boolean;
+  marketCapFilters: string[];
 };
 
 const DEFAULT_PREFERENCES: UserAlertPreferences = {
@@ -57,6 +63,7 @@ const DEFAULT_PREFERENCES: UserAlertPreferences = {
   watchlistFilingsEnabled: true,
   watchlistCalendarEnabled: true,
   discoveryEnabled: true,
+  marketCapFilters: [...ALERT_MARKET_CAP_FILTERS],
 };
 
 const ALL_CHANNELS: AlertChannel[] = ["web", "telegram", "email", "webhook", "api"];
@@ -90,6 +97,15 @@ export async function evaluateAlertDeliveryForEvent(event: NormalizedAlertEvent)
 
     if (!eligibleChannels.length) {
       skipped.push({ userId, reason: "NO_ENABLED_CHANNELS", detail: "No enabled, available, connected delivery channels." });
+      continue;
+    }
+
+    if (!matchesAlertMarketCapFilters(event.metadata?.market_cap, context.preferences.marketCapFilters)) {
+      skipped.push({
+        userId,
+        reason: "MARKET_CAP_FILTERED",
+        detail: "Event market capitalization is outside the selected alert bands or unavailable.",
+      });
       continue;
     }
 
@@ -165,7 +181,7 @@ async function fetchUserContext(userId: string) {
     }),
     supabaseSelect("alert_preferences", {
       select:
-        "watchlist_news_enabled,watchlist_filings_enabled,watchlist_calendar_enabled,discovery_enabled",
+        "watchlist_news_enabled,watchlist_filings_enabled,watchlist_calendar_enabled,discovery_enabled,market_cap_filters",
       user_id: `eq.${userId}`,
       limit: "1",
     }),
@@ -281,7 +297,14 @@ function readPreferences(row?: PreferenceRow): UserAlertPreferences {
     watchlistFilingsEnabled: readBoolean(row?.watchlist_filings_enabled, DEFAULT_PREFERENCES.watchlistFilingsEnabled),
     watchlistCalendarEnabled: readBoolean(row?.watchlist_calendar_enabled, DEFAULT_PREFERENCES.watchlistCalendarEnabled),
     discoveryEnabled: readBoolean(row?.discovery_enabled, DEFAULT_PREFERENCES.discoveryEnabled),
+    marketCapFilters: readStringArray(row?.market_cap_filters, DEFAULT_PREFERENCES.marketCapFilters),
   };
+}
+
+function readStringArray(value: unknown, fallback: string[]) {
+  return Array.isArray(value)
+    ? value.map(readString).filter(Boolean)
+    : [...fallback];
 }
 
 function readBoolean(value: unknown, fallback: boolean) {

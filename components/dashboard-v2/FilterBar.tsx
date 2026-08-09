@@ -5,6 +5,7 @@ import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { FilterOption } from "@/components/ui/FilterOption";
 import { FilterTrigger } from "@/components/ui/FilterTrigger";
 import {
+  getDashboardV2FilterOptionLabel,
   dashboardV2AllFilterValue,
   dashboardV2DesktopFilterKeys,
   dashboardV2FilterLabels,
@@ -213,7 +214,7 @@ function DesktopFilter({
           {section.options.map((option) => (
             <FilterOption
               key={option}
-              label={option}
+              label={getDashboardV2FilterOptionLabel(section.key, option)}
               onClick={() => onSelect(section.key, option)}
               selected={filterState[section.key] === option}
             />

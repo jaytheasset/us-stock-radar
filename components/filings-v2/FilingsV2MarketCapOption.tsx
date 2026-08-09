@@ -1,13 +1,6 @@
 import type { FilingsV2MarketCap } from "@/lib/filingsV2Model";
+import { marketCapRangeLabels } from "@/lib/marketCapBands";
 import styles from "./StockRadarFilingsV2.module.css";
-
-const marketCapRanges: Record<FilingsV2MarketCap, string> = {
-  Mega: "$50B+",
-  Large: "$10B-$50B",
-  Mid: "$1B-$10B",
-  Small: "$50M-$1B",
-  Micro: "<$50M",
-};
 
 type FilingsV2MarketCapOptionProps = {
   marketCap: FilingsV2MarketCap;
@@ -20,7 +13,7 @@ export function FilingsV2MarketCapOption({
   onClick,
   selected,
 }: FilingsV2MarketCapOptionProps) {
-  const range = marketCapRanges[marketCap];
+  const range = marketCapRangeLabels[marketCap];
 
   return (
     <button
