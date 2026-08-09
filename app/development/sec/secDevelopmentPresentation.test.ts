@@ -53,7 +53,12 @@ test("SEC analysis review separates saved results from execution controls", () =
   );
 
   assert.match(client, /Recent analysis results/);
-  assert.match(client, /Accession, ticker, company, or CIK/);
+  assert.match(client, /Accession, event ID, ticker, company, or CIK/);
+  assert.match(client, /Find exact saved result/);
+  assert.match(client, /view: "detail"/);
+  assert.match(client, /key: "eventId" \| "accession"/);
+  assert.match(client, /No recent match\. Use the exact persisted lookup/);
+  assert.doesNotMatch(client, /No actual analysis result matches/);
   assert.match(client, /First analysis result/);
   assert.match(client, /Validation errors/);
   assert.match(client, /Correction execution and basis/);
@@ -61,8 +66,8 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(client, /Collection &amp; data lineage/);
   assert.match(client, /Named data sources/);
   assert.match(client, /detail\.diagnosticSnapshot/);
-  assert.match(client, /snapshot\.summary\.status === "read_failed"/);
-  assert.match(client, /formatDiagnosticSummaryStatus\(snapshot\.summary\.status\)/);
+  assert.match(client, /activeSnapshot\.summary\.status === "read_failed"/);
+  assert.match(client, /formatDiagnosticSummaryStatus\(activeSnapshot\.summary\.status\)/);
   assert.match(client, /detail\.liveRuns\.filter\(\(run\) => run\.mode !== "recent_persisted"\)/);
   assert.match(client, /Dry run \/ sample inspection/);
   assert.match(client, /Controlled persist/);
@@ -77,6 +82,8 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(dashboard, /buildRoomDiagnosticSnapshot/);
   assert.equal((dashboard.match(/readPersistedRoomResults\(room,/g) || []).length, 2);
   assert.match(dashboard, /buildRoomDiagnosticSnapshot\(room, persistedRead\.runs/);
+  assert.match(dashboard, /readSecPersistenceContextMap\(rawItemIds, supabaseSelect\)/);
+  assert.match(dashboard, /source_read_statuses: lineageReadStatuses/);
 
   assert.match(styles, /@media \(max-width: 1280px\) and \(min-width: 981px\)/);
   assert.match(styles, /html\[data-theme="dark"\]/);

@@ -1720,6 +1720,35 @@
   width: min(520px, 100%);
 }
 
+.analysisReviewSearch {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: min(760px, 100%);
+}
+
+.analysisReviewSearch label {
+  flex: 1;
+}
+
+.analysisReviewSearch button {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17202a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.analysisReviewSearch button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .analysisReviewToolbar label > span {
   color: #334155;
   font-size: 11px;
@@ -2272,6 +2301,7 @@
 :global(html[data-theme="dark"]) .liveControls input,
 :global(html[data-theme="dark"]) .liveControls select,
 :global(html[data-theme="dark"]) .analysisReviewToolbar input,
+:global(html[data-theme="dark"]) .analysisReviewSearch button,
 :global(html[data-theme="dark"]) .analysisDetailActions button,
 :global(html[data-theme="dark"]) .analysisDetailActions a {
   border-color: #475569;
@@ -2404,6 +2434,15 @@
     grid-template-columns: 1fr;
   }
 
+  .analysisReviewToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analysisReviewToolbar p {
+    margin: 0;
+  }
+
   .analysisResultList {
     max-height: 430px;
     border-right: 0;
@@ -2417,6 +2456,11 @@
 }
 
 @media (max-width: 760px) {
+  .analysisReviewSearch {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .diagnosticStatusGrid {
     grid-template-columns: 1fr;
   }

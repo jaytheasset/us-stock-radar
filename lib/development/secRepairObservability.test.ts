@@ -139,6 +139,7 @@ test("SEC debug pages and APIs require administrator permissions", () => {
   assert.match(readApi, /view !== "detail" && view !== "diagnostics"/);
   assert.match(readApi, /parseSecDiagnosticFilters/);
   assert.match(readApi, /getSecDevRoomDiagnostics/);
+  assert.match(readApi, /getSecDevRoomDetail\(room, parsedFilters\.filters\)/);
   assert.match(readApi, /DIAGNOSTIC_QUERY_KEYS/);
   assert.match(liveApi, /respondWithAdminReadAccess\(request, "data\.run"/);
   assert.match(testsApi, /respondWithAdminReadAccess\(request, "data\.run"/);

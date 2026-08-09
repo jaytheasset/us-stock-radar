@@ -1,4 +1,4 @@
-export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v2" as const;
+export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v3" as const;
 
 export type SecDiagnosticReadContext = {
   status: "ok" | "read_failed";
@@ -64,7 +64,7 @@ export type SecDiagnosticResult = {
   };
   sources: Array<{
     name: "raw_items" | "source_runs" | "events" | "event_analysis" | "ai_runs" | "ai_outputs.validation_repair_trace";
-    status: "available" | "missing" | "unavailable";
+    status: "available" | "missing" | "unavailable" | "read_unavailable";
     record_id: string | null;
     observed_at: string | null;
   }>;
@@ -78,10 +78,10 @@ export type SecDiagnosticResult = {
     updated_at: string | null;
   };
   analysis: {
-    first_result: { availability: "available" | "record_missing"; value: Record<string, unknown> | null };
-    validation: { availability: "available" | "record_missing"; errors: Array<Record<string, unknown>> };
+    first_result: { availability: "available" | "record_missing" | "read_unavailable"; value: Record<string, unknown> | null };
+    validation: { availability: "available" | "record_missing" | "read_unavailable"; errors: Array<Record<string, unknown>> };
     correction: {
-      availability: "available" | "record_missing";
+      availability: "available" | "record_missing" | "read_unavailable";
       attempted: boolean | null;
       status: string;
       prompt_reference: { key: string | null; version: string | null } | null;
@@ -197,13 +197,16 @@ function hasPartialLineage(result: SecDiagnosticResult) {
 }
 
 function isUnknownDiagnosticState(value: string) {
-  return value === "unknown" || value === "unavailable" || value === "record_missing";
+  return value === "unknown" || value === "unavailable" || value === "read_unavailable" || value === "record_missing";
 }
 
 function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResult {
   const collection = readRecord(item.collection_diagnostics) || {};
+  const sourceReadStatuses = readRecord(collection.source_read_statuses) || {};
   const trace = readRecord(item.validation_repair_trace);
-  const traceAvailable = Boolean(trace && stringValue(trace.availability) !== "historical_missing");
+  const traceAvailabilityValue = stringValue(trace?.availability);
+  const traceReadUnavailable = traceAvailabilityValue === "read_unavailable";
+  const traceAvailable = Boolean(trace && traceAvailabilityValue !== "historical_missing" && !traceReadUnavailable);
   const analysisRun = readRecord(trace?.analysis_run);
   const initial = readRecord(trace?.initial_analysis);
   const repair = readRecord(trace?.repair_analysis);
@@ -222,7 +225,7 @@ function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResu
   const workflowStatus = stringValue(collection.workflow_analysis_status) || "unknown";
   const sourceRunStatus = stringValue(collection.source_run_status) || "unavailable";
   const analyzedAt = nullableString(item.analyzed_at);
-  const traceAvailability = traceAvailable ? "available" : "record_missing";
+  const traceAvailability = traceReadUnavailable ? "read_unavailable" : traceAvailable ? "available" : "record_missing";
 
   return {
     identity: {
@@ -250,12 +253,12 @@ function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResu
       background_updated_at: nullableString(collection.workflow_analysis_updated_at),
     },
     sources: [
-      sourceState("raw_items", rawItemId, collectionStatus === "collected", nullableString(collection.collected_at)),
-      sourceState("source_runs", nullableString(collection.source_run_id), sourceRunStatus !== "unavailable", nullableString(collection.source_run_finished_at) || nullableString(collection.source_run_started_at)),
+      sourceState("raw_items", rawItemId, collectionStatus === "collected", nullableString(collection.collected_at), lineageReadStatus(sourceReadStatuses.raw_items)),
+      sourceState("source_runs", nullableString(collection.source_run_id), sourceRunStatus !== "unavailable", nullableString(collection.source_run_finished_at) || nullableString(collection.source_run_started_at), lineageReadStatus(sourceReadStatuses.source_runs)),
       sourceState("events", eventId, Boolean(eventId), nullableString(collection.event_observed_at)),
-      sourceState("event_analysis", eventId, analysisExists, analyzedAt),
-      sourceState("ai_runs", nullableString(analysisRun?.id), Boolean(analysisRun), analyzedAt),
-      sourceState("ai_outputs.validation_repair_trace", nullableString(collection.repair_trace_record_id), traceAvailable, analyzedAt),
+      sourceState("event_analysis", eventId, analysisExists, analyzedAt, lineageReadStatus(sourceReadStatuses.event_analysis)),
+      sourceState("ai_runs", nullableString(analysisRun?.id), Boolean(analysisRun), analyzedAt, lineageReadStatus(sourceReadStatuses.ai_runs)),
+      sourceState("ai_outputs.validation_repair_trace", nullableString(collection.repair_trace_record_id), traceAvailable, analyzedAt, lineageReadStatus(sourceReadStatuses.ai_outputs)),
     ],
     cache: {
       status: "not_used",
@@ -268,7 +271,7 @@ function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResu
     },
     analysis: {
       first_result: {
-        availability: traceAvailable && initial ? "available" : "record_missing",
+        availability: traceReadUnavailable ? "read_unavailable" : traceAvailable && initial ? "available" : "record_missing",
         value: traceAvailable ? projectAnalysisValue(initial?.parsed_result) : null,
       },
       validation: {
@@ -278,7 +281,9 @@ function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResu
       correction: {
         availability: traceAvailability,
         attempted: traceAvailable ? trace?.attempted === true : null,
-        status: traceAvailable ? stringValue(trace?.status) || (trace?.attempted === true ? "executed" : "not_attempted") : "record_missing",
+        status: traceReadUnavailable
+          ? "read_unavailable"
+          : traceAvailable ? stringValue(trace?.status) || (trace?.attempted === true ? "executed" : "not_attempted") : "record_missing",
         prompt_reference: traceAvailable && repairPrompt
           ? { key: nullableString(repairPrompt.key), version: nullableString(repairPrompt.version) }
           : null,
@@ -354,13 +359,20 @@ function sourceState(
   recordId: string | null,
   available: boolean,
   observedAt: string | null,
+  readStatus: "ok" | "read_failed" = "ok",
 ) {
   return {
     name,
-    status: (available ? "available" : recordId ? "missing" : "unavailable") as "available" | "missing" | "unavailable",
+    status: readStatus === "read_failed"
+      ? "read_unavailable" as const
+      : (available ? "available" : recordId ? "missing" : "unavailable") as "available" | "missing" | "unavailable",
     record_id: recordId,
     observed_at: observedAt,
   };
+}
+
+function lineageReadStatus(value: unknown): "ok" | "read_failed" {
+  return value === "read_failed" ? "read_failed" : "ok";
 }
 
 function matchesFilters(record: Record<string, unknown>, filters: SecDiagnosticFilters) {

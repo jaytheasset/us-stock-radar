@@ -28,33 +28,33 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    if (view === "diagnostics") {
-      const unsupportedKey = [...request.nextUrl.searchParams.keys()]
-        .find((key) => !DIAGNOSTIC_QUERY_KEYS.has(key));
-      if (unsupportedKey) {
-        return {
-          ok: false,
-          error: {
-            code: "INVALID_DIAGNOSTIC_PARAMETER",
-            field: unsupportedKey,
-            message: "Only room, view, eventId, ticker, and accession are supported.",
-          },
-        };
-      }
-      const parsedFilters = parseSecDiagnosticFilters({
-        eventId: request.nextUrl.searchParams.get("eventId"),
-        ticker: request.nextUrl.searchParams.get("ticker"),
-        accessionNumber: request.nextUrl.searchParams.get("accession"),
-      });
-      if (!parsedFilters.ok) return { ok: false, error: parsedFilters.error };
+    const unsupportedKey = [...request.nextUrl.searchParams.keys()]
+      .find((key) => !DIAGNOSTIC_QUERY_KEYS.has(key));
+    if (unsupportedKey) {
+      return {
+        ok: false,
+        error: {
+          code: "INVALID_DIAGNOSTIC_PARAMETER",
+          field: unsupportedKey,
+          message: "Only room, view, eventId, ticker, and accession are supported.",
+        },
+      };
+    }
+    const parsedFilters = parseSecDiagnosticFilters({
+      eventId: request.nextUrl.searchParams.get("eventId"),
+      ticker: request.nextUrl.searchParams.get("ticker"),
+      accessionNumber: request.nextUrl.searchParams.get("accession"),
+    });
+    if (!parsedFilters.ok) return { ok: false, error: parsedFilters.error };
 
+    if (view === "diagnostics") {
       const diagnostics = await getSecDevRoomDiagnostics(room, parsedFilters.filters);
       return diagnostics
         ? { ok: true, diagnostics }
         : { ok: false, error: "Unknown SEC form room." };
     }
 
-    const detail = await getSecDevRoomDetail(room);
+    const detail = await getSecDevRoomDetail(room, parsedFilters.filters);
     return detail
       ? { ok: true, detail }
       : { ok: false, error: "Unknown SEC form room." };
