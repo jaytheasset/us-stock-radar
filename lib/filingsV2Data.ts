@@ -177,6 +177,7 @@ export async function loadFilingsV2Page({
     const previewFields = resolveFilingPreviewFields({
       displayPayload:
         displayPayloadByEventId.get(record.id) || metadata?.display_payload,
+      formType: record.formType,
       governanceEvent: record.events.includes("governance"),
       keyEvidence: keyEvidenceByEventId.get(record.id),
       materialEvents: metadata?.material_events,
@@ -277,6 +278,7 @@ async function loadFilingPreviewDisplayPayloads(
     select: [
       "id",
       "display_type:metadata->display_payload->>display_type",
+      "payload_display_version:metadata->display_payload->>display_version",
       "display_version:metadata->display_payload->data->>display_version",
       "operating_mode:metadata->display_payload->data->>operating_mode",
       "business_catalysts:metadata->display_payload->data->business_catalysts",
@@ -294,7 +296,8 @@ async function loadFilingPreviewDisplayPayloads(
   for (const row of result.data.filter(isRecord)) {
     const id = readString(row.id);
     const displayType = readString(row.display_type);
-    const displayVersion = readString(row.display_version);
+    const displayVersion =
+      readString(row.payload_display_version) || readString(row.display_version);
     const operatingMode = readString(row.operating_mode);
     const capitalMode = readString(row.capital_mode);
     const isEarningsPreview =
@@ -304,14 +307,19 @@ async function loadFilingPreviewDisplayPayloads(
     const isCapitalFinancingPreview =
       displayType === "capital_financing" &&
       displayVersion === "sec_8k_6k_capital_financing_v1";
+    const isOfferingPreview =
+      displayType === "offering_terms" &&
+      (displayVersion === "s3_offering_v1" ||
+        displayVersion === "424b-display-payload-v1");
     if (
       !id ||
-      (!isEarningsPreview && !isCapitalFinancingPreview)
+      (!isEarningsPreview && !isCapitalFinancingPreview && !isOfferingPreview)
     ) {
       continue;
     }
     displayPayloads.set(id, {
       display_type: displayType,
+      display_version: displayVersion,
       data: {
         business_catalysts: row.business_catalysts,
         capital_mode: capitalMode,

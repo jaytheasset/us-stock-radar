@@ -322,6 +322,69 @@ test("AMC-style 8-K/6-K equity issuance maps valid snapshot rows", () => {
   assert.equal(preview.showKeyPoints, true);
 });
 
+test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
+  for (const { displayVersion, formType } of [
+    { displayVersion: "s3_offering_v1", formType: "S-3" },
+    { displayVersion: "424b-display-payload-v1", formType: "424B5" },
+  ]) {
+    const preview = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "offering_terms",
+        display_version: displayVersion,
+        data: {
+          snapshot_metrics: [
+            { label: "  Offering size  ", value: "  $100 million  " },
+            { label: "Offering size", value: "$100 million" },
+            { label: "Shares offered", value: "20 million" },
+            { label: "Offer price", value: "$5.00" },
+            { label: "Expected proceeds", value: "$94 million" },
+            { label: "Excluded fifth metric", value: "Not shown" },
+          ],
+        },
+      },
+      formType,
+      keyEvidence: ["Generic evidence must not replace the offering snapshot."],
+    });
+
+    assert.deepEqual(preview.keyPoints, [
+      "Offering size: $100 million",
+      "Shares offered: 20 million",
+      "Offer price: $5.00",
+      "Expected proceeds: $94 million",
+    ]);
+    assert.equal(preview.keyPointsLabel, "Capital Snapshot");
+    assert.equal(preview.showKeyPoints, true);
+  }
+});
+
+test("S-3 and 424B5 offering previews hide Capital Snapshot without usable values", () => {
+  for (const { displayVersion, formType } of [
+    { displayVersion: "s3_offering_v1", formType: "S-3" },
+    { displayVersion: "424b-display-payload-v1", formType: "424B5" },
+  ]) {
+    const preview = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "offering_terms",
+        display_version: displayVersion,
+        data: {
+          snapshot_metrics: [
+            null,
+            {},
+            { label: "Missing value" },
+            { label: " ", value: "$10 million" },
+          ],
+        },
+      },
+      formType,
+      keyEvidence: ["Generic evidence must stay hidden."],
+    });
+
+    assert.deepEqual(preview.keyPoints, []);
+    assert.equal(preview.keyPointsLabel, "Capital Snapshot");
+    assert.equal(preview.showKeyPoints, false);
+  }
+});
+
 test("capital snapshots hide the complete section when stored rows are empty or invalid", () => {
   for (const snapshotMetrics of [
     [],
@@ -543,6 +606,7 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /event_id: `in\.\(\$\{eventIds\.join\(","\)\}\)`/);
   assert.equal(source.match(/supabaseSelect\("event_analysis"/g)?.length, 1);
   assert.match(source, /supabaseSelect\("events", \{[\s\S]*display_type:metadata->display_payload->>display_type/);
+  assert.match(source, /payload_display_version:metadata->display_payload->>display_version/);
   assert.match(source, /display_version:metadata->display_payload->data->>display_version/);
   assert.match(source, /operating_mode:metadata->display_payload->data->>operating_mode/);
   assert.match(source, /business_catalysts:metadata->display_payload->data->business_catalysts/);
@@ -553,6 +617,9 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /operatingMode === "earnings"/);
   assert.match(source, /displayType === "capital_financing"/);
   assert.match(source, /displayVersion === "sec_8k_6k_capital_financing_v1"/);
+  assert.match(source, /displayType === "offering_terms"/);
+  assert.match(source, /displayVersion === "s3_offering_v1"/);
+  assert.match(source, /displayVersion === "424b-display-payload-v1"/);
   assert.doesNotMatch(source, /select: "id,metadata"/);
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
   assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);
@@ -590,8 +657,12 @@ test("filings preview batches evidence and shares governance presentation fields
   );
   assert.match(filingsDetailSource, /record\.showKeyPoints && record\.keyPoints\.length/);
   assert.match(filingsDetailSource, /\{record\.keyPointsLabel\}/);
-  assert.match(feedPreviewSource, /filing\.showKeyPoints \?/);
+  assert.match(
+    feedPreviewSource,
+    /filing\.showKeyPoints && filing\.keyPoints\.length \?/,
+  );
   assert.match(feedPreviewSource, /\{filing\.keyPointsLabel\}/);
+  assert.doesNotMatch(feedPreviewSource, /No key points available/);
 });
 
 test("does not keep a stale filing selection when filtered results are empty", () => {

@@ -1,7 +1,8 @@
-import { resolveSec8k6kCapitalFinancingPreview } from "./filingPreviewAdapters/sec8k6kCapitalFinancing.ts";
+import { resolveCapitalSnapshotPreview } from "./filingPreviewAdapters/sec8k6kCapitalFinancing.ts";
 
 export type FilingPreviewFieldsInput = {
   displayPayload?: unknown;
+  formType?: unknown;
   governanceEvent?: boolean;
   keyEvidence?: unknown;
   materialEvents?: unknown;
@@ -22,6 +23,7 @@ export type FilingPreviewFields = {
 
 export function resolveFilingPreviewFields({
   displayPayload,
+  formType,
   governanceEvent = false,
   keyEvidence,
   materialEvents,
@@ -44,8 +46,9 @@ export function resolveFilingPreviewFields({
     .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
-  const capitalFinancingPreview = resolveSec8k6kCapitalFinancingPreview({
+  const capitalSnapshotPreview = resolveCapitalSnapshotPreview({
     displayPayload,
+    formType,
     primaryEventType: primaryEventType || "",
   });
   const isGovernanceEvent =
@@ -70,8 +73,8 @@ export function resolveFilingPreviewFields({
         .filter((value): value is string => typeof value === "string")
         .map((value) => value.trim())
     : [];
-  const keyPointCandidates = capitalFinancingPreview
-    ? capitalFinancingPreview.keyPoints
+  const keyPointCandidates = capitalSnapshotPreview
+    ? capitalSnapshotPreview.keyPoints
     : isSec8k6kEarningsEvent
       ? earningsBusinessUpdates
       : isGovernanceEvent
@@ -79,7 +82,7 @@ export function resolveFilingPreviewFields({
         : evidence;
   const keyPoints = Array.from(
     new Set(keyPointCandidates.filter(Boolean)),
-  ).slice(0, capitalFinancingPreview ? 4 : 3);
+  ).slice(0, capitalSnapshotPreview ? 4 : 3);
 
   return {
     filingBrief:
@@ -90,15 +93,15 @@ export function resolveFilingPreviewFields({
       "",
     keyPoints,
     keyPointsLabel:
-      capitalFinancingPreview?.keyPointsLabel ||
+      capitalSnapshotPreview?.keyPointsLabel ||
       (isSec8k6kEarningsEvent
         ? "Key Business Updates"
         : isGovernanceEvent
           ? "Key Changes"
           : "Key Points"),
     showKeyPoints:
-      capitalFinancingPreview
-        ? capitalFinancingPreview.showKeyPoints
+      capitalSnapshotPreview
+        ? capitalSnapshotPreview.showKeyPoints
         : isSec8k6kEarningsEvent || isGovernanceEvent
           ? keyPoints.length > 0
           : true,

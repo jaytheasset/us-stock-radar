@@ -1481,6 +1481,16 @@ test("feed filing preview hides an empty 8-K/6-K earnings business-update sectio
   assert.equal(filing.showKeyPoints, false);
 });
 
+test("feed filing preview omits the complete Key Points section when points are empty", () => {
+  const source = readSource("components/feed-v2/FeedFilingPreview.tsx");
+
+  assert.match(
+    source,
+    /filing\.showKeyPoints && filing\.keyPoints\.length \?/,
+  );
+  assert.doesNotMatch(source, /No key points available/);
+});
+
 test("feed filing preview caps 8-K/6-K earnings business-update titles at three", () => {
   const filing = createLiveFeedV2Preview({
     ...basePreviewSource,
