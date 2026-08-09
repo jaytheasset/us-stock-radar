@@ -46,6 +46,9 @@ export function resolveFilingPreviewFields({
     .find(Boolean);
   const display = isRecord(displayPayload) ? displayPayload : null;
   const displayData = isRecord(display?.data) ? display.data : null;
+  const normalizedFormType = readText(formType)
+    .toUpperCase()
+    .replace(/\s+/g, "");
   const capitalSnapshotPreview = resolveCapitalSnapshotPreview({
     displayPayload,
     formType,
@@ -53,6 +56,12 @@ export function resolveFilingPreviewFields({
   });
   const isGovernanceEvent =
     display?.display_type === "governance_event" || governanceEvent;
+  const isPeriodic10kAmendment =
+    normalizedFormType === "10-K/A" &&
+    display?.display_type === "periodic_amendment";
+  const isPeriodicReport =
+    ["10-K", "10-Q", "20-F"].includes(normalizedFormType) &&
+    display?.display_type === "periodic_report";
   const isSec8k6kEarningsEvent =
     display?.display_type === "operating_event" &&
     readText(displayData?.display_version) === "sec_8k_6k_operating_event_v1" &&
@@ -63,6 +72,20 @@ export function resolveFilingPreviewFields({
         .filter(isRecord)
         .map((change) => readText(change.title))
     : [];
+  const amendmentKeyChanges = Array.isArray(displayData?.amended_items)
+    ? displayData.amended_items.map(readText)
+    : [];
+  const periodicBusinessUpdates = Array.isArray(
+    displayData?.key_business_updates,
+  )
+    ? displayData.key_business_updates
+        .filter(isRecord)
+        .map((update) => readText(update.title))
+    : [];
+  const usesPeriodicBusinessUpdates =
+    isPeriodicReport &&
+    readText(displayData?.event_type).toLowerCase() === "earnings" &&
+    periodicBusinessUpdates.some(Boolean);
   const earningsBusinessUpdates = Array.isArray(displayData?.business_catalysts)
     ? displayData.business_catalysts
         .filter(isRecord)
@@ -75,11 +98,15 @@ export function resolveFilingPreviewFields({
     : [];
   const keyPointCandidates = capitalSnapshotPreview
     ? capitalSnapshotPreview.keyPoints
-    : isSec8k6kEarningsEvent
-      ? earningsBusinessUpdates
-      : isGovernanceEvent
-        ? governanceKeyChanges
-        : evidence;
+    : isPeriodic10kAmendment
+      ? amendmentKeyChanges
+      : usesPeriodicBusinessUpdates
+        ? periodicBusinessUpdates
+        : isSec8k6kEarningsEvent
+          ? earningsBusinessUpdates
+          : isGovernanceEvent
+            ? governanceKeyChanges
+            : evidence;
   const keyPoints = Array.from(
     new Set(keyPointCandidates.filter(Boolean)),
   ).slice(0, capitalSnapshotPreview ? 4 : 3);
@@ -94,15 +121,22 @@ export function resolveFilingPreviewFields({
     keyPoints,
     keyPointsLabel:
       capitalSnapshotPreview?.keyPointsLabel ||
-      (isSec8k6kEarningsEvent
-        ? "Key Business Updates"
-        : isGovernanceEvent
-          ? "Key Changes"
-          : "Key Points"),
+      (isPeriodic10kAmendment
+        ? "Key Changes"
+        : usesPeriodicBusinessUpdates
+          ? "Key Business Updates"
+          : isSec8k6kEarningsEvent
+            ? "Key Business Updates"
+            : isGovernanceEvent
+              ? "Key Changes"
+              : "Key Points"),
     showKeyPoints:
       capitalSnapshotPreview
         ? capitalSnapshotPreview.showKeyPoints
-        : isSec8k6kEarningsEvent || isGovernanceEvent
+        : isPeriodic10kAmendment ||
+            isPeriodicReport ||
+            isSec8k6kEarningsEvent ||
+            isGovernanceEvent
           ? keyPoints.length > 0
           : true,
   };

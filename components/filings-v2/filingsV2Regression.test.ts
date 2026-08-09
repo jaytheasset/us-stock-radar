@@ -141,6 +141,191 @@ test("governance filing previews use up to three unique key-change titles on bot
   assert.equal(liveFeedPreview.showKeyPoints, filingsPreview.showKeyPoints);
 });
 
+test("CNTY-style 10-K/A previews use concise stored amended items as Key Changes", () => {
+  const filingBrief =
+    "Century Casinos restated its 2024 financial statements, widening its net loss to $153.6 million and disclosing material weaknesses.";
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_amendment",
+      data: {
+        amended_items: [
+          "  Audited Consolidated Financial Statements  ",
+          "Disclosure Controls and Procedures",
+          "Internal Control Over Financial Reporting",
+          "Fourth amended item is excluded",
+        ],
+      },
+    },
+    formType: "10-K/A",
+    keyEvidence: [
+      '"The purpose of this Amendment is to restate our previously issued audited consolidated financial statements and related financial information in the Original Form 10-K.',
+    ],
+    materialEvents: [{ event_summary: filingBrief, role: "primary" }],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    category: "Legal",
+    detailHref: "/filings/cnty-10ka",
+    feedType: "filings",
+    formType: "10-K/A",
+    headline: "Century Casinos restates 2024 financials",
+    id: "cnty-10ka",
+    impactScore: 85,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-08T00:00:00.000Z",
+    sentiment: "Bearish",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "CNTY",
+  });
+
+  assert.deepEqual(filingsPreview.keyPoints, [
+    "Audited Consolidated Financial Statements",
+    "Disclosure Controls and Procedures",
+    "Internal Control Over Financial Reporting",
+  ]);
+  assert.equal(filingsPreview.filingBrief, filingBrief);
+  assert.equal(filingsPreview.keyPointsLabel, "Key Changes");
+  assert.equal(filingsPreview.showKeyPoints, true);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, filingsPreview.keyPoints);
+  assert.equal(liveFeedPreview.filingBrief, filingBrief);
+  assert.equal(liveFeedPreview.keyPointsLabel, "Key Changes");
+  assert.equal(liveFeedPreview.showKeyPoints, true);
+});
+
+test("periodic amendment Key Changes mapping stays 10-K/A-specific and hides empty changes", () => {
+  const empty10ka = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_amendment",
+      data: { amended_items: ["  ", null] },
+    },
+    formType: "10-K/A",
+    keyEvidence: ["Raw amendment evidence must not be used."],
+  });
+  const otherAmendment = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_amendment",
+      data: { amended_items: ["10-Q/A amendment item"] },
+    },
+    formType: "10-Q/A",
+    keyEvidence: ["Existing 10-Q/A evidence"],
+  });
+  const unrelatedDisplay = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "generic",
+      data: { amended_items: ["Generic display item"] },
+    },
+    formType: "10-K/A",
+    keyEvidence: ["Existing generic evidence"],
+  });
+
+  assert.deepEqual(empty10ka.keyPoints, []);
+  assert.equal(empty10ka.keyPointsLabel, "Key Changes");
+  assert.equal(empty10ka.showKeyPoints, false);
+  assert.deepEqual(otherAmendment.keyPoints, ["Existing 10-Q/A evidence"]);
+  assert.equal(otherAmendment.keyPointsLabel, "Key Points");
+  assert.deepEqual(unrelatedDisplay.keyPoints, ["Existing generic evidence"]);
+  assert.equal(unrelatedDisplay.keyPointsLabel, "Key Points");
+});
+
+test("periodic earnings previews use stored key business update titles on both surfaces", () => {
+  const filingBrief = "Berkshire Hathaway reported its 2025 annual results.";
+  const filingsPreview = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_report",
+      data: {
+        event_type: "earnings",
+        key_business_updates: [
+          { title: "  Investment Gains Volatility  " },
+          { title: "Impairment Charge" },
+          { title: "BNSF Earnings Growth" },
+          { title: "Fourth update is excluded" },
+        ],
+      },
+    },
+    formType: "10-K",
+    keyEvidence: ["Generic evidence must not replace structured updates."],
+    materialEvents: [{ event_summary: filingBrief, role: "primary" }],
+  });
+  const liveFeedPreview = createLiveFeedV2Preview({
+    category: "Earnings",
+    detailHref: "/filings/brk-a-10k",
+    feedType: "filings",
+    formType: "10-K",
+    headline: "Berkshire Hathaway reports annual results",
+    id: "brk-a-10k",
+    impactScore: 70,
+    keyEvidence: filingsPreview.keyPoints,
+    keyPointsLabel: filingsPreview.keyPointsLabel,
+    publishedAt: "2026-08-09T00:00:00.000Z",
+    sentiment: "Volatile",
+    showKeyPoints: filingsPreview.showKeyPoints,
+    source: "SEC",
+    summary: filingsPreview.filingBrief,
+    ticker: "BRK-A",
+  });
+
+  assert.deepEqual(filingsPreview.keyPoints, [
+    "Investment Gains Volatility",
+    "Impairment Charge",
+    "BNSF Earnings Growth",
+  ]);
+  assert.equal(filingsPreview.filingBrief, filingBrief);
+  assert.equal(filingsPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(filingsPreview.showKeyPoints, true);
+  assert.equal(liveFeedPreview.kind, "filing");
+  assert.deepEqual(liveFeedPreview.keyPoints, filingsPreview.keyPoints);
+  assert.equal(liveFeedPreview.filingBrief, filingBrief);
+  assert.equal(liveFeedPreview.keyPointsLabel, "Key Business Updates");
+  assert.equal(liveFeedPreview.showKeyPoints, true);
+});
+
+test("periodic preview keeps non-earnings evidence generic and hides empty sections", () => {
+  const financialRisk = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_report",
+      data: {
+        event_type: "financial_risk",
+        key_business_updates: [{ title: "Must remain detail-only" }],
+      },
+    },
+    formType: "10-Q",
+    keyEvidence: ["Going-concern uncertainty remains substantial."],
+  });
+  const emptyEarnings = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_report",
+      data: { event_type: "earnings", key_business_updates: [] },
+    },
+    formType: "20-F",
+    keyEvidence: [],
+  });
+  const evidenceFallback = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_report",
+      data: { event_type: "earnings", key_business_updates: [] },
+    },
+    formType: "10-Q",
+    keyEvidence: ["Stored evidence remains available."],
+  });
+
+  assert.deepEqual(financialRisk.keyPoints, [
+    "Going-concern uncertainty remains substantial.",
+  ]);
+  assert.equal(financialRisk.keyPointsLabel, "Key Points");
+  assert.equal(financialRisk.showKeyPoints, true);
+  assert.deepEqual(emptyEarnings.keyPoints, []);
+  assert.equal(emptyEarnings.keyPointsLabel, "Key Points");
+  assert.equal(emptyEarnings.showKeyPoints, false);
+  assert.deepEqual(evidenceFallback.keyPoints, [
+    "Stored evidence remains available.",
+  ]);
+  assert.equal(evidenceFallback.keyPointsLabel, "Key Points");
+  assert.equal(evidenceFallback.showKeyPoints, true);
+});
+
 test("8-K/6-K earnings previews share up to three stored business-update titles in order", () => {
   const filingBrief = "Stored primary earnings event summary.";
   const filingsPreview = resolveFilingPreviewFields({
@@ -646,8 +831,11 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /supabaseSelect\("events", \{[\s\S]*display_type:metadata->display_payload->>display_type/);
   assert.match(source, /payload_display_version:metadata->display_payload->>display_version/);
   assert.match(source, /display_version:metadata->display_payload->data->>display_version/);
+  assert.match(source, /event_type:metadata->display_payload->data->>event_type/);
   assert.match(source, /operating_mode:metadata->display_payload->data->>operating_mode/);
   assert.match(source, /business_catalysts:metadata->display_payload->data->business_catalysts/);
+  assert.match(source, /key_business_updates:metadata->display_payload->data->key_business_updates/);
+  assert.match(source, /amended_items:metadata->display_payload->data->amended_items/);
   assert.match(source, /capital_mode:metadata->display_payload->data->>capital_mode/);
   assert.match(source, /snapshot_metrics:metadata->display_payload->data->snapshot_metrics/);
   assert.match(source, /displayType === "operating_event"/);
@@ -661,6 +849,10 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /Array\.isArray\(row\.snapshot_metrics\)/);
   assert.doesNotMatch(source, /displayVersion === "s3_offering_v1"/);
   assert.match(source, /displayVersion === "424b-display-payload-v1"/);
+  assert.match(source, /displayType === "periodic_report"/);
+  assert.match(source, /Array\.isArray\(row\.key_business_updates\)/);
+  assert.match(source, /displayType === "periodic_amendment"/);
+  assert.match(source, /Array\.isArray\(row\.amended_items\)/);
   assert.doesNotMatch(source, /select: "id,metadata"/);
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);
   assert.match(source, /quickTake: row\.quick_take,[\s\S]*summary: row\.summary/);
