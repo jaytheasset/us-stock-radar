@@ -1564,6 +1564,678 @@
   background: #f8fafc;
 }
 
+.executionControls {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #d6dde5;
+  background: #f1f5f9;
+}
+
+.executionControlsHeader,
+.controlGroupHeading,
+.reviewSectionHeading,
+.analysisDetailHeader,
+.analysisReviewCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.executionControlsHeader {
+  list-style: none;
+  cursor: pointer;
+}
+
+.executionControlsHeader::-webkit-details-marker {
+  display: none;
+}
+
+.executionControlsHeader > div > span,
+.reviewSectionHeading > div > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.executionControlsHeader h3,
+.reviewSectionHeading h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.executionControlsHeader p,
+.reviewSectionHeading p,
+.controlGroupHeading p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.executionBadge,
+.controlGroupHeading > span,
+.reviewSectionHeading > strong,
+.analysisResultStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.controlGroup {
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.controlGroupHeading {
+  padding: 11px 13px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.controlGroupHeading strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.controlGroup .liveControls {
+  padding: 13px;
+  border: 0;
+  background: transparent;
+}
+
+.liveControls .countControl {
+  min-width: 94px;
+}
+
+.liveControls .checkboxControl {
+  display: flex;
+  min-width: fit-content;
+  gap: 8px;
+}
+
+.persistControlGroup {
+  border-color: #fecdd3;
+}
+
+.persistControlGroup .controlGroupHeading {
+  background: #fff7f8;
+}
+
+.persistControlGroup .controlGroupHeading > span {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.analysisReviewTab {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  background: #eef2f7;
+}
+
+.analysisReviewSection,
+.executionHistorySection {
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.reviewSectionHeading {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.analysisReviewToolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.analysisReviewToolbar label {
+  display: grid;
+  gap: 6px;
+  width: min(520px, 100%);
+}
+
+.analysisReviewToolbar label > span {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysisReviewToolbar input {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17202a;
+  font: inherit;
+}
+
+.analysisReviewToolbar p {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.analysisReviewWorkspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.3fr);
+  min-height: 620px;
+}
+
+.analysisResultList {
+  overflow: auto;
+  max-height: 940px;
+  border-right: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.analysisResultRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  color: #17202a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analysisResultRow:hover,
+.analysisResultRowActive {
+  background: #eff6ff;
+}
+
+.analysisResultRowActive {
+  box-shadow: inset 3px 0 #2563eb;
+}
+
+.analysisResultRow:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.analysisResultIdentity {
+  min-width: 0;
+}
+
+.analysisResultIdentity strong,
+.analysisResultIdentity small,
+.analysisResultTimes small {
+  display: block;
+}
+
+.analysisResultIdentity strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysisResultIdentity small,
+.analysisResultTimes small {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.analysisResultRow code {
+  grid-column: 1 / -1;
+  color: #334155;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.analysisResultTimes {
+  grid-column: 1 / -1;
+}
+
+.analysisResultStatus {
+  min-height: 22px;
+  padding: 0 7px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 9px;
+}
+
+.analysisDetailPanel {
+  min-width: 0;
+  background: #ffffff;
+}
+
+.analysisDetailHeader {
+  padding: 17px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.analysisDetailHeader > div {
+  min-width: 0;
+}
+
+.analysisDetailHeader > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysisDetailHeader h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.analysisDetailHeader p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.analysisDetailFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 13px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.analysisDetailFacts div,
+.correctionDecisionBody dl div {
+  min-width: 0;
+}
+
+.analysisDetailFacts dt,
+.correctionDecisionBody dt {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysisDetailFacts dd,
+.correctionDecisionBody dd {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.analysisDetailActions {
+  display: flex;
+  gap: 8px;
+  padding: 11px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.analysisDetailActions button,
+.analysisDetailActions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #17202a;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.analysisReviewCard {
+  margin: 14px 16px;
+  overflow: hidden;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.analysisReviewCardHeader {
+  align-items: center;
+  padding: 11px 13px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.analysisReviewCardHeader > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysisReviewCardHeader > div > span {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.analysisReviewCardHeader h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.analysisReviewCardHeader > strong {
+  color: #475569;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.analysisReviewCard > pre,
+.analysisComparisonGrid pre,
+.analysisRawDetails pre {
+  overflow: auto;
+  max-height: 360px;
+  margin: 0;
+  padding: 13px;
+  background: #101827;
+  color: #e5e7eb;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.validationWarningList {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.validationWarningList article {
+  padding: 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 7px;
+  background: #fff7ed;
+}
+
+.validationWarningList strong {
+  color: #9a3412;
+  font-size: 11px;
+}
+
+.validationWarningList p,
+.analysisCleanState,
+.recordMissing p,
+.correctionDecisionBody p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.analysisCleanState,
+.recordMissing {
+  padding: 14px;
+}
+
+.analysisCleanState {
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.recordMissing {
+  background: #f8fafc;
+}
+
+.recordMissing strong {
+  color: #475569;
+  font-size: 11px;
+}
+
+.correctionDecisionBody {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+}
+
+.correctionDecisionBody dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.correctionDecisionBody > div > span,
+.analysisComparisonGrid > div > span {
+  display: block;
+  color: #475569;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysisComparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analysisComparisonGrid > div + div {
+  border-left: 1px solid #334155;
+}
+
+.analysisComparisonGrid > div > span {
+  padding: 8px 11px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.analysisRawDetails {
+  margin: 14px 16px 18px;
+  overflow: hidden;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+}
+
+.analysisRawDetails summary {
+  padding: 11px 13px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.reviewEmptyState,
+.analysisDetailEmpty {
+  padding: 24px 18px;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.executionHistorySection .testStack {
+  padding: 14px;
+}
+
+:global(html[data-theme="dark"]) .page {
+  background: #070b12;
+  color: #e5e7eb;
+}
+
+:global(html[data-theme="dark"]) .topbar,
+:global(html[data-theme="dark"]) .panelHeader,
+:global(html[data-theme="dark"]) .tabs,
+:global(html[data-theme="dark"]) .executionControls,
+:global(html[data-theme="dark"]) .reviewSectionHeading,
+:global(html[data-theme="dark"]) .analysisReviewToolbar,
+:global(html[data-theme="dark"]) .analysisDetailHeader,
+:global(html[data-theme="dark"]) .analysisDetailFacts,
+:global(html[data-theme="dark"]) .analysisReviewCardHeader,
+:global(html[data-theme="dark"]) .analysisRawDetails summary {
+  border-color: #334155;
+  background: #111827;
+}
+
+:global(html[data-theme="dark"]) .sidebar,
+:global(html[data-theme="dark"]) .mainPanel,
+:global(html[data-theme="dark"]) .wideCard,
+:global(html[data-theme="dark"]) .metricCard,
+:global(html[data-theme="dark"]) .fileCard,
+:global(html[data-theme="dark"]) .testCard,
+:global(html[data-theme="dark"]) .controlGroup,
+:global(html[data-theme="dark"]) .analysisReviewSection,
+:global(html[data-theme="dark"]) .executionHistorySection,
+:global(html[data-theme="dark"]) .analysisDetailPanel,
+:global(html[data-theme="dark"]) .analysisReviewCard,
+:global(html[data-theme="dark"]) .liveItem,
+:global(html[data-theme="dark"]) .runtimeOutputCard {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+:global(html[data-theme="dark"]) .promptCatalogSection,
+:global(html[data-theme="dark"]) .promptPreviewTitle,
+:global(html[data-theme="dark"]) .correctionPromptList,
+:global(html[data-theme="dark"]) .correctionPromptRow,
+:global(html[data-theme="dark"]) .correctionPromptDrawerOpen,
+:global(html[data-theme="dark"]) .correctionPromptPreviewContent {
+  border-color: #334155;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+:global(html[data-theme="dark"]) .sidebarHeader,
+:global(html[data-theme="dark"]) .controlGroupHeading,
+:global(html[data-theme="dark"]) .analysisResultList,
+:global(html[data-theme="dark"]) .recordMissing,
+:global(html[data-theme="dark"]) .analysisComparisonGrid > div > span {
+  border-color: #334155;
+  background: #111827;
+}
+
+:global(html[data-theme="dark"]) .promptCatalogHeading,
+:global(html[data-theme="dark"]) .correctionPromptDrawer,
+:global(html[data-theme="dark"]) .correctionPromptFacts,
+:global(html[data-theme="dark"]) .correctionPromptPreviewHeader,
+:global(html[data-theme="dark"]) .correctionPromptInstructions,
+:global(html[data-theme="dark"]) .tabs button {
+  border-color: #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+:global(html[data-theme="dark"]) .tabs .activeTab {
+  border-color: #60a5fa;
+  background: #1e3a8a;
+  color: #dbeafe;
+}
+
+:global(html[data-theme="dark"]) .analysisReviewTab {
+  background: #0b1220;
+}
+
+:global(html[data-theme="dark"]) .roomButton,
+:global(html[data-theme="dark"]) .topLinks a,
+:global(html[data-theme="dark"]) .secondaryButton,
+:global(html[data-theme="dark"]) .checkboxControl,
+:global(html[data-theme="dark"]) .liveControls input,
+:global(html[data-theme="dark"]) .liveControls select,
+:global(html[data-theme="dark"]) .analysisReviewToolbar input,
+:global(html[data-theme="dark"]) .analysisDetailActions button,
+:global(html[data-theme="dark"]) .analysisDetailActions a {
+  border-color: #475569;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+:global(html[data-theme="dark"]) .roomButton:hover,
+:global(html[data-theme="dark"]) .activeRoom,
+:global(html[data-theme="dark"]) .analysisResultRow:hover,
+:global(html[data-theme="dark"]) .analysisResultRowActive {
+  background: #172554;
+}
+
+:global(html[data-theme="dark"]) .topbar h1,
+:global(html[data-theme="dark"]) .panelHeader h2,
+:global(html[data-theme="dark"]) .executionControlsHeader h3,
+:global(html[data-theme="dark"]) .reviewSectionHeading h3,
+:global(html[data-theme="dark"]) .controlGroupHeading strong,
+:global(html[data-theme="dark"]) .analysisResultIdentity strong,
+:global(html[data-theme="dark"]) .analysisDetailHeader h3,
+:global(html[data-theme="dark"]) .analysisDetailFacts dd,
+:global(html[data-theme="dark"]) .analysisReviewCardHeader h4 {
+  color: #f8fafc;
+}
+
+:global(html[data-theme="dark"]) .promptCatalogHeading h3,
+:global(html[data-theme="dark"]) .promptPreviewTitle h3,
+:global(html[data-theme="dark"]) .correctionPromptIdentity strong,
+:global(html[data-theme="dark"]) .correctionPromptPreviewHeader h3,
+:global(html[data-theme="dark"]) .correctionPromptFacts dd {
+  color: #f8fafc;
+}
+
+:global(html[data-theme="dark"]) .topbar p,
+:global(html[data-theme="dark"]) .panelHeader p,
+:global(html[data-theme="dark"]) .executionControlsHeader p,
+:global(html[data-theme="dark"]) .reviewSectionHeading p,
+:global(html[data-theme="dark"]) .controlGroupHeading p,
+:global(html[data-theme="dark"]) .analysisDetailHeader p,
+:global(html[data-theme="dark"]) .analysisResultIdentity small,
+:global(html[data-theme="dark"]) .analysisResultTimes small,
+:global(html[data-theme="dark"]) .analysisResultRow code {
+  color: #94a3b8;
+}
+
+@media (max-width: 1280px) and (min-width: 981px) {
+  .page {
+    padding: 20px;
+  }
+
+  .workspace {
+    grid-template-columns: 290px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .analysisReviewWorkspace {
+    grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.25fr);
+  }
+}
+
 @media (max-width: 980px) {
   .page {
     padding: 16px;
@@ -1604,6 +2276,22 @@
   .detailGuideGrid,
   .issueSummaryGrid {
     grid-template-columns: 1fr;
+  }
+
+  .analysisReviewWorkspace,
+  .analysisComparisonGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysisResultList {
+    max-height: 430px;
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .analysisComparisonGrid > div + div {
+    border-top: 1px solid #334155;
+    border-left: 0;
   }
 }
 
