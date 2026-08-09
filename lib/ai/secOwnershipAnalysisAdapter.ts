@@ -1,10 +1,6 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
-import {
-  buildDeterministicOwnershipResult,
-  buildOwnershipDisplayPayload,
-  type OwnershipParserOutput,
-} from "@/lib/sources/sec/forms/ownership/parser";
+import type { OwnershipParserOutput } from "@/lib/sources/sec/forms/ownership/parser";
 import { buildOwnershipAnalysisPrompt } from "@/lib/sources/sec/forms/ownership/analysisPrompt";
 import {
   applySecValidationRepairPatches,
@@ -50,16 +46,6 @@ export type SecOwnershipAnalysisAdapterResult =
 export function isOwnershipFilingInput(input: SecFilingAnalysisInput) {
   if (readSecFormAnalysisMode(input) === "ownership_direct_analysis") return Boolean(readOwnershipParserOutput(input));
   return Boolean(readOwnershipParserOutput(input));
-}
-
-export function buildDeterministicOwnershipAnalysis(input: SecFilingAnalysisInput): SecOwnershipAnalysisAdapterResult | null {
-  const parserOutput = readOwnershipParserOutput(input);
-  if (!parserOutput) return null;
-
-  const deterministicResult = buildDeterministicOwnershipResult(parserOutput);
-  if (!deterministicResult) return null;
-
-  return adaptOwnershipRoomResultForAnalysis(deterministicResult, parserOutput, true);
 }
 
 export function buildSecOwnershipAnalysisPrompt(input: SecFilingAnalysisInput): SecOwnershipAnalysisPrompt {
@@ -187,9 +173,8 @@ function readFilingContext(input: SecFilingAnalysisInput) {
 function adaptOwnershipRoomResultForAnalysis(
   value: unknown,
   parserOutput: OwnershipParserOutput | null,
-  isDeterministic = false,
 ): SecOwnershipAnalysisAdapterResult {
-  const requiredOutput = normalizeOwnershipRequiredOutput(value, parserOutput, isDeterministic);
+  const requiredOutput = normalizeOwnershipRequiredOutput(value, parserOutput);
   if (!requiredOutput) {
     return {
       ok: false,
@@ -197,12 +182,10 @@ function adaptOwnershipRoomResultForAnalysis(
     };
   }
 
-  if (!isDeterministic) {
-    appendOwnershipDisplayWarnings(
-      requiredOutput.display_payload,
-      collectOwnershipRuntimeDisplayPayloadWarnings(requiredOutput.display_payload),
-    );
-  }
+  appendOwnershipDisplayWarnings(
+    requiredOutput.display_payload,
+    collectOwnershipRuntimeDisplayPayloadWarnings(requiredOutput.display_payload),
+  );
 
   const adapted = adaptSecFormRoomOutputForIngest(requiredOutput);
   if (!adapted.ok) {
@@ -221,20 +204,12 @@ function adaptOwnershipRoomResultForAnalysis(
 function normalizeOwnershipRequiredOutput(
   value: unknown,
   parserOutput: OwnershipParserOutput | null,
-  isDeterministic: boolean,
 ) {
   const root = readRecord(value);
   if (!root) return null;
 
   const analysisOutput = readRecord(root.analysis_output);
-  const parserDisplayPayload = isDeterministic && parserOutput
-    ? (buildOwnershipDisplayPayload(parserOutput) as unknown as Record<string, unknown>)
-    : null;
-  const llmDisplayPayload = readRecord(root.display_payload);
-  const displayPayload =
-    isDeterministic
-      ? normalizeOwnershipRuntimeDisplayPayload(llmDisplayPayload, parserDisplayPayload)
-      : llmDisplayPayload;
+  const displayPayload = readRecord(root.display_payload);
   const outputParser = (parserOutput as unknown as Record<string, unknown> | null) || readRecord(root.parser_output);
 
   if (!analysisOutput || !displayPayload || !outputParser) return null;
@@ -252,33 +227,6 @@ function normalizeOwnershipDisplayPayloadForRuntime(displayPayload: Record<strin
     data: readRecord(displayPayload.data) || {},
     evidence: arrayValue(displayPayload.evidence),
     notes: arrayValue(displayPayload.notes),
-  };
-}
-
-function normalizeOwnershipRuntimeDisplayPayload(
-  llmDisplayPayload: Record<string, unknown> | null,
-  parserDisplayPayload: Record<string, unknown> | null,
-) {
-  if (!llmDisplayPayload) return parserDisplayPayload;
-  if (!parserDisplayPayload) return llmDisplayPayload;
-
-  const llmData = readRecord(llmDisplayPayload.data) || {};
-  const parserData = readRecord(parserDisplayPayload.data) || {};
-  if (hasOwnershipTransactionDisplayData(llmData)) return llmDisplayPayload;
-
-  return {
-    ...parserDisplayPayload,
-    display_type: stringValue(llmDisplayPayload.display_type) || parserDisplayPayload.display_type,
-    data: {
-      ...parserData,
-      ...pickOwnershipDisplayCopyFields(llmData),
-    },
-    evidence: arrayValue(llmDisplayPayload.evidence).length
-      ? arrayValue(llmDisplayPayload.evidence)
-      : arrayValue(parserDisplayPayload.evidence),
-    notes: arrayValue(llmDisplayPayload.notes).length
-      ? arrayValue(llmDisplayPayload.notes)
-      : arrayValue(parserDisplayPayload.notes),
   };
 }
 
@@ -459,21 +407,6 @@ function dedupeOwnershipRepairIssues(issues: SecOwnershipValidationRepairIssue[]
     seen.add(key);
     return true;
   });
-}
-
-function pickOwnershipDisplayCopyFields(data: Record<string, unknown>) {
-  const result: Record<string, unknown> = {};
-  for (const key of [
-    "filing_summary",
-    "summary",
-    "quick_take",
-    "score_reason",
-    "what_to_watch_next",
-    "key_evidence",
-  ]) {
-    if (data[key] !== undefined && data[key] !== null && data[key] !== "") result[key] = data[key];
-  }
-  return result;
 }
 
 function ownershipAdapterOutputToAnalysis(value: SecFormRoomAdapterOutput) {

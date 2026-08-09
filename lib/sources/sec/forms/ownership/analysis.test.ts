@@ -12,7 +12,6 @@ import {
   parseOwnershipForm,
 } from "./adapter.ts";
 import {
-  buildDeterministicOwnershipResult,
   buildOwnershipDisplayPayload,
   buildOwnershipRoutingDecision,
   parseOwnershipFiling,
@@ -399,6 +398,8 @@ test("ownership adapter exposes live integration entrypoints", () => {
     assert.deepEqual([...ownershipSupportedForms], ["4", "4/A", "144", "144/A"]);
     assert.equal(ownershipAnalysisMode, "ownership_direct_analysis");
     assert.equal(ownershipAdapter.routerRequired, false);
+    assert.equal("tryDeterministicResult" in ownershipAdapter, false);
+    assert.equal("buildDeterministicResult" in ownershipAdapter, false);
     assert.equal(ownershipAdapter.parserGroup, "ownership");
     assert.equal(ownershipAdapter.key, "ownership");
     assert.equal(parsed.parserGroup, "ownership");
@@ -482,20 +483,20 @@ test("ownership FMP market context helper can shape supplied responses without l
     assert.ok(context.source_notes[0].includes("test-only"));
 });
 
-test("ownership parser retains deterministic reference outputs for routing and display preservation", () => {
-    const adminFixture = readJson<Record<string, unknown>>("fixtures/form4a-admin-amendment.json");
-    const routineFixture = readJson<Record<string, unknown>>("fixtures/form144-routine-proposed-sale.json");
-    const grantFixture = readJson<Record<string, unknown>>("fixtures/form4-routine-rsu-grant.json");
-    const routineExpected = readJson<any>("expected/form144-routine-proposed-sale.expected.json");
-    const grantExpected = readJson<any>("expected/form4-routine-rsu-grant.expected.json");
+test("ownership parser preserves routing and display inputs for all LLM-analyzed ownership forms", () => {
+    for (const [formType, fixturePath] of [
+      ["4", "fixtures/form4-insider-purchase.json"],
+      ["4/A", "fixtures/form4a-admin-amendment.json"],
+      ["144", "fixtures/form144-routine-proposed-sale.json"],
+      ["144/A", "fixtures/form144a-material-increase.json"],
+    ] as const) {
+      const parserOutput = parseOwnershipFiling(readJson<Record<string, unknown>>(fixturePath) as never);
+      const routing = buildOwnershipRoutingDecision(parserOutput);
+      const displayPayload = buildOwnershipDisplayPayload(parserOutput);
 
-    const adminResult = buildDeterministicOwnershipResult(parseOwnershipFiling(adminFixture as never));
-    const routineResult = buildDeterministicOwnershipResult(parseOwnershipFiling(routineFixture as never));
-    const grantResult = buildDeterministicOwnershipResult(parseOwnershipFiling(grantFixture as never));
-
-    assert.equal(adminResult, null);
-    assert.deepEqual(routineResult?.analysis_output, routineExpected.analysis_output);
-    assert.deepEqual(routineResult?.display_payload, routineExpected.display_payload);
-    assert.deepEqual(grantResult?.analysis_output, grantExpected.analysis_output);
-    assert.deepEqual(grantResult?.display_payload, grantExpected.display_payload);
+      assert.equal((parserOutput.facts as any).filing.form_type, formType);
+      assert.equal(routing.router_used, false);
+      assert.equal(displayPayload.data.display_version, "ownership_v1");
+      assert.ok(buildOwnershipAnalysisPrompt(parserOutput).includes("final SEC Ownership filing analysis LLM"));
+    }
 });

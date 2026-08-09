@@ -1,5 +1,4 @@
 import {
-  buildDeterministicOwnershipResult,
   buildOwnershipDisplayPayload,
   buildOwnershipRoutingDecision,
   OWNERSHIP_FORM_SCOPE,
@@ -52,8 +51,6 @@ export const ownershipFormAdapter = {
     };
   },
   parseFixture: parseOwnershipForm,
-  tryDeterministicResult: buildDeterministicOwnershipResult,
-  buildDeterministicResult: buildDeterministicOwnershipResult,
   buildRoutingDecision: buildOwnershipRoutingDecision,
   buildDisplayPayload: buildOwnershipDisplayPayload,
   buildAnalysisInput: buildOwnershipAnalysisInput,

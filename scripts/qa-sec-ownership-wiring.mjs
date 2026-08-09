@@ -10,183 +10,74 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 try {
   const parserUrl = tsFileDataUrl("lib/sources/sec/forms/ownership/parser.ts");
-  const contractUrl = tsFileDataUrl("lib/sources/sec/forms/common/secIntegrationContract.ts");
-  const adapterUrl = tsFileDataUrl("lib/sources/sec/forms/common/formRoomAdapter.ts", [
-    [`from "./secIntegrationContract"`, `from "${contractUrl}"`],
-  ]);
+  const currentFilingIdentityUrl = tsFileDataUrl("lib/sources/sec/forms/common/currentFilingIdentity.ts");
   const analysisPromptUrl = tsFileDataUrl("lib/sources/sec/forms/ownership/analysisPrompt.ts", [
     [`from "./parser.ts"`, `from "${parserUrl}"`],
+    [`from "../common/currentFilingIdentity.ts"`, `from "${currentFilingIdentityUrl}"`],
   ]);
-  const ownershipAnalysisAdapterUrl = tsFileDataUrl("lib/ai/secOwnershipAnalysisAdapter.ts", [
-    [`from "@/lib/prompts/secFilingAnalysis"`, `from "${moduleDataUrl("export {};")}"`],
-    [`from "@/lib/sources/sec/forms/common/formRoomAdapter"`, `from "${adapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/ownership/parser"`, `from "${parserUrl}"`],
-    [`from "@/lib/sources/sec/forms/ownership/analysisPrompt"`, `from "${analysisPromptUrl}"`],
-  ]);
-  const s3AnalysisAdapterUrl = moduleDataUrl(s3AnalysisAdapterStub());
-  const formAnalysisAdapterRegistryUrl = tsFileDataUrl("lib/ai/secFormAnalysisAdapterRegistry.ts", [
-    [`from "@/lib/prompts/secFilingAnalysis"`, `from "${moduleDataUrl("export {};")}"`],
-    [`from "@/lib/ai/secOwnershipAnalysisAdapter"`, `from "${ownershipAnalysisAdapterUrl}"`],
-    [`from "@/lib/ai/secS3AnalysisAdapter"`, `from "${s3AnalysisAdapterUrl}"`],
-  ]);
-  const genericFormParserStubsUrl = moduleDataUrl(genericFormParserStubs());
-  const s3ParserStubUrl = moduleDataUrl(s3ParserStub());
-  const formAdapterRuntimeUrl = tsFileDataUrl("lib/sources/sec/forms/common/formAdapterRuntime.ts");
-  function genericFormAdapterUrl(relativePath) {
-    return tsFileDataUrl(relativePath, [
-      [`from "@/lib/sources/sec/forms/common/formAdapterRuntime"`, `from "${formAdapterRuntimeUrl}"`],
-      [`from "./parser"`, `from "${genericFormParserStubsUrl}"`],
-    ]);
-  }
-  const sec424bFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/424b/adapter.ts");
-  const sec425FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/425/adapter.ts");
-  const currentReportFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/8k-6k/adapter.ts");
-  const effectFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/effect/adapter.ts");
-  const form25FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/form25/adapter.ts");
-  const ntFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/nt/adapter.ts");
-  const periodicReportsFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/periodic-reports/adapter.ts");
-  const proxyFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/proxy/adapter.ts");
-  const s1F1FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/s1-f1/adapter.ts");
-  const s4F4FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/s4-f4/adapter.ts");
-  const s8FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/s8/adapter.ts");
-  const sc13FormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/sc13/adapter.ts");
-  const tenderFormAdapterUrl = genericFormAdapterUrl("lib/sources/sec/forms/tender/adapter.ts");
-  const ownershipFormAdapterUrl = tsFileDataUrl("lib/sources/sec/forms/ownership/adapter.ts", [
-    [`from "./parser"`, `from "${parserUrl}"`],
-  ]);
-  const s3F3FormAdapterUrl = tsFileDataUrl("lib/sources/sec/forms/s3-f3/adapter.ts", [
-    [`from "./parser"`, `from "${s3ParserStubUrl}"`],
-  ]);
-  const workerRegistryUrl = tsFileDataUrl("lib/sources/sec/forms/formWorkerRegistry.ts", [
-    [`from "@/lib/sources/sec/forms/424b/adapter"`, `from "${sec424bFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/425/adapter"`, `from "${sec425FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/8k-6k/adapter"`, `from "${currentReportFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/effect/adapter"`, `from "${effectFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/form25/adapter"`, `from "${form25FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/nt/adapter"`, `from "${ntFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/ownership/adapter"`, `from "${ownershipFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/periodic-reports/adapter"`, `from "${periodicReportsFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/proxy/adapter"`, `from "${proxyFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/s1-f1/adapter"`, `from "${s1F1FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/s3-f3/adapter"`, `from "${s3F3FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/s4-f4/adapter"`, `from "${s4F4FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/s8/adapter"`, `from "${s8FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/sc13/adapter"`, `from "${sc13FormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/tender/adapter"`, `from "${tenderFormAdapterUrl}"`],
-    [`from "@/lib/sources/sec/forms/ownership/parser"`, `from "${parserUrl}"`],
-    [`from "@/lib/sources/sec/forms/s3-f3/parser"`, `from "${s3ParserStubUrl}"`],
-    [`from "@/lib/sources/sec/forms/424b/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/425/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/8k-6k/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/effect/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/form25/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/nt/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/periodic-reports/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/proxy/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/s1-f1/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/s4-f4/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/s8/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/sc13/parser"`, `from "${genericFormParserStubsUrl}"`],
-    [`from "@/lib/sources/sec/forms/tender/parser"`, `from "${genericFormParserStubsUrl}"`],
-  ]);
-  const packageUrl = tsFileDataUrl("lib/prompts/secFilingAnalysisPackage.ts", [
-    [`from "@/lib/sources/sec/forms/formWorkerRegistry"`, `from "${workerRegistryUrl}"`],
-  ]);
-  const previewUrl = tsFileDataUrl("lib/ai/secFilingAnalysisPreview.ts", previewImportReplacements({
-    adapterUrl,
-    formAnalysisAdapterRegistryUrl,
-    analysisPromptUrl,
-    ownershipAnalysisAdapterUrl,
-    packageUrl,
-    parserUrl,
-  }));
-
   const ownershipParser = await import(parserUrl);
   const ownershipPrompt = await import(analysisPromptUrl);
-  const commonAdapter = await import(adapterUrl);
-  const filingPackageModule = await import(packageUrl);
-  const analysisPreview = await import(previewUrl);
+  const runWithoutLlm = compileOwnershipDryRun();
 
-  const purchaseFixture = readJson("lib/sources/sec/forms/ownership/fixtures/form4-insider-purchase.json");
-  const routine144Fixture = readJson("lib/sources/sec/forms/ownership/fixtures/form144-routine-proposed-sale.json");
-  const emptyFixture = readJson("lib/sources/sec/forms/ownership/fixtures/form4-empty-unsupported.json");
+  const ownershipCases = [
+    ["4", "lib/sources/sec/forms/ownership/fixtures/form4-insider-purchase.json"],
+    ["4/A", "lib/sources/sec/forms/ownership/fixtures/form4a-admin-amendment.json"],
+    ["144", "lib/sources/sec/forms/ownership/fixtures/form144-routine-proposed-sale.json"],
+    ["144/A", "lib/sources/sec/forms/ownership/fixtures/form144a-material-increase.json"],
+  ].map(([formType, fixturePath]) => {
+    const fixture = readJson(fixturePath);
+    const rawItem = rawItemFromOwnershipFixture(fixture);
+    const parsed = ownershipParser.parseOwnershipFiling(fixture);
+    return { formType, fixture, rawItem, parsed };
+  });
+  const purchaseCase = ownershipCases[0];
 
-  const packageForPurchase = filingPackageModule.buildSecFilingAnalysisPackage(rawItemFromOwnershipFixture(purchaseFixture));
+  const packageForPurchase = ownershipFilingPackage(purchaseCase);
   const packageOwnership = packageForPurchase.hard_parsers?.ownership;
-  const parsedPurchase = ownershipParser.parseOwnershipFiling(purchaseFixture);
-  const parsedRoutine144 = ownershipParser.parseOwnershipFiling(routine144Fixture);
-  const parsedEmpty = ownershipParser.parseOwnershipFiling(emptyFixture);
-  const deterministicRoutine144 = ownershipParser.buildDeterministicOwnershipResult(parsedRoutine144);
-  const deterministicEmpty = ownershipParser.buildDeterministicOwnershipResult(parsedEmpty);
-  const purchasePrompt = ownershipPrompt.buildOwnershipAnalysisPrompt(parsedPurchase);
-  const adaptedRoutine144 = commonAdapter.adaptSecFormRoomOutputForIngest(deterministicRoutine144);
-  const deterministicPreviewRun = await analysisPreview.runSecFilingAnalysisForRawRow(rawItemFromOwnershipFixture(routine144Fixture));
+  const purchasePrompt = ownershipPrompt.buildOwnershipAnalysisPrompt(purchaseCase.parsed);
+  const dryRunResults = await Promise.all(
+    ownershipCases.map(async (item) => ({
+      formType: item.formType,
+      result: await runWithoutLlm(item.rawItem, {
+        filing_package: ownershipFilingPackage(item),
+      }),
+    })),
+  );
 
   check(
     "Form 4 package includes hard_parsers.ownership",
-    Boolean(packageOwnership?.parserGroup === "ownership" && packageOwnership?.accessionNumber === purchaseFixture.accessionNumber),
+    Boolean(packageOwnership?.parserGroup === "ownership" && packageOwnership?.accessionNumber === purchaseCase.fixture.accessionNumber),
     packageForPurchase.hard_parsers,
   );
   check(
-    "Form 144/A is classified as ownership",
-    filingPackageModule.classifySecFormFamily("144/A") === "ownership",
+    "all four ownership forms parse into the ownership worker family",
+    ownershipCases.every((item) => item.parsed.parserGroup === "ownership" && item.parsed.facts?.filing?.form_type === item.formType),
+    ownershipCases.map((item) => ({ formType: item.formType, parserGroup: item.parsed.parserGroup, filing: item.parsed.facts?.filing })),
   );
   check(
-    "ownership package llm_text uses compact parser facts instead of full raw XML",
-    String(packageForPurchase.llm_text || "").includes("Ownership Parser Facts") &&
-      !String(packageForPurchase.llm_text || "").includes("<ownershipDocument>") &&
-      !String(packageForPurchase.llm_text || "").includes(String(purchaseFixture.filingText || "")),
-    { llmTextChars: String(packageForPurchase.llm_text || "").length, sourceChars: String(purchaseFixture.filingText || "").length },
+    "production filing package registry wires the ownership adapter",
+    sourceIncludes("lib/prompts/secFilingAnalysisPackage.ts", "runSecFormAdapterParser") &&
+      sourceIncludes("lib/sources/sec/forms/formWorkerRegistry.ts", "ownershipFormAdapter"),
   );
   check(
     "ownership analysis prompt excludes full raw XML/source text by default",
     !purchasePrompt.includes("<ownershipDocument>") && purchasePrompt.includes("Compact parser facts"),
     { promptChars: purchasePrompt.length },
   );
-  check(
-    "Form 4 purchase is analysis-needed, not parser-deterministic archive",
-    ownershipParser.buildDeterministicOwnershipResult(parsedPurchase) === null,
-  );
-  check(
-    "routine Form 144 deterministic archive is persistable and not skip_analysis",
-    Boolean(
-      deterministicRoutine144 &&
-        deterministicRoutine144.analysis_output.score < 50 &&
-        deterministicRoutine144.analysis_output.event_type === "insider_ownership" &&
-        deterministicRoutine144.analysis_output.analysis_action !== "skip_analysis",
-    ),
-    deterministicRoutine144?.analysis_output,
-  );
-  check(
-    "empty unsupported ownership source becomes persistable archive output",
-    Boolean(
-      deterministicEmpty &&
-        deterministicEmpty.analysis_output.score < 50 &&
-        deterministicEmpty.analysis_output.event_type === "other" &&
-        deterministicEmpty.analysis_output.analysis_action !== "skip_analysis",
-    ),
-    deterministicEmpty?.analysis_output,
-  );
-  check(
-    "common adapter derives archive delivery",
-    adaptedRoutine144.ok === true &&
-      adaptedRoutine144.value.analysis_output.delivery_level === "archive" &&
-      adaptedRoutine144.value.metadata.display_payload_storage_target === "events.metadata.display_payload",
-    adaptedRoutine144,
-  );
-  check(
-    "analysis preview returns deterministic ownership archive without OpenAI",
-    deterministicPreviewRun.ok === true &&
-      deterministicPreviewRun.openAiResponseId === null &&
-      deterministicPreviewRun.analysis?.score < 50 &&
-      deterministicPreviewRun.analysis?.archive_summary &&
-      deterministicPreviewRun.analysis?.display_payload,
-    deterministicPreviewRun,
-  );
+  for (const { formType, result } of dryRunResults) {
+    check(
+      `${formType} developer dry-run requires ownership LLM analysis`,
+      result.ok === false &&
+        result.stage === "openai" &&
+        result.error === "LLM required but disabled for SEC analysis dry-run" &&
+        result.prompt?.key === "sec_ownership_analysis",
+      result,
+    );
+  }
   check(
     "ownership source inventory and selected evidence are preserved compactly",
-    Boolean(parsedPurchase.facts?.source_inventory && Array.isArray(parsedPurchase.raw?.selected_evidence)),
-    { sourceInventory: parsedPurchase.facts?.source_inventory, evidence: parsedPurchase.raw?.selected_evidence },
+    ownershipCases.every((item) => Boolean(item.parsed.facts?.source_inventory && Array.isArray(item.parsed.raw?.selected_evidence))),
+    ownershipCases.map((item) => ({ formType: item.formType, sourceInventory: item.parsed.facts?.source_inventory })),
   );
   check(
     "ingest maps display_payload into events.metadata.display_payload",
@@ -194,10 +85,18 @@ try {
       sourceIncludes("lib/secStores/eventStore.ts", "archive_summary: archiveSummary"),
   );
   check(
-    "analysis preview has no ownership router LLM path",
-    sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "buildDeterministicOwnershipAnalysis") &&
+    "production ownership runtime uses the direct analysis LLM path",
       sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "buildSecOwnershipAnalysisPrompt") &&
-      !sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "routerPrompt"),
+      sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "if (isOwnershipFilingInput(input))") &&
+      sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "runOpenAiJsonPrompt(env, prompt, llmConfig)"),
+  );
+  check(
+    "legacy ownership deterministic final analysis is absent",
+    !("buildDeterministicOwnershipResult" in ownershipParser) &&
+      !sourceIncludes("lib/sources/sec/forms/ownership/adapter.ts", "tryDeterministicResult") &&
+      !sourceIncludes("lib/sources/sec/forms/ownership/adapter.ts", "buildDeterministicResult") &&
+      !sourceIncludes("lib/ai/secOwnershipAnalysisAdapter.ts", "buildDeterministicOwnershipAnalysis") &&
+      !sourceIncludes("lib/ai/secFilingAnalysisPreview.ts", "attachOwnershipArchiveContextGuardPreview"),
   );
 
   const ok = checks.every((item) => item.ok);
@@ -210,7 +109,7 @@ try {
           dbWrites: false,
           parserRoomLogicChanged: false,
           oneAccessionOneEvent: true,
-          deterministicArchivePersists: true,
+          ownershipFinalAnalysisRequiresLlm: true,
         },
         checks,
       },
@@ -222,6 +121,62 @@ try {
 } catch (error) {
   console.error(error instanceof Error ? error.stack || error.message : String(error));
   process.exitCode = 1;
+}
+
+function compileOwnershipDryRun() {
+  const previewSource = readFileSync(path.resolve(repoRoot, "lib/ai/secFilingAnalysisPreview.ts"), "utf8");
+  const withoutLlmStart = previewSource.indexOf("async function runSecFilingAnalysisWithoutLlmForRawRow(");
+  const withoutLlmEnd = previewSource.indexOf("\nexport async function runSecFilingAnalysisForRawRow(", withoutLlmStart);
+  const promptStart = previewSource.indexOf("function buildSecFilingPromptForInput(");
+  const promptEnd = previewSource.indexOf("\nfunction shouldForceS3AmendmentAudit(", promptStart);
+  if (withoutLlmStart < 0 || withoutLlmEnd <= withoutLlmStart || promptStart < 0 || promptEnd <= promptStart) {
+    throw new Error("Could not locate SEC analysis dry-run or prompt selector source");
+  }
+
+  const executableSource = stripTypeScriptTypes(
+    `${previewSource.slice(promptStart, promptEnd)}\n${previewSource.slice(withoutLlmStart, withoutLlmEnd)}`,
+    { mode: "transform" },
+  );
+  const factory = new Function(
+    "mocks",
+    `const {
+      is424bFilingInput,
+      isOwnershipFilingInput,
+      buildSecOwnershipAnalysisPrompt,
+      isS3AmendmentInput,
+      buildDeterministicEffectAnalysis,
+      buildDeterministicSc13Analysis,
+      buildDeterministicS8ArchiveAnalysis,
+      summarizeRawRow
+    } = mocks;
+    ${executableSource}
+    return runSecFilingAnalysisWithoutLlmForRawRow;`,
+  );
+
+  return factory({
+    is424bFilingInput: () => false,
+    isOwnershipFilingInput: (input) => Boolean(input?.filing_package?.hard_parsers?.ownership),
+    buildSecOwnershipAnalysisPrompt: () => ({ key: "sec_ownership_analysis", version: "v1" }),
+    isS3AmendmentInput: () => false,
+    buildDeterministicEffectAnalysis: () => null,
+    buildDeterministicSc13Analysis: () => null,
+    buildDeterministicS8ArchiveAnalysis: () => null,
+    summarizeRawRow: (rawItem) => ({ id: rawItem.id }),
+  });
+}
+
+function ownershipFilingPackage(item) {
+  return {
+    form_type: item.formType,
+    form_adapter: {
+      key: "ownership",
+      parserGroup: "ownership",
+      analysisMode: "ownership_direct_analysis",
+    },
+    hard_parsers: {
+      ownership: item.parsed,
+    },
+  };
 }
 
 function rawItemFromOwnershipFixture(fixture) {
@@ -279,132 +234,4 @@ function tsFileDataUrl(relativePath, replacements = []) {
 
 function moduleDataUrl(source) {
   return `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
-}
-
-function s3ParserStub() {
-  return `
-    export function parseSecS3Filing() {
-      return {
-        form_type: "S-3",
-        is_s3_family: true,
-        securities_registered: [],
-        selling_stockholders: [],
-        fee_table: { present: false, text_available: false, rows: [], totals: {}, documents: [] },
-        offering_terms: {},
-        amendment: { router_payload: {} },
-        needs_human_review: false,
-        review_reasons: []
-      };
-    }
-  `;
-}
-
-function s3AnalysisAdapterStub() {
-  return `
-    export const SEC_OFFERING_AUDIT_PROMPT_KEY = "qa_sec_offering_audit";
-    export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "qa";
-    export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY = "qa_sec_s3_triage";
-    export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION = "qa";
-    export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "qa_sec_s3_analysis";
-    export function isS3FilingInput() { return false; }
-    export function isS3AmendmentInput() { return false; }
-    export function buildSecS3AnalysisPrompt() {
-      return { key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY, version: "qa", system: "", user: "", responseFormat: { json_schema: {} } };
-    }
-    export function buildSecS3AuditPrompt() {
-      return { key: SEC_OFFERING_AUDIT_PROMPT_KEY, version: SEC_OFFERING_AUDIT_PROMPT_VERSION, system: "", user: "", responseFormat: { json_schema: {} } };
-    }
-    export function buildSecS3TriagePrompt() {
-      return { key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY, version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION, system: "", user: "", responseFormat: { json_schema: {} } };
-    }
-  `;
-}
-
-function genericFormParserStubs() {
-  return `
-    function genericParsed(parserGroup) {
-      return {
-        parserVersion: "qa_stub",
-        parserGroup,
-        formType: "QA",
-        accessionNumber: null,
-        isSupported: true,
-        summary: null,
-        facts: {},
-        signals: [],
-        calendarItems: [],
-        warnings: [],
-        raw: {}
-      };
-    }
-    export function parse424bFiling() { return genericParsed("424b"); }
-    export function parseSec425Filing() { return genericParsed("425"); }
-    export function parseSec8k6kFiling() { return genericParsed("8k-6k"); }
-    export function parseEffectFiling() { return genericParsed("effect"); }
-    export function parseSecForm25Filing() { return genericParsed("form25"); }
-    export function parseNtFiling() { return genericParsed("nt"); }
-    export function parseSecPeriodicReport() { return genericParsed("periodic_reports"); }
-    export function parseProxyFiling() { return genericParsed("proxy"); }
-    export function parseS1F1Filing() { return genericParsed("s1_f1"); }
-    export function parseS4F4Filing() { return genericParsed("s4_f4"); }
-    export function parseS8Filing() { return genericParsed("s8"); }
-    export function parseSc13Filing() { return genericParsed("sc13"); }
-    export function parseSecTenderFiling() { return genericParsed("tender"); }
-  `;
-}
-
-function previewImportReplacements({ adapterUrl, analysisPromptUrl, formAnalysisAdapterRegistryUrl, ownershipAnalysisAdapterUrl, packageUrl, parserUrl }) {
-  const moduleUrls = {
-    "@/lib/env": moduleDataUrl(`
-      export function getServerEnv() {
-        return { openAiApiKey: "", openAiModel: "gpt-5-mini" };
-      }
-    `),
-    "@/lib/prompts/secOfferingAudit": moduleDataUrl(`
-      export const SEC_OFFERING_AUDIT_PROMPT_KEY = "qa_sec_offering_audit";
-      export const SEC_OFFERING_AUDIT_PROMPT_VERSION = "qa";
-      export function buildSecOfferingAuditPrompt() {
-        return { key: SEC_OFFERING_AUDIT_PROMPT_KEY, version: SEC_OFFERING_AUDIT_PROMPT_VERSION, system: "", user: "", responseFormat: { json_schema: {} } };
-      }
-    `),
-    "@/lib/prompts/secFilingAnalysisPackage": packageUrl,
-    "@/lib/prompts/secFilingAnalysis": moduleDataUrl(`
-      export const SEC_FILING_ANALYSIS_PROMPT_KEY = "qa_sec_filing_analysis";
-      export const SEC_FILING_ANALYSIS_PROMPT_VERSION = "qa";
-      export function buildSecFilingAnalysisPrompt() {
-        return { key: SEC_FILING_ANALYSIS_PROMPT_KEY, version: SEC_FILING_ANALYSIS_PROMPT_VERSION, system: "", user: "", responseFormat: { json_schema: {} } };
-      }
-    `),
-    "@/lib/prompts/secS3AmendmentTriage": moduleDataUrl(`
-      export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY = "qa_sec_s3_triage";
-      export const SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION = "qa";
-      export function buildSecS3AmendmentTriagePrompt() {
-        return { key: SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY, version: SEC_S3_AMENDMENT_TRIAGE_PROMPT_VERSION, system: "", user: "", responseFormat: { json_schema: {} } };
-      }
-    `),
-    "@/lib/prompts/secS3OfferingAnalysis": moduleDataUrl(`
-      export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "qa_sec_s3_analysis";
-      export function buildSecS3OfferingAnalysisPrompt() {
-        return { key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY, version: "qa", system: "", user: "", responseFormat: { json_schema: {} } };
-      }
-    `),
-    "@/lib/secOfferingMarketContext": moduleDataUrl(`
-      export function applySecOfferingScorePolicy(_filingPackage, analysis) { return analysis; }
-      export function buildSecOfferingDilutionMetrics() { return {}; }
-      export async function resolveSecOfferingMarketContext() { return {}; }
-    `),
-    "@/lib/ai/secFormAnalysisAdapterRegistry": formAnalysisAdapterRegistryUrl,
-    "@/lib/ai/secOwnershipAnalysisAdapter": ownershipAnalysisAdapterUrl,
-    "@/lib/sources/sec/forms/common/formRoomAdapter": adapterUrl,
-    "@/lib/sources/sec/forms/ownership/parser": parserUrl,
-    "@/lib/sources/sec/forms/ownership/analysisPrompt": analysisPromptUrl,
-    "@/lib/sources/sec/forms/s3-f3/parser": moduleDataUrl(s3ParserStub()),
-    "@/lib/supabase": moduleDataUrl(`
-      export async function supabaseSelect() {
-        return { ok: true, status: 200, data: [] };
-      }
-    `),
-  };
-
-  return Object.entries(moduleUrls).map(([specifier, url]) => [`from "${specifier}"`, `from "${url}"`]);
 }

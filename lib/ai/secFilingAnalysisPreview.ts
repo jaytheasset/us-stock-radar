@@ -58,7 +58,6 @@ import {
   applySecS1F1ValidationRepairPatches,
   applySecProxyValidationRepairPatches,
   buildDeterministicSc13Analysis,
-  buildDeterministicOwnershipAnalysis,
   buildDeterministicS8ArchiveAnalysis,
   buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
@@ -5043,7 +5042,6 @@ async function buildInputFromSecRawRowWithContext(rawItem: RawItemRow): Promise<
   const input = await buildInputFromSecRawRowWithParentContext(rawItem);
   await attachSecMarketContext(input);
   await attachOwnershipFilingContext(input, rawItem);
-  attachOwnershipArchiveContextGuardPreview(input);
   return input;
 }
 
@@ -5993,175 +5991,6 @@ async function buildOwnershipFilingContext({
       "Form 144/Form 4 execution links and 4/A parent comparison are candidate matches, not definitive conclusions.",
     ],
   };
-}
-
-type OwnershipArchiveContextGuard = {
-  analysis_needed: boolean;
-  context_signal_level: "none" | "low" | "material";
-  reasons: string[];
-  metrics: Record<string, unknown>;
-};
-
-function evaluateOwnershipArchiveContextGuard(input: SecFilingAnalysisInput): OwnershipArchiveContextGuard {
-  const filingPackage = readRecord(input.filing_package);
-  const filingContext = readRecord(filingPackage?.filing_context);
-  const ownership = readRecord(filingContext?.ownership);
-  const parserOutput = readOwnershipParserOutputForContext(input);
-  const currentMetrics = readCurrentOwnershipContextMetrics(parserOutput);
-
-  if (!ownership) {
-    return {
-      analysis_needed: false,
-      context_signal_level: "none",
-      reasons: ["no_ownership_context"],
-      metrics: currentMetrics,
-    };
-  }
-
-  const sameInsider = readRecordArray(ownership.same_insider_12m_trades);
-  const companyFlow = readRecord(ownership.company_90d_insider_flow);
-  const cluster = readRecord(ownership.recent_30d_cluster);
-  const related144 = readRecordArray(ownership.related_form144_candidates);
-  const relatedForm4 = readRecordArray(ownership.related_form4_execution_candidates);
-  const amendmentParent = readRecord(ownership.amendment_parent_candidate);
-
-  const sameInsiderSellCount =
-    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.sell_transaction_count) ?? 0), 0) +
-    currentMetrics.sell_transaction_count;
-  const sameInsiderBuyCount =
-    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.buy_transaction_count) ?? 0), 0) +
-    currentMetrics.buy_transaction_count;
-  const sameInsiderSellValue =
-    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.sell_value) ?? 0), 0) +
-    currentMetrics.sell_value;
-  const sameInsiderBuyValue =
-    sameInsider.reduce((sum, event) => sum + Math.max(0, numberValue(event.buy_value) ?? 0), 0) +
-    currentMetrics.buy_value;
-  const companySellInsiderCount = Math.max(0, numberValue(companyFlow?.sell_insider_count) ?? 0);
-  const companyBuyInsiderCount = Math.max(0, numberValue(companyFlow?.buy_insider_count) ?? 0);
-  const companySellValue = Math.max(0, numberValue(companyFlow?.total_sell_value) ?? 0);
-  const companyBuyValue = Math.max(0, numberValue(companyFlow?.total_buy_value) ?? 0);
-  const clusterInsiderCount = Math.max(0, numberValue(cluster?.insider_count) ?? 0);
-  const clusterValue = Math.max(0, numberValue(cluster?.total_value) ?? 0);
-  const ceoOrCfoIncluded = companyFlow?.ceo_included === true || companyFlow?.cfo_included === true || currentMetrics.ceo_or_cfo;
-
-  const reasons: string[] = [];
-
-  if (sameInsiderSellCount >= 3 && sameInsiderSellValue >= 500_000) {
-    reasons.push("same_insider_repeated_sales_material_value");
-  }
-  if (sameInsiderSellValue >= 1_000_000) {
-    reasons.push("same_insider_cumulative_sales_over_1m");
-  }
-  if (sameInsiderBuyCount >= 2 && sameInsiderBuyValue >= 250_000 && ceoOrCfoIncluded) {
-    reasons.push("ceo_cfo_repeated_open_market_buy_context");
-  }
-  if (companySellInsiderCount >= 3 && companySellValue >= 1_000_000) {
-    reasons.push("company_90d_multi_insider_material_selling");
-  }
-  if (companyBuyInsiderCount >= 3 && companyBuyValue >= 500_000 && ceoOrCfoIncluded) {
-    reasons.push("company_90d_officer_buying_context");
-  }
-  if (clusterInsiderCount >= 2 && clusterValue >= 500_000) {
-    reasons.push("recent_30d_material_cluster");
-  }
-  if ((related144.length > 0 || relatedForm4.length > 0) && currentMetrics.sell_value >= 250_000) {
-    reasons.push("form144_form4_execution_candidate_material_value");
-  }
-  if (amendmentParent && !isClearlyAdministrativeOwnershipParent(amendmentParent)) {
-    reasons.push("amendment_parent_candidate_requires_comparison");
-  }
-
-  const anyContext =
-    sameInsider.length > 0 ||
-    Boolean(companyFlow) ||
-    Boolean(cluster) ||
-    related144.length > 0 ||
-    relatedForm4.length > 0 ||
-    Boolean(amendmentParent);
-
-  const contextSignalLevel = reasons.length > 0 ? "material" : anyContext ? "low" : "none";
-
-  return {
-    analysis_needed: reasons.length > 0,
-    context_signal_level: contextSignalLevel,
-    reasons: reasons.length ? reasons : [anyContext ? "context_present_below_material_threshold" : "no_prior_context"],
-    metrics: {
-      current: currentMetrics,
-      same_insider_12m_trade_count: sameInsider.length,
-      same_insider_sell_transaction_count: sameInsiderSellCount,
-      same_insider_buy_transaction_count: sameInsiderBuyCount,
-      same_insider_sell_value: sameInsiderSellValue || null,
-      same_insider_buy_value: sameInsiderBuyValue || null,
-      company_90d_sell_insider_count: companySellInsiderCount,
-      company_90d_buy_insider_count: companyBuyInsiderCount,
-      company_90d_sell_value: companySellValue || null,
-      company_90d_buy_value: companyBuyValue || null,
-      recent_30d_cluster_insider_count: clusterInsiderCount,
-      recent_30d_cluster_value: clusterValue || null,
-      related_form144_candidate_count: related144.length,
-      related_form4_execution_candidate_count: relatedForm4.length,
-      amendment_parent_candidate_present: Boolean(amendmentParent),
-    },
-  };
-}
-
-function attachOwnershipArchiveContextGuard(input: SecFilingAnalysisInput, guard: OwnershipArchiveContextGuard) {
-  const filingPackage = readRecord(input.filing_package);
-  const filingContext = readRecord(filingPackage?.filing_context);
-  const ownership = readRecord(filingContext?.ownership);
-  if (!ownership) return;
-
-  ownership.archive_context_guard = guard;
-}
-
-function attachOwnershipArchiveContextGuardPreview(input: SecFilingAnalysisInput) {
-  if (!isOwnershipFilingInput(input)) return null;
-
-  const deterministicOwnership = buildDeterministicOwnershipAnalysis(input);
-  if (!deterministicOwnership?.ok) return null;
-
-  const guard = evaluateOwnershipArchiveContextGuard(input);
-  attachOwnershipArchiveContextGuard(input, guard);
-  return guard;
-}
-
-function readCurrentOwnershipContextMetrics(parserOutput: Record<string, unknown> | null) {
-  const facts = readRecord(parserOutput?.facts) || {};
-  const reportingOwner = readRecord(facts.reporting_owner) || {};
-  const reportingOwners = readRecordArray(facts.reporting_owners);
-  const ownerRoles = [
-    ...readOwnershipOwnerRoles(reportingOwner),
-    ...reportingOwners.flatMap(readOwnershipOwnerRoles),
-  ].join(" ").toLowerCase();
-  const form4 = readRecord(facts.form4);
-  const form144 = readRecord(facts.form144);
-  const transactions = [
-    ...readRecordArray(form4?.transactions),
-    ...readRecordArray(form4?.non_derivative_transactions),
-    ...readRecordArray(form4?.derivative_transactions),
-    ...readRecordArray(form144?.proposed_sale_rows),
-  ];
-  const rollup = rollupOwnershipTransactions(transactions);
-  const form144Value = numberValue(form144?.aggregate_market_value) ?? 0;
-  const form144Shares = numberValue(form144?.securities_to_be_sold) ?? 0;
-
-  return {
-    buy_transaction_count: rollup.buyCount,
-    sell_transaction_count: rollup.sellCount,
-    buy_value: rollup.buyValue || 0,
-    sell_value: Math.max(rollup.sellValue || 0, form144Value),
-    form144_value: form144Value || null,
-    form144_shares: form144Shares || null,
-    ceo_or_cfo: /\bchief executive officer\b|\bceo\b|\bchief financial officer\b|\bcfo\b/.test(ownerRoles),
-  };
-}
-
-function isClearlyAdministrativeOwnershipParent(value: Record<string, unknown>) {
-  const status = stringValue(value.status || value.match_status || value.comparison_status).toLowerCase();
-  const kind = stringValue(value.kind || value.change_kind || value.amendment_kind).toLowerCase();
-  const text = `${status} ${kind}`.trim();
-  return /clearly_admin|administrative|metadata_only|footnote_only|no_material_change/.test(text);
 }
 
 type OwnershipCurrentIdentity = {
