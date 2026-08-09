@@ -324,13 +324,14 @@ test("AMC-style 8-K/6-K equity issuance maps valid snapshot rows", () => {
 
 test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
   for (const { displayVersion, formType } of [
-    { displayVersion: "s3_offering_v1", formType: "S-3" },
+    { displayVersion: "1.0", formType: "S-3" },
+    { displayVersion: undefined, formType: "S-3" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
   ]) {
     const preview = resolveFilingPreviewFields({
       displayPayload: {
         display_type: "offering_terms",
-        display_version: displayVersion,
+        ...(displayVersion ? { display_version: displayVersion } : {}),
         data: {
           snapshot_metrics: [
             { label: "  Offering size  ", value: "  $100 million  " },
@@ -359,7 +360,7 @@ test("S-3 and 424B5 offering previews map stored Capital Snapshot rows", () => {
 
 test("S-3 and 424B5 offering previews hide Capital Snapshot without usable values", () => {
   for (const { displayVersion, formType } of [
-    { displayVersion: "s3_offering_v1", formType: "S-3" },
+    { displayVersion: "1.0", formType: "S-3" },
     { displayVersion: "424b-display-payload-v1", formType: "424B5" },
   ]) {
     const preview = resolveFilingPreviewFields({
@@ -437,16 +438,53 @@ test("debt liquidity and capital return modes remain outside the dilution snapsh
 test("other filing families and mismatched primary events retain the generic preview", () => {
   for (const input of [
     {
+      formType: "F-3",
       displayPayload: {
         display_type: "offering_terms",
+        display_version: "1.0",
         data: {
-          capital_mode: "equity_issuance",
-          display_version: "sec_8k_6k_capital_financing_v1",
-          snapshot_metrics: [{ label: "S-3 metric", value: "$25 million" }],
+          snapshot_metrics: [{ label: "F-3 metric", value: "$25 million" }],
         },
       },
       materialEvents: [
         { event_summary: "S-3 brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    },
+    {
+      formType: "S-3",
+      displayPayload: {
+        display_type: "generic",
+        display_version: "1.0",
+        data: {
+          snapshot_metrics: [{ label: "Wrong display metric", value: "$25 million" }],
+        },
+      },
+      materialEvents: [
+        { event_summary: "Generic S-3 brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    },
+    {
+      formType: "S-3",
+      displayPayload: {
+        display_type: "offering_terms",
+        display_version: "1.0",
+        data: {},
+      },
+      materialEvents: [
+        { event_summary: "S-3 without snapshot brief.", event_type: "dilution_risk", role: "primary" },
+      ],
+    },
+    {
+      formType: "424B5",
+      displayPayload: {
+        display_type: "offering_terms",
+        display_version: "1.0",
+        data: {
+          snapshot_metrics: [{ label: "Wrong 424B5 version", value: "$25 million" }],
+        },
+      },
+      materialEvents: [
+        { event_summary: "424B5 brief.", event_type: "dilution_risk", role: "primary" },
       ],
     },
     {
@@ -618,7 +656,10 @@ test("filings preview batches evidence and shares governance presentation fields
   assert.match(source, /displayType === "capital_financing"/);
   assert.match(source, /displayVersion === "sec_8k_6k_capital_financing_v1"/);
   assert.match(source, /displayType === "offering_terms"/);
-  assert.match(source, /displayVersion === "s3_offering_v1"/);
+  assert.match(source, /const formType = id \? formTypeByEventId\.get\(id\) : undefined/);
+  assert.match(source, /formType === "S-3"/);
+  assert.match(source, /Array\.isArray\(row\.snapshot_metrics\)/);
+  assert.doesNotMatch(source, /displayVersion === "s3_offering_v1"/);
   assert.match(source, /displayVersion === "424b-display-payload-v1"/);
   assert.doesNotMatch(source, /select: "id,metadata"/);
   assert.doesNotMatch(source, /event_summary[\s\S]*points\.push/);

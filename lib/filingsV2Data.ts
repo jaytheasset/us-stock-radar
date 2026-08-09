@@ -273,6 +273,12 @@ async function loadFilingPreviewDisplayPayloads(
 ) {
   const eventIds = records.map((record) => record.id);
   if (!eventIds.length) return new Map<string, unknown>();
+  const formTypeByEventId = new Map(
+    records.map((record) => [
+      record.id,
+      record.formType.trim().toUpperCase().replace(/\s+/g, ""),
+    ]),
+  );
 
   const result = await supabaseSelect("events", {
     select: [
@@ -296,6 +302,7 @@ async function loadFilingPreviewDisplayPayloads(
   for (const row of result.data.filter(isRecord)) {
     const id = readString(row.id);
     const displayType = readString(row.display_type);
+    const formType = id ? formTypeByEventId.get(id) : undefined;
     const displayVersion =
       readString(row.payload_display_version) || readString(row.display_version);
     const operatingMode = readString(row.operating_mode);
@@ -307,10 +314,15 @@ async function loadFilingPreviewDisplayPayloads(
     const isCapitalFinancingPreview =
       displayType === "capital_financing" &&
       displayVersion === "sec_8k_6k_capital_financing_v1";
-    const isOfferingPreview =
+    const isS3OfferingPreview =
+      formType === "S-3" &&
       displayType === "offering_terms" &&
-      (displayVersion === "s3_offering_v1" ||
-        displayVersion === "424b-display-payload-v1");
+      Array.isArray(row.snapshot_metrics);
+    const is424b5OfferingPreview =
+      displayType === "offering_terms" &&
+      displayVersion === "424b-display-payload-v1";
+    const isOfferingPreview =
+      isS3OfferingPreview || is424b5OfferingPreview;
     if (
       !id ||
       (!isEarningsPreview && !isCapitalFinancingPreview && !isOfferingPreview)

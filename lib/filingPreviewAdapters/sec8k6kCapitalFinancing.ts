@@ -31,11 +31,15 @@ export function resolveCapitalSnapshotPreview({
     displayVersion === "sec_8k_6k_capital_financing_v1" &&
     primaryEventType === "dilution_risk" &&
     capitalSnapshotModes.has(readText(data?.capital_mode));
-  const matchesOfferingCapitalSnapshot =
+  const matchesS3OfferingCapitalSnapshot =
+    normalizedFormType === "S-3" &&
     displayType === "offering_terms" &&
-    ((normalizedFormType === "S-3" && displayVersion === "s3_offering_v1") ||
-      (normalizedFormType === "424B5" &&
-        displayVersion === "424b-display-payload-v1"));
+    Array.isArray(data?.snapshot_metrics);
+  const matchesOfferingCapitalSnapshot =
+    matchesS3OfferingCapitalSnapshot ||
+    (normalizedFormType === "424B5" &&
+      displayType === "offering_terms" &&
+      displayVersion === "424b-display-payload-v1");
 
   if (!matchesSec8k6kCapitalSnapshot && !matchesOfferingCapitalSnapshot) {
     return null;
