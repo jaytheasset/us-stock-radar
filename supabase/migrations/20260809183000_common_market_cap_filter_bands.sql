@@ -7,6 +7,8 @@ drop function if exists public.search_filings_v2(
   text[],
   text[],
   text[],
+  boolean,
+  text[],
   text[],
   timestamp with time zone,
   timestamp with time zone,
