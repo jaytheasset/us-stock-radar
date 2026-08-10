@@ -4,18 +4,18 @@ import { NewsV2Row } from "@/components/news-v2/NewsV2Row";
 import { PremiumUpgradeCard } from "@/components/news-v2/PremiumUpgradeCard";
 import { GooglePreferredSourceLink } from "@/components/ui/GooglePreferredSourceLink";
 import type { NewsV2Item } from "@/lib/newsV2";
+import type { NewsV2FlowState } from "@/lib/newsV2FlowState";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
 export type NewsV2ListProps = {
-  error?: string;
+  flowState: NewsV2FlowState;
   items: readonly NewsV2Item[];
   onLoadMore?: () => void;
   preferredSourceUrl?: string | null;
   referenceDate: string;
   remainingCount: number;
   showMarketReaction: boolean;
-  totalItems: number;
   viewerPlan: Plan;
 };
 
@@ -38,18 +38,16 @@ function shouldInsertMobileInlineAd(index: number) {
 }
 
 export function NewsV2List({
-  error,
+  flowState,
   items,
   onLoadMore,
   preferredSourceUrl,
   referenceDate,
   remainingCount,
   showMarketReaction,
-  totalItems,
   viewerPlan,
 }: NewsV2ListProps) {
   const premiumInsertIndex = items.length >= 3 ? Math.min(3, items.length - 1) : -1;
-  const countLabel = `${items.length} of ${totalItems} stories`;
 
   return (
     <section aria-labelledby="news-v2-list-title" className={styles.listPanel}>
@@ -68,7 +66,7 @@ export function NewsV2List({
             />
           ) : null}
         </div>
-        <span className={styles.resultCount}>{countLabel}</span>
+        <span className={styles.resultCount}>{flowState.resultLabel}</span>
       </header>
 
       {items.length ? (
@@ -99,9 +97,9 @@ export function NewsV2List({
           ))}
         </ol>
       ) : (
-        <div className={styles.emptyState}>
-          <strong>{error ? "News unavailable" : "No matching news"}</strong>
-          <span>{error || "Try another search or remove one of the active filters."}</span>
+        <div className={styles.emptyState} role={flowState.role ?? undefined}>
+          <strong>{flowState.title}</strong>
+          <span>{flowState.message}</span>
         </div>
       )}
 

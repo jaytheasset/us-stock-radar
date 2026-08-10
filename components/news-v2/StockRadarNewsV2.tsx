@@ -19,6 +19,7 @@ import type {
   NewsV2ThemeActivity,
 } from "@/lib/newsV2";
 import { hasResettableNewsV2State } from "@/lib/newsV2FilterState";
+import { resolveNewsV2FlowState } from "@/lib/newsV2FlowState";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarNewsV2.module.css";
 
@@ -104,6 +105,14 @@ export function StockRadarNewsV2({
   const lastRequestKeyRef = useRef(requestKey);
   const remainingCount = Math.max(pageTotal - pageItems.length, 0);
   const canReset = hasResettableNewsV2State(filters, queryDraft, query);
+  const flowState = resolveNewsV2FlowState({
+    filters,
+    hasError: Boolean(pageError),
+    isLoading: isRefreshing || isLoadingMore,
+    itemCount: pageItems.length,
+    query,
+    totalCount: pageTotal,
+  });
   const showMarketReaction = pageItems.some(
     (item) =>
       item.priceLabel ||
@@ -283,18 +292,21 @@ export function StockRadarNewsV2({
           />
 
           <div
-            aria-busy={isRefreshing || isLoadingMore}
+            aria-busy={flowState.status === "loading"}
             className={styles.listPanelAnchor}
+            data-news-has-active-criteria={flowState.hasActiveCriteria}
+            data-news-state={flowState.status}
+            data-news-total-count={flowState.totalCount}
+            data-news-visible-count={flowState.visibleCount}
           >
             <NewsV2List
-              error={pageError}
+              flowState={flowState}
               items={pageItems}
               onLoadMore={pageHasMore && pageCursor ? showMoreNews : undefined}
               preferredSourceUrl={preferredSourceUrl}
               referenceDate={liveReferenceDate}
               remainingCount={remainingCount}
               showMarketReaction={showMarketReaction}
-              totalItems={pageTotal}
               viewerPlan={viewerPlan}
             />
           </div>
