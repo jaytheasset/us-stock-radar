@@ -82,6 +82,10 @@ import {
   type LiveRoomAvailability,
 } from "@/lib/live-room/roomAvailability";
 import {
+  resolveLiveRoomEntryFlowState,
+  type LiveRoomEntryRequestState,
+} from "@/lib/live-room/entryFlow";
+import {
   ChatTimeline,
   LatestChatEventStrip,
 } from "./ChatTimeline";
@@ -171,6 +175,8 @@ export function LiveRoomClient({
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
   const [timelineState, setTimelineState] =
     useState<TimelineState>("loading");
+  const [entryRequest, setEntryRequest] =
+    useState<LiveRoomEntryRequestState>({ status: "loading" });
   const [posts, setPosts] = useState<LiveRoomPost[]>([]);
   const [postsCursor, setPostsCursor] = useState<string | null>(null);
   const [postsState, setPostsState] =
@@ -293,6 +299,13 @@ export function LiveRoomClient({
     `/live/${ticker}`,
     loginReturnPath,
   );
+  const entryFlow = resolveLiveRoomEntryFlowState({
+    availability: roomAvailability.status,
+    isGuest: profile?.isGuest ?? null,
+    membershipJoined,
+    request: entryRequest,
+    surfaceState: timelineState,
+  });
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
   const scheduleTimelineScroll = useCallback(
@@ -332,6 +345,7 @@ export function LiveRoomClient({
         generation,
       );
     const isNewRoom = loadedTickerRef.current !== ticker;
+    setEntryRequest({ status: "loading" });
     if (isNewRoom) {
       if (timelineScrollFrameRef.current !== null) {
         window.cancelAnimationFrame(timelineScrollFrameRef.current);
@@ -393,6 +407,27 @@ export function LiveRoomClient({
                 data: null,
                 error: toLiveRoomApiError(error).message,
               }));
+        const initialMessagePagePromise =
+          repository.list({ resume: !activityMessageId })
+          .then((page) => {
+            if (isCurrent()) {
+              setEntryRequest({
+                resultCount: page.items.length,
+                status: "success",
+              });
+            }
+            return page;
+          })
+          .catch((error) => {
+            if (isCurrent()) {
+              const apiError = toLiveRoomApiError(error);
+              setEntryRequest({
+                httpStatus: apiError.status || null,
+                status: "error",
+              });
+            }
+            throw error;
+          });
         const [
           page,
           membership,
@@ -403,7 +438,7 @@ export function LiveRoomClient({
           nextJoinedRooms,
         ] =
           await Promise.all([
-            repository.list({ resume: !activityMessageId }),
+            initialMessagePagePromise,
             repository.readMembership(),
             repository.listBlocks(),
             nextProfile.canModerate
@@ -1524,6 +1559,19 @@ export function LiveRoomClient({
         <LiveRoomMobileInlineAdSlot
           enabledForViewer={adsEnabledForViewer}
         />
+
+        <p
+          aria-busy={entryFlow.status === "loading"}
+          className={styles.entryFlowStatus}
+          data-live-room-availability={entryFlow.availability}
+          data-live-room-entry-state={entryFlow.status}
+          data-live-room-message-request={entryFlow.requestStatus}
+          data-live-room-result-count={entryFlow.resultCount ?? "unknown"}
+          data-live-room-viewer-access={entryFlow.viewerAccess}
+          role={entryFlow.role}
+        >
+          {entryFlow.message}
+        </p>
 
         {roomAvailabilityMessage ? (
           <p className={styles.roomAvailabilityNotice} role="status">

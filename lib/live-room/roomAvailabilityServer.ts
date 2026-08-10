@@ -31,7 +31,7 @@ export async function getLiveRoomAvailability(input: {
   } else {
     return { status: "active" };
   }
-  if (!result.ok) return { status: "active" };
+  if (!result.ok) return { status: "unknown" };
   const row = Array.isArray(result.data) ? result.data[0] : result.data;
   const value =
     row && typeof row === "object"

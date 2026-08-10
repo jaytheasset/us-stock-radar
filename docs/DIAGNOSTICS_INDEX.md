@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **Live Room initial entry** — company Live Room initial-entry investigation: [`LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md`](LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md)
+
 - **SEC diagnostics** — SEC debugging and analysis-state investigation: [`SEC_DIAGNOSTICS.md`](SEC_DIAGNOSTICS.md)
 - **Live Feed** — Live Feed user-flow investigation: [`LIVE_FEED_FLOW_DIAGNOSTICS.md`](LIVE_FEED_FLOW_DIAGNOSTICS.md)
 - **Markets Dashboard movers** — Markets Dashboard mover user-flow investigation: [`MARKETS_DASHBOARD_MOVERS_DIAGNOSTICS.md`](MARKETS_DASHBOARD_MOVERS_DIAGNOSTICS.md)
