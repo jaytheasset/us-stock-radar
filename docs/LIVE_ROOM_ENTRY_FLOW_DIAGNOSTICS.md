@@ -102,3 +102,7 @@ Repeat the same direct URL at desktop, an intermediate width, and 390px. Do not
 bypass login or membership. Treat archived, locked, permission-denied, failed,
 and unknown fixtures as unit-only unless those states can be reached safely in
 the existing environment.
+
+For local grouping presentation checks only, run `next dev` and open
+`/development/live-room-visual-fixture`. This fixed, non-persisted developer
+fixture uses the real timeline UI and is not a source of real room data.
