@@ -68,7 +68,13 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(client, /detail\.diagnosticSnapshot/);
   assert.match(client, /activeSnapshot\.summary\.status === "read_failed"/);
   assert.match(client, /formatDiagnosticSummaryStatus\(activeSnapshot\.summary\.status\)/);
+  assert.match(client, /exact \$\{visibleResults\.length === 1 \? "match" : "matches"\}/);
   assert.match(client, /detail\.liveRuns\.filter\(\(run\) => run\.mode !== "recent_persisted"\)/);
+  assert.match(client, /Current saved record/);
+  assert.match(client, /Check current saved record/);
+  assert.match(client, /getSecExactPersistedRecordStatus/);
+  assert.match(client, /executionHistoryExactFilter/);
+  assert.match(client, /The execution result was recorded at run time; no current persisted record was found/);
   assert.match(client, /Dry run \/ sample inspection/);
   assert.match(client, /Controlled persist/);
   assert.match(client, /기록 없음/);
@@ -88,4 +94,11 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(styles, /@media \(max-width: 1280px\) and \(min-width: 981px\)/);
   assert.match(styles, /html\[data-theme="dark"\]/);
   assert.match(styles, /\.analysisReviewWorkspace/);
+
+  const historyCard = client.slice(
+    client.indexOf("function LiveRunCard"),
+    client.indexOf("function ValidationRepairTraceCard"),
+  );
+  assert.doesNotMatch(historyCard, /href=\{item\.detail_url\}/);
+  assert.match(historyCard, /Open confirmed current detail/);
 });

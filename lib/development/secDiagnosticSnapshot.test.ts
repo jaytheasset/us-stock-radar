@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildSecDiagnosticSnapshot,
+  getSecExactPersistedRecordStatus,
   parseSecDiagnosticFilters,
   SEC_DIAGNOSTIC_SCHEMA_VERSION,
 } from "./secDiagnosticSnapshot.ts";
@@ -129,7 +130,54 @@ test("missing collection and repair records stay explicit instead of inferred", 
   assert.equal(result?.analysis.correction.availability, "record_missing");
   assert.equal(result?.sources.find((source) => source.name === "raw_items")?.status, "missing");
   assert.equal(result?.sources.find((source) => source.name === "event_analysis")?.status, "missing");
+  assert.equal(result?.sources.find((source) => source.name === "ai_outputs.validation_repair_trace")?.status, "record_missing");
   assert.equal(result?.sources.some((source) => source.status === "read_unavailable"), false);
+});
+
+test("historically unrecorded optional repair traces do not degrade a complete persisted lineage", () => {
+  const snapshot = buildSecDiagnosticSnapshot({
+    room,
+    records: [{
+      ...record,
+      validation_repair_trace: {
+        availability: "historical_missing",
+        analysis_run: record.validation_repair_trace.analysis_run,
+      },
+    }],
+  });
+  const result = snapshot.results[0];
+
+  assert.equal(snapshot.summary.status, "available");
+  assert.equal(result?.sources.find((source) => source.name === "ai_runs")?.status, "available");
+  assert.equal(result?.sources.find((source) => source.name === "ai_outputs.validation_repair_trace")?.status, "record_missing");
+  assert.equal(result?.analysis.first_result.availability, "record_missing");
+  assert.equal(result?.analysis.validation.availability, "record_missing");
+  assert.equal(result?.analysis.correction.availability, "record_missing");
+});
+
+test("unrecorded workflow background metadata stays explicit without downgrading persisted-only lineage", () => {
+  const snapshot = buildSecDiagnosticSnapshot({
+    room,
+    records: [{
+      ...record,
+      collection_diagnostics: {
+        ...record.collection_diagnostics,
+        workflow_analysis_status: "unknown",
+        workflow_analysis_updated_at: null,
+      },
+      validation_repair_trace: {
+        availability: "historical_missing",
+        analysis_run: record.validation_repair_trace.analysis_run,
+      },
+    }],
+  });
+  const result = snapshot.results[0];
+
+  assert.equal(snapshot.summary.status, "available");
+  assert.equal(result?.status.background, "unknown");
+  assert.equal(result?.background.workflow_analysis_status, "unknown");
+  assert.equal(result?.sources.find((source) => source.name === "raw_items")?.status, "available");
+  assert.equal(result?.sources.find((source) => source.name === "source_runs")?.status, "available");
 });
 
 test("secondary lineage read failures are partial and never historical record_missing", () => {
@@ -191,4 +239,28 @@ test("successful empty, exact not-found, and read failure remain distinct", () =
   assert.equal(failed.summary.result_count, 0);
   assert.deepEqual(failed.results, []);
   assert.doesNotMatch(JSON.stringify(failed), /SUPABASE|must-not-leak/);
+});
+
+test("exact persisted-result checks preserve confirmed, not-found, and read-unavailable meanings", () => {
+  const confirmed = buildSecDiagnosticSnapshot({
+    room,
+    records: [record],
+    read: { status: "ok", query: "exact_event" },
+  });
+  const notFound = buildSecDiagnosticSnapshot({
+    room,
+    records: [],
+    filters: { eventId: record.event_id },
+    read: { status: "ok", query: "exact_event" },
+  });
+  const unavailable = buildSecDiagnosticSnapshot({
+    room,
+    records: [],
+    filters: { eventId: record.event_id },
+    read: { status: "read_failed", query: "exact_event" },
+  });
+
+  assert.equal(getSecExactPersistedRecordStatus(confirmed), "confirmed");
+  assert.equal(getSecExactPersistedRecordStatus(notFound), "not_found");
+  assert.equal(getSecExactPersistedRecordStatus(unavailable), "read_unavailable");
 });
