@@ -31,6 +31,13 @@ import {
   type DashboardV2Tab,
   type DashboardV2TickerDetail,
 } from "@/lib/dashboardV2Types";
+import {
+  getDashboardV2MoversRequest,
+  resolveDashboardV2MoverObservation,
+  type DashboardV2MoverObservation,
+  type DashboardV2MoverRequestState,
+  type DashboardV2MoversApiResponse,
+} from "@/lib/dashboardV2MoverObservation";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "@/components/dashboard-v2/StockRadarDashboardV2.module.css";
@@ -41,36 +48,12 @@ const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashbo
 const marketSessionItems: readonly SegmentedControlItem<DashboardV2Session>[] =
   dashboardV2Sessions.map((item) => ({ label: item.toUpperCase(), value: item }));
 
-const fmpModeByMoverTab: Record<DashboardV2Tab, "gainers" | "losers" | "volume"> = {
-  "Top Gainers": "gainers",
-  "Top Losers": "losers",
-  "Top Volume": "volume",
-};
-
-type MarketStatus = "loading" | "ready" | "empty" | "unavailable" | "error";
-
-type FmpMarketMoversResponse = {
-  asOf: string | null;
-  available: boolean;
-  error?: string;
-  freshness?: "fresh" | "stale" | "finalizing" | "final" | "closed";
-  marketSessionOpen?: boolean;
-  message?: string;
-  ok: boolean;
-  reason: "ready" | "empty" | "session_unavailable" | "missing_key" | "upstream_error";
-  receivedAt: string;
-  refreshAfterSeconds?: number | null;
-  rows: DashboardV2MarketMover[];
-  stale?: boolean;
-};
-
 type MarketState = {
-  asOf: string | null;
-  freshness: FmpMarketMoversResponse["freshness"] | null;
-  message?: string;
-  receivedAt: string | null;
+  httpStatus: number | null;
+  requestState: DashboardV2MoverRequestState;
+  response?: DashboardV2MoversApiResponse;
   rows: DashboardV2MarketMover[];
-  status: MarketStatus;
+  session: DashboardV2Session;
   tab: DashboardV2Tab;
 };
 
@@ -91,11 +74,10 @@ export function StockRadarDashboardV2({
   const [mobileSheetSection, setMobileSheetSection] = useState<MobileSheetSection>("summary");
   const [filterState, setFilterState] = useState(dashboardV2DefaultFilterState);
   const [marketState, setMarketState] = useState<MarketState>({
-    asOf: null,
-    freshness: null,
-    receivedAt: null,
+    httpStatus: null,
+    requestState: "loading",
     rows: [],
-    status: "loading",
+    session: initialSession,
     tab: "Top Gainers",
   });
   const mobileTickerOpenerRef = useRef<HTMLElement>(null);
@@ -105,13 +87,13 @@ export function StockRadarDashboardV2({
     const controller = new AbortController();
     let refreshTimer: number | null = null;
     setMarketState({
-      asOf: null,
-      freshness: null,
-      receivedAt: null,
+      httpStatus: null,
+      requestState: "loading",
       rows: [],
-      status: "loading",
+      session: activeSession,
       tab: activeMoverTab,
     });
+    const request = getDashboardV2MoversRequest(activeMoverTab, activeSession);
 
     function scheduleRefresh(seconds?: number | null) {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
@@ -129,96 +111,56 @@ export function StockRadarDashboardV2({
 
     async function loadMarketMovers(isBackgroundRefresh = false) {
       try {
-        const response = await fetch(
-          `/api/dashboard-v2/movers?session=${encodeURIComponent(activeSession)}&mode=${fmpModeByMoverTab[activeMoverTab]}`,
-          { cache: "no-store", signal: controller.signal },
-        );
-        const payload = (await response.json()) as FmpMarketMoversResponse;
+        const response = await fetch(request.href, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as DashboardV2MoversApiResponse;
         if (controller.signal.aborted) return;
         scheduleRefresh(payload.refreshAfterSeconds);
 
         if (!response.ok || !payload.ok || !payload.available) {
-          if (isBackgroundRefresh) {
-            setMarketState((current) =>
-              current.status === "ready"
-                ? {
-                    ...current,
-                    message:
-                      payload.message ||
-                      payload.error ||
-                      "The latest refresh was unavailable. Showing the previous snapshot.",
-                  }
-                : current,
-            );
-            return;
-          }
+          if (isBackgroundRefresh) return;
           setSelectedTicker(null);
           setMarketState({
-            asOf: null,
-            freshness: null,
-            message: payload.message || payload.error || "Market data is unavailable.",
-            receivedAt: payload.receivedAt || null,
+            httpStatus: response.status,
+            requestState: "received",
+            response: payload,
             rows: [],
-            status:
-              payload.reason === "missing_key" || payload.reason === "session_unavailable"
-                ? "unavailable"
-                : "error",
-            tab: activeMoverTab,
-          });
-          return;
-        }
-
-        if (!payload.rows.length) {
-          setSelectedTicker(null);
-          setMarketState({
-            asOf: payload.asOf,
-            freshness: payload.freshness || null,
-            message: "FMP returned no market movers for this view.",
-            receivedAt: payload.receivedAt,
-            rows: [],
-            status: "empty",
+            session: activeSession,
             tab: activeMoverTab,
           });
           return;
         }
 
         setMarketState({
-          asOf: payload.asOf,
-          freshness: payload.freshness || null,
-          message: payload.message,
-          receivedAt: payload.receivedAt,
-          rows: payload.rows,
-          status: "ready",
+          httpStatus: response.status,
+          requestState: "received",
+          response: payload,
+          rows: Array.isArray(payload.rows) ? payload.rows : [],
+          session: activeSession,
           tab: activeMoverTab,
         });
-        setFilterState((current) =>
-          sanitizeDashboardV2FilterState(
-            current,
-            getDashboardV2FilterSections(payload.rows),
-          ),
-        );
+        if (payload.reason === "ready" && payload.rows.length) {
+          setFilterState((current) =>
+            sanitizeDashboardV2FilterState(
+              current,
+              getDashboardV2FilterSections(payload.rows),
+            ),
+          );
+        } else {
+          setSelectedTicker(null);
+        }
       } catch {
         if (controller.signal.aborted) return;
         scheduleRefresh(60);
-        if (isBackgroundRefresh) {
-          setMarketState((current) =>
-            current.status === "ready"
-              ? {
-                  ...current,
-                  message: "The latest refresh was unavailable. Showing the previous snapshot.",
-                }
-              : current,
-          );
-          return;
-        }
+        if (isBackgroundRefresh) return;
         setSelectedTicker(null);
         setMarketState({
-          asOf: null,
-          freshness: null,
-          message: "Unable to load market data.",
-          receivedAt: null,
+          httpStatus: null,
+          requestState: "failed",
           rows: [],
-          status: "error",
+          session: activeSession,
           tab: activeMoverTab,
         });
       }
@@ -261,10 +203,9 @@ export function StockRadarDashboardV2({
     setIsMobileFilterSheetOpen(true);
   }, []);
 
-  const isCurrentState = marketState.tab === activeMoverTab;
+  const isCurrentState =
+    marketState.tab === activeMoverTab && marketState.session === activeSession;
   const sourceRows = isCurrentState ? marketState.rows : [];
-  const status = isCurrentState ? marketState.status : "loading";
-  const statusMessage = isCurrentState ? marketState.message : undefined;
   const filterSections = useMemo(
     () => getDashboardV2FilterSections(sourceRows),
     [sourceRows],
@@ -273,10 +214,18 @@ export function StockRadarDashboardV2({
     () => filterDashboardV2Rows(sourceRows, filterState),
     [filterState, sourceRows],
   );
+  const observation = resolveDashboardV2MoverObservation({
+    httpStatus: isCurrentState ? marketState.httpStatus : null,
+    moverTab: activeMoverTab,
+    renderedResultCount: rows.length,
+    requestState: isCurrentState ? marketState.requestState : "loading",
+    response: isCurrentState ? marketState.response : undefined,
+    session: activeSession,
+  });
   const adsEnabledForViewer = areAdsEnabledForPlan(viewerPlan);
 
   useEffect(() => {
-    if (status !== "ready") return;
+    if (observation.status !== "ready") return;
     setSelectedTicker((current) => {
       if (!rows.length) return null;
       const row = current
@@ -284,12 +233,31 @@ export function StockRadarDashboardV2({
         : rows[0];
       return getDashboardV2TickerDetail(row);
     });
-  }, [rows, status]);
+  }, [observation.status, rows]);
 
   return (
     <>
       <div className={styles.workspace}>
-        <section className="dashboard-v2-left" aria-label="Market movers dashboard">
+        <section
+          aria-busy={observation.status === "loading"}
+          aria-label="Market movers dashboard"
+          className="dashboard-v2-left"
+          data-market-movers-api-available={stringifyBoolean(observation.apiAvailable)}
+          data-market-movers-api-ok={stringifyBoolean(observation.apiOk)}
+          data-market-movers-events-availability={observation.dataAvailability.events}
+          data-market-movers-freshness={observation.freshness}
+          data-market-movers-http-status={observation.httpStatus ?? "unknown"}
+          data-market-movers-market-cap-availability={observation.dataAvailability.marketCap}
+          data-market-movers-mode={observation.mode}
+          data-market-movers-reason={observation.reason}
+          data-market-movers-render-state={observation.renderState}
+          data-market-movers-rendered-result-count={observation.renderedResultCount}
+          data-market-movers-session={observation.session}
+          data-market-movers-source-result-count={observation.sourceResultCount}
+          data-market-movers-state={observation.status}
+          data-market-movers-tab={observation.moverTab}
+          data-market-movers-volume-availability={observation.dataAvailability.volume}
+        >
           <div className="dashboard-v2-control-row">
             <SegmentedControl
               ariaLabel="Market mover category"
@@ -315,12 +283,12 @@ export function StockRadarDashboardV2({
             onResetFilter={resetFilter}
             sections={filterSections}
           />
-          {status === "ready" ? (
+          {observation.status === "ready" ? (
             <>
               <p aria-live="polite" className={styles.filterResultCount}>
-                Showing {rows.length} of {sourceRows.length} market movers
+                {observation.resultLabel}
               </p>
-              {rows.length ? (
+              {observation.renderState === "ready" ? (
                 <MarketMoversTable
                   adsEnabledForViewer={adsEnabledForViewer}
                   mobileValueMode={activeMoverTab === "Top Volume" ? "volume" : "change"}
@@ -330,20 +298,12 @@ export function StockRadarDashboardV2({
                   selectedTicker={selectedTicker?.ticker}
                 />
               ) : (
-                <MarketDataState
-                  message="No market movers match the selected filters."
-                  status="empty"
-                />
+                <MarketDataState observation={observation} />
               )}
-              <MarketTimestamp
-                asOf={marketState.asOf}
-                freshness={marketState.freshness}
-                receivedAt={marketState.receivedAt}
-                session={activeSession}
-              />
+              <MarketTimestamp observation={observation} />
             </>
           ) : (
-            <MarketDataState message={statusMessage} status={status} />
+            <MarketDataState observation={observation} />
           )}
         </section>
         <div className={styles.rightRail}>
@@ -353,7 +313,7 @@ export function StockRadarDashboardV2({
             <aside className={styles.detailState} aria-label="Ticker detail availability">
               <strong>Ticker detail unavailable</strong>
               <span>
-                {status === "ready" && sourceRows.length
+                {observation.status === "ready" && observation.sourceResultCount
                   ? "Adjust the filters to select a market mover."
                   : "Market data is required before a ticker can be selected."}
               </span>
@@ -386,44 +346,37 @@ export function StockRadarDashboardV2({
   );
 }
 
-function MarketDataState({ message, status }: { message?: string; status: MarketStatus }) {
-  const copy =
-    status === "loading"
-      ? "Loading market movers…"
-      : message || (status === "empty" ? "No market movers returned." : "Market data unavailable.");
-
+function MarketDataState({
+  observation,
+}: {
+  observation: DashboardV2MoverObservation;
+}) {
   return (
     <section
       aria-live="polite"
       aria-label="Market data status"
       className={styles.marketState}
-      data-status={status}
+      data-status={observation.renderState}
     >
-      <strong>{status === "loading" ? "Loading market data" : status === "empty" ? "No results" : "Market data unavailable"}</strong>
-      <span>{copy}</span>
+      <strong>{observation.renderTitle}</strong>
+      <span>{observation.renderMessage}</span>
     </section>
   );
 }
 
-function MarketTimestamp({
-  asOf,
-  freshness,
-  receivedAt,
-  session,
-}: {
-  asOf: string | null;
-  freshness: FmpMarketMoversResponse["freshness"] | null;
-  receivedAt: string | null;
-  session: DashboardV2Session;
-}) {
-  const value = asOf || receivedAt;
+function MarketTimestamp({ observation }: { observation: DashboardV2MoverObservation }) {
+  const value = observation.asOf || observation.receivedAt;
   if (!value) return null;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
 
   return (
     <p className={styles.marketTimestamp}>
-      {marketTimestampLabel(freshness, session, Boolean(asOf))}{" "}
+      {marketTimestampLabel(
+        observation.freshness,
+        observation.session,
+        Boolean(observation.asOf),
+      )}{" "}
       <time dateTime={date.toISOString()}>
         {new Intl.DateTimeFormat("en-US", {
           dateStyle: "medium",
@@ -437,7 +390,7 @@ function MarketTimestamp({
 }
 
 function marketTimestampLabel(
-  freshness: FmpMarketMoversResponse["freshness"] | null,
+  freshness: DashboardV2MoverObservation["freshness"],
   session: DashboardV2Session,
   hasProviderTimestamp: boolean,
 ) {
@@ -452,4 +405,8 @@ function marketTimestampLabel(
   if (freshness === "stale") return `Last successful ${sessionLabel} snapshot`;
   if (freshness === "closed") return `Latest ${sessionLabel} snapshot`;
   return hasProviderTimestamp ? "Market data as of" : "Market data received";
+}
+
+function stringifyBoolean(value: boolean | null) {
+  return value === null ? "unknown" : String(value);
 }

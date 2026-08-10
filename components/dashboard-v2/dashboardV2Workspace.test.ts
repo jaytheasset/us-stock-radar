@@ -203,3 +203,28 @@ test("Markets availability hierarchy and mobile panels use the flat tokenized tr
     /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?box-sizing: border-box;[\s\S]*?width: calc\(\s*100% \+ var\(--sr-page-gutter-mobile\) \+ var\(--sr-page-gutter-mobile\)\s*\);[\s\S]*?margin-right: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*?margin-left: calc\(var\(--sr-page-gutter-mobile\) \* -1\);/,
   );
 });
+
+test("Markets UI and safe DOM observation use the same mover state model", () => {
+  const dashboard = read("components/dashboard-v2/StockRadarDashboardV2.tsx");
+  const observation = read("lib/dashboardV2MoverObservation.ts");
+
+  assert.match(dashboard, /getDashboardV2MoversRequest\(activeMoverTab, activeSession\)/);
+  assert.match(dashboard, /fetch\(request\.href/);
+  assert.match(dashboard, /resolveDashboardV2MoverObservation\(\{/);
+  assert.match(dashboard, /data-market-movers-state=\{observation\.status\}/);
+  assert.match(dashboard, /data-market-movers-render-state=\{observation\.renderState\}/);
+  assert.match(
+    dashboard,
+    /data-market-movers-source-result-count=\{observation\.sourceResultCount\}/,
+  );
+  assert.match(
+    dashboard,
+    /data-market-movers-rendered-result-count=\{observation\.renderedResultCount\}/,
+  );
+  assert.match(dashboard, /<strong>\{observation\.renderTitle\}<\/strong>/);
+  assert.match(dashboard, /<span>\{observation\.renderMessage\}<\/span>/);
+  assert.match(dashboard, /\{observation\.resultLabel\}/);
+  assert.doesNotMatch(dashboard, /payload\.message\s*\|\||payload\.error\s*\|\|/);
+  assert.match(observation, /Do not infer an empty result from row count alone/);
+  assert.doesNotMatch(observation, /response\?\.error|response\.error|response\?\.message|response\.message/);
+});
