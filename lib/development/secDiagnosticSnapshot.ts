@@ -1,4 +1,4 @@
-export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v3" as const;
+export const SEC_DIAGNOSTIC_SCHEMA_VERSION = "sec_debug_diagnostics_v4" as const;
 
 export type SecDiagnosticReadContext = {
   status: "ok" | "read_failed";
@@ -37,6 +37,8 @@ export type SecDiagnosticSnapshot = {
   results: SecDiagnosticResult[];
 };
 
+export type SecExactPersistedRecordStatus = "confirmed" | "not_found" | "read_unavailable";
+
 export type SecDiagnosticResult = {
   identity: {
     event_id: string | null;
@@ -64,7 +66,7 @@ export type SecDiagnosticResult = {
   };
   sources: Array<{
     name: "raw_items" | "source_runs" | "events" | "event_analysis" | "ai_runs" | "ai_outputs.validation_repair_trace";
-    status: "available" | "missing" | "unavailable" | "read_unavailable";
+    status: "available" | "missing" | "record_missing" | "unavailable" | "read_unavailable";
     record_id: string | null;
     observed_at: string | null;
   }>;
@@ -188,12 +190,26 @@ function diagnosticSummaryStatus(
 }
 
 function hasPartialLineage(result: SecDiagnosticResult) {
-  return result.sources.some((source) => source.status !== "available") ||
+  const optionalTraceNotRecorded = hasOptionalTraceNotRecorded(result);
+  const requiredSources = optionalTraceNotRecorded
+    ? result.sources.filter((source) => source.name !== "ai_outputs.validation_repair_trace")
+    : result.sources;
+  const missingTraceFields = [
+    result.analysis.first_result.availability,
+    result.analysis.validation.availability,
+    result.analysis.correction.availability,
+  ].some((availability) => availability === "record_missing");
+
+  return requiredSources.some((source) => source.status !== "available") ||
     [result.status.collection, result.status.analysis, result.status.background].some(isUnknownDiagnosticState) ||
     [result.background.workflow_analysis_status, result.background.source_run_status].some(isUnknownDiagnosticState) ||
-    result.analysis.first_result.availability === "record_missing" ||
-    result.analysis.validation.availability === "record_missing" ||
-    result.analysis.correction.availability === "record_missing";
+    (!optionalTraceNotRecorded && missingTraceFields);
+}
+
+function hasOptionalTraceNotRecorded(result: SecDiagnosticResult) {
+  const aiRun = result.sources.find((source) => source.name === "ai_runs");
+  const repairTrace = result.sources.find((source) => source.name === "ai_outputs.validation_repair_trace");
+  return aiRun?.status === "available" && repairTrace?.status === "record_missing";
 }
 
 function isUnknownDiagnosticState(value: string) {
@@ -258,7 +274,12 @@ function buildDiagnosticResult(item: Record<string, unknown>): SecDiagnosticResu
       sourceState("events", eventId, Boolean(eventId), nullableString(collection.event_observed_at)),
       sourceState("event_analysis", eventId, analysisExists, analyzedAt, lineageReadStatus(sourceReadStatuses.event_analysis)),
       sourceState("ai_runs", nullableString(analysisRun?.id), Boolean(analysisRun), analyzedAt, lineageReadStatus(sourceReadStatuses.ai_runs)),
-      sourceState("ai_outputs.validation_repair_trace", nullableString(collection.repair_trace_record_id), traceAvailable, analyzedAt, lineageReadStatus(sourceReadStatuses.ai_outputs)),
+      repairTraceSourceState(
+        nullableString(collection.repair_trace_record_id),
+        traceAvailable,
+        analyzedAt,
+        lineageReadStatus(sourceReadStatuses.ai_outputs),
+      ),
     ],
     cache: {
       status: "not_used",
@@ -369,6 +390,36 @@ function sourceState(
     record_id: recordId,
     observed_at: observedAt,
   };
+}
+
+function repairTraceSourceState(
+  recordId: string | null,
+  available: boolean,
+  observedAt: string | null,
+  readStatus: "ok" | "read_failed" = "ok",
+) {
+  if (readStatus === "read_failed") {
+    return {
+      name: "ai_outputs.validation_repair_trace" as const,
+      status: "read_unavailable" as const,
+      record_id: recordId,
+      observed_at: observedAt,
+    };
+  }
+  return {
+    name: "ai_outputs.validation_repair_trace" as const,
+    status: available ? "available" as const : "record_missing" as const,
+    record_id: recordId,
+    observed_at: observedAt,
+  };
+}
+
+export function getSecExactPersistedRecordStatus(
+  snapshot: SecDiagnosticSnapshot,
+): SecExactPersistedRecordStatus {
+  if (snapshot.summary.status === "read_failed") return "read_unavailable";
+  if (snapshot.results.length) return "confirmed";
+  return snapshot.summary.status === "not_found" ? "not_found" : "read_unavailable";
 }
 
 function lineageReadStatus(value: unknown): "ok" | "read_failed" {

@@ -6,7 +6,12 @@ import { FilingUiConsoleClient, type FilingUiConsoleEntry } from "@/app/developm
 import { filingUiConsoleFamilies } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./sec-development.module.css";
 import type { SecDevRoomDetail, SecDevRoomSnapshot } from "@/lib/development/secFormDevDashboard";
-import type { SecDiagnosticResult, SecDiagnosticSnapshot } from "@/lib/development/secDiagnosticSnapshot";
+import {
+  getSecExactPersistedRecordStatus,
+  type SecDiagnosticResult,
+  type SecDiagnosticSnapshot,
+  type SecExactPersistedRecordStatus,
+} from "@/lib/development/secDiagnosticSnapshot";
 import {
   buildIssueCopyText,
   collectSecDevIssues,
@@ -764,6 +769,10 @@ type ExactReviewLookup = {
   status: "loading" | "done" | "error";
   detail: SecDevRoomDetail | null;
 };
+type ExecutionHistoryPersistedCheck = {
+  status: "unchecked" | "checking" | SecExactPersistedRecordStatus;
+  detailUrl: string | null;
+};
 
 function AnalysisReviewWorkspace({
   liveFormFilter,
@@ -1239,6 +1248,7 @@ function LiveRunCard({
 }) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
   const [excludedCopyStatus, setExcludedCopyStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
+  const [persistedChecks, setPersistedChecks] = useState<Record<string, ExecutionHistoryPersistedCheck>>({});
   const visibleItems = filterLiveItemsByForm(run.items, liveFormFilter);
   const excludedItems = visibleItems.filter(isExcludedLiveItem);
   const resultItems = visibleItems.filter((item) => !isExcludedLiveItem(item));
@@ -1261,6 +1271,50 @@ function LiveRunCard({
         : excludedCopyStatus === "failed"
           ? "Copy failed"
           : "Copy excluded list";
+
+  async function checkCurrentPersistedRecord(item: Record<string, unknown>, itemKey: string) {
+    const exactFilter = executionHistoryExactFilter(item);
+    if (!exactFilter) return;
+    setPersistedChecks((current) => ({
+      ...current,
+      [itemKey]: { status: "checking", detailUrl: null },
+    }));
+
+    const params = new URLSearchParams({
+      room: run.room,
+      view: "detail",
+      [exactFilter.key]: exactFilter.value,
+    });
+    try {
+      const response = await fetch(`/api/development/sec-form-room?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = readClientRecord(await response.json());
+      const exactDetail = payload?.detail as SecDevRoomDetail | undefined;
+      if (!response.ok || payload?.ok !== true || !exactDetail?.diagnosticSnapshot) {
+        setPersistedChecks((current) => ({
+          ...current,
+          [itemKey]: { status: "read_unavailable", detailUrl: null },
+        }));
+        return;
+      }
+      const status = getSecExactPersistedRecordStatus(exactDetail.diagnosticSnapshot);
+      const result = exactDetail.diagnosticSnapshot.results[0];
+      setPersistedChecks((current) => ({
+        ...current,
+        [itemKey]: {
+          status,
+          detailUrl: status === "confirmed" ? safeClientLocalPath(result?.links.filing_detail) : null,
+        },
+      }));
+    } catch {
+      setPersistedChecks((current) => ({
+        ...current,
+        [itemKey]: { status: "read_unavailable", detailUrl: null },
+      }));
+    }
+  }
 
   return (
     <section className={styles.testCard}>
@@ -1336,6 +1390,11 @@ function LiveRunCard({
           <div className={styles.liveItemList}>
             {resultItems.map((item, itemIndex) => {
               const accession = String(item.accession_number || "");
+              const exactFilter = executionHistoryExactFilter(item);
+              const historyItemKey = exactFilter
+                ? `${exactFilter.key}:${exactFilter.value}`
+                : `unidentified:${itemIndex}`;
+              const persistedCheck = persistedChecks[historyItemKey] || { status: "unchecked", detailUrl: null };
               return (
                 <article className={styles.liveItem} key={`${accession}-${itemIndex}`}>
                   <div>
@@ -1353,9 +1412,26 @@ function LiveRunCard({
                         Use accession
                       </button>
                     ) : null}
-                    {typeof item.detail_url === "string" && item.detail_url ? (
-                      <a href={item.detail_url}>Open detail</a>
-                    ) : null}
+                  </div>
+                  <div className={styles.executionHistoryPersistedCheck}>
+                    <div>
+                      <strong>Current saved record</strong>
+                      <p>{formatExecutionHistoryPersistedCheck(persistedCheck.status, Boolean(exactFilter))}</p>
+                    </div>
+                    <div className={styles.executionHistoryPersistedActions}>
+                      {exactFilter ? (
+                        <button
+                          disabled={persistedCheck.status === "checking"}
+                          onClick={() => checkCurrentPersistedRecord(item, historyItemKey)}
+                          type="button"
+                        >
+                          {persistedCheck.status === "checking" ? "Checking current record..." : "Check current saved record"}
+                        </button>
+                      ) : null}
+                      {persistedCheck.status === "confirmed" && persistedCheck.detailUrl ? (
+                        <a href={persistedCheck.detailUrl}>Open confirmed current detail</a>
+                      ) : null}
+                    </div>
                   </div>
                   <RuntimeOutputCard value={item.runtime_output} />
                   <ValidationRepairTraceCard value={item.validation_repair_trace} />
@@ -1367,6 +1443,28 @@ function LiveRunCard({
           {run.diagnostics ? <pre className={styles.outputBlock}>{JSON.stringify(run.diagnostics, null, 2)}</pre> : null}
         </section>
   );
+}
+
+function executionHistoryExactFilter(item: Record<string, unknown>) {
+  return parseExactReviewFilter(clientString(item.event_id)) ||
+    parseExactReviewFilter(clientString(item.accession_number));
+}
+
+function formatExecutionHistoryPersistedCheck(
+  status: ExecutionHistoryPersistedCheck["status"],
+  canCheck: boolean,
+) {
+  if (!canCheck) return "No exact event ID or accession was saved, so the current persisted record was not checked.";
+  if (status === "checking") return "Checking the current persisted record with the shared exact lookup.";
+  if (status === "confirmed") return "Current persisted record confirmed by the exact saved-result lookup.";
+  if (status === "not_found") return "The execution result was recorded at run time; no current persisted record was found for this exact identifier.";
+  if (status === "read_unavailable") return "The current persisted record could not be checked. It was not treated as missing.";
+  return "This is the recorded execution outcome at run time. The current persisted record has not been checked.";
+}
+
+function safeClientLocalPath(value: unknown) {
+  const path = clientString(value);
+  return path.startsWith("/") && !path.startsWith("//") ? path : null;
 }
 
 function ValidationRepairTraceCard({ value }: { value: unknown }) {

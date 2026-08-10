@@ -1512,6 +1512,51 @@
   cursor: pointer;
 }
 
+.executionHistoryPersistedCheck {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.executionHistoryPersistedCheck strong {
+  font-size: 12px;
+}
+
+.executionHistoryPersistedCheck p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.executionHistoryPersistedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.executionHistoryPersistedActions button,
+.executionHistoryPersistedActions a {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17202a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.executionHistoryPersistedActions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .runtimeOutputCard {
   border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
@@ -2273,6 +2318,15 @@
   background: #111827;
 }
 
+:global(html[data-theme="dark"]) .executionHistoryPersistedCheck {
+  border-color: #334155;
+  background: #111827;
+}
+
+:global(html[data-theme="dark"]) .executionHistoryPersistedCheck p {
+  color: #cbd5e1;
+}
+
 :global(html[data-theme="dark"]) .promptCatalogHeading,
 :global(html[data-theme="dark"]) .correctionPromptDrawer,
 :global(html[data-theme="dark"]) .correctionPromptFacts,
@@ -2304,6 +2358,13 @@
 :global(html[data-theme="dark"]) .analysisReviewSearch button,
 :global(html[data-theme="dark"]) .analysisDetailActions button,
 :global(html[data-theme="dark"]) .analysisDetailActions a {
+  border-color: #475569;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+:global(html[data-theme="dark"]) .executionHistoryPersistedActions button,
+:global(html[data-theme="dark"]) .executionHistoryPersistedActions a {
   border-color: #475569;
   background: #0f172a;
   color: #e5e7eb;
