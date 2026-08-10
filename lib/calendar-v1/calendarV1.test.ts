@@ -41,6 +41,51 @@ import {
   selectStockCalendarEvents,
   selectUpcomingCalendarEvents,
 } from "./presentation.ts";
+import { resolveCalendarFlowState } from "./flowState.ts";
+
+test("Calendar flow state distinguishes response, filter, loading, and unavailable states", () => {
+  const baseInput = {
+    activeFilterCount: 0,
+    loadState: "ready" as const,
+    range: { from: "2026-08-17", to: "2026-08-23" },
+    sourceCount: 0,
+    visibleCount: 0,
+  };
+
+  assert.equal(resolveCalendarFlowState(baseInput).status, "source-empty");
+  assert.equal(
+    resolveCalendarFlowState({
+      ...baseInput,
+      activeFilterCount: 1,
+      sourceCount: 22,
+    }).status,
+    "filter-empty",
+  );
+  assert.equal(
+    resolveCalendarFlowState({
+      ...baseInput,
+      sourceCount: 22,
+      visibleCount: 22,
+    }).status,
+    "ready",
+  );
+  assert.equal(
+    resolveCalendarFlowState({ ...baseInput, loadState: "loading" }).status,
+    "loading",
+  );
+  assert.equal(
+    resolveCalendarFlowState({ ...baseInput, loadState: "error" }).status,
+    "unavailable",
+  );
+  assert.equal(
+    resolveCalendarFlowState({ ...baseInput, sourceCount: 22 }).status,
+    "unknown",
+  );
+  assert.equal(
+    resolveCalendarFlowState({ ...baseInput, sourceCount: Number.NaN }).status,
+    "unknown",
+  );
+});
 
 test("date-only helpers parse in local calendar time and reject rollover dates", () => {
   const date = parseDateOnly("2026-07-29");

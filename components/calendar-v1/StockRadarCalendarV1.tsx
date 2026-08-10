@@ -47,10 +47,13 @@ import {
 } from "@/lib/calendar-v1/model";
 import { parseCalendarEventsApiPayload } from "@/lib/calendar-v1/normalized";
 import {
-  formatEventCount,
   getCalendarEventIdentity,
   selectCalendarPreviewEvent,
 } from "@/lib/calendar-v1/presentation";
+import {
+  resolveCalendarFlowState,
+  type CalendarFlowState,
+} from "@/lib/calendar-v1/flowState";
 import { getPlanLimits, type Plan } from "@/lib/subscriptionPolicy";
 import type { CalendarEventFollowsViewModel } from "@/lib/alerts/types";
 import {
@@ -213,10 +216,15 @@ export function StockRadarCalendarV1({
     previewState === "loading" || previewState === "error"
       ? previewState
       : loadState;
+  const flowState = resolveCalendarFlowState({
+    activeFilterCount,
+    loadState: visibleLoadState,
+    range,
+    sourceCount: events.length,
+    visibleCount: filteredEvents.length,
+  });
   const canShowPreview =
-    visibleLoadState === "ready" &&
-    events.length > 0 &&
-    filteredEvents.length > 0;
+    flowState.status === "ready";
   const desktopPreviewEvent = canShowPreview
     ? selectCalendarPreviewEvent(
         filteredEvents,
@@ -412,16 +420,20 @@ export function StockRadarCalendarV1({
   }
 
   const content = (() => {
-    if (visibleLoadState === "loading") return <CalendarLoading />;
-    if (visibleLoadState === "error") return <CalendarError onRetry={retryLoad} />;
-    if (previewState === "empty" || !events.length) {
-      return <CalendarEmpty variant="all" onReset={retryLoad} />;
+    if (flowState.status === "loading") {
+      return <CalendarLoading state={flowState} />;
     }
-    if (!filteredEvents.length) {
+    if (flowState.status === "unavailable" || flowState.status === "unknown") {
+      return <CalendarError onRetry={retryLoad} state={flowState} />;
+    }
+    if (flowState.status === "source-empty") {
+      return <CalendarEmpty onReset={retryLoad} state={flowState} />;
+    }
+    if (flowState.status === "filter-empty") {
       return (
         <CalendarEmpty
-          variant="filters"
           onReset={() => setFilters(DEFAULT_CALENDAR_FILTERS)}
+          state={flowState}
         />
       );
     }
@@ -581,13 +593,20 @@ export function StockRadarCalendarV1({
         }
       >
         <section
+          aria-busy={flowState.status === "loading"}
           aria-label="Calendar results"
           className={styles.results}
+          data-calendar-active-filter-count={flowState.activeFilterCount}
+          data-calendar-range-from={flowState.rangeFrom}
+          data-calendar-range-to={flowState.rangeTo}
           data-calendar-results
+          data-calendar-source-count={flowState.sourceCount}
+          data-calendar-state={flowState.status}
+          data-calendar-visible-count={flowState.visibleCount}
         >
           <div className={styles.resultsSummary} aria-live="polite">
-            <span>{formatEventCount(filteredEvents.length)}</span>
-            {activeFilterCount ? <b>{activeFilterCount} filters active</b> : <b>All events</b>}
+            <span>{flowState.resultLabel}</span>
+            {flowState.activeFilterCount ? <b>{flowState.activeFilterCount} filters active</b> : <b>All events</b>}
           </div>
           {content}
         </section>
@@ -675,12 +694,12 @@ function EnglishDatePicker({
   );
 }
 
-function CalendarLoading() {
+function CalendarLoading({ state }: { state: CalendarFlowState }) {
   return (
-    <section aria-busy="true" aria-label="Loading calendar events" className={styles.statePanel}>
+    <section aria-busy="true" aria-label="Loading calendar events" className={styles.statePanel} role={state.role ?? undefined}>
       <LoaderCircle aria-hidden="true" className={styles.spin} size={27} />
-      <h2>Loading calendar events</h2>
-      <p>Preparing the selected event range.</p>
+      <h2>{state.title}</h2>
+      <p>{state.message}</p>
       <div className={styles.loadingRows} aria-hidden="true">
         <span /><span /><span />
       </div>
@@ -688,15 +707,15 @@ function CalendarLoading() {
   );
 }
 
-function CalendarError({ onRetry }: { onRetry: () => void }) {
+function CalendarError({ onRetry, state }: { onRetry: () => void; state: CalendarFlowState }) {
   return (
-    <section className={styles.statePanel} role="alert">
+    <section className={styles.statePanel} role={state.role ?? undefined}>
       <AlertTriangle aria-hidden="true" size={28} />
-      <h2>Calendar events could not be loaded</h2>
-      <p>Try the preview again. No saved data was changed.</p>
+      <h2>{state.title}</h2>
+      <p>{state.message}</p>
       <button onClick={onRetry} type="button">
         <RefreshCw aria-hidden="true" size={15} />
-        Retry
+        {state.actionLabel}
       </button>
     </section>
   );
@@ -704,22 +723,18 @@ function CalendarError({ onRetry }: { onRetry: () => void }) {
 
 function CalendarEmpty({
   onReset,
-  variant,
+  state,
 }: {
   onReset: () => void;
-  variant: "all" | "filters";
+  state: CalendarFlowState;
 }) {
   return (
-    <section className={styles.statePanel}>
-      {variant === "all" ? <CalendarDays aria-hidden="true" size={28} /> : <List aria-hidden="true" size={28} />}
-      <h2>{variant === "all" ? "No events in this range" : "No events match these filters"}</h2>
-      <p>
-        {variant === "all"
-          ? "Move to another period to continue exploring events."
-          : "Clear the filters or search to see the full calendar."}
-      </p>
+    <section className={styles.statePanel} role={state.role ?? undefined}>
+      {state.status === "source-empty" ? <CalendarDays aria-hidden="true" size={28} /> : <List aria-hidden="true" size={28} />}
+      <h2>{state.title}</h2>
+      <p>{state.message}</p>
       <button onClick={onReset} type="button">
-        {variant === "all" ? "Reload range" : "Reset filters"}
+        {state.actionLabel}
       </button>
     </section>
   );

@@ -62,6 +62,8 @@ git status --short
 
 - For Stock Detail News & Events investigation, start with `docs/STOCK_DETAIL_EVENTS_DIAGNOSTICS.md`; it defines the local public read-only path and section-scoped safe state interpretation.
 
+- For global Calendar user-flow investigation, start with `docs/CALENDAR_USER_FLOW_DIAGNOSTICS.md`; it defines the public date-range path and shared safe state interpretation.
+
 ## Investigation and change boundaries
 
 - Treat diagnosis, investigation, and review requests as read-only unless the user also explicitly requests a change. Do not alter code, product state, data, jobs, caches, or permissions while investigating.
