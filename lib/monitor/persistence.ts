@@ -3,11 +3,8 @@ type MutationResult = { ok: boolean; status: number; data: unknown; error?: stri
 
 export type MonitorPersistenceRepository = {
   select(table: string, search: Record<string, string>): Promise<MutationResult>;
-  upsert(
-    table: string,
-    payload: Row | Row[],
-    options?: { onConflict?: string; prefer?: string },
-  ): Promise<MutationResult>;
+  replaceMarketSnapshots(eventId: string, rows: Row[]): Promise<MutationResult>;
+  replaceOwnershipFacts(eventId: string, form4Rows: Row[], form144Rows: Row[]): Promise<MutationResult>;
 };
 
 export type EventSnapshotSubject = {
@@ -23,6 +20,10 @@ export type PersistOptionalMonitorFoundationInput = {
   primaryTicker?: EventSnapshotSubject | null;
   analysisMarketContext?: unknown;
   ownershipParserOutput?: unknown;
+  // "known" means a successful parser result, including a successful empty
+  // result that must clear stale rows. Missing/failed/not-applicable input must
+  // not be promoted to known-empty because it must preserve prior valid facts.
+  ownershipInputState?: "known" | "not_applicable";
 };
 
 export type OptionalMonitorPersistenceResult = {
@@ -86,14 +87,11 @@ export async function persistEventMarketSnapshots(
   const eventTime = requiredTimestamp(input.eventTime, "eventTime");
   const analysisContexts = extractAnalysisMarketContexts(input.analysisMarketContext, input.primaryTicker?.symbol);
   const subjects = await collectSnapshotSubjects(eventId, input.primaryTicker, analysisContexts, resolvedRepository);
-  if (!subjects.length) return 0;
 
   const rows = await Promise.all(
     subjects.map((subject) => resolveEventMarketSnapshotRow({ eventId, eventTime, subject, analysisContexts }, resolvedRepository)),
   );
-  const persisted = await resolvedRepository.upsert("event_market_snapshots", rows, {
-    onConflict: "event_id,symbol,security_key",
-  });
+  const persisted = await resolvedRepository.replaceMarketSnapshots(eventId, rows);
   assertMonitorMutation(persisted, "event market snapshots");
   return rows.length;
 }
@@ -104,24 +102,21 @@ export async function persistOwnershipParserFacts(
 ) {
   const resolvedRepository = await resolveRepository(repository);
   const eventId = requiredUuidLike(input.eventId, "eventId");
+  if (input.ownershipInputState !== "known") {
+    return { form4TransactionCount: 0, form144ProposedSaleCount: 0 };
+  }
   const rows = buildOwnershipFactRows({
     eventId,
     symbol: input.primaryTicker?.symbol || null,
     parserOutput: input.ownershipParserOutput,
   });
 
-  if (rows.form4Transactions.length) {
-    const persisted = await resolvedRepository.upsert("event_form4_transactions", rows.form4Transactions, {
-      onConflict: "event_id,transaction_index",
-    });
-    assertMonitorMutation(persisted, "Form 4 transaction facts");
-  }
-  if (rows.form144ProposedSales.length) {
-    const persisted = await resolvedRepository.upsert("event_form144_proposed_sales", rows.form144ProposedSales, {
-      onConflict: "event_id,proposed_sale_index",
-    });
-    assertMonitorMutation(persisted, "Form 144 proposed-sale facts");
-  }
+  const persisted = await resolvedRepository.replaceOwnershipFacts(
+    eventId,
+    rows.form4Transactions,
+    rows.form144ProposedSales,
+  );
+  assertMonitorMutation(persisted, "ownership facts");
 
   return {
     form4TransactionCount: rows.form4Transactions.length,
@@ -141,6 +136,7 @@ export function buildOwnershipFactRows({
   requiredUuidLike(eventId, "eventId");
   const output = record(parserOutput);
   const facts = record(output?.facts);
+  if (!output || !facts) throw new Error("Ownership parser output is not a successful typed result");
   const filing = record(facts?.filing);
   const form4 = record(facts?.form4);
   const form144 = record(facts?.form144);
@@ -153,19 +149,34 @@ export function buildOwnershipFactRows({
     source_confidence: string(filing?.source_confidence) || null,
     accession_number: string(output?.accessionNumber) || null,
   };
-  const reportingOwnerNames = records(facts?.reporting_owners)
+  const reportingOwners = records(facts?.reporting_owners);
+  const reportingOwnerNames = reportingOwners
     .map((owner) => nullableString(owner.name))
     .filter((name): name is string => Boolean(name));
+  const reportingOwnerRoles = uniqueStrings(reportingOwners.flatMap((owner) => stringArray(owner.roles)));
+  const officerTitles = uniqueStrings(reportingOwners.map((owner) => nullableString(owner.title)));
+  const isOfficer = anySuppliedBoolean(reportingOwners, "is_officer");
+  const isDirector = anySuppliedBoolean(reportingOwners, "is_director");
+  const is10PercentOwner = anySuppliedBoolean(reportingOwners, "is_ten_percent_owner");
+  const is10b51 = nullableBoolean(filing?.aff_10b5_1);
 
   const form4Transactions = records(form4?.transactions).map((transaction, transactionIndex) => {
     const shares = nonnegativeNumber(transaction.shares);
     const price = nonnegativeNumber(transaction.price_per_share);
+    const postTransactionShares = nonnegativeNumber(transaction.shares_owned_following);
     const transactionValue = shares !== null && price !== null ? round(shares * price, 4) : null;
     return compact({
       event_id: eventId,
       transaction_index: transactionIndex,
       symbol: normalizedSymbol,
       reporting_owner_names: reportingOwnerNames,
+      reporting_owner_roles: reportingOwnerRoles,
+      officer_titles: officerTitles,
+      is_officer: isOfficer,
+      is_director: isDirector,
+      is_10_percent_owner: is10PercentOwner,
+      officer_title: officerTitles.length === 1 ? officerTitles[0] : null,
+      is_10b5_1: is10b51,
       transaction_kind: oneOf(transaction.transaction_kind, ["non_derivative", "derivative"]) || "non_derivative",
       security_title: nullableString(transaction.security_title),
       transaction_date: date(transaction.transaction_date),
@@ -174,12 +185,22 @@ export function buildOwnershipFactRows({
       acquired_disposed_code: oneOf(transaction.acquired_disposed_code, ["A", "D"]),
       shares,
       shares_quality: shares === null ? null : "exact",
+      shares_value_quality: valueQuality(shares, "exact"),
+      shares_availability: availability(shares),
       price_per_share: price,
       price_per_share_quality: price === null ? null : "exact",
+      price_per_share_value_quality: valueQuality(price, "exact"),
+      price_per_share_availability: availability(price),
       transaction_value: transactionValue,
       transaction_value_quality: transactionValue === null ? null : "derived",
+      transaction_value_value_quality: valueQuality(transactionValue, "derived"),
+      transaction_value_availability: availability(transactionValue),
+      post_transaction_shares: postTransactionShares,
+      post_transaction_shares_value_quality: valueQuality(postTransactionShares, "exact"),
+      post_transaction_shares_availability: availability(postTransactionShares),
       direct_or_indirect_ownership: oneOf(transaction.direct_or_indirect_ownership, ["D", "I"]),
       nature_of_ownership: nullableString(transaction.nature_of_ownership),
+      fact_as_of: date(transaction.transaction_date),
       confidence,
       provenance,
       evidence: stringArray(transaction.evidence),
@@ -213,15 +234,25 @@ export function buildOwnershipFactRows({
       symbol: normalizedSymbol,
       seller_name: nullableString(form144?.seller_name) || nullableString(form144?.account_person_name),
       security_title: nullableString(sale.securities_class_title) || nullableString(form144?.securities_class_title),
+      exchange: nullableString(sale.securities_exchange_name) || nullableString(form144?.securities_exchange_name),
       securities_to_be_sold: securitiesToBeSold,
       securities_to_be_sold_quality: securitiesToBeSold === null ? null : "exact",
+      securities_to_be_sold_value_quality: valueQuality(securitiesToBeSold, "exact"),
+      securities_to_be_sold_availability: availability(securitiesToBeSold),
       aggregate_market_value: aggregateMarketValue,
       aggregate_market_value_quality: aggregateMarketValue === null ? null : "exact",
+      aggregate_market_value_value_quality: valueQuality(aggregateMarketValue, "exact"),
+      aggregate_market_value_availability: availability(aggregateMarketValue),
       approximate_sale_date: date(sale.approximate_sale_date) || date(form144?.approximate_sale_date),
       shares_outstanding: sharesOutstanding,
       shares_outstanding_quality: sharesOutstanding === null ? null : "exact",
+      shares_outstanding_value_quality: valueQuality(sharesOutstanding, "exact"),
+      shares_outstanding_availability: availability(sharesOutstanding),
       proposed_sale_percent: proposedSalePercent,
       proposed_sale_percent_quality: proposedSalePercent === null ? null : "derived",
+      proposed_sale_percent_value_quality: valueQuality(proposedSalePercent, "derived"),
+      proposed_sale_percent_availability: availability(proposedSalePercent),
+      fact_as_of: date(sale.approximate_sale_date) || date(form144?.approximate_sale_date),
       confidence,
       provenance,
       evidence: uniqueStrings([
@@ -350,29 +381,28 @@ async function resolveEventMarketSnapshotRow(
   const fieldSources: Record<string, unknown> = {};
   const sourceNames = new Set<string>();
   const sourceKinds = new Set<string>();
-
-  let price = marketPrice(matchingContext?.value);
-  let marketCap = nonnegativeNumber(matchingContext?.value.market_cap);
+  const contextValue = matchingContext?.value;
+  let price = analysisMarketValue(contextValue, ["price", "latest_price", "previous_close"], "price");
+  let marketCap = analysisMarketValue(contextValue, ["market_cap"], "market_cap");
+  let sharesOutstanding = analysisMarketValue(contextValue, ["shares_outstanding"], "shares_outstanding");
+  let floatShares = analysisMarketValue(contextValue, ["public_float", "float_shares", "float"], "public_float");
   let sourceAsOf = timestamp(
-    matchingContext?.value.as_of || matchingContext?.value.fetched_at || matchingContext?.value.retrieved_at,
+    contextValue?.as_of || contextValue?.fetched_at || contextValue?.retrieved_at,
   );
-  if (price !== null) {
-    const source = marketFieldSource(matchingContext?.value, "price") || "analysis_market_context";
-    fieldSources.price = { kind: "analysis_context", source, as_of: sourceAsOf };
-    sourceKinds.add("analysis_context");
-    sourceNames.add(source);
-  }
-  if (marketCap !== null) {
-    const source = marketFieldSource(matchingContext?.value, "market_cap") || "analysis_market_context";
-    fieldSources.market_cap = { kind: "analysis_context", source, as_of: sourceAsOf };
-    sourceKinds.add("analysis_context");
-    sourceNames.add(source);
+  for (const [key, fact] of Object.entries({ price, market_cap: marketCap, shares_outstanding: sharesOutstanding, float_shares: floatShares })) {
+    if (fact.value !== null) {
+      const sourceKey = key === "float_shares" && nonnegativeNumber(contextValue?.public_float) !== null ? "public_float" : key;
+      const source = marketFieldSource(contextValue, sourceKey) || "analysis_market_context";
+      fieldSources[key] = { kind: "analysis_context", source, as_of: sourceAsOf, value_quality: fact.quality };
+      sourceKinds.add("analysis_context");
+      sourceNames.add(source);
+    }
   }
 
-  if (price === null || marketCap === null) {
+  if ([price, marketCap, sharesOutstanding, floatShares].some((fact) => fact.value === null)) {
     const [snapshotsResult, quotesResult, tickerResult] = await Promise.all([
       repository.select("market_snapshots", {
-        select: "ticker,price,market_cap,source,fetched_at",
+        select: "ticker,price,market_cap,shares_outstanding,float_shares,source,fetched_at",
         ticker: `eq.${symbol}`,
         order: "fetched_at.desc",
         limit: "1",
@@ -395,38 +425,70 @@ async function resolveEventMarketSnapshotRow(
     const quote = validQuote(first(quotesResult.data), eventMs);
     const ticker = freshRow(first(tickerResult.data), eventMs, tickerCatalogMaxAgeMs, "last_profiled_at", "updated_at");
 
-    if (price === null) {
-      price = nonnegativeNumber(localSnapshot?.price) ?? nonnegativeNumber(quote?.price) ?? nonnegativeNumber(quote?.previous_close);
-      const sourceRow = localSnapshot && nonnegativeNumber(localSnapshot.price) !== null ? localSnapshot : price !== null ? quote : null;
-      if (price !== null && sourceRow) {
+    if (price.value === null) {
+      const localValue = nonnegativeNumber(localSnapshot?.price);
+      const quoteValue = nonnegativeNumber(quote?.price) ?? nonnegativeNumber(quote?.previous_close);
+      const sourceRow = localValue !== null ? localSnapshot : quoteValue !== null ? quote : null;
+      const value = localValue ?? quoteValue;
+      if (value !== null && sourceRow) {
+        price = { value, quality: "exact" };
         const isSnapshot = sourceRow === localSnapshot;
         const source = nullableString(sourceRow.source) || nullableString(sourceRow.provider) || (isSnapshot ? "market_snapshots" : "market_quotes");
         const asOf = timestamp(sourceRow.fetched_at);
-        fieldSources.price = { kind: isSnapshot ? "local_market_snapshot" : "local_cache", source, as_of: asOf };
+        fieldSources.price = { kind: isSnapshot ? "local_market_snapshot" : "local_cache", source, as_of: asOf, value_quality: "exact" };
         sourceKinds.add(isSnapshot ? "local_market_snapshot" : "local_cache");
         sourceNames.add(source);
         sourceAsOf = latestTimestamp(sourceAsOf, asOf);
       }
     }
-    if (marketCap === null) {
-      marketCap = nonnegativeNumber(localSnapshot?.market_cap) ?? nonnegativeNumber(ticker?.market_cap);
-      const sourceRow = localSnapshot && nonnegativeNumber(localSnapshot.market_cap) !== null ? localSnapshot : marketCap !== null ? ticker : null;
-      if (marketCap !== null && sourceRow) {
+    if (marketCap.value === null) {
+      const snapshotValue = nonnegativeNumber(localSnapshot?.market_cap);
+      const tickerValue = nonnegativeNumber(ticker?.market_cap);
+      const sourceRow = snapshotValue !== null ? localSnapshot : tickerValue !== null ? ticker : null;
+      const value = snapshotValue ?? tickerValue;
+      if (value !== null && sourceRow) {
+        marketCap = { value, quality: "exact" };
         const isSnapshot = sourceRow === localSnapshot;
         const source = nullableString(sourceRow.source) || (isSnapshot ? "market_snapshots" : "tickers");
         const asOf = timestamp(sourceRow.fetched_at || sourceRow.last_profiled_at || sourceRow.updated_at);
-        fieldSources.market_cap = { kind: isSnapshot ? "local_market_snapshot" : "local_cache", source, as_of: asOf };
+        fieldSources.market_cap = { kind: isSnapshot ? "local_market_snapshot" : "local_cache", source, as_of: asOf, value_quality: "exact" };
         sourceKinds.add(isSnapshot ? "local_market_snapshot" : "local_cache");
+        sourceNames.add(source);
+        sourceAsOf = latestTimestamp(sourceAsOf, asOf);
+      }
+    }
+    if (sharesOutstanding.value === null) {
+      const value = nonnegativeNumber(localSnapshot?.shares_outstanding);
+      if (value !== null && localSnapshot) {
+        sharesOutstanding = { value, quality: "exact" };
+        const source = nullableString(localSnapshot.source) || "market_snapshots";
+        const asOf = timestamp(localSnapshot.fetched_at);
+        fieldSources.shares_outstanding = { kind: "local_market_snapshot", source, as_of: asOf, value_quality: "exact" };
+        sourceKinds.add("local_market_snapshot");
+        sourceNames.add(source);
+        sourceAsOf = latestTimestamp(sourceAsOf, asOf);
+      }
+    }
+    if (floatShares.value === null) {
+      const value = nonnegativeNumber(localSnapshot?.float_shares);
+      if (value !== null && localSnapshot) {
+        floatShares = { value, quality: "exact" };
+        const source = nullableString(localSnapshot.source) || "market_snapshots";
+        const asOf = timestamp(localSnapshot.fetched_at);
+        fieldSources.float_shares = { kind: "local_market_snapshot", source, as_of: asOf, value_quality: "exact" };
+        sourceKinds.add("local_market_snapshot");
         sourceNames.add(source);
         sourceAsOf = latestTimestamp(sourceAsOf, asOf);
       }
     }
   }
 
-  const snapshotStatus = price !== null && marketCap !== null ? "available" : price !== null || marketCap !== null ? "partial" : "unavailable";
-  const sourceKind = snapshotStatus === "unavailable"
-    ? "unavailable"
-    : sourceKinds.size > 1
+  const snapshotStatus = price.value !== null && marketCap.value !== null
+    ? "available"
+    : price.value !== null || marketCap.value !== null
+      ? "partial"
+      : "unavailable";
+  const sourceKind = sourceKinds.size > 1
       ? "mixed"
       : [...sourceKinds][0] || "unavailable";
   return compact({
@@ -438,10 +500,18 @@ async function resolveEventMarketSnapshotRow(
     snapshot_status: snapshotStatus,
     event_time: input.eventTime,
     source_as_of: sourceAsOf,
-    price,
-    price_quality: price === null ? "unavailable" : "exact",
-    market_cap: marketCap,
-    market_cap_quality: marketCap === null ? "unavailable" : "exact",
+    price: price.value,
+    price_value_quality: price.quality,
+    price_availability: availability(price.value),
+    market_cap: marketCap.value,
+    market_cap_value_quality: marketCap.quality,
+    market_cap_availability: availability(marketCap.value),
+    shares_outstanding: sharesOutstanding.value,
+    shares_outstanding_value_quality: sharesOutstanding.quality,
+    shares_outstanding_availability: availability(sharesOutstanding.value),
+    float_shares: floatShares.value,
+    float_shares_value_quality: floatShares.quality,
+    float_shares_availability: availability(floatShares.value),
     source_kind: sourceKind,
     source_name: [...sourceNames].join("+") || null,
     unavailable_reason: snapshotStatus === "unavailable" ? "analysis_context_and_valid_local_market_data_unavailable" : null,
@@ -472,12 +542,37 @@ function validQuote(value: unknown, eventMs: number) {
 }
 
 function hasMarketValue(value: Row) {
-  return marketPrice(value) !== null || nonnegativeNumber(value.market_cap) !== null;
+  return [
+    marketPrice(value),
+    nonnegativeNumber(value.market_cap),
+    nonnegativeNumber(value.shares_outstanding),
+    nonnegativeNumber(value.public_float),
+    nonnegativeNumber(value.float_shares),
+    nonnegativeNumber(value.float),
+  ].some((item) => item !== null);
 }
 
 function marketPrice(value: Row | null | undefined) {
   if (!value) return null;
   return nonnegativeNumber(value.price) ?? nonnegativeNumber(value.latest_price) ?? nonnegativeNumber(value.previous_close);
+}
+
+type ValueQuality = "exact" | "derived" | "estimated" | "unknown";
+
+function analysisMarketValue(value: Row | null | undefined, keys: string[], qualityKey: string) {
+  const numeric = keys.map((key) => nonnegativeNumber(value?.[key])).find((item) => item !== null) ?? null;
+  const quality = marketFieldQuality(value, qualityKey);
+  if (numeric === null || quality === "unknown") return { value: null, quality: "unknown" as const };
+  return { value: numeric, quality };
+}
+
+function marketFieldQuality(value: Row | null | undefined, key: string): ValueQuality {
+  const candidate =
+    record(value?.field_quality)?.[key] ??
+    record(value?.value_quality)?.[key] ??
+    value?.[`${key}_value_quality`] ??
+    value?.[`${key}_quality`];
+  return oneOf(candidate, ["exact", "derived", "estimated", "unknown"] as const) || "exact";
 }
 
 function marketFieldSource(value: Row | null | undefined, key: string) {
@@ -531,6 +626,23 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[]) {
 function nonnegativeNumber(value: unknown) {
   const numeric = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
   return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+}
+
+function valueQuality(value: number | null, availableQuality: Exclude<ValueQuality, "unknown">): ValueQuality {
+  return value === null ? "unknown" : availableQuality;
+}
+
+function availability(value: number | null) {
+  return value === null ? "unavailable" : "available";
+}
+
+function nullableBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function anySuppliedBoolean(rows: Row[], key: string) {
+  const values = rows.map((row) => nullableBoolean(row[key])).filter((value): value is boolean => value !== null);
+  return values.length ? values.some(Boolean) : null;
 }
 
 function round(value: number, digits: number) {
@@ -608,7 +720,14 @@ async function resolveRepository(repository?: MonitorPersistenceRepository): Pro
   const supabase = await import("../supabase.ts");
   return {
     select: supabase.supabaseSelect,
-    upsert: supabase.supabaseUpsert,
+    replaceMarketSnapshots: (eventId, rows) =>
+      supabase.supabaseRpc("replace_event_market_snapshots", { p_event_id: eventId, p_rows: rows }),
+    replaceOwnershipFacts: (eventId, form4Rows, form144Rows) =>
+      supabase.supabaseRpc("replace_event_ownership_facts", {
+        p_event_id: eventId,
+        p_form4_rows: form4Rows,
+        p_form144_rows: form144Rows,
+      }),
   };
 }
 

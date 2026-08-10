@@ -223,6 +223,7 @@ export async function saveAnalyzedSecFilingEvent({
       : null,
     analysisMarketContext: marketContext,
     ownershipParserOutput: toRecord(toRecord(filingPackage.hard_parsers)?.ownership),
+    ownershipInputState: toRecord(toRecord(filingPackage.hard_parsers)?.ownership) ? "known" : "not_applicable",
   });
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
 

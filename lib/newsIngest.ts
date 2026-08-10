@@ -1289,6 +1289,7 @@ async function persistAnalyzedEvent({
         }
       : null,
     analysisMarketContext: marketContext,
+    ownershipInputState: "not_applicable",
   });
 
   return eventRow;
