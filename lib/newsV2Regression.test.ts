@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseNewsV2Statistics } from "./newsV2ApiContract.ts";
 import { hasResettableNewsV2State } from "./newsV2FilterState.ts";
+import { resolveNewsV2FlowState } from "./newsV2FlowState.ts";
 import { hydrateNewsV2ItemMarketData } from "./newsV2MarketHydration.ts";
 import { getEventListIdentity } from "./eventListIdentity.ts";
 import { buildGooglePreferredSourceUrl } from "./googlePreferredSource.ts";
@@ -39,6 +40,77 @@ const baseItem: NewsV2Item = {
   trend: [],
   deliveryLevel: "feed",
 };
+
+test("News V2 flow state distinguishes source, filter, loading, and unavailable results", () => {
+  const baseInput = {
+    filters: emptyFilters,
+    hasError: false,
+    isLoading: false,
+    itemCount: 0,
+    query: "",
+    totalCount: 0,
+  };
+
+  assert.deepEqual(resolveNewsV2FlowState(baseInput), {
+    hasActiveCriteria: false,
+    message: "The current News source returned no stories.",
+    resultLabel: "0 of 0 stories",
+    role: "status",
+    status: "source-empty",
+    title: "No news available",
+    totalCount: 0,
+    visibleCount: 0,
+  });
+  assert.equal(
+    resolveNewsV2FlowState({ ...baseInput, query: "NO_MATCH" }).status,
+    "filter-empty",
+  );
+  assert.equal(
+    resolveNewsV2FlowState({
+      ...baseInput,
+      filters: { ...emptyFilters, sentiments: ["Bullish"] },
+    }).status,
+    "filter-empty",
+  );
+  assert.equal(
+    resolveNewsV2FlowState({ ...baseInput, hasError: true }).status,
+    "unavailable",
+  );
+  assert.equal(
+    resolveNewsV2FlowState({ ...baseInput, hasError: true, isLoading: true }).status,
+    "loading",
+  );
+  assert.equal(
+    resolveNewsV2FlowState({
+      ...baseInput,
+      hasError: true,
+      itemCount: 1,
+      totalCount: 1,
+    }).status,
+    "ready",
+  );
+});
+
+test("News V2 screen and safe DOM observation use the shared flow state", () => {
+  const clientSource = readFileSync(
+    new URL("../components/news-v2/StockRadarNewsV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const listSource = readFileSync(
+    new URL("../components/news-v2/NewsV2List.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(clientSource, /resolveNewsV2FlowState/);
+  assert.match(clientSource, /data-news-state=\{flowState\.status\}/);
+  assert.match(clientSource, /data-news-visible-count=\{flowState\.visibleCount\}/);
+  assert.match(clientSource, /data-news-total-count=\{flowState\.totalCount\}/);
+  assert.match(clientSource, /data-news-has-active-criteria=\{flowState\.hasActiveCriteria\}/);
+  assert.match(listSource, /\{flowState\.resultLabel\}/);
+  assert.match(listSource, /\{flowState\.title\}/);
+  assert.match(listSource, /\{flowState\.message\}/);
+  assert.doesNotMatch(clientSource, /data-news-error/);
+});
 
 test("News V2 uses the shared market-cap labels and DB filter bands", () => {
   const optionSource = readFileSync(
