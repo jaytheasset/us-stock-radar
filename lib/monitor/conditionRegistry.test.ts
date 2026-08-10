@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   getReadyMonitorCondition,
   getReadyMonitorConditions,
+  MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
   MONITOR_CONDITION_REGISTRY,
   MONITOR_CONDITION_REGISTRY_VERSION,
 } from "./conditionRegistry.ts";
@@ -29,6 +30,11 @@ test("registry separates value quality from availability and only exposes proven
   assert.deepEqual(getReadyMonitorCondition("ownership.form144.proposed_sale_value")?.qualityCapability, ["exact", "unknown"]);
   assert.equal(getReadyMonitorCondition("ownership.form144.proposed_sale_percent"), null);
   assert.equal(getReadyMonitorCondition("ownership.form4.shares"), null);
+});
+
+test("future comparisons exclude unknown quality even when its numeric value is available", () => {
+  assert.deepEqual(MONITOR_COMPARISON_ELIGIBLE_QUALITIES, ["exact", "derived", "estimated"]);
+  assert.equal(MONITOR_COMPARISON_ELIGIBLE_QUALITIES.includes("unknown" as never), false);
 });
 
 test("common event scope fields and eligible ownership roles are READY canonical DB sources", () => {

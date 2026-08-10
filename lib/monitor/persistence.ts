@@ -562,7 +562,7 @@ type ValueQuality = "exact" | "derived" | "estimated" | "unknown";
 function analysisMarketValue(value: Row | null | undefined, keys: string[], qualityKey: string) {
   const numeric = keys.map((key) => nonnegativeNumber(value?.[key])).find((item) => item !== null) ?? null;
   const quality = marketFieldQuality(value, qualityKey);
-  if (numeric === null || quality === "unknown") return { value: null, quality: "unknown" as const };
+  if (numeric === null) return { value: null, quality: "unknown" as const };
   return { value: numeric, quality };
 }
 

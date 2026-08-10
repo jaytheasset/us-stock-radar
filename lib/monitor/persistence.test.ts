@@ -92,9 +92,20 @@ test("analysis context wins, preserves offering separation, and stores shares/fl
   assert.equal(row.price_value_quality, "exact");
   assert.equal(row.market_cap_value_quality, "estimated");
   assert.equal(row.shares_outstanding_value_quality, "derived");
-  assert.equal(row.float_shares, null);
+  assert.equal(row.float_shares, 20_000_000);
   assert.equal(row.float_shares_value_quality, "unknown");
-  assert.equal(row.float_shares_availability, "unavailable");
+  assert.equal(row.float_shares_availability, "available");
+  assert.deepEqual(row.field_sources, {
+    price: { kind: "analysis_context", source: "analysis_fixture", as_of: "2026-08-10T23:58:00.000Z", value_quality: "exact" },
+    market_cap: { kind: "analysis_context", source: "analysis_fixture", as_of: "2026-08-10T23:58:00.000Z", value_quality: "estimated" },
+    shares_outstanding: { kind: "analysis_context", source: "analysis_fixture", as_of: "2026-08-10T23:58:00.000Z", value_quality: "derived" },
+    float_shares: { kind: "analysis_context", source: "analysis_fixture", as_of: "2026-08-10T23:58:00.000Z", value_quality: "unknown" },
+  });
+  assert.equal(row.source_as_of, "2026-08-10T23:58:00.000Z");
+  assert.deepEqual(row.provenance, {
+    resolution_order: ["analysis_context", "market_snapshots", "market_quotes", "tickers"],
+    no_external_fetch: true,
+  });
   assert.equal(row.source_kind, "analysis_context");
   assert.equal("offering_amount" in row, false);
   assert.equal("price_quality" in row, false);

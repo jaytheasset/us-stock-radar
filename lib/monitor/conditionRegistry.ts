@@ -14,6 +14,15 @@ export type MonitorConditionOperator =
   | "after";
 export type MonitorConditionQuality = "exact" | "derived" | "estimated" | "unknown";
 
+// Storage can retain an available numeric observation with unknown quality for
+// provenance. A future matcher must intersect an entry's qualityCapability
+// with this list and must also require availability = "available".
+export const MONITOR_COMPARISON_ELIGIBLE_QUALITIES = Object.freeze([
+  "exact",
+  "derived",
+  "estimated",
+] as const);
+
 type MonitorFactTable =
   | "events"
   | "event_market_snapshots"
