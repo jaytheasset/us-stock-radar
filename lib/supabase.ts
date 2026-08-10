@@ -6,6 +6,10 @@ import {
 } from "@/lib/eventTickerLinkage";
 import { liveFeedEventVisibilityOrFilter } from "@/lib/liveFeedEventPolicy";
 import { buildEventAlertScoreFilters } from "@/lib/supabaseEventFilters";
+import {
+  readSecIssuerTickerCatalogRow,
+  resolveIssuerLinkedTickersFromCatalog,
+} from "@/lib/serviceTickerCatalogPolicy";
 
 export type FetchEventsParams = {
   limit: number;
@@ -320,47 +324,33 @@ async function resolveIssuerLinkedTickers(tickers: readonly string[]) {
   const issuerCiks = Array.from(
     new Set(
       requestedRows.data
-        .map((row) => readSecCikFromTickerRow(row))
+        .map((row) => readSecIssuerTickerCatalogRow(row)?.issuerCik || "")
         .filter(Boolean),
     ),
   );
   if (!issuerCiks.length) return normalizedTickers;
 
   const siblingRows = await supabaseRest("tickers", {
-    select: "symbol,metadata",
+    select: "symbol,name,exchange,asset_type,is_active,metadata",
     "metadata->>sec_cik":
       issuerCiks.length === 1
         ? `eq.${issuerCiks[0]}`
         : `in.(${issuerCiks.join(",")})`,
     is_active: "eq.true",
+    asset_type: "in.(stock,adr_or_class)",
+    "metadata->>provider": "eq.fmp",
     limit: "250",
   });
   if (!siblingRows.ok || !Array.isArray(siblingRows.data)) {
     return normalizedTickers;
   }
 
-  return normalizeEventTickers([
-    ...normalizedTickers,
-    ...siblingRows.data.map((row) => readTickerSymbol(row)),
-  ]);
-}
-
-function readSecCikFromTickerRow(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const metadata = (value as Record<string, unknown>).metadata;
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return "";
-  }
-  const rawCik = (metadata as Record<string, unknown>).sec_cik;
-  return typeof rawCik === "string" && /^\d{1,10}$/.test(rawCik.trim())
-    ? rawCik.trim()
-    : "";
-}
-
-function readTickerSymbol(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const symbol = (value as Record<string, unknown>).symbol;
-  return typeof symbol === "string" ? symbol : "";
+  return resolveIssuerLinkedTickersFromCatalog({
+    requestedTickers: normalizedTickers,
+    requestedSecIssuerRows: requestedRows.data,
+    secIssuerCandidateRows: siblingRows.data,
+    fmpTickerRows: siblingRows.data,
+  });
 }
 
 async function supabaseRest(table: string, search: Record<string, string>) {

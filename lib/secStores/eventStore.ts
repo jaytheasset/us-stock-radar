@@ -7,8 +7,13 @@ import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/
 import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
 import {
   buildSecIssuerEventTickerRows,
+  buildSecIssuerSecurityLinkageMetadata,
   buildSecFilingGroupDedupe,
+  readSecAnalysisContextTickers,
+  resolveSecIssuerProductTickerState,
+  resolveSecIssuerSecurityEvidence,
   resolveSecIssuerSecurityLinkage,
+  type SecIssuerSecurityEvidence,
   type SecIssuerSecurityLinkage,
 } from "@/lib/secIssuerEventLinkage";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
@@ -69,9 +74,17 @@ export async function saveAnalyzedSecFilingEvent({
   const eventType = normalizeEventType(stringValue(analysis.event_type));
   const signal = normalizeSignal(stringValue(analysis.signal));
   const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
-  const issuerSecurityLinkage = resolveSecIssuerSecurityLinkage(rawPayload);
-  const primaryTicker = issuerSecurityLinkage?.displaySecurity ||
-    readPrimaryTicker(analysis, rawPayload, filingPackage);
+  const issuerSecurityEvidence = resolveSecIssuerSecurityEvidence(rawPayload);
+  const issuerSecurityLinkage = await resolveFmpValidatedIssuerSecurityLinkage(
+    rawPayload,
+    issuerSecurityEvidence,
+  );
+  const tickerState = resolveSecIssuerProductTickerState({
+    evidence: issuerSecurityEvidence,
+    fallback: readPrimaryTicker(analysis, rawPayload, filingPackage),
+    linkage: issuerSecurityLinkage,
+  });
+  const primaryTicker = tickerState.primarySecurity;
   const groupDedupe = buildSecFilingGroupDedupe(rawRow);
   const groupDedupeKey = groupDedupe.groupDedupeKey;
   const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
@@ -123,12 +136,7 @@ export async function saveAnalyzedSecFilingEvent({
       form_type: nullableString(rawPayload.form_type),
       cik: nullableString(rawPayload.cik),
       issuer_security_linkage: issuerSecurityLinkage
-        ? {
-            display_ticker: issuerSecurityLinkage.displaySecurity.ticker,
-            issuer_cik: issuerSecurityLinkage.issuerCik,
-            source: issuerSecurityLinkage.source,
-            tickers: issuerSecurityLinkage.securities.map((security) => security.ticker),
-          }
+        ? buildSecIssuerSecurityLinkageMetadata(issuerSecurityLinkage)
         : null,
       primary_document_url: nullableString(rawPayload.primary_document_url),
       confidence: stringValue(analysis.confidence),
@@ -205,6 +213,32 @@ export async function saveAnalyzedSecFilingEvent({
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
 
   return eventRow;
+}
+
+async function resolveFmpValidatedIssuerSecurityLinkage(
+  rawPayload: Record<string, unknown>,
+  evidence: SecIssuerSecurityEvidence | null,
+) {
+  if (!evidence) return null;
+
+  const symbols = evidence.candidateSecurities.map(
+    (security) => security.ticker,
+  );
+  const fmpTickerResult = await supabaseSelect("tickers", {
+    select: "symbol,name,exchange,asset_type,is_active,metadata",
+    symbol: `in.(${symbols.join(",")})`,
+    is_active: "eq.true",
+    asset_type: "in.(stock,adr_or_class)",
+    "metadata->>provider": "eq.fmp",
+    limit: String(Math.max(20, symbols.length * 2)),
+  });
+
+  return resolveSecIssuerSecurityLinkage(
+    rawPayload,
+    fmpTickerResult.ok && Array.isArray(fmpTickerResult.data)
+      ? fmpTickerResult.data
+      : [],
+  );
 }
 
 function compactParentFilingContextForMetadata(value: unknown) {
@@ -602,6 +636,11 @@ function buildTickerRows(
 ) {
   const rows: Array<Record<string, unknown>> = [];
   const seen = new Set<string>();
+  const excludedIssuerSymbols = new Set(
+    issuerSecurityLinkage?.excludedSecurities.map(
+      (security) => security.ticker,
+    ) || [],
+  );
   const push = (input: {
     symbol: string | null;
     exchange?: string | null;
@@ -611,7 +650,7 @@ function buildTickerRows(
     metadata?: Record<string, unknown>;
   }) => {
     const symbol = stringValue(input.symbol).toUpperCase();
-    if (!symbol) return;
+    if (!symbol || excludedIssuerSymbols.has(symbol)) return;
     const role = normalizeTickerRole(input.role || "related");
     if (seen.has(symbol)) return;
     seen.add(symbol);
@@ -650,21 +689,12 @@ function buildTickerRows(
     });
   }
 
-  for (const item of recordArray(analysis.tickers)) {
+  for (const item of readSecAnalysisContextTickers(analysis)) {
     push({
-      symbol: stringValue(item.ticker),
-      exchange: stringValue(item.exchange),
-      role: stringValue(item.role),
-      reason: stringValue(item.reason),
-    });
-  }
-
-  for (const item of recordArray(analysis.related_tickers)) {
-    push({
-      symbol: stringValue(item.ticker),
-      exchange: stringValue(item.exchange),
-      role: "related",
-      reason: stringValue(item.reason),
+      symbol: item.ticker,
+      exchange: item.exchange,
+      role: item.role,
+      reason: item.reason,
     });
   }
 

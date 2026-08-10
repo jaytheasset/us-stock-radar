@@ -249,7 +249,7 @@ async function upsertTickers(client, rows) {
         asset_type = excluded.asset_type,
         market_cap = excluded.market_cap,
         is_active = excluded.is_active,
-        metadata = excluded.metadata,
+        metadata = tickers.metadata || excluded.metadata,
         last_profiled_at = excluded.last_profiled_at,
         updated_at = now()`,
       values,

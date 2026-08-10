@@ -1,6 +1,32 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { registerHooks } from "node:module";
 import test from "node:test";
+import { matchWatchedEventTickers } from "./eventDeliveryDedupe.ts";
+import type { NormalizedAlertEvent } from "./types.ts";
+
+const projectRootUrl = new URL("../../../", import.meta.url);
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") {
+      return {
+        shortCircuit: true,
+        url: "data:text/javascript,export%20%7B%7D;",
+      };
+    }
+    if (specifier.startsWith("@/")) {
+      return {
+        shortCircuit: true,
+        url: new URL(`${specifier.slice(2)}.ts`, projectRootUrl).href,
+      };
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { evaluateAlertDeliveryForEvent } = await import(
+  "./evaluateAlertDelivery.ts"
+);
 
 function readProjectFile(path: string) {
   return readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
@@ -25,6 +51,7 @@ const adminTelegramDelivery = readProjectFile(
 const deliveryEvaluation = readProjectFile(
   "lib/alerts/delivery/evaluateAlertDelivery.ts",
 );
+const secEventStore = readProjectFile("lib/secStores/eventStore.ts");
 const alertsConfig = readProjectFile("lib/alerts/alertsV2Config.ts");
 const eventCli = readProjectFile("scripts/run-alert-delivery-for-event.mjs");
 const queuedCli = readProjectFile("scripts/process-queued-alert-deliveries.mjs");
@@ -39,6 +66,61 @@ const adminAlerts = readProjectFile("app/admin/alerts/page.tsx");
 const vercelConfig = JSON.parse(readProjectFile("vercel.json")) as {
   crons?: Array<{ path?: string; schedule?: string }>;
 };
+
+const tickerlessAlertEvent: NormalizedAlertEvent = {
+  id: "tickerless-alert-event",
+  title: "Material market event without issuer ticker linkage",
+  tickers: [],
+  category: "earnings",
+  sourceType: "filing",
+  marketScope: "company",
+  score: 82,
+  metadata: {
+    delivery_level: "alert",
+    market_cap: 50_000_000_000,
+  },
+};
+
+type EvaluationDependencies = NonNullable<
+  Parameters<typeof evaluateAlertDeliveryForEvent>[1]
+>;
+
+function createTickerlessEvaluationDependencies({
+  channels = [{ channel: "web", enabled: true }],
+  discoveryCategories = ["earnings"],
+  discoveryEnabled = true,
+  marketCapFilters = ["mega", "large", "mid", "small", "micro"],
+  plan = "pro",
+  watchlistTickers = [],
+}: {
+  channels?: Array<{ channel: "web"; enabled: boolean }>;
+  discoveryCategories?: NormalizedAlertEvent["category"][];
+  discoveryEnabled?: boolean;
+  marketCapFilters?: string[];
+  plan?: "free" | "pro";
+  watchlistTickers?: string[];
+} = {}): EvaluationDependencies {
+  return {
+    fetchUsers: async () => ["tickerless-user"],
+    fetchUserContext: async (userId) => {
+      assert.equal(userId, "tickerless-user");
+      return {
+        plan,
+        preferences: {
+          watchlistNewsEnabled: true,
+          watchlistFilingsEnabled: true,
+          watchlistCalendarEnabled: true,
+          discoveryEnabled,
+          marketCapFilters,
+        },
+        watchlistTickers: new Set(watchlistTickers),
+        discoveryCategories: new Set(discoveryCategories),
+        channels,
+      };
+    },
+    now: () => new Date("2026-08-10T00:00:00.000Z"),
+  };
+}
 
 test("Vercel Cron uses authenticated GET with an explicit write gate", () => {
   assert.match(cronRoute, /export async function GET/);
@@ -140,6 +222,116 @@ test("ticker and Market Discovery lanes recheck current centralized entitlements
   assert.match(queuedDelivery, /isDiscoveryCategoryAllowed\(plan, row\.category\)/);
   assert.match(queuedDelivery, /isTickerAlertCategoryAllowed\(plan, row\.category\)/);
   assert.match(queuedDelivery, /new Set\(getPlanLimits\(plan\)\.channels\)/);
+});
+
+test("tickerless alert event creates exactly one Discovery candidate", async () => {
+  const evaluation = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies(),
+  );
+
+  assert.equal(evaluation.candidates.length, 1);
+  assert.deepEqual(evaluation.skipped, []);
+  assert.deepEqual(evaluation.candidates[0], {
+    userId: "tickerless-user",
+    plan: "pro",
+    alertLane: "market_discovery",
+    matchedTickers: [],
+    eligibleChannels: [
+      { channel: "web", connected: true, destination: undefined },
+    ],
+    scheduledFor: "2026-08-10T00:00:00.000Z",
+    delayMinutes: 0,
+    deliveryStatus: "sent",
+  });
+});
+
+test("tickerless alert event never becomes a Watchlist candidate", async () => {
+  assert.deepEqual(
+    matchWatchedEventTickers([], new Set(["GOOG", "GOOGL"])),
+    [],
+  );
+
+  const evaluation = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({
+      watchlistTickers: ["GOOG", "GOOGL"],
+    }),
+  );
+
+  assert.equal(evaluation.candidates.length, 1);
+  assert.equal(evaluation.candidates[0]?.alertLane, "market_discovery");
+  assert.deepEqual(evaluation.candidates[0]?.matchedTickers, []);
+  assert.equal(
+    evaluation.candidates.some((candidate) => candidate.alertLane === "watchlist"),
+    false,
+  );
+});
+
+test("tickerless Discovery respects preference and category selection", async () => {
+  const discoveryDisabled = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({ discoveryEnabled: false }),
+  );
+  assert.deepEqual(discoveryDisabled.candidates, []);
+  assert.equal(discoveryDisabled.skipped[0]?.reason, "DISCOVERY_DISABLED");
+
+  const categoryDisabled = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({ discoveryCategories: [] }),
+  );
+  assert.deepEqual(categoryDisabled.candidates, []);
+  assert.equal(
+    categoryDisabled.skipped[0]?.reason,
+    "DISCOVERY_CATEGORY_NOT_ACTIVE",
+  );
+});
+
+test("tickerless Discovery preserves plan, channel, market-cap, and other filters", async () => {
+  const planDisallowed = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({ plan: "free" }),
+  );
+  assert.deepEqual(planDisallowed.candidates, []);
+  assert.equal(
+    planDisallowed.skipped[0]?.reason,
+    "DISCOVERY_CATEGORY_NOT_ACTIVE",
+  );
+
+  const noChannel = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({
+      channels: [{ channel: "web", enabled: false }],
+    }),
+  );
+  assert.deepEqual(noChannel.candidates, []);
+  assert.equal(noChannel.skipped[0]?.reason, "NO_ENABLED_CHANNELS");
+
+  const marketCapFiltered = await evaluateAlertDeliveryForEvent(
+    tickerlessAlertEvent,
+    createTickerlessEvaluationDependencies({ marketCapFilters: ["small"] }),
+  );
+  assert.deepEqual(marketCapFiltered.candidates, []);
+  assert.equal(marketCapFiltered.skipped[0]?.reason, "MARKET_CAP_FILTERED");
+
+  const otherCategory = await evaluateAlertDeliveryForEvent(
+    { ...tickerlessAlertEvent, category: "other" },
+    createTickerlessEvaluationDependencies(),
+  );
+  assert.deepEqual(otherCategory.candidates, []);
+  assert.equal(
+    otherCategory.skipped[0]?.reason,
+    "DISCOVERY_CATEGORY_NOT_ACTIVE",
+  );
+});
+
+test("only score-75-plus alert delivery levels reach the alert runner", () => {
+  assert.match(
+    secEventStore,
+    /if \(score >= 75\) return "alert";[\s\S]*if \(score >= 50\) return "feed";[\s\S]*return "archive";/,
+  );
+  assert.match(eventDelivery, /if \(deliveryLevel !== "alert"\)/);
+  assert.match(eventDelivery, /reason: "EVENT_NOT_ALERT_DELIVERY_LEVEL"/);
 });
 
 test("alert delivery applies stored market-cap preferences through the shared classifier", () => {
