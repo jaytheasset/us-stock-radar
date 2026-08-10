@@ -54,17 +54,7 @@ git status --short
 
 ## SEC diagnostics
 
-- For SEC debug or analysis-state investigation, start with `docs/SEC_DIAGNOSTICS.md`; it defines the read-only entry points and the `system.read`/`data.run` and development/production boundaries.
-
-- For Live Feed user-flow investigation, start with `docs/LIVE_FEED_FLOW_DIAGNOSTICS.md`; it defines the public read-only path and state interpretation.
-
-- For Markets Dashboard mover user-flow investigation, start with `docs/MARKETS_DASHBOARD_MOVERS_DIAGNOSTICS.md`; it defines the public read-only path and shared safe state interpretation.
-
-- For Stock Detail News & Events investigation, start with `docs/STOCK_DETAIL_EVENTS_DIAGNOSTICS.md`; it defines the local public read-only path and section-scoped safe state interpretation.
-
-- For global News user-flow investigation, start with `docs/NEWS_USER_FLOW_DIAGNOSTICS.md`; it defines the public search path and shared safe state interpretation.
-
-- For global Calendar user-flow investigation, start with `docs/CALENDAR_USER_FLOW_DIAGNOSTICS.md`; it defines the public date-range path and shared safe state interpretation.
+- Start with `docs/DIAGNOSTICS_INDEX.md`; it links the feature-specific diagnostic references where each investigation path and its detailed meaning are defined.
 
 ## Investigation and change boundaries
 
