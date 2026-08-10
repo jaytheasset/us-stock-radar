@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, LogIn, LogOut, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import styles from "./LiveRoom.module.css";
 
 export function RoomMembershipControl({
@@ -26,6 +26,7 @@ export function RoomMembershipControl({
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const confirmLeaveButtonRef = useRef<HTMLButtonElement>(null);
+  const joinedPopoverId = useId();
   const joinedMenuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -98,8 +99,8 @@ export function RoomMembershipControl({
       {joined ? (
         <div className={styles.membershipJoinedGroup} ref={joinedMenuRef}>
           <button
+            aria-controls={joinedPopoverId}
             aria-expanded={menuOpen}
-            aria-haspopup="menu"
             aria-label="Joined room options"
             className={styles.membershipJoinedStatus}
             disabled={busy}
@@ -113,7 +114,7 @@ export function RoomMembershipControl({
             <ChevronDown aria-hidden="true" size={13} />
           </button>
           {menuOpen ? (
-            <div className={styles.membershipMenu} role="menu">
+            <div className={styles.membershipMenu} id={joinedPopoverId}>
               <button
                 aria-label="Leave room"
                 disabled={busy}
@@ -121,7 +122,6 @@ export function RoomMembershipControl({
                   setMenuOpen(false);
                   setConfirmingLeave(true);
                 }}
-                role="menuitem"
                 type="button"
               >
                 <LogOut aria-hidden="true" size={14} />

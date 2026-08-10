@@ -31,14 +31,14 @@ const styles = readFileSync(
   "utf8",
 );
 
-test("the flat header keeps Leave inside the keyboard-safe Joined menu", () => {
+test("the flat header keeps Leave inside the keyboard-safe Joined popover", () => {
   assert.match(header, /className=\{styles\.roomTicker\}>\{identity\.ticker\}/);
   assert.match(header, /className=\{styles\.roomLabel\}>Live Room/);
-  assert.match(membership, /aria-haspopup="menu"/);
   assert.match(
     membership,
-    /className=\{styles\.membershipMenu\} role="menu"[\s\S]*?role="menuitem"[\s\S]*?Leave room/,
+    /const joinedPopoverId = useId\(\)[\s\S]*?aria-controls=\{joinedPopoverId\}[\s\S]*?aria-expanded=\{menuOpen\}[\s\S]*?className=\{styles\.membershipMenu\} id=\{joinedPopoverId\}[\s\S]*?Leave room/,
   );
+  assert.doesNotMatch(membership, /aria-haspopup="menu"|role="menu(?:item)?"/);
   assert.match(
     membership,
     /event\.key !== "Escape"[\s\S]*?menuButtonRef\.current\?\.focus\(\)/,

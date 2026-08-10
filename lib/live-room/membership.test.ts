@@ -196,11 +196,15 @@ test("room UI exposes one Join state, safe guest return, Leave confirmation, and
   );
   assert.match(
     membershipControl,
-    /aria-haspopup="menu"[\s\S]*aria-label="Joined room options"[\s\S]*title="Joined"[\s\S]*membershipActionLabel\}>Joined<\/span>/,
+    /const joinedPopoverId = useId\(\)[\s\S]*aria-controls=\{joinedPopoverId\}[\s\S]*aria-expanded=\{menuOpen\}[\s\S]*aria-label="Joined room options"[\s\S]*title="Joined"[\s\S]*membershipActionLabel\}>Joined<\/span>/,
   );
   assert.match(
     membershipControl,
-    /className=\{styles\.membershipMenu\} role="menu"[\s\S]*aria-label="Leave room"[\s\S]*role="menuitem"[\s\S]*Leave room/,
+    /className=\{styles\.membershipMenu\} id=\{joinedPopoverId\}[\s\S]*aria-label="Leave room"[\s\S]*Leave room/,
+  );
+  assert.doesNotMatch(
+    membershipControl,
+    /aria-haspopup="menu"|role="menu(?:item)?"/,
   );
   assert.match(
     membershipControl,
