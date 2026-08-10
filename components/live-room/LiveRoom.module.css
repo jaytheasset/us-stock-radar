@@ -401,6 +401,28 @@
   color: var(--sr-color-text-heading);
 }
 
+.entryFlowStatus {
+  max-width: 100%;
+  margin: var(--sr-space-2) 0 0;
+  border-left: 2px solid var(--sr-color-border-strong);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-xs);
+  line-height: var(--sr-line-height-default);
+  overflow-wrap: anywhere;
+}
+
+.entryFlowStatus[data-live-room-entry-state="error"],
+.entryFlowStatus[data-live-room-entry-state="permission"] {
+  border-left-color: var(--sr-color-negative);
+}
+
+.entryFlowStatus[data-live-room-entry-state="unavailable"],
+.entryFlowStatus[data-live-room-entry-state="unknown"] {
+  border-left-color: var(--sr-color-warning);
+}
+
 .roomAvailabilityNotice {
   margin: var(--sr-space-2) 0 0;
   border: var(--sr-border-width) solid var(--sr-color-warning);
@@ -2992,6 +3014,11 @@ button.messageReplyPreview:hover {
   }
 
   .page[data-room-kind="company"] .roomAvailabilityNotice {
+    margin-inline: 8px;
+  }
+
+  .page[data-room-kind="company"] .entryFlowStatus {
+    flex: 0 0 auto;
     margin-inline: 8px;
   }
 
