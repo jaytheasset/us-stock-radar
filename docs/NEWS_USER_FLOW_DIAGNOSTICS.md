@@ -25,10 +25,13 @@ progress, response failure, visible item count, and total count:
 - `loading`: the selected News request is in progress.
 - `ready`: at least one story is visible. A later load-more failure does not
   relabel already visible stories as unavailable.
-- `source-empty`: a successful zero-story result with no applied query or
-  filter.
+- `source-empty`: a successful result whose visible and total counts both
+  confirm zero stories, with no applied query or filter.
 - `filter-empty`: a successful zero-story result with an applied query or
   filter.
+- `unknown`: visible and total counts conflict without an active criterion or
+  confirmed error. The screen and `data-news-state` say the state is not
+  confirmed rather than inferring source-empty or unavailable.
 - `unavailable`: the selected initial/refresh request failed and no stories
   remain visible. No unconfirmed failure reason is inferred.
 
@@ -48,9 +51,11 @@ console errors, and horizontal overflow.
 
 Use a query matching current public data for a real success comparison. Do
 not change product/DB data to force zero or failure states. When source-empty,
-filter-empty, loading, or unavailable cannot be produced safely, verify the
-pure resolver branches with unit inputs and report those browser states as
-unverified.
+filter-empty, loading, unavailable, or inconsistent counts cannot be produced
+safely, verify the pure resolver branches with unit inputs and report those
+browser states as unverified. In particular, `visibleCount: 0` with a positive
+`totalCount`, no active criterion, and no error is fixture-only evidence for
+`unknown`; it must not be reported as a browser-confirmed source-empty result.
 
 ## Investigation boundary
 

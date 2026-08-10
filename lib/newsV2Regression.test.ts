@@ -41,7 +41,7 @@ const baseItem: NewsV2Item = {
   deliveryLevel: "feed",
 };
 
-test("News V2 flow state distinguishes source, filter, loading, and unavailable results", () => {
+test("News V2 flow state distinguishes source, filter, unknown, loading, and unavailable results", () => {
   const baseInput = {
     filters: emptyFilters,
     hasError: false,
@@ -64,6 +64,19 @@ test("News V2 flow state distinguishes source, filter, loading, and unavailable 
   assert.equal(
     resolveNewsV2FlowState({ ...baseInput, query: "NO_MATCH" }).status,
     "filter-empty",
+  );
+  assert.deepEqual(
+    resolveNewsV2FlowState({ ...baseInput, totalCount: 7 }),
+    {
+      hasActiveCriteria: false,
+      message: "The current News result could not be confirmed from the available counts.",
+      resultLabel: "State not confirmed · 0 of 7 stories",
+      role: "status",
+      status: "unknown",
+      title: "News state not confirmed",
+      totalCount: 7,
+      visibleCount: 0,
+    },
   );
   assert.equal(
     resolveNewsV2FlowState({

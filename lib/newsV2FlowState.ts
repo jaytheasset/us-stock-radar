@@ -5,6 +5,7 @@ export type NewsV2FlowStatus =
   | "ready"
   | "source-empty"
   | "filter-empty"
+  | "unknown"
   | "unavailable";
 
 export type NewsV2FlowState = {
@@ -92,13 +93,26 @@ export function resolveNewsV2FlowState({
     };
   }
 
+  if (normalizedTotalCount === 0) {
+    return {
+      hasActiveCriteria,
+      message: "The current News source returned no stories.",
+      resultLabel: resultCount,
+      role: "status",
+      status: "source-empty",
+      title: "No news available",
+      totalCount: normalizedTotalCount,
+      visibleCount,
+    };
+  }
+
   return {
     hasActiveCriteria,
-    message: "The current News source returned no stories.",
-    resultLabel: resultCount,
+    message: "The current News result could not be confirmed from the available counts.",
+    resultLabel: `State not confirmed · ${resultCount}`,
     role: "status",
-    status: "source-empty",
-    title: "No news available",
+    status: "unknown",
+    title: "News state not confirmed",
     totalCount: normalizedTotalCount,
     visibleCount,
   };
