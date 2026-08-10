@@ -19,10 +19,15 @@ import {
   type LiveFeedV2Page,
 } from "@/lib/liveFeedV2Contract";
 import type { LiveFeedV2InitialData } from "@/lib/liveFeedV2";
+import {
+  resolveLiveFeedV2FlowState,
+  type LiveFeedV2ObservedAvailability,
+} from "@/lib/liveFeedV2FlowState";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFeedV2.module.css";
 
-type FilterState = LiveFeedV2Page & {
+type FilterState = Omit<LiveFeedV2Page, "availability"> & {
+  availability: LiveFeedV2ObservedAvailability;
   isLoading: boolean;
   isLoadingMore: boolean;
   loaded: boolean;
@@ -139,6 +144,9 @@ export function StockRadarFeedV2({
         ...current,
         [filter]: {
           ...current[filter],
+          availability: initialRequest
+            ? "unknown"
+            : current[filter].availability,
           error: undefined,
           isLoading: initialRequest,
           isLoadingMore: !initialRequest,
@@ -154,7 +162,24 @@ export function StockRadarFeedV2({
         });
         const page = (await response.json()) as LiveFeedV2Page;
         if (!response.ok) {
-          throw new Error(page.error || "Feed request failed");
+          setFilterStates((current) => {
+            const previous = current[filter];
+            const items = initialRequest
+              ? page.items
+              : mergeItems(previous.items, page.items);
+            return {
+              ...current,
+              [filter]: {
+                ...page,
+                error: page.error || "Feed request failed",
+                isLoading: false,
+                isLoadingMore: false,
+                items,
+                loaded: true,
+              },
+            };
+          });
+          return;
         }
 
         setFilterStates((current) => {
@@ -190,6 +215,7 @@ export function StockRadarFeedV2({
           ...current,
           [filter]: {
             ...current[filter],
+            availability: "unknown",
             error:
               error instanceof Error ? error.message : "Feed request failed",
             isLoading: false,
@@ -216,6 +242,15 @@ export function StockRadarFeedV2({
     activeState.totalCount === null
       ? null
       : Math.max(activeState.totalCount - activeState.items.length, 0);
+  const flowState = resolveLiveFeedV2FlowState({
+    availability: activeState.availability,
+    emptyMessage: activeState.emptyMessage,
+    filter: activeFilter,
+    hasError: Boolean(activeState.error),
+    isLoading: activeState.isLoading,
+    rowCount: activeState.items.length,
+    totalCount: activeState.totalCount,
+  });
 
   const handleFilterChange = (filter: LiveFeedV2Filter) => {
     setActiveFilter(filter);
@@ -270,8 +305,14 @@ export function StockRadarFeedV2({
 
       <div className={styles.contentGrid}>
         <section
+          aria-busy={flowState.status === "loading"}
           aria-labelledby="live-feed-stream-title"
           className={styles.feedColumn}
+          data-feed-availability={flowState.availability}
+          data-feed-filter={flowState.filter}
+          data-feed-row-count={flowState.rowCount}
+          data-feed-state={flowState.status}
+          data-feed-total-count={flowState.totalCount ?? "unknown"}
           ref={feedColumnRef}
         >
           <div className={styles.feedHeader}>
@@ -279,13 +320,13 @@ export function StockRadarFeedV2({
               <span className={styles.liveIndicator}>Live</span>
               <h1 id="live-feed-stream-title">Market Events</h1>
             </div>
-            <span className={styles.resultCount}>
-              {activeState.isLoading && activeState.items.length === 0
-                ? "Updating events"
-                : formatResultCount(
-                    activeState.items.length,
-                    activeState.totalCount,
-                  )}
+            <span
+              aria-atomic="true"
+              aria-live="polite"
+              className={styles.resultCount}
+              data-feed-result-count={flowState.rowCount}
+            >
+              {flowState.resultLabel}
             </span>
           </div>
 
@@ -390,9 +431,6 @@ export function StockRadarFeedV2({
           </div>
 
           <FeedEventList
-            emptyMessage={activeState.emptyMessage}
-            hasError={Boolean(activeState.error)}
-            isLoading={activeState.isLoading}
             isLoadingMore={activeState.isLoadingMore}
             items={activeState.items}
             onLoadMore={
@@ -405,6 +443,7 @@ export function StockRadarFeedV2({
             onRetry={() => void loadPage(activeFilter, null)}
             remainingCount={remainingCount}
             selectedEventId={effectiveSelectedId}
+            state={flowState}
             viewerPlan={viewerPlan}
           />
         </section>
@@ -446,7 +485,7 @@ function createInitialFilterStates(
             loaded: true,
           }
         : {
-            availability: "available",
+            availability: "unknown",
             filter: filter.value,
             isLoading: false,
             isLoadingMore: false,
@@ -468,8 +507,4 @@ function mergeItems(
     ...current,
     ...incoming.filter((item) => !seen.has(item.id)),
   ];
-}
-
-function formatResultCount(loaded: number, total: number | null) {
-  return total === null ? `${loaded} events` : `${loaded} of ${total} events`;
 }
