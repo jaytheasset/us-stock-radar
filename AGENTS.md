@@ -58,6 +58,14 @@ git status --short
 
 - For Live Feed user-flow investigation, start with `docs/LIVE_FEED_FLOW_DIAGNOSTICS.md`; it defines the public read-only path and state interpretation.
 
+## Investigation and change boundaries
+
+- Treat diagnosis, investigation, and review requests as read-only unless the user also explicitly requests a change. Do not alter code, product state, data, jobs, caches, or permissions while investigating.
+- Report confirmed facts, inferences, unverified items, and performed changes separately. Do not present the most likely explanation as a confirmed cause.
+- A read failure, permission boundary, limited query scope, or unsupported state is not evidence that data or a record does not exist.
+- Before a requested fix, reproduce the user-visible behavior where possible and identify the failed layer; after it, report both changed and intentionally unchanged areas.
+- Keep feature-specific investigation paths and response semantics in their own diagnostic documents rather than duplicating them here.
+
 ## SEC analysis value lock
 
 - Code must not calculate, correct, replace, or supply fallback values for SEC LLM analysis results. Validators may only detect and report errors.
