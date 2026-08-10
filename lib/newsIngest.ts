@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { persistOptionalMonitorFoundation } from "@/lib/monitor/persistence";
 import {
   NEWS_EVENT_ANALYSIS_PROMPT_KEY,
   NEWS_EVENT_ANALYSIS_PROMPT_VERSION,
@@ -1277,6 +1278,19 @@ async function persistAnalyzedEvent({
       promptVersion,
     }),
   ]);
+  await persistOptionalMonitorFoundation({
+    eventId: stringValue(eventRow.id),
+    eventTime: stringValue(eventRow.detected_at) || payload.detected_at,
+    primaryTicker: primaryTicker.ticker
+      ? {
+          symbol: primaryTicker.ticker,
+          exchange: primaryTicker.exchange,
+          securityKey: "primary",
+        }
+      : null,
+    analysisMarketContext: marketContext,
+    ownershipInputState: "not_applicable",
+  });
 
   return eventRow;
 }

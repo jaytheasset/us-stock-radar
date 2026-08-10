@@ -3,6 +3,7 @@ import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secIntegrationContract";
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
+import { persistOptionalMonitorFoundation } from "@/lib/monitor/persistence";
 import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/lib/secStores/alertQueue";
 import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
 import {
@@ -210,6 +211,20 @@ export async function saveAnalyzedSecFilingEvent({
       promptVersion,
     }),
   ]);
+  await persistOptionalMonitorFoundation({
+    eventId: stringValue(eventRow.id),
+    eventTime: stringValue(eventRow.detected_at) || payload.detected_at,
+    primaryTicker: primaryTicker.ticker
+      ? {
+          symbol: primaryTicker.ticker,
+          exchange: primaryTicker.exchange,
+          securityKey: "primary",
+        }
+      : null,
+    analysisMarketContext: marketContext,
+    ownershipParserOutput: toRecord(toRecord(filingPackage.hard_parsers)?.ownership),
+    ownershipInputState: toRecord(toRecord(filingPackage.hard_parsers)?.ownership) ? "known" : "not_applicable",
+  });
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
 
   return eventRow;
