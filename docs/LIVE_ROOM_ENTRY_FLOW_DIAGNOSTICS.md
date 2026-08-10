@@ -74,13 +74,15 @@ safe data attributes for direct DOM inspection:
   rendered, not the initial request result count;
 - `data-live-room-latest-update`: `loading`, `visible`, `no-update`, or
   `source-error`. A retained visible update stays `visible` if a later optional
-  source refresh fails;
+  source refresh fails. `visible` means the real event strip is rendered;
+  whether that event also has a detail link does not change the state;
 - `data-live-room-composer-state`: `available`, `loading`, `read-only`,
   `unavailable`, or the transient `busy` state;
 - `data-live-room-composer-disabled-reason`: `none`, `profile-loading`,
   `timeline-loading`, `timeline-error`, `room-read-only`, or `sending`;
 - `data-live-room-quick-preview`: `visible`, `hidden-narrow`, or the transient
-  `checking` state. This follows the rail's actual rendered CSS visibility.
+  `checking` state. This follows the rail's actual rendered CSS visibility;
+  opening the narrow-screen information drawer does not make the rail visible.
 
 Read the entry fields first, then compare the surface observation with the
 selected tab and visible timeline, update, composer, and quick-preview rail.

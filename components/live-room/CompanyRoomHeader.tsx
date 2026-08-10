@@ -1,6 +1,6 @@
 "use client";
 
-import { History } from "lucide-react";
+import { PanelRightOpen } from "lucide-react";
 import type { RefObject } from "react";
 import type {
   CompanyRoomIdentity,
@@ -12,7 +12,8 @@ import { RoomMembershipControl } from "./RoomMembershipControl";
 import styles from "./LiveRoom.module.css";
 
 type CompanyRoomHeaderProps = {
-  historyButtonRef: RefObject<HTMLButtonElement | null>;
+  infoButtonRef: RefObject<HTMLButtonElement | null>;
+  infoOpen: boolean;
   identity: CompanyRoomIdentity;
   isGuest: boolean;
   loginHref: string;
@@ -21,13 +22,14 @@ type CompanyRoomHeaderProps = {
   membershipJoined: boolean | null;
   onJoin: () => Promise<void>;
   onLeave: () => Promise<void>;
-  onOpenHistory: () => void;
+  onOpenInfo: () => void;
   quote: StockOverviewQuote;
   roomCounts: LiveRoomPublicRoomCounts | null;
 };
 
 export function CompanyRoomHeader({
-  historyButtonRef,
+  infoButtonRef,
+  infoOpen,
   identity,
   isGuest,
   loginHref,
@@ -36,7 +38,7 @@ export function CompanyRoomHeader({
   membershipJoined,
   onJoin,
   onLeave,
-  onOpenHistory,
+  onOpenInfo,
   quote,
   roomCounts,
 }: CompanyRoomHeaderProps) {
@@ -50,58 +52,33 @@ export function CompanyRoomHeader({
   return (
     <header className={styles.roomHeader}>
       <div className={styles.roomIdentity}>
-        <div className={styles.roomTitleLine}>
-          <div className={styles.roomTitlePrimary}>
-            <h1 className={styles.desktopRoomTitle}>
-              {identity.ticker} Live Room
-            </h1>
-            <h1 className={styles.mobileRoomTitle}>
-              {identity.companyName}
-            </h1>
-            <small className={styles.mobileTicker}>{identity.ticker}</small>
-            <small className={styles.mobileExchange}>
-              {identity.exchange}
-            </small>
-          </div>
+        <h1 className={styles.roomTitleLine}>
+          <strong className={styles.roomTicker}>{identity.ticker}</strong>
           {identity.companyName.trim().toUpperCase() !== identity.ticker ? (
-            <strong className={styles.roomCompanyName}>
+            <span className={styles.roomCompanyName}>
               {identity.companyName}
-            </strong>
+            </span>
           ) : null}
-        </div>
+          <span className={styles.roomLabel}>Live Room</span>
+        </h1>
         <div className={styles.roomMeta}>
-          <small className={styles.desktopExchange}>
-            {identity.exchange}
-          </small>
+          <small>{identity.exchange}</small>
           {roomCounts ? (
-            <>
-              <small
-                className={`${styles.roomCounts} ${styles.desktopRoomCounts}`}
-              >
-                <strong>{formatMemberCount(roomCounts.memberCount)}</strong>
-                {roomCounts.visitorCount > 0 ? (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>{roomCounts.visitorCount} visitors</span>
-                  </>
-                ) : null}
-                <span aria-hidden="true">·</span>
-                <span className={styles.onlineCount}>
-                  <i aria-hidden="true" />
-                  {roomCounts.onlineCount} online
-                </span>
-              </small>
-              <small
-                className={`${styles.roomCounts} ${styles.mobileRoomCounts}`}
-              >
-                <strong>{formatMemberCount(roomCounts.memberCount)}</strong>
-                <span aria-hidden="true">·</span>
-                <span className={styles.onlineCount}>
-                  <i aria-hidden="true" />
-                  {roomCounts.onlineCount} online
-                </span>
-              </small>
-            </>
+            <small className={styles.roomCounts}>
+              <span aria-hidden="true">·</span>
+              <strong>{formatMemberCount(roomCounts.memberCount)}</strong>
+              {roomCounts.visitorCount > 0 ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{roomCounts.visitorCount} visitors</span>
+                </>
+              ) : null}
+              <span aria-hidden="true">·</span>
+              <span className={styles.onlineCount}>
+                <i aria-hidden="true" />
+                {roomCounts.onlineCount} online
+              </span>
+            </small>
           ) : null}
         </div>
       </div>
@@ -134,15 +111,16 @@ export function CompanyRoomHeader({
           room={{ identity, kind: "company" }}
         />
         <button
-          aria-controls="live-room-history-sheet"
-          aria-label="Open past company events"
-          className={styles.historyTrigger}
-          onClick={onOpenHistory}
-          ref={historyButtonRef}
+          aria-controls="live-room-info-drawer"
+          aria-expanded={infoOpen}
+          aria-label="Open Live Room information"
+          className={styles.infoDrawerTrigger}
+          onClick={onOpenInfo}
+          ref={infoButtonRef}
           type="button"
         >
-          <History aria-hidden="true" size={15} />
-          <span className={styles.actionLabel}>Past events</span>
+          <PanelRightOpen aria-hidden="true" size={15} />
+          <span className={styles.actionLabel}>Room info</span>
         </button>
       </div>
     </header>

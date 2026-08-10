@@ -165,7 +165,7 @@ test("ChatTimeline latest update strip renders shared signal score without mobil
 
   assert.match(
     timeline,
-    /export function LatestChatEventStrip[\s\S]*?className=\{styles\.latestChatEventStrip\}[\s\S]*?<CompanyEventSignalScore[\s\S]*?score=\{event\.score\}[\s\S]*?signal=\{event\.signal\}[\s\S]*?<time dateTime=\{event\.occurredAt\}/,
+    /export function LatestChatEventStrip[\s\S]*?<time dateTime=\{event\.occurredAt\}[\s\S]*?<CompanyEventSignalScore[\s\S]*?score=\{event\.score\}[\s\S]*?signal=\{event\.signal\}[\s\S]*?className=\{styles\.latestChatEventStrip\}/,
   );
   assert.match(
     room,
@@ -173,15 +173,15 @@ test("ChatTimeline latest update strip renders shared signal score without mobil
   );
   assert.match(
     styles,
-    /\.latestChatEventStrip\s*\{[\s\S]*?grid-template-columns:\s*auto minmax\(0, 1fr\) auto/,
+    /\.latestChatEventStrip\s*\{[\s\S]*?grid-template-columns:\s*auto auto auto minmax\(0, 1fr\) auto auto/,
   );
   assert.match(
     styles,
-    /\.latestChatEventDetails\s*\{[\s\S]*?min-width:\s*0[\s\S]*?flex-wrap:\s*wrap/,
+    /\.latestChatEventDetails\s*\{[\s\S]*?flex-wrap:\s*nowrap[\s\S]*?white-space:\s*nowrap/,
   );
   assert.match(
     styles,
-    /\.latestChatEventCopy strong\s*\{[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/,
+    /\.latestChatEventStrip > strong\s*\{[\s\S]*?text-overflow:\s*ellipsis[\s\S]*?white-space:\s*nowrap/,
   );
   assert.doesNotMatch(
     styles,

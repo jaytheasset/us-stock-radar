@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LogIn, LogOut, Users } from "lucide-react";
+import { Check, ChevronDown, LogIn, LogOut, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import styles from "./LiveRoom.module.css";
 
@@ -24,8 +24,30 @@ export function RoomMembershipControl({
   roomLabel: string;
 }) {
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const confirmLeaveButtonRef = useRef<HTMLButtonElement>(null);
-  const leaveButtonRef = useRef<HTMLButtonElement>(null);
+  const joinedMenuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!joinedMenuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!confirmingLeave) return;
@@ -33,7 +55,7 @@ export function RoomMembershipControl({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || busy) return;
       setConfirmingLeave(false);
-      window.requestAnimationFrame(() => leaveButtonRef.current?.focus());
+      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -74,29 +96,39 @@ export function RoomMembershipControl({
   return (
     <>
       {joined ? (
-        <div className={styles.membershipJoinedGroup}>
-          <span
-            aria-label="Joined"
+        <div className={styles.membershipJoinedGroup} ref={joinedMenuRef}>
+          <button
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            aria-label="Joined room options"
             className={styles.membershipJoinedStatus}
+            disabled={busy}
+            onClick={() => setMenuOpen((open) => !open)}
+            ref={menuButtonRef}
             title="Joined"
+            type="button"
           >
             <Check aria-hidden="true" size={14} />
             <span className={styles.membershipActionLabel}>Joined</span>
-          </span>
-          <button
-            aria-label="Leave room"
-            className={styles.membershipLeaveButton}
-            disabled={busy}
-            onClick={() => setConfirmingLeave(true)}
-            ref={leaveButtonRef}
-            title="Leave room"
-            type="button"
-          >
-            <LogOut aria-hidden="true" size={14} />
-            <span className={styles.membershipActionLabel}>
-              Leave room
-            </span>
+            <ChevronDown aria-hidden="true" size={13} />
           </button>
+          {menuOpen ? (
+            <div className={styles.membershipMenu} role="menu">
+              <button
+                aria-label="Leave room"
+                disabled={busy}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setConfirmingLeave(true);
+                }}
+                role="menuitem"
+                type="button"
+              >
+                <LogOut aria-hidden="true" size={14} />
+                Leave room
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <button
@@ -136,7 +168,7 @@ export function RoomMembershipControl({
                 onClick={() => {
                   setConfirmingLeave(false);
                   window.requestAnimationFrame(() =>
-                    leaveButtonRef.current?.focus(),
+                    menuButtonRef.current?.focus(),
                   );
                 }}
                 type="button"

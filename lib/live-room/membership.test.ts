@@ -196,11 +196,11 @@ test("room UI exposes one Join state, safe guest return, Leave confirmation, and
   );
   assert.match(
     membershipControl,
-    /aria-label="Joined"[\s\S]*title="Joined"[\s\S]*membershipActionLabel\}>Joined<\/span>/,
+    /aria-haspopup="menu"[\s\S]*aria-label="Joined room options"[\s\S]*title="Joined"[\s\S]*membershipActionLabel\}>Joined<\/span>/,
   );
   assert.match(
     membershipControl,
-    /aria-label="Leave room"[\s\S]*title="Leave room"[\s\S]*membershipActionLabel\}>\s*Leave room/,
+    /className=\{styles\.membershipMenu\} role="menu"[\s\S]*aria-label="Leave room"[\s\S]*role="menuitem"[\s\S]*Leave room/,
   );
   assert.match(
     membershipControl,
@@ -271,10 +271,9 @@ test("My Rooms is bounded, membership-only, and discoverable on desktop, mobile,
     /block\.blocker_member_user_id = p_member_user_id[\s\S]*block\.blocked_actor_id = message\.actor_id[\s\S]*block\.blocker_actor_id = message\.actor_id[\s\S]*block\.blocked_member_user_id = p_member_user_id/i,
   );
   assert.match(desktopPanel, /label: "My Rooms"[\s\S]*value: "rooms"/);
-  assert.match(
-    composer,
-    /label: "Rooms"[\s\S]*value: "rooms"/,
-  );
+  assert.doesNotMatch(composer, /label: "Rooms"[\s\S]*value: "rooms"/);
+  assert.match(companyHeader, /aria-controls="live-room-info-drawer"/);
+  assert.match(companyClient, /variant="drawer"/);
   assert.match(companyClient, /mobileSheet === "rooms"/);
   assert.match(
     companyClient,
@@ -434,12 +433,11 @@ test("membership controls and the company Room menu remain compact without arbit
     tabStyles,
     /repeat\(var\(--live-room-mobile-tab-count, 3\), minmax\(0, 1fr\)\)/,
   );
-  assert.equal(
-    (composer.match(/label: "(?:Chat|Posts|Events|Members|Rooms)"/g) ?? [])
-      .length,
-    5,
+  assert.doesNotMatch(
+    composer,
+    /label: "(?:Chat|Posts|Events|Members|Rooms)"/,
   );
-  assert.doesNotMatch(companyClient, /dockOnMobile|controlsId:/);
+  assert.doesNotMatch(companyClient, /dockOnMobile/);
   assert.match(
     liveStyles,
     /\.page\[data-room-kind="company"\] \.roomActions button,[\s\S]*\.membershipJoinedStatus\s*\{[\s\S]*min-width:\s*44px;[\s\S]*min-height:\s*44px;/,

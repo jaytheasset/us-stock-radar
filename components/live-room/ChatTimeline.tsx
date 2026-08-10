@@ -10,6 +10,7 @@ import {
   FileText,
   Heart,
   MessageCircle,
+  Pin,
   ShieldAlert,
   Sparkles,
   UserCheck,
@@ -18,6 +19,7 @@ import {
 import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { MemberAvatar } from "@/components/ui/MemberAvatar";
 import { formatPublicChatName } from "@/lib/live-room/chatIdentity";
+import { resolveLiveRoomTimelinePresentation } from "@/lib/live-room/messageGrouping";
 import {
   KlipyMessageMedia,
   KlipyReplyMedia,
@@ -81,37 +83,48 @@ type ChatTimelineProps = {
 };
 
 export function LatestChatEventStrip({ event }: { event: CompanyEvent }) {
-  if (!event.detailHref) {
-    return null;
-  }
+  const content = (
+    <>
+      <Pin aria-hidden="true" className={styles.latestChatEventPin} size={14} />
+      <span className={styles.latestChatEventLabel}>Pinned update</span>
+      <time dateTime={event.occurredAt}>
+        {formatEventTime(event.occurredAt)}
+      </time>
+      <strong>{event.title}</strong>
+      <span className={styles.latestChatEventDetails}>
+        <span
+          className={styles.latestChatEventKind}
+          data-kind={event.kind}
+        >
+          {event.kind === "filing" ? "Filing" : "News"}
+        </span>
+        <CompanyEventSignalScore
+          score={event.score}
+          signal={event.signal}
+        />
+      </span>
+      {event.detailHref ? (
+        <ArrowUpRight aria-hidden="true" size={14} />
+      ) : null}
+    </>
+  );
 
-  return (
+  return event.detailHref ? (
     <Link
       aria-label={`Open analysis for latest company update: ${event.title}`}
       className={styles.latestChatEventStrip}
       href={event.detailHref}
     >
-      <span
-        className={styles.latestChatEventKind}
-        data-kind={event.kind}
-      >
-        {event.kind === "filing" ? "Filing" : "News"}
-      </span>
-      <span className={styles.latestChatEventCopy}>
-        <small>Latest company update</small>
-        <strong>{event.title}</strong>
-        <span className={styles.latestChatEventDetails}>
-          <CompanyEventSignalScore
-            score={event.score}
-            signal={event.signal}
-          />
-          <time dateTime={event.occurredAt}>
-            {formatEventTime(event.occurredAt)}
-          </time>
-        </span>
-      </span>
-      <ArrowUpRight aria-hidden="true" size={14} />
+      {content}
     </Link>
+  ) : (
+    <div
+      aria-label={`Latest company update: ${event.title}`}
+      className={styles.latestChatEventStrip}
+      role="group"
+    >
+      {content}
+    </div>
   );
 }
 
@@ -184,6 +197,10 @@ export function ChatTimeline({
       .filter((item) => item.kind === "message")
       .map((item) => item.id),
   );
+  const presentationItems = resolveLiveRoomTimelinePresentation(
+    items,
+    firstUnreadMessageId,
+  );
 
   return (
     <ol aria-label={ariaLabel} className={styles.timelineList}>
@@ -215,7 +232,8 @@ export function ChatTimeline({
           </article>
         </li>
       ) : null}
-      {items.map((item) => {
+      {presentationItems.map(
+        ({ groupPosition, item, showAvatar, showHeader }) => {
         const unreadDivider =
           item.kind === "message" &&
           item.id === firstUnreadMessageId ? (
@@ -355,9 +373,10 @@ export function ChatTimeline({
                   ? ` ${styles.highlightedMessage}`
                   : ""
               }`}
+              data-group-position={groupPosition}
               id={`live-room-message-${item.id}`}
             >
-            {publicProfileHref ? (
+            {showAvatar && publicProfileHref ? (
               <Link
                 aria-label={`View ${formatPublicChatName(item.author.displayName)}'s public profile`}
                 className={styles.messageAvatarLink}
@@ -369,14 +388,17 @@ export function ChatTimeline({
                   imageUrl={item.author.avatarUrl}
                 />
               </Link>
-            ) : (
+            ) : showAvatar ? (
               <MemberAvatar
                 className={styles.messageAvatar}
                 displayName={item.author.displayName}
                 imageUrl={item.author.avatarUrl}
               />
+            ) : (
+              <span aria-hidden="true" className={styles.messageAvatarSpacer} />
             )}
             <article>
+              {showHeader ? (
               <header>
                 {publicProfileHref ? (
                   <Link
@@ -437,6 +459,38 @@ export function ChatTimeline({
                   />
                 </div>
               </header>
+              ) : (
+                <div className={styles.messageContinuationControls}>
+                  <MessageEngagement
+                    busy={messageLikeIds.has(item.id)}
+                    item={item}
+                    loginHref={loginHref}
+                    onReply={onReply}
+                    onToggleLike={onToggleMessageLike}
+                    viewerIsGuest={viewerIsGuest}
+                  />
+                  <MessageActions
+                    busy={messageActionId === item.id}
+                    canBlock={!mine && Boolean(onBlock)}
+                    canFollowMember={
+                      item.canFollowMember === true &&
+                      Boolean(onToggleMemberFollow)
+                    }
+                    canHide={canModerate && Boolean(onHide)}
+                    canMessageMember={
+                      item.canMessageMember === true &&
+                      Boolean(onMessageMember)
+                    }
+                    memberFollowed={item.isMemberFollowed === true}
+                    messageId={item.id}
+                    onBlock={onBlock}
+                    onMemberFollow={onToggleMemberFollow}
+                    onHide={onHide}
+                    onMessageMember={onMessageMember}
+                    onReport={onReport}
+                  />
+                </div>
+              )}
               {item.eventReference ? (
                 <div className={styles.messageReference}>
                   <span>

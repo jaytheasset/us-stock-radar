@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  ArrowRight,
   BadgeCheck,
   FileText,
   Heart,
@@ -42,14 +41,20 @@ import directionSurfaceStyles from "./PostDirectionSurface.module.css";
 import type { CompanyLiveRoomTab } from "./RoomTabs";
 import styles from "./LiveRoom.module.css";
 
-type SidePanelTab = "about" | "members" | "posts" | "rooms" | "updates";
+type SidePanelTab =
+  | "about"
+  | "activity"
+  | "events"
+  | "members"
+  | "posts"
+  | "rooms";
 type PostState = "error" | "loading" | "ready";
 
 const COMPANY_SIDE_PANEL_TABS = [
-  { label: "Updates", value: "updates" },
+  { label: "Activity", value: "activity" },
   { label: "Posts", value: "posts" },
+  { label: "Events", value: "events" },
   { label: "Members", value: "members" },
-  { label: "My Rooms", value: "rooms" },
 ] as const satisfies ReadonlyArray<{
   label: string;
   value: SidePanelTab;
@@ -72,6 +77,7 @@ const compactCountFormatter = new Intl.NumberFormat("en-US", {
 });
 
 export function LiveRoomDesktopSidePanel({
+  allEvents,
   aboutContent,
   eventSource,
   events,
@@ -91,7 +97,9 @@ export function LiveRoomDesktopSidePanel({
   postsState,
   timeline,
   currentRoomHref,
+  variant = "rail",
 }: {
+  allEvents?: readonly CompanyEvent[];
   aboutContent?: ReactNode;
   eventSource: CompanyEventSource;
   events: readonly CompanyEvent[];
@@ -111,12 +119,13 @@ export function LiveRoomDesktopSidePanel({
   postsState: PostState;
   timeline: readonly LiveRoomTimelineItem[];
   currentRoomHref: string;
+  variant?: "drawer" | "rail";
 }) {
   const sidePanelTabs = aboutContent
     ? COMMUNITY_SIDE_PANEL_TABS
     : COMPANY_SIDE_PANEL_TABS;
   const [activeTab, setActiveTab] = useState<SidePanelTab>(
-    aboutContent ? "posts" : "updates",
+    aboutContent ? "posts" : "activity",
   );
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const members = useMemo(
@@ -150,52 +159,103 @@ export function LiveRoomDesktopSidePanel({
   const viewAllTab: CompanyLiveRoomTab =
     activeTab === "posts"
       ? "posts"
-      : activeTab === "updates"
+      : activeTab === "activity" || activeTab === "events"
         ? "events"
         : "chat";
+  const sectionTitle =
+    activeTab === "activity"
+      ? "Recent updates"
+      : activeTab === "posts"
+        ? "Recent posts"
+        : activeTab === "events"
+          ? "Events"
+          : activeTab === "members"
+            ? "Members"
+            : activeTab === "rooms"
+              ? "My Rooms"
+              : "About";
+  const viewAllAction =
+    activeTab === "rooms" ? (
+      <Link
+        className={styles.sidePanelViewAll}
+        href={isGuest ? loginHref : "/live?view=joined"}
+      >
+        View all →
+      </Link>
+    ) : activeTab === "about" ? (
+      <button
+        className={styles.sidePanelViewAll}
+        onClick={onOpenAbout}
+        type="button"
+      >
+        View about →
+      </button>
+    ) : (
+      <button
+        className={styles.sidePanelViewAll}
+        onClick={() => onChangeMainTab(viewAllTab)}
+        type="button"
+      >
+        {activeTab === "members" ? "View in chat →" : "View all →"}
+      </button>
+    );
 
   return (
     <aside
       aria-label="Live Room quick preview"
-      className={styles.desktopSidePanel}
+      className={`${styles.desktopSidePanel} ${
+        variant === "drawer" ? styles.drawerSidePanel : ""
+      }`}
+      data-live-room-preview-surface={variant}
     >
-      <div
-        aria-label="Quick preview sections"
-        className={styles.sidePanelTabs}
-        role="tablist"
-      >
-        {sidePanelTabs.map((tab, index) => (
-          <button
-            aria-controls={`live-room-side-${tab.value}-panel`}
-            aria-selected={activeTab === tab.value}
-            className={
-              activeTab === tab.value ? styles.activeSidePanelTab : undefined
-            }
-            id={`live-room-side-${tab.value}-tab`}
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            onKeyDown={(event) => handleKeyDown(event, index)}
-            ref={(element) => {
-              tabRefs.current[index] = element;
-            }}
-            role="tab"
-            tabIndex={activeTab === tab.value ? 0 : -1}
-            type="button"
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className={styles.sidePanelHeader}>
+        <div
+          aria-label="Quick preview sections"
+          className={styles.sidePanelTabs}
+          role="tablist"
+        >
+          {sidePanelTabs.map((tab, index) => (
+            <button
+              aria-controls={`live-room-side-${variant}-${tab.value}-panel`}
+              aria-selected={activeTab === tab.value}
+              className={
+                activeTab === tab.value ? styles.activeSidePanelTab : undefined
+              }
+              id={`live-room-side-${variant}-${tab.value}-tab`}
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+              ref={(element) => {
+                tabRefs.current[index] = element;
+              }}
+              role="tab"
+              tabIndex={activeTab === tab.value ? 0 : -1}
+              type="button"
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
-        aria-labelledby={`live-room-side-${activeTab}-tab`}
+        aria-labelledby={`live-room-side-${variant}-${activeTab}-tab`}
         className={styles.sidePanelBody}
-        id={`live-room-side-${activeTab}-panel`}
+        id={`live-room-side-${variant}-${activeTab}-panel`}
         role="tabpanel"
         tabIndex={0}
       >
-        {activeTab === "updates" ? (
+        <div className={styles.sidePanelSectionHeading}>
+          <strong>{sectionTitle}</strong>
+          {viewAllAction}
+        </div>
+        {activeTab === "activity" ? (
           <UpdatesPreview eventSource={eventSource} events={events} />
+        ) : activeTab === "events" ? (
+          <UpdatesPreview
+            eventSource={eventSource}
+            events={allEvents ?? events}
+          />
         ) : activeTab === "posts" ? (
           <PostsPreview
             onRetry={onRetryPosts}
@@ -229,33 +289,6 @@ export function LiveRoomDesktopSidePanel({
         )}
       </div>
 
-      {activeTab === "rooms" ? (
-        <Link
-          className={styles.sidePanelViewAll}
-          href={isGuest ? loginHref : "/live?view=joined"}
-        >
-          View all
-          <ArrowRight aria-hidden="true" size={14} />
-        </Link>
-      ) : activeTab === "about" ? (
-        <button
-          className={styles.sidePanelViewAll}
-          onClick={onOpenAbout}
-          type="button"
-        >
-          View about
-          <ArrowRight aria-hidden="true" size={14} />
-        </button>
-      ) : (
-        <button
-          className={styles.sidePanelViewAll}
-          onClick={() => onChangeMainTab(viewAllTab)}
-          type="button"
-        >
-          {activeTab === "members" ? "View in chat" : "View all"}
-          <ArrowRight aria-hidden="true" size={14} />
-        </button>
-      )}
     </aside>
   );
 }
@@ -286,8 +319,12 @@ function UpdatesPreview({
             href={event.detailHref}
             key={event.eventId}
           >
-            <span className={styles.sidePanelItemIcon}>
-              <Newspaper aria-hidden="true" size={14} />
+            <span className={styles.sidePanelItemIcon} data-kind={event.kind}>
+              {event.kind === "filing" ? (
+                <FileText aria-hidden="true" size={14} />
+              ) : (
+                <Newspaper aria-hidden="true" size={14} />
+              )}
             </span>
             <span>
               <strong>{event.title}</strong>
@@ -303,13 +340,18 @@ function UpdatesPreview({
           </Link>
         ) : (
           <div className={styles.sidePanelItem} key={event.eventId}>
-            <span className={styles.sidePanelItemIcon}>
-              <Newspaper aria-hidden="true" size={14} />
+            <span className={styles.sidePanelItemIcon} data-kind={event.kind}>
+              {event.kind === "filing" ? (
+                <FileText aria-hidden="true" size={14} />
+              ) : (
+                <Newspaper aria-hidden="true" size={14} />
+              )}
             </span>
             <span>
               <strong>{event.title}</strong>
               <small>
-                Analysis unavailable · {formatPreviewDate(event.occurredAt)}
+                {event.kind === "filing" ? "Filing" : "News"} ·{" "}
+                {formatPreviewDate(event.occurredAt)}
               </small>
               <CompanyEventSignalScore
                 score={event.score}

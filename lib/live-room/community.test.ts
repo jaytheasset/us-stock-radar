@@ -914,7 +914,7 @@ test("every company Live Room sign-in CTA preserves the exact ticker room return
     liveRoomClient,
     /const roomLoginHref = createLiveRoomMemberLoginHref\(\s*`\/live\/\$\{ticker\}`/,
   );
-  assert.equal(liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length, 7);
+  assert.equal(liveRoomClient.match(/loginHref=\{roomLoginHref\}/g)?.length, 8);
   assert.match(
     productHeader,
     /const authReturnPath =[\s\S]*pathname\.startsWith\("\/"\)[\s\S]*const loginHref = `\/login\?next=\$\{encodeURIComponent\(authReturnPath\)\}`[\s\S]*<AuthStatus[\s\S]{0,160}accountMenu[\s\S]{0,160}loginHref=\{loginHref\}[\s\S]{0,160}signupHref=\{signupHref\}/,
