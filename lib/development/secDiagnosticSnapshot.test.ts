@@ -155,6 +155,31 @@ test("historically unrecorded optional repair traces do not degrade a complete p
   assert.equal(result?.analysis.correction.availability, "record_missing");
 });
 
+test("unrecorded workflow background metadata stays explicit without downgrading persisted-only lineage", () => {
+  const snapshot = buildSecDiagnosticSnapshot({
+    room,
+    records: [{
+      ...record,
+      collection_diagnostics: {
+        ...record.collection_diagnostics,
+        workflow_analysis_status: "unknown",
+        workflow_analysis_updated_at: null,
+      },
+      validation_repair_trace: {
+        availability: "historical_missing",
+        analysis_run: record.validation_repair_trace.analysis_run,
+      },
+    }],
+  });
+  const result = snapshot.results[0];
+
+  assert.equal(snapshot.summary.status, "available");
+  assert.equal(result?.status.background, "unknown");
+  assert.equal(result?.background.workflow_analysis_status, "unknown");
+  assert.equal(result?.sources.find((source) => source.name === "raw_items")?.status, "available");
+  assert.equal(result?.sources.find((source) => source.name === "source_runs")?.status, "available");
+});
+
 test("secondary lineage read failures are partial and never historical record_missing", () => {
   const snapshot = buildSecDiagnosticSnapshot({
     room,

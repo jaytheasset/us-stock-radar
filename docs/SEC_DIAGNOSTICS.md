@@ -85,12 +85,12 @@ Interpret absence conservatively:
 
 | State | Meaning |
 | --- | --- |
-| `available` | The persisted read succeeded and the requested result has complete required lineage, or the named source record is present. A historical validation/repair trace can be `record_missing` without lowering this summary when the persisted `ai_runs` record is available. |
+| `available` | The persisted read succeeded and the requested result has complete required lineage, or the named source record is present. A historical validation/repair trace can be `record_missing` without lowering this summary when the persisted `ai_runs` record is available. An unrecorded `workflow_analysis_status` is also shown as `unknown`, but does not by itself lower the persisted-only lineage summary because it is orchestration metadata rather than a required saved source. |
 | `partial` | A persisted result was found, but required lineage or recorded statuses are not available, or a named secondary read failed. A successful child read that confirms only the optional historical validation/repair trace was not recorded is not, by itself, `partial`. |
 | `missing` | The named child read succeeded and an identifier exists, but the corresponding persisted record was absent. |
 | `unavailable` | The adapter has no record or identifier with which to establish that source. |
 | `read_unavailable` | A named secondary lineage read failed or could not be completed. The persisted event may still be shown as `partial`; this is distinct from a successful read with a missing child record, and no internal error detail is exposed. |
-| `unknown` | A status value was not recorded; it is neither success nor failure. |
+| `unknown` | A status value was not recorded; it is neither success nor failure. `workflow_analysis_status` is an optional raw-item orchestration annotation, so its `unknown` value remains visible but is not alone evidence of incomplete persisted collection/analysis lineage. |
 | `record_missing` | The relevant persisted child read succeeded, but a historical analysis or correction trace was not recorded. For `ai_outputs.validation_repair_trace`, this is distinct from `read_unavailable`; current successful SEC persistence records the trace even when correction was not attempted. |
 | `empty` | A bounded recent/ticker read succeeded but matched zero persisted results. |
 | `not_found` | A bounded exact `eventId` or `accession` read succeeded but found no matching persisted result in the requested room and combined filters. |

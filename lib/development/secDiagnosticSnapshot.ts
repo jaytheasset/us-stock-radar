@@ -201,8 +201,8 @@ function hasPartialLineage(result: SecDiagnosticResult) {
   ].some((availability) => availability === "record_missing");
 
   return requiredSources.some((source) => source.status !== "available") ||
-    [result.status.collection, result.status.analysis, result.status.background].some(isUnknownDiagnosticState) ||
-    [result.background.workflow_analysis_status, result.background.source_run_status].some(isUnknownDiagnosticState) ||
+    [result.status.collection, result.status.analysis].some(isUnknownDiagnosticState) ||
+    isUnknownDiagnosticState(result.background.source_run_status) ||
     (!optionalTraceNotRecorded && missingTraceFields);
 }
 
