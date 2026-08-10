@@ -33,6 +33,20 @@ test("calendar route reads normalized events through the server boundary", async
   assert.match(legacyQa, /\/api\/calendar/);
 });
 
+test("Calendar screen and safe DOM observation use the shared flow state", async () => {
+  const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
+
+  assert.match(workspace, /resolveCalendarFlowState/);
+  assert.match(workspace, /data-calendar-state=\{flowState\.status\}/);
+  assert.match(workspace, /data-calendar-source-count=\{flowState\.sourceCount\}/);
+  assert.match(workspace, /data-calendar-visible-count=\{flowState\.visibleCount\}/);
+  assert.match(workspace, /data-calendar-active-filter-count=\{flowState\.activeFilterCount\}/);
+  assert.match(workspace, /data-calendar-range-from=\{flowState\.rangeFrom\}/);
+  assert.match(workspace, /data-calendar-range-to=\{flowState\.rangeTo\}/);
+  assert.match(workspace, /\{flowState\.resultLabel\}/);
+  assert.doesNotMatch(workspace, /data-calendar-error/);
+});
+
 test("desktop preview selection and mobile sheet-open state are independent", async () => {
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
   const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
@@ -124,13 +138,13 @@ test("calendar event tones and labels are centralized through the shared Badge",
   );
 });
 
-test("count grammar and IPO price ranges use the shared presentation contract", async () => {
+test("count grammar and IPO price ranges use shared presentation contracts", async () => {
   const views = await read("components/calendar-v1/CalendarViews.tsx");
   const workspace = await read("components/calendar-v1/StockRadarCalendarV1.tsx");
   const detail = await read("components/calendar-v1/CalendarEventDetail.tsx");
 
   assert.match(views, /formatEventCount/);
-  assert.match(workspace, /formatEventCount\(filteredEvents\.length\)/);
+  assert.match(workspace, /\{flowState\.resultLabel\}/);
   assert.doesNotMatch(`${views}\n${workspace}`, /\$\{[^}]+\.length\} events/);
   assert.match(
     detail,

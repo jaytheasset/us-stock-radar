@@ -64,6 +64,8 @@ git status --short
 
 - For global News user-flow investigation, start with `docs/NEWS_USER_FLOW_DIAGNOSTICS.md`; it defines the public search path and shared safe state interpretation.
 
+- For global Calendar user-flow investigation, start with `docs/CALENDAR_USER_FLOW_DIAGNOSTICS.md`; it defines the public date-range path and shared safe state interpretation.
+
 ## Investigation and change boundaries
 
 - Treat diagnosis, investigation, and review requests as read-only unless the user also explicitly requests a change. Do not alter code, product state, data, jobs, caches, or permissions while investigating.
