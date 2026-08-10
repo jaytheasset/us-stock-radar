@@ -199,7 +199,6 @@ test("actual member-grade surfaces share one compact six-plan badge contract", (
   const panel = read(
     "components/live-room/LiveRoomDesktopSidePanel.tsx",
   );
-  const composer = read("components/live-room/MessageComposer.tsx");
   const directMessage = read(
     "components/direct-messages/DirectMessageClient.tsx",
   );
@@ -228,10 +227,6 @@ test("actual member-grade surfaces share one compact six-plan badge contract", (
     /<MemberPlanBadge[\s\S]*item\.author\.isGuest \? "visitor" : item\.author\.plan/,
   );
   assert.match(panel, /<MemberPlanBadge plan=\{summary\.plan\}/);
-  assert.match(
-    composer,
-    /<MemberPlanBadge[\s\S]*profile\.isGuest \? "visitor" : profile\.plan/,
-  );
   assert.match(
     directMessage,
     /<MemberPlanBadge plan=\{conversation\.peer\.plan\}/,

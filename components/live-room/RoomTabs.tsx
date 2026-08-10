@@ -21,6 +21,7 @@ type RoomTabsVisibility = "all" | "desktop" | "mobile";
 
 export function RoomTabs<T extends LiveRoomTab>({
   active,
+  attached = false,
   dockInMobileSheet = false,
   dockOnMobile = false,
   idPrefix = "live-room",
@@ -30,6 +31,7 @@ export function RoomTabs<T extends LiveRoomTab>({
   visibility = "all",
 }: {
   active: T;
+  attached?: boolean;
   dockInMobileSheet?: boolean;
   dockOnMobile?: boolean;
   idPrefix?: string;
@@ -71,6 +73,7 @@ export function RoomTabs<T extends LiveRoomTab>({
       aria-label="Live Room sections"
       className={[
         styles.tabs,
+        attached ? styles.attachedTabs : null,
         dockOnMobile ? styles.mobileDock : null,
         dockInMobileSheet ? styles.mobileSheetDock : null,
         visibility === "desktop" ? styles.desktopOnlyTabs : null,

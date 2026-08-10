@@ -84,7 +84,6 @@ test("side panel members use only real public member authors and deduplicate the
 test("desktop and mobile members share accessible links, status, and actions", () => {
   const panel = read("components/live-room/LiveRoomDesktopSidePanel.tsx");
   const client = read("components/live-room/LiveRoomClient.tsx");
-  const composer = read("components/live-room/MessageComposer.tsx");
   const community = read("components/live-room/CommunityRoomClient.tsx");
   const styles = read("components/live-room/LiveRoom.module.css");
   const tabStyles = read("components/live-room/Posts.module.css");
@@ -120,12 +119,8 @@ test("desktop and mobile members share accessible links, status, and actions", (
   assert.match(panel, /export function LiveRoomMemberList/);
   assert.match(panel, /<LiveRoomMemberList[\s\S]*members=\{members\}/);
   assert.match(
-    composer,
-    /const mobileRoomMenuItems = \[[\s\S]*label: "Members"[\s\S]*value: "members"[\s\S]*\] as const;/,
-  );
-  assert.match(
     client,
-    /mobileRoomMenuOpenerRef=\{mobileRoomMenuOpenerRef\}[\s\S]*onMobileSectionChange=\{handleMobileSectionChange\}/,
+    /id="live-room-info-drawer"[\s\S]*viewport="tablet"[\s\S]*variant="drawer"/,
   );
   assert.match(
     client,
@@ -137,7 +132,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.equal(
     client.match(/onMessageMember=\{handleMessageMember\}/g)?.length,
-    2,
+    3,
   );
   assert.match(
     client,
@@ -162,7 +157,7 @@ test("desktop and mobile members share accessible links, status, and actions", (
   );
   assert.equal(
     client.match(/isGuest=\{profile\?\.isGuest === true\}/g)?.length,
-    3,
+    4,
   );
   assert.match(
     client,

@@ -1,26 +1,18 @@
 "use client";
 
 import {
-  CalendarDays,
-  DoorOpen,
-  FileText,
-  LayoutGrid,
-  MessageCircle,
+  Plus,
   Send,
   UserRound,
-  Users,
   X,
 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
-  type RefObject,
 } from "react";
-import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
-import { MemberAvatar } from "@/components/ui/MemberAvatar";
-import { MemberPlanBadge } from "@/components/ui/MemberPlanBadge";
 import { BrokerageEvidencePicker } from "@/components/brokerage/BrokerageEvidencePicker";
 import type { BrokerageProofSummary } from "@/lib/brokerage/types";
 import {
@@ -52,7 +44,6 @@ type MessageComposerProps = {
   eventReference: CompanyEventReference | null;
   focusRequestId?: number;
   loginHref: string;
-  mobileRoomMenuOpenerRef?: RefObject<HTMLButtonElement | null>;
   onBodyChange: (body: string) => void;
   onClearReference: () => void;
   onCancelReply: () => void;
@@ -64,7 +55,6 @@ type MessageComposerProps = {
   ) => Promise<LiveRoomProfile>;
   onPresenceSettingChange: (showPresence: boolean) => void;
   onMediaChange: (media: KlipyMediaAttachment | null) => void;
-  onMobileSectionChange?: (section: MobileLiveRoomSection) => void;
   onProofChange: (proof: BrokerageProofSummary | null) => void;
   onSend: () => void;
   profile: LiveRoomProfile | null;
@@ -79,21 +69,6 @@ type MessageComposerProps = {
   showPresence: boolean | null;
 };
 
-export type MobileLiveRoomSection =
-  | "chat"
-  | "posts"
-  | "events"
-  | "members"
-  | "rooms";
-
-const mobileRoomMenuItems = [
-  { icon: MessageCircle, label: "Chat", value: "chat" },
-  { icon: FileText, label: "Posts", value: "posts" },
-  { icon: CalendarDays, label: "Events", value: "events" },
-  { icon: Users, label: "Members", value: "members" },
-  { icon: DoorOpen, label: "Rooms", value: "rooms" },
-] as const;
-
 export function MessageComposer({
   body,
   decision,
@@ -101,7 +76,6 @@ export function MessageComposer({
   eventReference,
   focusRequestId = 0,
   loginHref,
-  mobileRoomMenuOpenerRef,
   onBodyChange,
   onClearReference,
   onCancelReply,
@@ -109,7 +83,6 @@ export function MessageComposer({
   onProfileSave,
   onPresenceSettingChange,
   onMediaChange,
-  onMobileSectionChange,
   onProofChange,
   onSend,
   profile,
@@ -127,13 +100,11 @@ export function MessageComposer({
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [proofPickerOpen, setProofPickerOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
-  const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const handleProofPickerOpenChange = useCallback(
     (nextOpen: boolean) => {
       setProofPickerOpen(nextOpen);
       if (nextOpen) {
         setMediaPickerOpen(false);
-        setRoomMenuOpen(false);
         setProfileOpen(false);
       }
     },
@@ -144,7 +115,6 @@ export function MessageComposer({
       setMediaPickerOpen(nextOpen);
       if (nextOpen) {
         setProofPickerOpen(false);
-        setRoomMenuOpen(false);
         setProfileOpen(false);
       }
     },
@@ -163,18 +133,18 @@ export function MessageComposer({
     if (!profileOpen) return;
     setProofPickerOpen(false);
     setMediaPickerOpen(false);
-    setRoomMenuOpen(false);
   }, [profileOpen]);
 
-  const handleMobileSectionChange = (section: MobileLiveRoomSection) => {
-    setRoomMenuOpen(false);
-    window.requestAnimationFrame(() => onMobileSectionChange?.(section));
-  };
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(120, Math.max(52, textarea.scrollHeight))}px`;
+  }, [body]);
 
   return (
     <div
       className={styles.composer}
-      data-mobile-room-menu={onMobileSectionChange ? "true" : undefined}
     >
       {eventReference ? (
         <div className={styles.composerReference}>
@@ -239,7 +209,6 @@ export function MessageComposer({
               if (profile?.isGuest === false) {
                 setProofPickerOpen(false);
                 setMediaPickerOpen(false);
-                setRoomMenuOpen(false);
                 setProfileOpen(!profileOpen);
               }
             }}
@@ -247,35 +216,10 @@ export function MessageComposer({
             type="button"
           >
             {profile ? (
-              <>
-                <MemberAvatar
-                  displayName={profile.displayName || "?"}
-                  imageUrl={profile.avatarUrl}
-                  size="small"
-                />
-                <span>
-                  <strong>
-                    {formatPublicChatName(profile.displayName)}
-                  </strong>
-                  <MemberPlanBadge
-                    plan={profile.isGuest ? "visitor" : profile.plan}
-                  />
-                </span>
-              </>
+              <Plus aria-hidden="true" size={20} />
             ) : (
-              <>
-                <span aria-hidden="true">
-                  <UserRound size={18} />
-                </span>
-                <span>
-                  <strong>Loading…</strong>
-                  <small>Checking session</small>
-                </span>
-              </>
+              <UserRound aria-hidden="true" size={18} />
             )}
-            {profile ? (
-              <UserRound aria-hidden="true" size={14} />
-            ) : null}
           </button>
           {profile && !profile.isGuest ? (
             <ChatNameSetup
@@ -296,94 +240,77 @@ export function MessageComposer({
           ) : null}
         </div>
 
-        <label
-          className={styles.messageField}
-          data-has-value={body.length > 0}
-        >
-          <span className={styles.visuallyHidden}>Message</span>
-          <textarea
+        <div className={styles.composerSurface}>
+          <label
+            className={styles.messageField}
+            data-has-value={body.length > 0}
+          >
+            <span className={styles.visuallyHidden}>Message</span>
+            <textarea
+              aria-describedby="live-room-composer-help"
+              disabled={disabled || sending}
+              maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
+              onChange={(event) => onBodyChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  requestSend();
+                }
+              }}
+              placeholder={
+                replyPreview
+                  ? `Reply to ${formatPublicChatName(
+                      replyPreview.authorDisplayName,
+                    )}…`
+                  : placeholder
+              }
+              ref={textareaRef}
+              rows={1}
+              value={body}
+            />
+            <small>
+              {body.length}/{LIVE_ROOM_MESSAGE_MAX_LENGTH}
+            </small>
+          </label>
+          <div className={styles.composerBrokeragePicker}>
+            <BrokerageEvidencePicker
+              isOpen={proofPickerOpen}
+              loginHref={loginHref}
+              onChange={onProofChange}
+              onOpenChange={handleProofPickerOpenChange}
+              placement="composer"
+              value={proof}
+            />
+          </div>
+          <KlipyPicker
             disabled={disabled || sending}
-            maxLength={LIVE_ROOM_MESSAGE_MAX_LENGTH + 80}
-            onChange={(event) => onBodyChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                requestSend();
-              }
-            }}
-            placeholder={
-              replyPreview
-                ? `Reply to ${formatPublicChatName(
-                    replyPreview.authorDisplayName,
-                  )}…`
-                : placeholder
-            }
-            ref={textareaRef}
-            rows={1}
-            value={body}
-          />
-          <small>
-            {body.length}/{LIVE_ROOM_MESSAGE_MAX_LENGTH}
-          </small>
-        </label>
-        <div className={styles.desktopBrokeragePicker}>
-          <BrokerageEvidencePicker
-            isOpen={proofPickerOpen}
+            isOpen={mediaPickerOpen}
+            isGuest={profile?.isGuest !== false}
             loginHref={loginHref}
-            onChange={onProofChange}
-            onOpenChange={handleProofPickerOpenChange}
-            placement="composer"
-            value={proof}
+            onOpenChange={handleMediaPickerOpenChange}
+            onSelect={onMediaChange}
           />
-        </div>
-        {onMobileSectionChange && mobileRoomMenuOpenerRef ? (
           <button
-            aria-controls="live-room-mobile-room-menu"
-            aria-expanded={roomMenuOpen}
-            aria-haspopup="dialog"
-            aria-label="Open Room menu"
-            className={styles.roomMenuButton}
-            onClick={() => {
-              const nextOpen = !roomMenuOpen;
-              setRoomMenuOpen(nextOpen);
-              if (nextOpen) {
-                setProofPickerOpen(false);
-                setMediaPickerOpen(false);
-                setProfileOpen(false);
-              }
-            }}
-            ref={mobileRoomMenuOpenerRef}
+            aria-label="Send message"
+            className={styles.sendButton}
+            disabled={disabled || sending}
+            onClick={requestSend}
             type="button"
           >
-            <LayoutGrid aria-hidden="true" size={20} />
+            <Send aria-hidden="true" size={17} />
+            <span>{sending ? "Sending…" : "Send"}</span>
           </button>
-        ) : null}
-        <KlipyPicker
-          disabled={disabled || sending}
-          isOpen={mediaPickerOpen}
-          isGuest={profile?.isGuest !== false}
-          loginHref={loginHref}
-          onOpenChange={handleMediaPickerOpenChange}
-          onSelect={onMediaChange}
-        />
-        <button
-          aria-label="Send message"
-          className={styles.sendButton}
-          disabled={disabled || sending}
-          onClick={requestSend}
-          type="button"
-        >
-          <Send aria-hidden="true" size={17} />
-          <span>{sending ? "Sending…" : "Send"}</span>
-        </button>
+        </div>
       </div>
 
       <div className={styles.composerMeta}>
-        <span>Enter to send · Shift+Enter for a new line</span>
+        <span className={styles.visuallyHidden} id="live-room-composer-help">
+          Enter to send. Shift+Enter for a new line.
+        </span>
         {decision && !decision.allowed ? (
           <span
             aria-live="polite"
@@ -394,56 +321,7 @@ export function MessageComposer({
           </span>
         ) : null}
       </div>
-      <LiveRoomDisclosureNotice hideOnMobile={Boolean(onMobileSectionChange)} />
-      {onMobileSectionChange && mobileRoomMenuOpenerRef ? (
-        <BottomSheetShell
-          aria-label="Room menu"
-          closeLabel="Close Room menu"
-          id="live-room-mobile-room-menu"
-          isOpen={roomMenuOpen}
-          layout="full-scroll"
-          onDismiss={() => setRoomMenuOpen(false)}
-          openerRef={mobileRoomMenuOpenerRef}
-          overlayLabel="Close Room menu"
-          viewport="mobile"
-        >
-          <div className={styles.roomMenuSheet}>
-            <header className={styles.roomMenuHeading}>
-              <h2>Room menu</h2>
-              <p>Browse this room or add verified trading evidence.</p>
-            </header>
-            <nav aria-label="Room sections" className={styles.roomMenuSections}>
-              {mobileRoomMenuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    aria-current={item.value === "chat" ? "page" : undefined}
-                    className={
-                      item.value === "chat"
-                        ? styles.roomMenuActiveItem
-                        : undefined
-                    }
-                    key={item.value}
-                    onClick={() => handleMobileSectionChange(item.value)}
-                    type="button"
-                  >
-                    <Icon aria-hidden="true" size={18} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className={styles.roomMenuBrokerage}>
-              <BrokerageEvidencePicker
-                loginHref={loginHref}
-                onChange={onProofChange}
-                placement="room-menu"
-                value={proof}
-              />
-            </div>
-          </div>
-        </BottomSheetShell>
-      ) : null}
+      <LiveRoomDisclosureNotice />
     </div>
   );
 }

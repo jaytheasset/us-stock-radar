@@ -98,10 +98,7 @@ import { CompanyRoomHeader } from "./CompanyRoomHeader";
 import { EventHistoryPanel } from "./EventHistoryPanel";
 import { JoinedRoomsList } from "./JoinedRoomsList";
 import { LiveRoomLatestButton } from "./LiveRoomLatestButton";
-import {
-  MessageComposer,
-  type MobileLiveRoomSection,
-} from "./MessageComposer";
+import { MessageComposer } from "./MessageComposer";
 import {
   LiveRoomHeaderAdSlot,
   LiveRoomMobileInlineAdSlot,
@@ -245,11 +242,15 @@ export function LiveRoomClient({
   >(null);
   const [mobileSheet, setMobileSheet] =
     useState<MobileLiveRoomSheet | null>(null);
+  const [infoDrawerOpen, setInfoDrawerOpen] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const latestEventIdRef = useRef<string | null>(null);
   const membershipRef = useRef(false);
-  const historyOpenerRef = useRef<HTMLButtonElement>(null);
-  const mobileRoomMenuOpenerRef = useRef<HTMLButtonElement>(null);
+  const infoDrawerOpenerRef = useRef<HTMLButtonElement>(null);
+  const mobileSheetOpenerRef = useRef<HTMLButtonElement>(null);
+  const roomTabElementRefs = useRef<
+    Partial<Record<CompanyLiveRoomTab, HTMLButtonElement | null>>
+  >({});
   const desktopRailRef = useRef<HTMLDivElement>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
@@ -1099,13 +1100,15 @@ export function LiveRoomClient({
     setActiveTab(tab);
   };
 
-  const handleMobileSectionChange = useCallback(
-    (tab: MobileLiveRoomSection) => {
-      setActiveTab("chat");
-      setMobileSheet(tab === "chat" ? null : tab);
-    },
-    [],
-  );
+  const handleRoomTabChange = (tab: CompanyLiveRoomTab) => {
+    mobileSheetOpenerRef.current = roomTabElementRefs.current[tab] ?? null;
+    setActiveTab(tab);
+    setMobileSheet(
+      window.matchMedia("(max-width: 760px)").matches && tab !== "chat"
+        ? tab
+        : null,
+    );
+  };
 
   const handleSend = async () => {
     if (roomReadOnly) {
@@ -1578,20 +1581,59 @@ export function LiveRoomClient({
           className={styles.roomHeaderRow}
           data-ad-enabled={adsEnabledForViewer ? "true" : undefined}
         >
-          <CompanyRoomHeader
-            historyButtonRef={historyOpenerRef}
-            identity={identity}
-            isGuest={profile?.isGuest === true}
-            joiningDisabled={roomReadOnly}
-            loginHref={roomLoginHref}
-            membershipBusy={membershipBusy}
-            membershipJoined={membershipJoined}
-            onJoin={handleJoinRoom}
-            onLeave={handleLeaveRoom}
-            onOpenHistory={() => handleDesktopTabChange("events")}
-            quote={quote}
-            roomCounts={roomCounts}
-          />
+          <div className={styles.roomHeaderStack}>
+            <CompanyRoomHeader
+              identity={identity}
+              infoButtonRef={infoDrawerOpenerRef}
+              infoOpen={infoDrawerOpen}
+              isGuest={profile?.isGuest === true}
+              joiningDisabled={roomReadOnly}
+              loginHref={roomLoginHref}
+              membershipBusy={membershipBusy}
+              membershipJoined={membershipJoined}
+              onJoin={handleJoinRoom}
+              onLeave={handleLeaveRoom}
+              onOpenInfo={() => setInfoDrawerOpen(true)}
+              quote={quote}
+              roomCounts={roomCounts}
+            />
+            <RoomTabs
+              active={activeTab}
+              attached
+              items={[
+                {
+                  controlsId: "live-room-chat-panel",
+                  label: "Chat",
+                  value: "chat",
+                },
+                {
+                  controlsId: "live-room-posts-panel live-room-posts-sheet",
+                  label: "Posts",
+                  value: "posts",
+                },
+                {
+                  controlsId: "live-room-events-panel live-room-events-sheet",
+                  label: "Events",
+                  value: "events",
+                },
+              ]}
+              onChange={handleRoomTabChange}
+              onItemElementChange={(tab, element) => {
+                roomTabElementRefs.current[tab] = element;
+              }}
+            />
+            {eventSource === "loading" ? (
+              <div
+                aria-hidden="true"
+                className={styles.latestChatEventLoading}
+              >
+                <span />
+                <span />
+              </div>
+            ) : latestEvent ? (
+              <LatestChatEventStrip event={latestEvent} />
+            ) : null}
+          </div>
           <LiveRoomHeaderAdSlot
             enabledForViewer={adsEnabledForViewer}
           />
@@ -1642,25 +1684,6 @@ export function LiveRoomClient({
           </p>
         ) : null}
 
-        {membershipJoined ? (
-          <div className={styles.followNote}>
-            <p>
-              Joined. This room stays in My Rooms and tracks unread
-              activity until you choose Leave room.
-            </p>
-          </div>
-        ) : null}
-
-        <RoomTabs
-          active={activeTab}
-          items={[
-            { label: "Chat", value: "chat" },
-            { label: "Posts", value: "posts" },
-            { label: "Events", value: "events" },
-          ]}
-          onChange={handleDesktopTabChange}
-          visibility="desktop"
-        />
         <div className={styles.workspaceLayout}>
           <div className={styles.primaryColumn}>
         <section
@@ -1713,7 +1736,12 @@ export function LiveRoomClient({
         ) : null}
 
         {activeTab === "posts" ? (
-          <div className={styles.desktopTabPanel}>
+          <div
+            aria-labelledby="live-room-posts-tab"
+            className={styles.desktopTabPanel}
+            id="live-room-posts-panel"
+            role="tabpanel"
+          >
           <PostsPanel
             cursor={postsCursor}
             events={events}
@@ -1752,17 +1780,6 @@ export function LiveRoomClient({
                 <p className={styles.roomNotice} role="status">
                   {roomNotice}
                 </p>
-              ) : null}
-              {eventSource === "loading" ? (
-                <div
-                  aria-hidden="true"
-                  className={styles.latestChatEventLoading}
-                >
-                  <span />
-                  <span />
-                </div>
-              ) : latestEvent?.detailHref ? (
-                <LatestChatEventStrip event={latestEvent} />
               ) : null}
               {olderCursor && timelineState === "ready" ? (
                 <button
@@ -1816,7 +1833,6 @@ export function LiveRoomClient({
               eventReference={reference}
               focusRequestId={composerFocusRequestId}
               loginHref={roomLoginHref}
-              mobileRoomMenuOpenerRef={mobileRoomMenuOpenerRef}
               onBodyChange={(nextBody) => {
                 setBody(nextBody);
                 setDecision(null);
@@ -1834,7 +1850,6 @@ export function LiveRoomClient({
                 setKlipyMedia(media);
                 if (media) setBrokerageProof(null);
               }}
-              onMobileSectionChange={handleMobileSectionChange}
               onSend={handleSend}
               profile={profile}
               profileOpen={profileOpen}
@@ -1871,9 +1886,10 @@ export function LiveRoomClient({
           </div>
           <div className={styles.desktopRail} ref={desktopRailRef}>
             <LiveRoomDesktopSidePanel
+              allEvents={events}
               currentRoomHref={`/live/${ticker}`}
               eventSource={eventSource}
-              events={events}
+              events={historicalEvents}
               isGuest={profile?.isGuest === true}
               joinedRooms={joinedRooms}
               joinedRoomsError={joinedRoomsError}
@@ -1898,6 +1914,48 @@ export function LiveRoomClient({
         </div>
 
         </div>
+      {infoDrawerOpen ? (
+        <BottomSheetShell
+          aria-label="Live Room information"
+          closeLabel="Close Live Room information"
+          id="live-room-info-drawer"
+          isOpen
+          layout="full-scroll"
+          onDismiss={() => setInfoDrawerOpen(false)}
+          openerRef={infoDrawerOpenerRef}
+          overlayLabel="Close Live Room information"
+          viewport="tablet"
+        >
+          <div className={styles.infoDrawerContent}>
+            <LiveRoomDesktopSidePanel
+              allEvents={events}
+              currentRoomHref={`/live/${ticker}`}
+              eventSource={eventSource}
+              events={historicalEvents}
+              isGuest={profile?.isGuest === true}
+              joinedRooms={joinedRooms}
+              joinedRoomsError={joinedRoomsError}
+              joinedRoomsLoading={joinedRoomsLoading}
+              loginHref={roomLoginHref}
+              memberSummaries={memberSummaries}
+              messageActionId={messageActionId}
+              onChangeMainTab={(tab) => {
+                setInfoDrawerOpen(false);
+                handleDesktopTabChange(tab);
+              }}
+              onMessageMember={handleMessageMember}
+              onRetryPosts={() => {
+                void handleLoadPosts().catch(() => undefined);
+              }}
+              onToggleMemberFollow={handleMemberFollow}
+              posts={posts}
+              postsState={postsState}
+              timeline={timeline}
+              variant="drawer"
+            />
+          </div>
+        </BottomSheetShell>
+      ) : null}
       {mobileSheet ? (
         <BottomSheetShell
           aria-label={
@@ -1917,7 +1975,7 @@ export function LiveRoomClient({
             setMobileSheet(null);
             setActiveTab("chat");
           }}
-          openerRef={mobileRoomMenuOpenerRef}
+          openerRef={mobileSheetOpenerRef}
           overlayLabel={`Close ${mobileSheet}`}
           viewport="mobile"
         >

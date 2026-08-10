@@ -142,7 +142,7 @@ test("latest company event selection is deterministic and does not mutate input"
   );
 });
 
-test("company chat leads with one compact linked latest event without changing Community Room", () => {
+test("company chat leads with one compact real latest event without changing Community Room", () => {
   const companyClient = readSource("components/live-room/LiveRoomClient.tsx");
   const chatTimeline = readSource("components/live-room/ChatTimeline.tsx");
   const communityClient = readSource(
@@ -156,20 +156,21 @@ test("company chat leads with one compact linked latest event without changing C
   assert.ok(timelineIndex > stripIndex);
   assert.match(
     chatTimeline,
-    /export function LatestChatEventStrip[\s\S]+if \(!event\.detailHref\)[\s\S]+<Link[\s\S]+className=\{styles\.latestChatEventStrip\}[\s\S]+href=\{event\.detailHref\}/,
+    /export function LatestChatEventStrip[\s\S]+return event\.detailHref \? \([\s\S]+<Link[\s\S]+href=\{event\.detailHref\}[\s\S]+role="group"/,
   );
   assert.equal(
     chatTimeline.match(/className=\{styles\.latestChatEventStrip\}/g)?.length,
-    1,
+    2,
   );
+  assert.match(chatTimeline, />Pinned update<\/span>/);
   assert.match(
     companyClient,
-    /eventSource === "loading"[\s\S]+styles\.latestChatEventLoading[\s\S]+latestEvent\?\.detailHref[\s\S]+<LatestChatEventStrip event=\{latestEvent\} \/>/,
+    /eventSource === "loading"[\s\S]+styles\.latestChatEventLoading[\s\S]+latestEvent \? \([\s\S]+<LatestChatEventStrip event=\{latestEvent\} \/>/,
   );
   assert.doesNotMatch(communityClient, /latestChatEventStrip/);
   assert.match(
     styles,
-    /\.latestChatEventStrip,[\s\S]+\.latestChatEventLoading[\s\S]+min-height: 62px/,
+    /\.latestChatEventStrip,[\s\S]+\.latestChatEventLoading[\s\S]+min-height: 52px/,
   );
   assert.match(
     styles,
@@ -177,7 +178,7 @@ test("company chat leads with one compact linked latest event without changing C
   );
   assert.match(
     styles,
-    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventStrip time,\s*\.latestChatEventStrip > svg\s*\{\s*display:\s*none;/,
+    /@media \(max-width: 760px\)[\s\S]+\.latestChatEventDetails\s*\{\s*display:\s*none;/,
   );
   assert.match(
     styles,
@@ -296,7 +297,7 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
   assert.match(
     headerSource,
-    /<h1 className=\{styles\.desktopRoomTitle\}>[\s\S]*\{identity\.ticker\} Live Room[\s\S]*<\/h1>/,
+    /<h1 className=\{styles\.roomTitleLine\}>[\s\S]*className=\{styles\.roomTicker\}>\{identity\.ticker\}[\s\S]*className=\{styles\.roomLabel\}>Live Room/,
   );
   assert.match(
     headerSource,
@@ -319,7 +320,7 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   assert.doesNotMatch(clientSource, /Company discussion/);
   assert.doesNotMatch(clientSource, /\{ticker\} Live Room<\/h2>/);
   assert.doesNotMatch(clientSource, /dockOnMobile/);
-  assert.match(clientSource, /onMobileSectionChange=\{handleMobileSectionChange\}/);
+  assert.match(clientSource, /attached[\s\S]*onChange=\{handleRoomTabChange\}/);
   assert.match(styleSource, /height:\s*var\(--live-room-workspace-height\)/);
   assert.doesNotMatch(
     clientSource,
@@ -327,12 +328,9 @@ test("Live Room uses the shared wide shell and no selected product navigation", 
   );
 });
 
-test("company Live Room replaces mobile dock tabs with an accessible composer Room menu", () => {
+test("company Live Room keeps attached mobile tabs and an accessible information drawer", () => {
   const client = readSource("components/live-room/LiveRoomClient.tsx");
   const composer = readSource("components/live-room/MessageComposer.tsx");
-  const picker = readSource(
-    "components/brokerage/BrokerageEvidencePicker.tsx",
-  );
   const bottomSheet = readSource("components/ui/BottomSheetShell.tsx");
   const styles = readSource("components/live-room/LiveRoom.module.css");
   const community = readSource(
@@ -341,45 +339,26 @@ test("company Live Room replaces mobile dock tabs with an accessible composer Ro
 
   assert.match(
     client,
-    /<RoomTabs[\s\S]*active=\{activeTab\}[\s\S]*visibility="desktop"/,
+    /<RoomTabs[\s\S]*active=\{activeTab\}[\s\S]*attached[\s\S]*onChange=\{handleRoomTabChange\}/,
   );
   assert.doesNotMatch(client, /dockOnMobile|dockInMobileSheet/);
   assert.doesNotMatch(client, /mobileLiveRoomTabs|mobilePostsOpenerRef/);
   assert.match(client, /data-room-kind="company"/);
   assert.match(
     client,
-    /mobileRoomMenuOpenerRef=\{mobileRoomMenuOpenerRef\}[\s\S]*onMobileSectionChange=\{handleMobileSectionChange\}/,
+    /const handleRoomTabChange = \(tab: CompanyLiveRoomTab\)[\s\S]*window\.matchMedia\("\(max-width: 760px\)"\)[\s\S]*setMobileSheet/,
   );
   assert.match(
     client,
-    /const handleMobileSectionChange = useCallback\([\s\S]*\(tab: MobileLiveRoomSection\) => \{[\s\S]*setActiveTab\("chat"\);[\s\S]*setMobileSheet\(tab === "chat" \? null : tab\)/,
+    /id="live-room-info-drawer"[\s\S]*openerRef=\{infoDrawerOpenerRef\}[\s\S]*viewport="tablet"/,
   );
   assert.match(
     client,
-    /<BottomSheetShell[\s\S]*id=\{\`live-room-\$\{mobileSheet\}-sheet\`\}[\s\S]*openerRef=\{mobileRoomMenuOpenerRef\}[\s\S]*viewport="mobile"/,
+    /id=\{`live-room-\$\{mobileSheet\}-sheet`\}[\s\S]*openerRef=\{mobileSheetOpenerRef\}[\s\S]*viewport="mobile"/,
   );
-
-  for (const section of ["Chat", "Posts", "Events", "Members", "Rooms"]) {
-    assert.match(composer, new RegExp(`label: "${section}"`));
-  }
-  assert.equal(
-    (composer.match(/label: "(?:Chat|Posts|Events|Members|Rooms)"/g) ?? [])
-      .length,
-    5,
-  );
-  assert.match(composer, /aria-label="Open Room menu"/);
-  assert.match(composer, /<LayoutGrid aria-hidden="true"/);
-  assert.doesNotMatch(composer, /<Menu aria-hidden="true"/);
-  assert.match(composer, /aria-label="Room menu"/);
-  assert.match(composer, /aria-current=\{item\.value === "chat" \? "page"/);
-  assert.match(composer, /placement="room-menu"/);
-  assert.match(composer, /add verified trading evidence/);
-  assert.match(
-    picker,
-    /placement\?: "composer" \| "default" \| "room-menu"/,
-  );
-  assert.match(picker, /"Verified trade \/ position"/);
-  assert.match(picker, /placement === "room-menu" \? "region" : "dialog"/);
+  assert.match(composer, /<Plus aria-hidden="true"/);
+  assert.match(composer, /placement="composer"/);
+  assert.doesNotMatch(composer, /aria-label="Open Room menu"|placement="room-menu"/);
   assert.match(bottomSheet, /event\.key === "Escape"/);
   assert.match(bottomSheet, /restoreFocus\(opener\)/);
   assert.match(bottomSheet, /overlayLabel/);
@@ -398,11 +377,11 @@ test("company Live Room replaces mobile dock tabs with an accessible composer Ro
   );
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.roomMenuButton\s*\{[\s\S]*width:\s*44px;[\s\S]*min-height:\s*44px;/,
+    /\.page\[data-room-kind="company"\] \.composerSurface\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto auto 44px;/,
   );
   assert.match(
     styles,
-    /\.latestChatEventStrip\s*\{[\s\S]*min-height:\s*48px;[\s\S]*border-width:\s*0 0 var\(--sr-border-width\);[\s\S]*border-radius:\s*0;/,
+    /\.latestChatEventStrip\s*\{[\s\S]*min-height:\s*48px;[\s\S]*grid-template-columns:\s*auto auto auto minmax\(0, 1fr\) auto;/,
   );
   assert.match(
     community,
@@ -525,7 +504,7 @@ test("registered chat author avatar and name open the safe public profile", () =
   );
   assert.match(
     timeline,
-    /publicProfileHref \? \([\s\S]*<Link[\s\S]*: \([\s\S]*className=\{styles\.messageAvatar\}/,
+    /showAvatar && publicProfileHref \? \([\s\S]*<Link[\s\S]*: showAvatar \? \([\s\S]*className=\{styles\.messageAvatar\}/,
   );
   assert.match(
     timeline,
@@ -808,23 +787,23 @@ test("mobile company header is a stable two-row company-first summary", () => {
 
   assert.match(
     header,
-    /className=\{styles\.desktopRoomTitle\}[\s\S]*\{identity\.ticker\} Live Room/,
+    /className=\{styles\.roomTicker\}>\{identity\.ticker\}/,
   );
   assert.match(
     header,
-    /className=\{styles\.mobileRoomTitle\}[\s\S]*\{identity\.companyName\}/,
+    /className=\{styles\.roomCompanyName\}[\s\S]*\{identity\.companyName\}/,
   );
   assert.match(
     header,
-    /className=\{styles\.mobileTicker\}>\{identity\.ticker\}/,
+    /className=\{styles\.roomLabel\}>Live Room/,
   );
   assert.match(
     header,
-    /mobileRoomCounts[\s\S]*formatMemberCount\(roomCounts\.memberCount\)[\s\S]*roomCounts\.onlineCount\} online/,
+    /roomCounts[\s\S]*formatMemberCount\(roomCounts\.memberCount\)[\s\S]*roomCounts\.onlineCount\} online/,
   );
   assert.equal(
     header.match(/formatMemberCount\(roomCounts\.memberCount\)/g)?.length,
-    2,
+    1,
   );
   assert.match(
     header,
@@ -834,19 +813,19 @@ test("mobile company header is a stable two-row company-first summary", () => {
   assert.match(header, /<RoomMembershipControl[\s\S]*<LiveRoomInviteMenu/);
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.roomHeader\s*\{[\s\S]*min-height:\s*68px;[\s\S]*grid-template-rows:\s*minmax\(20px, auto\) 44px;/,
+    /@media \(max-width: 760px\)[\s\S]*\.page\[data-room-kind="company"\] \.roomHeader\s*\{[\s\S]*min-height:\s*76px;[\s\S]*grid-template-rows:\s*auto auto;/,
   );
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.desktopRoomTitle,[\s\S]*\.mobileExchange,[\s\S]*\.roomCompanyName\s*\{[\s\S]*display:\s*none !important;/,
+    /\.page\[data-room-kind="company"\] \.roomCompanyName\s*\{[\s\S]*text-overflow:\s*ellipsis;[\s\S]*white-space:\s*nowrap;/,
   );
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.mobileRoomTitle\s*\{[\s\S]*display:\s*block !important;[\s\S]*font-family:\s*var\(--sr-font-family-sans\);/,
+    /\.roomLabel\s*\{[\s\S]*font-family:\s*var\(--sr-font-family-sans\);/,
   );
   assert.match(
     styles,
-    /\.page\[data-room-kind="company"\] \.mobileTicker\s*\{[\s\S]*font-family:\s*var\(--sr-font-family-mono\);/,
+    /\.roomTicker\s*\{[\s\S]*font-family:\s*var\(--sr-font-family-mono\);/,
   );
   assert.match(
     styles,
@@ -858,7 +837,7 @@ test("mobile company header is a stable two-row company-first summary", () => {
   );
   assert.match(
     styles,
-    /\.roomActions \.historyTrigger\s*\{[\s\S]*display:\s*none !important;/,
+    /\.page\[data-room-kind="company"\] \.infoDrawerTrigger\s*\{[\s\S]*display:\s*inline-flex !important;/,
   );
 });
 
@@ -1001,7 +980,7 @@ test("unblock closes stale updates and initial member identity and room membersh
   assert.match(membership, /disabled[\s\S]+Loading/);
   assert.match(composer, /profile: LiveRoomProfile \| null/);
   assert.match(composer, /"Loading Live Room identity"/);
-  assert.match(composer, /<small>Checking session<\/small>/);
+  assert.match(composer, /<UserRound aria-hidden="true" size=\{18\} \/>/);
 });
 
 test("moderation accepts a normal message and trims outer whitespace", () => {
@@ -2619,7 +2598,6 @@ test("all public member surfaces use the shared initial avatar contract", () => 
   for (const file of [
     "components/live-room/ChatTimeline.tsx",
     "components/live-room/LiveRoomDesktopSidePanel.tsx",
-    "components/live-room/MessageComposer.tsx",
     "components/live-room/PostComments.tsx",
     "components/live-room/PostDetailClient.tsx",
     "components/live-room/PostsPanel.tsx",
@@ -2682,12 +2660,12 @@ test("Live Room disclosure appears exactly once at the shared composer boundary"
     /href="\/terms#live-room-community-disclosures"/,
   );
   assert.equal(
-    (composer.match(/<LiveRoomDisclosureNotice /g) ?? []).length,
+    (composer.match(/<LiveRoomDisclosureNotice(?:\s|\/)/g) ?? []).length,
     1,
   );
   assert.match(
     composer,
-    /<LiveRoomDisclosureNotice hideOnMobile=\{Boolean\(onMobileSectionChange\)\} \/>/,
+    /<LiveRoomDisclosureNotice \/>/,
   );
   assert.match(disclosure, /data-mobile-hidden=\{hideOnMobile \|\| undefined\}/);
   for (const source of [posts, postDetail, companyRoom, communityRoom]) {

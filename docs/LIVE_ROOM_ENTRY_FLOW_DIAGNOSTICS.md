@@ -74,13 +74,15 @@ safe data attributes for direct DOM inspection:
   rendered, not the initial request result count;
 - `data-live-room-latest-update`: `loading`, `visible`, `no-update`, or
   `source-error`. A retained visible update stays `visible` if a later optional
-  source refresh fails;
+  source refresh fails. `visible` means the real event strip is rendered;
+  whether that event also has a detail link does not change the state;
 - `data-live-room-composer-state`: `available`, `loading`, `read-only`,
   `unavailable`, or the transient `busy` state;
 - `data-live-room-composer-disabled-reason`: `none`, `profile-loading`,
   `timeline-loading`, `timeline-error`, `room-read-only`, or `sending`;
 - `data-live-room-quick-preview`: `visible`, `hidden-narrow`, or the transient
-  `checking` state. This follows the rail's actual rendered CSS visibility.
+  `checking` state. This follows the rail's actual rendered CSS visibility;
+  opening the narrow-screen information drawer does not make the rail visible.
 
 Read the entry fields first, then compare the surface observation with the
 selected tab and visible timeline, update, composer, and quick-preview rail.
@@ -100,3 +102,7 @@ Repeat the same direct URL at desktop, an intermediate width, and 390px. Do not
 bypass login or membership. Treat archived, locked, permission-denied, failed,
 and unknown fixtures as unit-only unless those states can be reached safely in
 the existing environment.
+
+For local grouping presentation checks only, run `next dev` and open
+`/development/live-room-visual-fixture`. This fixed, non-persisted developer
+fixture uses the real timeline UI and is not a source of real room data.
