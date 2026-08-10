@@ -86,6 +86,10 @@ import {
   type LiveRoomEntryRequestState,
 } from "@/lib/live-room/entryFlow";
 import {
+  resolveLiveRoomSurfaceObservation,
+  type LiveRoomSurfaceTimelineState,
+} from "@/lib/live-room/surfaceObservation";
+import {
   ChatTimeline,
   LatestChatEventStrip,
 } from "./ChatTimeline";
@@ -124,7 +128,6 @@ type LiveRoomClientProps = {
   viewerPlan: Plan;
 };
 
-type TimelineState = "empty" | "error" | "loading" | "ready";
 type PostsState = "error" | "loading" | "ready";
 type MobileLiveRoomSheet = "events" | "members" | "posts" | "rooms";
 
@@ -174,7 +177,7 @@ export function LiveRoomClient({
     useState<CompanyEventSource>("loading");
   const [timeline, setTimeline] = useState<LiveRoomTimelineItem[]>([]);
   const [timelineState, setTimelineState] =
-    useState<TimelineState>("loading");
+    useState<LiveRoomSurfaceTimelineState>("loading");
   const [entryRequest, setEntryRequest] =
     useState<LiveRoomEntryRequestState>({ status: "loading" });
   const [posts, setPosts] = useState<LiveRoomPost[]>([]);
@@ -237,6 +240,9 @@ export function LiveRoomClient({
     useState<string | null>(null);
   const [activeTab, setActiveTab] =
     useState<CompanyLiveRoomTab>("chat");
+  const [quickPreviewVisible, setQuickPreviewVisible] = useState<
+    boolean | null
+  >(null);
   const [mobileSheet, setMobileSheet] =
     useState<MobileLiveRoomSheet | null>(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
@@ -244,6 +250,7 @@ export function LiveRoomClient({
   const membershipRef = useRef(false);
   const historyOpenerRef = useRef<HTMLButtonElement>(null);
   const mobileRoomMenuOpenerRef = useRef<HTMLButtonElement>(null);
+  const desktopRailRef = useRef<HTMLDivElement>(null);
   const markedActivityMessageRef = useRef<string | null>(null);
   const loadedTickerRef = useRef<string | null>(null);
   const timelineGenerationRef = useRef(0);
@@ -306,6 +313,17 @@ export function LiveRoomClient({
     request: entryRequest,
     surfaceState: timelineState,
   });
+  const surfaceObservation = resolveLiveRoomSurfaceObservation({
+    eventSource,
+    hasLatestEvent: Boolean(latestEvent),
+    mainSection: activeTab,
+    profileLoaded: profile !== null,
+    quickPreviewVisible,
+    roomReadOnly,
+    sending,
+    timelineItemCount: timeline.length,
+    timelineState,
+  });
   const timelineTailId = timeline.at(-1)?.id ?? null;
 
   const scheduleTimelineScroll = useCallback(
@@ -330,6 +348,29 @@ export function LiveRoomClient({
     },
     [],
   );
+
+  useEffect(() => {
+    const rail = desktopRailRef.current;
+    if (!rail) return;
+    const updateVisibility = () => {
+      const style = window.getComputedStyle(rail);
+      const visible =
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rail.getClientRects().length > 0;
+      setQuickPreviewVisible((current) =>
+        current === visible ? current : visible,
+      );
+    };
+    const observer = new ResizeObserver(updateVisibility);
+    observer.observe(rail);
+    window.addEventListener("resize", updateVisibility);
+    updateVisibility();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1573,6 +1614,28 @@ export function LiveRoomClient({
           {entryFlow.message}
         </p>
 
+        <div
+          aria-hidden="true"
+          className={styles.visuallyHidden}
+          data-live-room-composer-disabled-reason={
+            surfaceObservation.composer.disabledReason
+          }
+          data-live-room-composer-state={
+            surfaceObservation.composer.state
+          }
+          data-live-room-latest-update={surfaceObservation.latestUpdate}
+          data-live-room-main-section={surfaceObservation.mainSection}
+          data-live-room-quick-preview={surfaceObservation.quickPreview}
+          data-live-room-timeline-count={
+            surfaceObservation.timeline.itemCount
+          }
+          data-live-room-timeline-state={
+            surfaceObservation.timeline.state
+          }
+        >
+          {surfaceObservation.message}
+        </div>
+
         {roomAvailabilityMessage ? (
           <p className={styles.roomAvailabilityNotice} role="status">
             {roomAvailabilityMessage}
@@ -1749,12 +1812,7 @@ export function LiveRoomClient({
             <MessageComposer
               body={body}
               decision={decision}
-              disabled={
-                profile === null ||
-                timelineState === "error" ||
-                timelineState === "loading" ||
-                roomReadOnly
-              }
+              disabled={surfaceObservation.composer.disabled}
               eventReference={reference}
               focusRequestId={composerFocusRequestId}
               loginHref={roomLoginHref}
@@ -1811,7 +1869,7 @@ export function LiveRoomClient({
 
         </div>
           </div>
-          <div className={styles.desktopRail}>
+          <div className={styles.desktopRail} ref={desktopRailRef}>
             <LiveRoomDesktopSidePanel
               currentRoomHref={`/live/${ticker}`}
               eventSource={eventSource}

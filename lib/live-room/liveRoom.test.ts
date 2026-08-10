@@ -986,7 +986,15 @@ test("unblock closes stale updates and initial member identity and room membersh
     client,
     /updatesSubscriptionRef\.current\?\.close\(\)[\s\S]+timelineGenerationRef\.current = refreshGeneration[\s\S]+replaceLiveRoomTimeline\(page\.items\)/,
   );
-  assert.match(client, /profile === null[\s\S]+timelineState === "error"/);
+  assert.match(client, /profileLoaded: profile !== null/);
+  assert.match(
+    client,
+    /timelineItemCount: timeline\.length,[\s\S]+timelineState,/,
+  );
+  assert.match(
+    client,
+    /disabled=\{surfaceObservation\.composer\.disabled\}/,
+  );
   assert.match(header, /joined=\{membershipJoined\}/);
   assert.match(membership, /joined === null && !isGuest/);
   assert.match(membership, /aria-label="Loading room membership"/);

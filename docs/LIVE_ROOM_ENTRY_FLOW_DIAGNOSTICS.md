@@ -60,13 +60,41 @@ initial message response. Otherwise it is `unknown`. Guest access means public
 reading succeeded while joining the room still requires sign-in; it does not
 mean the public timeline request was denied.
 
+## Current surface observation
+
+The entry fields above keep their existing meaning. A separate visually hidden,
+`aria-hidden` diagnostic node uses `resolveLiveRoomSurfaceObservation` to
+describe the current rendered composition without adding a warning or card.
+It stays out of both the visible UI and accessibility tree while retaining
+safe data attributes for direct DOM inspection:
+
+- `data-live-room-main-section`: the actual `chat`, `posts`, or `events` tab;
+- `data-live-room-timeline-state`: `loading`, `error`, `empty`, or `ready`;
+- `data-live-room-timeline-count`: the number of timeline items currently
+  rendered, not the initial request result count;
+- `data-live-room-latest-update`: `loading`, `visible`, `no-update`, or
+  `source-error`. A retained visible update stays `visible` if a later optional
+  source refresh fails;
+- `data-live-room-composer-state`: `available`, `loading`, `read-only`,
+  `unavailable`, or the transient `busy` state;
+- `data-live-room-composer-disabled-reason`: `none`, `profile-loading`,
+  `timeline-loading`, `timeline-error`, `room-read-only`, or `sending`;
+- `data-live-room-quick-preview`: `visible`, `hidden-narrow`, or the transient
+  `checking` state. This follows the rail's actual rendered CSS visibility.
+
+Read the entry fields first, then compare the surface observation with the
+selected tab and visible timeline, update, composer, and quick-preview rail.
+Zero rendered timeline items do not override an entry request failure, and
+`no-update` is not a source failure. Optional update or rail state does not
+downgrade the entry resolver.
+
 ## Browser evidence
 
 For a candidate, use a currently rendered stock entry and record the selected
 stock link plus its existing Live Room link. At the logged-out direct URL,
 record the account boundary, Join room control without activating it, initial
 message GET status and safe item count, final visible copy and matching DOM
-state, console errors, and horizontal overflow.
+state, current surface observation, console errors, and horizontal overflow.
 
 Repeat the same direct URL at desktop, an intermediate width, and 390px. Do not
 bypass login or membership. Treat archived, locked, permission-denied, failed,
