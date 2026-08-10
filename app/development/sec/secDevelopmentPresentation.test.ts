@@ -68,6 +68,7 @@ test("SEC analysis review separates saved results from execution controls", () =
   assert.match(client, /detail\.diagnosticSnapshot/);
   assert.match(client, /activeSnapshot\.summary\.status === "read_failed"/);
   assert.match(client, /formatDiagnosticSummaryStatus\(activeSnapshot\.summary\.status\)/);
+  assert.match(client, /exact \$\{visibleResults\.length === 1 \? "match" : "matches"\}/);
   assert.match(client, /detail\.liveRuns\.filter\(\(run\) => run\.mode !== "recent_persisted"\)/);
   assert.match(client, /Current saved record/);
   assert.match(client, /Check current saved record/);

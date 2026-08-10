@@ -885,7 +885,7 @@ function AnalysisReviewWorkspace({
         </div>
         <p>{query.trim()
           ? activeExactLookup?.status === "done"
-            ? `${visibleResults.length} exact matches`
+            ? `${formatDiagnosticSummaryStatus(activeSnapshot.summary.status)} · ${visibleResults.length} exact ${visibleResults.length === 1 ? "match" : "matches"}`
             : `${visibleResults.length} recent matches`
           : `${formatDiagnosticSummaryStatus(activeSnapshot.summary.status)} · Newest saved results first`}</p>
       </div>
