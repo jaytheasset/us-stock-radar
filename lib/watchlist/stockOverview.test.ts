@@ -379,7 +379,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   assert.match(componentSource, /viewerPlan|watchlist\.plan === "free"/);
   assert.match(componentSource, /selectionMode === "stock"/);
   assert.match(componentSource, /getStockRouteHref\(ticker\)/);
-  assert.match(componentSource, /getStockOverviewEventsApiHref\(selectedTicker\)/);
+  assert.match(componentSource, /getStockEventsRequestHref\(selectedTicker\)/);
   assert.match(componentSource, /className=\{styles\.watchDesktopLabel\}>Add to Watchlist/);
   assert.match(componentSource, /className=\{styles\.watchMobileLabel\}>Watch/);
   assert.match(componentSource, /<MarketTickerLogo size="detail" ticker=\{ticker\} \/>/);

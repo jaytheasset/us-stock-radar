@@ -60,6 +60,8 @@ git status --short
 
 - For Markets Dashboard mover user-flow investigation, start with `docs/MARKETS_DASHBOARD_MOVERS_DIAGNOSTICS.md`; it defines the public read-only path and shared safe state interpretation.
 
+- For Stock Detail News & Events investigation, start with `docs/STOCK_DETAIL_EVENTS_DIAGNOSTICS.md`; it defines the local public read-only path and section-scoped safe state interpretation.
+
 ## Investigation and change boundaries
 
 - Treat diagnosis, investigation, and review requests as read-only unless the user also explicitly requests a change. Do not alter code, product state, data, jobs, caches, or permissions while investigating.

@@ -50,7 +50,6 @@ import {
   formatCompactMarketValue,
   formatStockOverviewEt,
   getStockRouteHref,
-  getStockOverviewEventsApiHref,
   hasStockOverviewData,
   mapStockOverviewChart,
   mapStockOverviewEvents,
@@ -65,6 +64,13 @@ import {
   type StockOverviewSelectionMode,
   type TickerSearchResult,
 } from "@/lib/watchlist/stockOverview";
+import {
+  getStockEventsRequestHref,
+  resolveStockEventsObservation,
+  resolveStockEventsRequestSnapshot,
+  type StockEventsFilter,
+  type StockEventsObservation,
+} from "@/lib/watchlist/stockEventsObservation";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type {
   WatchlistTickerItem,
@@ -86,7 +92,6 @@ type StockRadarWatchlistV2Props = {
 
 type LoadState = "idle" | "loading" | "ready" | "unavailable";
 type SortMode = "saved" | "symbol";
-type EventFilter = "all" | "news" | "filings";
 type ChartRange = "1D" | "5D" | "1M" | "3M" | "1Y";
 
 const emptyProfile: StockOverviewProfile = {
@@ -153,11 +158,13 @@ export function StockRadarWatchlistV2({
   >([]);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
   const [chartState, setChartState] = useState<LoadState>("idle");
-  const [eventsState, setEventsState] = useState<LoadState>("idle");
+  const [eventsRequest, setEventsRequest] = useState(() =>
+    resolveStockEventsRequestSnapshot({ requestState: "idle" }),
+  );
   const [fundamentalsState, setFundamentalsState] =
     useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
-  const [eventFilter, setEventFilter] = useState<EventFilter>("all");
+  const [eventFilter, setEventFilter] = useState<StockEventsFilter>("all");
   const [visibleEventCount, setVisibleEventCount] = useState(10);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -199,16 +206,17 @@ export function StockRadarWatchlistV2({
         : watchlist.items,
     [sortMode, watchlist.items],
   );
-  const filteredEvents = useMemo(
+  const eventsObservation = useMemo(
     () =>
-      events.filter((event) => {
-        if (eventFilter === "all") return true;
-        if (eventFilter === "filings") return event.sourceGroup === "filings";
-        return event.sourceGroup !== "filings";
+      resolveStockEventsObservation({
+        events,
+        filter: eventFilter,
+        request: eventsRequest,
+        ticker: selectedTicker ?? "",
+        visibleEventCount,
       }),
-    [eventFilter, events],
+    [eventFilter, events, eventsRequest, selectedTicker, visibleEventCount],
   );
-  const visibleEvents = filteredEvents.slice(0, visibleEventCount);
   const selectedEvent =
     events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const latestEvent = events[0] ?? null;
@@ -217,9 +225,12 @@ export function StockRadarWatchlistV2({
   const dilutionEvents = selectStockOverviewEvents(events, "dilution");
 
   useEffect(() => {
-    const eventsApiHref = getStockOverviewEventsApiHref(selectedTicker);
+    const eventsApiHref = getStockEventsRequestHref(selectedTicker);
     if (!selectedTicker || !eventsApiHref) {
       setOverviewState("idle");
+      setEventsRequest(
+        resolveStockEventsRequestSnapshot({ requestState: "idle" }),
+      );
       setEvents([]);
       setProfile(emptyProfile);
       setQuote(emptyQuote);
@@ -229,7 +240,9 @@ export function StockRadarWatchlistV2({
     const controller = new AbortController();
     const fallbackCompanyName = selectedWatchlistItem?.companyName || "";
     setOverviewState("loading");
-    setEventsState("loading");
+    setEventsRequest(
+      resolveStockEventsRequestSnapshot({ requestState: "loading" }),
+    );
     setProfile({ ...emptyProfile, companyName: fallbackCompanyName });
     setQuote(emptyQuote);
     setEvents([]);
@@ -248,7 +261,7 @@ export function StockRadarWatchlistV2({
       fetch(eventsApiHref, {
         cache: "no-store",
         signal: controller.signal,
-      }).then(readJsonResponse),
+      }).then(readStockEventsResponse),
     ]).then(([profileResult, quoteResult, eventResult]) => {
       if (controller.signal.aborted) return;
       const mappedProfile =
@@ -263,21 +276,24 @@ export function StockRadarWatchlistV2({
         quoteResult.status === "fulfilled"
           ? mapStockOverviewQuote(quoteResult.value)
           : emptyQuote;
-      const nextEvents =
+      const nextEventsRequest =
         eventResult.status === "fulfilled"
-          ? mapStockOverviewEvents(eventResult.value)
+          ? eventResult.value.request
+          : resolveStockEventsRequestSnapshot({ requestState: "failed" });
+      const nextEvents =
+        eventResult.status === "fulfilled" &&
+        nextEventsRequest.responseStatus === "success"
+          ? mapStockOverviewEvents(eventResult.value.payload)
           : [];
       setProfile(nextProfile);
       setQuote(nextQuote);
       setEvents(nextEvents);
+      setEventsRequest(nextEventsRequest);
       setSelectedEventId(nextEvents[0]?.id ?? null);
       setOverviewState(
         hasStockOverviewData(mappedProfile, nextQuote, nextEvents)
           ? "ready"
           : "unavailable",
-      );
-      setEventsState(
-        eventResult.status === "fulfilled" ? "ready" : "unavailable",
       );
     });
 
@@ -952,6 +968,38 @@ export function StockRadarWatchlistV2({
                     <section
                       aria-labelledby="watchlist-events-title"
                       className={styles.section}
+                      data-stock-events-api-ok={
+                        eventsObservation.apiOk === null
+                          ? "unknown"
+                          : String(eventsObservation.apiOk)
+                      }
+                      data-stock-events-filter={eventsObservation.filter}
+                      data-stock-events-filtered-count={
+                        eventsObservation.filteredResultCount
+                      }
+                      data-stock-events-http-status={
+                        eventsObservation.httpStatus ?? "unknown"
+                      }
+                      data-stock-events-render-state={
+                        eventsObservation.renderState
+                      }
+                      data-stock-events-rendered-count={
+                        eventsObservation.renderedResultCount
+                      }
+                      data-stock-events-request-href={
+                        eventsObservation.requestHref
+                      }
+                      data-stock-events-request-state={
+                        eventsObservation.requestState
+                      }
+                      data-stock-events-response-status={
+                        eventsObservation.responseStatus
+                      }
+                      data-stock-events-source-count={
+                        eventsObservation.sourceResultCount ?? "unknown"
+                      }
+                      data-stock-events-state={eventsObservation.status}
+                      data-stock-events-ticker={eventsObservation.ticker}
                       id="watchlist-events"
                     >
                       <SectionHeading
@@ -960,21 +1008,13 @@ export function StockRadarWatchlistV2({
                         title="News & Events"
                       />
                       <EventList
-                        events={visibleEvents}
-                        eventFilter={eventFilter}
-                        eventsState={eventsState}
+                        observation={eventsObservation}
                         onFilterChange={(filter) => {
                           setEventFilter(filter);
                           setVisibleEventCount(10);
                         }}
                         onSelect={selectEvent}
-                        remainingCount={Math.max(
-                          0,
-                          filteredEvents.length - visibleEvents.length,
-                        )}
                         selectedEventId={selectedEvent?.id ?? null}
-                        ticker={selectedTicker}
-                        totalCount={filteredEvents.length}
                         onViewMore={() =>
                           setVisibleEventCount((count) => count + 10)
                         }
@@ -1429,35 +1469,27 @@ function MarketStats({
 }
 
 function EventList({
-  eventFilter,
-  events,
-  eventsState,
+  observation,
   onFilterChange,
   onSelect,
   onViewMore,
-  remainingCount,
   selectedEventId,
-  ticker,
-  totalCount,
 }: {
-  eventFilter: EventFilter;
-  events: StockOverviewEvent[];
-  eventsState: LoadState;
-  onFilterChange: (filter: EventFilter) => void;
+  observation: StockEventsObservation;
+  onFilterChange: (filter: StockEventsFilter) => void;
   onSelect: (event: StockOverviewEvent, opener: HTMLElement) => void;
   onViewMore: () => void;
-  remainingCount: number;
   selectedEventId: string | null;
-  ticker: string;
-  totalCount: number;
 }) {
+  const { message, remainingResultCount, resultLabel, ticker, title } =
+    observation;
   return (
     <div className={styles.eventPanel}>
       <div className={styles.eventToolbar}>
         <div aria-label={`${ticker} event filters`} role="tablist">
           {(["all", "news", "filings"] as const).map((filter) => (
             <button
-              aria-selected={eventFilter === filter}
+              aria-selected={observation.filter === filter}
               key={filter}
               onClick={() => onFilterChange(filter)}
               role="tab"
@@ -1467,16 +1499,17 @@ function EventList({
             </button>
           ))}
         </div>
-        <span>{totalCount} events</span>
+        <span>{resultLabel}</span>
       </div>
-      {eventsState === "loading" ? (
+      {observation.renderState === "loading" ||
+      observation.renderState === "idle" ? (
         <div className={styles.loadingPanel} role="status">
           <LoaderCircle aria-hidden="true" size={20} />
-          Loading tracked events…
+          {message}
         </div>
-      ) : events.length ? (
+      ) : observation.visibleEvents.length ? (
         <div className={styles.eventList}>
-          {events.map((event) => (
+          {observation.visibleEvents.map((event) => (
             <button
               aria-pressed={event.id === selectedEventId}
               className={styles.eventRow}
@@ -1526,21 +1559,17 @@ function EventList({
               </span>
             </button>
           ))}
-          {remainingCount ? (
+          {remainingResultCount ? (
             <button className={styles.viewMore} onClick={onViewMore} type="button">
               <span>View more events</span>
-              <small>{Math.min(10, remainingCount)} more</small>
+              <small>{Math.min(10, remainingResultCount)} more</small>
             </button>
           ) : null}
         </div>
       ) : (
-        <div className={styles.sectionEmpty}>
-          <strong>No events in this view</strong>
-          <span>
-            {eventsState === "unavailable"
-              ? "Event data is temporarily unavailable."
-              : `No tracked ${ticker} events match this filter.`}
-          </span>
+        <div className={styles.sectionEmpty} role={observation.role ?? undefined}>
+          <strong>{title}</strong>
+          <span>{message}</span>
         </div>
       )}
     </div>
@@ -1760,6 +1789,24 @@ async function readJsonResponse(response: Response) {
     throw new Error(payload?.error || "Request failed.");
   }
   return payload;
+}
+
+async function readStockEventsResponse(response: Response) {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = undefined;
+  }
+
+  return {
+    payload,
+    request: resolveStockEventsRequestSnapshot({
+      httpStatus: response.status,
+      payload,
+      requestState: "received",
+    }),
+  };
 }
 
 function readFundamentalsSnapshot(

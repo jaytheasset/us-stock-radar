@@ -62,6 +62,7 @@
     "verify:theme": "node --test --experimental-strip-types lib/themeRegression.test.ts",
     "verify:legal": "node --test --experimental-strip-types lib/legalPolicy.test.ts",
     "verify:stock-detail-live": "node scripts/verify-stock-fundamentals-live.mjs",
+    "verify:stock-detail-events": "node --test --experimental-strip-types lib/watchlist/stockEventsObservation.test.ts components/watchlist-v2/stockEventsObservationRegression.test.ts",
     "verify:watchlist-v2": "node --test --experimental-strip-types lib/watchlist/stockOverview.test.ts lib/watchlist/stockFundamentals.test.ts lib/tickerSearchContract.test.ts",
     "verify:us-equity-calendar": "node --test --experimental-strip-types lib/usEquityMarketCalendar.test.ts",
     "verify:newsfile-parser": "node --experimental-strip-types scripts/verify-newsfile-parser.mjs",
