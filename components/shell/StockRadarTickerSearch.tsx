@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -12,19 +13,26 @@ import {
 } from "react";
 import {
   getStockRouteHref,
-  mapTickerSearchResults,
   type TickerSearchResult,
 } from "@/lib/watchlist/stockOverview";
+import {
+  buildTickerSearchReadout,
+  createTickerSearchSelectionSnapshot,
+  getTickerSearchRequestHref,
+  resolveTickerSearchObservation,
+  resolveTickerSearchRequestSnapshot,
+  serializeTickerSearchSelectionSnapshot,
+  TICKER_SEARCH_SELECTION_STORAGE_KEY,
+} from "@/lib/tickerSearchFlowObservation";
 import {
   moveTickerSearchIndex,
   type TickerSearchArrowKey,
 } from "@/lib/tickerSearchNavigation";
+import { TickerSearchFlowReadout } from "./TickerSearchFlowReadout";
 import styles from "./StockRadarProductHeader.module.css";
 
 const searchPanelId = "stock-radar-global-ticker-search";
 const searchListboxId = "stock-radar-global-ticker-results";
-
-type SearchState = "idle" | "loading" | "ready" | "error";
 
 export function StockRadarTickerSearch({
   onOpen,
@@ -35,12 +43,28 @@ export function StockRadarTickerSearch({
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<TickerSearchResult[]>([]);
-  const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [responsePayload, setResponsePayload] = useState<unknown>();
+  const [request, setRequest] = useState(() =>
+    resolveTickerSearchRequestSnapshot({ requestState: "idle" }),
+  );
   const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const observation = useMemo(
+    () =>
+      resolveTickerSearchObservation({
+        activeIndex,
+        payload: responsePayload,
+        query,
+        request,
+      }),
+    [activeIndex, query, request, responsePayload],
+  );
+  const flowReadout = useMemo(
+    () => buildTickerSearchReadout(observation),
+    [observation],
+  );
 
   const closeSearch = useCallback((restoreFocus = false) => {
     setIsOpen(false);
@@ -87,34 +111,44 @@ export function StockRadarTickerSearch({
 
   useEffect(() => {
     if (!isOpen) return;
-    const normalizedQuery = query.trim();
-    if (!normalizedQuery) {
-      setResults([]);
-      setSearchState("idle");
+    const requestHref = getTickerSearchRequestHref(query);
+    if (!requestHref) {
+      setResponsePayload(undefined);
+      setRequest(resolveTickerSearchRequestSnapshot({ requestState: "idle" }));
       setActiveIndex(-1);
       return;
     }
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      setSearchState("loading");
-      void fetch(
-        `/api/tickers/search?q=${encodeURIComponent(normalizedQuery)}`,
-        { cache: "no-store", signal: controller.signal },
-      )
-        .then(readSearchResponse)
-        .then((payload) => {
+      setRequest(resolveTickerSearchRequestSnapshot({ requestState: "loading" }));
+      void fetch(requestHref, { cache: "no-store", signal: controller.signal })
+        .then(async (response) => {
+          const payload = await response.json().catch(() => null);
+          return {
+            payload,
+            request: resolveTickerSearchRequestSnapshot({
+              httpStatus: response.status,
+              payload,
+              requestState: "received",
+            }),
+          };
+        })
+        .then((next) => {
           if (controller.signal.aborted) return;
-          const nextResults = mapTickerSearchResults(payload);
-          setResults(nextResults);
-          setActiveIndex(nextResults.length ? 0 : -1);
-          setSearchState("ready");
+          setResponsePayload(next.payload);
+          setRequest(next.request);
+          setActiveIndex(
+            next.request.sourceResultCount && next.request.sourceResultCount > 0
+              ? 0
+              : -1,
+          );
         })
         .catch(() => {
           if (controller.signal.aborted) return;
-          setResults([]);
+          setResponsePayload(undefined);
           setActiveIndex(-1);
-          setSearchState("error");
+          setRequest(resolveTickerSearchRequestSnapshot({ requestState: "failed" }));
         });
     }, 220);
 
@@ -127,26 +161,43 @@ export function StockRadarTickerSearch({
   const navigateToResult = (result: TickerSearchResult) => {
     const href = getStockRouteHref(result.ticker);
     if (!href) return;
+    const selection = createTickerSearchSelectionSnapshot({
+      observation,
+      selectedTicker: result.ticker,
+      selectionHref: href,
+    });
+    if (selection) {
+      try {
+        window.sessionStorage.setItem(
+          TICKER_SEARCH_SELECTION_STORAGE_KEY,
+          serializeTickerSearchSelectionSnapshot(selection),
+        );
+      } catch {
+        // Search navigation remains usable when ephemeral storage is blocked.
+      }
+    }
     closeSearch();
     setQuery("");
-    setResults([]);
+    setResponsePayload(undefined);
+    setRequest(resolveTickerSearchRequestSnapshot({ requestState: "idle" }));
     router.push(href);
   };
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (!results.length) return;
+    if (!observation.results.length) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const key: TickerSearchArrowKey = event.key;
       setActiveIndex((current) =>
-        moveTickerSearchIndex(current, results.length, key),
+        moveTickerSearchIndex(current, observation.results.length, key),
       );
     }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = results[activeIndex] ?? results[0];
+    const result =
+      observation.results[activeIndex] ?? observation.results[0];
     if (result) navigateToResult(result);
   };
 
@@ -215,7 +266,14 @@ export function StockRadarTickerSearch({
               aria-expanded={isOpen}
               aria-label="Search ticker or company"
               autoCapitalize="characters"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setResponsePayload(undefined);
+                setRequest(
+                  resolveTickerSearchRequestSnapshot({ requestState: "idle" }),
+                );
+                setActiveIndex(-1);
+              }}
               onKeyDown={handleInputKeyDown}
               placeholder="Search ticker or company"
               ref={inputRef}
@@ -231,17 +289,23 @@ export function StockRadarTickerSearch({
             id={searchListboxId}
             role="listbox"
           >
-            {searchState === "loading" ? (
-              <p className={styles.globalSearchState} role="status">
+            {observation.status === "loading" ? (
+              <p
+                className={styles.globalSearchState}
+                role={observation.role ?? undefined}
+              >
                 <LoaderCircle aria-hidden="true" size={16} />
-                Searching…
+                {observation.message}
               </p>
-            ) : searchState === "error" ? (
-              <p className={styles.globalSearchState} role="alert">
-                Ticker search is temporarily unavailable.
+            ) : observation.status === "unavailable" ? (
+              <p
+                className={styles.globalSearchState}
+                role={observation.role ?? undefined}
+              >
+                {observation.message}
               </p>
-            ) : results.length ? (
-              results.map((result, index) => (
+            ) : observation.status === "ready" ? (
+              observation.results.map((result, index) => (
                 <button
                   aria-selected={activeIndex === index}
                   className={styles.globalSearchResult}
@@ -259,26 +323,22 @@ export function StockRadarTickerSearch({
                   <span>{result.companyName}</span>
                 </button>
               ))
-            ) : query.trim() && searchState === "ready" ? (
-              <p className={styles.globalSearchState}>
-                No matching active ticker.
+            ) : observation.status === "empty" ? (
+              <p
+                className={styles.globalSearchState}
+                role={observation.role ?? undefined}
+              >
+                {observation.message}
               </p>
             ) : (
               <p className={styles.globalSearchState}>
-                Search active US tickers and companies.
+                {observation.message}
               </p>
             )}
           </div>
+          <TickerSearchFlowReadout state={flowReadout} />
         </section>
       ) : null}
     </div>
   );
-}
-
-async function readSearchResponse(response: Response) {
-  const payload = await response.json();
-  if (!response.ok || payload?.ok === false) {
-    throw new Error(payload?.message || "Ticker search failed.");
-  }
-  return payload;
 }
