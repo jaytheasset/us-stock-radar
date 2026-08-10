@@ -62,9 +62,11 @@ mean the public timeline request was denied.
 
 ## Current surface observation
 
-The entry fields above keep their existing meaning. A separate visually hidden
-`output` uses `resolveLiveRoomSurfaceObservation` to describe the current
-rendered composition without adding a warning or card:
+The entry fields above keep their existing meaning. A separate visually hidden,
+`aria-hidden` diagnostic node uses `resolveLiveRoomSurfaceObservation` to
+describe the current rendered composition without adding a warning or card.
+It stays out of both the visible UI and accessibility tree while retaining
+safe data attributes for direct DOM inspection:
 
 - `data-live-room-main-section`: the actual `chat`, `posts`, or `events` tab;
 - `data-live-room-timeline-state`: `loading`, `error`, `empty`, or `ready`;

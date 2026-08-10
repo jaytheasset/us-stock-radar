@@ -140,6 +140,10 @@ test("the hidden readout and composer use the same surface observation", () => {
   assert.match(client, /resolveLiveRoomSurfaceObservation\(/);
   assert.match(
     client,
+    /aria-hidden="true"\s+className=\{styles\.visuallyHidden\}\s+data-live-room-composer-disabled-reason=\{[\s\S]*?data-live-room-main-section=\{surfaceObservation\.mainSection\}/,
+  );
+  assert.match(
+    client,
     /data-live-room-main-section=\{surfaceObservation\.mainSection\}/,
   );
   assert.match(

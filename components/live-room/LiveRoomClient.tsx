@@ -1614,7 +1614,8 @@ export function LiveRoomClient({
           {entryFlow.message}
         </p>
 
-        <output
+        <div
+          aria-hidden="true"
           className={styles.visuallyHidden}
           data-live-room-composer-disabled-reason={
             surfaceObservation.composer.disabledReason
@@ -1633,7 +1634,7 @@ export function LiveRoomClient({
           }
         >
           {surfaceObservation.message}
-        </output>
+        </div>
 
         {roomAvailabilityMessage ? (
           <p className={styles.roomAvailabilityNotice} role="status">
