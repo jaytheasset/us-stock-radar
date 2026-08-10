@@ -56,6 +56,8 @@ git status --short
 
 - For SEC debug or analysis-state investigation, start with `docs/SEC_DIAGNOSTICS.md`; it defines the read-only entry points and the `system.read`/`data.run` and development/production boundaries.
 
+- For Live Feed user-flow investigation, start with `docs/LIVE_FEED_FLOW_DIAGNOSTICS.md`; it defines the public read-only path and state interpretation.
+
 ## SEC analysis value lock
 
 - Code must not calculate, correct, replace, or supply fallback values for SEC LLM analysis results. Validators may only detect and report errors.

@@ -12,6 +12,7 @@ import {
   resolveLiveFeedV2MarketData,
 } from "./liveFeedV2Contract.ts";
 import { getEventListIdentity } from "./eventListIdentity.ts";
+import { resolveLiveFeedV2FlowState } from "./liveFeedV2FlowState.ts";
 import {
   createLiveFeedV2Preview,
   type LiveFeedV2PreviewSource,
@@ -57,6 +58,86 @@ test("feed v2 filters reject unknown values", () => {
   assert.equal(normalizeLiveFeedV2Filter("watchlist"), "watchlist");
   assert.equal(normalizeLiveFeedV2Filter("mock"), "all");
   assert.equal(normalizeLiveFeedV2Filter(null), "all");
+});
+
+test("live feed flow state keeps loading, unavailable, error, empty, ready, and unknown distinct", () => {
+  const base = {
+    emptyMessage: "No events are available right now.",
+    filter: "all" as const,
+    hasError: false,
+    isLoading: false,
+    rowCount: 0,
+    totalCount: 0,
+  };
+
+  assert.deepEqual(
+    resolveLiveFeedV2FlowState({
+      ...base,
+      availability: "unknown",
+      isLoading: true,
+      totalCount: null,
+    }),
+    {
+      availability: "unknown",
+      filter: "all",
+      message: "Retrieving the latest events for this feed.",
+      resultLabel: "Updating events",
+      role: "status",
+      rowCount: 0,
+      status: "loading",
+      title: "Updating events",
+      totalCount: null,
+    },
+  );
+
+  const unavailable = resolveLiveFeedV2FlowState({
+    ...base,
+    availability: "unavailable",
+    emptyMessage: "Watchlist activity is not available in Live Feed yet.",
+    filter: "watchlist",
+  });
+  assert.equal(unavailable.status, "unavailable");
+  assert.equal(unavailable.title, "Watchlist activity unavailable");
+  assert.equal(unavailable.resultLabel, "Unavailable · 0 events");
+  assert.equal(
+    unavailable.message,
+    "Watchlist activity is not available in Live Feed yet.",
+  );
+
+  const error = resolveLiveFeedV2FlowState({
+    ...base,
+    availability: "available",
+    hasError: true,
+  });
+  assert.equal(error.status, "error");
+  assert.equal(error.role, "alert");
+  assert.equal(error.resultLabel, "Request failed · 0 events");
+
+  const empty = resolveLiveFeedV2FlowState({
+    ...base,
+    availability: "available",
+  });
+  assert.equal(empty.status, "empty");
+  assert.equal(empty.title, "No matching events");
+  assert.equal(empty.resultLabel, "0 of 0 events");
+
+  const ready = resolveLiveFeedV2FlowState({
+    ...base,
+    availability: "available",
+    rowCount: 2,
+    totalCount: 5,
+  });
+  assert.equal(ready.status, "ready");
+  assert.equal(ready.resultLabel, "2 of 5 events");
+  assert.equal(ready.title, null);
+
+  const unknown = resolveLiveFeedV2FlowState({
+    ...base,
+    availability: "unknown",
+    totalCount: null,
+  });
+  assert.equal(unknown.status, "unknown");
+  assert.equal(unknown.title, "Feed status not confirmed");
 });
 
 test("live feed preserves news and filing event labels without dashboard abbreviations", () => {
@@ -489,6 +570,14 @@ test("interactive feed preserves cursor, abort, selection, preview, and ad gates
     path.join(projectRoot, "components/feed-v2/StockRadarFeedV2.tsx"),
     "utf8",
   );
+
+  assert.match(clientSource, /resolveLiveFeedV2FlowState/);
+  assert.match(clientSource, /data-feed-state=\{flowState\.status\}/);
+  assert.match(clientSource, /data-feed-availability=\{flowState\.availability\}/);
+  assert.match(clientSource, /data-feed-row-count=\{flowState\.rowCount\}/);
+  assert.match(clientSource, /data-feed-filter=\{flowState\.filter\}/);
+  assert.match(listSource, /data-feed-render-state=\{state\.status\}/);
+  assert.match(listSource, /role=\{state\.role \?\? undefined\}/);
   const rawStyleSource = readFileSync(
     path.join(projectRoot, "components/feed-v2/StockRadarFeedV2.module.css"),
     "utf8",

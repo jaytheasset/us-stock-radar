@@ -8,6 +8,7 @@ import type {
 } from "@/lib/liveFeedV2Contract";
 import { getLiveFeedV2EventPresentation } from "@/lib/liveFeedV2EventType";
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
+import type { LiveFeedV2FlowState } from "@/lib/liveFeedV2FlowState";
 import type { Plan } from "@/lib/subscriptionPolicy";
 import styles from "./StockRadarFeedV2.module.css";
 
@@ -19,9 +20,6 @@ const sentimentClassNames: Record<LiveFeedV2Sentiment, string> = {
 };
 
 type FeedEventListProps = {
-  emptyMessage?: string;
-  hasError: boolean;
-  isLoading: boolean;
   isLoadingMore: boolean;
   items: readonly LiveFeedV2Item[];
   onLoadMore?: () => void;
@@ -29,13 +27,11 @@ type FeedEventListProps = {
   onRetry: () => void;
   remainingCount: number | null;
   selectedEventId: string | null;
+  state: LiveFeedV2FlowState;
   viewerPlan: Plan;
 };
 
 export function FeedEventList({
-  emptyMessage,
-  hasError,
-  isLoading,
   isLoadingMore,
   items,
   onLoadMore,
@@ -43,34 +39,25 @@ export function FeedEventList({
   onRetry,
   remainingCount,
   selectedEventId,
+  state,
   viewerPlan,
 }: FeedEventListProps) {
-  if (isLoading && items.length === 0) {
-    return (
-      <div aria-live="polite" className={styles.emptyState} role="status">
-        <strong>Updating events</strong>
-        <span>Retrieving the latest events for this feed.</span>
-      </div>
-    );
-  }
-
-  if (hasError && items.length === 0) {
-    return (
-      <div className={styles.emptyState} role="alert">
-        <strong>Events are temporarily unavailable</strong>
-        <span>The current data source did not respond. Try again shortly.</span>
-        <button onClick={onRetry} type="button">
-          Try again
-        </button>
-      </div>
-    );
-  }
-
   if (items.length === 0) {
     return (
-      <div className={styles.emptyState}>
-        <strong>No matching events</strong>
-        <span>{emptyMessage || "Choose another feed filter."}</span>
+      <div
+        aria-atomic="true"
+        aria-live={state.status === "loading" ? "polite" : undefined}
+        className={styles.emptyState}
+        data-feed-render-state={state.status}
+        role={state.role ?? undefined}
+      >
+        <strong>{state.title}</strong>
+        <span>{state.message}</span>
+        {state.status === "error" || state.status === "unknown" ? (
+          <button onClick={onRetry} type="button">
+            Try again
+          </button>
+        ) : null}
       </div>
     );
   }
