@@ -44,7 +44,7 @@ export type MonitorConditionDefinition = Readonly<{
     availabilityColumn?: string;
   }>;
   qualityCapability: readonly MonitorConditionQuality[];
-  status: "READY";
+  status: "READY" | "PARTIAL";
 }>;
 
 const equality = ["eq", "neq"] as const;
@@ -85,16 +85,17 @@ const registry = [
   condition("offering.float_overhang_percent", "number", numericOperators, "offering", "dilution", "event_offering_terms", "float_overhang_percent", "event", ["derived", "estimated", "unknown"]),
   condition("offering.total_potential_share_exposure", "number", numericOperators, "offering", "dilution", "event_offering_terms", "total_potential_share_exposure", "event", ["exact", "derived", "estimated", "unknown"]),
 
-  condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "acquired_disposed_code", "ticker", ["exact", "unknown"]),
+  condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"]),
   condition("ownership.form4.transaction_value", "number", numericOperators, "ownership", "form4", "event_form4_transactions", "transaction_value", "ticker", ["derived", "unknown"], {
     valueQualityColumn: "transaction_value_value_quality",
     availabilityColumn: "transaction_value_availability",
   }),
   condition("ownership.form4.reporting_owner_role", "text", textOperators, "ownership", "form4", "event_form4_transactions", "reporting_owner_roles", "ticker", ["exact", "unknown"]),
-  condition("ownership.form4.is_officer", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_officer", "ticker", ["exact", "unknown"]),
-  condition("ownership.form4.is_director", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_director", "ticker", ["exact", "unknown"]),
-  condition("ownership.form4.officer_title", "text", textOperators, "ownership", "form4", "event_form4_transactions", "officer_title", "ticker", ["exact", "unknown"]),
+  partialCondition(condition("ownership.form4.is_officer", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_officer", "ticker", ["exact", "unknown"])),
+  partialCondition(condition("ownership.form4.is_director", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_director", "ticker", ["exact", "unknown"])),
+  partialCondition(condition("ownership.form4.officer_title", "text", textOperators, "ownership", "form4", "event_form4_transactions", "officer_title", "ticker", ["exact", "unknown"])),
   condition("ownership.form4.is_10_percent_owner", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_10_percent_owner", "ticker", ["exact", "unknown"]),
+  partialCondition(condition("ownership.form4.is_10b5_1", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_10b5_1", "ticker", ["exact", "unknown"])),
   condition("ownership.form144.proposed_sale_value", "number", numericOperators, "ownership", "form144", "event_form144_proposed_sales", "aggregate_market_value", "ticker", ["exact", "unknown"], {
     valueQualityColumn: "aggregate_market_value_value_quality",
     availabilityColumn: "aggregate_market_value_availability",
@@ -135,6 +136,10 @@ function condition(
     qualityCapability: Object.freeze([...qualityCapability]),
     status: "READY" as const,
   });
+}
+
+function partialCondition(entry: MonitorConditionDefinition): MonitorConditionDefinition {
+  return Object.freeze({ ...entry, status: "PARTIAL" as const });
 }
 
 function validateRegistry(entries: readonly MonitorConditionDefinition[]) {

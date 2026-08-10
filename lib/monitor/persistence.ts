@@ -1,3 +1,12 @@
+import {
+  OWNERSHIP_MONITOR_FACTS_VERSION,
+  readOwnershipMonitorFacts,
+  validateOwnershipMonitorFacts,
+  type OwnershipNumericFact,
+  type OwnershipReportingOwnerFact,
+  type OwnershipValueQuality,
+} from "./ownershipAnalysisFacts.ts";
+
 type Row = Record<string, unknown>;
 type MutationResult = { ok: boolean; status: number; data: unknown; error?: string };
 
@@ -19,9 +28,9 @@ export type PersistOptionalMonitorFoundationInput = {
   eventTime: string;
   primaryTicker?: EventSnapshotSubject | null;
   analysisMarketContext?: unknown;
-  ownershipParserOutput?: unknown;
-  // "known" means a successful parser result, including a successful empty
-  // result that must clear stale rows. Missing/failed/not-applicable input must
+  ownershipAnalysisOutput?: unknown;
+  // "known" means a successful Ownership Analysis result, including a
+  // successful empty result that must clear stale rows. Missing/failed/not-applicable input must
   // not be promoted to known-empty because it must preserve prior valid facts.
   ownershipInputState?: "known" | "not_applicable";
 };
@@ -52,7 +61,7 @@ export async function persistOptionalMonitorFoundation(
 
   const [marketResult, ownershipResult] = await Promise.allSettled([
     persistEventMarketSnapshots(input, resolvedRepository),
-    persistOwnershipParserFacts(input, resolvedRepository),
+    persistOwnershipAnalysisFacts(input, resolvedRepository),
   ]);
 
   if (marketResult.status === "fulfilled") {
@@ -96,7 +105,7 @@ export async function persistEventMarketSnapshots(
   return rows.length;
 }
 
-export async function persistOwnershipParserFacts(
+export async function persistOwnershipAnalysisFacts(
   input: PersistOptionalMonitorFoundationInput,
   repository?: MonitorPersistenceRepository,
 ) {
@@ -108,7 +117,7 @@ export async function persistOwnershipParserFacts(
   const rows = buildOwnershipFactRows({
     eventId,
     symbol: input.primaryTicker?.symbol || null,
-    parserOutput: input.ownershipParserOutput,
+    analysisOutput: input.ownershipAnalysisOutput,
   });
 
   const persisted = await resolvedRepository.replaceOwnershipFacts(
@@ -127,44 +136,47 @@ export async function persistOwnershipParserFacts(
 export function buildOwnershipFactRows({
   eventId,
   symbol,
-  parserOutput,
+  analysisOutput,
 }: {
   eventId: string;
   symbol?: string | null;
-  parserOutput: unknown;
+  analysisOutput: unknown;
 }) {
   requiredUuidLike(eventId, "eventId");
-  const output = record(parserOutput);
-  const facts = record(output?.facts);
-  if (!output || !facts) throw new Error("Ownership parser output is not a successful typed result");
-  const filing = record(facts?.filing);
-  const form4 = record(facts?.form4);
-  const form144 = record(facts?.form144);
-  const confidence = sourceConfidence(filing?.source_confidence);
-  const normalizedSymbol = normalizeSymbol(symbol || record(facts?.issuer)?.ticker);
+  const validationErrors = validateOwnershipMonitorFacts(analysisOutput);
+  const facts = readOwnershipMonitorFacts(analysisOutput);
+  if (!facts) throw new Error(`Ownership Analysis monitor facts are invalid: ${validationErrors.join("; ")}`);
+  const normalizedSymbol = normalizeSymbol(symbol);
   const provenance = {
-    source: "sec_ownership_parser",
-    parser_version: string(output?.parserVersion) || null,
-    source_format: string(filing?.source_format) || null,
-    source_confidence: string(filing?.source_confidence) || null,
-    accession_number: string(output?.accessionNumber) || null,
+    source: "sec_ownership_analysis",
+    schema_version: OWNERSHIP_MONITOR_FACTS_VERSION,
+    canonical_input: "analysis_output.ownership_monitor_facts",
+    parser_fallback: false,
   };
-  const reportingOwners = records(facts?.reporting_owners);
+  const reportingOwners = facts.form4?.reporting_owners || [];
   const reportingOwnerNames = reportingOwners
     .map((owner) => nullableString(owner.name))
     .filter((name): name is string => Boolean(name));
-  const reportingOwnerRoles = uniqueStrings(reportingOwners.flatMap((owner) => stringArray(owner.roles)));
-  const officerTitles = uniqueStrings(reportingOwners.map((owner) => nullableString(owner.title)));
-  const isOfficer = anySuppliedBoolean(reportingOwners, "is_officer");
-  const isDirector = anySuppliedBoolean(reportingOwners, "is_director");
-  const is10PercentOwner = anySuppliedBoolean(reportingOwners, "is_ten_percent_owner");
-  const is10b51 = nullableBoolean(filing?.aff_10b5_1);
+  const reportingOwnerRoles = uniqueStrings(reportingOwners.flatMap((owner) => owner.roles));
+  const officerTitles = uniqueStrings(reportingOwners.map((owner) => nullableString(owner.officer_title)));
+  const isOfficer = anyOwnerBoolean(reportingOwners, "is_officer");
+  const isDirector = anyOwnerBoolean(reportingOwners, "is_director");
+  const is10PercentOwner = anyOwnerBoolean(reportingOwners, "is_10_percent_owner");
+  const ownerEvidence = reportingOwners.flatMap((owner) => owner.evidence);
 
-  const form4Transactions = records(form4?.transactions).map((transaction, transactionIndex) => {
-    const shares = nonnegativeNumber(transaction.shares);
-    const price = nonnegativeNumber(transaction.price_per_share);
-    const postTransactionShares = nonnegativeNumber(transaction.shares_owned_following);
+  const form4Transactions = (facts.form4?.transactions || []).map((transaction, transactionIndex) => {
+    const sharesFact = transaction.shares;
+    const priceFact = transaction.price_per_share;
+    const postTransactionSharesFact = transaction.post_transaction_shares;
+    const shares = sharesFact.value;
+    const price = priceFact.value;
+    const postTransactionShares = postTransactionSharesFact.value;
     const transactionValue = shares !== null && price !== null ? round(shares * price, 4) : null;
+    const transactionValueQuality: OwnershipValueQuality = transactionValue === null
+      ? "unknown"
+      : comparisonEligibleQuality(sharesFact.value_quality) && comparisonEligibleQuality(priceFact.value_quality)
+        ? "derived"
+        : "unknown";
     return compact({
       event_id: eventId,
       transaction_index: transactionIndex,
@@ -176,34 +188,35 @@ export function buildOwnershipFactRows({
       is_director: isDirector,
       is_10_percent_owner: is10PercentOwner,
       officer_title: officerTitles.length === 1 ? officerTitles[0] : null,
-      is_10b5_1: is10b51,
-      transaction_kind: oneOf(transaction.transaction_kind, ["non_derivative", "derivative"]) || "non_derivative",
+      is_10b5_1: transaction.is_10b5_1,
+      transaction_kind: transaction.transaction_kind,
       security_title: nullableString(transaction.security_title),
       transaction_date: date(transaction.transaction_date),
-      deemed_execution_date: date(transaction.deemed_execution_date),
-      transaction_code: uppercaseCode(transaction.transaction_code),
-      acquired_disposed_code: oneOf(transaction.acquired_disposed_code, ["A", "D"]),
+      deemed_execution_date: null,
+      transaction_code: transaction.transaction_code,
+      acquired_disposed_code: transaction.acquired_disposed_code,
+      economic_direction: transaction.economic_direction,
       shares,
-      shares_quality: shares === null ? null : "exact",
-      shares_value_quality: valueQuality(shares, "exact"),
-      shares_availability: availability(shares),
+      shares_quality: legacyExactQuality(sharesFact),
+      shares_value_quality: sharesFact.value_quality,
+      shares_availability: sharesFact.availability,
       price_per_share: price,
-      price_per_share_quality: price === null ? null : "exact",
-      price_per_share_value_quality: valueQuality(price, "exact"),
-      price_per_share_availability: availability(price),
+      price_per_share_quality: legacyExactQuality(priceFact),
+      price_per_share_value_quality: priceFact.value_quality,
+      price_per_share_availability: priceFact.availability,
       transaction_value: transactionValue,
-      transaction_value_quality: transactionValue === null ? null : "derived",
-      transaction_value_value_quality: valueQuality(transactionValue, "derived"),
+      transaction_value_quality: transactionValue === null ? null : transactionValueQuality,
+      transaction_value_value_quality: transactionValueQuality,
       transaction_value_availability: availability(transactionValue),
       post_transaction_shares: postTransactionShares,
-      post_transaction_shares_value_quality: valueQuality(postTransactionShares, "exact"),
-      post_transaction_shares_availability: availability(postTransactionShares),
-      direct_or_indirect_ownership: oneOf(transaction.direct_or_indirect_ownership, ["D", "I"]),
+      post_transaction_shares_value_quality: postTransactionSharesFact.value_quality,
+      post_transaction_shares_availability: postTransactionSharesFact.availability,
+      direct_or_indirect_ownership: transaction.direct_or_indirect_ownership,
       nature_of_ownership: nullableString(transaction.nature_of_ownership),
       fact_as_of: date(transaction.transaction_date),
-      confidence,
+      confidence: confidenceValue(transaction.confidence),
       provenance,
-      evidence: stringArray(transaction.evidence),
+      evidence: uniqueStrings([...ownerEvidence, ...transaction.evidence]),
       calculation_basis: transactionValue === null
         ? {}
         : {
@@ -215,53 +228,48 @@ export function buildOwnershipFactRows({
     });
   });
 
-  const proposedSaleRows = records(form144?.proposed_sale_rows);
-  const sourceRows = proposedSaleRows.length
-    ? proposedSaleRows
-    : form144 && hasForm144UsableFact(form144)
-      ? [form144]
-      : [];
+  const form144Owners = facts.form144?.reporting_owners || [];
+  const form144OwnerNames = form144Owners.map((owner) => nullableString(owner.name)).filter((name): name is string => Boolean(name));
+  const form144OwnerEvidence = form144Owners.flatMap((owner) => owner.evidence);
+  const sourceRows = facts.form144?.proposed_sales || [];
   const form144ProposedSales = sourceRows.map((sale, proposedSaleIndex) => {
-    const securitiesToBeSold = nonnegativeNumber(sale.securities_to_be_sold);
-    const aggregateMarketValue = nonnegativeNumber(sale.aggregate_market_value);
-    const sharesOutstanding = nonnegativeNumber(sale.shares_outstanding);
+    const securitiesToBeSold = sale.proposed_sale_shares.value;
+    const aggregateMarketValue = sale.aggregate_market_value.value;
+    const sharesOutstanding = sale.shares_outstanding.value;
     const proposedSalePercent = securitiesToBeSold !== null && sharesOutstanding !== null && sharesOutstanding > 0
+      && comparisonEligibleQuality(sale.proposed_sale_shares.value_quality)
+      && comparisonEligibleQuality(sale.shares_outstanding.value_quality)
       ? round((securitiesToBeSold / sharesOutstanding) * 100, 8)
       : null;
     return compact({
       event_id: eventId,
       proposed_sale_index: proposedSaleIndex,
       symbol: normalizedSymbol,
-      seller_name: nullableString(form144?.seller_name) || nullableString(form144?.account_person_name),
-      security_title: nullableString(sale.securities_class_title) || nullableString(form144?.securities_class_title),
-      exchange: nullableString(sale.securities_exchange_name) || nullableString(form144?.securities_exchange_name),
+      seller_name: form144OwnerNames[0] || null,
+      reporting_owner_names: form144OwnerNames,
+      security_title: nullableString(sale.security_title),
+      exchange: nullableString(sale.exchange),
       securities_to_be_sold: securitiesToBeSold,
-      securities_to_be_sold_quality: securitiesToBeSold === null ? null : "exact",
-      securities_to_be_sold_value_quality: valueQuality(securitiesToBeSold, "exact"),
-      securities_to_be_sold_availability: availability(securitiesToBeSold),
+      securities_to_be_sold_quality: legacyExactQuality(sale.proposed_sale_shares),
+      securities_to_be_sold_value_quality: sale.proposed_sale_shares.value_quality,
+      securities_to_be_sold_availability: sale.proposed_sale_shares.availability,
       aggregate_market_value: aggregateMarketValue,
-      aggregate_market_value_quality: aggregateMarketValue === null ? null : "exact",
-      aggregate_market_value_value_quality: valueQuality(aggregateMarketValue, "exact"),
-      aggregate_market_value_availability: availability(aggregateMarketValue),
-      approximate_sale_date: date(sale.approximate_sale_date) || date(form144?.approximate_sale_date),
+      aggregate_market_value_quality: legacyExactQuality(sale.aggregate_market_value),
+      aggregate_market_value_value_quality: sale.aggregate_market_value.value_quality,
+      aggregate_market_value_availability: sale.aggregate_market_value.availability,
+      approximate_sale_date: date(sale.proposed_sale_date),
       shares_outstanding: sharesOutstanding,
-      shares_outstanding_quality: sharesOutstanding === null ? null : "exact",
-      shares_outstanding_value_quality: valueQuality(sharesOutstanding, "exact"),
-      shares_outstanding_availability: availability(sharesOutstanding),
+      shares_outstanding_quality: legacyExactQuality(sale.shares_outstanding),
+      shares_outstanding_value_quality: sale.shares_outstanding.value_quality,
+      shares_outstanding_availability: sale.shares_outstanding.availability,
       proposed_sale_percent: proposedSalePercent,
       proposed_sale_percent_quality: proposedSalePercent === null ? null : "derived",
       proposed_sale_percent_value_quality: valueQuality(proposedSalePercent, "derived"),
       proposed_sale_percent_availability: availability(proposedSalePercent),
-      fact_as_of: date(sale.approximate_sale_date) || date(form144?.approximate_sale_date),
-      confidence,
+      fact_as_of: date(sale.proposed_sale_date),
+      confidence: confidenceValue(sale.confidence),
       provenance,
-      evidence: uniqueStrings([
-        ...stringArray(sale.evidence),
-        nullableString(sale.securities_to_be_sold_text),
-        nullableString(sale.aggregate_market_value_text),
-        nullableString(sale.shares_outstanding_text),
-        nullableString(sale.approximate_sale_date_text),
-      ]),
+      evidence: uniqueStrings([...form144OwnerEvidence, ...sale.evidence]),
       calculation_basis: proposedSalePercent === null
         ? {}
         : {
@@ -585,20 +593,6 @@ function latestTimestamp(left: string | null, right: string | null) {
   return Date.parse(left) >= Date.parse(right) ? left : right;
 }
 
-function hasForm144UsableFact(value: Row) {
-  return [
-    value.securities_to_be_sold,
-    value.aggregate_market_value,
-    value.shares_outstanding,
-    value.approximate_sale_date,
-  ].some((item) => item !== null && item !== undefined && item !== "");
-}
-
-function sourceConfidence(value: unknown) {
-  const normalized = string(value).toLowerCase();
-  return normalized === "high" ? 0.95 : normalized === "medium" ? 0.75 : normalized === "low" ? 0.5 : 0.5;
-}
-
 function normalizeSecurityKey(value: unknown) {
   const normalized = string(value)
     .toLowerCase()
@@ -611,11 +605,6 @@ function normalizeSecurityKey(value: unknown) {
 function normalizeSymbol(value: unknown) {
   const normalized = string(value).toUpperCase();
   return /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(normalized) ? normalized : null;
-}
-
-function uppercaseCode(value: unknown) {
-  const normalized = string(value).toUpperCase();
-  return /^[A-Z]$/.test(normalized) ? normalized : null;
 }
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[]) {
@@ -636,13 +625,21 @@ function availability(value: number | null) {
   return value === null ? "unavailable" : "available";
 }
 
-function nullableBoolean(value: unknown) {
-  return typeof value === "boolean" ? value : null;
+function anyOwnerBoolean(rows: OwnershipReportingOwnerFact[], key: "is_officer" | "is_director" | "is_10_percent_owner") {
+  const values = rows.map((row) => row[key]).filter((value): value is boolean => value !== null);
+  return values.length ? values.some(Boolean) : null;
 }
 
-function anySuppliedBoolean(rows: Row[], key: string) {
-  const values = rows.map((row) => nullableBoolean(row[key])).filter((value): value is boolean => value !== null);
-  return values.length ? values.some(Boolean) : null;
+function legacyExactQuality(fact: OwnershipNumericFact) {
+  return fact.availability === "available" && fact.value_quality === "exact" ? "exact" : null;
+}
+
+function comparisonEligibleQuality(value: OwnershipValueQuality) {
+  return value === "exact" || value === "derived" || value === "estimated";
+}
+
+function confidenceValue(value: "high" | "medium" | "low" | null) {
+  return value === "high" ? 0.95 : value === "medium" ? 0.75 : value === "low" ? 0.5 : null;
 }
 
 function round(value: number, digits: number) {

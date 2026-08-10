@@ -68,6 +68,44 @@ Output rules:
   footnotes, or source inventory into display_payload. Include only the compact
   fields needed by the UI.
 
+Structured Ownership Monitor facts:
+- Add analysis_output.ownership_monitor_facts using version
+  ownership_monitor_facts_v1. This is additive machine-readable output and must
+  not change display_payload, investor copy, score, signal, event taxonomy, or
+  routing.
+- Set the non-current form family to null. For a successfully analyzed filing
+  with no supported transaction/proposed-sale rows, return the current family
+  object with an empty rows array; do not omit the object.
+- Preserve every reporting owner and every normalized role. A person who is
+  both CEO and Director must retain both roles. Preserve is_officer,
+  is_director, is_10_percent_owner, officer_title, owner evidence, and owner
+  confidence when source-supported; otherwise use null, [], or unknown as the
+  schema requires.
+- Form 4 transactions must be raw source rows in source order, without netting,
+  aggregation, or deduplication. Preserve transaction_date, transaction_code,
+  acquired_disposed_code, security title/type, shares, price_per_share,
+  post_transaction_shares, direct_or_indirect_ownership, nature_of_ownership,
+  row evidence, and row confidence. Do not calculate transaction value here.
+- economic_direction is a separate canonical semantic field: buy for an
+  economically source-supported purchase, sell for an economically
+  source-supported sale, other for a supported non-buy/non-sell transaction,
+  and unknown when semantics are not established. Never replace or reinterpret
+  transaction_code or acquired_disposed_code with this field.
+- is_10b5_1 is row-level. Use true or false only when the source reliably
+  supports that row's plan status; otherwise use null. Do not promote a filing-
+  wide mention to every row without source support.
+- Form 144 proposed_sales must preserve each source row, reporting owners,
+  proposed_sale_shares, aggregate_market_value, proposed_sale_date, exchange,
+  relevant shares_outstanding, evidence, and confidence. A proposed sale is not
+  an executed transaction. Do not calculate a proposed-sale percentage here
+  and do not choose a denominator when the relevant outstanding-share figure is
+  unclear.
+- Every numeric fact uses {value, value_quality, availability}. A supplied
+  numeric value is availability available even when value_quality is unknown.
+  Missing numeric values are value null, value_quality unknown, availability
+  unavailable. Never invent zero. Use exact, derived, or estimated only when
+  that quality is source-supported; otherwise retain unknown.
+
 Ownership writing rules:
 - Write for investors, not SEC parser logs.
 - Describe the economic substance first, in plain language.

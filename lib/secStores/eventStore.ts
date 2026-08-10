@@ -211,6 +211,9 @@ export async function saveAnalyzedSecFilingEvent({
       promptVersion,
     }),
   ]);
+  const ownershipAnalysisOutput = promptKey === "sec_ownership_analysis"
+    ? toRecord(analysis.ownership_monitor_facts)
+    : null;
   await persistOptionalMonitorFoundation({
     eventId: stringValue(eventRow.id),
     eventTime: stringValue(eventRow.detected_at) || payload.detected_at,
@@ -222,8 +225,8 @@ export async function saveAnalyzedSecFilingEvent({
         }
       : null,
     analysisMarketContext: marketContext,
-    ownershipParserOutput: toRecord(toRecord(filingPackage.hard_parsers)?.ownership),
-    ownershipInputState: toRecord(toRecord(filingPackage.hard_parsers)?.ownership) ? "known" : "not_applicable",
+    ownershipAnalysisOutput,
+    ownershipInputState: ownershipAnalysisOutput ? "known" : "not_applicable",
   });
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
 

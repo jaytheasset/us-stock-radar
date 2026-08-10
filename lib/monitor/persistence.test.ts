@@ -3,12 +3,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseOwnershipFiling } from "../sources/sec/forms/ownership/parser.ts";
 import {
   buildOwnershipFactRows,
   persistEventMarketSnapshots,
   persistOptionalMonitorFoundation,
-  persistOwnershipParserFacts,
+  persistOwnershipAnalysisFacts,
   type MonitorPersistenceRepository,
 } from "./persistence.ts";
 
@@ -16,11 +15,6 @@ type Row = Record<string, unknown>;
 const here = dirname(fileURLToPath(import.meta.url));
 const eventId = "11111111-1111-4111-8111-111111111111";
 const eventTime = "2026-08-11T00:00:00.000Z";
-
-function fixture(name: string) {
-  const path = join(here, "../sources/sec/forms/ownership/fixtures", name);
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-}
 
 function mockRepository(options: {
   select?: (table: string, search: Record<string, string>) => Row[];
@@ -183,82 +177,101 @@ test("market replace is scoped, idempotent, and failures or read errors preserve
   assert.deepEqual(writeFailure.state.market, existing);
 });
 
-test("Form 4 transactions remain separate and preserve parser-supplied ownership fields", () => {
-  const single = parseOwnershipFiling(fixture("form4-insider-purchase.json") as never);
-  const singleRows = buildOwnershipFactRows({ eventId, symbol: "ATRB", parserOutput: single }).form4Transactions;
-  assert.equal(singleRows.length, 1);
-  assert.equal(singleRows[0].transaction_value, 310_000);
-  assert.equal(singleRows[0].transaction_value_value_quality, "derived");
-  assert.equal(singleRows[0].transaction_value_availability, "available");
-  assert.equal(singleRows[0].post_transaction_shares_value_quality, "exact");
-  assert.equal("ownership_percent" in singleRows[0], false);
+test("Form 4 Analysis facts preserve raw rows, roles, semantics, 10b5 state, and deterministic values", () => {
+  const analysisOutput = form4AnalysisFacts([
+    form4Transaction({ direction: "buy", code: "P", side: "A", shares: numericFact(25_000), price: numericFact(12.4), postShares: numericFact(425_000), is10b51: true }),
+    form4Transaction({ direction: "sell", code: "S", side: "D", shares: numericFact(2_000), price: numericFact(null), postShares: numericFact(423_000), is10b51: null }),
+    form4Transaction({ direction: "other", code: "G", side: "D", shares: numericFact(null), price: numericFact(5), postShares: numericFact(null), is10b51: false }),
+    form4Transaction({ direction: "unknown", code: "V", side: null, shares: numericFact(10, "unknown"), price: numericFact(2), postShares: numericFact(100, "unknown"), is10b51: null, kind: null }),
+  ]);
+  const rows = buildOwnershipFactRows({ eventId, symbol: "ATRB", analysisOutput }).form4Transactions;
 
-  const multi = parseOwnershipFiling(fixture("form4-multi-owner-10b5-1-conversion.json") as never);
-  const rows = buildOwnershipFactRows({ eventId, symbol: "UWMC", parserOutput: multi }).form4Transactions;
-  assert.equal(rows.length, 3);
-  assert.deepEqual(rows.map((row) => row.transaction_index), [0, 1, 2]);
-  assert.deepEqual(rows.map((row) => row.acquired_disposed_code), ["D", "A", "D"]);
-  assert.deepEqual(rows.map((row) => row.shares), [632_874, 6_600_000, 6_600_000]);
-  assert.ok((rows[0].reporting_owner_roles as string[]).length > 1);
+  assert.equal(rows.length, 4);
+  assert.deepEqual(rows.map((row) => row.transaction_index), [0, 1, 2, 3]);
+  assert.deepEqual(rows.map((row) => row.economic_direction), ["buy", "sell", "other", "unknown"]);
+  assert.deepEqual(rows.map((row) => row.acquired_disposed_code), ["A", "D", "D", null]);
+  assert.deepEqual(rows[0].reporting_owner_names, ["Maya Chen", "Control Holdings LLC"]);
+  assert.deepEqual(rows[0].reporting_owner_roles, ["CEO", "Director", "10% Owner"]);
+  assert.equal(rows[0].is_officer, true);
+  assert.equal(rows[0].is_director, true);
   assert.equal(rows[0].is_10_percent_owner, true);
   assert.equal(rows[0].is_10b5_1, true);
-  assert.ok(rows.every((row) => row.post_transaction_shares !== undefined));
+  assert.equal(rows[1].is_10b5_1, null);
+  assert.equal(rows[0].transaction_value, 310_000);
+  assert.equal(rows[0].transaction_value_value_quality, "derived");
+  assert.equal(rows[1].transaction_value, null);
+  assert.equal(rows[1].transaction_value_availability, "unavailable");
+  assert.equal(rows[2].transaction_value, null);
+  assert.equal(rows[3].transaction_value, 20);
+  assert.equal(rows[3].transaction_value_value_quality, "unknown");
+  assert.equal(rows[3].transaction_value_availability, "available");
+  assert.equal(rows[3].shares_availability, "available");
+  assert.equal(rows[3].shares_value_quality, "unknown");
+  assert.equal(rows[3].transaction_kind, null);
+  assert.equal("ownership_percent" in rows[0], false);
+  assert.equal((rows[0].provenance as Row).parser_fallback, false);
 });
 
-test("Form 144 exchange and exact value are retained; percentage is only derived from both inputs", () => {
-  const parsed = parseOwnershipFiling(fixture("form144-detailed-proposed-sale.json") as never);
-  const rows = buildOwnershipFactRows({ eventId, symbol: "D144", parserOutput: parsed }).form144ProposedSales;
-  assert.equal(rows.length, 1);
+test("Form 144 Analysis facts retain owners, sale terms, and only derive percent from a clear denominator", () => {
+  const analysisOutput = form144AnalysisFacts([
+    form144Sale({ shares: numericFact(9_876), value: numericFact(987_600), outstanding: numericFact(40_000_000), date: "2026-08-15", exchange: "NASDAQ" }),
+    form144Sale({ shares: numericFact(1_000), value: numericFact(25_000, "estimated"), outstanding: numericFact(null), date: null, exchange: null }),
+    form144Sale({ shares: numericFact(500, "unknown"), value: numericFact(12_500, "unknown"), outstanding: numericFact(20_000_000, "unknown"), date: "2026-08-16", exchange: "NYSE" }),
+  ]);
+  const rows = buildOwnershipFactRows({ eventId, symbol: "D144", analysisOutput }).form144ProposedSales;
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0].reporting_owner_names, ["Jordan Seller"]);
+  assert.equal(rows[0].seller_name, "Jordan Seller");
   assert.equal(rows[0].exchange, "NASDAQ");
   assert.equal(rows[0].aggregate_market_value, 987_600);
   assert.equal(rows[0].aggregate_market_value_value_quality, "exact");
   assert.equal(rows[0].proposed_sale_percent, 0.02469);
   assert.equal(rows[0].proposed_sale_percent_value_quality, "derived");
-
-  const withoutDenominator = structuredForm144ParserOutput({
-    securities_to_be_sold: 1_000,
-    aggregate_market_value: 25_000,
-    shares_outstanding: null,
-    proposed_sale_percent_of_shares_outstanding: 99,
-  });
-  const unsupported = buildOwnershipFactRows({ eventId, symbol: "CBLD", parserOutput: withoutDenominator }).form144ProposedSales[0];
-  assert.equal(unsupported.proposed_sale_percent, null);
-  assert.equal(unsupported.proposed_sale_percent_value_quality, "unknown");
-  assert.equal(unsupported.proposed_sale_percent_availability, "unavailable");
+  assert.equal(rows[1].proposed_sale_percent, null);
+  assert.equal(rows[1].proposed_sale_percent_value_quality, "unknown");
+  assert.equal(rows[1].proposed_sale_percent_availability, "unavailable");
+  assert.equal(rows[1].aggregate_market_value_value_quality, "estimated");
+  assert.equal(rows[1].aggregate_market_value_availability, "available");
+  assert.equal(rows[2].shares_outstanding_availability, "available");
+  assert.equal(rows[2].shares_outstanding_value_quality, "unknown");
+  assert.equal(rows[2].proposed_sale_percent, null);
 });
 
 test("ownership replace removes stale rows, is idempotent, clears known-empty, and preserves on failure", async () => {
-  const parsed = parseOwnershipFiling(fixture("form4-multi-owner-10b5-1-conversion.json") as never);
+  const parsed = form4AnalysisFacts([
+    form4Transaction({ direction: "sell", shares: numericFact(10), price: numericFact(5) }),
+    form4Transaction({ direction: "buy", shares: numericFact(20), price: numericFact(6) }),
+    form4Transaction({ direction: "other", shares: numericFact(30), price: numericFact(null) }),
+  ]);
   const replacing = mockRepository({ form4: [{ transaction_index: 0 }, { transaction_index: 1 }, { transaction_index: 2 }] });
-  await persistOwnershipParserFacts({ eventId, eventTime, ownershipParserOutput: parsed, ownershipInputState: "known" }, replacing.repository);
+  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: parsed, ownershipInputState: "known" }, replacing.repository);
   assert.equal(replacing.state.form4.length, 3);
   const twoTransactions = structuredClone(parsed) as unknown as Row;
-  const facts = twoTransactions.facts as Row;
-  const form4 = facts.form4 as Row;
+  const form4 = twoTransactions.form4 as Row;
   form4.transactions = (form4.transactions as Row[]).slice(0, 2);
-  await persistOwnershipParserFacts({ eventId, eventTime, ownershipParserOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
+  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
   assert.equal(replacing.state.form4.length, 2);
-  await persistOwnershipParserFacts({ eventId, eventTime, ownershipParserOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
+  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
   assert.equal(replacing.state.form4.length, 2);
 
-  await persistOwnershipParserFacts({ eventId, eventTime, ownershipParserOutput: emptyOwnershipParserOutput(), ownershipInputState: "known" }, replacing.repository);
+  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: emptyOwnershipAnalysisOutput(), ownershipInputState: "known" }, replacing.repository);
   assert.deepEqual(replacing.state.form4, []);
   assert.deepEqual(replacing.state.form144, []);
 
   const existing = [{ transaction_index: 0 }];
   const failed = mockRepository({ form4: existing, failOwnershipReplace: true });
-  const failedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipParserOutput: parsed, ownershipInputState: "known" }, failed.repository);
+  const failedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipAnalysisOutput: parsed, ownershipInputState: "known" }, failed.repository);
   assert.equal(failedResult.ok, false);
   assert.deepEqual(failed.state.form4, existing);
 
   const malformed = mockRepository({ form4: existing });
-  const malformedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipParserOutput: {}, ownershipInputState: "known" }, malformed.repository);
+  const malformedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipAnalysisOutput: {}, ownershipInputState: "known" }, malformed.repository);
   assert.equal(malformedResult.ok, false);
   assert.deepEqual(malformed.state.form4, existing);
   assert.equal(malformed.state.ownershipReplaceCalls, 0);
 
   const notApplicable = mockRepository({ form4: existing });
-  await persistOwnershipParserFacts({ eventId, eventTime, ownershipInputState: "not_applicable" }, notApplicable.repository);
+  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipInputState: "not_applicable" }, notApplicable.repository);
   assert.deepEqual(notApplicable.state.form4, existing);
   assert.equal(notApplicable.state.ownershipReplaceCalls, 0);
 });
@@ -267,33 +280,153 @@ test("SEC and News paths use the shared helper with explicit ownership input sta
   const secStore = readFileSync(join(here, "../secStores/eventStore.ts"), "utf8");
   const newsStore = readFileSync(join(here, "../newsIngest.ts"), "utf8");
   assert.match(secStore, /await persistOptionalMonitorFoundation\(\{/);
-  assert.match(secStore, /ownershipInputState: .* \? "known" : "not_applicable"/);
+  assert.match(secStore, /ownershipAnalysisOutput/);
+  assert.match(secStore, /promptKey === "sec_ownership_analysis"/);
+  assert.doesNotMatch(secStore, /ownershipParserOutput/);
+  assert.match(secStore, /ownershipInputState: ownershipAnalysisOutput \? "known" : "not_applicable"/);
   assert.match(newsStore, /await persistOptionalMonitorFoundation\(\{/);
   assert.match(newsStore, /ownershipInputState: "not_applicable"/);
   assert.match(secStore, /persistEventOfferingTerms\(\{/);
   assert.match(newsStore, /persistNewsOfferingTerms\(\{/);
 });
 
-function structuredForm144ParserOutput(form144: Row) {
+test("Ownership migration keeps analysis provenance and atomic scoped replace semantics", () => {
+  const migration = readFileSync(join(here, "../../supabase/migrations/20260811100000_ownership_analysis_monitor_facts.sql"), "utf8");
+  assert.match(migration, /add column economic_direction text/);
+  assert.match(migration, /add column reporting_owner_names jsonb/);
+  assert.match(migration, /delete from public\.event_form4_transactions where event_id = p_event_id/);
+  assert.match(migration, /delete from public\.event_form144_proposed_sales where event_id = p_event_id/);
+  assert.match(migration, /source:\s*"sec_ownership_analysis"|Ownership Analysis/);
+  assert.match(migration, /Successful known-empty arrays clear stale rows/);
+  assert.doesNotMatch(migration, /parser object.*fallback/i);
+});
+
+function emptyOwnershipAnalysisOutput() {
   return {
-    parserVersion: "ownership-parser-v1",
-    accessionNumber: "fixture-accession",
-    facts: {
-      filing: { source_format: "structured_xml", source_confidence: "high" },
-      issuer: { ticker: "CBLD" },
-      form144: { ...form144, proposed_sale_rows: [form144] },
+    version: "ownership_monitor_facts_v1",
+    form4: { reporting_owners: [], transactions: [] },
+    form144: null,
+  };
+}
+
+function form4AnalysisFacts(transactions: Row[]) {
+  return {
+    version: "ownership_monitor_facts_v1",
+    form4: {
+      reporting_owners: [
+        reportingOwner({ name: "Maya Chen", roles: ["CEO", "Director"], isOfficer: true, isDirector: true, officerTitle: "Chief Executive Officer" }),
+        reportingOwner({ name: "Control Holdings LLC", roles: ["10% Owner"], is10PercentOwner: true }),
+      ],
+      transactions,
+    },
+    form144: null,
+  };
+}
+
+function form144AnalysisFacts(proposedSales: Row[]) {
+  return {
+    version: "ownership_monitor_facts_v1",
+    form4: null,
+    form144: {
+      reporting_owners: [reportingOwner({ name: "Jordan Seller", roles: ["Director"], isDirector: true })],
+      proposed_sales: proposedSales,
     },
   };
 }
 
-function emptyOwnershipParserOutput() {
+function reportingOwner({
+  name,
+  roles,
+  isOfficer = null,
+  isDirector = null,
+  is10PercentOwner = null,
+  officerTitle = null,
+}: {
+  name: string;
+  roles: string[];
+  isOfficer?: boolean | null;
+  isDirector?: boolean | null;
+  is10PercentOwner?: boolean | null;
+  officerTitle?: string | null;
+}) {
   return {
-    parserVersion: "ownership-parser-v1",
-    facts: {
-      filing: { source_format: "structured_xml", source_confidence: "high" },
-      reporting_owners: [],
-      form4: { transactions: [] },
-      form144: { proposed_sale_rows: [] },
-    },
+    name,
+    roles,
+    is_officer: isOfficer,
+    is_director: isDirector,
+    is_10_percent_owner: is10PercentOwner,
+    officer_title: officerTitle,
+    evidence: [`owner evidence: ${name}`],
+    confidence: "high",
+  };
+}
+
+function numericFact(value: number | null, valueQuality: "exact" | "derived" | "estimated" | "unknown" = value === null ? "unknown" : "exact") {
+  return {
+    value,
+    value_quality: valueQuality,
+    availability: value === null ? "unavailable" : "available",
+  };
+}
+
+function form4Transaction({
+  direction,
+  code = "P",
+  side = "A",
+  shares,
+  price,
+  postShares = numericFact(null),
+  is10b51 = null,
+  kind = "non_derivative",
+}: {
+  direction: "buy" | "sell" | "other" | "unknown";
+  code?: string | null;
+  side?: "A" | "D" | null;
+  shares: ReturnType<typeof numericFact>;
+  price: ReturnType<typeof numericFact>;
+  postShares?: ReturnType<typeof numericFact>;
+  is10b51?: boolean | null;
+  kind?: "non_derivative" | "derivative" | null;
+}) {
+  return {
+    transaction_kind: kind,
+    security_title: "Common Stock",
+    transaction_date: "2026-08-10",
+    transaction_code: code,
+    acquired_disposed_code: side,
+    economic_direction: direction,
+    shares,
+    price_per_share: price,
+    post_transaction_shares: postShares,
+    direct_or_indirect_ownership: "D",
+    nature_of_ownership: null,
+    is_10b5_1: is10b51,
+    evidence: [`row evidence: ${direction}`],
+    confidence: direction === "unknown" ? null : "high",
+  };
+}
+
+function form144Sale({
+  shares,
+  value,
+  outstanding,
+  date,
+  exchange,
+}: {
+  shares: ReturnType<typeof numericFact>;
+  value: ReturnType<typeof numericFact>;
+  outstanding: ReturnType<typeof numericFact>;
+  date: string | null;
+  exchange: string | null;
+}) {
+  return {
+    security_title: "Common Stock",
+    proposed_sale_shares: shares,
+    aggregate_market_value: value,
+    proposed_sale_date: date,
+    exchange,
+    shares_outstanding: outstanding,
+    evidence: ["proposed sale row evidence"],
+    confidence: "high",
   };
 }
