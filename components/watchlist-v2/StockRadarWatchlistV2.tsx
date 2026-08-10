@@ -26,6 +26,7 @@ import { CalendarEventTypeBadge } from "@/components/calendar-v1/CalendarEventTy
 import { LiveRoomEntryButton } from "@/components/live-room/LiveRoomEntryButton";
 import { MarketTickerLogo } from "@/components/market/MarketTickerLogo";
 import { StockRadarAppShell } from "@/components/shell/StockRadarAppShell";
+import { TickerSearchFlowReadout } from "@/components/shell/TickerSearchFlowReadout";
 import { BottomSheetShell } from "@/components/ui/BottomSheetShell";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
 import {
@@ -71,6 +72,12 @@ import {
   type StockEventsFilter,
   type StockEventsObservation,
 } from "@/lib/watchlist/stockEventsObservation";
+import {
+  parseTickerSearchSelectionSnapshot,
+  resolveTickerSearchToStockDetailReadout,
+  TICKER_SEARCH_SELECTION_STORAGE_KEY,
+  type TickerSearchSelectionSnapshot,
+} from "@/lib/tickerSearchFlowObservation";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type {
   WatchlistTickerItem,
@@ -157,6 +164,8 @@ export function StockRadarWatchlistV2({
     CompanyCalendarEvent[]
   >([]);
   const [overviewState, setOverviewState] = useState<LoadState>("idle");
+  const [tickerSearchSelection, setTickerSearchSelection] =
+    useState<TickerSearchSelectionSnapshot | null>(null);
   const [chartState, setChartState] = useState<LoadState>("idle");
   const [eventsRequest, setEventsRequest] = useState(() =>
     resolveStockEventsRequestSnapshot({ requestState: "idle" }),
@@ -217,12 +226,51 @@ export function StockRadarWatchlistV2({
       }),
     [eventFilter, events, eventsRequest, selectedTicker, visibleEventCount],
   );
+  const tickerSearchFlowReadout = useMemo(() => {
+    const routeHref = selectedTicker
+      ? getStockRouteHref(selectedTicker) ?? ""
+      : "";
+    return resolveTickerSearchToStockDetailReadout({
+      detailRenderState: overviewState,
+      routeHref,
+      routeTicker: selectedTicker,
+      selection: tickerSearchSelection,
+    });
+  }, [overviewState, selectedTicker, tickerSearchSelection]);
   const selectedEvent =
     events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const latestEvent = events[0] ?? null;
   const financialEvents = selectStockOverviewEvents(events, "financials");
   const ownershipEvents = selectStockOverviewEvents(events, "ownership");
   const dilutionEvents = selectStockOverviewEvents(events, "dilution");
+
+  useEffect(() => {
+    if (selectionMode !== "stock" || !selectedTicker) return;
+    const selectionHref = getStockRouteHref(selectedTicker);
+    if (!selectionHref) return;
+
+    setTickerSearchSelection((current) =>
+      current?.selectedTicker === selectedTicker ? current : null,
+    );
+
+    let storedSelection: string | null = null;
+    try {
+      storedSelection = window.sessionStorage.getItem(
+        TICKER_SEARCH_SELECTION_STORAGE_KEY,
+      );
+      window.sessionStorage.removeItem(TICKER_SEARCH_SELECTION_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (!storedSelection) return;
+
+    const selection = parseTickerSearchSelectionSnapshot(
+      storedSelection,
+      selectedTicker,
+      selectionHref,
+    );
+    if (selection) setTickerSearchSelection(selection);
+  }, [selectedTicker, selectionMode]);
 
   useEffect(() => {
     const eventsApiHref = getStockEventsRequestHref(selectedTicker);
@@ -764,6 +812,9 @@ export function StockRadarWatchlistV2({
       themeMode="user-selectable"
     >
       <div className={styles.page}>
+        {selectionMode === "stock" ? (
+          <TickerSearchFlowReadout state={tickerSearchFlowReadout} />
+        ) : null}
         <div className={styles.pageTopline}>
           <div className={styles.pageTitleBlock}>
             <span>
