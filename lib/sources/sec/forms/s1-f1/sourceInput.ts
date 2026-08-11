@@ -3,6 +3,7 @@ import {
   buildCurrentFilingIdentity,
   currentFilingIdentityText,
 } from "../common/currentFilingIdentity.ts";
+import { stableSourceHash } from "../common/contextPreservingChunks.ts";
 
 export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<string, unknown> {
   const currentFiling = buildCurrentFilingIdentity({
@@ -49,11 +50,11 @@ export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<
   };
 }
 
-const MAX_LLM_SOURCE_BLOCKS = 32;
+const MAX_LLM_SOURCE_BLOCKS = 40;
 const MAX_LLM_SOURCE_BLOCK_TEXT_CHARS = 5_000;
-const MAX_LLM_SOURCE_TOTAL_TEXT_CHARS = 90_000;
-const MAX_LLM_RESERVED_ATTACHMENT_BLOCKS = 8;
-const MAX_LLM_RESERVED_ATTACHMENT_TEXT_CHARS = 30_000;
+const MAX_LLM_SOURCE_TOTAL_TEXT_CHARS = 135_000;
+const MAX_LLM_RESERVED_ATTACHMENT_BLOCKS = 20;
+const MAX_LLM_RESERVED_ATTACHMENT_TEXT_CHARS = 75_000;
 
 type IndexedSourceBlock = {
   block: S1F1CleanedSourceBlock;
@@ -66,10 +67,9 @@ type PreparedSourceBlock = IndexedSourceBlock & {
 
 function buildLlmCleanedSourceBlocks(blocks: S1F1CleanedSourceBlock[]) {
   const indexedBlocks = blocks.map((block, sourceIndex) => ({ block, sourceIndex }));
-  const reservedAttachments = indexedBlocks
-    .filter(({ block }) => block.source === "attachment")
+  const primaryBlocks = indexedBlocks.filter(({ block }) => block.source === "primary");
+  const reservedAttachments = roundRobinAttachmentBlocks(indexedBlocks.filter(({ block }) => block.source === "attachment"))
     .slice(0, MAX_LLM_RESERVED_ATTACHMENT_BLOCKS);
-  const reservedAttachmentIndexes = new Set(reservedAttachments.map(({ sourceIndex }) => sourceIndex));
   const selected: PreparedSourceBlock[] = [];
   let totalChars = 0;
   let reservedAttachmentTextChars = 0;
@@ -97,21 +97,26 @@ function buildLlmCleanedSourceBlocks(blocks: S1F1CleanedSourceBlock[]) {
     reservedAttachmentTextChars += totalChars - before;
   }
 
-  for (const indexedBlock of indexedBlocks) {
-    if (reservedAttachmentIndexes.has(indexedBlock.sourceIndex)) continue;
+  for (const indexedBlock of primaryBlocks) {
     if (!addBlock(indexedBlock, MAX_LLM_SOURCE_TOTAL_TEXT_CHARS - totalChars)) break;
   }
 
   selected.sort((a, b) => a.sourceIndex - b.sourceIndex);
   const output = selected.map(({ block, sourceIndex, text }) => {
-    const blockId = `s1f1_source_block_${String(sourceIndex + 1).padStart(3, "0")}`;
+    const blockId = block.source === "attachment"
+      ? stableAttachmentBlockId(block)
+      : `s1f1_source_block_${String(sourceIndex + 1).padStart(3, "0")}`;
     const neutralizeInternalResaleLabel = /^resale_equity_line_context_\d+$/.test(block.sectionKey ?? "");
     return {
       block_id: blockId,
+      source_ref: blockId,
       source: block.source,
       sectionKey: neutralizeInternalResaleLabel ? blockId : block.sectionKey,
       sectionTitle: neutralizeInternalResaleLabel ? null : block.sectionTitle,
       documentName: block.documentName,
+      documentId: block.documentId ?? block.documentName,
+      chunk_index: block.chunkIndex ?? null,
+      chunk_count: block.chunkCount ?? null,
       text,
       tables: block.tables.map((table) => clipPromptText(table, 2_000)).filter(Boolean),
     };
@@ -126,16 +131,58 @@ function buildLlmCleanedSourceBlocks(blocks: S1F1CleanedSourceBlock[]) {
       maxBlockTextChars: MAX_LLM_SOURCE_BLOCK_TEXT_CHARS,
       maxTotalTextChars: MAX_LLM_SOURCE_TOTAL_TEXT_CHARS,
       includedTextChars: totalChars,
-      reservedAttachmentBlockCount: selected.filter(({ sourceIndex }) => reservedAttachmentIndexes.has(sourceIndex)).length,
+      reservedAttachmentBlockCount: selected.filter(({ block }) => block.source === "attachment").length,
       reservedAttachmentTextChars,
       truncatedBlocks,
     },
   };
 }
 
-function clipPromptText(value: string, maxLength: number) {
+function roundRobinAttachmentBlocks(blocks: IndexedSourceBlock[]): IndexedSourceBlock[] {
+  const documents = new Map<string, IndexedSourceBlock[]>();
+  for (const indexedBlock of blocks) {
+    const { block, sourceIndex } = indexedBlock;
+    const documentId = block.documentId ?? block.documentName ?? `attachment_${sourceIndex + 1}`;
+    const documentBlocks = documents.get(documentId) ?? [];
+    documentBlocks.push(indexedBlock);
+    documents.set(documentId, documentBlocks);
+  }
+  for (const documentBlocks of documents.values()) {
+    documentBlocks.sort((left, right) =>
+      (left.block.chunkIndex ?? 1) - (right.block.chunkIndex ?? 1) || left.sourceIndex - right.sourceIndex,
+    );
+  }
+
+  const output: IndexedSourceBlock[] = [];
+  for (let chunkOffset = 0; ; chunkOffset += 1) {
+    let added = false;
+    for (const documentBlocks of documents.values()) {
+      const indexedBlock = documentBlocks[chunkOffset];
+      if (!indexedBlock) continue;
+      output.push(indexedBlock);
+      added = true;
+    }
+    if (!added) break;
+  }
+  return output;
+}
+
+function stableAttachmentBlockId(block: S1F1CleanedSourceBlock): string {
+  const scope = [
+    block.documentId ?? block.documentName ?? "attachment",
+    block.sectionTitle ?? "",
+    block.chunkIndex ?? 1,
+    block.text.slice(0, 360),
+  ].join("|");
+  return `s1f1_attachment_${stableSourceHash(scope)}`;
+}
+
+export function clipS1F1PromptText(value: string, maxLength: number): string {
   const text = value.trim();
   if (!text || maxLength <= 0) return "";
   if (text.length <= maxLength) return text;
-  return `${text.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+  if (maxLength <= 3) return text.slice(0, maxLength);
+  return `${text.slice(0, maxLength - 3).trimEnd()}...`.slice(0, maxLength);
 }
+
+const clipPromptText = clipS1F1PromptText;

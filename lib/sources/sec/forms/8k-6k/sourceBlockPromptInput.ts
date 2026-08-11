@@ -4,6 +4,10 @@ import {
   type SecCurrentFilingIdentity,
 } from "../common/currentFilingIdentity.ts";
 import { normalizeSecTextEncoding } from "../../htmlEntities.ts";
+import {
+  contextPreservingChunks,
+  stableSourceHash as stableHash,
+} from "../common/contextPreservingChunks.ts";
 
 export type SecCleanedSourceBlock = {
   block_id: string;
@@ -945,14 +949,6 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "source";
 }
 
-function stableHash(value: string) {
-  let hash = 5381;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
-  }
-  return (hash >>> 0).toString(36);
-}
-
 function firstObject(...values: unknown[]) {
   for (const value of values) {
     const record = toRecord(value);
@@ -984,42 +980,6 @@ function compactText(value: string, maxChars: number) {
   const text = normalizeSecTextEncoding(value).replace(/\s+/g, " ").trim();
   if (!text || text === "{}" || text === "[]") return "";
   return text.length > maxChars ? `${text.slice(0, maxChars - 3).trim()}...` : text;
-}
-
-function contextPreservingChunks(value: string, maxChars: number) {
-  const normalized = value
-    .replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, " ")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t\f\v]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{4,}/g, "\n\n\n")
-    .replace(/(.)\1{255,}/g, " ")
-    .replace(/\S{1000,}/g, " ")
-    .trim();
-  if (!normalized || normalized === "{}" || normalized === "[]") return [];
-  if (normalized.length <= maxChars) return [normalized];
-
-  const chunks: string[] = [];
-  let remaining = normalized;
-  while (remaining.length > maxChars) {
-    const window = remaining.slice(0, maxChars);
-    const minimumBoundary = Math.floor(maxChars * 0.62);
-    const candidates = [
-      window.lastIndexOf("\n\n"),
-      window.lastIndexOf("\n"),
-      window.lastIndexOf(". "),
-      window.lastIndexOf("; "),
-      window.lastIndexOf(": "),
-    ];
-    const boundary = Math.max(...candidates.filter((candidate) => candidate >= minimumBoundary));
-    const splitAt = boundary >= minimumBoundary ? boundary + (window.slice(boundary, boundary + 2) === ". " ? 1 : 0) : maxChars;
-    const chunk = remaining.slice(0, splitAt).trim();
-    if (!chunk) break;
-    chunks.push(chunk);
-    remaining = remaining.slice(splitAt).trim();
-  }
-  if (remaining) chunks.push(remaining);
-  return chunks;
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

@@ -723,13 +723,13 @@ describe("S-1/F-1 section-specific extraction", () => {
     const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
     const budget = (llmInput.source_inventory as Record<string, unknown>).sourceBlockBudget as Record<string, number>;
 
-    assert.equal(blocks.length, 32);
+    assert.equal(blocks.length, 40);
     assert.equal(blocks.filter((block) => block.source === "attachment").length, 6);
     assert.ok(blocks.some((block) => block.documentName === "document-6.txt"));
     assert.ok(blocks.some((block) => String(block.text).includes("Structurally linked attachment evidence 6")));
-    assert.ok(budget.includedTextChars <= 90_000);
-    assert.equal(budget.maxBlocks, 32);
-    assert.equal(budget.maxTotalTextChars, 90_000);
+    assert.ok(budget.includedTextChars <= 135_000);
+    assert.equal(budget.maxBlocks, 40);
+    assert.equal(budget.maxTotalTextChars, 135_000);
     const sourceInputCode = readFileSync(new URL("./sourceInput.ts", import.meta.url), "utf8");
     assert.doesNotMatch(sourceInputCode, /0001437749|15,713,387|10,000,000|EX-10\.36/);
   });
