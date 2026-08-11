@@ -45,6 +45,18 @@ export type OwnershipForm144ProposedSaleFact = {
   proposed_sale_date: string | null;
   exchange: string | null;
   shares_outstanding: OwnershipNumericFact;
+  percent_calculation: OwnershipForm144PercentCalculationDecision;
+  evidence: string[];
+  confidence: OwnershipFactConfidence;
+};
+
+export type OwnershipForm144PercentCalculationDecision = {
+  comparable_units: boolean | null;
+  numerator_unit: string | null;
+  denominator_unit: string | null;
+  normalization_target: "numerator" | "denominator" | null;
+  normalization_multiplier: number | null;
+  source_relation: string | null;
   evidence: string[];
   confidence: OwnershipFactConfidence;
 };
@@ -153,8 +165,48 @@ function validateForm144Sale(value: unknown, index: number, errors: string[]) {
   if (!nullableDate(row.proposed_sale_date)) errors.push(`${path}.proposed_sale_date is invalid`);
   if (!nullableText(row.exchange)) errors.push(`${path}.exchange is invalid`);
   validateNumericFact(row.shares_outstanding, `${path}.shares_outstanding`, errors);
+  validateForm144PercentCalculation(row.percent_calculation, `${path}.percent_calculation`, errors);
   validateEvidence(row.evidence, `${path}.evidence`, errors);
   validateConfidence(row.confidence, `${path}.confidence`, errors);
+}
+
+function validateForm144PercentCalculation(value: unknown, path: string, errors: string[]) {
+  const decision = record(value);
+  if (!decision) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  if (!(decision.comparable_units === null || typeof decision.comparable_units === "boolean")) {
+    errors.push(`${path}.comparable_units is invalid`);
+  }
+  if (!nullableText(decision.numerator_unit)) errors.push(`${path}.numerator_unit is invalid`);
+  if (!nullableText(decision.denominator_unit)) errors.push(`${path}.denominator_unit is invalid`);
+  if (!nullableOneOf(decision.normalization_target, ["numerator", "denominator"])) {
+    errors.push(`${path}.normalization_target is invalid`);
+  }
+  const multiplier = decision.normalization_multiplier;
+  if (!(multiplier === null || (typeof multiplier === "number" && Number.isFinite(multiplier) && multiplier > 0))) {
+    errors.push(`${path}.normalization_multiplier is invalid`);
+  }
+  if (!nullableText(decision.source_relation)) errors.push(`${path}.source_relation is invalid`);
+  validateEvidence(decision.evidence, `${path}.evidence`, errors);
+  validateConfidence(decision.confidence, `${path}.confidence`, errors);
+
+  if (decision.comparable_units !== true && (decision.normalization_target !== null || multiplier !== null)) {
+    errors.push(`${path} cannot select normalization unless comparable_units is true`);
+  }
+  if (decision.normalization_target === null && multiplier !== null) {
+    errors.push(`${path}.normalization_multiplier requires a normalization_target`);
+  }
+  if (decision.normalization_target !== null && multiplier === null) {
+    errors.push(`${path}.normalization_target requires a normalization_multiplier`);
+  }
+  if (decision.normalization_target !== null && decision.source_relation === null) {
+    errors.push(`${path}.normalization_target requires a source_relation`);
+  }
+  if (decision.normalization_target !== null && Array.isArray(decision.evidence) && decision.evidence.length === 0) {
+    errors.push(`${path}.normalization_target requires source evidence`);
+  }
 }
 
 function validateOwners(value: unknown, path: string, errors: string[]) {
@@ -257,6 +309,24 @@ const ownerSchema = {
     confidence: confidenceSchema,
   },
 } as const;
+const form144PercentCalculationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "comparable_units", "numerator_unit", "denominator_unit", "normalization_target",
+    "normalization_multiplier", "source_relation", "evidence", "confidence",
+  ],
+  properties: {
+    comparable_units: { type: ["boolean", "null"] },
+    numerator_unit: nullableTextSchema,
+    denominator_unit: nullableTextSchema,
+    normalization_target: { type: ["string", "null"], enum: ["numerator", "denominator", null] },
+    normalization_multiplier: { type: ["number", "null"], exclusiveMinimum: 0 },
+    source_relation: nullableTextSchema,
+    evidence: { type: "array", items: { type: "string" } },
+    confidence: confidenceSchema,
+  },
+} as const;
 
 export const OWNERSHIP_MONITOR_FACTS_JSON_SCHEMA = {
   type: "object",
@@ -314,7 +384,8 @@ export const OWNERSHIP_MONITOR_FACTS_JSON_SCHEMA = {
             additionalProperties: false,
             required: [
               "security_title", "proposed_sale_shares", "aggregate_market_value",
-              "proposed_sale_date", "exchange", "shares_outstanding", "evidence", "confidence",
+              "proposed_sale_date", "exchange", "shares_outstanding", "percent_calculation",
+              "evidence", "confidence",
             ],
             properties: {
               security_title: nullableTextSchema,
@@ -323,6 +394,7 @@ export const OWNERSHIP_MONITOR_FACTS_JSON_SCHEMA = {
               proposed_sale_date: nullableTextSchema,
               exchange: nullableTextSchema,
               shares_outstanding: numericFactSchema,
+              percent_calculation: form144PercentCalculationSchema,
               evidence: { type: "array", items: { type: "string" } },
               confidence: confidenceSchema,
             },

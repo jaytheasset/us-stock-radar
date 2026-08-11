@@ -236,10 +236,19 @@ export function buildOwnershipFactRows({
     const securitiesToBeSold = sale.proposed_sale_shares.value;
     const aggregateMarketValue = sale.aggregate_market_value.value;
     const sharesOutstanding = sale.shares_outstanding.value;
-    const proposedSalePercent = securitiesToBeSold !== null && sharesOutstanding !== null && sharesOutstanding > 0
+    const percentDecision = sale.percent_calculation;
+    const normalizationMultiplier = percentDecision.normalization_multiplier;
+    const normalizedNumerator = securitiesToBeSold !== null && percentDecision.normalization_target === "numerator" && normalizationMultiplier !== null
+      ? securitiesToBeSold * normalizationMultiplier
+      : securitiesToBeSold;
+    const normalizedDenominator = sharesOutstanding !== null && percentDecision.normalization_target === "denominator" && normalizationMultiplier !== null
+      ? sharesOutstanding * normalizationMultiplier
+      : sharesOutstanding;
+    const proposedSalePercent = percentDecision.comparable_units === true
+      && normalizedNumerator !== null && normalizedDenominator !== null && normalizedDenominator > 0
       && comparisonEligibleQuality(sale.proposed_sale_shares.value_quality)
       && comparisonEligibleQuality(sale.shares_outstanding.value_quality)
-      ? round((securitiesToBeSold / sharesOutstanding) * 100, 8)
+      ? round((normalizedNumerator / normalizedDenominator) * 100, 8)
       : null;
     return compact({
       event_id: eventId,
@@ -270,14 +279,26 @@ export function buildOwnershipFactRows({
       confidence: confidenceValue(sale.confidence),
       provenance,
       evidence: uniqueStrings([...form144OwnerEvidence, ...sale.evidence]),
-      calculation_basis: proposedSalePercent === null
-        ? {}
-        : {
+      calculation_basis: {
+        comparable_units: percentDecision.comparable_units,
+        numerator_unit: percentDecision.numerator_unit,
+        denominator_unit: percentDecision.denominator_unit,
+        normalization_target: percentDecision.normalization_target,
+        normalization_multiplier: percentDecision.normalization_multiplier,
+        source_relation: percentDecision.source_relation,
+        decision_evidence: percentDecision.evidence,
+        decision_confidence: percentDecision.confidence,
+        ...(proposedSalePercent === null ? {} : {
             formula: "securities_to_be_sold / shares_outstanding * 100",
             numerator_field: "securities_to_be_sold",
             denominator_field: "shares_outstanding",
+            raw_numerator: securitiesToBeSold,
+            raw_denominator: sharesOutstanding,
+            selected_numerator: normalizedNumerator,
+            selected_denominator: normalizedDenominator,
             unit: "percent",
-          },
+          }),
+      },
       updated_at: new Date().toISOString(),
     });
   });
