@@ -11,6 +11,7 @@ const eventId = "5c12efff-d839-4e72-b983-52990312aaf1";
 const rawItemId = "7b856257-4374-41e9-86a4-901f0d28f40f";
 const runId = "095b80ef-1f3e-48b5-b31d-1aabf3bbb454";
 const monitorRunId = "195b80ef-1f3e-48b5-b31d-1aabf3bbb455";
+const monitorExecutionBId = "195b80ef-1f3e-48b5-b31d-1aabf3bbb458";
 
 test("raw-item and event-analysis query failures are explicit and sanitized", async () => {
   const failedSelect: SecDiagnosticSelect = async () => ({
@@ -82,6 +83,13 @@ test("Monitor foundation ledger rows cannot replace the latest persisted Primary
         ok: true,
         data: [
           {
+            id: monitorExecutionBId,
+            event_id: eventId,
+            prompt_key: "offering_monitor_normalization_job",
+            status: "failed",
+            finished_at: "2026-08-11T23:04:16.211Z",
+          },
+          {
             id: monitorRunId,
             event_id: eventId,
             prompt_key: "offering_monitor_normalization_job",
@@ -103,6 +111,12 @@ test("Monitor foundation ledger rows cannot replace the latest persisted Primary
     return {
       ok: true,
       data: [
+        {
+          id: monitorExecutionBId,
+          ai_run_id: monitorExecutionBId,
+          output_type: "offering_monitor_normalization_candidate",
+          payload: { canonical_candidate: null, validation: { status: "validation_failed" } },
+        },
         {
           id: monitorRunId,
           ai_run_id: monitorRunId,

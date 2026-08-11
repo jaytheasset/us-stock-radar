@@ -14,9 +14,13 @@ import {
 } from "./offeringMonitorSecondStage.ts";
 
 const identity: OfferingMonitorJobIdentity = {
-  schemaVersion: "offering_monitor_job_v1",
+  schemaVersion: "offering_monitor_job_v2",
   purpose: "offering_monitor_normalization",
-  jobId: "b6eaecad-5d37-57da-8dcd-5cd985e03977",
+  jobId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
+  logicalJobId: "b6eaecad-5d37-57da-8dcd-5cd985e03977",
+  executionId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
+  executionContractVersion: "second_stage_om1_v1",
+  executionAttemptKey: "automatic",
   eventId: "69606800-ee16-4a75-9bbf-3b64bdc56d69",
   rawItemId: "efea3384-9eef-4e6b-9e63-60dc1cd3090e",
   sourceIdentity: "0001437749-26-021738",
@@ -150,6 +154,16 @@ test("runtime lineage loader uses only exact job, parent, event, raw, accession-
   assert.match(runtime, /event_id: `eq\.\$\{identity\.eventId\}`/);
   assert.match(runtime, /raw_item_id: `eq\.\$\{identity\.rawItemId\}`/);
   assert.doesNotMatch(runtime, /fetchLatest|global latest|order: "finished_at\.desc"/i);
+});
+
+test("diagnostic output and provider trace remain scoped to the execution ai_run", () => {
+  const runtime = readFileSync(new URL("./offeringMonitorSecondStageRuntime.ts", import.meta.url), "utf8");
+  assert.match(runtime, /id: input\.identity\.jobId/);
+  assert.match(runtime, /ai_run_id: input\.identity\.jobId/);
+  assert.match(runtime, /provider_latency_ms/);
+  assert.match(runtime, /validation_status/);
+  assert.match(runtime, /diagnostic_candidate_only: true/);
+  assert.match(runtime, /canonical_persistence_changed: false/);
 });
 
 function artifacts(): OfferingMonitorSecondStageArtifacts {

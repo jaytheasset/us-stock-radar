@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION,
   buildOfferingMonitorJobIdentity,
   commitOfferingMonitorResultIfCurrent,
+  deterministicExecutionId,
   deterministicJobId,
   enqueueOfferingMonitorJobWithDependencies,
   processOfferingMonitorFoundationJob,
@@ -20,9 +22,15 @@ const RUN_B = "6e56353f-e700-4c3f-89c1-0d7c6faf851b";
 test("S-1 Primary completion produces a parent-run-scoped Monitor identity", () => {
   const identity = identityFor("S-1", "sec_s1_f1_analysis", RUN_A);
   assert.ok(identity);
+  assert.equal(identity.schemaVersion, "offering_monitor_job_v2");
   assert.equal(identity.family, "s1");
   assert.equal(identity.parentPrimaryAiRunId, RUN_A);
   assert.equal(identity.sourceIdentity, "0001437749-26-021738");
+  assert.equal(identity.jobId, identity.executionId);
+  assert.equal(identity.executionContractVersion, OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION);
+  assert.equal(identity.executionAttemptKey, "automatic");
+  assert.equal(identity.logicalJobId, "b6eaecad-5d37-57da-8dcd-5cd985e03977");
+  assert.notEqual(identity.executionId, identity.logicalJobId);
   assert.match(identity.jobId, /^[0-9a-f-]{36}$/);
 });
 
@@ -64,12 +72,71 @@ test("non-target forms, near-matches, F-1, wrong prompt, dry-run, and failed Pri
   assert.equal(buildOfferingMonitorJobIdentity({ ok: false, stage: "openai" }), null);
 });
 
-test("job identity is deterministic per parent and changes for a reanalysis parent", () => {
+test("logical work identity remains the Phase 4W deterministic parent identity", () => {
   const first = deterministicJobId({ eventId: EVENT_A, rawItemId: RAW_A, parentPrimaryAiRunId: RUN_A });
   const duplicate = deterministicJobId({ eventId: EVENT_A, rawItemId: RAW_A, parentPrimaryAiRunId: RUN_A });
   const reanalysis = deterministicJobId({ eventId: EVENT_A, rawItemId: RAW_A, parentPrimaryAiRunId: RUN_B });
   assert.equal(first, duplicate);
+  assert.equal(first, "b6eaecad-5d37-57da-8dcd-5cd985e03977");
   assert.notEqual(first, reanalysis);
+});
+
+test("execution identity separates contract and approved attempt while retaining exact parent lineage", () => {
+  const automatic = requiredIdentity(RUN_A);
+  const automaticDuplicate = requiredIdentity(RUN_A);
+  const approvedAttempt = requiredIdentity(RUN_A, "validation:phase4y");
+  const changedContract = deterministicExecutionId({
+    logicalJobId: automatic.logicalJobId,
+    executionContractVersion: "second_stage_om1_v2",
+    executionAttemptKey: automatic.executionAttemptKey,
+  });
+
+  assert.equal(automatic.executionId, automaticDuplicate.executionId);
+  assert.equal(automatic.logicalJobId, approvedAttempt.logicalJobId);
+  assert.equal(automatic.parentPrimaryAiRunId, approvedAttempt.parentPrimaryAiRunId);
+  assert.notEqual(automatic.executionId, approvedAttempt.executionId);
+  assert.notEqual(automatic.executionId, changedContract);
+  assert.equal(automatic.jobId, automatic.executionId);
+  assert.equal(approvedAttempt.jobId, approvedAttempt.executionId);
+});
+
+test("failed execution A remains immutable while approved execution B gets an independent lifecycle", async () => {
+  const executionB = requiredIdentity(RUN_A, "validation:phase4y");
+  const phase4wExecutionId = executionB.logicalJobId;
+  const history = new Map<string, { status: string; raw: string; parent: string }>([[
+    phase4wExecutionId,
+    { status: "failed", raw: "phase4w-raw-output", parent: RUN_A },
+  ]]);
+  const originalA = structuredClone(history.get(phase4wExecutionId));
+
+  const result = await enqueueOfferingMonitorJobWithDependencies(executionB, {
+    reserveJob: async (identity) => {
+      if (history.has(identity.executionId)) return { reserved: false, jobId: identity.executionId };
+      history.set(identity.executionId, { status: "pending", raw: "", parent: identity.parentPrimaryAiRunId });
+      return { reserved: true, jobId: identity.executionId };
+    },
+    startWorkflow: async () => ({ runId: "workflow-execution-b" }),
+    attachWorkflowRun: async (identity) => {
+      const row = history.get(identity.executionId);
+      if (row) row.status = "running";
+    },
+    markFailed: async () => undefined,
+  });
+
+  assert.equal(result.status, "enqueued");
+  assert.equal(phase4wExecutionId, "b6eaecad-5d37-57da-8dcd-5cd985e03977");
+  assert.notEqual(phase4wExecutionId, executionB.executionId);
+  assert.deepEqual(history.get(phase4wExecutionId), originalA);
+  assert.deepEqual(history.get(executionB.executionId), { status: "running", raw: "", parent: RUN_A });
+});
+
+test("invalid attempt labels do not create ambiguous execution identities", () => {
+  assert.equal(identityFor("S-1", "sec_s1_f1_analysis", RUN_A, "contains spaces"), null);
+  assert.throws(() => deterministicExecutionId({
+    logicalJobId: "",
+    executionContractVersion: OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION,
+    executionAttemptKey: "automatic",
+  }), /identity is incomplete/);
 });
 
 test("durable enqueue reserves before starting and never waits for child completion", async () => {
@@ -99,6 +166,8 @@ test("durable enqueue reserves before starting and never waits for child complet
 
 test("duplicate reservation prevents a second workflow start", async () => {
   const identity = requiredIdentity(RUN_A);
+  const duplicateIdentity = requiredIdentity(RUN_A);
+  assert.equal(identity.executionId, duplicateIdentity.executionId);
   let starts = 0;
   const result = await enqueueOfferingMonitorJobWithDependencies(identity, {
     reserveJob: async () => ({ reserved: false, jobId: identity.jobId }),
@@ -211,6 +280,9 @@ test("atomic future writer revokes A save authority after Primary B without affe
   };
 
   latest.set(identityA.eventId, RUN_B);
+  assert.notEqual(identityA.logicalJobId, identityB.logicalJobId);
+  assert.equal(identityA.parentPrimaryAiRunId, RUN_A);
+  assert.equal(identityB.parentPrimaryAiRunId, RUN_B);
   assert.deepEqual(
     await commitOfferingMonitorResultIfCurrent(writer, { identity: identityA, value: "A" }),
     { status: "stale" },
@@ -251,12 +323,24 @@ test("foundation uses a durable single-attempt child and does not await child re
   assert.match(child, /processOfferingMonitorSecondStageJob/);
   assert.match(repositorySource, /resolution=ignore-duplicates/);
   assert.match(repositorySource, /parent_primary_ai_run_id/);
+  assert.match(repositorySource, /logical_job_id/);
+  assert.match(repositorySource, /execution_id/);
+  assert.match(repositorySource, /execution_contract_version/);
+  assert.match(repositorySource, /execution_attempt_key/);
+  assert.match(repositorySource, /prompt_version: identity\.executionContractVersion/);
+  assert.match(repositorySource, /workflow_run_id: workflowRunId/);
   assert.match(repositorySource, /metadata->>phase/);
   assert.doesNotMatch(repositorySource, /status: "in\.\(pending,running\)"/);
+  assert.doesNotMatch(child, /getStepMetadata|stepId/);
   assert.doesNotMatch(delivery, /offeringMonitor|monitorFoundation|parent_primary_ai_run_id/);
 });
 
-function identityFor(formType: string, promptKey: string, parentPrimaryAiRunId: string) {
+function identityFor(
+  formType: string,
+  promptKey: string,
+  parentPrimaryAiRunId: string,
+  executionAttemptKey?: string,
+) {
   return buildOfferingMonitorJobIdentity({
     ok: true,
     stage: "complete",
@@ -274,11 +358,11 @@ function identityFor(formType: string, promptKey: string, parentPrimaryAiRunId: 
     },
     prompt: { key: promptKey, version: "test-v1" },
     primaryAiRunId: parentPrimaryAiRunId,
-  }, { now: "2026-08-12T00:00:00.000Z" });
+  }, { now: "2026-08-12T00:00:00.000Z", executionAttemptKey });
 }
 
-function requiredIdentity(parentPrimaryAiRunId: string) {
-  const identity = identityFor("S-1", "sec_s1_f1_analysis", parentPrimaryAiRunId);
+function requiredIdentity(parentPrimaryAiRunId: string, executionAttemptKey?: string) {
+  const identity = identityFor("S-1", "sec_s1_f1_analysis", parentPrimaryAiRunId, executionAttemptKey);
   assert.ok(identity);
   return identity;
 }

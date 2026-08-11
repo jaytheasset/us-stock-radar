@@ -3,7 +3,9 @@ import { SEC_S3_F3_FORMS } from "./sources/sec/forms/common/forms.ts";
 
 export const OFFERING_MONITOR_JOB_PURPOSE = "offering_monitor_normalization";
 export const OFFERING_MONITOR_JOB_PROMPT_KEY = "offering_monitor_normalization_job";
-export const OFFERING_MONITOR_JOB_VERSION = "second_stage_om1_v1";
+export const OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION = "second_stage_om1_v1";
+export const OFFERING_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
+export const OFFERING_MONITOR_JOB_VERSION = OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION;
 
 const OFFERING_PRIMARY_PROMPT_KEYS = new Set([
   "sec_s1_f1_analysis",
@@ -14,9 +16,14 @@ const OFFERING_PRIMARY_PROMPT_KEYS = new Set([
 export type OfferingMonitorJobFamily = "s1" | "s3" | "424b";
 
 export type OfferingMonitorJobIdentity = {
-  schemaVersion: "offering_monitor_job_v1";
+  schemaVersion: "offering_monitor_job_v2";
   purpose: typeof OFFERING_MONITOR_JOB_PURPOSE;
+  /** Backward-compatible name used by the existing workflow; this is the execution row ID in v2. */
   jobId: string;
+  logicalJobId: string;
+  executionId: string;
+  executionContractVersion: string;
+  executionAttemptKey: string;
   eventId: string;
   rawItemId: string;
   sourceIdentity: string;
@@ -61,7 +68,7 @@ export type OfferingMonitorEnqueueDependencies = {
 
 export function buildOfferingMonitorJobIdentity(
   result: unknown,
-  options: { now?: string } = {},
+  options: { now?: string; executionAttemptKey?: string } = {},
 ): OfferingMonitorJobIdentity | null {
   const root = readRecord(result);
   if (!root || root.ok !== true || stringValue(root.stage) !== "complete") return null;
@@ -91,16 +98,30 @@ export function buildOfferingMonitorJobIdentity(
     return null;
   }
 
-  const jobId = deterministicJobId({
+  const executionAttemptKey = normalizeExecutionAttemptKey(
+    options.executionAttemptKey || OFFERING_MONITOR_AUTOMATIC_ATTEMPT_KEY,
+  );
+  if (!executionAttemptKey) return null;
+
+  const logicalJobId = deterministicLogicalJobId({
     eventId,
     rawItemId,
     parentPrimaryAiRunId,
   });
+  const executionId = deterministicExecutionId({
+    logicalJobId,
+    executionContractVersion: OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION,
+    executionAttemptKey,
+  });
 
   return {
-    schemaVersion: "offering_monitor_job_v1",
+    schemaVersion: "offering_monitor_job_v2",
     purpose: OFFERING_MONITOR_JOB_PURPOSE,
-    jobId,
+    jobId: executionId,
+    logicalJobId,
+    executionId,
+    executionContractVersion: OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION,
+    executionAttemptKey,
     eventId,
     rawItemId,
     sourceIdentity,
@@ -113,7 +134,7 @@ export function buildOfferingMonitorJobIdentity(
   };
 }
 
-export function deterministicJobId(input: {
+export function deterministicLogicalJobId(input: {
   eventId: string;
   rawItemId: string;
   parentPrimaryAiRunId: string;
@@ -125,6 +146,36 @@ export function deterministicJobId(input: {
       input.rawItemId,
       input.parentPrimaryAiRunId,
     ].join(":"))
+    .digest();
+  const bytes = Buffer.from(digest.subarray(0, 16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Legacy export retained because Phase 4W used this value directly as its single job/run ID. */
+export const deterministicJobId = deterministicLogicalJobId;
+
+export function deterministicExecutionId(input: {
+  logicalJobId: string;
+  executionContractVersion: string;
+  executionAttemptKey: string;
+}) {
+  const logicalJobId = stringValue(input.logicalJobId);
+  const executionContractVersion = stringValue(input.executionContractVersion);
+  const executionAttemptKey = normalizeExecutionAttemptKey(input.executionAttemptKey);
+  if (!logicalJobId || !executionContractVersion || !executionAttemptKey) {
+    throw new Error("Offering Monitor execution identity is incomplete");
+  }
+  const digest = createHash("sha256")
+    .update(JSON.stringify([
+      OFFERING_MONITOR_JOB_PURPOSE,
+      "execution",
+      logicalJobId,
+      executionContractVersion,
+      executionAttemptKey,
+    ]))
     .digest();
   const bytes = Buffer.from(digest.subarray(0, 16));
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
@@ -252,6 +303,11 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeExecutionAttemptKey(value: unknown) {
+  const text = stringValue(value);
+  return /^[A-Za-z0-9._:-]{1,80}$/.test(text) ? text : "";
 }
 
 function errorMessage(error: unknown, fallback: string) {
