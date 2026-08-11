@@ -67,6 +67,12 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("There is no Ownership router LLM in this path"));
     assert.ok(prompt.includes("Use the provided display_payload/display_type"));
     assert.ok(prompt.includes("Do not create new display types"));
+    assert.ok(prompt.includes("analysis_output.ownership_monitor_facts"));
+    assert.ok(prompt.includes("ownership_monitor_facts_v1"));
+    assert.ok(prompt.includes("raw source rows in source order, without netting"));
+    assert.ok(prompt.includes("economic_direction is a separate canonical semantic field"));
+    assert.ok(prompt.includes("Do not calculate transaction value here"));
+    assert.ok(prompt.includes("availability available even when value_quality is unknown"));
     assert.ok(prompt.includes("preserve each transaction's actual source-backed"));
     assert.ok(prompt.includes("Do not collapse distinct securities such as RSUs"));
     assert.ok(prompt.includes("appear in the same filing"));

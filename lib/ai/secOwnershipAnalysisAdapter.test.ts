@@ -5,6 +5,7 @@ import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   adaptOwnershipPromptResultForAnalysis,
   applySecOwnershipValidationRepairPatches,
+  buildSecOwnershipAnalysisPrompt,
   buildSecOwnershipValidationRepairPlan,
   collectOwnershipRuntimeDisplayPayloadWarnings,
 } from "@/lib/ai/secOwnershipAnalysisAdapter";
@@ -78,6 +79,23 @@ describe("Ownership validation repair", () => {
     if (!result.ok) return;
     const displayPayload = result.analysis.display_payload as Record<string, unknown>;
     assert.ok((displayPayload.notes as string[]).some((warning) => /filing_summary|ownership details/i.test(warning)));
+  });
+
+  it("requires additive typed monitor facts without changing visible Ownership output", () => {
+    const input = buildOwnershipRepairInput();
+    const prompt = buildSecOwnershipAnalysisPrompt(input);
+    const schema = prompt.responseFormat.json_schema as any;
+    assert.equal(prompt.version, "v2-monitor-facts");
+    assert.ok(prompt.user.includes("analysis_output.ownership_monitor_facts"));
+    assert.ok(prompt.user.includes("Do not calculate transaction value here"));
+    assert.ok(schema.schema.properties.analysis_output.required.includes("ownership_monitor_facts"));
+    assert.equal(schema.schema.properties.analysis_output.properties.ownership_monitor_facts.properties.version.enum[0], "ownership_monitor_facts_v1");
+
+    const missing = buildCompleteOwnershipAnalysis();
+    delete (missing.analysis_output as Record<string, unknown>).ownership_monitor_facts;
+    const result = adaptOwnershipPromptResultForAnalysis(missing, input);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /ownership monitor facts failed validation/i);
   });
 });
 
@@ -153,6 +171,38 @@ function buildCompleteOwnershipAnalysis(): Record<string, unknown> {
       calendar_items: [],
       confidence: "medium",
       needs_human_review: false,
+      ownership_monitor_facts: {
+        version: "ownership_monitor_facts_v1",
+        form4: {
+          reporting_owners: [{
+            name: "Jane Smith",
+            roles: ["CEO", "Director"],
+            is_officer: true,
+            is_director: true,
+            is_10_percent_owner: null,
+            officer_title: "Chief Executive Officer",
+            evidence: ["Jane Smith is identified as CEO and director."],
+            confidence: "high",
+          }],
+          transactions: [{
+            transaction_kind: "non_derivative",
+            security_title: "Common Stock",
+            transaction_date: "2026-08-10",
+            transaction_code: "P",
+            acquired_disposed_code: "A",
+            economic_direction: "buy",
+            shares: { value: 10_000, value_quality: "exact", availability: "available" },
+            price_per_share: { value: 12.5, value_quality: "exact", availability: "available" },
+            post_transaction_shares: { value: null, value_quality: "unknown", availability: "unavailable" },
+            direct_or_indirect_ownership: "D",
+            nature_of_ownership: null,
+            is_10b5_1: null,
+            evidence: ["Transaction code P reports 10,000 shares at $12.50."],
+            confidence: "high",
+          }],
+        },
+        form144: null,
+      },
     },
     display_payload: {
       display_type: "generic",

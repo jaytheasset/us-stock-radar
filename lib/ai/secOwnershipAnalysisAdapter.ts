@@ -8,9 +8,13 @@ import {
   hasSecValidationJsonPointer,
   readSecValidationJsonPointer,
 } from "@/lib/ai/secValidationRepairPatch";
+import {
+  OWNERSHIP_MONITOR_FACTS_JSON_SCHEMA,
+  validateOwnershipMonitorFacts,
+} from "@/lib/monitor/ownershipAnalysisFacts";
 
 export const SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY = "sec_ownership_analysis";
-export const SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION = "v1";
+export const SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION = "v2-monitor-facts";
 export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY = "sec_ownership_validation_repair";
 export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 
@@ -179,6 +183,14 @@ function adaptOwnershipRoomResultForAnalysis(
     return {
       ok: false,
       error: "SEC ownership result did not contain Required Output JSON fields",
+    };
+  }
+
+  const ownershipFactErrors = validateOwnershipMonitorFacts(requiredOutput.analysis_output.ownership_monitor_facts);
+  if (ownershipFactErrors.length) {
+    return {
+      ok: false,
+      error: `SEC ownership monitor facts failed validation: ${ownershipFactErrors.join("; ")}`,
     };
   }
 
@@ -506,6 +518,7 @@ const ownershipRequiredOutputJsonSchema = {
         "calendar_items",
         "confidence",
         "needs_human_review",
+        "ownership_monitor_facts",
       ],
       properties: {
         source_group: { type: "string", enum: ["filings"] },
@@ -556,6 +569,7 @@ const ownershipRequiredOutputJsonSchema = {
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
         archive_summary: { type: ["string", "null"] },
+        ownership_monitor_facts: OWNERSHIP_MONITOR_FACTS_JSON_SCHEMA,
       },
     },
     display_payload: {
