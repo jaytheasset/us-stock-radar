@@ -34,6 +34,12 @@ try {
 
   const packageForPurchase = ownershipFilingPackage(purchaseCase);
   const packageOwnership = packageForPurchase.hard_parsers?.ownership;
+  const ownershipAnalysisInputs = ownershipCases.map((item) => ({
+    formType: item.formType,
+    input: ownershipPrompt.buildOwnershipAnalysisInput(item.parsed),
+    parserSelectedEvidence: item.parsed.raw?.selected_evidence,
+  }));
+  const purchaseAnalysisInput = ownershipAnalysisInputs[0].input;
   const purchasePrompt = ownershipPrompt.buildOwnershipAnalysisPrompt(purchaseCase.parsed);
   const dryRunResults = await Promise.all(
     ownershipCases.map(async (item) => ({
@@ -60,9 +66,15 @@ try {
       sourceIncludes("lib/sources/sec/forms/formWorkerRegistry.ts", "ownershipFormAdapter"),
   );
   check(
-    "ownership analysis prompt excludes full raw XML/source text by default",
-    !purchasePrompt.includes("<ownershipDocument>") && purchasePrompt.includes("Compact parser facts"),
+    "ownership analysis prompt uses canonical compact source-evidence input without raw XML",
+    !purchasePrompt.includes("<ownershipDocument>") &&
+      purchasePrompt.includes(`Ownership analysis input:\n${JSON.stringify(purchaseAnalysisInput, null, 2)}`),
     { promptChars: purchasePrompt.length },
+  );
+  check(
+    "ownership analysis prompt preserves the ownership_monitor_facts contract",
+    purchasePrompt.includes("analysis_output.ownership_monitor_facts") &&
+      purchasePrompt.includes("ownership_monitor_facts_v1"),
   );
   for (const { formType, result } of dryRunResults) {
     check(
@@ -75,9 +87,32 @@ try {
     );
   }
   check(
-    "ownership source inventory and selected evidence are preserved compactly",
-    ownershipCases.every((item) => Boolean(item.parsed.facts?.source_inventory && Array.isArray(item.parsed.raw?.selected_evidence))),
-    ownershipCases.map((item) => ({ formType: item.formType, sourceInventory: item.parsed.facts?.source_inventory })),
+    "ownership source inventory and selected SEC evidence reach the canonical analysis input",
+    ownershipAnalysisInputs.every(({ formType, input, parserSelectedEvidence }) => {
+      const sourceEvidence = input.ownership_source_evidence;
+      return Boolean(
+        input.source_inventory &&
+        input.selected_evidence === parserSelectedEvidence &&
+        Array.isArray(input.selected_evidence) &&
+        input.selected_evidence.every((item) =>
+          Boolean(
+            item &&
+            typeof item === "object" &&
+            typeof item.label === "string" &&
+            Object.hasOwn(item, "value") &&
+            typeof item.source === "string",
+          )) &&
+        sourceEvidence?.filing?.form_type === formType &&
+        Array.isArray(sourceEvidence.reporting_owners) &&
+        (sourceEvidence.form4 === null || Array.isArray(sourceEvidence.form4?.transactions)) &&
+        (sourceEvidence.form144 === null || Array.isArray(sourceEvidence.form144?.proposed_sale_rows)),
+      );
+    }),
+    ownershipAnalysisInputs.map(({ formType, input }) => ({
+      formType,
+      sourceInventory: input.source_inventory,
+      selectedEvidenceCount: input.selected_evidence?.length,
+    })),
   );
   check(
     "ingest maps display_payload into events.metadata.display_payload",
