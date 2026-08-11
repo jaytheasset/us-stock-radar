@@ -60,12 +60,14 @@ export async function runStructuredGeminiJson({
   model,
   prompt,
   maxOutputTokens,
+  responseSchema,
   fetchImpl = fetch,
 }: {
   apiKey: string;
   model: string;
   prompt: StructuredJsonPrompt;
   maxOutputTokens: number;
+  responseSchema?: Record<string, unknown>;
   fetchImpl?: typeof fetch;
 }): Promise<GeminiStructuredJsonRun> {
   try {
@@ -87,6 +89,7 @@ export async function runStructuredGeminiJson({
         ],
         generationConfig: {
           responseMimeType: "application/json",
+          ...(responseSchema ? { responseSchema } : {}),
           maxOutputTokens,
           temperature: 0,
           ...readGeminiThinkingConfig(model),

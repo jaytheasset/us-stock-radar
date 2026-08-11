@@ -102,11 +102,19 @@ test("Monitor foundation ledger rows cannot replace the latest persisted Primary
     assert.equal(search.ai_run_id, `in.(${runId})`);
     return {
       ok: true,
-      data: [{
-        id: traceId,
-        ai_run_id: runId,
-        payload: { validation_repair_trace: { attempted: false } },
-      }],
+      data: [
+        {
+          id: monitorRunId,
+          ai_run_id: monitorRunId,
+          output_type: "offering_monitor_normalization_candidate",
+          payload: { canonical_candidate: { side: "primary" } },
+        },
+        {
+          id: traceId,
+          ai_run_id: runId,
+          payload: { validation_repair_trace: { attempted: false } },
+        },
+      ],
     };
   };
 

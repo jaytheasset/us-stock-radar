@@ -239,7 +239,7 @@ test("source ordering keeps persistence and score alert ahead of both async hook
   assert.ok(route.indexOf("await runSecFilingAnalysisIngest") < route.indexOf("await enqueueOfferingMonitorAfterPrimary"));
 });
 
-test("foundation uses durable child start and does not await child returnValue or touch delivery prerequisites", () => {
+test("foundation uses a durable single-attempt child and does not await child returnValue or touch delivery prerequisites", () => {
   const starter = source("lib/offeringMonitorJobStarter.ts");
   const child = source("workflows/offering-monitor-normalization.ts");
   const repositorySource = source("lib/offeringMonitorJobRepository.ts");
@@ -247,9 +247,12 @@ test("foundation uses durable child start and does not await child returnValue o
   assert.match(starter, /startWorkflow\(\s*offeringMonitorNormalizationWorkflow/);
   assert.doesNotMatch(starter, /returnValue/);
   assert.match(child, /"use workflow"/);
-  assert.match(child, /maxRetries = 3/);
+  assert.match(child, /runOfferingMonitorSecondStageStep\.maxRetries = 0/);
+  assert.match(child, /processOfferingMonitorSecondStageJob/);
   assert.match(repositorySource, /resolution=ignore-duplicates/);
   assert.match(repositorySource, /parent_primary_ai_run_id/);
+  assert.match(repositorySource, /metadata->>phase/);
+  assert.doesNotMatch(repositorySource, /status: "in\.\(pending,running\)"/);
   assert.doesNotMatch(delivery, /offeringMonitor|monitorFoundation|parent_primary_ai_run_id/);
 });
 

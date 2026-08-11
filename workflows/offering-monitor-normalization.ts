@@ -1,41 +1,27 @@
-import { RetryableError } from "workflow";
 import {
-  processOfferingMonitorFoundationJob,
   type OfferingMonitorJobIdentity,
 } from "@/lib/offeringMonitorJobFoundation";
+import { processOfferingMonitorSecondStageJob } from "@/lib/offeringMonitorSecondStage";
+import { offeringMonitorSecondStageRuntimeDependencies } from "@/lib/offeringMonitorSecondStageRuntime";
 import {
-  claimOfferingMonitorJob,
-  completeOfferingMonitorJob,
   markOfferingMonitorJobFailed,
-  markOfferingMonitorJobStale,
-  readOfferingMonitorParentAuthority,
 } from "@/lib/offeringMonitorJobRepository";
 
 export async function offeringMonitorNormalizationWorkflow(identity: OfferingMonitorJobIdentity) {
   "use workflow";
 
   try {
-    return await runOfferingMonitorFoundationStep(identity);
+    return await runOfferingMonitorSecondStageStep(identity);
   } catch (error) {
     return markOfferingMonitorFoundationFailedStep(identity, errorMessage(error));
   }
 }
 
-async function runOfferingMonitorFoundationStep(identity: OfferingMonitorJobIdentity) {
+async function runOfferingMonitorSecondStageStep(identity: OfferingMonitorJobIdentity) {
   "use step";
-
-  try {
-    return await processOfferingMonitorFoundationJob(identity, {
-      readParentAuthority: readOfferingMonitorParentAuthority,
-      claimJob: claimOfferingMonitorJob,
-      completeJob: completeOfferingMonitorJob,
-      markStale: markOfferingMonitorJobStale,
-    });
-  } catch (error) {
-    throw new RetryableError(errorMessage(error));
-  }
+  return processOfferingMonitorSecondStageJob(identity, offeringMonitorSecondStageRuntimeDependencies);
 }
-runOfferingMonitorFoundationStep.maxRetries = 3;
+runOfferingMonitorSecondStageStep.maxRetries = 0;
 
 async function markOfferingMonitorFoundationFailedStep(
   identity: OfferingMonitorJobIdentity,

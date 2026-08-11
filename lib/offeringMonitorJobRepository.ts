@@ -87,7 +87,8 @@ export async function claimOfferingMonitorJob(jobId: string) {
     {
       id: `eq.${jobId}`,
       prompt_key: `eq.${OFFERING_MONITOR_JOB_PROMPT_KEY}`,
-      status: "in.(pending,running)",
+      status: "in.(pending,completed)",
+      "metadata->>phase": "in.(foundation_only,second_stage_pending)",
     },
     {
       status: "running",
@@ -133,7 +134,7 @@ function jobMetadata(identity: OfferingMonitorJobIdentity, workflowRunId: string
     form_family: identity.family,
     enqueued_at: identity.enqueuedAt,
     workflow_run_id: workflowRunId,
-    phase: "foundation_only",
+    phase: "second_stage_pending",
   };
 }
 
