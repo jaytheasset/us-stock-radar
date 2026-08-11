@@ -953,7 +953,10 @@ export async function saveSecFilingAiTrace({
     "insert SEC filing ai output",
   );
 
-  return repairTrace;
+  return {
+    aiRunId,
+    repairTrace,
+  };
 }
 
 async function findExistingEvent(groupDedupeKey: string) {

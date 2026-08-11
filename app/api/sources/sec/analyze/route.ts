@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
+import { enqueueOfferingMonitorAfterPrimary } from "@/lib/offeringMonitorJobStarter";
 import { sourceIngestAuthResponse } from "@/lib/sourceIngestRouteAuth";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,9 @@ export async function POST(request: NextRequest) {
       bodyRecord.suppressAlerts === true ||
       bodyRecord.alerts === false,
   });
+  const monitorFoundation = await enqueueOfferingMonitorAfterPrimary(result);
 
-  return NextResponse.json(result, {
+  return NextResponse.json({ ...result, monitorFoundation }, {
     status: result.ok ? 200 : result.status || 502,
   });
 }
@@ -51,8 +53,9 @@ export async function GET(request: NextRequest) {
     secPromptVariant: params.get("secPromptVariant") || undefined,
     suppressAlerts: params.get("suppressAlerts") === "true" || params.get("alerts") === "false",
   });
+  const monitorFoundation = await enqueueOfferingMonitorAfterPrimary(result);
 
-  return NextResponse.json(result, {
+  return NextResponse.json({ ...result, monitorFoundation }, {
     status: result.ok ? 200 : result.status || 502,
   });
 }
