@@ -64,6 +64,8 @@ export function buildS1F1AnalysisPrompt(
 ): string {
   const promptVariant = normalizeS1F1AnalysisPromptVariant(options.variant);
   const isLegacyBackup = promptVariant === "legacy_default_backup";
+  const isS1MonitorPrompt =
+    !isLegacyBackup && parserOutput.facts.filing.reported_form_type.toUpperCase().replace(/\s+/g, "").startsWith("S-1");
   const s1F1DisplayModes = isLegacyBackup ? S1F1_LEGACY_DISPLAY_MODES : S1F1_DISPLAY_MODES;
 
   return [
@@ -140,6 +142,22 @@ export function buildS1F1AnalysisPrompt(
           "- Use mixed_offering only when at least one current-offering or resale share/security amount is source-backed enough to show as visible share_overhang rows.",
           "- If the filing has a fixed resale pool or fixed registered shares plus a separate pending primary component, the fixed resale pool may still use resale_registration or mixed_offering share_overhang. Do not let pending primary terms suppress a source-backed resale overhang.",
           "- For pending_primary_offering, omit share_overhang unless a separate fixed resale or registered share pool controls the investor read. Do not put capitalization-table basis explanations into snapshot notes.",
+        ]
+      : []),
+    ...(isS1MonitorPrompt
+      ? [
+          "",
+          "S-1/F-1 Offering Monitor semantic alignment:",
+          "- These rules apply only to analysis_output.offering_monitor_payload. They do not change display_payload classification or the existing investor-facing display rules.",
+          "- display_payload.data.display_mode=mixed_offering describes independently material offering components or security structure. Offering Monitor side describes the economic seller/source of securities and proceeds recipient. One output must not determine the other.",
+          "- For Monitor side, primary means the issuer sells primary securities and receives the primary proceeds; resale means an actual selling holder or selling securityholder resells securities; mixed requires both an issuer primary sale and an actual selling-holder resale in the same current transaction.",
+          "- Multiple security components, including units, common shares, pre-funded warrants, warrants, or other attached instruments, do not make Monitor side mixed. An issuer-only transaction with those components remains primary for Monitor side.",
+          "- Future resale rights, Rule 144 language, possible later sales of warrant shares, registration boilerplate, transfer restrictions, or hypothetical resale language alone are not evidence of an actual selling-holder resale in the current transaction.",
+          "- Keep the Monitor facts internally consistent: choose side=mixed only when the source actually supports both seller sides; do not reuse component-level mixed_offering as seller-side evidence.",
+          "- For Monitor actual_primary_offering_amount, actual means the source-backed gross transaction amount for the current specific issuer primary transaction, not only cash already received at closing. A fixed, approximate, up-to, or committed maximum gross amount may be available when transaction-specific source evidence supports it; preserve approximation with quality=estimated and an up-to or maximum amount with bound=maximum.",
+          "- Select Monitor gross evidence from transaction agreements or offering terms that identify the issuer/purchaser relationship and transaction-specific consideration or proceeds. Gross is the purchase amount or transaction consideration before fees and offering expenses; net proceeds are after those deductions and are not gross.",
+          "- A registration fee-table ceiling alone is not Monitor transaction gross. If the same amount is independently stated as transaction consideration or gross proceeds in a transaction agreement or offering terms, the fee-table occurrence does not invalidate that independently source-backed amount.",
+          "- The display-only fixed-proceeds and calculability rules elsewhere in this prompt do not override the Monitor rule for source-backed approximate, up-to, or committed-maximum gross amounts. If Monitor gross is not source-backed, keep it unavailable and never substitute net proceeds.",
         ]
       : []),
     "",

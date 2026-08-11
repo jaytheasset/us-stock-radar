@@ -77,6 +77,46 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(prompt.includes("rule_462b_mef"));
   });
 
+  it("separates S-1 Monitor seller side from display component structure", () => {
+    const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
+    const parserOutput = parseS1F1Filing(fixture.input);
+    const prompt = buildS1F1AnalysisPrompt(parserOutput);
+
+    assert.match(prompt, /mixed_offering describes independently material offering components or security structure/);
+    assert.match(prompt, /Offering Monitor side describes the economic seller\/source of securities and proceeds recipient/);
+    assert.match(prompt, /issuer-only transaction with those components remains primary for Monitor side/);
+    assert.match(prompt, /resale means an actual selling holder or selling securityholder resells securities/);
+    assert.match(prompt, /mixed requires both an issuer primary sale and an actual selling-holder resale/);
+    assert.match(prompt, /Rule 144 language[\s\S]*alone are not evidence of an actual selling-holder resale/);
+    assert.match(prompt, /choose side=mixed only when the source actually supports both seller sides/);
+  });
+
+  it("keeps S-1 Monitor gross distinct from display proceeds and fee-table values", () => {
+    const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
+    const parserOutput = parseS1F1Filing(fixture.input);
+    const prompt = buildS1F1AnalysisPrompt(parserOutput);
+
+    assert.match(prompt, /actual means the source-backed gross transaction amount for the current specific issuer primary transaction/);
+    assert.match(prompt, /not only cash already received at closing/);
+    assert.match(prompt, /A fixed, approximate, up-to, or committed maximum gross amount may be available/);
+    assert.match(prompt, /approximation with quality=estimated/);
+    assert.match(prompt, /up-to or maximum amount with bound=maximum/);
+    assert.match(prompt, /Gross is the purchase amount or transaction consideration before fees and offering expenses/);
+    assert.match(prompt, /net proceeds are after those deductions and are not gross/);
+    assert.match(prompt, /registration fee-table ceiling alone is not Monitor transaction gross/);
+    assert.match(prompt, /fee-table occurrence does not invalidate that independently source-backed amount/);
+    assert.match(prompt, /display-only fixed-proceeds and calculability rules[\s\S]*do not override the Monitor rule/);
+    assert.match(prompt, /If Monitor gross is not source-backed, keep it unavailable and never substitute net proceeds/);
+  });
+
+  it("does not add the S-1 Monitor alignment contract to F-1 analysis", () => {
+    const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-arm-f1a-ads-ipo.json");
+    const parserOutput = parseS1F1Filing(fixture.input);
+    const prompt = buildS1F1AnalysisPrompt(parserOutput);
+
+    assert.doesNotMatch(prompt, /S-1\/F-1 Offering Monitor semantic alignment/);
+  });
+
   it("does not use SPAC transaction UI for blank-check IPO registration alone", () => {
     const parserOutput = parseS1F1Filing({
       formType: "S-1",
