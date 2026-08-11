@@ -474,6 +474,43 @@ test("45. malformed payload preserves legacy analysis and prior canonical persis
   assert.equal(persisted.metadata.marker, "keep");
 });
 
+test("46. unsupported assumed quality remains a strict runtime rejection", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.facts.price.quality = "assumed";
+  const result = boundaryFor(JSON.stringify(wire));
+  assert.equal(result.provenance.status, "validation_failed");
+  assert.match(result.provenance.errors.join(" "), /value_quality is invalid/);
+});
+
+test("47. all existing canonical quality values remain accepted", () => {
+  for (const quality of ["exact", "derived", "estimated", "unknown"]) {
+    const wire = wireFromCanonical(monitor());
+    wire.facts.price.quality = quality;
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "success");
+  }
+});
+
+test("48. prompt distinguishes primary, resale, mixed, and multiple security types", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /primary means issuer-sold securities whose proceeds go to the issuer/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /resale means selling-securityholder resale/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /mixed means both issuer primary sales and selling-securityholder resale/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Multiple security types or instruments alone do not make a transaction mixed/);
+});
+
+test("49. prompt keeps gross primary amount separate from net proceeds and forbids fallback", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /source-backed gross transaction amount/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Never substitute estimated net proceeds/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /value=null instead of using net proceeds as a fallback/);
+});
+
+test("50. prompt matches om1 comparable and required-key unknown representation", () => {
+  assert.doesNotMatch(MINIMAL_OFFERING_MONITOR_PROMPT, /comparable_to_event_market_basis/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /The required om1 key is comparable/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /All keys are required/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Use explicit JSON null only for an unknown nullable value/);
+  assert.doesNotMatch(MINIMAL_OFFERING_MONITOR_PROMPT, /omit (?:it|the key|a key|keys|fields?) when unknown/i);
+});
+
 function boundaryFor(payload: unknown) {
   const analysis: Record<string, unknown> = { offering_monitor_payload: payload };
   return applyMinimalOfferingMonitorBoundary(analysis);
