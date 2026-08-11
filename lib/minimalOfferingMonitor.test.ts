@@ -511,6 +511,30 @@ test("50. prompt matches om1 comparable and required-key unknown representation"
   assert.doesNotMatch(MINIMAL_OFFERING_MONITOR_PROMPT, /omit (?:it|the key|a key|keys|fields?) when unknown/i);
 });
 
+test("51. prompt makes seller evidence authoritative and parser labels non-semantic", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /raw evidence about the actual sellers, proceeds recipients/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /parser-created block label is not seller evidence/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Multiple security types or instruments alone do not make a transaction mixed/);
+});
+
+test("52. prompt preserves source-backed assumed price without claiming a final price", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /assumed or estimated registration price as an available numeric value/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /quality=estimated/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /instead of discarding it as unavailable or overstating it as a final transaction price/);
+  assert.doesNotMatch(MINIMAL_OFFERING_MONITOR_PROMPT, /quality=assumed/);
+});
+
+test("53. prompt prevents combined totals from being reused as additional exposure", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /additional_potential_primary_share_exposure excludes everything already in immediate and is not total potential exposure/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Never copy a combined immediate-plus-conditional total into additional/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /Do not return total potential exposure; code adds immediate plus additional/);
+});
+
+test("54. prompt requires null rather than an empty unavailable source", () => {
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /For unavailable facts value and source are JSON null/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /never use an empty string, N\/A, none, or another placeholder/);
+});
+
 function boundaryFor(payload: unknown) {
   const analysis: Record<string, unknown> = { offering_monitor_payload: payload };
   return applyMinimalOfferingMonitorBoundary(analysis);

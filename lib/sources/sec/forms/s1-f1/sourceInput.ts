@@ -52,32 +52,70 @@ export function buildS1F1LlmSourceInput(parserOutput: S1F1ParserOutput): Record<
 const MAX_LLM_SOURCE_BLOCKS = 32;
 const MAX_LLM_SOURCE_BLOCK_TEXT_CHARS = 5_000;
 const MAX_LLM_SOURCE_TOTAL_TEXT_CHARS = 90_000;
+const MAX_LLM_RESERVED_ATTACHMENT_BLOCKS = 8;
+const MAX_LLM_RESERVED_ATTACHMENT_TEXT_CHARS = 30_000;
+
+type IndexedSourceBlock = {
+  block: S1F1CleanedSourceBlock;
+  sourceIndex: number;
+};
+
+type PreparedSourceBlock = IndexedSourceBlock & {
+  text: string;
+};
 
 function buildLlmCleanedSourceBlocks(blocks: S1F1CleanedSourceBlock[]) {
-  const output: Array<Record<string, unknown>> = [];
+  const indexedBlocks = blocks.map((block, sourceIndex) => ({ block, sourceIndex }));
+  const reservedAttachments = indexedBlocks
+    .filter(({ block }) => block.source === "attachment")
+    .slice(0, MAX_LLM_RESERVED_ATTACHMENT_BLOCKS);
+  const reservedAttachmentIndexes = new Set(reservedAttachments.map(({ sourceIndex }) => sourceIndex));
+  const selected: PreparedSourceBlock[] = [];
   let totalChars = 0;
+  let reservedAttachmentTextChars = 0;
   let truncatedBlocks = 0;
 
-  for (const block of blocks) {
-    if (output.length >= MAX_LLM_SOURCE_BLOCKS) break;
-    const remaining = MAX_LLM_SOURCE_TOTAL_TEXT_CHARS - totalChars;
-    if (remaining <= 0) break;
+  const addBlock = ({ block, sourceIndex }: IndexedSourceBlock, textBudget: number) => {
+    if (selected.length >= MAX_LLM_SOURCE_BLOCKS) return false;
+    const remaining = Math.min(MAX_LLM_SOURCE_TOTAL_TEXT_CHARS - totalChars, textBudget);
+    if (remaining <= 0) return false;
 
     const maxTextChars = Math.min(MAX_LLM_SOURCE_BLOCK_TEXT_CHARS, remaining);
     const text = clipPromptText(block.text, maxTextChars);
-    if (!text) continue;
+    if (!text) return true;
 
     if (text.length < block.text.trim().length) truncatedBlocks += 1;
     totalChars += text.length;
-    output.push({
+    selected.push({ block, sourceIndex, text });
+    return true;
+  };
+
+  for (const attachment of reservedAttachments) {
+    const remainingAttachmentBudget = MAX_LLM_RESERVED_ATTACHMENT_TEXT_CHARS - reservedAttachmentTextChars;
+    const before = totalChars;
+    if (!addBlock(attachment, remainingAttachmentBudget)) break;
+    reservedAttachmentTextChars += totalChars - before;
+  }
+
+  for (const indexedBlock of indexedBlocks) {
+    if (reservedAttachmentIndexes.has(indexedBlock.sourceIndex)) continue;
+    if (!addBlock(indexedBlock, MAX_LLM_SOURCE_TOTAL_TEXT_CHARS - totalChars)) break;
+  }
+
+  selected.sort((a, b) => a.sourceIndex - b.sourceIndex);
+  const output = selected.map(({ block, sourceIndex, text }) => {
+    const blockId = `s1f1_source_block_${String(sourceIndex + 1).padStart(3, "0")}`;
+    const neutralizeInternalResaleLabel = /^resale_equity_line_context_\d+$/.test(block.sectionKey ?? "");
+    return {
+      block_id: blockId,
       source: block.source,
-      sectionKey: block.sectionKey,
-      sectionTitle: block.sectionTitle,
+      sectionKey: neutralizeInternalResaleLabel ? blockId : block.sectionKey,
+      sectionTitle: neutralizeInternalResaleLabel ? null : block.sectionTitle,
       documentName: block.documentName,
       text,
       tables: block.tables.map((table) => clipPromptText(table, 2_000)).filter(Boolean),
-    });
-  }
+    };
+  });
 
   return {
     blocks: output,
@@ -88,6 +126,8 @@ function buildLlmCleanedSourceBlocks(blocks: S1F1CleanedSourceBlock[]) {
       maxBlockTextChars: MAX_LLM_SOURCE_BLOCK_TEXT_CHARS,
       maxTotalTextChars: MAX_LLM_SOURCE_TOTAL_TEXT_CHARS,
       includedTextChars: totalChars,
+      reservedAttachmentBlockCount: selected.filter(({ sourceIndex }) => reservedAttachmentIndexes.has(sourceIndex)).length,
+      reservedAttachmentTextChars,
       truncatedBlocks,
     },
   };
