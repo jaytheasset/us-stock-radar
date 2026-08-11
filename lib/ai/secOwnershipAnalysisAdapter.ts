@@ -14,7 +14,7 @@ import {
 } from "@/lib/monitor/ownershipAnalysisFacts";
 
 export const SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY = "sec_ownership_analysis";
-export const SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION = "v2-monitor-facts";
+export const SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION = "v3-semantic-source-judge";
 export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY = "sec_ownership_validation_repair";
 export const SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 

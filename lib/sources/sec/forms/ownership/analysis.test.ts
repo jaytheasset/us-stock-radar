@@ -71,6 +71,11 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("ownership_monitor_facts_v1"));
     assert.ok(prompt.includes("raw source rows in source order, without netting"));
     assert.ok(prompt.includes("economic_direction is a separate canonical semantic field"));
+    assert.ok(prompt.includes("transaction code or A/D value alone never determines economic"));
+    assert.ok(prompt.includes("Preserve an explicit source"));
+    assert.ok(prompt.includes("aff10b5One false as false"));
+    assert.ok(prompt.includes("percent_calculation as the LLM's"));
+    assert.ok(prompt.includes("Do not infer a unit policy, conversion, ADS ratio, or"));
     assert.ok(prompt.includes("Do not calculate transaction value here"));
     assert.ok(prompt.includes("availability available even when value_quality is unknown"));
     assert.ok(prompt.includes("preserve each transaction's actual source-backed"));
@@ -92,7 +97,7 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("compare the ownership action against supplied"));
     assert.ok(prompt.includes("When one of these title thresholds is met"));
     assert.ok(prompt.includes("add one compact relative-size"));
-    assert.ok(prompt.includes("Form 4 actual P/S: shares are at least 1.0% of float/public_float"));
+    assert.ok(prompt.includes("Form 4 source-confirmed actual purchase/sale: shares are at least 1.0% of float/public_float"));
     assert.ok(prompt.includes("1.5% of shares outstanding when float is unavailable"));
     assert.ok(prompt.includes("transaction value is"));
     assert.ok(prompt.includes("at least 1.0% of market cap"));
@@ -112,16 +117,16 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("never use \"proposes to sell\" as the main verb"));
     assert.ok(prompt.includes("Do not lead event_title"));
     assert.ok(prompt.includes("Transaction codes may appear in key_evidence"));
-    assert.ok(prompt.includes("Use \"open-market purchase\" or \"open-market sale\" only when parser facts"));
+    assert.ok(prompt.includes("Use \"open-market purchase\" or \"open-market sale\" only when the full source"));
     assert.ok(prompt.includes("Form 4 scoring caps"));
     assert.ok(prompt.includes("Form 144 scoring caps"));
-    assert.ok(prompt.includes("Clean P/S below $1M"));
-    assert.ok(prompt.includes("CEO/CFO P/S of $500k-$1M"));
+    assert.ok(prompt.includes("Clean source-confirmed actual purchase/sale below $1M"));
+    assert.ok(prompt.includes("CEO/CFO actual purchase/sale of $500k-$1M"));
     assert.ok(prompt.includes("Proposed sale below $5M"));
     assert.ok(prompt.includes("prior three-month gross proceeds below $10M"));
     assert.ok(prompt.includes("Alert gate"));
     assert.ok(prompt.includes("absolute size plus source-backed relative size"));
-    assert.ok(prompt.includes("Form 4 alert gate applies only to actual P/S rows"));
+    assert.ok(prompt.includes("Form 4 alert gate applies only to rows the LLM source-confirms as actual"));
     assert.ok(prompt.includes("value > $500k and shares >= 20% of float/public_float"));
     assert.ok(prompt.includes("value > $1M and value >= 10% of market cap"));
     assert.ok(prompt.includes("Form 4 transactions below $500k cannot be alert"));
@@ -131,15 +136,15 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("proposed value below $2.5M cannot be alert"));
     assert.ok(prompt.includes("filing_context is optional"));
     assert.ok(prompt.includes("parent_filing_context"));
-    assert.ok(prompt.includes("parser-provided filing_summary"));
+    assert.ok(prompt.includes("Author filing_summary directly from ownership_source_evidence"));
     assert.ok(prompt.includes("keep two facts separate: the current filing's proposed sale"));
     assert.ok(prompt.includes("clarifies the prior-sale history"));
     assert.ok(prompt.includes("attach the withholding language to those prior reported sales"));
     assert.ok(prompt.includes("remarks-only"));
     assert.ok(prompt.includes("proposed sale amount, value, or date were unchanged"));
     assert.ok(prompt.includes("a summary that only describes the remark is incomplete"));
-    assert.ok(prompt.includes("do not reuse a parser-provided"));
-    assert.ok(prompt.includes("omits what remained unchanged"));
+    assert.ok(prompt.includes("do not write a filing_summary that"));
+    assert.ok(prompt.includes("supplied parent context proves what remained"));
     assert.ok(prompt.includes("Set analysis_output.quick_take to \"\""));
     assert.ok(prompt.includes("For score >= 50 feed/alert"));
     assert.ok(prompt.includes("Quick take, Filing summary, Why it matters"));
@@ -202,7 +207,7 @@ test("ownership analysis builds the prompt from current filing parser output and
     assert.ok(prompt.includes("re-read event_title before returning"));
 });
 
-test("ownership analysis input is compact and omits full raw XML by default", () => {
+test("ownership analysis input is compact, omits the full document, and preserves selected raw rows", () => {
     const fixture = readJson<Record<string, unknown>>("fixtures/form4-insider-purchase.json");
     const parserOutput = parseOwnershipFiling(fixture as never);
     const analysisInput = buildOwnershipAnalysisInput(parserOutput);
@@ -215,154 +220,136 @@ test("ownership analysis input is compact and omits full raw XML by default", ()
     assert.equal((analysisInput as any).display_payload.data.display_version, "ownership_v1");
     assert.equal(prompt.includes("\"source_excerpt\""), false);
     assert.equal(prompt.includes("<ownershipDocument>"), false);
-    assert.equal(prompt.includes("<nonDerivativeTransaction>"), false);
+    assert.equal(prompt.includes("<nonDerivativeTransaction>"), true);
     assert.ok(prompt.includes("\"selected_evidence\""));
 });
 
-test("ownership analysis input seeds archive-safe filing summaries without abbreviation sentence breaks", () => {
-    const analysisInput = buildOwnershipAnalysisInput({
-      parserVersion: "ownership-test",
-      parserGroup: "ownership",
-      formType: "Form 4 / 4/A, Form 144 / 144/A",
-      accessionNumber: "0000000000-26-000001",
-      isSupported: true,
-      summary: null,
-      facts: {
-        filing: { form_type: "Form 4" },
-        issuer: { trading_symbol: "SION", name: "Sionna Therapeutics, Inc." },
-        reporting_owner: { name: "Peter A. Thompson" },
-        form4: {
-          transactions: [
-            {
-              transaction_code: "S",
-              shares: 101,
-              price_per_share: 44.49,
-              transaction_value: 4493.49,
-              transaction_date: "2026-05-27",
-              shares_owned_following: 2671721,
-            },
-          ],
-        },
+test("ownership analysis input preserves raw Form 4 evidence and explicit false without semantic answers", () => {
+  const analysisInput = buildOwnershipAnalysisInput({
+    parserVersion: "ownership-test",
+    parserGroup: "ownership",
+    formType: "Form 4 / 4/A, Form 144 / 144/A",
+    accessionNumber: "0001654954-26-000843",
+    isSupported: true,
+    summary: "parser-authored semantic summary must not be passed",
+    facts: {
+      filing: { form_type: "4", aff_10b5_1: false, period_of_report: "2026-02-02" },
+      issuer: { trading_symbol: "CMTV" },
+      reporting_owners: [{
+        name: "Caldwell Christopher L.",
+        title: "Pres/CEO/Dir of Company & Bank",
+        roles: ["director", "officer"],
+        is_director: true,
+        is_officer: true,
+      }],
+      form4: {
+        has_purchase: true,
+        total_reported_value: 31_771,
+        transactions: [{
+          transaction_kind: "non_derivative",
+          transaction_code: "P",
+          transaction_code_meaning: "parser semantic answer",
+          transaction_category: "parser semantic answer",
+          acquired_disposed_code: "A",
+          security_title: "Community Bancorp. Common Stock",
+          shares: 700,
+          shares_text: "700.0000",
+          shares_status: "numeric",
+          price_per_share: 31.78,
+          price_per_share_text: "31.7800",
+          price_per_share_status: "numeric",
+          transaction_value: 22_246,
+          shares_owned_following: 10_700,
+          shares_owned_following_text: "10700.0000",
+          shares_owned_following_status: "numeric",
+          footnote_ids: ["F1"],
+          field_footnote_ids: { directOrIndirectOwnership: ["F1"] },
+          evidence: ["<nonDerivativeTransaction>raw row</nonDerivativeTransaction>"],
+        }],
       },
-      signals: ["rule_10b5_1_plan"],
-      calendarItems: [],
-      warnings: [],
-      raw: {},
-    } as never);
+      footnotes: { F1: "Trust" },
+      remarks: "Raw filing remark",
+      signatures: [],
+    },
+    signals: ["insider_purchase"],
+    calendarItems: [],
+    warnings: [],
+    raw: { selected_evidence: ["raw selected evidence"] },
+  } as never) as any;
 
-    const filingSummary = (analysisInput as any).display_payload.data.filing_summary;
-    assert.ok(filingSummary.startsWith("Form 4:"));
-    assert.ok(filingSummary.includes("Peter A Thompson"));
-    assert.ok(filingSummary.includes("reported a sale of 101 SION shares"));
-    assert.ok(filingSummary.includes("on 2026-05-27 at $44.49 per share, totaling about $4,493.49"));
-    assert.ok(filingSummary.includes("with post-transaction holdings of 2,671,721 shares"));
-    assert.ok(filingSummary.includes("$4,493.49"));
-    assert.equal(filingSummary.includes("shares; on"), false);
-    assert.equal(filingSummary.includes("; at"), false);
-    assert.equal(filingSummary.includes("; for"), false);
-    assert.equal(filingSummary.includes("; post-transaction"), false);
-    assert.equal(filingSummary.includes("Peter A."), false);
-    assert.equal(filingSummary.includes("Inc."), false);
+  const evidence = analysisInput.ownership_source_evidence;
+  const transaction = evidence.form4.transactions[0];
+  assert.equal(evidence.filing.source_aff10b5One, false);
+  assert.deepEqual(evidence.reporting_owners[0].roles, ["director", "officer"]);
+  assert.equal(transaction.raw_transaction_code, "P");
+  assert.equal(transaction.raw_acquired_disposed_code, "A");
+  assert.equal(transaction.derivative_structure, "non_derivative");
+  assert.deepEqual(transaction.footnote_ids, ["F1"]);
+  assert.deepEqual(evidence.footnotes, { F1: "Trust" });
+  assert.equal(evidence.remarks, "Raw filing remark");
+  assert.equal("economic_direction" in transaction, false);
+  assert.equal("transaction_value" in transaction, false);
+  assert.equal("transaction_code_meaning" in transaction, false);
+  assert.equal("transaction_category" in transaction, false);
+  assert.equal("signals" in analysisInput, false);
+  assert.equal("summary" in analysisInput, false);
+  assert.equal("filing_summary" in analysisInput.display_payload.data, false);
 });
 
-test("ownership analysis input aggregates same-code Form 4 rows in seeded filing summaries", () => {
-    const analysisInput = buildOwnershipAnalysisInput({
-      parserVersion: "ownership-test",
-      parserGroup: "ownership",
-      formType: "Form 4 / 4/A, Form 144 / 144/A",
-      accessionNumber: "0000000000-26-000002",
-      isSupported: true,
-      summary: null,
-      facts: {
-        filing: { form_type: "4" },
-        issuer: { trading_symbol: "HY", name: "Hyster-Yale, Inc." },
-        reporting_owner: { name: "Rankin Victoire G" },
-        form4: {
-          transactions: [
-            {
-              transaction_code: "G",
-              security_title: "Class B shares",
-              shares: 635,
-              transaction_value: 0,
-              transaction_date: "2026-05-29",
-              shares_owned_following: 0,
-            },
-            {
-              transaction_code: "G",
-              security_title: "Class B shares",
-              shares: 377,
-              transaction_value: 0,
-              transaction_date: "2026-05-29",
-              shares_owned_following: 0,
-            },
-          ],
-        },
-      },
-      signals: ["insider_gift"],
-      calendarItems: [],
-      warnings: [],
-      raw: {},
-    } as never);
-
-    const filingSummary = (analysisInput as any).display_payload.data.filing_summary;
-    assert.equal(
-      filingSummary,
-      "Form 4: Rankin Victoire G reported gifts of 1,012 HY Class B shares on 2026-05-29, with $0 reported value and post-transaction holdings of 0 shares.",
-    );
-    assert.equal(filingSummary.includes("635 shares"), false);
+test("ownership analysis input never turns raw A/D into automatic economic direction", () => {
+  const fixture = readJson<Record<string, unknown>>("fixtures/form4-multiple-owners-unknown-code.json");
+  const input = buildOwnershipAnalysisInput(parseOwnershipFiling(fixture as never)) as any;
+  for (const transaction of input.ownership_source_evidence.form4.transactions) {
+    assert.equal("economic_direction" in transaction, false);
+    assert.ok("raw_acquired_disposed_code" in transaction);
+    assert.ok("raw_transaction_code" in transaction);
+  }
+  assert.ok(buildOwnershipAnalysisPrompt(parseOwnershipFiling(fixture as never)).includes("A/D value alone never determines"));
 });
 
-test("ownership analysis input seeds Form 144/A amendment summaries from source-backed seller names", () => {
-    const analysisInput = buildOwnershipAnalysisInput({
-      parserVersion: "ownership-test",
-      parserGroup: "ownership",
-      formType: "Form 4 / 4/A, Form 144 / 144/A",
-      accessionNumber: "0000000000-26-000003",
-      isSupported: true,
-      summary: "This amendment clarifies prior sales.",
-      facts: {
-        filing: { form_type: "144/A" },
-        issuer: { trading_symbol: "ODD", name: "Oddity Tech Ltd" },
-        reporting_owner: { name: "Drucker Mann Lindsay" },
-        form144: {
-          previous_accession_number: "0001976408-26-000526",
-          proposed_sale_rows: [
-            {
-              seller_name: "Lindsay Drucker Mann",
-              shares_or_units: 9603,
-              aggregate_market_value: 129736.53,
-              approximate_sale_date: "06/01/2026",
-            },
-          ],
-          prior_sales: [
-            {
-              seller_name: "Lindsay Drucker Mann",
-              amount_of_securities_sold: 9604,
-              sale_date: "03/31/2026",
-            },
-          ],
-        },
-        amendment: {
-          previous_accession_number: "0001976408-26-000526",
-          local_comparison: {
-            labels: ["REMARKS_ONLY"],
-            changed_fields: ["remarks"],
-          },
-        },
+test("ownership analysis input preserves Form 144 raw units and conversion text without parser percent", () => {
+  const analysisInput = buildOwnershipAnalysisInput({
+    parserVersion: "ownership-test",
+    parserGroup: "ownership",
+    formType: "Form 4 / 4/A, Form 144 / 144/A",
+    accessionNumber: "0001973379-26-000127",
+    isSupported: true,
+    facts: {
+      filing: { form_type: "144" },
+      issuer: { trading_symbol: "PDD" },
+      reporting_owners: [{ name: "Kam Anthony Ping Leung", roles: ["director"], is_director: true }],
+      form144: {
+        remarks: "SECTION 3 C BASED ON ADS. SECTION 3E SHARES OR OTHER UNITS OUTSTANDING BASED ON ORDINARY SHARES.",
+        proposed_sale_percent_of_shares_outstanding: 0.00002692,
+        proposed_sale_rows: [{
+          securities_class_title: "ADS EACH REPRESENTING FOUR CLASS A ORDINARY SHARES",
+          securities_to_be_sold: 1533,
+          securities_to_be_sold_text: "1533",
+          securities_to_be_sold_status: "numeric",
+          shares_outstanding: 5_693_585_848,
+          shares_outstanding_text: "5693585848",
+          shares_outstanding_status: "numeric",
+          aggregate_market_value: 153_008.73,
+          aggregate_market_value_text: "153008.73",
+          aggregate_market_value_status: "numeric",
+          evidence: ["<securitiesInformation>raw source row</securitiesInformation>"],
+        }],
       },
-      signals: ["form_144_proposed_sale"],
-      calendarItems: [],
-      warnings: [],
-      raw: {},
-    } as never);
+      footnotes: {},
+      remarks: "SECTION 3 C BASED ON ADS. SECTION 3E SHARES OR OTHER UNITS OUTSTANDING BASED ON ORDINARY SHARES.",
+    },
+    signals: ["form_144_proposed_sale"],
+    calendarItems: [],
+    warnings: [],
+    raw: {},
+  } as never) as any;
 
-    const filingSummary = (analysisInput as any).display_payload.data.filing_summary;
-    assert.equal(
-      filingSummary,
-      "Lindsay Drucker Mann's Form 144/A amendment added a remark about prior reported sales; the proposed-sale terms remained 9,603 shares, about $129,736.53, approximate sale date 06/01/2026 from original Form 144 0001976408-26-000526.",
-    );
-    assert.equal(filingSummary.includes("Drucker Mann Lindsay"), false);
-    assert.equal(filingSummary.startsWith("Form 144/A:"), false);
+  const form144 = analysisInput.ownership_source_evidence.form144;
+  assert.equal(form144.proposed_sale_rows[0].security_title_raw_unit_description, "ADS EACH REPRESENTING FOUR CLASS A ORDINARY SHARES");
+  assert.equal(form144.proposed_sale_rows[0].proposed_sale_numerator.raw_text, "1533");
+  assert.equal(form144.proposed_sale_rows[0].outstanding_denominator.raw_text, "5693585848");
+  assert.match(form144.raw_remarks, /BASED ON ADS/);
+  assert.equal("proposed_sale_percent_of_shares_outstanding" in form144, false);
 });
 
 test("ownership parser supplies routing and versioned UI payload before analysis", () => {

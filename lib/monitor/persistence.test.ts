@@ -10,6 +10,7 @@ import {
   persistOwnershipAnalysisFacts,
   type MonitorPersistenceRepository,
 } from "./persistence.ts";
+import { validateOwnershipMonitorFacts } from "./ownershipAnalysisFacts.ts";
 
 type Row = Record<string, unknown>;
 const here = dirname(fileURLToPath(import.meta.url));
@@ -214,12 +215,27 @@ test("Form 4 Analysis facts preserve raw rows, roles, semantics, 10b5 state, and
 
 test("Form 144 Analysis facts retain owners, sale terms, and only derive percent from a clear denominator", () => {
   const analysisOutput = form144AnalysisFacts([
-    form144Sale({ shares: numericFact(9_876), value: numericFact(987_600), outstanding: numericFact(40_000_000), date: "2026-08-15", exchange: "NASDAQ" }),
-    form144Sale({ shares: numericFact(1_000), value: numericFact(25_000, "estimated"), outstanding: numericFact(null), date: null, exchange: null }),
-    form144Sale({ shares: numericFact(500, "unknown"), value: numericFact(12_500, "unknown"), outstanding: numericFact(20_000_000, "unknown"), date: "2026-08-16", exchange: "NYSE" }),
+    form144Sale({ shares: numericFact(9_876), value: numericFact(987_600), outstanding: numericFact(40_000_000), date: "2026-08-15", exchange: "NASDAQ", percentDecision: percentDecision({ comparable: true }) }),
+    form144Sale({ shares: numericFact(1_000), value: numericFact(25_000, "estimated"), outstanding: numericFact(null), date: null, exchange: null, percentDecision: percentDecision({ comparable: null }) }),
+    form144Sale({ shares: numericFact(500, "unknown"), value: numericFact(12_500, "unknown"), outstanding: numericFact(20_000_000, "unknown"), date: "2026-08-16", exchange: "NYSE", percentDecision: percentDecision({ comparable: true }) }),
+    form144Sale({
+      shares: numericFact(1_533),
+      value: numericFact(153_008.73),
+      outstanding: numericFact(5_693_585_848),
+      date: "2026-03-30",
+      exchange: "NASDAQ",
+      percentDecision: percentDecision({
+        comparable: true,
+        numeratorUnit: "ADS",
+        denominatorUnit: "ordinary shares",
+        target: "numerator",
+        multiplier: 4,
+        sourceRelation: "One ADS represents four ordinary shares.",
+      }),
+    }),
   ]);
   const rows = buildOwnershipFactRows({ eventId, symbol: "D144", analysisOutput }).form144ProposedSales;
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
   assert.deepEqual(rows[0].reporting_owner_names, ["Jordan Seller"]);
   assert.equal(rows[0].seller_name, "Jordan Seller");
   assert.equal(rows[0].exchange, "NASDAQ");
@@ -235,6 +251,42 @@ test("Form 144 Analysis facts retain owners, sale terms, and only derive percent
   assert.equal(rows[2].shares_outstanding_availability, "available");
   assert.equal(rows[2].shares_outstanding_value_quality, "unknown");
   assert.equal(rows[2].proposed_sale_percent, null);
+  assert.equal(rows[3].proposed_sale_percent, 0.0001077);
+  assert.equal(rows[3].proposed_sale_percent_value_quality, "derived");
+  assert.equal((rows[3].calculation_basis as Row).normalization_target, "numerator");
+  assert.equal((rows[3].calculation_basis as Row).normalization_multiplier, 4);
+  assert.equal((rows[3].calculation_basis as Row).selected_numerator, 6_132);
+  assert.equal((rows[3].calculation_basis as Row).selected_denominator, 5_693_585_848);
+});
+
+test("Form 144 percent decision schema requires explicit comparability and source-confirmed normalization shape", () => {
+  const valid = form144AnalysisFacts([
+    form144Sale({
+      shares: numericFact(1_533),
+      value: numericFact(153_008.73),
+      outstanding: numericFact(5_693_585_848),
+      date: "2026-03-30",
+      exchange: "NASDAQ",
+      percentDecision: percentDecision({
+        comparable: true,
+        numeratorUnit: "ADS",
+        denominatorUnit: "ordinary shares",
+        target: "numerator",
+        multiplier: 4,
+        sourceRelation: "One ADS represents four ordinary shares.",
+      }),
+    }),
+  ]);
+  assert.deepEqual(validateOwnershipMonitorFacts(valid), []);
+
+  const missing = structuredClone(valid) as unknown as Row;
+  delete (((missing.form144 as Row).proposed_sales as Row[])[0]).percent_calculation;
+  assert.ok(validateOwnershipMonitorFacts(missing).some((error) => /percent_calculation must be an object/.test(error)));
+
+  const unconfirmedWithMultiplier = structuredClone(valid) as unknown as Row;
+  const decision = ((((unconfirmedWithMultiplier.form144 as Row).proposed_sales as Row[])[0]).percent_calculation as Row);
+  decision.comparable_units = null;
+  assert.ok(validateOwnershipMonitorFacts(unconfirmedWithMultiplier).some((error) => /cannot select normalization/.test(error)));
 });
 
 test("ownership replace removes stale rows, is idempotent, clears known-empty, and preserves on failure", async () => {
@@ -412,12 +464,14 @@ function form144Sale({
   outstanding,
   date,
   exchange,
+  percentDecision: decision,
 }: {
   shares: ReturnType<typeof numericFact>;
   value: ReturnType<typeof numericFact>;
   outstanding: ReturnType<typeof numericFact>;
   date: string | null;
   exchange: string | null;
+  percentDecision: ReturnType<typeof percentDecision>;
 }) {
   return {
     security_title: "Common Stock",
@@ -426,7 +480,35 @@ function form144Sale({
     proposed_sale_date: date,
     exchange,
     shares_outstanding: outstanding,
+    percent_calculation: decision,
     evidence: ["proposed sale row evidence"],
     confidence: "high",
+  };
+}
+
+function percentDecision({
+  comparable,
+  numeratorUnit = "shares",
+  denominatorUnit = "shares",
+  target = null,
+  multiplier = null,
+  sourceRelation = null,
+}: {
+  comparable: boolean | null;
+  numeratorUnit?: string | null;
+  denominatorUnit?: string | null;
+  target?: "numerator" | "denominator" | null;
+  multiplier?: number | null;
+  sourceRelation?: string | null;
+}) {
+  return {
+    comparable_units: comparable,
+    numerator_unit: numeratorUnit,
+    denominator_unit: denominatorUnit,
+    normalization_target: target,
+    normalization_multiplier: multiplier,
+    source_relation: sourceRelation,
+    evidence: sourceRelation ? [sourceRelation] : ["The source labels numerator and denominator in the same unit."],
+    confidence: comparable === null ? null : "high",
   };
 }

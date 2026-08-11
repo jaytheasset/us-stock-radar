@@ -85,17 +85,48 @@ describe("Ownership validation repair", () => {
     const input = buildOwnershipRepairInput();
     const prompt = buildSecOwnershipAnalysisPrompt(input);
     const schema = prompt.responseFormat.json_schema as any;
-    assert.equal(prompt.version, "v2-monitor-facts");
+    assert.equal(prompt.version, "v3-semantic-source-judge");
     assert.ok(prompt.user.includes("analysis_output.ownership_monitor_facts"));
     assert.ok(prompt.user.includes("Do not calculate transaction value here"));
+    assert.ok(prompt.user.includes("transaction code or A/D alone"));
+    assert.ok(prompt.user.includes("percent_calculation"));
     assert.ok(schema.schema.properties.analysis_output.required.includes("ownership_monitor_facts"));
     assert.equal(schema.schema.properties.analysis_output.properties.ownership_monitor_facts.properties.version.enum[0], "ownership_monitor_facts_v1");
+    assert.ok(
+      schema.schema.properties.analysis_output.properties.ownership_monitor_facts.properties.form144
+        .properties.proposed_sales.items.required.includes("percent_calculation"),
+    );
 
     const missing = buildCompleteOwnershipAnalysis();
     delete (missing.analysis_output as Record<string, unknown>).ownership_monitor_facts;
     const result = adaptOwnershipPromptResultForAnalysis(missing, input);
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.error, /ownership monitor facts failed validation/i);
+  });
+
+  it("keeps an unconfirmed Form 144 unit comparison out of PDD investor copy", () => {
+    const input = buildOwnershipRepairInput();
+    const analysis = buildUnconfirmedPddAnalysis();
+    const result = adaptOwnershipPromptResultForAnalysis(analysis, input);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const output = analysis.analysis_output as Record<string, unknown>;
+    const display = (analysis.display_payload as Record<string, any>).data as Record<string, unknown>;
+    const visibleEvidence = JSON.stringify({
+      event_title: output.event_title,
+      quick_take: output.quick_take,
+      summary: output.summary,
+      why_it_matters: output.why_it_matters,
+      score_reason: output.score_reason,
+      bullish_points: output.bullish_points,
+      bearish_points: output.bearish_points,
+      key_evidence: output.key_evidence,
+      what_to_watch_next: output.what_to_watch_next,
+      filing_summary: display.filing_summary,
+    });
+    assert.doesNotMatch(visibleEvidence, /%|percent/i);
+    const facts = output.ownership_monitor_facts as Record<string, any>;
+    assert.equal(facts.form144.proposed_sales[0].percent_calculation.comparable_units, null);
   });
 });
 
@@ -211,5 +242,62 @@ function buildCompleteOwnershipAnalysis(): Record<string, unknown> {
       notes: [],
     },
   };
+}
+
+function buildUnconfirmedPddAnalysis(): Record<string, unknown> {
+  const result = buildCompleteOwnershipAnalysis();
+  const output = result.analysis_output as Record<string, any>;
+  output.event_title = "Director proposes sale of 1,533 ADS";
+  output.score = 35;
+  output.score_reason = "Small proposed value with incomparable reported units.";
+  output.signal = "neutral";
+  output.quick_take = "A director filed a notice to sell 1,533 ADS.";
+  output.summary = "The notice proposes 1,533 ADS valued at about $153,009. The outstanding figure uses ordinary shares, so no ownership ratio is stated.";
+  output.why_it_matters = "The notice is small by value, while its reported units are not directly comparable.";
+  output.bullish_points = [];
+  output.bearish_points = [];
+  output.key_evidence = ["1,533 ADS proposed", "$153,008.73 aggregate value", "Outstanding basis uses ordinary shares"];
+  output.what_to_watch_next = [];
+  output.ownership_monitor_facts = {
+    version: "ownership_monitor_facts_v1",
+    form4: null,
+    form144: {
+      reporting_owners: [{
+        name: "Kam Anthony Ping Leung",
+        roles: ["director"],
+        is_officer: false,
+        is_director: true,
+        is_10_percent_owner: false,
+        officer_title: null,
+        evidence: ["Director"],
+        confidence: "high",
+      }],
+      proposed_sales: [{
+        security_title: "ADS",
+        proposed_sale_shares: { value: 1_533, value_quality: "exact", availability: "available" },
+        aggregate_market_value: { value: 153_008.73, value_quality: "exact", availability: "available" },
+        proposed_sale_date: "2026-03-30",
+        exchange: "NASDAQ",
+        shares_outstanding: { value: 5_693_585_848, value_quality: "exact", availability: "available" },
+        percent_calculation: {
+          comparable_units: null,
+          numerator_unit: "ADS",
+          denominator_unit: "ordinary shares",
+          normalization_target: null,
+          normalization_multiplier: null,
+          source_relation: null,
+          evidence: ["The source labels the numerator as ADS and the denominator as ordinary shares."],
+          confidence: null,
+        },
+        evidence: ["Form 144 securities information"],
+        confidence: "high",
+      }],
+    },
+  };
+  (result.display_payload as Record<string, any>).data = {
+    filing_summary: "The director proposes to sell 1,533 ADS valued at about $153,009; the outstanding basis uses ordinary shares.",
+    form144: { proposed_sale_shares: 1_533, aggregate_market_value: 153_008.73 },
+  };
+  return result;
 }
 

@@ -1,5 +1,4 @@
 import {
-  buildOwnershipDisplayPayload,
   buildOwnershipRoutingDecision,
   isApprovedEventType,
 } from "./parser.ts";
@@ -16,14 +15,15 @@ Covered forms:
 - Form 144/A
 
 Current flow:
-- The Ownership parser/classifier has already extracted facts and selected
+- The Ownership parser has preserved source evidence and selected
   event_type, display_type, display_version, and display_payload.
 - There is no Ownership router LLM in this path.
-- Your job is only to write investor-facing copy and assign the final score.
+- You are the final semantic judge for transaction economics, structured
+  Ownership Monitor facts, investor-facing copy, and the final score.
 
 Use only the provided inputs:
 - current_filing
-- compact parser facts and selected evidence
+- ownership_source_evidence and selected evidence
 - selected_routing
 - display_payload
 - cleaned_source_blocks when provided
@@ -50,7 +50,7 @@ Event and display rules:
   appear in the same filing.
 - For Form 144 or Form 144/A, include compact form144 display data when the
   source supports it.
-- If parser facts provide issuer.ticker, preserve it in
+- If current source evidence provides issuer.ticker, preserve it in
   analysis_output.primary_ticker.ticker and analysis_output.tickers.
 - Do not create new display types.
 - Every result should include display_payload.data.filing_summary as one concise
@@ -63,7 +63,7 @@ Return JSON only according to the provided response schema.
 Output rules:
 - parser_output is pass-through. Keep it minimal; do not echo transaction
   arrays, footnotes, source inventory, raw XML/source text, filing_context, or
-  compact parser facts inside parser_output.
+  ownership analysis input inside parser_output.
 - display_payload should stay compact. Do not echo full transaction tables,
   footnotes, or source inventory into display_payload. Include only the compact
   fields needed by the UI.
@@ -89,17 +89,38 @@ Structured Ownership Monitor facts:
 - economic_direction is a separate canonical semantic field: buy for an
   economically source-supported purchase, sell for an economically
   source-supported sale, other for a supported non-buy/non-sell transaction,
-  and unknown when semantics are not established. Never replace or reinterpret
-  transaction_code or acquired_disposed_code with this field.
+  and unknown when semantics are not established. Judge the complete row,
+  derivative structure, security titles, footnotes, remarks, and related source
+  evidence. A transaction code or A/D value alone never determines economic
+  direction. Never replace or reinterpret transaction_code or
+  acquired_disposed_code with this field.
 - is_10b5_1 is row-level. Use true or false only when the source reliably
   supports that row's plan status; otherwise use null. Do not promote a filing-
-  wide mention to every row without source support.
+  wide mention to every row without source support. Preserve an explicit source
+  aff10b5One false as false for the filing's rows unless conflicting row-level
+  evidence makes the applicable row uncertain; do not turn explicit false into
+  null merely because no plan footnote is present. Preserve explicit true,
+  explicit false, and unavailable/null as three distinct states.
 - Form 144 proposed_sales must preserve each source row, reporting owners,
   proposed_sale_shares, aggregate_market_value, proposed_sale_date, exchange,
   relevant shares_outstanding, evidence, and confidence. A proposed sale is not
   an executed transaction. Do not calculate a proposed-sale percentage here
   and do not choose a denominator when the relevant outstanding-share figure is
   unclear.
+- For every Form 144 proposed-sale row, fill percent_calculation as the LLM's
+  source-backed decision. Set comparable_units true only when the numerator and
+  denominator are already comparable or the source explicitly supplies a
+  conversion relation. Use false when the source establishes different,
+  unconverted units, and null when comparability cannot be determined. Preserve
+  the raw numerator_unit and denominator_unit descriptions. If a source-confirmed
+  conversion is needed, select normalization_target and a positive
+  normalization_multiplier, quote the source relation in source_relation, and
+  include its evidence. Do not infer a unit policy, conversion, ADS ratio, or
+  multiplier from issuer identity, accession, market convention, or code.
+- If comparable_units is not true, do not publish a proposed-sale percentage in
+  event_title, quick_take, summary, filing_summary, why_it_matters, score_reason,
+  bullish_points, bearish_points, key_evidence, or what_to_watch_next. Use raw
+  shares/value and explain the unit uncertainty without inventing a ratio.
 - Every numeric fact uses {value, value_quality, availability}. A supplied
   numeric value is availability available even when value_quality is unknown.
   Missing numeric values are value null, value_quality unknown, availability
@@ -145,7 +166,7 @@ Ownership writing rules:
   size is clearly notable and can be stated compactly.
 - When one of these title thresholds is met, add one compact relative-size
   comparison to event_title:
-  Form 4 actual P/S: shares are at least 1.0% of float/public_float, or at least
+  Form 4 source-confirmed actual purchase/sale: shares are at least 1.0% of float/public_float, or at least
   1.5% of shares outstanding when float is unavailable, or transaction value is
   at least 1.0% of market cap.
   Form 144 proposed sale: proposed shares are at least 2.0% of float/public_float,
@@ -200,8 +221,9 @@ Ownership writing rules:
 - Do not lead event_title, quick_take, summary, or filing_summary with SEC
   transaction-code jargon such as "code J", "code F", or "code M".
 - Transaction codes may appear in key_evidence or source-backed details.
-- Use "open-market purchase" or "open-market sale" only when parser facts
-  support an actual P or S transaction.
+- Use "open-market purchase" or "open-market sale" only when the full source
+  context supports that economic meaning; transaction code or A/D alone is not
+  sufficient.
 - For non-market ownership activity, describe the source-backed mechanism:
   award/grant, withholding, exercise/conversion, gift, non-cash exchange,
   derivative transaction, holding update, or Form 144 proposed-sale notice.
@@ -224,9 +246,12 @@ Ownership writing rules:
 Scoring rules:
 - Score means investor attention / urgency, not bullishness or bearishness.
 - Signal carries direction:
-  P open-market purchase is usually bullish; S open-market sale is usually
-  bearish; A/F/M/V/holding-only is usually neutral; complex or unclear ownership
-  mechanics may be neutral or volatile depending on facts.
+  a source-confirmed open-market purchase is usually bullish; a source-confirmed
+  open-market sale is usually bearish; grants, withholding, exercises,
+  conversions, gifts, holding-only changes, and other non-market mechanics are
+  usually neutral; complex or unclear ownership mechanics may be neutral or
+  volatile depending on facts. Never assign signal from transaction code or A/D
+  alone.
 - Ownership filings are high-volume. Score them strictly so routine ownership
   filings do not crowd the feed.
 - Feed can be triggered by either source-backed absolute filing size or
@@ -242,21 +267,21 @@ Scoring rules:
   quick_take.
 
 Form 4 scoring caps:
-- Holding-only or V-only: 5-20, hard cap 20.
-- Routine A grant/RSU/award: 15-32, hard cap 34.
-- F withholding/tax/payment row: 20-35, hard cap 39.
-- M exercise/conversion-only: 20-35, hard cap 39.
-- G gift/no-cash transfer: 25-40, hard cap 44 unless current filing
+- Source-confirmed holding-only or voluntary non-economic activity: 5-20, hard cap 20.
+- Source-confirmed routine grant/RSU/award: 15-32, hard cap 34.
+- Source-confirmed withholding/tax/payment row: 20-35, hard cap 39.
+- Source-confirmed exercise/conversion-only activity: 20-35, hard cap 39.
+- Source-confirmed gift/no-cash transfer: 25-40, hard cap 44 unless current filing
   facts show unusual control, legal, or strategic context.
-- Clean P/S below $1M: 35-49, hard cap 49 unless a senior/control-holder
+- Clean source-confirmed actual purchase/sale below $1M: 35-49, hard cap 49 unless a senior/control-holder
   or ownership-percentage trigger below applies.
-- CEO/CFO P/S of $500k-$1M: 50-55, hard cap 55.
-- 10% owner P/S of $500k-$1M: 50-58, hard cap 58.
-- P/S changing estimated pre-transaction holdings by 10% or more: 50-60,
+- CEO/CFO actual purchase/sale of $500k-$1M: 50-55, hard cap 55.
+- 10% owner actual purchase/sale of $500k-$1M: 50-58, hard cap 58.
+- Actual purchase/sale changing estimated pre-transaction holdings by 10% or more: 50-60,
   hard cap 60 unless market_context or filing_context supports more urgency.
-- P/S $1M-$5M: 52-62, hard cap 62.
-- P/S $5M-$20M: 58-68, hard cap 68.
-- P/S above $20M: 65-74, hard cap 74 unless the alert gate is met.
+- Actual purchase/sale $1M-$5M: 52-62, hard cap 62.
+- Actual purchase/sale $5M-$20M: 58-68, hard cap 68.
+- Actual purchase/sale above $20M: 65-74, hard cap 74 unless the alert gate is met.
 
 Form 144 scoring caps:
 - Proposed sale below $5M, below 0.5% of shares outstanding, current plus
@@ -274,10 +299,10 @@ Form 144 scoring caps:
 Alert gate:
 - Do not produce 75+ by stacking role, transaction value, and keywords.
 - Alert requires source-backed absolute size plus source-backed relative size.
-- Form 4 alert gate applies only to actual P/S rows. A/F/M/V/G/J/K/U,
-  holding-only, and Form 4/A administrative changes cannot become alert by this
-  gate.
-- For Form 4 actual P/S, 75+ is allowed when one of these absolute-plus-float
+- Form 4 alert gate applies only to rows the LLM source-confirms as actual
+  purchases or sales. Non-market or unknown activity, holding-only changes, and
+  Form 4/A administrative changes cannot become alert by this gate.
+- For Form 4 source-confirmed actual purchases/sales, 75+ is allowed when one of these absolute-plus-float
   combinations is met:
   value > $20M and shares >= 1% of float/public_float;
   value > $10M and shares >= 2% of float/public_float;
@@ -367,7 +392,7 @@ Market context rules:
 - If the unit is ambiguous, do not publish a percent figure. Use raw shares,
   value, market cap, float, or shares outstanding qualitatively.
 - Market-context score bands:
-  If an actual Form 4 P/S clears an absolute feed band, do not score it below
+  If a source-confirmed actual Form 4 purchase/sale clears an absolute feed band, do not score it below
   50 solely because relative market_context ratios are below 0.25%; use the
   lower end of the feed cap instead.
   If a Form 144 proposed sale clears an absolute feed band, do not score it
@@ -399,7 +424,7 @@ Filing context rules:
   amendment_parent_candidate, context_as_of, and source_notes.
 - Repeated same-insider same-direction trading:
   same-insider 12-month count >= 3 and cumulative same-direction value >= $5M
-  may lift a current P/S or Form 144 into stronger feed.
+  may lift a current source-confirmed purchase/sale or Form 144 into stronger feed.
 - Same-insider large cumulative selling:
   same-insider 12-month sale value >= $10M may lift urgency even if the current
   filing is below the next absolute-value band.
@@ -458,9 +483,9 @@ Context-aware writing rules:
 Amendments:
 - For Form 4/A and Form 144/A, analyze the filing as an amendment, not as a new
   standalone ownership event.
-- Use parser-provided amendment comparison facts as the authority for what
-  changed. Do not infer parent changes from missing rows, repeated rows, or
-  amendment form type alone.
+- Use source-backed amendment remarks and supplied parent_filing_context as the
+  authority for what changed. Do not infer parent changes from missing rows,
+  repeated rows, or amendment form type alone.
 - If parent comparison is unavailable or ambiguous, avoid claiming what changed
   relative to the parent. In investor-facing summary, describe only what the
   amendment itself says it corrects, updates, adds, or clarifies.
@@ -472,10 +497,10 @@ Amendments:
   path".
 - Do not use the word "reconciliation" in investor-facing output. Use
   "comparison" instead.
-- If parser facts show only administrative, metadata, signature, title, or
+- If source evidence shows only administrative, metadata, signature, title, or
   footnote/explanatory changes with no changed transaction economics, keep the
   analysis compact and low urgency.
-- If parser facts show changed transaction economics, added rows, changed
+- If source evidence shows changed transaction economics, added rows, changed
   proposed-sale terms, correction/error wording, or ambiguous mapping, explain
   only the source-backed amendment content. Do not tell the reader that review
   is needed.
@@ -505,8 +530,8 @@ Amendments:
 - For Form 144/A archive summaries, prefer this structure when source-backed:
   "The 144/A amendment adds [remark/change]; the proposed sale terms remain
   [shares/value/date] from the original Form 144."
-- For Form 144/A remarks-only amendments, do not reuse a parser-provided
-  filing_summary that only repeats the remark. Rewrite it to include both the
+- For Form 144/A remarks-only amendments, do not write a filing_summary that
+  only repeats the remark. Include both the
   amendment change and the unchanged proposed-sale terms when comparison facts
   provide them.
 
@@ -520,10 +545,10 @@ For score < 50 archive:
   concise, natural, source-backed filing fact summary.
 - For archive results, display_payload.data.filing_summary must exactly match
   analysis_output.summary.
-- Prefer the parser-provided filing_summary when it is factually correct.
-- Exception: for Form 4/A or Form 144/A, prefer a more precise amendment
-  comparison summary over parser-provided filing_summary when the parser summary
-  omits what remained unchanged.
+- Author filing_summary directly from ownership_source_evidence.
+- Exception: for Form 4/A or Form 144/A, prefer a more precise source-backed
+  amendment comparison summary when supplied parent context proves what remained
+  unchanged.
 - For amendment archive summaries, state what changed. If parent comparison
   says transaction rows or proposed-sale terms were unchanged, include that
   unchanged status instead of writing generic low-impact copy.
@@ -579,12 +604,12 @@ export function buildOwnershipAnalysisPrompt(
 ) {
   return `${OWNERSHIP_ANALYSIS_PROMPT}
 
-Compact parser facts:
+Ownership analysis input:
 ${JSON.stringify(buildOwnershipAnalysisInput(parserOutput), null, 2)}
 
 Final validation before returning JSON:
 - Audit every sentence for unsupported inference.
-- Every claim must be traceable to current filing, parser facts, market_context,
+- Every claim must be traceable to current filing, ownership_source_evidence, market_context,
   filing_context, or parent_filing_context.
 - For Form 4/A or Form 144/A, re-read event_title before returning. If the main
   verb is buys, sells, proposes, or files instead of amends, updates, clarifies,
@@ -596,7 +621,6 @@ export function buildOwnershipAnalysisInput(parserOutput: OwnershipParserOutput)
   const form4 = isRecord(facts.form4) ? facts.form4 : null;
   const form144 = isRecord(facts.form144) ? facts.form144 : null;
   const raw = isRecord(parserOutput.raw) ? parserOutput.raw : {};
-  const sentenceSafeSummary = buildSentenceSafeFilingSummary(parserOutput);
 
   return {
     current_filing: buildCurrentFilingIdentity({
@@ -610,69 +634,37 @@ export function buildOwnershipAnalysisInput(parserOutput: OwnershipParserOutput)
     formType: parserOutput.formType,
     accessionNumber: parserOutput.accessionNumber,
     isSupported: parserOutput.isSupported,
-    summary: sentenceSafeSummary ?? parserOutput.summary,
     issuer: facts.issuer ?? null,
     market_context: facts.market_context ?? null,
-    reporting_owner: facts.reporting_owner ?? null,
-    reporting_owners: facts.reporting_owners ?? [],
-    filing: facts.filing ?? null,
-    form4: form4
-      ? {
-          acquired_shares: form4.acquired_shares ?? null,
-          disposed_shares: form4.disposed_shares ?? null,
-          total_reported_value: form4.total_reported_value ?? null,
-          has_purchase: form4.has_purchase ?? false,
-          has_sale: form4.has_sale ?? false,
-          has_gift: form4.has_gift ?? false,
-          has_conversion: form4.has_conversion ?? false,
-          has_derivative_transaction: form4.has_derivative_transaction ?? false,
-          transactions: summarizeTransactions(form4.transactions),
-          holdings: form4.holdings ?? [],
-        }
-      : null,
-    form144,
-    amendment: facts.amendment ?? null,
-    footnotes: facts.footnotes ?? {},
-    remarks: facts.remarks ?? null,
-    signatures: facts.signatures ?? [],
+    ownership_source_evidence: {
+      filing: summarizeFilingSourceEvidence(facts.filing),
+      reporting_owners: summarizeReportingOwnerSourceEvidence(facts.reporting_owners),
+      form4: form4 ? { transactions: summarizeTransactions(form4.transactions) } : null,
+      form144: summarizeForm144SourceEvidence(form144),
+      amendment: summarizeAmendmentSourceEvidence(facts.amendment),
+      footnotes: facts.footnotes ?? {},
+      remarks: facts.remarks ?? null,
+      signatures: facts.signatures ?? [],
+    },
     source_inventory: facts.source_inventory ?? raw.source_inventory ?? null,
     selected_evidence: raw.selected_evidence ?? [],
-    signals: parserOutput.signals,
-    calendarItems: parserOutput.calendarItems,
-    warnings: ownershipAnalysisWarnings(parserOutput.warnings),
   };
-}
-
-function ownershipAnalysisWarnings(warnings: unknown) {
-  if (!Array.isArray(warnings)) {
-    return [];
-  }
-  return warnings
-    .filter((warning): warning is string => typeof warning === "string")
-    .filter((warning) => !/original filing was not supplied|original filing comparison|parent comparison|reconciliation/i.test(warning));
 }
 
 function buildOwnershipAnalysisDisplayPayload(parserOutput: OwnershipParserOutput) {
   const routing = buildOwnershipRoutingDecision(parserOutput);
-  const parserDisplayPayload = buildOwnershipDisplayPayload(parserOutput);
-  const parserDisplayData = (isRecord(parserDisplayPayload.data) ? parserDisplayPayload.data : {}) as Record<string, unknown>;
-  const filingSummary =
-    typeof parserDisplayData.filing_summary === "string"
-      ? parserDisplayData.filing_summary
-      : buildSentenceSafeFilingSummary(parserOutput);
   return {
     display_type: routing.display_type,
     data: {
       display_version: routing.display_version,
       event_type: routing.event_type,
-      filing_summary: filingSummary,
       parser_display_payload_available: true,
       common_feed_detail_ui: routing.display_type === "candidate_special",
     },
     evidence: [],
     notes: [
       "Full parser-built display payload is available to integration outside the LLM prompt.",
-      "LLM should not echo transaction tables, footnotes, or source inventory into display_payload.",
+      "This template contains no parser-authored semantic answer. LLM should author source-backed UI facts and must not echo full transaction tables, footnotes, or source inventory into display_payload.",
     ],
   };
 }
@@ -1069,6 +1061,32 @@ export function validateOwnershipResultShape(result: unknown): string[] {
   return errors;
 }
 
+function summarizeFilingSourceEvidence(value: unknown) {
+  const filing = isRecord(value) ? value : {};
+  return {
+    form_type: filing.form_type ?? null,
+    accession_number: filing.accession_number ?? null,
+    source_format: filing.source_format ?? null,
+    document_type: filing.document_type ?? null,
+    period_of_report: filing.period_of_report ?? null,
+    source_aff10b5One: typeof filing.aff_10b5_1 === "boolean" ? filing.aff_10b5_1 : null,
+  };
+}
+
+function summarizeReportingOwnerSourceEvidence(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isRecord).map((owner) => ({
+    name: owner.name ?? null,
+    title: owner.title ?? null,
+    roles: Array.isArray(owner.roles) ? owner.roles : [],
+    is_director: typeof owner.is_director === "boolean" ? owner.is_director : null,
+    is_officer: typeof owner.is_officer === "boolean" ? owner.is_officer : null,
+    is_ten_percent_owner: typeof owner.is_ten_percent_owner === "boolean" ? owner.is_ten_percent_owner : null,
+    is_other: typeof owner.is_other === "boolean" ? owner.is_other : null,
+    other_text: owner.other_text ?? null,
+  }));
+}
+
 function summarizeTransactions(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -1078,21 +1096,146 @@ function summarizeTransactions(value: unknown) {
       return transaction;
     }
     return {
-      transaction_kind: transaction.transaction_kind ?? null,
+      derivative_structure: transaction.transaction_kind ?? null,
       security_title: transaction.security_title ?? null,
       transaction_date: transaction.transaction_date ?? null,
-      transaction_code: transaction.transaction_code ?? null,
-      acquired_disposed_code: transaction.acquired_disposed_code ?? null,
-      shares: transaction.shares ?? null,
-      price_per_share: transaction.price_per_share ?? null,
-      transaction_value: transaction.transaction_value ?? null,
-      shares_owned_following: transaction.shares_owned_following ?? null,
+      raw_transaction_code: transaction.transaction_code ?? null,
+      raw_acquired_disposed_code: transaction.acquired_disposed_code ?? null,
+      shares: sourceNumericEvidence(transaction.shares, transaction.shares_text, transaction.shares_status),
+      price_per_share: sourceNumericEvidence(
+        transaction.price_per_share,
+        transaction.price_per_share_text,
+        transaction.price_per_share_status,
+      ),
+      post_transaction_shares: sourceNumericEvidence(
+        transaction.shares_owned_following,
+        transaction.shares_owned_following_text,
+        transaction.shares_owned_following_status,
+      ),
       direct_or_indirect_ownership: transaction.direct_or_indirect_ownership ?? null,
+      nature_of_ownership: transaction.nature_of_ownership ?? null,
+      conversion_or_exercise_price: sourceNumericEvidence(
+        transaction.conversion_or_exercise_price,
+        transaction.conversion_or_exercise_price_text,
+        transaction.conversion_or_exercise_price_status,
+      ),
+      exercise_date: transaction.exercise_date ?? null,
+      expiration_date: transaction.expiration_date ?? null,
       underlying_security_title: transaction.underlying_security_title ?? null,
-      underlying_security_shares: transaction.underlying_security_shares ?? null,
+      underlying_security_shares: sourceNumericEvidence(
+        transaction.underlying_security_shares,
+        transaction.underlying_security_shares_text,
+        transaction.underlying_security_shares_status,
+      ),
       footnote_ids: Array.isArray(transaction.footnote_ids) ? transaction.footnote_ids : [],
+      field_footnote_ids: isRecord(transaction.field_footnote_ids) ? transaction.field_footnote_ids : {},
+      source_row_evidence: Array.isArray(transaction.evidence) ? transaction.evidence : [],
     };
   });
+}
+
+function summarizeForm144SourceEvidence(form144: Record<string, unknown> | null) {
+  if (!form144) return null;
+  const rows = Array.isArray(form144.proposed_sale_rows) ? form144.proposed_sale_rows : [];
+  const acquisitionLots = Array.isArray(form144.acquisition_lots) ? form144.acquisition_lots : [];
+  const priorSales = Array.isArray(form144.prior_sales) ? form144.prior_sales : [];
+  return {
+    submission_type: form144.submission_type ?? null,
+    previous_accession_number: form144.previous_accession_number ?? null,
+    seller_name: form144.seller_name ?? null,
+    account_person_name: form144.account_person_name ?? null,
+    issuer_relationships: form144.issuer_relationships ?? [],
+    raw_remarks: form144.remarks ?? null,
+    plan_adoption_dates: Array.isArray(form144.plan_adoption_dates) ? form144.plan_adoption_dates : [],
+    plan_instruction_dates: Array.isArray(form144.plan_instruction_dates) ? form144.plan_instruction_dates : [],
+    proposed_sale_rows: rows.map((row) => {
+      if (!isRecord(row)) return row;
+      return {
+        security_title_raw_unit_description: row.securities_class_title ?? null,
+        proposed_sale_numerator: sourceNumericEvidence(
+          row.securities_to_be_sold,
+          row.securities_to_be_sold_text,
+          row.securities_to_be_sold_status,
+        ),
+        aggregate_market_value: sourceNumericEvidence(
+          row.aggregate_market_value,
+          row.aggregate_market_value_text,
+          row.aggregate_market_value_status,
+        ),
+        outstanding_denominator: sourceNumericEvidence(
+          row.shares_outstanding,
+          row.shares_outstanding_text,
+          row.shares_outstanding_status,
+        ),
+        proposed_sale_date: row.approximate_sale_date ?? null,
+        proposed_sale_date_raw_text: row.approximate_sale_date_text ?? null,
+        exchange: row.securities_exchange_name ?? null,
+        footnote_ids: Array.isArray(row.footnote_ids) ? row.footnote_ids : [],
+        field_footnote_ids: isRecord(row.field_footnote_ids) ? row.field_footnote_ids : {},
+        source_row_evidence: Array.isArray(row.evidence) ? row.evidence : [],
+      };
+    }),
+    acquisition_lots: acquisitionLots.map((lot) => {
+      if (!isRecord(lot)) return lot;
+      return {
+        security_title_raw_unit_description: lot.securities_class_title ?? null,
+        acquired_date: lot.acquired_date ?? null,
+        acquired_date_source_status: lot.acquired_date_status ?? null,
+        nature_of_acquisition_transaction: lot.nature_of_acquisition_transaction ?? null,
+        acquired_from: lot.acquired_from ?? null,
+        source_is_gift_transaction: typeof lot.is_gift_transaction === "boolean" ? lot.is_gift_transaction : null,
+        amount_acquired: sourceNumericEvidence(
+          lot.amount_of_securities_acquired,
+          lot.amount_of_securities_acquired_text,
+          lot.amount_of_securities_acquired_status,
+        ),
+        payment_date: lot.payment_date ?? null,
+        payment_date_source_status: lot.payment_date_status ?? null,
+        nature_of_payment: lot.nature_of_payment ?? null,
+        footnote_ids: Array.isArray(lot.footnote_ids) ? lot.footnote_ids : [],
+        field_footnote_ids: isRecord(lot.field_footnote_ids) ? lot.field_footnote_ids : {},
+        source_row_evidence: Array.isArray(lot.evidence) ? lot.evidence : [],
+      };
+    }),
+    prior_sales: priorSales.map((sale) => {
+      if (!isRecord(sale)) return sale;
+      return {
+        seller_name: sale.seller_name ?? null,
+        security_title_raw_unit_description: sale.securities_class_title ?? null,
+        sale_date: sale.sale_date ?? null,
+        sale_date_source_status: sale.sale_date_status ?? null,
+        amount_sold: sourceNumericEvidence(
+          sale.amount_of_securities_sold,
+          sale.amount_of_securities_sold_text,
+          sale.amount_of_securities_sold_status,
+        ),
+        gross_proceeds: sourceNumericEvidence(
+          sale.gross_proceeds,
+          sale.gross_proceeds_text,
+          sale.gross_proceeds_status,
+        ),
+        footnote_ids: Array.isArray(sale.footnote_ids) ? sale.footnote_ids : [],
+        field_footnote_ids: isRecord(sale.field_footnote_ids) ? sale.field_footnote_ids : {},
+        source_row_evidence: Array.isArray(sale.evidence) ? sale.evidence : [],
+      };
+    }),
+  };
+}
+
+function summarizeAmendmentSourceEvidence(value: unknown) {
+  const amendment = isRecord(value) ? value : {};
+  return {
+    previous_accession_number: amendment.previous_accession_number ?? null,
+    source_reason_or_remark: amendment.reason ?? null,
+  };
+}
+
+function sourceNumericEvidence(value: unknown, rawText: unknown, sourceStatus: unknown) {
+  return {
+    value: typeof value === "number" && Number.isFinite(value) ? value : null,
+    raw_text: typeof rawText === "string" ? rawText : null,
+    source_status: typeof sourceStatus === "string" ? sourceStatus : null,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
