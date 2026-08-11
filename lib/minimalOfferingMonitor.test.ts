@@ -9,6 +9,7 @@ import {
   buildMinimalOfferingMarketSnapshot,
   materializeMinimalOfferingMonitor,
   minimalOfferingMonitorProviderSchema,
+  normalizeMinimalOfferingMonitorTransport,
   prepareMinimalOfferingMonitorPersistence,
   validateMinimalOfferingMonitor,
   type MinimalOfferingMonitor,
@@ -64,7 +65,7 @@ function monitor(overrides: Partial<MinimalOfferingMonitor> = {}): MinimalOfferi
     version: MINIMAL_OFFERING_MONITOR_VERSION,
     applicability: "applicable",
     financing_stage: "priced",
-    primary_or_resale: "primary",
+    primary_or_resale: "mixed",
     security_nature: "equity_linked",
     has_warrant: true,
     has_prefunded_warrant: true,
@@ -107,10 +108,17 @@ function monitor(overrides: Partial<MinimalOfferingMonitor> = {}): MinimalOfferi
 
 test("1. provider schema is minimal, named, and contains no transport graph arrays", () => {
   const text = JSON.stringify(minimalOfferingMonitorProviderSchema);
+  const schema = minimalOfferingMonitorProviderSchema as Record<string, any>;
   assert.equal(minimalOfferingMonitorProviderSchema.type, "object");
   assert.ok(text.length < 8_000);
   assert.doesNotMatch(text, /components|groups|calculation_inputs|row_sets|evidence|confidence/);
   assert.doesNotMatch(text, /total_potential_primary_share_exposure/);
+  assert.doesNotMatch(text, /"enum"|"null"/);
+  assert.ok(!schema.required.includes("has_warrant"));
+  const factSchema = schema.properties.facts.properties.actual_primary_offering_amount;
+  assert.ok(!factSchema.required.includes("value"));
+  assert.equal(factSchema.properties.value.type, "number");
+  assert.equal(factSchema.properties.comparable_to_event_market_basis.type, "boolean");
 });
 
 test("2. available exact value validates", () => {
@@ -159,13 +167,18 @@ test("8. active and priced stages both validate", () => {
 });
 
 test("9. primary classification validates", () => {
-  assert.equal(validateMinimalOfferingMonitor(monitor({ primary_or_resale: "primary" })).ok, true);
+  const value = monitor({ primary_or_resale: "primary" });
+  value.facts.resale_share_exposure = fact({ comparison_basis_type: "public_float" });
+  assert.equal(validateMinimalOfferingMonitor(value).ok, true);
 });
 
-test("10. resale classification validates without changing primary facts", () => {
+test("10. resale classification rejects primary facts and validates when they are unavailable", () => {
   const value = monitor({ primary_or_resale: "resale" });
+  assert.equal(validateMinimalOfferingMonitor(value).ok, false);
+  value.facts.actual_primary_offering_amount = fact({ unit: "currency", comparison_basis_type: "market_cap" });
+  value.facts.immediate_primary_share_exposure = fact();
+  value.facts.additional_potential_primary_share_exposure = fact();
   assert.equal(validateMinimalOfferingMonitor(value).ok, true);
-  assert.notEqual(value.facts.resale_share_exposure, value.facts.immediate_primary_share_exposure);
 });
 
 test("11. mixed classification validates", () => {
@@ -253,6 +266,7 @@ test("21. valid reanalysis replaces canonically and is idempotent", () => {
 test("22. incompatible immediate/additional basis blocks total", () => {
   const value = monitor();
   value.facts.additional_potential_primary_share_exposure.security_basis = "adr";
+  assert.equal(validateMinimalOfferingMonitor(value).ok, false);
   assert.equal(materializeMinimalOfferingMonitor(value, snapshot).total_potential_primary_share_exposure.availability, "unavailable");
 });
 
@@ -307,3 +321,80 @@ test("28. unsupported semantic fields fail instead of being silently accepted", 
   value.total_potential_primary_share_exposure = 99;
   assert.equal(validateMinimalOfferingMonitor(value).ok, false);
 });
+
+test("29. provider transport omission normalizes to canonical null without zero or empty sentinels", () => {
+  const transport = transportFromCanonical(monitor());
+  delete transport.has_prefunded_warrant;
+  const price = (transport.facts as Record<string, Record<string, unknown>>).offering_price;
+  delete price.value;
+  price.availability = "unavailable";
+  delete price.currency;
+  delete price.security_basis;
+  delete price.comparable_to_event_market_basis;
+  delete price.source_ref;
+  const normalized = normalizeMinimalOfferingMonitorTransport(transport);
+  assert.equal(normalized.ok, true);
+  if (!normalized.ok) return;
+  assert.equal(normalized.value.has_prefunded_warrant, null);
+  assert.equal(normalized.value.facts.offering_price.value, null);
+  assert.equal(normalized.value.facts.offering_price.currency, null);
+});
+
+test("30. provider transport preserves explicit false and actual zero", () => {
+  const transport = transportFromCanonical(monitor());
+  transport.has_convertible = false;
+  const resale = (transport.facts as Record<string, Record<string, unknown>>).resale_share_exposure;
+  resale.value = 0;
+  const normalized = normalizeMinimalOfferingMonitorTransport(transport);
+  assert.equal(normalized.ok, true);
+  if (!normalized.ok) return;
+  assert.equal(normalized.value.has_convertible, false);
+  assert.equal(normalized.value.facts.resale_share_exposure.value, 0);
+});
+
+test("31. provider transport rejects present null, empty strings, and unavailable zero", () => {
+  for (const mutate of [
+    (value: Record<string, any>) => { value.has_warrant = null; },
+    (value: Record<string, any>) => { value.facts.offering_price.currency = ""; },
+    (value: Record<string, any>) => {
+      value.facts.offering_price.availability = "unavailable";
+      value.facts.offering_price.value = 0;
+    },
+  ]) {
+    const transport = transportFromCanonical(monitor());
+    mutate(transport);
+    assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
+  }
+});
+
+test("32. provider plain strings still require canonical allowed values", () => {
+  const transport = transportFromCanonical(monitor());
+  (transport.facts as Record<string, Record<string, unknown>>).offering_price.value_quality = "approximately_exact";
+  assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
+});
+
+test("33. available transport requires value, source reference, unit, and fact basis", () => {
+  for (const mutate of [
+    (value: Record<string, any>) => { delete value.facts.offering_price.value; },
+    (value: Record<string, any>) => { delete value.facts.offering_price.source_ref; },
+    (value: Record<string, any>) => { value.facts.offering_price.unit = "shares"; },
+    (value: Record<string, any>) => { value.facts.offering_price.comparison_basis_type = "market_cap"; },
+  ]) {
+    const transport = transportFromCanonical(monitor());
+    mutate(transport);
+    assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
+  }
+});
+
+function transportFromCanonical(value: MinimalOfferingMonitor): Record<string, any> {
+  const transport = JSON.parse(JSON.stringify(value)) as Record<string, any>;
+  for (const key of ["has_warrant", "has_prefunded_warrant", "has_convertible"]) {
+    if (transport[key] === null) delete transport[key];
+  }
+  for (const factValue of Object.values(transport.facts) as Array<Record<string, unknown>>) {
+    for (const key of ["value", "currency", "security_basis", "comparable_to_event_market_basis", "source_ref"]) {
+      if (factValue[key] === null) delete factValue[key];
+    }
+  }
+  return transport;
+}

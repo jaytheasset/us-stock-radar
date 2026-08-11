@@ -60,13 +60,13 @@ describe("SEC first-analysis ATM unit prompts", () => {
       (prompt) => prompt.key === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
     );
 
-    assert.equal(SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION, "v42-minimal-offering-monitor-v1");
-    assert.equal(SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION, "v43-minimal-offering-monitor-v1");
+    assert.equal(SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION, "v44-minimal-offering-monitor-provider-transport");
+    assert.equal(SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION, "v45-minimal-offering-monitor-provider-transport");
     assert.equal(buildSec424bAnalysisPromptForInput(input424b).version, SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION);
-    assert.equal(SEC_S1_F1_ANALYSIS_PROMPT_VERSION, "v33-minimal-offering-monitor-v1");
+    assert.equal(SEC_S1_F1_ANALYSIS_PROMPT_VERSION, "v34-minimal-offering-monitor-provider-transport");
     assert.equal(buildSecS1F1AnalysisPromptForInput(inputS1F1).version, SEC_S1_F1_ANALYSIS_PROMPT_VERSION);
-    assert.equal(SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION, "v64-minimal-offering-monitor-v1");
-    assert.equal(SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION, "v65-minimal-offering-monitor-v1");
+    assert.equal(SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION, "v66-minimal-offering-monitor-provider-transport");
+    assert.equal(SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION, "v67-minimal-offering-monitor-provider-transport");
     assert.equal(buildSecS3OfferingAnalysisPrompt(inputS3).version, SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION);
     assert.equal(registeredS3?.version, SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION);
   });

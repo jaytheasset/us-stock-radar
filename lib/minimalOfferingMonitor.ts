@@ -93,31 +93,23 @@ const factProviderSchema = () => ({
   type: "object",
   additionalProperties: false,
   required: [
-    "value",
     "availability",
     "value_quality",
     "bound",
     "unit",
-    "currency",
-    "security_basis",
     "comparison_basis_type",
-    "comparable_to_event_market_basis",
-    "source_ref",
   ],
   properties: {
-    value: { type: ["number", "null"] },
-    availability: { type: "string", enum: ["available", "unavailable"] },
-    value_quality: { type: "string", enum: ["exact", "derived", "estimated", "unknown"] },
-    bound: { type: "string", enum: ["exact", "maximum", "minimum", "unknown"] },
-    unit: { type: "string", enum: ["currency", "currency_per_security", "shares", "other", "unknown"] },
-    currency: { type: ["string", "null"] },
-    security_basis: { type: ["string", "null"] },
-    comparison_basis_type: {
-      type: "string",
-      enum: ["shares_outstanding", "public_float", "market_cap", "market_price", "none", "unknown"],
-    },
-    comparable_to_event_market_basis: { type: ["boolean", "null"] },
-    source_ref: { type: ["string", "null"] },
+    value: { type: "number" },
+    availability: { type: "string" },
+    value_quality: { type: "string" },
+    bound: { type: "string" },
+    unit: { type: "string" },
+    currency: { type: "string" },
+    security_basis: { type: "string" },
+    comparison_basis_type: { type: "string" },
+    comparable_to_event_market_basis: { type: "boolean" },
+    source_ref: { type: "string" },
   },
 });
 
@@ -130,29 +122,17 @@ export const minimalOfferingMonitorProviderSchema = {
     "financing_stage",
     "primary_or_resale",
     "security_nature",
-    "has_warrant",
-    "has_prefunded_warrant",
-    "has_convertible",
     "facts",
   ],
   properties: {
-    version: { type: "string", enum: [MINIMAL_OFFERING_MONITOR_VERSION] },
-    applicability: { type: "string", enum: ["applicable", "not_applicable"] },
-    financing_stage: {
-      type: "string",
-      enum: ["registration_only", "active_offering", "priced", "closed", "unknown"],
-    },
-    primary_or_resale: {
-      type: "string",
-      enum: ["primary", "resale", "mixed", "not_applicable", "unknown"],
-    },
-    security_nature: {
-      type: "string",
-      enum: ["equity", "equity_linked", "debt", "mixed", "non_equity", "unknown"],
-    },
-    has_warrant: { type: ["boolean", "null"] },
-    has_prefunded_warrant: { type: ["boolean", "null"] },
-    has_convertible: { type: ["boolean", "null"] },
+    version: { type: "string" },
+    applicability: { type: "string" },
+    financing_stage: { type: "string" },
+    primary_or_resale: { type: "string" },
+    security_nature: { type: "string" },
+    has_warrant: { type: "boolean" },
+    has_prefunded_warrant: { type: "boolean" },
+    has_convertible: { type: "boolean" },
     facts: {
       type: "object",
       additionalProperties: false,
@@ -169,9 +149,11 @@ export const MINIMAL_OFFERING_MONITOR_PROMPT = [
   "Return exactly five named facts: actual_primary_offering_amount, offering_price, immediate_primary_share_exposure, additional_potential_primary_share_exposure, resale_share_exposure. Do not return total potential exposure; code adds immediate plus additional only when compatible.",
   "actual_primary_offering_amount means issuer gross transaction amount from primary securities in this transaction. Never use shelf capacity, selling-holder resale value/proceeds, or amount remaining; for mixed transactions use only the issuer primary portion. Preserve up-to as bound=maximum.",
   "immediate_primary_share_exposure is the deduplicated immediate primary share-equivalent pool. additional_potential_primary_share_exposure excludes everything already in immediate. A share/unit versus pre-funded alternative pool is counted once; a distinct common-warrant or other conditional pool belongs in additional.",
-  "Every fact contains value, availability, value_quality, bound, unit, currency, security_basis, comparison_basis_type, comparable_to_event_market_basis, and one short source_ref. availability is available/unavailable; quality is exact/derived/estimated/unknown; bound is exact/maximum/minimum/unknown. Preserve actual zero and available+unknown values; unavailable means value=null, never zero.",
-  "Use unit currency, currency_per_security, shares, other, or unknown. Use comparison basis market_cap for actual amount, market_price for offering price, shares_outstanding for immediate/additional exposure, and public_float for resale exposure when that is the source-backed comparison. Use the exact event market_context currency and security_basis only when truly comparable; otherwise set comparable_to_event_market_basis false or null.",
-  "For a source-backed non-equity not_applicable filing, keep all five facts unavailable/null and do not invent equity amounts, prices, or share exposure. Do not add components, groups, calculation inputs, row sets, repeated evidence, or confidence objects.",
+  "For primary classification keep resale_share_exposure unavailable. For resale classification keep actual_primary_offering_amount and both primary exposure facts unavailable. Mixed may contain both sides, kept separate. Available amount uses unit=currency and basis=market_cap; price uses currency_per_security and market_price; immediate/additional use shares and shares_outstanding; resale uses shares and public_float.",
+  "Every fact contains availability, value_quality, bound, unit, and comparison_basis_type. availability is available/unavailable; quality is exact/derived/estimated/unknown; bound is exact/maximum/minimum/unknown. For available facts include a non-null numeric value and source-backed security_basis; include currency for currency units. For unavailable facts omit value. Optional currency, security_basis, comparable_to_event_market_basis, and source_ref must be omitted rather than null when unknown. Preserve actual zero and available+unknown values; never use zero, empty strings, sentinels, or defaults for missing data.",
+  "has_warrant, has_prefunded_warrant, and has_convertible are optional only when unknown: include true or false when known, including explicit false. Omission means canonical unknown and is never equivalent to false.",
+  "Use unit currency, currency_per_security, shares, other, or unknown. Use comparison basis market_cap for actual amount, market_price for offering price, shares_outstanding for immediate/additional exposure, and public_float for resale exposure when that is the source-backed comparison. Use the exact event market_context currency and security_basis only when truly comparable; otherwise set comparable_to_event_market_basis false or omit it when unknown.",
+  "For a source-backed non-equity not_applicable filing, keep all five facts unavailable and omit their optional numeric/context fields; do not invent equity amounts, prices, or share exposure. Do not add components, groups, calculation inputs, row sets, repeated evidence, or confidence objects.",
 ].join("\n");
 
 export function applyMinimalOfferingMonitorBoundary(analysisOutput: JsonRecord) {
@@ -192,14 +174,57 @@ export function resolveMinimalOfferingMonitorBoundary(value: unknown): {
       provenance: provenance("transport_failed", ["offering_monitor must be an object"]),
     };
   }
-  const validation = validateMinimalOfferingMonitor(value);
-  if (!validation.ok) {
-    return { value: null, provenance: provenance("validation_failed", validation.errors) };
+  const normalized = normalizeMinimalOfferingMonitorTransport(value);
+  if (!normalized.ok) {
+    return { value: null, provenance: provenance("validation_failed", normalized.errors) };
   }
   return {
-    value: validation.value,
-    provenance: provenance(validation.value.applicability === "not_applicable" ? "not_applicable" : "success", []),
+    value: normalized.value,
+    provenance: provenance(normalized.value.applicability === "not_applicable" ? "not_applicable" : "success", []),
   };
+}
+
+export function normalizeMinimalOfferingMonitorTransport(value: unknown):
+  | { ok: true; value: MinimalOfferingMonitor; errors: [] }
+  | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  const root = recordValue(value);
+  if (!root) return { ok: false, errors: ["offering_monitor must be an object"] };
+  validateTransportKeys(root, [
+    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts",
+  ], ["has_warrant", "has_prefunded_warrant", "has_convertible"], "offering_monitor", errors);
+  for (const key of ["version", "applicability", "financing_stage", "primary_or_resale", "security_nature"] as const) {
+    if (typeof root[key] !== "string") errors.push(`${key} must be a string`);
+  }
+  const facts = recordValue(root.facts);
+  if (!facts) errors.push("facts must be an object");
+  else validateTransportKeys(facts, [...MINIMAL_OFFERING_FACT_KEYS], [], "facts", errors);
+
+  const normalizedFacts = {} as Record<MinimalOfferingFactKey, MinimalOfferingNumericFact>;
+  if (facts) {
+    for (const key of MINIMAL_OFFERING_FACT_KEYS) {
+      const normalized = normalizeTransportFact(facts[key], `facts.${key}`, errors);
+      if (normalized) normalizedFacts[key] = normalized;
+    }
+  }
+  const normalizedBooleans = Object.fromEntries(
+    (["has_warrant", "has_prefunded_warrant", "has_convertible"] as const).map((key) => [
+      key,
+      optionalTransportBoolean(root, key, `offering_monitor.${key}`, errors),
+    ]),
+  ) as Pick<MinimalOfferingMonitor, "has_warrant" | "has_prefunded_warrant" | "has_convertible">;
+  if (errors.length) return { ok: false, errors };
+
+  const canonical = {
+    version: root.version,
+    applicability: root.applicability,
+    financing_stage: root.financing_stage,
+    primary_or_resale: root.primary_or_resale,
+    security_nature: root.security_nature,
+    ...normalizedBooleans,
+    facts: normalizedFacts,
+  } as MinimalOfferingMonitor;
+  return validateMinimalOfferingMonitor(canonical);
 }
 
 export function validateMinimalOfferingMonitor(value: unknown):
@@ -234,6 +259,13 @@ export function validateMinimalOfferingMonitor(value: unknown):
       }
     }
   }
+  if (root.applicability === "applicable" && root.primary_or_resale === "not_applicable") {
+    errors.push("primary_or_resale cannot be not_applicable when applicability is applicable");
+  }
+  if (root.applicability === "not_applicable" && root.primary_or_resale !== "not_applicable") {
+    errors.push("primary_or_resale must be not_applicable when applicability is not_applicable");
+  }
+  if (facts) validateFactSemantics(root, facts, errors);
   if (errors.length) return { ok: false, errors };
   return { ok: true, value: root as MinimalOfferingMonitor, errors: [] };
 }
@@ -368,14 +400,92 @@ function validateFact(value: unknown, path: string, errors: string[]) {
   if (fact.availability === "available") {
     if (number === null || number < 0) errors.push(`${path}.value must be a non-negative finite number when available`);
     if (!nullableString(fact.security_basis)) errors.push(`${path}.security_basis is required when available`);
+    if (!nullableString(fact.source_ref)) errors.push(`${path}.source_ref is required when available`);
     if (["currency", "currency_per_security"].includes(String(fact.unit)) && !nullableString(fact.currency)) {
       errors.push(`${path}.currency is required for currency facts`);
     }
   } else if (fact.value !== null) {
     errors.push(`${path}.value must be null when unavailable`);
   }
+  if (fact.availability === "unavailable" && fact.comparable_to_event_market_basis === true) {
+    errors.push(`${path}.comparable_to_event_market_basis cannot be true when unavailable`);
+  }
   if ((fact.source_ref as string | null)?.length && String(fact.source_ref).length > 160) {
     errors.push(`${path}.source_ref must be 160 characters or fewer`);
+  }
+}
+
+function normalizeTransportFact(value: unknown, path: string, errors: string[]): MinimalOfferingNumericFact | null {
+  const fact = recordValue(value);
+  if (!fact) {
+    errors.push(`${path} must be an object`);
+    return null;
+  }
+  validateTransportKeys(fact, [
+    "availability", "value_quality", "bound", "unit", "comparison_basis_type",
+  ], ["value", "currency", "security_basis", "comparable_to_event_market_basis", "source_ref"], path, errors);
+  for (const key of ["availability", "value_quality", "bound", "unit", "comparison_basis_type"] as const) {
+    if (typeof fact[key] !== "string") errors.push(`${path}.${key} must be a string`);
+  }
+  const hasValue = Object.prototype.hasOwnProperty.call(fact, "value");
+  if (hasValue && (typeof fact.value !== "number" || !Number.isFinite(fact.value))) {
+    errors.push(`${path}.value must be a finite number when present`);
+  }
+  const comparable = optionalTransportBoolean(fact, "comparable_to_event_market_basis", `${path}.comparable_to_event_market_basis`, errors);
+  return {
+    value: hasValue && typeof fact.value === "number" && Number.isFinite(fact.value) ? fact.value : null,
+    availability: fact.availability as MinimalOfferingNumericFact["availability"],
+    value_quality: fact.value_quality as MinimalOfferingValueQuality,
+    bound: fact.bound as MinimalOfferingBound,
+    unit: fact.unit as MinimalOfferingNumericFact["unit"],
+    currency: optionalTransportString(fact, "currency", `${path}.currency`, errors),
+    security_basis: optionalTransportString(fact, "security_basis", `${path}.security_basis`, errors),
+    comparison_basis_type: fact.comparison_basis_type as MinimalOfferingComparisonBasis,
+    comparable_to_event_market_basis: comparable,
+    source_ref: optionalTransportString(fact, "source_ref", `${path}.source_ref`, errors),
+  };
+}
+
+function validateFactSemantics(root: JsonRecord, facts: JsonRecord, errors: string[]) {
+  const expected = {
+    actual_primary_offering_amount: { unit: "currency", basis: "market_cap" },
+    offering_price: { unit: "currency_per_security", basis: "market_price" },
+    immediate_primary_share_exposure: { unit: "shares", basis: "shares_outstanding" },
+    additional_potential_primary_share_exposure: { unit: "shares", basis: "shares_outstanding" },
+    resale_share_exposure: { unit: "shares", basis: "public_float" },
+  } as const;
+  for (const key of MINIMAL_OFFERING_FACT_KEYS) {
+    const fact = recordValue(facts[key]);
+    if (!fact || fact.availability !== "available") continue;
+    if (fact.unit !== expected[key].unit) errors.push(`facts.${key}.unit is incompatible with the fact meaning`);
+    if (fact.comparison_basis_type !== expected[key].basis) {
+      errors.push(`facts.${key}.comparison_basis_type is incompatible with the fact meaning`);
+    }
+  }
+  if (root.primary_or_resale === "primary") {
+    requireUnavailableFact(facts.resale_share_exposure, "facts.resale_share_exposure", "primary", errors);
+  } else if (root.primary_or_resale === "resale") {
+    for (const key of [
+      "actual_primary_offering_amount",
+      "immediate_primary_share_exposure",
+      "additional_potential_primary_share_exposure",
+    ] as const) requireUnavailableFact(facts[key], `facts.${key}`, "resale", errors);
+  }
+  const immediate = recordValue(facts.immediate_primary_share_exposure);
+  const additional = recordValue(facts.additional_potential_primary_share_exposure);
+  if (immediate?.availability === "available" && additional?.availability === "available") {
+    for (const key of ["unit", "currency", "security_basis", "comparison_basis_type"] as const) {
+      if (normalizeComparableValue(immediate[key]) !== normalizeComparableValue(additional[key])) {
+        errors.push(`immediate/additional ${key} must be compatible`);
+      }
+    }
+  }
+}
+
+function requireUnavailableFact(value: unknown, path: string, classification: string, errors: string[]) {
+  const fact = recordValue(value);
+  if (fact && (fact.availability !== "unavailable" || fact.value !== null)) {
+    errors.push(`${path} must be unavailable/null for ${classification} classification`);
   }
 }
 
@@ -536,6 +646,41 @@ function validateKnownKeys(value: JsonRecord, keys: string[], path: string, erro
   const extra = Object.keys(value).filter((key) => !allowed.has(key));
   if (extra.length) errors.push(`${path} has unsupported field(s): ${extra.join(", ")}`);
   for (const key of keys) if (!(key in value)) errors.push(`${path}.${key} is required`);
+}
+
+function validateTransportKeys(
+  value: JsonRecord,
+  required: string[],
+  optional: string[],
+  path: string,
+  errors: string[],
+) {
+  const allowed = new Set([...required, ...optional]);
+  const extra = Object.keys(value).filter((key) => !allowed.has(key));
+  if (extra.length) errors.push(`${path} has unsupported field(s): ${extra.join(", ")}`);
+  for (const key of required) if (!(key in value)) errors.push(`${path}.${key} is required`);
+}
+
+function optionalTransportBoolean(value: JsonRecord, key: string, path: string, errors: string[]): boolean | null {
+  if (!Object.prototype.hasOwnProperty.call(value, key)) return null;
+  if (typeof value[key] !== "boolean") {
+    errors.push(`${path} must be boolean when present`);
+    return null;
+  }
+  return value[key];
+}
+
+function optionalTransportString(value: JsonRecord, key: string, path: string, errors: string[]): string | null {
+  if (!Object.prototype.hasOwnProperty.call(value, key)) return null;
+  if (typeof value[key] !== "string" || !value[key].trim()) {
+    errors.push(`${path} must be a non-empty string when present`);
+    return null;
+  }
+  return value[key].trim();
+}
+
+function normalizeComparableValue(value: unknown) {
+  return typeof value === "string" ? normalizeToken(value) : value;
 }
 
 function requireEnum(value: unknown, allowed: readonly string[], path: string, errors: string[]) {

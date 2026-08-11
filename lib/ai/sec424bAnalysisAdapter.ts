@@ -30,8 +30,8 @@ import {
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v42-minimal-offering-monitor-v1";
-export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v43-minimal-offering-monitor-v1";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v44-minimal-offering-monitor-provider-transport";
+export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v45-minimal-offering-monitor-provider-transport";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_KEY = "sec_424b_validation_repair";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 const ALLOWED_424B_DISPLAY_MODES = new Set([

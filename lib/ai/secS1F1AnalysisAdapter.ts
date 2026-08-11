@@ -26,7 +26,7 @@ import {
 } from "@/lib/minimalOfferingMonitor";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v33-minimal-offering-monitor-v1";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v34-minimal-offering-monitor-provider-transport";
 const SEC_F1_LEGACY_ANALYSIS_PROMPT_VERSION = "v32-pending-terms-default";
 // Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
 export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";

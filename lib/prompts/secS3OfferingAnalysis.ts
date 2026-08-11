@@ -8,8 +8,8 @@ import { MINIMAL_OFFERING_MONITOR_PROMPT } from "@/lib/minimalOfferingMonitor";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v64-minimal-offering-monitor-v1";
-export const SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION = "v65-minimal-offering-monitor-v1";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v66-minimal-offering-monitor-provider-transport";
+export const SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION = "v67-minimal-offering-monitor-provider-transport";
 const SEC_F3_LEGACY_OFFERING_ANALYSIS_PROMPT_VERSION = "v63-news-style-taxonomy-schema";
 
 const secS3MaterialEventsSystemPrompt = [

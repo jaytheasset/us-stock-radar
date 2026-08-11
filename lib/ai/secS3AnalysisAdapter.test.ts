@@ -38,7 +38,7 @@ describe("S-3 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v65-minimal-offering-monitor-v1");
+    assert.equal(prompt.version, "v67-minimal-offering-monitor-provider-transport");
     assert.ok(prompt.system.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`"block_id":"${sourceBlockIds[0]}"`));
     assert.ok(analysisSchema.required.includes("material_events"));
