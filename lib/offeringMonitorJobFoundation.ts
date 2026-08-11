@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SEC_S3_F3_FORMS } from "./sources/sec/forms/common/forms.ts";
 
 export const OFFERING_MONITOR_JOB_PURPOSE = "offering_monitor_normalization";
 export const OFFERING_MONITOR_JOB_PROMPT_KEY = "offering_monitor_normalization_job";
@@ -233,7 +234,12 @@ function offeringMonitorFamily(formType: string, promptKey: string): OfferingMon
   if (!OFFERING_PRIMARY_PROMPT_KEYS.has(promptKey)) return null;
   const form = formType.trim().toUpperCase();
   if (/^S-1(?:\/A)?$/.test(form) && promptKey === "sec_s1_f1_analysis") return "s1";
-  if (/^S-3(?:\/A)?$/.test(form) && promptKey === "sec_s3_offering_analysis") return "s3";
+  if (
+    SEC_S3_F3_FORMS.includes(form as (typeof SEC_S3_F3_FORMS)[number]) &&
+    promptKey === "sec_s3_offering_analysis"
+  ) {
+    return "s3";
+  }
   if (/^424B\d*(?:\/A)?$/.test(form) && promptKey === "sec_424b_analysis") return "424b";
   return null;
 }

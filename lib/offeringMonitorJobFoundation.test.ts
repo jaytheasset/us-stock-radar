@@ -10,6 +10,7 @@ import {
   type OfferingMonitorJobIdentity,
   type OfferingMonitorParentAuthority,
 } from "./offeringMonitorJobFoundation.ts";
+import { SEC_S3_F3_FORMS } from "./sources/sec/forms/common/forms.ts";
 
 const EVENT_A = "69606800-ee16-4a75-9bbf-3b64bdc56d69";
 const RAW_A = "efea3384-9eef-4e6b-9e63-60dc1cd3090e";
@@ -25,13 +26,38 @@ test("S-1 Primary completion produces a parent-run-scoped Monitor identity", () 
   assert.match(identity.jobId, /^[0-9a-f-]{36}$/);
 });
 
-test("S-3 and 424B offering Primary runs are eligible without joining their Primary paths", () => {
-  assert.equal(identityFor("S-3", "sec_s3_offering_analysis", RUN_A)?.family, "s3");
+test("every canonical S-3/F-3 offering Primary form is eligible without joining its Primary path", () => {
+  assert.deepEqual(SEC_S3_F3_FORMS, [
+    "S-3",
+    "S-3/A",
+    "S-3ASR",
+    "S-3MEF",
+    "F-3",
+    "F-3/A",
+    "F-3ASR",
+    "F-3MEF",
+  ]);
+  for (const formType of SEC_S3_F3_FORMS) {
+    assert.equal(identityFor(formType, "sec_s3_offering_analysis", RUN_A)?.family, "s3", formType);
+  }
+});
+
+test("424B offering Primary runs remain eligible", () => {
   assert.equal(identityFor("424B4", "sec_424b_analysis", RUN_A)?.family, "424b");
 });
 
-test("non-target forms, F-1, wrong prompt, dry-run, and failed Primary are ineligible", () => {
+test("S-3/F-3 forms with mismatched prompt keys are ineligible", () => {
+  for (const formType of SEC_S3_F3_FORMS) {
+    assert.equal(identityFor(formType, "sec_s1_f1_analysis", RUN_A), null, formType);
+    assert.equal(identityFor(formType, "sec_424b_analysis", RUN_A), null, formType);
+  }
+});
+
+test("non-target forms, near-matches, F-1, wrong prompt, dry-run, and failed Primary are ineligible", () => {
   assert.equal(identityFor("F-1", "sec_s1_f1_analysis", RUN_A), null);
+  assert.equal(identityFor("S-3D", "sec_s3_offering_analysis", RUN_A), null);
+  assert.equal(identityFor("F-3D", "sec_s3_offering_analysis", RUN_A), null);
+  assert.equal(identityFor("S-4", "sec_s3_offering_analysis", RUN_A), null);
   assert.equal(identityFor("8-K", "sec_8k_6k_capital_financing_analysis", RUN_A), null);
   assert.equal(identityFor("S-1", "sec_filing_analysis", RUN_A), null);
   assert.equal(buildOfferingMonitorJobIdentity({ ok: true, stage: "dry_run" }), null);
