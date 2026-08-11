@@ -77,36 +77,36 @@ describe("S-1/F-1 analysis output fixtures", () => {
     assert.ok(prompt.includes("rule_462b_mef"));
   });
 
-  it("separates S-1 Monitor seller side from display component structure", () => {
+  it("defines the coherent S-1 Offering Monitor contract", () => {
     const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
     const parserOutput = parseS1F1Filing(fixture.input);
     const prompt = buildS1F1AnalysisPrompt(parserOutput);
 
-    assert.match(prompt, /mixed_offering describes independently material offering components or security structure/);
-    assert.match(prompt, /Offering Monitor side describes the economic seller\/source of securities and proceeds recipient/);
-    assert.match(prompt, /issuer-only transaction with those components remains primary for Monitor side/);
-    assert.match(prompt, /resale means an actual selling holder or selling securityholder resells securities/);
-    assert.match(prompt, /mixed requires both an issuer primary sale and an actual selling-holder resale/);
-    assert.match(prompt, /Rule 144 language[\s\S]*alone are not evidence of an actual selling-holder resale/);
-    assert.match(prompt, /choose side=mixed only when the source actually supports both seller sides/);
-  });
+    const contractChecks: Array<[string, RegExp]> = [
+      ["canonical filtering facts", /canonical financing and dilution facts for deterministic filtering, monitoring, historical matching, and backtesting/],
+      ["Display and Monitor have different purposes", /Keep Display and Monitor purposes separate/],
+      ["Display mixed is not Monitor mixed", /Display may describe security components as mixed_offering[\s\S]*Monitor side follows economic sellers/],
+      ["amount is the current primary transaction", /source-backed gross size of the current specific issuer-primary financing/],
+      ["approximate and up-to amounts remain usable", /Preserve a transaction-specific approximate, up-to, maximum, or committed maximum/],
+      ["gross-net fees do not erase the transaction", /gross\/net fee difference is not a reason to discard a source-backed transaction amount/],
+      ["immediate is distinct", /immediate is the deduplicated exposure available from the current primary transaction/],
+      ["additional excludes immediate", /additional is only separate conditional\/potential primary exposure not already in immediate/],
+      ["additional is not total", /additional[\s\S]*is not total potential/],
+      ["alternatives are not simultaneous", /never sum alternatives as simultaneous exposure/],
+      ["security names do not determine relationships", /Use source terms—not security names—to decide alternative, substitute, simultaneous, and conditional relationships/],
+      ["same-generation self-check exists", /Before emitting offering_monitor_payload, compare it with the SEC source and your own title, summary, Display analysis/],
+      ["narrative contradictions are rechecked", /other clear narrative\/Monitor contradiction; resolve the Monitor facts before output/],
+      ["no parser or code semantic correction", /not a parser\/code correction, fallback, repair call, or second Monitor LLM call/],
+    ];
 
-  it("keeps S-1 Monitor gross distinct from display proceeds and fee-table values", () => {
-    const fixture = loadJson<{ input: S1F1ParserInput }>("fixtures/edgar-reddit-s1a-pricing.json");
-    const parserOutput = parseS1F1Filing(fixture.input);
-    const prompt = buildS1F1AnalysisPrompt(parserOutput);
+    for (const [meaning, pattern] of contractChecks) {
+      assert.match(prompt, pattern, meaning);
+    }
 
-    assert.match(prompt, /actual means the source-backed gross transaction amount for the current specific issuer primary transaction/);
-    assert.match(prompt, /not only cash already received at closing/);
-    assert.match(prompt, /A fixed, approximate, up-to, or committed maximum gross amount may be available/);
-    assert.match(prompt, /approximation with quality=estimated/);
-    assert.match(prompt, /up-to or maximum amount with bound=maximum/);
-    assert.match(prompt, /Gross is the purchase amount or transaction consideration before fees and offering expenses/);
-    assert.match(prompt, /net proceeds are after those deductions and are not gross/);
-    assert.match(prompt, /registration fee-table ceiling alone is not Monitor transaction gross/);
-    assert.match(prompt, /fee-table occurrence does not invalidate that independently source-backed amount/);
-    assert.match(prompt, /display-only fixed-proceeds and calculability rules[\s\S]*do not override the Monitor rule/);
-    assert.match(prompt, /If Monitor gross is not source-backed, keep it unavailable and never substitute net proceeds/);
+    assert.match(prompt, /mixed requires both in the same current transaction/);
+    assert.match(prompt, /Multiple instruments[\s\S]*do not by themselves make side mixed/);
+    assert.match(prompt, /do not relabel net proceeds[\s\S]*as gross/);
+    assert.match(prompt, /Code later adds immediate \+ additional/);
   });
 
   it("does not add the S-1 Monitor alignment contract to F-1 analysis", () => {
@@ -114,7 +114,7 @@ describe("S-1/F-1 analysis output fixtures", () => {
     const parserOutput = parseS1F1Filing(fixture.input);
     const prompt = buildS1F1AnalysisPrompt(parserOutput);
 
-    assert.doesNotMatch(prompt, /S-1\/F-1 Offering Monitor semantic alignment/);
+    assert.doesNotMatch(prompt, /S-1 OFFERING MONITOR CONTRACT/);
   });
 
   it("does not use SPAC transaction UI for blank-check IPO registration alone", () => {
