@@ -4,6 +4,10 @@ import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calenda
 import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secIntegrationContract";
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
 import { persistOptionalMonitorFoundation } from "@/lib/monitor/persistence";
+import {
+  buildMinimalOfferingMarketSnapshot,
+  prepareMinimalOfferingMonitorPersistence,
+} from "@/lib/minimalOfferingMonitor";
 import { buildSecFilingAlertCandidate, enqueueSecFilingAlertCandidate } from "@/lib/secStores/alertQueue";
 import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
 import {
@@ -463,6 +467,42 @@ async function persistEventOfferingTerms({
       ].join(" "),
     );
   const parserOfferingAmount = isResaleLikeOffering ? null : nullableString(offeringTerms?.offering_amount);
+  const existingOfferingTerms = await supabaseSelect("event_offering_terms", {
+    select: "metadata",
+    event_id: `eq.${stringValue(eventRow.id)}`,
+    limit: "1",
+  });
+  const monitorProvenance = toRecord(analysis.offering_monitor_provenance);
+  if (
+    !existingOfferingTerms.ok &&
+    ["transport_failed", "validation_failed"].includes(stringValue(monitorProvenance?.status))
+  ) {
+    // A failed Monitor generation must never overwrite a canonical value that
+    // could not be read safely. The legacy event/analysis/display writes remain
+    // independent and continue through their existing persistence paths.
+    return;
+  }
+  const existingMetadata = existingOfferingTerms.ok
+    ? toRecord(firstRow(existingOfferingTerms.data)?.metadata) || {}
+    : {};
+  const monitorPersistence = prepareMinimalOfferingMonitorPersistence({
+    analysisOutput: analysis.offering_monitor,
+    provenance: analysis.offering_monitor_provenance,
+    existingMetadata: {
+      ...existingMetadata,
+      raw_offering_type: offeringTypeNormalization.rawOfferingType,
+      offering_method: offeringTypeNormalization.offeringMethod,
+      offering_display_model: displayModel,
+      offering_security_audit: audit,
+      dilution_metrics: dilutionMetrics,
+      source_notes: stringArray(displayModel?.source_notes),
+      review_reasons: [
+        ...stringArray(displayModel?.review_reasons),
+        ...stringArray(audit?.review_reasons),
+      ].slice(0, 8),
+    },
+    marketSnapshot: buildMinimalOfferingMarketSnapshot(marketContext),
+  });
 
   const payload = removeUndefined({
     event_id: stringValue(eventRow.id),
@@ -555,18 +595,7 @@ async function persistEventOfferingTerms({
     extraction_model: nullableString(model),
     prompt_key: promptKey,
     prompt_version: promptVersion,
-    metadata: {
-      raw_offering_type: offeringTypeNormalization.rawOfferingType,
-      offering_method: offeringTypeNormalization.offeringMethod,
-      offering_display_model: displayModel,
-      offering_security_audit: audit,
-      dilution_metrics: dilutionMetrics,
-      source_notes: stringArray(displayModel?.source_notes),
-      review_reasons: [
-        ...stringArray(displayModel?.review_reasons),
-        ...stringArray(audit?.review_reasons),
-      ].slice(0, 8),
-    },
+    metadata: monitorPersistence.metadata,
 
     common_shares_offered_text: commonShareExposure ? `${commonShareExposure.toLocaleString("en-US")} shares` : null,
     common_shares_offered: commonShareExposure || null,
@@ -957,6 +986,7 @@ export async function fetchSecFilingCalendarItemsForEvent(eventId: string) {
 }
 
 function shouldPersistEventOfferingTerms(eventRow: PersistedRow, analysis: Record<string, unknown>) {
+  if (toRecord(analysis.offering_monitor) || toRecord(analysis.offering_monitor_provenance)) return true;
   if (stringValue(eventRow.event_type) === "dilution_risk") return true;
   if (toRecord(analysis.offering_display_model)) return true;
   if (toRecord(analysis.offering_security_audit)) return true;

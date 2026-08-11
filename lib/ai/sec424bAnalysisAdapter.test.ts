@@ -24,10 +24,12 @@ describe("424B5 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v42-material-events");
+    assert.equal(prompt.version, "v43-minimal-offering-monitor-v1");
     assert.ok(prompt.user.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`\"block_id\": \"${sourceBlockIds[0]}\"`));
     assert.ok(analysisSchema.required.includes("material_events"));
+    assert.ok(analysisSchema.required.includes("offering_monitor"));
+    assert.equal("components" in analysisSchema.properties.offering_monitor.properties, false);
     assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -49,7 +51,20 @@ describe("424B5 material events output contract", () => {
     assert.match(rejected.error, /analysis source bundle/);
   });
 
-  it("does not impose the new output contract on 424B3", () => {
+  it("isolates malformed Monitor output without failing the existing 424B analysis", () => {
+    const input = build424b5MaterialEventsInput("424B5");
+    const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
+    const result = build424b5MaterialEventsResult(get424bAnalysisSourceBlockIds(parserOutput));
+    (result.analysis_output as Record<string, unknown>).offering_monitor = { version: "broken" };
+    const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    assert.equal(adapted.analysis.event_title, result.analysis_output.event_title);
+    assert.equal((adapted.analysis.offering_monitor_provenance as Record<string, unknown>).status, "validation_failed");
+    assert.equal(adapted.analysis.offering_monitor, undefined);
+  });
+
+  it("does not impose the 424B5 material-events contract on 424B3", () => {
     const input = build424b5MaterialEventsInput("424B3");
     const prompt = buildSec424bAnalysisPromptForInput(input);
     const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
@@ -57,7 +72,7 @@ describe("424B5 material events output contract", () => {
     const result = build424b5MaterialEventsResult([]);
     delete (result.analysis_output as Record<string, unknown>).material_events;
 
-    assert.equal(prompt.version, "v41-news-style-taxonomy-schema");
+    assert.equal(prompt.version, "v42-minimal-offering-monitor-v1");
     assert.ok(!prompt.user.includes("exactly one role=primary"));
     assert.ok(!analysisSchema.required.includes("material_events"));
     assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(result, input).ok, true);

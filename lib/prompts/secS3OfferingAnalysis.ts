@@ -2,12 +2,15 @@ import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
   sec424b5RequiredOutputSchema,
   sec424bRequiredOutputSchema,
+  secLegacyF3RequiredOutputSchema,
 } from "@/lib/ai/sec424bAnalysisAdapter";
+import { MINIMAL_OFFERING_MONITOR_PROMPT } from "@/lib/minimalOfferingMonitor";
 import { buildSecSourceBlockPromptInput } from "@/lib/sources/sec/forms/common/sourceBlockPromptInput";
 
 export const SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY = "sec_s3_offering_analysis";
-export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v63-news-style-taxonomy-schema";
-export const SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION = "v64-material-events";
+export const SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION = "v64-minimal-offering-monitor-v1";
+export const SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION = "v65-minimal-offering-monitor-v1";
+const SEC_F3_LEGACY_OFFERING_ANALYSIS_PROMPT_VERSION = "v63-news-style-taxonomy-schema";
 
 const secS3MaterialEventsSystemPrompt = [
   "Populate analysis_output.material_events before event_title, quick_take, score_reason, score_explanation, or summary. This is the source-backed event plan used by filing previews.",
@@ -289,23 +292,39 @@ export const secS3OfferingAnalysisResponseSchema = sec424bRequiredOutputSchema;
 
 export function buildSecS3OfferingAnalysisPrompt(input: SecFilingAnalysisInput) {
   const requiresMaterialEvents = requiresSecS3MaterialEvents(input);
+  const monitorEnabled = isS3MonitorInput(input);
+  const baseSystem = monitorEnabled
+    ? `${secS3RequiredOutputSystemPrompt}\n${MINIMAL_OFFERING_MONITOR_PROMPT}`
+    : secS3RequiredOutputSystemPrompt;
   return {
     key: SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
-    version: requiresMaterialEvents
+    version: !monitorEnabled
+      ? SEC_F3_LEGACY_OFFERING_ANALYSIS_PROMPT_VERSION
+      : requiresMaterialEvents
       ? SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION
       : SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION,
     system: requiresMaterialEvents
-      ? `${secS3RequiredOutputSystemPrompt}\n${secS3MaterialEventsSystemPrompt}`
-      : secS3RequiredOutputSystemPrompt,
+      ? `${baseSystem}\n${secS3MaterialEventsSystemPrompt}`
+      : baseSystem,
     user: JSON.stringify(buildSecS3OfferingPromptInput(input)),
     responseFormat: {
       json_schema: {
         name: "sec_s3_required_output",
         strict: false,
-        schema: requiresMaterialEvents ? sec424b5RequiredOutputSchema : sec424bRequiredOutputSchema,
+        schema: !monitorEnabled
+          ? secLegacyF3RequiredOutputSchema
+          : requiresMaterialEvents
+            ? sec424b5RequiredOutputSchema
+            : sec424bRequiredOutputSchema,
       },
     },
   };
+}
+
+function isS3MonitorInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  const normalized = stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "");
+  return normalized.startsWith("S-3");
 }
 
 function buildSecS3OfferingPromptInput(input: SecFilingAnalysisInput) {
