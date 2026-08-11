@@ -24,12 +24,12 @@ describe("424B5 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v45-minimal-offering-monitor-provider-transport");
+    assert.equal(prompt.version, "v47-compact-offering-monitor-payload");
     assert.ok(prompt.user.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`\"block_id\": \"${sourceBlockIds[0]}\"`));
     assert.ok(analysisSchema.required.includes("material_events"));
-    assert.ok(analysisSchema.required.includes("offering_monitor"));
-    assert.equal("components" in analysisSchema.properties.offering_monitor.properties, false);
+    assert.ok(analysisSchema.required.includes("offering_monitor_payload"));
+    assert.deepEqual(analysisSchema.properties.offering_monitor_payload, { type: "string" });
     assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -55,7 +55,7 @@ describe("424B5 material events output contract", () => {
     const input = build424b5MaterialEventsInput("424B5");
     const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
     const result = build424b5MaterialEventsResult(get424bAnalysisSourceBlockIds(parserOutput));
-    (result.analysis_output as Record<string, unknown>).offering_monitor = { version: "broken" };
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = JSON.stringify({ v: "broken" });
     const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -68,7 +68,7 @@ describe("424B5 material events output contract", () => {
     const input = build424b5MaterialEventsInput("424B5");
     const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
     const result = build424b5MaterialEventsResult(get424bAnalysisSourceBlockIds(parserOutput));
-    (result.analysis_output as Record<string, unknown>).offering_monitor = buildUnavailableMonitorTransport();
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = buildUnavailableMonitorTransport();
     const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -87,7 +87,7 @@ describe("424B5 material events output contract", () => {
     const result = build424b5MaterialEventsResult([]);
     delete (result.analysis_output as Record<string, unknown>).material_events;
 
-    assert.equal(prompt.version, "v44-minimal-offering-monitor-provider-transport");
+    assert.equal(prompt.version, "v46-compact-offering-monitor-payload");
     assert.ok(!prompt.user.includes("exactly one role=primary"));
     assert.ok(!analysisSchema.required.includes("material_events"));
     assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(result, input).ok, true);
@@ -419,26 +419,33 @@ function build424b5MaterialEventsResult(sourceBlockIds: string[], score = 68) {
 }
 
 function buildUnavailableMonitorTransport() {
-  const fact = (unit: string, comparison_basis_type: string) => ({
+  const fact = (unit: string, comparison_basis: string) => ({
+    value: null,
     availability: "unavailable",
-    value_quality: "unknown",
+    quality: "unknown",
     bound: "unknown",
     unit,
-    comparison_basis_type,
+    currency: null,
+    security_basis: null,
+    comparison_basis,
+    comparable: null,
+    source: null,
   });
-  return {
-    version: "minimal_offering_monitor_v1",
-    applicability: "applicable",
-    financing_stage: "registration_only",
-    primary_or_resale: "unknown",
-    security_nature: "unknown",
-    has_warrant: false,
+  return JSON.stringify({
+    v: "om1",
+    app: "applicable",
+    stage: "registration_only",
+    side: "unknown",
+    nature: "unknown",
+    w: false,
+    pfw: null,
+    conv: null,
     facts: {
-      actual_primary_offering_amount: fact("currency", "market_cap"),
-      offering_price: fact("currency_per_security", "market_price"),
-      immediate_primary_share_exposure: fact("shares", "shares_outstanding"),
-      additional_potential_primary_share_exposure: fact("shares", "shares_outstanding"),
-      resale_share_exposure: fact("shares", "public_float"),
+      amount: fact("currency", "market_cap"),
+      price: fact("currency_per_security", "market_price"),
+      immediate: fact("shares", "shares_outstanding"),
+      additional: fact("shares", "shares_outstanding"),
+      resale: fact("shares", "public_float"),
     },
-  };
+  });
 }

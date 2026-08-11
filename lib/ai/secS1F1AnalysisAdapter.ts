@@ -26,7 +26,7 @@ import {
 } from "@/lib/minimalOfferingMonitor";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v34-minimal-offering-monitor-provider-transport";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v35-compact-offering-monitor-payload";
 const SEC_F1_LEGACY_ANALYSIS_PROMPT_VERSION = "v32-pending-terms-default";
 // Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
 export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";
@@ -1970,7 +1970,7 @@ export const secS1F1RequiredOutputSchema = {
         "summary",
         "confidence",
         "needs_human_review",
-        "offering_monitor",
+        "offering_monitor_payload",
       ],
       properties: {
         event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
@@ -1984,7 +1984,7 @@ export const secS1F1RequiredOutputSchema = {
         summary: { type: "string" },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
-        offering_monitor: minimalOfferingMonitorProviderSchema,
+        offering_monitor_payload: minimalOfferingMonitorProviderSchema,
         archive_summary: { type: ["string", "null"] },
       },
     },
@@ -1992,7 +1992,7 @@ export const secS1F1RequiredOutputSchema = {
 } as const;
 
 const {
-  offering_monitor: _s1OfferingMonitorSchema,
+  offering_monitor_payload: _s1OfferingMonitorSchema,
   ...legacyF1AnalysisProperties
 } = secS1F1RequiredOutputSchema.properties.analysis_output.properties;
 
@@ -2003,7 +2003,7 @@ const secF1LegacyRequiredOutputSchema = {
     analysis_output: {
       ...secS1F1RequiredOutputSchema.properties.analysis_output,
       required: secS1F1RequiredOutputSchema.properties.analysis_output.required.filter(
-        (key) => key !== "offering_monitor",
+        (key) => key !== "offering_monitor_payload",
       ),
       properties: legacyF1AnalysisProperties,
     },

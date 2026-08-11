@@ -38,12 +38,12 @@ describe("S-3 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v67-minimal-offering-monitor-provider-transport");
+    assert.equal(prompt.version, "v69-compact-offering-monitor-payload");
     assert.ok(prompt.system.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`"block_id":"${sourceBlockIds[0]}"`));
     assert.ok(analysisSchema.required.includes("material_events"));
-    assert.ok(analysisSchema.required.includes("offering_monitor"));
-    assert.equal("components" in analysisSchema.properties.offering_monitor.properties, false);
+    assert.ok(analysisSchema.required.includes("offering_monitor_payload"));
+    assert.deepEqual(analysisSchema.properties.offering_monitor_payload, { type: "string" });
     assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -74,7 +74,7 @@ describe("S-3 material events output contract", () => {
     const input = buildS3MaterialEventsInput("S-3");
     const sourceBlockIds = getSecS3OfferingSourceBlockIds(input);
     const result = buildS3MaterialEventsResult(sourceBlockIds);
-    (result.analysis_output as Record<string, unknown>).offering_monitor = { version: "broken" };
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = JSON.stringify({ v: "broken" });
     const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -94,7 +94,7 @@ describe("S-3 material events output contract", () => {
     assert.equal(prompt.version, "v63-news-style-taxonomy-schema");
     assert.ok(!prompt.system.includes("exactly one role=primary"));
     assert.ok(!analysisSchema.required.includes("material_events"));
-    assert.ok(!analysisSchema.required.includes("offering_monitor"));
+    assert.ok(!analysisSchema.required.includes("offering_monitor_payload"));
     assert.equal(adaptSecS3AnalysisPromptResultForAnalysis(result, input).ok, true);
   });
 });

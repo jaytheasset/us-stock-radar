@@ -5,11 +5,11 @@ import {
   MINIMAL_OFFERING_FACT_KEYS,
   MINIMAL_OFFERING_MONITOR_PROMPT,
   MINIMAL_OFFERING_MONITOR_VERSION,
+  MINIMAL_OFFERING_MONITOR_WIRE_VERSION,
   applyMinimalOfferingMonitorBoundary,
   buildMinimalOfferingMarketSnapshot,
   materializeMinimalOfferingMonitor,
   minimalOfferingMonitorProviderSchema,
-  normalizeMinimalOfferingMonitorTransport,
   prepareMinimalOfferingMonitorPersistence,
   validateMinimalOfferingMonitor,
   type MinimalOfferingMonitor,
@@ -106,19 +106,13 @@ function monitor(overrides: Partial<MinimalOfferingMonitor> = {}): MinimalOfferi
   };
 }
 
-test("1. provider schema is minimal, named, and contains no transport graph arrays", () => {
+test("1. provider schema is exactly one unconstrained plain string", () => {
   const text = JSON.stringify(minimalOfferingMonitorProviderSchema);
-  const schema = minimalOfferingMonitorProviderSchema as Record<string, any>;
-  assert.equal(minimalOfferingMonitorProviderSchema.type, "object");
-  assert.ok(text.length < 8_000);
-  assert.doesNotMatch(text, /components|groups|calculation_inputs|row_sets|evidence|confidence/);
+  assert.deepEqual(minimalOfferingMonitorProviderSchema, { type: "string" });
+  assert.doesNotMatch(text, /enum|null|object|array|union|oneOf|anyOf|format/);
   assert.doesNotMatch(text, /total_potential_primary_share_exposure/);
-  assert.doesNotMatch(text, /"enum"|"null"/);
-  assert.ok(!schema.required.includes("has_warrant"));
-  const factSchema = schema.properties.facts.properties.actual_primary_offering_amount;
-  assert.ok(!factSchema.required.includes("value"));
-  assert.equal(factSchema.properties.value.type, "number");
-  assert.equal(factSchema.properties.comparable_to_event_market_basis.type, "boolean");
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /analysis_output\.offering_monitor_payload/);
+  assert.match(MINIMAL_OFFERING_MONITOR_PROMPT, /one minified JSON string/);
 });
 
 test("2. available exact value validates", () => {
@@ -232,7 +226,7 @@ test("19. malformed canonical records validation failure while legacy fields sta
     event_title: "keep title",
     summary: "keep summary",
     score: 80,
-    offering_monitor: { version: "broken" },
+    offering_monitor_payload: JSON.stringify({ v: "broken" }),
   };
   const boundary = applyMinimalOfferingMonitorBoundary(analysis);
   assert.equal(boundary.provenance.status, "validation_failed");
@@ -240,6 +234,7 @@ test("19. malformed canonical records validation failure while legacy fields sta
   assert.equal(analysis.summary, "keep summary");
   assert.equal(analysis.score, 80);
   assert.equal(analysis.offering_monitor, undefined);
+  assert.equal(analysis.offering_monitor_payload, undefined);
 });
 
 test("20. failure preserves prior valid canonical metadata", () => {
@@ -322,79 +317,203 @@ test("28. unsupported semantic fields fail instead of being silently accepted", 
   assert.equal(validateMinimalOfferingMonitor(value).ok, false);
 });
 
-test("29. provider transport omission normalizes to canonical null without zero or empty sentinels", () => {
-  const transport = transportFromCanonical(monitor());
-  delete transport.has_prefunded_warrant;
-  const price = (transport.facts as Record<string, Record<string, unknown>>).offering_price;
-  delete price.value;
-  price.availability = "unavailable";
-  delete price.currency;
-  delete price.security_basis;
-  delete price.comparable_to_event_market_basis;
-  delete price.source_ref;
-  const normalized = normalizeMinimalOfferingMonitorTransport(transport);
-  assert.equal(normalized.ok, true);
-  if (!normalized.ok) return;
-  assert.equal(normalized.value.has_prefunded_warrant, null);
-  assert.equal(normalized.value.facts.offering_price.value, null);
-  assert.equal(normalized.value.facts.offering_price.currency, null);
+test("29. valid minified om1 payload normalizes and raw string is removed", () => {
+  const analysis: Record<string, unknown> = { offering_monitor_payload: payloadFromCanonical(monitor()) };
+  const result = applyMinimalOfferingMonitorBoundary(analysis);
+  assert.equal(result.provenance.status, "success");
+  assert.equal(result.value?.version, MINIMAL_OFFERING_MONITOR_VERSION);
+  assert.equal(analysis.offering_monitor_payload, undefined);
+  assert.deepEqual(analysis.offering_monitor, result.value);
 });
 
-test("30. provider transport preserves explicit false and actual zero", () => {
-  const transport = transportFromCanonical(monitor());
-  transport.has_convertible = false;
-  const resale = (transport.facts as Record<string, Record<string, unknown>>).resale_share_exposure;
-  resale.value = 0;
-  const normalized = normalizeMinimalOfferingMonitorTransport(transport);
-  assert.equal(normalized.ok, true);
-  if (!normalized.ok) return;
-  assert.equal(normalized.value.has_convertible, false);
-  assert.equal(normalized.value.facts.resale_share_exposure.value, 0);
+test("30. duplicate root key is a transport failure", () => {
+  const payload = payloadFromCanonical(monitor());
+  const result = boundaryFor(`{"v":"om1",${payload.slice(1)}`);
+  assert.equal(result.provenance.status, "transport_failed");
+  assert.match(result.provenance.errors.join(" "), /duplicate key/);
 });
 
-test("31. provider transport rejects present null, empty strings, and unavailable zero", () => {
+test("31. duplicate nested key is a transport failure", () => {
+  const payload = payloadFromCanonical(monitor()).replace('"value":5000000', '"value":1,"value":5000000');
+  const result = boundaryFor(payload);
+  assert.equal(result.provenance.status, "transport_failed");
+  assert.match(result.provenance.errors.join(" "), /duplicate key/);
+});
+
+test("32. unknown root and nested keys fail exact transport validation", () => {
   for (const mutate of [
-    (value: Record<string, any>) => { value.has_warrant = null; },
-    (value: Record<string, any>) => { value.facts.offering_price.currency = ""; },
-    (value: Record<string, any>) => {
-      value.facts.offering_price.availability = "unavailable";
-      value.facts.offering_price.value = 0;
-    },
+    (wire: Record<string, any>) => { wire.extra = true; },
+    (wire: Record<string, any>) => { wire.facts.price.typo = "x"; },
   ]) {
-    const transport = transportFromCanonical(monitor());
-    mutate(transport);
-    assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
+    const wire = wireFromCanonical(monitor());
+    mutate(wire);
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
   }
 });
 
-test("32. provider plain strings still require canonical allowed values", () => {
-  const transport = transportFromCanonical(monitor());
-  (transport.facts as Record<string, Record<string, unknown>>).offering_price.value_quality = "approximately_exact";
-  assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
-});
-
-test("33. available transport requires value, source reference, unit, and fact basis", () => {
+test("33. missing root and nested keys fail rather than default", () => {
   for (const mutate of [
-    (value: Record<string, any>) => { delete value.facts.offering_price.value; },
-    (value: Record<string, any>) => { delete value.facts.offering_price.source_ref; },
-    (value: Record<string, any>) => { value.facts.offering_price.unit = "shares"; },
-    (value: Record<string, any>) => { value.facts.offering_price.comparison_basis_type = "market_cap"; },
+    (wire: Record<string, any>) => { delete wire.pfw; },
+    (wire: Record<string, any>) => { delete wire.facts.price.comparable; },
   ]) {
-    const transport = transportFromCanonical(monitor());
-    mutate(transport);
-    assert.equal(normalizeMinimalOfferingMonitorTransport(transport).ok, false);
+    const wire = wireFromCanonical(monitor());
+    mutate(wire);
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
   }
 });
 
-function transportFromCanonical(value: MinimalOfferingMonitor): Record<string, any> {
-  const transport = JSON.parse(JSON.stringify(value)) as Record<string, any>;
-  for (const key of ["has_warrant", "has_prefunded_warrant", "has_convertible"]) {
-    if (transport[key] === null) delete transport[key];
+test("34. truncated payload and malformed quote are transport failures", () => {
+  const payload = payloadFromCanonical(monitor());
+  assert.equal(boundaryFor(payload.slice(0, -1)).provenance.status, "transport_failed");
+  assert.equal(boundaryFor(payload.replace('"block-price"', '"block-price')).provenance.status, "transport_failed");
+});
+
+test("35. wrong wire version and decoded root type fail closed", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.v = "om2";
+  assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
+  for (const payload of ['"om1"', "[]", "null"]) {
+    assert.equal(boundaryFor(payload).provenance.status, "validation_failed");
   }
-  for (const factValue of Object.values(transport.facts) as Array<Record<string, unknown>>) {
-    for (const key of ["value", "currency", "security_basis", "comparable_to_event_market_basis", "source_ref"]) {
-      if (factValue[key] === null) delete factValue[key];
-    }
+});
+
+test("36. numeric strings, suffix numbers, and currency-decorated numbers are rejected", () => {
+  for (const bad of ["5000000", "5M", "$5,000,000"]) {
+    const wire = wireFromCanonical(monitor());
+    wire.facts.amount.value = bad;
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
   }
-  return transport;
+});
+
+test("37. explicit zero, false, and null remain distinct", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.conv = false;
+  wire.pfw = null;
+  wire.facts.resale.value = 0;
+  const result = boundaryFor(JSON.stringify(wire));
+  assert.equal(result.provenance.status, "success");
+  assert.equal(result.value?.has_convertible, false);
+  assert.equal(result.value?.has_prefunded_warrant, null);
+  assert.equal(result.value?.facts.resale_share_exposure.value, 0);
+});
+
+test("38. invalid stage and side are rejected by strict canonical validation", () => {
+  for (const [key, bad] of [["stage", "pending"], ["side", "primary-ish"]] as const) {
+    const wire = wireFromCanonical(monitor());
+    wire[key] = bad;
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
+  }
+});
+
+test("39. invalid quality and bound are rejected by strict canonical validation", () => {
+  for (const [key, bad] of [["quality", "approximately_exact"], ["bound", "up_to"]] as const) {
+    const wire = wireFromCanonical(monitor());
+    wire.facts.price[key] = bad;
+    assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
+  }
+});
+
+test("40. availability and value conflicts are rejected", () => {
+  const unavailableZero = wireFromCanonical(monitor());
+  unavailableZero.facts.price.availability = "unavailable";
+  unavailableZero.facts.price.value = 0;
+  assert.equal(boundaryFor(JSON.stringify(unavailableZero)).provenance.status, "validation_failed");
+
+  const availableNull = wireFromCanonical(monitor());
+  availableNull.facts.price.value = null;
+  assert.equal(boundaryFor(JSON.stringify(availableNull)).provenance.status, "validation_failed");
+});
+
+test("41. available unknown keeps its numeric value", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.facts.amount.quality = "unknown";
+  const result = boundaryFor(JSON.stringify(wire));
+  assert.equal(result.provenance.status, "success");
+  assert.equal(result.value?.facts.actual_primary_offering_amount.value, 5_000_000);
+  assert.equal(result.value?.facts.actual_primary_offering_amount.value_quality, "unknown");
+});
+
+test("42. unavailable facts require explicit null value", () => {
+  const value = monitor({ primary_or_resale: "primary" });
+  value.facts.resale_share_exposure = fact({ comparison_basis_type: "public_float" });
+  const result = boundaryFor(payloadFromCanonical(value));
+  assert.equal(result.provenance.status, "success");
+  assert.equal(result.value?.facts.resale_share_exposure.value, null);
+});
+
+test("43. source references must be compact stable identifiers", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.facts.price.source = "a long evidence sentence with spaces";
+  assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
+});
+
+test("44. transport never accepts a total potential field", () => {
+  const wire = wireFromCanonical(monitor());
+  wire.total = 1_500_000;
+  assert.equal(boundaryFor(JSON.stringify(wire)).provenance.status, "validation_failed");
+});
+
+test("45. malformed payload preserves legacy analysis and prior canonical persistence", () => {
+  const prior = materializeMinimalOfferingMonitor(monitor(), snapshot);
+  const analysis: Record<string, unknown> = {
+    event_title: "keep",
+    summary: "keep summary",
+    offering_monitor_payload: "{",
+  };
+  const boundary = applyMinimalOfferingMonitorBoundary(analysis);
+  const persisted = prepareMinimalOfferingMonitorPersistence({
+    analysisOutput: analysis.offering_monitor,
+    provenance: analysis.offering_monitor_provenance,
+    existingMetadata: { offering_monitor: prior, marker: "keep" },
+    marketSnapshot: snapshot,
+  });
+  assert.equal(boundary.provenance.status, "transport_failed");
+  assert.equal(analysis.event_title, "keep");
+  assert.equal(analysis.summary, "keep summary");
+  assert.deepEqual(persisted.metadata.offering_monitor, prior);
+  assert.equal(persisted.metadata.marker, "keep");
+});
+
+function boundaryFor(payload: unknown) {
+  const analysis: Record<string, unknown> = { offering_monitor_payload: payload };
+  return applyMinimalOfferingMonitorBoundary(analysis);
+}
+
+function payloadFromCanonical(value: MinimalOfferingMonitor) {
+  return JSON.stringify(wireFromCanonical(value));
+}
+
+function wireFromCanonical(value: MinimalOfferingMonitor): Record<string, any> {
+  const aliases: Record<string, string> = {
+    actual_primary_offering_amount: "amount",
+    offering_price: "price",
+    immediate_primary_share_exposure: "immediate",
+    additional_potential_primary_share_exposure: "additional",
+    resale_share_exposure: "resale",
+  };
+  return {
+    v: MINIMAL_OFFERING_MONITOR_WIRE_VERSION,
+    app: value.applicability,
+    stage: value.financing_stage,
+    side: value.primary_or_resale,
+    nature: value.security_nature,
+    w: value.has_warrant,
+    pfw: value.has_prefunded_warrant,
+    conv: value.has_convertible,
+    facts: Object.fromEntries(MINIMAL_OFFERING_FACT_KEYS.map((key) => {
+      const item = value.facts[key];
+      return [aliases[key], {
+        value: item.value,
+        availability: item.availability,
+        quality: item.value_quality,
+        bound: item.bound,
+        unit: item.unit,
+        currency: item.currency,
+        security_basis: item.security_basis,
+        comparison_basis: item.comparison_basis_type,
+        comparable: item.comparable_to_event_market_basis,
+        source: item.source_ref,
+      }];
+    })),
+  };
 }

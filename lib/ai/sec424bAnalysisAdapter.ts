@@ -30,8 +30,8 @@ import {
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v44-minimal-offering-monitor-provider-transport";
-export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v45-minimal-offering-monitor-provider-transport";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v46-compact-offering-monitor-payload";
+export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v47-compact-offering-monitor-payload";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_KEY = "sec_424b_validation_repair";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
@@ -2239,7 +2239,7 @@ export const sec424bRequiredOutputSchema = {
         "summary",
         "confidence",
         "needs_human_review",
-        "offering_monitor",
+        "offering_monitor_payload",
       ],
       properties: {
         source_group: { type: "string", enum: ["filings"] },
@@ -2266,7 +2266,7 @@ export const sec424bRequiredOutputSchema = {
         why_it_matters: { type: ["string", "null"], maxLength: 320 },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
-        offering_monitor: minimalOfferingMonitorProviderSchema,
+        offering_monitor_payload: minimalOfferingMonitorProviderSchema,
         analysis_action: { type: ["string", "null"] },
         archive_summary: { type: ["string", "null"] },
       },
@@ -2275,7 +2275,7 @@ export const sec424bRequiredOutputSchema = {
 };
 
 const {
-  offering_monitor: _offeringMonitorSchema,
+  offering_monitor_payload: _offeringMonitorSchema,
   ...legacyOfferingAnalysisProperties
 } = sec424bRequiredOutputSchema.properties.analysis_output.properties;
 
@@ -2286,7 +2286,7 @@ export const secLegacyF3RequiredOutputSchema = {
     analysis_output: {
       ...sec424bRequiredOutputSchema.properties.analysis_output,
       required: sec424bRequiredOutputSchema.properties.analysis_output.required.filter(
-        (key) => key !== "offering_monitor",
+        (key) => key !== "offering_monitor_payload",
       ),
       properties: legacyOfferingAnalysisProperties,
     },

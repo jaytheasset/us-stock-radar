@@ -1,6 +1,7 @@
 type JsonRecord = Record<string, unknown>;
 
 export const MINIMAL_OFFERING_MONITOR_VERSION = "minimal_offering_monitor_v1" as const;
+export const MINIMAL_OFFERING_MONITOR_WIRE_VERSION = "om1" as const;
 
 export const MINIMAL_OFFERING_FACT_KEYS = [
   "actual_primary_offering_amount",
@@ -9,6 +10,14 @@ export const MINIMAL_OFFERING_FACT_KEYS = [
   "additional_potential_primary_share_exposure",
   "resale_share_exposure",
 ] as const;
+
+const MINIMAL_OFFERING_FACT_WIRE_KEYS: Record<MinimalOfferingFactKey, string> = {
+  actual_primary_offering_amount: "amount",
+  offering_price: "price",
+  immediate_primary_share_exposure: "immediate",
+  additional_potential_primary_share_exposure: "additional",
+  resale_share_exposure: "resale",
+};
 
 export type MinimalOfferingFactKey = (typeof MINIMAL_OFFERING_FACT_KEYS)[number];
 export type MinimalOfferingValueQuality = "exact" | "derived" | "estimated" | "unknown";
@@ -89,77 +98,30 @@ export type MinimalOfferingMaterialized = MinimalOfferingMonitor & {
   safe_projection: JsonRecord;
 };
 
-const factProviderSchema = () => ({
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "availability",
-    "value_quality",
-    "bound",
-    "unit",
-    "comparison_basis_type",
-  ],
-  properties: {
-    value: { type: "number" },
-    availability: { type: "string" },
-    value_quality: { type: "string" },
-    bound: { type: "string" },
-    unit: { type: "string" },
-    currency: { type: "string" },
-    security_basis: { type: "string" },
-    comparison_basis_type: { type: "string" },
-    comparable_to_event_market_basis: { type: "boolean" },
-    source_ref: { type: "string" },
-  },
-});
-
 export const minimalOfferingMonitorProviderSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "version",
-    "applicability",
-    "financing_stage",
-    "primary_or_resale",
-    "security_nature",
-    "facts",
-  ],
-  properties: {
-    version: { type: "string" },
-    applicability: { type: "string" },
-    financing_stage: { type: "string" },
-    primary_or_resale: { type: "string" },
-    security_nature: { type: "string" },
-    has_warrant: { type: "boolean" },
-    has_prefunded_warrant: { type: "boolean" },
-    has_convertible: { type: "boolean" },
-    facts: {
-      type: "object",
-      additionalProperties: false,
-      required: [...MINIMAL_OFFERING_FACT_KEYS],
-      properties: Object.fromEntries(MINIMAL_OFFERING_FACT_KEYS.map((key) => [key, factProviderSchema()])),
-    },
-  },
+  type: "string",
 } as const;
 
 export const MINIMAL_OFFERING_MONITOR_PROMPT = [
-  `Add analysis_output.offering_monitor using version ${MINIMAL_OFFERING_MONITOR_VERSION}. This is additive only: do not change or copy it into title, quick_take, summary, score, signal, event_type, display_payload, routing, archive, or alerts.`,
+  `Add analysis_output.offering_monitor_payload as one minified JSON string using wire version ${MINIMAL_OFFERING_MONITOR_WIRE_VERSION}. This is additive only: do not change or copy it into title, quick_take, summary, score, signal, event_type, display_payload, routing, archive, or alerts.`,
   "The Analysis LLM, using SEC source blocks rather than parser semantics, is the final judge of financing stage, primary/resale meaning, security nature, distinct exposure, amount/price meaning, quality, bound, basis, and comparability.",
-  "applicability is applicable or source-backed not_applicable. A generation/schema/validation failure is never not_applicable. financing_stage is registration_only, active_offering, priced, closed, or unknown. primary_or_resale is primary, resale, mixed, not_applicable, or unknown. security_nature is equity, equity_linked, debt, mixed, non_equity, or unknown.",
+  "The decoded payload must have exactly these root keys: v, app, stage, side, nature, w, pfw, conv, facts. v is om1. app is applicable or source-backed not_applicable. stage is registration_only, active_offering, priced, closed, or unknown. side is primary, resale, mixed, not_applicable, or unknown. nature is equity, equity_linked, debt, mixed, non_equity, or unknown. w, pfw, and conv are true, false, or null when unknown. Every root key is required; a generation/schema/validation failure is never not_applicable.",
   "Return exactly five named facts: actual_primary_offering_amount, offering_price, immediate_primary_share_exposure, additional_potential_primary_share_exposure, resale_share_exposure. Do not return total potential exposure; code adds immediate plus additional only when compatible.",
+  "Inside facts use exactly five compact keys: amount, price, immediate, additional, resale. Every fact must contain exactly value, availability, quality, bound, unit, currency, security_basis, comparison_basis, comparable, source. All keys are required. Use explicit JSON null only for an unknown nullable value; never omit a key and never use strings for numbers or booleans.",
   "actual_primary_offering_amount means issuer gross transaction amount from primary securities in this transaction. Never use shelf capacity, selling-holder resale value/proceeds, or amount remaining; for mixed transactions use only the issuer primary portion. Preserve up-to as bound=maximum.",
   "immediate_primary_share_exposure is the deduplicated immediate primary share-equivalent pool. additional_potential_primary_share_exposure excludes everything already in immediate. A share/unit versus pre-funded alternative pool is counted once; a distinct common-warrant or other conditional pool belongs in additional.",
   "For primary classification keep resale_share_exposure unavailable. For resale classification keep actual_primary_offering_amount and both primary exposure facts unavailable. Mixed may contain both sides, kept separate. Available amount uses unit=currency and basis=market_cap; price uses currency_per_security and market_price; immediate/additional use shares and shares_outstanding; resale uses shares and public_float.",
-  "Every fact contains availability, value_quality, bound, unit, and comparison_basis_type. availability is available/unavailable; quality is exact/derived/estimated/unknown; bound is exact/maximum/minimum/unknown. For available facts include a non-null numeric value and source-backed security_basis; include currency for currency units. For unavailable facts omit value. Optional currency, security_basis, comparable_to_event_market_basis, and source_ref must be omitted rather than null when unknown. Preserve actual zero and available+unknown values; never use zero, empty strings, sentinels, or defaults for missing data.",
-  "has_warrant, has_prefunded_warrant, and has_convertible are optional only when unknown: include true or false when known, including explicit false. Omission means canonical unknown and is never equivalent to false.",
+  "availability is available/unavailable; quality is exact/derived/estimated/unknown; bound is exact/maximum/minimum/unknown. For available facts value is a non-null JSON number and security_basis/source are non-empty; currency is non-empty for currency units. For unavailable facts value is null. Preserve actual zero and available+unknown values; never use zero, empty strings, sentinels, defaults, currency-decorated numbers, suffix numbers, or automatic corrections for missing data.",
   "Use unit currency, currency_per_security, shares, other, or unknown. Use comparison basis market_cap for actual amount, market_price for offering price, shares_outstanding for immediate/additional exposure, and public_float for resale exposure when that is the source-backed comparison. Use the exact event market_context currency and security_basis only when truly comparable; otherwise set comparable_to_event_market_basis false or omit it when unknown.",
-  "For a source-backed non-equity not_applicable filing, keep all five facts unavailable and omit their optional numeric/context fields; do not invent equity amounts, prices, or share exposure. Do not add components, groups, calculation inputs, row sets, repeated evidence, or confidence objects.",
+  "source must be a short stable identifier already present in the supplied source input, such as an existing block_id or compact source value; never invent an identifier or repeat evidence text.",
+  "For a source-backed non-equity not_applicable filing, keep all five facts unavailable with value null; do not invent equity amounts, prices, or share exposure. Do not add components, groups, calculation inputs, row sets, repeated evidence, confidence objects, or any key outside the om1 contract.",
 ].join("\n");
 
 export function applyMinimalOfferingMonitorBoundary(analysisOutput: JsonRecord) {
-  const boundary = resolveMinimalOfferingMonitorBoundary(analysisOutput.offering_monitor);
+  const boundary = resolveMinimalOfferingMonitorBoundary(analysisOutput.offering_monitor_payload);
+  delete analysisOutput.offering_monitor_payload;
+  delete analysisOutput.offering_monitor;
   if (boundary.value) analysisOutput.offering_monitor = boundary.value;
-  else delete analysisOutput.offering_monitor;
   analysisOutput.offering_monitor_provenance = boundary.provenance;
   return boundary;
 }
@@ -168,13 +130,14 @@ export function resolveMinimalOfferingMonitorBoundary(value: unknown): {
   value: MinimalOfferingMonitor | null;
   provenance: MinimalOfferingMonitorProvenance;
 } {
-  if (!recordValue(value)) {
+  const parsed = parseMinimalOfferingMonitorPayload(value);
+  if (!parsed.ok) {
     return {
       value: null,
-      provenance: provenance("transport_failed", ["offering_monitor must be an object"]),
+      provenance: provenance("transport_failed", parsed.errors),
     };
   }
-  const normalized = normalizeMinimalOfferingMonitorTransport(value);
+  const normalized = normalizeMinimalOfferingMonitorTransport(parsed.value);
   if (!normalized.ok) {
     return { value: null, provenance: provenance("validation_failed", normalized.errors) };
   }
@@ -184,44 +147,61 @@ export function resolveMinimalOfferingMonitorBoundary(value: unknown): {
   };
 }
 
+export function parseMinimalOfferingMonitorPayload(value: unknown):
+  | { ok: true; value: unknown; errors: [] }
+  | { ok: false; errors: string[] } {
+  if (typeof value !== "string") {
+    return { ok: false, errors: ["offering_monitor_payload must be a string"] };
+  }
+  try {
+    return { ok: true, value: parseJsonWithoutDuplicateKeys(value), errors: [] };
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [`offering_monitor_payload is invalid JSON: ${error instanceof Error ? error.message : "unknown parse error"}`],
+    };
+  }
+}
+
 export function normalizeMinimalOfferingMonitorTransport(value: unknown):
   | { ok: true; value: MinimalOfferingMonitor; errors: [] }
   | { ok: false; errors: string[] } {
   const errors: string[] = [];
   const root = recordValue(value);
-  if (!root) return { ok: false, errors: ["offering_monitor must be an object"] };
+  if (!root) return { ok: false, errors: ["offering_monitor_payload must decode to an object"] };
   validateTransportKeys(root, [
-    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts",
-  ], ["has_warrant", "has_prefunded_warrant", "has_convertible"], "offering_monitor", errors);
-  for (const key of ["version", "applicability", "financing_stage", "primary_or_resale", "security_nature"] as const) {
+    "v", "app", "stage", "side", "nature", "w", "pfw", "conv", "facts",
+  ], [], "offering_monitor_payload", errors);
+  for (const key of ["v", "app", "stage", "side", "nature"] as const) {
     if (typeof root[key] !== "string") errors.push(`${key} must be a string`);
+  }
+  if (root.v !== MINIMAL_OFFERING_MONITOR_WIRE_VERSION) errors.push("v is invalid");
+  for (const key of ["w", "pfw", "conv"] as const) {
+    if (root[key] !== null && typeof root[key] !== "boolean") errors.push(`${key} must be boolean or null`);
   }
   const facts = recordValue(root.facts);
   if (!facts) errors.push("facts must be an object");
-  else validateTransportKeys(facts, [...MINIMAL_OFFERING_FACT_KEYS], [], "facts", errors);
+  else validateTransportKeys(facts, ["amount", "price", "immediate", "additional", "resale"], [], "facts", errors);
 
   const normalizedFacts = {} as Record<MinimalOfferingFactKey, MinimalOfferingNumericFact>;
   if (facts) {
     for (const key of MINIMAL_OFFERING_FACT_KEYS) {
-      const normalized = normalizeTransportFact(facts[key], `facts.${key}`, errors);
+      const alias = MINIMAL_OFFERING_FACT_WIRE_KEYS[key];
+      const normalized = normalizeTransportFact(facts[alias], `facts.${alias}`, errors);
       if (normalized) normalizedFacts[key] = normalized;
     }
   }
-  const normalizedBooleans = Object.fromEntries(
-    (["has_warrant", "has_prefunded_warrant", "has_convertible"] as const).map((key) => [
-      key,
-      optionalTransportBoolean(root, key, `offering_monitor.${key}`, errors),
-    ]),
-  ) as Pick<MinimalOfferingMonitor, "has_warrant" | "has_prefunded_warrant" | "has_convertible">;
   if (errors.length) return { ok: false, errors };
 
   const canonical = {
-    version: root.version,
-    applicability: root.applicability,
-    financing_stage: root.financing_stage,
-    primary_or_resale: root.primary_or_resale,
-    security_nature: root.security_nature,
-    ...normalizedBooleans,
+    version: MINIMAL_OFFERING_MONITOR_VERSION,
+    applicability: root.app,
+    financing_stage: root.stage,
+    primary_or_resale: root.side,
+    security_nature: root.nature,
+    has_warrant: root.w,
+    has_prefunded_warrant: root.pfw,
+    has_convertible: root.conv,
     facts: normalizedFacts,
   } as MinimalOfferingMonitor;
   return validateMinimalOfferingMonitor(canonical);
@@ -413,6 +393,13 @@ function validateFact(value: unknown, path: string, errors: string[]) {
   if ((fact.source_ref as string | null)?.length && String(fact.source_ref).length > 160) {
     errors.push(`${path}.source_ref must be 160 characters or fewer`);
   }
+  if (
+    typeof fact.source_ref === "string" &&
+    fact.source_ref.length > 0 &&
+    !/^[A-Za-z0-9._:-]+$/.test(fact.source_ref)
+  ) {
+    errors.push(`${path}.source_ref must be a short stable source identifier`);
+  }
 }
 
 function normalizeTransportFact(value: unknown, path: string, errors: string[]): MinimalOfferingNumericFact | null {
@@ -422,27 +409,37 @@ function normalizeTransportFact(value: unknown, path: string, errors: string[]):
     return null;
   }
   validateTransportKeys(fact, [
-    "availability", "value_quality", "bound", "unit", "comparison_basis_type",
-  ], ["value", "currency", "security_basis", "comparable_to_event_market_basis", "source_ref"], path, errors);
-  for (const key of ["availability", "value_quality", "bound", "unit", "comparison_basis_type"] as const) {
+    "value", "availability", "quality", "bound", "unit", "currency", "security_basis",
+    "comparison_basis", "comparable", "source",
+  ], [], path, errors);
+  for (const key of ["availability", "quality", "bound", "unit", "comparison_basis"] as const) {
     if (typeof fact[key] !== "string") errors.push(`${path}.${key} must be a string`);
   }
-  const hasValue = Object.prototype.hasOwnProperty.call(fact, "value");
-  if (hasValue && (typeof fact.value !== "number" || !Number.isFinite(fact.value))) {
-    errors.push(`${path}.value must be a finite number when present`);
+  if (fact.value !== null && (typeof fact.value !== "number" || !Number.isFinite(fact.value))) {
+    errors.push(`${path}.value must be a finite number or null`);
   }
-  const comparable = optionalTransportBoolean(fact, "comparable_to_event_market_basis", `${path}.comparable_to_event_market_basis`, errors);
+  if (fact.comparable !== null && typeof fact.comparable !== "boolean") {
+    errors.push(`${path}.comparable must be boolean or null`);
+  }
+  for (const key of ["currency", "security_basis", "source"] as const) {
+    if (
+      fact[key] !== null &&
+      (typeof fact[key] !== "string" || !fact[key].trim() || fact[key] !== fact[key].trim())
+    ) {
+      errors.push(`${path}.${key} must be a non-empty string or null`);
+    }
+  }
   return {
-    value: hasValue && typeof fact.value === "number" && Number.isFinite(fact.value) ? fact.value : null,
+    value: typeof fact.value === "number" && Number.isFinite(fact.value) ? fact.value : null,
     availability: fact.availability as MinimalOfferingNumericFact["availability"],
-    value_quality: fact.value_quality as MinimalOfferingValueQuality,
+    value_quality: fact.quality as MinimalOfferingValueQuality,
     bound: fact.bound as MinimalOfferingBound,
     unit: fact.unit as MinimalOfferingNumericFact["unit"],
-    currency: optionalTransportString(fact, "currency", `${path}.currency`, errors),
-    security_basis: optionalTransportString(fact, "security_basis", `${path}.security_basis`, errors),
-    comparison_basis_type: fact.comparison_basis_type as MinimalOfferingComparisonBasis,
-    comparable_to_event_market_basis: comparable,
-    source_ref: optionalTransportString(fact, "source_ref", `${path}.source_ref`, errors),
+    currency: nullableTransportString(fact.currency),
+    security_basis: nullableTransportString(fact.security_basis),
+    comparison_basis_type: fact.comparison_basis as MinimalOfferingComparisonBasis,
+    comparable_to_event_market_basis: typeof fact.comparable === "boolean" ? fact.comparable : null,
+    source_ref: nullableTransportString(fact.source),
   };
 }
 
@@ -661,22 +658,8 @@ function validateTransportKeys(
   for (const key of required) if (!(key in value)) errors.push(`${path}.${key} is required`);
 }
 
-function optionalTransportBoolean(value: JsonRecord, key: string, path: string, errors: string[]): boolean | null {
-  if (!Object.prototype.hasOwnProperty.call(value, key)) return null;
-  if (typeof value[key] !== "boolean") {
-    errors.push(`${path} must be boolean when present`);
-    return null;
-  }
-  return value[key];
-}
-
-function optionalTransportString(value: JsonRecord, key: string, path: string, errors: string[]): string | null {
-  if (!Object.prototype.hasOwnProperty.call(value, key)) return null;
-  if (typeof value[key] !== "string" || !value[key].trim()) {
-    errors.push(`${path} must be a non-empty string when present`);
-    return null;
-  }
-  return value[key].trim();
+function nullableTransportString(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
 }
 
 function normalizeComparableValue(value: unknown) {
@@ -705,4 +688,103 @@ function normalizeToken(value: unknown) {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function parseJsonWithoutDuplicateKeys(text: string): unknown {
+  let index = 0;
+
+  const fail = (message: string): never => {
+    throw new Error(`${message} at character ${index}`);
+  };
+  const skipWhitespace = () => {
+    while (/\s/.test(text[index] || "")) index += 1;
+  };
+  const parseString = () => {
+    if (text[index] !== '"') fail("JSON string must start with a quote");
+    const start = index;
+    index += 1;
+    while (index < text.length) {
+      const code = text.charCodeAt(index);
+      if (code < 0x20) fail("unescaped control character");
+      if (text[index] === "\\") {
+        index += 2;
+        continue;
+      }
+      if (text[index] === '"') {
+        index += 1;
+        try {
+          return JSON.parse(text.slice(start, index)) as string;
+        } catch {
+          fail("invalid JSON string escape");
+        }
+      }
+      index += 1;
+    }
+    return fail("unterminated JSON string");
+  };
+  const parseValue = (): unknown => {
+    skipWhitespace();
+    if (text[index] === '"') return parseString();
+    if (text[index] === "{") {
+      index += 1;
+      skipWhitespace();
+      const result = Object.create(null) as JsonRecord;
+      const seen = new Set<string>();
+      if (text[index] === "}") {
+        index += 1;
+        return result;
+      }
+      while (true) {
+        skipWhitespace();
+        const key = parseString();
+        skipWhitespace();
+        if (seen.has(key)) fail(`duplicate key ${JSON.stringify(key)}`);
+        seen.add(key);
+        if (text[index] !== ":") fail("missing colon");
+        index += 1;
+        result[key] = parseValue();
+        skipWhitespace();
+        if (text[index] === "}") {
+          index += 1;
+          return result;
+        }
+        if (text[index] !== ",") fail("missing comma");
+        index += 1;
+      }
+    }
+    if (text[index] === "[") {
+      index += 1;
+      skipWhitespace();
+      const result: unknown[] = [];
+      if (text[index] === "]") {
+        index += 1;
+        return result;
+      }
+      while (true) {
+        result.push(parseValue());
+        skipWhitespace();
+        if (text[index] === "]") {
+          index += 1;
+          return result;
+        }
+        if (text[index] !== ",") fail("missing comma");
+        index += 1;
+      }
+    }
+    for (const [token, parsed] of [["true", true], ["false", false], ["null", null]] as const) {
+      if (text.startsWith(token, index)) {
+        index += token.length;
+        return parsed;
+      }
+    }
+    const number = text.slice(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+    if (!number) return fail("invalid JSON value");
+    index += number[0].length;
+    return Number(number[0]);
+  };
+
+  const result = parseValue();
+  skipWhitespace();
+  if (index !== text.length) fail("trailing content");
+  return result;
 }
