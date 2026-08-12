@@ -5,7 +5,7 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v1";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v2";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 

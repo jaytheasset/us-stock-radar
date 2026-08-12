@@ -17,7 +17,7 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "Keep notice date, compliance deadline, hearing date, appeal deadline, trading suspension date, and removal effective date distinct. Never copy one date into another role. Use unavailable fields when the source does not establish a value, rule, security basis, venue, or date.",
   "The LLM owns listing meaning. Do not infer applicability from event_type, monitor_routes, source family, form, exchange names, rule numbers, keywords, or regex-like word matches.",
   "For applicable, return exactly one existing listing_risk_event_facts_v1 object in applicable_facts. For not_applicable, return an empty applicable_facts array. Never add analyzer-specific fields inside facts.",
-  "Use only supplied source_ref values. Every sources row must match the supplied source_family, source_id, and source_url exactly. Keep each evidence value to one concise contiguous source excerpt under 480 characters so it remains safely within the canonical 520-character limit.",
+  "Use only supplied source_ref values. Every sources row must match the supplied source_family, source_id, and source_url exactly. Keep each evidence value to one concise contiguous source excerpt, aim for 280 characters or fewer, and never exceed the canonical 520-character limit.",
   "Every available fact, available date, classification, and non-unknown proceeding must cite a supplied source_ref. Every unavailable fact must use null value, null source_ref, unknown value_quality, and for unavailable dates unknown date_status.",
   "Do not guess missing values. Do not calculate, correct, replace, or supply fallback fact values. Return only JSON matching the schema.",
 ].join("\n");
