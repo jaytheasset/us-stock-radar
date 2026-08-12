@@ -894,7 +894,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           stats.skipped_count += 1;
           incrementSkipStats(stats, effectiveCoverage.decision);
           await markRawItemSkippedForEventStorage(config, persistedRaw, rawItem, effectiveCoverage);
-          await persistAiTrace({
+          const aiTrace = await persistAiTrace({
             rawItemId: stringValue(persistedRaw.id),
             eventId: null,
             analysis,
@@ -910,6 +910,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
             skipped: true,
             reason: effectiveCoverage.decision,
             raw_item_id: persistedRaw.id,
+            primary_ai_run_id: aiTrace.aiRunId,
             source_unique_id: rawItem.source_unique_id,
             title: rawItem.title,
             score: clampScore(numberValue(analysis.score)),
@@ -930,7 +931,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           promptKey: analysisPromptKey,
           promptVersion: analysisPromptVersion,
         });
-        await persistAiTrace({
+        const aiTrace = await persistAiTrace({
           rawItemId: stringValue(persistedRaw.id),
           eventId: stringValue(persistedEvent.id),
           analysis,
@@ -946,6 +947,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
         resultItems.push({
           ok: true,
           raw_item_id: persistedRaw.id,
+          primary_ai_run_id: aiTrace.aiRunId,
           source_unique_id: rawItem.source_unique_id,
           event_id: persistedEvent.id,
           ticker: persistedEvent.ticker,
@@ -1738,6 +1740,8 @@ async function persistAiTrace({
     ),
     "insert ai output",
   );
+
+  return { aiRunId };
 }
 
 async function finishSourceRun(
