@@ -6,7 +6,12 @@ import {
   OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION,
   OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT,
   OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS,
+  OFFERING_MONITOR_SECOND_STAGE_MONETARY_FACT_KEYS,
+  OFFERING_MONITOR_SECOND_STAGE_SHARE_FACT_KEYS,
+  OFFERING_MONITOR_MAX_NUMERIC_LITERAL_CHARS,
+  assertOfferingMonitorNumericLiteralSafety,
   buildOfferingMonitorSecondStagePackage,
+  groupOfferingMonitorEvidenceBlocks,
   offeringMonitorSecondStageProviderSchema,
   processOfferingMonitorSecondStageJob,
   validateOfferingMonitorProviderOutput,
@@ -21,7 +26,7 @@ const identity: OfferingMonitorJobIdentity = {
   jobId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
   logicalJobId: "b6eaecad-5d37-57da-8dcd-5cd985e03977",
   executionId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
-  executionContractVersion: "second_stage_direct_v3",
+  executionContractVersion: "second_stage_direct_v8",
   executionAttemptKey: "automatic",
   eventId: "69606800-ee16-4a75-9bbf-3b64bdc56d69",
   rawItemId: "efea3384-9eef-4e6b-9e63-60dc1cd3090e",
@@ -36,14 +41,28 @@ const identity: OfferingMonitorJobIdentity = {
 
 test("second-stage provider schema is the direct readable Monitor shape without state explosion", () => {
   assert.deepEqual(offeringMonitorSecondStageProviderSchema.required, [
-    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts",
+    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature",
+    "available_monetary_facts", "available_share_facts", "unavailable_fact_keys",
   ]);
-  assert.deepEqual(offeringMonitorSecondStageProviderSchema.properties.facts.required, OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS);
+  assert.deepEqual(
+    offeringMonitorSecondStageProviderSchema.properties.available_monetary_facts.items.properties.fact_key.enum,
+    OFFERING_MONITOR_SECOND_STAGE_MONETARY_FACT_KEYS,
+  );
+  assert.deepEqual(
+    offeringMonitorSecondStageProviderSchema.properties.available_share_facts.items.properties.fact_key.enum,
+    OFFERING_MONITOR_SECOND_STAGE_SHARE_FACT_KEYS,
+  );
+  assert.deepEqual(
+    offeringMonitorSecondStageProviderSchema.properties.unavailable_fact_keys.items.enum,
+    OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS,
+  );
   const schema = JSON.stringify(offeringMonitorSecondStageProviderSchema);
   assert.match(schema, /actual_primary_offering_amount/);
-  assert.doesNotMatch(schema, /offering_monitor_payload|"amount"|"price"|"immediate"|"additional"|"resale"/);
-  assert.doesNotMatch(schema, /enum|nullable|oneOf|anyOf|allOf|"type":\[/);
-  assert.equal(Buffer.byteLength(schema), 3_039);
+  assert.match(schema, /available_monetary_facts/);
+  assert.match(schema, /available_share_facts/);
+  assert.match(schema, /unavailable_fact_keys/);
+  assert.doesNotMatch(schema, /offering_monitor_payload|nullable|oneOf|anyOf|allOf|if|then|else|"type":\[/);
+  assert.ok(Buffer.byteLength(schema) < 5_000);
 });
 
 test("input package excludes Primary Monitor payload and legacy parser offering truth", () => {
@@ -63,10 +82,72 @@ test("source selection preserves exact stable IDs, referenced adjacency, and str
   assert.deepEqual(refs, ["ref:s1f1_source_block_001", "ref:s1f1_attachment_doc_a"]);
   assert.deepEqual(inputPackage.allowedSourceRefs, refs);
   assert.deepEqual(inputPackage.payload.allowed_source_refs, refs);
-  const sourcePackage = inputPackage.payload.source_package as { evidence_blocks: Array<{ source_ref: string }> };
-  assert.deepEqual(sourcePackage.evidence_blocks.map((block) => block.source_ref), refs);
-  assert.equal(new Set(refs).size, sourcePackage.evidence_blocks.length);
+  const sourcePackage = inputPackage.payload.source_package as {
+    evidence_document_groups: Array<{ evidence_blocks: Array<{ source_ref: string }> }>;
+  };
+  const groupedBlocks = sourcePackage.evidence_document_groups.flatMap((group) => group.evidence_blocks);
+  assert.deepEqual(groupedBlocks.map((block) => block.source_ref), refs);
+  assert.equal(new Set(refs).size, groupedBlocks.length);
   assert.doesNotMatch(JSON.stringify(inputPackage.payload), /unrelated filing evidence/);
+});
+
+test("structural document grouping preserves first occurrence, in-document order, content, and source refs", () => {
+  const blocks = [
+    { ...block("a-1", "attachment", "document-a.htm", "document A first"), chunk_index: 1, chunk_count: 2 },
+    { ...block("b-1", "attachment", "document-b.htm", "same content"), chunk_index: 1, chunk_count: 1 },
+    { ...block("a-2", "attachment", "document-a.htm", "document A second"), chunk_index: 2, chunk_count: 2 },
+    { ...block("c-1", "attachment", "document-c.htm", "same content"), chunk_index: 1, chunk_count: 1 },
+  ];
+  const groups = groupOfferingMonitorEvidenceBlocks(blocks);
+  assert.deepEqual(groups.map((group) => group.document_identity.key), [
+    "document-a.htm", "document-b.htm", "document-c.htm",
+  ]);
+  assert.deepEqual(groups[0].evidence_blocks.map((item) => item.block_id), ["a-1", "a-2"]);
+  const groupedBlocks = groups.flatMap((group) => group.evidence_blocks);
+  assert.deepEqual(groupedBlocks.map((item) => item.block_id), ["a-1", "a-2", "b-1", "c-1"]);
+  assert.equal(groupedBlocks.length, blocks.length);
+  assert.ok(blocks.every((item) => groupedBlocks.includes(item)));
+  assert.deepEqual(
+    groupedBlocks.map((item) => item.source_ref).sort(),
+    blocks.map((item) => item.source_ref).sort(),
+  );
+  assert.equal(groups[1].evidence_blocks[0].text, groups[2].evidence_blocks[0].text);
+  assert.notEqual(groups[1].document_identity.key, groups[2].document_identity.key);
+});
+
+test("structural grouping uses document metadata only and contains no semantic ranking rule", () => {
+  const source = groupOfferingMonitorEvidenceBlocks.toString();
+  assert.match(source, /documentIdentity/);
+  assert.doesNotMatch(source, /\.text|fee|Rule\s*457|financing|transaction|10,?000,?000|source_ref.*priority/i);
+});
+
+test("serialized evidence grouping retains all 20 selected blocks without semantic filtering or reordering", () => {
+  const fixture = artifacts();
+  fixture.sourceInput.blocks = Array.from({ length: 20 }, (_, index) => ({
+    ...block(`structural-${index}`, "attachment", `document-${Math.floor(index / 4)}.htm`, `evidence block ${index}`),
+    chunk_index: (index % 4) + 1,
+    chunk_count: 4,
+  }));
+  fixture.sourceInput.sourceInventory = { sourceBlockBudget: { includedTextChars: 10_000 } };
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: fixture });
+  const sourcePackage = inputPackage.payload.source_package as {
+    evidence_document_groups: Array<{ document_identity: { key: string }; evidence_blocks: typeof fixture.sourceInput.blocks }>;
+  };
+  const retained = sourcePackage.evidence_document_groups.flatMap((group) => group.evidence_blocks);
+  assert.equal(inputPackage.stats.sourceBlockCount, 20);
+  assert.equal(retained.length, 20);
+  assert.equal(inputPackage.stats.sourceDocumentGroupCount, 5);
+  assert.deepEqual(retained, fixture.sourceInput.blocks);
+  assert.deepEqual(inputPackage.allowedSourceRefs, fixture.sourceInput.blocks.map((item) => item.source_ref));
+  assert.deepEqual(
+    sourcePackage.evidence_document_groups.map((group) => group.document_identity.key),
+    ["document-0.htm", "document-1.htm", "document-2.htm", "document-3.htm", "document-4.htm"],
+  );
+  assert.ok(inputPackage.stats.groupingAddedPackageChars > 0);
+  assert.equal(
+    inputPackage.stats.promptChars - inputPackage.stats.ungroupedPromptChars,
+    inputPackage.stats.groupingAddedPromptChars,
+  );
 });
 
 test("dedicated prompt uses direct canonical fact keys and preserves semantic definitions", () => {
@@ -74,14 +155,70 @@ test("dedicated prompt uses direct canonical fact keys and preserves semantic de
     "actual_primary_offering_amount", "offering_price", "immediate_primary_share_exposure",
     "additional_potential_primary_share_exposure", "resale_share_exposure",
   ]);
-  assert.equal(OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION, "second_stage_direct_v3");
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /not rewriting the user-facing filing analysis/i);
+  assert.equal(OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION, "second_stage_direct_v8");
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /ROLE: You are the Offering Monitor Normalizer/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Do not produce or revise score, signal, title, summary, why-it-matters/i);
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Display analysis and Monitor facts serve different purposes/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount is the source-backed gross amount/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional_potential_primary_share_exposure is a distinct potential primary exposure/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount is the source-backed gross size of the current specific issuer-primary transaction/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /generic registration or fee-table ceiling, shelf capacity, resale value\/proceeds/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /gross\/net fee difference does not invalidate gross/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /FINANCING AMOUNT/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /any supplied SEC evidence directly states or establishes the size of the current issuer financing transaction/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /do not require one specific document type or source_ref/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Do not select a source merely because it contains the same number/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /filing-fee calculation, registration capacity, resale value, or other administrative amount is insufficient unless it actually establishes the current issuer financing transaction amount/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /qualifying transaction evidence is present, do not mark the fact unavailable merely because another source contains the same amount/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Return unavailable only when no supplied SEC source supports the current financing transaction amount/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional_potential_primary_share_exposure is only distinct conditional\/potential primary exposure/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /equal values alone do not prove duplication/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /shortest ordinary JSON number/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Never pad trailing zeros, invent decimal precision/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /floating-point artifact/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /available_monetary_facts/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /unavailable_fact_keys/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /parent_primary_context is analysis context only/i);
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount|offering_price|immediate_primary_share_exposure|additional_potential_primary_share_exposure|resale_share_exposure/);
   assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /OM1 WIRE CONTRACT|compact om1|facts has exactly five wire keys/);
-  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /IPDN|0001437749|10,?000,?000/);
+  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /IPDN|0001437749|10,?000,?000|EX-10\.36|s1f1_attachment_/);
+});
+
+test("numeric lexical guard preserves normal JSON numbers including exponent notation", () => {
+  const text = '{"integer":10000000,"decimal":0.6364,"negative":-12.5,"exponent":1e7,"signed_exponent":2.5E-12,"inside":"' + "9".repeat(256) + '"}';
+  assert.doesNotThrow(() => assertOfferingMonitorNumericLiteralSafety(text));
+  assert.equal(JSON.parse(text).decimal, 0.6364);
+  assert.equal(JSON.parse(text).exponent, 10_000_000);
+});
+
+test("numeric lexical guard rejects pathological integer and fractional literals without correcting them", () => {
+  const longInteger = "1".repeat(OFFERING_MONITOR_MAX_NUMERIC_LITERAL_CHARS + 1);
+  const longFraction = `10000000.${"0".repeat(OFFERING_MONITOR_MAX_NUMERIC_LITERAL_CHARS)}`;
+  assert.throws(() => assertOfferingMonitorNumericLiteralSafety(`{"value":${longInteger}}`), /numeric_literal_too_long at character/);
+  assert.throws(() => assertOfferingMonitorNumericLiteralSafety(`{"value":${longFraction}}`), /numeric_literal_too_long at character/);
+});
+
+test("pathological provider numeric literal fails transport before strict JSON normalization", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const raw = JSON.stringify(validDirectPayload()).replace("10000000", `10000000.${"0".repeat(256)}`);
+  const candidate = validateOfferingMonitorProviderOutput({ identity, package: inputPackage, run: providerRun({ outputText: raw, parsed: null }) });
+  assert.equal(candidate.validation.status, "transport_failed");
+  assert.match(candidate.validation.errors.join(" "), /numeric_literal_too_long/);
+  assert.equal(candidate.direct_payload, null);
+  assert.equal(candidate.canonical_candidate, null);
+
+  const adapterRejected = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({
+      ok: false,
+      responseOk: true,
+      outputText: raw,
+      parsed: null,
+      error: "Gemini response did not contain parseable JSON",
+    }),
+  });
+  assert.equal(adapterRejected.validation.status, "transport_failed");
+  assert.match(adapterRejected.validation.errors.join(" "), /numeric_literal_too_long/);
+  assert.doesNotMatch(adapterRejected.validation.errors.join(" "), /did not contain parseable JSON/);
 });
 
 test("prompt ends after the source package with the exact outer, source namespace, and output discipline contract", () => {
@@ -89,24 +226,35 @@ test("prompt ends after the source package with the exact outer, source namespac
   const prompt = inputPackage.prompt.user;
   const finalIndex = prompt.lastIndexOf("FINAL OUTPUT CONTRACT");
   assert.ok(finalIndex > prompt.lastIndexOf("evidence_blocks"));
-  assert.match(prompt.slice(finalIndex), /direct Minimal Offering Monitor JSON object/);
+  assert.match(prompt.slice(finalIndex), /direct Offering Monitor JSON object/);
   assert.match(prompt.slice(finalIndex), /Never return offering_monitor_payload or nested JSON text/);
+  assert.match(prompt.slice(finalIndex), /available_monetary_facts, available_share_facts, and unavailable_fact_keys/);
   assert.match(prompt.slice(finalIndex), /ref:s1f1_source_block_001/);
   assert.match(prompt.slice(finalIndex), /Do not return block_id, parent_primary_context/);
   assert.match(prompt.slice(finalIndex), /No aliases\. No markdown\. No commentary\. No explanation\. No trailing text\.$/);
 });
 
-test("comparison_basis remains a required runtime string even when a fact is unavailable", () => {
+test("unavailable fact keys reconstruct the canonical runtime basis without fake provider fields", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
-  const payload = validDirectPayload() as { facts: { offering_price: { comparison_basis_type: unknown } } };
-  payload.facts.offering_price.comparison_basis_type = null;
   const candidate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
-    run: providerRun({ parsed: payload }),
+    run: providerRun({ parsed: validDirectPayload() }),
   });
-  assert.equal(candidate.validation.status, "validation_failed");
-  assert.match(candidate.validation.errors.join(" "), /facts\.offering_price\.comparison_basis_type must be a string/);
+  assert.equal(candidate.validation.status, "success");
+  assert.deepEqual(candidate.direct_payload?.unavailable_fact_keys, ["offering_price", "resale_share_exposure"]);
+  assert.deepEqual(candidate.canonical_candidate?.facts.offering_price, {
+    value: null,
+    availability: "unavailable",
+    value_quality: "unknown",
+    bound: "unknown",
+    unit: "currency_per_security",
+    currency: null,
+    security_basis: null,
+    comparison_basis_type: "market_price",
+    comparable_to_event_market_basis: null,
+    source_ref: null,
+  });
 });
 
 test("valid direct object reuses canonical validation and code-only total", () => {
@@ -119,6 +267,49 @@ test("valid direct object reuses canonical validation and code-only total", () =
   assert.equal(candidate.validation.status, "success");
   assert.equal(candidate.canonical_candidate?.primary_or_resale, "primary");
   assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 15_000_000);
+});
+
+test("allowed provenance membership is mechanical and exact source semantics do not block fact eligibility", () => {
+  const fixture = artifacts();
+  fixture.sourceInput.blocks[0].text = "Administrative filing context retained as supplied SEC evidence.";
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: fixture });
+  const payload = validDirectPayload();
+  payload.available_monetary_facts[0].source_ref = inputPackage.allowedSourceRefs[0];
+  const candidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+  assert.equal(candidate.validation.status, "success");
+  assert.equal(
+    candidate.canonical_candidate?.facts.actual_primary_offering_amount.source_ref,
+    inputPackage.allowedSourceRefs[0],
+  );
+  assert.equal(candidate.materialized_candidate?.safe_projection.actual_primary_offering_amount, 10_000_000);
+});
+
+test("unavailable and unknown-quality facts remain outside the matcher-safe projection", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const unavailable = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: validDirectPayload() }),
+  });
+  assert.equal(unavailable.validation.status, "success");
+  assert.equal("offering_price" in (unavailable.materialized_candidate?.safe_projection || {}), false);
+
+  const payload = validDirectPayload();
+  payload.available_monetary_facts[0].value_quality = "unknown";
+  const unknownQuality = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+  assert.equal(unknownQuality.validation.status, "success");
+  assert.equal(
+    "actual_primary_offering_amount" in (unknownQuality.materialized_candidate?.safe_projection || {}),
+    false,
+  );
 });
 
 test("nested string, malformed JSON, missing required fields, and semantic defaults fail closed", () => {
@@ -148,14 +339,14 @@ test("nested string, malformed JSON, missing required fields, and semantic defau
   assert.match(missingCandidate.validation.errors.join(" "), /financing_stage is required/);
 
   const invalid = validDirectPayload();
-  delete (invalid.facts.actual_primary_offering_amount as Record<string, unknown>).value;
+  delete (invalid.available_monetary_facts[0] as Record<string, unknown>).value;
   const invalidCandidate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
     run: providerRun({ parsed: invalid }),
   });
   assert.equal(invalidCandidate.validation.status, "validation_failed");
-  assert.match(invalidCandidate.validation.errors.join(" "), /value must be a non-negative finite number when available/);
+  assert.match(invalidCandidate.validation.errors.join(" "), /available_monetary_facts\[0\]\.value is required/);
 });
 
 test("unknown direct keys and duplicate nested keys fail closed", () => {
@@ -170,7 +361,10 @@ test("unknown direct keys and duplicate nested keys fail closed", () => {
     identity,
     package: inputPackage,
     run: providerRun({
-      outputText: JSON.stringify(validDirectPayload()).replace('"availability":"available"', '"availability":"available","availability":"unavailable"'),
+      outputText: JSON.stringify(validDirectPayload()).replace(
+        '"fact_key":"actual_primary_offering_amount"',
+        '"fact_key":"actual_primary_offering_amount","fact_key":"offering_price"',
+      ),
     }),
   });
   assert.equal(duplicate.validation.status, "transport_failed");
@@ -203,8 +397,8 @@ test("direct trailing text and duplicate root keys fail closed without extractio
 test("available fact source must be an allowed source_ref; block IDs, parent context, and foreign refs fail", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   for (const invalidSource of ["s1f1_attachment_doc_a", "parent_primary_context", "foreign:source_ref"]) {
-    const payload = validDirectPayload() as { facts: { actual_primary_offering_amount: { source_ref: string } } };
-    payload.facts.actual_primary_offering_amount.source_ref = invalidSource;
+    const payload = validDirectPayload();
+    payload.available_monetary_facts[0].source_ref = invalidSource;
     const candidate = validateOfferingMonitorProviderOutput({
       identity,
       package: inputPackage,
@@ -216,7 +410,7 @@ test("available fact source must be an allowed source_ref; block IDs, parent con
   }
 });
 
-test("unavailable facts may omit source_ref but cannot return a foreign provenance identifier", () => {
+test("unavailable facts are key-only and cannot carry provenance fields", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   const omitted = validateOfferingMonitorProviderOutput({
     identity,
@@ -224,16 +418,119 @@ test("unavailable facts may omit source_ref but cannot return a foreign provenan
     run: providerRun({ parsed: validDirectPayload() }),
   });
   assert.equal(omitted.validation.status, "success");
-
-  const payload = validDirectPayload();
-  (payload.facts.offering_price as Record<string, unknown>).source_ref = "foreign:price";
+  const payload = { ...validDirectPayload(), unavailable_fact_keys: [{ fact_key: "offering_price", source_ref: "foreign:price" }] };
   const foreign = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
     run: providerRun({ parsed: payload }),
   });
   assert.equal(foreign.validation.status, "validation_failed");
-  assert.match(foreign.validation.errors.join(" "), /facts\.offering_price\.source_ref must be a member/);
+  assert.match(foreign.validation.errors.join(" "), /unavailable_fact_keys\[0\] must be a string/);
+});
+
+test("available fact families require the runtime fields represented by their provider rows", () => {
+  const monetary = offeringMonitorSecondStageProviderSchema.properties.available_monetary_facts.items;
+  const shares = offeringMonitorSecondStageProviderSchema.properties.available_share_facts.items;
+  assert.deepEqual(monetary.required, [
+    "fact_key", "value", "value_quality", "bound", "unit", "currency",
+    "security_basis", "comparison_basis_type", "source_ref",
+  ]);
+  assert.deepEqual(shares.required, [
+    "fact_key", "value", "value_quality", "bound", "unit",
+    "security_basis", "comparison_basis_type", "source_ref",
+  ]);
+  assert.equal(shares.required.includes("currency" as never), false);
+
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  for (const field of monetary.required) {
+    const payload = validDirectPayload();
+    delete (payload.available_monetary_facts[0] as Record<string, unknown>)[field];
+    const candidate = validateOfferingMonitorProviderOutput({
+      identity,
+      package: inputPackage,
+      run: providerRun({ parsed: payload }),
+    });
+    assert.equal(candidate.validation.status, "validation_failed", `monetary ${field}`);
+  }
+  for (const field of shares.required) {
+    const payload = validDirectPayload();
+    delete (payload.available_share_facts[0] as Record<string, unknown>)[field];
+    const candidate = validateOfferingMonitorProviderOutput({
+      identity,
+      package: inputPackage,
+      run: providerRun({ parsed: payload }),
+    });
+    assert.equal(candidate.validation.status, "validation_failed", `shares ${field}`);
+  }
+});
+
+test("exact five-fact coverage rejects missing, duplicate, both, unknown, and wrong-family rows", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const validate = (payload: ReturnType<typeof validDirectPayload>) => validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+
+  const missing = validDirectPayload();
+  missing.unavailable_fact_keys = ["resale_share_exposure"];
+  assert.match(validate(missing).validation.errors.join(" "), /fact coverage is missing offering_price/);
+
+  const duplicate = validDirectPayload();
+  duplicate.available_share_facts.push({ ...duplicate.available_share_facts[0] });
+  assert.match(validate(duplicate).validation.errors.join(" "), /fact coverage duplicates immediate_primary_share_exposure/);
+
+  const both = validDirectPayload();
+  both.unavailable_fact_keys.push("actual_primary_offering_amount");
+  assert.match(validate(both).validation.errors.join(" "), /fact coverage duplicates actual_primary_offering_amount/);
+
+  const unknown = validDirectPayload();
+  unknown.unavailable_fact_keys[0] = "unknown_fact";
+  assert.match(validate(unknown).validation.errors.join(" "), /unavailable_fact_keys\[0\] is unknown/);
+
+  const wrongFamily = validDirectPayload();
+  (wrongFamily.available_share_facts[0] as Record<string, unknown>).fact_key = "actual_primary_offering_amount";
+  assert.match(validate(wrongFamily).validation.errors.join(" "), /belongs to the wrong fact family/);
+});
+
+test("available fact array ordering has no semantic meaning", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const payload = validDirectPayload();
+  payload.available_share_facts.reverse();
+  const candidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+  assert.equal(candidate.validation.status, "success");
+  assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 15_000_000);
+});
+
+test("distinct exposure security bases materialize when their comparison basis is compatible", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const payload = validDirectPayload();
+  payload.available_share_facts[0].security_basis = "current_right";
+  payload.available_share_facts[1].security_basis = "conditional_right";
+  payload.available_share_facts[1].value = payload.available_share_facts[0].value;
+  const candidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+  assert.equal(candidate.validation.status, "success");
+  assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 20_000_000);
+  assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.security_basis, "current_right + conditional_right");
+});
+
+test("incompatible exposure comparison basis still fails without security-name rules", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const payload = validDirectPayload();
+  payload.available_share_facts[1].comparison_basis_type = "public_float";
+  const candidate = validateOfferingMonitorProviderOutput({ identity, package: inputPackage, run: providerRun({ parsed: payload }) });
+  assert.equal(candidate.validation.status, "validation_failed");
+  assert.match(candidate.validation.errors.join(" "), /comparison_basis_type is incompatible with the fact meaning|comparison_basis_type must be compatible/);
+  const source = readFileSync(new URL("./minimalOfferingMonitor.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /warrant.*additional|prefunded.*immediate|common[_ -]?share.*compatible/i);
 });
 
 test("exact current parent calls provider once and saves only a diagnostic candidate", async () => {
@@ -422,16 +719,13 @@ function providerRun(overrides: Partial<OfferingMonitorProviderRun> = {}): Offer
 }
 
 function validDirectPayload() {
-  const unavailable = (unit: string, basis: string) => ({
-    availability: "unavailable",
-    value_quality: "unknown",
-    bound: "unknown",
-    unit,
-    comparison_basis_type: basis,
-  });
-  const availableShares = (value: number, source_ref: string) => ({
+  const availableShares = (
+    fact_key: "immediate_primary_share_exposure" | "additional_potential_primary_share_exposure",
+    value: number,
+    source_ref: string,
+  ) => ({
+    fact_key,
     value,
-    availability: "available",
     value_quality: "exact",
     bound: "exact",
     unit: "shares",
@@ -448,10 +742,10 @@ function validDirectPayload() {
     has_warrant: true,
     has_prefunded_warrant: true,
     has_convertible: false,
-    facts: {
-      actual_primary_offering_amount: {
+    available_monetary_facts: [
+      {
+        fact_key: "actual_primary_offering_amount" as const,
         value: 10_000_000,
-        availability: "available",
         value_quality: "estimated",
         bound: "maximum",
         unit: "currency",
@@ -460,10 +754,11 @@ function validDirectPayload() {
         comparison_basis_type: "market_cap",
         source_ref: "ref:s1f1_attachment_doc_a",
       },
-      offering_price: unavailable("currency_per_security", "market_price"),
-      immediate_primary_share_exposure: availableShares(10_000_000, "ref:s1f1_source_block_001"),
-      additional_potential_primary_share_exposure: availableShares(5_000_000, "ref:s1f1_attachment_doc_a"),
-      resale_share_exposure: unavailable("shares", "public_float"),
-    },
+    ],
+    available_share_facts: [
+      availableShares("immediate_primary_share_exposure", 10_000_000, "ref:s1f1_source_block_001"),
+      availableShares("additional_potential_primary_share_exposure", 5_000_000, "ref:s1f1_attachment_doc_a"),
+    ],
+    unavailable_fact_keys: ["offering_price", "resale_share_exposure"],
   };
 }

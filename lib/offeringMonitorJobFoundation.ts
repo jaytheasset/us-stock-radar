@@ -3,7 +3,7 @@ import { SEC_S3_F3_FORMS } from "./sources/sec/forms/common/forms.ts";
 
 export const OFFERING_MONITOR_JOB_PURPOSE = "offering_monitor_normalization";
 export const OFFERING_MONITOR_JOB_PROMPT_KEY = "offering_monitor_normalization_job";
-export const OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION = "second_stage_direct_v3";
+export const OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION = "second_stage_direct_v8";
 export const OFFERING_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
 export const OFFERING_MONITOR_JOB_VERSION = OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION;
 

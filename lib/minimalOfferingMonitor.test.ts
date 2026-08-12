@@ -258,9 +258,21 @@ test("21. valid reanalysis replaces canonically and is idempotent", () => {
   assert.equal((second.metadata.offering_monitor as MinimalOfferingMonitor).financing_stage, "closed");
 });
 
-test("22. incompatible immediate/additional basis blocks total", () => {
+test("22. distinct exposure security bases remain additive on a compatible comparison basis", () => {
   const value = monitor();
-  value.facts.additional_potential_primary_share_exposure.security_basis = "adr";
+  value.facts.additional_potential_primary_share_exposure.security_basis = "conditional_right";
+  value.facts.additional_potential_primary_share_exposure.value = value.facts.immediate_primary_share_exposure.value;
+  assert.equal(validateMinimalOfferingMonitor(value).ok, true);
+  const total = materializeMinimalOfferingMonitor(value, snapshot).total_potential_primary_share_exposure;
+  assert.equal(total.availability, "available");
+  assert.equal(total.value, 2_000_000);
+  assert.equal(total.comparison_basis_type, "shares_outstanding");
+  assert.equal(total.security_basis, "common_stock + conditional_right");
+});
+
+test("22b. incompatible immediate/additional comparison basis still fails closed", () => {
+  const value = monitor();
+  value.facts.additional_potential_primary_share_exposure.comparison_basis_type = "public_float";
   assert.equal(validateMinimalOfferingMonitor(value).ok, false);
   assert.equal(materializeMinimalOfferingMonitor(value, snapshot).total_potential_primary_share_exposure.availability, "unavailable");
 });

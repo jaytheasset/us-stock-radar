@@ -472,7 +472,7 @@ function validateFactSemantics(root: JsonRecord, facts: JsonRecord, errors: stri
   const immediate = recordValue(facts.immediate_primary_share_exposure);
   const additional = recordValue(facts.additional_potential_primary_share_exposure);
   if (immediate?.availability === "available" && additional?.availability === "available") {
-    for (const key of ["unit", "currency", "security_basis", "comparison_basis_type"] as const) {
+    for (const key of ["unit", "currency", "comparison_basis_type"] as const) {
       if (normalizeComparableValue(immediate[key]) !== normalizeComparableValue(additional[key])) {
         errors.push(`immediate/additional ${key} must be compatible`);
       }
@@ -495,9 +495,11 @@ function totalPotentialFact(immediate: MinimalOfferingNumericFact, additional: M
   if (
     immediate.unit !== additional.unit ||
     normalizeToken(immediate.currency) !== normalizeToken(additional.currency) ||
-    normalizeToken(immediate.security_basis) !== normalizeToken(additional.security_basis) ||
     immediate.comparison_basis_type !== additional.comparison_basis_type
   ) return unavailable;
+  const securityBasis = normalizeToken(immediate.security_basis) === normalizeToken(additional.security_basis)
+    ? immediate.security_basis
+    : [immediate.security_basis, additional.security_basis].filter(Boolean).join(" + ").slice(0, 160) || null;
   return {
     value: (immediate.value as number) + (additional.value as number),
     availability: "available",
@@ -505,7 +507,7 @@ function totalPotentialFact(immediate: MinimalOfferingNumericFact, additional: M
     bound: combineBounds(immediate.bound, additional.bound),
     unit: immediate.unit,
     currency: immediate.currency,
-    security_basis: immediate.security_basis,
+    security_basis: securityBasis,
     comparison_basis_type: immediate.comparison_basis_type,
     comparable_to_event_market_basis:
       immediate.comparable_to_event_market_basis === true && additional.comparable_to_event_market_basis === true,
@@ -570,6 +572,10 @@ function factEligibilityReason(fact: MinimalOfferingNumericFact) {
 }
 
 function buildSafeProjection(value: Omit<MinimalOfferingMaterialized, "safe_projection"> | MinimalOfferingMaterialized) {
+  // Production persistence and Second-stage callers reach this projection only
+  // after strict canonical validation (and, for Second-stage output, allowed
+  // source_ref membership validation). Exact semantic ranking among those
+  // allowed references is diagnostic provenance, not numeric fact eligibility.
   if (value.applicability !== "applicable") return {};
   const projection: JsonRecord = {
     financing_stage: value.financing_stage,
