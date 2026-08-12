@@ -16,10 +16,21 @@ test("condition registry exposes only V1 READY canonical conditions", () => {
   assert.equal(new Set(MONITOR_CONDITION_REGISTRY.map((entry) => entry.key)).size, MONITOR_CONDITION_REGISTRY.length);
 });
 
-test("offering conditions point directly to canonical event_offering_terms", () => {
+test("offering conditions point only to the fail-closed canonical reader", () => {
   const offeringEntries = MONITOR_CONDITION_REGISTRY.filter((entry) => entry.family === "offering");
-  assert.ok(offeringEntries.length > 0);
-  assert.ok(offeringEntries.every((entry) => entry.source.table === "event_offering_terms"));
+  assert.deepEqual(offeringEntries.map((entry) => entry.key), [
+    "offering.side",
+    "offering.amount",
+    "offering.offering_price",
+    "offering.immediate_primary_share_exposure",
+    "offering.additional_potential_primary_share_exposure",
+    "offering.resale_share_exposure",
+    "offering.total_potential_share_exposure",
+  ]);
+  assert.ok(offeringEntries.every((entry) => entry.source.table === "event_offering_monitor_canonical"));
+  assert.ok(offeringEntries.every((entry) => entry.source.reader === "read_event_offering_monitor_canonical"));
+  assert.equal(getReadyMonitorCondition("offering.estimated_dilution_percent"), null);
+  assert.equal(getReadyMonitorCondition("offering.float_overhang_percent"), null);
   assert.equal(getReadyMonitorCondition("market.price_at_event")?.source.table, "event_market_snapshots");
   assert.equal(getReadyMonitorCondition("market.price_at_event")?.source.availabilityColumn, "price_availability");
 });

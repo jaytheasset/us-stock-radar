@@ -26,6 +26,7 @@ export const MONITOR_COMPARISON_ELIGIBLE_QUALITIES = Object.freeze([
 type MonitorFactTable =
   | "events"
   | "event_market_snapshots"
+  | "event_offering_monitor_canonical"
   | "event_offering_terms"
   | "event_form4_transactions"
   | "event_form144_proposed_sales";
@@ -40,6 +41,8 @@ export type MonitorConditionDefinition = Readonly<{
     table: MonitorFactTable;
     column: string;
     subject: "event" | "ticker";
+    reader?: "read_event_offering_monitor_canonical";
+    jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
   }>;
@@ -51,6 +54,7 @@ const equality = ["eq", "neq"] as const;
 const textOperators = ["eq", "neq", "in", "not_in"] as const;
 const numericOperators = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 const temporalOperators = ["eq", "neq", "before", "after"] as const;
+const enumOperators = ["eq", "in"] as const;
 
 const registry = [
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
@@ -78,12 +82,13 @@ const registry = [
     availabilityColumn: "market_cap_availability",
   }),
 
-  condition("offering.amount", "number", numericOperators, "offering", "capital_raising", "event_offering_terms", "offering_amount", "event", ["exact", "derived", "estimated", "unknown"]),
-  condition("offering.shares_offered", "number", numericOperators, "offering", "capital_raising", "event_offering_terms", "shares_offered", "event", ["exact", "derived", "estimated", "unknown"]),
-  condition("offering.offering_price", "number", numericOperators, "offering", "capital_raising", "event_offering_terms", "offering_price", "event", ["exact", "unknown"]),
-  condition("offering.estimated_dilution_percent", "number", numericOperators, "offering", "dilution", "event_offering_terms", "estimated_dilution_percent", "event", ["derived", "estimated", "unknown"]),
-  condition("offering.float_overhang_percent", "number", numericOperators, "offering", "dilution", "event_offering_terms", "float_overhang_percent", "event", ["derived", "estimated", "unknown"]),
-  condition("offering.total_potential_share_exposure", "number", numericOperators, "offering", "dilution", "event_offering_terms", "total_potential_share_exposure", "event", ["exact", "derived", "estimated", "unknown"]),
+  canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"]),
+  canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
+  canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "offering_price"]),
+  canonicalOfferingCondition("offering.immediate_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "immediate_primary_share_exposure"]),
+  canonicalOfferingCondition("offering.additional_potential_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "additional_potential_primary_share_exposure"]),
+  canonicalOfferingCondition("offering.resale_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "resale_share_exposure"]),
+  canonicalOfferingCondition("offering.total_potential_share_exposure", "number", numericOperators, "dilution", "materialized_payload", ["total_potential_primary_share_exposure"]),
 
   condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"]),
   condition("ownership.form4.transaction_value", "number", numericOperators, "ownership", "form4", "event_form4_transactions", "transaction_value", "ticker", ["derived", "unknown"], {
@@ -134,6 +139,32 @@ function condition(
     domain,
     source: Object.freeze({ table, column, subject, ...sourceContract }),
     qualityCapability: Object.freeze([...qualityCapability]),
+    status: "READY" as const,
+  });
+}
+
+function canonicalOfferingCondition(
+  key: string,
+  valueType: "number" | "text",
+  allowedOperators: readonly MonitorConditionOperator[],
+  domain: string,
+  column: "validated_canonical_payload" | "materialized_payload",
+  jsonPath: readonly string[],
+): MonitorConditionDefinition {
+  return Object.freeze({
+    key,
+    valueType,
+    allowedOperators: Object.freeze([...allowedOperators]),
+    family: "offering" as const,
+    domain,
+    source: Object.freeze({
+      table: "event_offering_monitor_canonical" as const,
+      column,
+      subject: "event" as const,
+      reader: "read_event_offering_monitor_canonical" as const,
+      jsonPath: Object.freeze([...jsonPath]),
+    }),
+    qualityCapability: Object.freeze(["exact", "derived", "estimated", "unknown"] as const),
     status: "READY" as const,
   });
 }
