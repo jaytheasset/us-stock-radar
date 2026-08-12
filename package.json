@@ -52,6 +52,7 @@
     "verify:market-cache-workflow": "node --test --experimental-strip-types lib/marketCacheWorkflow.test.ts",
     "verify:monitor-foundation": "node --test --experimental-strip-types lib/monitor/conditionRegistry.test.ts lib/monitor/persistence.test.ts",
     "verify:minimal-offering-monitor": "node --test --experimental-strip-types lib/minimalOfferingMonitor.test.ts",
+    "verify:offering-matcher": "node --test --experimental-strip-types lib/offeringMonitorMatcher.test.ts",
     "verify:async-monitor-foundation": "node --test --experimental-strip-types lib/offeringMonitorJobFoundation.test.ts",
     "verify:analysis-market-data": "node --test --experimental-strip-types lib/analysisPeerSelection.test.ts lib/analysisPeerProviderContract.test.ts lib/analysisMarketDataContract.test.ts lib/analysisMarketIntegration.test.ts lib/marketChartMovement.test.ts lib/marketRequestCoalescing.test.ts",
     "verify:prelaunch": "node --test --experimental-strip-types lib/prelaunch.test.ts",
