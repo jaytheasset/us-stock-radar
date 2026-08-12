@@ -3,6 +3,7 @@ import {
   type GeminiStructuredJsonRun,
   type StructuredJsonPrompt,
 } from "./geminiStructuredJson.ts";
+import { readMonitorRoutingResultFromPrimaryOutput } from "../monitor/monitorRouting.ts";
 
 export type NewsGeminiAnalysisResult<Analysis> =
   | {
@@ -64,5 +65,16 @@ export async function runNewsGeminiAnalysis<Analysis, Input>({
     stage: "complete",
     run,
     analysis,
+  };
+}
+
+export function normalizeNewsPrimaryMonitorRouting(
+  analysis: Record<string, unknown>,
+): Record<string, unknown> {
+  const monitorRouting = readMonitorRoutingResultFromPrimaryOutput(analysis);
+  const { monitor_routes: _unvalidatedMonitorRoutes, ...analysisWithoutMonitorRoutes } = analysis;
+  return {
+    ...analysisWithoutMonitorRoutes,
+    ...(monitorRouting || {}),
   };
 }

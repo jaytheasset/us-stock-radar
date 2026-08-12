@@ -29,6 +29,38 @@ export type MonitorRoutingValidationOptions<AnalyzerKey extends string = string>
   allowedAnalyzerKeys?: readonly AnalyzerKey[];
 };
 
+export const MONITOR_ROUTING_RESULT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["monitor_routes"],
+  properties: {
+    monitor_routes: {
+      type: "array",
+      maxItems: SUPPORTED_MONITOR_ANALYZER_KEYS.length,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["monitor_analyzer_key"],
+        properties: {
+          monitor_analyzer_key: {
+            type: "string",
+            enum: SUPPORTED_MONITOR_ANALYZER_KEYS,
+            maxLength: MONITOR_ANALYZER_KEY_MAX_LENGTH,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export const LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS = [
+  "Independently from event_type, decide monitor_routes from the complete source semantics. Return exactly [] or [{\"monitor_analyzer_key\":\"listing_risk\"}].",
+  "Route listing_risk when the source materially reports a listing deficiency or minimum-bid compliance issue, regained compliance, a delisting determination, a listing appeal or hearing, a listing-related trading suspension, removal or withdrawal from an exchange, listing termination, or another material listing-status action.",
+  "Adverse, recovered, and procedural listing actions are all eligible. A merger or other primary event may therefore keep its own event_type while also routing listing_risk when the source materially reports the security's procedural removal or listing termination.",
+  "Do not route listing_risk solely because of a simple reverse split without explicit listing or compliance context, an ordinary exchange or trading-symbol mention, administrative CUSIP or ticker mechanics, or an unrelated event.",
+  "Do not derive monitor_routes from event_type, SEC form type, router candidates, material_events, keywords, or regex matches. Do not include relation, confidence, reason, domain facts, execution state, or persistence fields in a route.",
+].join("\n");
+
 export function validateMonitorRoutingResult(
   value: unknown,
   options: MonitorRoutingValidationOptions = {},
@@ -83,6 +115,17 @@ export function readMonitorRoutingResult<AnalyzerKey extends string = SupportedM
   return validateMonitorRoutingResult(value, options).length === 0
     ? (value as MonitorRoutingResult<AnalyzerKey>)
     : null;
+}
+
+export function readMonitorRoutingResultFromPrimaryOutput<
+  AnalyzerKey extends string = SupportedMonitorAnalyzerKey,
+>(
+  value: unknown,
+  options: MonitorRoutingValidationOptions<AnalyzerKey> = {},
+): MonitorRoutingResult<AnalyzerKey> | null {
+  const root = record(value);
+  if (!root || !Object.hasOwn(root, "monitor_routes")) return null;
+  return readMonitorRoutingResult({ monitor_routes: root.monitor_routes }, options);
 }
 
 function validAnalyzerKey(value: unknown): value is string {

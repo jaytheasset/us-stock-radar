@@ -3,11 +3,19 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getServerEnv } from "../env.ts";
 import {
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
+  validateMonitorRoutingResult,
+} from "../monitor/monitorRouting.ts";
+import {
   runStructuredGeminiJson,
   type GeminiStructuredJsonRun,
 } from "./geminiStructuredJson.ts";
 import { sanitizeNasdaqCorporateActionAnalysis } from "./nasdaqCorporateActionAnalysis.ts";
-import { runNewsGeminiAnalysis } from "./newsGeminiAnalysis.ts";
+import {
+  normalizeNewsPrimaryMonitorRouting,
+  runNewsGeminiAnalysis,
+} from "./newsGeminiAnalysis.ts";
 
 const prompt = {
   key: "news_event_analysis",
@@ -228,7 +236,7 @@ test("general news prompt requires source-backed directional points without manu
     "utf8",
   );
 
-  assert.match(promptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v26"/);
+  assert.match(promptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v27-monitor-routing"/);
   assert.match(promptSource, /distinct directional facts explicitly source-backed by the article body/);
   assert.match(promptSource, /use fewer items or an empty array \[\]/);
   assert.match(promptSource, /Empty arrays are normal and expected/);
@@ -247,6 +255,99 @@ test("general news prompt requires source-backed directional points without manu
   );
   assert.match(promptSource, /Required key; use an empty array when no source-backed bullish fact exists/);
   assert.match(promptSource, /Required key; use an empty array when no source-backed bearish fact exists/);
+});
+
+test("News and Nasdaq Primary schemas reuse the Generic Monitor routing contract", () => {
+  const newsPromptSource = readFileSync(new URL("../prompts/newsEventAnalysis.ts", import.meta.url), "utf8");
+  const nasdaqPromptSource = readFileSync(
+    new URL("../prompts/nasdaqCorporateActionAnalysis.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(newsPromptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v27-monitor-routing"/);
+  assert.match(nasdaqPromptSource, /NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v7-monitor-routing"/);
+  assert.match(newsPromptSource, /required: \[[\s\S]*?"event_type",\s*"monitor_routes",/);
+  assert.match(
+    newsPromptSource,
+    /monitor_routes: MONITOR_ROUTING_RESULT_JSON_SCHEMA\.properties\.monitor_routes/,
+  );
+  assert.match(nasdaqPromptSource, /output_contract: newsEventAnalysisResponseSchema/);
+  assert.deepEqual(
+    MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.items.properties.monitor_analyzer_key.enum,
+    ["listing_risk"],
+  );
+});
+
+test("News Primary keeps valid empty/listing routes and does not map event_type into routes", () => {
+  const noRoute = normalizeNewsPrimaryMonitorRouting({
+    event_type: "listing_risk",
+    score: 55,
+    monitor_routes: [],
+  });
+  const listingRoute = normalizeNewsPrimaryMonitorRouting({
+    event_type: "strategic_transaction",
+    score: 80,
+    monitor_routes: [{ monitor_analyzer_key: "listing_risk" }],
+  });
+
+  assert.deepEqual(noRoute.monitor_routes, []);
+  assert.equal(noRoute.event_type, "listing_risk");
+  assert.deepEqual(listingRoute.monitor_routes, [{ monitor_analyzer_key: "listing_risk" }]);
+  assert.equal(listingRoute.event_type, "strategic_transaction");
+});
+
+test("News and Nasdaq reject invalid or duplicate routes without blocking existing Primary fields", () => {
+  const invalidRoutes = [
+    [{ monitor_analyzer_key: "financial_risk" }],
+    [
+      { monitor_analyzer_key: "listing_risk" },
+      { monitor_analyzer_key: "listing_risk" },
+    ],
+  ];
+
+  for (const monitor_routes of invalidRoutes) {
+    assert.notDeepEqual(validateMonitorRoutingResult({ monitor_routes }), []);
+
+    const news = normalizeNewsPrimaryMonitorRouting({
+      event_type: "listing_risk",
+      score: 61,
+      summary: "Existing News Primary publication remains available.",
+      monitor_routes,
+    });
+    const nasdaq = sanitizeNasdaqCorporateActionAnalysis({
+      event_type: "listing_risk",
+      score: 62,
+      summary: "Existing Nasdaq Primary publication remains available.",
+      monitor_routes,
+    });
+
+    assert.equal(news.score, 61);
+    assert.equal(Object.hasOwn(news, "monitor_routes"), false);
+    assert.equal(nasdaq.score, 62);
+    assert.equal(Object.hasOwn(nasdaq, "monitor_routes"), false);
+  }
+});
+
+test("News, Nasdaq, and SEC-oriented routing instructions are semantic rather than automatic mappings", () => {
+  const newsPromptSource = readFileSync(new URL("../prompts/newsEventAnalysis.ts", import.meta.url), "utf8");
+  const nasdaqPromptSource = readFileSync(
+    new URL("../prompts/nasdaqCorporateActionAnalysis.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /regained compliance/i);
+  assert.match(LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /procedural listing actions/i);
+  assert.match(
+    LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+    /simple reverse split without explicit listing or compliance context/i,
+  );
+  assert.match(LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /Do not derive monitor_routes from event_type/i);
+  assert.match(newsPromptSource, /LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
+  assert.match(nasdaqPromptSource, /LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
+  assert.match(
+    nasdaqPromptSource,
+    /simple reverse split may retain its existing event_type while monitor_routes is \[\]/i,
+  );
 });
 
 test("single-pass news analysis preserves source-backed directional array shapes", async () => {

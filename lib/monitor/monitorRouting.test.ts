@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MONITOR_ANALYZER_KEY_MAX_LENGTH,
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
   MONITOR_ROUTING_CONTRACT_VERSION,
+  readMonitorRoutingResultFromPrimaryOutput,
   readMonitorRoutingResult,
   SUPPORTED_MONITOR_ANALYZER_KEYS,
   validateMonitorRoutingResult,
@@ -14,6 +16,12 @@ const listingRoute = { monitor_analyzer_key: "listing_risk" } as const;
 test("contract identifies V1 and enables only the implemented analyzer by default", () => {
   assert.equal(MONITOR_ROUTING_CONTRACT_VERSION, "monitor_routing_v1");
   assert.deepEqual(SUPPORTED_MONITOR_ANALYZER_KEYS, ["listing_risk"]);
+  assert.deepEqual(MONITOR_ROUTING_RESULT_JSON_SCHEMA.required, ["monitor_routes"]);
+  assert.deepEqual(
+    MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.items.properties.monitor_analyzer_key.enum,
+    SUPPORTED_MONITOR_ANALYZER_KEYS,
+  );
+  assert.equal(MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.maxItems, 1);
 });
 
 test("empty monitor_routes is the canonical valid no-route result", () => {
@@ -169,4 +177,44 @@ test("invalid route containers fail closed and the reader returns null", () => {
     assert.notDeepEqual(validateMonitorRoutingResult(value), []);
     assert.equal(readMonitorRoutingResult(value), null);
   }
+});
+
+test("Primary field reader preserves the semantic difference between legacy missing and new empty", () => {
+  const legacyPrimary = { event_type: "other", summary: "Stored before Monitor routing." };
+  const newNoRoutePrimary = { ...legacyPrimary, monitor_routes: [] };
+
+  assert.equal(readMonitorRoutingResultFromPrimaryOutput(legacyPrimary), null);
+  assert.deepEqual(readMonitorRoutingResultFromPrimaryOutput(newNoRoutePrimary), { monitor_routes: [] });
+  assert.equal(Object.hasOwn(legacyPrimary, "monitor_routes"), false);
+  assert.equal(Object.hasOwn(newNoRoutePrimary, "monitor_routes"), true);
+});
+
+test("Primary field reader rejects invalid and duplicate routes without reading event_type semantics", () => {
+  for (const primaryOutput of [
+    {
+      event_type: "listing_risk",
+      monitor_routes: [{ monitor_analyzer_key: "financial_risk" }],
+    },
+    {
+      event_type: "strategic_transaction",
+      monitor_routes: [listingRoute, listingRoute],
+    },
+  ]) {
+    assert.equal(readMonitorRoutingResultFromPrimaryOutput(primaryOutput), null);
+  }
+
+  assert.deepEqual(
+    readMonitorRoutingResultFromPrimaryOutput({
+      event_type: "strategic_transaction",
+      monitor_routes: [listingRoute],
+    }),
+    { monitor_routes: [listingRoute] },
+  );
+  assert.deepEqual(
+    readMonitorRoutingResultFromPrimaryOutput({
+      event_type: "listing_risk",
+      monitor_routes: [],
+    }),
+    { monitor_routes: [] },
+  );
 });

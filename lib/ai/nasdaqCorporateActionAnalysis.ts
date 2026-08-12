@@ -1,8 +1,11 @@
+import { normalizeNewsPrimaryMonitorRouting } from "./newsGeminiAnalysis.ts";
+
 export function sanitizeNasdaqCorporateActionAnalysis(
   analysis: Record<string, unknown>,
 ): Record<string, unknown> {
+  const analysisWithValidatedMonitorRouting = normalizeNewsPrimaryMonitorRouting(analysis);
   return {
-    ...analysis,
+    ...analysisWithValidatedMonitorRouting,
     quick_take: removeCusipAdministrativeText(readString(analysis.quick_take) || ""),
     summary: removeCusipAdministrativeText(readString(analysis.summary) || ""),
     why_it_matters: removeCusipAdministrativeText(readString(analysis.why_it_matters) || ""),
