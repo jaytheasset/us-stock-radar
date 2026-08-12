@@ -1,9 +1,13 @@
 import { CALENDAR_EVENT_TYPE_VALUES } from "@/lib/calendarEventRegistry";
 import { NEWS_EVENT_TYPE_VALUES } from "@/lib/eventTypeRegistry";
+import {
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
+} from "@/lib/monitor/monitorRouting";
 export { NEWS_EVENT_TYPE_VALUES } from "@/lib/eventTypeRegistry";
 
 export const NEWS_EVENT_ANALYSIS_PROMPT_KEY = "news_event_analysis";
-export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v26";
+export const NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v27-monitor-routing";
 
 export const SOURCE_GROUP_VALUES = ["news"] as const;
 export const MARKET_SCOPE_VALUES = ["company", "sector", "theme", "macro"] as const;
@@ -103,6 +107,7 @@ export const newsEventAnalysisSystemPrompt = [
   "For related_tickers, you may use reliable market knowledge to connect named products, drugs, assets, owners, licensees, co-commercialization partners, customers, suppliers, counterparties, or directly exposed U.S.-listed/ADR issuers.",
   "Do not add weak comparable tickers just to fill related_tickers; if a relationship is uncertain, leave it empty or mark needs_human_review.",
   "Choose event_type from the core development, not from the release format.",
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   "Use fda_clinical for FDA approvals, clearances, CRLs, safety-label changes, clinical results, PDUFA dates, or advisory committee catalysts.",
   "For clinical, FDA, drug, device, diagnostic, or biopharma news, identify material sponsors, applicants, rights holders, licensees, manufacturers, and commercial partners with U.S.-listed, ADR, or OTC exposure.",
   "Do not reduce a multi-company clinical/FDA catalyst to one ticker, and do not lower an otherwise investable catalyst only because the article omits a ticker.",
@@ -156,6 +161,7 @@ export const newsEventAnalysisResponseSchema = {
     "source_group",
     "market_scope",
     "event_type",
+    "monitor_routes",
     "primary_ticker",
     "tickers",
     "sector",
@@ -182,6 +188,7 @@ export const newsEventAnalysisResponseSchema = {
     source_group: { type: "string", enum: SOURCE_GROUP_VALUES },
     market_scope: { type: "string", enum: MARKET_SCOPE_VALUES },
     event_type: { type: "string", enum: NEWS_EVENT_TYPE_VALUES },
+    monitor_routes: MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
     primary_ticker: {
       type: "object",
       additionalProperties: false,

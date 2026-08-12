@@ -239,6 +239,9 @@ export type Sec8k6kAnalysisOutput = {
   source_group: "filings";
   market_scope: "company" | "sector" | "theme" | "macro";
   event_type: Sec8k6kEventType;
+  monitor_routes?: Array<{
+    monitor_analyzer_key: "listing_risk";
+  }>;
   material_events?: Array<{
     role: "primary" | "secondary";
     event_type: Sec8k6kEventType;

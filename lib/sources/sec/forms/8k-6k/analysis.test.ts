@@ -9,9 +9,14 @@ import {
   getSec8k6kGovernanceSemanticWarnings,
   getSec8k6kValidationSemanticWarnings,
   normalizeSec8k6kCapitalDisplayPayloadForPersistence,
+  normalize8k6kAnalysisForPersistence,
   normalizeSec8k6kOperatingDisplayPayloadForPersistence,
   repairSec8k6kDisplayPayloadEncoding,
 } from "../../../../ai/sec8k6kAnalysisAdapter";
+import {
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
+  validateMonitorRoutingResult,
+} from "../../../../monitor/monitorRouting";
 import { getPromptRegistry } from "../../../../promptRegistry";
 import { buildSecFilingAnalysisPackage } from "../../../../prompts/secFilingAnalysisPackage";
 import {
@@ -120,7 +125,7 @@ const analysisUserPayload = JSON.parse(prompt.user) as Record<string, any>;
 
 assert.equal(prompt.key, SEC_8K_6K_ANALYSIS_PROMPT_KEY);
 assert.equal(prompt.version, SEC_8K_6K_ANALYSIS_PROMPT_VERSION);
-assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v43-atm-capacity-unit-model");
+assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v44-monitor-routing");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "listing_risk" }), "risk_status");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "financial_risk" }), "risk_status");
 assert.equal(
@@ -181,6 +186,67 @@ for (const schema of [riskRuntimeSchema, capitalRuntimeSchema, strategicRuntimeS
     "material_change",
     "unable_to_compare",
   ]);
+  assert.equal(schema.properties.analysis_output.required.includes("monitor_routes"), true);
+  assert.strictEqual(
+    schema.properties.analysis_output.properties.monitor_routes,
+    MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
+  );
+}
+assert.equal(sec8k6kAnalysisResponseSchema.properties.analysis_output.required.includes("monitor_routes"), true);
+assert.strictEqual(
+  sec8k6kAnalysisResponseSchema.properties.analysis_output.properties.monitor_routes,
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
+);
+assert.match(sec8k6kAnalysisSystemPrompt, /regained compliance/i);
+assert.match(sec8k6kAnalysisSystemPrompt, /simple reverse split without explicit listing or compliance context/i);
+assert.match(sec8k6kAnalysisSystemPrompt, /Do not derive monitor_routes from event_type/i);
+assert.match(
+  sec8k6kAnalysisSystemPrompt,
+  /Preserve primary_route_candidate, route_candidates, and material_events[\s\S]*?never convert or copy any of them into monitor_routes/i,
+);
+
+const monitorRoutingPersistenceInput = {
+  filing_package: {
+    primary_ticker: { ticker: "TEST", exchange: "NASDAQ" },
+  },
+} as any;
+const legacyRoutingOutput = normalize8k6kAnalysisForPersistence({
+  event_type: "listing_risk",
+  score: 60,
+}, monitorRoutingPersistenceInput);
+const emptyRoutingOutput = normalize8k6kAnalysisForPersistence({
+  event_type: "listing_risk",
+  score: 60,
+  monitor_routes: [],
+}, monitorRoutingPersistenceInput);
+const listingRoutingOutput = normalize8k6kAnalysisForPersistence({
+  event_type: "strategic_transaction",
+  score: 70,
+  monitor_routes: [{ monitor_analyzer_key: "listing_risk" }],
+}, monitorRoutingPersistenceInput);
+
+assert.equal(Object.hasOwn(legacyRoutingOutput, "monitor_routes"), false);
+assert.deepEqual(emptyRoutingOutput.monitor_routes, []);
+assert.deepEqual(listingRoutingOutput.monitor_routes, [{ monitor_analyzer_key: "listing_risk" }]);
+assert.equal(listingRoutingOutput.event_type, "strategic_transaction");
+
+for (const monitor_routes of [
+  [{ monitor_analyzer_key: "financial_risk" }],
+  [
+    { monitor_analyzer_key: "listing_risk" },
+    { monitor_analyzer_key: "listing_risk" },
+  ],
+]) {
+  assert.notDeepEqual(validateMonitorRoutingResult({ monitor_routes }), []);
+  const invalidRoutingOutput = normalize8k6kAnalysisForPersistence({
+    event_type: "listing_risk",
+    score: 64,
+    summary: "Existing SEC Primary publication remains available.",
+    monitor_routes,
+  }, monitorRoutingPersistenceInput);
+  assert.equal(invalidRoutingOutput.score, 64);
+  assert.equal(invalidRoutingOutput.summary, "Existing SEC Primary publication remains available.");
+  assert.equal(Object.hasOwn(invalidRoutingOutput, "monitor_routes"), false);
 }
 assert.equal("security_inventory" in strategicRuntimeSchema.properties, false);
 assert.equal(strategicRuntimeSchema.properties.display_payload.properties.display_type.enum[0], "strategic_transaction");

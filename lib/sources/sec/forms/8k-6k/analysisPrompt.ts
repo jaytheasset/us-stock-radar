@@ -18,6 +18,10 @@ import {
   SEC_ACTIVE_OFFERING_DILUTION_ALERT_GUARDS,
   SEC_ACTIVE_OFFERING_DILUTION_SCORING_GUIDE,
 } from "../common/offeringDilutionScoring";
+import {
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
+} from "../../../../monitor/monitorRouting";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
   riskStatus: "sec_8k_6k_analysis_listing_financial_risk",
@@ -28,7 +32,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v43-atm-capacity-unit-model";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v44-monitor-routing";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -162,6 +166,7 @@ const analysisOutputSchema = {
     "source_group",
     "market_scope",
     "event_type",
+    "monitor_routes",
     "material_events",
     "event_title",
     "primary_ticker",
@@ -191,6 +196,7 @@ const analysisOutputSchema = {
     source_group: { type: "string", enum: ["filings"] },
     market_scope: { type: "string", enum: ["company", "sector", "theme", "macro"] },
     event_type: { type: "string", enum: SEC_8K_6K_APPROVED_EVENT_TYPES },
+    monitor_routes: MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
     material_events: {
       type: "array",
       minItems: 1,
@@ -419,6 +425,7 @@ const runtimeAnalysisOutputBaseRequired = [
   "source_group",
   "market_scope",
   "event_type",
+  "monitor_routes",
   "material_events",
   "event_title",
   "primary_ticker",
@@ -445,6 +452,7 @@ function buildRuntimeAnalysisOutputSchema(options: Sec8k6kFamilySchemaOptions) {
     source_group: { type: "string", enum: ["filings"] },
     market_scope: { type: "string", enum: ["company", "sector", "theme", "macro"] },
     event_type: { type: "string", enum: options.eventTypes },
+    monitor_routes: MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
     material_events: {
       type: "array",
       minItems: 1,
@@ -1074,6 +1082,8 @@ export const sec8k6kAnalysisSystemPrompt = [
   "The router result is routing context only. router_result.event_type, primary_route_candidate, and route_candidates are candidate routes, not final classifications.",
   "You may correct or override the router candidate route when the complete original source blocks support a different conclusion.",
   "Determine the final analysis_output.event_type from the complete original source blocks. Use exactly one approved event_type and do not copy router_result.event_type blindly.",
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  "For SEC current reports, decide analysis_output.monitor_routes from the complete original source blocks. Preserve primary_route_candidate, route_candidates, and material_events for their existing purposes; never convert or copy any of them into monitor_routes.",
   "Use exactly one approved event_type: listing_risk, dilution_risk, ipo_listing, earnings, sales_performance, operating_update, product_update, leadership_governance, insider_ownership, shareholder_vote, strategic_transaction, financial_risk, legal_risk, dividends, capital_return, fda_clinical, or other.",
   "Populate material_events before event_title, quick_take, score_reason, score_explanation, or summary. material_events is an internal analysis plan, not visible UI copy.",
   "material_events must contain exactly one role=primary row whose event_type matches analysis_output.event_type. Add a role=secondary only for a separate new event that would independently warrant its own investor conclusion. Do not create a secondary row for a term, use of proceeds, condition, rationale, background fact, procedural cleanup, or consequence of the primary event.",

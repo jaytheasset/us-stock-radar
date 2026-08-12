@@ -4,7 +4,10 @@ import {
   type GeminiResponseBody,
   type GeminiUsage,
 } from "@/lib/ai/geminiStructuredJson";
-import { runNewsGeminiAnalysis } from "@/lib/ai/newsGeminiAnalysis";
+import {
+  normalizeNewsPrimaryMonitorRouting,
+  runNewsGeminiAnalysis,
+} from "@/lib/ai/newsGeminiAnalysis";
 import { resolveNewsPromptMarketContext } from "@/lib/newsMarketContext";
 import {
   buildNewsEventAnalysisPrompt,
@@ -267,6 +270,7 @@ function numberValue(value: unknown) {
 
 function normalizeNewsAnalysis(analysis: Record<string, unknown> | null, input: NewsEventAnalysisInput) {
   if (!analysis) return null;
+  const analysisWithValidatedMonitorRouting = normalizeNewsPrimaryMonitorRouting(analysis);
   const calendarItems = Array.isArray(analysis.calendar_items) ? analysis.calendar_items : [];
   const primaryTicker = sanitizePrimaryTicker(analysis.primary_ticker);
   const tickers = sanitizeTickerArray(analysis.tickers);
@@ -276,7 +280,7 @@ function normalizeNewsAnalysis(analysis: Record<string, unknown> | null, input: 
     ),
   );
   return {
-    ...analysis,
+    ...analysisWithValidatedMonitorRouting,
     primary_ticker: primaryTicker,
     tickers,
     related_tickers: sanitizeRelatedTickerArray(analysis.related_tickers, excludedRelatedSymbols),

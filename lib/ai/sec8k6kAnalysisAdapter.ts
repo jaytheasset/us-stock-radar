@@ -24,6 +24,10 @@ import {
   SEC_8K_6K_APPROVED_EVENT_TYPES,
   SEC_8K_6K_CAPITAL_FINANCING_MODE_VALUES,
 } from "@/lib/sources/sec/forms/8k-6k/types";
+import {
+  MONITOR_ROUTING_RESULT_JSON_SCHEMA,
+  readMonitorRoutingResultFromPrimaryOutput,
+} from "@/lib/monitor/monitorRouting";
 
 export {
   SEC_8K_6K_ANALYSIS_PROMPT_KEY,
@@ -3075,12 +3079,15 @@ function buildSec8k6kPromptMetadata(
   };
 }
 
-function normalize8k6kAnalysisForPersistence(value: Record<string, unknown>, input: SecFilingAnalysisInput) {
+export function normalize8k6kAnalysisForPersistence(value: Record<string, unknown>, input: SecFilingAnalysisInput) {
   const filingPackage = readFilingPackage(input);
   const primaryTicker = normalizePrimaryTicker(readRecord(value.primary_ticker), filingPackage);
+  const monitorRouting = readMonitorRoutingResultFromPrimaryOutput(value);
+  const { monitor_routes: _unvalidatedMonitorRoutes, ...analysisWithoutMonitorRoutes } = value;
 
   return {
-    ...value,
+    ...analysisWithoutMonitorRoutes,
+    ...(monitorRouting || {}),
     source_group: stringValue(value.source_group) || "filings",
     market_scope: stringValue(value.market_scope) || "company",
     primary_ticker: primaryTicker,
@@ -4146,6 +4153,7 @@ const sec8k6kRuntimeAnalysisResponseSchema = {
         "source_group",
         "market_scope",
         "event_type",
+        "monitor_routes",
         "material_events",
         "event_title",
         "primary_ticker",
@@ -4196,6 +4204,7 @@ const sec8k6kRuntimeAnalysisResponseSchema = {
             "other",
           ],
         },
+        monitor_routes: MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes,
         material_events: {
           type: "array",
           minItems: 1,

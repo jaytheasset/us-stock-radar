@@ -3,9 +3,10 @@ import {
   type NewsEventAnalysisInput,
   type NewsPromptMarketContext,
 } from "@/lib/prompts/newsEventAnalysis";
+import { LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS } from "@/lib/monitor/monitorRouting";
 
 export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_KEY = "nasdaq_corporate_action_analysis";
-export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v6";
+export const NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v7-monitor-routing";
 
 export type NasdaqCorporateActionAnalysisInput = NewsEventAnalysisInput & {
   corporate_action: Record<string, unknown> | null;
@@ -21,6 +22,8 @@ const systemPrompt = [
   "Administrative implementation details are not investor-facing analysis unless they change economics or trading behavior. Omit alert numbers, UPDATED labels, bulletin labels, CUSIP changes, contact text, and market-maker instructions unless they are the actual material event.",
   "Set source_group to news and market_scope to company unless the alert truly affects a broad market group.",
   "Use listing_risk for reverse splits, listing mechanics, trading suspensions, non-compliance mechanics, or actions that materially affect listing/trading status.",
+  LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  "Keep the existing corporate-action event_type classification independent from monitor_routes. In particular, a simple reverse split may retain its existing event_type while monitor_routes is [] unless the notice explicitly connects it to listing compliance or another material listing-status action.",
   "Use strategic_transaction for mergers, tender offers, business combinations, spin-offs, distributions, and plan-of-arrangement events.",
   "Use dilution_risk for rights offerings or corporate actions that directly create shareholder dilution.",
   "Use financial_risk or other for redemptions and administrative actions when no cleaner event_type fits.",
