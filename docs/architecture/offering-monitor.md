@@ -4,7 +4,7 @@
 >
 > If this document and the implementation disagree, audit the current code, migrations, and tests before deciding which is correct. When an architecture change is approved, update the code and this document in the same change.
 
-## Current implementation status
+## Intended component architecture
 
 The intended external mental model is:
 
@@ -24,16 +24,55 @@ Canonical Offering Monitor State
 Offering Matcher
 ```
 
-Current `main` contains every component in that model, but the production path is not yet connected end to end. `workflows/offering-monitor-normalization.ts` runs Stage 2 and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`; `saveOfferingMonitorDiagnosticCandidate()` deliberately records `diagnostic_candidate_only: true` and `canonical_persistence_changed: false`. No production caller invokes `promoteOfferingMonitorCanonical()`. The current automatic runtime therefore stops after the diagnostic candidate:
+This is the intended and implemented component architecture. It does not mean every transition is automatically connected in production. At the current V1 checkpoint, production orchestration is wired only through creation of the validated Second-stage candidate. Canonical promotion and Matcher invocation are implemented and validated components but are not connected to the production execution path.
+
+## Production Execution Status
+
+```text
+Analysis → Second-stage candidate = WIRED
+
+Candidate → Canonical promotion = IMPLEMENTED / NOT PRODUCTION-WIRED
+
+Canonical → Matcher = IMPLEMENTED / NOT PRODUCTION-WIRED
+```
+
+### Automatically wired
+
+`workflows/source-ingest.ts` and the SEC analyze route enqueue `offeringMonitorNormalizationWorkflow` after a completed Primary. That workflow runs `processOfferingMonitorSecondStageJob()` and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`. `saveOfferingMonitorDiagnosticCandidate()` deliberately records `diagnostic_candidate_only: true` and `canonical_persistence_changed: false`.
+
+```text
+Primary Analysis
+   ↓
+Async Stage 2 Offering Monitor execution
+   ↓
+Validated / diagnostic Second-stage candidate
+```
+
+### Implemented but not production-wired
+
+#### Canonical Promotion
+
+The canonical table, application helper `promoteOfferingMonitorCanonical()`, atomic promotion RPC, fail-closed reader, and stale/idempotency/race protections are implemented and validated. A repository-wide caller audit finds no production caller of `promoteOfferingMonitorCanonical()`. A successful Second-stage execution therefore does not automatically become canonical current state.
+
+#### Offering Matcher
+
+`evaluateOfferingMonitorEvent()` and its canonical-reader-only, three-state evaluation are implemented and tested. A repository-wide caller audit finds no production caller outside tests. Even if canonical facts exist, the current production event flow does not automatically run user condition evaluation.
+
+The current automatic runtime therefore stops after the diagnostic candidate:
 
 ```text
 Stage 1 publish / score alert
    ↓
 Async Stage 2 validated diagnostic candidate
-   └── production promotion not wired
+   ↓
+[NOT YET PRODUCTION-WIRED]
+Canonical Promotion
+   ↓
+[NOT YET PRODUCTION-WIRED]
+Offering Matcher
 ```
 
-The canonical table, atomic promotion RPC, fail-closed reader, Registry entries, and Matcher are implemented and tested as separate boundaries. They are the only approved continuation of the pipeline; they must not be bypassed with a legacy fallback. Until promotion and Matcher invocation are wired, Offering Monitor is not an end-to-end production Monitor flow.
+The implemented canonical and Matcher boundaries are the only approved continuation of the pipeline; they must not be bypassed with a legacy fallback. Until both orchestration connections are wired, Offering Monitor is not an end-to-end production Monitor flow. Implemented component does not imply production-wired component.
 
 ## Stage responsibilities and timing
 
@@ -186,11 +225,22 @@ Monitor MA2 successfully promoted
 
 The old row may remain physically stored for audit, but it is not Matcher eligible once its parent is no longer current. This prevents a new analysis from matching against old financing terms.
 
-### Atomicity, idempotency, and current race evidence
+### Atomicity, idempotency, and concurrency acceptance
 
 The migration serializes replacement through `FOR UPDATE` locks on the event, source execution, and existing canonical row. SQL tests verify saved promotion, same-execution idempotency, stale old execution rejection after a newer Primary, old-canonical reader invalidation, and successful replacement by the newer execution. These establish the intended atomic and stale-safe database boundary.
 
-Current `main` does **not** contain an independent multi-session Postgres race test (for example, a `dblink`/two-connection test). Do not describe cross-session race validation as completed until such a test exists and passes. The production promotion caller is also not wired, as noted at the top of this document.
+Real multi-session concurrency acceptance validation is completed. The Phase 5O disposable acceptance run used independent Postgres sessions and passed Race A, Race B, Race C, and Race D. It verified stale-write protection, same-execution idempotency, and that an older execution cannot overwrite newer canonical state. Real lock waits were observed; there were no deadlocks or timeouts.
+
+The independent-session concurrency harness was intentionally disposable, removed after acceptance, and is not preserved in current `main` as a tracked, permanent, re-runnable regression test. Keep these two facts separate:
+
+```text
+Real multi-session concurrency acceptance validation: completed.
+
+Permanent repository-tracked, re-runnable multi-session concurrency
+regression harness: not currently preserved.
+```
+
+The tracked pgTAP suite continues to cover the sequential stale/idempotency contract. Absence of the disposable harness from the repository is not evidence that the completed multi-session acceptance did not occur.
 
 ### Security boundary
 
@@ -236,34 +286,55 @@ Conditions use AND aggregation:
 2. With no `no_match`, any `ineligible` makes the set `ineligible`.
 3. Only all matching conditions produce `match`.
 
-Percentage conditions such as dilution percent and float overhang percent are intentionally absent. Materialization contains derived metric slots, but the current Stage 2 promotion uses an empty market snapshot and V1 Registry exposes no percentage keys. Without a reliable denominator, as-of time, currency/unit, and comparison-basis contract, the Matcher must not invent percentages.
+Percentage conditions such as dilution percent and float overhang percent are intentionally absent. Materialization contains derived metric slots, but the current Stage 2 candidate materialization uses an empty market snapshot and V1 Registry exposes no percentage keys. Without a reliable denominator, as-of time, currency/unit, and comparison-basis contract, the Matcher must not invent percentages.
 
 ## Alerts and product boundary
 
 The existing alert is the Stock Radar score alert: event `delivery_level` is derived from Primary score (`75+` is `alert`) and delivery is attempted before Stage 2 enqueue. A future Monitor alert would be triggered by user condition matches. Both could legitimately occur for the same event and user; current architecture provides no automatic deduplication rule between them.
 
-Monitor alert delivery, natural-language Monitor creation, Monitor creation UI, and user-facing Offering Matcher invocation are not implemented. No production code outside tests calls `evaluateOfferingMonitorEvent()`.
+Monitor alert delivery, natural-language Monitor creation, and Monitor creation UI are not implemented. Production Offering Matcher invocation is implemented as a callable component but is not connected: no production code outside tests calls `evaluateOfferingMonitorEvent()`.
 
-## Completion boundary
+## Current Completion Boundary
 
-Implemented and tested as components:
+### Implemented and validated components
 
 - form-specific Stage 1 analysis, optional bounded Repair, persistence, and existing score alert;
 - durable asynchronous Stage 2 identity, exact lineage checks, source reduction, direct Gemini object, and strict diagnostic candidate validation;
+- execution history and logical-work/execution identity separation;
 - five-fact canonical contract and deterministic total materialization;
-- canonical table, atomic promotion RPC, fail-closed reader, RLS/function security, and sequential stale/idempotency SQL tests;
+- canonical table, atomic promotion helper/RPC, fail-closed reader, RLS/function security, stale protection, idempotency, and completed real multi-session concurrency acceptance;
 - seven Offering Registry keys and deterministic three-state Matcher tests.
 
-Not yet implemented or connected:
+### Production-wired flow
+
+```text
+Analysis → Second-stage candidate
+```
+
+### Implemented but not production-wired
 
 - automatic promotion of a successful Stage 2 candidate into canonical current state;
 - production invocation of the Offering Matcher;
-- independent multi-session Postgres race validation;
+
+These are the two immediate production orchestration gaps: the canonical promotion connection and the Matcher invocation connection.
+
+### Not yet implemented or connected
+
 - Monitor alert delivery and any score-alert/Monitor-alert deduplication policy;
 - natural-language Monitor creation and Monitor creation UI;
 - removal of the transitional Primary one-pass Monitor contract;
 - separately validated exact semantic citation and any provenance UI;
 - percentage Matcher conditions without the required market denominator/as-of contract.
+
+The permanent repository-tracked multi-session concurrency regression harness is also not preserved, although the disposable independent-session acceptance itself completed successfully.
+
+## Next Production Integration
+
+1. Wire successful validated Second-stage executions to canonical promotion.
+2. Wire canonical-ready Offering events to Offering Matcher evaluation.
+3. Only after those execution paths are validated, connect Monitor Alert delivery.
+
+These are future, separately approved implementation tasks. This document does not authorize bypassing the canonical reader, adding fallbacks, or coupling Monitor Alert delivery directly to diagnostic candidates.
 
 ## Do Not Reintroduce
 
@@ -291,6 +362,7 @@ Not yet implemented or connected:
 10. Offering’s two-stage design does not require other Monitor domains to be two-stage.
 11. Execution history and canonical current state remain separate.
 12. Until production promotion is wired, the automatic flow must be described as diagnostic-only, not end-to-end canonical.
+13. Implemented component does not imply production-wired component.
 
 ## Implementation cross-check anchors
 
