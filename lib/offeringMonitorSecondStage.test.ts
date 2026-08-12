@@ -5,7 +5,7 @@ import type { OfferingMonitorJobIdentity } from "./offeringMonitorJobFoundation.
 import {
   OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION,
   OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT,
-  OFFERING_MONITOR_SECOND_STAGE_WIRE_FACT_KEYS,
+  OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS,
   buildOfferingMonitorSecondStagePackage,
   offeringMonitorSecondStageProviderSchema,
   processOfferingMonitorSecondStageJob,
@@ -21,7 +21,7 @@ const identity: OfferingMonitorJobIdentity = {
   jobId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
   logicalJobId: "b6eaecad-5d37-57da-8dcd-5cd985e03977",
   executionId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
-  executionContractVersion: "second_stage_om1_v2",
+  executionContractVersion: "second_stage_direct_v3",
   executionAttemptKey: "automatic",
   eventId: "69606800-ee16-4a75-9bbf-3b64bdc56d69",
   rawItemId: "efea3384-9eef-4e6b-9e63-60dc1cd3090e",
@@ -34,14 +34,16 @@ const identity: OfferingMonitorJobIdentity = {
   enqueuedAt: "2026-08-12T00:00:00.000Z",
 };
 
-test("second-stage provider schema is one required root plain string with no nested Monitor states", () => {
-  assert.deepEqual(offeringMonitorSecondStageProviderSchema, {
-    type: "object",
-    required: ["offering_monitor_payload"],
-    properties: { offering_monitor_payload: { type: "string" } },
-  });
+test("second-stage provider schema is the direct readable Monitor shape without state explosion", () => {
+  assert.deepEqual(offeringMonitorSecondStageProviderSchema.required, [
+    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts",
+  ]);
+  assert.deepEqual(offeringMonitorSecondStageProviderSchema.properties.facts.required, OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS);
   const schema = JSON.stringify(offeringMonitorSecondStageProviderSchema);
-  assert.doesNotMatch(schema, /enum|nullable|oneOf|anyOf|facts|amount|immediate|additional/);
+  assert.match(schema, /actual_primary_offering_amount/);
+  assert.doesNotMatch(schema, /offering_monitor_payload|"amount"|"price"|"immediate"|"additional"|"resale"/);
+  assert.doesNotMatch(schema, /enum|nullable|oneOf|anyOf|allOf|"type":\[/);
+  assert.equal(Buffer.byteLength(schema), 3_039);
 });
 
 test("input package excludes Primary Monitor payload and legacy parser offering truth", () => {
@@ -67,16 +69,18 @@ test("source selection preserves exact stable IDs, referenced adjacency, and str
   assert.doesNotMatch(JSON.stringify(inputPackage.payload), /unrelated filing evidence/);
 });
 
-test("dedicated prompt uses only runtime om1 fact wire keys and preserves semantic definitions", () => {
-  assert.deepEqual(OFFERING_MONITOR_SECOND_STAGE_WIRE_FACT_KEYS, [
-    "amount", "price", "immediate", "additional", "resale",
+test("dedicated prompt uses direct canonical fact keys and preserves semantic definitions", () => {
+  assert.deepEqual(OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS, [
+    "actual_primary_offering_amount", "offering_price", "immediate_primary_share_exposure",
+    "additional_potential_primary_share_exposure", "resale_share_exposure",
   ]);
-  assert.equal(OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION, "second_stage_om1_v2");
+  assert.equal(OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION, "second_stage_direct_v3");
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /not rewriting the user-facing filing analysis/i);
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Display analysis and Monitor facts serve different purposes/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /amount is the source-backed gross amount/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional is a distinct potential primary exposure/i);
-  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount|offering_price|immediate_primary_share_exposure|additional_potential_primary_share_exposure|resale_share_exposure/);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount is the source-backed gross amount/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional_potential_primary_share_exposure is a distinct potential primary exposure/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount|offering_price|immediate_primary_share_exposure|additional_potential_primary_share_exposure|resale_share_exposure/);
+  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /OM1 WIRE CONTRACT|compact om1|facts has exactly five wire keys/);
   assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /IPDN|0001437749|10,?000,?000/);
 });
 
@@ -85,8 +89,8 @@ test("prompt ends after the source package with the exact outer, source namespac
   const prompt = inputPackage.prompt.user;
   const finalIndex = prompt.lastIndexOf("FINAL OUTPUT CONTRACT");
   assert.ok(finalIndex > prompt.lastIndexOf("evidence_blocks"));
-  assert.match(prompt.slice(finalIndex), /exactly one outer key: offering_monitor_payload/);
-  assert.match(prompt.slice(finalIndex), /amount, price, immediate, additional, resale/);
+  assert.match(prompt.slice(finalIndex), /direct Minimal Offering Monitor JSON object/);
+  assert.match(prompt.slice(finalIndex), /Never return offering_monitor_payload or nested JSON text/);
   assert.match(prompt.slice(finalIndex), /ref:s1f1_source_block_001/);
   assert.match(prompt.slice(finalIndex), /Do not return block_id, parent_primary_context/);
   assert.match(prompt.slice(finalIndex), /No aliases\. No markdown\. No commentary\. No explanation\. No trailing text\.$/);
@@ -94,55 +98,92 @@ test("prompt ends after the source package with the exact outer, source namespac
 
 test("comparison_basis remains a required runtime string even when a fact is unavailable", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
-  const payload = JSON.parse(validWirePayload()) as { facts: { price: { comparison_basis: unknown } } };
-  payload.facts.price.comparison_basis = null;
+  const payload = validDirectPayload() as { facts: { offering_price: { comparison_basis_type: unknown } } };
+  payload.facts.offering_price.comparison_basis_type = null;
   const candidate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
-    run: providerRun({ parsed: { offering_monitor_payload: JSON.stringify(payload) } }),
+    run: providerRun({ parsed: payload }),
   });
   assert.equal(candidate.validation.status, "validation_failed");
-  assert.match(candidate.validation.errors.join(" "), /facts\.price\.comparison_basis must be a string/);
+  assert.match(candidate.validation.errors.join(" "), /facts\.offering_price\.comparison_basis_type must be a string/);
 });
 
-test("valid outer string reuses strict om1 parsing and code-only total", () => {
+test("valid direct object reuses canonical validation and code-only total", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   const candidate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
-    run: providerRun({ parsed: { offering_monitor_payload: validWirePayload() } }),
+    run: providerRun({ parsed: validDirectPayload() }),
   });
   assert.equal(candidate.validation.status, "success");
   assert.equal(candidate.canonical_candidate?.primary_or_resale, "primary");
   assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 15_000_000);
 });
 
-test("unknown outer keys and duplicate inner keys fail closed", () => {
+test("nested string, malformed JSON, missing required fields, and semantic defaults fail closed", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const nested = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: { offering_monitor_payload: JSON.stringify(validDirectPayload()) } }),
+  });
+  assert.equal(nested.validation.status, "validation_failed");
+
+  const malformed = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ outputText: "{", parsed: validDirectPayload() }),
+  });
+  assert.equal(malformed.validation.status, "transport_failed");
+
+  const missing = validDirectPayload() as Record<string, unknown>;
+  delete missing.financing_stage;
+  const missingCandidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: missing }),
+  });
+  assert.equal(missingCandidate.validation.status, "validation_failed");
+  assert.match(missingCandidate.validation.errors.join(" "), /financing_stage is required/);
+
+  const invalid = validDirectPayload();
+  delete (invalid.facts.actual_primary_offering_amount as Record<string, unknown>).value;
+  const invalidCandidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: invalid }),
+  });
+  assert.equal(invalidCandidate.validation.status, "validation_failed");
+  assert.match(invalidCandidate.validation.errors.join(" "), /value must be a non-negative finite number when available/);
+});
+
+test("unknown direct keys and duplicate nested keys fail closed", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   const unknown = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
-    run: providerRun({ parsed: { offering_monitor_payload: validWirePayload(), extra: true } }),
+    run: providerRun({ parsed: { ...validDirectPayload(), extra: true } }),
   });
-  assert.equal(unknown.validation.status, "transport_failed");
+  assert.equal(unknown.validation.status, "validation_failed");
   const duplicate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
     run: providerRun({
-      parsed: { offering_monitor_payload: validWirePayload().replace('"stage":"active_offering"', '"stage":"active_offering","stage":"priced"') },
+      outputText: JSON.stringify(validDirectPayload()).replace('"availability":"available"', '"availability":"available","availability":"unavailable"'),
     }),
   });
   assert.equal(duplicate.validation.status, "transport_failed");
   assert.match(duplicate.validation.errors.join(" "), /duplicate key/i);
 });
 
-test("outer trailing text and duplicate keys fail closed without extraction or truncation", () => {
+test("direct trailing text and duplicate root keys fail closed without extraction or truncation", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
-  const outer = JSON.stringify({ offering_monitor_payload: validWirePayload() });
+  const outer = JSON.stringify(validDirectPayload());
   const trailing = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
-    run: providerRun({ outputText: `${outer}\ntrailing`, parsed: { offering_monitor_payload: validWirePayload() } }),
+    run: providerRun({ outputText: `${outer}\ntrailing`, parsed: validDirectPayload() }),
   });
   assert.equal(trailing.validation.status, "transport_failed");
   assert.match(trailing.validation.errors.join(" "), /trailing content/i);
@@ -151,8 +192,8 @@ test("outer trailing text and duplicate keys fail closed without extraction or t
     identity,
     package: inputPackage,
     run: providerRun({
-      outputText: `{"offering_monitor_payload":${JSON.stringify(validWirePayload())},"offering_monitor_payload":${JSON.stringify(validWirePayload())}}`,
-      parsed: { offering_monitor_payload: validWirePayload() },
+      outputText: outer.replace('"version":"minimal_offering_monitor_v1"', '"version":"minimal_offering_monitor_v1","version":"minimal_offering_monitor_v1"'),
+      parsed: validDirectPayload(),
     }),
   });
   assert.equal(duplicateOuter.validation.status, "transport_failed");
@@ -162,17 +203,37 @@ test("outer trailing text and duplicate keys fail closed without extraction or t
 test("available fact source must be an allowed source_ref; block IDs, parent context, and foreign refs fail", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   for (const invalidSource of ["s1f1_attachment_doc_a", "parent_primary_context", "foreign:source_ref"]) {
-    const payload = JSON.parse(validWirePayload()) as { facts: { amount: { source: string } } };
-    payload.facts.amount.source = invalidSource;
+    const payload = validDirectPayload() as { facts: { actual_primary_offering_amount: { source_ref: string } } };
+    payload.facts.actual_primary_offering_amount.source_ref = invalidSource;
     const candidate = validateOfferingMonitorProviderOutput({
       identity,
       package: inputPackage,
-      run: providerRun({ parsed: { offering_monitor_payload: JSON.stringify(payload) } }),
+      run: providerRun({ parsed: payload }),
     });
     assert.equal(candidate.validation.status, "validation_failed", invalidSource);
-    assert.match(candidate.validation.errors.join(" "), /facts\.amount\.source must be a member of allowed_source_refs/);
+    assert.match(candidate.validation.errors.join(" "), /facts\.actual_primary_offering_amount\.source_ref must be a member of allowed_source_refs/);
     assert.equal(candidate.materialized_candidate, null);
   }
+});
+
+test("unavailable facts may omit source_ref but cannot return a foreign provenance identifier", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const omitted = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: validDirectPayload() }),
+  });
+  assert.equal(omitted.validation.status, "success");
+
+  const payload = validDirectPayload();
+  (payload.facts.offering_price as Record<string, unknown>).source_ref = "foreign:price";
+  const foreign = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: payload }),
+  });
+  assert.equal(foreign.validation.status, "validation_failed");
+  assert.match(foreign.validation.errors.join(" "), /facts\.offering_price\.source_ref must be a member/);
 });
 
 test("exact current parent calls provider once and saves only a diagnostic candidate", async () => {
@@ -325,7 +386,7 @@ function dependencies(
     },
     runProvider: async () => {
       trace.push("provider");
-      return options.provider || providerRun({ parsed: { offering_monitor_payload: validWirePayload() } });
+      return options.provider || providerRun({ parsed: validDirectPayload() });
     },
     saveDiagnostic: async () => {
       trace.push("save");
@@ -360,57 +421,49 @@ function providerRun(overrides: Partial<OfferingMonitorProviderRun> = {}): Offer
   };
 }
 
-function validWirePayload() {
+function validDirectPayload() {
   const unavailable = (unit: string, basis: string) => ({
-    value: null,
     availability: "unavailable",
-    quality: "unknown",
+    value_quality: "unknown",
     bound: "unknown",
     unit,
-    currency: null,
-    security_basis: null,
-    comparison_basis: basis,
-    comparable: null,
-    source: null,
+    comparison_basis_type: basis,
   });
-  const availableShares = (value: number, source: string) => ({
+  const availableShares = (value: number, source_ref: string) => ({
     value,
     availability: "available",
-    quality: "exact",
+    value_quality: "exact",
     bound: "exact",
     unit: "shares",
-    currency: null,
     security_basis: "common_stock",
-    comparison_basis: "shares_outstanding",
-    comparable: null,
-    source,
+    comparison_basis_type: "shares_outstanding",
+    source_ref,
   });
-  return JSON.stringify({
-    v: "om1",
-    app: "applicable",
-    stage: "active_offering",
-    side: "primary",
-    nature: "equity_linked",
-    w: true,
-    pfw: true,
-    conv: false,
+  return {
+    version: "minimal_offering_monitor_v1",
+    applicability: "applicable",
+    financing_stage: "active_offering",
+    primary_or_resale: "primary",
+    security_nature: "equity_linked",
+    has_warrant: true,
+    has_prefunded_warrant: true,
+    has_convertible: false,
     facts: {
-      amount: {
+      actual_primary_offering_amount: {
         value: 10_000_000,
         availability: "available",
-        quality: "estimated",
+        value_quality: "estimated",
         bound: "maximum",
         unit: "currency",
         currency: "USD",
         security_basis: "transaction_gross_amount",
-        comparison_basis: "market_cap",
-        comparable: null,
-        source: "ref:s1f1_attachment_doc_a",
+        comparison_basis_type: "market_cap",
+        source_ref: "ref:s1f1_attachment_doc_a",
       },
-      price: unavailable("currency_per_security", "market_price"),
-      immediate: availableShares(10_000_000, "ref:s1f1_source_block_001"),
-      additional: availableShares(5_000_000, "ref:s1f1_attachment_doc_a"),
-      resale: unavailable("shares", "public_float"),
+      offering_price: unavailable("currency_per_security", "market_price"),
+      immediate_primary_share_exposure: availableShares(10_000_000, "ref:s1f1_source_block_001"),
+      additional_potential_primary_share_exposure: availableShares(5_000_000, "ref:s1f1_attachment_doc_a"),
+      resale_share_exposure: unavailable("shares", "public_float"),
     },
-  });
+  };
 }

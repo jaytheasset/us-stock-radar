@@ -1,10 +1,10 @@
 import {
   buildMinimalOfferingMarketSnapshot,
   materializeMinimalOfferingMonitor,
-  minimalOfferingMonitorProviderSchema,
-  parseMinimalOfferingMonitorPayload,
-  resolveMinimalOfferingMonitorBoundary,
+  parseJsonWithoutDuplicateKeys,
+  validateMinimalOfferingMonitor,
   type MinimalOfferingMonitor,
+  type MinimalOfferingNumericFact,
 } from "./minimalOfferingMonitor.ts";
 import type {
   OfferingMonitorJobIdentity,
@@ -20,32 +20,67 @@ const MAX_EVIDENCE_BLOCKS = 28;
 const MAX_EVIDENCE_TEXT_CHARS = 100_000;
 const MAX_SOURCE_RATIO = 0.9;
 
-export const offeringMonitorSecondStageProviderSchema = {
+const offeringMonitorDirectFactProviderSchema = {
   type: "object",
-  required: ["offering_monitor_payload"],
+  required: ["availability", "value_quality", "bound", "unit", "comparison_basis_type"],
   properties: {
-    offering_monitor_payload: minimalOfferingMonitorProviderSchema,
+    value: { type: "number" },
+    availability: { type: "string" },
+    value_quality: { type: "string" },
+    bound: { type: "string" },
+    unit: { type: "string" },
+    currency: { type: "string" },
+    security_basis: { type: "string" },
+    comparison_basis_type: { type: "string" },
+    comparable_to_event_market_basis: { type: "boolean" },
+    source_ref: { type: "string" },
   },
 } as const;
 
-export const OFFERING_MONITOR_SECOND_STAGE_WIRE_FACT_KEYS = [
-  "amount",
-  "price",
-  "immediate",
-  "additional",
-  "resale",
+export const OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS = [
+  "actual_primary_offering_amount",
+  "offering_price",
+  "immediate_primary_share_exposure",
+  "additional_potential_primary_share_exposure",
+  "resale_share_exposure",
 ] as const;
 
+export const offeringMonitorSecondStageProviderSchema = {
+  type: "object",
+  required: ["version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts"],
+  properties: {
+    version: { type: "string" },
+    applicability: { type: "string" },
+    financing_stage: { type: "string" },
+    primary_or_resale: { type: "string" },
+    security_nature: { type: "string" },
+    has_warrant: { type: "boolean" },
+    has_prefunded_warrant: { type: "boolean" },
+    has_convertible: { type: "boolean" },
+    facts: {
+      type: "object",
+      required: OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS,
+      properties: {
+        actual_primary_offering_amount: offeringMonitorDirectFactProviderSchema,
+        offering_price: offeringMonitorDirectFactProviderSchema,
+        immediate_primary_share_exposure: offeringMonitorDirectFactProviderSchema,
+        additional_potential_primary_share_exposure: offeringMonitorDirectFactProviderSchema,
+        resale_share_exposure: offeringMonitorDirectFactProviderSchema,
+      },
+    },
+  },
+} as const;
+
 const OFFERING_MONITOR_SECOND_STAGE_CONTRACT = [
-  "OM1 WIRE CONTRACT: offering_monitor_payload is one minified JSON string. Its decoded object has exactly v, app, stage, side, nature, w, pfw, conv, facts. v is om1. Every key is required.",
-  "app is applicable or source-backed not_applicable. stage is registration_only, active_offering, priced, closed, or unknown. side is primary, resale, mixed, not_applicable, or unknown. nature is equity, equity_linked, debt, mixed, non_equity, or unknown. w, pfw, and conv are true, false, or null.",
-  "facts has exactly five wire keys: amount, price, immediate, additional, resale. Do not emit aliases or any other fact key. Do not emit total; deterministic code derives it only when immediate and additional are compatible.",
-  "Every fact has exactly value, availability, quality, bound, unit, currency, security_basis, comparison_basis, comparable, source. availability is available or unavailable. quality is exact, derived, estimated, or unknown. bound is exact, maximum, minimum, or unknown. unit is currency, currency_per_security, shares, other, or unknown. comparison_basis is always a string from shares_outstanding, public_float, market_cap, market_price, none, or unknown; it is never null, including when the fact is unavailable. comparable is true, false, or null.",
-  "For an available fact, value is a non-negative JSON number, security_basis is non-empty, source is one allowed SEC source_ref, and currency is non-empty for currency units. For an unavailable fact, value and source are null; use the fact's standard comparison basis when known or unknown otherwise. Never use empty strings, placeholders, sentinels, decorated numbers, suffix numbers, or inferred defaults.",
+  "DIRECT MONITOR CONTRACT: return the Minimal Offering Monitor object directly. Do not return a wrapper field, legacy aliases, or a JSON string containing JSON.",
+  "The root fields are version, applicability, financing_stage, primary_or_resale, security_nature, has_warrant, has_prefunded_warrant, has_convertible, and facts. version is minimal_offering_monitor_v1. applicability is applicable or source-backed not_applicable. financing_stage is registration_only, active_offering, priced, closed, or unknown. primary_or_resale is primary, resale, mixed, not_applicable, or unknown. security_nature is equity, equity_linked, debt, mixed, non_equity, or unknown. Omit a warrant/convertible boolean only when its canonical value is unknown; never invent a default.",
+  "facts has exactly five readable canonical keys: actual_primary_offering_amount, offering_price, immediate_primary_share_exposure, additional_potential_primary_share_exposure, resale_share_exposure. Do not emit aliases or total; deterministic code derives total only when immediate and additional are compatible.",
+  "Every fact requires availability, value_quality, bound, unit, and comparison_basis_type. availability is available or unavailable. value_quality is exact, derived, estimated, or unknown. bound is exact, maximum, minimum, or unknown. unit is currency, currency_per_security, shares, other, or unknown. comparison_basis_type is always a string from shares_outstanding, public_float, market_cap, market_price, none, or unknown, including when unavailable.",
+  "A fact may also contain value, currency, security_basis, comparable_to_event_market_basis, and source_ref. For an available fact these required-by-meaning fields must be present with a non-negative JSON number, non-empty security_basis, one allowed SEC source_ref, and non-empty currency for currency units. For an unavailable fact omit value and source_ref, and omit other nullable scalars only when unknown. Never use null, empty strings, placeholders, sentinels, decorated numbers, suffix numbers, or inferred defaults in these optional provider fields.",
   "Classify side from actual sellers, proceeds recipients, and transaction structure. primary means issuer-sold securities whose proceeds go to the issuer; resale means selling-securityholder resale; mixed means both occur in this transaction. Multiple instruments alone, future resale, transfer restrictions, or boilerplate do not make side mixed.",
-  "amount is the source-backed gross amount the issuer raises in the current primary transaction. Do not substitute net proceeds, shelf capacity, resale market value, selling-holder proceeds, amount remaining, or unrelated values. Preserve approximate or up-to meaning with quality and bound; for mixed include only the issuer-primary portion.",
-  "price is the source-backed per-security price. immediate is the deduplicated immediate primary share-equivalent pool. additional is a distinct potential primary exposure not already included in immediate and is not a combined total. resale is selling-securityholder share exposure and remains separate from issuer-primary exposure.",
-  "Available amount uses unit currency and comparison_basis market_cap; price uses currency_per_security and market_price; immediate and additional use shares and shares_outstanding; resale uses shares and public_float. For primary side keep resale unavailable; for resale side keep amount, immediate, and additional unavailable.",
+  "actual_primary_offering_amount is the source-backed gross amount the issuer raises in the current primary transaction. Do not substitute net proceeds, shelf capacity, resale market value, selling-holder proceeds, amount remaining, or unrelated values. Preserve approximate or up-to meaning with value_quality and bound; for mixed include only the issuer-primary portion.",
+  "offering_price is the source-backed per-security price. immediate_primary_share_exposure is the deduplicated immediate primary share-equivalent pool. additional_potential_primary_share_exposure is a distinct potential primary exposure not already included in immediate and is not a combined total. resale_share_exposure is selling-securityholder share exposure and remains separate from issuer-primary exposure.",
+  "Available actual_primary_offering_amount uses unit currency and comparison_basis_type market_cap; offering_price uses currency_per_security and market_price; immediate_primary_share_exposure and additional_potential_primary_share_exposure use shares and shares_outstanding; resale_share_exposure uses shares and public_float. For primary side keep resale_share_exposure unavailable; for resale side keep actual_primary_offering_amount, immediate_primary_share_exposure, and additional_potential_primary_share_exposure unavailable.",
   "Use parent_primary_context only as context. It is not SEC provenance. Ground each available fact in supplied SEC evidence, and return only a source_ref listed in allowed_source_refs. block_id, parent_primary_context, row IDs, display labels, and document labels are not returnable fact sources.",
   "For source-backed non-equity not_applicable, keep all five facts unavailable. Do not add components, groups, calculation inputs, row sets, evidence objects, confidence objects, or any field outside this contract.",
 ].join("\n");
@@ -129,7 +164,7 @@ export type OfferingMonitorProviderRun = {
 };
 
 export type OfferingMonitorDiagnosticCandidate = {
-  schema_version: "offering_monitor_second_stage_candidate_v1";
+  schema_version: "offering_monitor_second_stage_candidate_v2";
   job_id: string;
   parent_primary_ai_run_id: string;
   event_id: string;
@@ -148,7 +183,7 @@ export type OfferingMonitorDiagnosticCandidate = {
     usage: Record<string, unknown> | null;
   };
   raw_output: string;
-  outer_payload: Record<string, unknown> | null;
+  direct_payload: Record<string, unknown> | null;
   validation: {
     status: "success" | "transport_failed" | "validation_failed";
     errors: string[];
@@ -231,7 +266,7 @@ export function buildOfferingMonitorSecondStagePackage(input: {
   };
   const user = [
     JSON.stringify({
-      task: "Normalize the supplied exact filing lineage into the compact om1 Offering Monitor payload.",
+      task: "Normalize the supplied exact filing lineage into the direct readable Minimal Offering Monitor object.",
       input_package: payload,
     }),
     buildFinalOutputContract(allowedSourceRefs),
@@ -286,36 +321,21 @@ export function validateOfferingMonitorProviderOutput(input: {
 }): OfferingMonitorDiagnosticCandidate {
   const transportErrors: string[] = [];
   const validationErrors: string[] = [];
-  let outer: Record<string, unknown> | null = null;
+  let direct: Record<string, unknown> | null = null;
   if (!input.run.ok) {
     transportErrors.push(input.run.error || "Offering Monitor provider transport failed");
   } else {
-    const strictOuter = parseMinimalOfferingMonitorPayload(input.run.outputText);
-    if (!strictOuter.ok) {
-      transportErrors.push(`provider outer JSON is invalid: ${strictOuter.errors.join("; ")}`);
-    } else {
-      outer = readRecord(strictOuter.value);
-      if (!outer) transportErrors.push("provider output must be one JSON object");
-    }
-    if (outer) {
-      const keys = Object.keys(outer);
-      if (keys.length !== 1 || keys[0] !== "offering_monitor_payload") {
-        transportErrors.push("provider output must contain exactly offering_monitor_payload");
-      }
-      if (typeof outer.offering_monitor_payload !== "string") {
-        transportErrors.push("offering_monitor_payload must be a string");
-      }
+    try {
+      direct = readRecord(parseJsonWithoutDuplicateKeys(input.run.outputText));
+      if (!direct) transportErrors.push("provider output must be one direct JSON object");
+    } catch (error) {
+      transportErrors.push(`provider direct JSON is invalid: ${error instanceof Error ? error.message : "unknown parse error"}`);
     }
   }
 
-  const boundary = transportErrors.length
-    ? null
-    : resolveMinimalOfferingMonitorBoundary(outer?.offering_monitor_payload);
-  if (boundary && !boundary.value) {
-    const target = boundary.provenance.status === "transport_failed" ? transportErrors : validationErrors;
-    target.push(...boundary.provenance.errors);
-  }
-  const canonical = boundary?.value || null;
+  const normalized = transportErrors.length ? null : normalizeDirectOfferingMonitor(direct);
+  if (normalized && !normalized.ok) validationErrors.push(...normalized.errors);
+  const canonical = normalized?.ok ? normalized.value : null;
   if (canonical) {
     validateOfferingMonitorSourceMembership(canonical, input.package.allowedSourceRefs, validationErrors);
   }
@@ -331,7 +351,7 @@ export function validateOfferingMonitorProviderOutput(input: {
       : "success";
 
   return {
-    schema_version: "offering_monitor_second_stage_candidate_v1",
+    schema_version: "offering_monitor_second_stage_candidate_v2",
     job_id: input.identity.jobId,
     parent_primary_ai_run_id: input.identity.parentPrimaryAiRunId,
     event_id: input.identity.eventId,
@@ -353,7 +373,7 @@ export function validateOfferingMonitorProviderOutput(input: {
       usage: input.run.usage,
     },
     raw_output: input.run.outputText,
-    outer_payload: outer,
+    direct_payload: direct,
     validation: { status: validationStatus, errors },
     canonical_candidate: canonical,
     materialized_candidate: materialized,
@@ -372,10 +392,10 @@ function buildAllowedSourceRefs(blocks: OfferingMonitorEvidenceBlock[]) {
 function buildFinalOutputContract(allowedSourceRefs: string[]) {
   return [
     "FINAL OUTPUT CONTRACT",
-    "Return only one JSON object with exactly one outer key: offering_monitor_payload.",
-    "offering_monitor_payload is one minified om1 JSON string whose facts keys are exactly amount, price, immediate, additional, resale.",
-    `For every available fact, source must be exactly one of these allowed_source_refs: ${JSON.stringify(allowedSourceRefs)}.`,
-    "Do not return block_id, parent_primary_context, row IDs, display labels, or document labels as source.",
+    "Return only the direct Minimal Offering Monitor JSON object. Never return offering_monitor_payload or nested JSON text.",
+    "Use exactly the readable root fields and the five canonical facts keys defined above; no compact aliases or extra keys.",
+    `For every available fact, source_ref must be exactly one of these allowed_source_refs: ${JSON.stringify(allowedSourceRefs)}.`,
+    "Do not return block_id, parent_primary_context, row IDs, display labels, or document labels as source_ref.",
     "No aliases. No markdown. No commentary. No explanation. No trailing text.",
   ].join("\n");
 }
@@ -386,19 +406,102 @@ function validateOfferingMonitorSourceMembership(
   errors: string[],
 ) {
   const allowed = new Set(allowedSourceRefs);
-  const facts = [
-    ["amount", monitor.facts.actual_primary_offering_amount],
-    ["price", monitor.facts.offering_price],
-    ["immediate", monitor.facts.immediate_primary_share_exposure],
-    ["additional", monitor.facts.additional_potential_primary_share_exposure],
-    ["resale", monitor.facts.resale_share_exposure],
-  ] as const;
-  for (const [wireKey, fact] of facts) {
-    if (fact.availability !== "available") continue;
-    if (!fact.source_ref || !allowed.has(fact.source_ref)) {
-      errors.push(`facts.${wireKey}.source must be a member of allowed_source_refs`);
+  const facts = Object.entries(monitor.facts) as Array<[string, MinimalOfferingNumericFact]>;
+  for (const [factKey, fact] of facts) {
+    if (fact.availability === "available" && !fact.source_ref) {
+      errors.push(`facts.${factKey}.source_ref must be a member of allowed_source_refs`);
+    } else if (fact.source_ref && !allowed.has(fact.source_ref)) {
+      errors.push(`facts.${factKey}.source_ref must be a member of allowed_source_refs`);
     }
   }
+}
+
+function normalizeDirectOfferingMonitor(value: unknown):
+  | { ok: true; value: MinimalOfferingMonitor; errors: [] }
+  | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  const root = readRecord(value);
+  if (!root) return { ok: false, errors: ["direct offering monitor must be an object"] };
+  validateDirectKeys(root, [
+    "version", "applicability", "financing_stage", "primary_or_resale", "security_nature",
+    "has_warrant", "has_prefunded_warrant", "has_convertible", "facts",
+  ], ["version", "applicability", "financing_stage", "primary_or_resale", "security_nature", "facts"], "offering_monitor", errors);
+  for (const key of ["version", "applicability", "financing_stage", "primary_or_resale", "security_nature"] as const) {
+    if (typeof root[key] !== "string") errors.push(`${key} must be a string`);
+  }
+  for (const key of ["has_warrant", "has_prefunded_warrant", "has_convertible"] as const) {
+    if (root[key] !== undefined && typeof root[key] !== "boolean") errors.push(`${key} must be a boolean when present`);
+  }
+  const facts = readRecord(root.facts);
+  if (!facts) errors.push("facts must be an object");
+  else validateDirectKeys(facts, [...OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS], [...OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS], "facts", errors);
+
+  const normalizedFacts = {} as MinimalOfferingMonitor["facts"];
+  if (facts) {
+    for (const key of OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS) {
+      const fact = normalizeDirectFact(facts[key], `facts.${key}`, errors);
+      if (fact) normalizedFacts[key] = fact;
+    }
+  }
+  if (errors.length) return { ok: false, errors };
+  return validateMinimalOfferingMonitor({
+    version: root.version,
+    applicability: root.applicability,
+    financing_stage: root.financing_stage,
+    primary_or_resale: root.primary_or_resale,
+    security_nature: root.security_nature,
+    has_warrant: root.has_warrant ?? null,
+    has_prefunded_warrant: root.has_prefunded_warrant ?? null,
+    has_convertible: root.has_convertible ?? null,
+    facts: normalizedFacts,
+  });
+}
+
+function normalizeDirectFact(value: unknown, path: string, errors: string[]): MinimalOfferingNumericFact | null {
+  const fact = readRecord(value);
+  if (!fact) {
+    errors.push(`${path} must be an object`);
+    return null;
+  }
+  const optional = ["value", "currency", "security_basis", "comparable_to_event_market_basis", "source_ref"];
+  const required = ["availability", "value_quality", "bound", "unit", "comparison_basis_type"];
+  validateDirectKeys(fact, [...required, ...optional], required, path, errors);
+  for (const key of required) if (typeof fact[key] !== "string") errors.push(`${path}.${key} must be a string`);
+  if (fact.value !== undefined && (typeof fact.value !== "number" || !Number.isFinite(fact.value))) {
+    errors.push(`${path}.value must be a finite number when present`);
+  }
+  if (fact.comparable_to_event_market_basis !== undefined && typeof fact.comparable_to_event_market_basis !== "boolean") {
+    errors.push(`${path}.comparable_to_event_market_basis must be a boolean when present`);
+  }
+  for (const key of ["currency", "security_basis", "source_ref"] as const) {
+    if (fact[key] !== undefined && (typeof fact[key] !== "string" || !fact[key].trim() || fact[key] !== fact[key].trim())) {
+      errors.push(`${path}.${key} must be a non-empty string when present`);
+    }
+  }
+  return {
+    value: typeof fact.value === "number" && Number.isFinite(fact.value) ? fact.value : null,
+    availability: fact.availability as MinimalOfferingNumericFact["availability"],
+    value_quality: fact.value_quality as MinimalOfferingNumericFact["value_quality"],
+    bound: fact.bound as MinimalOfferingNumericFact["bound"],
+    unit: fact.unit as MinimalOfferingNumericFact["unit"],
+    currency: typeof fact.currency === "string" ? fact.currency : null,
+    security_basis: typeof fact.security_basis === "string" ? fact.security_basis : null,
+    comparison_basis_type: fact.comparison_basis_type as MinimalOfferingNumericFact["comparison_basis_type"],
+    comparable_to_event_market_basis: typeof fact.comparable_to_event_market_basis === "boolean" ? fact.comparable_to_event_market_basis : null,
+    source_ref: typeof fact.source_ref === "string" ? fact.source_ref : null,
+  };
+}
+
+function validateDirectKeys(
+  value: Record<string, unknown>,
+  allowed: string[],
+  required: string[],
+  path: string,
+  errors: string[],
+) {
+  const keys = Object.keys(value);
+  for (const key of keys) if (!allowed.includes(key)) errors.push(`${path}.${key} is not allowed`);
+  for (const key of required) if (!keys.includes(key)) errors.push(`${path}.${key} is required`);
 }
 
 export async function processOfferingMonitorSecondStageJob(

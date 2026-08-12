@@ -691,7 +691,7 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function parseJsonWithoutDuplicateKeys(text: string): unknown {
+export function parseJsonWithoutDuplicateKeys(text: string): unknown {
   let index = 0;
 
   const fail = (message: string): never => {
