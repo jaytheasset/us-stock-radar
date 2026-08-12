@@ -137,7 +137,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     force: Boolean(options.force),
   });
 
-  const validationRepairTrace = await saveSecFilingAiTrace({
+  const aiTrace = await saveSecFilingAiTrace({
     rawItemId: stringValue(rawResult.rawItem.id),
     eventId: stringValue(persistedEvent.id),
     analysis: analysisRun.analysis,
@@ -154,6 +154,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
     validationRepair: readValidationRepair(analysisRun),
   });
+  const validationRepairTrace = aiTrace.repairTrace;
 
   const calendarItems = await fetchSecFilingCalendarItemsForEvent(stringValue(persistedEvent.id));
   const alertDelivery = options.suppressAlerts
@@ -176,6 +177,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     costEstimate: analysisRun.costEstimate,
     model: analysisRun.model,
     prompt: analysisRun.prompt,
+    primaryAiRunId: aiTrace.aiRunId,
     calendarItems,
     alertDelivery,
     validationRepairTrace,

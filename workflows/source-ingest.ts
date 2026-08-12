@@ -25,6 +25,11 @@ import {
   runWhiteHouseNewsIngest,
 } from "@/lib/newsIngest";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
+import {
+  buildOfferingMonitorJobIdentity,
+  type OfferingMonitorJobIdentity,
+} from "@/lib/offeringMonitorJobFoundation";
+import { enqueueOfferingMonitorJob } from "@/lib/offeringMonitorJobStarter";
 import { runSecRawIngest } from "@/lib/secIngest";
 import {
   SEC_FORM_ROOM_MANIFEST,
@@ -64,11 +69,16 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
     );
 
     const analyses = [];
+    const monitorJobs = [];
     for (const rawItemId of raw.rawItemIds) {
       await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
-      analyses.push(
-        await runSecRawAnalysisStep(input.groupId, rawItemId),
-      );
+      const analysis = await runSecRawAnalysisStep(input.groupId, rawItemId);
+      analyses.push(analysis);
+      if (analysis.monitorJobIdentity) {
+        monitorJobs.push(
+          await enqueueOfferingMonitorJobStep(analysis.monitorJobIdentity),
+        );
+      }
     }
 
     console.log(
@@ -80,6 +90,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
       groupId: input.groupId,
       raw,
       analyses,
+      monitorJobs,
     };
   } finally {
     await releaseWorkflowLockStep(input);
@@ -373,6 +384,7 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
         eventId: existing.eventId,
         stage: existing.status,
         reused: true,
+        monitorJobIdentity: null,
       };
     }
 
@@ -394,6 +406,7 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
       ? "skipped"
       : "completed";
     const eventId = nullableString(readRecord(record.event)?.id);
+    const monitorJobIdentity = buildOfferingMonitorJobIdentity(record);
     await markSecAnalysisDisposition(rawItemId, status, eventId);
 
     console.log(
@@ -406,6 +419,7 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
       eventId,
       stage: status,
       reused: false,
+      monitorJobIdentity,
     };
   } catch (error) {
     console.error(
@@ -419,6 +433,13 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
   }
 }
 runSecRawAnalysisStep.maxRetries = 3;
+
+async function enqueueOfferingMonitorJobStep(identity: OfferingMonitorJobIdentity) {
+  "use step";
+
+  return enqueueOfferingMonitorJob(identity);
+}
+enqueueOfferingMonitorJobStep.maxRetries = 3;
 
 const NEWS_SOURCE_RUNNERS: Record<
   WorkflowNewsSource,

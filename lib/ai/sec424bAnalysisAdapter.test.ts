@@ -24,10 +24,12 @@ describe("424B5 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v42-material-events");
+    assert.equal(prompt.version, "v47-compact-offering-monitor-payload");
     assert.ok(prompt.user.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`\"block_id\": \"${sourceBlockIds[0]}\"`));
     assert.ok(analysisSchema.required.includes("material_events"));
+    assert.ok(analysisSchema.required.includes("offering_monitor_payload"));
+    assert.deepEqual(analysisSchema.properties.offering_monitor_payload, { type: "string" });
     assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -49,7 +51,35 @@ describe("424B5 material events output contract", () => {
     assert.match(rejected.error, /analysis source bundle/);
   });
 
-  it("does not impose the new output contract on 424B3", () => {
+  it("isolates malformed Monitor output without failing the existing 424B analysis", () => {
+    const input = build424b5MaterialEventsInput("424B5");
+    const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
+    const result = build424b5MaterialEventsResult(get424bAnalysisSourceBlockIds(parserOutput));
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = JSON.stringify({ v: "broken" });
+    const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    assert.equal(adapted.analysis.event_title, result.analysis_output.event_title);
+    assert.equal((adapted.analysis.offering_monitor_provenance as Record<string, unknown>).status, "validation_failed");
+    assert.equal(adapted.analysis.offering_monitor, undefined);
+  });
+
+  it("normalizes optional provider transport fields before exposing canonical Monitor output", () => {
+    const input = build424b5MaterialEventsInput("424B5");
+    const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
+    const result = build424b5MaterialEventsResult(get424bAnalysisSourceBlockIds(parserOutput));
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = buildUnavailableMonitorTransport();
+    const adapted = adaptSec424bAnalysisPromptResultForAnalysis(result, input);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    const monitor = adapted.analysis.offering_monitor as Record<string, any>;
+    assert.equal(monitor.has_warrant, false);
+    assert.equal(monitor.has_convertible, null);
+    assert.equal(monitor.facts.offering_price.value, null);
+    assert.equal((adapted.analysis.offering_monitor_provenance as Record<string, unknown>).status, "success");
+  });
+
+  it("does not impose the 424B5 material-events contract on 424B3", () => {
     const input = build424b5MaterialEventsInput("424B3");
     const prompt = buildSec424bAnalysisPromptForInput(input);
     const schema = prompt.responseFormat.json_schema.schema as Record<string, any>;
@@ -57,7 +87,7 @@ describe("424B5 material events output contract", () => {
     const result = build424b5MaterialEventsResult([]);
     delete (result.analysis_output as Record<string, unknown>).material_events;
 
-    assert.equal(prompt.version, "v41-news-style-taxonomy-schema");
+    assert.equal(prompt.version, "v46-compact-offering-monitor-payload");
     assert.ok(!prompt.user.includes("exactly one role=primary"));
     assert.ok(!analysisSchema.required.includes("material_events"));
     assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(result, input).ok, true);
@@ -386,4 +416,36 @@ function build424b5MaterialEventsResult(sourceBlockIds: string[], score = 68) {
       notes: [],
     },
   };
+}
+
+function buildUnavailableMonitorTransport() {
+  const fact = (unit: string, comparison_basis: string) => ({
+    value: null,
+    availability: "unavailable",
+    quality: "unknown",
+    bound: "unknown",
+    unit,
+    currency: null,
+    security_basis: null,
+    comparison_basis,
+    comparable: null,
+    source: null,
+  });
+  return JSON.stringify({
+    v: "om1",
+    app: "applicable",
+    stage: "registration_only",
+    side: "unknown",
+    nature: "unknown",
+    w: false,
+    pfw: null,
+    conv: null,
+    facts: {
+      amount: fact("currency", "market_cap"),
+      price: fact("currency_per_security", "market_price"),
+      immediate: fact("shares", "shares_outstanding"),
+      additional: fact("shares", "shares_outstanding"),
+      resale: fact("shares", "public_float"),
+    },
+  });
 }

@@ -668,6 +668,72 @@ describe("S-1/F-1 section-specific extraction", () => {
     assert.match(String(sidePlacementBlock.text), /46,118,464 shares/i);
   });
 
+  it("neutralizes internal resale context labels while preserving their raw source text", () => {
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1",
+      filingText: `<html><body>
+        <div><b>The Offering</b></div>
+        <p>We entered into a purchase agreement. The issuer will receive all transaction proceeds.</p>
+      </body></html>`,
+    });
+    const rawContext = parserOutput.raw.cleanedSourceBlocks?.find((block) =>
+      String(block.sectionKey).startsWith("resale_equity_line_context"),
+    );
+    const rawContextIndex = parserOutput.raw.cleanedSourceBlocks?.indexOf(rawContext!) ?? -1;
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const expectedBlockId = `s1f1_source_block_${String(rawContextIndex + 1).padStart(3, "0")}`;
+    const preserved = blocks.find((block) => block.block_id === expectedBlockId);
+
+    assert.ok(rawContext, "the parser convenience label is confirmed as internally generated");
+    assert.ok(rawContextIndex >= 0);
+    assert.ok(preserved);
+    assert.match(String(preserved.block_id), /^s1f1_source_block_\d{3}$/);
+    assert.equal(preserved.sectionKey, preserved.block_id);
+    assert.equal(preserved.sectionTitle, null);
+    assert.doesNotMatch(JSON.stringify(preserved), /resale_equity_line_context|Resale and equity line source context/);
+    assert.match(String(preserved.text), /purchase agreement/i);
+  });
+
+  it("reserves bounded structurally attached evidence without value or accession selection", () => {
+    const parserOutput = parseS1F1Filing({
+      formType: "S-1",
+      filingText: "Issuer registration statement source text.",
+    });
+    parserOutput.raw.cleanedSourceBlocks = [
+      ...Array.from({ length: 36 }, (_, index) => ({
+        source: "primary" as const,
+        sectionKey: `section_${index + 1}`,
+        sectionTitle: `Section ${index + 1}`,
+        documentName: null,
+        text: `Primary structural block ${index + 1}. ${"p".repeat(2_000)}`,
+        tables: [],
+      })),
+      ...Array.from({ length: 6 }, (_, index) => ({
+        source: "attachment" as const,
+        sectionKey: null,
+        sectionTitle: `Attached document ${index + 1}`,
+        documentName: `document-${index + 1}.txt`,
+        text: `Structurally linked attachment evidence ${index + 1}. ${"a".repeat(2_000)}`,
+        tables: [],
+      })),
+    ];
+
+    const llmInput = buildS1F1LlmSourceInput(parserOutput);
+    const blocks = llmInput.cleaned_source_blocks as Array<Record<string, unknown>>;
+    const budget = (llmInput.source_inventory as Record<string, unknown>).sourceBlockBudget as Record<string, number>;
+
+    assert.equal(blocks.length, 40);
+    assert.equal(blocks.filter((block) => block.source === "attachment").length, 6);
+    assert.ok(blocks.some((block) => block.documentName === "document-6.txt"));
+    assert.ok(blocks.some((block) => String(block.text).includes("Structurally linked attachment evidence 6")));
+    assert.ok(budget.includedTextChars <= 135_000);
+    assert.equal(budget.maxBlocks, 40);
+    assert.equal(budget.maxTotalTextChars, 135_000);
+    const sourceInputCode = readFileSync(new URL("./sourceInput.ts", import.meta.url), "utf8");
+    assert.doesNotMatch(sourceInputCode, /0001437749|15,713,387|10,000,000|EX-10\.36/);
+  });
+
   it("uses ipo_listing for traditional and SPAC IPOs but not ordinary resale registrations", () => {
     const traditional = parseS1F1Filing({
       formType: "S-1",

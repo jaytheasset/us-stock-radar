@@ -1,4 +1,9 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  applyMinimalOfferingMonitorBoundary,
+  MINIMAL_OFFERING_MONITOR_PROMPT,
+  minimalOfferingMonitorProviderSchema,
+} from "@/lib/minimalOfferingMonitor";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import {
   build424bAnalysisPrompt,
@@ -25,8 +30,8 @@ import {
 
 export const SEC_424B_ANALYSIS_PROMPT_KEY = "sec_424b_analysis";
 export const SEC_424B_ANALYSIS_PROMPT_VERSION = "v20";
-export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v41-news-style-taxonomy-schema";
-export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v42-material-events";
+export const SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION = "v46-compact-offering-monitor-payload";
+export const SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION = "v47-compact-offering-monitor-payload";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_KEY = "sec_424b_validation_repair";
 export const SEC_424B_VALIDATION_REPAIR_PROMPT_VERSION = "v1-one-pass-source-backed-patch";
 const ALLOWED_424B_DISPLAY_MODES = new Set([
@@ -107,6 +112,7 @@ export function buildSec424bAnalysisPromptForInput(
       "Use generic for the common filing detail page, offering_terms for offering/dilution/IPO terms, and spac_transaction_status only for source-backed SPAC/de-SPAC transaction status.",
       "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
+      MINIMAL_OFFERING_MONITOR_PROMPT,
     ].join("\n"),
     user: build424bAnalysisPrompt(parserOutputForPrompt, { variant: promptVariant }),
     responseFormat: {
@@ -601,6 +607,7 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       };
     }
   }
+  applyMinimalOfferingMonitorBoundary(analysisOutput);
   const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
   const scoreExplanation = normalizeScoreExplanation(
     readRecord((normalizedAnalysisOutput as Record<string, unknown>).score_explanation),
@@ -2232,6 +2239,7 @@ export const sec424bRequiredOutputSchema = {
         "summary",
         "confidence",
         "needs_human_review",
+        "offering_monitor_payload",
       ],
       properties: {
         source_group: { type: "string", enum: ["filings"] },
@@ -2258,9 +2266,29 @@ export const sec424bRequiredOutputSchema = {
         why_it_matters: { type: ["string", "null"], maxLength: 320 },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
+        offering_monitor_payload: minimalOfferingMonitorProviderSchema,
         analysis_action: { type: ["string", "null"] },
         archive_summary: { type: ["string", "null"] },
       },
+    },
+  },
+};
+
+const {
+  offering_monitor_payload: _offeringMonitorSchema,
+  ...legacyOfferingAnalysisProperties
+} = sec424bRequiredOutputSchema.properties.analysis_output.properties;
+
+export const secLegacyF3RequiredOutputSchema = {
+  ...sec424bRequiredOutputSchema,
+  properties: {
+    ...sec424bRequiredOutputSchema.properties,
+    analysis_output: {
+      ...sec424bRequiredOutputSchema.properties.analysis_output,
+      required: sec424bRequiredOutputSchema.properties.analysis_output.required.filter(
+        (key) => key !== "offering_monitor_payload",
+      ),
+      properties: legacyOfferingAnalysisProperties,
     },
   },
 };

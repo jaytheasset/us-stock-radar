@@ -60,13 +60,13 @@ describe("SEC first-analysis ATM unit prompts", () => {
       (prompt) => prompt.key === SEC_S3_OFFERING_ANALYSIS_PROMPT_KEY,
     );
 
-    assert.equal(SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION, "v41-news-style-taxonomy-schema");
-    assert.equal(SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION, "v42-material-events");
+    assert.equal(SEC_424B_SECTIONED_ANALYSIS_PROMPT_VERSION, "v46-compact-offering-monitor-payload");
+    assert.equal(SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION, "v47-compact-offering-monitor-payload");
     assert.equal(buildSec424bAnalysisPromptForInput(input424b).version, SEC_424B5_MATERIAL_EVENTS_PROMPT_VERSION);
-    assert.equal(SEC_S1_F1_ANALYSIS_PROMPT_VERSION, "v32-pending-terms-default");
+    assert.equal(SEC_S1_F1_ANALYSIS_PROMPT_VERSION, "v35-compact-offering-monitor-payload");
     assert.equal(buildSecS1F1AnalysisPromptForInput(inputS1F1).version, SEC_S1_F1_ANALYSIS_PROMPT_VERSION);
-    assert.equal(SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION, "v63-news-style-taxonomy-schema");
-    assert.equal(SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION, "v64-material-events");
+    assert.equal(SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION, "v68-compact-offering-monitor-payload");
+    assert.equal(SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION, "v69-compact-offering-monitor-payload");
     assert.equal(buildSecS3OfferingAnalysisPrompt(inputS3).version, SEC_S3_MATERIAL_EVENTS_PROMPT_VERSION);
     assert.equal(registeredS3?.version, SEC_S3_OFFERING_ANALYSIS_PROMPT_VERSION);
   });

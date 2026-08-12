@@ -38,10 +38,12 @@ describe("S-3 material events output contract", () => {
     const analysisSchema = schema.properties.analysis_output as Record<string, any>;
     const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
 
-    assert.equal(prompt.version, "v64-material-events");
+    assert.equal(prompt.version, "v69-compact-offering-monitor-payload");
     assert.ok(prompt.system.includes("exactly one role=primary"));
     assert.ok(prompt.user.includes(`"block_id":"${sourceBlockIds[0]}"`));
     assert.ok(analysisSchema.required.includes("material_events"));
+    assert.ok(analysisSchema.required.includes("offering_monitor_payload"));
+    assert.deepEqual(analysisSchema.properties.offering_monitor_payload, { type: "string" });
     assert.equal(analysisSchema.properties.material_events.items.additionalProperties, false);
     assert.equal(adapted.ok, true);
     if (!adapted.ok) return;
@@ -68,6 +70,19 @@ describe("S-3 material events output contract", () => {
     assert.match(rejected.error, /exactly one primary/);
   });
 
+  it("isolates malformed Monitor output without failing the existing S-3 analysis", () => {
+    const input = buildS3MaterialEventsInput("S-3");
+    const sourceBlockIds = getSecS3OfferingSourceBlockIds(input);
+    const result = buildS3MaterialEventsResult(sourceBlockIds);
+    (result.analysis_output as Record<string, unknown>).offering_monitor_payload = JSON.stringify({ v: "broken" });
+    const adapted = adaptSecS3AnalysisPromptResultForAnalysis(result, input);
+    assert.equal(adapted.ok, true);
+    if (!adapted.ok) return;
+    assert.equal(adapted.analysis.event_title, result.analysis_output.event_title);
+    assert.equal((adapted.analysis.offering_monitor_provenance as Record<string, unknown>).status, "validation_failed");
+    assert.equal(adapted.analysis.offering_monitor, undefined);
+  });
+
   it("does not impose the new output contract on the shared F-3 path", () => {
     const input = buildS3MaterialEventsInput("F-3");
     const prompt = buildSecS3OfferingAnalysisPrompt(input);
@@ -79,6 +94,7 @@ describe("S-3 material events output contract", () => {
     assert.equal(prompt.version, "v63-news-style-taxonomy-schema");
     assert.ok(!prompt.system.includes("exactly one role=primary"));
     assert.ok(!analysisSchema.required.includes("material_events"));
+    assert.ok(!analysisSchema.required.includes("offering_monitor_payload"));
     assert.equal(adaptSecS3AnalysisPromptResultForAnalysis(result, input).ok, true);
   });
 });

@@ -154,6 +154,31 @@ test("Gemini request keeps JSON mode but omits responseSchema from generationCon
   });
 });
 
+test("a dedicated caller may opt into a root plain-string response schema without changing news defaults", async () => {
+  let requestBody: Record<string, any> = {};
+  const responseSchema = {
+    type: "object",
+    required: ["offering_monitor_payload"],
+    properties: { offering_monitor_payload: { type: "string" } },
+  };
+  await runStructuredGeminiJson({
+    apiKey: "test-key",
+    model: "gemini-2.5-flash",
+    prompt,
+    maxOutputTokens: 1000,
+    responseSchema,
+    fetchImpl: (async (_input, init) => {
+      requestBody = JSON.parse(String(init?.body || "{}"));
+      return new Response(JSON.stringify({
+        candidates: [{ finishReason: "STOP", content: { parts: [{ text: '{"offering_monitor_payload":"{}"}' }] } }],
+      }), { status: 200 });
+    }) as typeof fetch,
+  });
+
+  assert.deepEqual(requestBody.generationConfig.responseSchema, responseSchema);
+  assert.equal(requestBody.generationConfig.temperature, 0);
+});
+
 test("parser and deterministic prefilters exit before the news LLM call", () => {
   const ingestSource = readFileSync(
     new URL("../newsIngest.ts", import.meta.url),

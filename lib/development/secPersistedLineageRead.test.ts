@@ -10,6 +10,8 @@ import type { SecDiagnosticSelect } from "./secPersistedDiagnosticRead.ts";
 const eventId = "5c12efff-d839-4e72-b983-52990312aaf1";
 const rawItemId = "7b856257-4374-41e9-86a4-901f0d28f40f";
 const runId = "095b80ef-1f3e-48b5-b31d-1aabf3bbb454";
+const monitorRunId = "195b80ef-1f3e-48b5-b31d-1aabf3bbb455";
+const monitorExecutionBId = "195b80ef-1f3e-48b5-b31d-1aabf3bbb458";
 
 test("raw-item and event-analysis query failures are explicit and sanitized", async () => {
   const failedSelect: SecDiagnosticSelect = async () => ({
@@ -70,4 +72,99 @@ test("successful child reads with no matching records remain genuine absence", a
     ["ok", "ok", "ok", "ok", "ok"],
   );
   assert.equal(persistence.data.size + analysis.data.size + repair.data.size, 0);
+});
+
+test("Monitor foundation ledger rows cannot replace the latest persisted Primary analysis run", async () => {
+  const traceId = "295b80ef-1f3e-48b5-b31d-1aabf3bbb456";
+  const select: SecDiagnosticSelect = async (table, search) => {
+    if (table === "ai_runs") {
+      assert.equal(search.prompt_key, "neq.offering_monitor_normalization_job");
+      return {
+        ok: true,
+        data: [
+          {
+            id: monitorExecutionBId,
+            event_id: eventId,
+            prompt_key: "offering_monitor_normalization_job",
+            status: "failed",
+            finished_at: "2026-08-11T23:04:16.211Z",
+          },
+          {
+            id: monitorRunId,
+            event_id: eventId,
+            prompt_key: "offering_monitor_normalization_job",
+            status: "completed",
+            finished_at: "2026-08-11T22:04:16.211Z",
+          },
+          {
+            id: runId,
+            event_id: eventId,
+            prompt_key: "sec_s1_f1_analysis",
+            status: "completed",
+            finished_at: "2026-08-11T21:20:49.747Z",
+          },
+        ],
+      };
+    }
+    assert.equal(table, "ai_outputs");
+    assert.equal(search.ai_run_id, `in.(${runId})`);
+    return {
+      ok: true,
+      data: [
+        {
+          id: monitorExecutionBId,
+          ai_run_id: monitorExecutionBId,
+          output_type: "offering_monitor_normalization_candidate",
+          payload: { canonical_candidate: null, validation: { status: "validation_failed" } },
+        },
+        {
+          id: monitorRunId,
+          ai_run_id: monitorRunId,
+          output_type: "offering_monitor_normalization_candidate",
+          payload: { canonical_candidate: { side: "primary" } },
+        },
+        {
+          id: traceId,
+          ai_run_id: runId,
+          payload: { validation_repair_trace: { attempted: false } },
+        },
+      ],
+    };
+  };
+
+  const result = await readSecRepairTraceMap([eventId], select);
+  const trace = result.data.get(eventId);
+
+  assert.equal(result.aiRuns, "ok");
+  assert.equal(result.aiOutputs, "ok");
+  assert.equal(trace?.availability, "available");
+  assert.equal(trace?.trace_record_id, traceId);
+  assert.equal((trace?.analysis_run as Record<string, unknown>)?.id, runId);
+});
+
+test("non-Monitor prompt runs retain historical record_missing semantics", async () => {
+  const otherRunId = "395b80ef-1f3e-48b5-b31d-1aabf3bbb457";
+  const select: SecDiagnosticSelect = async (table, search) => {
+    if (table === "ai_runs") {
+      assert.equal(search.prompt_key, "neq.offering_monitor_normalization_job");
+      return {
+        ok: true,
+        data: [{
+          id: otherRunId,
+          event_id: eventId,
+          prompt_key: "sec_8k_6k_capital_financing_analysis",
+          status: "completed",
+        }],
+      };
+    }
+    return { ok: true, data: [] };
+  };
+
+  const result = await readSecRepairTraceMap([eventId], select);
+  const trace = result.data.get(eventId);
+
+  assert.equal(result.aiRuns, "ok");
+  assert.equal(result.aiOutputs, "ok");
+  assert.equal(trace?.availability, "historical_missing");
+  assert.equal((trace?.analysis_run as Record<string, unknown>)?.id, otherRunId);
 });

@@ -24,6 +24,7 @@ import {
   hasSecValidationJsonPointer,
   readSecValidationJsonPointer,
 } from "@/lib/ai/secValidationRepairPatch";
+import { applyMinimalOfferingMonitorBoundary } from "@/lib/minimalOfferingMonitor";
 
 export {
   SEC_S3_AMENDMENT_TRIAGE_PROMPT_KEY,
@@ -556,6 +557,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
       };
     }
   }
+  if (isS3MonitorInput(input)) applyMinimalOfferingMonitorBoundary(analysisOutput);
 
   const rawDisplayPayloadError = validate424bDisplayPayload(displayPayload, {
     requireKeyCashTermFacts: true,
@@ -596,6 +598,11 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     ok: true,
     analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
+}
+
+function isS3MonitorInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readRecord(input.filing_package);
+  return stringValue(filingPackage?.form_type).toUpperCase().replace(/\s+/g, "").startsWith("S-3");
 }
 
 function normalizeS3DisplayPayloadForParentContext(

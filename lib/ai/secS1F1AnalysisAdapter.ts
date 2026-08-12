@@ -19,9 +19,15 @@ import {
   hasSecValidationJsonPointer as hasJsonPointer,
   readSecValidationJsonPointer as readJsonPointer,
 } from "@/lib/ai/secValidationRepairPatch";
+import {
+  applyMinimalOfferingMonitorBoundary,
+  MINIMAL_OFFERING_MONITOR_PROMPT,
+  minimalOfferingMonitorProviderSchema,
+} from "@/lib/minimalOfferingMonitor";
 
 export const SEC_S1_F1_ANALYSIS_PROMPT_KEY = "sec_s1_f1_analysis";
-export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v32-pending-terms-default";
+export const SEC_S1_F1_ANALYSIS_PROMPT_VERSION = "v35-compact-offering-monitor-payload";
+const SEC_F1_LEGACY_ANALYSIS_PROMPT_VERSION = "v32-pending-terms-default";
 // Legacy backup: pre-pending-terms default prompt kept selectable only in the debug console.
 export const SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION = "v28-spac-ipo-minimal-legacy-backup";
 export const SEC_S1_F1_VALIDATION_REPAIR_PROMPT_KEY = "sec_s1_f1_validation_repair";
@@ -228,8 +234,13 @@ export function buildSecS1F1AnalysisPromptForInput(
     throw new Error("SEC S-1/F-1 parser output is missing from filing package");
   }
   const promptVariant = normalizeS1F1PromptVariant(options.promptVariant);
+  const monitorEnabled = isS1MonitorInput(input);
   const promptVersion =
-    promptVariant === "legacy_default_backup" ? SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION : SEC_S1_F1_ANALYSIS_PROMPT_VERSION;
+    promptVariant === "legacy_default_backup"
+      ? SEC_S1_F1_LEGACY_BACKUP_PROMPT_VERSION
+      : monitorEnabled
+        ? SEC_S1_F1_ANALYSIS_PROMPT_VERSION
+        : SEC_F1_LEGACY_ANALYSIS_PROMPT_VERSION;
 
   return {
     key: SEC_S1_F1_ANALYSIS_PROMPT_KEY,
@@ -242,13 +253,14 @@ export function buildSecS1F1AnalysisPromptForInput(
       "Use generic for the common filing detail page, offering_terms for IPO/offering/resale/MEF/POS AM registration terms, and spac_transaction_status only for source-backed de-SPAC status.",
       "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
+      ...(monitorEnabled ? [MINIMAL_OFFERING_MONITOR_PROMPT] : []),
     ].join("\n"),
     user: buildS1F1AnalysisPrompt(parserOutput, undefined, undefined, { variant: promptVariant }),
     responseFormat: {
       json_schema: {
         name: "sec_s1_f1_required_output",
         strict: false,
-        schema: secS1F1RequiredOutputSchema,
+        schema: monitorEnabled ? secS1F1RequiredOutputSchema : secF1LegacyRequiredOutputSchema,
       },
     },
   };
@@ -674,6 +686,7 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
   }
 
   const displayPayloadError = validateS1F1DisplayPayload(displayPayload);
+  if (isS1MonitorInput(input)) applyMinimalOfferingMonitorBoundary(analysisOutput);
   const displayPayloadWarnings = [
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collectSecOfferingMarketContextWarnings(filingPackage.market_context, "SEC S-1/F-1"),
@@ -1957,6 +1970,7 @@ export const secS1F1RequiredOutputSchema = {
         "summary",
         "confidence",
         "needs_human_review",
+        "offering_monitor_payload",
       ],
       properties: {
         event_type: { type: "string", enum: APPROVED_SEC_EVENT_TYPES },
@@ -1970,8 +1984,35 @@ export const secS1F1RequiredOutputSchema = {
         summary: { type: "string" },
         confidence: { type: "string", enum: ["high", "medium", "low"] },
         needs_human_review: { type: "boolean" },
+        offering_monitor_payload: minimalOfferingMonitorProviderSchema,
         archive_summary: { type: ["string", "null"] },
       },
     },
   },
 } as const;
+
+const {
+  offering_monitor_payload: _s1OfferingMonitorSchema,
+  ...legacyF1AnalysisProperties
+} = secS1F1RequiredOutputSchema.properties.analysis_output.properties;
+
+const secF1LegacyRequiredOutputSchema = {
+  ...secS1F1RequiredOutputSchema,
+  properties: {
+    ...secS1F1RequiredOutputSchema.properties,
+    analysis_output: {
+      ...secS1F1RequiredOutputSchema.properties.analysis_output,
+      required: secS1F1RequiredOutputSchema.properties.analysis_output.required.filter(
+        (key) => key !== "offering_monitor_payload",
+      ),
+      properties: legacyF1AnalysisProperties,
+    },
+  },
+};
+
+function isS1MonitorInput(input: SecFilingAnalysisInput) {
+  const filingPackage = readFilingPackage(input);
+  const parserOutput = readS1F1ParserOutput(input);
+  const formType = stringValue(filingPackage.form_type) || stringValue(parserOutput?.formType);
+  return formType.toUpperCase().replace(/\s+/g, "").startsWith("S-1");
+}

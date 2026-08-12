@@ -26,6 +26,11 @@ export type SecOfferingMarketContext = {
   available: boolean;
   data_quality: "complete" | "partial" | "missing";
   as_of: string | null;
+  currency: string | null;
+  security_basis: string | null;
+  price_unit: "currency_per_security" | null;
+  market_cap_unit: "currency" | null;
+  share_unit: "shares" | null;
   price: number | null;
   previous_close: number | null;
   market_cap: number | null;
@@ -112,6 +117,7 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
   const snapshot = snapshotResult.row;
   const quoteCache = quoteCacheResult.row;
   const ticker = tickerResult.row;
+  const tickerMetadata = readRecord(ticker?.metadata);
   const fmpQuote = firstRecord(fmpQuoteResult.data);
   const fmpProfile = firstRecord(fmpProfileResult.data);
   const fmpFloat = firstRecord(fmpFloatResult.data);
@@ -124,6 +130,13 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
   const canonicalIndustrySlug = firstString(industryMatch?.slug, sectorMatch?.slug);
   const exchange = firstString(fmpProfile?.exchangeShortName, fmpProfile?.exchange, ticker?.exchange);
   const name = firstString(fmpProfile?.companyName, fmpProfile?.company_name, ticker?.name);
+  const currency = firstString(fmpQuote?.currency, fmpProfile?.currency, tickerMetadata?.currency);
+  const securityBasis = firstString(
+    ticker?.asset_type,
+    tickerMetadata?.security_basis,
+    fmpProfile?.assetType,
+    fmpProfile?.asset_type,
+  );
 
   for (const result of [snapshotResult, quoteCacheResult, tickerResult]) {
     if (result.error) errors.push(result.error);
@@ -226,6 +239,12 @@ export async function resolveSecOfferingMarketContext(symbolInput: string): Prom
     available,
     data_quality: complete ? "complete" : available ? "partial" : "missing",
     as_of: asOf,
+    currency: currency || null,
+    security_basis: securityBasis || null,
+    price_unit: price.value !== null && currency && securityBasis ? "currency_per_security" : null,
+    market_cap_unit: marketCap.value !== null && currency && securityBasis ? "currency" : null,
+    share_unit:
+      (sharesOutstanding.value !== null || publicFloat.value !== null) && securityBasis ? "shares" : null,
     price: price.value,
     previous_close: previousClose.value,
     market_cap: marketCap.value,
@@ -368,6 +387,11 @@ function buildMissingMarketContext(symbol: string | null, errors: string[]): Sec
     available: false,
     data_quality: "missing",
     as_of: null,
+    currency: null,
+    security_basis: null,
+    price_unit: null,
+    market_cap_unit: null,
+    share_unit: null,
     price: null,
     previous_close: null,
     market_cap: null,
@@ -403,7 +427,7 @@ async function readMarketQuote(symbol: string) {
 
 async function readTickerRow(symbol: string) {
   const result = await supabaseSelect("tickers", {
-    select: "symbol,name,exchange,market_cap,fmp_sector,fmp_industry,last_profiled_at",
+    select: "symbol,name,exchange,asset_type,market_cap,fmp_sector,fmp_industry,last_profiled_at,metadata",
     symbol: `eq.${symbol}`,
     limit: "1",
   });

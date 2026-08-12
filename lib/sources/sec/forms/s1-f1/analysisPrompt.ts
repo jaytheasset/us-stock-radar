@@ -64,6 +64,8 @@ export function buildS1F1AnalysisPrompt(
 ): string {
   const promptVariant = normalizeS1F1AnalysisPromptVariant(options.variant);
   const isLegacyBackup = promptVariant === "legacy_default_backup";
+  const isS1MonitorPrompt =
+    !isLegacyBackup && parserOutput.facts.filing.reported_form_type.toUpperCase().replace(/\s+/g, "").startsWith("S-1");
   const s1F1DisplayModes = isLegacyBackup ? S1F1_LEGACY_DISPLAY_MODES : S1F1_DISPLAY_MODES;
 
   return [
@@ -140,6 +142,19 @@ export function buildS1F1AnalysisPrompt(
           "- Use mixed_offering only when at least one current-offering or resale share/security amount is source-backed enough to show as visible share_overhang rows.",
           "- If the filing has a fixed resale pool or fixed registered shares plus a separate pending primary component, the fixed resale pool may still use resale_registration or mixed_offering share_overhang. Do not let pending primary terms suppress a source-backed resale overhang.",
           "- For pending_primary_offering, omit share_overhang unless a separate fixed resale or registered share pool controls the investor read. Do not put capitalization-table basis explanations into snapshot notes.",
+        ]
+      : []),
+    ...(isS1MonitorPrompt
+      ? [
+          "",
+          "S-1 OFFERING MONITOR CONTRACT (one Primary generation):",
+          "- Purpose: offering_monitor_payload is a coherent set of canonical financing and dilution facts for deterministic filtering, monitoring, historical matching, and backtesting. It is not a second investor summary and its facts are not independent blanks: side identifies the securities supplier and proceeds recipient; amount is issuer-primary financing size; immediate and additional are non-overlapping primary exposure; resale is selling-holder exposure.",
+          "- Keep Display and Monitor purposes separate. Display may describe security components as mixed_offering and may show estimated net proceeds, while Monitor side follows economic sellers and Monitor amount follows the source-backed primary transaction. Display rows never authorize duplicate Monitor exposure.",
+          "- For Monitor side, primary means issuer-sold securities with issuer proceeds; resale means an actual selling holder resells securities; mixed requires both in the same current transaction. Multiple instruments, future resale rights, Rule 144 language, transfer restrictions, or possible later warrant-share sales do not by themselves make side mixed.",
+          "- actual_primary_offering_amount is the source-backed gross size of the current specific issuer-primary financing, not only closed cash or a fixed final amount. Preserve a transaction-specific approximate, up-to, maximum, or committed maximum with quality/bound instead of discarding it. A gross/net fee difference is not a reason to discard a source-backed transaction amount; do not relabel net proceeds, a generic registration ceiling, unrelated fee-table amount, shelf capacity, or resale value as gross.",
+          "- Share exposure means distinct economic exposure, not the sum of every printed share number. immediate is the deduplicated exposure available from the current primary transaction; additional is only separate conditional/potential primary exposure not already in immediate and is not total potential. Code later adds immediate + additional. Use source terms—not security names—to decide alternative, substitute, simultaneous, and conditional relationships; never sum alternatives as simultaneous exposure or count one exposure twice within immediate or across immediate and additional.",
+          "- Before emitting offering_monitor_payload, compare it with the SEC source and your own title, summary, Display analysis, and security-relationship judgment. Recheck any unexplained primary↔mixed/resale mismatch, a source-backed financing size made unavailable, alternatives summed together, exposure repeated in additional, or other clear narrative/Monitor contradiction; resolve the Monitor facts before output.",
+          "- This is an internal consistency check in the same Primary generation, not a parser/code correction, fallback, repair call, or second Monitor LLM call.",
         ]
       : []),
     "",

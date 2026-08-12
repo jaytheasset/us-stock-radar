@@ -776,6 +776,9 @@ export interface S1F1CleanedSourceBlock {
   sectionKey: string | null;
   sectionTitle: string | null;
   documentName: string | null;
+  documentId?: string | null;
+  chunkIndex?: number | null;
+  chunkCount?: number | null;
   text: string;
   tables: string[];
 }

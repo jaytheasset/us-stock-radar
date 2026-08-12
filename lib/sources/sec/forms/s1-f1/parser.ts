@@ -45,8 +45,10 @@ import {
   deliveryLevelFromScore,
 } from "./types.ts";
 import { filterS1F1SubmissionText } from "./documentFilter.ts";
+import { contextPreservingChunks } from "../common/contextPreservingChunks.ts";
 
 const SUPPORTED_FORMS = new Set(["S-1", "F-1", "S-1/A", "F-1/A", "POS AM", "S-1MEF", "F-1MEF"]);
+const S1F1_ATTACHMENT_CHUNK_CHAR_LIMIT = 5_000;
 
 const SIGNAL_PRIORITY: SecEventType[] = [
   "ipo_listing",
@@ -3520,19 +3522,23 @@ function buildCleanedSourceBlocks(
   }
 
   for (const attachment of input.attachments ?? []) {
-    const textBody = clipSourceBlockText(attachment.text ?? "", 8000);
-    if (!textBody) continue;
-    blocks.push({
-      source: "attachment",
-      sectionKey: null,
-      sectionTitle: attachment.description ?? null,
-      documentName: attachment.name,
-      text: textBody,
-      tables: [],
-    });
+    const chunks = contextPreservingChunks(attachment.text ?? "", S1F1_ATTACHMENT_CHUNK_CHAR_LIMIT);
+    for (const [chunkIndex, textBody] of chunks.entries()) {
+      blocks.push({
+        source: "attachment",
+        sectionKey: null,
+        sectionTitle: attachment.description ?? null,
+        documentName: attachment.name,
+        documentId: attachment.name,
+        chunkIndex: chunkIndex + 1,
+        chunkCount: chunks.length,
+        text: textBody,
+        tables: [],
+      });
+    }
   }
 
-  return blocks.slice(0, 60);
+  return blocks;
 }
 
 export function parseS1F1Filing(input: S1F1ParserInput): S1F1ParserOutput {
