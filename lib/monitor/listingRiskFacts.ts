@@ -4,12 +4,14 @@
  * snapshot and it does not reduce a lifecycle across events.
  *
  * Parsers may supply source identity, raw dates, rule text, security text, and
- * evidence. Analysis owns event classification, outcome, proceeding semantics,
- * requirement meaning, and the boundary between adverse and procedural events.
+ * evidence. Analysis owns event classification, outcome, normalized free-form
+ * security basis, proceeding semantics, requirement meaning, and the boundary
+ * between adverse and procedural events.
  * This module only validates the resulting shape mechanically.
  */
 
 export const LISTING_RISK_EVENT_FACTS_VERSION = "listing_risk_event_facts_v1";
+export const LISTING_SOURCE_EVIDENCE_MAX_LENGTH = 520;
 
 export const LISTING_EVENT_KINDS = [
   "deficiency_notice",
@@ -35,7 +37,7 @@ export const LISTING_PROCEEDING_STATUSES = [
   "not_pursued",
   "unknown",
 ] as const;
-export const LISTING_SOURCE_FAMILIES = ["sec", "nasdaq", "other"] as const;
+export const LISTING_SOURCE_FAMILIES = ["sec", "nasdaq", "news", "other"] as const;
 export const LISTING_FACT_CONFIDENCES = ["high", "medium", "low"] as const;
 
 export type ListingEventKind = (typeof LISTING_EVENT_KINDS)[number];
@@ -89,6 +91,7 @@ export type ListingRiskEventFacts = {
   affected_security: {
     title: ListingTextFact;
     ticker: ListingTextFact;
+    security_basis: ListingTextFact;
   };
   listing_rule: ListingTextFact;
   listing_requirement: ListingTextFact;
@@ -146,9 +149,10 @@ export function validateListingRiskEventFacts(value: unknown): string[] {
 
   const security = objectAt(root.affected_security, "affected_security", errors);
   if (security) {
-    exactKeys(security, ["title", "ticker"], "affected_security", errors);
+    exactKeys(security, ["title", "ticker", "security_basis"], "affected_security", errors);
     validateTextFact(security.title, "affected_security.title", sourceRefs, errors);
     validateTextFact(security.ticker, "affected_security.ticker", sourceRefs, errors);
+    validateTextFact(security.security_basis, "affected_security.security_basis", sourceRefs, errors);
   }
 
   validateTextFact(root.listing_rule, "listing_rule", sourceRefs, errors);
@@ -297,7 +301,11 @@ function validateSources(value: unknown, errors: string[]) {
     } else {
       refs.add(entry.source_ref);
     }
-    if (!nonEmptyText(entry.evidence)) errors.push(`${path}.evidence must be a non-empty string`);
+    if (!nonEmptyText(entry.evidence)) {
+      errors.push(`${path}.evidence must be a non-empty string`);
+    } else if (Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
+      errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+    }
   });
   return refs;
 }
@@ -424,8 +432,8 @@ export const LISTING_RISK_EVENT_FACTS_JSON_SCHEMA = {
     affected_security: {
       type: "object",
       additionalProperties: false,
-      required: ["title", "ticker"],
-      properties: { title: textFactSchema, ticker: textFactSchema },
+      required: ["title", "ticker", "security_basis"],
+      properties: { title: textFactSchema, ticker: textFactSchema, security_basis: textFactSchema },
     },
     listing_rule: textFactSchema,
     listing_requirement: textFactSchema,
@@ -480,7 +488,7 @@ export const LISTING_RISK_EVENT_FACTS_JSON_SCHEMA = {
           source_id: { type: ["string", "null"] },
           source_url: { type: ["string", "null"] },
           source_ref: { type: "string", maxLength: 240 },
-          evidence: { type: "string" },
+          evidence: { type: "string", maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
         },
       },
     },

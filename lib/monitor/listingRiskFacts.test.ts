@@ -6,6 +6,8 @@ import { parseSecForm25Filing, type SecForm25Field } from "../sources/sec/forms/
 import {
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA,
   LISTING_RISK_EVENT_FACTS_VERSION,
+  LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
+  LISTING_SOURCE_FAMILIES,
   readListingRiskEventFacts,
   validateListingRiskEventFacts,
   type ListingBooleanFact,
@@ -33,6 +35,7 @@ test("Form 25 adverse removal preserves notice, suspension, and removal roles", 
     "Nasdaq Listing Rules 5101, 5110(b), and IM-5101-1",
     sourceRef,
   );
+  facts.affected_security.security_basis = availableText("common_equity", sourceRef);
   facts.proceeding = { kind: "appeal", status: "not_pursued", source_ref: sourceRef };
   facts.dates.notice_date = availableDate("2024-07-30", "occurred", sourceRef);
   facts.dates.trading_suspension_date = dateFromField(
@@ -47,6 +50,7 @@ test("Form 25 adverse removal preserves notice, suspension, and removal roles", 
   );
 
   assert.deepEqual(validateListingRiskEventFacts(facts), []);
+  assert.equal(facts.affected_security.security_basis.value, "common_equity");
   assert.equal(facts.dates.trading_suspension_date.value, "2024-08-08");
   assert.equal(facts.dates.removal_effective_date.value, "2024-09-16");
   assert.notEqual(facts.dates.trading_suspension_date.value, facts.dates.removal_effective_date.value);
@@ -90,9 +94,11 @@ test("security-retirement Form 25 remains security-scoped and procedural", () =>
     "scheduled",
     sourceRef,
   );
+  facts.affected_security.security_basis = availableText("senior_notes", sourceRef);
 
   assert.deepEqual(validateListingRiskEventFacts(facts), []);
   assert.match(facts.affected_security.title.value || "", /Senior Notes/);
+  assert.equal(facts.affected_security.security_basis.value, "senior_notes");
   assert.equal(facts.classification.event_outcome, "procedural");
 });
 
@@ -154,6 +160,7 @@ test("8-K voluntary withdrawal can preserve expected OTC trading without claimin
     "unknown",
     "New York Stock Exchange",
     "Common Stock",
+    "On March 4, 2026",
   );
   const sourceRef = facts.classification.source_ref;
   facts.continued_trading = {
@@ -217,6 +224,14 @@ test("validator enforces only mechanical availability, date, evidence, enum, and
   foreignEvidence.exchange.source_ref = "missing-source";
   assert.ok(validateListingRiskEventFacts(foreignEvidence).some((error) => error.includes("supplied source")));
 
+  const longEvidence = clone(facts);
+  longEvidence.sources[0].evidence = "x".repeat(LISTING_SOURCE_EVIDENCE_MAX_LENGTH + 1);
+  assert.ok(
+    validateListingRiskEventFacts(longEvidence).some((error) =>
+      error.includes(`${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`),
+    ),
+  );
+
   const extraField = clone(facts) as ListingRiskEventFacts & { current_listing_state?: string };
   extraField.current_listing_state = "listed";
   assert.ok(validateListingRiskEventFacts(extraField).some((error) => error.includes("must contain exactly")));
@@ -239,6 +254,45 @@ test("schema exposes the same event-fact version and excludes current-state stor
   assert.equal(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.additionalProperties, false);
   assert.equal(Object.hasOwn(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties, "current_listing_state"), false);
   assert.equal(Object.hasOwn(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties, "reverse_split"), false);
+  assert.deepEqual(
+    LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.affected_security.required,
+    ["title", "ticker", "security_basis"],
+  );
+  assert.equal(
+    LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.sources.items.properties.evidence.maxLength,
+    LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
+  );
+
+  const { facts } = form25Event("common-share-delisting", "listing_removal", "adverse");
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA, facts);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.classification, facts.classification);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.exchange, facts.exchange);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.affected_security, facts.affected_security);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.proceeding, facts.proceeding);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.dates, facts.dates);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.continued_trading, facts.continued_trading);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.as_of, facts.as_of);
+  assertSchemaRequiredKeys(LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.sources.items, facts.sources[0]);
+});
+
+test("news is a first-class provenance family and required security fields match runtime validation", () => {
+  assert.deepEqual(LISTING_SOURCE_FAMILIES, ["sec", "nasdaq", "news", "other"]);
+  assert.deepEqual(
+    LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.sources.items.properties.source_family.enum,
+    LISTING_SOURCE_FAMILIES,
+  );
+
+  const { facts } = form25Event("common-share-delisting", "listing_removal", "adverse");
+  facts.sources = facts.sources.map((source) => ({ ...source, source_family: "news" }));
+  assert.deepEqual(validateListingRiskEventFacts(facts), []);
+
+  const missingSecurityBasis = clone(facts) as unknown as Record<string, unknown>;
+  delete (missingSecurityBasis.affected_security as Record<string, unknown>).security_basis;
+  assert.ok(
+    validateListingRiskEventFacts(missingSecurityBasis).some((error) =>
+      error.includes("affected_security must contain exactly"),
+    ),
+  );
 });
 
 function form25Event(name: string, eventKind: ListingEventKind, eventOutcome: ListingEventOutcome) {
@@ -251,7 +305,7 @@ function form25Event(name: string, eventKind: ListingEventKind, eventOutcome: Li
     source_id: parsed.accessionNumber,
     source_url: stringOrNull(fixture.sourceUrl),
     source_ref: block.source_ref,
-    evidence: block.text,
+    evidence: compactEvidence(block.text),
   }));
   const facts = emptyEventFacts({
     eventKind,
@@ -273,17 +327,19 @@ function secCurrentReportEvent(
   eventOutcome: ListingEventOutcome,
   exchange: string,
   securityTitle: string,
+  evidenceAnchor?: string,
 ) {
-  const sourceRef = "Item 3.01";
   const sourceId = stringOrNull(fixture.sourceUniqueId);
   const sourceUrl = stringOrNull(fixture.sourceUrl);
   const bodyText = String(fixture.bodyText || "");
   assert.match(bodyText, /Item 3\.01|voluntary delisting/i);
+  const sourceRef = bodyText.includes("Item 3.01") ? "Item 3.01" : "Item 8.01";
+  const evidence = compactEvidence(bodyText, evidenceAnchor || sourceRef);
   const facts = emptyEventFacts({
     eventKind,
     eventOutcome,
     sourceRef,
-    sources: [{ source_family: "sec", source_id: sourceId, source_url: sourceUrl, source_ref: sourceRef, evidence: bodyText }],
+    sources: [{ source_family: "sec", source_id: sourceId, source_url: sourceUrl, source_ref: sourceRef, evidence }],
     asOf: String(fixture.publishedAt || "").slice(0, 10),
   });
   facts.exchange = availableText(exchange, sourceRef);
@@ -312,7 +368,7 @@ function emptyEventFacts({
     version: LISTING_RISK_EVENT_FACTS_VERSION,
     classification: { event_kind: eventKind, event_outcome: eventOutcome, source_ref: sourceRef },
     exchange: unavailableText(),
-    affected_security: { title: unavailableText(), ticker: unavailableText() },
+    affected_security: { title: unavailableText(), ticker: unavailableText(), security_basis: unavailableText() },
     listing_rule: unavailableText(),
     listing_requirement: unavailableText(),
     compliance_period: unavailableText(),
@@ -398,6 +454,19 @@ function object(value: unknown): Record<string, unknown> | null {
 
 function stringOrNull(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function compactEvidence(value: string, anchor?: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const anchorIndex = anchor ? normalized.indexOf(anchor) : -1;
+  const relevant = anchorIndex >= 0 ? normalized.slice(anchorIndex) : normalized;
+  const characters = Array.from(relevant);
+  if (characters.length <= LISTING_SOURCE_EVIDENCE_MAX_LENGTH) return relevant;
+  return `${characters.slice(0, LISTING_SOURCE_EVIDENCE_MAX_LENGTH - 3).join("").trimEnd()}...`;
+}
+
+function assertSchemaRequiredKeys(schema: { required: readonly string[] }, value: object) {
+  assert.deepEqual([...schema.required].sort(), Object.keys(value).sort());
 }
 
 function clone<T>(value: T): T {
