@@ -105,6 +105,14 @@ test("unsupported analyzer and source families fail closed without semantic cont
 test("exact parent loader reads only the specified run/output and uses latest only for stale authority", async () => {
   const store = parentStore();
   addParent(store, newsPrimary(), PARENT_A, "2026-08-13T00:00:00.000Z", "exact-parent-A");
+  store.table("ai_outputs").push({
+    id: "9e56353f-e700-4c3f-89c1-0d7c6faf851d",
+    ai_run_id: PARENT_A,
+    event_id: EVENT_ID,
+    output_type: "unrelated_auxiliary_output",
+    payload: { analysis: { marker: "unrelated-sibling", monitor_routes: LISTING_ROUTE.monitor_routes } },
+    created_at: "2026-08-13T00:00:01.000Z",
+  });
   addParent(
     store,
     newsPrimary({ parentPrimaryAiRunId: PARENT_B }),
@@ -122,10 +130,35 @@ test("exact parent loader reads only the specified run/output and uses latest on
   assert.ok(store.selectCalls.some((call) =>
     call.table === "ai_runs" && call.search.id === `eq.${PARENT_A}`));
   assert.ok(store.selectCalls.some((call) =>
-    call.table === "ai_outputs" && call.search.ai_run_id === `eq.${PARENT_A}`));
+    call.table === "ai_outputs"
+    && call.search.ai_run_id === `eq.${PARENT_A}`
+    && call.search.output_type === "eq.news_event_analysis"));
   const latestCall = store.selectCalls.find((call) =>
     call.table === "ai_runs" && call.search.order?.startsWith("finished_at.desc"));
   assert.equal(latestCall?.search.select, "id");
+});
+
+test("exact parent loader fails closed when only a wrong Primary output type exists", async () => {
+  const store = parentStore();
+  addParent(store, newsPrimary(), PARENT_A, "2026-08-13T00:00:00.000Z", "wrong-type-only");
+  store.table("ai_outputs")[0].output_type = "unrelated_auxiliary_output";
+  await assert.rejects(
+    createGenericMonitorChildRepository(store).loadExactParent(identity(newsPrimary())),
+    /exact parent ai_output must resolve to exactly one row/,
+  );
+});
+
+test("expected Primary output type is mechanical for News, Nasdaq, and SEC", async () => {
+  for (const primary of [newsPrimary(), nasdaqPrimary(), secPrimary()]) {
+    const store = parentStore(primary);
+    addParent(store, primary, PARENT_A, "2026-08-13T00:00:00.000Z", primary.sourceFamily);
+    await createGenericMonitorChildRepository(store).loadExactParent(identity(primary));
+    const outputCall = store.selectCalls.find((call) => call.table === "ai_outputs");
+    assert.equal(
+      outputCall?.search.output_type,
+      `eq.${primary.sourceFamily === "sec_8k_6k" ? primary.parentPromptKey : "news_event_analysis"}`,
+    );
+  }
 });
 
 test("exact loader rejects mismatched output, event, raw, source, and analyzer route lineage", async () => {
@@ -171,6 +204,46 @@ test("running and terminal state contract records applicable/not-applicable succ
   assert.equal(store.table("ai_runs")[1].status, "completed");
   assert.equal(store.table("ai_runs")[1].error_message, null);
   assert.equal(metadata(store.table("ai_runs")[1]).execution_state, "succeeded_not_applicable");
+});
+
+test("successful terminal output failure leaves the run retryable instead of completed", async () => {
+  const store = new MemoryStore();
+  const repository = createGenericMonitorChildRepository(store);
+  const child = identity(newsPrimary());
+  await repository.reserve(child);
+  await repository.claim(child);
+  store.failNextAiOutputUpsert = true;
+
+  await assert.rejects(
+    repository.recordTerminal(child, "succeeded_applicable"),
+    /terminal execution output write failed/,
+  );
+  assert.equal(store.table("ai_runs")[0].status, "running");
+  assert.equal(store.table("ai_outputs").length, 0);
+
+  await repository.recordTerminal(child, "succeeded_applicable");
+  assert.equal(store.table("ai_runs")[0].status, "completed");
+  assert.equal(store.table("ai_outputs").length, 1);
+});
+
+test("terminal run update failure remains fail-closed and retry completes without duplicate output", async () => {
+  const store = new MemoryStore();
+  const repository = createGenericMonitorChildRepository(store);
+  const child = identity(newsPrimary());
+  await repository.reserve(child);
+  await repository.claim(child);
+  store.failNextTerminalUpdate = true;
+
+  await assert.rejects(
+    repository.recordTerminal(child, "succeeded_not_applicable"),
+    /succeeded_not_applicable transition failed/,
+  );
+  assert.equal(store.table("ai_runs")[0].status, "running");
+  assert.equal(store.table("ai_outputs").length, 1);
+
+  await repository.recordTerminal(child, "succeeded_not_applicable");
+  assert.equal(store.table("ai_runs")[0].status, "completed");
+  assert.equal(store.table("ai_outputs").length, 1);
 });
 
 test("failed and stale child state mutations leave Primary event, score, signal, summary, and parent run unchanged", async () => {
@@ -302,19 +375,19 @@ function secPrimary(): GenericMonitorPrimaryExecutionContext {
   };
 }
 
-function parentStore() {
+function parentStore(primary = newsPrimary()) {
   const store = new MemoryStore();
   store.table("events").push({
-    id: EVENT_ID,
-    raw_item_id: RAW_ID,
-    source_code: "globe",
-    source_group: "news",
+    id: primary.eventId,
+    raw_item_id: primary.rawItemId,
+    source_code: primary.sourceCode,
+    source_group: primary.sourceGroup,
   });
   store.table("raw_items").push({
-    id: RAW_ID,
-    source_code: "globe",
-    source_group: "news",
-    source_unique_id: "news-article-1",
+    id: primary.rawItemId,
+    source_code: primary.sourceCode,
+    source_group: primary.sourceGroup,
+    source_unique_id: primary.sourceIdentity,
   });
   return store;
 }
@@ -344,7 +417,9 @@ function addParent(
     id: id.replace(/^./, id[0] === "5" ? "7" : "8"),
     ai_run_id: id,
     event_id: primary.eventId,
-    output_type: "news_event_analysis",
+    output_type: primary.sourceFamily === "sec_8k_6k"
+      ? primary.parentPromptKey
+      : "news_event_analysis",
     payload: {
       analysis: {
         marker,
@@ -363,6 +438,8 @@ function metadata(row: Record<string, unknown>) {
 class MemoryStore implements GenericMonitorChildStore {
   private readonly tables = new Map<string, Array<Record<string, unknown>>>();
   readonly selectCalls: Array<{ table: string; search: Record<string, string> }> = [];
+  failNextAiOutputUpsert = false;
+  failNextTerminalUpdate = false;
 
   table(name: string) {
     if (!this.tables.has(name)) this.tables.set(name, []);
@@ -385,6 +462,10 @@ class MemoryStore implements GenericMonitorChildStore {
     payload: Record<string, unknown>,
     options: { onConflict?: string; prefer?: string } = {},
   ) {
+    if (table === "ai_outputs" && this.failNextAiOutputUpsert) {
+      this.failNextAiOutputUpsert = false;
+      return { ok: false, status: 500, data: null, error: "fake output write failure" };
+    }
     const target = this.table(table);
     const existing = target.find((row) => row.id === payload.id);
     if (existing && options.prefer?.includes("ignore-duplicates")) {
@@ -400,6 +481,10 @@ class MemoryStore implements GenericMonitorChildStore {
     search: Record<string, string>,
     payload: Record<string, unknown>,
   ) {
+    if (table === "ai_runs" && payload.status === "completed" && this.failNextTerminalUpdate) {
+      this.failNextTerminalUpdate = false;
+      return { ok: false, status: 500, data: null, error: "fake terminal update failure" };
+    }
     const changed = this.table(table).filter((row) => matches(row, search));
     changed.forEach((row) => Object.assign(row, structuredClone(payload)));
     return { ok: true, status: 200, data: changed.map((row) => structuredClone(row)) };

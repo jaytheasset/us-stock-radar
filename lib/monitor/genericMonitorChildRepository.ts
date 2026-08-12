@@ -113,6 +113,18 @@ export async function recordGenericMonitorChildTerminalState(
   options: { error?: unknown; finishedAt?: string } = {},
 ) {
   const finishedAt = options.finishedAt || new Date().toISOString();
+  const succeeded = state === "succeeded_applicable" || state === "succeeded_not_applicable";
+  if (succeeded) {
+    const eligibility = await readTerminalTransitionEligibility(store, identity, state);
+    if (eligibility === "blocked") {
+      return { recorded: false, jobId: identity.executionId, state };
+    }
+    await writeGenericMonitorTerminalOutput(store, identity, state);
+    if (eligibility === "already_recorded") {
+      return { recorded: false, jobId: identity.executionId, state };
+    }
+  }
+
   const result = await store.update("ai_runs", {
     id: `eq.${identity.executionId}`,
     prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
@@ -125,12 +137,6 @@ export async function recordGenericMonitorChildTerminalState(
   });
   assertStoreResult(result, `Generic Monitor child ${state} transition`);
   const changed = rows(result.data).length > 0;
-
-  if (state === "succeeded_applicable" || state === "succeeded_not_applicable") {
-    if (changed || await alreadyHasTerminalState(store, identity, state)) {
-      await writeGenericMonitorTerminalOutput(store, identity, state);
-    }
-  }
   return { recorded: changed, jobId: identity.executionId, state };
 }
 
@@ -147,9 +153,11 @@ export async function loadGenericMonitorExactParent(
   const aiRun = exactlyOneRow(runResult.data, "exact parent ai_run");
   assertExactParentRun(identity, aiRun);
 
+  const expectedOutputType = expectedGenericMonitorPrimaryOutputType(identity);
   const outputResult = await store.select("ai_outputs", {
     select: "id,ai_run_id,event_id,output_type,payload,created_at",
     ai_run_id: `eq.${identity.parentPrimaryAiRunId}`,
+    output_type: `eq.${expectedOutputType}`,
     order: "created_at.asc,id.asc",
     limit: "2",
   });
@@ -172,7 +180,7 @@ export async function loadGenericMonitorExactParent(
   assertStoreResult(rawResult, "Generic Monitor exact raw item read");
   const rawItem = exactlyOneRow(rawResult.data, "exact raw item");
 
-  assertExactLineage(identity, aiOutput, event, rawItem);
+  assertExactLineage(identity, expectedOutputType, aiOutput, event, rawItem);
   const analysis = record(record(aiOutput.payload)?.analysis);
   if (!analysis) throw new Error("Generic Monitor exact parent output is missing analysis");
   const routing = readMonitorRoutingResultFromPrimaryOutput(analysis);
@@ -234,6 +242,12 @@ export function genericMonitorChildMetadata(
   };
 }
 
+export function expectedGenericMonitorPrimaryOutputType(identity: GenericMonitorChildIdentity) {
+  return identity.sourceFamily === "sec_8k_6k"
+    ? identity.parentPromptKey
+    : "news_event_analysis";
+}
+
 async function writeGenericMonitorTerminalOutput(
   store: GenericMonitorChildStore,
   identity: GenericMonitorChildIdentity,
@@ -260,10 +274,10 @@ async function writeGenericMonitorTerminalOutput(
   assertStoreResult(result, "Generic Monitor terminal execution output write");
 }
 
-async function alreadyHasTerminalState(
+async function readTerminalTransitionEligibility(
   store: GenericMonitorChildStore,
   identity: GenericMonitorChildIdentity,
-  state: GenericMonitorChildTerminalState,
+  state: "succeeded_applicable" | "succeeded_not_applicable",
 ) {
   const result = await store.select("ai_runs", {
     select: "id,status,metadata",
@@ -273,7 +287,11 @@ async function alreadyHasTerminalState(
   });
   assertStoreResult(result, "Generic Monitor terminal state recovery read");
   const row = record(rows(result.data)[0]);
-  return stringValue(record(row?.metadata)?.execution_state) === state;
+  const status = stringValue(row?.status);
+  if (status === "pending" || status === "running") return "ready" as const;
+  return stringValue(record(row?.metadata)?.execution_state) === state
+    ? "already_recorded" as const
+    : "blocked" as const;
 }
 
 function assertExactParentRun(identity: GenericMonitorChildIdentity, aiRun: Record<string, unknown>) {
@@ -292,12 +310,14 @@ function assertExactParentRun(identity: GenericMonitorChildIdentity, aiRun: Reco
 
 function assertExactLineage(
   identity: GenericMonitorChildIdentity,
+  expectedOutputType: string,
   aiOutput: Record<string, unknown>,
   event: Record<string, unknown>,
   rawItem: Record<string, unknown>,
 ) {
   const valid = stringValue(aiOutput.ai_run_id) === identity.parentPrimaryAiRunId
     && stringValue(aiOutput.event_id) === identity.eventId
+    && stringValue(aiOutput.output_type) === expectedOutputType
     && stringValue(event.id) === identity.eventId
     && stringValue(event.raw_item_id) === identity.rawItemId
     && stringValue(event.source_group) === identity.sourceGroup
