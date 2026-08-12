@@ -87,7 +87,7 @@ test("execution identity separates contract and approved attempt while retaining
   const approvedAttempt = requiredIdentity(RUN_A, "validation:phase4y");
   const changedContract = deterministicExecutionId({
     logicalJobId: automatic.logicalJobId,
-    executionContractVersion: "second_stage_om1_v2",
+    executionContractVersion: "second_stage_om1_v3",
     executionAttemptKey: automatic.executionAttemptKey,
   });
 

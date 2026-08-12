@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { OfferingMonitorJobIdentity } from "./offeringMonitorJobFoundation.ts";
 import {
+  OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION,
   OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT,
+  OFFERING_MONITOR_SECOND_STAGE_WIRE_FACT_KEYS,
   buildOfferingMonitorSecondStagePackage,
   offeringMonitorSecondStageProviderSchema,
   processOfferingMonitorSecondStageJob,
@@ -19,7 +21,7 @@ const identity: OfferingMonitorJobIdentity = {
   jobId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
   logicalJobId: "b6eaecad-5d37-57da-8dcd-5cd985e03977",
   executionId: "c6eaecad-5d37-57da-8dcd-5cd985e03978",
-  executionContractVersion: "second_stage_om1_v1",
+  executionContractVersion: "second_stage_om1_v2",
   executionAttemptKey: "automatic",
   eventId: "69606800-ee16-4a75-9bbf-3b64bdc56d69",
   rawItemId: "efea3384-9eef-4e6b-9e63-60dc1cd3090e",
@@ -49,22 +51,58 @@ test("input package excludes Primary Monitor payload and legacy parser offering 
   assert.match(text, /Primary summary/);
   assert.match(text, /s1f1_attachment_doc_a/);
   assert.equal(inputPackage.stats.sourceBlockCount, 2);
+  assert.equal(inputPackage.stats.allowedSourceRefCount, 2);
   assert.ok((inputPackage.stats.sourceTextRatio || 1) < 0.9);
 });
 
 test("source selection preserves exact stable IDs, referenced adjacency, and structural attachments", () => {
   const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
   const refs = inputPackage.stats.selectedSourceRefs;
-  assert.deepEqual(refs, ["s1f1_source_block_001", "s1f1_attachment_doc_a"]);
+  assert.deepEqual(refs, ["ref:s1f1_source_block_001", "ref:s1f1_attachment_doc_a"]);
+  assert.deepEqual(inputPackage.allowedSourceRefs, refs);
+  assert.deepEqual(inputPackage.payload.allowed_source_refs, refs);
+  const sourcePackage = inputPackage.payload.source_package as { evidence_blocks: Array<{ source_ref: string }> };
+  assert.deepEqual(sourcePackage.evidence_blocks.map((block) => block.source_ref), refs);
+  assert.equal(new Set(refs).size, sourcePackage.evidence_blocks.length);
   assert.doesNotMatch(JSON.stringify(inputPackage.payload), /unrelated filing evidence/);
 });
 
-test("dedicated prompt is Monitor-only and states the independent amount and exposure contract", () => {
+test("dedicated prompt uses only runtime om1 fact wire keys and preserves semantic definitions", () => {
+  assert.deepEqual(OFFERING_MONITOR_SECOND_STAGE_WIRE_FACT_KEYS, [
+    "amount", "price", "immediate", "additional", "resale",
+  ]);
+  assert.equal(OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION, "second_stage_om1_v2");
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /not rewriting the user-facing filing analysis/i);
   assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /Display analysis and Monitor facts serve different purposes/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /source-backed gross transaction amount/i);
-  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional_potential_primary_share_exposure excludes/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /amount is the source-backed gross amount/i);
+  assert.match(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /additional is a distinct potential primary exposure/i);
+  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /actual_primary_offering_amount|offering_price|immediate_primary_share_exposure|additional_potential_primary_share_exposure|resale_share_exposure/);
   assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /IPDN|0001437749|10,?000,?000/);
+});
+
+test("prompt ends after the source package with the exact outer, source namespace, and output discipline contract", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const prompt = inputPackage.prompt.user;
+  const finalIndex = prompt.lastIndexOf("FINAL OUTPUT CONTRACT");
+  assert.ok(finalIndex > prompt.lastIndexOf("evidence_blocks"));
+  assert.match(prompt.slice(finalIndex), /exactly one outer key: offering_monitor_payload/);
+  assert.match(prompt.slice(finalIndex), /amount, price, immediate, additional, resale/);
+  assert.match(prompt.slice(finalIndex), /ref:s1f1_source_block_001/);
+  assert.match(prompt.slice(finalIndex), /Do not return block_id, parent_primary_context/);
+  assert.match(prompt.slice(finalIndex), /No aliases\. No markdown\. No commentary\. No explanation\. No trailing text\.$/);
+});
+
+test("comparison_basis remains a required runtime string even when a fact is unavailable", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const payload = JSON.parse(validWirePayload()) as { facts: { price: { comparison_basis: unknown } } };
+  payload.facts.price.comparison_basis = null;
+  const candidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: { offering_monitor_payload: JSON.stringify(payload) } }),
+  });
+  assert.equal(candidate.validation.status, "validation_failed");
+  assert.match(candidate.validation.errors.join(" "), /facts\.price\.comparison_basis must be a string/);
 });
 
 test("valid outer string reuses strict om1 parsing and code-only total", () => {
@@ -86,7 +124,7 @@ test("unknown outer keys and duplicate inner keys fail closed", () => {
     package: inputPackage,
     run: providerRun({ parsed: { offering_monitor_payload: validWirePayload(), extra: true } }),
   });
-  assert.equal(unknown.validation.status, "validation_failed");
+  assert.equal(unknown.validation.status, "transport_failed");
   const duplicate = validateOfferingMonitorProviderOutput({
     identity,
     package: inputPackage,
@@ -94,8 +132,47 @@ test("unknown outer keys and duplicate inner keys fail closed", () => {
       parsed: { offering_monitor_payload: validWirePayload().replace('"stage":"active_offering"', '"stage":"active_offering","stage":"priced"') },
     }),
   });
-  assert.equal(duplicate.validation.status, "validation_failed");
+  assert.equal(duplicate.validation.status, "transport_failed");
   assert.match(duplicate.validation.errors.join(" "), /duplicate key/i);
+});
+
+test("outer trailing text and duplicate keys fail closed without extraction or truncation", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  const outer = JSON.stringify({ offering_monitor_payload: validWirePayload() });
+  const trailing = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ outputText: `${outer}\ntrailing`, parsed: { offering_monitor_payload: validWirePayload() } }),
+  });
+  assert.equal(trailing.validation.status, "transport_failed");
+  assert.match(trailing.validation.errors.join(" "), /trailing content/i);
+
+  const duplicateOuter = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({
+      outputText: `{"offering_monitor_payload":${JSON.stringify(validWirePayload())},"offering_monitor_payload":${JSON.stringify(validWirePayload())}}`,
+      parsed: { offering_monitor_payload: validWirePayload() },
+    }),
+  });
+  assert.equal(duplicateOuter.validation.status, "transport_failed");
+  assert.match(duplicateOuter.validation.errors.join(" "), /duplicate key/i);
+});
+
+test("available fact source must be an allowed source_ref; block IDs, parent context, and foreign refs fail", () => {
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: artifacts() });
+  for (const invalidSource of ["s1f1_attachment_doc_a", "parent_primary_context", "foreign:source_ref"]) {
+    const payload = JSON.parse(validWirePayload()) as { facts: { amount: { source: string } } };
+    payload.facts.amount.source = invalidSource;
+    const candidate = validateOfferingMonitorProviderOutput({
+      identity,
+      package: inputPackage,
+      run: providerRun({ parsed: { offering_monitor_payload: JSON.stringify(payload) } }),
+    });
+    assert.equal(candidate.validation.status, "validation_failed", invalidSource);
+    assert.match(candidate.validation.errors.join(" "), /facts\.amount\.source must be a member of allowed_source_refs/);
+    assert.equal(candidate.materialized_candidate, null);
+  }
 });
 
 test("exact current parent calls provider once and saves only a diagnostic candidate", async () => {
@@ -204,7 +281,7 @@ function artifacts(): OfferingMonitorSecondStageArtifacts {
 function block(id: string, source: string, document: string, text: string) {
   return {
     block_id: id,
-    source_ref: id,
+    source_ref: `ref:${id}`,
     source,
     section_key: id,
     section_title: null,
@@ -263,6 +340,10 @@ function dependencies(
 }
 
 function providerRun(overrides: Partial<OfferingMonitorProviderRun> = {}): OfferingMonitorProviderRun {
+  const parsed = overrides.parsed === undefined ? null : overrides.parsed;
+  const outputText = overrides.outputText === undefined && parsed
+    ? JSON.stringify(parsed)
+    : overrides.outputText || "";
   return {
     ok: true,
     responseOk: true,
@@ -271,8 +352,8 @@ function providerRun(overrides: Partial<OfferingMonitorProviderRun> = {}): Offer
     provider: "gemini",
     model: "gemini-2.5-flash",
     responseId: "response-1",
-    outputText: "{}",
-    parsed: null,
+    outputText,
+    parsed,
     usage: { input_tokens: 10_000, output_tokens: 500, total_tokens: 10_500 },
     latencyMs: 1_000,
     ...overrides,
@@ -324,11 +405,11 @@ function validWirePayload() {
         security_basis: "transaction_gross_amount",
         comparison_basis: "market_cap",
         comparable: null,
-        source: "s1f1_attachment_doc_a",
+        source: "ref:s1f1_attachment_doc_a",
       },
       price: unavailable("currency_per_security", "market_price"),
-      immediate: availableShares(10_000_000, "s1f1_source_block_001"),
-      additional: availableShares(5_000_000, "s1f1_attachment_doc_a"),
+      immediate: availableShares(10_000_000, "ref:s1f1_source_block_001"),
+      additional: availableShares(5_000_000, "ref:s1f1_attachment_doc_a"),
       resale: unavailable("shares", "public_float"),
     },
   });
