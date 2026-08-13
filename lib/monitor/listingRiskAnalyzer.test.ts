@@ -4,8 +4,17 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  LISTING_AVAILABILITIES,
+  LISTING_DATE_STATUSES,
+  LISTING_EVENT_KINDS,
+  LISTING_EVENT_OUTCOMES,
+  LISTING_FACT_CONFIDENCES,
+  LISTING_FACT_ORIGINS,
+  LISTING_PROCEEDING_KINDS,
+  LISTING_PROCEEDING_STATUSES,
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA,
   LISTING_RISK_EVENT_FACTS_VERSION,
+  LISTING_VALUE_QUALITIES,
   type ListingFactPath,
   type ListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
@@ -35,6 +44,10 @@ import {
 } from "./listingRiskSourceAdapters.ts";
 import {
   buildListingRiskDomainAnalysisPrompt,
+  LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE,
+  LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY,
+  LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+  LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT,
   LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT,
 } from "../prompts/listingRiskDomainAnalysis.ts";
 
@@ -508,7 +521,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
-  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v8");
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v9");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -530,8 +543,84 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
-  assert.equal(prompt.version, "listing_risk_domain_analyzer_v8");
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v9");
   assert.equal(prompt.responseFormat.json_schema.schema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
+});
+
+test("v9 prompt glossary stays aligned with every strict inner enum and explains independent semantics", () => {
+  for (const literal of [
+    ...LISTING_EVENT_KINDS,
+    ...LISTING_EVENT_OUTCOMES,
+    ...LISTING_VALUE_QUALITIES,
+    ...LISTING_DATE_STATUSES,
+    ...LISTING_FACT_ORIGINS,
+    ...LISTING_PROCEEDING_KINDS,
+    ...LISTING_PROCEEDING_STATUSES,
+  ]) {
+    assert.ok(
+      LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY.includes(`${literal} =`),
+      `glossary must explain ${literal}`,
+    );
+  }
+  assert.match(
+    LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY,
+    new RegExp(`availability exact literals are ${LISTING_AVAILABILITIES.join(", ")}`),
+  );
+  assert.match(
+    LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY,
+    new RegExp(`Fact confidence exact literals are ${LISTING_FACT_CONFIDENCES.join(", ")}`),
+  );
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY, /value_quality describes[\s\S]+origin describes[\s\S]+independent fields/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY, /date_status describes the event-state role[\s\S]+not the date string format/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY, /available fact as_of[\s\S]+YYYY-MM-DD[\s\S]+otherwise null/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY, /Root as_of[\s\S]+typed date envelope/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY, /deficiency_notice exactly[\s\S]+never deficiency or listing deficiency/i);
+});
+
+test("complete educational applicable payload passes the strict inner validator and synonyms fail closed", () => {
+  const input: ListingRiskAnalyzerInput = {
+    version: LISTING_RISK_ANALYZER_INPUT_VERSION,
+    source_family: "other",
+    source_id: "educational-example",
+    source_url: null,
+    published_at: "2030-03-02",
+    title: "Educational listing notice",
+    source_documents: [{
+      source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+      label: "Educational listing notice",
+      text: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT,
+    }],
+    primary_context: null,
+  };
+  assert.equal(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE.facts.length, 19);
+  assert.equal(new Set(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE.facts.map((fact) => fact.key)).size, 19);
+  assert.deepEqual(
+    validateListingRiskAnalyzerTransportResult(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE, input),
+    [],
+  );
+  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(
+    LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE,
+    input,
+  );
+  assert.deepEqual(canonicalized.errors, []);
+  assert.ok(canonicalized.result);
+  assert.deepEqual(validateListingRiskAnalyzerProviderResult(canonicalized.result, input), []);
+  assert.ok(
+    LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT.includes(
+      JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE),
+    ),
+  );
+
+  const synonym = structuredClone(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE) as unknown as {
+    facts: Array<{ key: string; value?: string }>;
+  };
+  const eventKind = synonym.facts.find((fact) => fact.key === "classification_event_kind");
+  assert.ok(eventKind);
+  eventKind.value = "listing deficiency";
+  assert.match(
+    validateListingRiskAnalyzerTransportResult(synonym, input).join("; "),
+    /value is invalid for classification_event_kind/,
+  );
 });
 
 test("source adapters contain no parser-generated semantic result mapping", () => {
