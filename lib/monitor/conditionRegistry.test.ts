@@ -6,7 +6,14 @@ import {
   MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
   MONITOR_CONDITION_REGISTRY,
   MONITOR_CONDITION_REGISTRY_VERSION,
+  validateMonitorConditionInput,
 } from "./conditionRegistry.ts";
+import {
+  LISTING_EVENT_KINDS,
+  LISTING_EVENT_OUTCOMES,
+  LISTING_PROCEEDING_KINDS,
+  LISTING_PROCEEDING_STATUSES,
+} from "./listingRiskFacts.ts";
 
 test("condition registry exposes only V1 READY canonical conditions", () => {
   assert.equal(MONITOR_CONDITION_REGISTRY_VERSION, "monitor_conditions_v1");
@@ -69,4 +76,80 @@ test("only DB-proven Ownership conditions are READY and 10b5-1 remains PARTIAL",
   ]);
   assert.equal(MONITOR_CONDITION_REGISTRY.find((entry) => entry.key === "ownership.form4.is_10b5_1")?.status, "PARTIAL");
   assert.equal(getReadyMonitorCondition("ownership.form4.is_10b5_1"), null);
+});
+
+test("Listing V1 conditions use exact official-reader Core fact paths and contracts", () => {
+  const expected = {
+    "listing.event_kind": ["text", ["eq", "in"], ["classification", "event_kind"], LISTING_EVENT_KINDS],
+    "listing.event_outcome": ["text", ["eq", "in"], ["classification", "event_outcome"], LISTING_EVENT_OUTCOMES],
+    "listing.exchange": ["text", ["eq", "neq", "in", "not_in"], ["exchange", "value"], undefined],
+    "listing.compliance_deadline": ["date", ["eq", "neq", "before", "after"], ["dates", "compliance_deadline", "value"], undefined],
+    "listing.hearing_date": ["date", ["eq", "neq", "before", "after"], ["dates", "hearing_date", "value"], undefined],
+    "listing.appeal_deadline": ["date", ["eq", "neq", "before", "after"], ["dates", "appeal_deadline", "value"], undefined],
+    "listing.suspension_date": ["date", ["eq", "neq", "before", "after"], ["dates", "trading_suspension_date", "value"], undefined],
+    "listing.removal_effective_date": ["date", ["eq", "neq", "before", "after"], ["dates", "removal_effective_date", "value"], undefined],
+    "listing.continued_trading": ["boolean", ["eq", "neq"], ["continued_trading", "continues", "value"], undefined],
+    "listing.proceeding_kind": ["text", ["eq", "in"], ["proceeding", "kind"], LISTING_PROCEEDING_KINDS],
+    "listing.proceeding_status": ["text", ["eq", "in"], ["proceeding", "status"], LISTING_PROCEEDING_STATUSES],
+  } as const;
+
+  const listingEntries = getReadyMonitorConditions().filter((entry) => entry.family === "listing");
+  assert.deepEqual(listingEntries.map((entry) => entry.key), Object.keys(expected));
+  for (const [key, [valueType, operators, jsonPath, enumValues]] of Object.entries(expected)) {
+    const entry = getReadyMonitorCondition(key);
+    assert.ok(entry);
+    assert.equal(entry.valueType, valueType);
+    assert.deepEqual(entry.allowedOperators, operators);
+    assert.deepEqual(entry.enumValues, enumValues);
+    assert.equal(entry.source.table, "event_listing_risk_facts");
+    assert.equal(entry.source.column, "facts_payload");
+    assert.equal(entry.source.reader, "read_current_event_listing_risk_facts");
+    assert.deepEqual(entry.source.jsonPath, jsonPath);
+    assert.equal(entry.eligibility?.requiredReaderStatus, "available");
+  }
+});
+
+test("Listing V1 fact eligibility fails closed for unavailable and unknown facts", () => {
+  const envelopeKeys = [
+    "listing.exchange",
+    "listing.compliance_deadline",
+    "listing.hearing_date",
+    "listing.appeal_deadline",
+    "listing.suspension_date",
+    "listing.removal_effective_date",
+    "listing.continued_trading",
+  ];
+  for (const key of envelopeKeys) {
+    const entry = getReadyMonitorCondition(key);
+    assert.equal(entry?.eligibility?.requiredAvailability, "available");
+    assert.ok(entry?.source.availabilityJsonPath);
+    assert.ok(entry?.source.valueQualityJsonPath);
+    assert.equal(entry?.qualityCapability.includes("unknown"), true);
+    assert.deepEqual(entry?.eligibility?.requiredValueQualities, ["exact", "derived", "estimated"]);
+  }
+  for (const key of ["listing.event_outcome", "listing.proceeding_kind", "listing.proceeding_status"]) {
+    assert.deepEqual(getReadyMonitorCondition(key)?.eligibility?.ineligibleValues, ["unknown"]);
+  }
+  assert.equal(MONITOR_COMPARISON_ELIGIBLE_QUALITIES.includes("unknown" as never), false);
+});
+
+test("registry input validation rejects unknown Listing keys, operators, and values", () => {
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "eq", value: "deficiency_notice" }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "in", value: ["deficiency_notice", "listing_removal"] }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "before", value: "2026-12-31" }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.continued_trading", operator: "eq", value: false }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.made_up", operator: "eq", value: "x" }), ["condition_key_unknown"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "contains", value: "listing_removal" }), ["condition_operator_unknown"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "eq", value: "delisted" }), ["condition_value_invalid"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_outcome", operator: "eq", value: "unknown" }), ["condition_value_invalid"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.proceeding_kind", operator: "in", value: ["hearing", "unknown"] }), ["condition_value_invalid"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "before", value: "2026-02-30" }), ["condition_value_invalid"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.continued_trading", operator: "eq", value: "false" }), ["condition_value_invalid"]);
+});
+
+test("Offering registry enum input remains valid after shared registry validation", () => {
+  assert.deepEqual(getReadyMonitorCondition("offering.side")?.enumValues, ["primary", "resale", "mixed"]);
+  assert.deepEqual(validateMonitorConditionInput({ key: "offering.side", operator: "eq", value: "primary" }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "offering.side", operator: "in", value: ["resale", "mixed"] }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "offering.side", operator: "eq", value: "unknown" }), ["condition_value_invalid"]);
 });

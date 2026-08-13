@@ -1,3 +1,10 @@
+import {
+  LISTING_EVENT_KINDS,
+  LISTING_EVENT_OUTCOMES,
+  LISTING_PROCEEDING_KINDS,
+  LISTING_PROCEEDING_STATUSES,
+} from "./listingRiskFacts.ts";
+
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
 export type MonitorConditionValueType = "number" | "text" | "boolean" | "date" | "timestamp";
@@ -28,6 +35,7 @@ type MonitorFactTable =
   | "event_market_snapshots"
   | "event_offering_monitor_canonical"
   | "event_offering_terms"
+  | "event_listing_risk_facts"
   | "event_form4_transactions"
   | "event_form144_proposed_sales";
 
@@ -35,20 +43,35 @@ export type MonitorConditionDefinition = Readonly<{
   key: string;
   valueType: MonitorConditionValueType;
   allowedOperators: readonly MonitorConditionOperator[];
-  family: "event" | "market" | "offering" | "ownership";
+  enumValues?: readonly string[];
+  family: "event" | "market" | "offering" | "listing" | "ownership";
   domain: string;
   source: Readonly<{
     table: MonitorFactTable;
     column: string;
     subject: "event" | "ticker";
-    reader?: "read_event_offering_monitor_canonical";
+    reader?: "read_event_offering_monitor_canonical" | "read_current_event_listing_risk_facts";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
+    valueQualityJsonPath?: readonly string[];
+    availabilityJsonPath?: readonly string[];
   }>;
   qualityCapability: readonly MonitorConditionQuality[];
+  eligibility?: Readonly<{
+    requiredReaderStatus: "available";
+    requiredAvailability?: "available";
+    requiredValueQualities?: readonly MonitorConditionQuality[];
+    ineligibleValues?: readonly string[];
+  }>;
   status: "READY" | "PARTIAL";
 }>;
+
+export type MonitorConditionInputValidationError =
+  | "condition_invalid"
+  | "condition_key_unknown"
+  | "condition_operator_unknown"
+  | "condition_value_invalid";
 
 const equality = ["eq", "neq"] as const;
 const textOperators = ["eq", "neq", "in", "not_in"] as const;
@@ -82,13 +105,50 @@ const registry = [
     availabilityColumn: "market_cap_availability",
   }),
 
-  canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"]),
+  canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
   canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "offering_price"]),
   canonicalOfferingCondition("offering.immediate_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "immediate_primary_share_exposure"]),
   canonicalOfferingCondition("offering.additional_potential_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "additional_potential_primary_share_exposure"]),
   canonicalOfferingCondition("offering.resale_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "resale_share_exposure"]),
   canonicalOfferingCondition("offering.total_potential_share_exposure", "number", numericOperators, "dilution", "materialized_payload", ["total_potential_primary_share_exposure"]),
+
+  canonicalListingCondition("listing.event_kind", "text", enumOperators, "classification", ["classification", "event_kind"], {
+    enumValues: LISTING_EVENT_KINDS,
+  }),
+  canonicalListingCondition("listing.event_outcome", "text", enumOperators, "classification", ["classification", "event_outcome"], {
+    enumValues: LISTING_EVENT_OUTCOMES,
+    ineligibleValues: ["unknown"],
+  }),
+  canonicalListingCondition("listing.exchange", "text", textOperators, "venue", ["exchange", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.compliance_deadline", "date", temporalOperators, "dates", ["dates", "compliance_deadline", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.hearing_date", "date", temporalOperators, "dates", ["dates", "hearing_date", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.appeal_deadline", "date", temporalOperators, "dates", ["dates", "appeal_deadline", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.suspension_date", "date", temporalOperators, "dates", ["dates", "trading_suspension_date", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.removal_effective_date", "date", temporalOperators, "dates", ["dates", "removal_effective_date", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.continued_trading", "boolean", equality, "trading", ["continued_trading", "continues", "value"], {
+    factEnvelope: true,
+  }),
+  canonicalListingCondition("listing.proceeding_kind", "text", enumOperators, "proceeding", ["proceeding", "kind"], {
+    enumValues: LISTING_PROCEEDING_KINDS,
+    ineligibleValues: ["unknown"],
+  }),
+  canonicalListingCondition("listing.proceeding_status", "text", enumOperators, "proceeding", ["proceeding", "status"], {
+    enumValues: LISTING_PROCEEDING_STATUSES,
+    ineligibleValues: ["unknown"],
+  }),
 
   condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"]),
   condition("ownership.form4.transaction_value", "number", numericOperators, "ownership", "form4", "event_form4_transactions", "transaction_value", "ticker", ["derived", "unknown"], {
@@ -117,6 +177,22 @@ export function getReadyMonitorConditions() {
 
 export function getReadyMonitorCondition(key: string) {
   return getReadyMonitorConditions().find((entry) => entry.key === key) || null;
+}
+
+export function validateMonitorConditionInput(value: unknown): readonly MonitorConditionInputValidationError[] {
+  if (!record(value)) return ["condition_invalid"];
+  const key = typeof value.key === "string" ? value.key : "";
+  const operator = typeof value.operator === "string" ? value.operator : "";
+  const definition = getReadyMonitorCondition(key);
+  if (!definition) return ["condition_key_unknown"];
+  if (!definition.allowedOperators.includes(operator as MonitorConditionOperator)) {
+    return ["condition_operator_unknown"];
+  }
+  const values = operator === "in" || operator === "not_in" ? value.value : [value.value];
+  if (!Array.isArray(values) || values.length === 0 || values.some((entry) => !validConditionScalar(definition, entry))) {
+    return ["condition_value_invalid"];
+  }
+  return [];
 }
 
 function condition(
@@ -150,11 +226,13 @@ function canonicalOfferingCondition(
   domain: string,
   column: "validated_canonical_payload" | "materialized_payload",
   jsonPath: readonly string[],
+  enumValues?: readonly string[],
 ): MonitorConditionDefinition {
   return Object.freeze({
     key,
     valueType,
     allowedOperators: Object.freeze([...allowedOperators]),
+    ...(enumValues ? { enumValues: Object.freeze([...enumValues]) } : {}),
     family: "offering" as const,
     domain,
     source: Object.freeze({
@@ -165,6 +243,52 @@ function canonicalOfferingCondition(
       jsonPath: Object.freeze([...jsonPath]),
     }),
     qualityCapability: Object.freeze(["exact", "derived", "estimated", "unknown"] as const),
+    status: "READY" as const,
+  });
+}
+
+function canonicalListingCondition(
+  key: string,
+  valueType: "text" | "boolean" | "date",
+  allowedOperators: readonly MonitorConditionOperator[],
+  domain: string,
+  jsonPath: readonly string[],
+  options: {
+    enumValues?: readonly string[];
+    factEnvelope?: boolean;
+    ineligibleValues?: readonly string[];
+  } = {},
+): MonitorConditionDefinition {
+  const envelopePath = jsonPath.slice(0, -1);
+  return Object.freeze({
+    key,
+    valueType,
+    allowedOperators: Object.freeze([...allowedOperators]),
+    ...(options.enumValues ? { enumValues: Object.freeze([...options.enumValues]) } : {}),
+    family: "listing" as const,
+    domain,
+    source: Object.freeze({
+      table: "event_listing_risk_facts" as const,
+      column: "facts_payload",
+      subject: "event" as const,
+      reader: "read_current_event_listing_risk_facts" as const,
+      jsonPath: Object.freeze([...jsonPath]),
+      ...(options.factEnvelope ? {
+        valueQualityJsonPath: Object.freeze([...envelopePath, "value_quality"]),
+        availabilityJsonPath: Object.freeze([...envelopePath, "availability"]),
+      } : {}),
+    }),
+    qualityCapability: Object.freeze(options.factEnvelope
+      ? ["exact", "derived", "estimated", "unknown"] as const
+      : ["exact"] as const),
+    eligibility: Object.freeze({
+      requiredReaderStatus: "available" as const,
+      ...(options.factEnvelope ? {
+        requiredAvailability: "available" as const,
+        requiredValueQualities: MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
+      } : {}),
+      ...(options.ineligibleValues ? { ineligibleValues: Object.freeze([...options.ineligibleValues]) } : {}),
+    }),
     status: "READY" as const,
   });
 }
@@ -180,12 +304,46 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
     if (keys.has(entry.key)) throw new Error(`Duplicate monitor condition key: ${entry.key}`);
     if (!entry.allowedOperators.length) throw new Error(`Monitor condition has no operators: ${entry.key}`);
     if (!entry.qualityCapability.length) throw new Error(`Monitor condition has no quality capability: ${entry.key}`);
+    if (entry.enumValues && (entry.valueType !== "text" || !entry.enumValues.length || new Set(entry.enumValues).size !== entry.enumValues.length)) {
+      throw new Error(`Invalid monitor condition enum: ${entry.key}`);
+    }
+    if (entry.eligibility?.ineligibleValues?.some((value) => !entry.enumValues?.includes(value))) {
+      throw new Error(`Monitor condition ineligible value is outside its enum: ${entry.key}`);
+    }
+    if (entry.eligibility?.requiredValueQualities?.some((quality) => !entry.qualityCapability.includes(quality) || quality === "unknown")) {
+      throw new Error(`Invalid monitor condition eligible quality: ${entry.key}`);
+    }
     if (entry.qualityCapability.includes("unknown") && entry.qualityCapability.includes("exact") === false && entry.valueType === "boolean") {
       throw new Error(`Boolean monitor condition lacks exact quality: ${entry.key}`);
     }
     if ((entry.source.valueQualityColumn || entry.source.availabilityColumn) && !(entry.source.valueQualityColumn && entry.source.availabilityColumn)) {
       throw new Error(`Incomplete value-quality contract: ${entry.key}`);
     }
+    if ((entry.source.valueQualityJsonPath || entry.source.availabilityJsonPath) && !(entry.source.valueQualityJsonPath && entry.source.availabilityJsonPath)) {
+      throw new Error(`Incomplete JSON value-quality contract: ${entry.key}`);
+    }
     keys.add(entry.key);
   }
+}
+
+function validConditionScalar(definition: MonitorConditionDefinition, value: unknown) {
+  if (definition.valueType === "number") return typeof value === "number" && Number.isFinite(value);
+  if (definition.valueType === "boolean") return typeof value === "boolean";
+  if (definition.valueType === "date") return validDate(value);
+  if (definition.valueType === "timestamp") {
+    return typeof value === "string" && value.trim().length > 0 && Number.isFinite(Date.parse(value));
+  }
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  if (definition.enumValues && !definition.enumValues.includes(value)) return false;
+  return !definition.eligibility?.ineligibleValues?.includes(value);
+}
+
+function validDate(value: unknown) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
