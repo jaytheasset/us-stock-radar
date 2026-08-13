@@ -24,6 +24,8 @@ const FOREIGN = "96100000-0000-4000-8000-000000000016";
 const CONCURRENT = "96100000-0000-4000-8000-000000000017";
 const CUPR_MATCH = "96100000-0000-4000-8000-000000000018";
 const REST_DEDUPE = "96100000-0000-4000-8000-000000000019";
+const REANALYSIS_DEDUPE = "96100000-0000-4000-8000-000000000020";
+const OTHER_ATPC_SOURCE_EXECUTION_ID = "696bc839-6355-57e8-a758-98954c23acb6";
 const TEST_USERS = [OWNER_A, OWNER_B];
 
 const admin = new Client({ connectionString: localDatabaseUrl() });
@@ -61,7 +63,7 @@ try {
   const restOutcomes = await Promise.all([
       createListingMonitorAlertViaLocalPostgrest(localSupabase, {
         eventId: ATPC_EVENT_ID,
-        sourceExecutionId: first.sourceExecutionId,
+        sourceExecutionId: OTHER_ATPC_SOURCE_EXECUTION_ID,
         monitorId: REST_DEDUPE,
         userId: OWNER_A,
         createdAt: "2026-08-14T00:00:00.000Z",
@@ -76,6 +78,12 @@ try {
   ]);
   assert.deepEqual(restOutcomes.map((item) => item.status).sort(), ["created", "existing"]);
   assert.equal(await alertCount(admin, REST_DEDUPE, ATPC_EVENT_ID), 1);
+  const restProvenance = await alertSourceExecution(admin, REST_DEDUPE, ATPC_EVENT_ID);
+  assert.equal(
+    [first.sourceExecutionId, OTHER_ATPC_SOURCE_EXECUTION_ID].includes(restProvenance),
+    true,
+    "the winning PostgREST insert retains its source execution as provenance",
+  );
   assert.equal(await alertCount(admin, MONITOR_B, ATPC_EVENT_ID), 0);
   assert.equal(await alertCount(admin, PAUSED, ATPC_EVENT_ID), 0);
   assert.equal(await alertCount(admin, INVALID, ATPC_EVENT_ID), 0);
@@ -109,6 +117,36 @@ try {
       .map((write) => write.status)
       .sort();
     assert.deepEqual(concurrentOutcomes, ["created", "existing"]);
+
+    await insertMonitor(admin, REANALYSIS_DEDUPE, OWNER_A, matchAtpc(), true);
+    const reanalysisOutcomes = await Promise.all([
+      insertListingAlertAtomic(clientA, {
+        eventId: ATPC_EVENT_ID,
+        sourceExecutionId: first.sourceExecutionId,
+        monitorId: REANALYSIS_DEDUPE,
+        userId: OWNER_A,
+        createdAt: "2026-08-14T00:00:00.000Z",
+      }),
+      insertListingAlertAtomic(clientB, {
+        eventId: ATPC_EVENT_ID,
+        sourceExecutionId: OTHER_ATPC_SOURCE_EXECUTION_ID,
+        monitorId: REANALYSIS_DEDUPE,
+        userId: OWNER_A,
+        createdAt: "2026-08-14T00:00:00.000Z",
+      }),
+    ]);
+    assert.deepEqual(reanalysisOutcomes.map((item) => item.status).sort(), ["created", "existing"]);
+    assert.equal(await alertCount(admin, REANALYSIS_DEDUPE, ATPC_EVENT_ID), 1);
+    const reanalysisProvenance = await alertSourceExecution(
+      admin,
+      REANALYSIS_DEDUPE,
+      ATPC_EVENT_ID,
+    );
+    assert.equal(
+      [first.sourceExecutionId, OTHER_ATPC_SOURCE_EXECUTION_ID].includes(reanalysisProvenance),
+      true,
+      "one independently committed source execution remains as provenance",
+    );
   } finally {
     await Promise.all([clientA.end(), clientB.end()]);
   }
@@ -155,7 +193,8 @@ try {
     foreignOwnerIsolation: true,
     concurrentIndependentSessions: true,
     concurrentTotal: await alertCount(admin, CONCURRENT, ATPC_EVENT_ID),
-    postgrestIgnoreDuplicates: "created+existing",
+    differentExecutionConcurrentTotal: await alertCount(admin, REANALYSIS_DEDUPE, ATPC_EVENT_ID),
+    postgrestIgnoreDuplicatesAcrossExecutions: "created+existing",
     cuprComplianceRecovery: "match",
     geminiOrLlmCalls: 0,
   }));
@@ -210,27 +249,7 @@ function consumerDependencies(client) {
           return { ok: true, status: 200, data: normalizeRows(result.rows) };
         },
       }),
-      createAlert: async (input) => {
-        const result = await client.query(
-          `insert into public.user_alert_deliveries (
-             user_id, alert_event_id, title, category, source_type, source_label,
-             alert_lane, delivered_channels, delivery_status, delivered_at,
-             scheduled_for, sent_at, attempted_at, last_error, dedupe_key,
-             listing_monitor_id, alert_domain, listing_source_execution_id
-           ) values (
-             $1, $2, 'Listing monitor matched', 'listing_risk', 'other', 'Listing Monitor',
-             'listing_monitor', array[]::text[], 'queued', $3,
-             null, null, null, null, null, $4, 'listing', $5
-           )
-           on conflict (listing_monitor_id, alert_event_id, listing_source_execution_id)
-           do nothing
-           returning id`,
-          [input.userId, input.eventId, input.createdAt, input.monitorId, input.sourceExecutionId],
-        );
-        return result.rows[0]
-          ? { status: "created", monitorId: input.monitorId, alertId: result.rows[0].id }
-          : { status: "existing", monitorId: input.monitorId };
-      },
+      createAlert: (input) => insertListingAlertAtomic(client, input),
       now: () => new Date("2026-08-14T00:00:00.000Z"),
     },
   };
@@ -291,6 +310,38 @@ async function alertCount(client, monitorId, eventId) {
     [monitorId, eventId],
   );
   return result.rows[0].count;
+}
+
+async function alertSourceExecution(client, monitorId, eventId) {
+  const result = await client.query(
+    `select listing_source_execution_id
+     from public.user_alert_deliveries
+     where listing_monitor_id = $1 and alert_event_id = $2`,
+    [monitorId, eventId],
+  );
+  return result.rows[0]?.listing_source_execution_id;
+}
+
+async function insertListingAlertAtomic(client, input) {
+  const result = await client.query(
+    `insert into public.user_alert_deliveries (
+       user_id, alert_event_id, title, category, source_type, source_label,
+       alert_lane, delivered_channels, delivery_status, delivered_at,
+       scheduled_for, sent_at, attempted_at, last_error, dedupe_key,
+       listing_monitor_id, alert_domain, listing_source_execution_id
+     ) values (
+       $1, $2, 'Listing monitor matched', 'listing_risk', 'other', 'Listing Monitor',
+       'listing_monitor', array[]::text[], 'queued', $3,
+       null, null, null, null, null, $4, 'listing', $5
+     )
+     on conflict (listing_monitor_id, alert_event_id)
+     do nothing
+     returning id`,
+    [input.userId, input.eventId, input.createdAt, input.monitorId, input.sourceExecutionId],
+  );
+  return result.rows[0]
+    ? { status: "created", monitorId: input.monitorId, alertId: result.rows[0].id }
+    : { status: "existing", monitorId: input.monitorId };
 }
 
 async function verifyOwnershipIsolation() {
@@ -368,7 +419,7 @@ async function createListingMonitorAlertViaLocalPostgrest(credentials, input) {
   const url = new URL(`${credentials.apiUrl.replace(/\/$/, "")}/rest/v1/user_alert_deliveries`);
   url.searchParams.set(
     "on_conflict",
-    "listing_monitor_id,alert_event_id,listing_source_execution_id",
+    "listing_monitor_id,alert_event_id",
   );
   const response = await fetch(url, {
     method: "POST",

@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(24);
 
 select has_column('public', 'user_alert_deliveries', 'listing_monitor_id', 'Alert record references its Listing monitor');
 select has_column('public', 'user_alert_deliveries', 'alert_domain', 'Alert record stores its monitor domain');
@@ -8,14 +8,14 @@ select has_column('public', 'user_alert_deliveries', 'listing_source_execution_i
 select col_type_is('public', 'user_alert_deliveries', 'listing_monitor_id', 'uuid', 'Listing monitor identity is a UUID');
 select col_type_is('public', 'user_alert_deliveries', 'alert_domain', 'text', 'Alert domain is text');
 select col_type_is('public', 'user_alert_deliveries', 'listing_source_execution_id', 'uuid', 'Listing source execution identity is a UUID');
-select ok(
-  exists (
-    select 1 from pg_catalog.pg_constraint
-    where conrelid = 'public.user_alert_deliveries'::regclass
-      and conname = 'user_alert_deliveries_listing_monitor_event_source_key'
-      and contype = 'u'
-  ),
-  'monitor plus canonical event/source identity has a database unique constraint'
+select is(
+  (select pg_catalog.pg_get_constraintdef(oid)
+   from pg_catalog.pg_constraint
+   where conrelid = 'public.user_alert_deliveries'::regclass
+     and conname = 'user_alert_deliveries_listing_monitor_event_key'
+     and contype = 'u'),
+  'UNIQUE (listing_monitor_id, alert_event_id)',
+  'monitor plus canonical event identity is the exact database dedupe key'
 );
 select ok(
   exists (
@@ -40,6 +40,16 @@ select ok(
       and contype = 'c'
   ),
   'Listing Alert rows are locked to no channels and no due delivery schedule'
+);
+select ok(
+  position(
+    'alert_event_id IS NOT NULL' in
+    (select pg_catalog.pg_get_constraintdef(oid)
+     from pg_catalog.pg_constraint
+     where conrelid = 'public.user_alert_deliveries'::regclass
+       and conname = 'user_alert_deliveries_listing_alert_shape_check')
+  ) = 0,
+  'Listing shape check preserves event ON DELETE SET NULL semantics'
 );
 select ok(
   (select relrowsecurity from pg_catalog.pg_class where oid = 'public.user_alert_deliveries'::regclass),
@@ -67,8 +77,9 @@ select ok(
       and conname = 'user_alert_deliveries_alert_event_id_fkey'
       and confrelid = 'public.events'::regclass
       and contype = 'f'
+      and confdeltype = 'n'
   ),
-  'alert_event_id is the canonical public.events identity'
+  'alert_event_id references canonical public.events and preserves ON DELETE SET NULL'
 );
 
 insert into auth.users (
@@ -126,13 +137,20 @@ insert into public.user_alert_deliveries (
   'Listing monitor matched', 'listing_risk', 'other', 'Listing Monitor',
   'listing_monitor', array[]::text[], 'queued', now(),
   '95000000-0000-4000-8000-000000000011', 'listing',
-  '95000000-0000-4000-8000-000000000021'
-) on conflict (listing_monitor_id, alert_event_id, listing_source_execution_id) do nothing;
+  '95000000-0000-4000-8000-000000000022'
+) on conflict (listing_monitor_id, alert_event_id) do nothing;
 
 select is(
   (select count(*) from public.user_alert_deliveries where listing_monitor_id = '95000000-0000-4000-8000-000000000011'),
   1::bigint,
-  'replay is atomically deduped to one Alert'
+  'same monitor/event with a different source execution is atomically deduped to one Alert'
+);
+select is(
+  (select listing_source_execution_id
+   from public.user_alert_deliveries
+   where listing_monitor_id = '95000000-0000-4000-8000-000000000011'),
+  '95000000-0000-4000-8000-000000000021'::uuid,
+  'dedupe leaves the first winning source execution as provenance'
 );
 select is(
   (select count(*)
@@ -165,11 +183,24 @@ select throws_ok(
        'unsafe delivery', 'listing_risk', 'other', 'Listing Monitor',
        'listing_monitor', array['web']::text[], 'queued', now(),
        '95000000-0000-4000-8000-000000000011', 'listing',
-       '95000000-0000-4000-8000-000000000022', now()
+       '95000000-0000-4000-8000-000000000023', now()
      ) $$,
   '23514',
   null,
   'Listing internal Alerts cannot request a channel or due delivery schedule'
+);
+
+select lives_ok(
+  $$ delete from public.events
+     where id = '95000000-0000-4000-8000-000000000010' $$,
+  'canonical event deletion still honors the pre-existing FK behavior'
+);
+select is(
+  (select alert_event_id
+   from public.user_alert_deliveries
+   where listing_monitor_id = '95000000-0000-4000-8000-000000000011'),
+  null::uuid,
+  'event deletion leaves the internal Alert row with a null event reference'
 );
 
 select * from finish();

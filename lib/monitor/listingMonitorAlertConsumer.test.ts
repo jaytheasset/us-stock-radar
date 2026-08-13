@@ -13,6 +13,7 @@ import type { CurrentListingRiskReadResult } from "./listingRiskPersistence.ts";
 
 const EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const SOURCE_EXECUTION_ID = "5323aa52-5944-5877-99b0-c9f74ba6d98c";
+const OTHER_SOURCE_EXECUTION_ID = "696bc839-6355-57e8-a758-98954c23acb6";
 const OWNER_ID = "a2000000-0000-4000-8000-000000000001";
 
 test("MATCH creates once, retry dedupes, and NO_MATCH/INELIGIBLE/invalid monitors create nothing", async () => {
@@ -28,6 +29,20 @@ test("MATCH creates once, retry dedupes, and NO_MATCH/INELIGIBLE/invalid monitor
   assert.equal(harness.alertCount(), 1);
   assert.equal(first.sourceExecutionId, SOURCE_EXECUTION_ID);
   assert.equal(first.evaluationDate, "2026-08-14");
+});
+
+test("same monitor and canonical event dedupes across different source executions", async () => {
+  const harness = consumerHarness({
+    sourceExecutionIds: [SOURCE_EXECUTION_ID, OTHER_SOURCE_EXECUTION_ID],
+  });
+  const first = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, harness.dependencies);
+  const reanalysis = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, harness.dependencies);
+
+  assert.equal(first.sourceExecutionId, SOURCE_EXECUTION_ID);
+  assert.equal(reanalysis.sourceExecutionId, OTHER_SOURCE_EXECUTION_ID);
+  assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
+  assert.deepEqual([reanalysis.createdCount, reanalysis.existingCount], [0, 1]);
+  assert.equal(harness.alertCount(), 1);
 });
 
 test("not-applicable and reader-unavailable results remain literal INELIGIBLE outcomes", async () => {
@@ -100,7 +115,11 @@ test("existing delivery worker claim predicates cannot select Listing internal A
   assert.match(migration, /scheduled_for is null/);
 });
 
-function consumerHarness(options: { secondMatch?: boolean; failFirstWrite?: boolean } = {}) {
+function consumerHarness(options: {
+  secondMatch?: boolean;
+  failFirstWrite?: boolean;
+  sourceExecutionIds?: string[];
+} = {}) {
   let reads = 0;
   let writeAttempts = 0;
   const alerts = new Set<string>();
@@ -122,14 +141,18 @@ function consumerHarness(options: { secondMatch?: boolean; failFirstWrite?: bool
   ] satisfies ListingMonitor[];
 
   const dependencies: ListingMonitorAlertConsumerDependencies = {
-    readFacts: async () => { reads += 1; return availableCurrent(); },
+    readFacts: async () => {
+      const sourceExecutionId = options.sourceExecutionIds?.[reads] ?? SOURCE_EXECUTION_ID;
+      reads += 1;
+      return availableCurrent(sourceExecutionId);
+    },
     listActiveMonitors: async () => ({ monitors, diagnostics: [invalidDiagnostic()] }),
     createAlert: async (input) => {
       writeAttempts += 1;
       if (options.failFirstWrite && writeAttempts === 1) {
         return { status: "failed", monitorId: input.monitorId, error: "fake insert failure" };
       }
-      const key = `${input.monitorId}:${input.eventId}:${input.sourceExecutionId}`;
+      const key = `${input.monitorId}:${input.eventId}`;
       if (alerts.has(key)) return { status: "existing", monitorId: input.monitorId };
       alerts.add(key);
       return { status: "created", monitorId: input.monitorId, alertId: input.monitorId };
@@ -159,13 +182,15 @@ function invalidDiagnostic(): ListingMonitorDiagnostic {
   };
 }
 
-function availableCurrent(): Extract<CurrentListingRiskReadResult, { status: "available" }> {
+function availableCurrent(
+  sourceExecutionId = SOURCE_EXECUTION_ID,
+): Extract<CurrentListingRiskReadResult, { status: "available" }> {
   return {
     status: "available",
     eventId: EVENT_ID,
     rawItemId: "a2000000-0000-4000-8000-000000000002",
     parentPrimaryAiRunId: "a2000000-0000-4000-8000-000000000003",
-    sourceExecutionId: SOURCE_EXECUTION_ID,
+    sourceExecutionId,
     monitorAnalyzerKey: "listing_risk",
     analyzerContractVersion: "listing_risk_domain_analyzer_v11",
     persistedAt: "2026-08-13T18:57:34.542648Z",

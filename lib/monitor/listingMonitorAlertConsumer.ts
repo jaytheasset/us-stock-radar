@@ -165,7 +165,7 @@ export async function createListingMonitorAlert(input: Readonly<{
     alert_domain: "listing",
     listing_source_execution_id: input.sourceExecutionId,
   }, {
-    onConflict: "listing_monitor_id,alert_event_id,listing_source_execution_id",
+    onConflict: "listing_monitor_id,alert_event_id",
     prefer: "resolution=ignore-duplicates,return=representation",
   });
 
