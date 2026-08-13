@@ -77,10 +77,11 @@ test("workflow-start CAS grants one concurrent owner and start failure release e
 
 test("new Primary and new contract are semantic reanalysis while retry keeps the logical job", () => {
   const automatic = identity(newsPrimary());
+  assert.equal(automatic.analyzerContractVersion, "listing_risk_domain_analyzer_v3");
   const automaticDuplicate = identity(newsPrimary());
   const newPrimary = identity(newsPrimary({ parentPrimaryAiRunId: PARENT_B }));
-  const newContract = identity(newsPrimary(), {
-    analyzerContractVersions: { listing_risk: "listing_risk_domain_analyzer_v3" },
+  const oldContract = identity(newsPrimary(), {
+    analyzerContractVersions: { listing_risk: "listing_risk_domain_analyzer_v2" },
   });
   const retry = identity(newsPrimary(), {
     attempt: { kind: "retry", key: "retry:1" },
@@ -90,8 +91,8 @@ test("new Primary and new contract are semantic reanalysis while retry keeps the
   assert.equal(automatic.executionId, automaticDuplicate.executionId);
   assert.notEqual(automatic.logicalJobId, newPrimary.logicalJobId);
   assert.notEqual(automatic.executionId, newPrimary.executionId);
-  assert.notEqual(automatic.logicalJobId, newContract.logicalJobId);
-  assert.notEqual(automatic.executionId, newContract.executionId);
+  assert.notEqual(automatic.logicalJobId, oldContract.logicalJobId);
+  assert.notEqual(automatic.executionId, oldContract.executionId);
   assert.equal(automatic.logicalJobId, retry.logicalJobId);
   assert.notEqual(automatic.executionId, retry.executionId);
   assert.deepEqual(JSON.parse(JSON.stringify(automatic)), automatic);

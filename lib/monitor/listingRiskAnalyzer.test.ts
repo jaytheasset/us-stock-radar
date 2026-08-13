@@ -10,6 +10,7 @@ import {
 } from "./listingRiskFacts.ts";
 import {
   LISTING_RISK_ANALYZER_INPUT_VERSION,
+  LISTING_RISK_ANALYZER_PROMPT_VERSION,
   LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
   normalizeListingRiskAnalyzerProviderResult,
   readListingRiskAnalyzerResult,
@@ -104,6 +105,54 @@ test("provider facts must remain valid and cite the supplied source identity", (
     validateListingRiskAnalyzerProviderResult({ status: "applicable", applicable_facts: [invalidFacts] }, input)
       .some((error) => error.includes("listing_risk_event_facts must contain exactly")),
   );
+});
+
+test("provider-controlled condition fields remain complete and unchanged for a representative source", () => {
+  const input = newsInput(
+    "On May 1, 2026, Nasdaq notified Example Corp that its Common Stock was deficient under Nasdaq Listing Rule 5550(a)(2). The company has until October 28, 2026 to regain compliance.",
+  );
+  const sourceRef = input.source_documents[0].source_ref;
+  const evidence = input.source_documents[0].text;
+  const facts = validFacts(input, sourceRef, evidence);
+  const availableText = (value: string) => ({
+    value,
+    availability: "available" as const,
+    value_quality: "exact" as const,
+    source_ref: sourceRef,
+  });
+  const availableDate = (value: string) => ({
+    ...availableText(value),
+    date_status: "occurred" as const,
+  });
+  facts.classification = { event_kind: "deficiency_notice", event_outcome: "adverse", source_ref: sourceRef };
+  facts.exchange = availableText("Nasdaq");
+  facts.listing_rule = availableText("Nasdaq Listing Rule 5550(a)(2)");
+  facts.affected_security.title = availableText("Common Stock");
+  facts.affected_security.security_basis = availableText("common_stock");
+  facts.dates.notice_date = availableDate("2026-05-01");
+  facts.dates.compliance_deadline = { ...availableDate("2026-10-28"), date_status: "scheduled" };
+
+  const result = normalizeListingRiskAnalyzerProviderResult(
+    { status: "applicable", applicable_facts: [facts] },
+    input,
+  );
+
+  assert.equal(result?.status, "applicable");
+  assert.deepEqual(result && result.status === "applicable" ? {
+    exchange: result.facts.exchange,
+    listing_rule: result.facts.listing_rule,
+    security_title: result.facts.affected_security.title,
+    security_basis: result.facts.affected_security.security_basis,
+    notice_date: result.facts.dates.notice_date,
+    compliance_deadline: result.facts.dates.compliance_deadline,
+  } : null, {
+    exchange: availableText("Nasdaq"),
+    listing_rule: availableText("Nasdaq Listing Rule 5550(a)(2)"),
+    security_title: availableText("Common Stock"),
+    security_basis: availableText("common_stock"),
+    notice_date: availableDate("2026-05-01"),
+    compliance_deadline: { ...availableDate("2026-10-28"), date_status: "scheduled" },
+  });
 });
 
 test("analyzer input bounds source packages without selecting listing semantics", () => {
@@ -213,6 +262,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v3");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -221,7 +271,15 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /merger cleanup[\s\S]+procedural/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /trading suspension date[\s\S]+removal effective date[\s\S]+distinct/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not infer applicability from event_type/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /structured listing_risk_event_facts_v1 fields are the primary product output/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Extract every condition-relevant field[\s\S]+Continue through the entire object/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Evidence supports those structured facts; evidence never replaces/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /source_document\.text\.includes\(evidence\) === true/);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /whitespace[\s\S]+Unicode[\s\S]+date formatting/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v3");
   assert.equal(prompt.responseFormat.json_schema.schema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
 });
 
