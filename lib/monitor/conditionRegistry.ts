@@ -18,7 +18,8 @@ export type MonitorConditionOperator =
   | "in"
   | "not_in"
   | "before"
-  | "after";
+  | "after"
+  | "within_days";
 export type MonitorConditionQuality = "exact" | "derived" | "estimated" | "unknown";
 
 // Storage can retain an available numeric observation with unknown quality for
@@ -77,6 +78,7 @@ const equality = ["eq", "neq"] as const;
 const textOperators = ["eq", "neq", "in", "not_in"] as const;
 const numericOperators = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 const temporalOperators = ["eq", "neq", "before", "after"] as const;
+const dateOperators = [...temporalOperators, "within_days"] as const;
 const enumOperators = ["eq", "in"] as const;
 
 const registry = [
@@ -123,19 +125,19 @@ const registry = [
   canonicalListingCondition("listing.exchange", "text", textOperators, "venue", ["exchange", "value"], {
     factEnvelope: true,
   }),
-  canonicalListingCondition("listing.compliance_deadline", "date", temporalOperators, "dates", ["dates", "compliance_deadline", "value"], {
+  canonicalListingCondition("listing.compliance_deadline", "date", dateOperators, "dates", ["dates", "compliance_deadline", "value"], {
     factEnvelope: true,
   }),
-  canonicalListingCondition("listing.hearing_date", "date", temporalOperators, "dates", ["dates", "hearing_date", "value"], {
+  canonicalListingCondition("listing.hearing_date", "date", dateOperators, "dates", ["dates", "hearing_date", "value"], {
     factEnvelope: true,
   }),
-  canonicalListingCondition("listing.appeal_deadline", "date", temporalOperators, "dates", ["dates", "appeal_deadline", "value"], {
+  canonicalListingCondition("listing.appeal_deadline", "date", dateOperators, "dates", ["dates", "appeal_deadline", "value"], {
     factEnvelope: true,
   }),
-  canonicalListingCondition("listing.suspension_date", "date", temporalOperators, "dates", ["dates", "trading_suspension_date", "value"], {
+  canonicalListingCondition("listing.suspension_date", "date", dateOperators, "dates", ["dates", "trading_suspension_date", "value"], {
     factEnvelope: true,
   }),
-  canonicalListingCondition("listing.removal_effective_date", "date", temporalOperators, "dates", ["dates", "removal_effective_date", "value"], {
+  canonicalListingCondition("listing.removal_effective_date", "date", dateOperators, "dates", ["dates", "removal_effective_date", "value"], {
     factEnvelope: true,
   }),
   canonicalListingCondition("listing.continued_trading", "boolean", equality, "trading", ["continued_trading", "continues", "value"], {
@@ -187,6 +189,11 @@ export function validateMonitorConditionInput(value: unknown): readonly MonitorC
   if (!definition) return ["condition_key_unknown"];
   if (!definition.allowedOperators.includes(operator as MonitorConditionOperator)) {
     return ["condition_operator_unknown"];
+  }
+  if (operator === "within_days") {
+    return definition.valueType === "date" && validRelativeDayCount(value.value)
+      ? []
+      : ["condition_value_invalid"];
   }
   const values = operator === "in" || operator === "not_in" ? value.value : [value.value];
   if (!Array.isArray(values) || values.length === 0 || values.some((entry) => !validConditionScalar(definition, entry))) {
@@ -303,6 +310,9 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
     if (!/^[a-z][a-z0-9_.]*$/.test(entry.key)) throw new Error(`Invalid monitor condition key: ${entry.key}`);
     if (keys.has(entry.key)) throw new Error(`Duplicate monitor condition key: ${entry.key}`);
     if (!entry.allowedOperators.length) throw new Error(`Monitor condition has no operators: ${entry.key}`);
+    if (entry.allowedOperators.includes("within_days") && entry.valueType !== "date") {
+      throw new Error(`within_days requires a date-only monitor condition: ${entry.key}`);
+    }
     if (!entry.qualityCapability.length) throw new Error(`Monitor condition has no quality capability: ${entry.key}`);
     if (entry.enumValues && (entry.valueType !== "text" || !entry.enumValues.length || new Set(entry.enumValues).size !== entry.enumValues.length)) {
       throw new Error(`Invalid monitor condition enum: ${entry.key}`);
@@ -329,7 +339,7 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
 function validConditionScalar(definition: MonitorConditionDefinition, value: unknown) {
   if (definition.valueType === "number") return typeof value === "number" && Number.isFinite(value);
   if (definition.valueType === "boolean") return typeof value === "boolean";
-  if (definition.valueType === "date") return validDate(value);
+  if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;
   if (definition.valueType === "timestamp") {
     return typeof value === "string" && value.trim().length > 0 && Number.isFinite(Date.parse(value));
   }
@@ -338,10 +348,16 @@ function validConditionScalar(definition: MonitorConditionDefinition, value: unk
   return !definition.eligibility?.ineligibleValues?.includes(value);
 }
 
-function validDate(value: unknown) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+/** Parses a strict date-only value to its UTC epoch day without local-time conversion. */
+export function monitorDateOnlyUtcDay(value: unknown): number | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const parsed = new Date(`${value}T00:00:00Z`);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) return null;
+  return parsed.getTime() / 86_400_000;
+}
+
+function validRelativeDayCount(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
