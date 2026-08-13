@@ -9,6 +9,7 @@ import {
 } from "./listingRiskAnalyzer.ts";
 import {
   LISTING_RISK_EVENT_FACTS_VERSION,
+  type ListingFactPath,
   type ListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
 import {
@@ -174,6 +175,14 @@ test("migration keeps history separate from facts and locks down the public sche
     assert.equal(repository.includes(forbiddenFallback), false);
   }
   assert.doesNotMatch(repository, /(?:\.|\[)["']?summary\b/);
+
+  const v2Migration = readFileSync(join(
+    process.cwd(),
+    "supabase/migrations/20260813143928_listing_risk_fact_provenance_v2.sql",
+  ), "utf8");
+  assert.match(v2Migration, /listing_risk_domain_analyzer_v4[\s\S]+listing_risk_event_facts_v1/);
+  assert.match(v2Migration, /listing_risk_domain_analyzer_v5[\s\S]+listing_risk_event_facts_v2/);
+  assert.match(v2Migration, /fact_schema_version in \([\s\S]*listing_risk_event_facts_v1[\s\S]*listing_risk_event_facts_v2/);
 });
 
 function identity() {
@@ -276,6 +285,28 @@ function listingFacts(): ListingRiskEventFacts {
       source_ref: "source:block:1",
       evidence: "Issuer received a minimum bid price notice.",
     }],
+    fact_provenance: [
+      ...([
+        "classification.event_kind",
+        "classification.event_outcome",
+        "exchange.value",
+        "affected_security.ticker.value",
+        "listing_requirement.value",
+        "dates.notice_date.value",
+        "continued_trading.continues.value",
+      ] satisfies ListingFactPath[]).map((factPath) => ({
+        fact_path: factPath,
+        origin: factPath.startsWith("classification.") ? "domain_interpreted" as const : "source_stated" as const,
+        source_ref: "source:block:1",
+        evidence: "Issuer received a minimum bid price notice.",
+        evidence_status: "available" as const,
+        evidence_issue: null,
+        confidence: "high" as const,
+        as_of: "2026-08-12",
+        formula_id: null,
+        input_fact_paths: [],
+      })),
+    ],
   };
 }
 

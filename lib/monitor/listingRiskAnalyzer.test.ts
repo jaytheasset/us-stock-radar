@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA,
   LISTING_RISK_EVENT_FACTS_VERSION,
+  type ListingFactPath,
   type ListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
 import {
@@ -61,6 +62,12 @@ test("provider transport uses the existing facts schema and rejects impossible m
   assert.equal(providerFactsSchema.properties.exchange.properties.value.nullable, true);
   assert.equal(providerFactsSchema.properties.sources.items.properties.evidence.type, "string");
   assert.equal(providerFactsSchema.properties.sources.items.properties.evidence.nullable, undefined);
+  assert.equal(providerFactsSchema.properties.fact_provenance.items.properties.evidence.type, "string");
+  assert.equal(providerFactsSchema.properties.fact_provenance.items.properties.evidence.nullable, undefined);
+  assert.deepEqual(providerFactsSchema.properties.fact_provenance.items.properties.origin.enum, [
+    "source_stated",
+    "domain_interpreted",
+  ]);
   assert.deepEqual(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA.required, ["status", "applicable_facts"]);
   const input = newsInput("The exchange notified the issuer of a newly established listing event.");
   const facts = validFacts(input, "news_article_body", input.source_documents[0].text);
@@ -147,6 +154,38 @@ test("source family, id, url, and document identity mismatches remain hard failu
       `${field} mismatch must not enter evidence repair`,
     );
   }
+
+  const wrongFactSource = structuredClone(original);
+  wrongFactSource.fact_provenance[0].source_ref = "missing-document";
+  assert.match(
+    validateListingRiskAnalyzerProviderResult(
+      { status: "applicable", applicable_facts: [wrongFactSource] },
+      input,
+    ).join("; "),
+    /fact_provenance\[0\]\.source_ref must identify a supplied source document/,
+  );
+  assert.equal(
+    buildListingRiskEvidenceRepairPlan({ status: "applicable", applicable_facts: [wrongFactSource] }, input),
+    null,
+  );
+
+  const providerDerived = structuredClone(original);
+  Object.assign(providerDerived.fact_provenance[0], {
+    origin: "deterministic_derived",
+    source_ref: null,
+    evidence: null,
+    evidence_status: "unavailable",
+    evidence_issue: "not_provided",
+    formula_id: "not-provider-owned",
+    input_fact_paths: ["classification.event_outcome"],
+  });
+  assert.match(
+    validateListingRiskAnalyzerProviderResult(
+      { status: "applicable", applicable_facts: [providerDerived] },
+      input,
+    ).join("; "),
+    /cannot be deterministic_derived in analyzer provider output/,
+  );
 });
 
 test("provider-controlled condition fields remain complete and unchanged for a representative source", () => {
@@ -173,6 +212,14 @@ test("provider-controlled condition fields remain complete and unchanged for a r
   facts.affected_security.security_basis = availableText("common_stock");
   facts.dates.notice_date = availableDate("2026-05-01");
   facts.dates.compliance_deadline = { ...availableDate("2026-10-28"), date_status: "scheduled" };
+  facts.fact_provenance.push(
+    factProvenance("exchange.value", sourceRef, evidence, "source_stated"),
+    factProvenance("listing_rule.value", sourceRef, evidence, "source_stated"),
+    factProvenance("affected_security.title.value", sourceRef, evidence, "source_stated"),
+    factProvenance("affected_security.security_basis.value", sourceRef, evidence),
+    factProvenance("dates.notice_date.value", sourceRef, evidence, "source_stated"),
+    factProvenance("dates.compliance_deadline.value", sourceRef, evidence, "source_stated"),
+  );
 
   const result = normalizeListingRiskAnalyzerProviderResult(
     { status: "applicable", applicable_facts: [facts] },
@@ -304,7 +351,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
-  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v4");
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v5");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -313,7 +360,9 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /merger cleanup[\s\S]+procedural/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /trading suspension date[\s\S]+removal effective date[\s\S]+distinct/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not infer applicability from event_type/i);
-  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /structured listing_risk_event_facts_v1 fields are the primary product output/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /structured listing_risk_event_facts_v2 fields are the primary product output/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /fact_provenance is the authoritative fact-level provenance layer/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not create provenance entries for confidence, availability, value_quality, source_ref, evidence status, or other metadata/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Extract every condition-relevant field[\s\S]+Continue through the entire object/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Evidence supports those structured facts; evidence never replaces/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /source_document\.text\.includes\(evidence\) === true/);
@@ -321,7 +370,7 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
-  assert.equal(prompt.version, "listing_risk_domain_analyzer_v4");
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v5");
   assert.equal(prompt.responseFormat.json_schema.schema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
 });
 
@@ -394,5 +443,29 @@ function validFacts(
       source_ref: sourceRef,
       evidence,
     }],
+    fact_provenance: [
+      factProvenance("classification.event_kind", sourceRef, evidence),
+      factProvenance("classification.event_outcome", sourceRef, evidence),
+    ],
+  };
+}
+
+function factProvenance(
+  factPath: ListingFactPath,
+  sourceRef: string,
+  evidence: string,
+  origin: "source_stated" | "domain_interpreted" = "domain_interpreted",
+) {
+  return {
+    fact_path: factPath,
+    origin,
+    source_ref: sourceRef,
+    evidence,
+    evidence_status: "available" as const,
+    evidence_issue: null,
+    confidence: "high" as const,
+    as_of: null,
+    formula_id: null,
+    input_fact_paths: [],
   };
 }

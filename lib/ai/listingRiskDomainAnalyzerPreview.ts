@@ -174,7 +174,7 @@ export async function runListingRiskDomainAnalyzerPreview(
       })),
       repaired_evidence_lengths: (repairOutput.output?.evidence_repairs || []).map((item) => ({
         source_ref: item.source_ref,
-        length: Array.from(item.evidence).length,
+        length: typeof item.evidence === "string" ? Array.from(item.evidence).length : 0,
       })),
       semantic_facts_changed: false,
       evidence_unavailable_source_refs: evidenceUnavailableResult

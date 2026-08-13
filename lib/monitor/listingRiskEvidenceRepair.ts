@@ -1,5 +1,7 @@
 import {
   LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
+  type ListingEvidenceIssue,
+  type ListingFactPath,
   type ListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
 import {
@@ -18,13 +20,14 @@ export const LISTING_RISK_EVIDENCE_REPAIR_SCHEMA = {
     evidence_repairs: {
       type: "array",
       minItems: 1,
-      maxItems: 48,
+      maxItems: 72,
       items: {
         type: "object",
-        required: ["source_ref", "evidence"],
+        required: ["target_key", "source_ref", "evidence"],
         properties: {
+          target_key: { type: "string", maxLength: 320 },
           source_ref: { type: "string", maxLength: 240 },
-          evidence: { type: "string", maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
+          evidence: { type: "string", nullable: true, maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
         },
       },
     },
@@ -32,9 +35,13 @@ export const LISTING_RISK_EVIDENCE_REPAIR_SCHEMA = {
 } as const;
 
 export type ListingRiskEvidenceRepairTarget = {
-  source_index: number;
+  target_kind: "source" | "fact";
+  target_key: string;
+  source_index: number | null;
+  provenance_index: number | null;
+  fact_path: ListingFactPath | null;
   source_ref: string;
-  original_evidence: string;
+  original_evidence: string | null;
   original_length: number;
   source_document: {
     source_ref: string;
@@ -51,8 +58,9 @@ export type ListingRiskEvidenceRepairPlan = {
 
 export type ListingRiskEvidenceRepairOutput = {
   evidence_repairs: Array<{
+    target_key: string;
     source_ref: string;
-    evidence: string;
+    evidence: string | null;
   }>;
 };
 
@@ -60,8 +68,12 @@ const EVIDENCE_MAX_ERROR = new RegExp(
   `^applicable_facts\\[0\\]: sources\\[(\\d+)\\]\\.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer$`,
 );
 const EVIDENCE_EXACT_ERROR = /^applicable_facts\[0\]\.sources\[(\d+)\]\.evidence must be a contiguous excerpt from the supplied source document$/;
+const FACT_EVIDENCE_MAX_ERROR = new RegExp(
+  `^applicable_facts\\[0\\]: fact_provenance\\[(\\d+)\\]\\.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer$`,
+);
+const FACT_EVIDENCE_EXACT_ERROR = /^applicable_facts\[0\]\.fact_provenance\[(\d+)\]\.evidence must be a contiguous excerpt from the supplied source document$/;
 const REPAIR_EVIDENCE_FORMAT_ERROR = new RegExp(
-  `^listing_risk_evidence_repair\\.evidence_repairs\\[\\d+\\]\\.evidence must be (?:${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer|a contiguous excerpt from the supplied source document)$`,
+  `^listing_risk_evidence_repair\\.evidence_repairs\\[\\d+\\]\\.evidence must be (?:${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer|a contiguous excerpt from the supplied source document|provided as a non-empty string)$`,
 );
 
 export function buildListingRiskEvidenceRepairPlan(
@@ -72,22 +84,33 @@ export function buildListingRiskEvidenceRepairPlan(
   if (!validationErrors.length) return null;
   if (validateListingRiskAnalyzerProviderFactEligibility(value, input).length) return null;
 
-  const indexes: number[] = [];
+  const sourceIndexes: number[] = [];
+  const provenanceIndexes: number[] = [];
   for (const error of validationErrors) {
-    const match = EVIDENCE_MAX_ERROR.exec(error) || EVIDENCE_EXACT_ERROR.exec(error);
-    if (!match) return null;
-    indexes.push(Number(match[1]));
+    const sourceMatch = EVIDENCE_MAX_ERROR.exec(error) || EVIDENCE_EXACT_ERROR.exec(error);
+    if (sourceMatch) {
+      sourceIndexes.push(Number(sourceMatch[1]));
+      continue;
+    }
+    const provenanceMatch = FACT_EVIDENCE_MAX_ERROR.exec(error) || FACT_EVIDENCE_EXACT_ERROR.exec(error);
+    if (provenanceMatch) {
+      provenanceIndexes.push(Number(provenanceMatch[1]));
+      continue;
+    }
+    return null;
   }
 
   const root = record(value);
   const applicableFacts = Array.isArray(root?.applicable_facts) ? root.applicable_facts : [];
   const facts = record(applicableFacts[0]);
   const sources = Array.isArray(facts?.sources) ? facts.sources : [];
+  const provenance = Array.isArray(facts?.fact_provenance) ? facts.fact_provenance : [];
   if (root?.status !== "applicable" || applicableFacts.length !== 1 || !facts) return null;
 
   const sourceDocuments = new Map(input.source_documents.map((document) => [document.source_ref, document]));
-  const uniqueIndexes = [...new Set(indexes)];
-  const actualEvidenceFormatIndexes = sources.flatMap((sourceValue, index) => {
+  const uniqueSourceIndexes = [...new Set(sourceIndexes)];
+  const uniqueProvenanceIndexes = [...new Set(provenanceIndexes)];
+  const actualSourceIndexes = sources.flatMap((sourceValue, index) => {
     const source = record(sourceValue);
     if (typeof source?.source_ref !== "string" || typeof source.evidence !== "string") return [];
     const sourceDocument = sourceDocuments.get(source.source_ref);
@@ -95,24 +118,60 @@ export function buildListingRiskEvidenceRepairPlan(
       || (sourceDocument && !sourceDocument.text.includes(source.evidence))
       ? [index] : [];
   });
+  const actualProvenanceIndexes = provenance.flatMap((entryValue, index) => {
+    const entry = record(entryValue);
+    if (typeof entry?.source_ref !== "string" || typeof entry.evidence !== "string") return [];
+    const sourceDocument = sourceDocuments.get(entry.source_ref);
+    return Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH
+      || (sourceDocument && !sourceDocument.text.includes(entry.evidence))
+      ? [index] : [];
+  });
   if (
-    uniqueIndexes.length !== actualEvidenceFormatIndexes.length ||
-    uniqueIndexes.some((index) => !actualEvidenceFormatIndexes.includes(index))
+    uniqueSourceIndexes.length !== actualSourceIndexes.length
+    || uniqueSourceIndexes.some((index) => !actualSourceIndexes.includes(index))
+    || uniqueProvenanceIndexes.length !== actualProvenanceIndexes.length
+    || uniqueProvenanceIndexes.some((index) => !actualProvenanceIndexes.includes(index))
   ) {
     return null;
   }
 
   const targets: ListingRiskEvidenceRepairTarget[] = [];
-  for (const sourceIndex of uniqueIndexes) {
+  for (const sourceIndex of uniqueSourceIndexes) {
     const source = record(sources[sourceIndex]);
     if (!source || typeof source.source_ref !== "string" || typeof source.evidence !== "string") return null;
     const sourceDocument = sourceDocuments.get(source.source_ref);
     if (!sourceDocument) return null;
     targets.push({
+      target_kind: "source",
+      target_key: `source:${sourceIndex}`,
       source_index: sourceIndex,
+      provenance_index: null,
+      fact_path: null,
       source_ref: source.source_ref,
       original_evidence: source.evidence,
       original_length: Array.from(source.evidence).length,
+      source_document: sourceDocument,
+    });
+  }
+  for (const provenanceIndex of uniqueProvenanceIndexes) {
+    const entry = record(provenance[provenanceIndex]);
+    if (
+      !entry
+      || typeof entry.fact_path !== "string"
+      || typeof entry.source_ref !== "string"
+      || typeof entry.evidence !== "string"
+    ) return null;
+    const sourceDocument = sourceDocuments.get(entry.source_ref);
+    if (!sourceDocument) return null;
+    targets.push({
+      target_kind: "fact",
+      target_key: `fact:${entry.fact_path}`,
+      source_index: null,
+      provenance_index: provenanceIndex,
+      fact_path: entry.fact_path as ListingFactPath,
+      source_ref: entry.source_ref,
+      original_evidence: entry.evidence,
+      original_length: Array.from(entry.evidence).length,
       source_document: sourceDocument,
     });
   }
@@ -142,9 +201,8 @@ export function readListingRiskEvidenceRepairOutput(
     errors.push("listing_risk_evidence_repair.evidence_repairs must contain exactly one item per target");
   }
 
-  const targetRefs = new Set(plan.targets.map((target) => target.source_ref));
-  const targetsByRef = new Map(plan.targets.map((target) => [target.source_ref, target]));
-  const seenRefs = new Set<string>();
+  const targetsByKey = new Map(plan.targets.map((target) => [target.target_key, target]));
+  const seenKeys = new Set<string>();
   repairs.forEach((repairValue, index) => {
     const path = `listing_risk_evidence_repair.evidence_repairs[${index}]`;
     const repair = record(repairValue);
@@ -152,20 +210,23 @@ export function readListingRiskEvidenceRepairOutput(
       errors.push(`${path} must be an object`);
       return;
     }
-    exactKeys(repair, ["source_ref", "evidence"], path, errors);
-    if (typeof repair.source_ref !== "string" || !targetRefs.has(repair.source_ref)) {
-      errors.push(`${path}.source_ref must identify a repair target`);
-    } else if (seenRefs.has(repair.source_ref)) {
-      errors.push(`${path}.source_ref must be unique`);
+    exactKeys(repair, ["target_key", "source_ref", "evidence"], path, errors);
+    const target = typeof repair.target_key === "string" ? targetsByKey.get(repair.target_key) : null;
+    if (!target) {
+      errors.push(`${path}.target_key must identify a repair target`);
+    } else if (seenKeys.has(target.target_key)) {
+      errors.push(`${path}.target_key must be unique`);
     } else {
-      seenRefs.add(repair.source_ref);
+      seenKeys.add(target.target_key);
+    }
+    if (!target || repair.source_ref !== target.source_ref) {
+      errors.push(`${path}.source_ref must match the repair target`);
     }
     if (typeof repair.evidence !== "string" || !repair.evidence.trim()) {
-      errors.push(`${path}.evidence must be a non-empty string`);
+      errors.push(`${path}.evidence must be provided as a non-empty string`);
     } else if (Array.from(repair.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
       errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
     } else {
-      const target = typeof repair.source_ref === "string" ? targetsByRef.get(repair.source_ref) : null;
       if (!target?.source_document.text.includes(repair.evidence)) {
         errors.push(`${path}.evidence must be a contiguous excerpt from the supplied source document`);
       }
@@ -180,13 +241,19 @@ export function applyListingRiskEvidenceRepair(
   plan: ListingRiskEvidenceRepairPlan,
   output: ListingRiskEvidenceRepairOutput,
 ): ListingRiskAnalyzerProviderResult {
-  const replacements = new Map(output.evidence_repairs.map((repair) => [repair.source_ref, repair.evidence]));
+  const replacements = new Map(output.evidence_repairs.map((repair) => [repair.target_key, repair.evidence]));
   const originalFacts = plan.original_result.applicable_facts[0];
   const repairedFacts: ListingRiskEventFacts = {
     ...originalFacts,
-    sources: originalFacts.sources.map((source) => {
-      const evidence = replacements.get(source.source_ref);
-      return evidence === undefined ? source : { ...source, evidence };
+    sources: originalFacts.sources.map((source, index) => {
+      const evidence = replacements.get(`source:${index}`);
+      return typeof evidence === "string" ? { ...source, evidence } : source;
+    }),
+    fact_provenance: originalFacts.fact_provenance.map((entry) => {
+      const evidence = replacements.get(`fact:${entry.fact_path}`);
+      return typeof evidence === "string"
+        ? { ...entry, evidence, evidence_status: "available", evidence_issue: null }
+        : entry;
     }),
   };
   return {
@@ -211,15 +278,20 @@ export function applyListingRiskEvidenceUnavailable(
   }
   const root = record(repairValue);
   const repairs = Array.isArray(root?.evidence_repairs) ? root.evidence_repairs : [];
-  const unavailableRefs = new Set<string>();
+  const targetsByKey = new Map(plan.targets.map((target) => [target.target_key, target]));
+  const issuesByKey = new Map<string, ListingEvidenceIssue>();
+  const evidenceByKey = new Map<string, string | null>();
   for (const repairValueItem of repairs) {
     const repair = record(repairValueItem);
-    if (typeof repair?.source_ref !== "string") return null;
-    unavailableRefs.add(repair.source_ref);
+    if (typeof repair?.target_key !== "string" || typeof repair.source_ref !== "string") return null;
+    const target = targetsByKey.get(repair.target_key);
+    if (!target || repair.source_ref !== target.source_ref || issuesByKey.has(repair.target_key)) return null;
+    issuesByKey.set(repair.target_key, evidenceIssue(repair.evidence, target.source_document.text));
+    evidenceByKey.set(repair.target_key, typeof repair.evidence === "string" ? repair.evidence : null);
   }
   if (
-    unavailableRefs.size !== plan.targets.length
-    || plan.targets.some((target) => !unavailableRefs.has(target.source_ref))
+    issuesByKey.size !== plan.targets.length
+    || plan.targets.some((target) => !issuesByKey.has(target.target_key))
   ) {
     return null;
   }
@@ -229,11 +301,30 @@ export function applyListingRiskEvidenceUnavailable(
     ...plan.original_result,
     applicable_facts: [{
       ...originalFacts,
-      sources: originalFacts.sources.map((source) => unavailableRefs.has(source.source_ref)
-        ? { ...source, evidence: null }
-        : source),
+      sources: originalFacts.sources.map((source, index) => {
+        const key = `source:${index}`;
+        if (!issuesByKey.has(key)) return source;
+        const evidence = evidenceByKey.get(key);
+        return { ...source, evidence: issuesByKey.get(key) === null && evidence ? evidence : null };
+      }),
+      fact_provenance: originalFacts.fact_provenance.map((entry) => {
+        const key = `fact:${entry.fact_path}`;
+        if (!issuesByKey.has(key)) return entry;
+        const issue = issuesByKey.get(key) ?? null;
+        const evidence = evidenceByKey.get(key);
+        return issue === null && evidence
+          ? { ...entry, evidence, evidence_status: "available", evidence_issue: null }
+          : { ...entry, evidence: null, evidence_status: "unavailable", evidence_issue: issue || "not_provided" };
+      }),
     }],
   };
+}
+
+function evidenceIssue(value: unknown, sourceText: string): ListingEvidenceIssue {
+  if (typeof value !== "string" || !value.trim()) return "not_provided";
+  if (Array.from(value).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) return "too_long";
+  if (!sourceText.includes(value)) return "not_exact_span";
+  return null;
 }
 
 function exactKeys(value: Record<string, unknown>, expected: readonly string[], path: string, errors: string[]) {

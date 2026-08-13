@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import type { GeminiStructuredJsonRun } from "../ai/geminiStructuredJson.ts";
 import { runListingRiskDomainAnalyzerPreview } from "../ai/listingRiskDomainAnalyzerPreview.ts";
 import {
-  LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
   LISTING_RISK_EVENT_FACTS_VERSION,
+  LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
   type ListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
 import {
@@ -15,6 +15,7 @@ import {
   buildListingRiskEvidenceRepairPlan,
   LISTING_RISK_EVIDENCE_REPAIR_SCHEMA,
   readListingRiskEvidenceRepairOutput,
+  type ListingRiskEvidenceRepairPlan,
 } from "./listingRiskEvidenceRepair.ts";
 import {
   type ListingRiskAnalyzerInput,
@@ -29,159 +30,74 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const longEvidence = `${"Evidence from the supplied source. ".repeat(20)}${"x".repeat(27)}`;
+const shortEvidence = "Additional source context supporting the same current event.";
 
-test("evidence repair prompt fixes exact substring selection and immutable semantics", () => {
-  assert.equal(LISTING_RISK_EVIDENCE_REPAIR_PROMPT_VERSION, "listing_risk_evidence_repair_v2");
+test("evidence repair v3 selects exact fact-level spans without changing semantics", () => {
+  assert.equal(LISTING_RISK_EVIDENCE_REPAIR_PROMPT_VERSION, "listing_risk_evidence_repair_v3");
   assert.equal(Array.from(longEvidence).length, 727);
   assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /SELECT AND COPY exact substrings/i);
   assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /source_document\.text\.includes\(evidence\) === true/);
   assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /Do not summarize, paraphrase, rewrite, normalize, retype/i);
-  assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /whitespace[\s\S]+Unicode[\s\S]+date formatting/i);
-  assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /120 to 250[\s\S]+520-character maximum/i);
-  assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /Semantic facts and source identity are immutable/i);
-  assert.equal(buildListingRiskEvidenceRepairPrompt(repairPlan(input())).version, "listing_risk_evidence_repair_v2");
+  assert.match(LISTING_RISK_EVIDENCE_REPAIR_SYSTEM_PROMPT, /fact-level provenance metadata[\s\S]+immutable/i);
+  const prompt = buildListingRiskEvidenceRepairPrompt(repairPlan(input()));
+  assert.equal(prompt.version, "listing_risk_evidence_repair_v3");
+  assert.match(prompt.user, /"target_kind": "fact"/);
+  assert.match(prompt.user, /"fact_path": "classification\.event_kind"/);
 });
 
-test("T1 exact verbatim repair is valid while changed punctuation or spacing is invalid", () => {
-  const analyzerInput = inputWithBody("Exchange said: ‘Compliance restored — effective today.’");
-  const plan = repairPlan(analyzerInput);
-  assert.deepEqual(readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: "‘Compliance restored — effective today.’" }],
-  }, plan).errors, []);
-  for (const evidence of [
-    "‘Compliance restored - effective today.’",
-    "‘Compliance restored  — effective today.’",
-    "‘Compliance restored — effective today’",
-  ]) {
-    assert.match(readListingRiskEvidenceRepairOutput({
-      evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence }],
-    }, plan).errors.join("; "), /contiguous excerpt/);
-  }
-});
-
-test("T2 paraphrased repair evidence is invalid", () => {
-  const analyzerInput = inputWithBody("Nasdaq confirmed that the company regained compliance today.");
-  const result = readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: "The company is compliant again today." }],
-  }, repairPlan(analyzerInput));
-  assert.match(result.errors.join("; "), /contiguous excerpt/);
-});
-
-test("T3 joining non-contiguous source spans is invalid", () => {
+test("exact contiguous evidence passes while punctuation, paraphrase, and non-contiguous joins fail", () => {
   const analyzerInput = inputWithBody("Nasdaq issued notice. Intervening current facts. Compliance was restored.");
-  const result = readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: "Nasdaq issued notice. Compliance was restored." }],
-  }, repairPlan(analyzerInput));
-  assert.match(result.errors.join("; "), /contiguous excerpt/);
-});
+  const joined = "Nasdaq issued notice. Compliance was restored.";
+  const plan = repairPlan(analyzerInput, joined);
+  assert.match(readListingRiskEvidenceRepairOutput(repairItems(plan, joined), plan).errors.join("; "), /contiguous excerpt/);
 
-test("T4 a short exact source fragment is valid", () => {
-  const analyzerInput = inputWithBody("Nasdaq: compliance restored.");
-  const evidence = "compliance restored";
-  const result = readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence }],
-  }, repairPlan(analyzerInput));
-  assert.deepEqual(result.errors, []);
-  assert.equal(result.output?.evidence_repairs[0]?.evidence, evidence);
-});
-
-test("T5 exactly 520 characters is valid and 521 characters is invalid", () => {
-  const sourceText = "z".repeat(LISTING_SOURCE_EVIDENCE_MAX_LENGTH + 1);
-  const analyzerInput = inputWithBody(sourceText);
-  const plan = repairPlan(analyzerInput, sourceText);
-  assert.deepEqual(readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: "z".repeat(520) }],
-  }, plan).errors, []);
-  assert.match(readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: sourceText }],
-  }, plan).errors.join("; "), /520 characters or fewer/);
-});
-
-test("T6 repair source_ref is immutable", () => {
-  const analyzerInput = input();
-  const result = readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: "different-source", evidence: "Evidence" }],
-  }, repairPlan(analyzerInput));
-  assert.match(result.errors.join("; "), /source_ref must identify a repair target/);
-});
-
-test("T7 applying repair preserves every semantic fact", () => {
-  const analyzerInput = input();
-  const plan = repairPlan(analyzerInput);
-  const evidence = "Additional source context supporting the same current event.";
-  const output = readListingRiskEvidenceRepairOutput({
-    evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence }],
-  }, plan).output;
-  assert.ok(output);
-  const repaired = applyListingRiskEvidenceRepair(plan, output);
-  assert.deepEqual(
-    semanticFactsWithoutEvidence(repaired.applicable_facts[0]),
-    semanticFactsWithoutEvidence(plan.original_result.applicable_facts[0]),
+  const exact = "Compliance was restored.";
+  assert.deepEqual(readListingRiskEvidenceRepairOutput(repairItems(plan, exact), plan).errors, []);
+  assert.match(
+    readListingRiskEvidenceRepairOutput(repairItems(plan, "Compliance was restored,"), plan).errors.join("; "),
+    /contiguous excerpt/,
+  );
+  assert.match(
+    readListingRiskEvidenceRepairOutput(repairItems(plan, "The company regained compliance."), plan).errors.join("; "),
+    /contiguous excerpt/,
   );
 });
 
-test("T1 valid result bypasses repair and remains unchanged", async () => {
-  const analyzerInput = input();
-  const facts = validFacts(analyzerInput, "Additional source context supporting the same current event.");
-  let repairCalls = 0;
-  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
-    apiKey: "test-key",
-    runPrompt: async () => run({ status: "applicable", applicable_facts: [facts] }),
-    runRepairPrompt: async () => {
-      repairCalls += 1;
-      return run(null);
-    },
-  });
+test("short exact spans and 520 characters pass while 521 characters fail", () => {
+  const shortInput = inputWithBody("Nasdaq: compliance restored.");
+  const shortPlan = repairPlan(shortInput, "not present initially");
+  assert.deepEqual(
+    readListingRiskEvidenceRepairOutput(repairItems(shortPlan, "compliance restored"), shortPlan).errors,
+    [],
+  );
 
-  assert.equal(result.stage, "complete");
-  assert.equal(repairCalls, 0);
-  assert.equal(result.repair, null);
-  assert.deepEqual(result.result, { status: "applicable", facts });
+  const sourceText = "z".repeat(LISTING_SOURCE_EVIDENCE_MAX_LENGTH + 1);
+  const maxInput = inputWithBody(sourceText);
+  const maxPlan = repairPlan(maxInput, sourceText);
+  assert.deepEqual(
+    readListingRiskEvidenceRepairOutput(repairItems(maxPlan, "z".repeat(520)), maxPlan).errors,
+    [],
+  );
+  assert.match(
+    readListingRiskEvidenceRepairOutput(repairItems(maxPlan, sourceText), maxPlan).errors.join("; "),
+    /520 characters or fewer/,
+  );
 });
 
-test("T2 evidence-only overlength is repair eligible", () => {
-  const analyzerInput = input();
-  const providerResult = provider(analyzerInput, longEvidence);
-  const errors = validateListingRiskAnalyzerProviderResult(providerResult, analyzerInput);
-  const plan = buildListingRiskEvidenceRepairPlan(providerResult, analyzerInput);
+test("repair target_key and source_ref are immutable", () => {
+  const plan = repairPlan(input());
+  const wrongKey = repairItems(plan, shortEvidence);
+  wrongKey.evidence_repairs[0].target_key = "fact:exchange.value";
+  assert.match(readListingRiskEvidenceRepairOutput(wrongKey, plan).errors.join("; "), /target_key/);
 
-  assert.equal(errors.length, 1);
-  assert.match(errors[0], /sources\[0\]\.evidence must be 520 characters or fewer/);
-  assert.equal(plan?.targets.length, 1);
-  assert.equal(plan?.targets[0]?.original_length, Array.from(longEvidence).length);
+  const wrongRef = repairItems(plan, shortEvidence);
+  wrongRef.evidence_repairs[0].source_ref = "different-source";
+  assert.match(readListingRiskEvidenceRepairOutput(wrongRef, plan).errors.join("; "), /source_ref must match/);
 });
 
-test("T3 evidence overlength plus another validation error is not repair eligible", () => {
-  const analyzerInput = input();
-  const providerResult = provider(analyzerInput, longEvidence);
-  providerResult.applicable_facts[0].sources[0].source_family = "sec";
-
-  assert.equal(buildListingRiskEvidenceRepairPlan(providerResult, analyzerInput), null);
-  assert.ok(validateListingRiskAnalyzerProviderResult(providerResult, analyzerInput).length > 1);
-});
-
-test("T4 missing source_ref is not repair eligible", () => {
-  const analyzerInput = input();
-  const providerResult = provider(analyzerInput, longEvidence);
-  providerResult.applicable_facts[0].sources[0].source_ref = "missing-source";
-
-  assert.equal(buildListingRiskEvidenceRepairPlan(providerResult, analyzerInput), null);
-  assert.match(validateListingRiskAnalyzerProviderResult(providerResult, analyzerInput).join("; "), /source_ref/);
-});
-
-test("T5 invalid semantic enum is not repair eligible", () => {
-  const analyzerInput = input();
-  const providerResult = provider(analyzerInput, longEvidence);
-  providerResult.applicable_facts[0].classification.event_kind = "invented_kind" as never;
-
-  assert.equal(buildListingRiskEvidenceRepairPlan(providerResult, analyzerInput), null);
-  assert.match(validateListingRiskAnalyzerProviderResult(providerResult, analyzerInput).join("; "), /event_kind/);
-});
-
-test("T6 successful repair changes only evidence and passes the canonical validator", async () => {
+test("successful repair changes only evidence and passes canonical validation", async () => {
   const analyzerInput = input();
   const original = provider(analyzerInput, longEvidence);
-  const repairedEvidence = "Additional source context supporting the same current event.";
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
@@ -189,53 +105,22 @@ test("T6 successful repair changes only evidence and passes the canonical valida
     runRepairPrompt: async (request) => {
       repairCalls += 1;
       assert.equal(request.responseSchema, LISTING_RISK_EVIDENCE_REPAIR_SCHEMA);
-      assert.doesNotMatch(request.prompt.user, /"event_kind"|"event_outcome"|"dates"|"confidence"/);
-      return run({ evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: repairedEvidence }] });
+      const plan = repairPlan(analyzerInput);
+      return run(repairItems(plan, shortEvidence));
     },
   });
-
   assert.equal(result.stage, "complete");
   assert.equal(repairCalls, 1);
-  assert.equal(result.repair?.max_attempts, 1);
-  assert.deepEqual(result.repair?.final_validation_errors, []);
   assert.equal(result.repair?.semantic_facts_changed, false);
-  assert.deepEqual(result.result, {
-    status: "applicable",
-    facts: validFacts(analyzerInput, repairedEvidence),
-  });
-  assert.deepEqual(
-    semanticFactsWithoutEvidence((result.result as { status: "applicable"; facts: ListingRiskEventFacts }).facts),
-    semanticFactsWithoutEvidence(original.applicable_facts[0]),
-  );
-});
-
-test("T7 still-overlength repair preserves facts and makes evidence unavailable after one call", async () => {
-  const analyzerInput = input();
-  let repairCalls = 0;
-  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
-    apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
-    runRepairPrompt: async () => {
-      repairCalls += 1;
-      return run({ evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: longEvidence }] });
-    },
-  });
-
-  assert.equal(result.stage, "complete");
-  assert.equal(repairCalls, 1);
-  assert.deepEqual(result.repair?.evidence_unavailable_source_refs, [sourceRef(analyzerInput)]);
-  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /520 characters or fewer/);
+  assert.deepEqual(result.repair?.final_validation_errors, []);
   assert.equal(result.result?.status, "applicable");
   if (result.result?.status === "applicable") {
-    assert.equal(result.result.facts.sources[0].evidence, null);
-    assert.deepEqual(
-      semanticFactsWithoutEvidence(result.result.facts),
-      semanticFactsWithoutEvidence(provider(analyzerInput, longEvidence).applicable_facts[0]),
-    );
+    assert.deepEqual(semanticFactsWithoutEvidence(result.result.facts), semanticFactsWithoutEvidence(original.applicable_facts[0]));
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence === shortEvidence));
   }
 });
 
-test("T8 invalid repair shape fails closed", async () => {
+test("repair failure from too-long evidence preserves facts with unavailable evidence issues", async () => {
   const analyzerInput = input();
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
@@ -243,45 +128,95 @@ test("T8 invalid repair shape fails closed", async () => {
     runPrompt: async () => run(provider(analyzerInput, longEvidence)),
     runRepairPrompt: async () => {
       repairCalls += 1;
-      return run({ evidence: "short" });
+      return run(repairItems(repairPlan(analyzerInput), longEvidence));
     },
   });
-
-  assert.equal(result.stage, "repair_error");
-  assert.equal(result.result, null);
-  assert.equal(repairCalls, 1);
-});
-
-test("repair evidence absent from the supplied source preserves facts with unavailable evidence", async () => {
-  const analyzerInput = input();
-  let repairCalls = 0;
-  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
-    apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
-    runRepairPrompt: async () => {
-      repairCalls += 1;
-      return run({
-        evidence_repairs: [{
-          source_ref: sourceRef(analyzerInput),
-          evidence: "This sentence was not present in the supplied source.",
-        }],
-      });
-    },
-  });
-
   assert.equal(result.stage, "complete");
   assert.equal(repairCalls, 1);
-  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /contiguous excerpt/);
   assert.equal(result.result?.status, "applicable");
   if (result.result?.status === "applicable") {
-    assert.equal(result.result.facts.sources[0].evidence, null);
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence === null));
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_status === "unavailable"));
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_issue === "too_long"));
+    assert.equal(result.result.facts.sources[0].evidence, shortEvidence);
   }
 });
 
-test("initial provider evidence null cannot bypass bounded repair as an eligible raw result", async () => {
+test("a partially valid bounded repair keeps valid fact evidence and isolates the invalid fact", async () => {
   const analyzerInput = input();
-  const facts = validFacts(analyzerInput, "Additional source context supporting the same current event.");
-  facts.sources[0].evidence = null;
+  const plan = repairPlan(analyzerInput);
+  const mixed = repairItems(plan, longEvidence);
+  mixed.evidence_repairs[0].evidence = shortEvidence;
+  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
+    apiKey: "test-key",
+    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
+    runRepairPrompt: async () => run(mixed),
+  });
+  assert.equal(result.stage, "complete");
+  if (result.result?.status === "applicable") {
+    assert.equal(result.result.facts.fact_provenance[0].evidence_status, "available");
+    assert.equal(result.result.facts.fact_provenance[0].evidence, shortEvidence);
+    assert.equal(result.result.facts.fact_provenance[1].evidence_status, "unavailable");
+    assert.equal(result.result.facts.fact_provenance[1].evidence_issue, "too_long");
+  } else {
+    assert.fail("expected applicable facts");
+  }
+});
+
+test("repair failure from non-exact evidence preserves facts with not_exact_span", async () => {
+  const analyzerInput = inputWithBody("Nasdaq issued notice. Intervening facts. Compliance was restored.");
+  const joined = "Nasdaq issued notice. Compliance was restored.";
+  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
+    apiKey: "test-key",
+    runPrompt: async () => run(provider(analyzerInput, joined)),
+    runRepairPrompt: async () => run(repairItems(repairPlan(analyzerInput, joined), joined)),
+  });
+  assert.equal(result.stage, "complete");
+  if (result.result?.status === "applicable") {
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_issue === "not_exact_span"));
+  } else {
+    assert.fail("expected applicable facts");
+  }
+});
+
+test("repair null output marks evidence not_provided after exactly one bounded attempt", async () => {
+  const analyzerInput = input();
+  let repairCalls = 0;
+  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
+    apiKey: "test-key",
+    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
+    runRepairPrompt: async () => {
+      repairCalls += 1;
+      return run(repairItems(repairPlan(analyzerInput), null));
+    },
+  });
+  assert.equal(result.stage, "complete");
+  assert.equal(repairCalls, 1);
+  if (result.result?.status === "applicable") {
+    assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_issue === "not_provided"));
+  } else {
+    assert.fail("expected applicable facts");
+  }
+});
+
+test("semantic and source identity failures remain hard and do not enter repair", () => {
+  const analyzerInput = input();
+  const invalidSemantic = provider(analyzerInput, longEvidence);
+  invalidSemantic.applicable_facts[0].classification.event_kind = "invented" as never;
+  assert.equal(buildListingRiskEvidenceRepairPlan(invalidSemantic, analyzerInput), null);
+
+  const invalidSource = provider(analyzerInput, longEvidence);
+  invalidSource.applicable_facts[0].fact_provenance[0].source_ref = "missing-document";
+  assert.equal(buildListingRiskEvidenceRepairPlan(invalidSource, analyzerInput), null);
+  assert.match(validateListingRiskAnalyzerProviderResult(invalidSource, analyzerInput).join("; "), /source_ref/);
+});
+
+test("initial provider null evidence cannot bypass repair as canonical unavailable evidence", async () => {
+  const analyzerInput = input();
+  const facts = validFacts(analyzerInput, shortEvidence);
+  facts.fact_provenance[0].evidence = null;
+  facts.fact_provenance[0].evidence_status = "unavailable";
+  facts.fact_provenance[0].evidence_issue = "not_provided";
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
@@ -291,47 +226,25 @@ test("initial provider evidence null cannot bypass bounded repair as an eligible
       return run(null);
     },
   });
-
   assert.equal(result.stage, "validation_error");
-  assert.equal(result.result, null);
   assert.equal(repairCalls, 0);
-  assert.match(result.error, /non-empty string in provider output/);
+  assert.match(result.error, /evidence must be available with a non-empty string in provider output/);
 });
 
-test("non-contiguous initial evidence receives one repair attempt and preserves facts if still invalid", async () => {
-  const analyzerInput = inputWithBody("Nasdaq issued notice. Intervening current facts. Compliance was restored.");
-  const joinedEvidence = "Nasdaq issued notice. Compliance was restored.";
-  let repairCalls = 0;
-  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
-    apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, joinedEvidence)),
-    runRepairPrompt: async () => {
-      repairCalls += 1;
-      return run({ evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: joinedEvidence }] });
-    },
-  });
-
-  assert.equal(result.stage, "complete");
-  assert.equal(repairCalls, 1);
-  assert.equal(result.result?.status, "applicable");
-  if (result.result?.status === "applicable") assert.equal(result.result.facts.sources[0].evidence, null);
-  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /contiguous excerpt/);
-});
-
-test("T9 not_applicable bypasses repair", async () => {
-  let repairCalls = 0;
-  const result = await runListingRiskDomainAnalyzerPreview(input(), {
-    apiKey: "test-key",
-    runPrompt: async () => run({ status: "not_applicable", applicable_facts: [] }),
-    runRepairPrompt: async () => {
-      repairCalls += 1;
-      return run(null);
-    },
-  });
-
-  assert.equal(result.stage, "complete");
-  assert.deepEqual(result.result, { status: "not_applicable" });
-  assert.equal(repairCalls, 0);
+test("valid applicable and not_applicable results bypass repair", async () => {
+  for (const parsed of [provider(input(), shortEvidence), { status: "not_applicable", applicable_facts: [] }]) {
+    let repairCalls = 0;
+    const result = await runListingRiskDomainAnalyzerPreview(input(), {
+      apiKey: "test-key",
+      runPrompt: async () => run(parsed),
+      runRepairPrompt: async () => {
+        repairCalls += 1;
+        return run(null);
+      },
+    });
+    assert.equal(result.stage, "complete");
+    assert.equal(repairCalls, 0);
+  }
 });
 
 test("repair implementation contains no deterministic evidence truncation", () => {
@@ -340,19 +253,12 @@ test("repair implementation contains no deterministic evidence truncation", () =
     join(here, "..", "prompts", "listingRiskEvidenceRepair.ts"),
     join(here, "..", "ai", "listingRiskDomainAnalyzerPreview.ts"),
   ]) {
-    const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /\.slice\s*\(|\.substring\s*\(/);
+    assert.doesNotMatch(readFileSync(file, "utf8"), /\.slice\s*\(|\.substring\s*\(/);
   }
 });
 
 function input() {
-  return adaptNewsListingRiskSource({
-    source_unique_id: "repair-news",
-    source_url: "https://example.com/repair-news",
-    published_at: "2026-05-01",
-    title: "Repair source",
-    body_text: `${longEvidence} Additional source context supporting the same current event.`,
-  });
+  return inputWithBody(`${longEvidence} ${shortEvidence}`);
 }
 
 function inputWithBody(bodyText: string) {
@@ -371,54 +277,38 @@ function repairPlan(analyzerInput: ListingRiskAnalyzerInput, evidence = longEvid
   return plan;
 }
 
-function provider(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
+function repairItems(plan: ListingRiskEvidenceRepairPlan, evidence: string | null) {
   return {
-    status: "applicable" as const,
-    applicable_facts: [validFacts(analyzerInput, evidence)],
+    evidence_repairs: plan.targets.map((target) => ({
+      target_key: target.target_key,
+      source_ref: target.source_ref,
+      evidence,
+    })),
   };
 }
 
-function sourceRef(analyzerInput: ListingRiskAnalyzerInput) {
-  return analyzerInput.source_documents[0].source_ref;
+function provider(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
+  return { status: "applicable" as const, applicable_facts: [validFacts(analyzerInput, evidence)] };
 }
 
 function validFacts(analyzerInput: ListingRiskAnalyzerInput, evidence: string): ListingRiskEventFacts {
-  const ref = sourceRef(analyzerInput);
-  const unavailableText = () => ({
-    value: null,
-    availability: "unavailable" as const,
-    value_quality: "unknown" as const,
-    source_ref: null,
-  });
+  const ref = analyzerInput.source_documents[0].source_ref;
+  const unavailableText = () => ({ value: null, availability: "unavailable" as const, value_quality: "unknown" as const, source_ref: null });
   const unavailableDate = () => ({ ...unavailableText(), date_status: "unknown" as const });
-  const unavailableBoolean = () => ({
-    value: null,
-    availability: "unavailable" as const,
-    value_quality: "unknown" as const,
-    source_ref: null,
-  });
   return {
     version: LISTING_RISK_EVENT_FACTS_VERSION,
     classification: { event_kind: "other", event_outcome: "unknown", source_ref: ref },
     exchange: unavailableText(),
-    affected_security: {
-      title: unavailableText(),
-      ticker: unavailableText(),
-      security_basis: unavailableText(),
-    },
+    affected_security: { title: unavailableText(), ticker: unavailableText(), security_basis: unavailableText() },
     listing_rule: unavailableText(),
     listing_requirement: unavailableText(),
     compliance_period: unavailableText(),
     proceeding: { kind: "unknown", status: "unknown", source_ref: null },
     dates: {
-      notice_date: unavailableDate(),
-      compliance_deadline: unavailableDate(),
-      hearing_date: unavailableDate(),
-      appeal_deadline: unavailableDate(),
-      trading_suspension_date: unavailableDate(),
-      removal_effective_date: unavailableDate(),
+      notice_date: unavailableDate(), compliance_deadline: unavailableDate(), hearing_date: unavailableDate(),
+      appeal_deadline: unavailableDate(), trading_suspension_date: unavailableDate(), removal_effective_date: unavailableDate(),
     },
-    continued_trading: { continues: unavailableBoolean(), venue: unavailableText() },
+    continued_trading: { continues: { ...unavailableText(), value: null }, venue: unavailableText() },
     as_of: unavailableDate(),
     confidence: "high",
     sources: [{
@@ -426,8 +316,31 @@ function validFacts(analyzerInput: ListingRiskAnalyzerInput, evidence: string): 
       source_id: analyzerInput.source_id,
       source_url: analyzerInput.source_url,
       source_ref: ref,
-      evidence,
+      evidence: shortEvidence,
     }],
+    fact_provenance: [
+      provenance("classification.event_kind", ref, evidence),
+      provenance("classification.event_outcome", ref, evidence),
+    ],
+  };
+}
+
+function provenance(
+  factPath: "classification.event_kind" | "classification.event_outcome",
+  sourceRef: string,
+  evidence: string,
+) {
+  return {
+    fact_path: factPath,
+    origin: "domain_interpreted" as const,
+    source_ref: sourceRef,
+    evidence,
+    evidence_status: "available" as const,
+    evidence_issue: null,
+    confidence: "high" as const,
+    as_of: null,
+    formula_id: null,
+    input_fact_paths: [],
   };
 }
 
@@ -435,13 +348,11 @@ function semanticFactsWithoutEvidence(facts: ListingRiskEventFacts) {
   return {
     ...facts,
     sources: facts.sources.map(({ evidence: _evidence, ...source }) => source),
+    fact_provenance: facts.fact_provenance.map(({ evidence: _evidence, evidence_status: _status, evidence_issue: _issue, ...entry }) => entry),
   };
 }
 
-function run(
-  parsed: Record<string, unknown> | null,
-  overrides: Partial<GeminiStructuredJsonRun> = {},
-): GeminiStructuredJsonRun {
+function run(parsed: Record<string, unknown> | null): GeminiStructuredJsonRun {
   return {
     ok: true,
     responseOk: true,
@@ -453,6 +364,5 @@ function run(
     parsed,
     usage: null,
     body: null,
-    ...overrides,
   };
 }

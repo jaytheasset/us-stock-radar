@@ -6,7 +6,7 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v4";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v5";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 
@@ -47,7 +47,7 @@ export type ListingRiskAnalyzerProviderResult = {
 const LISTING_RISK_EVENT_FACTS_GEMINI_SCHEMA = toGeminiResponseSchema(
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA as unknown as Record<string, unknown>,
 );
-requireProviderEvidenceString(LISTING_RISK_EVENT_FACTS_GEMINI_SCHEMA);
+requireProviderFactProvenance(LISTING_RISK_EVENT_FACTS_GEMINI_SCHEMA);
 
 export const LISTING_RISK_ANALYZER_PROVIDER_SCHEMA = {
   type: "object",
@@ -307,6 +307,33 @@ function validateFactsSourceIdentity(
       }
     }
   });
+  const provenance = Array.isArray(facts?.fact_provenance) ? facts.fact_provenance : [];
+  provenance.forEach((entryValue, index) => {
+    const entry = record(entryValue);
+    if (!entry) return;
+    const path = `applicable_facts[0].fact_provenance[${index}]`;
+    if (entry.origin === "deterministic_derived") {
+      errors.push(`${path}.origin cannot be deterministic_derived in analyzer provider output`);
+      return;
+    }
+    const document = typeof entry.source_ref === "string" ? sourceDocuments.get(entry.source_ref) : null;
+    if (!document) {
+      errors.push(`${path}.source_ref must identify a supplied source document`);
+      return;
+    }
+    if (validateEvidenceQuality) {
+      if (
+        entry.evidence_status !== "available"
+        || entry.evidence_issue !== null
+        || typeof entry.evidence !== "string"
+        || !entry.evidence.trim()
+      ) {
+        errors.push(`${path}.evidence must be available with a non-empty string in provider output`);
+      } else if (!document.text.includes(entry.evidence)) {
+        errors.push(`${path}.evidence must be a contiguous excerpt from the supplied source document`);
+      }
+    }
+  });
   return errors;
 }
 
@@ -321,7 +348,7 @@ export function normalizeListingRiskAnalyzerFactEligibleProviderResult(
     : { status: "applicable", facts: providerResult.applicable_facts[0] };
 }
 
-function requireProviderEvidenceString(schema: Record<string, unknown>) {
+function requireProviderFactProvenance(schema: Record<string, unknown>) {
   const properties = record(schema.properties);
   const sources = record(properties?.sources);
   const items = record(sources?.items);
@@ -330,6 +357,20 @@ function requireProviderEvidenceString(schema: Record<string, unknown>) {
   if (!evidence) throw new Error("Listing Risk provider evidence schema is unavailable");
   evidence.type = "string";
   delete evidence.nullable;
+
+  const provenance = record(properties?.fact_provenance);
+  const provenanceItems = record(provenance?.items);
+  const provenanceProperties = record(provenanceItems?.properties);
+  const provenanceEvidence = record(provenanceProperties?.evidence);
+  const provenanceOrigin = record(provenanceProperties?.origin);
+  const evidenceStatus = record(provenanceProperties?.evidence_status);
+  if (!provenanceEvidence || !provenanceOrigin || !evidenceStatus) {
+    throw new Error("Listing Risk provider fact provenance schema is unavailable");
+  }
+  provenanceEvidence.type = "string";
+  delete provenanceEvidence.nullable;
+  provenanceOrigin.enum = ["source_stated", "domain_interpreted"];
+  evidenceStatus.enum = ["available"];
 }
 
 function exactKeys(value: Record<string, unknown>, expected: readonly string[], path: string, errors: string[]) {
