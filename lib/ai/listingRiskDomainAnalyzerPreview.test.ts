@@ -5,31 +5,38 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import type { GeminiStructuredJsonRun } from "./geminiStructuredJson.ts";
 import { runListingRiskDomainAnalyzerPreview } from "./listingRiskDomainAnalyzerPreview.ts";
-import { LISTING_RISK_ANALYZER_PROVIDER_SCHEMA } from "../monitor/listingRiskAnalyzer.ts";
 import { adaptNewsListingRiskSource } from "../monitor/listingRiskSourceAdapters.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-test("non-persisting preview returns standalone not_applicable and sends the direct schema", async () => {
+test("non-persisting preview returns standalone not_applicable with no Gemini response schema", async () => {
   const requests: Array<{ model: string; responseSchema?: Record<string, unknown> }> = [];
   const result = await runListingRiskDomainAnalyzerPreview(input(), {
     apiKey: "test-key",
     model: "configured-model",
     runPrompt: async (value) => {
       requests.push(value);
-      return run({ status: "not_applicable", applicable_facts: [] });
+      return providerRun({
+        status: "not_applicable",
+        core_facts: [],
+        agent_context: { fact_provenance: [], as_of: { availability: "unavailable" }, confidence: "unknown", sources: [] },
+      });
     },
   });
   assert.equal(result.stage, "complete");
   assert.deepEqual(result.result, { status: "not_applicable" });
   assert.equal(requests[0]?.model, "configured-model");
-  assert.equal(requests[0]?.responseSchema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
+  assert.equal(requests[0]?.responseSchema, undefined);
 });
 
 test("preview keeps invalid provider output separate from not_applicable", async () => {
   const result = await runListingRiskDomainAnalyzerPreview(input(), {
     apiKey: "test-key",
-    runPrompt: async () => run({ status: "not_applicable", applicable_facts: [{}] }),
+    runPrompt: async () => providerRun({
+      status: "not_applicable",
+      core_facts: [{}],
+      agent_context: { fact_provenance: [], as_of: { availability: "unavailable" }, confidence: "unknown", sources: [] },
+    }),
   });
   assert.equal(result.stage, "validation_error");
   assert.equal(result.result, null);
@@ -60,6 +67,10 @@ function input() {
     title: "Preview source",
     body_text: "Company announces a corporate action with no listing action.",
   });
+}
+
+function providerRun(transport: Record<string, unknown>) {
+  return run(transport);
 }
 
 function run(

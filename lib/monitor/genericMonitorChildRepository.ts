@@ -47,7 +47,16 @@ export type GenericMonitorExactParent = {
 export function createGenericMonitorChildRepository(store: GenericMonitorChildStore) {
   return {
     reserve: (identity: GenericMonitorChildIdentity) => reserveGenericMonitorChild(store, identity),
+    claimWorkflowStart: (identity: GenericMonitorChildIdentity) => claimGenericMonitorChildWorkflowStart(store, identity),
+    releaseWorkflowStart: (identity: GenericMonitorChildIdentity, error?: unknown) =>
+      releaseGenericMonitorChildWorkflowStart(store, identity, error),
+    attachWorkflowRun: (identity: GenericMonitorChildIdentity, workflowRunId: string) =>
+      attachGenericMonitorChildWorkflowRun(store, identity, workflowRunId),
     claim: (identity: GenericMonitorChildIdentity) => claimGenericMonitorChild(store, identity),
+    releaseForRetry: (identity: GenericMonitorChildIdentity, error?: unknown) =>
+      releaseGenericMonitorChildForRetry(store, identity, error),
+    recoverWorkflowFailure: (identity: GenericMonitorChildIdentity, error?: unknown) =>
+      recoverGenericMonitorChildWorkflowFailure(store, identity, error),
     recordTerminal: (
       identity: GenericMonitorChildIdentity,
       state: GenericMonitorChildTerminalState,
@@ -55,6 +64,121 @@ export function createGenericMonitorChildRepository(store: GenericMonitorChildSt
     ) => recordGenericMonitorChildTerminalState(store, identity, state, options),
     loadExactParent: (identity: GenericMonitorChildIdentity) => loadGenericMonitorExactParent(store, identity),
   };
+}
+
+export async function recoverGenericMonitorChildWorkflowFailure(
+  store: GenericMonitorChildStore,
+  identity: GenericMonitorChildIdentity,
+  error?: unknown,
+) {
+  if (await releaseGenericMonitorChildForRetry(store, identity, error)) return true;
+  const result = await store.update("ai_runs", {
+    id: `eq.${identity.executionId}`,
+    prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
+    status: "eq.pending",
+    "metadata->>execution_state": "eq.reserved",
+    "metadata->>workflow_start_state": "in.(starting,started)",
+  }, {
+    error_message: errorMessage(error),
+    metadata: genericMonitorChildMetadata(identity, "reserved", {
+      workflowStartState: "ready",
+      workflowStartError: errorMessage(error),
+    }),
+  });
+  assertStoreResult(result, "Generic Monitor workflow failure recovery");
+  return rows(result.data).length > 0;
+}
+
+export async function releaseGenericMonitorChildForRetry(
+  store: GenericMonitorChildStore,
+  identity: GenericMonitorChildIdentity,
+  error?: unknown,
+) {
+  const result = await store.update("ai_runs", {
+    id: `eq.${identity.executionId}`,
+    prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
+    status: "eq.running",
+    "metadata->>execution_state": "eq.running",
+  }, {
+    status: "pending",
+    started_at: null,
+    finished_at: null,
+    error_message: errorMessage(error),
+    metadata: genericMonitorChildMetadata(identity, "reserved", {
+      workflowStartState: "ready",
+      workflowStartError: errorMessage(error),
+    }),
+  });
+  assertStoreResult(result, "Generic Monitor retryable execution release");
+  return rows(result.data).length > 0;
+}
+
+export async function claimGenericMonitorChildWorkflowStart(
+  store: GenericMonitorChildStore,
+  identity: GenericMonitorChildIdentity,
+) {
+  const result = await store.update("ai_runs", {
+    id: `eq.${identity.executionId}`,
+    prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
+    status: "eq.pending",
+    "metadata->>execution_state": "eq.reserved",
+    "metadata->>workflow_start_state": "eq.ready",
+  }, {
+    error_message: null,
+    metadata: genericMonitorChildMetadata(identity, "reserved", {
+      workflowStartState: "starting",
+    }),
+  });
+  assertStoreResult(result, "Generic Monitor workflow-start claim");
+  return rows(result.data).length > 0;
+}
+
+export async function releaseGenericMonitorChildWorkflowStart(
+  store: GenericMonitorChildStore,
+  identity: GenericMonitorChildIdentity,
+  error?: unknown,
+) {
+  const result = await store.update("ai_runs", {
+    id: `eq.${identity.executionId}`,
+    prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
+    status: "eq.pending",
+    "metadata->>execution_state": "eq.reserved",
+    "metadata->>workflow_start_state": "eq.starting",
+  }, {
+    error_message: errorMessage(error),
+    metadata: genericMonitorChildMetadata(identity, "reserved", {
+      workflowStartState: "ready",
+      workflowStartError: errorMessage(error),
+    }),
+  });
+  assertStoreResult(result, "Generic Monitor workflow-start release");
+  return rows(result.data).length > 0;
+}
+
+export async function attachGenericMonitorChildWorkflowRun(
+  store: GenericMonitorChildStore,
+  identity: GenericMonitorChildIdentity,
+  workflowRunId: string,
+) {
+  const normalizedRunId = stringValue(workflowRunId);
+  if (!normalizedRunId) throw new Error("Generic Monitor workflow run id is invalid");
+  const result = await store.update("ai_runs", {
+    id: `eq.${identity.executionId}`,
+    prompt_key: `eq.${GENERIC_MONITOR_CHILD_PROMPT_KEY}`,
+    status: "eq.pending",
+    "metadata->>execution_state": "eq.reserved",
+    "metadata->>workflow_start_state": "eq.starting",
+  }, {
+    error_message: null,
+    metadata: genericMonitorChildMetadata(identity, "reserved", {
+      workflowStartState: "started",
+      workflowRunId: normalizedRunId,
+    }),
+  });
+  assertStoreResult(result, "Generic Monitor workflow run linkage");
+  if (rows(result.data).length === 0) {
+    throw new Error("Generic Monitor workflow run linkage lost its start claim");
+  }
 }
 
 export async function reserveGenericMonitorChild(
@@ -73,7 +197,7 @@ export async function reserveGenericMonitorChild(
     finished_at: null,
     usage: {},
     error_message: null,
-    metadata: genericMonitorChildMetadata(identity, "reserved"),
+    metadata: genericMonitorChildMetadata(identity, "reserved", { workflowStartState: "ready" }),
   }, {
     onConflict: "id",
     prefer: "resolution=ignore-duplicates,return=representation",
@@ -173,7 +297,7 @@ export async function loadGenericMonitorExactParent(
   const event = exactlyOneRow(eventResult.data, "exact event");
 
   const rawResult = await store.select("raw_items", {
-    select: "id,source_code,source_group,source_unique_id",
+    select: "*",
     id: `eq.${identity.rawItemId}`,
     limit: "1",
   });
@@ -217,6 +341,11 @@ export async function readGenericMonitorParentCurrentness(
 export function genericMonitorChildMetadata(
   identity: GenericMonitorChildIdentity,
   state: GenericMonitorChildExecutionState,
+  workflow: {
+    workflowStartState?: "ready" | "starting" | "started";
+    workflowRunId?: string;
+    workflowStartError?: string;
+  } = {},
 ) {
   return {
     child_schema_version: identity.schemaVersion,
@@ -239,6 +368,9 @@ export function genericMonitorChildMetadata(
     reserved_at: identity.reservedAt,
     execution_state: state,
     phase: state === "reserved" ? "reserved_for_future_execution" : state,
+    ...(workflow.workflowStartState ? { workflow_start_state: workflow.workflowStartState } : {}),
+    ...(workflow.workflowRunId ? { workflow_run_id: workflow.workflowRunId } : {}),
+    ...(workflow.workflowStartError ? { workflow_start_error: workflow.workflowStartError } : {}),
   };
 }
 

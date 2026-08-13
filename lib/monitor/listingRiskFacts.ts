@@ -1,7 +1,7 @@
 /**
- * Listing Risk V1 is an event-fact contract. It describes listing facts newly
- * established by one event; it is not an authoritative current-listing-state
- * snapshot and it does not reduce a lifecycle across events.
+ * Listing Risk V2 preserves the V1 event-fact fields and adds authoritative
+ * fact-level provenance. It describes facts established by one event; it is
+ * not a current-listing-state snapshot and does not reduce a lifecycle.
  *
  * Parsers may supply source identity, raw dates, rule text, security text, and
  * evidence. Analysis owns event classification, outcome, normalized free-form
@@ -10,7 +10,7 @@
  * This module only validates the resulting shape mechanically.
  */
 
-export const LISTING_RISK_EVENT_FACTS_VERSION = "listing_risk_event_facts_v1";
+export const LISTING_RISK_EVENT_FACTS_VERSION = "listing_risk_event_facts_v2";
 export const LISTING_SOURCE_EVIDENCE_MAX_LENGTH = 520;
 
 export const LISTING_EVENT_KINDS = [
@@ -39,6 +39,30 @@ export const LISTING_PROCEEDING_STATUSES = [
 ] as const;
 export const LISTING_SOURCE_FAMILIES = ["sec", "nasdaq", "news", "other"] as const;
 export const LISTING_FACT_CONFIDENCES = ["high", "medium", "low"] as const;
+export const LISTING_FACT_ORIGINS = ["source_stated", "domain_interpreted", "deterministic_derived"] as const;
+export const LISTING_EVIDENCE_STATUSES = ["available", "unavailable"] as const;
+export const LISTING_EVIDENCE_ISSUES = ["too_long", "not_exact_span", "not_provided"] as const;
+export const LISTING_FACT_PATHS = [
+  "classification.event_kind",
+  "classification.event_outcome",
+  "exchange.value",
+  "affected_security.title.value",
+  "affected_security.ticker.value",
+  "affected_security.security_basis.value",
+  "listing_rule.value",
+  "listing_requirement.value",
+  "compliance_period.value",
+  "proceeding.kind",
+  "proceeding.status",
+  "dates.notice_date.value",
+  "dates.compliance_deadline.value",
+  "dates.hearing_date.value",
+  "dates.appeal_deadline.value",
+  "dates.trading_suspension_date.value",
+  "dates.removal_effective_date.value",
+  "continued_trading.continues.value",
+  "continued_trading.venue.value",
+] as const;
 
 export type ListingEventKind = (typeof LISTING_EVENT_KINDS)[number];
 export type ListingEventOutcome = (typeof LISTING_EVENT_OUTCOMES)[number];
@@ -49,6 +73,10 @@ export type ListingProceedingKind = (typeof LISTING_PROCEEDING_KINDS)[number];
 export type ListingProceedingStatus = (typeof LISTING_PROCEEDING_STATUSES)[number];
 export type ListingSourceFamily = (typeof LISTING_SOURCE_FAMILIES)[number];
 export type ListingFactConfidence = (typeof LISTING_FACT_CONFIDENCES)[number] | null;
+export type ListingFactOrigin = (typeof LISTING_FACT_ORIGINS)[number];
+export type ListingEvidenceStatus = (typeof LISTING_EVIDENCE_STATUSES)[number];
+export type ListingEvidenceIssue = (typeof LISTING_EVIDENCE_ISSUES)[number] | null;
+export type ListingFactPath = (typeof LISTING_FACT_PATHS)[number];
 
 export type ListingTextFact = {
   value: string | null;
@@ -77,7 +105,20 @@ export type ListingSourceEvidence = {
   source_id: string | null;
   source_url: string | null;
   source_ref: string;
-  evidence: string;
+  evidence: string | null;
+};
+
+export type ListingFactProvenance = {
+  fact_path: ListingFactPath;
+  origin: ListingFactOrigin;
+  source_ref: string | null;
+  evidence: string | null;
+  evidence_status: ListingEvidenceStatus;
+  evidence_issue: ListingEvidenceIssue;
+  confidence: Exclude<ListingFactConfidence, null>;
+  as_of: string | null;
+  formula_id: string | null;
+  input_fact_paths: ListingFactPath[];
 };
 
 export type ListingRiskEventFacts = {
@@ -116,9 +157,24 @@ export type ListingRiskEventFacts = {
   as_of: ListingDateFact;
   confidence: ListingFactConfidence;
   sources: ListingSourceEvidence[];
+  fact_provenance: ListingFactProvenance[];
 };
 
 export function validateListingRiskEventFacts(value: unknown): string[] {
+  return validateListingRiskEventFactsContract(value, true);
+}
+
+/**
+ * Validates the semantic fact and provenance contract without requiring a
+ * display-ready evidence excerpt. Evidence must still be represented as a
+ * string or explicit null; source identity and every fact source_ref remain
+ * mandatory.
+ */
+export function validateListingRiskEventFactEligibility(value: unknown): string[] {
+  return validateListingRiskEventFactsContract(value, false);
+}
+
+function validateListingRiskEventFactsContract(value: unknown, validateEvidenceQuality: boolean): string[] {
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_event_facts must be an object"];
@@ -137,13 +193,14 @@ export function validateListingRiskEventFacts(value: unknown): string[] {
     "as_of",
     "confidence",
     "sources",
+    "fact_provenance",
   ], "listing_risk_event_facts", errors);
 
   if (root.version !== LISTING_RISK_EVENT_FACTS_VERSION) {
     errors.push(`listing_risk_event_facts.version must be ${LISTING_RISK_EVENT_FACTS_VERSION}`);
   }
 
-  const sourceRefs = validateSources(root.sources, errors);
+  const sourceRefs = validateSources(root.sources, errors, validateEvidenceQuality);
   validateClassification(root.classification, sourceRefs, errors);
   validateTextFact(root.exchange, "exchange", sourceRefs, errors);
 
@@ -185,6 +242,7 @@ export function validateListingRiskEventFacts(value: unknown): string[] {
   if (!(root.confidence === null || oneOf(root.confidence, LISTING_FACT_CONFIDENCES))) {
     errors.push("confidence is invalid");
   }
+  validateFactProvenance(root.fact_provenance, root, sourceRefs, errors, validateEvidenceQuality);
 
   return errors;
 }
@@ -280,7 +338,7 @@ function validateFactEnvelope(
   return fact;
 }
 
-function validateSources(value: unknown, errors: string[]) {
+function validateSources(value: unknown, errors: string[], validateEvidenceQuality: boolean) {
   const refs = new Set<string>();
   if (!Array.isArray(value) || value.length === 0) {
     errors.push("sources must be a non-empty array");
@@ -301,13 +359,169 @@ function validateSources(value: unknown, errors: string[]) {
     } else {
       refs.add(entry.source_ref);
     }
-    if (!nonEmptyText(entry.evidence)) {
-      errors.push(`${path}.evidence must be a non-empty string`);
-    } else if (Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
-      errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+    if (!(entry.evidence === null || typeof entry.evidence === "string")) {
+      errors.push(`${path}.evidence must be a string or null`);
+    } else if (validateEvidenceQuality && entry.evidence !== null) {
+      if (!nonEmptyText(entry.evidence)) {
+        errors.push(`${path}.evidence must be a non-empty string or null`);
+      } else if (Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
+        errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+      }
     }
   });
   return refs;
+}
+
+function validateFactProvenance(
+  value: unknown,
+  facts: Record<string, unknown>,
+  sourceRefs: Set<string>,
+  errors: string[],
+  validateEvidenceQuality: boolean,
+) {
+  const expectedPaths = expectedAvailableFactPaths(facts);
+  const entries = Array.isArray(value) ? value : [];
+  if (!Array.isArray(value)) {
+    errors.push("fact_provenance must be an array");
+    return;
+  }
+
+  const seenPaths = new Set<string>();
+  const derivedInputs = new Map<string, string[]>();
+  entries.forEach((entryValue, index) => {
+    const path = `fact_provenance[${index}]`;
+    const entry = objectAt(entryValue, path, errors);
+    if (!entry) return;
+    exactKeys(entry, [
+      "fact_path",
+      "origin",
+      "source_ref",
+      "evidence",
+      "evidence_status",
+      "evidence_issue",
+      "confidence",
+      "as_of",
+      "formula_id",
+      "input_fact_paths",
+    ], path, errors);
+
+    if (typeof entry.fact_path !== "string" || !oneOf(entry.fact_path, LISTING_FACT_PATHS)) {
+      errors.push(`${path}.fact_path is invalid`);
+    } else if (seenPaths.has(entry.fact_path)) {
+      errors.push(`${path}.fact_path must be unique`);
+    } else {
+      seenPaths.add(entry.fact_path);
+      if (!expectedPaths.has(entry.fact_path)) {
+        errors.push(`${path}.fact_path must identify an available canonical fact`);
+      }
+    }
+    if (!oneOf(entry.origin, LISTING_FACT_ORIGINS)) errors.push(`${path}.origin is invalid`);
+    if (!oneOf(entry.confidence, LISTING_FACT_CONFIDENCES)) errors.push(`${path}.confidence is invalid`);
+    if (!(entry.as_of === null || validDate(entry.as_of))) errors.push(`${path}.as_of is invalid`);
+    if (!oneOf(entry.evidence_status, LISTING_EVIDENCE_STATUSES)) {
+      errors.push(`${path}.evidence_status is invalid`);
+    }
+    if (!(entry.evidence_issue === null || oneOf(entry.evidence_issue, LISTING_EVIDENCE_ISSUES))) {
+      errors.push(`${path}.evidence_issue is invalid`);
+    }
+    if (!(entry.evidence === null || typeof entry.evidence === "string")) {
+      errors.push(`${path}.evidence must be a string or null`);
+    }
+
+    if (entry.evidence_status === "available") {
+      if (!nonEmptyText(entry.evidence)) errors.push(`${path}.available evidence requires a non-empty string`);
+      if (entry.evidence_issue !== null) errors.push(`${path}.available evidence requires null evidence_issue`);
+      if (
+        validateEvidenceQuality
+        && typeof entry.evidence === "string"
+        && Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH
+      ) {
+        errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+      }
+    }
+    if (entry.evidence_status === "unavailable") {
+      if (entry.evidence !== null || !oneOf(entry.evidence_issue, LISTING_EVIDENCE_ISSUES)) {
+        errors.push(`${path}.unavailable evidence requires null evidence and a supported evidence_issue`);
+      }
+    }
+
+    const inputFactPaths = Array.isArray(entry.input_fact_paths) ? entry.input_fact_paths : [];
+    if (!Array.isArray(entry.input_fact_paths)) errors.push(`${path}.input_fact_paths must be an array`);
+    const inputSet = new Set<string>();
+    inputFactPaths.forEach((inputPath, inputIndex) => {
+      if (!oneOf(inputPath, LISTING_FACT_PATHS)) {
+        errors.push(`${path}.input_fact_paths[${inputIndex}] is invalid`);
+      } else if (inputSet.has(inputPath)) {
+        errors.push(`${path}.input_fact_paths must be unique`);
+      } else {
+        inputSet.add(inputPath);
+      }
+    });
+
+    if (entry.origin === "deterministic_derived") {
+      if (entry.source_ref !== null) errors.push(`${path}.deterministic_derived requires null source_ref`);
+      if (
+        entry.evidence !== null
+        || entry.evidence_status !== "unavailable"
+        || entry.evidence_issue !== "not_provided"
+      ) {
+        errors.push(`${path}.deterministic_derived cannot claim source evidence`);
+      }
+      if (!nonEmptyText(entry.formula_id) || entry.formula_id.length > 120) {
+        errors.push(`${path}.deterministic_derived requires formula_id`);
+      }
+      if (inputFactPaths.length === 0) {
+        errors.push(`${path}.deterministic_derived requires input_fact_paths`);
+      }
+      if (typeof entry.fact_path === "string") derivedInputs.set(entry.fact_path, inputFactPaths as string[]);
+    } else if (oneOf(entry.origin, ["source_stated", "domain_interpreted"])) {
+      validateRequiredSourceRef(entry.source_ref, `${path}.source_ref`, sourceRefs, errors);
+      if (entry.formula_id !== null || inputFactPaths.length !== 0) {
+        errors.push(`${path}.${entry.origin} requires null formula_id and empty input_fact_paths`);
+      }
+    }
+  });
+
+  for (const expectedPath of expectedPaths) {
+    if (!seenPaths.has(expectedPath)) errors.push(`fact_provenance is missing available fact_path ${expectedPath}`);
+  }
+  for (const [derivedPath, inputs] of derivedInputs) {
+    for (const inputPath of inputs) {
+      if (inputPath === derivedPath) errors.push(`fact_provenance ${derivedPath} cannot derive from itself`);
+      if (!seenPaths.has(inputPath)) {
+        errors.push(`fact_provenance ${derivedPath} input_fact_path ${inputPath} has no provenance`);
+      }
+    }
+  }
+}
+
+function expectedAvailableFactPaths(root: Record<string, unknown>) {
+  const paths = new Set<string>(["classification.event_kind", "classification.event_outcome"]);
+  const addEnvelope = (value: unknown, path: string) => {
+    if (record(value)?.availability === "available") paths.add(path);
+  };
+  addEnvelope(root.exchange, "exchange.value");
+  const security = record(root.affected_security);
+  addEnvelope(security?.title, "affected_security.title.value");
+  addEnvelope(security?.ticker, "affected_security.ticker.value");
+  addEnvelope(security?.security_basis, "affected_security.security_basis.value");
+  addEnvelope(root.listing_rule, "listing_rule.value");
+  addEnvelope(root.listing_requirement, "listing_requirement.value");
+  addEnvelope(root.compliance_period, "compliance_period.value");
+  const proceeding = record(root.proceeding);
+  if (proceeding?.kind !== "unknown") paths.add("proceeding.kind");
+  if (proceeding?.status !== "unknown") paths.add("proceeding.status");
+  const dates = record(root.dates);
+  addEnvelope(dates?.notice_date, "dates.notice_date.value");
+  addEnvelope(dates?.compliance_deadline, "dates.compliance_deadline.value");
+  addEnvelope(dates?.hearing_date, "dates.hearing_date.value");
+  addEnvelope(dates?.appeal_deadline, "dates.appeal_deadline.value");
+  addEnvelope(dates?.trading_suspension_date, "dates.trading_suspension_date.value");
+  addEnvelope(dates?.removal_effective_date, "dates.removal_effective_date.value");
+  const continued = record(root.continued_trading);
+  addEnvelope(continued?.continues, "continued_trading.continues.value");
+  addEnvelope(continued?.venue, "continued_trading.venue.value");
+  return paths;
 }
 
 function validateRequiredSourceRef(value: unknown, path: string, sourceRefs: Set<string>, errors: string[]) {
@@ -415,6 +629,7 @@ export const LISTING_RISK_EVENT_FACTS_JSON_SCHEMA = {
     "as_of",
     "confidence",
     "sources",
+    "fact_provenance",
   ],
   properties: {
     version: { type: "string", enum: [LISTING_RISK_EVENT_FACTS_VERSION] },
@@ -488,7 +703,44 @@ export const LISTING_RISK_EVENT_FACTS_JSON_SCHEMA = {
           source_id: { type: ["string", "null"] },
           source_url: { type: ["string", "null"] },
           source_ref: { type: "string", maxLength: 240 },
-          evidence: { type: "string", maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
+          evidence: { type: ["string", "null"], maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
+        },
+      },
+    },
+    fact_provenance: {
+      type: "array",
+      minItems: 2,
+      maxItems: LISTING_FACT_PATHS.length,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "fact_path",
+          "origin",
+          "source_ref",
+          "evidence",
+          "evidence_status",
+          "evidence_issue",
+          "confidence",
+          "as_of",
+          "formula_id",
+          "input_fact_paths",
+        ],
+        properties: {
+          fact_path: { type: "string", enum: LISTING_FACT_PATHS },
+          origin: { type: "string", enum: LISTING_FACT_ORIGINS },
+          source_ref: { type: ["string", "null"], maxLength: 240 },
+          evidence: { type: ["string", "null"], maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
+          evidence_status: { type: "string", enum: LISTING_EVIDENCE_STATUSES },
+          evidence_issue: { type: ["string", "null"], enum: [...LISTING_EVIDENCE_ISSUES, null] },
+          confidence: { type: "string", enum: LISTING_FACT_CONFIDENCES },
+          as_of: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+          formula_id: { type: ["string", "null"], maxLength: 120 },
+          input_fact_paths: {
+            type: "array",
+            maxItems: LISTING_FACT_PATHS.length - 1,
+            items: { type: "string", enum: LISTING_FACT_PATHS },
+          },
         },
       },
     },

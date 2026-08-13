@@ -9,6 +9,16 @@ import {
   saveAnalyzedSecFilingEvent,
   saveSecFilingAiTrace,
 } from "@/lib/secStores/eventStore";
+import {
+  buildGenericMonitorPrimaryExecutionContext,
+  enqueueGenericMonitorChildrenAfterPrimary,
+} from "@/lib/monitor/genericMonitorChildWorkflowStarter";
+import {
+  beginSecAnalysisSpan,
+  traceSecAnalysis,
+  updateSecAnalysisAccession,
+  withSecAnalysisSpan,
+} from "@/lib/ai/secAnalysisInstrumentation";
 
 export {
   buildSecFilingGroupDedupe,
@@ -31,7 +41,11 @@ type AnalyzeOptions = {
 };
 
 export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
-  const rawResult = await findSecRawItem(options);
+  const rawResult = await withSecAnalysisSpan(
+    "raw_lookup_start",
+    "raw_lookup_end",
+    () => findSecRawItem(options),
+  );
   if (!rawResult.ok || !rawResult.rawItem) {
     return {
       ok: false,
@@ -40,6 +54,11 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       error: rawResult.error || "SEC raw item not found",
     };
   }
+  updateSecAnalysisAccession(rawResult.rawItem.source_unique_id);
+  traceSecAnalysis("raw_loaded", {
+    status: "success",
+    raw_item_id: stringValue(rawResult.rawItem.id),
+  });
 
   const analysisRun = await runSecFilingAnalysisForRawRow(rawResult.rawItem, {
     llmProvider: options.llmProvider,
@@ -126,34 +145,53 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     };
   }
 
-  const persistedEvent = await saveAnalyzedSecFilingEvent({
-    rawRow: rawResult.rawItem,
-    input: analysisRun.input,
-    analysis: analysisRun.analysis,
-    model: analysisRun.model || "",
-    openAiResponseId: analysisRun.openAiResponseId || null,
-    promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
-    promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
-    force: Boolean(options.force),
-  });
+  const { persistedEvent, aiTrace } = await withSecAnalysisSpan(
+    "persistence_start",
+    "persistence_end",
+    async () => {
+      const persistedEvent = await withSecAnalysisSpan(
+        "event_persistence_start",
+        "event_persistence_end",
+        () => saveAnalyzedSecFilingEvent({
+          rawRow: rawResult.rawItem!,
+          input: analysisRun.input,
+          analysis: analysisRun.analysis!,
+          model: analysisRun.model || "",
+          openAiResponseId: analysisRun.openAiResponseId || null,
+          promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
+          promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+          force: Boolean(options.force),
+        }),
+      );
 
-  const aiTrace = await saveSecFilingAiTrace({
-    rawItemId: stringValue(rawResult.rawItem.id),
-    eventId: stringValue(persistedEvent.id),
-    analysis: analysisRun.analysis,
-    outputText: analysisRun.outputText || "",
-    usage: analysisRun.usage || null,
-    costEstimate: analysisRun.costEstimate || null,
-    model: analysisRun.model || "",
-    openAiResponseId: analysisRun.openAiResponseId || null,
-    promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
-    promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
-    prompt: readRecord(analysisRun.prompt),
-    repairOutputText: analysisRun.repairOutputText,
-    repairUsage: analysisRun.repairUsage || null,
-    repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
-    validationRepair: readValidationRepair(analysisRun),
-  });
+      const aiTrace = await withSecAnalysisSpan(
+        "ai_trace_persistence_start",
+        "ai_trace_persistence_end",
+        () => saveSecFilingAiTrace({
+          rawItemId: stringValue(rawResult.rawItem!.id),
+          eventId: stringValue(persistedEvent.id),
+          analysis: analysisRun.analysis!,
+          outputText: analysisRun.outputText || "",
+          usage: analysisRun.usage || null,
+          costEstimate: analysisRun.costEstimate || null,
+          model: analysisRun.model || "",
+          openAiResponseId: analysisRun.openAiResponseId || null,
+          promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
+          promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+          prompt: readRecord(analysisRun.prompt),
+          repairOutputText: analysisRun.repairOutputText,
+          repairUsage: analysisRun.repairUsage || null,
+          repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
+          validationRepair: readValidationRepair(analysisRun),
+        }),
+      );
+      return { persistedEvent, aiTrace };
+    },
+    {
+      prompt_key: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
+      prompt_version: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+    },
+  );
   const validationRepairTrace = aiTrace.repairTrace;
 
   const calendarItems = await fetchSecFilingCalendarItemsForEvent(stringValue(persistedEvent.id));
@@ -164,6 +202,43 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         reason: "alert delivery suppressed by controlled SEC development persist",
       }
     : await runSecFilingAlertDelivery(persistedEvent);
+  const primaryPromptKey = analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY;
+  const primaryPromptVersion = analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION;
+  const endListingFanout = beginSecAnalysisSpan("listing_fanout_start", {
+    event_id: stringValue(persistedEvent.id),
+    primary_ai_run_id: aiTrace.aiRunId,
+  });
+  const genericMonitorChildren = await enqueueGenericMonitorChildrenAfterPrimary({
+      primary: buildGenericMonitorPrimaryExecutionContext({
+        eventId: stringValue(persistedEvent.id),
+        rawItemId: stringValue(rawResult.rawItem.id),
+        sourceGroup: "filings",
+        sourceCode: stringValue(rawResult.rawItem.source_code),
+        sourceIdentity: stringValue(rawResult.rawItem.source_unique_id),
+        parentPrimaryAiRunId: aiTrace.aiRunId,
+        parentPromptKey: primaryPromptKey,
+        parentPromptVersion: primaryPromptVersion,
+        secFormType: stringValue(readRecord(readRecord(analysisRun.input)?.filing_package)?.form_type),
+      }),
+      primaryAnalysis: analysisRun.analysis,
+    }).then((result) => {
+      endListingFanout("listing_fanout_end", {
+        status: "success",
+        child_count: result.childCount,
+      });
+      return result;
+    }).catch((error) => {
+      endListingFanout("listing_fanout_end", {
+        status: "error",
+        child_count: 0,
+        error_class: error instanceof Error ? error.name : "UnknownError",
+      });
+      return {
+        status: "enqueue_failed" as const,
+        childCount: 0 as const,
+        error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
+      };
+    });
 
   return {
     ok: true,
@@ -180,6 +255,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     primaryAiRunId: aiTrace.aiRunId,
     calendarItems,
     alertDelivery,
+    genericMonitorChildren,
     validationRepairTrace,
   };
 }
