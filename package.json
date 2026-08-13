@@ -55,6 +55,8 @@
     "verify:listing-monitor-persistence:local": "node --experimental-strip-types scripts/verify-listing-monitor-persistence-local.mjs",
     "verify:listing-monitor-alert": "node --test --experimental-strip-types lib/monitor/listingMonitorAlertConsumer.test.ts lib/monitor/genericMonitorProductionFanout.test.ts",
     "verify:listing-monitor-alert:local": "node --experimental-strip-types scripts/verify-listing-monitor-alert-e2e-local.mjs",
+    "verify:listing-monitor-api": "node --test --experimental-strip-types lib/monitor/listingMonitorApi.test.ts",
+    "verify:listing-monitor-api:local": "node --experimental-strip-types scripts/verify-listing-monitor-api-v1-local.mjs",
     "verify:minimal-offering-monitor": "node --test --experimental-strip-types lib/minimalOfferingMonitor.test.ts",
     "verify:offering-matcher": "node --test --experimental-strip-types lib/offeringMonitorMatcher.test.ts",
     "verify:async-monitor-foundation": "node --test --experimental-strip-types lib/offeringMonitorJobFoundation.test.ts",
