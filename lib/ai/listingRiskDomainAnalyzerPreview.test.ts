@@ -17,7 +17,7 @@ test("non-persisting preview returns standalone not_applicable and sends the dir
     model: "configured-model",
     runPrompt: async (value) => {
       requests.push(value);
-      return run({ status: "not_applicable", applicable_facts: [] });
+      return run({ status: "not_applicable", facts: [] });
     },
   });
   assert.equal(result.stage, "complete");
@@ -29,7 +29,7 @@ test("non-persisting preview returns standalone not_applicable and sends the dir
 test("preview keeps invalid provider output separate from not_applicable", async () => {
   const result = await runListingRiskDomainAnalyzerPreview(input(), {
     apiKey: "test-key",
-    runPrompt: async () => run({ status: "not_applicable", applicable_facts: [{}] }),
+    runPrompt: async () => run({ status: "not_applicable", facts: [{}] }),
   });
   assert.equal(result.stage, "validation_error");
   assert.equal(result.result, null);

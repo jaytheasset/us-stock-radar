@@ -18,6 +18,7 @@ import {
   type ListingRiskEvidenceRepairPlan,
 } from "./listingRiskEvidenceRepair.ts";
 import {
+  LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS,
   type ListingRiskAnalyzerInput,
   validateListingRiskAnalyzerProviderResult,
 } from "./listingRiskAnalyzer.ts";
@@ -101,7 +102,7 @@ test("successful repair changes only evidence and passes canonical validation", 
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(original),
+    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async (request) => {
       repairCalls += 1;
       assert.equal(request.responseSchema, LISTING_RISK_EVIDENCE_REPAIR_SCHEMA);
@@ -125,7 +126,7 @@ test("repair failure from too-long evidence preserves facts with unavailable evi
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
+    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(repairItems(repairPlan(analyzerInput), longEvidence));
@@ -138,7 +139,7 @@ test("repair failure from too-long evidence preserves facts with unavailable evi
     assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence === null));
     assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_status === "unavailable"));
     assert.ok(result.result.facts.fact_provenance.every((entry) => entry.evidence_issue === "too_long"));
-    assert.equal(result.result.facts.sources[0].evidence, shortEvidence);
+    assert.equal(result.result.facts.sources[0].evidence, null);
   }
 });
 
@@ -149,7 +150,7 @@ test("a partially valid bounded repair keeps valid fact evidence and isolates th
   mixed.evidence_repairs[0].evidence = shortEvidence;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
+    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => run(mixed),
   });
   assert.equal(result.stage, "complete");
@@ -168,8 +169,14 @@ test("repair failure from non-exact evidence preserves facts with not_exact_span
   const joined = "Nasdaq issued notice. Compliance was restored.";
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, joined)),
-    runRepairPrompt: async () => run(repairItems(repairPlan(analyzerInput, joined), joined)),
+    runPrompt: async () => run(transport(analyzerInput, joined)),
+    runRepairPrompt: async () => run({
+      evidence_repairs: ["classification.event_kind", "classification.event_outcome"].map((factPath) => ({
+        target_key: `fact:${factPath}`,
+        source_ref: analyzerInput.source_documents[0].source_ref,
+        evidence: joined,
+      })),
+    }),
   });
   assert.equal(result.stage, "complete");
   if (result.result?.status === "applicable") {
@@ -184,7 +191,7 @@ test("repair null output marks evidence not_provided after exactly one bounded a
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(provider(analyzerInput, longEvidence)),
+    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(repairItems(repairPlan(analyzerInput), null));
@@ -213,14 +220,12 @@ test("semantic and source identity failures remain hard and do not enter repair"
 
 test("initial provider null evidence cannot bypass repair as canonical unavailable evidence", async () => {
   const analyzerInput = input();
-  const facts = validFacts(analyzerInput, shortEvidence);
-  facts.fact_provenance[0].evidence = null;
-  facts.fact_provenance[0].evidence_status = "unavailable";
-  facts.fact_provenance[0].evidence_issue = "not_provided";
+  const providerTransport = transport(analyzerInput, shortEvidence) as any;
+  providerTransport.facts[0].categorical_facts[0].evidence = null;
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run({ status: "applicable", applicable_facts: [facts] }),
+    runPrompt: async () => run(providerTransport),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(null);
@@ -228,11 +233,11 @@ test("initial provider null evidence cannot bypass repair as canonical unavailab
   });
   assert.equal(result.stage, "validation_error");
   assert.equal(repairCalls, 0);
-  assert.match(result.error, /evidence must be available with a non-empty string in provider output/);
+  assert.match(result.error, /evidence must be a non-empty string/);
 });
 
 test("valid applicable and not_applicable results bypass repair", async () => {
-  for (const parsed of [provider(input(), shortEvidence), { status: "not_applicable", applicable_facts: [] }]) {
+  for (const parsed of [transport(input(), shortEvidence), { status: "not_applicable", facts: [] }]) {
     let repairCalls = 0;
     const result = await runListingRiskDomainAnalyzerPreview(input(), {
       apiKey: "test-key",
@@ -289,6 +294,35 @@ function repairItems(plan: ListingRiskEvidenceRepairPlan, evidence: string | nul
 
 function provider(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
   return { status: "applicable" as const, applicable_facts: [validFacts(analyzerInput, evidence)] };
+}
+
+function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
+  const ref = analyzerInput.source_documents[0].source_ref;
+  const provenance = (fact_key: "classification_event_kind" | "classification_event_outcome", value: string) => ({
+    fact_key,
+    value,
+    origin: "domain_interpreted" as const,
+    source_ref: ref,
+    evidence,
+    confidence: "high" as const,
+    as_of: null,
+  });
+  return {
+    status: "applicable" as const,
+    facts: [{
+      categorical_facts: [
+        provenance("classification_event_kind", "other"),
+        provenance("classification_event_outcome", "unknown"),
+      ],
+      text_facts: [],
+      date_facts: [],
+      boolean_facts: [],
+      unavailable_fact_keys: [...LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS],
+      as_of_facts: [],
+      as_of_availability: "unavailable" as const,
+      confidence: "high" as const,
+    }],
+  };
 }
 
 function validFacts(analyzerInput: ListingRiskAnalyzerInput, evidence: string): ListingRiskEventFacts {

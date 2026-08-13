@@ -4,6 +4,7 @@ import {
   type GeminiStructuredJsonRun,
 } from "./geminiStructuredJson.ts";
 import {
+  canonicalizeListingRiskAnalyzerTransportResult,
   LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
   normalizeListingRiskAnalyzerFactEligibleProviderResult,
   normalizeListingRiskAnalyzerProviderResult,
@@ -103,11 +104,21 @@ export async function runListingRiskDomainAnalyzerPreview(
     };
   }
 
-  const validationErrors = validateListingRiskAnalyzerProviderResult(run.parsed, input);
-  let providerResult = run.parsed;
+  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(run.parsed, input);
+  if (!canonicalized.result) {
+    return {
+      stage: "validation_error",
+      result: null,
+      run,
+      error: canonicalized.errors.join("; "),
+      validation_errors: canonicalized.errors,
+    };
+  }
+  const validationErrors = validateListingRiskAnalyzerProviderResult(canonicalized.result, input);
+  let providerResult: ListingRiskAnalyzerProviderResult = canonicalized.result;
   let repair: ListingRiskEvidenceRepairAttempt | null = null;
   if (validationErrors.length) {
-    const repairPlan = buildListingRiskEvidenceRepairPlan(run.parsed, input);
+    const repairPlan = buildListingRiskEvidenceRepairPlan(providerResult, input);
     if (!repairPlan) {
       return {
         stage: "validation_error",
