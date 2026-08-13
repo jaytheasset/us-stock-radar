@@ -5,6 +5,7 @@ import {
 import {
   type ListingRiskAnalyzerInput,
   type ListingRiskAnalyzerProviderResult,
+  validateListingRiskAnalyzerProviderFactEligibility,
   validateListingRiskAnalyzerProviderResult,
 } from "./listingRiskAnalyzer.ts";
 
@@ -58,6 +59,10 @@ export type ListingRiskEvidenceRepairOutput = {
 const EVIDENCE_MAX_ERROR = new RegExp(
   `^applicable_facts\\[0\\]: sources\\[(\\d+)\\]\\.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer$`,
 );
+const EVIDENCE_EXACT_ERROR = /^applicable_facts\[0\]\.sources\[(\d+)\]\.evidence must be a contiguous excerpt from the supplied source document$/;
+const REPAIR_EVIDENCE_FORMAT_ERROR = new RegExp(
+  `^listing_risk_evidence_repair\\.evidence_repairs\\[\\d+\\]\\.evidence must be (?:${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer|a contiguous excerpt from the supplied source document)$`,
+);
 
 export function buildListingRiskEvidenceRepairPlan(
   value: unknown,
@@ -65,10 +70,11 @@ export function buildListingRiskEvidenceRepairPlan(
 ): ListingRiskEvidenceRepairPlan | null {
   const validationErrors = validateListingRiskAnalyzerProviderResult(value, input);
   if (!validationErrors.length) return null;
+  if (validateListingRiskAnalyzerProviderFactEligibility(value, input).length) return null;
 
   const indexes: number[] = [];
   for (const error of validationErrors) {
-    const match = EVIDENCE_MAX_ERROR.exec(error);
+    const match = EVIDENCE_MAX_ERROR.exec(error) || EVIDENCE_EXACT_ERROR.exec(error);
     if (!match) return null;
     indexes.push(Number(match[1]));
   }
@@ -79,22 +85,23 @@ export function buildListingRiskEvidenceRepairPlan(
   const sources = Array.isArray(facts?.sources) ? facts.sources : [];
   if (root?.status !== "applicable" || applicableFacts.length !== 1 || !facts) return null;
 
+  const sourceDocuments = new Map(input.source_documents.map((document) => [document.source_ref, document]));
   const uniqueIndexes = [...new Set(indexes)];
-  const actualOverlengthIndexes = sources.flatMap((sourceValue, index) => {
+  const actualEvidenceFormatIndexes = sources.flatMap((sourceValue, index) => {
     const source = record(sourceValue);
-    return typeof source?.evidence === "string" &&
-      Array.from(source.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH
-      ? [index]
-      : [];
+    if (typeof source?.source_ref !== "string" || typeof source.evidence !== "string") return [];
+    const sourceDocument = sourceDocuments.get(source.source_ref);
+    return Array.from(source.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH
+      || (sourceDocument && !sourceDocument.text.includes(source.evidence))
+      ? [index] : [];
   });
   if (
-    uniqueIndexes.length !== actualOverlengthIndexes.length ||
-    uniqueIndexes.some((index) => !actualOverlengthIndexes.includes(index))
+    uniqueIndexes.length !== actualEvidenceFormatIndexes.length ||
+    uniqueIndexes.some((index) => !actualEvidenceFormatIndexes.includes(index))
   ) {
     return null;
   }
 
-  const sourceDocuments = new Map(input.source_documents.map((document) => [document.source_ref, document]));
   const targets: ListingRiskEvidenceRepairTarget[] = [];
   for (const sourceIndex of uniqueIndexes) {
     const source = record(sources[sourceIndex]);
@@ -185,6 +192,47 @@ export function applyListingRiskEvidenceRepair(
   return {
     ...plan.original_result,
     applicable_facts: [repairedFacts],
+  };
+}
+
+/**
+ * Preserves fact eligibility after the single repair attempt when the repair
+ * response failed only display-evidence formatting. The original semantic
+ * facts and source_ref values are immutable; only the targeted evidence leaf
+ * becomes explicitly unavailable.
+ */
+export function applyListingRiskEvidenceUnavailable(
+  plan: ListingRiskEvidenceRepairPlan,
+  repairValue: unknown,
+  repairErrors: string[],
+): ListingRiskAnalyzerProviderResult | null {
+  if (!repairErrors.length || repairErrors.some((error) => !REPAIR_EVIDENCE_FORMAT_ERROR.test(error))) {
+    return null;
+  }
+  const root = record(repairValue);
+  const repairs = Array.isArray(root?.evidence_repairs) ? root.evidence_repairs : [];
+  const unavailableRefs = new Set<string>();
+  for (const repairValueItem of repairs) {
+    const repair = record(repairValueItem);
+    if (typeof repair?.source_ref !== "string") return null;
+    unavailableRefs.add(repair.source_ref);
+  }
+  if (
+    unavailableRefs.size !== plan.targets.length
+    || plan.targets.some((target) => !unavailableRefs.has(target.source_ref))
+  ) {
+    return null;
+  }
+
+  const originalFacts = plan.original_result.applicable_facts[0];
+  return {
+    ...plan.original_result,
+    applicable_facts: [{
+      ...originalFacts,
+      sources: originalFacts.sources.map((source) => unavailableRefs.has(source.source_ref)
+        ? { ...source, evidence: null }
+        : source),
+    }],
   };
 }
 

@@ -19,6 +19,7 @@ import {
   validateListingRiskAnalyzerProviderResult,
   validateListingRiskAnalyzerResult,
 } from "./listingRiskAnalyzer.ts";
+import { buildListingRiskEvidenceRepairPlan } from "./listingRiskEvidenceRepair.ts";
 import {
   adaptNasdaqListingRiskSource,
   adaptNewsListingRiskSource,
@@ -58,6 +59,8 @@ test("provider transport uses the existing facts schema and rejects impossible m
   );
   assert.doesNotMatch(JSON.stringify(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA), /additionalProperties|"type":\[/);
   assert.equal(providerFactsSchema.properties.exchange.properties.value.nullable, true);
+  assert.equal(providerFactsSchema.properties.sources.items.properties.evidence.type, "string");
+  assert.equal(providerFactsSchema.properties.sources.items.properties.evidence.nullable, undefined);
   assert.deepEqual(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA.required, ["status", "applicable_facts"]);
   const input = newsInput("The exchange notified the issuer of a newly established listing event.");
   const facts = validFacts(input, "news_article_body", input.source_documents[0].text);
@@ -92,11 +95,21 @@ test("provider facts must remain valid and cite the supplied source identity", (
   );
 
   const canonicalEvidence = structuredClone(facts);
-  canonicalEvidence.sources[0].evidence = "Concise source evidence remains governed by the existing 520-character facts contract.";
-  assert.deepEqual(
-    validateListingRiskAnalyzerProviderResult({ status: "applicable", applicable_facts: [canonicalEvidence] }, input),
-    [],
-    "the analyzer must not add a stricter evidence semantic contract than listingRiskFacts",
+  canonicalEvidence.sources[0].evidence = null;
+  assert.deepEqual(validateListingRiskAnalyzerResult({ status: "applicable", facts: canonicalEvidence }), []);
+  assert.ok(
+    validateListingRiskAnalyzerProviderResult({ status: "applicable", applicable_facts: [canonicalEvidence] }, input)
+      .some((error) => error.includes("non-empty string in provider output")),
+    "raw provider evidence must remain a non-null string before bounded repair",
+  );
+
+  const nonContiguousEvidence = structuredClone(facts);
+  nonContiguousEvidence.sources[0].evidence = "Nasdaq notified Example Corp that it regained compliance.";
+  assert.ok(
+    validateListingRiskAnalyzerProviderResult(
+      { status: "applicable", applicable_facts: [nonContiguousEvidence] },
+      input,
+    ).some((error) => error.includes("contiguous excerpt")),
   );
 
   const invalidFacts = structuredClone(facts) as unknown as Record<string, unknown>;
@@ -105,6 +118,35 @@ test("provider facts must remain valid and cite the supplied source identity", (
     validateListingRiskAnalyzerProviderResult({ status: "applicable", applicable_facts: [invalidFacts] }, input)
       .some((error) => error.includes("listing_risk_event_facts must contain exactly")),
   );
+});
+
+test("source family, id, url, and document identity mismatches remain hard failures", () => {
+  const input = newsInput("Nasdaq notified Example Corp that it regained compliance on 2026-05-01.");
+  const original = validFacts(input, "news_article_body", "regained compliance on 2026-05-01");
+  const cases: Array<[string, (facts: ListingRiskEventFacts) => void]> = [
+    ["source_family", (facts) => { facts.sources[0].source_family = "sec"; }],
+    ["source_id", (facts) => { facts.sources[0].source_id = "wrong-id"; }],
+    ["source_url", (facts) => { facts.sources[0].source_url = "https://example.com/wrong"; }],
+    ["source_ref", (facts) => {
+      facts.sources[0].source_ref = "missing-document";
+      facts.classification.source_ref = "missing-document";
+    }],
+  ];
+
+  for (const [field, mutate] of cases) {
+    const facts = structuredClone(original);
+    mutate(facts);
+    assert.ok(
+      validateListingRiskAnalyzerProviderResult({ status: "applicable", applicable_facts: [facts] }, input)
+        .some((error) => error.includes(field)),
+      `${field} mismatch must fail provider validation`,
+    );
+    assert.equal(
+      buildListingRiskEvidenceRepairPlan({ status: "applicable", applicable_facts: [facts] }, input),
+      null,
+      `${field} mismatch must not enter evidence repair`,
+    );
+  }
 });
 
 test("provider-controlled condition fields remain complete and unchanged for a representative source", () => {
@@ -262,7 +304,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
-  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v3");
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v4");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -279,7 +321,7 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
-  assert.equal(prompt.version, "listing_risk_domain_analyzer_v3");
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v4");
   assert.equal(prompt.responseFormat.json_schema.schema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
 });
 

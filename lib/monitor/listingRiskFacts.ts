@@ -77,7 +77,7 @@ export type ListingSourceEvidence = {
   source_id: string | null;
   source_url: string | null;
   source_ref: string;
-  evidence: string;
+  evidence: string | null;
 };
 
 export type ListingRiskEventFacts = {
@@ -119,6 +119,20 @@ export type ListingRiskEventFacts = {
 };
 
 export function validateListingRiskEventFacts(value: unknown): string[] {
+  return validateListingRiskEventFactsContract(value, true);
+}
+
+/**
+ * Validates the semantic fact and provenance contract without requiring a
+ * display-ready evidence excerpt. Evidence must still be represented as a
+ * string or explicit null; source identity and every fact source_ref remain
+ * mandatory.
+ */
+export function validateListingRiskEventFactEligibility(value: unknown): string[] {
+  return validateListingRiskEventFactsContract(value, false);
+}
+
+function validateListingRiskEventFactsContract(value: unknown, validateEvidenceQuality: boolean): string[] {
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_event_facts must be an object"];
@@ -143,7 +157,7 @@ export function validateListingRiskEventFacts(value: unknown): string[] {
     errors.push(`listing_risk_event_facts.version must be ${LISTING_RISK_EVENT_FACTS_VERSION}`);
   }
 
-  const sourceRefs = validateSources(root.sources, errors);
+  const sourceRefs = validateSources(root.sources, errors, validateEvidenceQuality);
   validateClassification(root.classification, sourceRefs, errors);
   validateTextFact(root.exchange, "exchange", sourceRefs, errors);
 
@@ -280,7 +294,7 @@ function validateFactEnvelope(
   return fact;
 }
 
-function validateSources(value: unknown, errors: string[]) {
+function validateSources(value: unknown, errors: string[], validateEvidenceQuality: boolean) {
   const refs = new Set<string>();
   if (!Array.isArray(value) || value.length === 0) {
     errors.push("sources must be a non-empty array");
@@ -301,10 +315,14 @@ function validateSources(value: unknown, errors: string[]) {
     } else {
       refs.add(entry.source_ref);
     }
-    if (!nonEmptyText(entry.evidence)) {
-      errors.push(`${path}.evidence must be a non-empty string`);
-    } else if (Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
-      errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+    if (!(entry.evidence === null || typeof entry.evidence === "string")) {
+      errors.push(`${path}.evidence must be a string or null`);
+    } else if (validateEvidenceQuality && entry.evidence !== null) {
+      if (!nonEmptyText(entry.evidence)) {
+        errors.push(`${path}.evidence must be a non-empty string or null`);
+      } else if (Array.from(entry.evidence).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) {
+        errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+      }
     }
   });
   return refs;
@@ -488,7 +506,7 @@ export const LISTING_RISK_EVENT_FACTS_JSON_SCHEMA = {
           source_id: { type: ["string", "null"] },
           source_url: { type: ["string", "null"] },
           source_ref: { type: "string", maxLength: 240 },
-          evidence: { type: "string", maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
+          evidence: { type: ["string", "null"], maxLength: LISTING_SOURCE_EVIDENCE_MAX_LENGTH },
         },
       },
     },

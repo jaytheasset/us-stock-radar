@@ -108,6 +108,7 @@ test("terminal success is available only after saved or idempotent persistence",
 
 test("current reader round-trips provenance plus null, false, and text zero without fallback normalization", async () => {
   const facts = listingFacts();
+  facts.sources[0].evidence = null;
   const response = readerResponse("available", facts);
   const dependencies = rpcDependencies((functionName, payload) => {
     assert.equal(functionName, "read_current_event_listing_risk_facts");
@@ -122,7 +123,7 @@ test("current reader round-trips provenance plus null, false, and text zero with
   if (read.status !== "available") return;
   assert.deepEqual(read.facts, facts);
   assert.equal(read.facts.sources[0].source_ref, "source:block:1");
-  assert.equal(read.facts.sources[0].evidence, "Issuer received a minimum bid price notice.");
+  assert.equal(read.facts.sources[0].evidence, null);
   assert.equal(read.facts.as_of.source_ref, "source:block:1");
   assert.equal(read.facts.continued_trading.continues.value, false);
   assert.equal(read.facts.affected_security.ticker.value, "0");

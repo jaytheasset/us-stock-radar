@@ -122,7 +122,7 @@ test("T7 applying repair preserves every semantic fact", () => {
 
 test("T1 valid result bypasses repair and remains unchanged", async () => {
   const analyzerInput = input();
-  const facts = validFacts(analyzerInput, "Compliant evidence");
+  const facts = validFacts(analyzerInput, "Additional source context supporting the same current event.");
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
@@ -209,7 +209,7 @@ test("T6 successful repair changes only evidence and passes the canonical valida
   );
 });
 
-test("T7 still-overlength repair fails closed after one call", async () => {
+test("T7 still-overlength repair preserves facts and makes evidence unavailable after one call", async () => {
   const analyzerInput = input();
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
@@ -221,10 +221,18 @@ test("T7 still-overlength repair fails closed after one call", async () => {
     },
   });
 
-  assert.equal(result.stage, "repair_error");
-  assert.equal(result.result, null);
+  assert.equal(result.stage, "complete");
   assert.equal(repairCalls, 1);
-  assert.match(result.error, /520 characters or fewer/);
+  assert.deepEqual(result.repair?.evidence_unavailable_source_refs, [sourceRef(analyzerInput)]);
+  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /520 characters or fewer/);
+  assert.equal(result.result?.status, "applicable");
+  if (result.result?.status === "applicable") {
+    assert.equal(result.result.facts.sources[0].evidence, null);
+    assert.deepEqual(
+      semanticFactsWithoutEvidence(result.result.facts),
+      semanticFactsWithoutEvidence(provider(analyzerInput, longEvidence).applicable_facts[0]),
+    );
+  }
 });
 
 test("T8 invalid repair shape fails closed", async () => {
@@ -244,7 +252,7 @@ test("T8 invalid repair shape fails closed", async () => {
   assert.equal(repairCalls, 1);
 });
 
-test("repair evidence absent from the supplied source fails closed", async () => {
+test("repair evidence absent from the supplied source preserves facts with unavailable evidence", async () => {
   const analyzerInput = input();
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
@@ -261,9 +269,53 @@ test("repair evidence absent from the supplied source fails closed", async () =>
     },
   });
 
-  assert.equal(result.stage, "repair_error");
+  assert.equal(result.stage, "complete");
   assert.equal(repairCalls, 1);
-  assert.match(result.error, /contiguous excerpt/);
+  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /contiguous excerpt/);
+  assert.equal(result.result?.status, "applicable");
+  if (result.result?.status === "applicable") {
+    assert.equal(result.result.facts.sources[0].evidence, null);
+  }
+});
+
+test("initial provider evidence null cannot bypass bounded repair as an eligible raw result", async () => {
+  const analyzerInput = input();
+  const facts = validFacts(analyzerInput, "Additional source context supporting the same current event.");
+  facts.sources[0].evidence = null;
+  let repairCalls = 0;
+  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
+    apiKey: "test-key",
+    runPrompt: async () => run({ status: "applicable", applicable_facts: [facts] }),
+    runRepairPrompt: async () => {
+      repairCalls += 1;
+      return run(null);
+    },
+  });
+
+  assert.equal(result.stage, "validation_error");
+  assert.equal(result.result, null);
+  assert.equal(repairCalls, 0);
+  assert.match(result.error, /non-empty string in provider output/);
+});
+
+test("non-contiguous initial evidence receives one repair attempt and preserves facts if still invalid", async () => {
+  const analyzerInput = inputWithBody("Nasdaq issued notice. Intervening current facts. Compliance was restored.");
+  const joinedEvidence = "Nasdaq issued notice. Compliance was restored.";
+  let repairCalls = 0;
+  const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
+    apiKey: "test-key",
+    runPrompt: async () => run(provider(analyzerInput, joinedEvidence)),
+    runRepairPrompt: async () => {
+      repairCalls += 1;
+      return run({ evidence_repairs: [{ source_ref: sourceRef(analyzerInput), evidence: joinedEvidence }] });
+    },
+  });
+
+  assert.equal(result.stage, "complete");
+  assert.equal(repairCalls, 1);
+  assert.equal(result.result?.status, "applicable");
+  if (result.result?.status === "applicable") assert.equal(result.result.facts.sources[0].evidence, null);
+  assert.match(result.repair?.evidence_format_errors.join("; ") || "", /contiguous excerpt/);
 });
 
 test("T9 not_applicable bypasses repair", async () => {

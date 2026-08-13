@@ -9,6 +9,7 @@ import {
   LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
   LISTING_SOURCE_FAMILIES,
   readListingRiskEventFacts,
+  validateListingRiskEventFactEligibility,
   validateListingRiskEventFacts,
   type ListingBooleanFact,
   type ListingDateFact,
@@ -226,11 +227,16 @@ test("validator enforces only mechanical availability, date, evidence, enum, and
 
   const longEvidence = clone(facts);
   longEvidence.sources[0].evidence = "x".repeat(LISTING_SOURCE_EVIDENCE_MAX_LENGTH + 1);
+  assert.deepEqual(validateListingRiskEventFactEligibility(longEvidence), []);
   assert.ok(
     validateListingRiskEventFacts(longEvidence).some((error) =>
       error.includes(`${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`),
     ),
   );
+
+  const unavailableEvidence = clone(facts);
+  unavailableEvidence.sources[0].evidence = null;
+  assert.deepEqual(validateListingRiskEventFacts(unavailableEvidence), []);
 
   const extraField = clone(facts) as ListingRiskEventFacts & { current_listing_state?: string };
   extraField.current_listing_state = "listed";
@@ -261,6 +267,10 @@ test("schema exposes the same event-fact version and excludes current-state stor
   assert.equal(
     LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.sources.items.properties.evidence.maxLength,
     LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
+  );
+  assert.deepEqual(
+    LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.sources.items.properties.evidence.type,
+    ["string", "null"],
   );
 
   const { facts } = form25Event("common-share-delisting", "listing_removal", "adverse");

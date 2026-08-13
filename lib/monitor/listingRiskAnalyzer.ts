@@ -1,11 +1,12 @@
 import {
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA,
   type ListingRiskEventFacts,
+  validateListingRiskEventFactEligibility,
   validateListingRiskEventFacts,
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v3";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v4";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 
@@ -46,6 +47,7 @@ export type ListingRiskAnalyzerProviderResult = {
 const LISTING_RISK_EVENT_FACTS_GEMINI_SCHEMA = toGeminiResponseSchema(
   LISTING_RISK_EVENT_FACTS_JSON_SCHEMA as unknown as Record<string, unknown>,
 );
+requireProviderEvidenceString(LISTING_RISK_EVENT_FACTS_GEMINI_SCHEMA);
 
 export const LISTING_RISK_ANALYZER_PROVIDER_SCHEMA = {
   type: "object",
@@ -216,6 +218,21 @@ export function validateListingRiskAnalyzerProviderResult(
   value: unknown,
   input?: ListingRiskAnalyzerInput,
 ): string[] {
+  return validateListingRiskAnalyzerProviderContract(value, input, true);
+}
+
+export function validateListingRiskAnalyzerProviderFactEligibility(
+  value: unknown,
+  input?: ListingRiskAnalyzerInput,
+): string[] {
+  return validateListingRiskAnalyzerProviderContract(value, input, false);
+}
+
+function validateListingRiskAnalyzerProviderContract(
+  value: unknown,
+  input: ListingRiskAnalyzerInput | undefined,
+  validateEvidenceQuality: boolean,
+): string[] {
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_analyzer_provider_result must be an object"];
@@ -240,8 +257,11 @@ export function validateListingRiskAnalyzerProviderResult(
 
   if (root.applicable_facts.length === 1) {
     const facts = root.applicable_facts[0];
-    errors.push(...validateListingRiskEventFacts(facts).map((error) => `applicable_facts[0]: ${error}`));
-    if (input) errors.push(...validateFactsSourceIdentity(facts, input));
+    const factErrors = validateEvidenceQuality
+      ? validateListingRiskEventFacts(facts)
+      : validateListingRiskEventFactEligibility(facts);
+    errors.push(...factErrors.map((error) => `applicable_facts[0]: ${error}`));
+    if (input) errors.push(...validateFactsSourceIdentity(facts, input, validateEvidenceQuality));
   }
   return errors;
 }
@@ -257,7 +277,11 @@ export function normalizeListingRiskAnalyzerProviderResult(
     : { status: "applicable", facts: providerResult.applicable_facts[0] };
 }
 
-function validateFactsSourceIdentity(value: unknown, input: ListingRiskAnalyzerInput) {
+function validateFactsSourceIdentity(
+  value: unknown,
+  input: ListingRiskAnalyzerInput,
+  validateEvidenceQuality: boolean,
+) {
   const errors: string[] = [];
   const facts = record(value);
   const sources = Array.isArray(facts?.sources) ? facts.sources : [];
@@ -275,8 +299,37 @@ function validateFactsSourceIdentity(value: unknown, input: ListingRiskAnalyzerI
       errors.push(`${path}.source_ref must identify a supplied source document`);
       return;
     }
+    if (validateEvidenceQuality) {
+      if (source.evidence === null) {
+        errors.push(`${path}.evidence must be a non-empty string in provider output`);
+      } else if (typeof source.evidence === "string" && !document.text.includes(source.evidence)) {
+        errors.push(`${path}.evidence must be a contiguous excerpt from the supplied source document`);
+      }
+    }
   });
   return errors;
+}
+
+export function normalizeListingRiskAnalyzerFactEligibleProviderResult(
+  value: unknown,
+  input: ListingRiskAnalyzerInput,
+): ListingRiskAnalyzerResult | null {
+  if (validateListingRiskAnalyzerProviderFactEligibility(value, input).length !== 0) return null;
+  const providerResult = value as ListingRiskAnalyzerProviderResult;
+  return providerResult.status === "not_applicable"
+    ? { status: "not_applicable" }
+    : { status: "applicable", facts: providerResult.applicable_facts[0] };
+}
+
+function requireProviderEvidenceString(schema: Record<string, unknown>) {
+  const properties = record(schema.properties);
+  const sources = record(properties?.sources);
+  const items = record(sources?.items);
+  const sourceProperties = record(items?.properties);
+  const evidence = record(sourceProperties?.evidence);
+  if (!evidence) throw new Error("Listing Risk provider evidence schema is unavailable");
+  evidence.type = "string";
+  delete evidence.nullable;
 }
 
 function exactKeys(value: Record<string, unknown>, expected: readonly string[], path: string, errors: string[]) {

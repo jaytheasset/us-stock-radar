@@ -5,16 +5,20 @@ import {
 } from "./geminiStructuredJson.ts";
 import {
   LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
+  normalizeListingRiskAnalyzerFactEligibleProviderResult,
   normalizeListingRiskAnalyzerProviderResult,
   type ListingRiskAnalyzerInput,
+  type ListingRiskAnalyzerProviderResult,
   type ListingRiskAnalyzerResult,
   validateListingRiskAnalyzerInput,
+  validateListingRiskAnalyzerProviderFactEligibility,
   validateListingRiskAnalyzerProviderResult,
 } from "../monitor/listingRiskAnalyzer.ts";
 import { buildListingRiskDomainAnalysisPrompt } from "../prompts/listingRiskDomainAnalysis.ts";
 import { buildListingRiskEvidenceRepairPrompt } from "../prompts/listingRiskEvidenceRepair.ts";
 import {
   applyListingRiskEvidenceRepair,
+  applyListingRiskEvidenceUnavailable,
   buildListingRiskEvidenceRepairPlan,
   LISTING_RISK_EVIDENCE_REPAIR_SCHEMA,
   readListingRiskEvidenceRepairOutput,
@@ -27,6 +31,8 @@ export type ListingRiskEvidenceRepairAttempt = {
   initial_evidence_lengths: Array<{ source_ref: string; length: number }>;
   repaired_evidence_lengths: Array<{ source_ref: string; length: number }>;
   semantic_facts_changed: false;
+  evidence_unavailable_source_refs: string[];
+  evidence_format_errors: string[];
   final_validation_errors: string[];
   run: GeminiStructuredJsonRun;
 };
@@ -123,7 +129,10 @@ export async function runListingRiskDomainAnalyzerPreview(
     const repairOutput = repairRun.parsed
       ? readListingRiskEvidenceRepairOutput(repairRun.parsed, repairPlan)
       : { output: null, errors: [repairRun.error || "Listing Risk evidence repair provider request failed"] };
-    if (!repairRun.ok || !repairRun.responseOk || !repairOutput.output) {
+    const evidenceUnavailableResult = repairRun.ok && repairRun.responseOk && repairRun.parsed && !repairOutput.output
+      ? applyListingRiskEvidenceUnavailable(repairPlan, repairRun.parsed, repairOutput.errors)
+      : null;
+    if (!repairRun.ok || !repairRun.responseOk || (!repairOutput.output && !evidenceUnavailableResult)) {
       repair = {
         invoked: true,
         max_attempts: 1,
@@ -134,6 +143,8 @@ export async function runListingRiskDomainAnalyzerPreview(
         })),
         repaired_evidence_lengths: [],
         semantic_facts_changed: false,
+        evidence_unavailable_source_refs: [],
+        evidence_format_errors: [],
         final_validation_errors: repairOutput.errors,
         run: repairRun,
       };
@@ -147,8 +158,12 @@ export async function runListingRiskDomainAnalyzerPreview(
       };
     }
 
-    providerResult = applyListingRiskEvidenceRepair(repairPlan, repairOutput.output);
-    const finalValidationErrors = validateListingRiskAnalyzerProviderResult(providerResult, input);
+    providerResult = repairOutput.output
+      ? applyListingRiskEvidenceRepair(repairPlan, repairOutput.output)
+      : evidenceUnavailableResult as ListingRiskAnalyzerProviderResult;
+    const finalValidationErrors = evidenceUnavailableResult
+      ? validateListingRiskAnalyzerProviderFactEligibility(providerResult, input)
+      : validateListingRiskAnalyzerProviderResult(providerResult, input);
     repair = {
       invoked: true,
       max_attempts: 1,
@@ -157,11 +172,15 @@ export async function runListingRiskDomainAnalyzerPreview(
         source_ref: target.source_ref,
         length: target.original_length,
       })),
-      repaired_evidence_lengths: repairOutput.output.evidence_repairs.map((item) => ({
+      repaired_evidence_lengths: (repairOutput.output?.evidence_repairs || []).map((item) => ({
         source_ref: item.source_ref,
         length: Array.from(item.evidence).length,
       })),
       semantic_facts_changed: false,
+      evidence_unavailable_source_refs: evidenceUnavailableResult
+        ? repairPlan.targets.map((target) => target.source_ref)
+        : [],
+      evidence_format_errors: evidenceUnavailableResult ? repairOutput.errors : [],
       final_validation_errors: finalValidationErrors,
       run: repairRun,
     };
@@ -177,7 +196,9 @@ export async function runListingRiskDomainAnalyzerPreview(
     }
   }
 
-  const result = normalizeListingRiskAnalyzerProviderResult(providerResult, input);
+  const result = repair?.evidence_unavailable_source_refs.length
+    ? normalizeListingRiskAnalyzerFactEligibleProviderResult(providerResult, input)
+    : normalizeListingRiskAnalyzerProviderResult(providerResult, input);
   if (!result) {
     return {
       stage: "validation_error",
