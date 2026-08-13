@@ -17,7 +17,13 @@ test("non-persisting preview returns standalone not_applicable and sends the dir
     model: "configured-model",
     runPrompt: async (value) => {
       requests.push(value);
-      return run({ status: "not_applicable", facts: [], as_of_facts: [], confidence: "unknown" });
+      return providerRun({
+        status: "not_applicable",
+        facts: [],
+        as_of: { availability: "unavailable" },
+        confidence: "unknown",
+        sources: [],
+      });
     },
   });
   assert.equal(result.stage, "complete");
@@ -29,11 +35,12 @@ test("non-persisting preview returns standalone not_applicable and sends the dir
 test("preview keeps invalid provider output separate from not_applicable", async () => {
   const result = await runListingRiskDomainAnalyzerPreview(input(), {
     apiKey: "test-key",
-    runPrompt: async () => run({
+    runPrompt: async () => providerRun({
       status: "not_applicable",
       facts: [{}],
-      as_of_facts: [],
+      as_of: { availability: "unavailable" },
       confidence: "unknown",
+      sources: [],
     }),
   });
   assert.equal(result.stage, "validation_error");
@@ -65,6 +72,10 @@ function input() {
     title: "Preview source",
     body_text: "Company announces a corporate action with no listing action.",
   });
+}
+
+function providerRun(transport: Record<string, unknown>) {
+  return run({ payload: JSON.stringify(transport) });
 }
 
 function run(

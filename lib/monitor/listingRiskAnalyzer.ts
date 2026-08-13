@@ -18,9 +18,10 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v7";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v8";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
+export const LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS = 24_000;
 
 export type ListingRiskAnalyzerStatus = "applicable" | "not_applicable";
 
@@ -125,74 +126,42 @@ type ListingRiskProviderProvenance = {
   as_of: string | null;
 };
 
-type ListingRiskProviderFact = ListingRiskProviderProvenance & {
+type ListingRiskProviderAvailableFact = ListingRiskProviderProvenance & {
   key: ProviderFactKey;
+  availability: "available";
   value: string;
   value_quality: ListingValueQuality | "not_applicable";
   date_status: (typeof LISTING_DATE_STATUSES)[number] | "not_applicable";
 };
 
+type ListingRiskProviderUnavailableFact = {
+  key: ProviderFactKey;
+  availability: "unavailable";
+};
+
+type ListingRiskProviderFact = ListingRiskProviderAvailableFact | ListingRiskProviderUnavailableFact;
+
 export type ListingRiskAnalyzerTransportResult = {
   status: ListingRiskAnalyzerStatus;
   facts: ListingRiskProviderFact[];
-  as_of_facts: Array<{
-    value: string;
-    value_quality: ListingValueQuality;
-    date_status: (typeof LISTING_DATE_STATUSES)[number];
-    source_ref: string;
-  }>;
+  as_of:
+    | {
+        availability: "available";
+        value: string;
+        value_quality: ListingValueQuality;
+        date_status: (typeof LISTING_DATE_STATUSES)[number];
+        source_ref: string;
+      }
+    | { availability: "unavailable" };
   confidence: Exclude<ListingFactConfidence, null> | "unknown";
+  sources: Array<{ source_ref: string; evidence: string | null }>;
 };
 
 export const LISTING_RISK_ANALYZER_PROVIDER_SCHEMA = {
   type: "object",
-  required: ["status", "facts", "as_of_facts", "confidence"],
+  required: ["payload"],
   properties: {
-    status: { type: "string", enum: ["applicable", "not_applicable"] },
-    facts: {
-      type: "array",
-      maxItems: LISTING_RISK_PROVIDER_FACT_KEYS.length,
-      items: {
-        type: "object",
-        required: [
-          "key",
-          "value",
-          "value_quality",
-          "date_status",
-          "origin",
-          "source_ref",
-          "evidence",
-          "confidence",
-          "as_of",
-        ],
-        properties: {
-          key: { type: "string" },
-          value: { type: "string" },
-          value_quality: { type: "string" },
-          date_status: { type: "string" },
-          origin: { type: "string", enum: ["source_stated", "domain_interpreted"] },
-          source_ref: { type: "string" },
-          evidence: { type: "string" },
-          confidence: { type: "string" },
-          as_of: { type: "string", nullable: true },
-        },
-      },
-    },
-    as_of_facts: {
-      type: "array",
-      maxItems: 1,
-      items: {
-        type: "object",
-        required: ["value", "value_quality", "date_status", "source_ref"],
-        properties: {
-          value: { type: "string" },
-          value_quality: { type: "string" },
-          date_status: { type: "string" },
-          source_ref: { type: "string" },
-        },
-      },
-    },
-    confidence: { type: "string" },
+    payload: { type: "string" },
   },
 } as const;
 
@@ -467,6 +436,34 @@ function validateFactsSourceIdentity(
   return errors;
 }
 
+export function parseListingRiskAnalyzerProviderEnvelope(value: unknown): {
+  transport: ListingRiskAnalyzerTransportResult | null;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const root = record(value);
+  if (!root) return { transport: null, errors: ["listing_risk_analyzer_provider_envelope must be an object"] };
+  exactKeys(root, ["payload"], "listing_risk_analyzer_provider_envelope", errors);
+  if (typeof root.payload !== "string" || !root.payload.trim()) {
+    errors.push("listing_risk_analyzer_provider_envelope.payload must be a non-empty string");
+  } else if (Array.from(root.payload).length > LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS) {
+    errors.push(`listing_risk_analyzer_provider_envelope.payload must be ${LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS} characters or fewer`);
+  }
+  if (errors.length || typeof root.payload !== "string") return { transport: null, errors };
+  try {
+    const parsed = parseJsonWithoutDuplicateKeys(root.payload);
+    if (!record(parsed)) {
+      return { transport: null, errors: ["listing_risk_analyzer_provider_envelope.payload must decode to an object"] };
+    }
+    return { transport: parsed as ListingRiskAnalyzerTransportResult, errors: [] };
+  } catch (error) {
+    return {
+      transport: null,
+      errors: [`listing_risk_analyzer_provider_envelope.payload is invalid JSON: ${error instanceof Error ? error.message : "unknown parse error"}`],
+    };
+  }
+}
+
 export function canonicalizeListingRiskAnalyzerTransportResult(
   value: unknown,
   input: ListingRiskAnalyzerInput,
@@ -486,13 +483,13 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     source_ref: null,
   });
   const unavailableDate = () => ({ ...unavailableText(), date_status: "unknown" as const });
-  const availableText = (fact: ListingRiskProviderFact) => ({
+  const availableText = (fact: ListingRiskProviderAvailableFact) => ({
     value: fact.value,
     availability: "available" as const,
     value_quality: fact.value_quality as ListingValueQuality,
     source_ref: fact.source_ref,
   });
-  const availableDate = (fact: ListingRiskProviderFact) => ({
+  const availableDate = (fact: ListingRiskProviderAvailableFact) => ({
     value: fact.value,
     availability: "available" as const,
     value_quality: fact.value_quality as ListingValueQuality,
@@ -501,16 +498,17 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
   });
   const text = (key: ProviderTextFactKey) => {
     const fact = providerFacts.get(key);
-    return fact ? availableText(fact) : unavailableText();
+    return fact?.availability === "available" ? availableText(fact) : unavailableText();
   };
   const date = (key: ProviderDateFactKey) => {
     const fact = providerFacts.get(key);
-    return fact ? availableDate(fact) : unavailableDate();
+    return fact?.availability === "available" ? availableDate(fact) : unavailableDate();
   };
   const continuedTrading = providerFacts.get("continued_trading_continues");
-  const asOf = transport.as_of_facts[0];
+  const asOf = transport.as_of.availability === "available" ? transport.as_of : null;
   const provenanceByPath = new Map<ListingFactPath, ListingRiskEventFacts["fact_provenance"][number]>();
   for (const row of transport.facts) {
+    if (row.availability !== "available") continue;
     const factPath = LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH[row.key];
     provenanceByPath.set(factPath, {
       fact_path: factPath,
@@ -526,25 +524,24 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     });
   }
 
-  const sourceRefs = new Set<string>();
-  for (const row of transport.facts) {
-    sourceRefs.add(row.source_ref);
-  }
-  if (asOf) sourceRefs.add(asOf.source_ref);
-  const sources = [...sourceRefs]
-    .sort((left, right) => left.localeCompare(right))
-    .map((sourceRef) => ({
+  const sources = [...transport.sources]
+    .sort((left, right) => left.source_ref.localeCompare(right.source_ref))
+    .map((source) => ({
       source_family: input.source_family,
       source_id: input.source_id,
       source_url: input.source_url,
-      source_ref: sourceRef,
-      evidence: null,
+      source_ref: source.source_ref,
+      evidence: source.evidence,
     }));
-  const eventKind = providerFacts.get("classification_event_kind") as ListingRiskProviderFact;
-  const eventOutcome = providerFacts.get("classification_event_outcome") as ListingRiskProviderFact;
+  const eventKind = providerFacts.get("classification_event_kind") as ListingRiskProviderAvailableFact;
+  const eventOutcome = providerFacts.get("classification_event_outcome") as ListingRiskProviderAvailableFact;
   const proceedingKind = providerFacts.get("proceeding_kind");
   const proceedingStatus = providerFacts.get("proceeding_status");
-  const proceedingSourceRef = proceedingKind?.source_ref || proceedingStatus?.source_ref || null;
+  const proceedingSourceRef = proceedingKind?.availability === "available"
+    ? proceedingKind.source_ref
+    : proceedingStatus?.availability === "available"
+      ? proceedingStatus.source_ref
+      : null;
 
   const facts: ListingRiskEventFacts = {
     version: LISTING_RISK_EVENT_FACTS_VERSION,
@@ -563,8 +560,8 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     listing_requirement: text("listing_requirement"),
     compliance_period: text("compliance_period"),
     proceeding: {
-      kind: (proceedingKind?.value || "unknown") as ListingRiskEventFacts["proceeding"]["kind"],
-      status: (proceedingStatus?.value || "unknown") as ListingRiskEventFacts["proceeding"]["status"],
+      kind: (proceedingKind?.availability === "available" ? proceedingKind.value : "unknown") as ListingRiskEventFacts["proceeding"]["kind"],
+      status: (proceedingStatus?.availability === "available" ? proceedingStatus.value : "unknown") as ListingRiskEventFacts["proceeding"]["status"],
       source_ref: proceedingSourceRef,
     },
     dates: {
@@ -577,6 +574,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     },
     continued_trading: {
       continues: continuedTrading
+        && continuedTrading.availability === "available"
         ? {
             value: continuedTrading.value === "true",
             availability: "available",
@@ -612,7 +610,7 @@ export function validateListingRiskAnalyzerTransportResult(
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_analyzer_transport_result must be an object"];
-  exactKeys(root, ["status", "facts", "as_of_facts", "confidence"], "listing_risk_analyzer_transport_result", errors);
+  exactKeys(root, ["status", "facts", "as_of", "confidence", "sources"], "listing_risk_analyzer_transport_result", errors);
   if (!oneOf(root.status, ["applicable", "not_applicable"])) {
     errors.push("listing_risk_analyzer_transport_result.status is invalid");
   }
@@ -620,8 +618,8 @@ export function validateListingRiskAnalyzerTransportResult(
     errors.push("listing_risk_analyzer_transport_result.facts must be an array");
     return errors;
   }
-  if (root.facts.length > LISTING_RISK_PROVIDER_FACT_KEYS.length) {
-    errors.push(`listing_risk_analyzer_transport_result.facts must contain at most ${LISTING_RISK_PROVIDER_FACT_KEYS.length} items`);
+  if (root.status === "applicable" && root.facts.length !== LISTING_RISK_PROVIDER_FACT_KEYS.length) {
+    errors.push(`applicable status requires exactly ${LISTING_RISK_PROVIDER_FACT_KEYS.length} facts`);
   }
   if (root.status === "not_applicable" && root.facts.length !== 0) {
     errors.push("not_applicable status requires an empty facts array");
@@ -629,37 +627,45 @@ export function validateListingRiskAnalyzerTransportResult(
   const sourceRefs = new Set(input.source_documents.map((document) => document.source_ref));
   const facts = validateTransportFactRows(root.facts, sourceRefs, errors);
   if (root.status === "applicable") {
-    for (const requiredKey of ["classification_event_kind", "classification_event_outcome"] as const) {
+    for (const requiredKey of LISTING_RISK_PROVIDER_FACT_KEYS) {
       if (!facts.has(requiredKey)) errors.push(`facts is missing required key ${requiredKey}`);
+    }
+    for (const requiredKey of ["classification_event_kind", "classification_event_outcome"] as const) {
+      if (facts.get(requiredKey)?.availability !== "available") {
+        errors.push(`facts key ${requiredKey} must be available`);
+      }
     }
     validateSharedFactSource(facts, ["classification_event_kind", "classification_event_outcome"], "classification", errors);
     validateSharedFactSource(facts, ["proceeding_kind", "proceeding_status"], "proceeding", errors);
   }
 
-  if (!Array.isArray(root.as_of_facts) || root.as_of_facts.length > 1) {
-    errors.push("as_of_facts must be an array containing at most one item");
-  } else if (root.as_of_facts.length === 1) {
-    const asOf = record(root.as_of_facts[0]);
-    if (!asOf) {
-      errors.push("as_of_facts[0] must be an object");
-    } else {
-      exactKeys(asOf, ["value", "value_quality", "date_status", "source_ref"], "as_of_facts[0]", errors);
-      if (!validDate(asOf.value)) errors.push("as_of_facts[0].value is invalid");
-      if (!oneOf(asOf.value_quality, LISTING_VALUE_QUALITIES)) errors.push("as_of_facts[0].value_quality is invalid");
-      if (!oneOf(asOf.date_status, LISTING_DATE_STATUSES)) errors.push("as_of_facts[0].date_status is invalid");
-      if (!nonEmptyText(asOf.source_ref) || !sourceRefs.has(asOf.source_ref)) {
-        errors.push("as_of_facts[0].source_ref must identify a supplied source document");
-      }
-    }
-  }
-  if (root.status === "not_applicable" && Array.isArray(root.as_of_facts) && root.as_of_facts.length !== 0) {
-    errors.push("not_applicable status requires an empty as_of_facts array");
+  validateTransportAsOf(root.as_of, sourceRefs, errors);
+  if (root.status === "not_applicable" && record(root.as_of)?.availability !== "unavailable") {
+    errors.push("not_applicable status requires unavailable as_of");
   }
   if (!oneOf(root.confidence, [...LISTING_FACT_CONFIDENCES, "unknown"])) {
     errors.push("confidence is invalid");
   }
   if (root.status === "not_applicable" && root.confidence !== "unknown") {
     errors.push("not_applicable status requires unknown confidence");
+  }
+  const catalogRefs = validateTransportSources(root.sources, sourceRefs, errors);
+  if (root.status === "not_applicable" && Array.isArray(root.sources) && root.sources.length !== 0) {
+    errors.push("not_applicable status requires an empty sources array");
+  }
+  if (root.status === "applicable") {
+    const citedRefs = new Set<string>();
+    for (const row of facts.values()) {
+      if (row.availability === "available" && typeof row.source_ref === "string") citedRefs.add(row.source_ref);
+    }
+    const asOf = record(root.as_of);
+    if (asOf?.availability === "available" && typeof asOf.source_ref === "string") citedRefs.add(asOf.source_ref);
+    for (const sourceRef of citedRefs) {
+      if (!catalogRefs.has(sourceRef)) errors.push(`sources is missing cited source_ref ${sourceRef}`);
+    }
+    for (const sourceRef of catalogRefs) {
+      if (!citedRefs.has(sourceRef)) errors.push(`sources contains uncited source_ref ${sourceRef}`);
+    }
   }
   return errors;
 }
@@ -683,17 +689,22 @@ function validateTransportFactRows(
       errors.push(`${rowPath} must be an object`);
       return;
     }
-    exactKeys(row, [
-      "key",
-      "value",
-      "value_quality",
-      "date_status",
-      "origin",
-      "source_ref",
-      "evidence",
-      "confidence",
-      "as_of",
-    ], rowPath, errors);
+    if (row.availability === "unavailable") {
+      exactKeys(row, ["key", "availability"], rowPath, errors);
+    } else {
+      exactKeys(row, [
+        "key",
+        "availability",
+        "value",
+        "value_quality",
+        "date_status",
+        "origin",
+        "source_ref",
+        "evidence",
+        "confidence",
+        "as_of",
+      ], rowPath, errors);
+    }
     const rowKey = typeof row.key === "string" ? row.key : null;
     if (!rowKey || !(LISTING_RISK_PROVIDER_FACT_KEYS as readonly string[]).includes(rowKey)) {
       errors.push(`${rowPath}.key is invalid`);
@@ -702,6 +713,11 @@ function validateTransportFactRows(
     } else {
       seen.set(rowKey, row);
     }
+    if (!oneOf(row.availability, ["available", "unavailable"])) {
+      errors.push(`${rowPath}.availability is invalid`);
+      return;
+    }
+    if (row.availability === "unavailable") return;
     if (!oneOf(row.origin, ["source_stated", "domain_interpreted"])) errors.push(`${rowPath}.origin is invalid`);
     if (!nonEmptyText(row.source_ref) || !sourceRefs.has(row.source_ref)) {
       errors.push(`${rowPath}.source_ref must identify a supplied source document`);
@@ -747,12 +763,61 @@ function validateSharedFactSource(
   errors: string[],
 ) {
   const sourceRefs = keys.flatMap((key) => {
-    const sourceRef = rows.get(key)?.source_ref;
+    const row = rows.get(key);
+    const sourceRef = row?.availability === "available" ? row.source_ref : null;
     return typeof sourceRef === "string" ? [sourceRef] : [];
   });
   if (new Set(sourceRefs).size > 1) {
     errors.push(`facts ${label} values must share one source_ref`);
   }
+}
+
+function validateTransportAsOf(value: unknown, sourceRefs: Set<string>, errors: string[]) {
+  const asOf = record(value);
+  if (!asOf) {
+    errors.push("as_of must be an object");
+    return;
+  }
+  if (asOf.availability === "unavailable") {
+    exactKeys(asOf, ["availability"], "as_of", errors);
+    return;
+  }
+  exactKeys(asOf, ["availability", "value", "value_quality", "date_status", "source_ref"], "as_of", errors);
+  if (asOf.availability !== "available") errors.push("as_of.availability is invalid");
+  if (!validDate(asOf.value)) errors.push("as_of.value is invalid");
+  if (!oneOf(asOf.value_quality, LISTING_VALUE_QUALITIES)) errors.push("as_of.value_quality is invalid");
+  if (!oneOf(asOf.date_status, LISTING_DATE_STATUSES)) errors.push("as_of.date_status is invalid");
+  if (!nonEmptyText(asOf.source_ref) || !sourceRefs.has(asOf.source_ref)) {
+    errors.push("as_of.source_ref must identify a supplied source document");
+  }
+}
+
+function validateTransportSources(value: unknown, sourceRefs: Set<string>, errors: string[]) {
+  const catalogRefs = new Set<string>();
+  if (!Array.isArray(value)) {
+    errors.push("sources must be an array");
+    return catalogRefs;
+  }
+  value.forEach((sourceValue, index) => {
+    const path = `sources[${index}]`;
+    const source = record(sourceValue);
+    if (!source) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    exactKeys(source, ["source_ref", "evidence"], path, errors);
+    if (!nonEmptyText(source.source_ref) || !sourceRefs.has(source.source_ref)) {
+      errors.push(`${path}.source_ref must identify a supplied source document`);
+    } else if (catalogRefs.has(source.source_ref)) {
+      errors.push(`${path}.source_ref must be unique`);
+    } else {
+      catalogRefs.add(source.source_ref);
+    }
+    if (!(source.evidence === null || nonEmptyText(source.evidence))) {
+      errors.push(`${path}.evidence must be a non-empty string or null`);
+    }
+  });
+  return catalogRefs;
 }
 
 export function normalizeListingRiskAnalyzerFactEligibleProviderResult(
@@ -807,4 +872,101 @@ function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+}
+
+function parseJsonWithoutDuplicateKeys(text: string): unknown {
+  let index = 0;
+  const fail = (message: string): never => {
+    throw new Error(`${message} at character ${index}`);
+  };
+  const skipWhitespace = () => {
+    while (/\s/.test(text[index] || "")) index += 1;
+  };
+  const parseString = () => {
+    if (text[index] !== '"') fail("JSON string must start with a quote");
+    const start = index;
+    index += 1;
+    while (index < text.length) {
+      const code = text.charCodeAt(index);
+      if (code < 0x20) fail("unescaped control character");
+      if (text[index] === "\\") {
+        index += 2;
+        continue;
+      }
+      if (text[index] === '"') {
+        index += 1;
+        try {
+          return JSON.parse(text.slice(start, index)) as string;
+        } catch {
+          fail("invalid JSON string escape");
+        }
+      }
+      index += 1;
+    }
+    return fail("unterminated JSON string");
+  };
+  const parseValue = (): unknown => {
+    skipWhitespace();
+    if (text[index] === '"') return parseString();
+    if (text[index] === "{") {
+      index += 1;
+      skipWhitespace();
+      const result = Object.create(null) as Record<string, unknown>;
+      const seen = new Set<string>();
+      if (text[index] === "}") {
+        index += 1;
+        return result;
+      }
+      while (true) {
+        skipWhitespace();
+        const key = parseString();
+        skipWhitespace();
+        if (seen.has(key)) fail(`duplicate key ${JSON.stringify(key)}`);
+        seen.add(key);
+        if (text[index] !== ":") fail("missing colon");
+        index += 1;
+        result[key] = parseValue();
+        skipWhitespace();
+        if (text[index] === "}") {
+          index += 1;
+          return result;
+        }
+        if (text[index] !== ",") fail("missing comma");
+        index += 1;
+      }
+    }
+    if (text[index] === "[") {
+      index += 1;
+      skipWhitespace();
+      const result: unknown[] = [];
+      if (text[index] === "]") {
+        index += 1;
+        return result;
+      }
+      while (true) {
+        result.push(parseValue());
+        skipWhitespace();
+        if (text[index] === "]") {
+          index += 1;
+          return result;
+        }
+        if (text[index] !== ",") fail("missing comma");
+        index += 1;
+      }
+    }
+    for (const [token, parsed] of [["true", true], ["false", false], ["null", null]] as const) {
+      if (text.startsWith(token, index)) {
+        index += token.length;
+        return parsed;
+      }
+    }
+    const number = text.slice(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+    if (!number) return fail("invalid JSON value");
+    index += number[0].length;
+    return Number(number[0]);
+  };
+  const result = parseValue();
+  skipWhitespace();
+  if (index !== text.length) fail("trailing content");
+  return result;
 }

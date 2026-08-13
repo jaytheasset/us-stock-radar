@@ -8,6 +8,7 @@ import {
   LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
   normalizeListingRiskAnalyzerFactEligibleProviderResult,
   normalizeListingRiskAnalyzerProviderResult,
+  parseListingRiskAnalyzerProviderEnvelope,
   type ListingRiskAnalyzerInput,
   type ListingRiskAnalyzerProviderResult,
   type ListingRiskAnalyzerResult,
@@ -104,7 +105,17 @@ export async function runListingRiskDomainAnalyzerPreview(
     };
   }
 
-  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(run.parsed, input);
+  const envelope = parseListingRiskAnalyzerProviderEnvelope(run.parsed);
+  if (!envelope.transport) {
+    return {
+      stage: "validation_error",
+      result: null,
+      run,
+      error: envelope.errors.join("; "),
+      validation_errors: envelope.errors,
+    };
+  }
+  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(envelope.transport, input);
   if (!canonicalized.result) {
     return {
       stage: "validation_error",

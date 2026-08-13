@@ -18,6 +18,7 @@ import {
   type ListingRiskEvidenceRepairPlan,
 } from "./listingRiskEvidenceRepair.ts";
 import {
+  LISTING_RISK_PROVIDER_FACT_KEYS,
   type ListingRiskAnalyzerInput,
   validateListingRiskAnalyzerProviderResult,
 } from "./listingRiskAnalyzer.ts";
@@ -101,7 +102,7 @@ test("successful repair changes only evidence and passes canonical validation", 
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
+    runPrompt: async () => runProvider(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async (request) => {
       repairCalls += 1;
       assert.equal(request.responseSchema, LISTING_RISK_EVIDENCE_REPAIR_SCHEMA);
@@ -125,7 +126,7 @@ test("repair failure from too-long evidence preserves facts with unavailable evi
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
+    runPrompt: async () => runProvider(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(repairItems(repairPlan(analyzerInput), longEvidence));
@@ -149,7 +150,7 @@ test("a partially valid bounded repair keeps valid fact evidence and isolates th
   mixed.evidence_repairs[0].evidence = shortEvidence;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
+    runPrompt: async () => runProvider(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => run(mixed),
   });
   assert.equal(result.stage, "complete");
@@ -168,7 +169,7 @@ test("repair failure from non-exact evidence preserves facts with not_exact_span
   const joined = "Nasdaq issued notice. Compliance was restored.";
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(transport(analyzerInput, joined)),
+    runPrompt: async () => runProvider(transport(analyzerInput, joined)),
     runRepairPrompt: async () => run({
       evidence_repairs: ["classification.event_kind", "classification.event_outcome"].map((factPath) => ({
         target_key: `fact:${factPath}`,
@@ -190,7 +191,7 @@ test("repair null output marks evidence not_provided after exactly one bounded a
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(transport(analyzerInput, longEvidence)),
+    runPrompt: async () => runProvider(transport(analyzerInput, longEvidence)),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(repairItems(repairPlan(analyzerInput), null));
@@ -224,7 +225,7 @@ test("initial provider null evidence cannot bypass repair as canonical unavailab
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
-    runPrompt: async () => run(providerTransport),
+    runPrompt: async () => runProvider(providerTransport),
     runRepairPrompt: async () => {
       repairCalls += 1;
       return run(null);
@@ -238,12 +239,12 @@ test("initial provider null evidence cannot bypass repair as canonical unavailab
 test("valid applicable and not_applicable results bypass repair", async () => {
   for (const parsed of [
     transport(input(), shortEvidence),
-    { status: "not_applicable", facts: [], as_of_facts: [], confidence: "unknown" },
+    { status: "not_applicable", facts: [], as_of: { availability: "unavailable" }, confidence: "unknown", sources: [] },
   ]) {
     let repairCalls = 0;
     const result = await runListingRiskDomainAnalyzerPreview(input(), {
       apiKey: "test-key",
-      runPrompt: async () => run(parsed),
+      runPrompt: async () => runProvider(parsed),
       runRepairPrompt: async () => {
         repairCalls += 1;
         return run(null);
@@ -302,6 +303,7 @@ function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
   const ref = analyzerInput.source_documents[0].source_ref;
   const provenance = (key: "classification_event_kind" | "classification_event_outcome", value: string) => ({
     key,
+    availability: "available" as const,
     value,
     value_quality: "not_applicable" as const,
     date_status: "not_applicable" as const,
@@ -316,9 +318,13 @@ function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
     facts: [
       provenance("classification_event_kind", "other"),
       provenance("classification_event_outcome", "unknown"),
+      ...LISTING_RISK_PROVIDER_FACT_KEYS
+        .filter((key) => key !== "classification_event_kind" && key !== "classification_event_outcome")
+        .map((key) => ({ key, availability: "unavailable" as const })),
     ],
-    as_of_facts: [],
+    as_of: { availability: "unavailable" as const },
     confidence: "high" as const,
+    sources: [{ source_ref: ref, evidence: null }],
   };
 }
 
@@ -396,4 +402,8 @@ function run(parsed: Record<string, unknown> | null): GeminiStructuredJsonRun {
     usage: null,
     body: null,
   };
+}
+
+function runProvider(transport: Record<string, unknown>): GeminiStructuredJsonRun {
+  return run({ payload: JSON.stringify(transport) });
 }
