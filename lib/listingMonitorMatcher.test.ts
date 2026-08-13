@@ -222,16 +222,19 @@ test("AND aggregation reuses Offering precedence and the event wrapper reads off
   assert.deepEqual(eventResult.evaluations.map((evaluation) => evaluation.result.status), ["match", "match"]);
 });
 
-test("ATPC and CUPR reader-shaped acceptance fixtures produce concrete deterministic results", () => {
+test("ATPC and CUPR captured official-reader facts produce concrete deterministic results", () => {
+  const evaluationDate = "2026-07-01";
   const atpc = availableCurrent();
-  setDeadline(atpc, "2026-08-20");
+  setDeadline(atpc, "2026-07-27");
   assert.deepEqual([
-    evaluate(atpc, [
+    evaluateListingMonitorConditions(atpc, [
       { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
       { key: "listing.event_outcome", operator: "eq", value: "adverse" },
-      { key: "listing.compliance_deadline", operator: "within_days", value: 6 },
-    ]).status,
-    evaluate(atpc, [{ key: "listing.compliance_deadline", operator: "within_days", value: 5 }]).status,
+      { key: "listing.compliance_deadline", operator: "within_days", value: 26 },
+    ], { evaluationDate }).status,
+    evaluateListingMonitorConditions(atpc, [
+      { key: "listing.compliance_deadline", operator: "within_days", value: 25 },
+    ], { evaluationDate }).status,
   ], ["match", "no_match"]);
 
   const cupr = availableCurrent();
@@ -240,14 +243,18 @@ test("ATPC and CUPR reader-shaped acceptance fixtures produce concrete determini
   cupr.facts.classification.event_outcome = "recovered";
   cupr.facts.proceeding.kind = "hearing";
   cupr.facts.proceeding.status = "not_pursued";
+  cupr.facts.dates.hearing_date.value = "2026-07-07";
   assert.deepEqual([
-    evaluate(cupr, [
+    evaluateListingMonitorConditions(cupr, [
       { key: "listing.event_kind", operator: "eq", value: "compliance_recovery" },
       { key: "listing.event_outcome", operator: "eq", value: "recovered" },
+      { key: "listing.hearing_date", operator: "within_days", value: 6 },
       { key: "listing.proceeding_kind", operator: "eq", value: "hearing" },
       { key: "listing.proceeding_status", operator: "eq", value: "not_pursued" },
-    ]).status,
-    evaluate(cupr, [{ key: "listing.event_outcome", operator: "eq", value: "adverse" }]).status,
+    ], { evaluationDate }).status,
+    evaluateListingMonitorConditions(cupr, [
+      { key: "listing.hearing_date", operator: "within_days", value: 5 },
+    ], { evaluationDate }).status,
   ], ["match", "no_match"]);
 });
 
