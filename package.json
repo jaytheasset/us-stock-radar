@@ -53,6 +53,8 @@
     "verify:monitor-foundation": "node --test --experimental-strip-types lib/monitor/conditionRegistry.test.ts lib/monitor/persistence.test.ts lib/monitor/listingRiskPersistence.test.ts",
     "verify:listing-monitor-persistence": "node --test --experimental-strip-types lib/monitor/listingMonitorPersistence.test.ts",
     "verify:listing-monitor-persistence:local": "node --experimental-strip-types scripts/verify-listing-monitor-persistence-local.mjs",
+    "verify:listing-monitor-alert": "node --test --experimental-strip-types lib/monitor/listingMonitorAlertConsumer.test.ts lib/monitor/genericMonitorProductionFanout.test.ts",
+    "verify:listing-monitor-alert:local": "node --experimental-strip-types scripts/verify-listing-monitor-alert-e2e-local.mjs",
     "verify:minimal-offering-monitor": "node --test --experimental-strip-types lib/minimalOfferingMonitor.test.ts",
     "verify:offering-matcher": "node --test --experimental-strip-types lib/offeringMonitorMatcher.test.ts",
     "verify:async-monitor-foundation": "node --test --experimental-strip-types lib/offeringMonitorJobFoundation.test.ts",

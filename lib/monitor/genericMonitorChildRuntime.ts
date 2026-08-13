@@ -17,6 +17,10 @@ import {
   adaptSec8k6kListingRiskSource,
 } from "./listingRiskSourceAdapters.ts";
 import { processGenericMonitorChildWithDependencies } from "./genericMonitorChildProcessor.ts";
+import {
+  consumeListingMonitorAlertsForEvent,
+  type ListingMonitorAlertConsumerResult,
+} from "./listingMonitorAlertConsumer.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -32,6 +36,8 @@ export async function processGenericMonitorChild(
       identity: GenericMonitorChildIdentity;
       result: unknown;
     }) => Promise<ListingRiskPersistenceResult>;
+    consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
+      Promise<ListingMonitorAlertConsumerResult>;
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
@@ -41,6 +47,8 @@ export async function processGenericMonitorChild(
     runAnalyzer: dependencies.runListingRiskAnalyzer || runListingRiskDomainAnalyzerPreview,
     persist: dependencies.persistListingRisk
       || ((input) => persistListingRiskAnalyzerResult(input)),
+    consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
+      || consumeListingMonitorAlertsForEvent,
   });
 }
 

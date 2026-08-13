@@ -57,6 +57,10 @@ export type ListingMonitorRepository = Readonly<{
   delete(ownerId: string, monitorId: string): Promise<RepositoryResult>;
 }>;
 
+export type ListingMonitorConsumerRepository = Readonly<{
+  listActivePage(offset: number, limit: number): Promise<RepositoryResult>;
+}>;
+
 export class ListingMonitorPersistenceError extends Error {
   readonly code:
     | "listing_monitor_invalid"
@@ -112,6 +116,40 @@ export async function listActiveListingMonitorsForOwner(
   repository?: ListingMonitorRepository,
 ): Promise<ListingMonitorListResult> {
   return listOwnedMonitors(ownerId, true, repository);
+}
+
+/**
+ * Internal service-only read for the post-canonical Listing consumer. This is
+ * intentionally not owner-parameterized and is not connected to a public API.
+ * Stored rows still pass the same fail-closed Persistence V1 validation used by
+ * owner reads, and pagination avoids silently dropping monitors at the Data API
+ * row limit.
+ */
+export async function listActiveListingMonitorsForConsumer(
+  repository?: ListingMonitorConsumerRepository,
+): Promise<ListingMonitorListResult> {
+  const resolved = repository || await resolveConsumerRepository();
+  const monitors: ListingMonitor[] = [];
+  const diagnostics: ListingMonitorDiagnostic[] = [];
+  const pageSize = 1000;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const result = await resolved.listActivePage(offset, pageSize);
+    assertRepositoryResult(result, "active Listing monitor consumer list", "listing_monitor_read_failed");
+    const rows = readRows(result.data);
+    for (const row of rows) {
+      const ownerId = typeof row.user_id === "string" ? row.user_id : "";
+      const parsed = parseStoredMonitor(row, ownerId);
+      if (parsed.ok) {
+        if (parsed.monitor.isActive) monitors.push(parsed.monitor);
+      } else {
+        diagnostics.push(parsed.diagnostic);
+      }
+    }
+    if (rows.length < pageSize) break;
+  }
+
+  return { monitors, diagnostics };
 }
 
 export async function readListingMonitorForOwner(
@@ -277,6 +315,7 @@ function parseStoredMonitor(
   }
   const errors: string[] = [];
   if (!UUID_PATTERN.test(id)) errors.push("monitor_id_invalid");
+  if (!UUID_PATTERN.test(ownerId)) errors.push("owner_invalid");
   if (row.user_id !== ownerId) errors.push("owner_invalid");
   if (row.domain !== "listing") errors.push("domain_invalid");
   if (typeof row.is_active !== "boolean") errors.push("is_active_invalid");
@@ -385,6 +424,21 @@ async function resolveRepository(repository?: ListingMonitorRepository): Promise
       id: `eq.${monitorId}`,
       user_id: `eq.${ownerId}`,
       domain: "eq.listing",
+    }),
+  };
+}
+
+async function resolveConsumerRepository(): Promise<ListingMonitorConsumerRepository> {
+  const supabase = await import("../supabase.ts");
+  const fields = "id,user_id,domain,conditions,is_active,created_at,updated_at";
+  return {
+    listActivePage: (offset, limit) => supabase.supabaseSelect("listing_monitors", {
+      select: fields,
+      domain: "eq.listing",
+      is_active: "eq.true",
+      order: "created_at.asc,id.asc",
+      offset: String(offset),
+      limit: String(limit),
     }),
   };
 }
