@@ -1,9 +1,7 @@
 import {
   LISTING_RISK_ANALYZER_PROMPT_VERSION,
-  LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
   LISTING_RISK_PROVIDER_FACT_KEYS,
   type ListingRiskAnalyzerInput,
-  type ListingRiskAnalyzerTransportResult,
 } from "../monitor/listingRiskAnalyzer.ts";
 import {
   LISTING_AVAILABILITIES,
@@ -105,19 +103,26 @@ export const LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF = "example_listing_
 export const LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT =
   "On March 2, 2030, Example Issuer received a deficiency notice from the Example Exchange stating that its common shares did not meet Listing Rule X-1, which requires a minimum closing price of 1.00. Trading continues on the Example Exchange while the issuer has until September 1, 2030 to regain compliance.";
 
-const availableFact = (
+const coreFact = (
   key: (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number],
   value: string,
-  value_quality: "exact" | "derived" | "estimated" | "unknown" | "not_applicable",
   date_status: "occurred" | "scheduled" | "conditional" | "unknown" | "not_applicable",
-  origin: "source_stated" | "domain_interpreted",
-  evidence: string,
 ) => ({
   key,
   availability: "available" as const,
   value,
-  value_quality,
   date_status,
+  source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+});
+
+const agentFact = (
+  key: (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number],
+  value_quality: "exact" | "derived" | "estimated" | "unknown" | "not_applicable",
+  origin: "source_stated" | "domain_interpreted",
+  evidence: string,
+) => ({
+  key,
+  value_quality,
   origin,
   source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
   evidence,
@@ -130,39 +135,31 @@ const unavailableFact = (key: (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number]) 
   availability: "unavailable" as const,
 });
 
-export const LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE = {
+export const LISTING_RISK_DOMAIN_ANALYZER_SHORT_EXAMPLE = {
   status: "applicable",
-  facts: [
-    availableFact("classification_event_kind", "deficiency_notice", "not_applicable", "not_applicable", "domain_interpreted", "received a deficiency notice"),
-    availableFact("classification_event_outcome", "adverse", "not_applicable", "not_applicable", "domain_interpreted", "did not meet Listing Rule X-1"),
-    unavailableFact("proceeding_kind"),
-    unavailableFact("proceeding_status"),
-    availableFact("exchange", "Example Exchange", "exact", "not_applicable", "source_stated", "Example Exchange"),
-    availableFact("affected_security_title", "common shares", "exact", "not_applicable", "source_stated", "common shares"),
-    unavailableFact("affected_security_ticker"),
-    availableFact("affected_security_security_basis", "common_equity", "derived", "not_applicable", "domain_interpreted", "common shares"),
-    availableFact("listing_rule", "Listing Rule X-1", "exact", "not_applicable", "source_stated", "Listing Rule X-1"),
-    availableFact("listing_requirement", "minimum closing price of 1.00", "exact", "not_applicable", "source_stated", "requires a minimum closing price of 1.00"),
-    unavailableFact("compliance_period"),
-    availableFact("continued_trading_venue", "Example Exchange", "exact", "not_applicable", "source_stated", "Trading continues on the Example Exchange"),
-    availableFact("notice_date", "2030-03-02", "exact", "occurred", "source_stated", "On March 2, 2030"),
-    availableFact("compliance_deadline", "2030-09-01", "exact", "scheduled", "source_stated", "until September 1, 2030 to regain compliance"),
-    unavailableFact("hearing_date"),
-    unavailableFact("appeal_deadline"),
-    unavailableFact("trading_suspension_date"),
-    unavailableFact("removal_effective_date"),
-    availableFact("continued_trading_continues", "true", "exact", "not_applicable", "source_stated", "Trading continues"),
+  core_facts: [
+    coreFact("classification_event_kind", "deficiency_notice", "not_applicable"),
+    coreFact("notice_date", "2030-03-02", "occurred"),
+    coreFact("compliance_deadline", "2030-09-01", "scheduled"),
+    unavailableFact("exchange"),
   ],
-  as_of: {
-    availability: "available",
-    value: "2030-03-02",
-    value_quality: "exact",
-    date_status: "occurred",
-    source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+  agent_context: {
+    fact_provenance: [
+      agentFact("classification_event_kind", "not_applicable", "domain_interpreted", "received a deficiency notice"),
+      agentFact("notice_date", "exact", "source_stated", "On March 2, 2030"),
+      agentFact("compliance_deadline", "exact", "source_stated", "until September 1, 2030 to regain compliance"),
+    ],
+    as_of: {
+      availability: "available",
+      value: "2030-03-02",
+      value_quality: "exact",
+      date_status: "occurred",
+      source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+    },
+    confidence: "high",
+    sources: [{ source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF }],
   },
-  confidence: "high",
-  sources: [{ source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF, evidence: null }],
-} as const satisfies ListingRiskAnalyzerTransportResult;
+} as const;
 
 export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "You are the Listing Risk Domain Monitor Analyzer. Analyze one supplied source for listing-related event facts newly established by that source.",
@@ -175,24 +172,26 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "A merger cleanup, security substitution, successor listing, or voluntary withdrawal can be applicable and may be procedural; do not force adverse merely because a security is removed.",
   "Keep notice date, compliance deadline, hearing date, appeal deadline, trading suspension date, and removal effective date distinct. Never copy one date into another role. Use unavailable fields when the source does not establish a value, rule, security basis, venue, or date.",
   "The LLM owns listing meaning. Do not infer applicability from event_type, monitor_routes, source family, form, exchange names, rule numbers, keywords, or regex-like word matches.",
-  "The provider response object has exactly one payload string. Write one complete JSON object as the payload string. Do not use markdown fences, prose, explanations, prefixes, suffixes, or JSON embedded inside another inner string. The decoded payload root has exactly status, facts, as_of, confidence, and sources.",
-  "For applicable, return all 19 canonical fact keys exactly once in facts, each with explicit availability available or unavailable. Never omit a known fact and never invent another key. Return every source-supported condition-relevant listing_risk_event_facts_v2 value, including supported exchange, rule or requirement, affected security and security basis, proceeding, distinct date roles, and continued trading. Continue through all supported facts; do not stop after classification or after finding evidence.",
-  "For not_applicable, return status not_applicable, facts [], sources [], as_of {availability: unavailable}, and confidence unknown. Do not create fake fact rows, sources, or evidence for a not_applicable result.",
+  "Return one complete JSON object directly. Do not use markdown fences, prose, explanations, prefixes, suffixes, a payload wrapper, or JSON embedded inside a string. The root has exactly status, core_facts, and agent_context.",
+  "Core Monitor Facts are the condition-evaluation layer. For applicable, return all 19 canonical fact keys exactly once in core_facts, each with explicit availability available or unavailable. Never omit a known fact and never invent another key. Return every source-supported condition-relevant listing_risk_event_facts_v2 value, including supported exchange, rule or requirement, affected security and security basis, proceeding, distinct date roles, compliance period, and continued trading. Continue through all supported facts; do not stop after classification or after finding evidence.",
+  "For not_applicable, return status not_applicable, core_facts [], and agent_context {fact_provenance: [], as_of: {availability: unavailable}, confidence: unknown, sources: []}. Do not create fake facts, provenance, sources, or evidence.",
   "Distinguish semantic inference from schema-required mechanical representation. You may represent an explicitly source-supported value in the exact required schema shape, but must not change, complete, correct, calculate, or supplement its semantic value.",
   "Use only supplied source_ref values, and each source_ref must identify the exact source_document that supports that fact. Deterministic application code copies the analyzer input source_family, source_id, and source_url into the unchanged canonical sources array; do not output or infer source identity fields.",
-  "Canonical fact_provenance is the authoritative fact-level provenance layer. Deterministic application code maps each known generic key exhaustively to one stable fact_path. Duplicate, missing, and unknown keys are invalid. classification_event_kind and classification_event_outcome must be available for applicable results. For every other unsupported key return exactly {key, availability: unavailable}; application code creates only that explicitly authorized canonical unavailable envelope. Never mark a supported condition-relevant fact unavailable. For unknown proceeding meaning, return proceeding_kind and proceeding_status as unavailable rather than inventing a value.",
+  "Agent Context is separate from Core Monitor Facts. agent_context has exactly fact_provenance, as_of, confidence, and sources. Canonical fact_provenance is authoritative for fact-level provenance; deterministic application code maps each known key to one stable fact_path and joins source_ref to the canonical source catalog for source_url. Agent Context never replaces or changes a Core value.",
+  "Duplicate, missing, and unknown Core keys are invalid. classification_event_kind and classification_event_outcome must be available for applicable results. For every other unsupported key return exactly {key, availability: unavailable}; application code creates only that explicitly authorized canonical unavailable envelope. Never mark a supported condition-relevant fact unavailable. For unknown proceeding meaning, return proceeding_kind and proceeding_status as unavailable rather than inventing a value.",
   "Use each generic key at most once: classification_event_kind, classification_event_outcome, proceeding_kind, proceeding_status, exchange, affected_security_title, affected_security_ticker, affected_security_security_basis, listing_rule, listing_requirement, compliance_period, continued_trading_venue, notice_date, compliance_deadline, hearing_date, appeal_deadline, trading_suspension_date, removal_effective_date, continued_trading_continues. Array order has no meaning. Do not create rows for root confidence, availability, source_ref, evidence status, or other metadata.",
-  "Every available fact row has exactly key, availability, value, value_quality, date_status, origin, source_ref, evidence, confidence, and as_of. Set availability to available. value is always a JSON string. For continued_trading_continues use exactly the string true or false. For date keys use YYYY-MM-DD. For classification and proceeding keys set value_quality and date_status to not_applicable. For text and boolean keys set date_status to not_applicable. For date keys preserve the LLM-owned date_status. Preserve LLM-owned value_quality independently from origin; application code validates these fields by key and never infers one from another. Every unavailable row has exactly key and availability and no semantic or provenance fields.",
+  "Every available core_facts row has exactly key, availability, value, date_status, and source_ref. value is always a JSON string. For continued_trading_continues use exactly the string true or false. For date keys use YYYY-MM-DD and preserve LLM-owned date_status. For classification, proceeding, text, and boolean keys use date_status not_applicable. Every unavailable Core row has exactly key and availability.",
+  "For every available Core row, return exactly one agent_context.fact_provenance row with exactly key, value_quality, origin, source_ref, evidence, confidence, and as_of. It must use the same key and source_ref as its Core row. Do not create provenance for unavailable Core rows. For classification and proceeding keys use value_quality not_applicable; all other keys use one canonical value_quality. Preserve value_quality independently from origin.",
   LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY,
   "Set origin source_stated when the fact value is directly stated by the source. Set origin domain_interpreted when Listing-domain meaning or normalization is required, including classification and semantic security-basis normalization. value_quality and origin are independent: value_quality derived does not mean deterministic_derived. Never output deterministic_derived; only deterministic application code may create that origin with a formula and input facts.",
-  "Every fact row source_ref must identify the exact source_document supporting that one fact. Its evidence must be the shortest unambiguous exact span sufficient to verify that fact, not a general event summary. Deterministic application code maps each row to stable fact_path and fills evidence_status available, evidence_issue null, formula_id null, and an empty input_fact_paths array without changing semantic values.",
+  "Every available Core and matching provenance source_ref must identify the exact source_document supporting that fact. Evidence must be the shortest unambiguous exact span sufficient to verify only that fact, not a general event summary. Deterministic application code maps each key to stable fact_path and mechanically records evidence availability or issue without changing Core facts.",
   "For each evidence value, select and copy exactly one continuous span verbatim from the cited source_document.text. The hard runtime contract is source_document.text.includes(evidence) === true.",
   "Evidence copying is character-for-character: do not change or normalize whitespace, line breaks, case, punctuation, quotation marks, apostrophes, hyphens or dashes, Unicode characters, numbers, or date formatting. Do not retype, paraphrase, summarize, correct grammar, join non-contiguous passages, or delete words from the middle of a span.",
   "A complete sentence is not required. Select the smallest useful supporting span, with a practical target of 150 to 280 characters; shorter evidence is allowed, and the hard maximum is 520 characters.",
-  "Every available fact, date, classification, and proceeding row must cite a supplied source_ref. Root as_of remains LLM-owned: return either exactly {availability: unavailable} or an available object with exactly availability, value, value_quality, date_status, and source_ref. Never infer as_of from another date.",
-  "For applicable, sources is the exact cited source catalog. Include each source_ref cited by an available fact or available as_of exactly once and no uncited source_ref. Each source row has exactly source_ref and evidence. source_ref must be supplied. evidence is either null or one exact contiguous source-level span; fact-level evidence remains authoritative for individual facts. Application code copies source_family, source_id, and source_url from the analyzer input and never asks you to infer them.",
-  `Complete educational applicable inner JSON example (the example source_document.text is ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT)}): ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_APPLICABLE_EXAMPLE)}`,
-  "Do not guess missing values. Do not calculate, correct, replace, or supply fallback fact values. Return only the single payload string matching this inner JSON contract.",
+  "Every available Core fact and matching provenance row must cite a supplied source_ref. Root agent_context.as_of remains LLM-owned: return either exactly {availability: unavailable} or an available object with exactly availability, value, value_quality, date_status, and source_ref. Never infer as_of from another date.",
+  "For applicable, agent_context.sources is the exact cited source catalog. Include each source_ref cited by an available Core fact or available as_of exactly once and no uncited source_ref. Each source row has exactly source_ref. Application code copies source_family, source_id, source_url, and null source-level compatibility evidence from the analyzer input; fact-level evidence is authoritative.",
+  `Short educational row example only, not a complete response; a real applicable response must still include all 19 Core keys and every matching provenance row (example source_document.text is ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT)}): ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_SHORT_EXAMPLE)}`,
+  "Do not guess missing values. Do not calculate, correct, replace, or supply fallback fact values. Return only the direct JSON object matching this contract.",
 ].join("\n");
 
 export function buildListingRiskDomainAnalysisPrompt(input: ListingRiskAnalyzerInput) {
@@ -205,7 +204,7 @@ export function buildListingRiskDomainAnalysisPrompt(input: ListingRiskAnalyzerI
       json_schema: {
         name: "listing_risk_domain_analyzer_result",
         strict: true as const,
-        schema: LISTING_RISK_ANALYZER_PROVIDER_SCHEMA,
+        schema: { type: "object" as const },
       },
     },
   };

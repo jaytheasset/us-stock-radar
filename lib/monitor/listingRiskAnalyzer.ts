@@ -7,6 +7,7 @@ import {
   LISTING_PROCEEDING_KINDS,
   LISTING_PROCEEDING_STATUSES,
   LISTING_RISK_EVENT_FACTS_VERSION,
+  LISTING_SOURCE_EVIDENCE_MAX_LENGTH,
   LISTING_VALUE_QUALITIES,
   type ListingFactConfidence,
   type ListingFactOrigin,
@@ -18,7 +19,7 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v9";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v10";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 export const LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS = 24_000;
@@ -118,98 +119,49 @@ type ProviderTextFactKey = (typeof LISTING_RISK_PROVIDER_TEXT_FACT_KEYS)[number]
 type ProviderDateFactKey = (typeof LISTING_RISK_PROVIDER_DATE_FACT_KEYS)[number];
 type ProviderFactKey = (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number];
 
-type ListingRiskProviderProvenance = {
+type ListingRiskProviderAgentFactContext = {
+  key: ProviderFactKey;
+  value_quality: ListingValueQuality | "not_applicable";
   origin: Exclude<ListingFactOrigin, "deterministic_derived">;
   source_ref: string;
-  evidence: string;
+  evidence: string | null;
   confidence: Exclude<ListingFactConfidence, null>;
   as_of: string | null;
 };
 
-type ListingRiskProviderAvailableFact = ListingRiskProviderProvenance & {
+type ListingRiskProviderAvailableCoreFact = {
   key: ProviderFactKey;
   availability: "available";
   value: string;
-  value_quality: ListingValueQuality | "not_applicable";
   date_status: (typeof LISTING_DATE_STATUSES)[number] | "not_applicable";
+  source_ref: string;
 };
 
-type ListingRiskProviderUnavailableFact = {
+type ListingRiskProviderUnavailableCoreFact = {
   key: ProviderFactKey;
   availability: "unavailable";
 };
 
-type ListingRiskProviderFact = ListingRiskProviderAvailableFact | ListingRiskProviderUnavailableFact;
+type ListingRiskProviderCoreFact = ListingRiskProviderAvailableCoreFact | ListingRiskProviderUnavailableCoreFact;
 
 export type ListingRiskAnalyzerTransportResult = {
   status: ListingRiskAnalyzerStatus;
-  facts: ListingRiskProviderFact[];
-  as_of:
-    | {
-        availability: "available";
-        value: string;
-        value_quality: ListingValueQuality;
-        date_status: (typeof LISTING_DATE_STATUSES)[number];
-        source_ref: string;
-      }
-    | { availability: "unavailable" };
-  confidence: Exclude<ListingFactConfidence, null> | "unknown";
-  sources: Array<{ source_ref: string; evidence: string | null }>;
+  core_facts: ListingRiskProviderCoreFact[];
+  agent_context: {
+    fact_provenance: ListingRiskProviderAgentFactContext[];
+    as_of:
+      | {
+          availability: "available";
+          value: string;
+          value_quality: ListingValueQuality;
+          date_status: (typeof LISTING_DATE_STATUSES)[number];
+          source_ref: string;
+        }
+      | { availability: "unavailable" };
+    confidence: Exclude<ListingFactConfidence, null> | "unknown";
+    sources: Array<{ source_ref: string }>;
+  };
 };
-
-export const LISTING_RISK_ANALYZER_PROVIDER_SCHEMA = {
-  type: "object",
-  required: ["payload"],
-  properties: {
-    payload: { type: "string" },
-  },
-} as const;
-
-/**
- * Gemini accepts an OpenAPI-like response-schema subset. This is a mechanical
- * dialect conversion of the canonical Listing facts schema, not a second fact
- * contract: runtime validation still uses validateListingRiskEventFacts().
- */
-export function toGeminiResponseSchema(schema: Record<string, unknown>): Record<string, unknown> {
-  const output: Record<string, unknown> = {};
-  const allowedScalarKeys = [
-    "description",
-    "format",
-    "maxItems",
-    "maxLength",
-    "minItems",
-    "minLength",
-    "maximum",
-    "minimum",
-    "title",
-  ] as const;
-  for (const key of allowedScalarKeys) {
-    if (schema[key] !== undefined) output[key] = schema[key];
-  }
-
-  const rawTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
-  const concreteTypes = rawTypes.filter((value): value is string => typeof value === "string" && value !== "null");
-  if (concreteTypes.length === 1) output.type = concreteTypes[0];
-  if (rawTypes.includes("null")) output.nullable = true;
-
-  if (Array.isArray(schema.enum)) {
-    const enumValues = schema.enum.filter((value) => value !== null);
-    if (enumValues.length) output.enum = enumValues;
-    if (schema.enum.includes(null)) output.nullable = true;
-  }
-  if (Array.isArray(schema.required)) output.required = [...schema.required];
-  if (record(schema.items)) output.items = toGeminiResponseSchema(schema.items as Record<string, unknown>);
-
-  const properties = record(schema.properties);
-  if (properties) {
-    output.properties = Object.fromEntries(
-      Object.entries(properties)
-        .filter((entry): entry is [string, Record<string, unknown>] => Boolean(record(entry[1])))
-        .map(([key, child]) => [key, toGeminiResponseSchema(child)]),
-    );
-  }
-  return output;
-}
 
 export function validateListingRiskAnalyzerInput(value: unknown): string[] {
   const errors: string[] = [];
@@ -436,30 +388,29 @@ function validateFactsSourceIdentity(
   return errors;
 }
 
-export function parseListingRiskAnalyzerProviderEnvelope(value: unknown): {
+export function parseListingRiskAnalyzerTransportJson(value: string): {
   transport: ListingRiskAnalyzerTransportResult | null;
   errors: string[];
 } {
-  const errors: string[] = [];
-  const root = record(value);
-  if (!root) return { transport: null, errors: ["listing_risk_analyzer_provider_envelope must be an object"] };
-  exactKeys(root, ["payload"], "listing_risk_analyzer_provider_envelope", errors);
-  if (typeof root.payload !== "string" || !root.payload.trim()) {
-    errors.push("listing_risk_analyzer_provider_envelope.payload must be a non-empty string");
-  } else if (Array.from(root.payload).length > LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS) {
-    errors.push(`listing_risk_analyzer_provider_envelope.payload must be ${LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS} characters or fewer`);
+  if (typeof value !== "string" || !value.trim()) {
+    return { transport: null, errors: ["listing_risk_analyzer_transport_json must be a non-empty string"] };
   }
-  if (errors.length || typeof root.payload !== "string") return { transport: null, errors };
+  if (Array.from(value).length > LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS) {
+    return {
+      transport: null,
+      errors: [`listing_risk_analyzer_transport_json must be ${LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS} characters or fewer`],
+    };
+  }
   try {
-    const parsed = parseJsonWithoutDuplicateKeys(root.payload);
+    const parsed = parseJsonWithoutDuplicateKeys(value);
     if (!record(parsed)) {
-      return { transport: null, errors: ["listing_risk_analyzer_provider_envelope.payload must decode to an object"] };
+      return { transport: null, errors: ["listing_risk_analyzer_transport_json must decode to an object"] };
     }
     return { transport: parsed as ListingRiskAnalyzerTransportResult, errors: [] };
   } catch (error) {
     return {
       transport: null,
-      errors: [`listing_risk_analyzer_provider_envelope.payload is invalid JSON: ${error instanceof Error ? error.message : "unknown parse error"}`],
+      errors: [`listing_risk_analyzer_transport_json is invalid JSON: ${error instanceof Error ? error.message : "unknown parse error"}`],
     };
   }
 }
@@ -468,14 +419,15 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
   value: unknown,
   input: ListingRiskAnalyzerInput,
 ): { result: ListingRiskAnalyzerProviderResult | null; errors: string[] } {
-  const errors = validateListingRiskAnalyzerTransportResult(value, input);
+  const errors = validateListingRiskAnalyzerTransportFactEligibility(value, input);
   if (errors.length) return { result: null, errors };
   const transport = value as ListingRiskAnalyzerTransportResult;
   if (transport.status === "not_applicable") {
     return { result: { status: "not_applicable", applicable_facts: [] }, errors: [] };
   }
 
-  const providerFacts = new Map(transport.facts.map((fact) => [fact.key, fact]));
+  const providerFacts = new Map(transport.core_facts.map((fact) => [fact.key, fact]));
+  const agentFacts = new Map(transport.agent_context.fact_provenance.map((fact) => [fact.key, fact]));
   const unavailableText = () => ({
     value: null,
     availability: "unavailable" as const,
@@ -483,16 +435,16 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     source_ref: null,
   });
   const unavailableDate = () => ({ ...unavailableText(), date_status: "unknown" as const });
-  const availableText = (fact: ListingRiskProviderAvailableFact) => ({
+  const availableText = (fact: ListingRiskProviderAvailableCoreFact) => ({
     value: fact.value,
     availability: "available" as const,
-    value_quality: fact.value_quality as ListingValueQuality,
+    value_quality: agentFacts.get(fact.key)!.value_quality as ListingValueQuality,
     source_ref: fact.source_ref,
   });
-  const availableDate = (fact: ListingRiskProviderAvailableFact) => ({
+  const availableDate = (fact: ListingRiskProviderAvailableCoreFact) => ({
     value: fact.value,
     availability: "available" as const,
-    value_quality: fact.value_quality as ListingValueQuality,
+    value_quality: agentFacts.get(fact.key)!.value_quality as ListingValueQuality,
     date_status: fact.date_status as (typeof LISTING_DATE_STATUSES)[number],
     source_ref: fact.source_ref,
   });
@@ -505,36 +457,39 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     return fact?.availability === "available" ? availableDate(fact) : unavailableDate();
   };
   const continuedTrading = providerFacts.get("continued_trading_continues");
-  const asOf = transport.as_of.availability === "available" ? transport.as_of : null;
+  const asOf = transport.agent_context.as_of.availability === "available" ? transport.agent_context.as_of : null;
+  const documents = new Map(input.source_documents.map((document) => [document.source_ref, document]));
   const provenanceByPath = new Map<ListingFactPath, ListingRiskEventFacts["fact_provenance"][number]>();
-  for (const row of transport.facts) {
+  for (const row of transport.core_facts) {
     if (row.availability !== "available") continue;
+    const context = agentFacts.get(row.key)!;
     const factPath = LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH[row.key];
+    const issue = listingEvidenceIssue(context.evidence, documents.get(context.source_ref)!.text);
     provenanceByPath.set(factPath, {
       fact_path: factPath,
-      origin: row.origin,
-      source_ref: row.source_ref,
-      evidence: row.evidence,
-      evidence_status: "available",
-      evidence_issue: null,
-      confidence: row.confidence,
-      as_of: row.as_of,
+      origin: context.origin,
+      source_ref: context.source_ref,
+      evidence: issue ? null : context.evidence,
+      evidence_status: issue ? "unavailable" : "available",
+      evidence_issue: issue,
+      confidence: context.confidence,
+      as_of: context.as_of,
       formula_id: null,
       input_fact_paths: [],
     });
   }
 
-  const sources = [...transport.sources]
+  const sources = [...transport.agent_context.sources]
     .sort((left, right) => left.source_ref.localeCompare(right.source_ref))
     .map((source) => ({
       source_family: input.source_family,
       source_id: input.source_id,
       source_url: input.source_url,
       source_ref: source.source_ref,
-      evidence: source.evidence,
+      evidence: null,
     }));
-  const eventKind = providerFacts.get("classification_event_kind") as ListingRiskProviderAvailableFact;
-  const eventOutcome = providerFacts.get("classification_event_outcome") as ListingRiskProviderAvailableFact;
+  const eventKind = providerFacts.get("classification_event_kind") as ListingRiskProviderAvailableCoreFact;
+  const eventOutcome = providerFacts.get("classification_event_outcome") as ListingRiskProviderAvailableCoreFact;
   const proceedingKind = providerFacts.get("proceeding_kind");
   const proceedingStatus = providerFacts.get("proceeding_status");
   const proceedingSourceRef = proceedingKind?.availability === "available"
@@ -578,7 +533,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
         ? {
             value: continuedTrading.value === "true",
             availability: "available",
-            value_quality: continuedTrading.value_quality as ListingValueQuality,
+            value_quality: agentFacts.get("continued_trading_continues")!.value_quality as ListingValueQuality,
             source_ref: continuedTrading.source_ref,
           }
         : { value: null, availability: "unavailable", value_quality: "unknown", source_ref: null },
@@ -593,7 +548,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
           source_ref: asOf.source_ref,
         }
       : unavailableDate(),
-    confidence: transport.confidence === "unknown" ? null : transport.confidence,
+    confidence: transport.agent_context.confidence === "unknown" ? null : transport.agent_context.confidence,
     sources,
     fact_provenance: LISTING_FACT_PATHS.flatMap((path) => {
       const entry = provenanceByPath.get(path);
@@ -607,58 +562,97 @@ export function validateListingRiskAnalyzerTransportResult(
   value: unknown,
   input: ListingRiskAnalyzerInput,
 ): string[] {
+  return validateListingRiskAnalyzerTransportContract(value, input, true);
+}
+
+export function validateListingRiskAnalyzerTransportFactEligibility(
+  value: unknown,
+  input: ListingRiskAnalyzerInput,
+): string[] {
+  return validateListingRiskAnalyzerTransportContract(value, input, false);
+}
+
+function validateListingRiskAnalyzerTransportContract(
+  value: unknown,
+  input: ListingRiskAnalyzerInput,
+  validateEvidenceQuality: boolean,
+): string[] {
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_analyzer_transport_result must be an object"];
-  exactKeys(root, ["status", "facts", "as_of", "confidence", "sources"], "listing_risk_analyzer_transport_result", errors);
+  exactKeys(root, ["status", "core_facts", "agent_context"], "listing_risk_analyzer_transport_result", errors);
   if (!oneOf(root.status, ["applicable", "not_applicable"])) {
     errors.push("listing_risk_analyzer_transport_result.status is invalid");
   }
-  if (!Array.isArray(root.facts)) {
-    errors.push("listing_risk_analyzer_transport_result.facts must be an array");
+  if (!Array.isArray(root.core_facts)) {
+    errors.push("listing_risk_analyzer_transport_result.core_facts must be an array");
     return errors;
   }
-  if (root.status === "applicable" && root.facts.length !== LISTING_RISK_PROVIDER_FACT_KEYS.length) {
-    errors.push(`applicable status requires exactly ${LISTING_RISK_PROVIDER_FACT_KEYS.length} facts`);
+  if (root.status === "applicable" && root.core_facts.length !== LISTING_RISK_PROVIDER_FACT_KEYS.length) {
+    errors.push(`applicable status requires exactly ${LISTING_RISK_PROVIDER_FACT_KEYS.length} core_facts`);
   }
-  if (root.status === "not_applicable" && root.facts.length !== 0) {
-    errors.push("not_applicable status requires an empty facts array");
+  if (root.status === "not_applicable" && root.core_facts.length !== 0) {
+    errors.push("not_applicable status requires an empty core_facts array");
   }
   const sourceRefs = new Set(input.source_documents.map((document) => document.source_ref));
-  const facts = validateTransportFactRows(root.facts, sourceRefs, errors);
+  const coreFacts = validateTransportCoreFactRows(root.core_facts, sourceRefs, errors);
   if (root.status === "applicable") {
     for (const requiredKey of LISTING_RISK_PROVIDER_FACT_KEYS) {
-      if (!facts.has(requiredKey)) errors.push(`facts is missing required key ${requiredKey}`);
+      if (!coreFacts.has(requiredKey)) errors.push(`core_facts is missing required key ${requiredKey}`);
     }
     for (const requiredKey of ["classification_event_kind", "classification_event_outcome"] as const) {
-      if (facts.get(requiredKey)?.availability !== "available") {
-        errors.push(`facts key ${requiredKey} must be available`);
+      if (coreFacts.get(requiredKey)?.availability !== "available") {
+        errors.push(`core_facts key ${requiredKey} must be available`);
       }
     }
-    validateSharedFactSource(facts, ["classification_event_kind", "classification_event_outcome"], "classification", errors);
-    validateSharedFactSource(facts, ["proceeding_kind", "proceeding_status"], "proceeding", errors);
+    validateSharedFactSource(coreFacts, ["classification_event_kind", "classification_event_outcome"], "classification", errors);
+    validateSharedFactSource(coreFacts, ["proceeding_kind", "proceeding_status"], "proceeding", errors);
   }
 
-  validateTransportAsOf(root.as_of, sourceRefs, errors);
-  if (root.status === "not_applicable" && record(root.as_of)?.availability !== "unavailable") {
+  const agentContext = record(root.agent_context);
+  if (!agentContext) {
+    errors.push("agent_context must be an object");
+    return errors;
+  }
+  exactKeys(agentContext, ["fact_provenance", "as_of", "confidence", "sources"], "agent_context", errors);
+  const agentFacts = validateTransportAgentFactRows(
+    agentContext.fact_provenance,
+    coreFacts,
+    input,
+    errors,
+    validateEvidenceQuality,
+  );
+  if (root.status === "applicable") {
+    for (const [key, row] of coreFacts) {
+      if (row.availability === "available" && !agentFacts.has(key)) {
+        errors.push(`agent_context.fact_provenance is missing available core fact ${key}`);
+      }
+    }
+  }
+  if (root.status === "not_applicable" && Array.isArray(agentContext.fact_provenance) && agentContext.fact_provenance.length !== 0) {
+    errors.push("not_applicable status requires empty agent_context.fact_provenance");
+  }
+
+  validateTransportAsOf(agentContext.as_of, sourceRefs, errors);
+  if (root.status === "not_applicable" && record(agentContext.as_of)?.availability !== "unavailable") {
     errors.push("not_applicable status requires unavailable as_of");
   }
-  if (!oneOf(root.confidence, [...LISTING_FACT_CONFIDENCES, "unknown"])) {
+  if (!oneOf(agentContext.confidence, [...LISTING_FACT_CONFIDENCES, "unknown"])) {
     errors.push("confidence is invalid");
   }
-  if (root.status === "not_applicable" && root.confidence !== "unknown") {
+  if (root.status === "not_applicable" && agentContext.confidence !== "unknown") {
     errors.push("not_applicable status requires unknown confidence");
   }
-  const catalogRefs = validateTransportSources(root.sources, sourceRefs, errors);
-  if (root.status === "not_applicable" && Array.isArray(root.sources) && root.sources.length !== 0) {
+  const catalogRefs = validateTransportSources(agentContext.sources, sourceRefs, errors);
+  if (root.status === "not_applicable" && Array.isArray(agentContext.sources) && agentContext.sources.length !== 0) {
     errors.push("not_applicable status requires an empty sources array");
   }
   if (root.status === "applicable") {
     const citedRefs = new Set<string>();
-    for (const row of facts.values()) {
+    for (const row of coreFacts.values()) {
       if (row.availability === "available" && typeof row.source_ref === "string") citedRefs.add(row.source_ref);
     }
-    const asOf = record(root.as_of);
+    const asOf = record(agentContext.as_of);
     if (asOf?.availability === "available" && typeof asOf.source_ref === "string") citedRefs.add(asOf.source_ref);
     for (const sourceRef of citedRefs) {
       if (!catalogRefs.has(sourceRef)) errors.push(`sources is missing cited source_ref ${sourceRef}`);
@@ -670,7 +664,7 @@ export function validateListingRiskAnalyzerTransportResult(
   return errors;
 }
 
-function validateTransportFactRows(
+function validateTransportCoreFactRows(
   value: unknown,
   sourceRefs: Set<string>,
   errors: string[],
@@ -678,12 +672,12 @@ function validateTransportFactRows(
   const rows = Array.isArray(value) ? value : [];
   const seen = new Map<string, Record<string, unknown>>();
   if (!Array.isArray(value)) {
-    errors.push("facts must be an array");
+    errors.push("core_facts must be an array");
     return seen;
   }
-  if (rows.length > LISTING_RISK_PROVIDER_FACT_KEYS.length) errors.push("facts contains too many items");
+  if (rows.length > LISTING_RISK_PROVIDER_FACT_KEYS.length) errors.push("core_facts contains too many items");
   rows.forEach((rowValue, index) => {
-    const rowPath = `facts[${index}]`;
+    const rowPath = `core_facts[${index}]`;
     const row = record(rowValue);
     if (!row) {
       errors.push(`${rowPath} must be an object`);
@@ -696,13 +690,8 @@ function validateTransportFactRows(
         "key",
         "availability",
         "value",
-        "value_quality",
         "date_status",
-        "origin",
         "source_ref",
-        "evidence",
-        "confidence",
-        "as_of",
       ], rowPath, errors);
     }
     const rowKey = typeof row.key === "string" ? row.key : null;
@@ -718,17 +707,12 @@ function validateTransportFactRows(
       return;
     }
     if (row.availability === "unavailable") return;
-    if (!oneOf(row.origin, ["source_stated", "domain_interpreted"])) errors.push(`${rowPath}.origin is invalid`);
     if (!nonEmptyText(row.source_ref) || !sourceRefs.has(row.source_ref)) {
       errors.push(`${rowPath}.source_ref must identify a supplied source document`);
     }
-    if (!nonEmptyText(row.evidence)) errors.push(`${rowPath}.evidence must be a non-empty string`);
-    if (!oneOf(row.confidence, LISTING_FACT_CONFIDENCES)) errors.push(`${rowPath}.confidence is invalid`);
-    if (!(row.as_of === null || validDate(row.as_of))) errors.push(`${rowPath}.as_of is invalid`);
     if (!nonEmptyText(row.value)) errors.push(`${rowPath}.value must be a non-empty string`);
 
     if (oneOf(row.key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)) {
-      if (row.value_quality !== "not_applicable") errors.push(`${rowPath}.value_quality must be not_applicable for ${row.key}`);
       if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
       const allowedValues = row.key === "classification_event_kind"
         ? LISTING_EVENT_KINDS
@@ -742,15 +726,72 @@ function validateTransportFactRows(
       if (!oneOf(row.value, allowedValues)) errors.push(`${rowPath}.value is invalid for ${row.key}`);
     } else if (oneOf(row.key, LISTING_RISK_PROVIDER_DATE_FACT_KEYS)) {
       if (!validDate(row.value)) errors.push(`${rowPath}.value must be YYYY-MM-DD for ${row.key}`);
-      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
       if (!oneOf(row.date_status, LISTING_DATE_STATUSES)) errors.push(`${rowPath}.date_status is invalid for ${row.key}`);
     } else if (oneOf(row.key, LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS)) {
       if (row.value !== "true" && row.value !== "false") errors.push(`${rowPath}.value must be true or false for ${row.key}`);
-      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
       if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
     } else if (oneOf(row.key, LISTING_RISK_PROVIDER_TEXT_FACT_KEYS)) {
-      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
       if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
+    }
+  });
+  return seen;
+}
+
+function validateTransportAgentFactRows(
+  value: unknown,
+  coreFacts: Map<string, Record<string, unknown>>,
+  input: ListingRiskAnalyzerInput,
+  errors: string[],
+  validateEvidenceQuality: boolean,
+) {
+  const rows = Array.isArray(value) ? value : [];
+  const seen = new Map<string, Record<string, unknown>>();
+  if (!Array.isArray(value)) {
+    errors.push("agent_context.fact_provenance must be an array");
+    return seen;
+  }
+  const documents = new Map(input.source_documents.map((document) => [document.source_ref, document]));
+  rows.forEach((rowValue, index) => {
+    const path = `agent_context.fact_provenance[${index}]`;
+    const row = record(rowValue);
+    if (!row) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    exactKeys(row, ["key", "value_quality", "origin", "source_ref", "evidence", "confidence", "as_of"], path, errors);
+    const key = typeof row.key === "string" ? row.key : "";
+    if (!(LISTING_RISK_PROVIDER_FACT_KEYS as readonly string[]).includes(key)) {
+      errors.push(`${path}.key is invalid`);
+    } else if (seen.has(key)) {
+      errors.push(`${path}.key must be unique`);
+    } else {
+      seen.set(key, row);
+    }
+    const core = coreFacts.get(key);
+    if (!core || core.availability !== "available") {
+      errors.push(`${path}.key must identify an available core fact`);
+    }
+    if (!oneOf(row.origin, ["source_stated", "domain_interpreted"])) errors.push(`${path}.origin is invalid`);
+    if (!nonEmptyText(row.source_ref) || !documents.has(row.source_ref)) {
+      errors.push(`${path}.source_ref must identify a supplied source document`);
+    } else if (core?.source_ref !== row.source_ref) {
+      errors.push(`${path}.source_ref must match the core fact`);
+    }
+    if (!(row.evidence === null || typeof row.evidence === "string")) {
+      errors.push(`${path}.evidence must be a string or null`);
+    } else if (validateEvidenceQuality) {
+      const document = typeof row.source_ref === "string" ? documents.get(row.source_ref) : null;
+      const issue = document ? listingEvidenceIssue(row.evidence, document.text) : null;
+      if (issue === "not_provided") errors.push(`${path}.evidence must be provided as a non-empty string`);
+      if (issue === "too_long") errors.push(`${path}.evidence must be ${LISTING_SOURCE_EVIDENCE_MAX_LENGTH} characters or fewer`);
+      if (issue === "not_exact_span") errors.push(`${path}.evidence must be a contiguous excerpt from the supplied source document`);
+    }
+    if (!oneOf(row.confidence, LISTING_FACT_CONFIDENCES)) errors.push(`${path}.confidence is invalid`);
+    if (!(row.as_of === null || validDate(row.as_of))) errors.push(`${path}.as_of is invalid`);
+    if (oneOf(key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)) {
+      if (row.value_quality !== "not_applicable") errors.push(`${path}.value_quality must be not_applicable for ${key}`);
+    } else if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) {
+      errors.push(`${path}.value_quality is invalid for ${key}`);
     }
   });
   return seen;
@@ -805,7 +846,7 @@ function validateTransportSources(value: unknown, sourceRefs: Set<string>, error
       errors.push(`${path} must be an object`);
       return;
     }
-    exactKeys(source, ["source_ref", "evidence"], path, errors);
+    exactKeys(source, ["source_ref"], path, errors);
     if (!nonEmptyText(source.source_ref) || !sourceRefs.has(source.source_ref)) {
       errors.push(`${path}.source_ref must identify a supplied source document`);
     } else if (catalogRefs.has(source.source_ref)) {
@@ -813,11 +854,15 @@ function validateTransportSources(value: unknown, sourceRefs: Set<string>, error
     } else {
       catalogRefs.add(source.source_ref);
     }
-    if (!(source.evidence === null || nonEmptyText(source.evidence))) {
-      errors.push(`${path}.evidence must be a non-empty string or null`);
-    }
   });
   return catalogRefs;
+}
+
+function listingEvidenceIssue(value: unknown, sourceText: string) {
+  if (typeof value !== "string" || !value.trim()) return "not_provided" as const;
+  if (Array.from(value).length > LISTING_SOURCE_EVIDENCE_MAX_LENGTH) return "too_long" as const;
+  if (!sourceText.includes(value)) return "not_exact_span" as const;
+  return null;
 }
 
 export function normalizeListingRiskAnalyzerFactEligibleProviderResult(
