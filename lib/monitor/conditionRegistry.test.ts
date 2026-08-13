@@ -83,11 +83,11 @@ test("Listing V1 conditions use exact official-reader Core fact paths and contra
     "listing.event_kind": ["text", ["eq", "in"], ["classification", "event_kind"], LISTING_EVENT_KINDS],
     "listing.event_outcome": ["text", ["eq", "in"], ["classification", "event_outcome"], LISTING_EVENT_OUTCOMES],
     "listing.exchange": ["text", ["eq", "neq", "in", "not_in"], ["exchange", "value"], undefined],
-    "listing.compliance_deadline": ["date", ["eq", "neq", "before", "after"], ["dates", "compliance_deadline", "value"], undefined],
-    "listing.hearing_date": ["date", ["eq", "neq", "before", "after"], ["dates", "hearing_date", "value"], undefined],
-    "listing.appeal_deadline": ["date", ["eq", "neq", "before", "after"], ["dates", "appeal_deadline", "value"], undefined],
-    "listing.suspension_date": ["date", ["eq", "neq", "before", "after"], ["dates", "trading_suspension_date", "value"], undefined],
-    "listing.removal_effective_date": ["date", ["eq", "neq", "before", "after"], ["dates", "removal_effective_date", "value"], undefined],
+    "listing.compliance_deadline": ["date", ["eq", "neq", "before", "after", "within_days"], ["dates", "compliance_deadline", "value"], undefined],
+    "listing.hearing_date": ["date", ["eq", "neq", "before", "after", "within_days"], ["dates", "hearing_date", "value"], undefined],
+    "listing.appeal_deadline": ["date", ["eq", "neq", "before", "after", "within_days"], ["dates", "appeal_deadline", "value"], undefined],
+    "listing.suspension_date": ["date", ["eq", "neq", "before", "after", "within_days"], ["dates", "trading_suspension_date", "value"], undefined],
+    "listing.removal_effective_date": ["date", ["eq", "neq", "before", "after", "within_days"], ["dates", "removal_effective_date", "value"], undefined],
     "listing.continued_trading": ["boolean", ["eq", "neq"], ["continued_trading", "continues", "value"], undefined],
     "listing.proceeding_kind": ["text", ["eq", "in"], ["proceeding", "kind"], LISTING_PROCEEDING_KINDS],
     "listing.proceeding_status": ["text", ["eq", "in"], ["proceeding", "status"], LISTING_PROCEEDING_STATUSES],
@@ -137,6 +137,8 @@ test("registry input validation rejects unknown Listing keys, operators, and val
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "eq", value: "deficiency_notice" }), []);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "in", value: ["deficiency_notice", "listing_removal"] }), []);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "before", value: "2026-12-31" }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "within_days", value: 0 }), []);
+  assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "within_days", value: 30 }), []);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.continued_trading", operator: "eq", value: false }), []);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.made_up", operator: "eq", value: "x" }), ["condition_key_unknown"]);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_kind", operator: "contains", value: "listing_removal" }), ["condition_operator_unknown"]);
@@ -144,6 +146,16 @@ test("registry input validation rejects unknown Listing keys, operators, and val
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.event_outcome", operator: "eq", value: "unknown" }), ["condition_value_invalid"]);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.proceeding_kind", operator: "in", value: ["hearing", "unknown"] }), ["condition_value_invalid"]);
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "before", value: "2026-02-30" }), ["condition_value_invalid"]);
+  for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "7", "2026-12-31"]) {
+    assert.deepEqual(
+      validateMonitorConditionInput({ key: "listing.compliance_deadline", operator: "within_days", value }),
+      ["condition_value_invalid"],
+    );
+  }
+  assert.deepEqual(
+    validateMonitorConditionInput({ key: "event.published_at", operator: "within_days", value: 7 }),
+    ["condition_operator_unknown"],
+  );
   assert.deepEqual(validateMonitorConditionInput({ key: "listing.continued_trading", operator: "eq", value: "false" }), ["condition_value_invalid"]);
 });
 

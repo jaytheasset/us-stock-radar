@@ -1,0 +1,271 @@
+import {
+  readCurrentListingRiskFacts,
+  type CurrentListingRiskReadResult,
+} from "./monitor/listingRiskPersistence.ts";
+import {
+  getReadyMonitorCondition,
+  monitorDateOnlyUtcDay,
+  validateMonitorConditionInput,
+  type MonitorConditionDefinition,
+  type MonitorConditionOperator,
+} from "./monitor/conditionRegistry.ts";
+
+export const LISTING_MONITOR_MATCHER_VERSION = "listing_monitor_matcher_v1" as const;
+
+export type ListingMonitorMatchStatus = "match" | "no_match" | "ineligible";
+
+export type ListingMonitorMatchReasonCode =
+  | "all_conditions_match"
+  | "condition_not_met"
+  | "reader_not_ready"
+  | "reader_not_applicable"
+  | "reader_unavailable"
+  | "condition_set_empty"
+  | "condition_invalid"
+  | "condition_key_unknown"
+  | "condition_operator_unknown"
+  | "condition_value_invalid"
+  | "evaluation_date_invalid"
+  | "fact_unavailable"
+  | "fact_value_invalid"
+  | "fact_quality_unknown"
+  | "fact_value_ineligible";
+
+export type ListingMonitorCondition = Readonly<{
+  key: unknown;
+  operator: unknown;
+  value: unknown;
+}>;
+
+export type ListingMonitorConditionResult = Readonly<{
+  key: string;
+  status: ListingMonitorMatchStatus;
+  reasonCode: ListingMonitorMatchReasonCode;
+}>;
+
+export type ListingMonitorMatchResult = Readonly<{
+  version: typeof LISTING_MONITOR_MATCHER_VERSION;
+  status: ListingMonitorMatchStatus;
+  reasonCode: ListingMonitorMatchReasonCode;
+  readerReason?: string;
+  conditions: readonly ListingMonitorConditionResult[];
+}>;
+
+export type ListingMonitorConditionSet = Readonly<{
+  id: string;
+  conditions: readonly ListingMonitorCondition[];
+}>;
+
+export type ListingMonitorEventMatchResult = Readonly<{
+  version: typeof LISTING_MONITOR_MATCHER_VERSION;
+  eventId: string;
+  evaluationDate: string;
+  evaluations: readonly Readonly<{ id: string; result: ListingMonitorMatchResult }>[];
+}>;
+
+export type ListingMonitorMatcherDependencies = Readonly<{
+  readFacts(eventId: string): Promise<CurrentListingRiskReadResult>;
+}>;
+
+const defaultDependencies: ListingMonitorMatcherDependencies = {
+  readFacts: readCurrentListingRiskFacts,
+};
+
+/** Pure, deterministic AND evaluation over one already-read official result. */
+export function evaluateListingMonitorConditions(
+  current: CurrentListingRiskReadResult,
+  conditions: readonly ListingMonitorCondition[],
+  input: Readonly<{ evaluationDate: string }>,
+): ListingMonitorMatchResult {
+  if (current.status === "not_ready") {
+    const reasonCode = current.reason === "reader_unavailable" ? "reader_unavailable" : "reader_not_ready";
+    return result("ineligible", reasonCode, [], current.reason);
+  }
+  if (current.status === "not_applicable") {
+    return result("ineligible", "reader_not_applicable", []);
+  }
+  if (!Array.isArray(conditions) || conditions.length === 0) {
+    return result("ineligible", "condition_set_empty", []);
+  }
+
+  const evaluationDay = monitorDateOnlyUtcDay(input.evaluationDate);
+  if (evaluationDay === null) {
+    return result("ineligible", "evaluation_date_invalid", []);
+  }
+
+  const evaluated = conditions.map((condition) => evaluateCondition(
+    current.facts,
+    condition,
+    evaluationDay,
+  ));
+  const firstNoMatch = evaluated.find((item) => item.status === "no_match");
+  if (firstNoMatch) return result("no_match", firstNoMatch.reasonCode, evaluated);
+  const firstIneligible = evaluated.find((item) => item.status === "ineligible");
+  if (firstIneligible) return result("ineligible", firstIneligible.reasonCode, evaluated);
+  return result("match", "all_conditions_match", evaluated);
+}
+
+/**
+ * Event-centric reader boundary: official Listing facts are read exactly once,
+ * then any number of condition sets are evaluated without persistence writes.
+ */
+export async function evaluateListingMonitorEvent(
+  input: Readonly<{
+    eventId: string;
+    evaluationDate: string;
+    conditionSets: readonly ListingMonitorConditionSet[];
+  }>,
+  dependencies: ListingMonitorMatcherDependencies = defaultDependencies,
+): Promise<ListingMonitorEventMatchResult> {
+  let current: CurrentListingRiskReadResult;
+  try {
+    current = await dependencies.readFacts(input.eventId);
+  } catch {
+    current = { status: "not_ready", reason: "reader_unavailable" };
+  }
+  return {
+    version: LISTING_MONITOR_MATCHER_VERSION,
+    eventId: input.eventId,
+    evaluationDate: input.evaluationDate,
+    evaluations: input.conditionSets.map((set) => ({
+      id: set.id,
+      result: evaluateListingMonitorConditions(current, set.conditions, {
+        evaluationDate: input.evaluationDate,
+      }),
+    })),
+  };
+}
+
+function evaluateCondition(
+  facts: Extract<CurrentListingRiskReadResult, { status: "available" }>["facts"],
+  input: ListingMonitorCondition,
+  evaluationDay: number,
+): ListingMonitorConditionResult {
+  if (!recordValue(input)) return conditionResult("", "ineligible", "condition_invalid");
+  const key = typeof input.key === "string" ? input.key : "";
+  const validationError = validateMonitorConditionInput(input)[0];
+  if (validationError) return conditionResult(key, "ineligible", validationError);
+
+  const definition = getReadyMonitorCondition(key);
+  if (!definition || definition.family !== "listing" || !definition.source.jsonPath) {
+    return conditionResult(key, "ineligible", "condition_key_unknown");
+  }
+
+  const operator = input.operator as MonitorConditionOperator;
+  const eligibilityError = factEligibilityError(facts, definition);
+  if (eligibilityError) return conditionResult(key, "ineligible", eligibilityError);
+
+  const actual = valueAtPath(facts, definition.source.jsonPath);
+  if (definition.enumValues) {
+    if (typeof actual !== "string" || !definition.enumValues.includes(actual)) {
+      return conditionResult(key, "ineligible", "fact_value_invalid");
+    }
+    if (definition.eligibility?.ineligibleValues?.includes(actual)) {
+      return conditionResult(key, "ineligible", "fact_value_ineligible");
+    }
+  }
+
+  const matched = compareCondition(definition, actual, operator, input.value, evaluationDay);
+  if (matched === null) return conditionResult(key, "ineligible", "fact_value_invalid");
+  return conditionResult(
+    key,
+    matched ? "match" : "no_match",
+    matched ? "all_conditions_match" : "condition_not_met",
+  );
+}
+
+function factEligibilityError(
+  facts: Extract<CurrentListingRiskReadResult, { status: "available" }>["facts"],
+  definition: MonitorConditionDefinition,
+): ListingMonitorMatchReasonCode | null {
+  if (definition.eligibility?.requiredAvailability) {
+    const path = definition.source.availabilityJsonPath;
+    if (!path || valueAtPath(facts, path) !== definition.eligibility.requiredAvailability) {
+      return "fact_unavailable";
+    }
+  }
+  if (definition.eligibility?.requiredValueQualities) {
+    const path = definition.source.valueQualityJsonPath;
+    const quality = path ? valueAtPath(facts, path) : null;
+    if (typeof quality !== "string" || !definition.eligibility.requiredValueQualities.includes(quality as never)) {
+      return "fact_quality_unknown";
+    }
+  }
+  return null;
+}
+
+function compareCondition(
+  definition: MonitorConditionDefinition,
+  actual: unknown,
+  operator: MonitorConditionOperator,
+  expected: unknown,
+  evaluationDay: number,
+): boolean | null {
+  if (definition.valueType === "text") {
+    if (typeof actual !== "string" || actual.length === 0) return null;
+    if (operator === "eq") return actual === expected;
+    if (operator === "neq") return actual !== expected;
+    if (operator === "in") return Array.isArray(expected) && expected.includes(actual);
+    if (operator === "not_in") return Array.isArray(expected) && !expected.includes(actual);
+    return null;
+  }
+  if (definition.valueType === "boolean") {
+    if (typeof actual !== "boolean" || typeof expected !== "boolean") return null;
+    if (operator === "eq") return actual === expected;
+    if (operator === "neq") return actual !== expected;
+    return null;
+  }
+  if (definition.valueType === "date") {
+    const actualDay = monitorDateOnlyUtcDay(actual);
+    if (actualDay === null) return null;
+    if (operator === "within_days") {
+      if (typeof expected !== "number" || !Number.isSafeInteger(expected) || expected < 0) return null;
+      const daysAhead = actualDay - evaluationDay;
+      return daysAhead >= 0 && daysAhead <= expected;
+    }
+    const expectedDay = monitorDateOnlyUtcDay(expected);
+    if (expectedDay === null) return null;
+    if (operator === "eq") return actualDay === expectedDay;
+    if (operator === "neq") return actualDay !== expectedDay;
+    if (operator === "before") return actualDay < expectedDay;
+    if (operator === "after") return actualDay > expectedDay;
+    return null;
+  }
+  return null;
+}
+
+function valueAtPath(value: unknown, path: readonly string[]): unknown {
+  let current = value;
+  for (const segment of path) {
+    if (!recordValue(current)) return undefined;
+    current = current[segment];
+  }
+  return current;
+}
+
+function result(
+  status: ListingMonitorMatchStatus,
+  reasonCode: ListingMonitorMatchReasonCode,
+  conditions: readonly ListingMonitorConditionResult[],
+  readerReason?: string,
+): ListingMonitorMatchResult {
+  return {
+    version: LISTING_MONITOR_MATCHER_VERSION,
+    status,
+    reasonCode,
+    ...(readerReason ? { readerReason } : {}),
+    conditions,
+  };
+}
+
+function conditionResult(
+  key: string,
+  status: ListingMonitorMatchStatus,
+  reasonCode: ListingMonitorMatchReasonCode,
+): ListingMonitorConditionResult {
+  return { key, status, reasonCode };
+}
+
+function recordValue(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
