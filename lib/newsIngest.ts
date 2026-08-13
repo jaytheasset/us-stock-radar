@@ -47,6 +47,10 @@ import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer"
 import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
 import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
+import {
+  buildGenericMonitorPrimaryExecutionContext,
+  enqueueGenericMonitorChildrenAfterPrimary,
+} from "@/lib/monitor/genericMonitorChildWorkflowStarter";
 
 type SourceGroup = "news" | "filings" | "market";
 type MarketScope = "company" | "sector" | "theme" | "macro";
@@ -942,6 +946,23 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           promptKey: analysisPromptKey,
           promptVersion: analysisPromptVersion,
         });
+        const genericMonitorChildren = await enqueueGenericMonitorChildrenAfterPrimary({
+          primary: buildGenericMonitorPrimaryExecutionContext({
+            eventId: stringValue(persistedEvent.id),
+            rawItemId: stringValue(persistedRaw.id),
+            sourceGroup: "news",
+            sourceCode: config.sourceCode,
+            sourceIdentity: stringValue(persistedRaw.source_unique_id) || stringValue(rawItem.source_unique_id),
+            parentPrimaryAiRunId: aiTrace.aiRunId,
+            parentPromptKey: analysisPromptKey,
+            parentPromptVersion: analysisPromptVersion,
+          }),
+          primaryAnalysis: analysis,
+        }).catch((error) => ({
+          status: "enqueue_failed" as const,
+          childCount: 0 as const,
+          error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
+        }));
 
         stats.event_upserted_count += 1;
         resultItems.push({
@@ -958,6 +979,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
           signal: persistedEvent.signal,
           event_type: persistedEvent.event_type,
           source_url: persistedEvent.source_url,
+          generic_monitor_children: genericMonitorChildren,
         });
       } catch (error) {
         stats.failed_count += 1;

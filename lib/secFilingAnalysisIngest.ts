@@ -9,6 +9,10 @@ import {
   saveAnalyzedSecFilingEvent,
   saveSecFilingAiTrace,
 } from "@/lib/secStores/eventStore";
+import {
+  buildGenericMonitorPrimaryExecutionContext,
+  enqueueGenericMonitorChildrenAfterPrimary,
+} from "@/lib/monitor/genericMonitorChildWorkflowStarter";
 
 export {
   buildSecFilingGroupDedupe,
@@ -164,6 +168,26 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         reason: "alert delivery suppressed by controlled SEC development persist",
       }
     : await runSecFilingAlertDelivery(persistedEvent);
+  const primaryPromptKey = analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY;
+  const primaryPromptVersion = analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION;
+  const genericMonitorChildren = await enqueueGenericMonitorChildrenAfterPrimary({
+    primary: buildGenericMonitorPrimaryExecutionContext({
+      eventId: stringValue(persistedEvent.id),
+      rawItemId: stringValue(rawResult.rawItem.id),
+      sourceGroup: "filings",
+      sourceCode: stringValue(rawResult.rawItem.source_code),
+      sourceIdentity: stringValue(rawResult.rawItem.source_unique_id),
+      parentPrimaryAiRunId: aiTrace.aiRunId,
+      parentPromptKey: primaryPromptKey,
+      parentPromptVersion: primaryPromptVersion,
+      secFormType: stringValue(readRecord(readRecord(analysisRun.input)?.filing_package)?.form_type),
+    }),
+    primaryAnalysis: analysisRun.analysis,
+  }).catch((error) => ({
+    status: "enqueue_failed" as const,
+    childCount: 0 as const,
+    error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
+  }));
 
   return {
     ok: true,
@@ -180,6 +204,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     primaryAiRunId: aiTrace.aiRunId,
     calendarItems,
     alertDelivery,
+    genericMonitorChildren,
     validationRepairTrace,
   };
 }

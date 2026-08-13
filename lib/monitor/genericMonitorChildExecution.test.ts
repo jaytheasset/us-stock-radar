@@ -56,6 +56,25 @@ test("same automatic parent/analyzer/contract reservation is idempotent with no 
   assert.equal(store.table("ai_outputs").length, 0);
 });
 
+test("workflow-start CAS grants one concurrent owner and start failure release enables retry", async () => {
+  const store = new MemoryStore();
+  const repository = createGenericMonitorChildRepository(store);
+  const child = identity(newsPrimary());
+  await repository.reserve(child);
+  const claims = await Promise.all([
+    repository.claimWorkflowStart(child),
+    repository.claimWorkflowStart(child),
+  ]);
+  assert.deepEqual(claims.sort(), [false, true]);
+  assert.equal(metadata(store.table("ai_runs")[0]).workflow_start_state, "starting");
+  assert.equal(await repository.releaseWorkflowStart(child, new Error("fake start failure")), true);
+  assert.equal(metadata(store.table("ai_runs")[0]).workflow_start_state, "ready");
+  assert.equal(await repository.claimWorkflowStart(child), true);
+  await repository.attachWorkflowRun(child, "wrun_123");
+  assert.equal(metadata(store.table("ai_runs")[0]).workflow_start_state, "started");
+  assert.equal(metadata(store.table("ai_runs")[0]).workflow_run_id, "wrun_123");
+});
+
 test("new Primary and new contract are semantic reanalysis while retry keeps the logical job", () => {
   const automatic = identity(newsPrimary());
   const automaticDuplicate = identity(newsPrimary());
@@ -280,18 +299,19 @@ test("News trace return is exposed to both News and Nasdaq callers without chang
   assert.match(source, /payload: \{\s*analysis,\s*output_text: outputText,/);
 });
 
-test("SEC accepted Primary, Offering enqueue, score alert, and production wiring remain unchanged", () => {
+test("SEC accepted Primary keeps alert and Offering wiring while adding isolated generic fan-out", () => {
   const sec = readFileSync(new URL("../secFilingAnalysisIngest.ts", import.meta.url), "utf8");
   const offering = readFileSync(new URL("../offeringMonitorJobStarter.ts", import.meta.url), "utf8");
   const workflow = readFileSync(new URL("../../workflows/source-ingest.ts", import.meta.url), "utf8");
   assert.match(sec, /primaryAiRunId: aiTrace\.aiRunId/);
-  assert.ok(sec.indexOf("runSecFilingAlertDelivery") < sec.indexOf("primaryAiRunId: aiTrace.aiRunId"));
+  assert.ok(sec.indexOf("const alertDelivery =") < sec.indexOf("const genericMonitorChildren = await"));
+  assert.match(sec, /enqueueGenericMonitorChildrenAfterPrimary/);
   assert.match(offering, /enqueueOfferingMonitorAfterPrimary/);
   assert.match(workflow, /enqueueOfferingMonitorJobStep/);
   assert.doesNotMatch(workflow, /genericMonitorChildRepository|reserveGenericMonitorChildren/);
 });
 
-test("Supabase adapter binds the generic repository without adding a workflow or provider caller", () => {
+test("Supabase adapter binds generic durable state without coupling reservation to provider semantics", () => {
   const adapter = readFileSync(new URL("./genericMonitorChildSupabaseRepository.ts", import.meta.url), "utf8");
   const foundation = readFileSync(new URL("./genericMonitorChildExecution.ts", import.meta.url), "utf8");
   const repository = readFileSync(new URL("./genericMonitorChildRepository.ts", import.meta.url), "utf8");
@@ -494,9 +514,8 @@ class MemoryStore implements GenericMonitorChildStore {
 function matches(row: Record<string, unknown>, search: Record<string, string>) {
   return Object.entries(search).every(([key, filter]) => {
     if (["select", "order", "limit", "offset"].includes(key)) return true;
-    const value = key === "metadata->>execution_state"
-      ? metadata(row).execution_state
-      : row[key];
+    const metadataKey = key.startsWith("metadata->>") ? key.slice("metadata->>".length) : null;
+    const value = metadataKey ? metadata(row)[metadataKey] : row[key];
     if (filter.startsWith("eq.")) return String(value ?? "") === filter.slice(3);
     if (filter.startsWith("in.(") && filter.endsWith(")")) {
       return filter.slice(4, -1).split(",").includes(String(value ?? ""));
