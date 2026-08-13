@@ -19,7 +19,7 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v10";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v11";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 export const LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS = 24_000;
@@ -117,17 +117,30 @@ export const LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH = {
 
 type ProviderTextFactKey = (typeof LISTING_RISK_PROVIDER_TEXT_FACT_KEYS)[number];
 type ProviderDateFactKey = (typeof LISTING_RISK_PROVIDER_DATE_FACT_KEYS)[number];
+type ProviderCategoricalFactKey = (typeof LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)[number];
 type ProviderFactKey = (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number];
+type ProviderQualifiedFactKey = Exclude<ProviderFactKey, ProviderCategoricalFactKey>;
 
-type ListingRiskProviderAgentFactContext = {
-  key: ProviderFactKey;
-  value_quality: ListingValueQuality | "not_applicable";
+type ListingRiskProviderAgentFactContextBase = {
   origin: Exclude<ListingFactOrigin, "deterministic_derived">;
   source_ref: string;
   evidence: string | null;
   confidence: Exclude<ListingFactConfidence, null>;
   as_of: string | null;
 };
+
+type ListingRiskProviderCategoricalAgentFactContext = ListingRiskProviderAgentFactContextBase & {
+  key: ProviderCategoricalFactKey;
+};
+
+type ListingRiskProviderQualifiedAgentFactContext = ListingRiskProviderAgentFactContextBase & {
+  key: ProviderQualifiedFactKey;
+  value_quality: ListingValueQuality;
+};
+
+type ListingRiskProviderAgentFactContext =
+  | ListingRiskProviderCategoricalAgentFactContext
+  | ListingRiskProviderQualifiedAgentFactContext;
 
 type ListingRiskProviderAvailableCoreFact = {
   key: ProviderFactKey;
@@ -427,7 +440,10 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
   }
 
   const providerFacts = new Map(transport.core_facts.map((fact) => [fact.key, fact]));
-  const agentFacts = new Map(transport.agent_context.fact_provenance.map((fact) => [fact.key, fact]));
+  const agentFacts = new Map(transport.agent_context.fact_provenance.map((fact) => [fact.key, {
+    ...fact,
+    value_quality: providerValueQuality(fact.key, fact),
+  }]));
   const unavailableText = () => ({
     value: null,
     availability: "unavailable" as const,
@@ -758,8 +774,12 @@ function validateTransportAgentFactRows(
       errors.push(`${path} must be an object`);
       return;
     }
-    exactKeys(row, ["key", "value_quality", "origin", "source_ref", "evidence", "confidence", "as_of"], path, errors);
     const key = typeof row.key === "string" ? row.key : "";
+    if (oneOf(key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)) {
+      exactKeys(row, ["key", "origin", "source_ref", "evidence", "confidence", "as_of"], path, errors);
+    } else {
+      exactKeys(row, ["key", "value_quality", "origin", "source_ref", "evidence", "confidence", "as_of"], path, errors);
+    }
     if (!(LISTING_RISK_PROVIDER_FACT_KEYS as readonly string[]).includes(key)) {
       errors.push(`${path}.key is invalid`);
     } else if (seen.has(key)) {
@@ -788,13 +808,20 @@ function validateTransportAgentFactRows(
     }
     if (!oneOf(row.confidence, LISTING_FACT_CONFIDENCES)) errors.push(`${path}.confidence is invalid`);
     if (!(row.as_of === null || validDate(row.as_of))) errors.push(`${path}.as_of is invalid`);
-    if (oneOf(key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)) {
-      if (row.value_quality !== "not_applicable") errors.push(`${path}.value_quality must be not_applicable for ${key}`);
-    } else if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) {
+    if (!oneOf(key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS) && !oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) {
       errors.push(`${path}.value_quality is invalid for ${key}`);
     }
   });
   return seen;
+}
+
+function providerValueQuality(
+  key: ProviderFactKey,
+  context: ListingRiskProviderAgentFactContext,
+): ListingValueQuality | "not_applicable" {
+  return oneOf(key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)
+    ? "not_applicable"
+    : (context as ListingRiskProviderQualifiedAgentFactContext).value_quality;
 }
 
 function validateSharedFactSource(

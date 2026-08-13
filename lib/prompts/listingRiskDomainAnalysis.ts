@@ -117,12 +117,25 @@ const coreFact = (
 
 const agentFact = (
   key: (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number],
-  value_quality: "exact" | "derived" | "estimated" | "unknown" | "not_applicable",
+  value_quality: "exact" | "derived" | "estimated" | "unknown",
   origin: "source_stated" | "domain_interpreted",
   evidence: string,
 ) => ({
   key,
   value_quality,
+  origin,
+  source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
+  evidence,
+  confidence: "high" as const,
+  as_of: "2030-03-02",
+});
+
+const categoricalAgentFact = (
+  key: "classification_event_kind" | "classification_event_outcome" | "proceeding_kind" | "proceeding_status",
+  origin: "source_stated" | "domain_interpreted",
+  evidence: string,
+) => ({
+  key,
   origin,
   source_ref: LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_REF,
   evidence,
@@ -145,7 +158,7 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SHORT_EXAMPLE = {
   ],
   agent_context: {
     fact_provenance: [
-      agentFact("classification_event_kind", "not_applicable", "domain_interpreted", "received a deficiency notice"),
+      categoricalAgentFact("classification_event_kind", "domain_interpreted", "received a deficiency notice"),
       agentFact("notice_date", "exact", "source_stated", "On March 2, 2030"),
       agentFact("compliance_deadline", "exact", "source_stated", "until September 1, 2030 to regain compliance"),
     ],
@@ -181,7 +194,7 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "Duplicate, missing, and unknown Core keys are invalid. classification_event_kind and classification_event_outcome must be available for applicable results. For every other unsupported key return exactly {key, availability: unavailable}; application code creates only that explicitly authorized canonical unavailable envelope. Never mark a supported condition-relevant fact unavailable. For unknown proceeding meaning, return proceeding_kind and proceeding_status as unavailable rather than inventing a value.",
   "Use each generic key at most once: classification_event_kind, classification_event_outcome, proceeding_kind, proceeding_status, exchange, affected_security_title, affected_security_ticker, affected_security_security_basis, listing_rule, listing_requirement, compliance_period, continued_trading_venue, notice_date, compliance_deadline, hearing_date, appeal_deadline, trading_suspension_date, removal_effective_date, continued_trading_continues. Array order has no meaning. Do not create rows for root confidence, availability, source_ref, evidence status, or other metadata.",
   "Every available core_facts row has exactly key, availability, value, date_status, and source_ref. value is always a JSON string. For continued_trading_continues use exactly the string true or false. For date keys use YYYY-MM-DD and preserve LLM-owned date_status. For classification, proceeding, text, and boolean keys use date_status not_applicable. Every unavailable Core row has exactly key and availability.",
-  "For every available Core row, return exactly one agent_context.fact_provenance row with exactly key, value_quality, origin, source_ref, evidence, confidence, and as_of. It must use the same key and source_ref as its Core row. Do not create provenance for unavailable Core rows. For classification and proceeding keys use value_quality not_applicable; all other keys use one canonical value_quality. Preserve value_quality independently from origin.",
+  "For every available Core row, return exactly one agent_context.fact_provenance row using the same key and source_ref. Do not create provenance for unavailable Core rows. For exactly classification_event_kind, classification_event_outcome, proceeding_kind, and proceeding_status, the provenance row has exactly key, origin, source_ref, evidence, confidence, and as_of: do not output value_quality because deterministic application code assigns the schema-fixed not_applicable quality for these categorical paths. For every other key, the provenance row has exactly key, value_quality, origin, source_ref, evidence, confidence, and as_of, and value_quality must be one canonical literal. Preserve non-categorical value_quality independently from origin.",
   LISTING_RISK_DOMAIN_ANALYZER_ENUM_GLOSSARY,
   "Set origin source_stated when the fact value is directly stated by the source. Set origin domain_interpreted when Listing-domain meaning or normalization is required, including classification and semantic security-basis normalization. value_quality and origin are independent: value_quality derived does not mean deterministic_derived. Never output deterministic_derived; only deterministic application code may create that origin with a formula and input facts.",
   "Every available Core and matching provenance source_ref must identify the exact source_document supporting that fact. Evidence must be the shortest unambiguous exact span sufficient to verify only that fact, not a general event summary. Deterministic application code maps each key to stable fact_path and mechanically records evidence availability or issue without changing Core facts.",

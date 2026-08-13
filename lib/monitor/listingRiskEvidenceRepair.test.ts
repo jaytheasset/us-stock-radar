@@ -228,7 +228,6 @@ function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string | n
   const ref = analyzerInput.source_documents[0].source_ref;
   const agentFact = (key: "classification_event_kind" | "classification_event_outcome") => ({
     key,
-    value_quality: "not_applicable" as const,
     origin: "domain_interpreted" as const,
     source_ref: ref,
     evidence,

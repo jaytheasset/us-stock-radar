@@ -77,7 +77,7 @@ test("workflow-start CAS grants one concurrent owner and start failure release e
 
 test("new Primary and new contract are semantic reanalysis while retry keeps the logical job", () => {
   const automatic = identity(newsPrimary());
-  assert.equal(automatic.analyzerContractVersion, "listing_risk_domain_analyzer_v10");
+  assert.equal(automatic.analyzerContractVersion, "listing_risk_domain_analyzer_v11");
   const automaticDuplicate = identity(newsPrimary());
   const newPrimary = identity(newsPrimary({ parentPrimaryAiRunId: PARENT_B }));
   const oldContract = identity(newsPrimary(), {

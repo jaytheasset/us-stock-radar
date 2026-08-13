@@ -23,6 +23,7 @@ import {
   LISTING_RISK_ANALYZER_INPUT_VERSION,
   LISTING_RISK_ANALYZER_MAX_PAYLOAD_CHARS,
   LISTING_RISK_ANALYZER_PROMPT_VERSION,
+  LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS,
   LISTING_RISK_PROVIDER_FACT_KEYS,
   LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH,
   normalizeListingRiskAnalyzerProviderResult,
@@ -67,7 +68,7 @@ test("public result mechanically enforces applicable facts or standalone not_app
   assert.notDeepEqual(validateListingRiskAnalyzerResult({ status: "failed" }), []);
 });
 
-test("V10 keeps the 19-key Core map exhaustive without a Gemini response schema", () => {
+test("V11 keeps the 19-key Core map exhaustive without a Gemini response schema", () => {
   assert.deepEqual(
     [...new Set(Object.values(LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH))].sort(),
     [...LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.fact_provenance.items.properties.fact_path.enum].sort(),
@@ -109,6 +110,66 @@ test("V10 keeps the 19-key Core map exhaustive without a Gemini response schema"
       agent_context: { fact_provenance: [], as_of: { availability: "unavailable" }, confidence: "unknown", sources: [] },
     }, input),
     [],
+  );
+});
+
+test("only schema-fixed categorical provenance omits provider value_quality and preserves semantics", () => {
+  assert.deepEqual(LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS, [
+    "classification_event_kind",
+    "classification_event_outcome",
+    "proceeding_kind",
+    "proceeding_status",
+  ]);
+  assert.deepEqual(
+    LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS.map((key) => LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH[key]),
+    ["classification.event_kind", "classification.event_outcome", "proceeding.kind", "proceeding.status"],
+  );
+
+  const input = newsInput("A hearing was requested and will not be pursued.");
+  const sourceRef = input.source_documents[0].source_ref;
+  const facts = validFacts(input, sourceRef, input.source_documents[0].text);
+  facts.classification = { event_kind: "hearing_or_appeal_update", event_outcome: "procedural", source_ref: sourceRef };
+  facts.proceeding = { kind: "hearing", status: "not_pursued", source_ref: sourceRef };
+  facts.fact_provenance.push(
+    factProvenance("proceeding.kind", sourceRef, "hearing"),
+    factProvenance("proceeding.status", sourceRef, "will not be pursued"),
+  );
+  const transport = transportFromFacts(facts);
+  for (const key of LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS) {
+    const row = transport.agent_context.fact_provenance.find((entry) => entry.key === key);
+    if (row) assert.equal(Object.hasOwn(row, "value_quality"), false);
+  }
+  assert.deepEqual(validateListingRiskAnalyzerTransportResult(transport, input), []);
+  const canonical = canonicalizeListingRiskAnalyzerTransportResult(transport, input).result?.applicable_facts[0];
+  assert.equal(canonical?.classification.event_kind, "hearing_or_appeal_update");
+  assert.equal(canonical?.classification.event_outcome, "procedural");
+  assert.equal(canonical?.proceeding.kind, "hearing");
+  assert.equal(canonical?.proceeding.status, "not_pursued");
+
+  const categoricalExtra = structuredClone(transport) as any;
+  categoricalExtra.agent_context.fact_provenance.find(
+    (entry: any) => entry.key === "proceeding_kind",
+  ).value_quality = "not_applicable";
+  assert.match(
+    validateListingRiskAnalyzerTransportResult(categoricalExtra, input).join("; "),
+    /must contain exactly/,
+  );
+
+  const qualifiedFacts = structuredClone(facts);
+  qualifiedFacts.exchange = {
+    value: "Nasdaq",
+    availability: "available",
+    value_quality: "exact",
+    source_ref: sourceRef,
+  };
+  qualifiedFacts.fact_provenance.push(factProvenance("exchange.value", sourceRef, "hearing"));
+  const nonCategoricalMissing = transportFromFacts(qualifiedFacts) as any;
+  delete nonCategoricalMissing.agent_context.fact_provenance.find(
+    (entry: any) => entry.key === "exchange",
+  ).value_quality;
+  assert.match(
+    validateListingRiskAnalyzerTransportResult(nonCategoricalMissing, input).join("; "),
+    /must contain exactly|value_quality is invalid/,
   );
 });
 
@@ -545,7 +606,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
-  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v10");
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v11");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -556,6 +617,10 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not infer applicability from event_type/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /structured listing_risk_event_facts_v2 fields are the primary product output/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Agent Context is separate from Core Monitor Facts/i);
+  assert.match(
+    LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT,
+    /exactly classification_event_kind, classification_event_outcome, proceeding_kind, and proceeding_status[\s\S]+do not output value_quality[\s\S]+schema-fixed not_applicable/i,
+  );
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not create rows for root confidence, availability, source_ref, evidence status, or other metadata/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /all 19 canonical fact keys exactly once in core_facts[\s\S]+explicit availability/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Duplicate, missing, and unknown Core keys are invalid/i);
@@ -567,11 +632,11 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
-  assert.equal(prompt.version, "listing_risk_domain_analyzer_v10");
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v11");
   assert.deepEqual(prompt.responseFormat.json_schema.schema, { type: "object" });
 });
 
-test("v10 prompt glossary stays aligned with every strict inner enum and explains independent semantics", () => {
+test("v11 prompt glossary stays aligned with every strict inner enum and explains independent semantics", () => {
   for (const literal of [
     ...LISTING_EVENT_KINDS,
     ...LISTING_EVENT_OUTCOMES,
@@ -752,18 +817,15 @@ function transportFromFacts(facts: ListingRiskEventFacts): ListingRiskAnalyzerTr
     assert.ok(key);
     agentFacts.push({
       key,
-      value_quality: entry.fact_path === "classification.event_kind"
-        || entry.fact_path === "classification.event_outcome"
-        || entry.fact_path === "proceeding.kind"
-        || entry.fact_path === "proceeding.status"
-        ? "not_applicable"
-        : envelopeForPath(facts, entry.fact_path)?.value_quality,
       origin: entry.origin,
       source_ref: entry.source_ref,
       evidence: entry.evidence,
       confidence: entry.confidence,
       as_of: entry.as_of,
     });
+    if (!LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS.includes(key as any)) {
+      agentFacts[agentFacts.length - 1].value_quality = envelopeForPath(facts, entry.fact_path)?.value_quality;
+    }
     const base = { key, availability: "available" as const, source_ref: entry.source_ref };
     if (entry.fact_path === "classification.event_kind") {
       coreFacts.push({ ...base, value: facts.classification.event_kind, date_status: "not_applicable" });
