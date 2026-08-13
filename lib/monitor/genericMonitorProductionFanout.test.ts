@@ -136,6 +136,36 @@ test("applicable persists typed facts before terminal success and not-applicable
   }
 });
 
+test("Listing Alert consumer failure is isolated after canonical persistence and parent terminal success", async () => {
+  const harness = processorHarness({
+    analyzerResult: { status: "applicable", facts: {} } as ListingRiskAnalyzerResult,
+    consumerFailure: true,
+  });
+  const processed = await processGenericMonitorChildWithDependencies(childIdentity(), harness.dependencies);
+  assert.equal(processed.status, "succeeded_applicable");
+  assert.equal(processed.listingMonitorAlerts?.status, "failed");
+  assert.deepEqual(harness.terminalStates(), ["succeeded_applicable"]);
+  assert.deepEqual(harness.order(), [
+    "persist:applicable",
+    "terminal:succeeded_applicable",
+    "consumer",
+  ]);
+});
+
+test("not-applicable canonical success never invokes the Listing Alert consumer", async () => {
+  const harness = processorHarness({
+    analyzerResult: { status: "not_applicable" } as ListingRiskAnalyzerResult,
+    consumerFailure: true,
+  });
+  const processed = await processGenericMonitorChildWithDependencies(childIdentity(), harness.dependencies);
+  assert.equal(processed.status, "succeeded_not_applicable");
+  assert.equal("listingMonitorAlerts" in processed, false);
+  assert.deepEqual(harness.order(), [
+    "persist:not_applicable",
+    "terminal:succeeded_not_applicable",
+  ]);
+});
+
 test("provider and persistence failures preserve Primary state and remain nonterminal/retryable", async () => {
   for (const mode of ["provider", "persistence"] as const) {
     const primary = { score: 91, signal: "bearish", summary: "exact Primary remains valid" };
@@ -252,6 +282,7 @@ function processorHarness(options: {
   failure?: "provider" | "persistence";
   persistenceStale?: boolean;
   primaryAnalysis?: Record<string, unknown>;
+  consumerFailure?: boolean;
 } = {}) {
   let providers = 0;
   let releases = 0;
@@ -297,6 +328,12 @@ function processorHarness(options: {
           sourceExecutionId: identity.executionId,
         };
       },
+      ...(options.consumerFailure ? {
+        consumeListingMonitorAlerts: async () => {
+          order.push("consumer");
+          throw new Error("fake Alert insert failure");
+        },
+      } : {}),
     },
     providerCalls: () => providers,
     releaseCount: () => releases,

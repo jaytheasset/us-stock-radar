@@ -4,6 +4,13 @@ import type { ListingRiskAnalyzerResult } from "./listingRiskAnalyzer.ts";
 import type { GenericMonitorChildIdentity } from "./genericMonitorChildExecution.ts";
 import { listingRiskTerminalStateAfterPersistence, type ListingRiskPersistenceResult } from "./listingRiskPersistence.ts";
 import type { GenericMonitorExactParent } from "./genericMonitorChildRepository.ts";
+import type { ListingMonitorAlertConsumerResult } from "./listingMonitorAlertConsumer.ts";
+
+export type ListingMonitorAlertHookResult = ListingMonitorAlertConsumerResult | Readonly<{
+  status: "failed";
+  eventId: string;
+  error: string;
+}>;
 
 export type GenericMonitorChildProcessorRepository = {
   claim(identity: GenericMonitorChildIdentity): Promise<boolean>;
@@ -30,6 +37,8 @@ export async function processGenericMonitorChildWithDependencies(
       identity: GenericMonitorChildIdentity;
       result: ListingRiskAnalyzerResult;
     }): Promise<ListingRiskPersistenceResult>;
+    consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
+      Promise<ListingMonitorAlertConsumerResult>;
   },
 ) {
   const repository = dependencies.repository;
@@ -86,11 +95,24 @@ export async function processGenericMonitorChildWithDependencies(
     return retryableFailure(identity, error);
   }
   await repository.recordTerminal(identity, terminalState);
+  let listingMonitorAlerts: ListingMonitorAlertHookResult | undefined;
+  if (terminalState === "succeeded_applicable" && dependencies.consumeListingMonitorAlerts) {
+    try {
+      listingMonitorAlerts = await dependencies.consumeListingMonitorAlerts({ eventId: identity.eventId });
+    } catch (error) {
+      listingMonitorAlerts = {
+        status: "failed",
+        eventId: identity.eventId,
+        error: errorMessage(error),
+      };
+    }
+  }
   return {
     status: terminalState,
     jobId: identity.executionId,
     providerCalls: 1,
     persistence: persistence.status,
+    ...(listingMonitorAlerts ? { listingMonitorAlerts } : {}),
   };
 }
 
