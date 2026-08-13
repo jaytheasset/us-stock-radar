@@ -54,21 +54,21 @@ test("public result mechanically enforces applicable facts or standalone not_app
 test("provider transport is materially simpler than canonical V2 and rejects impossible mixed states", () => {
   const metrics = schemaMetrics(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
   assert.deepEqual(metrics, {
-    properties: 46,
-    required: 46,
-    enumValues: 88,
-    nullable: 4,
-    objects: 7,
-    arrays: 7,
-    maxDepth: 5,
-    serializedBytes: 4060,
+    properties: 17,
+    required: 17,
+    enumValues: 4,
+    nullable: 1,
+    objects: 3,
+    arrays: 2,
+    maxDepth: 3,
+    serializedBytes: 971,
   });
-  assert.ok(metrics.properties < 60);
-  assert.ok(metrics.nullable < 10);
-  assert.ok(metrics.serializedBytes < 6_000);
+  assert.ok(metrics.properties < 20);
+  assert.ok(metrics.nullable < 2);
+  assert.ok(metrics.serializedBytes < 2_000);
   assert.doesNotMatch(JSON.stringify(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA), /additionalProperties|"type":\[/);
   assert.doesNotMatch(JSON.stringify(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA), /fact_provenance|evidence_status|evidence_issue|formula_id|input_fact_paths|listing_risk_event_facts_v2/);
-  assert.deepEqual(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA.required, ["status", "facts"]);
+  assert.deepEqual(LISTING_RISK_ANALYZER_PROVIDER_SCHEMA.required, ["status", "facts", "as_of_facts", "confidence"]);
   assert.deepEqual(
     [...new Set(Object.values(LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH))].sort(),
     [...LISTING_RISK_EVENT_FACTS_JSON_SCHEMA.properties.fact_provenance.items.properties.fact_path.enum].sort(),
@@ -77,7 +77,7 @@ test("provider transport is materially simpler than canonical V2 and rejects imp
   const facts = validFacts(input, "news_article_body", input.source_documents[0].text);
 
   const applicable = transportFromFacts(facts);
-  const notApplicable = { status: "not_applicable", facts: [] };
+  const notApplicable = { status: "not_applicable", facts: [], as_of_facts: [], confidence: "unknown" };
   assert.deepEqual(validateListingRiskAnalyzerTransportResult(applicable, input), []);
   assert.deepEqual(validateListingRiskAnalyzerTransportResult(notApplicable, input), []);
   assert.deepEqual(canonicalizeListingRiskAnalyzerTransportResult(applicable, input).result, {
@@ -93,11 +93,21 @@ test("provider transport is materially simpler than canonical V2 and rejects imp
   });
 
   assert.notDeepEqual(
-    validateListingRiskAnalyzerTransportResult({ status: "not_applicable", facts: applicable.facts }, input),
+    validateListingRiskAnalyzerTransportResult({
+      status: "not_applicable",
+      facts: applicable.facts,
+      as_of_facts: [],
+      confidence: "unknown",
+    }, input),
     [],
   );
   assert.notDeepEqual(
-    validateListingRiskAnalyzerTransportResult({ status: "applicable", facts: [] }, input),
+    validateListingRiskAnalyzerTransportResult({
+      status: "applicable",
+      facts: [],
+      as_of_facts: [],
+      confidence: "unknown",
+    }, input),
     [],
   );
 });
@@ -140,34 +150,33 @@ test("provider facts must remain valid and cite the supplied source identity", (
   );
 });
 
-test("transport requires explicit exhaustive fact state and fails closed on missing, duplicate, or unknown keys", () => {
+test("available-only generic transport maps omissions to unavailable and fails closed on duplicate or unknown keys", () => {
   const input = newsInput("The exchange notified the issuer of a newly established listing event.");
   const transport = transportFromFacts(validFacts(input, "news_article_body", input.source_documents[0].text));
 
-  const missing = structuredClone(transport);
-  missing.facts[0].unavailable_fact_keys = missing.facts[0].unavailable_fact_keys.filter((key) => key !== "exchange");
-  assert.match(validateListingRiskAnalyzerTransportResult(missing, input).join("; "), /missing explicit state.*exchange/);
+  const canonical = canonicalizeListingRiskAnalyzerTransportResult(transport, input).result;
+  assert.equal(canonical?.applicable_facts[0].exchange.availability, "unavailable");
+  assert.equal(canonical?.applicable_facts[0].exchange.value, null);
 
   const duplicate = structuredClone(transport);
-  duplicate.facts[0].unavailable_fact_keys.push("exchange");
-  assert.match(validateListingRiskAnalyzerTransportResult(duplicate, input).join("; "), /must be unique/);
-
-  const both = structuredClone(transport);
-  both.facts[0].text_facts.push({
-    fact_key: "exchange",
-    value: "Nasdaq",
-    value_quality: "exact",
-    origin: "source_stated",
-    source_ref: "news_article_body",
-    evidence: input.source_documents[0].text,
-    confidence: "high",
-    as_of: null,
-  });
-  assert.match(validateListingRiskAnalyzerTransportResult(both, input).join("; "), /both available and unavailable/);
+  duplicate.facts.push(structuredClone(duplicate.facts[0]));
+  assert.match(validateListingRiskAnalyzerTransportResult(duplicate, input).join("; "), /key must be unique/);
 
   const unknown = structuredClone(transport) as any;
-  unknown.facts[0].unavailable_fact_keys[0] = "unknown_fact";
-  assert.match(validateListingRiskAnalyzerTransportResult(unknown, input).join("; "), /unavailable_fact_keys\[0\] is invalid/);
+  unknown.facts[0].key = "unknown_fact";
+  assert.match(validateListingRiskAnalyzerTransportResult(unknown, input).join("; "), /facts\[0\]\.key is invalid/);
+
+  const missingClassification = structuredClone(transport);
+  missingClassification.facts = missingClassification.facts.filter((row) => row.key !== "classification_event_outcome");
+  assert.match(validateListingRiskAnalyzerTransportResult(missingClassification, input).join("; "), /missing required key classification_event_outcome/);
+
+  const wrongSourceRef = structuredClone(transport);
+  wrongSourceRef.facts[0].source_ref = "missing-document";
+  assert.match(validateListingRiskAnalyzerTransportResult(wrongSourceRef, input).join("; "), /source_ref must identify a supplied source document/);
+
+  const providerDerived = structuredClone(transport) as any;
+  providerDerived.facts[0].origin = "deterministic_derived";
+  assert.match(validateListingRiskAnalyzerTransportResult(providerDerived, input).join("; "), /origin is invalid/);
 });
 
 test("source family, id, url, and document identity mismatches remain hard failures", () => {
@@ -252,7 +261,7 @@ test("provider-controlled condition fields remain complete and unchanged for a r
   facts.exchange = availableText("Nasdaq");
   facts.listing_rule = availableText("Nasdaq Listing Rule 5550(a)(2)");
   facts.affected_security.title = availableText("Common Stock");
-  facts.affected_security.security_basis = availableText("common_stock");
+  facts.affected_security.security_basis = { ...availableText("common_stock"), value_quality: "derived" };
   facts.dates.notice_date = availableDate("2026-05-01");
   facts.dates.compliance_deadline = { ...availableDate("2026-10-28"), date_status: "scheduled" };
   facts.fact_provenance.push(
@@ -280,10 +289,76 @@ test("provider-controlled condition fields remain complete and unchanged for a r
     exchange: availableText("Nasdaq"),
     listing_rule: availableText("Nasdaq Listing Rule 5550(a)(2)"),
     security_title: availableText("Common Stock"),
-    security_basis: availableText("common_stock"),
+    security_basis: { ...availableText("common_stock"), value_quality: "derived" },
     notice_date: availableDate("2026-05-01"),
     compliance_deadline: { ...availableDate("2026-10-28"), date_status: "scheduled" },
   });
+  assert.equal(
+    result && result.status === "applicable"
+      ? result.facts.fact_provenance.find((entry) => entry.fact_path === "affected_security.security_basis.value")?.origin
+      : null,
+    "domain_interpreted",
+    "value_quality derived must remain independent from LLM-owned origin",
+  );
+});
+
+test("generic rows use explicit key-specific mechanical parsing without coercion", () => {
+  const input = newsInput("Nasdaq scheduled a hearing on 2026-05-20 and continued trading remains true.");
+  const sourceRef = input.source_documents[0].source_ref;
+  const facts = validFacts(input, sourceRef, input.source_documents[0].text);
+  facts.dates.hearing_date = {
+    value: "2026-05-20",
+    availability: "available",
+    value_quality: "exact",
+    date_status: "scheduled",
+    source_ref: sourceRef,
+  };
+  facts.continued_trading.continues = {
+    value: true,
+    availability: "available",
+    value_quality: "derived",
+    source_ref: sourceRef,
+  };
+  facts.fact_provenance.push(
+    factProvenance("dates.hearing_date.value", sourceRef, input.source_documents[0].text, "source_stated"),
+    factProvenance("continued_trading.continues.value", sourceRef, input.source_documents[0].text),
+  );
+  facts.fact_provenance.at(-2)!.as_of = "2026-05-01";
+  facts.as_of = {
+    value: "2026-05-01",
+    availability: "available",
+    value_quality: "exact",
+    date_status: "occurred",
+    source_ref: sourceRef,
+  };
+  const transport = transportFromFacts(facts);
+  assert.deepEqual(validateListingRiskAnalyzerTransportResult(transport, input), []);
+  const canonical = canonicalizeListingRiskAnalyzerTransportResult(transport, input).result?.applicable_facts[0];
+  assert.equal(canonical?.dates.hearing_date.date_status, "scheduled");
+  assert.equal(canonical?.continued_trading.continues.value, true);
+  assert.equal(canonical?.as_of.value, "2026-05-01");
+  assert.equal(
+    canonical?.fact_provenance.find((entry) => entry.fact_path === "dates.hearing_date.value")?.as_of,
+    "2026-05-01",
+  );
+
+  const coercedBoolean = structuredClone(transport);
+  const booleanRow = coercedBoolean.facts.find((row) => row.key === "continued_trading_continues");
+  assert.ok(booleanRow);
+  booleanRow.value = "TRUE";
+  assert.match(validateListingRiskAnalyzerTransportResult(coercedBoolean, input).join("; "), /must be true or false/);
+
+  const invalidDate = structuredClone(transport);
+  const dateRow = invalidDate.facts.find((row) => row.key === "hearing_date");
+  assert.ok(dateRow);
+  dateRow.value = "May 20, 2026";
+  assert.match(validateListingRiskAnalyzerTransportResult(invalidDate, input).join("; "), /must be YYYY-MM-DD/);
+
+  const inferredQualifier = structuredClone(transport);
+  const textRow = inferredQualifier.facts.find((row) => row.key === "continued_trading_continues");
+  assert.ok(textRow);
+  textRow.date_status = "occurred";
+  assert.match(validateListingRiskAnalyzerTransportResult(inferredQualifier, input).join("; "), /date_status must be not_applicable/);
 });
 
 test("analyzer input bounds source packages without selecting listing semantics", () => {
@@ -393,7 +468,7 @@ test("all supported source families use one analyzer fact and result contract", 
 });
 
 test("shared semantic prompt defines current-event, reverse-split, recovery, procedural, and date boundaries", () => {
-  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v6");
+  assert.equal(LISTING_RISK_ANALYZER_PROMPT_VERSION, "listing_risk_domain_analyzer_v7");
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /primary_context[\s\S]+not evidence/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /historical deficiency[\s\S]+background/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /simple reverse split[\s\S]+not_applicable/i);
@@ -405,15 +480,16 @@ test("shared semantic prompt defines current-event, reverse-split, recovery, pro
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /structured listing_risk_event_facts_v2 fields are the primary product output/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /fact_provenance is the authoritative fact-level provenance layer/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Do not create rows for root confidence, availability, source_ref, evidence status, or other metadata/i);
-  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /every canonical semantic fact key exactly once[\s\S]+Missing, duplicate, unknown/i);
-  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Extract every condition-relevant listing_risk_event_facts_v2 field[\s\S]+Continue through all transport arrays/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Emit AVAILABLE facts only[\s\S]+Never omit a supported condition-relevant fact/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Duplicate and unknown keys are invalid/i);
+  assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /return every available condition-relevant listing_risk_event_facts_v2 field[\s\S]+Continue through all supported facts/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /Evidence supports those structured facts; evidence never replaces/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /source_document\.text\.includes\(evidence\) === true/);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /whitespace[\s\S]+Unicode[\s\S]+date formatting/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /smallest useful supporting span[\s\S]+150 to 280[\s\S]+520/i);
   assert.match(LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT, /schema-required mechanical representation[\s\S]+must not change/i);
   const prompt = buildListingRiskDomainAnalysisPrompt(newsInput("Source body"));
-  assert.equal(prompt.version, "listing_risk_domain_analyzer_v6");
+  assert.equal(prompt.version, "listing_risk_domain_analyzer_v7");
   assert.equal(prompt.responseFormat.json_schema.schema, LISTING_RISK_ANALYZER_PROVIDER_SCHEMA);
 });
 
@@ -517,15 +593,12 @@ function transportFromFacts(facts: ListingRiskEventFacts): ListingRiskAnalyzerTr
   const pathToKey = new Map(
     Object.entries(LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH).map(([key, path]) => [path, key]),
   );
-  const categorical_facts: any[] = [];
-  const text_facts: any[] = [];
-  const date_facts: any[] = [];
-  const boolean_facts: any[] = [];
+  const providerFacts: any[] = [];
   for (const entry of facts.fact_provenance) {
-    const fact_key = pathToKey.get(entry.fact_path);
-    assert.ok(fact_key);
+    const key = pathToKey.get(entry.fact_path);
+    assert.ok(key);
     const base = {
-      fact_key,
+      key,
       origin: entry.origin,
       source_ref: entry.source_ref,
       evidence: entry.evidence,
@@ -533,56 +606,52 @@ function transportFromFacts(facts: ListingRiskEventFacts): ListingRiskAnalyzerTr
       as_of: entry.as_of,
     };
     if (entry.fact_path === "classification.event_kind") {
-      categorical_facts.push({ ...base, value: facts.classification.event_kind });
+      providerFacts.push({ ...base, value: facts.classification.event_kind, value_quality: "not_applicable", date_status: "not_applicable" });
     } else if (entry.fact_path === "classification.event_outcome") {
-      categorical_facts.push({ ...base, value: facts.classification.event_outcome });
+      providerFacts.push({ ...base, value: facts.classification.event_outcome, value_quality: "not_applicable", date_status: "not_applicable" });
     } else if (entry.fact_path === "proceeding.kind") {
-      categorical_facts.push({ ...base, value: facts.proceeding.kind });
+      providerFacts.push({ ...base, value: facts.proceeding.kind, value_quality: "not_applicable", date_status: "not_applicable" });
     } else if (entry.fact_path === "proceeding.status") {
-      categorical_facts.push({ ...base, value: facts.proceeding.status });
+      providerFacts.push({ ...base, value: facts.proceeding.status, value_quality: "not_applicable", date_status: "not_applicable" });
     } else {
       const envelope = envelopeForPath(facts, entry.fact_path);
       assert.ok(envelope);
       if (entry.fact_path === "continued_trading.continues.value") {
-        boolean_facts.push({ ...base, value: envelope.value, value_quality: envelope.value_quality });
+        providerFacts.push({
+          ...base,
+          value: String(envelope.value),
+          value_quality: envelope.value_quality,
+          date_status: "not_applicable",
+        });
       } else if (entry.fact_path.startsWith("dates.")) {
-        date_facts.push({
+        providerFacts.push({
           ...base,
           value: envelope.value,
           value_quality: envelope.value_quality,
           date_status: envelope.date_status,
         });
       } else {
-        text_facts.push({ ...base, value: envelope.value, value_quality: envelope.value_quality });
+        providerFacts.push({
+          ...base,
+          value: envelope.value,
+          value_quality: envelope.value_quality,
+          date_status: "not_applicable",
+        });
       }
     }
   }
-  const availableKeys = new Set([
-    ...categorical_facts,
-    ...text_facts,
-    ...date_facts,
-    ...boolean_facts,
-  ].map((row) => row.fact_key));
   return {
     status: "applicable",
-    facts: [{
-      categorical_facts,
-      text_facts,
-      date_facts,
-      boolean_facts,
-      unavailable_fact_keys: Object.keys(LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH)
-        .filter((key) => !key.startsWith("classification_") && !availableKeys.has(key)) as any,
-      as_of_facts: facts.as_of.availability === "available"
-        ? [{
-            value: facts.as_of.value as string,
-            value_quality: facts.as_of.value_quality,
-            date_status: facts.as_of.date_status,
-            source_ref: facts.as_of.source_ref as string,
-          }]
-        : [],
-      as_of_availability: facts.as_of.availability,
-      confidence: facts.confidence || "unknown",
-    }],
+    facts: providerFacts,
+    as_of_facts: facts.as_of.availability === "available"
+      ? [{
+          value: facts.as_of.value as string,
+          value_quality: facts.as_of.value_quality,
+          date_status: facts.as_of.date_status,
+          source_ref: facts.as_of.source_ref as string,
+        }]
+      : [],
+    confidence: facts.confidence || "unknown",
   };
 }
 

@@ -18,7 +18,6 @@ import {
   type ListingRiskEvidenceRepairPlan,
 } from "./listingRiskEvidenceRepair.ts";
 import {
-  LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS,
   type ListingRiskAnalyzerInput,
   validateListingRiskAnalyzerProviderResult,
 } from "./listingRiskAnalyzer.ts";
@@ -221,7 +220,7 @@ test("semantic and source identity failures remain hard and do not enter repair"
 test("initial provider null evidence cannot bypass repair as canonical unavailable evidence", async () => {
   const analyzerInput = input();
   const providerTransport = transport(analyzerInput, shortEvidence) as any;
-  providerTransport.facts[0].categorical_facts[0].evidence = null;
+  providerTransport.facts[0].evidence = null;
   let repairCalls = 0;
   const result = await runListingRiskDomainAnalyzerPreview(analyzerInput, {
     apiKey: "test-key",
@@ -237,7 +236,10 @@ test("initial provider null evidence cannot bypass repair as canonical unavailab
 });
 
 test("valid applicable and not_applicable results bypass repair", async () => {
-  for (const parsed of [transport(input(), shortEvidence), { status: "not_applicable", facts: [] }]) {
+  for (const parsed of [
+    transport(input(), shortEvidence),
+    { status: "not_applicable", facts: [], as_of_facts: [], confidence: "unknown" },
+  ]) {
     let repairCalls = 0;
     const result = await runListingRiskDomainAnalyzerPreview(input(), {
       apiKey: "test-key",
@@ -298,9 +300,11 @@ function provider(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
 
 function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
   const ref = analyzerInput.source_documents[0].source_ref;
-  const provenance = (fact_key: "classification_event_kind" | "classification_event_outcome", value: string) => ({
-    fact_key,
+  const provenance = (key: "classification_event_kind" | "classification_event_outcome", value: string) => ({
+    key,
     value,
+    value_quality: "not_applicable" as const,
+    date_status: "not_applicable" as const,
     origin: "domain_interpreted" as const,
     source_ref: ref,
     evidence,
@@ -309,19 +313,12 @@ function transport(analyzerInput: ListingRiskAnalyzerInput, evidence: string) {
   });
   return {
     status: "applicable" as const,
-    facts: [{
-      categorical_facts: [
-        provenance("classification_event_kind", "other"),
-        provenance("classification_event_outcome", "unknown"),
-      ],
-      text_facts: [],
-      date_facts: [],
-      boolean_facts: [],
-      unavailable_fact_keys: [...LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS],
-      as_of_facts: [],
-      as_of_availability: "unavailable" as const,
-      confidence: "high" as const,
-    }],
+    facts: [
+      provenance("classification_event_kind", "other"),
+      provenance("classification_event_outcome", "unknown"),
+    ],
+    as_of_facts: [],
+    confidence: "high" as const,
   };
 }
 

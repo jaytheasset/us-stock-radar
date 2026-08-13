@@ -18,7 +18,7 @@ import {
 } from "./listingRiskFacts.ts";
 
 export const LISTING_RISK_ANALYZER_INPUT_VERSION = "listing_risk_analyzer_input_v1";
-export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v6";
+export const LISTING_RISK_ANALYZER_PROMPT_VERSION = "listing_risk_domain_analyzer_v7";
 export const LISTING_RISK_ANALYZER_MAX_DOCUMENTS = 48;
 export const LISTING_RISK_ANALYZER_MAX_SOURCE_CHARS = 120_000;
 
@@ -84,9 +84,8 @@ export const LISTING_RISK_PROVIDER_DATE_FACT_KEYS = [
 ] as const;
 
 export const LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS = ["continued_trading_continues"] as const;
-export const LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS = [
-  "proceeding_kind",
-  "proceeding_status",
+export const LISTING_RISK_PROVIDER_FACT_KEYS = [
+  ...LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS,
   ...LISTING_RISK_PROVIDER_TEXT_FACT_KEYS,
   ...LISTING_RISK_PROVIDER_DATE_FACT_KEYS,
   ...LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS,
@@ -114,11 +113,9 @@ export const LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH = {
   continued_trading_continues: "continued_trading.continues.value",
 } as const satisfies Record<string, ListingFactPath>;
 
-type ProviderCategoricalFactKey = (typeof LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)[number];
 type ProviderTextFactKey = (typeof LISTING_RISK_PROVIDER_TEXT_FACT_KEYS)[number];
 type ProviderDateFactKey = (typeof LISTING_RISK_PROVIDER_DATE_FACT_KEYS)[number];
-type ProviderBooleanFactKey = (typeof LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS)[number];
-type ProviderFactKey = keyof typeof LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH;
+type ProviderFactKey = (typeof LISTING_RISK_PROVIDER_FACT_KEYS)[number];
 
 type ListingRiskProviderProvenance = {
   origin: Exclude<ListingFactOrigin, "deterministic_derived">;
@@ -128,159 +125,74 @@ type ListingRiskProviderProvenance = {
   as_of: string | null;
 };
 
-type ListingRiskProviderCategoricalFact = ListingRiskProviderProvenance & {
-  fact_key: ProviderCategoricalFactKey;
+type ListingRiskProviderFact = ListingRiskProviderProvenance & {
+  key: ProviderFactKey;
   value: string;
+  value_quality: ListingValueQuality | "not_applicable";
+  date_status: (typeof LISTING_DATE_STATUSES)[number] | "not_applicable";
 };
 
-type ListingRiskProviderTextFact = ListingRiskProviderProvenance & {
-  fact_key: ProviderTextFactKey;
-  value: string;
-  value_quality: ListingValueQuality;
-};
-
-type ListingRiskProviderDateFact = ListingRiskProviderProvenance & {
-  fact_key: ProviderDateFactKey;
-  value: string;
-  value_quality: ListingValueQuality;
-  date_status: (typeof LISTING_DATE_STATUSES)[number];
-};
-
-type ListingRiskProviderBooleanFact = ListingRiskProviderProvenance & {
-  fact_key: ProviderBooleanFactKey;
-  value: boolean;
-  value_quality: ListingValueQuality;
-};
-
-type ListingRiskProviderAnalysis = {
-  categorical_facts: ListingRiskProviderCategoricalFact[];
-  text_facts: ListingRiskProviderTextFact[];
-  date_facts: ListingRiskProviderDateFact[];
-  boolean_facts: ListingRiskProviderBooleanFact[];
-  unavailable_fact_keys: (typeof LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS)[number][];
+export type ListingRiskAnalyzerTransportResult = {
+  status: ListingRiskAnalyzerStatus;
+  facts: ListingRiskProviderFact[];
   as_of_facts: Array<{
     value: string;
     value_quality: ListingValueQuality;
     date_status: (typeof LISTING_DATE_STATUSES)[number];
     source_ref: string;
   }>;
-  as_of_availability: "available" | "unavailable";
   confidence: Exclude<ListingFactConfidence, null> | "unknown";
 };
 
-export type ListingRiskAnalyzerTransportResult = {
-  status: ListingRiskAnalyzerStatus;
-  facts: ListingRiskProviderAnalysis[];
-};
-
-const providerProvenanceProperties = {
-  origin: { type: "string", enum: ["source_stated", "domain_interpreted"] },
-  source_ref: { type: "string" },
-  evidence: { type: "string" },
-  confidence: { type: "string", enum: LISTING_FACT_CONFIDENCES },
-  as_of: { type: "string", nullable: true },
-} as const;
-
-function providerFactSchema(
-  factKeys: readonly string[],
-  value: Record<string, unknown>,
-  extras: Record<string, unknown> = {},
-) {
-  return {
-    type: "object",
-    required: ["fact_key", "value", ...Object.keys(extras), ...Object.keys(providerProvenanceProperties)],
-    properties: {
-      fact_key: { type: "string", enum: factKeys },
-      value,
-      ...extras,
-      ...providerProvenanceProperties,
-    },
-  } as const;
-}
-
 export const LISTING_RISK_ANALYZER_PROVIDER_SCHEMA = {
   type: "object",
-  required: ["status", "facts"],
+  required: ["status", "facts", "as_of_facts", "confidence"],
   properties: {
     status: { type: "string", enum: ["applicable", "not_applicable"] },
     facts: {
       type: "array",
-      maxItems: 1,
+      maxItems: LISTING_RISK_PROVIDER_FACT_KEYS.length,
       items: {
         type: "object",
         required: [
-          "categorical_facts",
-          "text_facts",
-          "date_facts",
-          "boolean_facts",
-          "unavailable_fact_keys",
-          "as_of_facts",
-          "as_of_availability",
+          "key",
+          "value",
+          "value_quality",
+          "date_status",
+          "origin",
+          "source_ref",
+          "evidence",
           "confidence",
+          "as_of",
         ],
         properties: {
-          categorical_facts: {
-            type: "array",
-            maxItems: LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS.length,
-            items: providerFactSchema(
-              LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS,
-              { type: "string" },
-            ),
-          },
-          text_facts: {
-            type: "array",
-            maxItems: LISTING_RISK_PROVIDER_TEXT_FACT_KEYS.length,
-            items: providerFactSchema(
-              LISTING_RISK_PROVIDER_TEXT_FACT_KEYS,
-              { type: "string" },
-              { value_quality: { type: "string", enum: LISTING_VALUE_QUALITIES } },
-            ),
-          },
-          date_facts: {
-            type: "array",
-            maxItems: LISTING_RISK_PROVIDER_DATE_FACT_KEYS.length,
-            items: providerFactSchema(
-              LISTING_RISK_PROVIDER_DATE_FACT_KEYS,
-              { type: "string" },
-              {
-                value_quality: { type: "string", enum: LISTING_VALUE_QUALITIES },
-                date_status: { type: "string", enum: LISTING_DATE_STATUSES },
-              },
-            ),
-          },
-          boolean_facts: {
-            type: "array",
-            maxItems: LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS.length,
-            items: providerFactSchema(
-              LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS,
-              { type: "boolean" },
-              { value_quality: { type: "string", enum: LISTING_VALUE_QUALITIES } },
-            ),
-          },
-          unavailable_fact_keys: {
-            type: "array",
-            maxItems: LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS.length,
-            items: { type: "string", enum: LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS },
-          },
-          as_of_facts: {
-            type: "array",
-            maxItems: 1,
-            items: {
-              type: "object",
-              required: ["value", "value_quality", "date_status", "source_ref"],
-              properties: {
-                value: { type: "string" },
-                value_quality: { type: "string", enum: LISTING_VALUE_QUALITIES },
-                date_status: { type: "string", enum: LISTING_DATE_STATUSES },
-                source_ref: { type: "string" },
-              },
-            },
-          },
-          as_of_availability: { type: "string", enum: ["available", "unavailable"] },
-          confidence: { type: "string", enum: [...LISTING_FACT_CONFIDENCES, "unknown"] },
+          key: { type: "string" },
+          value: { type: "string" },
+          value_quality: { type: "string" },
+          date_status: { type: "string" },
+          origin: { type: "string", enum: ["source_stated", "domain_interpreted"] },
+          source_ref: { type: "string" },
+          evidence: { type: "string" },
+          confidence: { type: "string" },
+          as_of: { type: "string", nullable: true },
         },
       },
     },
+    as_of_facts: {
+      type: "array",
+      maxItems: 1,
+      items: {
+        type: "object",
+        required: ["value", "value_quality", "date_status", "source_ref"],
+        properties: {
+          value: { type: "string" },
+          value_quality: { type: "string" },
+          date_status: { type: "string" },
+          source_ref: { type: "string" },
+        },
+      },
+    },
+    confidence: { type: "string" },
   },
 } as const;
 
@@ -566,11 +478,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     return { result: { status: "not_applicable", applicable_facts: [] }, errors: [] };
   }
 
-  const analysis = transport.facts[0];
-  const categorical = new Map(analysis.categorical_facts.map((fact) => [fact.fact_key, fact]));
-  const textFacts = new Map(analysis.text_facts.map((fact) => [fact.fact_key, fact]));
-  const dateFacts = new Map(analysis.date_facts.map((fact) => [fact.fact_key, fact]));
-  const booleanFacts = new Map(analysis.boolean_facts.map((fact) => [fact.fact_key, fact]));
+  const providerFacts = new Map(transport.facts.map((fact) => [fact.key, fact]));
   const unavailableText = () => ({
     value: null,
     availability: "unavailable" as const,
@@ -578,38 +486,32 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     source_ref: null,
   });
   const unavailableDate = () => ({ ...unavailableText(), date_status: "unknown" as const });
-  const availableText = (fact: ListingRiskProviderTextFact) => ({
+  const availableText = (fact: ListingRiskProviderFact) => ({
     value: fact.value,
     availability: "available" as const,
-    value_quality: fact.value_quality,
+    value_quality: fact.value_quality as ListingValueQuality,
     source_ref: fact.source_ref,
   });
-  const availableDate = (fact: ListingRiskProviderDateFact) => ({
+  const availableDate = (fact: ListingRiskProviderFact) => ({
     value: fact.value,
     availability: "available" as const,
-    value_quality: fact.value_quality,
-    date_status: fact.date_status,
+    value_quality: fact.value_quality as ListingValueQuality,
+    date_status: fact.date_status as (typeof LISTING_DATE_STATUSES)[number],
     source_ref: fact.source_ref,
   });
   const text = (key: ProviderTextFactKey) => {
-    const fact = textFacts.get(key);
+    const fact = providerFacts.get(key);
     return fact ? availableText(fact) : unavailableText();
   };
   const date = (key: ProviderDateFactKey) => {
-    const fact = dateFacts.get(key);
+    const fact = providerFacts.get(key);
     return fact ? availableDate(fact) : unavailableDate();
   };
-  const continuedTrading = booleanFacts.get("continued_trading_continues");
-  const asOf = analysis.as_of_facts[0];
-  const provenanceRows = [
-    ...analysis.categorical_facts,
-    ...analysis.text_facts,
-    ...analysis.date_facts,
-    ...analysis.boolean_facts,
-  ];
+  const continuedTrading = providerFacts.get("continued_trading_continues");
+  const asOf = transport.as_of_facts[0];
   const provenanceByPath = new Map<ListingFactPath, ListingRiskEventFacts["fact_provenance"][number]>();
-  for (const row of provenanceRows) {
-    const factPath = LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH[row.fact_key as ProviderFactKey];
+  for (const row of transport.facts) {
+    const factPath = LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH[row.key];
     provenanceByPath.set(factPath, {
       fact_path: factPath,
       origin: row.origin,
@@ -625,7 +527,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
   }
 
   const sourceRefs = new Set<string>();
-  for (const row of provenanceRows) {
+  for (const row of transport.facts) {
     sourceRefs.add(row.source_ref);
   }
   if (asOf) sourceRefs.add(asOf.source_ref);
@@ -638,10 +540,10 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
       source_ref: sourceRef,
       evidence: null,
     }));
-  const eventKind = categorical.get("classification_event_kind") as ListingRiskProviderCategoricalFact;
-  const eventOutcome = categorical.get("classification_event_outcome") as ListingRiskProviderCategoricalFact;
-  const proceedingKind = categorical.get("proceeding_kind");
-  const proceedingStatus = categorical.get("proceeding_status");
+  const eventKind = providerFacts.get("classification_event_kind") as ListingRiskProviderFact;
+  const eventOutcome = providerFacts.get("classification_event_outcome") as ListingRiskProviderFact;
+  const proceedingKind = providerFacts.get("proceeding_kind");
+  const proceedingStatus = providerFacts.get("proceeding_status");
   const proceedingSourceRef = proceedingKind?.source_ref || proceedingStatus?.source_ref || null;
 
   const facts: ListingRiskEventFacts = {
@@ -676,9 +578,9 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
     continued_trading: {
       continues: continuedTrading
         ? {
-            value: continuedTrading.value,
+            value: continuedTrading.value === "true",
             availability: "available",
-            value_quality: continuedTrading.value_quality,
+            value_quality: continuedTrading.value_quality as ListingValueQuality,
             source_ref: continuedTrading.source_ref,
           }
         : { value: null, availability: "unavailable", value_quality: "unknown", source_ref: null },
@@ -693,7 +595,7 @@ export function canonicalizeListingRiskAnalyzerTransportResult(
           source_ref: asOf.source_ref,
         }
       : unavailableDate(),
-    confidence: analysis.confidence === "unknown" ? null : analysis.confidence,
+    confidence: transport.confidence === "unknown" ? null : transport.confidence,
     sources,
     fact_provenance: LISTING_FACT_PATHS.flatMap((path) => {
       const entry = provenanceByPath.get(path);
@@ -710,7 +612,7 @@ export function validateListingRiskAnalyzerTransportResult(
   const errors: string[] = [];
   const root = record(value);
   if (!root) return ["listing_risk_analyzer_transport_result must be an object"];
-  exactKeys(root, ["status", "facts"], "listing_risk_analyzer_transport_result", errors);
+  exactKeys(root, ["status", "facts", "as_of_facts", "confidence"], "listing_risk_analyzer_transport_result", errors);
   if (!oneOf(root.status, ["applicable", "not_applicable"])) {
     errors.push("listing_risk_analyzer_transport_result.status is invalid");
   }
@@ -718,154 +620,87 @@ export function validateListingRiskAnalyzerTransportResult(
     errors.push("listing_risk_analyzer_transport_result.facts must be an array");
     return errors;
   }
-  if (root.facts.length > 1) {
-    errors.push("listing_risk_analyzer_transport_result.facts must contain at most one item");
-  }
-  if (root.status === "applicable" && root.facts.length !== 1) {
-    errors.push("applicable status requires exactly one facts item");
+  if (root.facts.length > LISTING_RISK_PROVIDER_FACT_KEYS.length) {
+    errors.push(`listing_risk_analyzer_transport_result.facts must contain at most ${LISTING_RISK_PROVIDER_FACT_KEYS.length} items`);
   }
   if (root.status === "not_applicable" && root.facts.length !== 0) {
     errors.push("not_applicable status requires an empty facts array");
   }
-  if (root.facts.length !== 1) return errors;
-
-  const analysis = record(root.facts[0]);
-  if (!analysis) {
-    errors.push("facts[0] must be an object");
-    return errors;
-  }
-  exactKeys(analysis, [
-    "categorical_facts",
-    "text_facts",
-    "date_facts",
-    "boolean_facts",
-    "unavailable_fact_keys",
-    "as_of_facts",
-    "as_of_availability",
-    "confidence",
-  ], "facts[0]", errors);
   const sourceRefs = new Set(input.source_documents.map((document) => document.source_ref));
-  const categorical = validateTransportFactRows(
-    analysis.categorical_facts,
-    "facts[0].categorical_facts",
-    LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS,
-    sourceRefs,
-    errors,
-    "categorical",
-  );
-  const text = validateTransportFactRows(
-    analysis.text_facts,
-    "facts[0].text_facts",
-    LISTING_RISK_PROVIDER_TEXT_FACT_KEYS,
-    sourceRefs,
-    errors,
-    "text",
-  );
-  const dates = validateTransportFactRows(
-    analysis.date_facts,
-    "facts[0].date_facts",
-    LISTING_RISK_PROVIDER_DATE_FACT_KEYS,
-    sourceRefs,
-    errors,
-    "date",
-  );
-  const booleans = validateTransportFactRows(
-    analysis.boolean_facts,
-    "facts[0].boolean_facts",
-    LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS,
-    sourceRefs,
-    errors,
-    "boolean",
-  );
-  for (const requiredKey of ["classification_event_kind", "classification_event_outcome"] as const) {
-    if (!categorical.has(requiredKey)) errors.push(`facts[0].categorical_facts is missing ${requiredKey}`);
-  }
-  validateSharedCategoricalSource(categorical, ["classification_event_kind", "classification_event_outcome"], "classification", errors);
-  validateSharedCategoricalSource(categorical, ["proceeding_kind", "proceeding_status"], "proceeding", errors);
-
-  const availableKeys = new Set([...categorical.keys(), ...text.keys(), ...dates.keys(), ...booleans.keys()]);
-  const unavailableKeys = new Set<string>();
-  if (!Array.isArray(analysis.unavailable_fact_keys)) {
-    errors.push("facts[0].unavailable_fact_keys must be an array");
-  } else {
-    analysis.unavailable_fact_keys.forEach((key, index) => {
-      if (!oneOf(key, LISTING_RISK_PROVIDER_UNAVAILABLE_FACT_KEYS)) {
-        errors.push(`facts[0].unavailable_fact_keys[${index}] is invalid`);
-      } else if (unavailableKeys.has(key)) {
-        errors.push("facts[0].unavailable_fact_keys must be unique");
-      } else {
-        unavailableKeys.add(key);
-        if (availableKeys.has(key)) errors.push(`facts[0] fact_key ${key} cannot be both available and unavailable`);
-      }
-    });
-  }
-  for (const key of Object.keys(LISTING_RISK_PROVIDER_FACT_KEY_TO_PATH)) {
-    if (!availableKeys.has(key) && !unavailableKeys.has(key)) {
-      errors.push(`facts[0] is missing explicit state for fact_key ${key}`);
+  const facts = validateTransportFactRows(root.facts, sourceRefs, errors);
+  if (root.status === "applicable") {
+    for (const requiredKey of ["classification_event_kind", "classification_event_outcome"] as const) {
+      if (!facts.has(requiredKey)) errors.push(`facts is missing required key ${requiredKey}`);
     }
+    validateSharedFactSource(facts, ["classification_event_kind", "classification_event_outcome"], "classification", errors);
+    validateSharedFactSource(facts, ["proceeding_kind", "proceeding_status"], "proceeding", errors);
   }
 
-  if (!Array.isArray(analysis.as_of_facts) || analysis.as_of_facts.length > 1) {
-    errors.push("facts[0].as_of_facts must be an array containing at most one item");
-  } else if (analysis.as_of_facts.length === 1) {
-    const asOf = record(analysis.as_of_facts[0]);
+  if (!Array.isArray(root.as_of_facts) || root.as_of_facts.length > 1) {
+    errors.push("as_of_facts must be an array containing at most one item");
+  } else if (root.as_of_facts.length === 1) {
+    const asOf = record(root.as_of_facts[0]);
     if (!asOf) {
-      errors.push("facts[0].as_of_facts[0] must be an object");
+      errors.push("as_of_facts[0] must be an object");
     } else {
-      exactKeys(asOf, ["value", "value_quality", "date_status", "source_ref"], "facts[0].as_of_facts[0]", errors);
-      if (!validDate(asOf.value)) errors.push("facts[0].as_of_facts[0].value is invalid");
-      if (!oneOf(asOf.value_quality, LISTING_VALUE_QUALITIES)) errors.push("facts[0].as_of_facts[0].value_quality is invalid");
-      if (!oneOf(asOf.date_status, LISTING_DATE_STATUSES)) errors.push("facts[0].as_of_facts[0].date_status is invalid");
+      exactKeys(asOf, ["value", "value_quality", "date_status", "source_ref"], "as_of_facts[0]", errors);
+      if (!validDate(asOf.value)) errors.push("as_of_facts[0].value is invalid");
+      if (!oneOf(asOf.value_quality, LISTING_VALUE_QUALITIES)) errors.push("as_of_facts[0].value_quality is invalid");
+      if (!oneOf(asOf.date_status, LISTING_DATE_STATUSES)) errors.push("as_of_facts[0].date_status is invalid");
       if (!nonEmptyText(asOf.source_ref) || !sourceRefs.has(asOf.source_ref)) {
-        errors.push("facts[0].as_of_facts[0].source_ref must identify a supplied source document");
+        errors.push("as_of_facts[0].source_ref must identify a supplied source document");
       }
     }
   }
-  if (!oneOf(analysis.as_of_availability, ["available", "unavailable"])) {
-    errors.push("facts[0].as_of_availability is invalid");
-  } else if (analysis.as_of_availability === "available" && (!Array.isArray(analysis.as_of_facts) || analysis.as_of_facts.length !== 1)) {
-    errors.push("facts[0] available as_of requires exactly one as_of_facts row");
-  } else if (analysis.as_of_availability === "unavailable" && Array.isArray(analysis.as_of_facts) && analysis.as_of_facts.length !== 0) {
-    errors.push("facts[0] unavailable as_of requires an empty as_of_facts array");
+  if (root.status === "not_applicable" && Array.isArray(root.as_of_facts) && root.as_of_facts.length !== 0) {
+    errors.push("not_applicable status requires an empty as_of_facts array");
   }
-  if (!oneOf(analysis.confidence, [...LISTING_FACT_CONFIDENCES, "unknown"])) {
-    errors.push("facts[0].confidence is invalid");
+  if (!oneOf(root.confidence, [...LISTING_FACT_CONFIDENCES, "unknown"])) {
+    errors.push("confidence is invalid");
+  }
+  if (root.status === "not_applicable" && root.confidence !== "unknown") {
+    errors.push("not_applicable status requires unknown confidence");
   }
   return errors;
 }
 
 function validateTransportFactRows(
   value: unknown,
-  path: string,
-  allowedKeys: readonly string[],
   sourceRefs: Set<string>,
   errors: string[],
-  kind: "categorical" | "text" | "date" | "boolean",
 ) {
   const rows = Array.isArray(value) ? value : [];
   const seen = new Map<string, Record<string, unknown>>();
   if (!Array.isArray(value)) {
-    errors.push(`${path} must be an array`);
+    errors.push("facts must be an array");
     return seen;
   }
-  if (rows.length > allowedKeys.length) errors.push(`${path} contains too many items`);
+  if (rows.length > LISTING_RISK_PROVIDER_FACT_KEYS.length) errors.push("facts contains too many items");
   rows.forEach((rowValue, index) => {
-    const rowPath = `${path}[${index}]`;
+    const rowPath = `facts[${index}]`;
     const row = record(rowValue);
     if (!row) {
       errors.push(`${rowPath} must be an object`);
       return;
     }
-    const keys = ["fact_key", "value", "origin", "source_ref", "evidence", "confidence", "as_of"];
-    if (kind === "text" || kind === "boolean") keys.push("value_quality");
-    if (kind === "date") keys.push("value_quality", "date_status");
-    exactKeys(row, keys, rowPath, errors);
-    if (typeof row.fact_key !== "string" || !allowedKeys.includes(row.fact_key)) {
-      errors.push(`${rowPath}.fact_key is invalid`);
-    } else if (seen.has(row.fact_key)) {
-      errors.push(`${rowPath}.fact_key must be unique`);
+    exactKeys(row, [
+      "key",
+      "value",
+      "value_quality",
+      "date_status",
+      "origin",
+      "source_ref",
+      "evidence",
+      "confidence",
+      "as_of",
+    ], rowPath, errors);
+    const rowKey = typeof row.key === "string" ? row.key : null;
+    if (!rowKey || !(LISTING_RISK_PROVIDER_FACT_KEYS as readonly string[]).includes(rowKey)) {
+      errors.push(`${rowPath}.key is invalid`);
+    } else if (seen.has(rowKey)) {
+      errors.push(`${rowPath}.key must be unique`);
     } else {
-      seen.set(row.fact_key, row);
+      seen.set(rowKey, row);
     }
     if (!oneOf(row.origin, ["source_stated", "domain_interpreted"])) errors.push(`${rowPath}.origin is invalid`);
     if (!nonEmptyText(row.source_ref) || !sourceRefs.has(row.source_ref)) {
@@ -874,33 +709,38 @@ function validateTransportFactRows(
     if (!nonEmptyText(row.evidence)) errors.push(`${rowPath}.evidence must be a non-empty string`);
     if (!oneOf(row.confidence, LISTING_FACT_CONFIDENCES)) errors.push(`${rowPath}.confidence is invalid`);
     if (!(row.as_of === null || validDate(row.as_of))) errors.push(`${rowPath}.as_of is invalid`);
-    if (kind === "boolean") {
-      if (typeof row.value !== "boolean") errors.push(`${rowPath}.value is invalid`);
-    } else if (!nonEmptyText(row.value)) {
-      errors.push(`${rowPath}.value must be a non-empty string`);
-    }
-    if ((kind === "text" || kind === "date" || kind === "boolean") && !oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) {
-      errors.push(`${rowPath}.value_quality is invalid`);
-    }
-    if (kind === "date" && !validDate(row.value)) errors.push(`${rowPath}.value must be YYYY-MM-DD`);
-    if (kind === "date" && !oneOf(row.date_status, LISTING_DATE_STATUSES)) errors.push(`${rowPath}.date_status is invalid`);
-    if (kind === "categorical" && typeof row.fact_key === "string" && typeof row.value === "string") {
-      const allowedValues = row.fact_key === "classification_event_kind"
+    if (!nonEmptyText(row.value)) errors.push(`${rowPath}.value must be a non-empty string`);
+
+    if (oneOf(row.key, LISTING_RISK_PROVIDER_CATEGORICAL_FACT_KEYS)) {
+      if (row.value_quality !== "not_applicable") errors.push(`${rowPath}.value_quality must be not_applicable for ${row.key}`);
+      if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
+      const allowedValues = row.key === "classification_event_kind"
         ? LISTING_EVENT_KINDS
-        : row.fact_key === "classification_event_outcome"
+        : row.key === "classification_event_outcome"
           ? LISTING_EVENT_OUTCOMES
-          : row.fact_key === "proceeding_kind"
+          : row.key === "proceeding_kind"
             ? LISTING_PROCEEDING_KINDS.filter((item) => item !== "unknown")
-            : row.fact_key === "proceeding_status"
+            : row.key === "proceeding_status"
               ? LISTING_PROCEEDING_STATUSES.filter((item) => item !== "unknown")
               : [];
-      if (!oneOf(row.value, allowedValues)) errors.push(`${rowPath}.value is invalid for ${row.fact_key}`);
+      if (!oneOf(row.value, allowedValues)) errors.push(`${rowPath}.value is invalid for ${row.key}`);
+    } else if (oneOf(row.key, LISTING_RISK_PROVIDER_DATE_FACT_KEYS)) {
+      if (!validDate(row.value)) errors.push(`${rowPath}.value must be YYYY-MM-DD for ${row.key}`);
+      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
+      if (!oneOf(row.date_status, LISTING_DATE_STATUSES)) errors.push(`${rowPath}.date_status is invalid for ${row.key}`);
+    } else if (oneOf(row.key, LISTING_RISK_PROVIDER_BOOLEAN_FACT_KEYS)) {
+      if (row.value !== "true" && row.value !== "false") errors.push(`${rowPath}.value must be true or false for ${row.key}`);
+      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
+      if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
+    } else if (oneOf(row.key, LISTING_RISK_PROVIDER_TEXT_FACT_KEYS)) {
+      if (!oneOf(row.value_quality, LISTING_VALUE_QUALITIES)) errors.push(`${rowPath}.value_quality is invalid for ${row.key}`);
+      if (row.date_status !== "not_applicable") errors.push(`${rowPath}.date_status must be not_applicable for ${row.key}`);
     }
   });
   return seen;
 }
 
-function validateSharedCategoricalSource(
+function validateSharedFactSource(
   rows: Map<string, Record<string, unknown>>,
   keys: readonly string[],
   label: string,
@@ -911,7 +751,7 @@ function validateSharedCategoricalSource(
     return typeof sourceRef === "string" ? [sourceRef] : [];
   });
   if (new Set(sourceRefs).size > 1) {
-    errors.push(`facts[0].categorical_facts ${label} values must share one source_ref`);
+    errors.push(`facts ${label} values must share one source_ref`);
   }
 }
 

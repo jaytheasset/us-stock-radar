@@ -191,6 +191,14 @@ test("migration keeps history separate from facts and locks down the public sche
   assert.match(v6Migration, /listing_risk_domain_analyzer_v5[\s\S]+listing_risk_domain_analyzer_v6/);
   assert.match(v6Migration, /listing_risk_domain_analyzer_v6[\s\S]+listing_risk_event_facts_v2/);
   assert.doesNotMatch(v6Migration, /alter table|insert into|update\s+public\.|delete from|listing_risk_event_facts_v3/i);
+
+  const v7Migration = readFileSync(join(
+    process.cwd(),
+    "supabase/migrations/20260813160218_listing_risk_v2_generic_fact_transport.sql",
+  ), "utf8");
+  assert.match(v7Migration, /listing_risk_domain_analyzer_v6[\s\S]+listing_risk_domain_analyzer_v7/);
+  assert.match(v7Migration, /listing_risk_domain_analyzer_v7[\s\S]+listing_risk_event_facts_v2/);
+  assert.doesNotMatch(v7Migration, /alter table|insert into|update\s+public\.|delete from|listing_risk_event_facts_v3/i);
 });
 
 function identity() {
