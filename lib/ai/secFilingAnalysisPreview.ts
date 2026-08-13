@@ -161,6 +161,13 @@ import {
   inspectSecForm25ValidationRepairIssues,
 } from "@/lib/sources/sec/forms/form25/validationRepair";
 import { supabaseSelect } from "@/lib/supabase";
+import {
+  beginSecAnalysisSpan,
+  secAnalysisErrorClass,
+  traceSecAnalysis,
+  type SecAnalysisProviderPhase,
+  type SecAnalysisStage,
+} from "@/lib/ai/secAnalysisInstrumentation";
 
 type PreviewOptions = {
   dryRun?: boolean;
@@ -737,9 +744,44 @@ export async function runSecFilingAnalysisForRawRow(
   rawItem: RawItemRow,
   options: SecLlmOptions = {},
 ): Promise<SecFilingAnalysisRunResult> {
-  const input = await buildInputFromSecRawRowWithParentContext(rawItem);
-  await attachSecMarketContext(input);
+  const endContextBuild = beginSecAnalysisSpan("context_build_start", {
+    raw_item_id: stringValue(rawItem.id),
+  });
+  let input: SecFilingAnalysisInput;
+  try {
+    input = await buildInputFromSecRawRowWithParentContext(rawItem);
+    endContextBuild("context_build_end", { status: "success" });
+  } catch (error) {
+    endContextBuild("context_build_end", {
+      status: "error",
+      error_class: secAnalysisErrorClass(error),
+    });
+    throw error;
+  }
+
+  const endMarketContext = beginSecAnalysisSpan("market_context_start");
+  try {
+    await attachSecMarketContext(input);
+    const marketContext = readRecord(readRecord(input.filing_package)?.market_context);
+    const marketContextErrors = readStringArray(marketContext?.errors);
+    endMarketContext("market_context_end", {
+      status: "success",
+      market_context_available: Boolean(marketContext),
+      timeout_observed: marketContextErrors.some((error) => /timeout/i.test(error)),
+    });
+  } catch (error) {
+    endMarketContext("market_context_end", {
+      status: "error",
+      error_class: secAnalysisErrorClass(error),
+      timeout_observed: /timeout/i.test(error instanceof Error ? error.message : ""),
+    });
+    throw error;
+  }
   await attachOwnershipFilingContext(input, rawItem);
+  traceSecAnalysis("source_ready", {
+    status: "success",
+    raw_item_id: stringValue(rawItem.id),
+  });
 
   const deterministicEffect = buildDeterministicEffectAnalysis(input, rawItem);
   if (deterministicEffect) {
@@ -1387,7 +1429,23 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    let sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
+    const endPrimaryValidation = beginSecAnalysisSpan("primary_validation_start", {
+      prompt_key: prompt.key,
+      prompt_version: prompt.version,
+    });
+    let sec8k6kAnalysis: ReturnType<typeof adaptSec8k6kAnalysisPromptResultForAnalysis>;
+    try {
+      sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
+      endPrimaryValidation("primary_validation_end", {
+        status: sec8k6kAnalysis.ok ? "success" : "error",
+      });
+    } catch (error) {
+      endPrimaryValidation("primary_validation_end", {
+        status: "error",
+        error_class: secAnalysisErrorClass(error),
+      });
+      throw error;
+    }
     if (!sec8k6kAnalysis.ok) {
       return {
         ok: false,
@@ -4825,6 +4883,36 @@ async function runGeminiJsonPromptAttempts(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const attemptNumber = attemptOffset + attempt;
+    const providerPhase = readSecProviderPhase(prompt.key);
+    const attemptStages = readSecProviderAttemptStages(providerPhase);
+    const requestBody = JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: prompt.system }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt.user }],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: readGeminiResponseSchema(prompt),
+        maxOutputTokens: readMaxOutputTokens(prompt.key),
+        temperature: 0,
+        ...readGeminiThinkingConfig(llmConfig.model),
+      },
+    });
+    const attemptFields = {
+      provider_phase: providerPhase,
+      model: llmConfig.model,
+      attempt: attemptNumber,
+      input_chars: prompt.system.length + prompt.user.length,
+      request_body_chars: requestBody.length,
+      prompt_key: prompt.key,
+      prompt_version: prompt.version,
+    } as const;
+    const endProviderAttempt = beginSecAnalysisSpan(attemptStages.start, attemptFields);
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -4832,27 +4920,20 @@ async function runGeminiJsonPromptAttempts(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: prompt.system }],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt.user }],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: readGeminiResponseSchema(prompt),
-            maxOutputTokens: readMaxOutputTokens(prompt.key),
-            temperature: 0,
-            ...readGeminiThinkingConfig(llmConfig.model),
-          },
-        }),
+        body: requestBody,
       });
 
+      traceSecAnalysis("provider_headers_received", {
+        ...attemptFields,
+        status: response.ok ? "success" : "error",
+        http_status: response.status,
+      });
       const responseBody = (await response.json().catch(() => null)) as GeminiResponseBody | null;
+      traceSecAnalysis("provider_body_parsed", {
+        ...attemptFields,
+        status: responseBody ? "success" : "error",
+        http_status: response.status,
+      });
       const outputText = readGeminiResponseOutputText(responseBody);
       const finishReason = readGeminiFinishReason(responseBody);
       const safetyStopReason = readSecLlmSafetyStopReason({
@@ -4881,7 +4962,23 @@ async function runGeminiJsonPromptAttempts(
         rawOpenAIResponse: responseBody,
       };
 
-      if (lastRun.ok || !shouldRetryOpenAiRun(lastRun.status, lastRun.error)) return lastRun;
+      const retryable = shouldRetryOpenAiRun(lastRun.status, lastRun.error);
+      endProviderAttempt(attemptStages.end, {
+        status: lastRun.ok ? "success" : "error",
+        http_status: lastRun.status,
+        retryable,
+        ...(!lastRun.ok ? { error_class: readSecProviderErrorClass(response.ok, responseBody, lastRun.error) } : {}),
+      });
+      if (!lastRun.ok) {
+        traceSecAnalysis(attemptStages.failed, {
+          ...attemptFields,
+          status: "error",
+          http_status: lastRun.status,
+          retryable,
+          error_class: readSecProviderErrorClass(response.ok, responseBody, lastRun.error),
+        });
+      }
+      if (lastRun.ok || !retryable) return lastRun;
     } catch (error) {
       lastRun = {
         ok: false,
@@ -4896,6 +4993,20 @@ async function runGeminiJsonPromptAttempts(
         error: error instanceof Error ? error.message : String(error),
         rawOpenAIResponse: null,
       };
+      const retryable = shouldRetryOpenAiRun(lastRun.status, lastRun.error);
+      endProviderAttempt(attemptStages.end, {
+        status: "error",
+        http_status: 0,
+        retryable,
+        error_class: secAnalysisErrorClass(error),
+      });
+      traceSecAnalysis(attemptStages.failed, {
+        ...attemptFields,
+        status: "error",
+        http_status: 0,
+        retryable,
+        error_class: secAnalysisErrorClass(error),
+      });
     }
 
     if (attempt < maxAttempts) {
@@ -4916,6 +5027,51 @@ async function runGeminiJsonPromptAttempts(
     error: "Gemini request failed before response",
     rawOpenAIResponse: null,
   };
+}
+
+function readSecProviderPhase(promptKey: string): SecAnalysisProviderPhase {
+  if (promptKey === SEC_8K_6K_ROUTER_PROMPT_KEY || /(?:^|_)router(?:_|$)/i.test(promptKey)) return "router";
+  if (promptKey === SEC_8K_6K_VALIDATION_REPAIR_PROMPT_KEY || /validation_repair/i.test(promptKey)) {
+    return "primary_repair";
+  }
+  return "primary";
+}
+
+function readSecProviderAttemptStages(phase: SecAnalysisProviderPhase): {
+  start: SecAnalysisStage;
+  end: SecAnalysisStage;
+  failed: SecAnalysisStage;
+} {
+  if (phase === "router") {
+    return {
+      start: "router_attempt_start",
+      end: "router_attempt_end",
+      failed: "router_attempt_failed",
+    };
+  }
+  if (phase === "primary_repair") {
+    return {
+      start: "primary_repair_attempt_start",
+      end: "primary_repair_attempt_end",
+      failed: "primary_repair_attempt_failed",
+    };
+  }
+  return {
+    start: "primary_attempt_start",
+    end: "primary_attempt_end",
+    failed: "primary_attempt_failed",
+  };
+}
+
+function readSecProviderErrorClass(
+  responseOk: boolean,
+  responseBody: GeminiResponseBody | null,
+  error: string | undefined,
+) {
+  if (!responseOk) return "ProviderHttpError";
+  if (!responseBody) return "ProviderBodyParseError";
+  if (/safety|blocked/i.test(error || "")) return "ProviderSafetyError";
+  return "ProviderOutputParseError";
 }
 
 function readGeminiResponseSchema(prompt: OpenAiPrompt) {
