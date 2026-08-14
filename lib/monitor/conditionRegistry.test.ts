@@ -6,6 +6,7 @@ import {
   MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
   MONITOR_CONDITION_REGISTRY,
   MONITOR_CONDITION_REGISTRY_VERSION,
+  MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS,
   validateMonitorConditionInput,
 } from "./conditionRegistry.ts";
 import {
@@ -106,6 +107,48 @@ test("Listing V1 conditions use exact official-reader Core fact paths and contra
     assert.equal(entry.source.reader, "read_current_event_listing_risk_facts");
     assert.deepEqual(entry.source.jsonPath, jsonPath);
     assert.equal(entry.eligibility?.requiredReaderStatus, "available");
+  }
+});
+
+test("every public Listing V1 condition and value has separate complete English semantic and display metadata", () => {
+  const listingEntries = getReadyMonitorConditions().filter((entry) => entry.family === "listing");
+  assert.equal(listingEntries.length, 11);
+  assert.deepEqual(Object.keys(MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS).sort(), [
+    "after", "before", "eq", "gt", "gte", "in", "lt", "lte", "neq", "not_in", "within_days",
+  ]);
+  for (const label of Object.values(MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS)) {
+    assert.match(label, /^[\x20-\x7e]+$/);
+    assert.ok(label.length > 0);
+  }
+  for (const entry of listingEntries) {
+    assert.equal(typeof entry.description, "string", `${entry.key} description`);
+    assert.match(entry.description ?? "", /^[\x20-\x7e]+$/, `${entry.key} description must be ASCII English`);
+    assert.ok((entry.description?.length ?? 0) > 0 && (entry.description?.length ?? 0) <= 140);
+    assert.match(entry.display?.label ?? "", /^[\x20-\x7e]+$/, `${entry.key} display label`);
+    assert.ok((entry.display?.label.length ?? 0) > 0 && (entry.display?.label.length ?? 0) <= 48);
+    if (entry.enumValues) {
+      assert.deepEqual(
+        Object.keys(entry.enumValueDescriptions ?? {}).sort(),
+        [...entry.enumValues].sort(),
+        `${entry.key} enum description keys`,
+      );
+      for (const value of entry.enumValues) {
+        const description = entry.enumValueDescriptions?.[value] ?? "";
+        assert.match(description, /^[\x20-\x7e]+$/, `${entry.key}.${value} description must be ASCII English`);
+        assert.ok(description.length > 0 && description.length <= 140);
+        const displayLabel = entry.display?.enumValueLabels?.[value] ?? "";
+        assert.match(displayLabel, /^[\x20-\x7e]+$/, `${entry.key}.${value} display label`);
+        assert.ok(displayLabel.length > 0 && displayLabel.length <= 48);
+      }
+    } else {
+      assert.equal(entry.enumValueDescriptions, undefined);
+      assert.equal(entry.display?.enumValueLabels, undefined);
+    }
+    if (entry.valueType === "boolean") {
+      assert.deepEqual(entry.display?.booleanValueLabels, { true: "Yes", false: "No" });
+    } else {
+      assert.equal(entry.display?.booleanValueLabels, undefined);
+    }
   }
 });
 
