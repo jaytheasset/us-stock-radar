@@ -24,3 +24,7 @@ export function getMarketDataProvider() {
 export async function getCurrentPrice(symbol: string) {
   return getMarketDataProvider().getCurrentPrice(symbol);
 }
+
+export async function getMarketQuoteSnapshot(symbol: string) {
+  return getMarketDataProvider().getQuoteSnapshot(symbol);
+}

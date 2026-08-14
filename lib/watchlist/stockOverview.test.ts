@@ -82,7 +82,7 @@ test("overview availability requires real profile, quote, or event data", () => 
   assert.equal(
     hasStockOverviewData(
       emptyProfile,
-      mapStockOverviewQuote({ data: [{ price: 100 }] }),
+      mapStockOverviewQuote({ availability: "available", price: 100 }),
       [],
     ),
     true,
@@ -104,8 +104,10 @@ test("profile and quote mappers keep real values and preserve missing values as 
     ],
   });
   const quote = mapStockOverviewQuote({
-    ok: true,
-    data: [{ change: 2.4, changesPercentage: 1.25, price: 194.2 }],
+    availability: "available",
+    changeAmount: 2.4,
+    changePercent: 1.25,
+    price: 194.2,
   });
 
   assert.equal(profile.companyName, "Advanced Micro Devices, Inc.");

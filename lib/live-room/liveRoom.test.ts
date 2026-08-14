@@ -672,8 +672,9 @@ test("Live Room loads one cancellable quote and uses plan-aware fixed ads", () =
   assert.match(pageSource, /viewerPlan=\{viewerPlan\}/);
   assert.match(
     clientSource,
-    /\/api\/market\/fmp\/quote\?symbol=\$\{encodeURIComponent\(ticker\)\}/,
+    /\/api\/market\/quote\?symbol=\$\{encodeURIComponent\(ticker\)\}/,
   );
+  assert.doesNotMatch(clientSource, /\/api\/market\/fmp\/quote/);
   assert.match(clientSource, /mapStockOverviewQuote\(quotePayload\)/);
   assert.match(
     clientSource,

@@ -1,8 +1,10 @@
 import {
   normalizeMarketDataSymbol,
   type CurrentPrice,
+  type MarketQuoteSnapshot,
   type MarketDataProvider,
   unavailableCurrentPrice,
+  unavailableMarketQuoteSnapshot,
 } from "./marketDataProvider.ts";
 
 type FmpClientResult = {
@@ -18,10 +20,14 @@ type FmpCacheEntry = {
 };
 
 type FmpCacheWrite = {
+  changeAmount?: number;
+  changePercent?: number;
   price: number;
+  previousClose?: number;
   provider: string;
   rawPayload: unknown;
   symbol: string;
+  volume?: number;
 };
 
 export type FmpMarketDataProviderDependencies = {
@@ -46,34 +52,58 @@ export class FmpMarketDataProvider implements MarketDataProvider {
     const cachedPrice = normalizeCachedFmpPrice(cached, symbol);
     if (cachedPrice) return cachedPrice;
 
+    const snapshot = await this.loadQuoteSnapshot(symbol, true);
+    return snapshot.availability === "available"
+      ? {
+          asOf: snapshot.asOf,
+          availability: "available",
+          price: snapshot.price,
+          symbol: snapshot.symbol,
+        }
+      : unavailableCurrentPrice(symbol);
+  }
+
+  async getQuoteSnapshot(symbolInput: string): Promise<MarketQuoteSnapshot> {
+    const symbol = normalizeMarketDataSymbol(symbolInput);
+    if (!symbol) return unavailableMarketQuoteSnapshot(symbol);
+    return this.loadQuoteSnapshot(symbol, false);
+  }
+
+  private async loadQuoteSnapshot(symbol: string, writeCache: boolean) {
     let result: FmpClientResult;
     try {
       result = await this.dependencies.fetchQuote(symbol);
     } catch {
-      return unavailableCurrentPrice(symbol);
+      return unavailableMarketQuoteSnapshot(symbol);
     }
 
-    if (!result.ok) return unavailableCurrentPrice(symbol);
+    if (!result.ok) return unavailableMarketQuoteSnapshot(symbol);
 
-    const currentPrice = normalizeFmpCurrentPrice(
+    const snapshot = normalizeFmpQuoteSnapshot(
       result.data,
       symbol,
       (this.dependencies.now ?? (() => new Date()))(),
     );
-    if (currentPrice.availability === "unavailable") return currentPrice;
+    if (snapshot.availability === "unavailable") return snapshot;
 
-    try {
-      await this.dependencies.writeCachedQuote({
-        price: currentPrice.price,
-        provider: "fmp",
-        rawPayload: firstRecord(result.data),
-        symbol,
-      });
-    } catch {
-      // A successful provider read remains usable when the optional cache write fails.
+    if (writeCache) {
+      try {
+        await this.dependencies.writeCachedQuote({
+          changeAmount: snapshot.changeAmount ?? undefined,
+          changePercent: snapshot.changePercent ?? undefined,
+          previousClose: snapshot.previousClose ?? undefined,
+          price: snapshot.price,
+          provider: "fmp",
+          rawPayload: firstRecord(result.data),
+          symbol,
+          volume: snapshot.volume ?? undefined,
+        });
+      } catch {
+        // A successful provider read remains usable when the optional cache write fails.
+      }
     }
 
-    return currentPrice;
+    return snapshot;
   }
 
   private async readCache(symbol: string) {
@@ -90,9 +120,25 @@ export function normalizeFmpCurrentPrice(
   requestedSymbol: string,
   receivedAt = new Date(),
 ): CurrentPrice {
+  const snapshot = normalizeFmpQuoteSnapshot(value, requestedSymbol, receivedAt);
+  return snapshot.availability === "available"
+    ? {
+        asOf: snapshot.asOf,
+        availability: "available",
+        price: snapshot.price,
+        symbol: snapshot.symbol,
+      }
+    : unavailableCurrentPrice(snapshot.symbol);
+}
+
+export function normalizeFmpQuoteSnapshot(
+  value: unknown,
+  requestedSymbol: string,
+  receivedAt = new Date(),
+): MarketQuoteSnapshot {
   const symbol = normalizeMarketDataSymbol(requestedSymbol);
   const row = firstRecord(value);
-  if (!symbol || !row) return unavailableCurrentPrice(symbol);
+  if (!symbol || !row) return unavailableMarketQuoteSnapshot(symbol);
 
   const providerSymbol =
     typeof row.symbol === "string"
@@ -102,14 +148,27 @@ export function normalizeFmpCurrentPrice(
   const asOf = providerAsOf(row, receivedAt);
 
   if (providerSymbol !== symbol || price === null || asOf === null) {
-    return unavailableCurrentPrice(symbol);
+    return unavailableMarketQuoteSnapshot(symbol);
   }
 
   return {
     asOf,
     availability: "available",
+    changeAmount: optionalFiniteNumber(row.change ?? row.changeAmount),
+    changePercent: optionalFiniteNumber(
+      row.changePercentage ?? row.changesPercentage ?? row.changePercent,
+    ),
+    dayHigh: optionalPositiveFiniteNumber(row.dayHigh ?? row.high),
+    dayLow: optionalPositiveFiniteNumber(row.dayLow ?? row.low),
+    open: optionalPositiveFiniteNumber(row.open),
+    previousClose: optionalPositiveFiniteNumber(
+      row.previousClose ?? row.previousClosePrice,
+    ),
     price,
     symbol,
+    volume: optionalNonNegativeFiniteNumber(row.volume),
+    yearHigh: optionalPositiveFiniteNumber(row.yearHigh),
+    yearLow: optionalPositiveFiniteNumber(row.yearLow),
   };
 }
 
@@ -176,6 +235,26 @@ function positiveFiniteNumber(value: unknown) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
   return null;
+}
+
+function optionalFiniteNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function optionalPositiveFiniteNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  return positiveFiniteNumber(value);
+}
+
+function optionalNonNegativeFiniteNumber(value: unknown) {
+  const number = optionalFiniteNumber(value);
+  return number !== null && number >= 0 ? number : null;
 }
 
 function isoDate(value: unknown) {

@@ -16,8 +16,45 @@ export type UnavailableCurrentPrice = {
 
 export type CurrentPrice = AvailableCurrentPrice | UnavailableCurrentPrice;
 
+export type AvailableMarketQuoteSnapshot = {
+  asOf: string;
+  availability: "available";
+  changeAmount: number | null;
+  changePercent: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  open: number | null;
+  previousClose: number | null;
+  price: number;
+  symbol: string;
+  volume: number | null;
+  yearHigh: number | null;
+  yearLow: number | null;
+};
+
+export type UnavailableMarketQuoteSnapshot = {
+  asOf: null;
+  availability: "unavailable";
+  changeAmount: null;
+  changePercent: null;
+  dayHigh: null;
+  dayLow: null;
+  open: null;
+  previousClose: null;
+  price: null;
+  symbol: string;
+  volume: null;
+  yearHigh: null;
+  yearLow: null;
+};
+
+export type MarketQuoteSnapshot =
+  | AvailableMarketQuoteSnapshot
+  | UnavailableMarketQuoteSnapshot;
+
 export interface MarketDataProvider {
   getCurrentPrice(symbol: string): Promise<CurrentPrice>;
+  getQuoteSnapshot(symbol: string): Promise<MarketQuoteSnapshot>;
 }
 
 export function normalizeMarketDataSymbol(symbol: string) {
@@ -33,5 +70,25 @@ export function unavailableCurrentPrice(symbol: string): UnavailableCurrentPrice
     availability: "unavailable",
     price: null,
     symbol,
+  };
+}
+
+export function unavailableMarketQuoteSnapshot(
+  symbol: string,
+): UnavailableMarketQuoteSnapshot {
+  return {
+    asOf: null,
+    availability: "unavailable",
+    changeAmount: null,
+    changePercent: null,
+    dayHigh: null,
+    dayLow: null,
+    open: null,
+    previousClose: null,
+    price: null,
+    symbol,
+    volume: null,
+    yearHigh: null,
+    yearLow: null,
   };
 }

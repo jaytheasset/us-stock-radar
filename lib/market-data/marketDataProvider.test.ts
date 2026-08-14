@@ -5,9 +5,14 @@ import test from "node:test";
 import {
   FmpMarketDataProvider,
   normalizeFmpCurrentPrice,
+  normalizeFmpQuoteSnapshot,
   type FmpMarketDataProviderDependencies,
 } from "./fmpMarketDataProvider.ts";
-import { normalizeMarketDataSymbol } from "./marketDataProvider.ts";
+import {
+  normalizeMarketDataSymbol,
+  type MarketDataProvider,
+} from "./marketDataProvider.ts";
+import { mapStockOverviewQuote } from "../watchlist/stockOverview.ts";
 
 const receivedAt = new Date("2026-08-14T01:02:03.000Z");
 
@@ -47,6 +52,45 @@ test("missing provider timestamp uses receipt time without estimating price", ()
       availability: "available",
       price: 42.5,
       symbol: "AMD",
+    },
+  );
+});
+
+test("valid FMP quote becomes the smallest provider-neutral UI snapshot", () => {
+  assert.deepEqual(
+    normalizeFmpQuoteSnapshot(
+      [{
+        change: 2.4,
+        changePercentage: 1.25,
+        dayHigh: 199,
+        dayLow: 190,
+        marketCap: 301_000_000_000,
+        open: 192,
+        previousClose: 191.8,
+        price: 194.2,
+        symbol: "AMD",
+        timestamp: 1_700_000_000,
+        volume: 55_000_000,
+        yearHigh: 227.3,
+        yearLow: 93.1,
+      }],
+      "AMD",
+      receivedAt,
+    ),
+    {
+      asOf: "2023-11-14T22:13:20.000Z",
+      availability: "available",
+      changeAmount: 2.4,
+      changePercent: 1.25,
+      dayHigh: 199,
+      dayLow: 190,
+      open: 192,
+      previousClose: 191.8,
+      price: 194.2,
+      symbol: "AMD",
+      volume: 55_000_000,
+      yearHigh: 227.3,
+      yearLow: 93.1,
     },
   );
 });
@@ -134,6 +178,26 @@ test("successful provider result survives cache-write failure", async () => {
   );
 });
 
+test("browser quote snapshots remain read-only and never write the market cache", async () => {
+  let cacheWrites = 0;
+  const marketDataProvider = provider({
+    fetchQuote: async () => ({
+      data: [{ price: 17.25, symbol: "AMD", timestamp: 1_700_000_000 }],
+      ok: true,
+    }),
+    writeCachedQuote: async () => {
+      cacheWrites += 1;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(
+    (await marketDataProvider.getQuoteSnapshot("AMD")).availability,
+    "available",
+  );
+  assert.equal(cacheWrites, 0);
+});
+
 test("symbol normalization exactly preserves the existing project behavior", () => {
   assert.deepEqual(
     ["", " amd ", "brk.b", "RDS-A", "$ms/ft", "$$"].map(
@@ -155,7 +219,7 @@ test("symbol normalization exactly preserves the existing project behavior", () 
 });
 
 test("the adapter contract exposes no FMP response fields or raw payload", async () => {
-  const result = await provider({
+  const marketDataProvider = provider({
     fetchQuote: async () => ({
       data: [{
         change: 2,
@@ -167,7 +231,9 @@ test("the adapter contract exposes no FMP response fields or raw payload", async
       }],
       ok: true,
     }),
-  }).getCurrentPrice("AMD");
+  });
+  const result = await marketDataProvider.getCurrentPrice("AMD");
+  const snapshot = await marketDataProvider.getQuoteSnapshot("AMD");
 
   assert.deepEqual(Object.keys(result).sort(), [
     "asOf",
@@ -177,11 +243,14 @@ test("the adapter contract exposes no FMP response fields or raw payload", async
   ]);
   assert.equal(JSON.stringify(result).includes("previousClose"), false);
   assert.equal(JSON.stringify(result).includes("rawPayload"), false);
+  assert.equal(JSON.stringify(snapshot).includes("marketCap"), false);
+  assert.equal(JSON.stringify(snapshot).includes("rawPayload"), false);
+  assert.equal(JSON.stringify(snapshot).includes("changePercentage"), false);
 
   const contract = read("lib/market-data/marketDataProvider.ts");
   assert.doesNotMatch(
     contract,
-    /Fmp|FMP|previousClose|changePercentage|marketCap|rawPayload|volume/,
+    /Fmp|FMP|changePercentage|changesPercentage|marketCap|rawPayload/,
   );
 });
 
@@ -192,21 +261,96 @@ test("default wiring is FMP behind the provider-neutral boundary", () => {
   assert.match(boundary, /const defaultMarketDataProvider: MarketDataProvider/);
   assert.match(boundary, /new FmpMarketDataProvider\(/);
   assert.match(boundary, /getMarketDataProvider\(\)\.getCurrentPrice\(symbol\)/);
+  assert.match(boundary, /getMarketDataProvider\(\)\.getQuoteSnapshot\(symbol\)/);
   assert.doesNotMatch(boundary, /financialmodelingprep\.com|stable\/quote|\.price\b|\.timestamp\b/);
   assert.doesNotMatch(adapter, /financialmodelingprep\.com|stable\/quote|FMP_API_KEY/);
 });
 
-test("legacy FMP quote route and current-price UI consumers remain compatible", () => {
-  const route = read("app/api/market/fmp/quote/route.ts");
+test("production UI consumers use the provider-neutral quote route", () => {
+  const genericRoute = read("app/api/market/quote/route.ts");
+  const legacyRoute = read("app/api/market/fmp/quote/route.ts");
   const watchlist = read("components/watchlist-v2/StockRadarWatchlistV2.tsx");
   const liveRoom = read("components/live-room/LiveRoomClient.tsx");
   const mapper = read("lib/watchlist/stockOverview.ts");
 
-  assert.match(route, /fetchFmpQuote, fetchFmpQuotes/);
-  assert.match(route, /NextResponse\.json\(result/);
-  assert.match(watchlist, /\/api\/market\/fmp\/quote\?symbol=/);
-  assert.match(liveRoom, /\/api\/market\/fmp\/quote\?symbol=/);
+  assert.match(genericRoute, /getMarketQuoteSnapshot\(symbol\)/);
+  assert.doesNotMatch(genericRoute, /Fmp|FMP|financialmodelingprep|fetchFmpQuote/);
+  assert.match(legacyRoute, /fetchFmpQuote, fetchFmpQuotes/);
+  assert.match(legacyRoute, /NextResponse\.json\(result/);
+  assert.match(watchlist, /\/api\/market\/quote\?symbol=/);
+  assert.match(liveRoom, /\/api\/market\/quote\?symbol=/);
+  assert.doesNotMatch(watchlist, /\/api\/market\/fmp\/quote/);
+  assert.doesNotMatch(liveRoom, /\/api\/market\/fmp\/quote/);
   assert.match(mapper, /price: readNumber\(row, \["price"\]\)/);
+  assert.doesNotMatch(
+    mapper,
+    /changesPercentage|changePercentage|previousClosePrice/,
+  );
+});
+
+test("a fake MarketDataProvider drives the upper UI consumer without FMP", async () => {
+  const fakeProvider: MarketDataProvider = {
+    getCurrentPrice: async (symbol) => ({
+      asOf: receivedAt.toISOString(),
+      availability: "available",
+      price: 101.5,
+      symbol,
+    }),
+    getQuoteSnapshot: async (symbol) => ({
+      asOf: receivedAt.toISOString(),
+      availability: "available",
+      changeAmount: 1.5,
+      changePercent: 1.5,
+      dayHigh: 103,
+      dayLow: 99,
+      open: 100,
+      previousClose: 100,
+      price: 101.5,
+      symbol,
+      volume: 1_000,
+      yearHigh: 120,
+      yearLow: 80,
+    }),
+  };
+
+  const payload = await fakeProvider.getQuoteSnapshot("MOCK");
+  assert.deepEqual(mapStockOverviewQuote(payload), {
+    change: 1.5,
+    changePercent: 1.5,
+    dayHigh: 103,
+    dayLow: 99,
+    open: 100,
+    previousClose: 100,
+    price: 101.5,
+    volume: 1_000,
+    yearHigh: 120,
+    yearLow: 80,
+  });
+});
+
+test("remaining direct FMP quote consumers are broader multi-field or compatibility flows", () => {
+  const news = read("lib/newsMarketContext.ts");
+  const offering = read("lib/secOfferingMarketContext.ts");
+  const hydration = read("lib/marketQuoteHydration.ts");
+  const sector = read("app/api/market/sector-performance/route.ts");
+  const theme = read("app/api/market/theme-performance/route.ts");
+
+  assert.match(news, /fetchFmpQuote\(symbol\)/);
+  assert.match(
+    news,
+    /quote\?\.previousClose[\s\S]*quote\?\.marketCap[\s\S]*quote\?\.sharesOutstanding[\s\S]*quote\?\.volume[\s\S]*quote\?\.avgVolume/,
+  );
+  assert.match(offering, /fetchFmpQuote\(symbol\)/);
+  assert.match(
+    offering,
+    /fmpQuote\?\.currency[\s\S]*fmpQuote\?\.previousClose[\s\S]*fmpQuote\?\.marketCap[\s\S]*fmpQuote\?\.sharesOutstanding[\s\S]*fmpQuote\?\.volume[\s\S]*fmpQuote\?\.avgVolume/,
+  );
+  assert.match(
+    hydration,
+    /fetchFmpQuotes\(symbols\)[\s\S]*previousClose[\s\S]*changeAmount[\s\S]*changePercent[\s\S]*volume/,
+  );
+  assert.match(sector, /fetchFmpQuotes\(batch\)[\s\S]*changePercent[\s\S]*latestPrice/);
+  assert.match(theme, /fetchFmpQuotes\(normalizedSymbols\)[\s\S]*changePercent/);
 });
 
 function provider(
