@@ -190,22 +190,36 @@ export function mapStockOverviewProfile(
 }
 
 export function mapStockOverviewQuote(payload: unknown): StockOverviewQuote {
-  const row = firstDataRow(payload);
+  const row = asRecord(payload);
+  if (readString(row, ["availability"]) !== "available") {
+    return emptyStockOverviewQuote();
+  }
   return {
-    change: readNumber(row, ["change"]),
-    changePercent: readNumber(row, [
-      "changesPercentage",
-      "changePercentage",
-      "changePercent",
-    ]),
-    dayHigh: readNumber(row, ["dayHigh", "high"]),
-    dayLow: readNumber(row, ["dayLow", "low"]),
+    change: readNumber(row, ["changeAmount"]),
+    changePercent: readNumber(row, ["changePercent"]),
+    dayHigh: readNumber(row, ["dayHigh"]),
+    dayLow: readNumber(row, ["dayLow"]),
     open: readNumber(row, ["open"]),
     previousClose: readNumber(row, ["previousClose"]),
     price: readNumber(row, ["price"]),
     volume: readNumber(row, ["volume"]),
     yearHigh: readNumber(row, ["yearHigh"]),
     yearLow: readNumber(row, ["yearLow"]),
+  };
+}
+
+function emptyStockOverviewQuote(): StockOverviewQuote {
+  return {
+    change: null,
+    changePercent: null,
+    dayHigh: null,
+    dayLow: null,
+    open: null,
+    previousClose: null,
+    price: null,
+    volume: null,
+    yearHigh: null,
+    yearLow: null,
   };
 }
 

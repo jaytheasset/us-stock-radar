@@ -914,7 +914,7 @@ export function LiveRoomClient({
     const controller = new AbortController();
     setQuote(EMPTY_QUOTE);
     void fetch(
-      `/api/market/fmp/quote?symbol=${encodeURIComponent(ticker)}`,
+      `/api/market/quote?symbol=${encodeURIComponent(ticker)}`,
       { cache: "no-store", signal: controller.signal },
     )
       .then(readJsonResponse)

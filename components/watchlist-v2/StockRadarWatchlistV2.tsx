@@ -302,7 +302,7 @@ export function StockRadarWatchlistV2({
         cache: "no-store",
         signal: controller.signal,
       }).then(readJsonResponse),
-      fetch(`/api/market/fmp/quote?symbol=${encodeURIComponent(selectedTicker)}`, {
+      fetch(`/api/market/quote?symbol=${encodeURIComponent(selectedTicker)}`, {
         cache: "no-store",
         signal: controller.signal,
       }).then(readJsonResponse),
