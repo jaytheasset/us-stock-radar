@@ -53,6 +53,14 @@ export type MarketQuoteCacheHit = {
   error?: string;
 };
 
+export type MarketQuoteProviderCacheHit = {
+  hit: boolean;
+  quote?: Pick<MarketQuoteCachePayload, "price" | "provider" | "rawPayload"> & {
+    fetchedAt?: string;
+  };
+  error?: string;
+};
+
 export type MarketBarCacheHit = {
   hit: boolean;
   data?: MarketBarCachePayload;
@@ -137,6 +145,35 @@ export async function readMarketQuoteCache(symbol: string): Promise<MarketQuoteC
       price: numberOrUndefined(item.price),
       provider: stringOrFallback(item.provider, "fmp"),
       volume: numberOrUndefined(item.volume),
+    },
+  };
+}
+
+export async function readMarketQuoteProviderCache(
+  symbol: string,
+): Promise<MarketQuoteProviderCacheHit> {
+  const result = await supabaseSelect("market_quotes", {
+    select: "provider,price,raw_payload,fetched_at,expires_at",
+    symbol: `eq.${symbol}`,
+    expires_at: `gt.${new Date().toISOString()}`,
+    limit: "1",
+  });
+
+  if (!result.ok) {
+    return { hit: false, error: result.error };
+  }
+
+  const row = Array.isArray(result.data) ? result.data[0] : null;
+  if (!row || typeof row !== "object") return { hit: false };
+
+  const item = row as Record<string, unknown>;
+  return {
+    hit: true,
+    quote: {
+      fetchedAt: stringOrFallback(item.fetched_at, "") || undefined,
+      price: numberOrUndefined(item.price),
+      provider: stringOrFallback(item.provider, ""),
+      rawPayload: item.raw_payload,
     },
   };
 }

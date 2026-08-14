@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { getServerEnv } from "@/lib/env";
+import { normalizeMarketDataSymbol } from "@/lib/market-data/marketDataProvider";
 import { probeEventsTable } from "@/lib/supabase";
 
 type IntegrationResult = {
@@ -195,7 +196,7 @@ export async function fetchFmpQuote(symbol: string) {
     return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const url = new URL("https://financialmodelingprep.com/stable/quote");
   url.searchParams.set("symbol", cleanSymbol);
   url.searchParams.set("apikey", env.fmpApiKey);
@@ -247,7 +248,7 @@ export async function fetchFmpProfile(symbol: string) {
     return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const url = new URL("https://financialmodelingprep.com/stable/profile");
   url.searchParams.set("symbol", cleanSymbol);
   url.searchParams.set("apikey", env.fmpApiKey);
@@ -261,7 +262,7 @@ export async function fetchFmpSharesFloat(symbol: string) {
     return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const url = new URL("https://financialmodelingprep.com/stable/shares-float");
   url.searchParams.set("symbol", cleanSymbol);
   url.searchParams.set("apikey", env.fmpApiKey);
@@ -280,7 +281,7 @@ export async function fetchPolygonTicker(symbol: string) {
     };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const url = new URL(
     `https://api.polygon.io/v3/reference/tickers/${encodeURIComponent(cleanSymbol)}`,
   );
@@ -324,7 +325,7 @@ export async function fetchPolygonDailyBars(symbol: string, days = 20) {
     };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const { from, to } = dateWindow(days);
   const url = new URL(
     `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(cleanSymbol)}/range/1/day/${from}/${to}`,
@@ -357,7 +358,7 @@ export async function fetchFmpDailyBars(symbol: string, days = 20) {
     };
   }
 
-  const cleanSymbol = normalizeSymbol(symbol);
+  const cleanSymbol = normalizeMarketDataSymbol(symbol);
   const { from, to } = dateWindow(days);
   const url = new URL("https://financialmodelingprep.com/stable/historical-price-eod/full");
   url.searchParams.set("symbol", cleanSymbol);
@@ -482,16 +483,12 @@ export async function fetchSecCurrentFilings(form: string, count: number) {
   }
 }
 
-function normalizeSymbol(symbol: string) {
-  return (symbol || "AAPL").trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "");
-}
-
 function normalizeSymbols(symbols: string[]) {
   return Array.from(
     new Set(
       symbols
         .flatMap((symbol) => symbol.split(","))
-        .map((symbol) => normalizeSymbol(symbol))
+        .map((symbol) => normalizeMarketDataSymbol(symbol))
         .filter(Boolean),
     ),
   ).slice(0, 50);
