@@ -1,0 +1,369 @@
+.builder {
+  display: grid;
+  gap: var(--sr-space-4);
+  min-width: 0;
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-surface-panel);
+  box-shadow: var(--sr-shadow-panel);
+}
+
+.header,
+.reviewHeading,
+.monitorListHeading,
+.confirmBar,
+.promptActions,
+.monitorStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
+.header > div,
+.reviewHeading > div,
+.monitorListHeading > div,
+.confirmBar > div {
+  min-width: 0;
+}
+
+.header h2,
+.reviewHeading h3,
+.issues h3,
+.monitorListHeading h3 {
+  margin: 0;
+  color: var(--sr-color-text-primary);
+}
+
+.header p,
+.reviewHeading p,
+.issues > p,
+.monitorListHeading p,
+.confirmBar span {
+  margin: var(--sr-space-1) 0 0;
+  color: var(--sr-color-text-secondary);
+  line-height: var(--sr-line-height-body);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  margin-bottom: var(--sr-space-1);
+  color: var(--sr-color-accent);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.draftBadge,
+.reviewHeading > span,
+.monitorStatus > span {
+  flex: 0 0 auto;
+  padding: var(--sr-space-1) var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-pill);
+  color: var(--sr-color-text-meta);
+  background: var(--sr-color-surface-control);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.reviewHeading > span[data-ready="true"] {
+  border-color: var(--sr-color-positive);
+  color: var(--sr-color-positive);
+  background: var(--sr-color-event-earnings-surface);
+}
+
+.authNotice,
+.message {
+  margin: 0;
+  padding: var(--sr-space-2) var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-base);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+}
+
+.authNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
+.authNotice a {
+  color: var(--sr-color-accent);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.promptForm,
+.review,
+.issues,
+.monitorList {
+  display: grid;
+  gap: var(--sr-space-3);
+  min-width: 0;
+}
+
+.promptForm > label,
+.editorFields > label,
+.valueOptions {
+  display: grid;
+  gap: var(--sr-space-1);
+  min-width: 0;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.promptForm textarea,
+.editorFields select,
+.editorFields input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: var(--sr-space-2);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-base);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+}
+
+.promptForm textarea {
+  resize: vertical;
+}
+
+.promptForm textarea:focus-visible,
+.editorFields select:focus-visible,
+.editorFields input:focus-visible,
+.builder button:focus-visible,
+.authNotice a:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.promptActions > span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.builder button {
+  min-height: 42px;
+  padding: var(--sr-space-2) var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-base);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-control);
+  font: inherit;
+  font-weight: var(--sr-font-weight-semibold);
+  cursor: pointer;
+}
+
+.promptActions button,
+.confirmBar > button {
+  border-color: var(--sr-color-accent-border-active);
+  color: var(--sr-color-text-primary-action);
+  background: var(--sr-color-surface-primary-action);
+}
+
+.builder button:disabled {
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.previewList,
+.monitorRows {
+  display: grid;
+  gap: var(--sr-space-2);
+}
+
+.conditionCard,
+.issues article,
+.monitorRows article {
+  min-width: 0;
+  padding: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-surface-control);
+}
+
+.conditionPreview {
+  display: grid;
+  gap: var(--sr-space-1);
+  margin-bottom: var(--sr-space-3);
+}
+
+.conditionPreview > span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  text-transform: uppercase;
+}
+
+.conditionPreview > strong {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-lg);
+}
+
+.editorFields {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 0.8fr) minmax(170px, 1fr) auto;
+  align-items: end;
+  gap: var(--sr-space-2);
+  min-width: 0;
+}
+
+.valueOptions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: var(--sr-space-1) 0 0;
+  border: 0;
+}
+
+.valueOptions legend {
+  grid-column: 1 / -1;
+  padding: 0;
+}
+
+.valueOptions label {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-1);
+  min-height: 34px;
+}
+
+.valueOptions input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.removeCondition {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sr-space-1);
+}
+
+.issues article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sr-space-2);
+  border-color: var(--sr-color-warning);
+  background: var(--sr-color-event-product-surface);
+}
+
+.issues article[data-abandoned="true"] {
+  border-color: var(--sr-color-border);
+  background: var(--sr-color-surface-control);
+  opacity: 0.78;
+}
+
+.issues article > div {
+  display: grid;
+  gap: var(--sr-space-1);
+  min-width: 0;
+}
+
+.issues q,
+.issues span {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-secondary);
+}
+
+.confirmBar {
+  padding-top: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.confirmBar > div {
+  display: grid;
+}
+
+.monitorList {
+  padding-top: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.monitorRows article[data-created="true"] {
+  border-color: var(--sr-color-positive);
+  background: var(--sr-color-event-earnings-surface);
+}
+
+.monitorStatus {
+  justify-content: flex-start;
+}
+
+.monitorStatus > span {
+  margin-left: auto;
+}
+
+.monitorRows ul {
+  display: grid;
+  gap: var(--sr-space-1);
+  margin: var(--sr-space-2) 0 0;
+  padding-left: var(--sr-space-4);
+  color: var(--sr-color-text-secondary);
+}
+
+.monitorRows li {
+  overflow-wrap: anywhere;
+}
+
+.emptyState {
+  margin: 0;
+  padding: var(--sr-space-3);
+  color: var(--sr-color-text-meta);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .editorFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .removeCondition {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .builder {
+    padding: var(--sr-space-3);
+  }
+
+  .header,
+  .reviewHeading,
+  .monitorListHeading,
+  .confirmBar,
+  .authNotice,
+  .promptActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .draftBadge,
+  .reviewHeading > span,
+  .monitorListHeading > span {
+    width: fit-content;
+  }
+
+  .editorFields,
+  .issues article {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .valueOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .issues article > button,
+  .confirmBar > button,
+  .promptActions button {
+    width: 100%;
+  }
+}

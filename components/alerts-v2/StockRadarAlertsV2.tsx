@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
+import { ListingMonitorDraftBuilder } from "./ListingMonitorDraftBuilder";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
 import { getAlertsLoginHref } from "@/lib/alerts/tickers/query";
@@ -776,6 +777,8 @@ export function StockRadarAlertsV2({
               <Link href={getAlertsLoginHref(normalizedInitialTicker)}>Sign in</Link>
             </section>
           ) : null}
+
+          <ListingMonitorDraftBuilder />
 
           <section className={`${styles.card} ${styles.tickerCard}`} aria-labelledby="alerts-v2-tickers-title">
         <div className={styles.cardHeader}>
