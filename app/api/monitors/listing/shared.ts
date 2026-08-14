@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server.js";
 import {
   ListingMonitorAlertReadError,
   type ListingMonitorApiRequestError,
-} from "@/lib/monitor/listingMonitorApi";
-import { ListingMonitorPersistenceError } from "@/lib/monitor/listingMonitorPersistence";
+} from "../../../../lib/monitor/listingMonitorApi.ts";
+import { ListingMonitorPersistenceError } from "../../../../lib/monitor/listingMonitorPersistence.ts";
 
 export const MONITOR_API_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",

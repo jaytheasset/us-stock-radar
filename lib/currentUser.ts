@@ -10,12 +10,28 @@ function isUuid(value: string) {
 }
 
 export async function getOptionalCurrentUserId() {
+  const authUser = await getOptionalCurrentAuthUser();
+
+  if (authUser?.id) {
+    await ensureUserBootstrap(authUser);
+    return authUser.id;
+  }
+
+  return null;
+}
+
+/** Authenticated identity read without profile/preferences bootstrap writes. */
+export async function getOptionalCurrentUserIdReadOnly() {
+  const authUser = await getOptionalCurrentAuthUser();
+  return authUser?.id || null;
+}
+
+async function getOptionalCurrentAuthUser() {
   const accessToken = await getAuthAccessTokenFromCookies();
   const authUser = accessToken ? await getSupabaseAuthUser(accessToken) : null;
 
   if (authUser?.id && isUuid(authUser.id)) {
-    await ensureUserBootstrap(authUser);
-    return authUser.id;
+    return authUser;
   }
 
   return null;

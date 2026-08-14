@@ -22,6 +22,31 @@ export type MonitorConditionOperator =
   | "within_days";
 export type MonitorConditionQuality = "exact" | "derived" | "estimated" | "unknown";
 
+export type MonitorConditionSemanticMetadata = Readonly<{
+  description: string;
+  enumValueDescriptions?: Readonly<Record<string, string>>;
+}>;
+
+export type MonitorConditionDisplayMetadata = Readonly<{
+  label: string;
+  enumValueLabels?: Readonly<Record<string, string>>;
+  booleanValueLabels?: Readonly<Record<"true" | "false", string>>;
+}>;
+
+export const MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS = Object.freeze({
+  eq: "Equals",
+  neq: "Does not equal",
+  gt: "Greater than",
+  gte: "At least",
+  lt: "Less than",
+  lte: "At most",
+  in: "Any of",
+  not_in: "None of",
+  before: "Before",
+  after: "After",
+  within_days: "Within",
+} satisfies Record<MonitorConditionOperator, string>);
+
 // Storage can retain an available numeric observation with unknown quality for
 // provenance. A future matcher must intersect an entry's qualityCapability
 // with this list and must also require availability = "available".
@@ -45,6 +70,9 @@ export type MonitorConditionDefinition = Readonly<{
   valueType: MonitorConditionValueType;
   allowedOperators: readonly MonitorConditionOperator[];
   enumValues?: readonly string[];
+  description?: string;
+  enumValueDescriptions?: Readonly<Record<string, string>>;
+  display?: MonitorConditionDisplayMetadata;
   family: "event" | "market" | "offering" | "listing" | "ownership";
   domain: string;
   source: Readonly<{
@@ -117,39 +145,132 @@ const registry = [
 
   canonicalListingCondition("listing.event_kind", "text", enumOperators, "classification", ["classification", "event_kind"], {
     enumValues: LISTING_EVENT_KINDS,
+    description: "The type of exchange listing-compliance event established by the canonical event facts.",
+    enumValueDescriptions: {
+      deficiency_notice: "The exchange notified the issuer that one or more continued-listing requirements were not met.",
+      compliance_recovery: "The exchange confirmed that the issuer regained compliance with one or more continued-listing requirements.",
+      delisting_determination: "The exchange determined that the security is subject to delisting.",
+      hearing_or_appeal_update: "A listing hearing or appeal was requested, scheduled, updated, or decided.",
+      trading_suspension: "The exchange took or scheduled a listing-related trading suspension action.",
+      listing_removal: "The security's exchange listing was removed or terminated.",
+      voluntary_withdrawal: "The issuer initiated withdrawal of the security's exchange listing.",
+      other: "Another material listing-status event not represented by a more specific event kind.",
+    },
+    display: {
+      label: "Listing event",
+      enumValueLabels: {
+        deficiency_notice: "Listing deficiency notice",
+        compliance_recovery: "Compliance recovery",
+        delisting_determination: "Delisting determination",
+        hearing_or_appeal_update: "Hearing or appeal update",
+        trading_suspension: "Trading suspension",
+        listing_removal: "Listing removal",
+        voluntary_withdrawal: "Voluntary withdrawal",
+        other: "Other listing event",
+      },
+    },
   }),
   canonicalListingCondition("listing.event_outcome", "text", enumOperators, "classification", ["classification", "event_outcome"], {
     enumValues: LISTING_EVENT_OUTCOMES,
     ineligibleValues: ["unknown"],
+    description: "The effect of the event on the security's listing-compliance standing.",
+    enumValueDescriptions: {
+      adverse: "The event worsens or threatens the security's listing standing.",
+      recovered: "The outcome indicates recovery from a previously adverse listing-compliance condition.",
+      procedural: "The event is procedural or administrative and is not itself adverse or recovered.",
+      unknown: "The event outcome is not established.",
+    },
+    display: {
+      label: "Listing outcome",
+      enumValueLabels: {
+        adverse: "Unfavorable",
+        recovered: "Recovered",
+        procedural: "Procedural",
+        unknown: "Unknown",
+      },
+    },
   }),
   canonicalListingCondition("listing.exchange", "text", textOperators, "venue", ["exchange", "value"], {
     factEnvelope: true,
+    description: "The securities exchange associated with the listing-compliance event.",
+    display: { label: "Exchange" },
   }),
   canonicalListingCondition("listing.compliance_deadline", "date", dateOperators, "dates", ["dates", "compliance_deadline", "value"], {
     factEnvelope: true,
+    description: "The date by which the issuer must regain compliance with continued-listing requirements.",
+    display: { label: "Compliance deadline" },
   }),
   canonicalListingCondition("listing.hearing_date", "date", dateOperators, "dates", ["dates", "hearing_date", "value"], {
     factEnvelope: true,
+    description: "The scheduled or occurred date of a listing hearing.",
+    display: { label: "Hearing date" },
   }),
   canonicalListingCondition("listing.appeal_deadline", "date", dateOperators, "dates", ["dates", "appeal_deadline", "value"], {
     factEnvelope: true,
+    description: "The date by which the issuer may appeal a listing determination.",
+    display: { label: "Appeal deadline" },
   }),
   canonicalListingCondition("listing.suspension_date", "date", dateOperators, "dates", ["dates", "trading_suspension_date", "value"], {
     factEnvelope: true,
+    description: "The date a listing-related trading suspension is scheduled to begin or occurred.",
+    display: { label: "Trading suspension date" },
   }),
   canonicalListingCondition("listing.removal_effective_date", "date", dateOperators, "dates", ["dates", "removal_effective_date", "value"], {
     factEnvelope: true,
+    description: "The date removal or termination of the exchange listing becomes or became effective.",
+    display: { label: "Listing removal date" },
   }),
   canonicalListingCondition("listing.continued_trading", "boolean", equality, "trading", ["continued_trading", "continues", "value"], {
     factEnvelope: true,
+    description: "Whether the security continues trading after the listing-compliance event.",
+    display: {
+      label: "Continued trading",
+      booleanValueLabels: { true: "Yes", false: "No" },
+    },
   }),
   canonicalListingCondition("listing.proceeding_kind", "text", enumOperators, "proceeding", ["proceeding", "kind"], {
     enumValues: LISTING_PROCEEDING_KINDS,
     ineligibleValues: ["unknown"],
+    description: "The type of exchange listing proceeding associated with the event.",
+    enumValueDescriptions: {
+      hearing: "The proceeding is an exchange listing hearing.",
+      appeal: "The proceeding is an appeal of an exchange listing decision.",
+      other: "The proceeding is another listing process not represented by hearing or appeal.",
+      unknown: "The proceeding type is not established.",
+    },
+    display: {
+      label: "Proceeding type",
+      enumValueLabels: {
+        hearing: "Hearing",
+        appeal: "Appeal",
+        other: "Other proceeding",
+        unknown: "Unknown",
+      },
+    },
   }),
   canonicalListingCondition("listing.proceeding_status", "text", enumOperators, "proceeding", ["proceeding", "status"], {
     enumValues: LISTING_PROCEEDING_STATUSES,
     ineligibleValues: ["unknown"],
+    description: "The current procedural status of the exchange listing proceeding.",
+    enumValueDescriptions: {
+      intended: "The issuer intends to pursue the proceeding but has not requested it.",
+      requested: "The proceeding has been requested.",
+      pending: "The proceeding is awaiting action or a decision.",
+      decided: "The proceeding has received a decision.",
+      not_pursued: "The proceeding will not be pursued.",
+      unknown: "The proceeding status is not established.",
+    },
+    display: {
+      label: "Proceeding status",
+      enumValueLabels: {
+        intended: "Intended",
+        requested: "Requested",
+        pending: "Pending",
+        decided: "Decided",
+        not_pursued: "Not pursued",
+        unknown: "Unknown",
+      },
+    },
   }),
 
   condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"]),
@@ -254,17 +375,31 @@ function canonicalOfferingCondition(
   });
 }
 
-function canonicalListingCondition(
+type ListingConditionMetadata<TEnumValues extends readonly string[] | undefined> = Readonly<{
+  description: string;
+  display: Readonly<{
+    label: string;
+    booleanValueLabels?: Readonly<Record<"true" | "false", string>>;
+  } & (TEnumValues extends readonly string[]
+    ? { enumValueLabels: Readonly<Record<TEnumValues[number], string>> }
+    : { enumValueLabels?: never })>;
+} & (TEnumValues extends readonly string[]
+  ? { enumValueDescriptions: Readonly<Record<TEnumValues[number], string>> }
+  : { enumValueDescriptions?: never })>;
+
+function canonicalListingCondition<
+  const TEnumValues extends readonly string[] | undefined = undefined,
+>(
   key: string,
   valueType: "text" | "boolean" | "date",
   allowedOperators: readonly MonitorConditionOperator[],
   domain: string,
   jsonPath: readonly string[],
   options: {
-    enumValues?: readonly string[];
+    enumValues?: TEnumValues;
     factEnvelope?: boolean;
     ineligibleValues?: readonly string[];
-  } = {},
+  } & ListingConditionMetadata<TEnumValues>,
 ): MonitorConditionDefinition {
   const envelopePath = jsonPath.slice(0, -1);
   return Object.freeze({
@@ -272,6 +407,19 @@ function canonicalListingCondition(
     valueType,
     allowedOperators: Object.freeze([...allowedOperators]),
     ...(options.enumValues ? { enumValues: Object.freeze([...options.enumValues]) } : {}),
+    description: options.description,
+    ...(options.enumValueDescriptions ? {
+      enumValueDescriptions: Object.freeze({ ...options.enumValueDescriptions }),
+    } : {}),
+    display: Object.freeze({
+      label: options.display.label,
+      ...(options.display.enumValueLabels ? {
+        enumValueLabels: Object.freeze({ ...options.display.enumValueLabels }),
+      } : {}),
+      ...(options.display.booleanValueLabels ? {
+        booleanValueLabels: Object.freeze({ ...options.display.booleanValueLabels }),
+      } : {}),
+    }),
     family: "listing" as const,
     domain,
     source: Object.freeze({
@@ -316,6 +464,46 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
     if (!entry.qualityCapability.length) throw new Error(`Monitor condition has no quality capability: ${entry.key}`);
     if (entry.enumValues && (entry.valueType !== "text" || !entry.enumValues.length || new Set(entry.enumValues).size !== entry.enumValues.length)) {
       throw new Error(`Invalid monitor condition enum: ${entry.key}`);
+    }
+    if (entry.family === "listing") {
+      if (typeof entry.description !== "string" || !entry.description.trim()) {
+        throw new Error(`Listing monitor condition lacks a description: ${entry.key}`);
+      }
+      const describedValues = Object.keys(entry.enumValueDescriptions ?? {});
+      if (entry.enumValues) {
+        if (
+          describedValues.length !== entry.enumValues.length
+          || entry.enumValues.some((value) => !entry.enumValueDescriptions?.[value]?.trim())
+          || describedValues.some((value) => !entry.enumValues?.includes(value))
+        ) {
+          throw new Error(`Listing monitor condition enum descriptions are incomplete: ${entry.key}`);
+        }
+      } else if (describedValues.length > 0) {
+        throw new Error(`Listing monitor condition has descriptions without enum values: ${entry.key}`);
+      }
+      if (typeof entry.display?.label !== "string" || !entry.display.label.trim()) {
+        throw new Error(`Listing monitor condition lacks a display label: ${entry.key}`);
+      }
+      const labeledValues = Object.keys(entry.display.enumValueLabels ?? {});
+      if (entry.enumValues) {
+        if (
+          labeledValues.length !== entry.enumValues.length
+          || entry.enumValues.some((value) => !entry.display?.enumValueLabels?.[value]?.trim())
+          || labeledValues.some((value) => !entry.enumValues?.includes(value))
+        ) {
+          throw new Error(`Listing monitor condition enum display labels are incomplete: ${entry.key}`);
+        }
+      } else if (labeledValues.length > 0) {
+        throw new Error(`Listing monitor condition has enum display labels without enum values: ${entry.key}`);
+      }
+      const booleanLabels = entry.display.booleanValueLabels;
+      if (entry.valueType === "boolean") {
+        if (!booleanLabels?.true?.trim() || !booleanLabels.false?.trim()) {
+          throw new Error(`Listing monitor boolean condition display labels are incomplete: ${entry.key}`);
+        }
+      } else if (booleanLabels) {
+        throw new Error(`Non-boolean Listing monitor condition has boolean display labels: ${entry.key}`);
+      }
     }
     if (entry.eligibility?.ineligibleValues?.some((value) => !entry.enumValues?.includes(value))) {
       throw new Error(`Monitor condition ineligible value is outside its enum: ${entry.key}`);
