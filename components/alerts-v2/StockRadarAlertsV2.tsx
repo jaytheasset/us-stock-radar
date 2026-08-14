@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AdSenseSlot } from "@/components/ads/AdSenseSlot";
 import { TickerCompanyAutocomplete } from "@/components/ui/TickerCompanyAutocomplete";
-import { ListingMonitorDraftBuilder } from "./ListingMonitorDraftBuilder";
+import { ListingMonitorManagement } from "./ListingMonitorDraftBuilder";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import { formatCalendarEventFollowUsage } from "@/lib/alerts/calendarFollowPolicy";
 import { getAlertsLoginHref } from "@/lib/alerts/tickers/query";
@@ -778,7 +778,16 @@ export function StockRadarAlertsV2({
             </section>
           ) : null}
 
-          <ListingMonitorDraftBuilder />
+          <section className={styles.aiMonitorEntry} aria-labelledby="alerts-ai-monitor-title">
+            <div>
+              <span>AI Monitor</span>
+              <h2 id="alerts-ai-monitor-title">Tell Stock Radar what to watch.</h2>
+              <p>Describe a signal in plain language, review it, and create a monitor.</p>
+            </div>
+            <Link href="/monitor">Open AI Monitor</Link>
+          </section>
+
+          <ListingMonitorManagement />
 
           <section className={`${styles.card} ${styles.tickerCard}`} aria-labelledby="alerts-v2-tickers-title">
         <div className={styles.cardHeader}>

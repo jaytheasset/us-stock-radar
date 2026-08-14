@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, BellRing, CheckCircle2, Pause, Play, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   changeListingMonitorDraftConditionKey,
   changeListingMonitorDraftConditionOperator,
@@ -15,6 +15,7 @@ import {
   setListingMonitorDraftIssueAbandoned,
   type ListingMonitorDraftReview,
 } from "@/lib/monitor/listingMonitorDraftReview";
+import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
 import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import styles from "./ListingMonitorDraftBuilder.module.css";
@@ -33,35 +34,36 @@ type ListingMonitorListData = Readonly<{
   monitors: readonly ListingMonitor[];
 }>;
 
+type ListingMonitorAlertsData = Readonly<{
+  alerts: readonly ListingMonitorAlertItem[];
+  total: number;
+}>;
+
 export function ListingMonitorDraftBuilder() {
   const [text, setText] = useState("");
   const [review, setReview] = useState<ListingMonitorDraftReview | null>(null);
-  const [monitors, setMonitors] = useState<readonly ListingMonitor[]>([]);
   const [action, setAction] = useState<"idle" | "compiling" | "creating">("idle");
-  const [listLoading, setListLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [message, setMessage] = useState("");
-  const [createdMonitorId, setCreatedMonitorId] = useState("");
+  const [created, setCreated] = useState(false);
   const createGate = useMemo(
     () => review ? getListingMonitorDraftCreateGate(review) : null,
     [review],
   );
+  const hasUnresolvedIssues = review?.issues.some((issue) => !issue.abandoned) ?? false;
 
   useEffect(() => {
     const controller = new AbortController();
-    setListLoading(true);
     fetchListingMonitors(controller.signal)
-      .then((data) => {
-        setMonitors(data.monitors);
-        setAuthRequired(false);
-      })
+      .then(() => setAuthRequired(false))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         if (error instanceof MonitorApiError && error.status === 401) setAuthRequired(true);
-        else setMessage(error instanceof Error ? error.message : "Could not load Listing monitors.");
+        else setMessage("We couldn’t check your monitors. Try again in a moment.");
       })
       .finally(() => {
-        if (!controller.signal.aborted) setListLoading(false);
+        if (!controller.signal.aborted) setAuthChecking(false);
       });
     return () => controller.abort();
   }, []);
@@ -71,7 +73,7 @@ export function ListingMonitorDraftBuilder() {
     if (action !== "idle") return;
     setAction("compiling");
     setMessage("");
-    setCreatedMonitorId("");
+    setCreated(false);
     try {
       const response = await fetch("/api/monitors/listing/compile", {
         method: "POST",
@@ -79,13 +81,17 @@ export function ListingMonitorDraftBuilder() {
         body: JSON.stringify({ text }),
       });
       const payload = await readApiPayload(response);
-      if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not compile this monitor draft.");
+      if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not build this monitor.");
       setReview(createListingMonitorDraftReview(payload.data));
       setAuthRequired(false);
-      setMessage("Draft ready. Review every condition before creating a monitor.");
+      setMessage("Your monitor is ready to review.");
     } catch (error) {
-      if (error instanceof MonitorApiError && error.status === 401) setAuthRequired(true);
-      setMessage(error instanceof Error ? error.message : "Could not compile this monitor draft.");
+      if (error instanceof MonitorApiError && error.status === 401) {
+        setAuthRequired(true);
+        setMessage("Sign in to build and create a monitor.");
+      } else {
+        setMessage("We couldn’t build this monitor. Try a clearer request.");
+      }
     } finally {
       setAction("idle");
     }
@@ -95,7 +101,7 @@ export function ListingMonitorDraftBuilder() {
     if (!review || !createGate?.ready || action !== "idle") return;
     setAction("creating");
     setMessage("");
-    setCreatedMonitorId("");
+    setCreated(false);
     try {
       const response = await fetch("/api/monitors/listing", {
         method: "POST",
@@ -103,15 +109,18 @@ export function ListingMonitorDraftBuilder() {
         body: JSON.stringify({ conditions: createGate.conditions }),
       });
       const payload = await readApiPayload(response);
-      const monitor = readCreatedMonitor(payload?.data);
-      if (!response.ok || !monitor) throw apiError(response, payload, "Could not create this Listing monitor.");
-      setCreatedMonitorId(monitor.id);
-      setMonitors((current) => Object.freeze([monitor, ...current.filter((item) => item.id !== monitor.id)]));
+      const monitor = readMonitor(payload?.data);
+      if (!response.ok || !monitor) throw apiError(response, payload, "Could not create this monitor.");
       setAuthRequired(false);
-      setMessage("Listing monitor created. It is active and appears below.");
+      setCreated(true);
+      setMessage("Monitor created. It is active now and ready in Alerts.");
     } catch (error) {
-      if (error instanceof MonitorApiError && error.status === 401) setAuthRequired(true);
-      setMessage(error instanceof Error ? error.message : "Could not create this Listing monitor.");
+      if (error instanceof MonitorApiError && error.status === 401) {
+        setAuthRequired(true);
+        setMessage("Sign in to create this monitor.");
+      } else {
+        setMessage("We couldn’t create this monitor. Review your choices and try again.");
+      }
     } finally {
       setAction("idle");
     }
@@ -121,64 +130,61 @@ export function ListingMonitorDraftBuilder() {
     setReview((current) => current
       ? replaceListingMonitorDraftCondition(current, index, condition)
       : current);
-    setCreatedMonitorId("");
+    setCreated(false);
   }
 
   return (
-    <section className={styles.builder} aria-labelledby="listing-monitor-draft-title">
-      <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}><Sparkles aria-hidden="true" size={16} /> Listing monitor draft</span>
-          <h2 id="listing-monitor-draft-title">Describe what you want to monitor</h2>
-          <p>The AI creates a reviewable draft. Nothing is saved until you confirm Create monitor.</p>
-        </div>
-        <span className={styles.draftBadge}>DRAFT</span>
-      </header>
-
+    <section className={styles.builder} aria-label="AI Monitor builder">
       {authRequired ? (
         <div className={styles.authNotice} role="status">
-          <span>Sign in to compile and create Listing monitors.</span>
-          <Link href="/login?next=%2Falerts">Sign in</Link>
+          <span>Sign in to build and create an AI Monitor.</span>
+          <Link href="/login?next=%2Fmonitor">Sign in</Link>
         </div>
       ) : null}
 
       <form className={styles.promptForm} onSubmit={compileDraft}>
-        <label htmlFor="listing-monitor-natural-language">Natural-language monitor request</label>
+        <label htmlFor="monitor-natural-language">What should Stock Radar watch?</label>
         <textarea
-          disabled={authRequired || action !== "idle"}
-          id="listing-monitor-natural-language"
+          disabled={authChecking || authRequired || action !== "idle"}
+          id="monitor-natural-language"
           maxLength={1000}
           onChange={(event) => setText(event.currentTarget.value)}
           placeholder="Alert me when a Nasdaq company receives a listing deficiency and has a compliance deadline within 30 days."
           required
-          rows={3}
+          rows={5}
           value={text}
         />
         <div className={styles.promptActions}>
           <span>{text.length} / 1000</span>
-          <button disabled={authRequired || action !== "idle" || !text.trim()} type="submit">
-            {action === "compiling" ? "Building draft..." : "Build draft preview"}
+          <button disabled={authChecking || authRequired || action !== "idle" || !text.trim()} type="submit">
+            {action === "compiling" ? "Building monitor..." : "Build monitor"}
           </button>
         </div>
       </form>
 
-      {message ? <p className={styles.message} aria-live="polite">{message}</p> : null}
+      {message ? (
+        <p className={created ? styles.successMessage : styles.message} aria-live="polite">
+          {created ? <CheckCircle2 aria-hidden="true" size={18} /> : null}
+          <span>{message}</span>
+          {created ? <Link href="/alerts">Manage monitors</Link> : null}
+        </p>
+      ) : null}
 
       {review ? (
         <div className={styles.review}>
           <div className={styles.reviewHeading}>
             <div>
-              <h3>Review mapped conditions</h3>
-              <p>Every visible condition will be sent exactly as shown in the canonical create request.</p>
+              <h2>Your monitor</h2>
+              <p>Review or adjust each condition before you create it.</p>
             </div>
             <span data-ready={createGate?.ready ? "true" : "false"}>
-              {createGate?.ready ? "Ready to create" : "Needs review"}
+              {createGate?.ready ? "Review your monitor" : "Needs attention"}
             </span>
           </div>
 
-          <div className={styles.previewList} aria-label="Mapped Listing conditions">
+          <div className={styles.previewList} aria-label="Monitor conditions">
             {review.conditions.length === 0 ? (
-              <p className={styles.emptyState}>Add at least one mapped condition before creating a monitor.</p>
+              <p className={styles.emptyState}>We can’t create this monitor yet. Remove the unsupported conditions or try another request.</p>
             ) : review.conditions.map((condition, index) => (
               <ConditionEditor
                 condition={condition}
@@ -187,23 +193,27 @@ export function ListingMonitorDraftBuilder() {
                 onChange={(next) => updateCondition(index, next)}
                 onRemove={() => {
                   setReview((current) => current ? removeListingMonitorDraftCondition(current, index) : current);
-                  setCreatedMonitorId("");
+                  setCreated(false);
                 }}
               />
             ))}
           </div>
 
           {review.issues.length > 0 ? (
-            <section className={styles.issues} aria-labelledby="listing-monitor-draft-issues-title">
-              <h3 id="listing-monitor-draft-issues-title">Requirements needing a decision</h3>
-              <p>These requirements are never dropped silently. Explicitly abandon each one to create a partial monitor.</p>
+            <section className={styles.issues} aria-labelledby="monitor-issues-title">
+              <h3 id="monitor-issues-title">We can’t use these conditions yet</h3>
+              <p>They stay in your request until you remove them.</p>
               {review.issues.map((issue) => (
-                <article data-abandoned={issue.abandoned ? "true" : "false"} key={issue.id}>
+                <article data-removed={issue.abandoned ? "true" : "false"} key={issue.id}>
                   <AlertTriangle aria-hidden="true" size={18} />
                   <div>
-                    <strong>{issue.kind === "unsupported" ? "Unsupported" : "Needs clarification"}</strong>
+                    <strong>{issue.kind === "unsupported" ? "Not supported yet" : "Needs more detail"}</strong>
                     <q>{issue.sourceText}</q>
-                    <span>{issue.detail}</span>
+                    <span>
+                      {issue.kind === "unsupported"
+                        ? "This condition isn’t available yet."
+                        : "This condition needs more detail before it can be used."}
+                    </span>
                   </div>
                   <button
                     onClick={() => setReview((current) => current
@@ -211,7 +221,7 @@ export function ListingMonitorDraftBuilder() {
                       : current)}
                     type="button"
                   >
-                    {issue.abandoned ? "Restore requirement" : "Abandon requirement"}
+                    {issue.abandoned ? "Restore" : "Remove"}
                   </button>
                 </article>
               ))}
@@ -220,54 +230,171 @@ export function ListingMonitorDraftBuilder() {
 
           <footer className={styles.confirmBar}>
             <div>
-              <strong>Explicit confirmation required</strong>
-              <span>
-                {!createGate?.ready
-                  ? createGate?.errors.includes("requirements_unresolved")
-                    ? "Resolve or explicitly abandon every unsupported or ambiguous requirement."
-                    : "Keep at least one valid, non-contradictory condition."
-                  : `${createGate.conditions.length} condition${createGate.conditions.length === 1 ? "" : "s"} will be created.`}
-              </span>
+              <strong>{createGate?.ready ? "Ready when you are" : "Some conditions need your attention."}</strong>
+              <span>{getCreateGuidance(review, createGate?.errors ?? [], hasUnresolvedIssues)}</span>
             </div>
             <button
               disabled={!createGate?.ready || action !== "idle" || authRequired}
               onClick={() => void createMonitor()}
               type="button"
             >
-              {action === "creating" ? "Creating monitor..." : "Confirm and create monitor"}
+              {action === "creating" ? "Creating monitor..." : "Create this monitor"}
             </button>
           </footer>
         </div>
       ) : null}
+    </section>
+  );
+}
 
-      <section className={styles.monitorList} aria-labelledby="listing-monitors-title">
-        <div className={styles.monitorListHeading}>
+export function ListingMonitorManagement() {
+  const [monitors, setMonitors] = useState<readonly ListingMonitor[]>([]);
+  const [alerts, setAlerts] = useState<readonly ListingMonitorAlertItem[]>([]);
+  const [alertTotal, setAlertTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [actionId, setActionId] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      fetchListingMonitors(controller.signal),
+      fetchListingMonitorAlerts(controller.signal),
+    ])
+      .then(([monitorData, alertData]) => {
+        setMonitors(monitorData.monitors);
+        setAlerts(alertData.alerts);
+        setAlertTotal(alertData.total);
+        setAuthRequired(false);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (error instanceof MonitorApiError && error.status === 401) setAuthRequired(true);
+        else setMessage("We couldn’t load your monitors. Try again in a moment.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  async function setMonitorActive(monitor: ListingMonitor, isActive: boolean) {
+    setActionId(monitor.id);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/monitors/listing/${encodeURIComponent(monitor.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      const payload = await readApiPayload(response);
+      const updated = readMonitor(payload?.data);
+      if (!response.ok || !updated) throw apiError(response, payload, "Could not update this monitor.");
+      setMonitors((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setMessage(isActive ? "Monitor resumed." : "Monitor paused.");
+    } catch {
+      setMessage("We couldn’t update this monitor. Try again.");
+    } finally {
+      setActionId("");
+    }
+  }
+
+  async function removeMonitor(monitor: ListingMonitor) {
+    setActionId(monitor.id);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/monitors/listing/${encodeURIComponent(monitor.id)}`, { method: "DELETE" });
+      const payload = await readApiPayload(response);
+      if (!response.ok || !record(payload?.data) || payload.data.deleted !== true) {
+        throw apiError(response, payload, "Could not delete this monitor.");
+      }
+      setMonitors((current) => current.filter((item) => item.id !== monitor.id));
+      setMessage("Monitor deleted.");
+    } catch {
+      setMessage("We couldn’t delete this monitor. Try again.");
+    } finally {
+      setActionId("");
+    }
+  }
+
+  return (
+    <section className={styles.management} aria-labelledby="monitor-management-title">
+      <div className={styles.managementHeading}>
+        <div>
+          <span>AI Monitor</span>
+          <h2 id="monitor-management-title">Your monitors</h2>
+          <p>Pause, resume, or remove the monitors you’ve created.</p>
+        </div>
+        <strong>{loading ? "Loading..." : `${monitors.length} total`}</strong>
+      </div>
+
+      {authRequired ? (
+        <div className={styles.authNotice} role="status">
+          <span>Sign in to manage your monitors and view generated alerts.</span>
+          <Link href="/login?next=%2Falerts">Sign in</Link>
+        </div>
+      ) : null}
+      {message ? <p className={styles.managementMessage} role="status">{message}</p> : null}
+
+      {!loading && !authRequired && monitors.length === 0 ? (
+        <p className={styles.emptyState}>No monitors yet. Open AI Monitor to create your first one.</p>
+      ) : null}
+      <div className={styles.monitorRows}>
+        {monitors.map((monitor) => (
+          <article key={monitor.id}>
+            <div className={styles.monitorStatus}>
+              <strong>AI Monitor</strong>
+              <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
+            </div>
+            <ul>
+              {monitor.conditions.map((condition, index) => (
+                <li key={`${monitor.id}-${index}`}>{formatListingMonitorConditionPreview(condition).text}</li>
+              ))}
+            </ul>
+            <div className={styles.monitorActions}>
+              <span>Created {formatMonitorDate(monitor.createdAt)}</span>
+              <button
+                disabled={actionId === monitor.id}
+                onClick={() => void setMonitorActive(monitor, !monitor.isActive)}
+                type="button"
+              >
+                {monitor.isActive ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
+                {monitor.isActive ? "Pause" : "Resume"}
+              </button>
+              <button
+                className={styles.deleteMonitor}
+                disabled={actionId === monitor.id}
+                onClick={() => void removeMonitor(monitor)}
+                type="button"
+              >
+                <Trash2 aria-hidden="true" size={15} /> Delete
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {!authRequired ? (
+        <section className={styles.generatedAlerts} aria-labelledby="monitor-alerts-title">
           <div>
-            <h3 id="listing-monitors-title">Your Listing monitors</h3>
-            <p>Active monitors use the canonical conditions stored by Monitor API V1.</p>
+            <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Monitor alerts</h3>
+            <span>{loading ? "Loading..." : `${alertTotal} total`}</span>
           </div>
-          <span>{listLoading ? "Loading..." : `${monitors.length} total`}</span>
-        </div>
-        {!listLoading && !authRequired && monitors.length === 0 ? (
-          <p className={styles.emptyState}>No Listing monitors yet.</p>
-        ) : null}
-        <div className={styles.monitorRows}>
-          {monitors.map((monitor) => (
-            <article data-created={monitor.id === createdMonitorId ? "true" : "false"} key={monitor.id}>
-              <div className={styles.monitorStatus}>
-                {monitor.id === createdMonitorId ? <CheckCircle2 aria-hidden="true" size={18} /> : null}
-                <strong>{monitor.id === createdMonitorId ? "Created monitor" : "Listing monitor"}</strong>
-                <span>{monitor.isActive ? "Active" : "Paused"}</span>
-              </div>
-              <ul>
-                {monitor.conditions.map((condition, index) => (
-                  <li key={`${monitor.id}-${index}`}>{formatListingMonitorConditionPreview(condition).text}</li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </section>
+          {!loading && alerts.length === 0 ? (
+            <p>No monitor alerts yet.</p>
+          ) : (
+            <ul>
+              {alerts.map((alert) => (
+                <li key={alert.id}>
+                  <strong>Alert delivered</strong>
+                  <span>{formatMonitorDate(alert.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </section>
   );
 }
@@ -289,12 +416,12 @@ function ConditionEditor({
   return (
     <article className={styles.conditionCard}>
       <div className={styles.conditionPreview}>
-        <span>Condition {index + 1}</span>
-        <strong>{preview.text}</strong>
+        <span>{preview.label}</span>
+        <strong>{preview.value}</strong>
       </div>
       <div className={styles.editorFields}>
         <label>
-          <span>Condition</span>
+          <span>Watch for</span>
           <select
             aria-label={`Condition ${index + 1} type`}
             onChange={(event) => onChange(changeListingMonitorDraftConditionKey(condition, event.currentTarget.value))}
@@ -306,7 +433,7 @@ function ConditionEditor({
         <label>
           <span>Match</span>
           <select
-            aria-label={`Condition ${index + 1} match operator`}
+            aria-label={`Condition ${index + 1} match`}
             onChange={(event) => onChange(changeListingMonitorDraftConditionOperator(condition, event.currentTarget.value as MonitorConditionOperator))}
             value={condition.operator}
           >
@@ -314,8 +441,8 @@ function ConditionEditor({
           </select>
         </label>
         <ConditionValueEditor condition={condition} index={index} onChange={onChange} />
-        <button aria-label={`Remove ${preview.label} condition`} className={styles.removeCondition} onClick={onRemove} type="button">
-          <Trash2 aria-hidden="true" size={17} /> Remove
+        <button aria-label={`Remove ${preview.label}`} className={styles.removeCondition} onClick={onRemove} type="button">
+          <Trash2 aria-hidden="true" size={16} /> Remove
         </button>
       </div>
     </article>
@@ -408,20 +535,57 @@ function ConditionValueEditor({
   );
 }
 
+function getCreateGuidance(
+  review: ListingMonitorDraftReview,
+  errors: readonly string[],
+  hasUnresolvedIssues: boolean,
+) {
+  if (review.conditions.length === 0) {
+    return "We can’t create this monitor yet. Remove the unsupported conditions or try another request.";
+  }
+  if (hasUnresolvedIssues) return "Remove the conditions we can’t use before creating this monitor.";
+  if (errors.length > 0) return "Choose valid, non-conflicting options before creating this monitor.";
+  return `${review.conditions.length} condition${review.conditions.length === 1 ? "" : "s"} will be created.`;
+}
+
+function formatMonitorDate(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(parsed)
+    : "Recently";
+}
+
 async function fetchListingMonitors(signal?: AbortSignal): Promise<ListingMonitorListData> {
   const response = await fetch("/api/monitors/listing", { cache: "no-store", signal });
   const payload = await readApiPayload(response);
   if (!response.ok || !record(payload?.data) || !Array.isArray(payload.data.monitors)) {
-    throw apiError(response, payload, "Could not load Listing monitors.");
+    throw apiError(response, payload, "Could not load monitors.");
   }
   return { monitors: payload.data.monitors as readonly ListingMonitor[] };
+}
+
+async function fetchListingMonitorAlerts(signal?: AbortSignal): Promise<ListingMonitorAlertsData> {
+  const response = await fetch("/api/monitors/listing/alerts?limit=20", { cache: "no-store", signal });
+  const payload = await readApiPayload(response);
+  if (
+    !response.ok
+    || !record(payload?.data)
+    || !Array.isArray(payload.data.alerts)
+    || typeof payload.data.total !== "number"
+  ) {
+    throw apiError(response, payload, "Could not load monitor alerts.");
+  }
+  return {
+    alerts: payload.data.alerts as readonly ListingMonitorAlertItem[],
+    total: payload.data.total,
+  };
 }
 
 async function readApiPayload(response: Response) {
   return (await response.json().catch(() => null)) as ApiPayload | null;
 }
 
-function readCreatedMonitor(value: unknown) {
+function readMonitor(value: unknown) {
   if (!record(value) || !record(value.monitor) || typeof value.monitor.id !== "string") return null;
   return value.monitor as ListingMonitor;
 }

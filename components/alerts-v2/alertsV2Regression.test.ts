@@ -19,6 +19,10 @@ const pageSource = readFileSync(
   new URL("../../app/alerts/page.tsx", import.meta.url),
   "utf8",
 );
+const monitorPageSource = readFileSync(
+  new URL("../../app/monitor/page.tsx", import.meta.url),
+  "utf8",
+);
 const settingsRouteSource = readFileSync(
   new URL("../../app/api/alerts/settings/route.ts", import.meta.url),
   "utf8",
@@ -315,6 +319,17 @@ test("Market Discovery is distinct from all-category ticker monitoring", () => {
   assert.match(componentSource, /Unlock 12 core Market Discovery categories with Pro/);
   assert.match(componentSource, /item\.requiredTier/);
   assert.doesNotMatch(componentSource, />Alert coverage</);
+});
+
+test("Alerts keeps management and a compact first-class AI Monitor entry", () => {
+  assert.match(componentSource, /<ListingMonitorManagement \/>/);
+  assert.match(componentSource, /href="\/monitor">Open AI Monitor/);
+  assert.match(componentSource, /Tell Stock Radar what to watch\./);
+  assert.doesNotMatch(componentSource, /<ListingMonitorDraftBuilder \/>/);
+  assert.match(monitorPageSource, /<ListingMonitorDraftBuilder \/>/);
+  assert.match(monitorPageSource, /StockRadarAppShell activeNavigationItem="alerts"/);
+  assert.match(monitorPageSource, /title: "AI Monitor"/);
+  assert.match(styles, /\.aiMonitorEntry/);
 });
 
 test("Calendar follows enforce effective-plan limits atomically on the server", () => {

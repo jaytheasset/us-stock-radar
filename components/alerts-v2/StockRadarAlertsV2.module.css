@@ -106,6 +106,63 @@
   box-shadow: var(--sr-shadow-panel);
 }
 
+.aiMonitorEntry {
+  display: flex;
+  min-height: 104px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-4);
+  margin-bottom: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-accent-border);
+  border-radius: var(--sr-radius-base);
+  padding: var(--sr-space-4);
+  background:
+    linear-gradient(105deg, var(--sr-color-accent-selected), transparent 62%),
+    var(--sr-color-surface-panel);
+}
+
+.aiMonitorEntry > div {
+  min-width: 0;
+}
+
+.aiMonitorEntry span {
+  color: var(--sr-color-accent-text-soft);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.aiMonitorEntry h2 {
+  margin: var(--sr-space-1) 0 0;
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-xl);
+  line-height: var(--sr-line-height-compact);
+}
+
+.aiMonitorEntry p {
+  margin: var(--sr-space-1) 0 0;
+  color: var(--sr-color-text-body);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-body);
+}
+
+.aiMonitorEntry > a {
+  display: inline-flex;
+  min-height: var(--sr-size-control);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: var(--sr-border-width) solid var(--sr-color-accent-border-active);
+  border-radius: var(--sr-radius-control);
+  padding: 0 var(--sr-space-4);
+  color: var(--sr-color-text-primary-action);
+  background: var(--sr-color-surface-primary-action);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .adRail {
   display: grid;
   gap: var(--sr-space-4);
@@ -1872,6 +1929,19 @@
     border-radius: var(--sr-radius-pill);
     background: var(--sr-color-sheet-handle);
     transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 600px) {
+  .aiMonitorEntry {
+    min-height: 0;
+    align-items: stretch;
+    flex-direction: column;
+    padding: var(--sr-space-3);
+  }
+
+  .aiMonitorEntry > a {
+    width: 100%;
   }
 }
 

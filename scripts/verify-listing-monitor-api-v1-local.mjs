@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import pg from "pg";
 
 const { Client } = pg;
-const APP_ORIGIN = "http://127.0.0.1:3110";
+const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3110";
 const ATPC_EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const CONDITIONS = [
   { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },

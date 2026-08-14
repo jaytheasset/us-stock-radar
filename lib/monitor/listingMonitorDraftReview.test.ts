@@ -182,18 +182,23 @@ test("human presentation covers enum, text, boolean, fixed date, and relative da
   assert.doesNotMatch(previews.join("\n"), /deficiency_notice|within_days|\badverse\b/);
 });
 
-test("Alerts UI invokes Compiler only from submit and creates only from explicit confirmation", () => {
+test("AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation", () => {
   const component = readProjectFile("components/alerts-v2/ListingMonitorDraftBuilder.tsx");
   const parent = readProjectFile("components/alerts-v2/StockRadarAlertsV2.tsx");
+  const monitorPage = readProjectFile("app/monitor/page.tsx");
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing\/compile"/g) ?? []).length, 1);
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing", \{/g) ?? []).length, 2);
   assert.match(component, /onSubmit=\{compileDraft\}/);
-  assert.match(component, /Confirm and create monitor/);
+  assert.match(component, /Create this monitor/);
   assert.match(component, /body: JSON\.stringify\(\{ conditions: createGate\.conditions \}\)/);
-  assert.match(component, /Abandon requirement/);
+  assert.match(component, /\{issue\.abandoned \? "Restore" : "Remove"\}/);
   assert.match(component, /createGate\?\.ready/);
-  assert.match(component, /\/login\?next=%2Falerts/);
-  assert.match(parent, /<ListingMonitorDraftBuilder \/>/);
+  assert.match(component, /\/login\?next=%2Fmonitor/);
+  assert.match(parent, /<ListingMonitorManagement \/>/);
+  assert.match(parent, /href="\/monitor">Open AI Monitor/);
+  assert.match(monitorPage, /<ListingMonitorDraftBuilder \/>/);
+  assert.match(monitorPage, /Tell Stock Radar what to watch\./);
+  assert.doesNotMatch(component, /Requirements needing a decision|Explicit confirmation required|Abandon requirement|Review mapped conditions|Build draft preview/);
   assert.doesNotMatch(component, /supabase|userId|service_role|IndependentCoverageVerifier|second LLM/i);
   assert.doesNotMatch(component, /deficiency_notice|compliance_recovery|\badverse\b/);
 });
