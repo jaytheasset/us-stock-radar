@@ -946,7 +946,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function parseJsonWithoutDuplicateKeys(text: string): unknown {
+export function parseJsonWithoutDuplicateKeys(text: string): unknown {
   let index = 0;
   const fail = (message: string): never => {
     throw new Error(`${message} at character ${index}`);

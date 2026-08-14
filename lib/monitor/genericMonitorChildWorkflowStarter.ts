@@ -24,12 +24,22 @@ export type GenericMonitorChildEnqueueResult =
   | { status: "not_routed" | "out_of_scope"; childCount: 0 }
   | {
       status: "enqueued" | "duplicate" | "enqueue_failed";
-      childCount: 1;
-      jobId: string;
+      childCount: number;
+      jobId?: string;
       workflowRunId?: string;
       error?: string;
       linkageWarning?: string;
+      children?: GenericMonitorChildEnqueueItem[];
     };
+
+type GenericMonitorChildEnqueueItem = {
+  status: "enqueued" | "duplicate" | "enqueue_failed";
+  monitorAnalyzerKey: GenericMonitorChildIdentity["monitorAnalyzerKey"];
+  jobId: string;
+  workflowRunId?: string;
+  error?: string;
+  linkageWarning?: string;
+};
 
 export function buildGenericMonitorPrimaryExecutionContext(input: {
   eventId: string;
@@ -75,23 +85,47 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
     primary: input.primary,
     monitorRouting: routing,
   });
-  if (identities.length !== 1) {
-    throw new Error("Generic Monitor production fan-out expected exactly one validated child route");
-  }
-
-  const identity = identities[0];
   const repository = input.dependencies?.repository || await defaultRepository();
   const startWorkflow = input.dependencies?.startWorkflow || defaultStartWorkflow;
+  const children = await Promise.all(identities.map((identity) => enqueueOne({
+    identity,
+    repository,
+    startWorkflow,
+    injectedStartWorkflow: Boolean(input.dependencies?.startWorkflow),
+  })));
+  if (children.length === 1) {
+    const [{ monitorAnalyzerKey: _monitorAnalyzerKey, ...single }] = children;
+    return { ...single, childCount: 1 };
+  }
+  const status = children.some((child) => child.status === "enqueue_failed")
+    ? "enqueue_failed"
+    : children.every((child) => child.status === "duplicate")
+      ? "duplicate"
+      : "enqueued";
+  return { status, childCount: children.length, children };
+}
+
+async function enqueueOne(input: {
+  identity: GenericMonitorChildIdentity;
+  repository: StarterRepository;
+  startWorkflow: WorkflowStart;
+  injectedStartWorkflow: boolean;
+}): Promise<GenericMonitorChildEnqueueItem> {
+  const { identity, repository, startWorkflow } = input;
   try {
     await repository.reserve(identity);
     const ownsStart = await repository.claimWorkflowStart(identity);
     if (!ownsStart) {
-      return { status: "duplicate", childCount: 1, jobId: identity.executionId };
+      return {
+        status: "duplicate",
+        monitorAnalyzerKey: identity.monitorAnalyzerKey,
+        jobId: identity.executionId,
+      };
     }
   } catch (error) {
     return {
       status: "enqueue_failed",
-      childCount: 1,
+      monitorAnalyzerKey: identity.monitorAnalyzerKey,
       jobId: identity.executionId,
       error: errorMessage(error, "Generic Monitor durable reservation failed"),
     };
@@ -99,7 +133,7 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
 
   let run: { runId: string };
   try {
-    const workflow = input.dependencies?.startWorkflow
+    const workflow = input.injectedStartWorkflow
       ? null
       : (await import("../../workflows/generic-monitor-child.ts")).genericMonitorChildWorkflow;
     run = await startWorkflow(workflow, [identity]);
@@ -107,7 +141,7 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
     await repository.releaseWorkflowStart(identity, error).catch(() => null);
     return {
       status: "enqueue_failed",
-      childCount: 1,
+      monitorAnalyzerKey: identity.monitorAnalyzerKey,
       jobId: identity.executionId,
       error: errorMessage(error, "Generic Monitor durable workflow start failed"),
     };
@@ -117,14 +151,14 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
     await repository.attachWorkflowRun(identity, run.runId);
     return {
       status: "enqueued",
-      childCount: 1,
+      monitorAnalyzerKey: identity.monitorAnalyzerKey,
       jobId: identity.executionId,
       workflowRunId: run.runId,
     };
   } catch (error) {
     return {
       status: "enqueued",
-      childCount: 1,
+      monitorAnalyzerKey: identity.monitorAnalyzerKey,
       jobId: identity.executionId,
       workflowRunId: run.runId,
       linkageWarning: errorMessage(error, "Generic Monitor workflow run linkage was not recorded"),

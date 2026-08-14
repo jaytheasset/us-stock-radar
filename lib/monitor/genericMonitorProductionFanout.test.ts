@@ -40,6 +40,27 @@ test("listing route reserves and durably starts exactly one logical child", asyn
   assert.deepEqual(harness.calls(), { reserve: 1, claimStart: 1, start: 1, provider: 0 });
 });
 
+test("listing and corporate-action routes independently reserve and start two Generic Monitor children", async () => {
+  const harness = starterHarness();
+  const result = await enqueueGenericMonitorChildrenAfterPrimary({
+    primary: newsPrimary(),
+    primaryAnalysis: {
+      monitor_routes: [
+        { monitor_analyzer_key: "listing_risk" },
+        { monitor_analyzer_key: "corporate_action" },
+      ],
+    },
+    dependencies: harness.dependencies,
+  });
+  assert.equal(result.status, "enqueued");
+  assert.equal(result.childCount, 2);
+  assert.deepEqual(result.children?.map((child) => child.monitorAnalyzerKey).sort(), [
+    "corporate_action",
+    "listing_risk",
+  ]);
+  assert.deepEqual(harness.calls(), { reserve: 2, claimStart: 2, start: 2, provider: 0 });
+});
+
 test("same identity concurrent enqueue owns workflow start once and duplicate re-trigger starts zero providers", async () => {
   const harness = starterHarness();
   const input = {
@@ -211,7 +232,7 @@ function newsPrimary(overrides: Record<string, string> = {}) {
     sourceIdentity: "news-1",
     parentPrimaryAiRunId: PARENT_ID,
     parentPromptKey: "news_event_analysis",
-    parentPromptVersion: "v27-monitor-routing",
+    parentPromptVersion: "v28-corporate-action-routing",
     ...overrides,
   })!;
 }
@@ -239,25 +260,30 @@ function childIdentity() {
 }
 
 function starterHarness(options: { failStarts?: number } = {}) {
-  let state: "absent" | "ready" | "starting" | "started" = "absent";
+  const states = new Map<string, "ready" | "starting" | "started">();
   let reserve = 0;
   let claimStart = 0;
   let start = 0;
   let failures = options.failStarts || 0;
   const repository = {
-    async reserve() {
+    async reserve(identity: GenericMonitorChildIdentity) {
       reserve += 1;
-      if (state === "absent") state = "ready";
-      return { reserved: state === "ready", jobId: "job" };
+      if (!states.has(identity.executionId)) states.set(identity.executionId, "ready");
+      return { reserved: states.get(identity.executionId) === "ready", jobId: identity.executionId };
     },
-    async claimWorkflowStart() {
+    async claimWorkflowStart(identity: GenericMonitorChildIdentity) {
       claimStart += 1;
-      if (state !== "ready") return false;
-      state = "starting";
+      if (states.get(identity.executionId) !== "ready") return false;
+      states.set(identity.executionId, "starting");
       return true;
     },
-    async releaseWorkflowStart() { state = "ready"; return true; },
-    async attachWorkflowRun() { state = "started"; },
+    async releaseWorkflowStart(identity: GenericMonitorChildIdentity) {
+      states.set(identity.executionId, "ready");
+      return true;
+    },
+    async attachWorkflowRun(identity: GenericMonitorChildIdentity) {
+      states.set(identity.executionId, "started");
+    },
   };
   return {
     dependencies: {

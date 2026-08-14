@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getServerEnv } from "../env.ts";
 import {
+  CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   MONITOR_ROUTING_RESULT_JSON_SCHEMA,
   validateMonitorRoutingResult,
@@ -236,7 +237,7 @@ test("general news prompt requires source-backed directional points without manu
     "utf8",
   );
 
-  assert.match(promptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v27-monitor-routing"/);
+  assert.match(promptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v28-corporate-action-routing"/);
   assert.match(promptSource, /distinct directional facts explicitly source-backed by the article body/);
   assert.match(promptSource, /use fewer items or an empty array \[\]/);
   assert.match(promptSource, /Empty arrays are normal and expected/);
@@ -264,8 +265,8 @@ test("News and Nasdaq Primary schemas reuse the Generic Monitor routing contract
     "utf8",
   );
 
-  assert.match(newsPromptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v27-monitor-routing"/);
-  assert.match(nasdaqPromptSource, /NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v7-monitor-routing"/);
+  assert.match(newsPromptSource, /NEWS_EVENT_ANALYSIS_PROMPT_VERSION = "v28-corporate-action-routing"/);
+  assert.match(nasdaqPromptSource, /NASDAQ_CORPORATE_ACTION_ANALYSIS_PROMPT_VERSION = "v8-corporate-action-routing"/);
   assert.match(newsPromptSource, /required: \[[\s\S]*?"event_type",\s*"monitor_routes",/);
   assert.match(
     newsPromptSource,
@@ -274,7 +275,7 @@ test("News and Nasdaq Primary schemas reuse the Generic Monitor routing contract
   assert.match(nasdaqPromptSource, /output_contract: newsEventAnalysisResponseSchema/);
   assert.deepEqual(
     MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.items.properties.monitor_analyzer_key.enum,
-    ["listing_risk"],
+    ["listing_risk", "corporate_action"],
   );
 });
 
@@ -342,11 +343,15 @@ test("News, Nasdaq, and SEC-oriented routing instructions are semantic rather th
     /simple reverse split without explicit listing or compliance context/i,
   );
   assert.match(LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /Do not derive monitor_routes from event_type/i);
+  assert.match(CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /complete stored source may semantically establish/i);
+  assert.match(CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS, /parser event-family values/i);
   assert.match(newsPromptSource, /LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
+  assert.match(newsPromptSource, /CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
   assert.match(nasdaqPromptSource, /LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
+  assert.match(nasdaqPromptSource, /CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS/);
   assert.match(
     nasdaqPromptSource,
-    /simple reverse split may retain its existing event_type while monitor_routes is \[\]/i,
+    /simple reverse split may route corporate_action while omitting listing_risk/i,
   );
 });
 

@@ -13,7 +13,7 @@ export const MONITOR_ANALYZER_KEY_MAX_LENGTH = 64;
 // Only analyzers that actually exist may be enabled by default. Future domains
 // extend this small set when implemented; callers may inject an explicit set to
 // validate a different deployment without changing the generic route shape.
-export const SUPPORTED_MONITOR_ANALYZER_KEYS = ["listing_risk"] as const;
+export const SUPPORTED_MONITOR_ANALYZER_KEYS = ["listing_risk", "corporate_action"] as const;
 
 export type SupportedMonitorAnalyzerKey = (typeof SUPPORTED_MONITOR_ANALYZER_KEYS)[number];
 
@@ -54,11 +54,19 @@ export const MONITOR_ROUTING_RESULT_JSON_SCHEMA = {
 } as const;
 
 export const LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS = [
-  "Independently from event_type, decide monitor_routes from the complete source semantics. Return exactly [] or [{\"monitor_analyzer_key\":\"listing_risk\"}].",
+  "Independently from event_type, decide whether monitor_routes includes {\"monitor_analyzer_key\":\"listing_risk\"} from the complete source semantics.",
   "Route listing_risk when the source materially reports a listing deficiency or minimum-bid compliance issue, regained compliance, a delisting determination, a listing appeal or hearing, a listing-related trading suspension, removal or withdrawal from an exchange, listing termination, or another material listing-status action.",
   "Adverse, recovered, and procedural listing actions are all eligible. A merger or other primary event may therefore keep its own event_type while also routing listing_risk when the source materially reports the security's procedural removal or listing termination.",
   "Do not route listing_risk solely because of a simple reverse split without explicit listing or compliance context, an ordinary exchange or trading-symbol mention, administrative CUSIP or ticker mechanics, or an unrelated event.",
   "Do not derive monitor_routes from event_type, SEC form type, router candidates, material_events, keywords, or regex matches. Do not include relation, confidence, reason, domain facts, execution state, or persistence fields in a route.",
+].join("\n");
+
+export const CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS = [
+  "Independently from event_type and every other route, include {\"monitor_analyzer_key\":\"corporate_action\"} when the complete stored source may semantically establish a reverse stock split, including an announcement, board approval, shareholder approval, confirmed schedule, or effective action.",
+  "This route is recall-oriented analyzer work, not a canonical fact. Do not output a stage, ratio, date, evidence, confidence, reason, or any other corporate-action fact in monitor_routes.",
+  "Do not route corporate_action from parser event-family values, calendar items, badges, event_type, SEC capital_mode, keywords, regex matches, ticker metadata, or prior AI summaries. Use the complete original source semantics.",
+  "Do not route corporate_action for a forward split, merger, spin-off, dividend, broad capital-structure discussion, or an unrelated listing action unless the source may also establish a reverse split.",
+  "Return monitor_routes as an unordered array containing zero, one, or both distinct implemented analyzer routes. A source with separate listing-risk and reverse-split semantics may route both analyzers.",
 ].join("\n");
 
 export function validateMonitorRoutingResult(
