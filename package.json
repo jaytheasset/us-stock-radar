@@ -58,6 +58,7 @@
     "verify:listing-monitor-api": "node --test --experimental-strip-types lib/monitor/listingMonitorApi.test.ts",
     "verify:listing-monitor-api:local": "node --experimental-strip-types scripts/verify-listing-monitor-api-v1-local.mjs",
     "verify:condition-compiler": "node --test --experimental-strip-types lib/monitor/naturalLanguageConditionCompiler.test.ts lib/monitor/naturalLanguageMonitorDraft.test.ts",
+    "verify:monitor-draft-review": "node --test --experimental-strip-types lib/monitor/listingMonitorDraftReview.test.ts",
     "verify:condition-compiler:provider": "node --experimental-strip-types scripts/verify-natural-language-condition-compiler-v1-provider.mjs",
     "verify:minimal-offering-monitor": "node --test --experimental-strip-types lib/minimalOfferingMonitor.test.ts",
     "verify:offering-matcher": "node --test --experimental-strip-types lib/offeringMonitorMatcher.test.ts",
