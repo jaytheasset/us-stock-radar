@@ -18,6 +18,27 @@ This physical workspace is the permanent main integration workspace.
 - Never run repository commands with another worktree or repository as the working directory.
 - Do not implement isolated feature work directly in this workspace. Use a separate task, branch, and worktree for feature development.
 
+## Local development server ownership
+
+### Port 3110: permanent user-review server
+
+- Port `3110` is the persistent user-review server and must run from the permanent `main` workspace at `C:\Users\PC\Documents\Codex\US-Stock Radar`.
+- Keep the `3110` server running across ordinary feature development and main integration. Do not stop or restart it merely to perform a final-main verification.
+- For ordinary TypeScript, TSX, CSS, and API route changes, rely on Next.js development hot reload and verify the current `main` HEAD through the existing `3110` UI or API.
+- Restart `3110` only when an `.env` or environment-variable change, `next.config` or runtime configuration change, package/runtime change, server failure, or confirmed hot-reload failure actually requires it.
+- Before an allowed `3110` restart, state the specific reason. A routine health check or the fact that a merge completed is not by itself a restart reason.
+
+### Ports 3111 and above: Codex worktree servers
+
+- Run feature-development and candidate verification servers from separate worktrees on port `3111` or higher.
+- Codex may stop or restart these worktree-owned servers as needed. Use distinct ports such as `3112` and `3113` for concurrent tasks.
+- The normal verification flow is: verify the candidate on its `3111+` worktree server, merge the approved change into `main`, leave `3110` running, and confirm the merged `main` HEAD through the existing `3110` UI or API.
+
+### Shared local database caution
+
+- Different ports and worktrees can still share the same local Supabase database. Server separation does not isolate database state.
+- Continue to follow the existing migration, cleanup, and destructive-database safety rules for every worktree and port.
+
 ## Start-of-task check
 
 Before changing files or Git state, run and inspect:
