@@ -7,8 +7,10 @@ import {
 } from "@/lib/marketDataCache";
 import { FmpMarketDataProvider } from "@/lib/market-data/fmpMarketDataProvider";
 import type { MarketDataProvider } from "@/lib/market-data/marketDataProvider";
+import { selectMarketDataProvider } from "@/lib/market-data/marketDataProviderSelector";
+import { MarketstackPriceProvider } from "@/lib/market-data/marketstackPriceProvider";
 
-const defaultMarketDataProvider: MarketDataProvider = new FmpMarketDataProvider({
+const fmpMarketDataProvider: MarketDataProvider = new FmpMarketDataProvider({
   fetchQuote: fetchFmpQuote,
   readCachedQuote: async (symbol) => {
     const result = await readMarketQuoteProviderCache(symbol);
@@ -16,6 +18,15 @@ const defaultMarketDataProvider: MarketDataProvider = new FmpMarketDataProvider(
   },
   writeCachedQuote: writeMarketQuoteCache,
 });
+
+const marketstackPriceProvider: MarketDataProvider =
+  new MarketstackPriceProvider();
+
+const defaultMarketDataProvider: MarketDataProvider =
+  selectMarketDataProvider(process.env.MARKET_DATA_PROVIDER, {
+    fmp: fmpMarketDataProvider,
+    marketstack: marketstackPriceProvider,
+  });
 
 export function getMarketDataProvider() {
   return defaultMarketDataProvider;

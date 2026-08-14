@@ -12,6 +12,10 @@ import {
   normalizeMarketDataSymbol,
   type MarketDataProvider,
 } from "./marketDataProvider.ts";
+import {
+  resolveMarketDataProviderName,
+  selectMarketDataProvider,
+} from "./marketDataProviderSelector.ts";
 import { mapStockOverviewQuote } from "../watchlist/stockOverview.ts";
 
 const receivedAt = new Date("2026-08-14T01:02:03.000Z");
@@ -254,16 +258,41 @@ test("the adapter contract exposes no FMP response fields or raw payload", async
   );
 });
 
-test("default wiring is FMP behind the provider-neutral boundary", () => {
+test("environment-only selection preserves FMP and selects Marketstack", () => {
+  const fmp = fakeProvider("FMP");
+  const marketstack = fakeProvider("MARKETSTACK");
+  const providers = { fmp, marketstack };
+
+  assert.equal(resolveMarketDataProviderName(undefined), "fmp");
+  assert.equal(resolveMarketDataProviderName("fmp"), "fmp");
+  assert.equal(resolveMarketDataProviderName(" marketstack "), "marketstack");
+  assert.equal(resolveMarketDataProviderName("unknown"), "fmp");
+  assert.equal(selectMarketDataProvider("fmp", providers), fmp);
+  assert.equal(selectMarketDataProvider("marketstack", providers), marketstack);
+});
+
+test("selected provider wiring remains behind the provider-neutral boundary", () => {
   const boundary = read("lib/market-data/currentPrice.ts");
-  const adapter = read("lib/market-data/fmpMarketDataProvider.ts");
+  const fmpAdapter = read("lib/market-data/fmpMarketDataProvider.ts");
+  const marketstackAdapter = read("lib/market-data/marketstackPriceProvider.ts");
 
   assert.match(boundary, /const defaultMarketDataProvider: MarketDataProvider/);
   assert.match(boundary, /new FmpMarketDataProvider\(/);
+  assert.match(boundary, /new MarketstackPriceProvider\(\)/);
+  assert.match(
+    boundary,
+    /selectMarketDataProvider\(process\.env\.MARKET_DATA_PROVIDER/,
+  );
   assert.match(boundary, /getMarketDataProvider\(\)\.getCurrentPrice\(symbol\)/);
   assert.match(boundary, /getMarketDataProvider\(\)\.getQuoteSnapshot\(symbol\)/);
   assert.doesNotMatch(boundary, /financialmodelingprep\.com|stable\/quote|\.price\b|\.timestamp\b/);
-  assert.doesNotMatch(adapter, /financialmodelingprep\.com|stable\/quote|FMP_API_KEY/);
+  assert.doesNotMatch(fmpAdapter, /financialmodelingprep\.com|stable\/quote|FMP_API_KEY/);
+  assert.match(marketstackAdapter, /api\.marketstack\.com\/v2\/eod\/latest/);
+  assert.match(marketstackAdapter, /process\.env\.MARKETSTACK_API_KEY/);
+  assert.doesNotMatch(
+    boundary,
+    /api\.marketstack\.com|access_key|MARKETSTACK_API_KEY|\.close\b|\.date\b/,
+  );
 });
 
 test("production UI consumers use the provider-neutral quote route", () => {
@@ -363,6 +392,32 @@ function provider(
     writeCachedQuote: async () => ({ ok: true }),
     ...overrides,
   });
+}
+
+function fakeProvider(label: string): MarketDataProvider {
+  return {
+    getCurrentPrice: async (symbol) => ({
+      asOf: receivedAt.toISOString(),
+      availability: "available",
+      price: label.length,
+      symbol,
+    }),
+    getQuoteSnapshot: async (symbol) => ({
+      asOf: receivedAt.toISOString(),
+      availability: "available",
+      changeAmount: null,
+      changePercent: null,
+      dayHigh: null,
+      dayLow: null,
+      open: null,
+      previousClose: null,
+      price: label.length,
+      symbol,
+      volume: null,
+      yearHigh: null,
+      yearLow: null,
+    }),
+  };
 }
 
 async function assertUnavailable(
