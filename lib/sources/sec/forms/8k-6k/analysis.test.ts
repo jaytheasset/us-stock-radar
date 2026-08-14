@@ -125,7 +125,7 @@ const analysisUserPayload = JSON.parse(prompt.user) as Record<string, any>;
 
 assert.equal(prompt.key, SEC_8K_6K_ANALYSIS_PROMPT_KEY);
 assert.equal(prompt.version, SEC_8K_6K_ANALYSIS_PROMPT_VERSION);
-assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v44-monitor-routing");
+assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v45-corporate-action-routing");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "listing_risk" }), "risk_status");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "financial_risk" }), "risk_status");
 assert.equal(

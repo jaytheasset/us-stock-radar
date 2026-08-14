@@ -1,8 +1,5 @@
-import type { ListingRiskDomainAnalyzerPreviewResult } from "../ai/listingRiskDomainAnalyzerPreview.ts";
-import type { ListingRiskAnalyzerInput } from "./listingRiskAnalyzer.ts";
-import type { ListingRiskAnalyzerResult } from "./listingRiskAnalyzer.ts";
 import type { GenericMonitorChildIdentity } from "./genericMonitorChildExecution.ts";
-import { listingRiskTerminalStateAfterPersistence, type ListingRiskPersistenceResult } from "./listingRiskPersistence.ts";
+import type { GenericMonitorChildTerminalState } from "./genericMonitorChildExecution.ts";
 import type { GenericMonitorExactParent } from "./genericMonitorChildRepository.ts";
 import type { ListingMonitorAlertConsumerResult } from "./listingMonitorAlertConsumer.ts";
 
@@ -23,7 +20,15 @@ export type GenericMonitorChildProcessorRepository = {
   loadExactParent(identity: GenericMonitorChildIdentity): Promise<GenericMonitorExactParent>;
 };
 
-export async function processGenericMonitorChildWithDependencies(
+type GenericMonitorAnalyzerRun<TResult> =
+  | { stage: "complete"; result: TResult }
+  | { stage: string; result: null; error: string };
+
+export async function processGenericMonitorChildWithDependencies<
+  TInput,
+  TResult extends object,
+  TPersistence extends { status: string },
+>(
   identity: GenericMonitorChildIdentity,
   dependencies: {
     repository: GenericMonitorChildProcessorRepository;
@@ -31,12 +36,16 @@ export async function processGenericMonitorChildWithDependencies(
       identity: GenericMonitorChildIdentity,
       rawItem: Record<string, unknown>,
       primaryAnalysis: Record<string, unknown>,
-    ): ListingRiskAnalyzerInput;
-    runAnalyzer(input: ListingRiskAnalyzerInput): Promise<ListingRiskDomainAnalyzerPreviewResult>;
+    ): TInput;
+    runAnalyzer(input: TInput): Promise<GenericMonitorAnalyzerRun<TResult>>;
     persist(input: {
       identity: GenericMonitorChildIdentity;
-      result: ListingRiskAnalyzerResult;
-    }): Promise<ListingRiskPersistenceResult>;
+      result: TResult;
+    }): Promise<TPersistence>;
+    terminalStateAfterPersistence?(
+      result: TResult,
+      persistence: TPersistence,
+    ): GenericMonitorChildTerminalState | null;
     consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
       Promise<ListingMonitorAlertConsumerResult>;
   },
@@ -57,7 +66,7 @@ export async function processGenericMonitorChildWithDependencies(
     return { status: "stale" as const, jobId: identity.executionId, providerCalls: 0 };
   }
 
-  let analyzerInput: ListingRiskAnalyzerInput;
+  let analyzerInput: TInput;
   try {
     analyzerInput = dependencies.buildAnalyzerInput(identity, parent.rawItem, parent.analysis);
   } catch (error) {
@@ -65,19 +74,20 @@ export async function processGenericMonitorChildWithDependencies(
     return { status: "failed" as const, jobId: identity.executionId, providerCalls: 0, error: errorMessage(error) };
   }
 
-  let analyzerRun: ListingRiskDomainAnalyzerPreviewResult;
+  let analyzerRun: GenericMonitorAnalyzerRun<TResult>;
   try {
     analyzerRun = await dependencies.runAnalyzer(analyzerInput);
   } catch (error) {
     await repository.releaseForRetry(identity, error);
     return retryableFailure(identity, error);
   }
-  if (analyzerRun.stage !== "complete") {
-    await repository.releaseForRetry(identity, analyzerRun.error);
-    return retryableFailure(identity, analyzerRun.error);
+  if (analyzerRun.stage !== "complete" || analyzerRun.result === null) {
+    const error = "error" in analyzerRun ? analyzerRun.error : "Analyzer result is unavailable";
+    await repository.releaseForRetry(identity, error);
+    return retryableFailure(identity, error);
   }
 
-  let persistence: ListingRiskPersistenceResult;
+  let persistence: TPersistence;
   try {
     persistence = await dependencies.persist({ identity, result: analyzerRun.result });
   } catch (error) {
@@ -88,9 +98,11 @@ export async function processGenericMonitorChildWithDependencies(
     await repository.recordTerminal(identity, "stale");
     return { status: "stale" as const, jobId: identity.executionId, providerCalls: 1 };
   }
-  const terminalState = listingRiskTerminalStateAfterPersistence(analyzerRun.result, persistence);
+  const terminalState = dependencies.terminalStateAfterPersistence
+    ? dependencies.terminalStateAfterPersistence(analyzerRun.result, persistence)
+    : defaultListingTerminalState(analyzerRun.result, persistence);
   if (!terminalState) {
-    const error = `Listing Risk persistence ${persistence.status}`;
+    const error = `${identity.monitorAnalyzerKey} persistence ${persistence.status}`;
     await repository.releaseForRetry(identity, error);
     return retryableFailure(identity, error);
   }
@@ -127,4 +139,19 @@ function retryableFailure(identity: GenericMonitorChildIdentity, error: unknown)
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : typeof error === "string" ? error : "Generic Monitor child failed";
+}
+
+function defaultListingTerminalState(
+  analyzerResult: object,
+  persistenceResult: { status: string },
+): GenericMonitorChildTerminalState | null {
+  const result = analyzerResult as Record<string, unknown>;
+  const persistence = persistenceResult as Record<string, unknown>;
+  if (
+    !["saved", "idempotent"].includes(persistenceResult.status)
+    || persistence.resultStatus !== result.status
+  ) return null;
+  if (result.status === "applicable") return "succeeded_applicable";
+  if (result.status === "not_applicable") return "succeeded_not_applicable";
+  return null;
 }

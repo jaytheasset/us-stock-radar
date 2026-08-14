@@ -12,16 +12,17 @@ import {
 } from "./monitorRouting.ts";
 
 const listingRoute = { monitor_analyzer_key: "listing_risk" } as const;
+const corporateActionRoute = { monitor_analyzer_key: "corporate_action" } as const;
 
-test("contract identifies V1 and enables only the implemented analyzer by default", () => {
+test("contract identifies V1 and enables both implemented analyzers by default", () => {
   assert.equal(MONITOR_ROUTING_CONTRACT_VERSION, "monitor_routing_v1");
-  assert.deepEqual(SUPPORTED_MONITOR_ANALYZER_KEYS, ["listing_risk"]);
+  assert.deepEqual(SUPPORTED_MONITOR_ANALYZER_KEYS, ["listing_risk", "corporate_action"]);
   assert.deepEqual(MONITOR_ROUTING_RESULT_JSON_SCHEMA.required, ["monitor_routes"]);
   assert.deepEqual(
     MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.items.properties.monitor_analyzer_key.enum,
     SUPPORTED_MONITOR_ANALYZER_KEYS,
   );
-  assert.equal(MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.maxItems, 1);
+  assert.equal(MONITOR_ROUTING_RESULT_JSON_SCHEMA.properties.monitor_routes.maxItems, 2);
 });
 
 test("empty monitor_routes is the canonical valid no-route result", () => {
@@ -32,6 +33,12 @@ test("empty monitor_routes is the canonical valid no-route result", () => {
 
 test("one implemented analyzer route is valid", () => {
   assert.deepEqual(validateMonitorRoutingResult({ monitor_routes: [listingRoute] }), []);
+  assert.deepEqual(validateMonitorRoutingResult({ monitor_routes: [corporateActionRoute] }), []);
+});
+
+test("both implemented analyzer routes are valid and order-independent", () => {
+  assert.deepEqual(validateMonitorRoutingResult({ monitor_routes: [listingRoute, corporateActionRoute] }), []);
+  assert.deepEqual(validateMonitorRoutingResult({ monitor_routes: [corporateActionRoute, listingRoute] }), []);
 });
 
 test("multiple distinct analyzer routes are representable with an explicit deployment key set", () => {

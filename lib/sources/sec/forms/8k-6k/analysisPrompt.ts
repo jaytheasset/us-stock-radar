@@ -19,6 +19,7 @@ import {
   SEC_ACTIVE_OFFERING_DILUTION_SCORING_GUIDE,
 } from "../common/offeringDilutionScoring";
 import {
+  CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   MONITOR_ROUTING_RESULT_JSON_SCHEMA,
 } from "../../../../monitor/monitorRouting";
@@ -32,7 +33,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v44-monitor-routing";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v45-corporate-action-routing";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -1083,6 +1084,7 @@ export const sec8k6kAnalysisSystemPrompt = [
   "You may correct or override the router candidate route when the complete original source blocks support a different conclusion.",
   "Determine the final analysis_output.event_type from the complete original source blocks. Use exactly one approved event_type and do not copy router_result.event_type blindly.",
   LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
+  CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS,
   "For SEC current reports, decide analysis_output.monitor_routes from the complete original source blocks. Preserve primary_route_candidate, route_candidates, and material_events for their existing purposes; never convert or copy any of them into monitor_routes.",
   "Use exactly one approved event_type: listing_risk, dilution_risk, ipo_listing, earnings, sales_performance, operating_update, product_update, leadership_governance, insider_ownership, shareholder_vote, strategic_transaction, financial_risk, legal_risk, dividends, capital_return, fda_clinical, or other.",
   "Populate material_events before event_title, quick_take, score_reason, score_explanation, or summary. material_events is an internal analysis plan, not visible UI copy.",

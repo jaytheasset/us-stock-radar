@@ -5,6 +5,7 @@ import {
   type SupportedMonitorAnalyzerKey,
 } from "./monitorRouting.ts";
 import { LISTING_RISK_ANALYZER_PROMPT_VERSION } from "./listingRiskAnalyzer.ts";
+import { CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION } from "./corporateActionCanonicalFacts.ts";
 
 export const GENERIC_MONITOR_CHILD_SCHEMA_VERSION = "generic_monitor_child_execution_v1";
 export const GENERIC_MONITOR_CHILD_PURPOSE = "domain_monitor_child";
@@ -15,6 +16,7 @@ export const GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
 
 export const GENERIC_MONITOR_ANALYZER_CONTRACTS = {
   listing_risk: LISTING_RISK_ANALYZER_PROMPT_VERSION,
+  corporate_action: CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
 } as const satisfies Record<SupportedMonitorAnalyzerKey, string>;
 
 export const GENERIC_MONITOR_PRIMARY_PROMPT_KEYS = {
