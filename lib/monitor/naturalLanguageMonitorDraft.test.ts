@@ -17,6 +17,8 @@ test("preview formats Listing enum, text, boolean, fixed date, relative date, an
     [condition("market.price", "lte", 1), "Price — $1 or less"],
     [condition("market.price", "gt", 1), "Price — Above $1"],
     [condition("market.price", "gte", 1), "Price — $1 or more"],
+    [condition("corporate_action.event_kind", "eq", "reverse_split"), "Corporate action — Reverse stock split"],
+    [condition("corporate_action.action_stage", "eq", "effective"), "Corporate action stage — Effective"],
     [condition("listing.event_kind", "eq", "deficiency_notice"), "Listing event — Listing deficiency notice"],
     [condition("listing.event_outcome", "eq", "adverse"), "Listing outcome — Unfavorable"],
     [condition("listing.exchange", "eq", "Nasdaq"), "Exchange — Nasdaq"],
@@ -37,6 +39,34 @@ test("preview formats Listing enum, text, boolean, fixed date, relative date, an
   cases.forEach(([candidate, expected], index) => {
     assert.equal(formatNaturalLanguageMonitorDraftCondition({ id: `c${index + 1}`, ...candidate }).text, expected);
   });
+});
+
+test("reverse-split drafts preserve minimum stage semantics and hide canonical tokens", () => {
+  const simpleText = "Alert me when a stock below $1 announces a reverse split.";
+  const simple = buildNaturalLanguageMonitorDraft(validate(providerOutput([
+    requirement("a stock below $1", "mapped", [condition("market.price", "lt", 1)]),
+    requirement("announces a reverse split", "mapped", [
+      condition("corporate_action.event_kind", "eq", "reverse_split"),
+    ]),
+  ]), simpleText), simpleText);
+  assert.deepEqual(simple.conditions, [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+  ]);
+  assert.equal(simple.conditions.some((item) => item.key === "corporate_action.action_stage"), false);
+
+  const effectiveText = "Alert me when a reverse split becomes effective.";
+  const effective = buildNaturalLanguageMonitorDraft(validate(providerOutput([
+    requirement("a reverse split becomes effective", "mapped", [
+      condition("corporate_action.event_kind", "eq", "reverse_split"),
+      condition("corporate_action.action_stage", "eq", "effective"),
+    ]),
+  ]), effectiveText), effectiveText);
+  assert.deepEqual(effective.mapped[0].conditions.map((item) => item.text), [
+    "Corporate action — Reverse stock split",
+    "Corporate action stage — Effective",
+  ]);
+  assert.doesNotMatch(JSON.stringify(effective.mapped), /reverse_split|corporate_action|market\.price|\blt\b/);
 });
 
 test("price plus listing deficiency draft is Registry-mapped and hides internal names", () => {

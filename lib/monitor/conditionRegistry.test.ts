@@ -16,6 +16,61 @@ import {
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
 
+test("Corporate Action V1 exposes only reverse split and public canonical stages", () => {
+  const entries = getReadyMonitorConditions().filter((entry) => entry.family === "corporate_action");
+  assert.deepEqual(entries.map((entry) => entry.key), [
+    "corporate_action.event_kind",
+    "corporate_action.action_stage",
+  ]);
+  assert.deepEqual(entries.map((entry) => entry.allowedOperators), [["eq", "in"], ["eq", "in"]]);
+  assert.deepEqual(entries[0].enumValues, ["reverse_split"]);
+  assert.deepEqual(entries[1].enumValues, [
+    "announced",
+    "board_approved",
+    "shareholder_approved",
+    "scheduled",
+    "effective",
+  ]);
+  assert.equal(entries[0].display?.label, "Corporate action");
+  assert.equal(entries[0].display?.enumValueLabels?.reverse_split, "Reverse stock split");
+  assert.equal(entries[1].display?.label, "Corporate action stage");
+  assert.equal(entries[1].display?.enumValueLabels?.effective, "Effective");
+  assert.ok(entries.every((entry) => entry.source.table === "event_corporate_action_facts"));
+  assert.ok(entries.every((entry) => entry.source.reader === "read_current_event_corporate_action_facts"));
+  assert.ok(entries.every((entry) => entry.eligibility?.requiredReaderStatus === "available"));
+  assert.ok(entries.every((entry) => entry.monitorDomains?.includes("listing")));
+  const userLabels = entries.flatMap((entry) => [
+    entry.display?.label,
+    ...Object.values(entry.display?.enumValueLabels ?? {}),
+  ]).join("\n");
+  assert.doesNotMatch(userLabels, /reverse_split|board_approved|shareholder_approved/);
+});
+
+test("Corporate Action input validation is strict and never publishes unknown stage", () => {
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.event_kind",
+    operator: "eq",
+    value: "reverse_split",
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.event_kind",
+    operator: "in",
+    value: ["reverse_split"],
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.action_stage",
+    operator: "eq",
+    value: "effective",
+  }), []);
+  for (const value of ["unknown", "approved", "forward_split"]) {
+    assert.deepEqual(validateMonitorConditionInput({
+      key: "corporate_action.action_stage",
+      operator: "eq",
+      value,
+    }), ["condition_value_invalid"]);
+  }
+});
+
 test("condition registry exposes only V1 READY canonical conditions", () => {
   assert.equal(MONITOR_CONDITION_REGISTRY_VERSION, "monitor_conditions_v1");
   assert.ok(MONITOR_CONDITION_REGISTRY.length > 0);

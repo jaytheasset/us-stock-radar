@@ -4,6 +4,7 @@ import {
   LISTING_PROCEEDING_KINDS,
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
+import { CORPORATE_ACTION_STAGES } from "./corporateActionCanonicalFacts.ts";
 
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
@@ -65,6 +66,7 @@ export const MONITOR_COMPARISON_ELIGIBLE_QUALITIES = Object.freeze([
 
 type MonitorFactTable =
   | "events"
+  | "event_corporate_action_facts"
   | "event_market_snapshots"
   | "event_offering_monitor_canonical"
   | "event_offering_terms"
@@ -84,13 +86,17 @@ export type MonitorConditionDefinition = Readonly<{
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "ownership";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
     column?: string;
     subject: "event" | "ticker";
-    reader?: "read_event_offering_monitor_canonical" | "read_current_event_listing_risk_facts" | "get_current_price";
+    reader?:
+      | "read_event_offering_monitor_canonical"
+      | "read_current_event_listing_risk_facts"
+      | "read_current_event_corporate_action_facts"
+      | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
@@ -121,6 +127,7 @@ const numericOperators = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 const temporalOperators = ["eq", "neq", "before", "after"] as const;
 const dateOperators = [...temporalOperators, "within_days"] as const;
 const enumOperators = ["eq", "in"] as const;
+const publicCorporateActionStages = CORPORATE_ACTION_STAGES.filter((stage) => stage !== "unknown");
 
 const registry = [
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
@@ -167,6 +174,47 @@ const registry = [
     },
     numberValidation: { exclusiveMinimum: 0 },
   }),
+
+  canonicalCorporateActionCondition(
+    "corporate_action.event_kind",
+    ["reverse_split"],
+    ["event_kind"],
+    {
+      description: "The kind of corporate action established by the official canonical Corporate Action facts.",
+      enumValueDescriptions: {
+        reverse_split: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
+      },
+      display: {
+        label: "Corporate action",
+        enumValueLabels: { reverse_split: "Reverse stock split" },
+      },
+    },
+  ),
+  canonicalCorporateActionCondition(
+    "corporate_action.action_stage",
+    publicCorporateActionStages,
+    ["action_stage"],
+    {
+      description: "The explicit lifecycle stage of the reverse stock split in the official canonical facts.",
+      enumValueDescriptions: {
+        announced: "A reverse-split plan or decision was announced without a more specific confirmed stage.",
+        board_approved: "The issuer's board explicitly approved the reverse stock split.",
+        shareholder_approved: "Shareholders explicitly approved the reverse stock split.",
+        scheduled: "An approved or confirmed future effective date for the reverse stock split is established.",
+        effective: "The reverse stock split is already effective or the source is the effective action itself.",
+      },
+      display: {
+        label: "Corporate action stage",
+        enumValueLabels: {
+          announced: "Announced",
+          board_approved: "Board approved",
+          shareholder_approved: "Shareholder approved",
+          scheduled: "Scheduled",
+          effective: "Effective",
+        },
+      },
+    },
+  ),
 
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
@@ -448,6 +496,48 @@ function currentMarketCondition(
       requiredDataModes: Object.freeze(["realtime"] as const),
       maximumAgeSeconds: 300,
     }),
+    status: "READY" as const,
+  });
+}
+
+type CorporateActionConditionMetadata<TEnumValues extends readonly string[]> = Readonly<{
+  description: string;
+  enumValueDescriptions: Readonly<Record<TEnumValues[number], string>>;
+  display: Readonly<{
+    label: string;
+    enumValueLabels: Readonly<Record<TEnumValues[number], string>>;
+  }>;
+}>;
+
+function canonicalCorporateActionCondition<const TEnumValues extends readonly string[]>(
+  key: string,
+  enumValues: TEnumValues,
+  jsonPath: readonly string[],
+  metadata: CorporateActionConditionMetadata<TEnumValues>,
+): MonitorConditionDefinition {
+  return Object.freeze({
+    key,
+    valueType: "text" as const,
+    allowedOperators: Object.freeze([...enumOperators]),
+    enumValues: Object.freeze([...enumValues]),
+    description: metadata.description,
+    enumValueDescriptions: Object.freeze({ ...metadata.enumValueDescriptions }),
+    display: Object.freeze({
+      label: metadata.display.label,
+      enumValueLabels: Object.freeze({ ...metadata.display.enumValueLabels }),
+    }),
+    monitorDomains: Object.freeze(["listing"] as const),
+    family: "corporate_action" as const,
+    domain: "canonical",
+    source: Object.freeze({
+      table: "event_corporate_action_facts" as const,
+      column: "facts_payload",
+      subject: "event" as const,
+      reader: "read_current_event_corporate_action_facts" as const,
+      jsonPath: Object.freeze([...jsonPath]),
+    }),
+    qualityCapability: Object.freeze(["exact"] as const),
+    eligibility: Object.freeze({ requiredReaderStatus: "available" as const }),
     status: "READY" as const,
   });
 }

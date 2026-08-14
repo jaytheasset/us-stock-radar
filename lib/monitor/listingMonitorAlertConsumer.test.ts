@@ -10,6 +10,7 @@ import type {
   ListingMonitorDiagnostic,
 } from "./listingMonitorPersistence.ts";
 import type { CurrentListingRiskReadResult } from "./listingRiskPersistence.ts";
+import type { CurrentCorporateActionReadResult } from "./corporateActionPersistence.ts";
 
 const EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const SOURCE_EXECUTION_ID = "5323aa52-5944-5877-99b0-c9f74ba6d98c";
@@ -121,6 +122,64 @@ test("Price plus Listing creates one deduped Alert from one price read per event
   assert.deepEqual(first.evaluations.map((item) => item.status), ["match", "no_match", "ineligible"]);
   assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
   assert.deepEqual([replay.createdCount, replay.existingCount], [0, 1]);
+  assert.equal(alerts.size, 1);
+});
+
+test("$0.82 plus AEMD reverse split creates exactly one Alert and replay preserves dedupe", async () => {
+  let corporateActionReads = 0;
+  let tickerReads = 0;
+  let priceReads = 0;
+  const alerts = new Set<string>();
+  const monitors = [
+    monitor("a2000000-0000-4000-8000-000000000031", [
+      { key: "market.price", operator: "lt", value: 1 },
+      { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    ]),
+    monitor("a2000000-0000-4000-8000-000000000032", [
+      { key: "market.price", operator: "lt", value: 0.5 },
+      { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    ]),
+  ] satisfies ListingMonitor[];
+  const dependencies: ListingMonitorAlertConsumerDependencies = {
+    readCorporateActionFacts: async () => {
+      corporateActionReads += 1;
+      return availableCorporateAction();
+    },
+    readEventTicker: async () => {
+      tickerReads += 1;
+      return "AEMD";
+    },
+    readCurrentPrice: async (symbol) => {
+      priceReads += 1;
+      assert.equal(symbol, "AEMD");
+      return {
+        asOf: "2026-08-14T11:59:00.000Z",
+        availability: "available",
+        dataMode: "realtime",
+        price: 0.82,
+        symbol,
+      };
+    },
+    listActiveMonitors: async () => ({ monitors, diagnostics: [] }),
+    createAlert: async (input) => {
+      assert.equal(input.sourceExecutionId, availableCorporateAction().sourceExecutionId);
+      const key = `${input.monitorId}:${input.eventId}`;
+      if (alerts.has(key)) return { status: "existing", monitorId: input.monitorId };
+      alerts.add(key);
+      return { status: "created", monitorId: input.monitorId, alertId: input.monitorId };
+    },
+    now: () => new Date("2026-08-14T12:00:00.000Z"),
+  };
+
+  const first = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+  const replay = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+  assert.equal(corporateActionReads, 2, "one official Corporate Action read per complete attempt");
+  assert.equal(tickerReads, 2, "one event ticker read per complete attempt");
+  assert.equal(priceReads, 2, "one provider-neutral price read per complete attempt");
+  assert.deepEqual(first.evaluations.map((item) => item.status), ["match", "no_match"]);
+  assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
+  assert.deepEqual([replay.createdCount, replay.existingCount], [0, 1]);
+  assert.equal(first.corporateActionReaderStatus, "available");
   assert.equal(alerts.size, 1);
 });
 
@@ -293,5 +352,31 @@ function availableCurrent(
         },
       },
     } as never,
+  };
+}
+
+function availableCorporateAction(): Extract<CurrentCorporateActionReadResult, { status: "available" }> {
+  return {
+    status: "available",
+    eventId: EVENT_ID,
+    rawItemId: "a2000000-0000-4000-8000-000000000042",
+    parentPrimaryAiRunId: "a2000000-0000-4000-8000-000000000043",
+    sourceExecutionId: "a2000000-0000-4000-8000-000000000044",
+    monitorAnalyzerKey: "corporate_action",
+    analyzerContractVersion: "corporate_action_reverse_split_analyzer_v1",
+    persistedAt: "2026-08-14T00:00:00.000Z",
+    factSchemaVersion: "corporate_action_reverse_split_facts_v1",
+    facts: {
+      version: "corporate_action_reverse_split_facts_v1",
+      event_kind: "reverse_split",
+      action_stage: "announced",
+      effective_date: { availability: "unavailable" },
+      ratio: { old_shares_per_new_share: { availability: "unavailable" } },
+      source_ref: "aemd_source",
+      evidence: { availability: "available", value: "AEMD announced a reverse stock split." },
+      confidence: "high",
+      as_of: { availability: "available", value: "2026-08-14" },
+      source: { source_family: "news", source_id: "AEMD", source_url: "https://example.com/aemd" },
+    },
   };
 }

@@ -1,14 +1,15 @@
-# Listing Matcher V1
+# Common Monitor Matcher V1
 
 ## Scope and canonical boundary
 
-Listing Matcher V1 is a deterministic, LLM-free evaluator over the official
-`readCurrentListingRiskFacts()` result. It does not create or persist Monitors,
-send Alerts, call a provider, infer condition meaning, or change Listing
-Analyzer/Core/Agent facts. The official reader is the only fact source.
+The common Matcher is a deterministic, LLM-free evaluator over registered
+official fact readers. V1 supports `readCurrentListingRiskFacts()` and
+`readCurrentEventCorporateActionFacts()`. It does not create or persist
+Monitors, send Alerts, infer condition meaning, or change analyzer facts. Each
+registered official reader is the only truth for its condition family.
 
-The Registry is authoritative for supported Listing keys, operators, value
-types, enum values, canonical JSON paths, and eligibility. A condition that
+The Registry is authoritative for supported keys, operators, value types, enum
+values, canonical JSON paths, readers, and eligibility. A condition that
 does not pass `validateMonitorConditionInput()` is ineligible; the Matcher does
 not repair, normalize, or reinterpret it. Categorical values are compared as
 canonical enum tokens and never consult value quality or provenance. Fact
@@ -20,11 +21,21 @@ all fail closed.
 ## Evaluation flow and result
 
 `evaluateListingMonitorEvent()` reads official facts once per event, then
-evaluates any supplied in-memory condition sets. The pure
-`evaluateListingMonitorConditions()` function has no side effects. Like the
-Offering Matcher, one condition set uses AND aggregation and returns `match`,
-`no_match`, or `ineligible`; a definite `no_match` takes precedence over an
-ineligible sibling condition.
+evaluates any supplied in-memory condition sets. It reads each required
+canonical reader at most once and calls the provider-neutral current-price
+adapter at most once, reusing those values across monitors. The pure
+`evaluateMonitorConditions()` function has no side effects. The compatibility
+wrapper `evaluateListingMonitorConditions()` keeps the original Listing API.
+One condition set uses AND aggregation and returns `match`, `no_match`, or
+`ineligible`; a definite `no_match` takes precedence over an ineligible sibling
+condition.
+
+`corporate_action.event_kind = reverse_split` is evaluable only when the
+official Corporate Action reader returns an available reverse-split fact.
+`not_ready` and `not_applicable` are ineligible. A plain reverse-split condition
+does not imply an action stage. Explicit stage conditions use the same canonical
+stage meaning as the reader. No parser, calendar, Primary output, raw analyzer
+output, or unrelated AI run is a fallback fact source.
 
 Text comparison is exact and case-sensitive. Boolean comparison preserves
 `false`. Fixed date operators remain unchanged and date-only:
@@ -55,9 +66,11 @@ fact date <= evaluationDate + N calendar days
 Today and the exact N-day boundary match. Past dates and N+1 do not. A relative
 condition is evaluated on each run and is never rewritten to a fixed date.
 
-## Explicitly absent
+## Alert boundary
 
-V1 adds no Alert, user Monitor persistence/API/UI, natural-language Condition
-LLM, migration, remote write, lifecycle reducer, or Listing-specific operator
-fallback. It does not compare `source_ref`, evidence, confidence, or any Agent
-provenance field.
+The common event consumer loads active Monitor condition sets, reuses the facts
+and current price for that event attempt, and inserts internal Alerts only for
+`match`. The existing `(monitor_id, event_id)` uniqueness contract makes replay
+idempotent. Delivery remains out of scope. The Matcher itself performs no Alert
+or Monitor persistence and makes no LLM call. It does not compare `source_ref`,
+evidence, confidence, or any analyzer provenance field.

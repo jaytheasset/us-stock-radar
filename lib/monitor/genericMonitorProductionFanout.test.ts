@@ -61,6 +61,14 @@ test("listing and corporate-action routes independently reserve and start two Ge
   assert.deepEqual(harness.calls(), { reserve: 2, claimStart: 2, start: 2, provider: 0 });
 });
 
+test("Corporate Action runtime reuses the common Alert consumer after canonical persistence", () => {
+  const runtime = readFileSync(new URL("./genericMonitorChildRuntime.ts", import.meta.url), "utf8");
+  assert.match(
+    runtime,
+    /monitorAnalyzerKey === "corporate_action"[\s\S]*persistCorporateActionAnalyzerResult[\s\S]*consumeListingMonitorAlertsForEvent/,
+  );
+});
+
 test("same identity concurrent enqueue owns workflow start once and duplicate re-trigger starts zero providers", async () => {
   const harness = starterHarness();
   const input = {

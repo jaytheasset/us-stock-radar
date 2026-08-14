@@ -23,6 +23,10 @@ const atpcConditions = Object.freeze([
   Object.freeze({ key: "listing.event_outcome", operator: "eq", value: "adverse" }),
   Object.freeze({ key: "listing.compliance_deadline", operator: "within_days", value: 30 }),
 ]);
+const reverseSplitConditions = Object.freeze([
+  Object.freeze({ key: "market.price", operator: "lt", value: 1 }),
+  Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
+]);
 
 test("ATPC Listing monitor round-trips exact canonical JSON through active, pause, resume, and hard delete", async () => {
   const repository = new MemoryListingMonitorRepository();
@@ -57,6 +61,19 @@ test("ATPC Listing monitor round-trips exact canonical JSON through active, paus
   assert.equal(repository.size, 0);
 });
 
+test("Price plus reverse split round-trips exact canonical JSON through existing persistence", async () => {
+  const repository = new MemoryListingMonitorRepository();
+  const created = await createListingMonitor({ ownerId: ownerA, conditions: reverseSplitConditions }, repository);
+  assert.deepEqual(created.conditions, reverseSplitConditions);
+  const read = await readListingMonitorForOwner(ownerA, created.id, repository);
+  assert.equal(read.status, "available");
+  if (read.status === "available") assert.deepEqual(read.monitor.conditions, reverseSplitConditions);
+  assert.deepEqual(
+    (await listActiveListingMonitorsForOwner(ownerA, repository)).monitors[0]?.conditions,
+    reverseSplitConditions,
+  );
+});
+
 test("create and update reject malformed, unsupported, non-Listing, and non-canonical conditions before writing", async () => {
   const repository = new MemoryListingMonitorRepository();
   const invalidConditionSets: unknown[] = [
@@ -67,6 +84,8 @@ test("create and update reject malformed, unsupported, non-Listing, and non-cano
     [{ key: "listing.compliance_deadline", operator: "within_days", value: 30.5 }],
     [{ key: "market.price", operator: "lt", value: 0 }],
     [{ key: "market.price", operator: "lte", value: -1 }],
+    [{ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }],
+    [{ key: "corporate_action.action_stage", operator: "eq", value: "unknown" }],
     [{ key: "event.ticker", operator: "eq", value: "ATPC" }],
     [{ key: "listing.event_kind", operator: "eq", value: "deficiency_notice", prompt: "guess" }],
     ["listing.event_kind eq deficiency_notice"],

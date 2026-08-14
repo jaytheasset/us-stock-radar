@@ -19,6 +19,16 @@ const DEFICIENCY = Object.freeze({ key: "listing.event_kind", operator: "eq" as 
 const ADVERSE = Object.freeze({ key: "listing.event_outcome", operator: "eq" as const, value: "adverse" });
 const DEADLINE = Object.freeze({ key: "listing.compliance_deadline", operator: "within_days" as const, value: 30 });
 const PRICE = Object.freeze({ key: "market.price", operator: "lt" as const, value: 1 });
+const REVERSE_SPLIT = Object.freeze({
+  key: "corporate_action.event_kind",
+  operator: "eq" as const,
+  value: "reverse_split",
+});
+const EFFECTIVE_STAGE = Object.freeze({
+  key: "corporate_action.action_stage",
+  operator: "eq" as const,
+  value: "effective",
+});
 
 test("Listing editor catalog is complete and derives all visible labels from Registry metadata", () => {
   const definitions = getReadyMonitorConditions().filter((definition) => definition.monitorDomains?.includes("listing"));
@@ -86,6 +96,42 @@ test("Price draft is supported, editable, removable, and positive-number gated",
   assert.deepEqual(gate.conditions, [DEFICIENCY]);
   assert.equal(gate.conditions.some((condition) => condition.key.includes("price")), false);
   assert.equal(new Set<string>(gate.conditions.map((condition) => condition.key)).has("listing.event_outcome"), false);
+});
+
+test("Price and reverse-split conditions edit, delete, revalidate, and round-trip canonically", () => {
+  let review = createListingMonitorDraftReview(draft({
+    draftStatus: "READY_FOR_REVIEW",
+    compilerStatus: "VALID",
+    conditions: [PRICE, REVERSE_SPLIT],
+  }));
+  assert.deepEqual(review.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+    "Price — Below $1",
+    "Corporate action — Reverse stock split",
+  ]);
+  review = replaceListingMonitorDraftCondition(review, 0, { ...PRICE, value: 0.82 });
+  assert.deepEqual(getListingMonitorDraftCreateGate(review).conditions, [
+    { ...PRICE, value: 0.82 },
+    REVERSE_SPLIT,
+  ]);
+
+  const withoutPrice = removeListingMonitorDraftCondition(review, 0);
+  assert.deepEqual(getListingMonitorDraftCreateGate(withoutPrice), {
+    ready: true,
+    errors: [],
+    conditions: [REVERSE_SPLIT],
+  });
+  const withoutReverseSplit = removeListingMonitorDraftCondition(review, 1);
+  assert.deepEqual(getListingMonitorDraftCreateGate(withoutReverseSplit).conditions, [{ ...PRICE, value: 0.82 }]);
+
+  const effective = createListingMonitorDraftReview(draft({
+    draftStatus: "READY_FOR_REVIEW",
+    compilerStatus: "VALID",
+    conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
+  }));
+  assert.deepEqual(effective.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+    "Corporate action — Reverse stock split",
+    "Corporate action stage — Effective",
+  ]);
 });
 
 test("mapped edit uses Registry key/operator/value choices and delete of the final condition blocks create", () => {
@@ -179,6 +225,8 @@ test("human presentation covers price operators and Listing values without raw l
     formatListingMonitorConditionPreview({ key: "listing.continued_trading", operator: "eq", value: true }).text,
     formatListingMonitorConditionPreview({ key: "listing.hearing_date", operator: "eq", value: "2026-08-20" }).text,
     formatListingMonitorConditionPreview(DEADLINE).text,
+    formatListingMonitorConditionPreview(REVERSE_SPLIT).text,
+    formatListingMonitorConditionPreview(EFFECTIVE_STAGE).text,
   ];
   assert.deepEqual(previews, [
     "Price — Below $1",
@@ -190,8 +238,10 @@ test("human presentation covers price operators and Listing values without raw l
     "Continued trading — Yes",
     "Hearing date — On Aug 20, 2026",
     "Compliance deadline — Within 30 days",
+    "Corporate action — Reverse stock split",
+    "Corporate action stage — Effective",
   ]);
-  assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b/);
+  assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b|reverse_split|corporate_action/);
 });
 
 test("AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation", () => {

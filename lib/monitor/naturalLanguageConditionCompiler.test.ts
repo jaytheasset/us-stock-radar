@@ -30,6 +30,8 @@ const RECOVERED = condition("listing.event_outcome", "eq", "recovered");
 const DEADLINE_30 = condition("listing.compliance_deadline", "within_days", 30);
 const NASDAQ = condition("listing.exchange", "eq", "Nasdaq");
 const PRICE_BELOW_1 = condition("market.price", "lt", 1);
+const REVERSE_SPLIT = condition("corporate_action.event_kind", "eq", "reverse_split");
+const EFFECTIVE_STAGE = condition("corporate_action.action_stage", "eq", "effective");
 
 test("request parsing trims one text field and rejects empty, oversized, malformed, and identity fields", () => {
   assert.deepEqual(parseNaturalLanguageConditionCompilerRequest({ text: "  listing deficiency  " }), {
@@ -108,7 +110,7 @@ test("prompt catalog derives exactly from Registry semantic metadata and keeps g
   assert.doesNotMatch(JSON.stringify(prompt.responseFormat), /"id"|condition_refs|self_check/);
   for (const item of expectedRegistry) assert.match(prompt.system, new RegExp(escapeRegex(item.key)));
   const authoredPrefix = prompt.system.split("registry_version=")[0];
-  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange|below \$1|market\.price/i);
+  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange|below \$1|market\.price|reverse split|reverse_split|corporate_action/i);
 });
 
 test("one Provider call adapts inline conditions to deterministic IDs and single-call telemetry", async () => {
@@ -186,6 +188,46 @@ test("one call can map current price and Listing semantics into one canonical dr
     "Listing event — Listing deficiency notice",
   ]);
   assert.equal(draft.unsupported.length, 0);
+});
+
+test("automatic Semantic Registry expansion compiles reverse-split acceptance A and B without extra narrowing", async () => {
+  const cases = [
+    {
+      text: "Alert me when a stock below $1 announces a reverse split.",
+      requirements: [
+        requirement("a stock below $1", "mapped", [PRICE_BELOW_1]),
+        requirement("announces a reverse split", "mapped", [REVERSE_SPLIT]),
+      ],
+      conditions: [PRICE_BELOW_1, REVERSE_SPLIT],
+      preview: ["Price — Below $1", "Corporate action — Reverse stock split"],
+    },
+    {
+      text: "Alert me when a reverse split becomes effective.",
+      requirements: [
+        requirement("a reverse split becomes effective", "mapped", [REVERSE_SPLIT, EFFECTIVE_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
+      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Effective"],
+    },
+  ] as const;
+
+  for (const candidate of cases) {
+    let calls = 0;
+    const run = await compileNaturalLanguageListingConditions({ text: candidate.text }, {
+      apiKey: "fixture-key",
+      model: "configured-fast-model",
+      runPrompt: async () => {
+        calls += 1;
+        return successfulRun(providerOutput(candidate.requirements), "configured-fast-model");
+      },
+    });
+    assert.equal(calls, 1);
+    assert.deepEqual(run.result.conditions, candidate.conditions);
+    const draft = buildNaturalLanguageMonitorDraft(run.result, candidate.text);
+    const preview = draft.mapped.flatMap((item) => item.conditions.map((item) => item.text));
+    assert.deepEqual(preview, candidate.preview);
+    assert.doesNotMatch(JSON.stringify(draft.mapped), /reverse_split|market\.price|corporate_action|\blt\b/);
+  }
 });
 
 test("distinct constraints retain stable r/c order and identical conditions dedupe", () => {
