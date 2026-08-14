@@ -44,6 +44,7 @@ export class MarketstackPriceProvider implements MarketDataProvider {
       ? {
           asOf: snapshot.asOf,
           availability: "available",
+          dataMode: MARKETSTACK_DATA_TIMELINESS,
           price: snapshot.price,
           symbol: snapshot.symbol,
         }
@@ -99,6 +100,7 @@ export function normalizeMarketstackCurrentPrice(
     ? {
         asOf: snapshot.asOf,
         availability: "available",
+        dataMode: MARKETSTACK_DATA_TIMELINESS,
         price: snapshot.price,
         symbol: snapshot.symbol,
       }

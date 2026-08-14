@@ -28,7 +28,8 @@ export type ListingMonitorDraftReview = Readonly<{
 export type ListingMonitorConditionEditorCatalogItem = Readonly<{
   key: string;
   label: string;
-  valueType: Extract<MonitorConditionValueType, "text" | "boolean" | "date">;
+  valueType: Extract<MonitorConditionValueType, "text" | "boolean" | "date" | "number">;
+  exclusiveMinimum?: number;
   operators: readonly Readonly<{ value: MonitorConditionOperator; label: string }>[];
   values: readonly Readonly<{ value: string; label: string }>[];
 }>;
@@ -47,7 +48,7 @@ export type ListingMonitorConditionPreview = Readonly<{
 
 const LISTING_EDITOR_CATALOG = Object.freeze(
   getReadyMonitorConditions()
-    .filter((definition) => definition.family === "listing")
+    .filter((definition) => definition.monitorDomains?.includes("listing"))
     .map(toEditorCatalogItem),
 );
 
@@ -207,6 +208,9 @@ function toEditorCatalogItem(definition: MonitorConditionDefinition): ListingMon
     key: definition.key,
     label: definition.display.label,
     valueType: definition.valueType,
+    ...(definition.numberValidation?.exclusiveMinimum !== undefined
+      ? { exclusiveMinimum: definition.numberValidation.exclusiveMinimum }
+      : {}),
     operators: Object.freeze(definition.allowedOperators.map((operator) => Object.freeze({
       value: operator,
       label: MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS[operator],
@@ -285,6 +289,8 @@ function formatConditionValue(
     return `${label}: ${(value as readonly unknown[]).map((item) => formatScalar(definition, item)).join(", ")}`;
   }
   const scalar = formatScalar(definition, value);
+  const template = definition.display?.operatorValueTemplates?.[operator];
+  if (template) return template.replace("{value}", scalar);
   if (operator === "eq") return definition.valueType === "date" ? `On ${scalar}` : scalar;
   if (operator === "neq") return definition.valueType === "date" ? `Not on ${scalar}` : `Does not equal ${scalar}`;
   if (operator === "before" || operator === "after") {
@@ -306,22 +312,40 @@ function formatScalar(definition: MonitorConditionDefinition, value: unknown) {
       ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(parsed)
       : "Choose a valid date";
   }
+  if (definition.valueType === "number" && typeof value === "number" && Number.isFinite(value)) {
+    const format = definition.display?.numberFormat;
+    if (!format) return "Choose a valid value";
+    return new Intl.NumberFormat("en-US", {
+      style: format.style,
+      ...(format.currency ? { currency: format.currency } : {}),
+      ...(format.minimumFractionDigits !== undefined
+        ? { minimumFractionDigits: format.minimumFractionDigits }
+        : {}),
+      ...(format.maximumFractionDigits !== undefined
+        ? { maximumFractionDigits: format.maximumFractionDigits }
+        : {}),
+    }).format(value);
+  }
   return typeof value === "string" && value.trim() ? value.trim() : "Choose a valid value";
 }
 
 function defaultValue(definition: MonitorConditionDefinition, operator: MonitorConditionOperator) {
   const eligibleEnum = definition.enumValues?.find((value) => !definition.eligibility?.ineligibleValues?.includes(value));
-  const scalar = eligibleEnum ?? (definition.valueType === "boolean" ? true : "");
+  const scalar = eligibleEnum ?? (definition.valueType === "boolean"
+    ? true
+    : definition.valueType === "number"
+      ? Math.max(1, (definition.numberValidation?.exclusiveMinimum ?? 0) + 1)
+      : "");
   return operator === "in" || operator === "not_in" ? (scalar === "" ? [] : [scalar]) : scalar;
 }
 
 function getListingDefinition(key: string) {
   const definition = getReadyMonitorCondition(key);
-  return definition?.family === "listing" && definition.display ? definition : null;
+  return definition?.monitorDomains?.includes("listing") && definition.display ? definition : null;
 }
 
 function isListingValueType(value: MonitorConditionValueType): value is ListingMonitorConditionEditorCatalogItem["valueType"] {
-  return value === "text" || value === "boolean" || value === "date";
+  return value === "text" || value === "boolean" || value === "date" || value === "number";
 }
 
 function isCanonicalConditionShape(value: unknown): value is CanonicalListingMonitorCondition {

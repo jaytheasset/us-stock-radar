@@ -1,8 +1,14 @@
 import {
+  currentListingTicker,
   evaluateListingMonitorConditions,
   type ListingMonitorMatchReasonCode,
   type ListingMonitorMatchStatus,
 } from "../listingMonitorMatcher.ts";
+import {
+  unavailableCurrentPrice,
+  type CurrentPrice,
+} from "../market-data/marketDataProvider.ts";
+import { getReadyMonitorCondition } from "./conditionRegistry.ts";
 import {
   listActiveListingMonitorsForConsumer,
   type ListingMonitorDiagnostic,
@@ -42,6 +48,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
   readFacts(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
   createAlert(input: Readonly<{
     eventId: string;
@@ -55,6 +62,9 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
 
 const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
   readFacts: readCurrentListingRiskFacts,
+  readCurrentPrice: async (symbol) => (
+    await import("../market-data/currentPrice.ts")
+  ).getCurrentPrice(symbol),
   listActiveMonitors: listActiveListingMonitorsForConsumer,
   createAlert: createListingMonitorAlert,
   now: () => new Date(),
@@ -82,10 +92,34 @@ export async function consumeListingMonitorAlertsForEvent(
   // the processing date. Replays on a later day may legitimately re-evaluate
   // moving windows; the database identity still prevents duplicate Alerts for
   // the same monitor and exact canonical result.
-  const evaluationDate = dateOnly(dependencies.now());
+  const evaluationTime = dependencies.now();
+  const evaluationDate = dateOnly(evaluationTime);
+  const priceRequested = listingMonitors.monitors.some((monitor) => (
+    monitor.conditions.some((condition) => (
+      getReadyMonitorCondition(condition.key)?.source.reader === "get_current_price"
+    ))
+  ));
+  let currentPrice: CurrentPrice | undefined;
+  if (priceRequested) {
+    const symbol = currentListingTicker(current);
+    if (!symbol) {
+      currentPrice = unavailableCurrentPrice(symbol);
+    } else {
+      try {
+        currentPrice = await (dependencies.readCurrentPrice
+          ?? defaultDependencies.readCurrentPrice!)(symbol);
+      } catch {
+        currentPrice = unavailableCurrentPrice(symbol);
+      }
+    }
+  }
   const evaluations = listingMonitors.monitors.map((monitor) => ({
     monitor,
-    result: evaluateListingMonitorConditions(current, monitor.conditions, { evaluationDate }),
+    result: evaluateListingMonitorConditions(current, monitor.conditions, {
+      evaluationDate,
+      evaluatedAt: evaluationTime.toISOString(),
+      ...(currentPrice ? { currentPrice } : {}),
+    }),
   }));
   const writes: ListingMonitorAlertWriteResult[] = [];
 

@@ -18,9 +18,10 @@ const NASDAQ = Object.freeze({ key: "listing.exchange", operator: "eq" as const,
 const DEFICIENCY = Object.freeze({ key: "listing.event_kind", operator: "eq" as const, value: "deficiency_notice" });
 const ADVERSE = Object.freeze({ key: "listing.event_outcome", operator: "eq" as const, value: "adverse" });
 const DEADLINE = Object.freeze({ key: "listing.compliance_deadline", operator: "within_days" as const, value: 30 });
+const PRICE = Object.freeze({ key: "market.price", operator: "lt" as const, value: 1 });
 
 test("Listing editor catalog is complete and derives all visible labels from Registry metadata", () => {
-  const definitions = getReadyMonitorConditions().filter((definition) => definition.family === "listing");
+  const definitions = getReadyMonitorConditions().filter((definition) => definition.monitorDomains?.includes("listing"));
   const catalog = getListingMonitorConditionEditorCatalog();
   assert.equal(catalog.length, definitions.length);
   assert.deepEqual(catalog.map((item) => item.key), definitions.map((item) => item.key));
@@ -61,22 +62,25 @@ test("A draft exposes every mapped condition and adverse removal produces the ex
   assert.equal(new Set<string>(gate.conditions.map((condition) => condition.key)).has("listing.event_outcome"), false);
 });
 
-test("D draft requires explicit price abandonment and adverse removal before deficiency-only creation", () => {
+test("Price draft is supported, editable, removable, and positive-number gated", () => {
   let review = createListingMonitorDraftReview(draft({
-    draftStatus: "NEEDS_ATTENTION",
-    compilerStatus: "UNSUPPORTED",
-    conditions: [DEFICIENCY, ADVERSE],
-    unsupported: [{
-      sourceText: "a stock is below $3",
-      status: "Unsupported",
-      reason: "The Registry does not support price-based conditions.",
-    }],
+    draftStatus: "READY_FOR_REVIEW",
+    compilerStatus: "VALID",
+    conditions: [PRICE, DEFICIENCY],
   }));
-  assert.equal(getListingMonitorDraftCreateGate(review).ready, false);
-  assert.equal(review.issues[0].sourceText, "a stock is below $3");
-  assert.equal(review.issues[0].abandoned, false);
-  review = setListingMonitorDraftIssueAbandoned(review, review.issues[0].id, true);
-  review = removeListingMonitorDraftCondition(review, 1);
+  assert.deepEqual(review.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+    "Price — Below $1",
+    "Listing event — Listing deficiency notice",
+  ]);
+  assert.equal(getListingMonitorDraftCreateGate(review).ready, true);
+
+  const invalid = replaceListingMonitorDraftCondition(review, 0, { ...PRICE, value: 0 });
+  assert.equal(getListingMonitorDraftCreateGate(invalid).ready, false);
+  assert.equal(formatListingMonitorConditionPreview(invalid.conditions[0]).text, "Condition — Choose a valid value");
+
+  review = replaceListingMonitorDraftCondition(review, 0, { ...PRICE, value: 0.75 });
+  assert.equal(formatListingMonitorConditionPreview(review.conditions[0]).text, "Price — Below $0.75");
+  review = removeListingMonitorDraftCondition(review, 0);
   const gate = getListingMonitorDraftCreateGate(review);
   assert.equal(gate.ready, true);
   assert.deepEqual(gate.conditions, [DEFICIENCY]);
@@ -164,8 +168,12 @@ test("ambiguous requirements remain visible and require explicit abandonment", (
   assert.equal(getListingMonitorDraftCreateGate(review).ready, true);
 });
 
-test("human presentation covers enum, text, boolean, fixed date, and relative date without raw literals", () => {
+test("human presentation covers price operators and Listing values without raw literals", () => {
   const previews = [
+    formatListingMonitorConditionPreview(PRICE).text,
+    formatListingMonitorConditionPreview({ ...PRICE, operator: "lte" }).text,
+    formatListingMonitorConditionPreview({ ...PRICE, operator: "gt" }).text,
+    formatListingMonitorConditionPreview({ ...PRICE, operator: "gte" }).text,
     formatListingMonitorConditionPreview(DEFICIENCY).text,
     formatListingMonitorConditionPreview(NASDAQ).text,
     formatListingMonitorConditionPreview({ key: "listing.continued_trading", operator: "eq", value: true }).text,
@@ -173,13 +181,17 @@ test("human presentation covers enum, text, boolean, fixed date, and relative da
     formatListingMonitorConditionPreview(DEADLINE).text,
   ];
   assert.deepEqual(previews, [
+    "Price — Below $1",
+    "Price — $1 or less",
+    "Price — Above $1",
+    "Price — $1 or more",
     "Listing event — Listing deficiency notice",
     "Exchange — Nasdaq",
     "Continued trading — Yes",
     "Hearing date — On Aug 20, 2026",
     "Compliance deadline — Within 30 days",
   ]);
-  assert.doesNotMatch(previews.join("\n"), /deficiency_notice|within_days|\badverse\b/);
+  assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b/);
 });
 
 test("AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation", () => {
@@ -201,6 +213,8 @@ test("AI Monitor UI invokes Compiler only from submit and creates only from expl
   assert.doesNotMatch(component, /Requirements needing a decision|Explicit confirmation required|Abandon requirement|Review mapped conditions|Build draft preview/);
   assert.doesNotMatch(component, /supabase|userId|service_role|IndependentCoverageVerifier|second LLM/i);
   assert.doesNotMatch(component, /deficiency_notice|compliance_recovery|\badverse\b/);
+  assert.match(component, /editor\.valueType === "number"/);
+  assert.match(component, /type="number"/);
 });
 
 function draft({

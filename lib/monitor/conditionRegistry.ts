@@ -31,6 +31,13 @@ export type MonitorConditionDisplayMetadata = Readonly<{
   label: string;
   enumValueLabels?: Readonly<Record<string, string>>;
   booleanValueLabels?: Readonly<Record<"true" | "false", string>>;
+  numberFormat?: Readonly<{
+    style: "currency" | "decimal";
+    currency?: string;
+    minimumFractionDigits?: number;
+    maximumFractionDigits?: number;
+  }>;
+  operatorValueTemplates?: Readonly<Partial<Record<MonitorConditionOperator, string>>>;
 }>;
 
 export const MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS = Object.freeze({
@@ -73,13 +80,17 @@ export type MonitorConditionDefinition = Readonly<{
   description?: string;
   enumValueDescriptions?: Readonly<Record<string, string>>;
   display?: MonitorConditionDisplayMetadata;
+  monitorDomains?: readonly "listing"[];
+  numberValidation?: Readonly<{
+    exclusiveMinimum?: number;
+  }>;
   family: "event" | "market" | "offering" | "listing" | "ownership";
   domain: string;
   source: Readonly<{
-    table: MonitorFactTable;
-    column: string;
+    table?: MonitorFactTable;
+    column?: string;
     subject: "event" | "ticker";
-    reader?: "read_event_offering_monitor_canonical" | "read_current_event_listing_risk_facts";
+    reader?: "read_event_offering_monitor_canonical" | "read_current_event_listing_risk_facts" | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
@@ -92,6 +103,8 @@ export type MonitorConditionDefinition = Readonly<{
     requiredAvailability?: "available";
     requiredValueQualities?: readonly MonitorConditionQuality[];
     ineligibleValues?: readonly string[];
+    requiredDataModes?: readonly "realtime"[];
+    maximumAgeSeconds?: number;
   }>;
   status: "READY" | "PARTIAL";
 }>;
@@ -133,6 +146,26 @@ const registry = [
   condition("market.market_cap_at_event", "number", numericOperators, "market", "event_time", "event_market_snapshots", "market_cap", "ticker", ["exact", "derived", "estimated", "unknown"], {
     valueQualityColumn: "market_cap_value_quality",
     availabilityColumn: "market_cap_availability",
+  }),
+
+  currentMarketCondition("market.price", "number", ["lt", "lte", "gt", "gte"], {
+    description: "Current market price of the security.",
+    display: {
+      label: "Price",
+      numberFormat: {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      },
+      operatorValueTemplates: {
+        lt: "Below {value}",
+        lte: "{value} or less",
+        gt: "Above {value}",
+        gte: "{value} or more",
+      },
+    },
+    numberValidation: { exclusiveMinimum: 0 },
   }),
 
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
@@ -375,6 +408,50 @@ function canonicalOfferingCondition(
   });
 }
 
+function currentMarketCondition(
+  key: string,
+  valueType: "number",
+  allowedOperators: readonly MonitorConditionOperator[],
+  options: Readonly<{
+    description: string;
+    display: MonitorConditionDisplayMetadata;
+    numberValidation: Readonly<{ exclusiveMinimum: number }>;
+  }>,
+): MonitorConditionDefinition {
+  return Object.freeze({
+    key,
+    valueType,
+    allowedOperators: Object.freeze([...allowedOperators]),
+    description: options.description,
+    display: Object.freeze({
+      ...options.display,
+      numberFormat: options.display.numberFormat
+        ? Object.freeze({ ...options.display.numberFormat })
+        : undefined,
+      operatorValueTemplates: options.display.operatorValueTemplates
+        ? Object.freeze({ ...options.display.operatorValueTemplates })
+        : undefined,
+    }),
+    monitorDomains: Object.freeze(["listing"] as const),
+    numberValidation: Object.freeze({ ...options.numberValidation }),
+    family: "market" as const,
+    domain: "current_state",
+    source: Object.freeze({
+      subject: "ticker" as const,
+      reader: "get_current_price" as const,
+      jsonPath: Object.freeze(["price"] as const),
+    }),
+    qualityCapability: Object.freeze(["exact"] as const),
+    eligibility: Object.freeze({
+      requiredReaderStatus: "available" as const,
+      requiredAvailability: "available" as const,
+      requiredDataModes: Object.freeze(["realtime"] as const),
+      maximumAgeSeconds: 300,
+    }),
+    status: "READY" as const,
+  });
+}
+
 type ListingConditionMetadata<TEnumValues extends readonly string[] | undefined> = Readonly<{
   description: string;
   display: Readonly<{
@@ -420,6 +497,7 @@ function canonicalListingCondition<
         booleanValueLabels: Object.freeze({ ...options.display.booleanValueLabels }),
       } : {}),
     }),
+    monitorDomains: Object.freeze(["listing"] as const),
     family: "listing" as const,
     domain,
     source: Object.freeze({
@@ -465,9 +543,9 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
     if (entry.enumValues && (entry.valueType !== "text" || !entry.enumValues.length || new Set(entry.enumValues).size !== entry.enumValues.length)) {
       throw new Error(`Invalid monitor condition enum: ${entry.key}`);
     }
-    if (entry.family === "listing") {
+    if (entry.monitorDomains?.includes("listing")) {
       if (typeof entry.description !== "string" || !entry.description.trim()) {
-        throw new Error(`Listing monitor condition lacks a description: ${entry.key}`);
+        throw new Error(`Monitor condition lacks a description: ${entry.key}`);
       }
       const describedValues = Object.keys(entry.enumValueDescriptions ?? {});
       if (entry.enumValues) {
@@ -476,13 +554,13 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
           || entry.enumValues.some((value) => !entry.enumValueDescriptions?.[value]?.trim())
           || describedValues.some((value) => !entry.enumValues?.includes(value))
         ) {
-          throw new Error(`Listing monitor condition enum descriptions are incomplete: ${entry.key}`);
+          throw new Error(`Monitor condition enum descriptions are incomplete: ${entry.key}`);
         }
       } else if (describedValues.length > 0) {
-        throw new Error(`Listing monitor condition has descriptions without enum values: ${entry.key}`);
+        throw new Error(`Monitor condition has descriptions without enum values: ${entry.key}`);
       }
       if (typeof entry.display?.label !== "string" || !entry.display.label.trim()) {
-        throw new Error(`Listing monitor condition lacks a display label: ${entry.key}`);
+        throw new Error(`Monitor condition lacks a display label: ${entry.key}`);
       }
       const labeledValues = Object.keys(entry.display.enumValueLabels ?? {});
       if (entry.enumValues) {
@@ -491,18 +569,27 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
           || entry.enumValues.some((value) => !entry.display?.enumValueLabels?.[value]?.trim())
           || labeledValues.some((value) => !entry.enumValues?.includes(value))
         ) {
-          throw new Error(`Listing monitor condition enum display labels are incomplete: ${entry.key}`);
+          throw new Error(`Monitor condition enum display labels are incomplete: ${entry.key}`);
         }
       } else if (labeledValues.length > 0) {
-        throw new Error(`Listing monitor condition has enum display labels without enum values: ${entry.key}`);
+        throw new Error(`Monitor condition has enum display labels without enum values: ${entry.key}`);
       }
       const booleanLabels = entry.display.booleanValueLabels;
       if (entry.valueType === "boolean") {
         if (!booleanLabels?.true?.trim() || !booleanLabels.false?.trim()) {
-          throw new Error(`Listing monitor boolean condition display labels are incomplete: ${entry.key}`);
+          throw new Error(`Monitor boolean condition display labels are incomplete: ${entry.key}`);
         }
       } else if (booleanLabels) {
-        throw new Error(`Non-boolean Listing monitor condition has boolean display labels: ${entry.key}`);
+        throw new Error(`Non-boolean monitor condition has boolean display labels: ${entry.key}`);
+      }
+      if (entry.valueType === "number") {
+        const templates = entry.display.operatorValueTemplates;
+        if (
+          !entry.numberValidation
+          || entry.allowedOperators.some((operator) => !templates?.[operator]?.includes("{value}"))
+        ) {
+          throw new Error(`Numeric monitor condition metadata is incomplete: ${entry.key}`);
+        }
       }
     }
     if (entry.eligibility?.ineligibleValues?.some((value) => !entry.enumValues?.includes(value))) {
@@ -520,12 +607,28 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
     if ((entry.source.valueQualityJsonPath || entry.source.availabilityJsonPath) && !(entry.source.valueQualityJsonPath && entry.source.availabilityJsonPath)) {
       throw new Error(`Incomplete JSON value-quality contract: ${entry.key}`);
     }
+    if (
+      entry.numberValidation?.exclusiveMinimum !== undefined
+      && (!Number.isFinite(entry.numberValidation.exclusiveMinimum) || entry.valueType !== "number")
+    ) {
+      throw new Error(`Invalid numeric monitor condition constraint: ${entry.key}`);
+    }
+    if (
+      entry.eligibility?.maximumAgeSeconds !== undefined
+      && (!Number.isFinite(entry.eligibility.maximumAgeSeconds) || entry.eligibility.maximumAgeSeconds <= 0)
+    ) {
+      throw new Error(`Invalid monitor condition freshness constraint: ${entry.key}`);
+    }
     keys.add(entry.key);
   }
 }
 
 function validConditionScalar(definition: MonitorConditionDefinition, value: unknown) {
-  if (definition.valueType === "number") return typeof value === "number" && Number.isFinite(value);
+  if (definition.valueType === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value)) return false;
+    const exclusiveMinimum = definition.numberValidation?.exclusiveMinimum;
+    return exclusiveMinimum === undefined || value > exclusiveMinimum;
+  }
   if (definition.valueType === "boolean") return typeof value === "boolean";
   if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;
   if (definition.valueType === "timestamp") {

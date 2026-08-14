@@ -9,6 +9,10 @@ import {
   type MonitorConditionDefinition,
   type MonitorConditionOperator,
 } from "./monitor/conditionRegistry.ts";
+import {
+  unavailableCurrentPrice,
+  type CurrentPrice,
+} from "./market-data/marketDataProvider.ts";
 
 export const LISTING_MONITOR_MATCHER_VERSION = "listing_monitor_matcher_v1" as const;
 
@@ -29,7 +33,10 @@ export type ListingMonitorMatchReasonCode =
   | "fact_unavailable"
   | "fact_value_invalid"
   | "fact_quality_unknown"
-  | "fact_value_ineligible";
+  | "fact_value_ineligible"
+  | "market_price_unavailable"
+  | "market_price_data_mode_ineligible"
+  | "market_price_stale";
 
 export type ListingMonitorCondition = Readonly<{
   key: unknown;
@@ -65,25 +72,28 @@ export type ListingMonitorEventMatchResult = Readonly<{
 
 export type ListingMonitorMatcherDependencies = Readonly<{
   readFacts(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
+  now?(): Date;
 }>;
 
 const defaultDependencies: ListingMonitorMatcherDependencies = {
   readFacts: readCurrentListingRiskFacts,
+  readCurrentPrice: async (symbol) => (
+    await import("./market-data/currentPrice.ts")
+  ).getCurrentPrice(symbol),
+  now: () => new Date(),
 };
 
 /** Pure, deterministic AND evaluation over one already-read official result. */
 export function evaluateListingMonitorConditions(
   current: CurrentListingRiskReadResult,
   conditions: readonly ListingMonitorCondition[],
-  input: Readonly<{ evaluationDate: string }>,
+  input: Readonly<{
+    evaluationDate: string;
+    evaluatedAt?: string;
+    currentPrice?: CurrentPrice;
+  }>,
 ): ListingMonitorMatchResult {
-  if (current.status === "not_ready") {
-    const reasonCode = current.reason === "reader_unavailable" ? "reader_unavailable" : "reader_not_ready";
-    return result("ineligible", reasonCode, [], current.reason);
-  }
-  if (current.status === "not_applicable") {
-    return result("ineligible", "reader_not_applicable", []);
-  }
   if (!Array.isArray(conditions) || conditions.length === 0) {
     return result("ineligible", "condition_set_empty", []);
   }
@@ -92,11 +102,17 @@ export function evaluateListingMonitorConditions(
   if (evaluationDay === null) {
     return result("ineligible", "evaluation_date_invalid", []);
   }
+  const evaluatedAt = Date.parse(input.evaluatedAt ?? `${input.evaluationDate}T23:59:59.999Z`);
+  if (!Number.isFinite(evaluatedAt)) {
+    return result("ineligible", "evaluation_date_invalid", []);
+  }
 
   const evaluated = conditions.map((condition) => evaluateCondition(
-    current.facts,
+    current,
     condition,
     evaluationDay,
+    evaluatedAt,
+    input.currentPrice,
   ));
   const firstNoMatch = evaluated.find((item) => item.status === "no_match");
   if (firstNoMatch) return result("no_match", firstNoMatch.reasonCode, evaluated);
@@ -113,6 +129,7 @@ export async function evaluateListingMonitorEvent(
   input: Readonly<{
     eventId: string;
     evaluationDate: string;
+    evaluatedAt?: string;
     conditionSets: readonly ListingMonitorConditionSet[];
   }>,
   dependencies: ListingMonitorMatcherDependencies = defaultDependencies,
@@ -123,6 +140,25 @@ export async function evaluateListingMonitorEvent(
   } catch {
     current = { status: "not_ready", reason: "reader_unavailable" };
   }
+  const evaluatedAt = input.evaluatedAt
+    ?? (dependencies.now ?? defaultDependencies.now!)().toISOString();
+  const priceRequested = input.conditionSets.some((set) => (
+    set.conditions.some(isCurrentPriceCondition)
+  ));
+  let currentPrice: CurrentPrice | undefined;
+  if (priceRequested) {
+    const symbol = currentListingTicker(current);
+    if (!symbol) {
+      currentPrice = unavailableCurrentPrice(symbol);
+    } else {
+      try {
+        currentPrice = await (dependencies.readCurrentPrice
+          ?? defaultDependencies.readCurrentPrice!)(symbol);
+      } catch {
+        currentPrice = unavailableCurrentPrice(symbol);
+      }
+    }
+  }
   return {
     version: LISTING_MONITOR_MATCHER_VERSION,
     eventId: input.eventId,
@@ -131,15 +167,19 @@ export async function evaluateListingMonitorEvent(
       id: set.id,
       result: evaluateListingMonitorConditions(current, set.conditions, {
         evaluationDate: input.evaluationDate,
+        evaluatedAt,
+        ...(currentPrice ? { currentPrice } : {}),
       }),
     })),
   };
 }
 
 function evaluateCondition(
-  facts: Extract<CurrentListingRiskReadResult, { status: "available" }>["facts"],
+  current: CurrentListingRiskReadResult,
   input: ListingMonitorCondition,
   evaluationDay: number,
+  evaluatedAt: number,
+  currentPrice?: CurrentPrice,
 ): ListingMonitorConditionResult {
   if (!recordValue(input)) return conditionResult("", "ineligible", "condition_invalid");
   const key = typeof input.key === "string" ? input.key : "";
@@ -147,11 +187,34 @@ function evaluateCondition(
   if (validationError) return conditionResult(key, "ineligible", validationError);
 
   const definition = getReadyMonitorCondition(key);
-  if (!definition || definition.family !== "listing" || !definition.source.jsonPath) {
+  if (!definition || !definition.monitorDomains?.includes("listing")) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
 
   const operator = input.operator as MonitorConditionOperator;
+  if (definition.source.reader === "get_current_price") {
+    return evaluateCurrentPriceCondition(
+      definition,
+      key,
+      operator,
+      input.value,
+      currentPrice,
+      evaluatedAt,
+    );
+  }
+  if (definition.family !== "listing" || !definition.source.jsonPath) {
+    return conditionResult(key, "ineligible", "condition_key_unknown");
+  }
+  if (current.status === "not_ready") {
+    const reasonCode = current.reason === "reader_unavailable"
+      ? "reader_unavailable"
+      : "reader_not_ready";
+    return conditionResult(key, "ineligible", reasonCode);
+  }
+  if (current.status === "not_applicable") {
+    return conditionResult(key, "ineligible", "reader_not_applicable");
+  }
+  const facts = current.facts;
   const eligibilityError = factEligibilityError(facts, definition);
   if (eligibilityError) return conditionResult(key, "ineligible", eligibilityError);
 
@@ -166,6 +229,38 @@ function evaluateCondition(
   }
 
   const matched = compareCondition(definition, actual, operator, input.value, evaluationDay);
+  if (matched === null) return conditionResult(key, "ineligible", "fact_value_invalid");
+  return conditionResult(
+    key,
+    matched ? "match" : "no_match",
+    matched ? "all_conditions_match" : "condition_not_met",
+  );
+}
+
+function evaluateCurrentPriceCondition(
+  definition: MonitorConditionDefinition,
+  key: string,
+  operator: MonitorConditionOperator,
+  expected: unknown,
+  currentPrice: CurrentPrice | undefined,
+  evaluatedAt: number,
+): ListingMonitorConditionResult {
+  if (!currentPrice || currentPrice.availability !== "available") {
+    return conditionResult(key, "ineligible", "market_price_unavailable");
+  }
+  if (
+    definition.eligibility?.requiredDataModes
+    && !definition.eligibility.requiredDataModes.includes(currentPrice.dataMode as never)
+  ) {
+    return conditionResult(key, "ineligible", "market_price_data_mode_ineligible");
+  }
+  const asOf = Date.parse(currentPrice.asOf);
+  const maximumAgeMs = (definition.eligibility?.maximumAgeSeconds ?? 0) * 1_000;
+  const ageMs = evaluatedAt - asOf;
+  if (!Number.isFinite(asOf) || maximumAgeMs <= 0 || ageMs < -60_000 || ageMs > maximumAgeMs) {
+    return conditionResult(key, "ineligible", "market_price_stale");
+  }
+  const matched = compareCondition(definition, currentPrice.price, operator, expected, 0);
   if (matched === null) return conditionResult(key, "ineligible", "fact_value_invalid");
   return conditionResult(
     key,
@@ -231,7 +326,32 @@ function compareCondition(
     if (operator === "after") return actualDay > expectedDay;
     return null;
   }
+  if (definition.valueType === "number") {
+    if (typeof actual !== "number" || !Number.isFinite(actual)) return null;
+    if (typeof expected !== "number" || !Number.isFinite(expected)) return null;
+    if (operator === "eq") return actual === expected;
+    if (operator === "neq") return actual !== expected;
+    if (operator === "gt") return actual > expected;
+    if (operator === "gte") return actual >= expected;
+    if (operator === "lt") return actual < expected;
+    if (operator === "lte") return actual <= expected;
+    return null;
+  }
   return null;
+}
+
+function isCurrentPriceCondition(condition: ListingMonitorCondition) {
+  if (!recordValue(condition) || typeof condition.key !== "string") return false;
+  return getReadyMonitorCondition(condition.key)?.source.reader === "get_current_price";
+}
+
+export function currentListingTicker(current: CurrentListingRiskReadResult) {
+  if (current.status !== "available") return "";
+  const ticker = valueAtPath(current.facts, ["affected_security", "ticker", "value"]);
+  const availability = valueAtPath(current.facts, ["affected_security", "ticker", "availability"]);
+  return availability === "available" && typeof ticker === "string"
+    ? ticker.trim().toUpperCase()
+    : "";
 }
 
 function valueAtPath(value: unknown, path: readonly string[]): unknown {

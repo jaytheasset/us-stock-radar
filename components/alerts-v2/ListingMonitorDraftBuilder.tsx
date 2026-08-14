@@ -518,6 +518,27 @@ function ConditionValueEditor({
     );
   }
 
+  if (editor.valueType === "number") {
+    return (
+      <label>
+        <span>Value</span>
+        <input
+          aria-label={`Condition ${index + 1} value`}
+          inputMode="decimal"
+          min={editor.exclusiveMinimum}
+          onChange={(event) => updateValue(
+            event.currentTarget.value === "" ? "" : Number(event.currentTarget.value),
+          )}
+          step="any"
+          type="number"
+          value={typeof condition.value === "number" || typeof condition.value === "string"
+            ? condition.value
+            : ""}
+        />
+      </label>
+    );
+  }
+
   return (
     <label>
       <span>{isSetOperator ? "Values (comma separated)" : "Value"}</span>

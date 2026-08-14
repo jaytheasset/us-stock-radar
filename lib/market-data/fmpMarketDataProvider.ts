@@ -7,6 +7,8 @@ import {
   unavailableMarketQuoteSnapshot,
 } from "./marketDataProvider.ts";
 
+export const FMP_CURRENT_PRICE_DATA_MODE = "realtime" as const;
+
 type FmpClientResult = {
   ok: boolean;
   data: unknown;
@@ -57,6 +59,7 @@ export class FmpMarketDataProvider implements MarketDataProvider {
       ? {
           asOf: snapshot.asOf,
           availability: "available",
+          dataMode: FMP_CURRENT_PRICE_DATA_MODE,
           price: snapshot.price,
           symbol: snapshot.symbol,
         }
@@ -125,6 +128,7 @@ export function normalizeFmpCurrentPrice(
     ? {
         asOf: snapshot.asOf,
         availability: "available",
+        dataMode: FMP_CURRENT_PRICE_DATA_MODE,
         price: snapshot.price,
         symbol: snapshot.symbol,
       }
@@ -145,7 +149,7 @@ export function normalizeFmpQuoteSnapshot(
       ? normalizeMarketDataSymbol(row.symbol)
       : "";
   const price = positiveFiniteNumber(row.price);
-  const asOf = providerAsOf(row, receivedAt);
+  const asOf = providerAsOf(row);
 
   if (providerSymbol !== symbol || price === null || asOf === null) {
     return unavailableMarketQuoteSnapshot(symbol);
@@ -187,22 +191,21 @@ function normalizeCachedFmpPrice(
     : undefined;
   if (providerTimestamp === null) return null;
 
-  const fallbackAsOf = isoDate(entry.fetchedAt);
-  const asOf = providerTimestamp ?? fallbackAsOf;
+  const asOf = providerTimestamp;
   if (!asOf) return null;
 
   return {
     asOf,
     availability: "available",
+    dataMode: FMP_CURRENT_PRICE_DATA_MODE,
     price,
     symbol,
   };
 }
 
-function providerAsOf(row: Record<string, unknown>, receivedAt: Date) {
+function providerAsOf(row: Record<string, unknown>) {
   const providerTimestamp = providerTimestampAsOf(row.timestamp);
-  if (providerTimestamp === null) return null;
-  return providerTimestamp ?? isoDate(receivedAt);
+  return providerTimestamp ?? null;
 }
 
 function providerTimestampAsOf(value: unknown): string | undefined | null {

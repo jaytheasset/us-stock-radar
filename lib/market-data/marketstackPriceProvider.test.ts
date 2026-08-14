@@ -25,6 +25,7 @@ test("Marketstack latest EOD data becomes the canonical current-price contract",
   assert.deepEqual(normalizeMarketstackCurrentPrice(validPayload, " aapl "), {
     asOf: "2026-08-13T00:00:00.000Z",
     availability: "available",
+    dataMode: "end-of-day",
     price: 230.15,
     symbol: "AAPL",
   });
@@ -77,6 +78,7 @@ test("Marketstack request construction and response parsing stay inside the prov
   assert.deepEqual(result, {
     asOf: "2026-08-13T00:00:00.000Z",
     availability: "available",
+    dataMode: "end-of-day",
     price: 230.15,
     symbol: "AAPL",
   });
@@ -117,6 +119,7 @@ test("malformed, mismatched, missing, non-finite, zero, and negative values fail
     assert.deepEqual(normalizeMarketstackCurrentPrice(payload, "AAPL"), {
       asOf: null,
       availability: "unavailable",
+      dataMode: null,
       price: null,
       symbol: "AAPL",
     });
@@ -151,12 +154,14 @@ test("HTTP, provider, JSON, and transport errors fail closed without leaking det
     assert.deepEqual(result, {
       asOf: null,
       availability: "unavailable",
+      dataMode: null,
       price: null,
       symbol: "AAPL",
     });
     assert.deepEqual(Object.keys(result).sort(), [
       "asOf",
       "availability",
+      "dataMode",
       "price",
       "symbol",
     ]);
@@ -188,6 +193,7 @@ async function assertUnavailable(
   assert.deepEqual(await resultPromise, {
     asOf: null,
     availability: "unavailable",
+    dataMode: null,
     price: null,
     symbol,
   });

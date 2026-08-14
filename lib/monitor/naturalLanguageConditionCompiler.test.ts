@@ -29,6 +29,7 @@ const RECOVERY = condition("listing.event_kind", "eq", "compliance_recovery");
 const RECOVERED = condition("listing.event_outcome", "eq", "recovered");
 const DEADLINE_30 = condition("listing.compliance_deadline", "within_days", 30);
 const NASDAQ = condition("listing.exchange", "eq", "Nasdaq");
+const PRICE_BELOW_1 = condition("market.price", "lt", 1);
 
 test("request parsing trims one text field and rejects empty, oversized, malformed, and identity fields", () => {
   assert.deepEqual(parseNaturalLanguageConditionCompilerRequest({ text: "  listing deficiency  " }), {
@@ -71,7 +72,7 @@ test("single-call Provider schema contains only inline requirements and no IDs, 
 
 test("prompt catalog derives exactly from Registry semantic metadata and keeps general single-call rules", () => {
   const expectedRegistry = getReadyMonitorConditions()
-    .filter((definition) => definition.family === "listing")
+    .filter((definition) => definition.monitorDomains?.includes("listing"))
     .map((definition) => ({
       key: definition.key,
       description: definition.description,
@@ -107,7 +108,7 @@ test("prompt catalog derives exactly from Registry semantic metadata and keeps g
   assert.doesNotMatch(JSON.stringify(prompt.responseFormat), /"id"|condition_refs|self_check/);
   for (const item of expectedRegistry) assert.match(prompt.system, new RegExp(escapeRegex(item.key)));
   const authoredPrefix = prompt.system.split("registry_version=")[0];
-  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange/i);
+  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange|below \$1|market\.price/i);
 });
 
 test("one Provider call adapts inline conditions to deterministic IDs and single-call telemetry", async () => {
@@ -161,6 +162,30 @@ test("one requirement can map to multiple Registry conditions", () => {
   assert.equal(result.status, "VALID");
   assert.deepEqual(result.ledger.requirements[0].condition_refs, ["c1", "c2"]);
   assert.deepEqual(result.conditions, [RECOVERY, RECOVERED]);
+});
+
+test("one call can map current price and Listing semantics into one canonical draft", async () => {
+  const text = "Alert me when a stock is below $1 and receives a listing deficiency.";
+  let calls = 0;
+  const run = await compileNaturalLanguageListingConditions({ text }, {
+    apiKey: "fixture-key",
+    model: "configured-fast-model",
+    runPrompt: async (_request) => {
+      calls += 1;
+      return successfulRun(providerOutput([
+        requirement("a stock is below $1", "mapped", [PRICE_BELOW_1]),
+        requirement("receives a listing deficiency", "mapped", [DEFICIENCY]),
+      ]), "configured-fast-model");
+    },
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(run.result.conditions, [PRICE_BELOW_1, DEFICIENCY]);
+  const draft = buildNaturalLanguageMonitorDraft(run.result, text);
+  assert.deepEqual(draft.mapped.flatMap((item) => item.conditions.map((item) => item.text)), [
+    "Price — Below $1",
+    "Listing event — Listing deficiency notice",
+  ]);
+  assert.equal(draft.unsupported.length, 0);
 });
 
 test("distinct constraints retain stable r/c order and identical conditions dedupe", () => {

@@ -101,7 +101,7 @@ export function formatNaturalLanguageMonitorDraftCondition(
 ): NaturalLanguageMonitorDraftConditionPreview {
   const validationErrors = validateMonitorConditionInput(condition);
   const definition = getReadyMonitorCondition(condition.key);
-  if (validationErrors.length > 0 || !definition || definition.family !== "listing" || !definition.display) {
+  if (validationErrors.length > 0 || !definition?.monitorDomains?.includes("listing") || !definition.display) {
     throw draftInvalid(validationErrors[0] ?? `condition_not_displayable:${condition.key}`);
   }
   const value = formatConditionValue(definition, condition.operator, condition.value);
@@ -126,6 +126,8 @@ function formatConditionValue(
     return `${MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS[operator]}: ${items.join(", ")}`;
   }
   const scalar = formatScalar(definition, value);
+  const template = definition.display?.operatorValueTemplates?.[operator];
+  if (template) return template.replace("{value}", scalar);
   if (operator === "eq") return definition.valueType === "date" ? `On ${scalar}` : scalar;
   if (operator === "neq") return definition.valueType === "date"
     ? `Not on ${scalar}`
@@ -148,6 +150,20 @@ function formatScalar(definition: MonitorConditionDefinition, value: unknown) {
     return label;
   }
   if (definition.valueType === "date") return formatDate(value as string);
+  if (definition.valueType === "number" && typeof value === "number") {
+    const format = definition.display?.numberFormat;
+    if (!format) throw draftInvalid(`number_format_missing:${definition.key}`);
+    return new Intl.NumberFormat("en-US", {
+      style: format.style,
+      ...(format.currency ? { currency: format.currency } : {}),
+      ...(format.minimumFractionDigits !== undefined
+        ? { minimumFractionDigits: format.minimumFractionDigits }
+        : {}),
+      ...(format.maximumFractionDigits !== undefined
+        ? { maximumFractionDigits: format.maximumFractionDigits }
+        : {}),
+    }).format(value);
+  }
   if (typeof value === "string" && value.length > 0) return value;
   throw draftInvalid(`condition_value_not_displayable:${definition.key}`);
 }

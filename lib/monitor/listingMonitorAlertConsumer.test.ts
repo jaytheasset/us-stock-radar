@@ -75,6 +75,86 @@ test("one Alert insert failure is reported and does not block another matching m
   assert.equal(result.createdCount, 1);
 });
 
+test("Price plus Listing creates one deduped Alert from one price read per event attempt", async () => {
+  let priceReads = 0;
+  const alerts = new Set<string>();
+  const monitors = [
+    monitor("a2000000-0000-4000-8000-000000000021", [
+      { key: "market.price", operator: "lt", value: 1 },
+      { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+    ]),
+    monitor("a2000000-0000-4000-8000-000000000022", [
+      { key: "market.price", operator: "gt", value: 1 },
+      { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+    ]),
+    monitor("a2000000-0000-4000-8000-000000000023", [
+      { key: "market.price", operator: "lt", value: 1 },
+      { key: "listing.appeal_deadline", operator: "eq", value: "2026-08-20" },
+    ]),
+  ] satisfies ListingMonitor[];
+  const dependencies: ListingMonitorAlertConsumerDependencies = {
+    readFacts: async () => availableCurrent(),
+    readCurrentPrice: async (symbol) => {
+      priceReads += 1;
+      assert.equal(symbol, "ATPC");
+      return {
+        asOf: "2026-08-14T11:59:00.000Z",
+        availability: "available",
+        dataMode: "realtime",
+        price: 0.99,
+        symbol,
+      };
+    },
+    listActiveMonitors: async () => ({ monitors, diagnostics: [] }),
+    createAlert: async (input) => {
+      const key = `${input.monitorId}:${input.eventId}`;
+      if (alerts.has(key)) return { status: "existing", monitorId: input.monitorId };
+      alerts.add(key);
+      return { status: "created", monitorId: input.monitorId, alertId: input.monitorId };
+    },
+    now: () => new Date("2026-08-14T12:00:00.000Z"),
+  };
+
+  const first = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+  const replay = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+  assert.equal(priceReads, 2, "one physical price read for each complete event attempt");
+  assert.deepEqual(first.evaluations.map((item) => item.status), ["match", "no_match", "ineligible"]);
+  assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
+  assert.deepEqual([replay.createdCount, replay.existingCount], [0, 1]);
+  assert.equal(alerts.size, 1);
+});
+
+test("Marketstack-style EOD price is INELIGIBLE and creates no Alert", async () => {
+  let writes = 0;
+  const result = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, {
+    readFacts: async () => availableCurrent(),
+    readCurrentPrice: async (symbol) => ({
+      asOf: "2026-08-14T00:00:00.000Z",
+      availability: "available",
+      dataMode: "end-of-day",
+      price: 0.75,
+      symbol,
+    }),
+    listActiveMonitors: async () => ({
+      monitors: [monitor("a2000000-0000-4000-8000-000000000024", [
+        { key: "market.price", operator: "lt", value: 1 },
+        { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+      ])],
+      diagnostics: [],
+    }),
+    createAlert: async (input) => {
+      writes += 1;
+      return { status: "created", monitorId: input.monitorId };
+    },
+    now: () => new Date("2026-08-14T12:00:00.000Z"),
+  });
+  assert.deepEqual(result.evaluations.map((item) => [item.status, item.reasonCode]), [
+    ["ineligible", "market_price_data_mode_ineligible"],
+  ]);
+  assert.equal(writes, 0);
+  assert.equal(result.writes.length, 0);
+});
+
 test("consumer boundary has no provider, parser, Primary, provenance, legacy, or delivery execution dependency", () => {
   const source = readFileSync(new URL("./listingMonitorAlertConsumer.ts", import.meta.url), "utf8");
   for (const forbidden of [
@@ -197,6 +277,13 @@ function availableCurrent(
     factSchemaVersion: "listing_risk_event_facts_v2",
     facts: {
       classification: { event_kind: "deficiency_notice", event_outcome: "adverse" },
+      affected_security: {
+        ticker: {
+          value: "ATPC",
+          availability: "available",
+          value_quality: "exact",
+        },
+      },
       dates: {
         appeal_deadline: {
           value: null,

@@ -13,6 +13,10 @@ import {
 
 test("preview formats Listing enum, text, boolean, fixed date, relative date, and set operators", () => {
   const cases = [
+    [condition("market.price", "lt", 1), "Price — Below $1"],
+    [condition("market.price", "lte", 1), "Price — $1 or less"],
+    [condition("market.price", "gt", 1), "Price — Above $1"],
+    [condition("market.price", "gte", 1), "Price — $1 or more"],
     [condition("listing.event_kind", "eq", "deficiency_notice"), "Listing event — Listing deficiency notice"],
     [condition("listing.event_outcome", "eq", "adverse"), "Listing outcome — Unfavorable"],
     [condition("listing.exchange", "eq", "Nasdaq"), "Exchange — Nasdaq"],
@@ -33,6 +37,28 @@ test("preview formats Listing enum, text, boolean, fixed date, relative date, an
   cases.forEach(([candidate, expected], index) => {
     assert.equal(formatNaturalLanguageMonitorDraftCondition({ id: `c${index + 1}`, ...candidate }).text, expected);
   });
+});
+
+test("price plus listing deficiency draft is Registry-mapped and hides internal names", () => {
+  const text = "Alert me when a stock is below $1 and receives a listing deficiency.";
+  const result = validate(providerOutput([
+    requirement("a stock is below $1", "mapped", [condition("market.price", "lt", 1)]),
+    requirement("receives a listing deficiency", "mapped", [
+      condition("listing.event_kind", "eq", "deficiency_notice"),
+    ]),
+  ]), text);
+  const draft = buildNaturalLanguageMonitorDraft(result, text);
+  assert.equal(draft.draftStatus, "READY_FOR_REVIEW");
+  assert.deepEqual(draft.mapped.flatMap((item) => item.conditions.map((preview) => preview.text)), [
+    "Price — Below $1",
+    "Listing event — Listing deficiency notice",
+  ]);
+  assert.equal(draft.unsupported.length, 0);
+  assert.doesNotMatch(JSON.stringify(draft.mapped), /market\.price|\blt\b|deficiency_notice/);
+  assert.deepEqual(draft.conditions, [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+  ]);
 });
 
 test("draft preserves canonical conditions unchanged while hiding raw codes from human preview", () => {
@@ -67,9 +93,9 @@ test("draft preserves canonical conditions unchanged while hiding raw codes from
 });
 
 test("unsupported and ambiguous requirements remain separate, visible, and attention-gated", () => {
-  const text = "below $3 listing deficiency and a listing event";
+  const text = "daily volume above 1m listing deficiency and a listing event";
   const result = validate(providerOutput([
-    requirement("below $3", "unsupported", [], "The Registry has no stock-price condition."),
+    requirement("daily volume above 1m", "unsupported", [], "The Registry has no daily-volume condition."),
     requirement("listing deficiency", "mapped", [condition("listing.event_kind", "eq", "deficiency_notice")]),
     requirement("a listing event", "ambiguous", [], null, "Which listing event should be monitored?"),
   ]), text);
@@ -86,9 +112,9 @@ test("unsupported and ambiguous requirements remain separate, visible, and atten
     }],
   }]);
   assert.deepEqual(draft.unsupported, [{
-    sourceText: "below $3",
+    sourceText: "daily volume above 1m",
     status: "Unsupported",
-    reason: "The Registry has no stock-price condition.",
+    reason: "The Registry has no daily-volume condition.",
   }]);
   assert.deepEqual(draft.ambiguous, [{
     sourceText: "a listing event",
