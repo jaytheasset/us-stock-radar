@@ -1,10 +1,12 @@
 export type CurrentPriceAvailability = "available" | "unavailable";
+export type CurrentPriceDataMode = "realtime" | "delayed" | "end-of-day";
 
 export type AvailableCurrentPrice = {
   symbol: string;
   price: number;
   asOf: string;
   availability: "available";
+  dataMode: CurrentPriceDataMode;
 };
 
 export type UnavailableCurrentPrice = {
@@ -12,6 +14,7 @@ export type UnavailableCurrentPrice = {
   price: null;
   asOf: null;
   availability: "unavailable";
+  dataMode: null;
 };
 
 export type CurrentPrice = AvailableCurrentPrice | UnavailableCurrentPrice;
@@ -68,6 +71,7 @@ export function unavailableCurrentPrice(symbol: string): UnavailableCurrentPrice
   return {
     asOf: null,
     availability: "unavailable",
+    dataMode: null,
     price: null,
     symbol,
   };

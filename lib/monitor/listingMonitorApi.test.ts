@@ -15,6 +15,7 @@ const MONITOR_ID = "20000000-0000-4000-8000-000000000002";
 const ALERT_ID = "30000000-0000-4000-8000-000000000003";
 const EVENT_ID = "40000000-0000-4000-8000-000000000004";
 const CONDITIONS = Object.freeze([
+  Object.freeze({ key: "market.price", operator: "lt", value: 1 }),
   Object.freeze({ key: "listing.event_kind", operator: "eq", value: "deficiency_notice" }),
   Object.freeze({ key: "listing.event_outcome", operator: "eq", value: "adverse" }),
 ]);
@@ -34,6 +35,8 @@ test("invalid, unsupported, and malformed monitor requests fail closed", () => {
     { conditions: [{ key: "listing.not_registered", operator: "eq", value: "adverse" }] },
     { conditions: [{ key: "listing.event_kind", operator: "within_days", value: 1 }] },
     { conditions: [{ key: "listing.event_kind", operator: "eq", value: "not_a_kind" }] },
+    { conditions: [{ key: "market.price", operator: "lt", value: 0 }] },
+    { conditions: [{ key: "market.price", operator: "eq", value: 1 }] },
     { conditions: [{ operator: "eq", value: "adverse" }] },
     { conditions: [] },
     { domain: "offering", conditions: CONDITIONS },

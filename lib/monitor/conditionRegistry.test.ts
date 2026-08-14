@@ -208,3 +208,35 @@ test("Offering registry enum input remains valid after shared registry validatio
   assert.deepEqual(validateMonitorConditionInput({ key: "offering.side", operator: "in", value: ["resale", "mixed"] }), []);
   assert.deepEqual(validateMonitorConditionInput({ key: "offering.side", operator: "eq", value: "unknown" }), ["condition_value_invalid"]);
 });
+
+test("market.price is the sole current-market Monitor V1 contract and fails closed on non-positive values", () => {
+  const price = getReadyMonitorCondition("market.price");
+  assert.ok(price);
+  assert.equal(price.family, "market");
+  assert.equal(price.domain, "current_state");
+  assert.equal(price.valueType, "number");
+  assert.deepEqual(price.allowedOperators, ["lt", "lte", "gt", "gte"]);
+  assert.equal(price.description, "Current market price of the security.");
+  assert.equal(price.display?.label, "Price");
+  assert.deepEqual(price.monitorDomains, ["listing"]);
+  assert.equal(price.source.reader, "get_current_price");
+  assert.deepEqual(price.eligibility?.requiredDataModes, ["realtime"]);
+  assert.equal(price.eligibility?.maximumAgeSeconds, 300);
+  assert.equal(price.numberValidation?.exclusiveMinimum, 0);
+  assert.equal(getReadyMonitorCondition("market.volume"), null);
+  assert.equal(getReadyMonitorCondition("market.market_cap"), null);
+
+  for (const operator of ["lt", "lte", "gt", "gte"] as const) {
+    assert.deepEqual(validateMonitorConditionInput({ key: "market.price", operator, value: 1 }), []);
+  }
+  for (const value of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "1", null]) {
+    assert.deepEqual(
+      validateMonitorConditionInput({ key: "market.price", operator: "lt", value }),
+      ["condition_value_invalid"],
+    );
+  }
+  assert.deepEqual(
+    validateMonitorConditionInput({ key: "market.price", operator: "eq", value: 1 }),
+    ["condition_operator_unknown"],
+  );
+});

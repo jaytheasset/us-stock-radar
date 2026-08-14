@@ -18,6 +18,7 @@ import {
 const ownerA = "a1000000-0000-4000-8000-000000000001";
 const ownerB = "b1000000-0000-4000-8000-000000000002";
 const atpcConditions = Object.freeze([
+  Object.freeze({ key: "market.price", operator: "lt", value: 1 }),
   Object.freeze({ key: "listing.event_kind", operator: "eq", value: "deficiency_notice" }),
   Object.freeze({ key: "listing.event_outcome", operator: "eq", value: "adverse" }),
   Object.freeze({ key: "listing.compliance_deadline", operator: "within_days", value: 30 }),
@@ -64,6 +65,8 @@ test("create and update reject malformed, unsupported, non-Listing, and non-cano
     [{ key: "listing.event_kind", operator: "contains", value: "deficiency_notice" }],
     [{ key: "listing.event_kind", operator: "eq", value: "warning" }],
     [{ key: "listing.compliance_deadline", operator: "within_days", value: 30.5 }],
+    [{ key: "market.price", operator: "lt", value: 0 }],
+    [{ key: "market.price", operator: "lte", value: -1 }],
     [{ key: "event.ticker", operator: "eq", value: "ATPC" }],
     [{ key: "listing.event_kind", operator: "eq", value: "deficiency_notice", prompt: "guess" }],
     ["listing.event_kind eq deficiency_notice"],

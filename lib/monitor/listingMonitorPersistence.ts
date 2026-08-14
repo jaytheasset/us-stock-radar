@@ -255,7 +255,7 @@ export function validateCanonicalListingConditions(value: unknown): Readonly<{
     }
     const key = candidate.key as string;
     const definition = getReadyMonitorCondition(key);
-    if (!definition || definition.family !== "listing") {
+    if (!definition?.monitorDomains?.includes("listing")) {
       errors.push(`conditions[${index}]:condition_key_unknown`);
       return;
     }

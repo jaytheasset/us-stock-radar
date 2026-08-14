@@ -7,6 +7,7 @@ import {
   type ListingMonitorCondition,
 } from "./listingMonitorMatcher.ts";
 import type { CurrentListingRiskReadResult } from "./monitor/listingRiskPersistence.ts";
+import type { CurrentPrice, CurrentPriceDataMode } from "./market-data/marketDataProvider.ts";
 import {
   LISTING_RISK_EVENT_FACTS_VERSION,
   validateListingRiskEventFacts,
@@ -258,6 +259,110 @@ test("ATPC and CUPR captured official-reader facts produce concrete deterministi
   ], ["match", "no_match"]);
 });
 
+test("current price boundaries are deterministic and require realtime current-enough data", () => {
+  const current = availableCurrent();
+  const input = {
+    evaluationDate: EVALUATION_DATE,
+    evaluatedAt: "2026-08-14T12:00:00.000Z",
+  };
+  for (const [actual, operator, expected] of [
+    [0.99, "lt", "match"],
+    [1, "lt", "no_match"],
+    [1, "lte", "match"],
+    [1.01, "gt", "match"],
+    [1, "gte", "match"],
+  ] as const) {
+    const result = evaluateListingMonitorConditions(current, [
+      { key: "market.price", operator, value: 1 },
+    ], { ...input, currentPrice: price(actual) });
+    assert.equal(result.status, expected);
+  }
+
+  assert.deepEqual(statusAndReason(evaluateListingMonitorConditions(current, [
+    { key: "market.price", operator: "lt", value: 1 },
+  ], { ...input, currentPrice: price(0.99, "end-of-day") })), [
+    "ineligible", "market_price_data_mode_ineligible",
+  ]);
+  assert.deepEqual(statusAndReason(evaluateListingMonitorConditions(current, [
+    { key: "market.price", operator: "lt", value: 1 },
+  ], {
+    ...input,
+    currentPrice: { asOf: null, availability: "unavailable", dataMode: null, price: null, symbol: "ATPC" },
+  })), ["ineligible", "market_price_unavailable"]);
+  assert.deepEqual(statusAndReason(evaluateListingMonitorConditions(current, [
+    { key: "market.price", operator: "lt", value: 1 },
+  ], { ...input, currentPrice: price(0.99, "realtime", "2026-08-14T11:54:59.999Z") })), [
+    "ineligible", "market_price_stale",
+  ]);
+});
+
+test("price and Listing conditions use AND with NO_MATCH precedence", () => {
+  const current = availableCurrent();
+  const conditions: ListingMonitorCondition[] = [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+  ];
+  const input = {
+    evaluationDate: EVALUATION_DATE,
+    evaluatedAt: "2026-08-14T12:00:00.000Z",
+  };
+  assert.equal(evaluateListingMonitorConditions(current, conditions, {
+    ...input,
+    currentPrice: price(0.99),
+  }).status, "match");
+  assert.equal(evaluateListingMonitorConditions(current, conditions, {
+    ...input,
+    currentPrice: price(1),
+  }).status, "no_match");
+
+  current.facts.classification.event_kind = "deficiency_notice";
+  const unavailableListing = availableCurrent();
+  unavailableListing.facts.exchange.availability = "unavailable";
+  const mixed = [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "listing.exchange", operator: "eq", value: "Nasdaq" },
+  ] satisfies ListingMonitorCondition[];
+  assert.equal(evaluateListingMonitorConditions(unavailableListing, mixed, {
+    ...input,
+    currentPrice: price(1),
+  }).status, "no_match");
+  assert.equal(evaluateListingMonitorConditions(unavailableListing, mixed, {
+    ...input,
+    currentPrice: price(0.99),
+  }).status, "ineligible");
+});
+
+test("event matcher reads one provider-neutral price for every price condition", async () => {
+  let factReads = 0;
+  let priceReads = 0;
+  const eventResult = await evaluateListingMonitorEvent({
+    eventId: EVENT_ID,
+    evaluationDate: EVALUATION_DATE,
+    evaluatedAt: "2026-08-14T12:00:00.000Z",
+    conditionSets: [{
+      id: "combined",
+      conditions: [
+        { key: "market.price", operator: "lt", value: 1 },
+        { key: "market.price", operator: "gte", value: 0.5 },
+        { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
+      ],
+    }],
+  }, {
+    readFacts: async () => {
+      factReads += 1;
+      return availableCurrent();
+    },
+    readCurrentPrice: async (symbol) => {
+      priceReads += 1;
+      assert.equal(symbol, "ATPC");
+      return price(0.99);
+    },
+  });
+  assert.equal(factReads, 1);
+  assert.equal(priceReads, 1);
+  assert.equal(eventResult.evaluations[0].result.status, "match");
+});
+
 test("reader failure is deterministic and the Matcher has no fallback, provenance, LLM, or delivery dependency", async () => {
   const eventResult = await evaluateListingMonitorEvent({
     eventId: EVENT_ID,
@@ -400,5 +505,19 @@ function dateFact(value: string): ListingDateFact {
     value_quality: "exact",
     date_status: "scheduled",
     source_ref: "source:block:1",
+  };
+}
+
+function price(
+  value: number,
+  dataMode: CurrentPriceDataMode = "realtime",
+  asOf = "2026-08-14T11:59:00.000Z",
+): CurrentPrice {
+  return {
+    asOf,
+    availability: "available",
+    dataMode,
+    price: value,
+    symbol: "ATPC",
   };
 }

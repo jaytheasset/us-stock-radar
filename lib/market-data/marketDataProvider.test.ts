@@ -38,13 +38,14 @@ test("valid FMP price becomes the canonical Stock Radar current price", () => {
     {
       asOf: "2023-11-14T22:13:20.000Z",
       availability: "available",
+      dataMode: "realtime",
       price: 198.75,
       symbol: "AAPL",
     },
   );
 });
 
-test("missing provider timestamp uses receipt time without estimating price", () => {
+test("missing provider timestamp fails closed instead of inferring current-enough data", () => {
   assert.deepEqual(
     normalizeFmpCurrentPrice(
       [{ price: 42.5, symbol: "AMD" }],
@@ -52,9 +53,10 @@ test("missing provider timestamp uses receipt time without estimating price", ()
       receivedAt,
     ),
     {
-      asOf: receivedAt.toISOString(),
-      availability: "available",
-      price: 42.5,
+      asOf: null,
+      availability: "unavailable",
+      dataMode: null,
+      price: null,
       symbol: "AMD",
     },
   );
@@ -120,6 +122,7 @@ test("malformed, missing, non-finite, zero, and negative provider values fail cl
       {
         asOf: null,
         availability: "unavailable",
+        dataMode: null,
         price: null,
         symbol: "AMD",
       },
@@ -159,6 +162,7 @@ test("valid cached FMP price preserves the stored provider timestamp", async () 
   assert.deepEqual(await marketDataProvider.getCurrentPrice("amd"), {
     asOf: "2023-11-14T22:13:20.000Z",
     availability: "available",
+    dataMode: "realtime",
     price: 17.25,
     symbol: "AMD",
   });
@@ -242,6 +246,7 @@ test("the adapter contract exposes no FMP response fields or raw payload", async
   assert.deepEqual(Object.keys(result).sort(), [
     "asOf",
     "availability",
+    "dataMode",
     "price",
     "symbol",
   ]);
@@ -322,6 +327,7 @@ test("a fake MarketDataProvider drives the upper UI consumer without FMP", async
     getCurrentPrice: async (symbol) => ({
       asOf: receivedAt.toISOString(),
       availability: "available",
+      dataMode: "realtime",
       price: 101.5,
       symbol,
     }),
@@ -399,6 +405,7 @@ function fakeProvider(label: string): MarketDataProvider {
     getCurrentPrice: async (symbol) => ({
       asOf: receivedAt.toISOString(),
       availability: "available",
+      dataMode: "realtime",
       price: label.length,
       symbol,
     }),
@@ -427,6 +434,7 @@ async function assertUnavailable(
   assert.deepEqual(await resultPromise, {
     asOf: null,
     availability: "unavailable",
+    dataMode: null,
     price: null,
     symbol,
   });
