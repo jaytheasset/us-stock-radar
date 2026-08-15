@@ -24,6 +24,11 @@ const REVERSE_SPLIT = Object.freeze({
   operator: "eq" as const,
   value: "reverse_split",
 });
+const SCHEDULED_STAGE = Object.freeze({
+  key: "corporate_action.action_stage",
+  operator: "eq" as const,
+  value: "scheduled",
+});
 const EFFECTIVE_STAGE = Object.freeze({
   key: "corporate_action.action_stage",
   operator: "eq" as const,
@@ -51,6 +56,14 @@ test("Listing editor catalog is complete and derives all visible labels from Reg
     assert.ok(item.operators.every((operator) => operator.label.trim()));
     assert.ok(item.values.every((value) => value.label.trim()));
   }
+  const stage = catalog.find((item) => item.key === "corporate_action.action_stage");
+  assert.deepEqual(stage?.values.map((item) => item.value), [
+    "announced",
+    "board_approved",
+    "shareholder_approved",
+    "scheduled",
+    "effective",
+  ]);
 });
 
 test("A draft exposes every mapped condition and adverse removal produces the exact final three", () => {
@@ -98,7 +111,7 @@ test("Price draft is supported, editable, removable, and positive-number gated",
   assert.equal(new Set<string>(gate.conditions.map((condition) => condition.key)).has("listing.event_outcome"), false);
 });
 
-test("Price and reverse-split conditions edit, delete, revalidate, and round-trip canonically", () => {
+test("Price, reverse-split, and lifecycle-stage conditions edit, delete, revalidate, and round-trip canonically", () => {
   let review = createListingMonitorDraftReview(draft({
     draftStatus: "READY_FOR_REVIEW",
     compilerStatus: "VALID",
@@ -123,15 +136,19 @@ test("Price and reverse-split conditions edit, delete, revalidate, and round-tri
   const withoutReverseSplit = removeListingMonitorDraftCondition(review, 1);
   assert.deepEqual(getListingMonitorDraftCreateGate(withoutReverseSplit).conditions, [{ ...PRICE, value: 0.82 }]);
 
-  const effective = createListingMonitorDraftReview(draft({
+  let lifecycle = createListingMonitorDraftReview(draft({
     draftStatus: "READY_FOR_REVIEW",
     compilerStatus: "VALID",
-    conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
+    conditions: [REVERSE_SPLIT, SCHEDULED_STAGE],
   }));
-  assert.deepEqual(effective.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+  assert.deepEqual(lifecycle.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
     "Corporate action — Reverse stock split",
-    "Corporate action stage — Effective",
+    "Corporate action stage — Scheduled",
   ]);
+  lifecycle = replaceListingMonitorDraftCondition(lifecycle, 1, EFFECTIVE_STAGE);
+  assert.deepEqual(getListingMonitorDraftCreateGate(lifecycle).conditions, [REVERSE_SPLIT, EFFECTIVE_STAGE]);
+  lifecycle = removeListingMonitorDraftCondition(lifecycle, 1);
+  assert.deepEqual(getListingMonitorDraftCreateGate(lifecycle).conditions, [REVERSE_SPLIT]);
 });
 
 test("mapped edit uses Registry key/operator/value choices and delete of the final condition blocks create", () => {
@@ -174,6 +191,7 @@ test("invalid edits, malformed drafts, empty ready drafts, and contradictions fa
     { key: "listing.not_registered", operator: "eq" as const, value: "anything" },
     { key: "listing.event_kind", operator: "within_days" as const, value: 30 },
     { key: "listing.event_kind", operator: "eq" as const, value: "not_a_kind" },
+    { key: "corporate_action.action_stage", operator: "eq" as const, value: "unknown" },
   ]) {
     const invalid = replaceListingMonitorDraftCondition(valid, 0, condition);
     assert.equal(getListingMonitorDraftCreateGate(invalid).ready, false);

@@ -27,6 +27,10 @@ const reverseSplitConditions = Object.freeze([
   Object.freeze({ key: "market.price", operator: "lt", value: 1 }),
   Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
 ]);
+const scheduledReverseSplitConditions = Object.freeze([
+  Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
+  Object.freeze({ key: "corporate_action.action_stage", operator: "eq", value: "scheduled" }),
+]);
 
 test("ATPC Listing monitor round-trips exact canonical JSON through active, pause, resume, and hard delete", async () => {
   const repository = new MemoryListingMonitorRepository();
@@ -72,6 +76,27 @@ test("Price plus reverse split round-trips exact canonical JSON through existing
     (await listActiveListingMonitorsForOwner(ownerA, repository)).monitors[0]?.conditions,
     reverseSplitConditions,
   );
+});
+
+test("reverse split plus lifecycle stage round-trips exact canonical JSON through existing persistence", async () => {
+  const repository = new MemoryListingMonitorRepository();
+  const created = await createListingMonitor({ ownerId: ownerA, conditions: scheduledReverseSplitConditions }, repository);
+  assert.deepEqual(created.conditions, scheduledReverseSplitConditions);
+  const read = await readListingMonitorForOwner(ownerA, created.id, repository);
+  assert.equal(read.status, "available");
+  if (read.status === "available") assert.deepEqual(read.monitor.conditions, scheduledReverseSplitConditions);
+  const updated = await updateListingMonitor({
+    ownerId: ownerA,
+    monitorId: created.id,
+    conditions: [
+      { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+      { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+    ],
+  }, repository);
+  assert.deepEqual(updated.conditions, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  ]);
 });
 
 test("create and update reject malformed, unsupported, non-Listing, and non-canonical conditions before writing", async () => {

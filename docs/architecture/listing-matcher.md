@@ -33,9 +33,13 @@ condition.
 `corporate_action.event_kind = reverse_split` is evaluable only when the
 official Corporate Action reader returns an available reverse-split fact.
 `not_ready` and `not_applicable` are ineligible. A plain reverse-split condition
-does not imply an action stage. Explicit stage conditions use the same canonical
-stage meaning as the reader. No parser, calendar, Primary output, raw analyzer
-output, or unrelated AI run is a fallback fact source.
+does not imply an action stage. An explicit `corporate_action.action_stage`
+condition is a lifecycle restriction and uses the exact canonical stage meaning
+shared by the Analyzer, official reader, Registry, and Compiler catalog. The
+canonical `unknown` stage remains reader-valid but is not monitorable. Ratio and
+effective date are not condition-addressable in Monitor V1. No parser, calendar,
+Primary output, raw analyzer output, or unrelated AI run is a fallback fact
+source.
 
 Text comparison is exact and case-sensitive. Boolean comparison preserves
 `false`. Fixed date operators remain unchanged and date-only:

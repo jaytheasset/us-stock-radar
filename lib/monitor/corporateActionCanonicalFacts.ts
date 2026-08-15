@@ -5,18 +5,71 @@ export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_reve
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 520;
 
-export const CORPORATE_ACTION_STAGES = [
-  "announced",
-  "board_approved",
-  "shareholder_approved",
-  "scheduled",
-  "effective",
-  "unknown",
-] as const;
+export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
+  value: TValue;
+  description: string;
+  monitorable: boolean;
+  displayLabel: string;
+}>;
+
+export const CORPORATE_ACTION_EVENT_KIND_VOCABULARY = [
+  {
+    value: "reverse_split",
+    description: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
+    monitorable: true,
+    displayLabel: "Reverse stock split",
+  },
+] as const satisfies readonly CorporateActionCanonicalVocabularyEntry[];
+
+export const CORPORATE_ACTION_STAGE_VOCABULARY = [
+  {
+    value: "announced",
+    description: "a plan or decision is disclosed without a more specific confirmed approval or effect stage",
+    monitorable: true,
+    displayLabel: "Announced",
+  },
+  {
+    value: "board_approved",
+    description: "board approval is explicitly established",
+    monitorable: true,
+    displayLabel: "Board approved",
+  },
+  {
+    value: "shareholder_approved",
+    description: "shareholder approval is explicitly established",
+    monitorable: true,
+    displayLabel: "Shareholder approved",
+  },
+  {
+    value: "scheduled",
+    description: "an approved or confirmed future effective date is established",
+    monitorable: true,
+    displayLabel: "Scheduled",
+  },
+  {
+    value: "effective",
+    description: "the reverse split is already effective or the source is the effective action itself",
+    monitorable: true,
+    displayLabel: "Effective",
+  },
+  {
+    value: "unknown",
+    description: "a reverse split is certain but the stage cannot safely be normalized",
+    monitorable: false,
+    displayLabel: "Unknown",
+  },
+] as const satisfies readonly CorporateActionCanonicalVocabularyEntry[];
+
+export type CorporateActionEventKind = (typeof CORPORATE_ACTION_EVENT_KIND_VOCABULARY)[number]["value"];
+export type CorporateActionStage = (typeof CORPORATE_ACTION_STAGE_VOCABULARY)[number]["value"];
+
+export const CORPORATE_ACTION_EVENT_KINDS: readonly CorporateActionEventKind[] =
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY.map((entry) => entry.value);
+export const CORPORATE_ACTION_STAGES: readonly CorporateActionStage[] =
+  CORPORATE_ACTION_STAGE_VOCABULARY.map((entry) => entry.value);
 
 export const CORPORATE_ACTION_CONFIDENCES = ["high", "medium", "low"] as const;
 
-export type CorporateActionStage = (typeof CORPORATE_ACTION_STAGES)[number];
 export type CorporateActionConfidence = (typeof CORPORATE_ACTION_CONFIDENCES)[number];
 export type CorporateActionSourceFamily = "nasdaq" | "news" | "sec";
 
@@ -43,7 +96,7 @@ export type CorporateActionAnalyzerTransportResult =
   | { applicable: false }
   | {
       applicable: true;
-      event_kind: "reverse_split";
+      event_kind: CorporateActionEventKind;
       action_stage: CorporateActionStage;
       effective_date: Unavailable | AvailableDate;
       ratio:
@@ -61,7 +114,7 @@ export type CorporateActionAnalyzerTransportResult =
 
 export type CorporateActionCanonicalFacts = {
   version: typeof CORPORATE_ACTION_FACTS_VERSION;
-  event_kind: "reverse_split";
+  event_kind: CorporateActionEventKind;
   action_stage: CorporateActionStage;
   effective_date: Unavailable | AvailableDate;
   ratio: {
@@ -173,7 +226,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
     "as_of",
   ], "result", errors);
   if (root.applicable !== true) errors.push("result.applicable must be boolean");
-  if (root.event_kind !== "reverse_split") errors.push("result.event_kind must be reverse_split");
+  if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be reverse_split");
   if (!oneOf(root.action_stage, CORPORATE_ACTION_STAGES)) errors.push("result.action_stage is invalid");
   validateDateEnvelope(root.effective_date, "result.effective_date", errors);
   validateRatioEnvelope(root.ratio, errors);
@@ -210,7 +263,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
       applicable: true,
       facts: {
         version: CORPORATE_ACTION_FACTS_VERSION,
-        event_kind: "reverse_split",
+        event_kind: CORPORATE_ACTION_EVENT_KIND_VOCABULARY[0].value,
         action_stage: transport.action_stage,
         effective_date: transport.effective_date,
         ratio: { old_shares_per_new_share: ratio },
@@ -254,7 +307,7 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     "source",
   ], "canonical result.facts", errors);
   if (facts.version !== CORPORATE_ACTION_FACTS_VERSION) errors.push("canonical facts.version is invalid");
-  if (facts.event_kind !== "reverse_split") errors.push("canonical facts.event_kind must be reverse_split");
+  if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("canonical facts.event_kind must be reverse_split");
   if (!oneOf(facts.action_stage, CORPORATE_ACTION_STAGES)) errors.push("canonical facts.action_stage is invalid");
   validateDateEnvelope(facts.effective_date, "canonical facts.effective_date", errors);
   const ratio = record(facts.ratio);

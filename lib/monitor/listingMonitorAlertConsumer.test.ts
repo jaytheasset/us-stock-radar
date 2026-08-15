@@ -369,11 +369,11 @@ function availableCorporateAction(): Extract<CurrentCorporateActionReadResult, {
     facts: {
       version: "corporate_action_reverse_split_facts_v1",
       event_kind: "reverse_split",
-      action_stage: "announced",
+      action_stage: "scheduled",
       effective_date: { availability: "unavailable" },
       ratio: { old_shares_per_new_share: { availability: "unavailable" } },
       source_ref: "aemd_source",
-      evidence: { availability: "available", value: "AEMD announced a reverse stock split." },
+      evidence: { availability: "available", value: "AEMD scheduled a reverse stock split." },
       confidence: "high",
       as_of: { availability: "available", value: "2026-08-14" },
       source: { source_family: "news", source_id: "AEMD", source_url: "https://example.com/aemd" },

@@ -18,6 +18,7 @@ test("preview formats Listing enum, text, boolean, fixed date, relative date, an
     [condition("market.price", "gt", 1), "Price — Above $1"],
     [condition("market.price", "gte", 1), "Price — $1 or more"],
     [condition("corporate_action.event_kind", "eq", "reverse_split"), "Corporate action — Reverse stock split"],
+    [condition("corporate_action.action_stage", "eq", "scheduled"), "Corporate action stage — Scheduled"],
     [condition("corporate_action.action_stage", "eq", "effective"), "Corporate action stage — Effective"],
     [condition("listing.event_kind", "eq", "deficiency_notice"), "Listing event — Listing deficiency notice"],
     [condition("listing.event_outcome", "eq", "adverse"), "Listing outcome — Unfavorable"],
@@ -41,19 +42,19 @@ test("preview formats Listing enum, text, boolean, fixed date, relative date, an
   });
 });
 
-test("reverse-split drafts preserve minimum stage semantics and hide canonical tokens", () => {
-  const simpleText = "Alert me when a stock below $1 announces a reverse split.";
+test("reverse-split drafts preserve event-only and explicit lifecycle-stage semantics without raw codes", () => {
+  const simpleText = "Alert me about reverse splits.";
   const simple = buildNaturalLanguageMonitorDraft(validate(providerOutput([
-    requirement("a stock below $1", "mapped", [condition("market.price", "lt", 1)]),
-    requirement("announces a reverse split", "mapped", [
+    requirement("reverse splits", "mapped", [
       condition("corporate_action.event_kind", "eq", "reverse_split"),
     ]),
   ]), simpleText), simpleText);
   assert.deepEqual(simple.conditions, [
-    { key: "market.price", operator: "lt", value: 1 },
     { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
   ]);
-  assert.equal(simple.conditions.some((item) => item.key === "corporate_action.action_stage"), false);
+  assert.deepEqual(simple.mapped.flatMap((item) => item.conditions.map((item) => item.text)), [
+    "Corporate action — Reverse stock split",
+  ]);
 
   const effectiveText = "Alert me when a reverse split becomes effective.";
   const effective = buildNaturalLanguageMonitorDraft(validate(providerOutput([
@@ -62,10 +63,16 @@ test("reverse-split drafts preserve minimum stage semantics and hide canonical t
       condition("corporate_action.action_stage", "eq", "effective"),
     ]),
   ]), effectiveText), effectiveText);
+  assert.equal(effective.draftStatus, "READY_FOR_REVIEW");
+  assert.deepEqual(effective.conditions, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  ]);
   assert.deepEqual(effective.mapped[0].conditions.map((item) => item.text), [
     "Corporate action — Reverse stock split",
     "Corporate action stage — Effective",
   ]);
+  assert.equal(effective.unsupported.length, 0);
   assert.doesNotMatch(JSON.stringify(effective.mapped), /reverse_split|corporate_action|market\.price|\blt\b/);
 });
 

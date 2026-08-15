@@ -31,7 +31,9 @@ const DEADLINE_30 = condition("listing.compliance_deadline", "within_days", 30);
 const NASDAQ = condition("listing.exchange", "eq", "Nasdaq");
 const PRICE_BELOW_1 = condition("market.price", "lt", 1);
 const REVERSE_SPLIT = condition("corporate_action.event_kind", "eq", "reverse_split");
+const SCHEDULED_STAGE = condition("corporate_action.action_stage", "eq", "scheduled");
 const EFFECTIVE_STAGE = condition("corporate_action.action_stage", "eq", "effective");
+const SHAREHOLDER_APPROVED_STAGE = condition("corporate_action.action_stage", "eq", "shareholder_approved");
 
 test("request parsing trims one text field and rejects empty, oversized, malformed, and identity fields", () => {
   assert.deepEqual(parseNaturalLanguageConditionCompilerRequest({ text: "  listing deficiency  " }), {
@@ -190,16 +192,23 @@ test("one call can map current price and Listing semantics into one canonical dr
   assert.equal(draft.unsupported.length, 0);
 });
 
-test("automatic Semantic Registry expansion compiles reverse-split acceptance A and B without extra narrowing", async () => {
+test("automatic Semantic Registry expansion maps event-only and explicit reverse-split lifecycle requirements", async () => {
   const cases = [
     {
-      text: "Alert me when a stock below $1 announces a reverse split.",
+      text: "Alert me about reverse splits.",
       requirements: [
-        requirement("a stock below $1", "mapped", [PRICE_BELOW_1]),
-        requirement("announces a reverse split", "mapped", [REVERSE_SPLIT]),
+        requirement("reverse splits", "mapped", [REVERSE_SPLIT]),
       ],
-      conditions: [PRICE_BELOW_1, REVERSE_SPLIT],
-      preview: ["Price — Below $1", "Corporate action — Reverse stock split"],
+      conditions: [REVERSE_SPLIT],
+      preview: ["Corporate action — Reverse stock split"],
+    },
+    {
+      text: "Alert me when a reverse split is scheduled.",
+      requirements: [
+        requirement("a reverse split is scheduled", "mapped", [REVERSE_SPLIT, SCHEDULED_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, SCHEDULED_STAGE],
+      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Scheduled"],
     },
     {
       text: "Alert me when a reverse split becomes effective.",
@@ -208,6 +217,14 @@ test("automatic Semantic Registry expansion compiles reverse-split acceptance A 
       ],
       conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
       preview: ["Corporate action — Reverse stock split", "Corporate action stage — Effective"],
+    },
+    {
+      text: "Alert me when shareholders approve a reverse split.",
+      requirements: [
+        requirement("shareholders approve a reverse split", "mapped", [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE],
+      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Shareholder approved"],
     },
   ] as const;
 
@@ -222,10 +239,13 @@ test("automatic Semantic Registry expansion compiles reverse-split acceptance A 
       },
     });
     assert.equal(calls, 1);
+    assert.equal(run.result.status, "VALID");
     assert.deepEqual(run.result.conditions, candidate.conditions);
     const draft = buildNaturalLanguageMonitorDraft(run.result, candidate.text);
     const preview = draft.mapped.flatMap((item) => item.conditions.map((item) => item.text));
     assert.deepEqual(preview, candidate.preview);
+    assert.equal(draft.unsupported.length, 0);
+    assert.equal(draft.ambiguous.length, 0);
     assert.doesNotMatch(JSON.stringify(draft.mapped), /reverse_split|market\.price|corporate_action|\blt\b/);
   }
 });
@@ -284,6 +304,7 @@ test("every inline condition is validated by the current Listing Registry", () =
     condition("listing.invented", "eq", "anything"),
     condition("listing.event_kind", "gt", "deficiency_notice"),
     condition("listing.event_kind", "eq", "invented"),
+    condition("corporate_action.action_stage", "eq", "unknown"),
   ]) {
     assert.throws(
       () => validate(providerOutput([requirement("condition", "mapped", [invalidCondition])]), "condition"),

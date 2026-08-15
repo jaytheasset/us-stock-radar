@@ -4,7 +4,11 @@ import {
   LISTING_PROCEEDING_KINDS,
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
-import { CORPORATE_ACTION_STAGES } from "./corporateActionCanonicalFacts.ts";
+import {
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+  CORPORATE_ACTION_STAGE_VOCABULARY,
+  type CorporateActionCanonicalVocabularyEntry,
+} from "./corporateActionCanonicalFacts.ts";
 
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
@@ -127,7 +131,12 @@ const numericOperators = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 const temporalOperators = ["eq", "neq", "before", "after"] as const;
 const dateOperators = [...temporalOperators, "within_days"] as const;
 const enumOperators = ["eq", "in"] as const;
-const publicCorporateActionStages = CORPORATE_ACTION_STAGES.filter((stage) => stage !== "unknown");
+const publicCorporateActionEventKinds = monitorableCorporateActionVocabulary(
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+);
+const publicCorporateActionStages = monitorableCorporateActionVocabulary(
+  CORPORATE_ACTION_STAGE_VOCABULARY,
+);
 
 const registry = [
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
@@ -177,45 +186,30 @@ const registry = [
 
   canonicalCorporateActionCondition(
     "corporate_action.event_kind",
-    ["reverse_split"],
+    publicCorporateActionEventKinds.values,
     ["event_kind"],
     {
       description: "The kind of corporate action established by the official canonical Corporate Action facts.",
-      enumValueDescriptions: {
-        reverse_split: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
-      },
+      enumValueDescriptions: publicCorporateActionEventKinds.descriptions,
       display: {
         label: "Corporate action",
-        enumValueLabels: { reverse_split: "Reverse stock split" },
+        enumValueLabels: publicCorporateActionEventKinds.labels,
       },
     },
   ),
   canonicalCorporateActionCondition(
     "corporate_action.action_stage",
-    publicCorporateActionStages,
+    publicCorporateActionStages.values,
     ["action_stage"],
     {
-      description: "The explicit lifecycle stage of the reverse stock split in the official canonical facts.",
-      enumValueDescriptions: {
-        announced: "A reverse-split plan or decision was announced without a more specific confirmed stage.",
-        board_approved: "The issuer's board explicitly approved the reverse stock split.",
-        shareholder_approved: "Shareholders explicitly approved the reverse stock split.",
-        scheduled: "An approved or confirmed future effective date for the reverse stock split is established.",
-        effective: "The reverse stock split is already effective or the source is the effective action itself.",
-      },
+      description: "The explicit lifecycle-stage restriction required for a reverse stock split in the official canonical Corporate Action facts; general event requests do not imply a stage.",
+      enumValueDescriptions: publicCorporateActionStages.descriptions,
       display: {
         label: "Corporate action stage",
-        enumValueLabels: {
-          announced: "Announced",
-          board_approved: "Board approved",
-          shareholder_approved: "Shareholder approved",
-          scheduled: "Scheduled",
-          effective: "Effective",
-        },
+        enumValueLabels: publicCorporateActionStages.labels,
       },
     },
   ),
-
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
   canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "offering_price"]),
@@ -508,6 +502,21 @@ type CorporateActionConditionMetadata<TEnumValues extends readonly string[]> = R
     enumValueLabels: Readonly<Record<TEnumValues[number], string>>;
   }>;
 }>;
+
+function monitorableCorporateActionVocabulary(
+  entries: readonly CorporateActionCanonicalVocabularyEntry[],
+) {
+  const monitorable = entries.filter((entry) => entry.monitorable);
+  return Object.freeze({
+    values: Object.freeze(monitorable.map((entry) => entry.value)),
+    descriptions: Object.freeze(Object.fromEntries(
+      monitorable.map((entry) => [entry.value, entry.description]),
+    )),
+    labels: Object.freeze(Object.fromEntries(
+      monitorable.map((entry) => [entry.value, entry.displayLabel]),
+    )),
+  });
+}
 
 function canonicalCorporateActionCondition<const TEnumValues extends readonly string[]>(
   key: string,

@@ -13,7 +13,7 @@ const CONDITIONS = [
 ];
 const UPDATED_CONDITIONS = [
   { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
-  { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
 ];
 const credentials = readLocalSupabaseCredentials();
 const database = new Client({ connectionString: localDatabaseUrl() });

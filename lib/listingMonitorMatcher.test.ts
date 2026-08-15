@@ -356,18 +356,17 @@ test("official Corporate Action reader facts deterministically match AEMD and ex
   }, condition)), ["ineligible", "reader_not_ready"]);
 });
 
-test("Corporate Action stage is explicit while a simple reverse split has no stage narrowing", () => {
-  const effective = availableCorporateAction("effective");
-  assert.equal(evaluateCorporate(effective, [{
-    key: "corporate_action.event_kind",
-    operator: "eq",
-    value: "reverse_split",
-  }]).status, "match");
-  assert.equal(evaluateCorporate(effective, [
+test("Corporate Action stage is an exact lifecycle restriction while event kind alone never narrows stage", () => {
+  const scheduled = availableCorporateAction("scheduled");
+  assert.equal(scheduled.facts.action_stage, "scheduled");
+  assert.equal(evaluateCorporate(scheduled, [
     { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
-    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
   ]).status, "match");
-  assert.equal(evaluateCorporate(availableCorporateAction("scheduled"), [
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
+  ]).status, "match");
+  assert.equal(evaluateCorporate(scheduled, [
     { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
     { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
   ]).status, "no_match");
@@ -416,7 +415,7 @@ test("event matcher reads the official Corporate Action fact and provider-neutra
         ],
       },
       {
-        id: "aemd-effective",
+        id: "aemd-scheduled",
         conditions: [
           { key: "market.price", operator: "gte", value: 0.5 },
           { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
