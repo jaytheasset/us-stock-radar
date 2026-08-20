@@ -8,6 +8,11 @@ import {
   type MonitorConditionValueType,
 } from "./conditionRegistry.ts";
 import type { CanonicalListingMonitorCondition } from "./listingMonitorPersistence.ts";
+import {
+  getListingMonitorConfirmationCatalog,
+  type ListingMonitorConfirmationChoice,
+  type ListingMonitorProposedConditionPreview,
+} from "./listingMonitorConfirmation.ts";
 
 export const LISTING_MONITOR_DRAFT_REVIEW_VERSION = "listing_monitor_draft_review_v1" as const;
 
@@ -23,6 +28,11 @@ export type ListingMonitorDraftReview = Readonly<{
   version: typeof LISTING_MONITOR_DRAFT_REVIEW_VERSION;
   conditions: readonly CanonicalListingMonitorCondition[];
   issues: readonly ListingMonitorDraftReviewIssue[];
+  proposals: readonly Readonly<{
+    id: string;
+    preview: ListingMonitorProposedConditionPreview;
+    choices: readonly ListingMonitorConfirmationChoice[];
+  }>[];
 }>;
 
 export type ListingMonitorConditionEditorCatalogItem = Readonly<{
@@ -60,7 +70,12 @@ export function createListingMonitorDraftReview(value: unknown): ListingMonitorD
   if (!record(value) || value.version !== "natural_language_monitor_draft_v1") {
     throw new Error("Monitor draft response is invalid.");
   }
-  if (!Array.isArray(value.conditions) || !Array.isArray(value.unsupported) || !Array.isArray(value.ambiguous)) {
+  if (
+    !Array.isArray(value.conditions)
+    || !Array.isArray(value.unsupported)
+    || !Array.isArray(value.ambiguous)
+    || !Array.isArray(value.proposed)
+  ) {
     throw new Error("Monitor draft response is incomplete.");
   }
 
@@ -70,10 +85,14 @@ export function createListingMonitorDraftReview(value: unknown): ListingMonitorD
     }
     return cloneCondition(condition);
   }));
-  const validation = validateListingConditionSet(conditions, true);
   const draftStatus = value.draftStatus;
+  const validation = validateListingConditionSet(conditions, draftStatus === "READY_FOR_REVIEW");
   if (
-    (draftStatus !== "READY_FOR_REVIEW" && draftStatus !== "NEEDS_ATTENTION")
+    (
+      draftStatus !== "READY_FOR_REVIEW"
+      && draftStatus !== "NEEDS_CONFIRMATION"
+      && draftStatus !== "NEEDS_ATTENTION"
+    )
     || (draftStatus === "READY_FOR_REVIEW" && !validation.valid)
   ) {
     throw new Error("Monitor draft readiness is invalid.");
@@ -83,11 +102,23 @@ export function createListingMonitorDraftReview(value: unknown): ListingMonitorD
     ...value.unsupported.map((item, index) => readIssue(item, "unsupported", index)),
     ...value.ambiguous.map((item, index) => readIssue(item, "ambiguous", index)),
   ]);
+  const proposals = Object.freeze(value.proposed
+    .map((item, index) => readProposal(item, index))
+    .filter((item) => item.state === "pending")
+    .map(({ id, preview, choices }) => Object.freeze({ id, preview, choices })));
+  if (
+    value.unresolvedCount !== proposals.length
+    || (draftStatus === "NEEDS_CONFIRMATION") !== (proposals.length > 0 && issues.length === 0)
+    || (draftStatus === "READY_FOR_REVIEW" && (issues.length > 0 || proposals.length > 0))
+  ) {
+    throw new Error("Monitor draft confirmation status is invalid.");
+  }
 
   return Object.freeze({
     version: LISTING_MONITOR_DRAFT_REVIEW_VERSION,
     conditions,
     issues,
+    proposals,
   });
 }
 
@@ -135,6 +166,7 @@ export function getListingMonitorDraftCreateGate(
   const errors = [
     ...validation.errors,
     ...(unresolved.length > 0 ? ["requirements_unresolved"] : []),
+    ...(review.proposals.length > 0 ? ["confirmations_unresolved"] : []),
   ];
   return Object.freeze({
     ready: errors.length === 0,
@@ -273,6 +305,23 @@ function readIssue(value: unknown, kind: ListingMonitorDraftReviewIssue["kind"],
     detail,
     abandoned: false,
   });
+}
+
+function readProposal(value: unknown, index: number) {
+  if (!record(value) || !record(value.condition)) throw new Error("Monitor draft proposal is malformed.");
+  const id = readText(value.id);
+  const condition = isCanonicalConditionShape(value.condition) ? cloneCondition(value.condition) : null;
+  const catalog = condition ? getListingMonitorConfirmationCatalog(condition) : null;
+  if (
+    !/^p[1-9]\d*$/.test(id)
+    || !catalog
+    || JSON.stringify(value.preview) !== JSON.stringify(catalog.preview)
+    || JSON.stringify(value.choices) !== JSON.stringify(catalog.choices)
+    || (value.state !== "pending" && value.state !== "used" && value.state !== "omitted")
+  ) {
+    throw new Error(`Monitor draft proposal ${index + 1} is malformed.`);
+  }
+  return Object.freeze({ id, preview: catalog.preview, choices: catalog.choices, state: value.state });
 }
 
 function formatConditionValue(

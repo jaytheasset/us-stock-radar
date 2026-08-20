@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getReadyMonitorConditions } from "./conditionRegistry.ts";
+import { getListingMonitorConfirmationCatalog } from "./listingMonitorConfirmation.ts";
 import {
   changeListingMonitorDraftConditionKey,
   changeListingMonitorDraftConditionOperator,
@@ -232,6 +233,32 @@ test("ambiguous requirements remain visible and require explicit abandonment", (
   assert.equal(getListingMonitorDraftCreateGate(review).ready, true);
 });
 
+test("AI Draft proposals are Registry-derived and block Create until confirmed or omitted", () => {
+  const condition = { key: "corporate_action.action_stage", operator: "eq" as const, value: "announced" };
+  const catalog = getListingMonitorConfirmationCatalog(condition)!;
+  const review = createListingMonitorDraftReview(draft({
+    draftStatus: "NEEDS_CONFIRMATION",
+    compilerStatus: "VALID",
+    conditions: [PRICE, REVERSE_SPLIT],
+    proposed: [{
+      id: "p1",
+      condition,
+      preview: catalog.preview,
+      choices: catalog.choices,
+      state: "pending",
+    }],
+  }));
+  assert.deepEqual(review.proposals, [{
+    id: "p1",
+    preview: catalog.preview,
+    choices: catalog.choices,
+  }]);
+  assert.equal(review.proposals[0].preview.value, "Initial plan announced");
+  assert.deepEqual(review.proposals[0].choices.map((choice) => choice.label), ["Use this filter", "Any stage"]);
+  assert.equal(getListingMonitorDraftCreateGate(review).ready, false);
+  assert.ok(getListingMonitorDraftCreateGate(review).errors.includes("confirmations_unresolved"));
+});
+
 test("human presentation covers price operators and Listing values without raw literals", () => {
   const previews = [
     formatListingMonitorConditionPreview(PRICE).text,
@@ -267,6 +294,7 @@ test("AI Monitor UI invokes Compiler only from submit and creates only from expl
   const parent = readProjectFile("components/alerts-v2/StockRadarAlertsV2.tsx");
   const monitorPage = readProjectFile("app/monitor/page.tsx");
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing\/compile"/g) ?? []).length, 1);
+  assert.equal((component.match(/fetch\("\/api\/monitors\/listing\/confirm"/g) ?? []).length, 1);
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing", \{/g) ?? []).length, 2);
   assert.match(component, /onSubmit=\{compileDraft\}/);
   assert.match(component, /Create this monitor/);
@@ -291,12 +319,14 @@ function draft({
   conditions,
   unsupported = [],
   ambiguous = [],
+  proposed = [],
 }: {
-  draftStatus: "READY_FOR_REVIEW" | "NEEDS_ATTENTION";
+  draftStatus: "READY_FOR_REVIEW" | "NEEDS_CONFIRMATION" | "NEEDS_ATTENTION";
   compilerStatus: "VALID" | "UNSUPPORTED" | "AMBIGUOUS";
   conditions: readonly Record<string, unknown>[];
   unsupported?: readonly Record<string, unknown>[];
   ambiguous?: readonly Record<string, unknown>[];
+  proposed?: readonly Record<string, unknown>[];
 }) {
   return {
     version: "natural_language_monitor_draft_v1",
@@ -306,6 +336,8 @@ function draft({
     mapped: [],
     unsupported,
     ambiguous,
+    proposed,
+    unresolvedCount: proposed.filter((item) => item.state === "pending").length,
     message: "Review this draft.",
   };
 }

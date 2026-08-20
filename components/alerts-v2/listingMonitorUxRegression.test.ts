@@ -18,8 +18,24 @@ test("monitor landing keeps the prompt prominent and reuses the existing creatio
   assert.match(builder, /Build monitor/);
   assert.match(builder, /Create this monitor/);
   assert.equal((builder.match(/\/api\/monitors\/listing\/compile/g) ?? []).length, 1);
+  assert.equal((builder.match(/\/api\/monitors\/listing\/confirm/g) ?? []).length, 1);
   assert.match(builderStyles, /\.promptForm textarea[\s\S]*min-height: 170px/);
   assert.match(monitorStyles, /width: min\(100%, 1120px\)/);
+});
+
+test("AI Draft narrowing confirmation is human-readable and blocks Create until resolved", () => {
+  for (const expected of [
+    "AI suggested an additional filter",
+    "Confirm this filter",
+    "Confirm or remove every suggested filter before creating this monitor.",
+  ]) {
+    assert.match(builder, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(builder, /proposal\.choices\.map/);
+  assert.match(builder, /disabled=\{action !== "idle"\}/);
+  assert.doesNotMatch(builder, />\s*(?:announced|action_stage|corporate_action\.action_stage)\s*</);
+  assert.match(builderStyles, /\.confirmationActions[\s\S]*flex-wrap: wrap/);
+  assert.match(builderStyles, /@media[^}]*max-width[\s\S]*\.confirmationActions[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
 });
 
 test("review and unsupported states use human language without developer copy", () => {

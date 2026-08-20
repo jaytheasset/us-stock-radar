@@ -18,6 +18,7 @@ import {
 import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
 import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
+import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
 import styles from "./ListingMonitorDraftBuilder.module.css";
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
@@ -42,7 +43,8 @@ type ListingMonitorAlertsData = Readonly<{
 export function ListingMonitorDraftBuilder() {
   const [text, setText] = useState("");
   const [review, setReview] = useState<ListingMonitorDraftReview | null>(null);
-  const [action, setAction] = useState<"idle" | "compiling" | "creating">("idle");
+  const [draft, setDraft] = useState<NaturalLanguageMonitorDraft | null>(null);
+  const [action, setAction] = useState<"idle" | "compiling" | "confirming" | "creating">("idle");
   const [authChecking, setAuthChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [message, setMessage] = useState("");
@@ -82,15 +84,55 @@ export function ListingMonitorDraftBuilder() {
       });
       const payload = await readApiPayload(response);
       if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not build this monitor.");
-      setReview(createListingMonitorDraftReview(payload.data));
+      const nextReview = createListingMonitorDraftReview(payload.data);
+      setDraft(payload.data as NaturalLanguageMonitorDraft);
+      setReview(nextReview);
       setAuthRequired(false);
-      setMessage("Your monitor is ready to review.");
+      setMessage(nextReview.proposals.length > 0
+        ? "Confirm or remove the suggested filter to finish this monitor."
+        : "Your monitor is ready to review.");
     } catch (error) {
       if (error instanceof MonitorApiError && error.status === 401) {
         setAuthRequired(true);
         setMessage("Sign in to build and create a monitor.");
       } else {
         setMessage("We couldn’t build this monitor. Try a clearer request.");
+      }
+    } finally {
+      setAction("idle");
+    }
+  }
+
+  async function applyConfirmation(proposalId: string, choiceId: string) {
+    if (!draft || !review || action !== "idle") return;
+    setAction("confirming");
+    setMessage("");
+    setCreated(false);
+    try {
+      const response = await fetch("/api/monitors/listing/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draft: { ...draft, conditions: review.conditions },
+          proposalId,
+          choiceId,
+        }),
+      });
+      const payload = await readApiPayload(response);
+      if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not apply this choice.");
+      const nextReview = createListingMonitorDraftReview(payload.data);
+      setDraft(payload.data as NaturalLanguageMonitorDraft);
+      setReview(nextReview);
+      setAuthRequired(false);
+      setMessage(nextReview.proposals.length > 0
+        ? "Confirm or remove the remaining suggested filter."
+        : "Your choice was applied. Review the monitor before creating it.");
+    } catch (error) {
+      if (error instanceof MonitorApiError && error.status === 401) {
+        setAuthRequired(true);
+        setMessage("Sign in to finish this monitor.");
+      } else {
+        setMessage("We couldn't apply this choice. Build the monitor again.");
       }
     } finally {
       setAction("idle");
@@ -198,6 +240,32 @@ export function ListingMonitorDraftBuilder() {
               />
             ))}
           </div>
+
+          {review.proposals.length > 0 ? (
+            <section className={styles.confirmations} aria-labelledby="monitor-confirmations-title">
+              <h3 id="monitor-confirmations-title">AI suggested an additional filter</h3>
+              {review.proposals.map((proposal) => (
+                <fieldset disabled={action !== "idle"} key={proposal.id}>
+                  <legend>Confirm this filter</legend>
+                  <div className={styles.suggestedFilterPreview}>
+                    <span>{proposal.preview.label}</span>
+                    <strong>{proposal.preview.value}</strong>
+                  </div>
+                  <div className={styles.confirmationActions}>
+                    {proposal.choices.map((choice) => (
+                      <button
+                        key={choice.id}
+                        onClick={() => void applyConfirmation(proposal.id, choice.id)}
+                        type="button"
+                      >
+                        {choice.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+            </section>
+          ) : null}
 
           {review.issues.length > 0 ? (
             <section className={styles.issues} aria-labelledby="monitor-issues-title">
@@ -561,6 +629,7 @@ function getCreateGuidance(
   errors: readonly string[],
   hasUnresolvedIssues: boolean,
 ) {
+  if (review.proposals.length > 0) return "Confirm or remove every suggested filter before creating this monitor.";
   if (review.conditions.length === 0) {
     return "We can’t create this monitor yet. Remove the unsupported conditions or try another request.";
   }

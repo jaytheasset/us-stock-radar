@@ -11,6 +11,12 @@ import type {
 } from "./listingMonitorPersistence.ts";
 import type { CurrentListingRiskReadResult } from "./listingRiskPersistence.ts";
 import type { CurrentCorporateActionReadResult } from "./corporateActionPersistence.ts";
+import { validateNaturalLanguageConditionCompilerOutput } from "./naturalLanguageConditionCompiler.ts";
+import { buildNaturalLanguageMonitorDraft } from "./naturalLanguageMonitorDraft.ts";
+import {
+  applyNaturalLanguageMonitorConfirmation,
+  parseNaturalLanguageMonitorConfirmationRequest,
+} from "./naturalLanguageMonitorConfirmation.ts";
 
 const EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const SOURCE_EXECUTION_ID = "5323aa52-5944-5877-99b0-c9f74ba6d98c";
@@ -131,10 +137,7 @@ test("$0.82 plus AEMD reverse split creates exactly one Alert and replay preserv
   let priceReads = 0;
   const alerts = new Set<string>();
   const monitors = [
-    monitor("a2000000-0000-4000-8000-000000000031", [
-      { key: "market.price", operator: "lt", value: 1 },
-      { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
-    ]),
+    monitor("a2000000-0000-4000-8000-000000000031", clarifiedReverseSplitConditions()),
     monitor("a2000000-0000-4000-8000-000000000032", [
       { key: "market.price", operator: "lt", value: 0.5 },
       { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
@@ -182,6 +185,37 @@ test("$0.82 plus AEMD reverse split creates exactly one Alert and replay preserv
   assert.equal(first.corporateActionReaderStatus, "available");
   assert.equal(alerts.size, 1);
 });
+
+function clarifiedReverseSplitConditions() {
+  const text = "Alert me when a stock below $1 announces a reverse split.";
+  const result = validateNaturalLanguageConditionCompilerOutput({
+    requirements: [
+      {
+        source_text: "a stock below $1",
+        decision: "mapped",
+        conditions: [{ key: "market.price", operator: "lt", value: 1 }],
+        reason: null,
+        question: null,
+      },
+      {
+        source_text: "announces a reverse split",
+        decision: "mapped",
+        conditions: [
+          { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+          { key: "corporate_action.action_stage", operator: "eq", value: "announced" },
+        ],
+        reason: null,
+        question: null,
+      },
+    ],
+  }, text);
+  const draft = buildNaturalLanguageMonitorDraft(result, text);
+  return applyNaturalLanguageMonitorConfirmation(parseNaturalLanguageMonitorConfirmationRequest({
+    draft,
+    proposalId: "p1",
+    choiceId: "omit",
+  })).conditions;
+}
 
 test("Marketstack-style EOD price is INELIGIBLE and creates no Alert", async () => {
   let writes = 0;

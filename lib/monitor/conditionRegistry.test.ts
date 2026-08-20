@@ -43,6 +43,22 @@ test("Corporate Action Monitor V1 derives reverse split and monitorable stages f
   assert.equal(entries[0].display?.enumValueLabels?.reverse_split, "Reverse stock split");
   assert.equal(entries[1].display?.label, "Corporate action stage");
   assert.equal(entries[1].display?.enumValueLabels?.effective, "Effective");
+  assert.equal(entries[0].requiresExplicitConfirmationInAiDraft, undefined);
+  assert.equal(entries[1].requiresExplicitConfirmationInAiDraft, true);
+  assert.deepEqual(entries[1].aiDraftConfirmation, {
+    useLabel: "Use this filter",
+    omitLabel: "Any stage",
+    enumValueLabels: {
+      announced: "Initial plan announced",
+      board_approved: "Board approved",
+      shareholder_approved: "Shareholders approved",
+      scheduled: "Scheduled",
+      effective: "Effective",
+    },
+  });
+  assert.ok(getReadyMonitorConditions()
+    .filter((entry) => entry.key !== "corporate_action.action_stage")
+    .every((entry) => entry.requiresExplicitConfirmationInAiDraft !== true));
   assert.match(entries[1].description ?? "", /lifecycle-stage restriction/i);
   assert.deepEqual(entries[0].enumValues, CORPORATE_ACTION_EVENT_KIND_VOCABULARY
     .filter((entry) => entry.monitorable)

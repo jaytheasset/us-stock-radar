@@ -201,6 +201,7 @@ test("automatic Semantic Registry expansion maps event-only and explicit reverse
       ],
       conditions: [REVERSE_SPLIT],
       preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: [],
     },
     {
       text: "Alert me when a reverse split is scheduled.",
@@ -208,7 +209,8 @@ test("automatic Semantic Registry expansion maps event-only and explicit reverse
         requirement("a reverse split is scheduled", "mapped", [REVERSE_SPLIT, SCHEDULED_STAGE]),
       ],
       conditions: [REVERSE_SPLIT, SCHEDULED_STAGE],
-      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Scheduled"],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Scheduled"],
     },
     {
       text: "Alert me when a reverse split becomes effective.",
@@ -216,7 +218,8 @@ test("automatic Semantic Registry expansion maps event-only and explicit reverse
         requirement("a reverse split becomes effective", "mapped", [REVERSE_SPLIT, EFFECTIVE_STAGE]),
       ],
       conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
-      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Effective"],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Effective"],
     },
     {
       text: "Alert me when shareholders approve a reverse split.",
@@ -224,7 +227,8 @@ test("automatic Semantic Registry expansion maps event-only and explicit reverse
         requirement("shareholders approve a reverse split", "mapped", [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE]),
       ],
       conditions: [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE],
-      preview: ["Corporate action — Reverse stock split", "Corporate action stage — Shareholder approved"],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Shareholders approved"],
     },
   ] as const;
 
@@ -244,10 +248,44 @@ test("automatic Semantic Registry expansion maps event-only and explicit reverse
     const draft = buildNaturalLanguageMonitorDraft(run.result, candidate.text);
     const preview = draft.mapped.flatMap((item) => item.conditions.map((item) => item.text));
     assert.deepEqual(preview, candidate.preview);
+    assert.deepEqual(draft.proposed.map((item) => item.preview.text), candidate.proposedPreview);
+    assert.equal(draft.draftStatus, candidate.proposedPreview.length > 0
+      ? "NEEDS_CONFIRMATION"
+      : "READY_FOR_REVIEW");
     assert.equal(draft.unsupported.length, 0);
     assert.equal(draft.ambiguous.length, 0);
     assert.doesNotMatch(JSON.stringify(draft.mapped), /reverse_split|market\.price|corporate_action|\blt\b/);
   }
+});
+
+test("Registry confirmation metadata partitions inferred lifecycle narrowing out of active Draft conditions", () => {
+  const text = "Alert me when a stock below $1 announces a reverse split.";
+  const result = validate(providerOutput([
+    requirement("a stock below $1", "mapped", [PRICE_BELOW_1]),
+    requirement("announces a reverse split", "mapped", [
+      REVERSE_SPLIT,
+      condition("corporate_action.action_stage", "eq", "announced"),
+    ]),
+  ]), text);
+  assert.equal(result.status, "VALID");
+  assert.deepEqual(result.conditions, [
+    PRICE_BELOW_1,
+    REVERSE_SPLIT,
+    condition("corporate_action.action_stage", "eq", "announced"),
+  ]);
+  const draft = buildNaturalLanguageMonitorDraft(result, text);
+  assert.equal(draft.draftStatus, "NEEDS_CONFIRMATION");
+  assert.deepEqual(draft.conditions, [PRICE_BELOW_1, REVERSE_SPLIT]);
+  assert.equal(draft.unresolvedCount, 1);
+  assert.deepEqual(draft.proposed[0].preview, {
+    label: "Corporate action stage",
+    value: "Initial plan announced",
+    text: "Corporate action stage — Initial plan announced",
+  });
+  assert.deepEqual(draft.proposed[0].choices.map((choice) => choice.label), [
+    "Use this filter",
+    "Any stage",
+  ]);
 });
 
 test("distinct constraints retain stable r/c order and identical conditions dedupe", () => {
@@ -475,9 +513,11 @@ test("product call graph is direct, write-free, and contains no Verifier or seco
   const handler = readProjectFile("app/api/monitors/listing/compile/handler.ts");
   const compiler = readProjectFile("lib/monitor/naturalLanguageConditionCompiler.ts");
   const draft = readProjectFile("lib/monitor/naturalLanguageMonitorDraft.ts");
+  const confirmation = readProjectFile("lib/monitor/naturalLanguageMonitorConfirmation.ts");
+  const confirmationHandler = readProjectFile("app/api/monitors/listing/confirm/handler.ts");
   const currentUser = readProjectFile("lib/currentUser.ts");
   const harness = readProjectFile("scripts/verify-natural-language-condition-compiler-v1-provider.mjs");
-  const sources = `${route}\n${handler}\n${compiler}\n${draft}\n${harness}`;
+  const sources = `${route}\n${handler}\n${compiler}\n${draft}\n${confirmation}\n${confirmationHandler}\n${harness}`;
 
   assert.match(handler, /rejectCrossOriginMutationRequest/);
   assert.match(route, /getOptionalCurrentUserIdReadOnly/);
@@ -485,6 +525,7 @@ test("product call graph is direct, write-free, and contains no Verifier or seco
   assert.match(handler, /buildNaturalLanguageMonitorDraft/);
   assert.doesNotMatch(sources, /IndependentCoverageVerifier|verifyIndependentConditionCoverage|ConditionCompilerE2E/);
   assert.equal((compiler.match(/runStructuredGeminiJson/g) ?? []).length, 3);
+  assert.doesNotMatch(`${confirmation}\n${confirmationHandler}`, /runStructuredGeminiJson|compileNaturalLanguageListingConditions/);
   assert.doesNotMatch(sources, /createListingMonitor|updateListingMonitor|insert\(|upsert\(|listing_monitors|user_alert_deliveries|ai_runs|ai_outputs/i);
   assert.doesNotMatch(harness, /from ["']pg["']|new Client|databaseSnapshot|localDatabaseUrl|supabase/i);
   const readOnlyBody = currentUser.match(/export async function getOptionalCurrentUserIdReadOnly\(\)[\s\S]*?\n\}/)?.[0] || "";

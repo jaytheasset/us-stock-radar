@@ -86,6 +86,12 @@ export type MonitorConditionDefinition = Readonly<{
   description?: string;
   enumValueDescriptions?: Readonly<Record<string, string>>;
   display?: MonitorConditionDisplayMetadata;
+  requiresExplicitConfirmationInAiDraft?: boolean;
+  aiDraftConfirmation?: Readonly<{
+    useLabel: string;
+    omitLabel: string;
+    enumValueLabels?: Readonly<Record<string, string>>;
+  }>;
   monitorDomains?: readonly "listing"[];
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
@@ -204,6 +210,18 @@ const registry = [
     {
       description: "The explicit lifecycle-stage restriction required for a reverse stock split in the official canonical Corporate Action facts; general event requests do not imply a stage.",
       enumValueDescriptions: publicCorporateActionStages.descriptions,
+      requiresExplicitConfirmationInAiDraft: true,
+      aiDraftConfirmation: {
+        useLabel: "Use this filter",
+        omitLabel: "Any stage",
+        enumValueLabels: {
+          announced: "Initial plan announced",
+          board_approved: "Board approved",
+          shareholder_approved: "Shareholders approved",
+          scheduled: "Scheduled",
+          effective: "Effective",
+        },
+      },
       display: {
         label: "Corporate action stage",
         enumValueLabels: publicCorporateActionStages.labels,
@@ -497,6 +515,12 @@ function currentMarketCondition(
 type CorporateActionConditionMetadata<TEnumValues extends readonly string[]> = Readonly<{
   description: string;
   enumValueDescriptions: Readonly<Record<TEnumValues[number], string>>;
+  requiresExplicitConfirmationInAiDraft?: boolean;
+  aiDraftConfirmation?: Readonly<{
+    useLabel: string;
+    omitLabel: string;
+    enumValueLabels?: Readonly<Record<TEnumValues[number], string>>;
+  }>;
   display: Readonly<{
     label: string;
     enumValueLabels: Readonly<Record<TEnumValues[number], string>>;
@@ -535,6 +559,16 @@ function canonicalCorporateActionCondition<const TEnumValues extends readonly st
       label: metadata.display.label,
       enumValueLabels: Object.freeze({ ...metadata.display.enumValueLabels }),
     }),
+    requiresExplicitConfirmationInAiDraft: metadata.requiresExplicitConfirmationInAiDraft,
+    aiDraftConfirmation: metadata.aiDraftConfirmation
+      ? Object.freeze({
+          useLabel: metadata.aiDraftConfirmation.useLabel,
+          omitLabel: metadata.aiDraftConfirmation.omitLabel,
+          enumValueLabels: metadata.aiDraftConfirmation.enumValueLabels
+            ? Object.freeze({ ...metadata.aiDraftConfirmation.enumValueLabels })
+            : undefined,
+        })
+      : undefined,
     monitorDomains: Object.freeze(["listing"] as const),
     family: "corporate_action" as const,
     domain: "canonical",

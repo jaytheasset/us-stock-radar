@@ -370,6 +370,15 @@ test("Corporate Action stage is an exact lifecycle restriction while event kind 
     { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
     { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
   ]).status, "no_match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "announced" },
+  ], price(0.82, "realtime")).status, "no_match");
+  assert.equal(evaluateCorporate(availableCorporateAction("effective"), [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  ]).status, "match");
 });
 
 test("price plus reverse split uses common AND semantics and fails closed for unusable prices", () => {

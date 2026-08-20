@@ -11,10 +11,20 @@ import {
   type NaturalLanguageConditionCompilerResult,
   type NaturalLanguageConditionLedgerCondition,
 } from "./naturalLanguageConditionCompiler.ts";
+import {
+  getListingMonitorConfirmationCatalog,
+  requiresExplicitAiDraftConfirmation,
+  type ListingMonitorConfirmationChoice,
+  type ListingMonitorProposedConditionPreview,
+} from "./listingMonitorConfirmation.ts";
+import type { CanonicalListingMonitorCondition } from "./listingMonitorPersistence.ts";
 
 export const NATURAL_LANGUAGE_MONITOR_DRAFT_VERSION = "natural_language_monitor_draft_v1" as const;
 
-export type NaturalLanguageMonitorDraftStatus = "READY_FOR_REVIEW" | "NEEDS_ATTENTION";
+export type NaturalLanguageMonitorDraftStatus =
+  | "READY_FOR_REVIEW"
+  | "NEEDS_CONFIRMATION"
+  | "NEEDS_ATTENTION";
 
 export type NaturalLanguageMonitorDraftConditionPreview = Readonly<{
   label: string;
@@ -41,6 +51,14 @@ export type NaturalLanguageMonitorDraft = Readonly<{
     status: "Needs clarification";
     question: string;
   }>[];
+  proposed: readonly Readonly<{
+    id: string;
+    condition: CanonicalListingMonitorCondition;
+    preview: ListingMonitorProposedConditionPreview;
+    choices: readonly ListingMonitorConfirmationChoice[];
+    state: "pending" | "used" | "omitted";
+  }>[];
+  unresolvedCount: number;
   message: string;
 }>;
 
@@ -50,16 +68,27 @@ export function buildNaturalLanguageMonitorDraft(
 ): NaturalLanguageMonitorDraft {
   const finalized = revalidateNaturalLanguageConditionCompilerResult(result, originalText);
   const conditionsById = new Map(finalized.ledger.conditions.map((condition) => [condition.id, condition]));
+  const proposedConditions = finalized.ledger.conditions.filter((condition) => (
+    requiresExplicitAiDraftConfirmation(condition)
+  ));
+  const proposedIds = new Set(proposedConditions.map((condition) => condition.id));
+  const activeLedgerConditions = finalized.ledger.conditions.filter((condition) => !proposedIds.has(condition.id));
+  const activeConditions = Object.freeze(activeLedgerConditions.map(({ key, operator, value }) => Object.freeze({
+    key,
+    operator,
+    value,
+  })));
   const mapped = Object.freeze(finalized.ledger.requirements
     .filter((requirement) => requirement.decision === "mapped")
     .map((requirement) => Object.freeze({
       sourceText: requirement.source_text,
-      conditions: Object.freeze(requirement.condition_refs.map((ref) => {
+      conditions: Object.freeze(requirement.condition_refs.filter((ref) => !proposedIds.has(ref)).map((ref) => {
         const condition = conditionsById.get(ref);
         if (!condition) throw draftInvalid(`condition_ref_unknown:${ref}`);
         return formatNaturalLanguageMonitorDraftCondition(condition);
       })),
-    })));
+    }))
+    .filter((requirement) => requirement.conditions.length > 0));
   const unsupported = Object.freeze(finalized.ledger.requirements
     .filter((requirement) => requirement.decision === "unsupported")
     .map((requirement) => Object.freeze({
@@ -74,11 +103,27 @@ export function buildNaturalLanguageMonitorDraft(
       status: "Needs clarification" as const,
       question: requirement.question as string,
     })));
+  const proposed = Object.freeze(proposedConditions.map((condition, index) => {
+    const canonical = Object.freeze({
+      key: condition.key,
+      operator: condition.operator,
+      value: Array.isArray(condition.value) ? Object.freeze([...condition.value]) : condition.value,
+    });
+    const catalog = getListingMonitorConfirmationCatalog(canonical);
+    if (!catalog) throw draftInvalid(`confirmation_catalog_missing:${condition.key}`);
+    return Object.freeze({
+      id: `p${index + 1}`,
+      condition: canonical,
+      preview: catalog.preview,
+      choices: catalog.choices,
+      state: "pending" as const,
+    });
+  }));
   const draftStatus: NaturalLanguageMonitorDraftStatus = finalized.status === "VALID"
-    ? "READY_FOR_REVIEW"
+    ? proposed.length > 0 ? "NEEDS_CONFIRMATION" : "READY_FOR_REVIEW"
     : "NEEDS_ATTENTION";
 
-  if (draftStatus === "READY_FOR_REVIEW" && (finalized.conditions.length === 0 || mapped.length === 0)) {
+  if (draftStatus === "READY_FOR_REVIEW" && (activeConditions.length === 0 || mapped.length === 0)) {
     throw draftInvalid("ready_draft_conditions_empty");
   }
 
@@ -86,12 +131,16 @@ export function buildNaturalLanguageMonitorDraft(
     version: NATURAL_LANGUAGE_MONITOR_DRAFT_VERSION,
     draftStatus,
     compilerStatus: finalized.status,
-    conditions: finalized.conditions,
+    conditions: activeConditions,
     mapped,
     unsupported,
     ambiguous,
+    proposed,
+    unresolvedCount: proposed.length,
     message: draftStatus === "READY_FOR_REVIEW"
       ? "Review this draft before creating a monitor."
+      : draftStatus === "NEEDS_CONFIRMATION"
+        ? "Confirm or remove each AI-suggested filter before creating this monitor."
       : "Review the highlighted requirements before creating a monitor.",
   });
 }
