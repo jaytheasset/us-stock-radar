@@ -74,6 +74,8 @@ export async function processGenericMonitorChild(
       runAnalyzer: dependencies.runCorporateActionAnalyzer || runCorporateActionCanonicalAnalyzerPreview,
       persist: dependencies.persistCorporateAction || persistCorporateActionAnalyzerResult,
       terminalStateAfterPersistence: corporateActionTerminalStateAfterPersistence,
+      consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
+        || consumeListingMonitorAlertsForEvent,
     });
   }
   return processGenericMonitorChildWithDependencies(identity, {

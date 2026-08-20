@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   canonicalizeCorporateActionAnalyzerResult,
+  CORPORATE_ACTION_EVENT_KINDS,
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+  CORPORATE_ACTION_STAGE_VOCABULARY,
   CORPORATE_ACTION_STAGES,
   parseCorporateActionAnalyzerTransportJson,
   validateCorporateActionAnalyzerResult,
@@ -14,7 +18,10 @@ import {
   adaptNewsCorporateActionSource,
   adaptSec8k6kCorporateActionSource,
 } from "./corporateActionSourceAdapters.ts";
-import { CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT } from "../prompts/corporateActionCanonicalAnalysis.ts";
+import {
+  CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT,
+  CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA,
+} from "../prompts/corporateActionCanonicalAnalysis.ts";
 
 const sourceText = "The company will effect a one-for-twenty reverse stock split. The reverse stock split will become effective on August 4, 2026.";
 
@@ -68,6 +75,31 @@ test("every action stage is a strict semantic enum and synonyms are rejected", (
     assert.deepEqual(validateCorporateActionAnalyzerTransportResult(applicable({ action_stage })), []);
   }
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult(applicable({ action_stage: "approved" as never })), []);
+});
+
+test("canonical vocabulary is the single ordered source for Analyzer values and Monitor exposure", () => {
+  assert.deepEqual(CORPORATE_ACTION_EVENT_KINDS, CORPORATE_ACTION_EVENT_KIND_VOCABULARY.map((entry) => entry.value));
+  assert.deepEqual(CORPORATE_ACTION_STAGES, CORPORATE_ACTION_STAGE_VOCABULARY.map((entry) => entry.value));
+  assert.deepEqual(CORPORATE_ACTION_EVENT_KIND_VOCABULARY, [{
+    value: "reverse_split",
+    description: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
+    monitorable: true,
+    displayLabel: "Reverse stock split",
+  }]);
+  assert.deepEqual(CORPORATE_ACTION_STAGE_VOCABULARY.map(({ value, monitorable, displayLabel }) => ({
+    value,
+    monitorable,
+    displayLabel,
+  })), [
+    { value: "announced", monitorable: true, displayLabel: "Announced" },
+    { value: "board_approved", monitorable: true, displayLabel: "Board approved" },
+    { value: "shareholder_approved", monitorable: true, displayLabel: "Shareholder approved" },
+    { value: "scheduled", monitorable: true, displayLabel: "Scheduled" },
+    { value: "effective", monitorable: true, displayLabel: "Effective" },
+    { value: "unknown", monitorable: false, displayLabel: "Unknown" },
+  ]);
+  assert.ok([...CORPORATE_ACTION_EVENT_KIND_VOCABULARY, ...CORPORATE_ACTION_STAGE_VOCABULARY]
+    .every((entry) => entry.description.trim() && entry.displayLabel.trim()));
 });
 
 test("non-reverse sources have one exact not-applicable representation with no fake facts", () => {
@@ -141,6 +173,13 @@ test("all stored-source adapters preserve exact source identity and never load p
 });
 
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
+  assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
+  assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 3_899);
+  assert.equal(
+    createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
+    "f8a06bae93b3f339f9423b572517fb5b8dee0f643b027359d010f40d63f81f6f",
+  );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /shareholder_approved/);

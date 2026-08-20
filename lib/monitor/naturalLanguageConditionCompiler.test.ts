@@ -30,6 +30,10 @@ const RECOVERED = condition("listing.event_outcome", "eq", "recovered");
 const DEADLINE_30 = condition("listing.compliance_deadline", "within_days", 30);
 const NASDAQ = condition("listing.exchange", "eq", "Nasdaq");
 const PRICE_BELOW_1 = condition("market.price", "lt", 1);
+const REVERSE_SPLIT = condition("corporate_action.event_kind", "eq", "reverse_split");
+const SCHEDULED_STAGE = condition("corporate_action.action_stage", "eq", "scheduled");
+const EFFECTIVE_STAGE = condition("corporate_action.action_stage", "eq", "effective");
+const SHAREHOLDER_APPROVED_STAGE = condition("corporate_action.action_stage", "eq", "shareholder_approved");
 
 test("request parsing trims one text field and rejects empty, oversized, malformed, and identity fields", () => {
   assert.deepEqual(parseNaturalLanguageConditionCompilerRequest({ text: "  listing deficiency  " }), {
@@ -108,7 +112,7 @@ test("prompt catalog derives exactly from Registry semantic metadata and keeps g
   assert.doesNotMatch(JSON.stringify(prompt.responseFormat), /"id"|condition_refs|self_check/);
   for (const item of expectedRegistry) assert.match(prompt.system, new RegExp(escapeRegex(item.key)));
   const authoredPrefix = prompt.system.split("registry_version=")[0];
-  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange|below \$1|market\.price/i);
+  assert.doesNotMatch(authoredPrefix, /compliance_recovery|deficiency_notice|listing\.exchange|below \$1|market\.price|reverse split|reverse_split|corporate_action/i);
 });
 
 test("one Provider call adapts inline conditions to deterministic IDs and single-call telemetry", async () => {
@@ -188,6 +192,102 @@ test("one call can map current price and Listing semantics into one canonical dr
   assert.equal(draft.unsupported.length, 0);
 });
 
+test("automatic Semantic Registry expansion maps event-only and explicit reverse-split lifecycle requirements", async () => {
+  const cases = [
+    {
+      text: "Alert me about reverse splits.",
+      requirements: [
+        requirement("reverse splits", "mapped", [REVERSE_SPLIT]),
+      ],
+      conditions: [REVERSE_SPLIT],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: [],
+    },
+    {
+      text: "Alert me when a reverse split is scheduled.",
+      requirements: [
+        requirement("a reverse split is scheduled", "mapped", [REVERSE_SPLIT, SCHEDULED_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, SCHEDULED_STAGE],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Scheduled"],
+    },
+    {
+      text: "Alert me when a reverse split becomes effective.",
+      requirements: [
+        requirement("a reverse split becomes effective", "mapped", [REVERSE_SPLIT, EFFECTIVE_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, EFFECTIVE_STAGE],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Effective"],
+    },
+    {
+      text: "Alert me when shareholders approve a reverse split.",
+      requirements: [
+        requirement("shareholders approve a reverse split", "mapped", [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE]),
+      ],
+      conditions: [REVERSE_SPLIT, SHAREHOLDER_APPROVED_STAGE],
+      preview: ["Corporate action — Reverse stock split"],
+      proposedPreview: ["Corporate action stage — Shareholders approved"],
+    },
+  ] as const;
+
+  for (const candidate of cases) {
+    let calls = 0;
+    const run = await compileNaturalLanguageListingConditions({ text: candidate.text }, {
+      apiKey: "fixture-key",
+      model: "configured-fast-model",
+      runPrompt: async () => {
+        calls += 1;
+        return successfulRun(providerOutput(candidate.requirements), "configured-fast-model");
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(run.result.status, "VALID");
+    assert.deepEqual(run.result.conditions, candidate.conditions);
+    const draft = buildNaturalLanguageMonitorDraft(run.result, candidate.text);
+    const preview = draft.mapped.flatMap((item) => item.conditions.map((item) => item.text));
+    assert.deepEqual(preview, candidate.preview);
+    assert.deepEqual(draft.proposed.map((item) => item.preview.text), candidate.proposedPreview);
+    assert.equal(draft.draftStatus, candidate.proposedPreview.length > 0
+      ? "NEEDS_CONFIRMATION"
+      : "READY_FOR_REVIEW");
+    assert.equal(draft.unsupported.length, 0);
+    assert.equal(draft.ambiguous.length, 0);
+    assert.doesNotMatch(JSON.stringify(draft.mapped), /reverse_split|market\.price|corporate_action|\blt\b/);
+  }
+});
+
+test("Registry confirmation metadata partitions inferred lifecycle narrowing out of active Draft conditions", () => {
+  const text = "Alert me when a stock below $1 announces a reverse split.";
+  const result = validate(providerOutput([
+    requirement("a stock below $1", "mapped", [PRICE_BELOW_1]),
+    requirement("announces a reverse split", "mapped", [
+      REVERSE_SPLIT,
+      condition("corporate_action.action_stage", "eq", "announced"),
+    ]),
+  ]), text);
+  assert.equal(result.status, "VALID");
+  assert.deepEqual(result.conditions, [
+    PRICE_BELOW_1,
+    REVERSE_SPLIT,
+    condition("corporate_action.action_stage", "eq", "announced"),
+  ]);
+  const draft = buildNaturalLanguageMonitorDraft(result, text);
+  assert.equal(draft.draftStatus, "NEEDS_CONFIRMATION");
+  assert.deepEqual(draft.conditions, [PRICE_BELOW_1, REVERSE_SPLIT]);
+  assert.equal(draft.unresolvedCount, 1);
+  assert.deepEqual(draft.proposed[0].preview, {
+    label: "Corporate action stage",
+    value: "Initial plan announced",
+    text: "Corporate action stage — Initial plan announced",
+  });
+  assert.deepEqual(draft.proposed[0].choices.map((choice) => choice.label), [
+    "Use this filter",
+    "Any stage",
+  ]);
+});
+
 test("distinct constraints retain stable r/c order and identical conditions dedupe", () => {
   const text = "Nasdaq listing deficiency with a deadline within 30 days and another listing deficiency";
   const result = validate(providerOutput([
@@ -242,6 +342,7 @@ test("every inline condition is validated by the current Listing Registry", () =
     condition("listing.invented", "eq", "anything"),
     condition("listing.event_kind", "gt", "deficiency_notice"),
     condition("listing.event_kind", "eq", "invented"),
+    condition("corporate_action.action_stage", "eq", "unknown"),
   ]) {
     assert.throws(
       () => validate(providerOutput([requirement("condition", "mapped", [invalidCondition])]), "condition"),
@@ -412,9 +513,11 @@ test("product call graph is direct, write-free, and contains no Verifier or seco
   const handler = readProjectFile("app/api/monitors/listing/compile/handler.ts");
   const compiler = readProjectFile("lib/monitor/naturalLanguageConditionCompiler.ts");
   const draft = readProjectFile("lib/monitor/naturalLanguageMonitorDraft.ts");
+  const confirmation = readProjectFile("lib/monitor/naturalLanguageMonitorConfirmation.ts");
+  const confirmationHandler = readProjectFile("app/api/monitors/listing/confirm/handler.ts");
   const currentUser = readProjectFile("lib/currentUser.ts");
   const harness = readProjectFile("scripts/verify-natural-language-condition-compiler-v1-provider.mjs");
-  const sources = `${route}\n${handler}\n${compiler}\n${draft}\n${harness}`;
+  const sources = `${route}\n${handler}\n${compiler}\n${draft}\n${confirmation}\n${confirmationHandler}\n${harness}`;
 
   assert.match(handler, /rejectCrossOriginMutationRequest/);
   assert.match(route, /getOptionalCurrentUserIdReadOnly/);
@@ -422,6 +525,7 @@ test("product call graph is direct, write-free, and contains no Verifier or seco
   assert.match(handler, /buildNaturalLanguageMonitorDraft/);
   assert.doesNotMatch(sources, /IndependentCoverageVerifier|verifyIndependentConditionCoverage|ConditionCompilerE2E/);
   assert.equal((compiler.match(/runStructuredGeminiJson/g) ?? []).length, 3);
+  assert.doesNotMatch(`${confirmation}\n${confirmationHandler}`, /runStructuredGeminiJson|compileNaturalLanguageListingConditions/);
   assert.doesNotMatch(sources, /createListingMonitor|updateListingMonitor|insert\(|upsert\(|listing_monitors|user_alert_deliveries|ai_runs|ai_outputs/i);
   assert.doesNotMatch(harness, /from ["']pg["']|new Client|databaseSnapshot|localDatabaseUrl|supabase/i);
   const readOnlyBody = currentUser.match(/export async function getOptionalCurrentUserIdReadOnly\(\)[\s\S]*?\n\}/)?.[0] || "";

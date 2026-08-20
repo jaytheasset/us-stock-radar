@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getReadyMonitorConditions } from "./conditionRegistry.ts";
+import { getListingMonitorConfirmationCatalog } from "./listingMonitorConfirmation.ts";
 import {
   changeListingMonitorDraftConditionKey,
   changeListingMonitorDraftConditionOperator,
@@ -19,6 +20,21 @@ const DEFICIENCY = Object.freeze({ key: "listing.event_kind", operator: "eq" as 
 const ADVERSE = Object.freeze({ key: "listing.event_outcome", operator: "eq" as const, value: "adverse" });
 const DEADLINE = Object.freeze({ key: "listing.compliance_deadline", operator: "within_days" as const, value: 30 });
 const PRICE = Object.freeze({ key: "market.price", operator: "lt" as const, value: 1 });
+const REVERSE_SPLIT = Object.freeze({
+  key: "corporate_action.event_kind",
+  operator: "eq" as const,
+  value: "reverse_split",
+});
+const SCHEDULED_STAGE = Object.freeze({
+  key: "corporate_action.action_stage",
+  operator: "eq" as const,
+  value: "scheduled",
+});
+const EFFECTIVE_STAGE = Object.freeze({
+  key: "corporate_action.action_stage",
+  operator: "eq" as const,
+  value: "effective",
+});
 
 test("Listing editor catalog is complete and derives all visible labels from Registry metadata", () => {
   const definitions = getReadyMonitorConditions().filter((definition) => definition.monitorDomains?.includes("listing"));
@@ -41,6 +57,14 @@ test("Listing editor catalog is complete and derives all visible labels from Reg
     assert.ok(item.operators.every((operator) => operator.label.trim()));
     assert.ok(item.values.every((value) => value.label.trim()));
   }
+  const stage = catalog.find((item) => item.key === "corporate_action.action_stage");
+  assert.deepEqual(stage?.values.map((item) => item.value), [
+    "announced",
+    "board_approved",
+    "shareholder_approved",
+    "scheduled",
+    "effective",
+  ]);
 });
 
 test("A draft exposes every mapped condition and adverse removal produces the exact final three", () => {
@@ -88,6 +112,46 @@ test("Price draft is supported, editable, removable, and positive-number gated",
   assert.equal(new Set<string>(gate.conditions.map((condition) => condition.key)).has("listing.event_outcome"), false);
 });
 
+test("Price, reverse-split, and lifecycle-stage conditions edit, delete, revalidate, and round-trip canonically", () => {
+  let review = createListingMonitorDraftReview(draft({
+    draftStatus: "READY_FOR_REVIEW",
+    compilerStatus: "VALID",
+    conditions: [PRICE, REVERSE_SPLIT],
+  }));
+  assert.deepEqual(review.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+    "Price — Below $1",
+    "Corporate action — Reverse stock split",
+  ]);
+  review = replaceListingMonitorDraftCondition(review, 0, { ...PRICE, value: 0.82 });
+  assert.deepEqual(getListingMonitorDraftCreateGate(review).conditions, [
+    { ...PRICE, value: 0.82 },
+    REVERSE_SPLIT,
+  ]);
+
+  const withoutPrice = removeListingMonitorDraftCondition(review, 0);
+  assert.deepEqual(getListingMonitorDraftCreateGate(withoutPrice), {
+    ready: true,
+    errors: [],
+    conditions: [REVERSE_SPLIT],
+  });
+  const withoutReverseSplit = removeListingMonitorDraftCondition(review, 1);
+  assert.deepEqual(getListingMonitorDraftCreateGate(withoutReverseSplit).conditions, [{ ...PRICE, value: 0.82 }]);
+
+  let lifecycle = createListingMonitorDraftReview(draft({
+    draftStatus: "READY_FOR_REVIEW",
+    compilerStatus: "VALID",
+    conditions: [REVERSE_SPLIT, SCHEDULED_STAGE],
+  }));
+  assert.deepEqual(lifecycle.conditions.map((condition) => formatListingMonitorConditionPreview(condition).text), [
+    "Corporate action — Reverse stock split",
+    "Corporate action stage — Scheduled",
+  ]);
+  lifecycle = replaceListingMonitorDraftCondition(lifecycle, 1, EFFECTIVE_STAGE);
+  assert.deepEqual(getListingMonitorDraftCreateGate(lifecycle).conditions, [REVERSE_SPLIT, EFFECTIVE_STAGE]);
+  lifecycle = removeListingMonitorDraftCondition(lifecycle, 1);
+  assert.deepEqual(getListingMonitorDraftCreateGate(lifecycle).conditions, [REVERSE_SPLIT]);
+});
+
 test("mapped edit uses Registry key/operator/value choices and delete of the final condition blocks create", () => {
   let review = createListingMonitorDraftReview(draft({
     draftStatus: "READY_FOR_REVIEW",
@@ -128,6 +192,7 @@ test("invalid edits, malformed drafts, empty ready drafts, and contradictions fa
     { key: "listing.not_registered", operator: "eq" as const, value: "anything" },
     { key: "listing.event_kind", operator: "within_days" as const, value: 30 },
     { key: "listing.event_kind", operator: "eq" as const, value: "not_a_kind" },
+    { key: "corporate_action.action_stage", operator: "eq" as const, value: "unknown" },
   ]) {
     const invalid = replaceListingMonitorDraftCondition(valid, 0, condition);
     assert.equal(getListingMonitorDraftCreateGate(invalid).ready, false);
@@ -168,6 +233,32 @@ test("ambiguous requirements remain visible and require explicit abandonment", (
   assert.equal(getListingMonitorDraftCreateGate(review).ready, true);
 });
 
+test("AI Draft proposals are Registry-derived and block Create until confirmed or omitted", () => {
+  const condition = { key: "corporate_action.action_stage", operator: "eq" as const, value: "announced" };
+  const catalog = getListingMonitorConfirmationCatalog(condition)!;
+  const review = createListingMonitorDraftReview(draft({
+    draftStatus: "NEEDS_CONFIRMATION",
+    compilerStatus: "VALID",
+    conditions: [PRICE, REVERSE_SPLIT],
+    proposed: [{
+      id: "p1",
+      condition,
+      preview: catalog.preview,
+      choices: catalog.choices,
+      state: "pending",
+    }],
+  }));
+  assert.deepEqual(review.proposals, [{
+    id: "p1",
+    preview: catalog.preview,
+    choices: catalog.choices,
+  }]);
+  assert.equal(review.proposals[0].preview.value, "Initial plan announced");
+  assert.deepEqual(review.proposals[0].choices.map((choice) => choice.label), ["Use this filter", "Any stage"]);
+  assert.equal(getListingMonitorDraftCreateGate(review).ready, false);
+  assert.ok(getListingMonitorDraftCreateGate(review).errors.includes("confirmations_unresolved"));
+});
+
 test("human presentation covers price operators and Listing values without raw literals", () => {
   const previews = [
     formatListingMonitorConditionPreview(PRICE).text,
@@ -179,6 +270,8 @@ test("human presentation covers price operators and Listing values without raw l
     formatListingMonitorConditionPreview({ key: "listing.continued_trading", operator: "eq", value: true }).text,
     formatListingMonitorConditionPreview({ key: "listing.hearing_date", operator: "eq", value: "2026-08-20" }).text,
     formatListingMonitorConditionPreview(DEADLINE).text,
+    formatListingMonitorConditionPreview(REVERSE_SPLIT).text,
+    formatListingMonitorConditionPreview(EFFECTIVE_STAGE).text,
   ];
   assert.deepEqual(previews, [
     "Price — Below $1",
@@ -190,8 +283,10 @@ test("human presentation covers price operators and Listing values without raw l
     "Continued trading — Yes",
     "Hearing date — On Aug 20, 2026",
     "Compliance deadline — Within 30 days",
+    "Corporate action — Reverse stock split",
+    "Corporate action stage — Effective",
   ]);
-  assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b/);
+  assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b|reverse_split|corporate_action/);
 });
 
 test("AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation", () => {
@@ -199,6 +294,7 @@ test("AI Monitor UI invokes Compiler only from submit and creates only from expl
   const parent = readProjectFile("components/alerts-v2/StockRadarAlertsV2.tsx");
   const monitorPage = readProjectFile("app/monitor/page.tsx");
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing\/compile"/g) ?? []).length, 1);
+  assert.equal((component.match(/fetch\("\/api\/monitors\/listing\/confirm"/g) ?? []).length, 1);
   assert.equal((component.match(/fetch\("\/api\/monitors\/listing", \{/g) ?? []).length, 2);
   assert.match(component, /onSubmit=\{compileDraft\}/);
   assert.match(component, /Create this monitor/);
@@ -223,12 +319,14 @@ function draft({
   conditions,
   unsupported = [],
   ambiguous = [],
+  proposed = [],
 }: {
-  draftStatus: "READY_FOR_REVIEW" | "NEEDS_ATTENTION";
+  draftStatus: "READY_FOR_REVIEW" | "NEEDS_CONFIRMATION" | "NEEDS_ATTENTION";
   compilerStatus: "VALID" | "UNSUPPORTED" | "AMBIGUOUS";
   conditions: readonly Record<string, unknown>[];
   unsupported?: readonly Record<string, unknown>[];
   ambiguous?: readonly Record<string, unknown>[];
+  proposed?: readonly Record<string, unknown>[];
 }) {
   return {
     version: "natural_language_monitor_draft_v1",
@@ -238,6 +336,8 @@ function draft({
     mapped: [],
     unsupported,
     ambiguous,
+    proposed,
+    unresolvedCount: proposed.filter((item) => item.state === "pending").length,
     message: "Review this draft.",
   };
 }

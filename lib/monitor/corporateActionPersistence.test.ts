@@ -95,6 +95,14 @@ test("official reader validates available and not-applicable without fallback", 
     facts,
   });
   assert.equal(available.status, "available");
+  const unknownStage = validateCurrentCorporateActionReadResult({
+    status: "available",
+    ...lineage,
+    fact_schema_version: facts.version,
+    facts: { ...facts, action_stage: "unknown" },
+  });
+  assert.equal(unknownStage.status, "available");
+  if (unknownStage.status === "available") assert.equal(unknownStage.facts.action_stage, "unknown");
   assert.equal(validateCurrentCorporateActionReadResult({ status: "not_applicable", ...lineage }).status, "not_applicable");
   assert.deepEqual(validateCurrentCorporateActionReadResult({
     status: "available",

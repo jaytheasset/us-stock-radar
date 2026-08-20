@@ -4,6 +4,11 @@ import {
   LISTING_PROCEEDING_KINDS,
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
+import {
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+  CORPORATE_ACTION_STAGE_VOCABULARY,
+  type CorporateActionCanonicalVocabularyEntry,
+} from "./corporateActionCanonicalFacts.ts";
 
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
@@ -65,6 +70,7 @@ export const MONITOR_COMPARISON_ELIGIBLE_QUALITIES = Object.freeze([
 
 type MonitorFactTable =
   | "events"
+  | "event_corporate_action_facts"
   | "event_market_snapshots"
   | "event_offering_monitor_canonical"
   | "event_offering_terms"
@@ -80,17 +86,27 @@ export type MonitorConditionDefinition = Readonly<{
   description?: string;
   enumValueDescriptions?: Readonly<Record<string, string>>;
   display?: MonitorConditionDisplayMetadata;
+  requiresExplicitConfirmationInAiDraft?: boolean;
+  aiDraftConfirmation?: Readonly<{
+    useLabel: string;
+    omitLabel: string;
+    enumValueLabels?: Readonly<Record<string, string>>;
+  }>;
   monitorDomains?: readonly "listing"[];
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "ownership";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
     column?: string;
     subject: "event" | "ticker";
-    reader?: "read_event_offering_monitor_canonical" | "read_current_event_listing_risk_facts" | "get_current_price";
+    reader?:
+      | "read_event_offering_monitor_canonical"
+      | "read_current_event_listing_risk_facts"
+      | "read_current_event_corporate_action_facts"
+      | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
@@ -121,6 +137,12 @@ const numericOperators = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 const temporalOperators = ["eq", "neq", "before", "after"] as const;
 const dateOperators = [...temporalOperators, "within_days"] as const;
 const enumOperators = ["eq", "in"] as const;
+const publicCorporateActionEventKinds = monitorableCorporateActionVocabulary(
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+);
+const publicCorporateActionStages = monitorableCorporateActionVocabulary(
+  CORPORATE_ACTION_STAGE_VOCABULARY,
+);
 
 const registry = [
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
@@ -168,6 +190,44 @@ const registry = [
     numberValidation: { exclusiveMinimum: 0 },
   }),
 
+  canonicalCorporateActionCondition(
+    "corporate_action.event_kind",
+    publicCorporateActionEventKinds.values,
+    ["event_kind"],
+    {
+      description: "The kind of corporate action established by the official canonical Corporate Action facts.",
+      enumValueDescriptions: publicCorporateActionEventKinds.descriptions,
+      display: {
+        label: "Corporate action",
+        enumValueLabels: publicCorporateActionEventKinds.labels,
+      },
+    },
+  ),
+  canonicalCorporateActionCondition(
+    "corporate_action.action_stage",
+    publicCorporateActionStages.values,
+    ["action_stage"],
+    {
+      description: "The explicit lifecycle-stage restriction required for a reverse stock split in the official canonical Corporate Action facts; general event requests do not imply a stage.",
+      enumValueDescriptions: publicCorporateActionStages.descriptions,
+      requiresExplicitConfirmationInAiDraft: true,
+      aiDraftConfirmation: {
+        useLabel: "Use this filter",
+        omitLabel: "Any stage",
+        enumValueLabels: {
+          announced: "Initial plan announced",
+          board_approved: "Board approved",
+          shareholder_approved: "Shareholders approved",
+          scheduled: "Scheduled",
+          effective: "Effective",
+        },
+      },
+      display: {
+        label: "Corporate action stage",
+        enumValueLabels: publicCorporateActionStages.labels,
+      },
+    },
+  ),
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
   canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "offering_price"]),
@@ -448,6 +508,79 @@ function currentMarketCondition(
       requiredDataModes: Object.freeze(["realtime"] as const),
       maximumAgeSeconds: 300,
     }),
+    status: "READY" as const,
+  });
+}
+
+type CorporateActionConditionMetadata<TEnumValues extends readonly string[]> = Readonly<{
+  description: string;
+  enumValueDescriptions: Readonly<Record<TEnumValues[number], string>>;
+  requiresExplicitConfirmationInAiDraft?: boolean;
+  aiDraftConfirmation?: Readonly<{
+    useLabel: string;
+    omitLabel: string;
+    enumValueLabels?: Readonly<Record<TEnumValues[number], string>>;
+  }>;
+  display: Readonly<{
+    label: string;
+    enumValueLabels: Readonly<Record<TEnumValues[number], string>>;
+  }>;
+}>;
+
+function monitorableCorporateActionVocabulary(
+  entries: readonly CorporateActionCanonicalVocabularyEntry[],
+) {
+  const monitorable = entries.filter((entry) => entry.monitorable);
+  return Object.freeze({
+    values: Object.freeze(monitorable.map((entry) => entry.value)),
+    descriptions: Object.freeze(Object.fromEntries(
+      monitorable.map((entry) => [entry.value, entry.description]),
+    )),
+    labels: Object.freeze(Object.fromEntries(
+      monitorable.map((entry) => [entry.value, entry.displayLabel]),
+    )),
+  });
+}
+
+function canonicalCorporateActionCondition<const TEnumValues extends readonly string[]>(
+  key: string,
+  enumValues: TEnumValues,
+  jsonPath: readonly string[],
+  metadata: CorporateActionConditionMetadata<TEnumValues>,
+): MonitorConditionDefinition {
+  return Object.freeze({
+    key,
+    valueType: "text" as const,
+    allowedOperators: Object.freeze([...enumOperators]),
+    enumValues: Object.freeze([...enumValues]),
+    description: metadata.description,
+    enumValueDescriptions: Object.freeze({ ...metadata.enumValueDescriptions }),
+    display: Object.freeze({
+      label: metadata.display.label,
+      enumValueLabels: Object.freeze({ ...metadata.display.enumValueLabels }),
+    }),
+    requiresExplicitConfirmationInAiDraft: metadata.requiresExplicitConfirmationInAiDraft,
+    aiDraftConfirmation: metadata.aiDraftConfirmation
+      ? Object.freeze({
+          useLabel: metadata.aiDraftConfirmation.useLabel,
+          omitLabel: metadata.aiDraftConfirmation.omitLabel,
+          enumValueLabels: metadata.aiDraftConfirmation.enumValueLabels
+            ? Object.freeze({ ...metadata.aiDraftConfirmation.enumValueLabels })
+            : undefined,
+        })
+      : undefined,
+    monitorDomains: Object.freeze(["listing"] as const),
+    family: "corporate_action" as const,
+    domain: "canonical",
+    source: Object.freeze({
+      table: "event_corporate_action_facts" as const,
+      column: "facts_payload",
+      subject: "event" as const,
+      reader: "read_current_event_corporate_action_facts" as const,
+      jsonPath: Object.freeze([...jsonPath]),
+    }),
+    qualityCapability: Object.freeze(["exact"] as const),
+    eligibility: Object.freeze({ requiredReaderStatus: "available" as const }),
     status: "READY" as const,
   });
 }

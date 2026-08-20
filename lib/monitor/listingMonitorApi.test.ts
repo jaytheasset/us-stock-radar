@@ -19,6 +19,14 @@ const CONDITIONS = Object.freeze([
   Object.freeze({ key: "listing.event_kind", operator: "eq", value: "deficiency_notice" }),
   Object.freeze({ key: "listing.event_outcome", operator: "eq", value: "adverse" }),
 ]);
+const REVERSE_SPLIT_CONDITIONS = Object.freeze([
+  Object.freeze({ key: "market.price", operator: "lt", value: 1 }),
+  Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
+]);
+const SCHEDULED_REVERSE_SPLIT_CONDITIONS = Object.freeze([
+  Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
+  Object.freeze({ key: "corporate_action.action_stage", operator: "eq", value: "scheduled" }),
+]);
 
 test("create and preview accept only Registry-valid canonical Listing conditions", () => {
   const parsed = parseListingMonitorCreateRequest({ conditions: CONDITIONS });
@@ -28,6 +36,13 @@ test("create and preview accept only Registry-valid canonical Listing conditions
 
   const preview = validateListingMonitorCandidate({ conditions: CONDITIONS });
   assert.deepEqual(preview, { valid: true, conditions: CONDITIONS, errors: [] });
+
+  const reverseSplit = parseListingMonitorCreateRequest({ conditions: REVERSE_SPLIT_CONDITIONS });
+  assert.equal(reverseSplit.ok, true);
+  if (reverseSplit.ok) assert.deepEqual(reverseSplit.value.conditions, REVERSE_SPLIT_CONDITIONS);
+  const scheduled = parseListingMonitorCreateRequest({ conditions: SCHEDULED_REVERSE_SPLIT_CONDITIONS });
+  assert.equal(scheduled.ok, true);
+  if (scheduled.ok) assert.deepEqual(scheduled.value.conditions, SCHEDULED_REVERSE_SPLIT_CONDITIONS);
 });
 
 test("invalid, unsupported, and malformed monitor requests fail closed", () => {
@@ -37,6 +52,8 @@ test("invalid, unsupported, and malformed monitor requests fail closed", () => {
     { conditions: [{ key: "listing.event_kind", operator: "eq", value: "not_a_kind" }] },
     { conditions: [{ key: "market.price", operator: "lt", value: 0 }] },
     { conditions: [{ key: "market.price", operator: "eq", value: 1 }] },
+    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }] },
+    { conditions: [{ key: "corporate_action.action_stage", operator: "eq", value: "unknown" }] },
     { conditions: [{ operator: "eq", value: "adverse" }] },
     { conditions: [] },
     { domain: "offering", conditions: CONDITIONS },
@@ -64,6 +81,8 @@ test("PATCH supports Registry-validated conditions and explicit pause/resume onl
   });
   const updated = parseListingMonitorUpdateRequest({ conditions: CONDITIONS, isActive: false });
   assert.equal(updated.ok, true);
+  const stageUpdated = parseListingMonitorUpdateRequest({ conditions: SCHEDULED_REVERSE_SPLIT_CONDITIONS });
+  assert.equal(stageUpdated.ok, true);
   assert.equal(parseListingMonitorUpdateRequest({}).ok, false);
   assert.equal(parseListingMonitorUpdateRequest({ isActive: "false" }).ok, false);
   assert.equal(parseListingMonitorUpdateRequest({ name: "unsupported" }).ok, false);

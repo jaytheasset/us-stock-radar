@@ -207,12 +207,56 @@
 }
 
 .previewList,
+.confirmations,
 .issues,
 .monitorRows,
 .generatedAlerts {
   display: grid;
   gap: var(--sr-space-3);
   min-width: 0;
+}
+
+.confirmations h3 {
+  margin: 0;
+  color: var(--sr-color-text-primary);
+}
+
+.confirmations fieldset {
+  display: grid;
+  gap: var(--sr-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-surface-control);
+}
+
+.confirmations legend {
+  padding: 0 var(--sr-space-1);
+  color: var(--sr-color-text-primary);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.confirmationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+}
+
+.confirmations button {
+  min-height: 42px;
+}
+
+.suggestedFilterPreview {
+  display: grid;
+  gap: var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+}
+
+.suggestedFilterPreview strong {
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-lg);
 }
 
 .conditionCard {
@@ -499,9 +543,15 @@
   }
 
   .issues article > button,
+  .confirmations button,
   .confirmBar > button,
   .promptActions button {
     width: 100%;
+  }
+
+  .confirmationActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .successMessage a,

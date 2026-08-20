@@ -3,6 +3,10 @@ import {
   type CurrentListingRiskReadResult,
 } from "./monitor/listingRiskPersistence.ts";
 import {
+  readCurrentCorporateActionFacts,
+  type CurrentCorporateActionReadResult,
+} from "./monitor/corporateActionPersistence.ts";
+import {
   getReadyMonitorCondition,
   monitorDateOnlyUtcDay,
   validateMonitorConditionInput,
@@ -71,13 +75,22 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
-  readFacts(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
+  readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   now?(): Date;
 }>;
 
+export type MonitorFactReaders = Readonly<{
+  listing: CurrentListingRiskReadResult;
+  corporateAction: CurrentCorporateActionReadResult;
+}>;
+
 const defaultDependencies: ListingMonitorMatcherDependencies = {
   readFacts: readCurrentListingRiskFacts,
+  readCorporateActionFacts: readCurrentCorporateActionFacts,
+  readEventTicker: readMonitorEventTicker,
   readCurrentPrice: async (symbol) => (
     await import("./market-data/currentPrice.ts")
   ).getCurrentPrice(symbol),
@@ -87,6 +100,22 @@ const defaultDependencies: ListingMonitorMatcherDependencies = {
 /** Pure, deterministic AND evaluation over one already-read official result. */
 export function evaluateListingMonitorConditions(
   current: CurrentListingRiskReadResult,
+  conditions: readonly ListingMonitorCondition[],
+  input: Readonly<{
+    evaluationDate: string;
+    evaluatedAt?: string;
+    currentPrice?: CurrentPrice;
+  }>,
+): ListingMonitorMatchResult {
+  return evaluateMonitorConditions({
+    listing: current,
+    corporateAction: { status: "not_ready", reason: "reader_not_requested" },
+  }, conditions, input);
+}
+
+/** Pure deterministic AND evaluation over already-read official domain facts. */
+export function evaluateMonitorConditions(
+  readers: MonitorFactReaders,
   conditions: readonly ListingMonitorCondition[],
   input: Readonly<{
     evaluationDate: string;
@@ -108,7 +137,7 @@ export function evaluateListingMonitorConditions(
   }
 
   const evaluated = conditions.map((condition) => evaluateCondition(
-    current,
+    readers,
     condition,
     evaluationDay,
     evaluatedAt,
@@ -134,20 +163,39 @@ export async function evaluateListingMonitorEvent(
   }>,
   dependencies: ListingMonitorMatcherDependencies = defaultDependencies,
 ): Promise<ListingMonitorEventMatchResult> {
-  let current: CurrentListingRiskReadResult;
-  try {
-    current = await dependencies.readFacts(input.eventId);
-  } catch {
-    current = { status: "not_ready", reason: "reader_unavailable" };
-  }
+  const conditions = input.conditionSets.flatMap((set) => set.conditions);
+  const listingRequested = conditions.some((condition) => conditionUsesReader(
+    condition,
+    "read_current_event_listing_risk_facts",
+  ));
+  const corporateActionRequested = conditions.some((condition) => conditionUsesReader(
+    condition,
+    "read_current_event_corporate_action_facts",
+  ));
+  const readers: MonitorFactReaders = {
+    listing: listingRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readFacts ?? defaultDependencies.readFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
+    corporateAction: corporateActionRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readCorporateActionFacts ?? defaultDependencies.readCorporateActionFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
+  };
   const evaluatedAt = input.evaluatedAt
     ?? (dependencies.now ?? defaultDependencies.now!)().toISOString();
-  const priceRequested = input.conditionSets.some((set) => (
-    set.conditions.some(isCurrentPriceCondition)
-  ));
+  const priceRequested = conditions.some(isCurrentPriceCondition);
   let currentPrice: CurrentPrice | undefined;
   if (priceRequested) {
-    const symbol = currentListingTicker(current);
+    const symbol = currentListingTicker(readers.listing)
+      || await safeReadEventTicker(
+        input.eventId,
+        dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
+      );
     if (!symbol) {
       currentPrice = unavailableCurrentPrice(symbol);
     } else {
@@ -165,7 +213,7 @@ export async function evaluateListingMonitorEvent(
     evaluationDate: input.evaluationDate,
     evaluations: input.conditionSets.map((set) => ({
       id: set.id,
-      result: evaluateListingMonitorConditions(current, set.conditions, {
+      result: evaluateMonitorConditions(readers, set.conditions, {
         evaluationDate: input.evaluationDate,
         evaluatedAt,
         ...(currentPrice ? { currentPrice } : {}),
@@ -175,7 +223,7 @@ export async function evaluateListingMonitorEvent(
 }
 
 function evaluateCondition(
-  current: CurrentListingRiskReadResult,
+  readers: MonitorFactReaders,
   input: ListingMonitorCondition,
   evaluationDay: number,
   evaluatedAt: number,
@@ -202,9 +250,15 @@ function evaluateCondition(
       evaluatedAt,
     );
   }
-  if (definition.family !== "listing" || !definition.source.jsonPath) {
+  if (
+    (definition.family !== "listing" && definition.family !== "corporate_action")
+    || !definition.source.jsonPath
+  ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
+  const current = definition.family === "corporate_action"
+    ? readers.corporateAction
+    : readers.listing;
   if (current.status === "not_ready") {
     const reasonCode = current.reason === "reader_unavailable"
       ? "reader_unavailable"
@@ -270,7 +324,7 @@ function evaluateCurrentPriceCondition(
 }
 
 function factEligibilityError(
-  facts: Extract<CurrentListingRiskReadResult, { status: "available" }>["facts"],
+  facts: unknown,
   definition: MonitorConditionDefinition,
 ): ListingMonitorMatchReasonCode | null {
   if (definition.eligibility?.requiredAvailability) {
@@ -345,12 +399,54 @@ function isCurrentPriceCondition(condition: ListingMonitorCondition) {
   return getReadyMonitorCondition(condition.key)?.source.reader === "get_current_price";
 }
 
+function conditionUsesReader(
+  condition: ListingMonitorCondition,
+  reader: NonNullable<MonitorConditionDefinition["source"]["reader"]>,
+) {
+  if (!recordValue(condition) || typeof condition.key !== "string") return false;
+  return getReadyMonitorCondition(condition.key)?.source.reader === reader;
+}
+
+async function safeReadFacts<T>(eventId: string, reader: (eventId: string) => Promise<T>): Promise<T> {
+  try {
+    return await reader(eventId);
+  } catch {
+    return { status: "not_ready", reason: "reader_unavailable" } as T;
+  }
+}
+
+async function safeReadEventTicker(eventId: string, reader: (eventId: string) => Promise<string>) {
+  try {
+    return normalizeTicker(await reader(eventId));
+  } catch {
+    return "";
+  }
+}
+
+export async function readMonitorEventTicker(eventId: string) {
+  const repository = await import("./supabase.ts");
+  const response = await repository.supabaseSelect("events", {
+    select: "ticker",
+    id: `eq.${eventId}`,
+    limit: "1",
+  });
+  if (!response.ok) throw new Error(`Monitor event ticker read failed: ${response.error || response.status}`);
+  const row = Array.isArray(response.data) && recordValue(response.data[0]) ? response.data[0] : null;
+  return normalizeTicker(row?.ticker);
+}
+
 export function currentListingTicker(current: CurrentListingRiskReadResult) {
   if (current.status !== "available") return "";
   const ticker = valueAtPath(current.facts, ["affected_security", "ticker", "value"]);
   const availability = valueAtPath(current.facts, ["affected_security", "ticker", "availability"]);
   return availability === "available" && typeof ticker === "string"
     ? ticker.trim().toUpperCase()
+    : "";
+}
+
+function normalizeTicker(value: unknown) {
+  return typeof value === "string" && /^[A-Z0-9][A-Z0-9.-]{0,14}$/i.test(value.trim())
+    ? value.trim().toUpperCase()
     : "";
 }
 

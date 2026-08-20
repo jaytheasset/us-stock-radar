@@ -8,11 +8,12 @@ const { Client } = pg;
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3110";
 const ATPC_EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const CONDITIONS = [
-  { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
-  { key: "listing.event_outcome", operator: "eq", value: "adverse" },
+  { key: "market.price", operator: "lt", value: 1 },
+  { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
 ];
 const UPDATED_CONDITIONS = [
-  { key: "listing.event_kind", operator: "eq", value: "compliance_recovery" },
+  { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+  { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
 ];
 const credentials = readLocalSupabaseCredentials();
 const database = new Client({ connectionString: localDatabaseUrl() });
@@ -89,6 +90,8 @@ try {
     { conditions: [{ key: "listing.unsupported", operator: "eq", value: "adverse" }] },
     { conditions: [{ key: "listing.event_kind", operator: "within_days", value: 1 }] },
     { conditions: [{ key: "listing.event_kind", operator: "eq", value: "unsupported_value" }] },
+    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }] },
+    { conditions: [{ key: "corporate_action.action_stage", operator: "eq", value: "unknown" }] },
     { conditions: [{ operator: "eq", value: "adverse" }] },
     { domain: "offering", conditions: CONDITIONS },
     { conditions: CONDITIONS, userId: userB.id },

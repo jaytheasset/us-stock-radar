@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   evaluateListingMonitorConditions,
   evaluateListingMonitorEvent,
+  evaluateMonitorConditions,
   type ListingMonitorCondition,
 } from "./listingMonitorMatcher.ts";
 import type { CurrentListingRiskReadResult } from "./monitor/listingRiskPersistence.ts";
+import type { CurrentCorporateActionReadResult } from "./monitor/corporateActionPersistence.ts";
 import type { CurrentPrice, CurrentPriceDataMode } from "./market-data/marketDataProvider.ts";
 import {
   LISTING_RISK_EVENT_FACTS_VERSION,
@@ -332,6 +334,129 @@ test("price and Listing conditions use AND with NO_MATCH precedence", () => {
   }).status, "ineligible");
 });
 
+test("official Corporate Action reader facts deterministically match AEMD and exclude EA/MEDS", () => {
+  const condition = [{
+    key: "corporate_action.event_kind",
+    operator: "eq",
+    value: "reverse_split",
+  }] satisfies ListingMonitorCondition[];
+  assert.deepEqual(statusAndReason(evaluateCorporate(availableCorporateAction(), condition)), [
+    "match",
+    "all_conditions_match",
+  ]);
+  for (const reason of ["ea_merger", "meds_spin_off"]) {
+    assert.deepEqual(statusAndReason(evaluateCorporate({
+      status: "not_applicable",
+      ...corporateActionLineage(),
+    }, condition)), ["ineligible", "reader_not_applicable"], reason);
+  }
+  assert.deepEqual(statusAndReason(evaluateCorporate({
+    status: "not_ready",
+    reason: "current_successful_result_missing",
+  }, condition)), ["ineligible", "reader_not_ready"]);
+});
+
+test("Corporate Action stage is an exact lifecycle restriction while event kind alone never narrows stage", () => {
+  const scheduled = availableCorporateAction("scheduled");
+  assert.equal(scheduled.facts.action_stage, "scheduled");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+  ]).status, "match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
+  ]).status, "match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  ]).status, "no_match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "announced" },
+  ], price(0.82, "realtime")).status, "no_match");
+  assert.equal(evaluateCorporate(availableCorporateAction("effective"), [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "effective" },
+  ]).status, "match");
+});
+
+test("price plus reverse split uses common AND semantics and fails closed for unusable prices", () => {
+  const conditions = [
+    { key: "market.price", operator: "lt", value: 1 },
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+  ] satisfies ListingMonitorCondition[];
+  const input = { evaluationDate: EVALUATION_DATE, evaluatedAt: "2026-08-14T12:00:00.000Z" };
+  assert.equal(evaluateCorporate(availableCorporateAction(), conditions, price(0.82, "realtime")).status, "match");
+  assert.equal(evaluateCorporate(availableCorporateAction(), conditions, price(1.20, "realtime")).status, "no_match");
+  assert.deepEqual(statusAndReason(evaluateCorporate(
+    availableCorporateAction(),
+    conditions,
+    price(0.82, "end-of-day"),
+  )), ["ineligible", "market_price_data_mode_ineligible"]);
+  assert.deepEqual(statusAndReason(evaluateCorporate(
+    availableCorporateAction(),
+    conditions,
+    price(0.82, "realtime", "2026-08-14T11:54:59.999Z"),
+  )), ["ineligible", "market_price_stale"]);
+  assert.deepEqual(statusAndReason(evaluateCorporate(
+    availableCorporateAction(),
+    conditions,
+    { asOf: null, availability: "unavailable", dataMode: null, price: null, symbol: "AEMD" },
+  )), ["ineligible", "market_price_unavailable"]);
+});
+
+test("event matcher reads the official Corporate Action fact and provider-neutral price once", async () => {
+  let listingReads = 0;
+  let corporateActionReads = 0;
+  let tickerReads = 0;
+  let priceReads = 0;
+  const result = await evaluateListingMonitorEvent({
+    eventId: EVENT_ID,
+    evaluationDate: EVALUATION_DATE,
+    evaluatedAt: "2026-08-14T12:00:00.000Z",
+    conditionSets: [
+      {
+        id: "aemd-under-one",
+        conditions: [
+          { key: "market.price", operator: "lt", value: 1 },
+          { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+        ],
+      },
+      {
+        id: "aemd-scheduled",
+        conditions: [
+          { key: "market.price", operator: "gte", value: 0.5 },
+          { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
+        ],
+      },
+    ],
+  }, {
+    readFacts: async () => {
+      listingReads += 1;
+      return availableCurrent();
+    },
+    readCorporateActionFacts: async () => {
+      corporateActionReads += 1;
+      return availableCorporateAction();
+    },
+    readEventTicker: async () => {
+      tickerReads += 1;
+      return "AEMD";
+    },
+    readCurrentPrice: async (symbol) => {
+      priceReads += 1;
+      assert.equal(symbol, "AEMD");
+      return { ...price(0.82), symbol };
+    },
+  });
+  assert.equal(listingReads, 0, "unrequested Listing facts are not read");
+  assert.equal(corporateActionReads, 1);
+  assert.equal(tickerReads, 1);
+  assert.equal(priceReads, 1);
+  assert.deepEqual(result.evaluations.map((item) => item.result.status), ["match", "match"]);
+});
+
 test("event matcher reads one provider-neutral price for every price condition", async () => {
   let factReads = 0;
   let priceReads = 0;
@@ -383,6 +508,21 @@ function evaluate(current: CurrentListingRiskReadResult, conditions: readonly Li
   return evaluateListingMonitorConditions(current, conditions, { evaluationDate: EVALUATION_DATE });
 }
 
+function evaluateCorporate(
+  current: CurrentCorporateActionReadResult,
+  conditions: readonly ListingMonitorCondition[],
+  currentPrice?: CurrentPrice,
+) {
+  return evaluateMonitorConditions({
+    listing: { status: "not_ready", reason: "reader_not_requested" },
+    corporateAction: current,
+  }, conditions, {
+    evaluationDate: EVALUATION_DATE,
+    evaluatedAt: "2026-08-14T12:00:00.000Z",
+    ...(currentPrice ? { currentPrice } : {}),
+  });
+}
+
 function setDeadline(current: Extract<CurrentListingRiskReadResult, { status: "available" }>, value: string) {
   current.facts.dates.compliance_deadline.value = value;
 }
@@ -403,6 +543,40 @@ function availableCurrent(): Extract<CurrentListingRiskReadResult, { status: "av
     persistedAt: "2026-08-14T00:00:00.000Z",
     factSchemaVersion: LISTING_RISK_EVENT_FACTS_VERSION,
     facts: listingFacts(),
+  };
+}
+
+function corporateActionLineage() {
+  return {
+    eventId: EVENT_ID,
+    rawItemId: "82000000-0000-4000-8000-000000000002",
+    parentPrimaryAiRunId: "82000000-0000-4000-8000-000000000003",
+    sourceExecutionId: "82000000-0000-4000-8000-000000000004",
+    monitorAnalyzerKey: "corporate_action" as const,
+    analyzerContractVersion: "corporate_action_reverse_split_analyzer_v1",
+    persistedAt: "2026-08-14T00:00:00.000Z",
+  };
+}
+
+function availableCorporateAction(
+  actionStage: "announced" | "board_approved" | "shareholder_approved" | "scheduled" | "effective" = "scheduled",
+): Extract<CurrentCorporateActionReadResult, { status: "available" }> {
+  return {
+    status: "available",
+    ...corporateActionLineage(),
+    factSchemaVersion: "corporate_action_reverse_split_facts_v1",
+    facts: {
+      version: "corporate_action_reverse_split_facts_v1",
+      event_kind: "reverse_split",
+      action_stage: actionStage,
+      effective_date: { availability: "available", value: "2026-08-18" },
+      ratio: { old_shares_per_new_share: { availability: "available", value: 20 } },
+      source_ref: "aemd_source",
+      evidence: { availability: "available", value: "AEMD announced a reverse stock split." },
+      confidence: "high",
+      as_of: { availability: "available", value: "2026-08-14" },
+      source: { source_family: "news", source_id: "AEMD", source_url: "https://example.com/aemd" },
+    },
   };
 }
 

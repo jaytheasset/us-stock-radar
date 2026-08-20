@@ -1,8 +1,10 @@
 import {
   currentListingTicker,
-  evaluateListingMonitorConditions,
+  evaluateMonitorConditions,
+  readMonitorEventTicker,
   type ListingMonitorMatchReasonCode,
   type ListingMonitorMatchStatus,
+  type MonitorFactReaders,
 } from "../listingMonitorMatcher.ts";
 import {
   unavailableCurrentPrice,
@@ -18,6 +20,10 @@ import {
   readCurrentListingRiskFacts,
   type CurrentListingRiskReadResult,
 } from "./listingRiskPersistence.ts";
+import {
+  readCurrentCorporateActionFacts,
+  type CurrentCorporateActionReadResult,
+} from "./corporateActionPersistence.ts";
 
 export const LISTING_MONITOR_ALERT_CONSUMER_VERSION = "listing_monitor_alert_consumer_v1" as const;
 
@@ -32,6 +38,8 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
   sourceExecutionId?: string;
   readerStatus: CurrentListingRiskReadResult["status"];
   readerReason?: string;
+  corporateActionReaderStatus: CurrentCorporateActionReadResult["status"];
+  corporateActionReaderReason?: string;
   evaluationDate: string;
   monitorCount: number;
   diagnostics: readonly ListingMonitorDiagnostic[];
@@ -47,7 +55,9 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
-  readFacts(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
+  readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
+  readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
   createAlert(input: Readonly<{
@@ -62,6 +72,8 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
 
 const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
   readFacts: readCurrentListingRiskFacts,
+  readCorporateActionFacts: readCurrentCorporateActionFacts,
+  readEventTicker: readMonitorEventTicker,
   readCurrentPrice: async (symbol) => (
     await import("../market-data/currentPrice.ts")
   ).getCurrentPrice(symbol),
@@ -80,14 +92,28 @@ export async function consumeListingMonitorAlertsForEvent(
   input: Readonly<{ eventId: string }>,
   dependencies: ListingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<ListingMonitorAlertConsumerResult> {
-  let current: CurrentListingRiskReadResult;
-  try {
-    current = await dependencies.readFacts(input.eventId);
-  } catch {
-    current = { status: "not_ready", reason: "reader_unavailable" };
-  }
-
   const listingMonitors = await dependencies.listActiveMonitors();
+  const allConditions = listingMonitors.monitors.flatMap((monitor) => monitor.conditions);
+  const listingRequested = allConditions.some((condition) => (
+    getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_listing_risk_facts"
+  ));
+  const corporateActionRequested = allConditions.some((condition) => (
+    getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_corporate_action_facts"
+  ));
+  const readers: MonitorFactReaders = {
+    listing: listingRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readFacts ?? defaultDependencies.readFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
+    corporateAction: corporateActionRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readCorporateActionFacts ?? defaultDependencies.readCorporateActionFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
+  };
   // Matcher V1 relative-date operators are intentionally evaluated against
   // the processing date. Replays on a later day may legitimately re-evaluate
   // moving windows; the database identity still prevents duplicate Alerts for
@@ -101,7 +127,11 @@ export async function consumeListingMonitorAlertsForEvent(
   ));
   let currentPrice: CurrentPrice | undefined;
   if (priceRequested) {
-    const symbol = currentListingTicker(current);
+    const symbol = currentListingTicker(readers.listing)
+      || await safeReadTicker(
+        input.eventId,
+        dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
+      );
     if (!symbol) {
       currentPrice = unavailableCurrentPrice(symbol);
     } else {
@@ -115,7 +145,7 @@ export async function consumeListingMonitorAlertsForEvent(
   }
   const evaluations = listingMonitors.monitors.map((monitor) => ({
     monitor,
-    result: evaluateListingMonitorConditions(current, monitor.conditions, {
+    result: evaluateMonitorConditions(readers, monitor.conditions, {
       evaluationDate,
       evaluatedAt: evaluationTime.toISOString(),
       ...(currentPrice ? { currentPrice } : {}),
@@ -123,24 +153,24 @@ export async function consumeListingMonitorAlertsForEvent(
   }));
   const writes: ListingMonitorAlertWriteResult[] = [];
 
-  if (current.status === "available") {
-    for (const evaluation of evaluations) {
-      if (evaluation.result.status !== "match") continue;
-      try {
-        writes.push(await dependencies.createAlert({
-          eventId: current.eventId,
-          sourceExecutionId: current.sourceExecutionId,
-          monitorId: evaluation.monitor.id,
-          userId: evaluation.monitor.userId,
-          createdAt: current.persistedAt,
-        }));
-      } catch (error) {
-        writes.push({
-          status: "failed",
-          monitorId: evaluation.monitor.id,
-          error: errorMessage(error),
-        });
-      }
+  for (const evaluation of evaluations) {
+    if (evaluation.result.status !== "match") continue;
+    const lineage = matchingLineage(readers, evaluation.monitor.conditions);
+    if (!lineage) continue;
+    try {
+      writes.push(await dependencies.createAlert({
+        eventId: lineage.eventId,
+        sourceExecutionId: lineage.sourceExecutionId,
+        monitorId: evaluation.monitor.id,
+        userId: evaluation.monitor.userId,
+        createdAt: lineage.persistedAt,
+      }));
+    } catch (error) {
+      writes.push({
+        status: "failed",
+        monitorId: evaluation.monitor.id,
+        error: errorMessage(error),
+      });
     }
   }
 
@@ -151,9 +181,13 @@ export async function consumeListingMonitorAlertsForEvent(
     version: LISTING_MONITOR_ALERT_CONSUMER_VERSION,
     status: failedCount > 0 ? "partial_failure" : "completed",
     eventId: input.eventId,
-    ...(current.status !== "not_ready" ? { sourceExecutionId: current.sourceExecutionId } : {}),
-    readerStatus: current.status,
-    ...(current.status === "not_ready" ? { readerReason: current.reason } : {}),
+    ...sourceExecutionSummary(readers, corporateActionRequested),
+    readerStatus: readers.listing.status,
+    ...(readers.listing.status === "not_ready" ? { readerReason: readers.listing.reason } : {}),
+    corporateActionReaderStatus: readers.corporateAction.status,
+    ...(readers.corporateAction.status === "not_ready"
+      ? { corporateActionReaderReason: readers.corporateAction.reason }
+      : {}),
     evaluationDate,
     monitorCount: listingMonitors.monitors.length,
     diagnostics: listingMonitors.diagnostics,
@@ -167,6 +201,51 @@ export async function consumeListingMonitorAlertsForEvent(
     existingCount,
     failedCount,
   };
+}
+
+async function safeReadFacts<T>(eventId: string, reader: (eventId: string) => Promise<T>): Promise<T> {
+  try {
+    return await reader(eventId);
+  } catch {
+    return { status: "not_ready", reason: "reader_unavailable" } as T;
+  }
+}
+
+async function safeReadTicker(eventId: string, reader: (eventId: string) => Promise<string>) {
+  try {
+    const ticker = await reader(eventId);
+    return typeof ticker === "string" && /^[A-Z0-9][A-Z0-9.-]{0,14}$/i.test(ticker.trim())
+      ? ticker.trim().toUpperCase()
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function matchingLineage(
+  readers: MonitorFactReaders,
+  conditions: readonly Readonly<{ key: string }>[],
+) {
+  const usesCorporateAction = conditions.some((condition) => (
+    getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_corporate_action_facts"
+  ));
+  if (usesCorporateAction && readers.corporateAction.status === "available") {
+    return readers.corporateAction;
+  }
+  if (readers.listing.status === "available") return readers.listing;
+  if (readers.corporateAction.status === "available") return readers.corporateAction;
+  return null;
+}
+
+function sourceExecutionSummary(readers: MonitorFactReaders, preferCorporateAction: boolean) {
+  const current = preferCorporateAction && readers.corporateAction.status !== "not_ready"
+    ? readers.corporateAction
+    : readers.listing.status !== "not_ready"
+      ? readers.listing
+      : readers.corporateAction.status !== "not_ready"
+        ? readers.corporateAction
+        : null;
+  return current ? { sourceExecutionId: current.sourceExecutionId } : {};
 }
 
 export async function createListingMonitorAlert(input: Readonly<{

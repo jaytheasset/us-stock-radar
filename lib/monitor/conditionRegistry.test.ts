@@ -10,11 +10,109 @@ import {
   validateMonitorConditionInput,
 } from "./conditionRegistry.ts";
 import {
+  CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
+  CORPORATE_ACTION_STAGE_VOCABULARY,
+  CORPORATE_ACTION_STAGES,
+} from "./corporateActionCanonicalFacts.ts";
+import {
   LISTING_EVENT_KINDS,
   LISTING_EVENT_OUTCOMES,
   LISTING_PROCEEDING_KINDS,
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
+
+test("Corporate Action Monitor V1 derives reverse split and monitorable stages from canonical vocabulary", () => {
+  const entries = getReadyMonitorConditions().filter((entry) => entry.family === "corporate_action");
+  assert.deepEqual(entries.map((entry) => entry.key), [
+    "corporate_action.event_kind",
+    "corporate_action.action_stage",
+  ]);
+  assert.deepEqual(entries.map((entry) => entry.allowedOperators), [["eq", "in"], ["eq", "in"]]);
+  assert.deepEqual(entries[0].enumValues, ["reverse_split"]);
+  assert.deepEqual(entries[1].enumValues, CORPORATE_ACTION_STAGE_VOCABULARY
+    .filter((entry) => entry.monitorable)
+    .map((entry) => entry.value));
+  assert.deepEqual(entries[1].enumValues, [
+    "announced",
+    "board_approved",
+    "shareholder_approved",
+    "scheduled",
+    "effective",
+  ]);
+  assert.equal(entries[0].display?.label, "Corporate action");
+  assert.equal(entries[0].display?.enumValueLabels?.reverse_split, "Reverse stock split");
+  assert.equal(entries[1].display?.label, "Corporate action stage");
+  assert.equal(entries[1].display?.enumValueLabels?.effective, "Effective");
+  assert.equal(entries[0].requiresExplicitConfirmationInAiDraft, undefined);
+  assert.equal(entries[1].requiresExplicitConfirmationInAiDraft, true);
+  assert.deepEqual(entries[1].aiDraftConfirmation, {
+    useLabel: "Use this filter",
+    omitLabel: "Any stage",
+    enumValueLabels: {
+      announced: "Initial plan announced",
+      board_approved: "Board approved",
+      shareholder_approved: "Shareholders approved",
+      scheduled: "Scheduled",
+      effective: "Effective",
+    },
+  });
+  assert.ok(getReadyMonitorConditions()
+    .filter((entry) => entry.key !== "corporate_action.action_stage")
+    .every((entry) => entry.requiresExplicitConfirmationInAiDraft !== true));
+  assert.match(entries[1].description ?? "", /lifecycle-stage restriction/i);
+  assert.deepEqual(entries[0].enumValues, CORPORATE_ACTION_EVENT_KIND_VOCABULARY
+    .filter((entry) => entry.monitorable)
+    .map((entry) => entry.value));
+  for (const entry of [...CORPORATE_ACTION_EVENT_KIND_VOCABULARY, ...CORPORATE_ACTION_STAGE_VOCABULARY]) {
+    const definition = entries.find((candidate) => candidate.enumValues?.includes(entry.value));
+    if (!entry.monitorable) {
+      assert.equal(Boolean(definition?.enumValues?.includes(entry.value)), false);
+      continue;
+    }
+    assert.equal(definition?.enumValueDescriptions?.[entry.value], entry.description);
+    assert.equal(definition?.display?.enumValueLabels?.[entry.value], entry.displayLabel);
+  }
+  assert.ok(entries.every((entry) => entry.source.table === "event_corporate_action_facts"));
+  assert.ok(entries.every((entry) => entry.source.reader === "read_current_event_corporate_action_facts"));
+  assert.ok(entries.every((entry) => entry.eligibility?.requiredReaderStatus === "available"));
+  assert.ok(entries.every((entry) => entry.monitorDomains?.includes("listing")));
+  const userLabels = entries.flatMap((entry) => [
+    entry.display?.label,
+    ...Object.values(entry.display?.enumValueLabels ?? {}),
+  ]).join("\n");
+  assert.doesNotMatch(userLabels, /reverse_split|board_approved|shareholder_approved/);
+});
+
+test("Corporate Action input validation accepts monitorable canonical values and rejects unknown stage", () => {
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.event_kind",
+    operator: "eq",
+    value: "reverse_split",
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.event_kind",
+    operator: "in",
+    value: ["reverse_split"],
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.action_stage",
+    operator: "eq",
+    value: "effective",
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.action_stage",
+    operator: "in",
+    value: ["scheduled", "effective"],
+  }), []);
+  assert.equal(CORPORATE_ACTION_STAGES.includes("unknown"), true);
+  for (const value of ["unknown", "approved", "completed"]) {
+    assert.deepEqual(validateMonitorConditionInput({
+      key: "corporate_action.action_stage",
+      operator: "eq",
+      value,
+    }), ["condition_value_invalid"]);
+  }
+});
 
 test("condition registry exposes only V1 READY canonical conditions", () => {
   assert.equal(MONITOR_CONDITION_REGISTRY_VERSION, "monitor_conditions_v1");
