@@ -7,6 +7,7 @@ const root = process.cwd();
 const read = (relativePath: string) => readFileSync(path.join(root, relativePath), "utf8");
 const builder = read("components/alerts-v2/ListingMonitorDraftBuilder.tsx");
 const builderStyles = read("components/alerts-v2/ListingMonitorDraftBuilder.module.css");
+const monitorPresets = read("lib/monitor/monitorPresets.ts");
 const alerts = read("components/alerts-v2/StockRadarAlertsV2.tsx");
 const monitorPage = read("app/monitor/page.tsx");
 const monitorStyles = read("app/monitor/page.module.css");
@@ -68,11 +69,43 @@ test("default condition review is concise and hides the Registry-wide assembler"
   assert.match(builder, /aria-label=\{`Edit \$\{preview\.label\}`\}/);
   assert.match(builder, /aria-label=\{`Remove \$\{preview\.label\}`\}/);
   assert.match(builder, /condition\.key === "market\.price" \? "Price is" : "Comparison"/);
-  assert.match(builder, /condition\.key !== "corporate_action\.event_kind"/);
+  assert.match(builder, /condition\.key === "corporate_action\.event_kind" \|\| condition\.key === "listing\.event_kind"/);
+  assert.match(builder, /condition\.key !== "listing\.compliance_deadline"/);
   assert.doesNotMatch(builder, />Watch for</);
   assert.doesNotMatch(builder, />Match</);
   assert.doesNotMatch(builder, /EDITOR_CATALOG\.map\(\(item\) => <option/);
   assert.doesNotMatch(builder, /changeListingMonitorDraftConditionKey/);
+});
+
+test("monitor information architecture separates curated recommendations and add-condition domains", () => {
+  for (const expected of [
+    "Recommended monitors",
+    "recommendations",
+    "+ Add condition",
+  ]) {
+    assert.match(builder, new RegExp(escapeRegExp(expected)));
+  }
+  for (const expected of [
+    "Common",
+    "Corporate Actions",
+    "Listing Risk",
+    "Price",
+    "Reverse stock split",
+    "Listing deficiency",
+    "Compliance deadline",
+    "Delisting determination",
+    "Trading suspension",
+  ]) {
+    assert.match(monitorPresets, new RegExp(escapeRegExp(expected)));
+  }
+  assert.match(builder, /MONITOR_ADD_CONDITION_GROUPS\.map/);
+  assert.match(builder, /addListingMonitorDraftCondition/);
+  assert.doesNotMatch(builder, /Popular monitors/);
+  assert.doesNotMatch(builder, /4 starting points/);
+  assert.doesNotMatch(builder, /Reverse split \+ listing risk/);
+  assert.match(builderStyles, /\.presetGrid[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(builderStyles, /\.addConditionPanel[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(builderStyles, /@media \(max-width: 600px\)[\s\S]*\.addConditionPanel[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
 });
 
 test("created summary uses the stored monitor returned by Create and clears the submitted draft", () => {

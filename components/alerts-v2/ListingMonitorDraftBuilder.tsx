@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, BellRing, CheckCircle2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  addListingMonitorDraftCondition,
   changeListingMonitorDraftConditionOperator,
   createListingMonitorDraftReview,
   formatListingMonitorConditionPreview,
@@ -20,6 +21,7 @@ import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
 import {
   createMonitorPresetDraft,
+  getMonitorAddConditionCatalog,
   getMonitorPresetCatalog,
   getMonitorPresetConditionSummary,
 } from "@/lib/monitor/monitorPresets";
@@ -28,6 +30,7 @@ import styles from "./ListingMonitorDraftBuilder.module.css";
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
 const MONITOR_PRESETS = readMonitorPresets();
+const MONITOR_ADD_CONDITION_GROUPS = readMonitorAddConditionGroups();
 
 type ApiPayload = Readonly<{
   ok?: boolean;
@@ -54,6 +57,7 @@ export function ListingMonitorDraftBuilder() {
   const [authRequired, setAuthRequired] = useState(false);
   const [message, setMessage] = useState("");
   const [createdMonitor, setCreatedMonitor] = useState<ListingMonitor | null>(null);
+  const [addConditionOpen, setAddConditionOpen] = useState(false);
   const createGate = useMemo(
     () => review ? getListingMonitorDraftCreateGate(review) : null,
     [review],
@@ -191,12 +195,33 @@ export function ListingMonitorDraftBuilder() {
       const nextReview = createListingMonitorDraftReview(nextDraft);
       setDraft(nextDraft);
       setReview(nextReview);
+      setAddConditionOpen(false);
       setMessage("Preset loaded. Review or adjust each condition before creating it.");
     } catch {
       setDraft(null);
       setReview(null);
-      setMessage("Popular monitors are temporarily unavailable. Build a monitor from your description instead.");
+      setMessage("Recommended monitors are temporarily unavailable. Build a monitor from your description instead.");
     }
+  }
+
+  function addCondition(optionId: string) {
+    if (!review || action !== "idle") return;
+    const option = MONITOR_ADD_CONDITION_GROUPS
+      .flatMap((group) => group.options)
+      .find((candidate) => candidate.id === optionId);
+    if (!option) {
+      setMessage("That condition is temporarily unavailable.");
+      return;
+    }
+    const nextReview = addListingMonitorDraftCondition(review, option.condition);
+    if (nextReview === review) {
+      setMessage("That condition is already included or conflicts with this monitor.");
+      return;
+    }
+    setReview(nextReview);
+    setCreatedMonitor(null);
+    setAddConditionOpen(false);
+    setMessage(`${option.title} added. Review the condition before creating this monitor.`);
   }
 
   return (
@@ -228,13 +253,13 @@ export function ListingMonitorDraftBuilder() {
         </div>
       </form>
 
-      <section className={styles.presets} aria-labelledby="popular-monitors-title">
+      <section className={styles.presets} aria-labelledby="recommended-monitors-title">
         <div className={styles.presetsHeading}>
           <div>
-            <h2 id="popular-monitors-title">Popular monitors</h2>
+            <h2 id="recommended-monitors-title">Recommended monitors</h2>
             <p>Start with a common setup, then edit any condition before creating it.</p>
           </div>
-          <span>4 starting points</span>
+          <span>{MONITOR_PRESETS.length} recommendations</span>
         </div>
         {MONITOR_PRESETS.length > 0 ? (
           <div className={styles.presetGrid}>
@@ -256,7 +281,7 @@ export function ListingMonitorDraftBuilder() {
           </div>
         ) : (
           <p className={styles.presetUnavailable} role="status">
-            Popular monitors are temporarily unavailable. Build a monitor from your description instead.
+            Recommended monitors are temporarily unavailable. Build a monitor from your description instead.
           </p>
         )}
       </section>
@@ -292,6 +317,37 @@ export function ListingMonitorDraftBuilder() {
                 }}
               />
             ))}
+          </div>
+
+          <div className={styles.addCondition}>
+            <button
+              aria-expanded={addConditionOpen}
+              className={styles.addConditionTrigger}
+              disabled={action !== "idle" || MONITOR_ADD_CONDITION_GROUPS.length === 0}
+              onClick={() => setAddConditionOpen((current) => !current)}
+              type="button"
+            >
+              + Add condition
+            </button>
+            {addConditionOpen ? (
+              <div aria-label="Add a condition" className={styles.addConditionPanel}>
+                {MONITOR_ADD_CONDITION_GROUPS.map((group) => (
+                  <section key={group.id}>
+                    <h3>{group.title}</h3>
+                    {group.options.map((option) => (
+                      <button
+                        disabled={addListingMonitorDraftCondition(review, option.condition) === review}
+                        key={option.id}
+                        onClick={() => addCondition(option.id)}
+                        type="button"
+                      >
+                        {option.title}
+                      </button>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {review.proposals.length > 0 ? (
@@ -534,7 +590,8 @@ function ConditionEditor({
   const [editing, setEditing] = useState(false);
   const editor = EDITOR_BY_KEY.get(condition.key) ?? EDITOR_CATALOG[0];
   const preview = formatListingMonitorConditionPreview(condition);
-  const editable = condition.key !== "corporate_action.event_kind" && (
+  const fixedEvent = condition.key === "corporate_action.event_kind" || condition.key === "listing.event_kind";
+  const editable = !fixedEvent && (
     editor.operators.length > 1
     || editor.values.length > 1
     || editor.values.length === 0
@@ -565,7 +622,7 @@ function ConditionEditor({
       </div>
       {editing ? (
         <div className={styles.editorFields}>
-          {editor.operators.length > 1 ? (
+          {editor.operators.length > 1 && condition.key !== "listing.compliance_deadline" ? (
             <label>
               <span>{condition.key === "market.price" ? "Price is" : "Comparison"}</span>
               <select
@@ -821,6 +878,14 @@ function record(value: unknown): value is Record<string, unknown> {
 function readMonitorPresets() {
   try {
     return getMonitorPresetCatalog();
+  } catch {
+    return [];
+  }
+}
+
+function readMonitorAddConditionGroups() {
+  try {
+    return getMonitorAddConditionCatalog();
   } catch {
     return [];
   }

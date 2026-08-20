@@ -154,9 +154,64 @@
 
 .presetGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sr-space-2);
   min-width: 0;
+}
+
+.addCondition {
+  display: grid;
+  gap: var(--sr-space-3);
+}
+
+.addConditionTrigger {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-strong);
+  border-radius: var(--sr-radius-md);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.addConditionPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-surface-subtle);
+}
+
+.addConditionPanel section {
+  display: grid;
+  align-content: start;
+  gap: var(--sr-space-2);
+  min-width: 0;
+}
+
+.addConditionPanel h3 {
+  margin: 0 0 var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+}
+
+.addConditionPanel button {
+  min-height: 40px;
+  padding: var(--sr-space-2) var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-md);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  text-align: left;
+}
+
+.addConditionPanel button:disabled {
+  color: var(--sr-color-text-muted);
+  background: transparent;
+  cursor: not-allowed;
 }
 
 .builder .presetCard {
@@ -716,6 +771,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .addConditionPanel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .conditionCard {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -751,6 +810,14 @@
   }
 
   .presetGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .addConditionTrigger {
+    justify-self: stretch;
+  }
+
+  .addConditionPanel {
     grid-template-columns: minmax(0, 1fr);
   }
 
