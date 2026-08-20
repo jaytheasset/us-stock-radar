@@ -63,6 +63,30 @@ test("review and unsupported states use human language without developer copy", 
   }
 });
 
+test("default condition review is concise and hides the Registry-wide assembler", () => {
+  assert.match(builder, /className=\{styles\.conditionSummary\}/);
+  assert.match(builder, /aria-label=\{`Edit \$\{preview\.label\}`\}/);
+  assert.match(builder, /aria-label=\{`Remove \$\{preview\.label\}`\}/);
+  assert.match(builder, /condition\.key === "market\.price" \? "Price is" : "Comparison"/);
+  assert.match(builder, /condition\.key !== "corporate_action\.event_kind"/);
+  assert.doesNotMatch(builder, />Watch for</);
+  assert.doesNotMatch(builder, />Match</);
+  assert.doesNotMatch(builder, /EDITOR_CATALOG\.map\(\(item\) => <option/);
+  assert.doesNotMatch(builder, /changeListingMonitorDraftConditionKey/);
+});
+
+test("created summary uses the stored monitor returned by Create and clears the submitted draft", () => {
+  assert.match(builder, /const monitor = readMonitor\(payload\?\.data\)/);
+  assert.match(builder, /setCreatedMonitor\(monitor\)/);
+  assert.match(builder, /setDraft\(null\)/);
+  assert.match(builder, /setReview\(null\)/);
+  assert.match(builder, /createdMonitor \? <CreatedMonitorSummary monitor=\{createdMonitor\}/);
+  assert.match(builder, /monitor\.conditions\.map/);
+  assert.match(builder, /monitor\.isActive \? "Active" : "Paused"/);
+  assert.match(builder, /This is what Stock Radar saved and is watching now\./);
+  assert.match(builder, /href="\/alerts">Manage monitors/);
+});
+
 test("Alerts entry links to the landing while preserving monitor management actions", () => {
   assert.match(alerts, /href="\/monitor">Open AI Monitor/);
   assert.match(alerts, /<ListingMonitorManagement \/>/);
