@@ -103,6 +103,117 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.presets {
+  display: grid;
+  gap: var(--sr-space-3);
+  min-width: 0;
+  padding-top: var(--sr-space-4);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.presetsHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
+.presetsHeading h2,
+.presetsHeading p {
+  margin: 0;
+}
+
+.presetsHeading h2 {
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-lg);
+}
+
+.presetsHeading p {
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+  line-height: var(--sr-line-height-body);
+}
+
+.presetsHeading > span {
+  flex: 0 0 auto;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  min-width: 0;
+}
+
+.builder .presetCard {
+  display: grid;
+  min-width: 0;
+  min-height: 176px;
+  align-content: start;
+  justify-items: start;
+  gap: var(--sr-space-2);
+  padding: var(--sr-space-3);
+  border-color: var(--sr-color-border);
+  background:
+    linear-gradient(145deg, var(--sr-color-accent-selected), transparent 62%),
+    var(--sr-color-surface-panel);
+  text-align: left;
+  white-space: normal;
+}
+
+.builder .presetCard:hover:not(:disabled) {
+  border-color: var(--sr-color-accent-border-active);
+  transform: translateY(-1px);
+}
+
+.presetCard > strong,
+.presetCard > span,
+.presetCard > small {
+  overflow-wrap: anywhere;
+}
+
+.presetCard > strong {
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-base);
+}
+
+.presetCard > span:not(.presetCategory) {
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-body);
+}
+
+.presetCard > small {
+  margin-top: auto;
+  padding-top: var(--sr-space-2);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-regular);
+  line-height: var(--sr-line-height-body);
+}
+
+.presetCategory {
+  color: var(--sr-color-accent-text-soft);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.presetUnavailable {
+  margin: 0;
+  padding: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  color: var(--sr-color-text-secondary);
+  background: var(--sr-color-surface-control);
+}
+
 .builder button,
 .management button {
   display: inline-flex;
@@ -496,6 +607,10 @@
 }
 
 @media (max-width: 900px) {
+  .presetGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .conditionCard {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -522,9 +637,18 @@
   .promptActions,
   .managementHeading,
   .monitorActions,
-  .successMessage {
+  .successMessage,
+  .presetsHeading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .presetGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .builder .presetCard {
+    min-height: 0;
   }
 
   .reviewHeading > span,

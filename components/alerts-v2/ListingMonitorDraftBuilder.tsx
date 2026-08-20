@@ -19,10 +19,16 @@ import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
 import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
+import {
+  createMonitorPresetDraft,
+  getMonitorPresetCatalog,
+  getMonitorPresetConditionSummary,
+} from "@/lib/monitor/monitorPresets";
 import styles from "./ListingMonitorDraftBuilder.module.css";
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
+const MONITOR_PRESETS = readMonitorPresets();
 
 type ApiPayload = Readonly<{
   ok?: boolean;
@@ -175,6 +181,23 @@ export function ListingMonitorDraftBuilder() {
     setCreated(false);
   }
 
+  function selectPreset(presetId: string) {
+    if (action !== "idle") return;
+    setMessage("");
+    setCreated(false);
+    try {
+      const nextDraft = createMonitorPresetDraft(presetId);
+      const nextReview = createListingMonitorDraftReview(nextDraft);
+      setDraft(nextDraft);
+      setReview(nextReview);
+      setMessage("Preset loaded. Review or adjust each condition before creating it.");
+    } catch {
+      setDraft(null);
+      setReview(null);
+      setMessage("Popular monitors are temporarily unavailable. Build a monitor from your description instead.");
+    }
+  }
+
   return (
     <section className={styles.builder} aria-label="AI Monitor builder">
       {authRequired ? (
@@ -203,6 +226,39 @@ export function ListingMonitorDraftBuilder() {
           </button>
         </div>
       </form>
+
+      <section className={styles.presets} aria-labelledby="popular-monitors-title">
+        <div className={styles.presetsHeading}>
+          <div>
+            <h2 id="popular-monitors-title">Popular monitors</h2>
+            <p>Start with a common setup, then edit any condition before creating it.</p>
+          </div>
+          <span>4 starting points</span>
+        </div>
+        {MONITOR_PRESETS.length > 0 ? (
+          <div className={styles.presetGrid}>
+            {MONITOR_PRESETS.map((preset) => (
+              <button
+                aria-label={`Use ${preset.title} preset`}
+                className={styles.presetCard}
+                disabled={action !== "idle"}
+                key={preset.id}
+                onClick={() => selectPreset(preset.id)}
+                type="button"
+              >
+                <span className={styles.presetCategory}>{preset.category}</span>
+                <strong>{preset.title}</strong>
+                <span>{preset.description}</span>
+                <small>{getMonitorPresetConditionSummary(preset)}</small>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.presetUnavailable} role="status">
+            Popular monitors are temporarily unavailable. Build a monitor from your description instead.
+          </p>
+        )}
+      </section>
 
       {message ? (
         <p className={created ? styles.successMessage : styles.message} aria-live="polite">
@@ -695,4 +751,12 @@ function apiError(response: Response, payload: ApiPayload | null, fallback: stri
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function readMonitorPresets() {
+  try {
+    return getMonitorPresetCatalog();
+  } catch {
+    return [];
+  }
 }
