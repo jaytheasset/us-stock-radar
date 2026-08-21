@@ -26,7 +26,7 @@ test("monitor landing keeps the prompt prominent and reuses the existing creatio
 
 test("AI Draft narrowing confirmation is human-readable and blocks Create until resolved", () => {
   for (const expected of [
-    "AI suggested an additional filter",
+    "Suggested filter",
     "Confirm this filter",
     "Confirm or remove every suggested filter before creating this monitor.",
   ]) {
@@ -114,10 +114,32 @@ test("created summary uses the stored monitor returned by Create and clears the 
   assert.match(builder, /setDraft\(null\)/);
   assert.match(builder, /setReview\(null\)/);
   assert.match(builder, /createdMonitor \? <CreatedMonitorSummary monitor=\{createdMonitor\}/);
-  assert.match(builder, /monitor\.conditions\.map/);
+  assert.match(builder, /<ConditionDomainCards conditions=\{monitor\.conditions\} \/>/);
   assert.match(builder, /monitor\.isActive \? "Active" : "Paused"/);
   assert.match(builder, /This is what Stock Radar saved and is watching now\./);
   assert.match(builder, /href="\/alerts">Manage monitors/);
+});
+
+test("monitor review groups only present domains and keeps the curated picker closed by default", () => {
+  const review = read("lib/monitor/listingMonitorDraftReview.ts");
+  assert.match(builder, /<ConditionDomainCards/);
+  assert.match(builder, /market: "Market"/);
+  assert.match(builder, /"corporate-actions": "Corporate Actions"/);
+  assert.match(builder, /"listing-risk": "Listing Risk"/);
+  assert.match(builder, /groups\.some\(\(group\) => group\.id === id\)/);
+  assert.match(builder, /id === "corporate-actions" && proposals\.length > 0/);
+  assert.match(builder, /<h4>Suggested filter<\/h4>/);
+  assert.doesNotMatch(builder, /AI suggested an additional filter/);
+  assert.match(builder, /useState\(false\)/);
+  assert.match(builder, /\{addConditionOpen \? \(/);
+  assert.match(builder, /data-added=\{optionState === "added"/);
+  assert.match(builder, /optionState === "added" \? <small>Added<\/small>/);
+  assert.match(builder, /getAddConditionOptionState/);
+  assert.doesNotMatch(builder, /Hearing date|Appeal deadline|Proceeding status/);
+  assert.match(review, /groupListingMonitorConditionsByDomain/);
+  assert.match(review, /condition\.key === "market\.price"/);
+  assert.match(review, /condition\.key\.startsWith\("corporate_action\."\)/);
+  assert.match(review, /condition\.key\.startsWith\("listing\."\)/);
 });
 
 test("Alerts entry links to the landing while preserving monitor management actions", () => {

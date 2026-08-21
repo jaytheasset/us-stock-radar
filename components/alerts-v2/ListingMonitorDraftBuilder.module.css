@@ -199,6 +199,10 @@
 }
 
 .addConditionPanel button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-2);
   min-height: 40px;
   padding: var(--sr-space-2) var(--sr-space-3);
   border: var(--sr-border-width) solid var(--sr-color-border);
@@ -206,6 +210,11 @@
   color: var(--sr-color-text-primary);
   background: var(--sr-color-surface);
   text-align: left;
+}
+
+.addConditionPanel button small {
+  color: var(--sr-color-text-meta);
+  font-weight: var(--sr-font-weight-semibold);
 }
 
 .addConditionPanel button:disabled {
@@ -434,6 +443,103 @@
 .suggestedFilterPreview strong {
   color: var(--sr-color-text-primary);
   font-size: var(--sr-font-size-lg);
+}
+
+.conditionDomainGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+}
+
+.conditionDomainCard {
+  min-width: 0;
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-surface-panel);
+}
+
+.conditionDomainCard > h3 {
+  margin: 0 0 var(--sr-space-3);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.domainConditions {
+  display: grid;
+}
+
+.domainConditions > * + * {
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.conditionDomainCard .conditionCard {
+  padding: var(--sr-space-3) 0;
+  border-bottom: 0;
+}
+
+.conditionDomainCard .conditionCard:first-child {
+  padding-top: 0;
+}
+
+.conditionDomainCard .conditionCard:last-child {
+  padding-bottom: 0;
+}
+
+.conditionReadOnlyRow {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-3) 0;
+}
+
+.conditionReadOnlyRow span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.conditionReadOnlyRow strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-primary);
+  text-align: right;
+}
+
+.domainConfirmation {
+  display: grid;
+  gap: var(--sr-space-2);
+  margin-top: var(--sr-space-3);
+  padding-top: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.domainConfirmation h4 {
+  margin: 0;
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.domainConfirmation fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.domainConfirmation legend {
+  margin-bottom: var(--sr-space-2);
+  padding: 0;
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
 }
 
 .conditionCard {
@@ -775,6 +881,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .conditionDomainGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .conditionCard {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -853,6 +963,16 @@
   .conditionActions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .conditionReadOnlyRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--sr-space-1);
+  }
+
+  .conditionReadOnlyRow strong {
+    text-align: left;
   }
 
   .confirmationActions {
