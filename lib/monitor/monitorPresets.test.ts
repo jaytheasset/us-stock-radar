@@ -7,6 +7,7 @@ import {
   type ListingMonitorRepository,
 } from "./listingMonitorPersistence.ts";
 import {
+  addListingMonitorDraftCondition,
   createListingMonitorDraftReview,
   formatListingMonitorConditionPreview,
   getListingMonitorDraftCreateGate,
@@ -15,8 +16,10 @@ import {
 } from "./listingMonitorDraftReview.ts";
 import {
   createMonitorPresetDraft,
+  getMonitorAddConditionCatalog,
   getMonitorPresetCatalog,
   getMonitorPresetConditionSummary,
+  validateMonitorAddConditionCatalog,
   validateMonitorPresetCatalog,
 } from "./monitorPresets.ts";
 
@@ -43,25 +46,23 @@ const EXPECTED = [
       { key: "listing.compliance_deadline", operator: "within_days", value: 30 },
     ],
   },
-  {
-    id: "reverse-split-listing-risk",
-    conditions: [
-      { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
-      { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
-    ],
-  },
 ] as const;
 
-test("Preset Monitor V1 exposes exactly four Registry-valid canonical presets", () => {
+test("Monitor recommendations expose exactly three Registry-valid domain presets", () => {
   const catalog = getMonitorPresetCatalog();
-  assert.equal(catalog.length, 4);
+  assert.equal(catalog.length, 3);
   assert.deepEqual(catalog.map(({ id, conditions }) => ({ id, conditions })), EXPECTED);
   assert.deepEqual(catalog.map((preset) => preset.title), [
     "Low-price reverse split",
     "Low-price listing risk",
     "Listing deadline risk",
-    "Reverse split + listing risk",
   ]);
+  assert.deepEqual(catalog.map(({ category, priority }) => ({ category, priority })), [
+    { category: "Corporate Actions", priority: 1 },
+    { category: "Listing Risk", priority: 2 },
+    { category: "Listing Risk", priority: 3 },
+  ]);
+  assert.equal(catalog.some((preset) => preset.id === "reverse-split-listing-risk"), false);
   assert.ok(catalog.every((preset) => preset.description.length > 0 && preset.category.length > 0));
   assert.ok(catalog.every((preset) => !preset.conditions.some((condition) => (
     condition.key === "corporate_action.action_stage"
@@ -74,7 +75,6 @@ test("each preset creates the exact direct Draft, Registry preview, and ready Re
     ["Price — Below $1", "Corporate action — Reverse stock split"],
     ["Price — Below $1", "Listing event — Listing deficiency notice"],
     ["Listing event — Listing deficiency notice", "Compliance deadline — Within 30 days"],
-    ["Corporate action — Reverse stock split", "Listing event — Listing deficiency notice"],
   ];
   catalog.forEach((preset, index) => {
     const draft = createMonitorPresetDraft(preset.id);
@@ -94,6 +94,53 @@ test("each preset creates the exact direct Draft, Registry preview, and ready Re
   });
 });
 
+test("Add condition catalog exposes only the curated Common and domain choices", () => {
+  const groups = getMonitorAddConditionCatalog();
+  assert.deepEqual(groups.map(({ title, options }) => ({ title, count: options.length })), [
+    { title: "Common", count: 1 },
+    { title: "Corporate Actions", count: 1 },
+    { title: "Listing Risk", count: 4 },
+  ]);
+  assert.deepEqual(groups.flatMap((group) => group.options.map(({ title, condition }) => ({ title, condition }))), [
+    { title: "Price", condition: { key: "market.price", operator: "lte", value: 1 } },
+    { title: "Reverse stock split", condition: { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" } },
+    { title: "Listing deficiency", condition: { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" } },
+    { title: "Compliance deadline", condition: { key: "listing.compliance_deadline", operator: "within_days", value: 30 } },
+    { title: "Delisting determination", condition: { key: "listing.event_kind", operator: "eq", value: "delisting_determination" } },
+    { title: "Trading suspension", condition: { key: "listing.event_kind", operator: "eq", value: "trading_suspension" } },
+  ]);
+  assert.throws(() => validateMonitorAddConditionCatalog([]), /add_condition_catalog_empty/);
+  assert.throws(() => validateMonitorAddConditionCatalog([{
+    id: "invalid",
+    category: "listing-risk",
+    title: "Invalid",
+    condition: { key: "listing.unknown", operator: "eq", value: "unknown" },
+  }]), /registry_invalid/);
+});
+
+test("Add condition rejects duplicate or conflicting canonical conditions", () => {
+  const review = createListingMonitorDraftReview(createMonitorPresetDraft("low-price-reverse-split"));
+  const duplicate = addListingMonitorDraftCondition(review, {
+    key: "market.price",
+    operator: "lte",
+    value: 1,
+  });
+  assert.equal(duplicate, review);
+  const added = addListingMonitorDraftCondition(review, {
+    key: "listing.event_kind",
+    operator: "eq",
+    value: "deficiency_notice",
+  });
+  assert.notEqual(added, review);
+  assert.equal(getListingMonitorDraftCreateGate(added).ready, true);
+  const conflict = addListingMonitorDraftCondition(added, {
+    key: "listing.event_kind",
+    operator: "eq",
+    value: "delisting_determination",
+  });
+  assert.equal(conflict, added);
+});
+
 test("preset selection and catalog loading fail closed for empty, unknown, or drifted data", () => {
   assert.throws(() => validateMonitorPresetCatalog([]), /catalog_empty/);
   assert.throws(() => createMonitorPresetDraft("missing-preset"), /preset_unknown/);
@@ -108,17 +155,17 @@ test("preset Review reuses price edits and deletion while final deletion blocks 
   let review = createListingMonitorDraftReview(createMonitorPresetDraft("low-price-listing-risk"));
   review = replaceListingMonitorDraftCondition(review, 0, {
     key: "market.price",
-    operator: "lt",
+    operator: "lte",
     value: 2,
   });
-  assert.equal(formatListingMonitorConditionPreview(review.conditions[0]).text, "Price — Below $2");
+  assert.equal(formatListingMonitorConditionPreview(review.conditions[0]).text, "Price — $2 or less");
   assert.deepEqual(getListingMonitorDraftCreateGate(review).conditions, [
-    { key: "market.price", operator: "lt", value: 2 },
+    { key: "market.price", operator: "lte", value: 2 },
     { key: "listing.event_kind", operator: "eq", value: "deficiency_notice" },
   ]);
   review = removeListingMonitorDraftCondition(review, 1);
   assert.deepEqual(getListingMonitorDraftCreateGate(review).conditions, [
-    { key: "market.price", operator: "lt", value: 2 },
+    { key: "market.price", operator: "lte", value: 2 },
   ]);
   review = removeListingMonitorDraftCondition(review, 0);
   const empty = getListingMonitorDraftCreateGate(review);
@@ -130,7 +177,7 @@ test("explicit Create API and persistence round-trip the exact edited preset con
   let review = createListingMonitorDraftReview(createMonitorPresetDraft("low-price-reverse-split"));
   review = replaceListingMonitorDraftCondition(review, 0, {
     key: "market.price",
-    operator: "lt",
+    operator: "lte",
     value: 2,
   });
   const gate = getListingMonitorDraftCreateGate(review);
@@ -140,7 +187,7 @@ test("explicit Create API and persistence round-trip the exact edited preset con
   const repository = createRoundTripRepository();
   const created = await createListingMonitor({ ownerId: OWNER_ID, conditions: parsed.value.conditions }, repository);
   assert.deepEqual(created.conditions, [
-    { key: "market.price", operator: "lt", value: 2 },
+    { key: "market.price", operator: "lte", value: 2 },
     { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
   ]);
   assert.deepEqual(repository.createdRows, [{
@@ -163,7 +210,7 @@ test("preset click path has zero Compiler or LLM calls and stays separate from n
   assert.doesNotMatch(presets, /fetch\(|compileNaturalLanguageListingConditions|runStructuredGeminiJson|Gemini|LLM/i);
   assert.equal((builder.match(/\/api\/monitors\/listing\/compile/g) ?? []).length, 1);
   assert.match(builder, /onSubmit=\{compileDraft\}/);
-  assert.ok(builder.indexOf("</form>") < builder.indexOf('<h2 id="popular-monitors-title">Popular monitors</h2>'));
+  assert.ok(builder.indexOf("</form>") < builder.indexOf('<h2 id="recommended-monitors-title">Recommended monitors</h2>'));
   assert.match(builder, /body: JSON\.stringify\(\{ conditions: createGate\.conditions \}\)/);
 });
 

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, BellRing, CheckCircle2, Pause, Play, Trash2 } from "lucide-react";
+import { AlertTriangle, BellRing, CheckCircle2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  changeListingMonitorDraftConditionKey,
+  addListingMonitorDraftCondition,
   changeListingMonitorDraftConditionOperator,
   createListingMonitorDraftReview,
   formatListingMonitorConditionPreview,
@@ -21,6 +21,7 @@ import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
 import {
   createMonitorPresetDraft,
+  getMonitorAddConditionCatalog,
   getMonitorPresetCatalog,
   getMonitorPresetConditionSummary,
 } from "@/lib/monitor/monitorPresets";
@@ -29,6 +30,7 @@ import styles from "./ListingMonitorDraftBuilder.module.css";
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
 const MONITOR_PRESETS = readMonitorPresets();
+const MONITOR_ADD_CONDITION_GROUPS = readMonitorAddConditionGroups();
 
 type ApiPayload = Readonly<{
   ok?: boolean;
@@ -54,7 +56,8 @@ export function ListingMonitorDraftBuilder() {
   const [authChecking, setAuthChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [message, setMessage] = useState("");
-  const [created, setCreated] = useState(false);
+  const [createdMonitor, setCreatedMonitor] = useState<ListingMonitor | null>(null);
+  const [addConditionOpen, setAddConditionOpen] = useState(false);
   const createGate = useMemo(
     () => review ? getListingMonitorDraftCreateGate(review) : null,
     [review],
@@ -81,7 +84,7 @@ export function ListingMonitorDraftBuilder() {
     if (action !== "idle") return;
     setAction("compiling");
     setMessage("");
-    setCreated(false);
+    setCreatedMonitor(null);
     try {
       const response = await fetch("/api/monitors/listing/compile", {
         method: "POST",
@@ -113,7 +116,7 @@ export function ListingMonitorDraftBuilder() {
     if (!draft || !review || action !== "idle") return;
     setAction("confirming");
     setMessage("");
-    setCreated(false);
+    setCreatedMonitor(null);
     try {
       const response = await fetch("/api/monitors/listing/confirm", {
         method: "POST",
@@ -149,7 +152,7 @@ export function ListingMonitorDraftBuilder() {
     if (!review || !createGate?.ready || action !== "idle") return;
     setAction("creating");
     setMessage("");
-    setCreated(false);
+    setCreatedMonitor(null);
     try {
       const response = await fetch("/api/monitors/listing", {
         method: "POST",
@@ -160,8 +163,10 @@ export function ListingMonitorDraftBuilder() {
       const monitor = readMonitor(payload?.data);
       if (!response.ok || !monitor) throw apiError(response, payload, "Could not create this monitor.");
       setAuthRequired(false);
-      setCreated(true);
-      setMessage("Monitor created. It is active now and ready in Alerts.");
+      setCreatedMonitor(monitor);
+      setDraft(null);
+      setReview(null);
+      setMessage("");
     } catch (error) {
       if (error instanceof MonitorApiError && error.status === 401) {
         setAuthRequired(true);
@@ -178,24 +183,45 @@ export function ListingMonitorDraftBuilder() {
     setReview((current) => current
       ? replaceListingMonitorDraftCondition(current, index, condition)
       : current);
-    setCreated(false);
+    setCreatedMonitor(null);
   }
 
   function selectPreset(presetId: string) {
     if (action !== "idle") return;
     setMessage("");
-    setCreated(false);
+    setCreatedMonitor(null);
     try {
       const nextDraft = createMonitorPresetDraft(presetId);
       const nextReview = createListingMonitorDraftReview(nextDraft);
       setDraft(nextDraft);
       setReview(nextReview);
+      setAddConditionOpen(false);
       setMessage("Preset loaded. Review or adjust each condition before creating it.");
     } catch {
       setDraft(null);
       setReview(null);
-      setMessage("Popular monitors are temporarily unavailable. Build a monitor from your description instead.");
+      setMessage("Recommended monitors are temporarily unavailable. Build a monitor from your description instead.");
     }
+  }
+
+  function addCondition(optionId: string) {
+    if (!review || action !== "idle") return;
+    const option = MONITOR_ADD_CONDITION_GROUPS
+      .flatMap((group) => group.options)
+      .find((candidate) => candidate.id === optionId);
+    if (!option) {
+      setMessage("That condition is temporarily unavailable.");
+      return;
+    }
+    const nextReview = addListingMonitorDraftCondition(review, option.condition);
+    if (nextReview === review) {
+      setMessage("That condition is already included or conflicts with this monitor.");
+      return;
+    }
+    setReview(nextReview);
+    setCreatedMonitor(null);
+    setAddConditionOpen(false);
+    setMessage(`${option.title} added. Review the condition before creating this monitor.`);
   }
 
   return (
@@ -227,13 +253,13 @@ export function ListingMonitorDraftBuilder() {
         </div>
       </form>
 
-      <section className={styles.presets} aria-labelledby="popular-monitors-title">
+      <section className={styles.presets} aria-labelledby="recommended-monitors-title">
         <div className={styles.presetsHeading}>
           <div>
-            <h2 id="popular-monitors-title">Popular monitors</h2>
+            <h2 id="recommended-monitors-title">Recommended monitors</h2>
             <p>Start with a common setup, then edit any condition before creating it.</p>
           </div>
-          <span>4 starting points</span>
+          <span>{MONITOR_PRESETS.length} recommendations</span>
         </div>
         {MONITOR_PRESETS.length > 0 ? (
           <div className={styles.presetGrid}>
@@ -255,18 +281,14 @@ export function ListingMonitorDraftBuilder() {
           </div>
         ) : (
           <p className={styles.presetUnavailable} role="status">
-            Popular monitors are temporarily unavailable. Build a monitor from your description instead.
+            Recommended monitors are temporarily unavailable. Build a monitor from your description instead.
           </p>
         )}
       </section>
 
-      {message ? (
-        <p className={created ? styles.successMessage : styles.message} aria-live="polite">
-          {created ? <CheckCircle2 aria-hidden="true" size={18} /> : null}
-          <span>{message}</span>
-          {created ? <Link href="/alerts">Manage monitors</Link> : null}
-        </p>
-      ) : null}
+      {message ? <p className={styles.message} aria-live="polite">{message}</p> : null}
+
+      {createdMonitor ? <CreatedMonitorSummary monitor={createdMonitor} /> : null}
 
       {review ? (
         <div className={styles.review}>
@@ -291,10 +313,41 @@ export function ListingMonitorDraftBuilder() {
                 onChange={(next) => updateCondition(index, next)}
                 onRemove={() => {
                   setReview((current) => current ? removeListingMonitorDraftCondition(current, index) : current);
-                  setCreated(false);
+                  setCreatedMonitor(null);
                 }}
               />
             ))}
+          </div>
+
+          <div className={styles.addCondition}>
+            <button
+              aria-expanded={addConditionOpen}
+              className={styles.addConditionTrigger}
+              disabled={action !== "idle" || MONITOR_ADD_CONDITION_GROUPS.length === 0}
+              onClick={() => setAddConditionOpen((current) => !current)}
+              type="button"
+            >
+              + Add condition
+            </button>
+            {addConditionOpen ? (
+              <div aria-label="Add a condition" className={styles.addConditionPanel}>
+                {MONITOR_ADD_CONDITION_GROUPS.map((group) => (
+                  <section key={group.id}>
+                    <h3>{group.title}</h3>
+                    {group.options.map((option) => (
+                      <button
+                        disabled={addListingMonitorDraftCondition(review, option.condition) === review}
+                        key={option.id}
+                        onClick={() => addCondition(option.id)}
+                        type="button"
+                      >
+                        {option.title}
+                      </button>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {review.proposals.length > 0 ? (
@@ -534,41 +587,64 @@ function ConditionEditor({
   onChange: (condition: CanonicalListingMonitorCondition) => void;
   onRemove: () => void;
 }>) {
+  const [editing, setEditing] = useState(false);
   const editor = EDITOR_BY_KEY.get(condition.key) ?? EDITOR_CATALOG[0];
   const preview = formatListingMonitorConditionPreview(condition);
+  const fixedEvent = condition.key === "corporate_action.event_kind" || condition.key === "listing.event_kind";
+  const editable = !fixedEvent && (
+    editor.operators.length > 1
+    || editor.values.length > 1
+    || editor.values.length === 0
+  );
 
   return (
     <article className={styles.conditionCard}>
-      <div className={styles.conditionPreview}>
-        <span>{preview.label}</span>
-        <strong>{preview.value}</strong>
+      <div className={styles.conditionSummary}>
+        <div className={styles.conditionPreview}>
+          <span>{preview.label}</span>
+          <strong>{preview.value}</strong>
+        </div>
+        <div className={styles.conditionActions}>
+          {editable ? (
+            <button
+              aria-expanded={editing}
+              aria-label={`Edit ${preview.label}`}
+              onClick={() => setEditing((current) => !current)}
+              type="button"
+            >
+              <Pencil aria-hidden="true" size={15} /> {editing ? "Cancel" : "Edit"}
+            </button>
+          ) : null}
+          <button aria-label={`Remove ${preview.label}`} className={styles.removeCondition} onClick={onRemove} type="button">
+            <Trash2 aria-hidden="true" size={16} /> Remove
+          </button>
+        </div>
       </div>
-      <div className={styles.editorFields}>
-        <label>
-          <span>Watch for</span>
-          <select
-            aria-label={`Condition ${index + 1} type`}
-            onChange={(event) => onChange(changeListingMonitorDraftConditionKey(condition, event.currentTarget.value))}
-            value={condition.key}
-          >
-            {EDITOR_CATALOG.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Match</span>
-          <select
-            aria-label={`Condition ${index + 1} match`}
-            onChange={(event) => onChange(changeListingMonitorDraftConditionOperator(condition, event.currentTarget.value as MonitorConditionOperator))}
-            value={condition.operator}
-          >
-            {editor.operators.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-        </label>
-        <ConditionValueEditor condition={condition} index={index} onChange={onChange} />
-        <button aria-label={`Remove ${preview.label}`} className={styles.removeCondition} onClick={onRemove} type="button">
-          <Trash2 aria-hidden="true" size={16} /> Remove
-        </button>
-      </div>
+      {editing ? (
+        <div className={styles.editorFields}>
+          {editor.operators.length > 1 && condition.key !== "listing.compliance_deadline" ? (
+            <label>
+              <span>{condition.key === "market.price" ? "Price is" : "Comparison"}</span>
+              <select
+                aria-label={`Edit ${preview.label} comparison`}
+                onChange={(event) => onChange(changeListingMonitorDraftConditionOperator(
+                  condition,
+                  event.currentTarget.value as MonitorConditionOperator,
+                ))}
+                value={condition.operator}
+              >
+                {editor.operators.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {getConditionOperatorLabel(condition.key, item.value, item.label)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <ConditionValueEditor condition={condition} index={index} onChange={onChange} />
+          <button className={styles.finishEdit} onClick={() => setEditing(false)} type="button">Done</button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -590,7 +666,7 @@ function ConditionValueEditor({
     const selected = new Set(Array.isArray(condition.value) ? condition.value.map(String) : []);
     return (
       <fieldset className={styles.valueOptions}>
-        <legend>Values</legend>
+        <legend>{editor.label}</legend>
         {editor.values.map((item) => (
           <label key={item.value}>
             <input
@@ -613,7 +689,7 @@ function ConditionValueEditor({
   if (editor.values.length > 0) {
     return (
       <label>
-        <span>Value</span>
+        <span>{editor.label}</span>
         <select
           aria-label={`Condition ${index + 1} value`}
           onChange={(event) => updateValue(editor.valueType === "boolean" ? event.currentTarget.value === "true" : event.currentTarget.value)}
@@ -645,7 +721,7 @@ function ConditionValueEditor({
   if (editor.valueType === "number") {
     return (
       <label>
-        <span>Value</span>
+        <span>{condition.key === "market.price" ? "Price amount" : editor.label}</span>
         <input
           aria-label={`Condition ${index + 1} value`}
           inputMode="decimal"
@@ -665,7 +741,7 @@ function ConditionValueEditor({
 
   return (
     <label>
-      <span>{isSetOperator ? "Values (comma separated)" : "Value"}</span>
+      <span>{isSetOperator ? `${editor.label} (comma separated)` : editor.label}</span>
       <input
         aria-label={`Condition ${index + 1} value`}
         onChange={(event) => updateValue(isSetOperator
@@ -678,6 +754,52 @@ function ConditionValueEditor({
       />
     </label>
   );
+}
+
+function CreatedMonitorSummary({ monitor }: Readonly<{ monitor: ListingMonitor }>) {
+  return (
+    <section className={styles.createdSummary} aria-labelledby="created-monitor-title" aria-live="polite">
+      <header>
+        <CheckCircle2 aria-hidden="true" size={22} />
+        <div>
+          <h2 id="created-monitor-title">Monitor created</h2>
+          <p>This is what Stock Radar saved and is watching now.</p>
+        </div>
+      </header>
+      <div className={styles.createdConditions} aria-label="Created monitor conditions">
+        {monitor.conditions.map((condition, index) => {
+          const preview = formatListingMonitorConditionPreview(condition);
+          return (
+            <div key={`${monitor.id}-${index}`}>
+              <span>{preview.label}</span>
+              <strong>{preview.value}</strong>
+            </div>
+          );
+        })}
+      </div>
+      <footer>
+        <div>
+          <span>Status</span>
+          <strong>{monitor.isActive ? "Active" : "Paused"}</strong>
+        </div>
+        <Link href="/alerts">Manage monitors</Link>
+      </footer>
+    </section>
+  );
+}
+
+function getConditionOperatorLabel(
+  key: string,
+  operator: MonitorConditionOperator,
+  fallback: string,
+) {
+  if (key !== "market.price") return fallback;
+  return ({
+    lt: "Less than",
+    lte: "Or less",
+    gt: "More than",
+    gte: "Or more",
+  } as Partial<Record<MonitorConditionOperator, string>>)[operator] ?? fallback;
 }
 
 function getCreateGuidance(
@@ -756,6 +878,14 @@ function record(value: unknown): value is Record<string, unknown> {
 function readMonitorPresets() {
   try {
     return getMonitorPresetCatalog();
+  } catch {
+    return [];
+  }
+}
+
+function readMonitorAddConditionGroups() {
+  try {
+    return getMonitorAddConditionCatalog();
   } catch {
     return [];
   }

@@ -31,6 +31,12 @@
   text-decoration: none;
 }
 
+.createdSummary a {
+  color: var(--sr-color-accent-text);
+  font-weight: var(--sr-font-weight-semibold);
+  text-decoration: none;
+}
+
 .promptForm {
   display: grid;
   min-width: 0;
@@ -80,6 +86,11 @@
 .management button:focus-visible,
 .authNotice a:focus-visible,
 .successMessage a:focus-visible {
+  outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
+  outline-offset: var(--sr-focus-ring-offset);
+}
+
+.createdSummary a:focus-visible {
   outline: var(--sr-focus-ring-width) solid var(--sr-focus-ring-color);
   outline-offset: var(--sr-focus-ring-offset);
 }
@@ -143,9 +154,64 @@
 
 .presetGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sr-space-2);
   min-width: 0;
+}
+
+.addCondition {
+  display: grid;
+  gap: var(--sr-space-3);
+}
+
+.addConditionTrigger {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border-strong);
+  border-radius: var(--sr-radius-md);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.addConditionPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-surface-subtle);
+}
+
+.addConditionPanel section {
+  display: grid;
+  align-content: start;
+  gap: var(--sr-space-2);
+  min-width: 0;
+}
+
+.addConditionPanel h3 {
+  margin: 0 0 var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-sm);
+}
+
+.addConditionPanel button {
+  min-height: 40px;
+  padding: var(--sr-space-2) var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-md);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface);
+  text-align: left;
+}
+
+.addConditionPanel button:disabled {
+  color: var(--sr-color-text-muted);
+  background: transparent;
+  cursor: not-allowed;
 }
 
 .builder .presetCard {
@@ -372,12 +438,29 @@
 
 .conditionCard {
   display: grid;
-  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.8fr);
-  align-items: center;
-  gap: var(--sr-space-4);
+  gap: var(--sr-space-3);
   min-width: 0;
   padding: var(--sr-space-3) 0;
   border-bottom: var(--sr-border-width) solid var(--sr-color-border);
+}
+
+.conditionSummary,
+.conditionActions,
+.createdSummary header,
+.createdSummary footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sr-space-3);
+}
+
+.conditionSummary {
+  justify-content: space-between;
+}
+
+.conditionActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
 }
 
 .conditionPreview {
@@ -401,10 +484,13 @@
 
 .editorFields {
   display: grid;
-  grid-template-columns: minmax(140px, 1.15fr) minmax(112px, 0.8fr) minmax(150px, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   align-items: end;
   gap: var(--sr-space-2);
   min-width: 0;
+  padding: var(--sr-space-3);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-control);
 }
 
 .editorFields > label,
@@ -449,6 +535,80 @@
 
 .removeCondition {
   white-space: nowrap;
+}
+
+.finishEdit {
+  white-space: nowrap;
+}
+
+.createdSummary {
+  display: grid;
+  gap: var(--sr-space-4);
+  min-width: 0;
+  padding: var(--sr-space-4);
+  border: var(--sr-border-width) solid var(--sr-color-positive);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-event-earnings-surface);
+}
+
+.createdSummary header {
+  align-items: flex-start;
+  color: var(--sr-color-positive);
+}
+
+.createdSummary h2,
+.createdSummary p {
+  margin: 0;
+}
+
+.createdSummary h2 {
+  color: var(--sr-color-text-primary);
+  font-size: var(--sr-font-size-heading-sm);
+}
+
+.createdSummary p {
+  margin-top: var(--sr-space-1);
+  color: var(--sr-color-text-secondary);
+}
+
+.createdConditions {
+  display: grid;
+  gap: var(--sr-space-2);
+}
+
+.createdConditions > div,
+.createdSummary footer > div {
+  display: grid;
+  gap: var(--sr-space-1);
+  min-width: 0;
+}
+
+.createdConditions > div {
+  padding: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-panel);
+}
+
+.createdConditions span,
+.createdSummary footer span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  letter-spacing: var(--sr-letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.createdConditions strong,
+.createdSummary footer strong {
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-primary);
+}
+
+.createdSummary footer {
+  justify-content: space-between;
+  padding-top: var(--sr-space-3);
+  border-top: var(--sr-border-width) solid var(--sr-color-border);
 }
 
 .issues article {
@@ -611,6 +771,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .addConditionPanel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .conditionCard {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -638,12 +802,22 @@
   .managementHeading,
   .monitorActions,
   .successMessage,
-  .presetsHeading {
+  .presetsHeading,
+  .conditionSummary,
+  .createdSummary footer {
     align-items: stretch;
     flex-direction: column;
   }
 
   .presetGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .addConditionTrigger {
+    justify-self: stretch;
+  }
+
+  .addConditionPanel {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -669,8 +843,16 @@
   .issues article > button,
   .confirmations button,
   .confirmBar > button,
-  .promptActions button {
+  .promptActions button,
+  .conditionActions,
+  .conditionActions button,
+  .finishEdit {
     width: 100%;
+  }
+
+  .conditionActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .confirmationActions {

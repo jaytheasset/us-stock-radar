@@ -145,6 +145,16 @@ export function removeListingMonitorDraftCondition(
   });
 }
 
+export function addListingMonitorDraftCondition(
+  review: ListingMonitorDraftReview,
+  condition: CanonicalListingMonitorCondition,
+): ListingMonitorDraftReview {
+  if (review.conditions.some((current) => current.key === condition.key)) return review;
+  const validation = validateListingConditionSet([...review.conditions, cloneCondition(condition)], true);
+  if (!validation.valid) return review;
+  return Object.freeze({ ...review, conditions: validation.conditions });
+}
+
 export function setListingMonitorDraftIssueAbandoned(
   review: ListingMonitorDraftReview,
   issueId: string,
