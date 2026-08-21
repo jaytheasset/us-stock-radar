@@ -103,6 +103,8 @@ export type SecAuthoritativeOsEligibleDecision = SecAuthoritativeOsDecisionBase 
     acceptedAt: string;
     taxonomy: "dei";
     concept: "EntityCommonStockSharesOutstanding";
+    conceptNamespaceUri: string;
+    conceptLocalName: "EntityCommonStockSharesOutstanding";
     factKey: string;
     contextRef: string;
     context: SecFilingXbrlFact["context"];
@@ -266,6 +268,8 @@ function eligible(
       acceptedAt: candidate.acceptedAt,
       taxonomy: "dei",
       concept: "EntityCommonStockSharesOutstanding",
+      conceptNamespaceUri: fact.concept.namespaceUri!,
+      conceptLocalName: "EntityCommonStockSharesOutstanding",
       factKey: fact.factKey,
       contextRef: fact.contextRef,
       context: fact.context,
