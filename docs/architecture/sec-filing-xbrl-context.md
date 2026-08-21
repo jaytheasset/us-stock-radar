@@ -65,7 +65,13 @@ It does not:
 - promote authoritative O/S;
 - create Share Count History.
 
-Alphabet demonstrates why this boundary matters: the same filing/as-of/concept includes an aggregate fact plus Class A, B, and C contexts carrying `us-gaap:StatementClassOfStockAxis` members. The foundation returns all four. A later semantic resolver must decide how, or whether, they can be used.
+Alphabet demonstrates why this boundary matters: the same filing/as-of/concept includes an aggregate fact plus Class A, B, and C contexts carrying `us-gaap:StatementClassOfStockAxis` members. The foundation returns all four. The downstream boundary is now implemented by `resolveAuthoritativeOsFromFiling()` and documented in [`../SEC_AUTHORITATIVE_OS_EXTRACTION_V1.md`](../SEC_AUTHORITATIVE_OS_EXTRACTION_V1.md).
+
+The foundation also resolves every numeric fact's `unitRef` through the shared
+IXDS unit map. Simple measures and divided units are preserved with namespace-
+qualified measures; missing or conflicting unit IDs fail closed. The resolver
+requires the resolved simple measure to be `xbrli:shares` and does not trust the
+unit ID spelling.
 
 ## Official acceptance sources
 

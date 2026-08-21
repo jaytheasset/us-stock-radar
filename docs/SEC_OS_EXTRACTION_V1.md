@@ -8,6 +8,13 @@ History, adjust reverse splits, calculate dilution, or expose an API/UI.
 
 Final verdict: **HOLD — SEC O/S REQUIRES FILING CONTEXT FOUNDATION**.
 
+The required filing-context foundation and its next deterministic resolver now
+exist on the Authoritative O/S V1 candidate branch. This document remains the
+CompanyFacts-only contract; see
+[`SEC_AUTHORITATIVE_OS_EXTRACTION_V1.md`](SEC_AUTHORITATIVE_OS_EXTRACTION_V1.md)
+for the separate filing-authority decision boundary. CompanyFacts-only output
+continues to have no eligible status.
+
 ## Audited source shape and merge-gate conclusion
 
 The official [EDGAR data API documentation](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)

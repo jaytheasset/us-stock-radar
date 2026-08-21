@@ -51,12 +51,16 @@ function explicit(axis: string, member: string) {
 }
 
 function inlineDocument(resources: string, facts: string) {
-  return `<?xml version="1.0" encoding="UTF-8"?><html ${NS}><body><div><ix:header><ix:resources>${resources}</ix:resources></ix:header></div>${facts}</body></html>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><html ${NS}><body><div><ix:header><ix:resources>${shareUnits()}${resources}</ix:resources></ix:header></div>${facts}</body></html>`;
 }
 
 function inlineDocumentWithPrefix(prefix: string, resources: string, facts: string) {
   const namespaces = NS.replace('xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"', `xmlns:${prefix}="http://www.xbrl.org/2013/inlineXBRL"`);
-  return `<?xml version="1.0" encoding="UTF-8"?><html ${namespaces}><body><${prefix}:header><${prefix}:resources>${resources}</${prefix}:resources></${prefix}:header>${facts}</body></html>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><html ${namespaces}><body><${prefix}:header><${prefix}:resources>${shareUnits()}${resources}</${prefix}:resources></${prefix}:header>${facts}</body></html>`;
+}
+
+function shareUnits() {
+  return '<xbrli:unit id="shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit><xbrli:unit id="U_shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit>';
 }
 
 function filingIndexBody(documents: Array<{
@@ -99,7 +103,7 @@ function acceptanceBody(ticker: string) {
     );
   }
   if (ticker === "NEOM") {
-    return `<?xml version="1.0"?><xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2012"><xbrli:context id="PAsOn08_02_2013"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001022701</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2013-08-02</xbrli:instant></xbrli:period></xbrli:context><dei:EntityCommonStockSharesOutstanding contextRef="PAsOn08_02_2013" unitRef="shares" decimals="INF">4984827279</dei:EntityCommonStockSharesOutstanding></xbrli:xbrl>`;
+    return `<?xml version="1.0"?><xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2012">${shareUnits()}<xbrli:context id="PAsOn08_02_2013"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001022701</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2013-08-02</xbrli:instant></xbrli:period></xbrli:context><dei:EntityCommonStockSharesOutstanding contextRef="PAsOn08_02_2013" unitRef="shares" decimals="INF">4984827279</dei:EntityCommonStockSharesOutstanding></xbrli:xbrl>`;
   }
   throw new Error(`unknown acceptance sample ${ticker}`);
 }
@@ -351,6 +355,18 @@ test("shared IXDS context map rejects conflicting context IDs across documents",
   const parsed = parseSecFilingXbrlArtifacts([second, first]);
   assert.equal(parsed.status, "UNAVAILABLE");
   if (parsed.status === "UNAVAILABLE") assert.equal(parsed.reason, "CONFLICTING_CONTEXT_IDS");
+
+  const conflictingUnit = createSecFilingXbrlFixtureArtifact({
+    issuerCik: "0000320193",
+    accession: "0000320193-26-000020",
+    documentName: "aapl-unit.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-unit.htm",
+    role: "inline_xbrl",
+    rawContent: inlineDocument('<xbrli:unit id="shares"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>', ""),
+  });
+  const unitParsed = parseSecFilingXbrlArtifacts([first, conflictingUnit]);
+  assert.equal(unitParsed.status, "UNAVAILABLE");
+  if (unitParsed.status === "UNAVAILABLE") assert.equal(unitParsed.reason, "CONFLICTING_UNIT_IDS");
 });
 
 test("parser preserves instant/duration, explicit and typed dimensions without semantic inference", () => {
@@ -391,6 +407,11 @@ test("parser preserves instant/duration, explicit and typed dimensions without s
     assert.equal(typed.valueQName.qname, "custom:TypedValue");
     assert.equal(typed.valueText, "Class A exact");
     assert.equal(typed.canonicalXml, '<custom:TypedValue code="A">Class A exact</custom:TypedValue>');
+  }
+  assert.equal(parsed.units.find((item) => item.id === "shares")?.kind, "measure");
+  assert.equal(parsed.facts[0]?.unit?.kind, "measure");
+  if (parsed.facts[0]?.unit?.kind === "measure") {
+    assert.equal(parsed.facts[0].unit.measure.qname, "xbrli:shares");
   }
 });
 
