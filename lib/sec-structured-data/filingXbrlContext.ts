@@ -14,11 +14,15 @@ const INLINE_XBRL_NAMESPACES = new Set([
   "http://www.xbrl.org/2013/inlineXBRL",
   "http://www.xbrl.org/2008/inlineXBRL",
 ]);
+const DEI_NAMESPACE_PATTERN = /^https?:\/\/xbrl\.sec\.gov\/dei\/\d{4}$/i;
+const US_GAAP_NAMESPACE_PATTERN = /^https?:\/\/fasb\.org\/us-gaap\/\d{4}$/i;
 
 export const SEC_FILING_XBRL_UNAVAILABLE_REASONS = [
   "ACCESSION_MISMATCH",
   "AMBIGUOUS_CONTEXT_REF",
+  "BROKEN_UNIT_REF",
   "BROKEN_CONTEXT_REF",
+  "CONFLICTING_UNIT_IDS",
   "CONFLICTING_CONTEXT_IDS",
   "FILING_ARTIFACT_MISSING",
   "FILING_IDENTITY_INVALID",
@@ -128,6 +132,19 @@ export type SecXbrlTypedDimension = {
 
 export type SecXbrlDimension = SecXbrlExplicitDimension | SecXbrlTypedDimension;
 
+export type SecXbrlUnit =
+  | {
+      id: string;
+      kind: "measure";
+      measure: SecXbrlQName;
+    }
+  | {
+      id: string;
+      kind: "divide";
+      numerator: SecXbrlQName;
+      denominator: SecXbrlQName;
+    };
+
 export type SecXbrlPeriod =
   | { kind: "instant"; instant: string }
   | { kind: "duration"; startDate: string; endDate: string };
@@ -147,6 +164,7 @@ export type SecFilingXbrlFact = {
   valueTree: unknown;
   contextRef: string;
   unitRef: string | null;
+  unit: SecXbrlUnit | null;
   decimals: string | null;
   precision: string | null;
   scale: string | null;
@@ -155,11 +173,14 @@ export type SecFilingXbrlFact = {
   isNil: boolean;
   context: SecXbrlContext;
   source: {
+    artifactId: string;
     issuerCik: string;
     accession: string;
     documentName: string;
     sourceUrl: string;
     contentHash: string;
+    fetchedAt: string;
+    rawContentKind: SecFilingXbrlRawArtifact["rawContentKind"];
   };
 };
 
@@ -168,6 +189,7 @@ export type SecFilingXbrlDocument = {
   documentKind: "inline_xbrl" | "instance_xml";
   namespaces: Record<string, string>;
   contexts: SecXbrlContext[];
+  units: SecXbrlUnit[];
   facts: SecFilingXbrlFact[];
   rejections: SecFilingXbrlFactRejection[];
   source: SecFilingXbrlFact["source"];
@@ -177,6 +199,7 @@ export type SecFilingXbrlDocumentSet = {
   status: "AVAILABLE";
   documentKind: "inline_xbrl_ixds" | "instance_xml";
   contexts: SecXbrlContext[];
+  units: SecXbrlUnit[];
   facts: SecFilingXbrlFact[];
   rejections: SecFilingXbrlFactRejection[];
   sources: SecFilingXbrlFact["source"][];
@@ -194,9 +217,14 @@ export type SecFilingXbrlDocumentSetResult =
 export type SecFilingXbrlFactRejection = {
   reason: SecFilingXbrlUnavailableReason;
   detail: string;
+  concept: SecXbrlQName | null;
   conceptQName: string | null;
   contextRef: string | null;
 };
+
+export type SecFilingXbrlCacheCompletenessResult =
+  | { status: "AVAILABLE"; discovery: SecFilingXbrlDiscovery; filingArtifacts: SecFilingXbrlRawArtifact[] }
+  | { status: "UNAVAILABLE"; reason: SecFilingXbrlUnavailableReason; detail: string };
 
 export type SecFilingXbrlParseResult =
   | SecFilingXbrlDocument
@@ -212,6 +240,8 @@ export type SecOsCandidateFilingContextResult =
       status: "AVAILABLE";
       candidate: SecOsFilingContextCandidate;
       matches: SecFilingXbrlFact[];
+      relevantRejections: SecFilingXbrlFactRejection[];
+      sources: SecFilingXbrlFact["source"][];
     }
   | {
       status: "UNAVAILABLE";
@@ -531,7 +561,7 @@ export class SecFilingXbrlContextService {
 
   async ingestFiling(filing: SecFilingRow): Promise<SecFilingXbrlIngestResult> {
     const cached = await this.repository.readArtifacts(filing.issuerCik, filing.accessionNumber);
-    if (cachedFilingIsComplete(filing, cached)) {
+    if (validateCachedFilingXbrlCompleteness(filing, cached).status === "AVAILABLE") {
       return { status: "AVAILABLE", source: "cache", artifacts: cached, inserted: 0, deduped: cached.length };
     }
     const fetched = await this.sourceClient.fetchFilingArtifacts(filing);
@@ -549,29 +579,68 @@ export class SecFilingXbrlContextService {
     return { status: "AVAILABLE", source: "sec", artifacts: fetched.artifacts, ...write };
   }
 
-  readOsCandidate(candidate: SecOsFilingContextCandidate) {
-    return readOsCandidateFilingContexts({ candidate, repository: this.repository });
+  readOsCandidate(candidate: SecOsFilingContextCandidate, filing: SecFilingRow) {
+    return readOsCandidateFilingContexts({ candidate, filing, repository: this.repository });
   }
 }
 
-function cachedFilingIsComplete(
+export function validateCachedFilingXbrlCompleteness(
   filing: SecFilingRow,
   artifacts: readonly SecFilingXbrlRawArtifact[],
-) {
+): SecFilingXbrlCacheCompletenessResult {
+  const identity = validateFilingIdentity(filing);
+  if (!identity.ok) return { status: "UNAVAILABLE", reason: "FILING_IDENTITY_INVALID", detail: identity.detail };
+  if (artifacts.some((artifact) => artifact.issuerCik !== filing.issuerCik || artifact.accession !== filing.accessionNumber)) {
+    return { status: "UNAVAILABLE", reason: "ACCESSION_MISMATCH", detail: "cached artifact lineage does not match filing ledger" };
+  }
   const archiveIndex = artifacts.filter((artifact) => artifact.role === "archive_index");
   const filingIndex = artifacts.filter((artifact) => artifact.role === "filing_index");
-  if (archiveIndex.length !== 1 || filingIndex.length !== 1) return false;
-  const discovery = discoverSecFilingXbrlDocuments(filing, archiveIndex[0]!.rawContent, filingIndex[0]!.rawContent);
-  if (discovery.status === "UNAVAILABLE") return false;
-  if (discovery.discovery.primaryDocument.isInlineXbrl) {
-    if (discovery.discovery.documents.some((document) => document.ixdsDisposition === "ambiguous")) return false;
-    const persisted = new Set(
-      artifacts.filter((artifact) => artifact.role === "inline_xbrl").map((artifact) => artifact.documentName),
-    );
-    return discovery.discovery.primaryIxdsDocuments.length > 0
-      && discovery.discovery.primaryIxdsDocuments.every((document) => persisted.has(document.documentName));
+  if (archiveIndex.length !== 1 || filingIndex.length !== 1) {
+    return {
+      status: "UNAVAILABLE",
+      reason: "FILING_ARTIFACT_MISSING",
+      detail: `complete filing inventory requires exactly one archive index and one filing index; found ${archiveIndex.length} and ${filingIndex.length}`,
+    };
   }
-  return artifacts.some((artifact) => artifact.role === "instance_xml");
+  const discovery = discoverSecFilingXbrlDocuments(filing, archiveIndex[0]!.rawContent, filingIndex[0]!.rawContent);
+  if (discovery.status === "UNAVAILABLE") return discovery;
+  if (discovery.discovery.primaryDocument.isInlineXbrl) {
+    const ambiguous = discovery.discovery.documents.filter((document) => document.ixdsDisposition === "ambiguous");
+    if (ambiguous.length > 0) {
+      return {
+        status: "UNAVAILABLE",
+        reason: "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS",
+        detail: `primary IXDS membership is ambiguous for ${ambiguous.map((document) => document.documentName).join(", ")}`,
+      };
+    }
+    const expected = discovery.discovery.primaryIxdsDocuments.map((document) => document.documentName).sort();
+    const persisted = artifacts.filter((artifact) => artifact.role === "inline_xbrl");
+    const actual = persisted.map((artifact) => artifact.documentName).sort();
+    if (expected.length === 0 || stableJson(actual) !== stableJson(expected)) {
+      const missing = expected.filter((name) => !actual.includes(name));
+      const unexpected = actual.filter((name) => !expected.includes(name));
+      return {
+        status: "UNAVAILABLE",
+        reason: "PRIMARY_IXDS_INCOMPLETE",
+        detail: `cached primary IXDS set is incomplete or ambiguous; missing [${missing.join(", ")}], unexpected [${unexpected.join(", ")}], expected ${expected.length}, found ${actual.length}`,
+      };
+    }
+    return { status: "AVAILABLE", discovery: discovery.discovery, filingArtifacts: persisted.sort(compareArtifacts) };
+  }
+  const primary = artifacts.filter((artifact) =>
+    artifact.role === "primary_document" && artifact.documentName === discovery.discovery.primaryDocument.documentName
+  );
+  const expectedInstances = discovery.discovery.documents.filter((document) => document.isInstanceCandidate);
+  const instances = artifacts.filter((artifact) => artifact.role === "instance_xml");
+  if (primary.length !== 1 || expectedInstances.length !== 1 || instances.length !== 1
+    || instances[0]!.documentName !== expectedInstances[0]!.documentName) {
+    return {
+      status: "UNAVAILABLE",
+      reason: expectedInstances.length !== 1 ? "FILING_XBRL_DOCUMENT_AMBIGUOUS" : "PRIMARY_IXDS_INCOMPLETE",
+      detail: `complete non-inline filing cache requires one primary document and its one discovered instance; found ${primary.length} primary and ${instances.length} instance artifacts`,
+    };
+  }
+  return { status: "AVAILABLE", discovery: discovery.discovery, filingArtifacts: instances };
 }
 
 export function discoverSecFilingXbrlDocuments(
@@ -671,10 +740,13 @@ export function parseSecFilingXbrlArtifact(
   const contextResult = extractContexts(structure.parsed, structure.namespaces);
   const source = artifactSource(artifact);
   if (contextResult.status === "UNAVAILABLE") return { ...contextResult, source };
+  const unitResult = extractUnits(structure.parsed, structure.namespaces);
+  if (unitResult.status === "UNAVAILABLE") return { ...unitResult, source };
   const factResult = extractFacts(
     structure.parsed,
     structure.namespaces,
     contextResult.contextsById,
+    unitResult.unitsById,
     artifact,
     structure.documentKind,
   );
@@ -684,6 +756,7 @@ export function parseSecFilingXbrlArtifact(
     documentKind: structure.documentKind,
     namespaces: structure.namespaces,
     contexts: [...contextResult.contextsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    units: [...unitResult.unitsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
     facts: factResult.facts.sort(compareFacts),
     rejections: factResult.rejections,
     source,
@@ -728,6 +801,7 @@ export function parseSecFilingXbrlArtifacts(
   }
 
   const contextsById = new Map<string, SecXbrlContext>();
+  const unitsById = new Map<string, SecXbrlUnit>();
   for (const structure of structures) {
     const contexts = extractContexts(structure.parsed, structure.namespaces);
     if (contexts.status === "UNAVAILABLE") return { ...contexts, sources };
@@ -738,6 +812,15 @@ export function parseSecFilingXbrlArtifacts(
       }
       contextsById.set(id, current ?? context);
     }
+    const units = extractUnits(structure.parsed, structure.namespaces);
+    if (units.status === "UNAVAILABLE") return { ...units, sources };
+    for (const [id, unit] of units.unitsById) {
+      const current = unitsById.get(id);
+      if (current && stableJson(current) !== stableJson(unit)) {
+        return { status: "UNAVAILABLE", reason: "CONFLICTING_UNIT_IDS", detail: `unit id ${id} conflicts across IXDS documents`, sources };
+      }
+      unitsById.set(id, current ?? unit);
+    }
   }
 
   const facts: SecFilingXbrlFact[] = [];
@@ -747,6 +830,7 @@ export function parseSecFilingXbrlArtifacts(
       structure.parsed,
       structure.namespaces,
       contextsById,
+      unitsById,
       structure.artifact,
       structure.documentKind,
     );
@@ -758,6 +842,7 @@ export function parseSecFilingXbrlArtifacts(
     status: "AVAILABLE",
     documentKind: roles.has("inline_xbrl") ? "inline_xbrl_ixds" : "instance_xml",
     contexts: [...contextsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    units: [...unitsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
     facts: dedupeBy(facts, (fact) => fact.factKey).sort(compareFacts),
     rejections: dedupeBy(rejections, (rejection) => stableJson(rejection)),
     sources,
@@ -807,24 +892,25 @@ function parseArtifactStructure(artifact: SecFilingXbrlRawArtifact): {
 
 export async function readOsCandidateFilingContexts(input: {
   candidate: SecOsFilingContextCandidate;
+  filing: SecFilingRow | undefined;
   repository: SecFilingXbrlArtifactRepository;
 }): Promise<SecOsCandidateFilingContextResult> {
-  const { candidate, repository } = input;
+  const { candidate, filing, repository } = input;
+  if (!filing || !filingMatchesOsCandidate(filing, candidate)) {
+    return unavailableCandidate(candidate, "FILING_IDENTITY_INVALID", "filing ledger identity does not exactly match CompanyFacts candidate provenance");
+  }
   const artifacts = await repository.readArtifacts(candidate.issuerCik, candidate.accession);
-  const filingArtifacts = artifacts.filter((artifact) => artifact.role === "inline_xbrl" || artifact.role === "instance_xml");
-  if (filingArtifacts.length === 0) {
-    return unavailableCandidate(candidate, "FILING_ARTIFACT_MISSING", "no persisted filing XBRL artifact exists");
+  const completeness = validateCachedFilingXbrlCompleteness(filing, artifacts);
+  if (completeness.status === "UNAVAILABLE") {
+    return unavailableCandidate(candidate, completeness.reason, completeness.detail);
   }
-  if (filingArtifacts.some((artifact) => artifact.issuerCik !== candidate.issuerCik || artifact.accession !== candidate.accession)) {
-    return unavailableCandidate(candidate, "ACCESSION_MISMATCH", "artifact lineage does not match candidate");
-  }
-  const parsed = parseSecFilingXbrlArtifacts(filingArtifacts);
+  const parsed = parseSecFilingXbrlArtifacts(completeness.filingArtifacts);
   if (parsed.status === "UNAVAILABLE") return unavailableCandidate(candidate, parsed.reason, parsed.detail);
   const relevantRejections = parsed.rejections.filter((rejection) =>
-    rejection.conceptQName === `${candidate.taxonomy}:${candidate.concept}`
+    rejection.concept !== null && conceptMatchesCandidate(rejection.concept, candidate)
   );
   const matches = parsed.facts.filter((fact) =>
-    fact.concept.qname === `${candidate.taxonomy}:${candidate.concept}`
+    conceptMatchesCandidate(fact.concept, candidate)
     && fact.context.period.kind === "instant"
     && fact.context.period.instant === candidate.asOf
   );
@@ -834,7 +920,30 @@ export async function readOsCandidateFilingContexts(input: {
     if (rejection) return unavailableCandidate(candidate, rejection.reason, rejection.detail);
     return unavailableCandidate(candidate, "FILING_XBRL_FACT_NOT_FOUND", "no exact accession/concept/as-of filing fact matched candidate");
   }
-  return { status: "AVAILABLE", candidate, matches: unique };
+  return {
+    status: "AVAILABLE",
+    candidate,
+    matches: unique,
+    relevantRejections,
+    sources: parsed.sources,
+  };
+}
+
+export function filingMatchesOsCandidate(filing: SecFilingRow, candidate: SecOsFilingContextCandidate) {
+  return filing.issuerCik === candidate.issuerCik
+    && filing.accessionNumber === candidate.accession
+    && filing.form === candidate.form
+    && filing.filedDate === candidate.filedDate
+    && filing.acceptedAt === candidate.acceptedAt
+    && filing.sourceKind === "submissions"
+    && filing.sourceRawId === candidate.filingLedgerRawSourceId;
+}
+
+function conceptMatchesCandidate(concept: SecXbrlQName, candidate: SecOsFilingContextCandidate) {
+  if (concept.localName !== candidate.concept || !concept.namespaceUri) return false;
+  return candidate.taxonomy === "dei"
+    ? DEI_NAMESPACE_PATTERN.test(concept.namespaceUri)
+    : US_GAAP_NAMESPACE_PATTERN.test(concept.namespaceUri);
 }
 
 function extractContexts(
@@ -945,10 +1054,63 @@ function extractDimensions(
   return { status: "AVAILABLE", dimensions: dedupeBy(dimensions, dimensionIdentity) };
 }
 
+function extractUnits(
+  parsed: unknown,
+  namespaces: Readonly<Record<string, string>>,
+): { status: "AVAILABLE"; unitsById: Map<string, SecXbrlUnit> } | {
+  status: "UNAVAILABLE";
+  reason: SecFilingXbrlUnavailableReason;
+  detail: string;
+} {
+  const unitNodes = collectNamedNodes(parsed, (name) => {
+    const qname = resolveQName(name, namespaces);
+    return qname.localName === "unit" && qname.namespaceUri === XBRL_INSTANCE_NAMESPACE;
+  });
+  const unitsById = new Map<string, SecXbrlUnit>();
+  for (const node of unitNodes) {
+    const record = asRecord(node.value);
+    const id = attribute(record, "id");
+    if (!record || !id) return unavailableParse("UNSUPPORTED_FILING_XBRL_CONSTRUCT", "unit is missing id");
+    const directMeasures = Object.entries(record)
+      .filter(([name]) => localName(name) === "measure")
+      .flatMap(([, value]) => Array.isArray(value) ? value : [value])
+      .map((value) => compactText(readNodeText(value)))
+      .filter(Boolean);
+    let unit: SecXbrlUnit;
+    if (directMeasures.length === 1) {
+      const measure = resolveQName(directMeasures[0]!, namespaces);
+      if (!measure.namespaceUri) return unavailableParse("UNSUPPORTED_FILING_XBRL_CONSTRUCT", `unit ${id} measure has no namespace`);
+      unit = { id, kind: "measure", measure };
+    } else {
+      const divide = firstDescendant(record, (name) => localName(name) === "divide");
+      const numeratorNode = firstDescendant(divide, (name) => localName(name) === "unitNumerator");
+      const denominatorNode = firstDescendant(divide, (name) => localName(name) === "unitDenominator");
+      const numeratorText = descendantText(numeratorNode, "measure");
+      const denominatorText = descendantText(denominatorNode, "measure");
+      if (!numeratorText || !denominatorText) {
+        return unavailableParse("UNSUPPORTED_FILING_XBRL_CONSTRUCT", `unit ${id} has unsupported measure structure`);
+      }
+      const numerator = resolveQName(numeratorText, namespaces);
+      const denominator = resolveQName(denominatorText, namespaces);
+      if (!numerator.namespaceUri || !denominator.namespaceUri) {
+        return unavailableParse("UNSUPPORTED_FILING_XBRL_CONSTRUCT", `unit ${id} divide measure has no namespace`);
+      }
+      unit = { id, kind: "divide", numerator, denominator };
+    }
+    const current = unitsById.get(id);
+    if (current && stableJson(current) !== stableJson(unit)) {
+      return unavailableParse("CONFLICTING_UNIT_IDS", `unit id ${id} has conflicting definitions`);
+    }
+    unitsById.set(id, current ?? unit);
+  }
+  return { status: "AVAILABLE", unitsById };
+}
+
 function extractFacts(
   parsed: unknown,
   namespaces: Readonly<Record<string, string>>,
   contextsById: ReadonlyMap<string, SecXbrlContext>,
+  unitsById: ReadonlyMap<string, SecXbrlUnit>,
   artifact: SecFilingXbrlRawArtifact,
   documentKind: "inline_xbrl" | "instance_xml",
 ): { status: "AVAILABLE"; facts: SecFilingXbrlFact[]; rejections: SecFilingXbrlFactRejection[] } | {
@@ -956,22 +1118,27 @@ function extractFacts(
   reason: SecFilingXbrlUnavailableReason;
   detail: string;
 } {
-  const factNodes: Array<{ conceptName: string; value: unknown; inline: boolean }> = [];
+  const factNodes: Array<{ conceptName: string; value: unknown; inline: boolean; numeric: boolean }> = [];
   walkNamedNodes(parsed, (name, value) => {
     const record = asRecord(value);
     const qname = resolveQName(name, namespaces);
     const isInlineNamespace = qname.namespaceUri ? INLINE_XBRL_NAMESPACES.has(qname.namespaceUri) : name.startsWith("ix:");
     if (isInlineNamespace && ["nonFraction", "nonNumeric"].includes(qname.localName)) {
       const conceptName = attribute(record, "name");
-      if (conceptName) factNodes.push({ conceptName, value, inline: true });
+      if (conceptName) factNodes.push({ conceptName, value, inline: true, numeric: qname.localName === "nonFraction" });
       return;
     }
     if (isInlineNamespace && ["fraction", "tuple"].includes(qname.localName)) {
-      factNodes.push({ conceptName: "", value: { ...record, "@unsupported": qname.localName }, inline: true });
+      factNodes.push({
+        conceptName: attribute(record, "name") ?? "",
+        value: { ...record, "@unsupported": qname.localName },
+        inline: true,
+        numeric: true,
+      });
       return;
     }
     if (!isInlineNamespace && attribute(record, "contextRef")) {
-      factNodes.push({ conceptName: name, value, inline: false });
+      factNodes.push({ conceptName: name, value, inline: false, numeric: Boolean(attribute(record, "unitRef")) });
     }
   });
 
@@ -979,11 +1146,13 @@ function extractFacts(
   const rejections: SecFilingXbrlFactRejection[] = [];
   for (const node of factNodes) {
     const record = asRecord(node.value);
+    const rejectedConcept = node.conceptName ? resolveQName(node.conceptName, namespaces) : null;
     const unsupported = attribute(record, "unsupported");
     if (unsupported || attribute(record, "continuedAt")) {
       rejections.push({
         reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT",
         detail: unsupported ? `inline ${unsupported} fact is unsupported` : "continued inline fact is unsupported",
+        concept: rejectedConcept,
         conceptQName: node.conceptName || null,
         contextRef: attribute(record, "contextRef"),
       });
@@ -991,12 +1160,12 @@ function extractFacts(
     }
     const contextRef = attribute(record, "contextRef");
     if (!contextRef) {
-      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: "filing fact is missing contextRef", conceptQName: node.conceptName || null, contextRef: null });
+      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: "filing fact is missing contextRef", concept: rejectedConcept, conceptQName: node.conceptName || null, contextRef: null });
       continue;
     }
     const context = contextsById.get(contextRef);
     if (!context) {
-      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: `contextRef ${contextRef} does not resolve`, conceptQName: node.conceptName || null, contextRef });
+      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: `contextRef ${contextRef} does not resolve`, concept: rejectedConcept, conceptQName: node.conceptName || null, contextRef });
       continue;
     }
     const concept = resolveQName(node.conceptName, namespaces);
@@ -1004,6 +1173,19 @@ function extractFacts(
       rejections.push({
         reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT",
         detail: `fact concept ${node.conceptName} has no namespace`,
+        concept: rejectedConcept,
+        conceptQName: node.conceptName || null,
+        contextRef,
+      });
+      continue;
+    }
+    const unitRef = attribute(record, "unitRef");
+    const unit = unitRef ? unitsById.get(unitRef) ?? null : null;
+    if (node.numeric && (!unitRef || !unit)) {
+      rejections.push({
+        reason: "BROKEN_UNIT_REF",
+        detail: unitRef ? `unitRef ${unitRef} does not resolve` : "numeric filing fact is missing unitRef",
+        concept: rejectedConcept,
         conceptQName: node.conceptName || null,
         contextRef,
       });
@@ -1016,7 +1198,8 @@ function extractFacts(
       valueText,
       valueTree,
       contextRef,
-      unitRef: attribute(record, "unitRef"),
+      unitRef,
+      unit,
       decimals: attribute(record, "decimals"),
       precision: attribute(record, "precision"),
       scale: attribute(record, "scale"),
@@ -1356,11 +1539,14 @@ function detectRawXbrlDocumentKind(rawContent: string) {
 
 function artifactSource(artifact: SecFilingXbrlRawArtifact) {
   return {
+    artifactId: artifact.id,
     issuerCik: artifact.issuerCik,
     accession: artifact.accession,
     documentName: artifact.documentName,
     sourceUrl: artifact.sourceUrl,
     contentHash: artifact.contentHash,
+    fetchedAt: artifact.fetchedAt,
+    rawContentKind: artifact.rawContentKind,
   };
 }
 

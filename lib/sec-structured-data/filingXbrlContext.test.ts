@@ -13,6 +13,7 @@ import {
 } from "./filingXbrlContext.ts";
 import type { SecOsFilingContextCandidate } from "./osCandidateExtraction.ts";
 import type { SecFilingRow } from "./types.ts";
+import { resolveAuthoritativeOsFromFiling } from "./authoritativeOsExtraction.ts";
 
 const audit = JSON.parse(readFileSync(
   new URL("./fixtures/filing-xbrl-four-issuer-audit.json", import.meta.url),
@@ -51,12 +52,16 @@ function explicit(axis: string, member: string) {
 }
 
 function inlineDocument(resources: string, facts: string) {
-  return `<?xml version="1.0" encoding="UTF-8"?><html ${NS}><body><div><ix:header><ix:resources>${resources}</ix:resources></ix:header></div>${facts}</body></html>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><html ${NS}><body><div><ix:header><ix:resources>${shareUnits()}${resources}</ix:resources></ix:header></div>${facts}</body></html>`;
 }
 
 function inlineDocumentWithPrefix(prefix: string, resources: string, facts: string) {
   const namespaces = NS.replace('xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"', `xmlns:${prefix}="http://www.xbrl.org/2013/inlineXBRL"`);
-  return `<?xml version="1.0" encoding="UTF-8"?><html ${namespaces}><body><${prefix}:header><${prefix}:resources>${resources}</${prefix}:resources></${prefix}:header>${facts}</body></html>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><html ${namespaces}><body><${prefix}:header><${prefix}:resources>${shareUnits()}${resources}</${prefix}:resources></${prefix}:header>${facts}</body></html>`;
+}
+
+function shareUnits() {
+  return '<xbrli:unit id="shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit><xbrli:unit id="U_shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit>';
 }
 
 function filingIndexBody(documents: Array<{
@@ -99,7 +104,7 @@ function acceptanceBody(ticker: string) {
     );
   }
   if (ticker === "NEOM") {
-    return `<?xml version="1.0"?><xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2012"><xbrli:context id="PAsOn08_02_2013"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001022701</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2013-08-02</xbrli:instant></xbrli:period></xbrli:context><dei:EntityCommonStockSharesOutstanding contextRef="PAsOn08_02_2013" unitRef="shares" decimals="INF">4984827279</dei:EntityCommonStockSharesOutstanding></xbrli:xbrl>`;
+    return `<?xml version="1.0"?><xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2012">${shareUnits()}<xbrli:context id="PAsOn08_02_2013"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001022701</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2013-08-02</xbrli:instant></xbrli:period></xbrli:context><dei:EntityCommonStockSharesOutstanding contextRef="PAsOn08_02_2013" unitRef="shares" decimals="INF">4984827279</dei:EntityCommonStockSharesOutstanding></xbrli:xbrl>`;
   }
   throw new Error(`unknown acceptance sample ${ticker}`);
 }
@@ -160,6 +165,65 @@ function artifactFor(sample: (typeof audit.issuers)[number]) {
     role: sample.document_kind,
     rawContent: acceptanceBody(sample.ticker),
   });
+}
+
+function filingForSample(sample: (typeof audit.issuers)[number]): SecFilingRow {
+  const linked = candidate(sample);
+  return filing({
+    accessionNumber: linked.accession,
+    issuerCik: linked.issuerCik,
+    form: linked.form,
+    filedDate: linked.filedDate,
+    acceptedAt: linked.acceptedAt,
+    reportDate: linked.asOf,
+    primaryDocument: sample.ticker === "NEOM" ? "v351884_10qa.htm" : sample.document,
+    isInlineXbrl: sample.document_kind === "inline_xbrl",
+    sourceRawId: linked.filingLedgerRawSourceId,
+  });
+}
+
+function inventoryForSample(sample: (typeof audit.issuers)[number]) {
+  const row = filingForSample(sample);
+  const archive = sample.source_url.slice(0, sample.source_url.lastIndexOf("/"));
+  const directoryName = new URL(archive).pathname;
+  const documents = sample.document_kind === "inline_xbrl"
+    ? [{ name: sample.document, type: row.form, inline: true }]
+    : [
+        { name: row.primaryDocument!, type: row.form, inline: false },
+        { name: sample.document, type: "EX-101.INS", inline: false },
+      ];
+  const indexHtml = `<html><body><div>SEC Accession No. ${row.accessionNumber}</div><table summary="Document Format Files">${documents.map((document, index) =>
+    `<tr><td>${index + 1}</td><td>${document.type}</td><td><a href="${directoryName}/${document.name}">${document.name}</a>${document.inline ? " <span>iXBRL</span>" : ""}</td><td>${document.type}</td><td>100</td></tr>`
+  ).join("")}</table></body></html>`;
+  const inventory = [
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: row.issuerCik,
+      accession: row.accessionNumber,
+      documentName: "index.json",
+      sourceUrl: `${archive}/index.json`,
+      role: "archive_index",
+      rawContent: JSON.stringify({ directory: { name: directoryName, item: documents.map((document) => ({ name: document.name, size: 100 })) } }),
+    }),
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: row.issuerCik,
+      accession: row.accessionNumber,
+      documentName: `${row.accessionNumber}-index.html`,
+      sourceUrl: `${archive}/${row.accessionNumber}-index.html`,
+      role: "filing_index",
+      rawContent: indexHtml,
+    }),
+  ];
+  if (sample.document_kind === "instance_xml") {
+    inventory.push(createSecFilingXbrlFixtureArtifact({
+      issuerCik: row.issuerCik,
+      accession: row.accessionNumber,
+      documentName: row.primaryDocument!,
+      sourceUrl: `${archive}/${row.primaryDocument}`,
+      role: "primary_document",
+      rawContent: "<html><body>primary filing document</body></html>",
+    }));
+  }
+  return inventory;
 }
 
 function aaplInventoryArtifacts() {
@@ -236,7 +300,7 @@ test("HTTP client uses filing attachment metadata and fetches the complete prima
   assert.deepEqual(result.artifacts.map((artifact) => artifact.role), ["archive_index", "filing_index", "inline_xbrl"]);
 });
 
-test("multiple primary IXDS documents share contexts while separate inline exhibits are excluded", async () => {
+test("missing member of a multiple-document primary IXDS is unavailable while the complete set preserves class evidence", async () => {
   const names = ["aapl-20260627.htm", "aapl-note.htm", "aapl-fee.htm"];
   const index = JSON.stringify({ directory: {
     name: "/Archives/edgar/data/320193/000032019326000020",
@@ -248,11 +312,16 @@ test("multiple primary IXDS documents share contexts while separate inline exhib
     { name: names[2]!, type: "EX-FILING FEES", inline: true, sequence: "3" },
   ]);
   const requests: string[] = [];
-  const primary = inlineDocumentWithPrefix("primaryIx", context("cross", "0000320193", "2026-07-17"), "");
+  const sample = audit.issuers[0]!;
+  const primary = inlineDocumentWithPrefix(
+    "primaryIx",
+    context("plain", sample.cik, sample.candidate.as_of),
+    `<primaryIx:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="plain" unitRef="shares">${sample.candidate.value}</primaryIx:nonFraction>`,
+  );
   const note = inlineDocumentWithPrefix(
     "noteIx",
-    "",
-    '<noteIx:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="cross" unitRef="shares">100</noteIx:nonFraction>',
+    context("class-a", sample.cik, sample.candidate.as_of, explicit("us-gaap:StatementClassOfStockAxis", "us-gaap:CommonClassAMember")),
+    `<noteIx:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="class-a" unitRef="shares">${sample.candidate.value}</noteIx:nonFraction>`,
   );
   const client = new SecFilingXbrlHttpClient(
     "StockRadar test@example.com",
@@ -278,14 +347,22 @@ test("multiple primary IXDS documents share contexts while separate inline exhib
   assert.equal(parsed.status, "AVAILABLE");
   if (parsed.status !== "AVAILABLE") return;
   assert.equal(parsed.documentKind, "inline_xbrl_ixds");
-  assert.equal(parsed.facts.length, 1);
-  assert.equal(parsed.facts[0]?.contextRef, "cross");
-  assert.equal(parsed.facts[0]?.source.documentName, names[1]);
+  assert.equal(parsed.facts.length, 2);
   const repository = new InMemorySecFilingXbrlArtifactRepository();
+  await repository.ingestArtifacts(fetched.artifacts.filter((artifact) => artifact.documentName !== names[1]));
+  const row = filingForSample(sample);
+  const missing = await readOsCandidateFilingContexts({ candidate: candidate(sample), filing: row, repository });
+  assert.equal(missing.status, "UNAVAILABLE");
+  if (missing.status === "UNAVAILABLE") assert.equal(missing.reason, "PRIMARY_IXDS_INCOMPLETE");
+  assert.equal(resolveAuthoritativeOsFromFiling(missing).status, "UNAVAILABLE");
+
   await repository.ingestArtifacts(fetched.artifacts);
-  const linked = await readOsCandidateFilingContexts({ candidate: candidate(audit.issuers[0]!), repository });
+  const linked = await readOsCandidateFilingContexts({ candidate: candidate(sample), filing: row, repository });
   assert.equal(linked.status, "AVAILABLE");
-  if (linked.status === "AVAILABLE") assert.equal(linked.matches[0]?.source.documentName, names[1]);
+  if (linked.status === "AVAILABLE") assert.equal(linked.matches.length, 2);
+  const completeDecision = resolveAuthoritativeOsFromFiling(linked);
+  assert.equal(completeDecision.status, "REQUIRES_FURTHER_CONTEXT");
+  assert.equal(completeDecision.reason, "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION");
 });
 
 test("conditional separate Inline XBRL attachment fails closed instead of guessing IXDS membership", async () => {
@@ -331,6 +408,56 @@ test("Inline XBRL detection is namespace-based and independent of the namespace 
   if (parsed.status === "AVAILABLE") assert.equal(parsed.facts.length, 1);
 });
 
+test("O/S concept linkage uses namespace URI and local name rather than the lexical prefix", async () => {
+  const sample = audit.issuers[0]!;
+  const body = inlineDocument(
+    context("alternate-concept-prefix", sample.cik, sample.candidate.as_of),
+    `<ix:nonFraction name="filingDei:EntityCommonStockSharesOutstanding" contextRef="alternate-concept-prefix" unitRef="shares">${sample.candidate.value}</ix:nonFraction>`,
+  ).replace(
+    'xmlns:dei="http://xbrl.sec.gov/dei/2025"',
+    'xmlns:filingDei="http://xbrl.sec.gov/dei/2025"',
+  );
+  const repository = new InMemorySecFilingXbrlArtifactRepository();
+  await repository.ingestArtifacts([
+    ...aaplInventoryArtifacts(),
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: sample.cik,
+      accession: sample.accession,
+      documentName: sample.document,
+      sourceUrl: sample.source_url,
+      role: "inline_xbrl",
+      rawContent: body,
+    }),
+  ]);
+  const linked = await readOsCandidateFilingContexts({
+    candidate: candidate(sample),
+    filing: filingForSample(sample),
+    repository,
+  });
+  assert.equal(linked.status, "AVAILABLE");
+  if (linked.status === "AVAILABLE") {
+    assert.equal(linked.matches.length, 1);
+    assert.equal(linked.matches[0]?.concept.prefix, "filingDei");
+    assert.equal(linked.matches[0]?.concept.namespaceUri, "http://xbrl.sec.gov/dei/2025");
+  }
+});
+
+test("official reader rejects a lone filing fact artifact without archive and filing indexes", async () => {
+  const sample = audit.issuers[0]!;
+  const repository = new InMemorySecFilingXbrlArtifactRepository();
+  await repository.ingestArtifacts([artifactFor(sample)]);
+  const linked = await readOsCandidateFilingContexts({
+    candidate: candidate(sample),
+    filing: filingForSample(sample),
+    repository,
+  });
+  assert.equal(linked.status, "UNAVAILABLE");
+  if (linked.status === "UNAVAILABLE") {
+    assert.equal(linked.reason, "FILING_ARTIFACT_MISSING");
+    assert.match(linked.detail, /archive index and one filing index/);
+  }
+});
+
 test("shared IXDS context map rejects conflicting context IDs across documents", () => {
   const first = createSecFilingXbrlFixtureArtifact({
     issuerCik: "0000320193",
@@ -351,6 +478,18 @@ test("shared IXDS context map rejects conflicting context IDs across documents",
   const parsed = parseSecFilingXbrlArtifacts([second, first]);
   assert.equal(parsed.status, "UNAVAILABLE");
   if (parsed.status === "UNAVAILABLE") assert.equal(parsed.reason, "CONFLICTING_CONTEXT_IDS");
+
+  const conflictingUnit = createSecFilingXbrlFixtureArtifact({
+    issuerCik: "0000320193",
+    accession: "0000320193-26-000020",
+    documentName: "aapl-unit.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-unit.htm",
+    role: "inline_xbrl",
+    rawContent: inlineDocument('<xbrli:unit id="shares"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>', ""),
+  });
+  const unitParsed = parseSecFilingXbrlArtifacts([first, conflictingUnit]);
+  assert.equal(unitParsed.status, "UNAVAILABLE");
+  if (unitParsed.status === "UNAVAILABLE") assert.equal(unitParsed.reason, "CONFLICTING_UNIT_IDS");
 });
 
 test("parser preserves instant/duration, explicit and typed dimensions without semantic inference", () => {
@@ -392,6 +531,11 @@ test("parser preserves instant/duration, explicit and typed dimensions without s
     assert.equal(typed.valueText, "Class A exact");
     assert.equal(typed.canonicalXml, '<custom:TypedValue code="A">Class A exact</custom:TypedValue>');
   }
+  assert.equal(parsed.units.find((item) => item.id === "shares")?.kind, "measure");
+  assert.equal(parsed.facts[0]?.unit?.kind, "measure");
+  if (parsed.facts[0]?.unit?.kind === "measure") {
+    assert.equal(parsed.facts[0].unit.measure.qname, "xbrli:shares");
+  }
 });
 
 test("unsupported facts are rejected individually and broken candidate context fails closed", async () => {
@@ -401,7 +545,7 @@ test("unsupported facts are rejected individually and broken candidate context f
     '<ix:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="missing" unitRef="shares">100</ix:nonFraction><ix:fraction name="us-gaap:EarningsPerShareBasic" contextRef="good" unitRef="usdPerShare"><ix:numerator>1</ix:numerator><ix:denominator>2</ix:denominator></ix:fraction>',
   );
   const repository = new InMemorySecFilingXbrlArtifactRepository();
-  await repository.ingestArtifacts([createSecFilingXbrlFixtureArtifact({
+  await repository.ingestArtifacts([...aaplInventoryArtifacts(), createSecFilingXbrlFixtureArtifact({
     issuerCik: sample.cik,
     accession: sample.accession,
     documentName: sample.document,
@@ -409,7 +553,7 @@ test("unsupported facts are rejected individually and broken candidate context f
     role: "inline_xbrl",
     rawContent: body,
   })]);
-  const linked = await readOsCandidateFilingContexts({ candidate: candidate(sample), repository });
+  const linked = await readOsCandidateFilingContexts({ candidate: candidate(sample), filing: filingForSample(sample), repository });
   assert.equal(linked.status, "UNAVAILABLE");
   if (linked.status === "UNAVAILABLE") assert.equal(linked.reason, "BROKEN_CONTEXT_REF");
 });
@@ -469,11 +613,7 @@ test("service distinguishes incomplete inventory cache from complete IXDS cache 
     },
   };
   const service = new SecFilingXbrlContextService(sourceClient, repository);
-  const row = filing({
-    issuerCik: sample.cik,
-    accessionNumber: sample.accession,
-    primaryDocument: sample.document,
-  });
+  const row = filingForSample(sample);
   const first = await service.ingestFiling(row);
   const replay = await service.ingestFiling(row);
   assert.equal(first.status, "AVAILABLE");
@@ -482,7 +622,7 @@ test("service distinguishes incomplete inventory cache from complete IXDS cache 
   assert.equal(replay.source, "cache");
   assert.equal(sourceCalls, 1);
   assert.equal(first.inserted, 1);
-  assert.equal((await service.readOsCandidate(candidate(sample))).status, "AVAILABLE");
+  assert.equal((await service.readOsCandidate(candidate(sample), row)).status, "AVAILABLE");
 });
 
 test("four official issuer excerpts link CompanyFacts candidates to filing contexts", async (t) => {
@@ -496,8 +636,8 @@ test("four official issuer excerpts link CompanyFacts candidates to filing conte
       assert.equal(parsed.documentKind, sample.document_kind);
       assert.equal(parsed.source.sourceUrl, sample.source_url);
       const repository = new InMemorySecFilingXbrlArtifactRepository();
-      await repository.ingestArtifacts([artifact]);
-      const linked = await readOsCandidateFilingContexts({ candidate: candidate(sample), repository });
+      await repository.ingestArtifacts([...inventoryForSample(sample), artifact]);
+      const linked = await readOsCandidateFilingContexts({ candidate: candidate(sample), filing: filingForSample(sample), repository });
       assert.equal(linked.status, "AVAILABLE");
       if (linked.status !== "AVAILABLE") return;
       assert.ok(linked.matches.every((fact) => fact.context.period.kind === "instant" && fact.context.period.instant === sample.candidate.as_of));
