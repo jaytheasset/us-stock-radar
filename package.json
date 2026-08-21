@@ -27,6 +27,7 @@
     "qa:sec-form-workers": "node scripts/qa-sec-form-workers.mjs",
     "qa:sec-s3-offering-analysis": "node scripts/qa-sec-s3-offering-analysis.mjs",
     "verify:sec-structured-data": "node --test --experimental-strip-types lib/sec-structured-data/secStructuredData.test.ts",
+    "verify:sec-os-extraction": "node --test --experimental-strip-types lib/sec-structured-data/osCandidateExtraction.test.ts",
     "verify:sec-structured-data:local": "node --experimental-strip-types scripts/verify-sec-structured-data-local.ts",
     "verify:adsense": "node --no-warnings --experimental-strip-types scripts/verify-adsense.mjs",
     "verify:analysis-ads": "node --test --experimental-strip-types lib/advertisingPolicy.test.ts",
