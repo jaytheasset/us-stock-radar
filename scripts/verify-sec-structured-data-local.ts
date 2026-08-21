@@ -43,7 +43,7 @@ try {
     documentName: "aapl-20260627.htm",
     sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
     role: "inline_xbrl",
-    rawContent: '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2025"><body><ix:header><ix:resources><xbrli:context id="c-9"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000320193</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2026-07-17</xbrli:instant></xbrli:period></xbrli:context></ix:resources></ix:header><ix:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="c-9" unitRef="shares">14594180000</ix:nonFraction></body></html>',
+    rawContent: '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2025"><body><ix:header><ix:resources><xbrli:context id="c-9"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000320193</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2026-07-17</xbrli:instant></xbrli:period></xbrli:context></ix:resources></ix:header><ix:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="c-9" unitRef="shares">14594180000</ix:nonFraction></body></html>\n',
   });
   const filingXbrlFirst = await filingXbrlRepository.ingestArtifacts([filingXbrlArtifact]);
   const filingXbrlReplay = await filingXbrlRepository.ingestArtifacts([filingXbrlArtifact]);
@@ -57,6 +57,7 @@ try {
   assert.deepEqual(filingXbrlFirst, { inserted: 1, deduped: 0 });
   assert.deepEqual(filingXbrlReplay, { inserted: 0, deduped: 1 });
   assert.equal(filingXbrlStored.length, 1);
+  assert.deepEqual(filingXbrlStored, [filingXbrlArtifact]);
   assert.equal(filingXbrlStored[0]?.contentHash, filingXbrlArtifact.contentHash);
   assert.equal(filingXbrlStored[0]?.rawContent, filingXbrlArtifact.rawContent);
   for (const sample of fixture.issuers) {

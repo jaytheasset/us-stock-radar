@@ -1371,7 +1371,7 @@ function mapStoredArtifact(row: Record<string, unknown>): SecFilingXbrlRawArtifa
     contentType: stringValue(payload?.content_type),
     contentHash: requiredString(row.content_hash, "stored artifact hash missing"),
     rawContentKind: requiredString(row.raw_content_kind, "stored artifact content kind missing") as SecFilingXbrlRawArtifact["rawContentKind"],
-    rawContent: requiredString(row.raw_content, "stored artifact body missing"),
+    rawContent: requiredExactString(row.raw_content, "stored artifact body missing"),
   };
   validateArtifact(artifact);
   return artifact;
@@ -1663,6 +1663,11 @@ function requiredString(value: unknown, message: string) {
   const result = stringValue(value);
   if (!result) throw new Error(message);
   return result;
+}
+
+function requiredExactString(value: unknown, message: string) {
+  if (typeof value !== "string" || value.length === 0) throw new Error(message);
+  return value;
 }
 
 function numericSize(value: unknown) {
