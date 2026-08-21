@@ -109,6 +109,7 @@
   "dependencies": {
     "@supabase/supabase-js": "2.109.0",
     "fast-xml-parser": "^5.8.0",
+    "htmlparser2": "^10.1.0",
     "lucide-react": "^1.16.0",
     "next": "^16.0.0",
     "react": "^19.2.0",

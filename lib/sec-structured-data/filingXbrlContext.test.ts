@@ -8,6 +8,7 @@ import {
   createSecFilingXbrlFixtureArtifact,
   discoverSecFilingXbrlDocuments,
   parseSecFilingXbrlArtifact,
+  parseSecFilingXbrlArtifacts,
   readOsCandidateFilingContexts,
 } from "./filingXbrlContext.ts";
 import type { SecOsFilingContextCandidate } from "./osCandidateExtraction.ts";
@@ -51,6 +52,22 @@ function explicit(axis: string, member: string) {
 
 function inlineDocument(resources: string, facts: string) {
   return `<?xml version="1.0" encoding="UTF-8"?><html ${NS}><body><div><ix:header><ix:resources>${resources}</ix:resources></ix:header></div>${facts}</body></html>`;
+}
+
+function inlineDocumentWithPrefix(prefix: string, resources: string, facts: string) {
+  const namespaces = NS.replace('xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"', `xmlns:${prefix}="http://www.xbrl.org/2013/inlineXBRL"`);
+  return `<?xml version="1.0" encoding="UTF-8"?><html ${namespaces}><body><${prefix}:header><${prefix}:resources>${resources}</${prefix}:resources></${prefix}:header>${facts}</body></html>`;
+}
+
+function filingIndexBody(documents: Array<{
+  name: string;
+  type: string;
+  description?: string;
+  inline?: boolean;
+  sequence?: string;
+}> = [{ name: "aapl-20260627.htm", type: "10-Q", inline: true }]) {
+  const rows = documents.map((document, index) => `<tr><td>${document.sequence ?? index + 1}</td><td>${document.description ?? document.type}</td><td><a href="/Archives/edgar/data/320193/000032019326000020/${document.name}">${document.name}</a>${document.inline ? " <span>iXBRL</span>" : ""}</td><td>${document.type}</td><td>100</td></tr>`).join("");
+  return `<html><body><div>SEC Accession No. 0000320193-26-000020</div><table summary="Document Format Files">${rows}</table></body></html>`;
 }
 
 function acceptanceBody(ticker: string) {
@@ -145,6 +162,31 @@ function artifactFor(sample: (typeof audit.issuers)[number]) {
   });
 }
 
+function aaplInventoryArtifacts() {
+  const archive = "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020";
+  return [
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: "0000320193",
+      accession: "0000320193-26-000020",
+      documentName: "index.json",
+      sourceUrl: `${archive}/index.json`,
+      role: "archive_index",
+      rawContent: JSON.stringify({ directory: {
+        name: "/Archives/edgar/data/320193/000032019326000020",
+        item: [{ name: "aapl-20260627.htm", size: 100 }],
+      } }),
+    }),
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: "0000320193",
+      accession: "0000320193-26-000020",
+      documentName: "0000320193-26-000020-index.html",
+      sourceUrl: `${archive}/0000320193-26-000020-index.html`,
+      role: "filing_index",
+      rawContent: filingIndexBody(),
+    }),
+  ];
+}
+
 test("archive index discovery is accession-driven and separates inline and instance candidates", () => {
   const row = filing();
   const body = JSON.stringify({ directory: {
@@ -157,19 +199,20 @@ test("archive index discovery is accession-driven and separates inline and insta
       { name: "R1.xml", size: 1000 },
     ],
   } });
-  const result = discoverSecFilingXbrlDocuments(row, body);
+  const result = discoverSecFilingXbrlDocuments(row, body, filingIndexBody());
   assert.equal(result.status, "AVAILABLE");
   if (result.status !== "AVAILABLE") return;
   assert.equal(result.discovery.primaryDocument.documentName, "aapl-20260627.htm");
+  assert.deepEqual(result.discovery.primaryIxdsDocuments.map((document) => document.documentName), ["aapl-20260627.htm"]);
   assert.deepEqual(
     result.discovery.documents.filter((document) => document.isInstanceCandidate).map((document) => document.documentName),
     ["aapl-20260627_htm.xml"],
   );
-  const mismatch = discoverSecFilingXbrlDocuments(row, JSON.stringify({ directory: { name: "/Archives/edgar/data/320193/wrong", item: [] } }));
+  const mismatch = discoverSecFilingXbrlDocuments(row, JSON.stringify({ directory: { name: "/Archives/edgar/data/320193/wrong", item: [] } }), filingIndexBody());
   assert.deepEqual(mismatch, { status: "UNAVAILABLE", reason: "ACCESSION_MISMATCH", detail: "archive index directory does not match filing identity" });
 });
 
-test("HTTP client reuses filing ledger primary identity and fetches only index plus inline primary", async () => {
+test("HTTP client uses filing attachment metadata and fetches the complete primary IXDS", async () => {
   const requests: string[] = [];
   const index = JSON.stringify({ directory: {
     name: "/Archives/edgar/data/320193/000032019326000020",
@@ -180,17 +223,134 @@ test("HTTP client reuses filing ledger primary identity and fetches only index p
     (async (input: string | URL) => {
       const url = String(input);
       requests.push(url);
-      return url.endsWith("index.json")
-        ? new Response(index, { status: 200, headers: { "content-type": "application/json" } })
-        : new Response(acceptanceBody("AAPL"), { status: 200, headers: { "content-type": "text/html" } });
+      if (url.endsWith("index.json")) return new Response(index, { status: 200, headers: { "content-type": "application/json" } });
+      if (url.endsWith("-index.html")) return new Response(filingIndexBody(), { status: 200, headers: { "content-type": "text/html" } });
+      return new Response(acceptanceBody("AAPL"), { status: 200, headers: { "content-type": "text/html" } });
     }) as typeof fetch,
     () => new Date("2026-08-22T00:00:00.000Z"),
     100,
   );
   const result = await client.fetchFilingArtifacts(filing());
   assert.equal(result.status, "AVAILABLE");
-  assert.equal(requests.length, 2);
-  assert.deepEqual(result.artifacts.map((artifact) => artifact.role), ["archive_index", "inline_xbrl"]);
+  assert.equal(requests.length, 3);
+  assert.deepEqual(result.artifacts.map((artifact) => artifact.role), ["archive_index", "filing_index", "inline_xbrl"]);
+});
+
+test("multiple primary IXDS documents share contexts while separate inline exhibits are excluded", async () => {
+  const names = ["aapl-20260627.htm", "aapl-note.htm", "aapl-fee.htm"];
+  const index = JSON.stringify({ directory: {
+    name: "/Archives/edgar/data/320193/000032019326000020",
+    item: names.map((name) => ({ name, size: 100 })),
+  } });
+  const metadata = filingIndexBody([
+    { name: names[0]!, type: "10-Q", inline: true, sequence: "1" },
+    { name: names[1]!, type: "EX-99.1", inline: true, sequence: "2" },
+    { name: names[2]!, type: "EX-FILING FEES", inline: true, sequence: "3" },
+  ]);
+  const requests: string[] = [];
+  const primary = inlineDocumentWithPrefix("primaryIx", context("cross", "0000320193", "2026-07-17"), "");
+  const note = inlineDocumentWithPrefix(
+    "noteIx",
+    "",
+    '<noteIx:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="cross" unitRef="shares">100</noteIx:nonFraction>',
+  );
+  const client = new SecFilingXbrlHttpClient(
+    "StockRadar test@example.com",
+    (async (input: string | URL) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.endsWith("index.json")) return new Response(index, { status: 200 });
+      if (url.endsWith("-index.html")) return new Response(metadata, { status: 200 });
+      if (url.endsWith(names[0]!)) return new Response(primary, { status: 200 });
+      if (url.endsWith(names[1]!)) return new Response(note, { status: 200 });
+      throw new Error("separate inline exhibit must not be fetched");
+    }) as typeof fetch,
+    () => new Date("2026-08-22T00:00:00.000Z"),
+    100,
+  );
+  const fetched = await client.fetchFilingArtifacts(filing());
+  assert.equal(fetched.status, "AVAILABLE");
+  if (fetched.status !== "AVAILABLE") return;
+  assert.deepEqual(fetched.discovery.primaryIxdsDocuments.map((document) => document.documentName), names.slice(0, 2));
+  assert.deepEqual(fetched.discovery.separateInlineDocuments.map((document) => document.documentName), [names[2]]);
+  assert.equal(requests.some((url) => url.endsWith(names[2]!)), false);
+  const parsed = parseSecFilingXbrlArtifacts(fetched.artifacts);
+  assert.equal(parsed.status, "AVAILABLE");
+  if (parsed.status !== "AVAILABLE") return;
+  assert.equal(parsed.documentKind, "inline_xbrl_ixds");
+  assert.equal(parsed.facts.length, 1);
+  assert.equal(parsed.facts[0]?.contextRef, "cross");
+  assert.equal(parsed.facts[0]?.source.documentName, names[1]);
+  const repository = new InMemorySecFilingXbrlArtifactRepository();
+  await repository.ingestArtifacts(fetched.artifacts);
+  const linked = await readOsCandidateFilingContexts({ candidate: candidate(audit.issuers[0]!), repository });
+  assert.equal(linked.status, "AVAILABLE");
+  if (linked.status === "AVAILABLE") assert.equal(linked.matches[0]?.source.documentName, names[1]);
+});
+
+test("conditional separate Inline XBRL attachment fails closed instead of guessing IXDS membership", async () => {
+  const index = JSON.stringify({ directory: {
+    name: "/Archives/edgar/data/320193/000032019326000020",
+    item: [{ name: "aapl-20260627.htm" }, { name: "transaction.htm" }],
+  } });
+  const client = new SecFilingXbrlHttpClient(
+    "StockRadar test@example.com",
+    (async (input: string | URL) => {
+      const url = String(input);
+      if (url.endsWith("index.json")) return new Response(index, { status: 200 });
+      if (url.endsWith("-index.html")) return new Response(filingIndexBody([
+        { name: "aapl-20260627.htm", type: "10-Q", inline: true },
+        { name: "transaction.htm", type: "EX-2.01", inline: true },
+      ]), { status: 200 });
+      throw new Error("ambiguous IXDS must fail before document fetch");
+    }) as typeof fetch,
+    () => new Date("2026-08-22T00:00:00.000Z"),
+    100,
+  );
+  const result = await client.fetchFilingArtifacts(filing());
+  assert.equal(result.status, "UNAVAILABLE");
+  if (result.status === "UNAVAILABLE") assert.equal(result.reason, "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS");
+});
+
+test("Inline XBRL detection is namespace-based and independent of the namespace prefix", async () => {
+  const body = inlineDocumentWithPrefix(
+    "alternate",
+    context("prefix-independent", "0000320193", "2026-07-17"),
+    '<alternate:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="prefix-independent" unitRef="shares">100</alternate:nonFraction>',
+  );
+  const artifact = createSecFilingXbrlFixtureArtifact({
+    issuerCik: "0000320193",
+    accession: "0000320193-26-000020",
+    documentName: "aapl-20260627.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+    role: "inline_xbrl",
+    rawContent: body,
+  });
+  const parsed = parseSecFilingXbrlArtifacts([artifact]);
+  assert.equal(parsed.status, "AVAILABLE");
+  if (parsed.status === "AVAILABLE") assert.equal(parsed.facts.length, 1);
+});
+
+test("shared IXDS context map rejects conflicting context IDs across documents", () => {
+  const first = createSecFilingXbrlFixtureArtifact({
+    issuerCik: "0000320193",
+    accession: "0000320193-26-000020",
+    documentName: "aapl-20260627.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+    role: "inline_xbrl",
+    rawContent: inlineDocument(context("shared", "0000320193", "2026-07-17"), ""),
+  });
+  const second = createSecFilingXbrlFixtureArtifact({
+    issuerCik: "0000320193",
+    accession: "0000320193-26-000020",
+    documentName: "aapl-note.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-note.htm",
+    role: "inline_xbrl",
+    rawContent: inlineDocument(context("shared", "0000320193", "2026-07-18"), ""),
+  });
+  const parsed = parseSecFilingXbrlArtifacts([second, first]);
+  assert.equal(parsed.status, "UNAVAILABLE");
+  if (parsed.status === "UNAVAILABLE") assert.equal(parsed.reason, "CONFLICTING_CONTEXT_IDS");
 });
 
 test("parser preserves instant/duration, explicit and typed dimensions without semantic inference", () => {
@@ -292,9 +452,11 @@ test("raw artifact persistence is deterministic and replay-idempotent", async ()
   assert.equal(stored[0]?.rawContent, artifact.rawContent);
 });
 
-test("service replay uses persisted artifact cache and performs no second source fetch", async () => {
+test("service distinguishes incomplete inventory cache from complete IXDS cache and replay is idempotent", async () => {
   const sample = audit.issuers[0]!;
   const repository = new InMemorySecFilingXbrlArtifactRepository();
+  const inventory = aaplInventoryArtifacts();
+  await repository.ingestArtifacts(inventory);
   let sourceCalls = 0;
   const sourceClient = {
     async fetchFilingArtifacts() {
@@ -302,7 +464,7 @@ test("service replay uses persisted artifact cache and performs no second source
       return {
         status: "AVAILABLE" as const,
         discovery: {} as never,
-        artifacts: [artifactFor(sample)],
+        artifacts: [...inventory, artifactFor(sample)],
       };
     },
   };
@@ -319,6 +481,7 @@ test("service replay uses persisted artifact cache and performs no second source
   assert.equal(replay.status, "AVAILABLE");
   assert.equal(replay.source, "cache");
   assert.equal(sourceCalls, 1);
+  assert.equal(first.inserted, 1);
   assert.equal((await service.readOsCandidate(candidate(sample))).status, "AVAILABLE");
 });
 

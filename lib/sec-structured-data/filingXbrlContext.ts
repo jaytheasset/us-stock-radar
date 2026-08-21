@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { XMLBuilder, XMLParser, XMLValidator } from "fast-xml-parser";
+import { DomUtils, parseDocument } from "htmlparser2";
 import { buildSecArchiveFilingUrls } from "../sources/sec/archiveUrls.ts";
 import type { SecOsFilingContextCandidate } from "./osCandidateExtraction.ts";
 import type { SecFilingRow } from "./types.ts";
@@ -25,6 +26,8 @@ export const SEC_FILING_XBRL_UNAVAILABLE_REASONS = [
   "FILING_XBRL_DOCUMENT_AMBIGUOUS",
   "FILING_XBRL_FACT_NOT_FOUND",
   "FILING_XBRL_PARSE_FAILED",
+  "PRIMARY_IXDS_INCOMPLETE",
+  "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS",
   "UNINTERPRETABLE_TYPED_MEMBER",
   "UNSUPPORTED_FILING_XBRL_CONSTRUCT",
 ] as const;
@@ -34,6 +37,7 @@ export type SecFilingXbrlUnavailableReason =
 
 export type SecFilingXbrlArtifactRole =
   | "archive_index"
+  | "filing_index"
   | "primary_document"
   | "inline_xbrl"
   | "instance_xml";
@@ -60,6 +64,19 @@ export type SecFilingXbrlDiscoveredDocument = {
   isPrimary: boolean;
   isInlineCandidate: boolean;
   isInstanceCandidate: boolean;
+  sequence: string | null;
+  description: string | null;
+  attachmentType: string | null;
+  isInlineXbrl: boolean | null;
+  ixdsDisposition: "primary" | "separate" | "ambiguous" | "not_inline";
+};
+
+type SecFilingAttachmentMetadata = {
+  sequence: string | null;
+  description: string | null;
+  documentName: string;
+  attachmentType: string | null;
+  isInlineXbrl: boolean;
 };
 
 export type SecFilingXbrlDiscovery = {
@@ -67,7 +84,10 @@ export type SecFilingXbrlDiscovery = {
   accession: string;
   archiveDirectoryUrl: string;
   indexJsonUrl: string;
+  filingIndexUrl: string;
   primaryDocument: SecFilingXbrlDiscoveredDocument;
+  primaryIxdsDocuments: SecFilingXbrlDiscoveredDocument[];
+  separateInlineDocuments: SecFilingXbrlDiscoveredDocument[];
   documents: SecFilingXbrlDiscoveredDocument[];
 };
 
@@ -152,6 +172,24 @@ export type SecFilingXbrlDocument = {
   rejections: SecFilingXbrlFactRejection[];
   source: SecFilingXbrlFact["source"];
 };
+
+export type SecFilingXbrlDocumentSet = {
+  status: "AVAILABLE";
+  documentKind: "inline_xbrl_ixds" | "instance_xml";
+  contexts: SecXbrlContext[];
+  facts: SecFilingXbrlFact[];
+  rejections: SecFilingXbrlFactRejection[];
+  sources: SecFilingXbrlFact["source"][];
+};
+
+export type SecFilingXbrlDocumentSetResult =
+  | SecFilingXbrlDocumentSet
+  | {
+      status: "UNAVAILABLE";
+      reason: SecFilingXbrlUnavailableReason;
+      detail: string;
+      sources: SecFilingXbrlFact["source"][];
+    };
 
 export type SecFilingXbrlFactRejection = {
   reason: SecFilingXbrlUnavailableReason;
@@ -350,19 +388,66 @@ export class SecFilingXbrlHttpClient {
       rawContent: indexBody,
       rawContentKind: "authoritative_http_body",
     });
-    const discovery = discoverSecFilingXbrlDocuments(filing, indexBody);
+    const filingIndexResponse = await this.fetch(urls.indexHtmlUrl, "text/html,application/xhtml+xml");
+    if (!filingIndexResponse.ok) {
+      return unavailableFetch("FILING_ARTIFACT_MISSING", `filing index returned HTTP ${filingIndexResponse.status}`, [indexArtifact]);
+    }
+    const filingIndexBody = await filingIndexResponse.text();
+    const filingIndexArtifact = createArtifact({
+      filing,
+      role: "filing_index",
+      documentName: `${filing.accessionNumber}-index.html`,
+      sourceUrl: urls.indexHtmlUrl,
+      fetchedAt: this.now().toISOString(),
+      contentType: filingIndexResponse.headers.get("content-type"),
+      rawContent: filingIndexBody,
+      rawContentKind: "authoritative_http_body",
+    });
+    const inventoryArtifacts = [indexArtifact, filingIndexArtifact];
+    const discovery = discoverSecFilingXbrlDocuments(filing, indexBody, filingIndexBody);
     if (discovery.status === "UNAVAILABLE") {
-      return { ...discovery, artifacts: [indexArtifact] };
+      return { ...discovery, artifacts: inventoryArtifacts };
+    }
+
+    if (discovery.discovery.primaryDocument.isInlineXbrl) {
+      if (discovery.discovery.primaryIxdsDocuments.length === 0) {
+        return unavailableFetch("PRIMARY_IXDS_INCOMPLETE", "filing metadata identified no primary IXDS documents", inventoryArtifacts);
+      }
+      const ambiguous = discovery.discovery.documents.filter((document) => document.ixdsDisposition === "ambiguous");
+      if (ambiguous.length > 0) {
+        return unavailableFetch(
+          "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS",
+          `primary IXDS membership is ambiguous for ${ambiguous.map((document) => document.documentName).join(", ")}`,
+          inventoryArtifacts,
+        );
+      }
+      const artifacts = [...inventoryArtifacts];
+      for (const document of discovery.discovery.primaryIxdsDocuments) {
+        const fetched = await this.fetchDocument(filing, document, "inline_xbrl");
+        if (fetched.status === "UNAVAILABLE") return { ...fetched, artifacts };
+        if (!isInlineXbrlDocument(fetched.artifact.rawContent)) {
+          return unavailableFetch(
+            "PRIMARY_IXDS_INCOMPLETE",
+            `${document.documentName} is marked iXBRL by filing metadata but is not structurally Inline XBRL`,
+            [...artifacts, fetched.artifact],
+          );
+        }
+        artifacts.push(fetched.artifact);
+      }
+      return { status: "AVAILABLE", discovery: discovery.discovery, artifacts };
     }
 
     const primary = await this.fetchDocument(filing, discovery.discovery.primaryDocument, "primary_document");
     if (primary.status === "UNAVAILABLE") {
-      return { ...primary, artifacts: [indexArtifact] };
+      return { ...primary, artifacts: inventoryArtifacts };
     }
-    const artifacts = [indexArtifact, primary.artifact];
-    if (looksLikeInlineXbrl(primary.artifact.rawContent)) {
-      artifacts[1] = { ...primary.artifact, role: "inline_xbrl" };
-      return { status: "AVAILABLE", discovery: discovery.discovery, artifacts };
+    const artifacts = [...inventoryArtifacts, primary.artifact];
+    if (isInlineXbrlDocument(primary.artifact.rawContent)) {
+      return unavailableFetch(
+        "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS",
+        "primary document is structurally Inline XBRL but filing attachment metadata did not identify it as iXBRL",
+        artifacts,
+      );
     }
 
     const instanceCandidates = discovery.discovery.documents.filter((document) => document.isInstanceCandidate);
@@ -392,7 +477,7 @@ export class SecFilingXbrlHttpClient {
   private async fetchDocument(
     filing: SecFilingRow,
     document: SecFilingXbrlDiscoveredDocument,
-    role: "primary_document" | "instance_xml",
+    role: "primary_document" | "inline_xbrl" | "instance_xml",
   ): Promise<{ status: "AVAILABLE"; artifact: SecFilingXbrlRawArtifact } | {
     status: "UNAVAILABLE";
     reason: SecFilingXbrlUnavailableReason;
@@ -446,7 +531,7 @@ export class SecFilingXbrlContextService {
 
   async ingestFiling(filing: SecFilingRow): Promise<SecFilingXbrlIngestResult> {
     const cached = await this.repository.readArtifacts(filing.issuerCik, filing.accessionNumber);
-    if (cached.some((artifact) => artifact.role === "inline_xbrl" || artifact.role === "instance_xml")) {
+    if (cachedFilingIsComplete(filing, cached)) {
       return { status: "AVAILABLE", source: "cache", artifacts: cached, inserted: 0, deduped: cached.length };
     }
     const fetched = await this.sourceClient.fetchFilingArtifacts(filing);
@@ -469,9 +554,30 @@ export class SecFilingXbrlContextService {
   }
 }
 
+function cachedFilingIsComplete(
+  filing: SecFilingRow,
+  artifacts: readonly SecFilingXbrlRawArtifact[],
+) {
+  const archiveIndex = artifacts.filter((artifact) => artifact.role === "archive_index");
+  const filingIndex = artifacts.filter((artifact) => artifact.role === "filing_index");
+  if (archiveIndex.length !== 1 || filingIndex.length !== 1) return false;
+  const discovery = discoverSecFilingXbrlDocuments(filing, archiveIndex[0]!.rawContent, filingIndex[0]!.rawContent);
+  if (discovery.status === "UNAVAILABLE") return false;
+  if (discovery.discovery.primaryDocument.isInlineXbrl) {
+    if (discovery.discovery.documents.some((document) => document.ixdsDisposition === "ambiguous")) return false;
+    const persisted = new Set(
+      artifacts.filter((artifact) => artifact.role === "inline_xbrl").map((artifact) => artifact.documentName),
+    );
+    return discovery.discovery.primaryIxdsDocuments.length > 0
+      && discovery.discovery.primaryIxdsDocuments.every((document) => persisted.has(document.documentName));
+  }
+  return artifacts.some((artifact) => artifact.role === "instance_xml");
+}
+
 export function discoverSecFilingXbrlDocuments(
   filing: SecFilingRow,
   indexBody: string,
+  filingIndexBody?: string,
 ): { status: "AVAILABLE"; discovery: SecFilingXbrlDiscovery } | {
   status: "UNAVAILABLE";
   reason: SecFilingXbrlUnavailableReason;
@@ -496,6 +602,10 @@ export function discoverSecFilingXbrlDocuments(
   if (directoryName !== expectedPath) {
     return { status: "UNAVAILABLE", reason: "ACCESSION_MISMATCH", detail: "archive index directory does not match filing identity" };
   }
+  const attachmentMetadata = filingIndexBody === undefined
+    ? { status: "AVAILABLE" as const, byDocumentName: new Map<string, SecFilingAttachmentMetadata>() }
+    : parseSecFilingAttachmentMetadata(filing, filingIndexBody);
+  if (attachmentMetadata.status === "UNAVAILABLE") return attachmentMetadata;
   const items = Array.isArray(directory?.item) ? directory.item : [];
   const documents: SecFilingXbrlDiscoveredDocument[] = [];
   for (const itemValue of items) {
@@ -504,19 +614,39 @@ export function discoverSecFilingXbrlDocuments(
     if (!name || !safeArchiveDocumentName(name)) continue;
     const size = numericSize(item?.size);
     const sourceUrl = `${urls.archiveDirectoryUrl}/${encodeURIComponent(name)}`;
+    const metadata = attachmentMetadata.byDocumentName.get(name);
+    const isInlineXbrl = metadata?.isInlineXbrl ?? null;
     documents.push({
       documentName: name,
       sourceUrl,
       size,
       isPrimary: name === filing.primaryDocument,
-      isInlineCandidate: name === filing.primaryDocument && /\.x?html?$/i.test(name),
+      isInlineCandidate: isInlineXbrl === true,
       isInstanceCandidate: isInstanceDocumentCandidate(name),
+      sequence: metadata?.sequence ?? null,
+      description: metadata?.description ?? null,
+      attachmentType: metadata?.attachmentType ?? null,
+      isInlineXbrl,
+      ixdsDisposition: classifyIxdsDisposition({
+        isPrimary: name === filing.primaryDocument,
+        isInlineXbrl,
+        attachmentType: metadata?.attachmentType ?? null,
+      }),
     });
   }
   const primary = documents.find((document) => document.isPrimary);
   if (!primary) {
     return { status: "UNAVAILABLE", reason: "FILING_ARTIFACT_MISSING", detail: "primary document is absent from archive index" };
   }
+  if (filingIndexBody !== undefined && primary.isInlineXbrl === null) {
+    return { status: "UNAVAILABLE", reason: "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS", detail: "primary document is absent from filing attachment metadata" };
+  }
+  const primaryIxdsDocuments = documents
+    .filter((document) => document.ixdsDisposition === "primary")
+    .sort(compareDiscoveredDocuments);
+  const separateInlineDocuments = documents
+    .filter((document) => document.ixdsDisposition === "separate")
+    .sort(compareDiscoveredDocuments);
   return {
     status: "AVAILABLE",
     discovery: {
@@ -524,7 +654,10 @@ export function discoverSecFilingXbrlDocuments(
       accession: filing.accessionNumber,
       archiveDirectoryUrl: urls.archiveDirectoryUrl,
       indexJsonUrl: urls.indexJsonUrl,
+      filingIndexUrl: urls.indexHtmlUrl,
       primaryDocument: primary,
+      primaryIxdsDocuments,
+      separateInlineDocuments,
       documents: documents.sort((left, right) => left.documentName.localeCompare(right.documentName)),
     },
   };
@@ -533,13 +666,122 @@ export function discoverSecFilingXbrlDocuments(
 export function parseSecFilingXbrlArtifact(
   artifact: SecFilingXbrlRawArtifact,
 ): SecFilingXbrlParseResult {
+  const structure = parseArtifactStructure(artifact);
+  if (structure.status === "UNAVAILABLE") return structure;
+  const contextResult = extractContexts(structure.parsed, structure.namespaces);
+  const source = artifactSource(artifact);
+  if (contextResult.status === "UNAVAILABLE") return { ...contextResult, source };
+  const factResult = extractFacts(
+    structure.parsed,
+    structure.namespaces,
+    contextResult.contextsById,
+    artifact,
+    structure.documentKind,
+  );
+  if (factResult.status === "UNAVAILABLE") return { ...factResult, source };
+  return {
+    status: "AVAILABLE",
+    documentKind: structure.documentKind,
+    namespaces: structure.namespaces,
+    contexts: [...contextResult.contextsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    facts: factResult.facts.sort(compareFacts),
+    rejections: factResult.rejections,
+    source,
+  };
+}
+
+export function parseSecFilingXbrlArtifacts(
+  artifacts: readonly SecFilingXbrlRawArtifact[],
+): SecFilingXbrlDocumentSetResult {
+  const filingArtifacts = artifacts
+    .filter((artifact) => artifact.role === "inline_xbrl" || artifact.role === "instance_xml")
+    .sort(compareArtifacts);
+  const sources = filingArtifacts.map(artifactSource);
+  if (filingArtifacts.length === 0) {
+    return { status: "UNAVAILABLE", reason: "FILING_ARTIFACT_MISSING", detail: "filing XBRL document set is empty", sources };
+  }
+  const identity = `${filingArtifacts[0]!.issuerCik}:${filingArtifacts[0]!.accession}`;
+  if (filingArtifacts.some((artifact) => `${artifact.issuerCik}:${artifact.accession}` !== identity)) {
+    return { status: "UNAVAILABLE", reason: "ACCESSION_MISMATCH", detail: "document set contains mixed filing identities", sources };
+  }
+  const roles = new Set(filingArtifacts.map((artifact) => artifact.role));
+  if (roles.size > 1 || (roles.has("instance_xml") && filingArtifacts.length !== 1)) {
+    return {
+      status: "UNAVAILABLE",
+      reason: "FILING_XBRL_DOCUMENT_AMBIGUOUS",
+      detail: "document set mixes Inline XBRL and instance XML or contains multiple instances",
+      sources,
+    };
+  }
+
+  const structures: Array<Extract<ReturnType<typeof parseArtifactStructure>, { status: "AVAILABLE" }>> = [];
+  for (const artifact of filingArtifacts) {
+    const structure = parseArtifactStructure(artifact);
+    if (structure.status === "UNAVAILABLE") return { ...structure, sources };
+    if (artifact.role === "inline_xbrl" && structure.documentKind !== "inline_xbrl") {
+      return { status: "UNAVAILABLE", reason: "PRIMARY_IXDS_INCOMPLETE", detail: `${artifact.documentName} is not Inline XBRL`, sources };
+    }
+    if (artifact.role === "instance_xml" && structure.documentKind !== "instance_xml") {
+      return { status: "UNAVAILABLE", reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT", detail: `${artifact.documentName} is not an XBRL instance`, sources };
+    }
+    structures.push(structure);
+  }
+
+  const contextsById = new Map<string, SecXbrlContext>();
+  for (const structure of structures) {
+    const contexts = extractContexts(structure.parsed, structure.namespaces);
+    if (contexts.status === "UNAVAILABLE") return { ...contexts, sources };
+    for (const [id, context] of contexts.contextsById) {
+      const current = contextsById.get(id);
+      if (current && stableJson(current) !== stableJson(context)) {
+        return { status: "UNAVAILABLE", reason: "CONFLICTING_CONTEXT_IDS", detail: `context id ${id} conflicts across IXDS documents`, sources };
+      }
+      contextsById.set(id, current ?? context);
+    }
+  }
+
+  const facts: SecFilingXbrlFact[] = [];
+  const rejections: SecFilingXbrlFactRejection[] = [];
+  for (const structure of structures) {
+    const extracted = extractFacts(
+      structure.parsed,
+      structure.namespaces,
+      contextsById,
+      structure.artifact,
+      structure.documentKind,
+    );
+    if (extracted.status === "UNAVAILABLE") return { ...extracted, sources };
+    facts.push(...extracted.facts);
+    rejections.push(...extracted.rejections);
+  }
+  return {
+    status: "AVAILABLE",
+    documentKind: roles.has("inline_xbrl") ? "inline_xbrl_ixds" : "instance_xml",
+    contexts: [...contextsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    facts: dedupeBy(facts, (fact) => fact.factKey).sort(compareFacts),
+    rejections: dedupeBy(rejections, (rejection) => stableJson(rejection)),
+    sources,
+  };
+}
+
+function parseArtifactStructure(artifact: SecFilingXbrlRawArtifact): {
+  status: "AVAILABLE";
+  artifact: SecFilingXbrlRawArtifact;
+  parsed: unknown;
+  namespaces: Record<string, string>;
+  documentKind: "inline_xbrl" | "instance_xml";
+} | {
+  status: "UNAVAILABLE";
+  reason: SecFilingXbrlUnavailableReason;
+  detail: string;
+  source: SecFilingXbrlFact["source"];
+} {
   validateArtifact(artifact);
   const source = artifactSource(artifact);
   const validation = XMLValidator.validate(artifact.rawContent, { allowBooleanAttributes: true });
   if (validation !== true) {
     return { status: "UNAVAILABLE", reason: "FILING_XBRL_PARSE_FAILED", detail: "artifact is not well-formed XML/XHTML", source };
   }
-
   let parsed: unknown;
   try {
     parsed = new XMLParser({
@@ -560,19 +802,7 @@ export function parseSecFilingXbrlArtifact(
   if (!documentKind) {
     return { status: "UNAVAILABLE", reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT", detail: "artifact is neither inline XBRL nor an XBRL instance", source };
   }
-  const contextResult = extractContexts(parsed, namespaces);
-  if (contextResult.status === "UNAVAILABLE") return { ...contextResult, source };
-  const factResult = extractFacts(parsed, namespaces, contextResult.contextsById, artifact, documentKind);
-  if (factResult.status === "UNAVAILABLE") return { ...factResult, source };
-  return {
-    status: "AVAILABLE",
-    documentKind,
-    namespaces,
-    contexts: [...contextResult.contextsById.values()].sort((left, right) => left.id.localeCompare(right.id)),
-    facts: factResult.facts.sort(compareFacts),
-    rejections: factResult.rejections,
-    source,
-  };
+  return { status: "AVAILABLE", artifact, parsed, namespaces, documentKind };
 }
 
 export async function readOsCandidateFilingContexts(input: {
@@ -585,25 +815,19 @@ export async function readOsCandidateFilingContexts(input: {
   if (filingArtifacts.length === 0) {
     return unavailableCandidate(candidate, "FILING_ARTIFACT_MISSING", "no persisted filing XBRL artifact exists");
   }
-  const matches: SecFilingXbrlFact[] = [];
-  const relevantRejections: SecFilingXbrlFactRejection[] = [];
-  for (const artifact of filingArtifacts) {
-    if (artifact.issuerCik !== candidate.issuerCik || artifact.accession !== candidate.accession) {
-      return unavailableCandidate(candidate, "ACCESSION_MISMATCH", "artifact lineage does not match candidate");
-    }
-    const parsed = parseSecFilingXbrlArtifact(artifact);
-    if (parsed.status === "UNAVAILABLE") {
-      return unavailableCandidate(candidate, parsed.reason, parsed.detail);
-    }
-    relevantRejections.push(...parsed.rejections.filter((rejection) =>
-      rejection.conceptQName === `${candidate.taxonomy}:${candidate.concept}`
-    ));
-    matches.push(...parsed.facts.filter((fact) =>
-      fact.concept.qname === `${candidate.taxonomy}:${candidate.concept}`
-      && fact.context.period.kind === "instant"
-      && fact.context.period.instant === candidate.asOf
-    ));
+  if (filingArtifacts.some((artifact) => artifact.issuerCik !== candidate.issuerCik || artifact.accession !== candidate.accession)) {
+    return unavailableCandidate(candidate, "ACCESSION_MISMATCH", "artifact lineage does not match candidate");
   }
+  const parsed = parseSecFilingXbrlArtifacts(filingArtifacts);
+  if (parsed.status === "UNAVAILABLE") return unavailableCandidate(candidate, parsed.reason, parsed.detail);
+  const relevantRejections = parsed.rejections.filter((rejection) =>
+    rejection.conceptQName === `${candidate.taxonomy}:${candidate.concept}`
+  );
+  const matches = parsed.facts.filter((fact) =>
+    fact.concept.qname === `${candidate.taxonomy}:${candidate.concept}`
+    && fact.context.period.kind === "instant"
+    && fact.context.period.instant === candidate.asOf
+  );
   const unique = dedupeBy(matches, (fact) => fact.factKey).sort(compareFacts);
   if (unique.length === 0) {
     const rejection = relevantRejections[0];
@@ -890,7 +1114,7 @@ function validateArtifact(artifact: SecFilingXbrlRawArtifact) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(artifact.id)) throw new Error("invalid artifact id");
   if (!CIK_PATTERN.test(artifact.issuerCik) || artifact.issuerCik === "0000000000") throw new Error("invalid artifact CIK");
   if (!ACCESSION_PATTERN.test(artifact.accession)) throw new Error("invalid artifact accession");
-  if (!["archive_index", "primary_document", "inline_xbrl", "instance_xml"].includes(artifact.role)) throw new Error("invalid artifact role");
+  if (!["archive_index", "filing_index", "primary_document", "inline_xbrl", "instance_xml"].includes(artifact.role)) throw new Error("invalid artifact role");
   if (!["authoritative_http_body", "injected_exact_body"].includes(artifact.rawContentKind)) throw new Error("invalid artifact content kind");
   if (!safeArchiveDocumentName(artifact.documentName)) throw new Error("invalid artifact document name");
   if (!HASH_PATTERN.test(artifact.contentHash) || artifact.contentHash !== sha256(artifact.rawContent)) throw new Error("artifact content hash mismatch");
@@ -907,7 +1131,7 @@ export function createSecFilingXbrlFixtureArtifact(input: {
   accession: string;
   documentName: string;
   sourceUrl: string;
-  role: "inline_xbrl" | "instance_xml";
+  role: SecFilingXbrlArtifactRole;
   rawContent: string;
   fetchedAt?: string;
 }): SecFilingXbrlRawArtifact {
@@ -921,7 +1145,9 @@ export function createSecFilingXbrlFixtureArtifact(input: {
     documentName: input.documentName,
     sourceUrl: input.sourceUrl,
     fetchedAt: input.fetchedAt ?? "2026-08-22T00:00:00.000Z",
-    contentType: input.role === "inline_xbrl" ? "text/html" : "application/xml",
+    contentType: input.role === "archive_index" ? "application/json"
+      : input.role === "instance_xml" ? "application/xml"
+        : "text/html",
     rawContent: input.rawContent,
     rawContentKind: "injected_exact_body",
   });
@@ -978,6 +1204,116 @@ function mapStoredArtifact(row: Record<string, unknown>): SecFilingXbrlRawArtifa
   return artifact;
 }
 
+function parseSecFilingAttachmentMetadata(
+  filing: SecFilingRow,
+  filingIndexBody: string,
+): { status: "AVAILABLE"; byDocumentName: Map<string, SecFilingAttachmentMetadata> } | {
+  status: "UNAVAILABLE";
+  reason: SecFilingXbrlUnavailableReason;
+  detail: string;
+} {
+  let document;
+  try {
+    document = parseDocument(filingIndexBody, { lowerCaseAttributeNames: true, lowerCaseTags: true });
+  } catch {
+    return unavailableParse("FILING_XBRL_PARSE_FAILED", "filing attachment index is not parseable HTML");
+  }
+  if (!compactText(DomUtils.textContent(document)).includes(filing.accessionNumber)) {
+    return unavailableParse("ACCESSION_MISMATCH", "filing attachment index does not identify the requested accession");
+  }
+  const byDocumentName = new Map<string, SecFilingAttachmentMetadata>();
+  const tables = DomUtils.getElementsByTagName("table", document.children);
+  for (const table of tables) {
+    const rows = DomUtils.getElementsByTagName("tr", table.children);
+    for (const row of rows) {
+      const cells = DomUtils.getElementsByTagName("td", row.children, false);
+      if (cells.length < 4) continue;
+      const links = DomUtils.getElementsByTagName("a", cells[2]!.children);
+      const href = links[0]?.attribs.href ?? null;
+      const documentName = filingDocumentNameFromHref(href, filing);
+      if (!documentName) continue;
+      const metadata: SecFilingAttachmentMetadata = {
+        sequence: nullableCompactText(DomUtils.textContent(cells[0]!)),
+        description: nullableCompactText(DomUtils.textContent(cells[1]!)),
+        documentName,
+        attachmentType: nullableCompactText(DomUtils.textContent(cells[3]!)),
+        isInlineXbrl: htmlNodeContainsIxbrlSignal(cells[2]!),
+      };
+      const current = byDocumentName.get(documentName);
+      if (current && stableJson(current) !== stableJson(metadata)) {
+        return unavailableParse("PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS", `filing attachment metadata conflicts for ${documentName}`);
+      }
+      byDocumentName.set(documentName, current ?? metadata);
+    }
+  }
+  return { status: "AVAILABLE", byDocumentName };
+}
+
+function filingDocumentNameFromHref(href: string | null, filing: SecFilingRow) {
+  if (!href) return null;
+  const urls = buildSecArchiveFilingUrls(filing.issuerCik, filing.accessionNumber);
+  if (!urls) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(href, urls.indexHtmlUrl);
+  } catch {
+    return null;
+  }
+  const target = parsed.searchParams.get("doc");
+  const targetUrl = target ? new URL(target, "https://www.sec.gov") : parsed;
+  const archivePath = new URL(urls.archiveDirectoryUrl).pathname + "/";
+  if (targetUrl.protocol !== "https:" || !/(^|\.)sec\.gov$/i.test(targetUrl.hostname) || !targetUrl.pathname.startsWith(archivePath)) {
+    return null;
+  }
+  const pathname = decodeURIComponent(targetUrl.pathname);
+  const documentName = pathname.slice(pathname.lastIndexOf("/") + 1);
+  return safeArchiveDocumentName(documentName) ? documentName : null;
+}
+
+function htmlNodeContainsIxbrlSignal(
+  node: ReturnType<typeof DomUtils.getElementsByTagName>[number],
+) {
+  if (/(^|\s)iXBRL(\s|$)/i.test(DomUtils.textContent(node))) return true;
+  const elements = DomUtils.findAll((element) =>
+    Object.values(element.attribs).some((value) => /(^|\s)iXBRL(\s|$)/i.test(value)),
+  node.children);
+  return elements.length > 0;
+}
+
+function classifyIxdsDisposition(input: {
+  isPrimary: boolean;
+  isInlineXbrl: boolean | null;
+  attachmentType: string | null;
+}): SecFilingXbrlDiscoveredDocument["ixdsDisposition"] {
+  if (input.isInlineXbrl !== true) return "not_inline";
+  if (input.isPrimary) return "primary";
+  const attachmentType = compactText(input.attachmentType ?? "").toUpperCase();
+  if (!attachmentType) return "ambiguous";
+  if (attachmentType === "EX-FILING FEES" || attachmentType === "EX-98" || attachmentType.startsWith("EX-98.")) {
+    return "separate";
+  }
+  if (CONDITIONAL_SEPARATE_IXBRL_ATTACHMENT_TYPES.has(attachmentType)) return "ambiguous";
+  return "primary";
+}
+
+const CONDITIONAL_SEPARATE_IXBRL_ATTACHMENT_TYPES = new Set([
+  "EX-2.01",
+  "EX-99.C.SBSEF",
+  "EX-99.D.SBSEF",
+  "EX-99.E.SBSEF",
+  "EX-99.F.SBSEF",
+  "EX-99.H.SBSEF",
+  "EX-99.I.SBSEF",
+  "EX-99.J.SBSEF",
+  "EX-99.K.SBSEF",
+  "EX-99.L.SBSEF",
+  "EX-99.P.SBSEF",
+  "EX-99.Q.SBSEF",
+  "EX-99.R.SBSEF",
+  "EX-99.S.SBSEF",
+  "EX-99.4R HISTORIC",
+]);
+
 function isInstanceDocumentCandidate(name: string) {
   if (!/\.xml$/i.test(name)) return false;
   if (/^(?:FilingSummary|MetaLinks)\.xml$/i.test(name)) return false;
@@ -990,12 +1326,32 @@ function safeArchiveDocumentName(name: string) {
   return Boolean(name && name.length <= 255 && !/[\\/]/.test(name) && name !== "." && name !== "..");
 }
 
-function looksLikeInlineXbrl(rawContent: string) {
-  return /<ix:header\b/i.test(rawContent) && /xmlns:ix=["']http:\/\/www\.xbrl\.org\/(?:2008|2013)\/inlineXBRL["']/i.test(rawContent);
+function isInlineXbrlDocument(rawContent: string) {
+  return detectRawXbrlDocumentKind(rawContent) === "inline_xbrl";
 }
 
 function looksLikeXbrlInstance(rawContent: string) {
-  return /<(?:[A-Za-z_][\w.-]*:)?xbrl\b/i.test(rawContent) && rawContent.includes(XBRL_INSTANCE_NAMESPACE);
+  return detectRawXbrlDocumentKind(rawContent) === "instance_xml";
+}
+
+function detectRawXbrlDocumentKind(rawContent: string) {
+  if (XMLValidator.validate(rawContent, { allowBooleanAttributes: true }) !== true) return null;
+  try {
+    const parsed = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "@",
+      trimValues: false,
+      parseTagValue: false,
+      parseAttributeValue: false,
+      removeNSPrefix: false,
+      processEntities: true,
+      allowBooleanAttributes: true,
+    }).parse(rawContent);
+    const namespaces = collectNamespaces(parsed);
+    return detectDocumentKind(parsed, namespaces);
+  } catch {
+    return null;
+  }
 }
 
 function artifactSource(artifact: SecFilingXbrlRawArtifact) {
@@ -1188,6 +1544,14 @@ function dedupeBy<T>(items: readonly T[], identity: (item: T) => string) {
 
 function compareArtifacts(left: SecFilingXbrlRawArtifact, right: SecFilingXbrlRawArtifact) {
   return left.sourceUrl.localeCompare(right.sourceUrl) || left.contentHash.localeCompare(right.contentHash);
+}
+
+function compareDiscoveredDocuments(
+  left: SecFilingXbrlDiscoveredDocument,
+  right: SecFilingXbrlDiscoveredDocument,
+) {
+  return (left.sequence ?? "").localeCompare(right.sequence ?? "", undefined, { numeric: true })
+    || left.documentName.localeCompare(right.documentName);
 }
 
 function compareDimensions(left: SecXbrlDimension, right: SecXbrlDimension) {
