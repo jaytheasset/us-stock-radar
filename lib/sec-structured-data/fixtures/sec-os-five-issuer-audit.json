@@ -1,0 +1,355 @@
+{
+  "attribution": {
+    "audited_at": "2026-08-22",
+    "companyfacts_endpoint": "https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json",
+    "submissions_endpoint": "https://data.sec.gov/submissions/CIK##########.json",
+    "filing_dimension_evidence": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm",
+    "successful_direct_sec_http_calls": 12,
+    "note": "Minimal deterministic injected records curated from the exact official observations named below. Fixture source keys, paths, and UUIDs identify these injected records and are not presented as identifiers from a persisted production snapshot. No full SEC payload is committed. Ticker, entity name, and exchange were not used for eligibility."
+  },
+  "issuers": [
+    {
+      "sampleKind": "ordinary_us_common_stock",
+      "cik": "0000320193",
+      "entity": "Apple Inc.",
+      "auditedObservation": {
+        "rawFact": "dei:EntityCommonStockSharesOutstanding",
+        "value": "14594180000",
+        "asOf": "2026-07-17",
+        "unit": "shares",
+        "accession": "0000320193-26-000020",
+        "form": "10-Q",
+        "filedDate": "2026-07-31",
+        "acceptedAt": "2026-07-31T10:01:02.000Z",
+        "ambiguity": "none_confirmed_within_narrow_domestic_companyfacts_contract",
+        "expectedStatus": "COMPANY_FACTS_ELIGIBLE"
+      },
+      "facts": [
+        {
+          "sourceFactKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceFactPath": "facts.dei.EntityCommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0000320193",
+          "filingAccession": "0000320193-26-000020",
+          "form": "10-Q",
+          "filedDate": "2026-07-31",
+          "sourceRawId": "11111111-1111-4111-8111-111111111111",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "dei",
+          "concept": "EntityCommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "14594180000",
+          "valueText": null,
+          "instantDate": "2026-07-17",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "Q3",
+          "frame": "CY2026Q2I",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        },
+        {
+          "sourceFactKey": "abababababababababababababababababababababababababababababababab",
+          "sourceFactPath": "facts.us-gaap.CommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0000320193",
+          "filingAccession": "0000320193-26-000020",
+          "form": "10-Q",
+          "filedDate": "2026-07-31",
+          "sourceRawId": "11111111-1111-4111-8111-111111111111",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "us-gaap",
+          "concept": "CommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "14608963000",
+          "valueText": null,
+          "instantDate": "2026-06-27",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "Q3",
+          "frame": "CY2026Q2I",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ],
+      "filings": [
+        {
+          "accessionNumber": "0000320193-26-000020",
+          "issuerCik": "0000320193",
+          "form": "10-Q",
+          "filedDate": "2026-07-31",
+          "acceptedAt": "2026-07-31T10:01:02.000Z",
+          "reportDate": "2026-06-27",
+          "primaryDocument": null,
+          "isXbrl": true,
+          "isInlineXbrl": true,
+          "sourceRawId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "sourceKind": "submissions",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "sampleKind": "small_cap_amendment_reverse_split_history",
+      "cik": "0001022701",
+      "entity": "NEOMEDIA TECHNOLOGIES INC",
+      "auditedObservation": {
+        "rawFact": "dei:EntityCommonStockSharesOutstanding",
+        "value": "4984827279",
+        "asOf": "2013-08-02",
+        "unit": "shares",
+        "accession": "0001144204-13-044345",
+        "form": "10-Q/A",
+        "filedDate": "2013-08-09",
+        "acceptedAt": "2013-08-09T14:54:40.000Z",
+        "ambiguity": "amendment_retained_as_distinct_chronology_no_reverse_split_arithmetic",
+        "expectedStatus": "COMPANY_FACTS_ELIGIBLE"
+      },
+      "facts": [
+        {
+          "sourceFactKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceFactPath": "facts.dei.EntityCommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0001022701",
+          "filingAccession": "0001144204-13-044345",
+          "form": "10-Q/A",
+          "filedDate": "2013-08-09",
+          "sourceRawId": "22222222-2222-4222-8222-222222222222",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "dei",
+          "concept": "EntityCommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "4984827279",
+          "valueText": null,
+          "instantDate": "2013-08-02",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2013,
+          "fiscalPeriod": "Q2",
+          "frame": null,
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ],
+      "filings": [
+        {
+          "accessionNumber": "0001144204-13-044345",
+          "issuerCik": "0001022701",
+          "form": "10-Q/A",
+          "filedDate": "2013-08-09",
+          "acceptedAt": "2013-08-09T14:54:40.000Z",
+          "reportDate": "2013-06-30",
+          "primaryDocument": "v351884_10qa.htm",
+          "isXbrl": true,
+          "isInlineXbrl": false,
+          "sourceRawId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "sourceKind": "submissions",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "sampleKind": "multi_class_negative_control",
+      "cik": "0001652044",
+      "entity": "Alphabet Inc.",
+      "auditedObservation": {
+        "rawFact": "us-gaap:CommonStockSharesOutstanding",
+        "value": "12230000000",
+        "asOf": "2026-06-30",
+        "unit": "shares",
+        "accession": "0001652044-26-000071",
+        "form": "10-Q",
+        "filedDate": "2026-07-23",
+        "acceptedAt": "2026-07-23T01:15:54.000Z",
+        "ambiguity": "companyfacts_omits_three_dimensioned_dei_class_facts_seen_in_official_filing",
+        "expectedStatus": "REQUIRES_FILING_CONTEXT"
+      },
+      "facts": [
+        {
+          "sourceFactKey": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "sourceFactPath": "facts.us-gaap.CommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0001652044",
+          "filingAccession": "0001652044-26-000071",
+          "form": "10-Q",
+          "filedDate": "2026-07-23",
+          "sourceRawId": "33333333-3333-4333-8333-333333333333",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "us-gaap",
+          "concept": "CommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "12230000000",
+          "valueText": null,
+          "instantDate": "2026-06-30",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "Q2",
+          "frame": "CY2026Q2I",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ],
+      "filings": [
+        {
+          "accessionNumber": "0001652044-26-000071",
+          "issuerCik": "0001652044",
+          "form": "10-Q",
+          "filedDate": "2026-07-23",
+          "acceptedAt": "2026-07-23T01:15:54.000Z",
+          "reportDate": "2026-06-30",
+          "primaryDocument": "goog-20260630.htm",
+          "isXbrl": true,
+          "isInlineXbrl": true,
+          "sourceRawId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "sourceKind": "submissions",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "sampleKind": "foreign_issuer_adr",
+      "cik": "0001123799",
+      "entity": "WIPRO LIMITED",
+      "auditedObservation": {
+        "rawFact": "dei:EntityCommonStockSharesOutstanding",
+        "value": "10488412458",
+        "asOf": "2026-03-31",
+        "unit": "shares",
+        "accession": "0001193125-26-253514",
+        "form": "20-F",
+        "filedDate": "2026-06-02",
+        "acceptedAt": "2026-06-02T20:12:36.000Z",
+        "ambiguity": "ordinary_equity_shares_vs_us_traded_american_depositary_shares",
+        "expectedStatus": "REQUIRES_FILING_CONTEXT"
+      },
+      "facts": [
+        {
+          "sourceFactKey": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "sourceFactPath": "facts.dei.EntityCommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0001123799",
+          "filingAccession": "0001193125-26-253514",
+          "form": "20-F",
+          "filedDate": "2026-06-02",
+          "sourceRawId": "44444444-4444-4444-8444-444444444444",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "dei",
+          "concept": "EntityCommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "10488412458",
+          "valueText": null,
+          "instantDate": "2026-03-31",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "FY",
+          "frame": "CY2026Q1I",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ],
+      "filings": [
+        {
+          "accessionNumber": "0001193125-26-253514",
+          "issuerCik": "0001123799",
+          "form": "20-F",
+          "filedDate": "2026-06-02",
+          "acceptedAt": "2026-06-02T20:12:36.000Z",
+          "reportDate": "2026-03-31",
+          "primaryDocument": null,
+          "isXbrl": true,
+          "isInlineXbrl": true,
+          "sourceRawId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "sourceKind": "submissions",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "sampleKind": "foreign_adr_negative_control",
+      "cik": "0001973239",
+      "entity": "ARM HOLDINGS PLC /UK",
+      "auditedObservation": {
+        "rawFact": "dei:EntityCommonStockSharesOutstanding",
+        "value": "1064055252",
+        "asOf": "2026-03-31",
+        "unit": "shares",
+        "accession": "0001973239-26-000097",
+        "form": "20-F",
+        "filedDate": "2026-05-26",
+        "acceptedAt": "2026-05-26T20:35:23.000Z",
+        "ambiguity": "ordinary_shares_and_ads_basis_cannot_be_resolved_from_companyfacts",
+        "expectedStatus": "REQUIRES_FILING_CONTEXT"
+      },
+      "facts": [
+        {
+          "sourceFactKey": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "sourceFactPath": "facts.dei.EntityCommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0001973239",
+          "filingAccession": "0001973239-26-000097",
+          "form": "20-F",
+          "filedDate": "2026-05-26",
+          "sourceRawId": "55555555-5555-4555-8555-555555555555",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "dei",
+          "concept": "EntityCommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "1064055252",
+          "valueText": null,
+          "instantDate": "2026-03-31",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "FY",
+          "frame": "CY2026Q1I",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        },
+        {
+          "sourceFactKey": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+          "sourceFactPath": "facts.us-gaap.CommonStockSharesOutstanding.units.shares[0]",
+          "issuerCik": "0001973239",
+          "filingAccession": "0001973239-26-000097",
+          "form": "20-F",
+          "filedDate": "2026-05-26",
+          "sourceRawId": "55555555-5555-4555-8555-555555555555",
+          "sourceKind": "companyfacts",
+          "contextKind": "companyfacts_implicit",
+          "taxonomy": "us-gaap",
+          "concept": "CommonStockSharesOutstanding",
+          "unit": "shares",
+          "valueKind": "numeric",
+          "valueNumeric": "1064000000",
+          "valueText": null,
+          "instantDate": "2026-03-31",
+          "startDate": null,
+          "endDate": null,
+          "fiscalYear": 2026,
+          "fiscalPeriod": "FY",
+          "frame": null,
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ],
+      "filings": [
+        {
+          "accessionNumber": "0001973239-26-000097",
+          "issuerCik": "0001973239",
+          "form": "20-F",
+          "filedDate": "2026-05-26",
+          "acceptedAt": "2026-05-26T20:35:23.000Z",
+          "reportDate": "2026-03-31",
+          "primaryDocument": null,
+          "isXbrl": true,
+          "isInlineXbrl": true,
+          "sourceRawId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          "sourceKind": "submissions",
+          "ingestedAt": "2026-08-22T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}
