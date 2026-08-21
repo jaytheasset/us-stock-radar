@@ -3,6 +3,7 @@ import { XMLBuilder, XMLParser, XMLValidator } from "fast-xml-parser";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { buildSecArchiveFilingUrls } from "../sources/sec/archiveUrls.ts";
 import type { SecOsFilingContextCandidate } from "./osCandidateExtraction.ts";
+import { SecRequestPolicy } from "./secRequestPolicy.ts";
 import type { SecFilingRow } from "./types.ts";
 
 const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
@@ -371,26 +372,18 @@ export class PostgresSecFilingXbrlArtifactRepository implements SecFilingXbrlArt
 }
 
 export class SecFilingXbrlHttpClient {
-  private lastRequestAt = 0;
-  private readonly userAgent: string;
-  private readonly fetchImplementation: typeof fetch;
+  private readonly requestPolicy: SecRequestPolicy;
   private readonly now: () => Date;
-  private readonly minimumIntervalMs: number;
 
   constructor(
     userAgent: string,
     fetchImplementation: typeof fetch = fetch,
     now: () => Date = () => new Date(),
     minimumIntervalMs = 125,
+    requestPolicy?: SecRequestPolicy,
   ) {
-    if (!userAgent.trim() || !(/@/.test(userAgent) || /https?:\/\//i.test(userAgent))) {
-      throw new Error("SEC user agent must identify an organization and contact channel");
-    }
-    if (minimumIntervalMs < 100) throw new Error("SEC request interval must be at least 100ms");
-    this.userAgent = userAgent;
-    this.fetchImplementation = fetchImplementation;
+    this.requestPolicy = requestPolicy ?? new SecRequestPolicy(userAgent, { minimumIntervalMs, fetchImplementation });
     this.now = now;
-    this.minimumIntervalMs = minimumIntervalMs;
   }
 
   async fetchFilingArtifacts(filing: SecFilingRow): Promise<SecFilingXbrlFetchResult> {
@@ -537,12 +530,9 @@ export class SecFilingXbrlHttpClient {
   }
 
   private async fetch(url: string, accept: string) {
-    const remaining = this.minimumIntervalMs - (Date.now() - this.lastRequestAt);
-    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
-    this.lastRequestAt = Date.now();
-    return this.fetchImplementation(url, {
+    return this.requestPolicy.fetch(url, {
       cache: "no-store",
-      headers: { Accept: accept, "User-Agent": this.userAgent },
+      headers: { Accept: accept },
     });
   }
 }
@@ -1381,7 +1371,7 @@ function mapStoredArtifact(row: Record<string, unknown>): SecFilingXbrlRawArtifa
     contentType: stringValue(payload?.content_type),
     contentHash: requiredString(row.content_hash, "stored artifact hash missing"),
     rawContentKind: requiredString(row.raw_content_kind, "stored artifact content kind missing") as SecFilingXbrlRawArtifact["rawContentKind"],
-    rawContent: requiredString(row.raw_content, "stored artifact body missing"),
+    rawContent: requiredExactString(row.raw_content, "stored artifact body missing"),
   };
   validateArtifact(artifact);
   return artifact;
@@ -1673,6 +1663,11 @@ function requiredString(value: unknown, message: string) {
   const result = stringValue(value);
   if (!result) throw new Error(message);
   return result;
+}
+
+function requiredExactString(value: unknown, message: string) {
+  if (typeof value !== "string" || value.length === 0) throw new Error(message);
+  return value;
 }
 
 function numericSize(value: unknown) {

@@ -1,11 +1,21 @@
 import { normalizeCik } from "./normalization.ts";
+import { SecRequestPolicy } from "./secRequestPolicy.ts";
 import type { SecRefreshMode, SecStructuredSourceClient, SecStructuredSourceDocument } from "./types.ts";
 
+export class SecStructuredHttpError extends Error {
+  readonly sourceKind: "submissions" | "companyfacts";
+  readonly status: number;
+
+  constructor(sourceKind: "submissions" | "companyfacts", status: number) {
+    super(`SEC ${sourceKind} fetch failed (${status})`);
+    this.name = "SecStructuredHttpError";
+    this.sourceKind = sourceKind;
+    this.status = status;
+  }
+}
+
 export class SecStructuredHttpClient implements SecStructuredSourceClient {
-  private lastRequestAt = 0;
-  private readonly userAgent: string;
-  private readonly minimumIntervalMs: number;
-  private readonly fetchImplementation: typeof fetch;
+  private readonly requestPolicy: SecRequestPolicy;
   private readonly now: () => Date;
 
   constructor(
@@ -13,14 +23,9 @@ export class SecStructuredHttpClient implements SecStructuredSourceClient {
     minimumIntervalMs = 125,
     fetchImplementation: typeof fetch = fetch,
     now: () => Date = () => new Date(),
+    requestPolicy?: SecRequestPolicy,
   ) {
-    if (!userAgent.trim() || !(/@/.test(userAgent) || /https?:\/\//i.test(userAgent))) {
-      throw new Error("SEC user agent must identify an organization and contact channel");
-    }
-    if (minimumIntervalMs < 100) throw new Error("SEC request interval must be at least 100ms");
-    this.userAgent = userAgent;
-    this.minimumIntervalMs = minimumIntervalMs;
-    this.fetchImplementation = fetchImplementation;
+    this.requestPolicy = requestPolicy ?? new SecRequestPolicy(userAgent, { minimumIntervalMs, fetchImplementation });
     this.now = now;
   }
 
@@ -43,12 +48,11 @@ export class SecStructuredHttpClient implements SecStructuredSourceClient {
   }
 
   private async fetchDocument(url: string, sourceKind: "submissions" | "companyfacts", cik: string) {
-    await this.rateLimit();
-    const response = await this.fetchImplementation(url, {
-      headers: { Accept: "application/json", "User-Agent": this.userAgent },
+    const response = await this.requestPolicy.fetch(url, {
+      headers: { Accept: "application/json" },
       cache: "no-store",
     });
-    if (!response.ok) throw new Error(`SEC ${sourceKind} fetch failed (${response.status})`);
+    if (!response.ok) throw new SecStructuredHttpError(sourceKind, response.status);
     const rawBody = await response.text();
     let payload: unknown;
     try {
@@ -70,12 +74,6 @@ export class SecStructuredHttpClient implements SecStructuredSourceClient {
       rawBody,
       rawBodyKind: "authoritative_http_body",
     } satisfies SecStructuredSourceDocument;
-  }
-
-  private async rateLimit() {
-    const remaining = this.minimumIntervalMs - (Date.now() - this.lastRequestAt);
-    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
-    this.lastRequestAt = Date.now();
   }
 }
 

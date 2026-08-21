@@ -30,11 +30,17 @@ export class SecStructuredDataService {
     const documents = [...submissions, companyFacts];
     const normalized = normalizeSecStructuredDocuments(documents, this.now().toISOString());
     const counts = await this.repository.ingestBatch(normalized);
+    const insertedRawSourceIds = new Set(counts.insertedRawSourceIds);
+    const sourceUpdates = {
+      submissions: sourceUpdateCounts("submissions", submissions.length, normalized.rawSources, insertedRawSourceIds),
+      companyFacts: sourceUpdateCounts("companyfacts", 1, normalized.rawSources, insertedRawSourceIds),
+    };
     const rejectionReasons: Record<string, number> = {};
     for (const item of normalized.rejections) rejectionReasons[item.reason] = (rejectionReasons[item.reason] ?? 0) + 1;
     return {
       cik,
       mode: input.mode,
+      sourceUpdates,
       ...counts,
       rejected: normalized.rejections.length,
       rejectionReasons,
@@ -42,4 +48,15 @@ export class SecStructuredDataService {
       normalizedFacts: normalized.facts.length,
     };
   }
+}
+
+function sourceUpdateCounts(
+  sourceKind: "submissions" | "companyfacts",
+  fetched: number,
+  normalized: readonly { id: string; sourceKind: string }[],
+  insertedRawSourceIds: ReadonlySet<string>,
+) {
+  const accepted = normalized.filter((row) => row.sourceKind === sourceKind);
+  const updated = accepted.filter((row) => insertedRawSourceIds.has(row.id)).length;
+  return { fetched, updated, unchanged: Math.max(0, accepted.length - updated) };
 }
