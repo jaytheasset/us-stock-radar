@@ -12,11 +12,17 @@ import {
   validateListingRiskAnalyzerInput,
 } from "../monitor/listingRiskAnalyzer.ts";
 import { buildListingRiskDomainAnalysisPrompt } from "../prompts/listingRiskDomainAnalysis.ts";
+import {
+  extractLevel2ShareCountSidecar,
+  type Level2ShareCountValidatedCandidate,
+} from "../sec-structured-data/level2ShareCountObservation.ts";
 
 export type ListingRiskDomainAnalyzerPreviewResult =
   | {
       stage: "complete";
       result: ListingRiskAnalyzerResult;
+      shareCountObservation: Level2ShareCountValidatedCandidate | null;
+      shareCountObservationErrors: string[];
       run: GeminiStructuredJsonRun;
       repair: null;
     }
@@ -86,7 +92,13 @@ export async function runListingRiskDomainAnalyzerPreview(
       validation_errors: parsed.errors,
     };
   }
-  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(parsed.transport, input);
+  const sidecar = extractLevel2ShareCountSidecar({
+    payload: parsed.transport as unknown as Record<string, unknown>,
+    accessionNumber: input.source_family === "sec" ? input.source_id : null,
+    sourceDocumentUrl: input.source_family === "sec" ? input.source_url : null,
+    sourceDocuments: input.source_documents,
+  });
+  const canonicalized = canonicalizeListingRiskAnalyzerTransportResult(sidecar.domainPayload, input);
   if (!canonicalized.result) {
     return {
       stage: "validation_error",
@@ -106,5 +118,12 @@ export async function runListingRiskDomainAnalyzerPreview(
       validation_errors: canonicalized.errors,
     };
   }
-  return { stage: "complete", result, run, repair: null };
+  return {
+    stage: "complete",
+    result,
+    shareCountObservation: sidecar.candidate,
+    shareCountObservationErrors: sidecar.errors,
+    run,
+    repair: null,
+  };
 }

@@ -14,11 +14,18 @@ import {
   buildCorporateActionCanonicalAnalysisPrompt,
   CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA,
 } from "../prompts/corporateActionCanonicalAnalysis.ts";
+import {
+  extractLevel2ShareCountSidecar,
+  type Level2ShareCountValidatedCandidate,
+} from "../sec-structured-data/level2ShareCountObservation.ts";
+import { parseJsonWithoutDuplicateKeys } from "../minimalOfferingMonitor.ts";
 
 export type CorporateActionCanonicalAnalyzerPreviewResult =
   | {
       stage: "complete";
       result: CorporateActionAnalyzerResult;
+      shareCountObservation: Level2ShareCountValidatedCandidate | null;
+      shareCountObservationErrors: string[];
       run: GeminiStructuredJsonRun;
       repair: null;
     }
@@ -79,7 +86,32 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
     };
   }
 
-  const parsed = parseCorporateActionAnalyzerTransportJson(run.outputText);
+  let providerPayload: Record<string, unknown> | null = null;
+  try {
+    const parsedJson = parseJsonWithoutDuplicateKeys(run.outputText);
+    providerPayload = parsedJson && typeof parsedJson === "object" && !Array.isArray(parsedJson)
+      ? parsedJson as Record<string, unknown>
+      : null;
+  } catch {
+    providerPayload = null;
+  }
+  if (!providerPayload) {
+    const parsed = parseCorporateActionAnalyzerTransportJson(run.outputText);
+    return {
+      stage: "validation_error",
+      result: null,
+      run,
+      error: parsed.errors.join("; "),
+      validation_errors: parsed.errors,
+    };
+  }
+  const sidecar = extractLevel2ShareCountSidecar({
+    payload: providerPayload,
+    accessionNumber: input.source_family === "sec" ? input.source_id : null,
+    sourceDocumentUrl: input.source_family === "sec" ? input.source_url : null,
+    sourceDocuments: input.source_documents,
+  });
+  const parsed = parseCorporateActionAnalyzerTransportJson(JSON.stringify(sidecar.domainPayload));
   if (!parsed.transport) {
     return {
       stage: "validation_error",
@@ -99,5 +131,12 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
       validation_errors: canonicalized.errors,
     };
   }
-  return { stage: "complete", result: canonicalized.result, run, repair: null };
+  return {
+    stage: "complete",
+    result: canonicalized.result,
+    shareCountObservation: sidecar.candidate,
+    shareCountObservationErrors: sidecar.errors,
+    run,
+    repair: null,
+  };
 }

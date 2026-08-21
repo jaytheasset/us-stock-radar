@@ -165,6 +165,41 @@ test("applicable persists typed facts before terminal success and not-applicable
   }
 });
 
+test("optional O/S persists after the unchanged domain result with one provider call; absence adds no persistence work", async () => {
+  const candidate = {
+    observationType: "source_stated",
+    sharesOutstanding: "27500000",
+    asOf: "2026-08-18",
+    securityClassTitle: "common stock",
+    basis: null,
+    accessionNumber: "0000000099-26-000010",
+    sourceDocument: "fixture.htm",
+    sourceDocumentUrl: "https://www.sec.gov/Archives/edgar/data/99/fixture.htm",
+    sourceRef: "sec-cover",
+    evidence: "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.",
+    sourceContentHash: "a".repeat(64),
+  } as const;
+  const withObservation = processorHarness({ shareCountObservation: candidate });
+  const processed = await processGenericMonitorChildWithDependencies(childIdentity(), withObservation.dependencies);
+  assert.equal(processed.status, "succeeded_not_applicable");
+  assert.equal(processed.providerCalls, 1);
+  assert.deepEqual(processed.shareCountPersistence, { inserted: 1, deduped: 0 });
+  assert.deepEqual(withObservation.order(), [
+    "persist:not_applicable",
+    "persist:share_count",
+    "terminal:succeeded_not_applicable",
+  ]);
+
+  const withoutObservation = processorHarness();
+  const absent = await processGenericMonitorChildWithDependencies(childIdentity(), withoutObservation.dependencies);
+  assert.equal(absent.providerCalls, 1);
+  assert.equal("shareCountPersistence" in absent, false);
+  assert.deepEqual(withoutObservation.order(), [
+    "persist:not_applicable",
+    "terminal:succeeded_not_applicable",
+  ]);
+});
+
 test("Listing Alert consumer failure is isolated after canonical persistence and parent terminal success", async () => {
   const harness = processorHarness({
     analyzerResult: { status: "applicable", facts: {} } as ListingRiskAnalyzerResult,
@@ -317,6 +352,7 @@ function processorHarness(options: {
   persistenceStale?: boolean;
   primaryAnalysis?: Record<string, unknown>;
   consumerFailure?: boolean;
+  shareCountObservation?: import("../sec-structured-data/level2ShareCountObservation.ts").Level2ShareCountValidatedCandidate;
 } = {}) {
   let providers = 0;
   let releases = 0;
@@ -349,7 +385,13 @@ function processorHarness(options: {
       runAnalyzer: async () => {
         providers += 1;
         if (options.failure === "provider") throw new Error("fake provider failure");
-        return { stage: "complete" as const, result: analyzerResult, run: {} as never, repair: null };
+        return {
+          stage: "complete" as const,
+          result: analyzerResult,
+          shareCountObservation: options.shareCountObservation || null,
+          run: {} as never,
+          repair: null,
+        };
       },
       persist: async ({ result }: { result: ListingRiskAnalyzerResult }) => {
         order.push(`persist:${result.status}`);
@@ -361,6 +403,10 @@ function processorHarness(options: {
           eventId: identity.eventId,
           sourceExecutionId: identity.executionId,
         };
+      },
+      persistShareCountObservation: async () => {
+        order.push("persist:share_count");
+        return { inserted: 1, deduped: 0 };
       },
       ...(options.consumerFailure ? {
         consumeListingMonitorAlerts: async () => {

@@ -128,6 +128,9 @@ Stage 2 calls Gemini once through `runStructuredGeminiJson()` with the direct `o
 
 - required: `version`, `applicability`, `financing_stage`, `primary_or_resale`, `security_nature`, `available_monetary_facts`, `available_share_facts`, `unavailable_fact_keys`;
 - optional when known: `has_warrant`, `has_prefunded_warrant`, `has_convertible`.
+- optional independent observation: `share_count_observation`, validated and
+  removed before Offering canonicalization as documented in
+  [Level 2 Share Count Observation V1](level2-share-count-observation.md).
 
 ### Available/unavailable split
 

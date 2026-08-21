@@ -2,7 +2,8 @@
 
 This foundation stores append-only issuer/time share-count observations. It does
 not determine current O/S, select a winner, sum classes, apply corporate-action
-adjustments, calculate dilution, or connect a Level 2 source.
+adjustments, or calculate dilution. It accepts authoritative XBRL observations
+and the separately validated Level 2 filing-text source.
 
 ## Official flow
 
@@ -12,6 +13,12 @@ SEC CompanyFacts candidate
   -> Authoritative O/S Extraction
   -> ELIGIBLE
   -> writeAuthoritativeShareCountObservation()
+  -> public.share_count_history
+
+Existing Level 2 domain provider call
+  -> optional source-stated sidecar
+  -> deterministic provenance validation
+  -> writeLevel2ShareCountObservation()
   -> public.share_count_history
 ```
 
@@ -58,10 +65,10 @@ apply event-time rules without look-ahead.
 ## Reader and future sources
 
 `readShareCountHistory(cik, ...)` returns ordered history rows only. It has no
-latest/current/winner behavior. `source_type` is a constrained text identity,
-not a closed database enum; V1 writes only `sec_authoritative_os`. A future
-Level 2 implementation can add its own validated writer and source type without
-changing this table's history model. It is intentionally not connected here.
+latest/current/winner behavior. `source_type` distinguishes
+`sec_authoritative_os` from `sec_filing_text_level2`; the unique source identity
+includes that field, so cross-source observations are preserved rather than
+replaced. See [Level 2 Share Count Observation V1](level2-share-count-observation.md).
 
 The public-schema table has RLS enabled. `public`, `anon`, and `authenticated`
 receive no table or sequence privileges. `service_role` receives only
