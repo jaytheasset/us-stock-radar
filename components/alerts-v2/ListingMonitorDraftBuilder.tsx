@@ -10,6 +10,7 @@ import {
   formatListingMonitorConditionPreview,
   getListingMonitorConditionEditorCatalog,
   getListingMonitorDraftCreateGate,
+  groupListingMonitorConditionsByDomain,
   removeListingMonitorDraftCondition,
   replaceListingMonitorDraftCondition,
   setListingMonitorDraftIssueAbandoned,
@@ -302,21 +303,22 @@ export function ListingMonitorDraftBuilder() {
             </span>
           </div>
 
-          <div className={styles.previewList} aria-label="Monitor conditions">
+          <div aria-label="Monitor conditions">
             {review.conditions.length === 0 ? (
               <p className={styles.emptyState}>We can’t create this monitor yet. Remove the unsupported conditions or try another request.</p>
-            ) : review.conditions.map((condition, index) => (
-              <ConditionEditor
-                condition={condition}
-                index={index}
-                key={`${index}-${condition.key}`}
-                onChange={(next) => updateCondition(index, next)}
-                onRemove={() => {
+            ) : (
+              <ConditionDomainCards
+                action={action}
+                conditions={review.conditions}
+                onChange={updateCondition}
+                onConfirm={applyConfirmation}
+                onRemove={(index) => {
                   setReview((current) => current ? removeListingMonitorDraftCondition(current, index) : current);
                   setCreatedMonitor(null);
                 }}
+                proposals={review.proposals}
               />
-            ))}
+            )}
           </div>
 
           <div className={styles.addCondition}>
@@ -331,50 +333,34 @@ export function ListingMonitorDraftBuilder() {
             </button>
             {addConditionOpen ? (
               <div aria-label="Add a condition" className={styles.addConditionPanel}>
-                {MONITOR_ADD_CONDITION_GROUPS.map((group) => (
-                  <section key={group.id}>
-                    <h3>{group.title}</h3>
-                    {group.options.map((option) => (
-                      <button
-                        disabled={addListingMonitorDraftCondition(review, option.condition) === review}
-                        key={option.id}
-                        onClick={() => addCondition(option.id)}
-                        type="button"
-                      >
-                        {option.title}
-                      </button>
-                    ))}
-                  </section>
-                ))}
+                {MONITOR_ADD_CONDITION_GROUPS.map((group) => {
+                  const visibleOptions = group.options.filter((option) =>
+                    getAddConditionOptionState(review.conditions, option.condition) !== "hidden",
+                  );
+                  return visibleOptions.length > 0 ? (
+                    <section key={group.id}>
+                      <h3>{group.title}</h3>
+                      {visibleOptions.map((option) => {
+                        const optionState = getAddConditionOptionState(review.conditions, option.condition);
+                        return (
+                          <button
+                            data-added={optionState === "added" ? "true" : "false"}
+                            disabled={optionState === "added"}
+                            key={option.id}
+                            onClick={() => addCondition(option.id)}
+                            type="button"
+                          >
+                            <span>{option.title}</span>
+                            {optionState === "added" ? <small>Added</small> : null}
+                          </button>
+                        );
+                      })}
+                    </section>
+                  ) : null;
+                })}
               </div>
             ) : null}
           </div>
-
-          {review.proposals.length > 0 ? (
-            <section className={styles.confirmations} aria-labelledby="monitor-confirmations-title">
-              <h3 id="monitor-confirmations-title">AI suggested an additional filter</h3>
-              {review.proposals.map((proposal) => (
-                <fieldset disabled={action !== "idle"} key={proposal.id}>
-                  <legend>Confirm this filter</legend>
-                  <div className={styles.suggestedFilterPreview}>
-                    <span>{proposal.preview.label}</span>
-                    <strong>{proposal.preview.value}</strong>
-                  </div>
-                  <div className={styles.confirmationActions}>
-                    {proposal.choices.map((choice) => (
-                      <button
-                        key={choice.id}
-                        onClick={() => void applyConfirmation(proposal.id, choice.id)}
-                        type="button"
-                      >
-                        {choice.label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </section>
-          ) : null}
 
           {review.issues.length > 0 ? (
             <section className={styles.issues} aria-labelledby="monitor-issues-title">
@@ -576,6 +562,103 @@ export function ListingMonitorManagement() {
   );
 }
 
+function ConditionDomainCards({
+  action = "idle",
+  conditions,
+  onChange,
+  onConfirm,
+  onRemove,
+  proposals = [],
+}: Readonly<{
+  action?: string;
+  conditions: readonly CanonicalListingMonitorCondition[];
+  onChange?: (index: number, condition: CanonicalListingMonitorCondition) => void;
+  onConfirm?: (proposalId: string, choiceId: string) => Promise<void>;
+  onRemove?: (index: number) => void;
+  proposals?: readonly Readonly<{
+    id: string;
+    preview: Readonly<{ label: string; value: string }>;
+    choices: readonly Readonly<{ id: string; label: string }>[];
+  }>[];
+}>) {
+  const groups = groupListingMonitorConditionsByDomain(conditions);
+  const visibleDomains = (["market", "corporate-actions", "listing-risk"] as const).filter((id) =>
+    groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
+  );
+  const titles = {
+    market: "Market",
+    "corporate-actions": "Corporate Actions",
+    "listing-risk": "Listing Risk",
+  } as const;
+
+  return (
+    <div className={styles.conditionDomainGrid}>
+      {visibleDomains.map((domainId) => {
+        const group = groups.find((candidate) => candidate.id === domainId);
+        return (
+          <section className={styles.conditionDomainCard} data-domain={domainId} key={domainId}>
+            <h3>{titles[domainId]}</h3>
+            {group?.items.length ? (
+              <div className={styles.domainConditions}>
+                {group.items.map(({ condition, index }) => (
+                  onChange && onRemove ? (
+                    <ConditionEditor
+                      condition={condition}
+                      index={index}
+                      key={`${index}-${condition.key}`}
+                      onChange={(next) => onChange(index, next)}
+                      onRemove={() => onRemove(index)}
+                    />
+                  ) : (
+                    <ConditionReadOnlyRow condition={condition} key={`${index}-${condition.key}`} />
+                  )
+                ))}
+              </div>
+            ) : null}
+            {domainId === "corporate-actions" && proposals.length > 0 ? (
+              <div className={styles.domainConfirmation}>
+                <h4>Suggested filter</h4>
+                {proposals.map((proposal) => (
+                  <fieldset disabled={action !== "idle"} key={proposal.id}>
+                    <legend>Confirm this filter</legend>
+                    <div className={styles.suggestedFilterPreview}>
+                      <span>{proposal.preview.label}</span>
+                      <strong>{proposal.preview.value}</strong>
+                    </div>
+                    <div className={styles.confirmationActions}>
+                      {proposal.choices.map((choice) => (
+                        <button
+                          key={choice.id}
+                          onClick={() => void onConfirm?.(proposal.id, choice.id)}
+                          type="button"
+                        >
+                          {choice.label}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConditionReadOnlyRow({
+  condition,
+}: Readonly<{ condition: CanonicalListingMonitorCondition }>) {
+  const preview = formatListingMonitorConditionPreview(condition);
+  return (
+    <div className={styles.conditionReadOnlyRow}>
+      <span>{preview.label}</span>
+      <strong>{preview.value}</strong>
+    </div>
+  );
+}
+
 function ConditionEditor({
   condition,
   index,
@@ -766,16 +849,8 @@ function CreatedMonitorSummary({ monitor }: Readonly<{ monitor: ListingMonitor }
           <p>This is what Stock Radar saved and is watching now.</p>
         </div>
       </header>
-      <div className={styles.createdConditions} aria-label="Created monitor conditions">
-        {monitor.conditions.map((condition, index) => {
-          const preview = formatListingMonitorConditionPreview(condition);
-          return (
-            <div key={`${monitor.id}-${index}`}>
-              <span>{preview.label}</span>
-              <strong>{preview.value}</strong>
-            </div>
-          );
-        })}
+      <div aria-label="Created monitor conditions">
+        <ConditionDomainCards conditions={monitor.conditions} />
       </div>
       <footer>
         <div>
@@ -883,9 +958,38 @@ function readMonitorPresets() {
   }
 }
 
+function getAddConditionOptionState(
+  conditions: readonly CanonicalListingMonitorCondition[],
+  option: CanonicalListingMonitorCondition,
+): "available" | "added" | "hidden" {
+  const selected = conditions.find((condition) => condition.key === option.key);
+  if (!selected) return "available";
+  if (option.key === "listing.event_kind") {
+    return selected.value === option.value ? "added" : "hidden";
+  }
+  return "added";
+}
+
 function readMonitorAddConditionGroups() {
   try {
-    return getMonitorAddConditionCatalog();
+    const editorByKey = new Map(
+      getListingMonitorConditionEditorCatalog().map((editor) => [editor.key, editor]),
+    );
+    const groups = getMonitorAddConditionCatalog().map((group) => ({
+      ...group,
+      options: group.options.filter((option) => {
+        const editor = editorByKey.get(option.condition.key);
+        if (!editor) return false;
+        const preview = formatListingMonitorConditionPreview(option.condition);
+        const fixedHumanValue = option.condition.key === "corporate_action.event_kind"
+          || option.condition.key === "listing.event_kind";
+        const usableEditor = fixedHumanValue
+          || editor.values.length > 0
+          || editor.operators.length > 0;
+        return usableEditor && preview.label !== "Condition" && preview.value.trim().length > 0;
+      }),
+    })).filter((group) => group.options.length > 0);
+    return groups.reduce((count, group) => count + group.options.length, 0) === 6 ? groups : [];
   } catch {
     return [];
   }

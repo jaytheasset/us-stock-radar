@@ -10,6 +10,7 @@ import {
   formatListingMonitorConditionPreview,
   getListingMonitorConditionEditorCatalog,
   getListingMonitorDraftCreateGate,
+  groupListingMonitorConditionsByDomain,
   removeListingMonitorDraftCondition,
   replaceListingMonitorDraftCondition,
   setListingMonitorDraftIssueAbandoned,
@@ -287,6 +288,36 @@ test("human presentation covers price operators and Listing values without raw l
     "Corporate action stage — Effective",
   ]);
   assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b|reverse_split|corporate_action/);
+});
+
+test("Listing monitor review groups only present conditions into stable human domains", () => {
+  assert.deepEqual(formatListingMonitorConditionPreview(PRICE), {
+    label: "Price",
+    value: "Below $1",
+    text: "Price — Below $1",
+  });
+  assert.deepEqual(formatListingMonitorConditionPreview({ ...PRICE, value: 2 }), {
+    label: "Price",
+    value: "Below $2",
+    text: "Price — Below $2",
+  });
+  const presetGroups = groupListingMonitorConditionsByDomain([PRICE, REVERSE_SPLIT]);
+  assert.deepEqual(
+    presetGroups.map((group) => ({
+      id: group.id,
+      indexes: group.items.map((item) => item.index),
+    })),
+    [
+      { id: "market", indexes: [0] },
+      { id: "corporate-actions", indexes: [1] },
+    ],
+  );
+
+  const listingGroups = groupListingMonitorConditionsByDomain([DEFICIENCY, DEADLINE]);
+  assert.equal(listingGroups.length, 1);
+  assert.equal(listingGroups[0]?.id, "listing-risk");
+  assert.equal(listingGroups[0]?.items.length, 2);
+  assert.deepEqual(groupListingMonitorConditionsByDomain([]), []);
 });
 
 test("AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation", () => {

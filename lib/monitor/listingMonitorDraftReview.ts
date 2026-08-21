@@ -200,6 +200,56 @@ export function formatListingMonitorConditionPreview(
   });
 }
 
+export type ListingMonitorConditionDomain =
+  | "market"
+  | "corporate-actions"
+  | "listing-risk";
+
+export type ListingMonitorConditionDomainGroup = Readonly<{
+  id: ListingMonitorConditionDomain;
+  title: "Market" | "Corporate Actions" | "Listing Risk";
+  items: readonly Readonly<{
+    condition: CanonicalListingMonitorCondition;
+    index: number;
+  }>[];
+}>;
+
+const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
+  id: ListingMonitorConditionDomain;
+  title: ListingMonitorConditionDomainGroup["title"];
+  matches: (condition: CanonicalListingMonitorCondition) => boolean;
+}>[] = [
+  {
+    id: "market",
+    title: "Market",
+    matches: (condition) => condition.key === "market.price",
+  },
+  {
+    id: "corporate-actions",
+    title: "Corporate Actions",
+    matches: (condition) => condition.key.startsWith("corporate_action."),
+  },
+  {
+    id: "listing-risk",
+    title: "Listing Risk",
+    matches: (condition) => condition.key.startsWith("listing."),
+  },
+];
+
+export function groupListingMonitorConditionsByDomain(
+  conditions: readonly CanonicalListingMonitorCondition[],
+): readonly ListingMonitorConditionDomainGroup[] {
+  return CONDITION_DOMAIN_DEFINITIONS.flatMap((definition) => {
+    const items = conditions.flatMap((condition, index) =>
+      definition.matches(condition) ? [{ condition, index }] : [],
+    );
+
+    return items.length > 0
+      ? [{ id: definition.id, title: definition.title, items }]
+      : [];
+  });
+}
+
 export function changeListingMonitorDraftConditionKey(
   current: CanonicalListingMonitorCondition,
   key: string,
