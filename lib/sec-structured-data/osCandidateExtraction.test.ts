@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   extractCompanyFactsOs,
   readOsCandidates,
-  SEC_OS_ALLOWED_FORMS,
   SEC_OS_CANDIDATE_CONCEPT,
   SEC_OS_ESCALATION_CONCEPT,
+  SEC_OS_EXTRACTION_STATUSES,
+  SEC_OS_SUPPORTED_DOMESTIC_FORMS,
+  SEC_OS_SUPPORTED_FOREIGN_FORMS,
   type SecOsRejectionReason,
 } from "./osCandidateExtraction.ts";
 import type { SecCompanyFactRow, SecFilingRow } from "./types.ts";
@@ -24,33 +26,17 @@ const fixture = JSON.parse(await readFile(
   "utf8",
 )) as { issuers: AuditSample[] };
 
-test("five audited issuers enforce the narrow domestic contract and fail closed for class/ADR ambiguity", () => {
-  const expected = new Map([
-    ["ordinary_us_common_stock", "COMPANY_FACTS_ELIGIBLE"],
-    ["small_cap_amendment_reverse_split_history", "COMPANY_FACTS_ELIGIBLE"],
-    ["multi_class_negative_control", "REQUIRES_FILING_CONTEXT"],
-    ["foreign_issuer_adr", "REQUIRES_FILING_CONTEXT"],
-    ["foreign_adr_negative_control", "REQUIRES_FILING_CONTEXT"],
-  ]);
-
-  for (const sample of fixture.issuers) {
-    const extracted = extractSample(sample);
-    assert.equal(extracted.extractionStatus, expected.get(sample.sampleKind));
-    assert.equal(extracted.extractionStatus, sample.auditedObservation.expectedStatus);
-  }
-
-  const alphabet = extractSample(sample("multi_class_negative_control"));
-  assert.equal(alphabet.candidates.length, 0);
-  assert.deepEqual(reasons(alphabet), new Set(["MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT"]));
-
-  for (const kind of ["foreign_issuer_adr", "foreign_adr_negative_control"]) {
-    const foreign = extractSample(sample(kind));
-    assert.equal(foreign.candidates.length, 0);
-    assert.equal(reasons(foreign).has("ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT"), true);
+test("CompanyFacts-only runtime has no eligible status and all five audited issuers require filing context", () => {
+  assert.deepEqual(SEC_OS_EXTRACTION_STATUSES, ["REQUIRES_FILING_CONTEXT", "UNAVAILABLE"]);
+  for (const audited of fixture.issuers) {
+    const extracted = extractSample(audited);
+    assert.equal(extracted.extractionStatus, "REQUIRES_FILING_CONTEXT", audited.sampleKind);
+    assert.equal(extracted.extractionStatus, audited.auditedObservation.expectedStatus);
+    assert.equal(extracted.candidates.every((candidate) => candidate.extractionStatus === "REQUIRES_FILING_CONTEXT"), true);
   }
 });
 
-test("eligible candidate preserves exact concept, integer, instant, unit, accession, and ledger acceptance provenance", () => {
+test("a validated domestic DEI fact preserves provenance but cannot prove one common security class", () => {
   const aapl = extractSample(sample("ordinary_us_common_stock"));
   assert.equal(aapl.candidates.length, 1);
   assert.deepEqual(aapl.candidates[0], {
@@ -72,13 +58,22 @@ test("eligible candidate preserves exact concept, integer, instant, unit, access
       sourceRawId: "11111111-1111-4111-8111-111111111111",
     }],
     filingLedgerRawSourceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    extractionStatus: "COMPANY_FACTS_ELIGIBLE",
-    rejectionReason: null,
+    extractionStatus: "REQUIRES_FILING_CONTEXT",
+    rejectionReason: "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT",
   });
   assert.equal(reasons(aapl).has("BALANCE_SHEET_CONCEPT_NOT_CANDIDATE"), true);
 });
 
-test("positive exact integer, instant period, shares unit, and source lineage fail closed", () => {
+test("aggregate non-dimensional multi-class DEI is indistinguishable and therefore never promoted", () => {
+  const base = sample("ordinary_us_common_stock");
+  const aggregateDei = base.facts.find((fact) => fact.taxonomy === "dei")!;
+  const adversarial = extractCompanyFactsOs({ cik: base.cik, facts: [aggregateDei], filings: base.filings });
+  assert.equal(adversarial.extractionStatus, "REQUIRES_FILING_CONTEXT");
+  assert.equal(adversarial.candidates[0]?.rejectionReason, "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT");
+  assert.equal("axis" in aggregateDei || "member" in aggregateDei || "securityClass" in aggregateDei, false);
+});
+
+test("positive exact integer, instant period, shares unit, and source lineage still fail closed as unavailable", () => {
   const base = sample("ordinary_us_common_stock");
   const candidate = base.facts.find((fact) => fact.taxonomy === "dei")!;
   const cases: Array<[Partial<SecCompanyFactRow>, SecOsRejectionReason]> = [
@@ -98,40 +93,51 @@ test("positive exact integer, instant period, shares unit, and source lineage fa
   ];
 
   for (const [change, reason] of cases) {
-    const result = extractCompanyFactsOs({
+    const extracted = extractCompanyFactsOs({
       cik: base.cik,
       facts: [{ ...candidate, ...change }],
       filings: base.filings,
     });
-    assert.equal(result.extractionStatus, "UNAVAILABLE", JSON.stringify(change));
-    assert.equal(result.rejected[0]?.rejectionReason, reason, JSON.stringify(change));
+    assert.equal(extracted.extractionStatus, "UNAVAILABLE", JSON.stringify(change));
+    assert.equal(extracted.rejected[0]?.rejectionReason, reason, JSON.stringify(change));
   }
 });
 
-test("form whitelist is exact and accepted_at must come from one exact official filing-ledger join", () => {
+test("supported forms preserve chronology but do not establish class; ledger acceptance remains mandatory", () => {
   const base = sample("ordinary_us_common_stock");
   const candidate = base.facts.find((fact) => fact.taxonomy === "dei")!;
   const filing = base.filings[0]!;
 
-  for (const form of SEC_OS_ALLOWED_FORMS) {
-    const result = extractCompanyFactsOs({
+  for (const form of SEC_OS_SUPPORTED_DOMESTIC_FORMS) {
+    const extracted = extractCompanyFactsOs({
       cik: base.cik,
       facts: [{ ...candidate, form }],
       filings: [{ ...filing, form }],
     });
-    assert.equal(result.extractionStatus, "COMPANY_FACTS_ELIGIBLE", form);
+    assert.equal(extracted.extractionStatus, "REQUIRES_FILING_CONTEXT", form);
+    assert.equal(extracted.candidates[0]?.rejectionReason, "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT");
   }
 
-  const disallowed = extractCompanyFactsOs({
+  for (const form of SEC_OS_SUPPORTED_FOREIGN_FORMS) {
+    const extracted = extractCompanyFactsOs({
+      cik: base.cik,
+      facts: [{ ...candidate, form }],
+      filings: [{ ...filing, form }],
+    });
+    assert.equal(extracted.extractionStatus, "REQUIRES_FILING_CONTEXT", form);
+    assert.equal(extracted.candidates[0]?.rejectionReason, "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT");
+  }
+
+  const unsupported = extractCompanyFactsOs({
     cik: base.cik,
     facts: [{ ...candidate, form: "8-K" }],
     filings: [{ ...filing, form: "8-K" }],
   });
-  assert.equal(disallowed.rejected[0]?.rejectionReason, "FACT_FORM_NOT_ALLOWED");
+  assert.equal(unsupported.extractionStatus, "UNAVAILABLE");
+  assert.equal(unsupported.rejected[0]?.rejectionReason, "FACT_FORM_NOT_SUPPORTED");
 
   const noJoin = extractCompanyFactsOs({ cik: base.cik, facts: [candidate], filings: [] });
   assert.equal(noJoin.rejected[0]?.rejectionReason, "FILING_LEDGER_IDENTITY_MISSING");
-
   const noAccepted = extractCompanyFactsOs({
     cik: base.cik,
     facts: [candidate],
@@ -140,7 +146,7 @@ test("form whitelist is exact and accepted_at must come from one exact official 
   assert.equal(noAccepted.rejected[0]?.rejectionReason, "FILING_LEDGER_ACCEPTED_AT_MISSING");
 });
 
-test("identical canonical observations dedupe while retaining every exact raw source identity", () => {
+test("identical filing-context candidates dedupe while retaining every raw source identity", () => {
   const base = sample("ordinary_us_common_stock");
   const candidate = base.facts.find((fact) => fact.taxonomy === "dei")!;
   const duplicate: SecCompanyFactRow = {
@@ -161,7 +167,7 @@ test("identical canonical observations dedupe while retaining every exact raw so
   ]);
 });
 
-test("amendments remain distinct chronology and are never automatic winners", () => {
+test("amendments remain distinct chronology and never become authoritative winners", () => {
   const base = sample("small_cap_amendment_reverse_split_history");
   const amended = base.facts[0]!;
   const amendedFiling = base.filings[0]!;
@@ -188,9 +194,10 @@ test("amendments remain distinct chronology and are never automatic winners", ()
     "0001144204-13-040001",
     "0001144204-13-044345",
   ]);
+  assert.equal(extracted.candidates.every((row) => row.extractionStatus === "REQUIRES_FILING_CONTEXT"), true);
 });
 
-test("same-date value or concept conflicts never pick a winner", () => {
+test("same-date value or concept conflicts retain no winner and carry the conflict reason", () => {
   const base = sample("ordinary_us_common_stock");
   const candidate = base.facts.find((fact) => fact.taxonomy === "dei")!;
   const valueConflict: SecCompanyFactRow = {
@@ -203,9 +210,8 @@ test("same-date value or concept conflicts never pick a winner", () => {
     facts: [candidate, valueConflict],
     filings: base.filings,
   });
-  assert.equal(conflictingValues.candidates.length, 0);
-  assert.equal(conflictingValues.extractionStatus, "REQUIRES_FILING_CONTEXT");
-  assert.deepEqual(reasons(conflictingValues), new Set(["SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"]));
+  assert.equal(conflictingValues.candidates.length, 2);
+  assert.equal(conflictingValues.candidates.every((row) => row.rejectionReason === "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"), true);
 
   const balanceSheet = base.facts.find((fact) => fact.taxonomy === "us-gaap")!;
   const conflictingConcept = extractCompanyFactsOs({
@@ -213,11 +219,11 @@ test("same-date value or concept conflicts never pick a winner", () => {
     facts: [candidate, { ...balanceSheet, instantDate: candidate.instantDate }],
     filings: base.filings,
   });
-  assert.equal(conflictingConcept.candidates.length, 0);
-  assert.equal(reasons(conflictingConcept).has("SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"), true);
+  assert.equal(conflictingConcept.candidates.length, 2);
+  assert.equal(conflictingConcept.candidates.every((row) => row.rejectionReason === "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"), true);
 });
 
-test("input order and deterministic replay do not change output", () => {
+test("input order and deterministic replay do not change escalation output", () => {
   for (const audited of fixture.issuers) {
     const first = extractSample(audited);
     const replay = extractCompanyFactsOs({
@@ -229,7 +235,7 @@ test("input order and deterministic replay do not change output", () => {
   }
 });
 
-test("official reader requests only the exact candidate and escalation concepts plus the filing ledger", async () => {
+test("official reader remains read-only and returns filing-context candidates, never authoritative O/S", async () => {
   const base = sample("ordinary_us_common_stock");
   const calls: Array<Record<string, unknown>> = [];
   const repository = {
@@ -243,7 +249,7 @@ test("official reader requests only the exact candidate and escalation concepts 
     },
   };
   const extracted = await readOsCandidates(repository, base.cik);
-  assert.equal(extracted.extractionStatus, "COMPANY_FACTS_ELIGIBLE");
+  assert.equal(extracted.extractionStatus, "REQUIRES_FILING_CONTEXT");
   assert.deepEqual(calls, [
     { cik: base.cik, taxonomy: SEC_OS_CANDIDATE_CONCEPT.taxonomy, concept: SEC_OS_CANDIDATE_CONCEPT.concept, limit: 1000 },
     { cik: base.cik, taxonomy: SEC_OS_ESCALATION_CONCEPT.taxonomy, concept: SEC_OS_ESCALATION_CONCEPT.concept, limit: 1000 },
@@ -251,7 +257,7 @@ test("official reader requests only the exact candidate and escalation concepts 
   ]);
 });
 
-test("unsupported or absent facts are unavailable rather than estimated or semantically substituted", () => {
+test("unsupported or absent facts are unavailable rather than estimated or substituted", () => {
   const base = sample("ordinary_us_common_stock");
   const unsupported = { ...base.facts[0]!, concept: "CommonStockSharesIssued" };
   const extracted = extractCompanyFactsOs({ cik: base.cik, facts: [unsupported], filings: base.filings });
@@ -265,11 +271,12 @@ function sample(kind: string) {
   assert.ok(found, kind);
   return structuredClone(found);
 }
-
 function extractSample(audited: AuditSample) {
   return extractCompanyFactsOs({ cik: audited.cik, facts: audited.facts, filings: audited.filings });
 }
-
 function reasons(extracted: ReturnType<typeof extractCompanyFactsOs>) {
-  return new Set(extracted.rejected.map((row) => row.rejectionReason));
+  return new Set([
+    ...extracted.candidates.map((row) => row.rejectionReason),
+    ...extracted.rejected.map((row) => row.rejectionReason),
+  ]);
 }

@@ -4,21 +4,15 @@ import type {
   SecStructuredRepository,
 } from "./types.ts";
 
-export const SEC_OS_EXTRACTION_STATUSES = [
-  "COMPANY_FACTS_ELIGIBLE",
-  "REQUIRES_FILING_CONTEXT",
-  "UNAVAILABLE",
-] as const;
-
+export const SEC_OS_EXTRACTION_STATUSES = ["REQUIRES_FILING_CONTEXT", "UNAVAILABLE"] as const;
 export type SecOsExtractionStatus = (typeof SEC_OS_EXTRACTION_STATUSES)[number];
 
 export const SEC_OS_REJECTION_REASONS = [
   "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT",
   "BALANCE_SHEET_CONCEPT_NOT_CANDIDATE",
-  "DIMENSION_SENSITIVE_FACT_REQUIRES_FILING_CONTEXT",
   "FACT_ACCESSION_INVALID",
   "FACT_CIK_MISMATCH",
-  "FACT_FORM_NOT_ALLOWED",
+  "FACT_FORM_NOT_SUPPORTED",
   "FACT_LINEAGE_INVALID",
   "FACT_PERIOD_NOT_INSTANT",
   "FACT_UNIT_NOT_SHARES",
@@ -27,22 +21,21 @@ export const SEC_OS_REJECTION_REASONS = [
   "FILING_LEDGER_IDENTITY_MISSING",
   "FILING_LEDGER_LINEAGE_INVALID",
   "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT",
-  "MULTIPLE_SECURITY_CLASSES_REQUIRE_FILING_CONTEXT",
   "NO_RELEVANT_COMPANYFACTS_FACT",
   "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT",
 ] as const;
-
 export type SecOsRejectionReason = (typeof SEC_OS_REJECTION_REASONS)[number];
 
-export const SEC_OS_ALLOWED_FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A"] as const;
-export type SecOsAllowedForm = (typeof SEC_OS_ALLOWED_FORMS)[number];
+export const SEC_OS_SUPPORTED_DOMESTIC_FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A"] as const;
+export type SecOsSupportedDomesticForm = (typeof SEC_OS_SUPPORTED_DOMESTIC_FORMS)[number];
+export const SEC_OS_SUPPORTED_FOREIGN_FORMS = ["20-F", "20-F/A", "40-F", "40-F/A", "6-K", "6-K/A"] as const;
+export type SecOsSupportedForeignForm = (typeof SEC_OS_SUPPORTED_FOREIGN_FORMS)[number];
 
 export const SEC_OS_CANDIDATE_CONCEPT = {
   taxonomy: "dei",
   concept: "EntityCommonStockSharesOutstanding",
   unit: "shares",
 } as const;
-
 export const SEC_OS_ESCALATION_CONCEPT = {
   taxonomy: "us-gaap",
   concept: "CommonStockSharesOutstanding",
@@ -72,35 +65,42 @@ type SecOsObservationBase = {
   filingLedgerRawSourceId: string | null;
 };
 
-export type SecOsEligibleCandidate = SecOsObservationBase & {
+export type SecOsFilingContextCandidate = SecOsObservationBase & {
   sharesOutstanding: string;
   asOf: string;
   accession: string;
-  form: SecOsAllowedForm;
+  form: string;
   filedDate: string;
   acceptedAt: string;
-  taxonomy: "dei";
-  concept: "EntityCommonStockSharesOutstanding";
+  taxonomy: "dei" | "us-gaap";
+  concept: "EntityCommonStockSharesOutstanding" | "CommonStockSharesOutstanding";
   unit: "shares";
   sourceKind: "companyfacts";
   contextKind: "companyfacts_implicit";
   filingLedgerRawSourceId: string;
-  extractionStatus: "COMPANY_FACTS_ELIGIBLE";
-  rejectionReason: null;
+  extractionStatus: "REQUIRES_FILING_CONTEXT";
+  rejectionReason:
+    | "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT"
+    | "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT"
+    | "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT";
 };
 
-export type SecOsRejectedObservation = SecOsObservationBase & {
-  extractionStatus: "REQUIRES_FILING_CONTEXT" | "UNAVAILABLE";
-  rejectionReason: SecOsRejectionReason;
+export type SecOsUnavailableObservation = SecOsObservationBase & {
+  extractionStatus: "UNAVAILABLE";
+  rejectionReason: Exclude<
+    SecOsRejectionReason,
+    | "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT"
+    | "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT"
+    | "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"
+  >;
 };
 
-export type SecOsObservation = SecOsEligibleCandidate | SecOsRejectedObservation;
-
+export type SecOsObservation = SecOsFilingContextCandidate | SecOsUnavailableObservation;
 export type SecOsExtractionResult = {
   issuerCik: string;
   extractionStatus: SecOsExtractionStatus;
-  candidates: SecOsEligibleCandidate[];
-  rejected: SecOsRejectedObservation[];
+  candidates: SecOsFilingContextCandidate[];
+  rejected: SecOsUnavailableObservation[];
 };
 
 export async function readOsCandidates(
@@ -144,15 +144,11 @@ export function extractCompanyFactsOs(input: {
     filingsByIdentity.set(key, rows);
   }
 
-  const candidateFactsByAccession = new Map<string, SecCompanyFactRow[]>();
-  for (const fact of relevantFacts.filter(isCandidateConcept)) {
-    const rows = candidateFactsByAccession.get(fact.filingAccession) ?? [];
-    rows.push(fact);
-    candidateFactsByAccession.set(fact.filingAccession, rows);
-  }
-
-  const candidates: SecOsEligibleCandidate[] = [];
-  const rejected: SecOsRejectedObservation[] = [];
+  const candidateFactAccessions = new Set(
+    relevantFacts.filter(isCandidateConcept).map((fact) => fact.filingAccession),
+  );
+  const candidates: SecOsFilingContextCandidate[] = [];
+  const rejected: SecOsUnavailableObservation[] = [];
   const balanceSheetSignals: ValidatedFact[] = [];
 
   for (const fact of relevantFacts) {
@@ -161,88 +157,47 @@ export function extractCompanyFactsOs(input: {
       rejected.push(validated.rejected);
       continue;
     }
-
-    if (isCandidateConcept(fact)) {
-      if (isForeignReportForm(fact.form)) {
-        rejected.push(rejectValidated(
-          validated,
-          "REQUIRES_FILING_CONTEXT",
-          "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT",
-        ));
-        continue;
-      }
-      if (!isAllowedForm(fact.form)) {
-        rejected.push(rejectValidated(validated, "UNAVAILABLE", "FACT_FORM_NOT_ALLOWED"));
-        continue;
-      }
-      candidates.push(eligible(validated));
+    if (!isCandidateConcept(fact)) {
+      balanceSheetSignals.push(validated);
       continue;
     }
-
-    balanceSheetSignals.push(validated);
+    if (isForeignReportForm(fact.form)) {
+      candidates.push(filingContextCandidate(validated, "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT"));
+    } else if (isSupportedDomesticForm(fact.form)) {
+      candidates.push(filingContextCandidate(validated, "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT"));
+    } else {
+      rejected.push(unavailableValidated(validated, "FACT_FORM_NOT_SUPPORTED"));
+    }
   }
-
-  const dedupedCandidates = dedupeCandidates(candidates);
-  const candidateAccessions = new Set(relevantFacts.filter(isCandidateConcept).map((fact) => fact.filingAccession));
-  const sameDateConceptSignals = new Map<string, ValidatedFact[]>();
 
   for (const signal of balanceSheetSignals) {
     if (isForeignReportForm(signal.fact.form)) {
-      rejected.push(rejectValidated(
-        signal,
-        "REQUIRES_FILING_CONTEXT",
-        "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT",
-      ));
+      candidates.push(filingContextCandidate(signal, "ADS_OR_ORDINARY_SHARES_REQUIRE_FILING_CONTEXT"));
       continue;
     }
-    if (!isAllowedForm(signal.fact.form)) {
-      rejected.push(rejectValidated(signal, "UNAVAILABLE", "BALANCE_SHEET_CONCEPT_NOT_CANDIDATE"));
+    if (!isSupportedDomesticForm(signal.fact.form)) {
+      rejected.push(unavailableValidated(signal, "BALANCE_SHEET_CONCEPT_NOT_CANDIDATE"));
       continue;
     }
-    const sameDateCandidate = dedupedCandidates.some((candidate) =>
-      candidate.accession === signal.fact.filingAccession && candidate.asOf === signal.fact.instantDate
+    const sameDateDei = candidates.some((candidate) =>
+      candidate.taxonomy === "dei"
+      && candidate.accession === signal.fact.filingAccession
+      && candidate.asOf === signal.fact.instantDate
     );
-    if (sameDateCandidate) {
-      const key = dateIdentity(issuerCik, signal.fact.instantDate!);
-      const rows = sameDateConceptSignals.get(key) ?? [];
-      rows.push(signal);
-      sameDateConceptSignals.set(key, rows);
-    } else if (!candidateAccessions.has(signal.fact.filingAccession)) {
-      rejected.push(rejectValidated(
-        signal,
-        "REQUIRES_FILING_CONTEXT",
-        "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT",
-      ));
+    if (sameDateDei) {
+      candidates.push(filingContextCandidate(signal, "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT"));
+    } else if (!candidateFactAccessions.has(signal.fact.filingAccession)) {
+      candidates.push(filingContextCandidate(signal, "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT"));
     } else {
-      rejected.push(rejectValidated(signal, "UNAVAILABLE", "BALANCE_SHEET_CONCEPT_NOT_CANDIDATE"));
+      rejected.push(unavailableValidated(signal, "BALANCE_SHEET_CONCEPT_NOT_CANDIDATE"));
     }
   }
 
-  const conflictDates = conflictingDates(dedupedCandidates, sameDateConceptSignals);
-  const safeCandidates: SecOsEligibleCandidate[] = [];
-  for (const candidate of dedupedCandidates) {
-    if (!conflictDates.has(dateIdentity(candidate.issuerCik, candidate.asOf))) {
-      safeCandidates.push(candidate);
-      continue;
-    }
-    rejected.push({
-      ...candidate,
-      extractionStatus: "REQUIRES_FILING_CONTEXT",
-      rejectionReason: "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT",
-    });
-  }
-  for (const [key, signals] of sameDateConceptSignals) {
-    if (!conflictDates.has(key)) continue;
-    for (const signal of signals) {
-      rejected.push(rejectValidated(
-        signal,
-        "REQUIRES_FILING_CONTEXT",
-        "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT",
-      ));
-    }
-  }
-
-  return result(issuerCik, safeCandidates, rejected);
+  const conflictDates = conflictingDates(candidates);
+  const conflictMarked = candidates.map((candidate) => conflictDates.has(dateIdentity(candidate.issuerCik, candidate.asOf))
+    ? { ...candidate, rejectionReason: "SAME_DATE_CONFLICT_REQUIRES_FILING_CONTEXT" as const }
+    : candidate);
+  return result(issuerCik, dedupeCandidates(conflictMarked), rejected);
 }
 
 type ValidatedFact = { fact: SecCompanyFactRow; filing: SecFilingRow };
@@ -251,41 +206,37 @@ function validateFact(
   issuerCik: string,
   fact: SecCompanyFactRow,
   filingsByIdentity: ReadonlyMap<string, SecFilingRow[]>,
-): ValidatedFact | { rejected: SecOsRejectedObservation } {
+): ValidatedFact | { rejected: SecOsUnavailableObservation } {
   const base = observationBase(issuerCik, fact, null);
   if (!validCik(issuerCik) || fact.issuerCik !== issuerCik) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_CIK_MISMATCH") };
+    return { rejected: unavailable(base, "FACT_CIK_MISMATCH") };
   }
   if (!ACCESSION_PATTERN.test(fact.filingAccession)) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_ACCESSION_INVALID") };
+    return { rejected: unavailable(base, "FACT_ACCESSION_INVALID") };
   }
   if (
     fact.sourceKind !== "companyfacts" || fact.contextKind !== "companyfacts_implicit"
     || !HEX_64_PATTERN.test(fact.sourceFactKey) || !fact.sourceFactPath.trim()
     || !UUID_PATTERN.test(fact.sourceRawId)
   ) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_LINEAGE_INVALID") };
+    return { rejected: unavailable(base, "FACT_LINEAGE_INVALID") };
   }
-  if (fact.unit !== "shares") {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_UNIT_NOT_SHARES") };
-  }
+  if (fact.unit !== "shares") return { rejected: unavailable(base, "FACT_UNIT_NOT_SHARES") };
   if (
     fact.valueKind !== "numeric" || !fact.valueNumeric
     || !POSITIVE_INTEGER_PATTERN.test(fact.valueNumeric) || fact.valueText !== null
   ) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_VALUE_NOT_POSITIVE_INTEGER") };
+    return { rejected: unavailable(base, "FACT_VALUE_NOT_POSITIVE_INTEGER") };
   }
   if (!fact.instantDate || !validDate(fact.instantDate) || fact.startDate !== null || fact.endDate !== null) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_PERIOD_NOT_INSTANT") };
+    return { rejected: unavailable(base, "FACT_PERIOD_NOT_INSTANT") };
   }
-  if (!validDate(fact.filedDate)) {
-    return { rejected: reject(base, "UNAVAILABLE", "FACT_LINEAGE_INVALID") };
-  }
+  if (!validDate(fact.filedDate)) return { rejected: unavailable(base, "FACT_LINEAGE_INVALID") };
 
   const identity = filingIdentity(fact.filingAccession, fact.issuerCik, fact.form, fact.filedDate);
   const filingRows = filingsByIdentity.get(identity) ?? [];
   if (filingRows.length !== 1) {
-    return { rejected: reject(base, "UNAVAILABLE", "FILING_LEDGER_IDENTITY_MISSING") };
+    return { rejected: unavailable(base, "FILING_LEDGER_IDENTITY_MISSING") };
   }
   const filing = filingRows[0]!;
   const withFiling = observationBase(issuerCik, fact, filing);
@@ -294,32 +245,35 @@ function validateFact(
     || filing.issuerCik !== issuerCik || filing.accessionNumber !== fact.filingAccession
     || filing.form !== fact.form || filing.filedDate !== fact.filedDate
   ) {
-    return { rejected: reject(withFiling, "UNAVAILABLE", "FILING_LEDGER_LINEAGE_INVALID") };
+    return { rejected: unavailable(withFiling, "FILING_LEDGER_LINEAGE_INVALID") };
   }
   if (!filing.acceptedAt || !validTimestamp(filing.acceptedAt)) {
-    return { rejected: reject(withFiling, "UNAVAILABLE", "FILING_LEDGER_ACCEPTED_AT_MISSING") };
+    return { rejected: unavailable(withFiling, "FILING_LEDGER_ACCEPTED_AT_MISSING") };
   }
   return { fact, filing };
 }
 
-function eligible(validated: ValidatedFact): SecOsEligibleCandidate {
+function filingContextCandidate(
+  validated: ValidatedFact,
+  rejectionReason: SecOsFilingContextCandidate["rejectionReason"],
+): SecOsFilingContextCandidate {
   const { fact, filing } = validated;
   return {
     ...observationBase(fact.issuerCik, fact, filing),
     sharesOutstanding: fact.valueNumeric!,
     asOf: fact.instantDate!,
     accession: fact.filingAccession,
-    form: fact.form as SecOsAllowedForm,
+    form: fact.form,
     filedDate: fact.filedDate,
     acceptedAt: filing.acceptedAt!,
-    taxonomy: "dei",
-    concept: "EntityCommonStockSharesOutstanding",
+    taxonomy: fact.taxonomy as "dei" | "us-gaap",
+    concept: fact.concept as "EntityCommonStockSharesOutstanding" | "CommonStockSharesOutstanding",
     unit: "shares",
     sourceKind: "companyfacts",
     contextKind: "companyfacts_implicit",
     filingLedgerRawSourceId: filing.sourceRawId,
-    extractionStatus: "COMPANY_FACTS_ELIGIBLE",
-    rejectionReason: null,
+    extractionStatus: "REQUIRES_FILING_CONTEXT",
+    rejectionReason,
   };
 }
 
@@ -350,72 +304,64 @@ function observationBase(
   };
 }
 
-function reject(
+function unavailable(
   base: SecOsObservationBase,
-  extractionStatus: "REQUIRES_FILING_CONTEXT" | "UNAVAILABLE",
-  rejectionReason: SecOsRejectionReason,
-): SecOsRejectedObservation {
-  return { ...base, extractionStatus, rejectionReason };
+  rejectionReason: SecOsUnavailableObservation["rejectionReason"],
+): SecOsUnavailableObservation {
+  return { ...base, extractionStatus: "UNAVAILABLE", rejectionReason };
 }
 
-function rejectValidated(
+function unavailableValidated(
   validated: ValidatedFact,
-  extractionStatus: "REQUIRES_FILING_CONTEXT" | "UNAVAILABLE",
-  rejectionReason: SecOsRejectionReason,
+  rejectionReason: SecOsUnavailableObservation["rejectionReason"],
 ) {
-  return reject(observationBase(validated.fact.issuerCik, validated.fact, validated.filing), extractionStatus, rejectionReason);
+  return unavailable(observationBase(validated.fact.issuerCik, validated.fact, validated.filing), rejectionReason);
 }
 
-function syntheticUnavailable(issuerCik: string, reason: SecOsRejectionReason) {
-  return reject(observationBase(issuerCik, null, null), "UNAVAILABLE", reason);
+function syntheticUnavailable(
+  issuerCik: string,
+  reason: SecOsUnavailableObservation["rejectionReason"],
+) {
+  return unavailable(observationBase(issuerCik, null, null), reason);
 }
 
-function dedupeCandidates(candidates: readonly SecOsEligibleCandidate[]) {
-  const byIdentity = new Map<string, SecOsEligibleCandidate>();
+function dedupeCandidates(candidates: readonly SecOsFilingContextCandidate[]) {
+  const byIdentity = new Map<string, SecOsFilingContextCandidate>();
   for (const candidate of [...candidates].sort(compareObservations)) {
     const key = canonicalObservationIdentity(candidate);
     const current = byIdentity.get(key);
-    if (!current) {
-      byIdentity.set(key, candidate);
-      continue;
-    }
-    const sourceFacts = uniqueSourceFacts([...current.sourceFacts, ...candidate.sourceFacts]);
-    byIdentity.set(key, { ...current, sourceFacts });
+    byIdentity.set(key, current ? {
+      ...current,
+      sourceFacts: uniqueSourceFacts([...current.sourceFacts, ...candidate.sourceFacts]),
+    } : candidate);
   }
   return [...byIdentity.values()].sort(compareObservations);
 }
 
-function conflictingDates(
-  candidates: readonly SecOsEligibleCandidate[],
-  conceptSignals: ReadonlyMap<string, readonly ValidatedFact[]>,
-) {
-  const valuesByDate = new Map<string, Set<string>>();
+function conflictingDates(candidates: readonly SecOsFilingContextCandidate[]) {
+  const semanticsByDate = new Map<string, Set<string>>();
   for (const candidate of candidates) {
     const key = dateIdentity(candidate.issuerCik, candidate.asOf);
-    const values = valuesByDate.get(key) ?? new Set<string>();
-    values.add(`${candidate.taxonomy}:${candidate.concept}:${candidate.sharesOutstanding}`);
-    valuesByDate.set(key, values);
+    const semantics = semanticsByDate.get(key) ?? new Set<string>();
+    semantics.add(`${candidate.taxonomy}:${candidate.concept}:${candidate.sharesOutstanding}`);
+    semanticsByDate.set(key, semantics);
   }
-  const conflicts = new Set<string>();
-  for (const [key, values] of valuesByDate) {
-    if (values.size > 1 || (conceptSignals.get(key)?.length ?? 0) > 0) conflicts.add(key);
-  }
-  return conflicts;
+  return new Set([...semanticsByDate].filter(([, semantics]) => semantics.size > 1).map(([key]) => key));
 }
 
 function result(
   issuerCik: string,
-  candidates: readonly SecOsEligibleCandidate[],
-  rejected: readonly SecOsRejectedObservation[],
+  candidates: readonly SecOsFilingContextCandidate[],
+  rejected: readonly SecOsUnavailableObservation[],
 ): SecOsExtractionResult {
   const sortedCandidates = [...candidates].sort(compareObservations);
   const sortedRejected = [...rejected].sort(compareObservations);
-  const extractionStatus: SecOsExtractionStatus = sortedCandidates.length > 0
-    ? "COMPANY_FACTS_ELIGIBLE"
-    : sortedRejected.some((row) => row.extractionStatus === "REQUIRES_FILING_CONTEXT")
-      ? "REQUIRES_FILING_CONTEXT"
-      : "UNAVAILABLE";
-  return { issuerCik, extractionStatus, candidates: sortedCandidates, rejected: sortedRejected };
+  return {
+    issuerCik,
+    extractionStatus: sortedCandidates.length > 0 ? "REQUIRES_FILING_CONTEXT" : "UNAVAILABLE",
+    candidates: sortedCandidates,
+    rejected: sortedRejected,
+  };
 }
 
 function compareObservations(left: SecOsObservation, right: SecOsObservation) {
@@ -424,32 +370,19 @@ function compareObservations(left: SecOsObservation, right: SecOsObservation) {
 
 function chronologyKey(row: SecOsObservation) {
   return [
-    row.acceptedAt ?? "",
-    row.filedDate ?? "",
-    row.asOf ?? "",
-    row.accession ?? "",
-    row.taxonomy ?? "",
-    row.concept ?? "",
-    row.sharesOutstanding ?? "",
-    row.extractionStatus,
-    row.rejectionReason ?? "",
+    row.acceptedAt ?? "", row.filedDate ?? "", row.asOf ?? "", row.accession ?? "",
+    row.taxonomy ?? "", row.concept ?? "", row.sharesOutstanding ?? "",
+    row.extractionStatus, row.rejectionReason,
     row.sourceFacts.map(sourceFactIdentity).sort().join(","),
   ].join("|");
 }
 
-function canonicalObservationIdentity(candidate: SecOsEligibleCandidate) {
+function canonicalObservationIdentity(candidate: SecOsFilingContextCandidate) {
   return [
-    candidate.issuerCik,
-    candidate.sharesOutstanding,
-    candidate.asOf,
-    candidate.accession,
-    candidate.form,
-    candidate.filedDate,
-    candidate.acceptedAt,
-    candidate.taxonomy,
-    candidate.concept,
-    candidate.unit,
-    candidate.filingLedgerRawSourceId,
+    candidate.issuerCik, candidate.sharesOutstanding, candidate.asOf, candidate.accession,
+    candidate.form, candidate.filedDate, candidate.acceptedAt, candidate.taxonomy,
+    candidate.concept, candidate.unit, candidate.filingLedgerRawSourceId,
+    candidate.extractionStatus, candidate.rejectionReason,
   ].join("|");
 }
 
@@ -457,52 +390,41 @@ function uniqueSourceFacts(rows: readonly SecOsSourceFactIdentity[]) {
   return [...new Map(rows.map((row) => [sourceFactIdentity(row), row])).values()]
     .sort((left, right) => sourceFactIdentity(left).localeCompare(sourceFactIdentity(right)));
 }
-
 function sourceFactIdentity(row: SecOsSourceFactIdentity) {
   return `${row.sourceFactKey}|${row.sourceFactPath}|${row.sourceRawId}`;
 }
-
 function filingIdentity(accession: string, cik: string, form: string, filedDate: string) {
   return `${accession}|${cik}|${form}|${filedDate}`;
 }
-
 function dateIdentity(cik: string, asOf: string) {
   return `${cik}|${asOf}`;
 }
-
 function isCandidateConcept(fact: SecCompanyFactRow) {
   return fact.taxonomy === SEC_OS_CANDIDATE_CONCEPT.taxonomy
     && fact.concept === SEC_OS_CANDIDATE_CONCEPT.concept;
 }
-
 function isRelevantConcept(fact: SecCompanyFactRow) {
   return isCandidateConcept(fact) || (
     fact.taxonomy === SEC_OS_ESCALATION_CONCEPT.taxonomy
     && fact.concept === SEC_OS_ESCALATION_CONCEPT.concept
   );
 }
-
-function isAllowedForm(form: string): form is SecOsAllowedForm {
-  return (SEC_OS_ALLOWED_FORMS as readonly string[]).includes(form);
+function isSupportedDomesticForm(form: string): form is SecOsSupportedDomesticForm {
+  return (SEC_OS_SUPPORTED_DOMESTIC_FORMS as readonly string[]).includes(form);
 }
-
-function isForeignReportForm(form: string) {
-  return ["20-F", "20-F/A", "40-F", "40-F/A", "6-K", "6-K/A"].includes(form);
+function isForeignReportForm(form: string): form is SecOsSupportedForeignForm {
+  return (SEC_OS_SUPPORTED_FOREIGN_FORMS as readonly string[]).includes(form);
 }
-
 function validCik(value: string) {
   return CIK_PATTERN.test(value) && value !== "0000000000";
 }
-
 function validDate(value: string) {
   if (!DATE_PATTERN.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
 }
-
 function validTimestamp(value: string) {
-  if (!TIMESTAMP_PATTERN.test(value)) return false;
-  return !Number.isNaN(new Date(value).valueOf());
+  return TIMESTAMP_PATTERN.test(value) && !Number.isNaN(new Date(value).valueOf());
 }
 
 const CIK_PATTERN = /^[0-9]{10}$/;

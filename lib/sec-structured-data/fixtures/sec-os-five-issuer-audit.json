@@ -5,7 +5,8 @@
     "submissions_endpoint": "https://data.sec.gov/submissions/CIK##########.json",
     "filing_dimension_evidence": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm",
     "successful_direct_sec_http_calls": 12,
-    "note": "Minimal deterministic injected records curated from the exact official observations named below. Fixture source keys, paths, and UUIDs identify these injected records and are not presented as identifiers from a persisted production snapshot. No full SEC payload is committed. Ticker, entity name, and exchange were not used for eligibility."
+    "contract_verdict": "HOLD — SEC O/S REQUIRES FILING CONTEXT FOUNDATION",
+    "note": "Minimal deterministic injected records curated from the exact official observations named below. Fixture source keys, paths, and UUIDs identify these injected records and are not presented as identifiers from a persisted production snapshot. No full SEC payload is committed. CompanyFacts does not preserve axis/member or security-class identity, so no sample is authoritative O/S. Ticker, entity name, exchange, and absence of a conflicting fact were not used as security-class proof."
   },
   "issuers": [
     {
@@ -21,8 +22,8 @@
         "form": "10-Q",
         "filedDate": "2026-07-31",
         "acceptedAt": "2026-07-31T10:01:02.000Z",
-        "ambiguity": "none_confirmed_within_narrow_domestic_companyfacts_contract",
-        "expectedStatus": "COMPANY_FACTS_ELIGIBLE"
+        "ambiguity": "companyfacts_has_no_positive_single_common_security_class_proof",
+        "expectedStatus": "REQUIRES_FILING_CONTEXT"
       },
       "facts": [
         {
@@ -104,8 +105,8 @@
         "form": "10-Q/A",
         "filedDate": "2013-08-09",
         "acceptedAt": "2013-08-09T14:54:40.000Z",
-        "ambiguity": "amendment_retained_as_distinct_chronology_no_reverse_split_arithmetic",
-        "expectedStatus": "COMPANY_FACTS_ELIGIBLE"
+        "ambiguity": "companyfacts_has_no_positive_single_common_security_class_proof_amendment_retained_no_reverse_split_arithmetic",
+        "expectedStatus": "REQUIRES_FILING_CONTEXT"
       },
       "facts": [
         {
