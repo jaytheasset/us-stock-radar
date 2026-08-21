@@ -4,6 +4,10 @@ import { readFile } from "node:fs/promises";
 import { Client } from "pg";
 import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repository.ts";
 import { SecStructuredDataService } from "../lib/sec-structured-data/service.ts";
+import {
+  PostgresSecFilingXbrlArtifactRepository,
+  createSecFilingXbrlFixtureArtifact,
+} from "../lib/sec-structured-data/filingXbrlContext.ts";
 import type { SecStructuredSourceClient, SecStructuredSourceDocument } from "../lib/sec-structured-data/types.ts";
 
 const fixture = JSON.parse(await readFile(new URL("../lib/sec-structured-data/fixtures/three-issuer-minimal.json", import.meta.url), "utf8"));
@@ -32,12 +36,29 @@ try {
   const evolvedTargetCik: string = fixture.issuers[0].cik;
   evolvedCik = evolvedTargetCik;
   const evolved = await service.ingestIssuer({ cik: evolvedTargetCik, mode: "incremental" });
+  const filingXbrlRepository = new PostgresSecFilingXbrlArtifactRepository(client);
+  const filingXbrlArtifact = createSecFilingXbrlFixtureArtifact({
+    issuerCik: evolvedTargetCik,
+    accession: "0000320193-26-000020",
+    documentName: "aapl-20260627.htm",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+    role: "inline_xbrl",
+    rawContent: '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:dei="http://xbrl.sec.gov/dei/2025"><body><ix:header><ix:resources><xbrli:context id="c-9"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000320193</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2026-07-17</xbrli:instant></xbrli:period></xbrli:context></ix:resources></ix:header><ix:nonFraction name="dei:EntityCommonStockSharesOutstanding" contextRef="c-9" unitRef="shares">14594180000</ix:nonFraction></body></html>',
+  });
+  const filingXbrlFirst = await filingXbrlRepository.ingestArtifacts([filingXbrlArtifact]);
+  const filingXbrlReplay = await filingXbrlRepository.ingestArtifacts([filingXbrlArtifact]);
+  const filingXbrlStored = await filingXbrlRepository.readArtifacts(evolvedTargetCik, filingXbrlArtifact.accession);
 
   assert.equal(first.reduce((sum, item) => sum + item.factsInserted, 0), 6);
   assert.equal(replay.reduce((sum, item) => sum + item.inserted, 0), 0);
   assert.equal(replay.reduce((sum, item) => sum + item.factsInserted, 0), 0);
   assert.equal(evolved.factsInserted, 1);
   assert.equal(evolved.rawSourcesInserted, 1);
+  assert.deepEqual(filingXbrlFirst, { inserted: 1, deduped: 0 });
+  assert.deepEqual(filingXbrlReplay, { inserted: 0, deduped: 1 });
+  assert.equal(filingXbrlStored.length, 1);
+  assert.equal(filingXbrlStored[0]?.contentHash, filingXbrlArtifact.contentHash);
+  assert.equal(filingXbrlStored[0]?.rawContent, filingXbrlArtifact.rawContent);
   for (const sample of fixture.issuers) {
     assert.equal((await repository.readIssuerTickers(sample.cik)).length, 1);
     assert.equal((await repository.readFilings(sample.cik)).length, 1);
@@ -76,6 +97,11 @@ try {
     issuers: first.map((item) => ({ cik: item.cik, inserted: item.inserted, facts: item.factsInserted, rejected: item.rejected })),
     replayInserted: replay.reduce((sum, item) => sum + item.inserted, 0),
     evolvedFactsInserted: evolved.factsInserted,
+    filingXbrl: {
+      inserted: filingXbrlFirst.inserted,
+      replayInserted: filingXbrlReplay.inserted,
+      exactRawRoundTrip: filingXbrlStored[0]?.rawContent === filingXbrlArtifact.rawContent,
+    },
     cleanup: cleanup.rows[0],
     llmCalls: 0,
     publicSecCalls: 0,

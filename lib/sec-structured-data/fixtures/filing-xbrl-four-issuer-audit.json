@@ -1,0 +1,112 @@
+{
+  "attribution": {
+    "audited_at": "2026-08-22",
+    "source": "Official SEC EDGAR accession archive primary documents and instance XML",
+    "request_count": 8,
+    "note": "The four full filing bodies were fetched read-only for acceptance and were not committed. Tests use minimal canonical excerpts. full_document_sha256 identifies each exact fetched official body."
+  },
+  "issuers": [
+    {
+      "ticker": "AAPL",
+      "sample_kind": "domestic_inline_xbrl",
+      "cik": "0000320193",
+      "accession": "0000320193-26-000020",
+      "document": "aapl-20260627.htm",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+      "full_document_sha256": "4ad5bea67cedfa7542d623900355cc8d143ef95c1acc135a597f2eedabdb9177",
+      "document_kind": "inline_xbrl",
+      "candidate": {
+        "taxonomy": "dei",
+        "concept": "EntityCommonStockSharesOutstanding",
+        "as_of": "2026-07-17",
+        "value": "14594180000"
+      },
+      "observed": {
+        "context_ref": "c-9",
+        "unit_ref": "shares",
+        "dimensions": []
+      }
+    },
+    {
+      "ticker": "GOOG",
+      "sample_kind": "domestic_multiclass_inline_xbrl",
+      "cik": "0001652044",
+      "accession": "0001652044-26-000071",
+      "document": "goog-20260630.htm",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm",
+      "full_document_sha256": "fecfbc2683f630380b17937278ce3745eca150eb90e21a945fd6b78fe19728c7",
+      "document_kind": "inline_xbrl",
+      "candidate": {
+        "taxonomy": "us-gaap",
+        "concept": "CommonStockSharesOutstanding",
+        "as_of": "2026-06-30",
+        "value": "12230000000"
+      },
+      "observed": {
+        "aggregate_context_ref": "c-32",
+        "unit_ref": "shares",
+        "scale": "6",
+        "class_contexts": [
+          {
+            "context_ref": "c-35",
+            "axis": "us-gaap:StatementClassOfStockAxis",
+            "member": "us-gaap:CommonClassAMember"
+          },
+          {
+            "context_ref": "c-36",
+            "axis": "us-gaap:StatementClassOfStockAxis",
+            "member": "us-gaap:CommonClassBMember"
+          },
+          {
+            "context_ref": "c-39",
+            "axis": "us-gaap:StatementClassOfStockAxis",
+            "member": "us-gaap:CommonClassCMember"
+          }
+        ]
+      }
+    },
+    {
+      "ticker": "WIT",
+      "sample_kind": "foreign_adr_inline_xbrl",
+      "cik": "0001123799",
+      "accession": "0001193125-26-253514",
+      "document": "wit-20260331.htm",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1123799/000119312526253514/wit-20260331.htm",
+      "full_document_sha256": "b48d115664d5f6309ba87ff9774b9c71413389091f5833bd842a20f7b292ca97",
+      "document_kind": "inline_xbrl",
+      "candidate": {
+        "taxonomy": "dei",
+        "concept": "EntityCommonStockSharesOutstanding",
+        "as_of": "2026-03-31",
+        "value": "10488412458"
+      },
+      "observed": {
+        "context_ref": "C_8083f6a7-2f42-4143-ad73-f902fca5238a",
+        "unit_ref": "U_shares",
+        "dimensions": [],
+        "semantic_limit": "The filing fact is preserved; ADS versus ordinary-share meaning is not resolved."
+      }
+    },
+    {
+      "ticker": "NEOM",
+      "sample_kind": "small_cap_xml_instance",
+      "cik": "0001022701",
+      "accession": "0001144204-13-044345",
+      "document": "neom-20130630.xml",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1022701/000114420413044345/neom-20130630.xml",
+      "full_document_sha256": "1d80c7388ab773e32a930e10a7ebea729b7e517ee97495a85a081a8908637a7c",
+      "document_kind": "instance_xml",
+      "candidate": {
+        "taxonomy": "dei",
+        "concept": "EntityCommonStockSharesOutstanding",
+        "as_of": "2013-08-02",
+        "value": "4984827279"
+      },
+      "observed": {
+        "context_ref": "PAsOn08_02_2013",
+        "unit_ref": "shares",
+        "dimensions": []
+      }
+    }
+  ]
+}
