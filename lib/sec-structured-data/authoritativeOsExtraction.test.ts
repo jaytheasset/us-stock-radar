@@ -81,6 +81,8 @@ test("five official issuer audit produces exact deterministic decisions and prov
       assert.equal(decision.authoritative.sharesOutstanding, audited.companyfacts_value);
       assert.equal(decision.authoritative.asOf, audited.as_of);
       assert.equal(decision.authoritative.contextRef, audited.context_ref);
+      assert.match(decision.authoritative.conceptNamespaceUri, /^https?:\/\/xbrl\.sec\.gov\/dei\/[0-9]{4}$/);
+      assert.equal(decision.authoritative.conceptLocalName, "EntityCommonStockSharesOutstanding");
       assert.equal(decision.authoritative.source.sourceUrl, audited.source_url);
       assert.match(decision.authoritative.source.artifactId, /^[0-9a-f-]{36}$/);
       assert.match(decision.authoritative.source.contentHash, /^[0-9a-f]{64}$/);

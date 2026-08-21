@@ -61,7 +61,7 @@ All of the following are required:
 
 An eligible output preserves the CompanyFacts lexical integer and lineage,
 filing lexical integer, as-of, class identity/evidence, accession, form,
-document, filed/accepted timestamps, taxonomy/concept, fact key, contextRef,
+document, filed/accepted timestamps, taxonomy plus source concept namespace/local name, fact key, contextRef,
 full context/dimensions, filing URL/hash, filing-ledger raw ID, and the decision
 reason/version.
 
@@ -122,10 +122,12 @@ average shares, and custom/text substitutes are not eligible O/S concepts.
   filingXbrlRepository, cik })` calls `readOsCandidates()` and then the official
   filing-context reader for every candidate. It performs reads only.
 
-The eligible `authoritative` object is the typed handoff for a later Share Count
-History task. That later task must still define observation persistence,
-current-O/S selection, amendment supersession, split basis, and ticker/class
-selection. None is implemented here.
+The eligible `authoritative` object is the typed handoff consumed by
+`writeAuthoritativeShareCountObservation()` in the separate
+[Share Count History Foundation](architecture/share-count-history.md). The
+extractor itself remains read-only. Current-O/S selection, amendment
+supersession, split basis, and ticker/class winner selection remain outside both
+foundations.
 
 ## Five-issuer acceptance audit
 
@@ -147,7 +149,8 @@ ticker, document, value, or member hardcode.
 
 ## Mutation boundary
 
-- Database writes, backfills, migrations, schema changes: 0
+- Extractor-owned database writes or backfills: 0. The separate Share Count
+  History writer persists only this contract's `ELIGIBLE` output.
 - LLM/Gemini calls: 0
-- Share Count History/current resolver/Level 2/split/dilution operations: 0
+- Current resolver/Level 2/split/dilution operations: 0
 - Full SEC filings committed: 0
