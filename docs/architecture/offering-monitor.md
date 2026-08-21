@@ -24,55 +24,53 @@ Canonical Offering Monitor State
 Offering Matcher
 ```
 
-This is the intended and implemented component architecture. It does not mean every transition is automatically connected in production. At the current V1 checkpoint, production orchestration is wired only through creation of the validated Second-stage candidate. Canonical promotion and Matcher invocation are implemented and validated components but are not connected to the production execution path.
+This is the intended, implemented, and production-wired V1 component architecture. The asynchronous Offering child remains isolated from Primary publication and existing alert delivery.
 
 ## Production Execution Status
 
 ```text
 Analysis → Second-stage candidate = WIRED
 
-Candidate → Canonical promotion = IMPLEMENTED / NOT PRODUCTION-WIRED
+Candidate → Canonical promotion = WIRED
 
-Canonical → Matcher = IMPLEMENTED / NOT PRODUCTION-WIRED
+Canonical → Matcher = WIRED
 ```
 
 ### Automatically wired
 
-`workflows/source-ingest.ts` and the SEC analyze route enqueue `offeringMonitorNormalizationWorkflow` after a completed Primary. That workflow runs `processOfferingMonitorSecondStageJob()` and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`. `saveOfferingMonitorDiagnosticCandidate()` deliberately records `diagnostic_candidate_only: true` and `canonical_persistence_changed: false`.
+`workflows/source-ingest.ts` and the SEC analyze route enqueue `offeringMonitorNormalizationWorkflow` after a completed Primary. That workflow runs `processOfferingMonitorSecondStageJob()` and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`. A second single-attempt durable step then runs `processOfferingMonitorProductionWiring()` for successfully validated applicable candidates only.
 
 ```text
 Primary Analysis
    ↓
 Async Stage 2 Offering Monitor execution
    ↓
-Validated / diagnostic Second-stage candidate
+Validated Second-stage candidate
+   ↓
+Atomic canonical promotion
+   ↓
+Official canonical reader
+   ↓
+Existing deterministic Offering Matcher
 ```
 
-### Implemented but not production-wired
+`processOfferingMonitorProductionWiring()` reuses `promoteOfferingMonitorCanonical()`, then requires an `available` official `readOfferingMonitorCanonical()` result with the same event, raw item, exact Primary parent, and source execution before calling `evaluateOfferingMonitorEvent()`. It passes that one official read into the Matcher dependency, so the Matcher does not perform a second fact read. Invalid, not-applicable, stale, unavailable, or lineage-mismatched results never invoke the Matcher.
 
-#### Canonical Promotion
-
-The canonical table, application helper `promoteOfferingMonitorCanonical()`, atomic promotion RPC, fail-closed reader, and stale/idempotency/race protections are implemented and validated. A repository-wide caller audit finds no production caller of `promoteOfferingMonitorCanonical()`. A successful Second-stage execution therefore does not automatically become canonical current state.
-
-#### Offering Matcher
-
-`evaluateOfferingMonitorEvent()` and its canonical-reader-only, three-state evaluation are implemented and tested. A repository-wide caller audit finds no production caller outside tests. Even if canonical facts exist, the current production event flow does not automatically run user condition evaluation.
-
-The current automatic runtime therefore stops after the diagnostic candidate:
+The current automatic runtime is:
 
 ```text
 Stage 1 publish / score alert
    ↓
-Async Stage 2 validated diagnostic candidate
+Async Stage 2 validated candidate
    ↓
-[NOT YET PRODUCTION-WIRED]
 Canonical Promotion
    ↓
-[NOT YET PRODUCTION-WIRED]
+Official canonical read
+   ↓
 Offering Matcher
 ```
 
-The implemented canonical and Matcher boundaries are the only approved continuation of the pipeline; they must not be bypassed with a legacy fallback. Until both orchestration connections are wired, Offering Monitor is not an end-to-end production Monitor flow. Implemented component does not imply production-wired component.
+The candidate remains immutable execution evidence in `ai_outputs`; successful wiring updates the execution metadata so `diagnostic_candidate_only` and `canonical_persistence_changed` describe the real result. Durable workflow replay reuses cached step results, and same-execution re-entry recognizes already completed exact canonical lineage so it does not create a second Matcher execution. The canonical and Matcher boundaries remain the only approved continuation of the pipeline and must not be bypassed with a legacy fallback.
 
 ## Stage responsibilities and timing
 
@@ -292,7 +290,7 @@ Percentage conditions such as dilution percent and float overhang percent are in
 
 The existing alert is the Stock Radar score alert: event `delivery_level` is derived from Primary score (`75+` is `alert`) and delivery is attempted before Stage 2 enqueue. A future Monitor alert would be triggered by user condition matches. Both could legitimately occur for the same event and user; current architecture provides no automatic deduplication rule between them.
 
-Monitor alert delivery, natural-language Monitor creation, and Monitor creation UI are not implemented. Production Offering Matcher invocation is implemented as a callable component but is not connected: no production code outside tests calls `evaluateOfferingMonitorEvent()`.
+Monitor alert delivery, natural-language Monitor creation, and Monitor creation UI are not implemented. Production invokes the existing Offering Matcher after a successful official canonical read. The current production condition-set collection is empty because Offering Monitor persistence/UI is intentionally still absent, so this wiring creates no alerts or per-user work.
 
 ## Current Completion Boundary
 
@@ -308,15 +306,8 @@ Monitor alert delivery, natural-language Monitor creation, and Monitor creation 
 ### Production-wired flow
 
 ```text
-Analysis → Second-stage candidate
+Analysis → Second-stage candidate → Canonical promotion → Official reader → Offering Matcher
 ```
-
-### Implemented but not production-wired
-
-- automatic promotion of a successful Stage 2 candidate into canonical current state;
-- production invocation of the Offering Matcher;
-
-These are the two immediate production orchestration gaps: the canonical promotion connection and the Matcher invocation connection.
 
 ### Not yet implemented or connected
 
@@ -330,11 +321,7 @@ The permanent repository-tracked multi-session concurrency regression harness is
 
 ## Next Production Integration
 
-1. Wire successful validated Second-stage executions to canonical promotion.
-2. Wire canonical-ready Offering events to Offering Matcher evaluation.
-3. Only after those execution paths are validated, connect Monitor Alert delivery.
-
-These are future, separately approved implementation tasks. This document does not authorize bypassing the canonical reader, adding fallbacks, or coupling Monitor Alert delivery directly to diagnostic candidates.
+Only after separate approval, add Offering Monitor persistence/UI and connect Monitor Alert delivery. This document does not authorize bypassing the canonical reader, adding fallbacks, or coupling Monitor Alert delivery directly to diagnostic candidates.
 
 ## Do Not Reintroduce
 
@@ -361,8 +348,8 @@ These are future, separately approved implementation tasks. This document does n
 9. Allowed-source membership is strict, while exact citation quality remains separate from fact usability.
 10. Offering’s two-stage design does not require other Monitor domains to be two-stage.
 11. Execution history and canonical current state remain separate.
-12. Until production promotion is wired, the automatic flow must be described as diagnostic-only, not end-to-end canonical.
-13. Implemented component does not imply production-wired component.
+12. Only a successfully promoted, still-current official canonical read can reach the production Matcher caller.
+13. Matcher invocation alone does not imply Alert, UI, Preset, or Monitor-persistence functionality.
 
 ## Implementation cross-check anchors
 
@@ -370,8 +357,8 @@ The architecture above was cross-checked against these current entry points rath
 
 - Stage 1 and timing: `lib/ai/secFilingAnalysisPreview.ts`, `lib/secFilingAnalysisIngest.ts`, `workflows/source-ingest.ts`.
 - Form boundaries: `lib/ai/secS1F1AnalysisAdapter.ts`, `lib/ai/secS3AnalysisAdapter.ts`, `lib/ai/sec424bAnalysisAdapter.ts`, `lib/sources/sec/forms/common/forms.ts`.
-- Stage 2: `lib/offeringMonitorJobFoundation.ts`, `lib/offeringMonitorJobRepository.ts`, `lib/offeringMonitorSecondStage.ts`, `lib/offeringMonitorSecondStageRuntime.ts`, `workflows/offering-monitor-normalization.ts`.
+- Stage 2 and production wiring: `lib/offeringMonitorJobFoundation.ts`, `lib/offeringMonitorJobRepository.ts`, `lib/offeringMonitorSecondStage.ts`, `lib/offeringMonitorSecondStageRuntime.ts`, `lib/offeringMonitorProductionWiring.ts`, `workflows/offering-monitor-normalization.ts`.
 - Facts and materialization: `lib/minimalOfferingMonitor.ts`.
 - Canonical boundary: `lib/offeringMonitorCanonicalPersistence.ts`, `supabase/migrations/20260812111402_offering_monitor_canonical_persistence.sql`.
 - Matcher and Registry: `lib/offeringMonitorMatcher.ts`, `lib/monitor/conditionRegistry.ts`.
-- Tests: `lib/minimalOfferingMonitor.test.ts`, `lib/offeringMonitorJobFoundation.test.ts`, `lib/offeringMonitorSecondStage.test.ts`, `lib/offeringMonitorCanonicalPersistence.test.ts`, `lib/offeringMonitorMatcher.test.ts`, and `supabase/tests/offering_monitor_canonical_persistence.sql`.
+- Tests: `lib/minimalOfferingMonitor.test.ts`, `lib/offeringMonitorJobFoundation.test.ts`, `lib/offeringMonitorSecondStage.test.ts`, `lib/offeringMonitorCanonicalPersistence.test.ts`, `lib/offeringMonitorMatcher.test.ts`, `lib/offeringMonitorProductionWiring.test.ts`, and `supabase/tests/offering_monitor_canonical_persistence.sql`.
