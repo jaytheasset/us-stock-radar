@@ -51,7 +51,9 @@ guaranteed. Text facts remain text.
   Submissions, historical Submissions files for bootstrap/backfill, and
   CompanyFacts. Tests never call it.
 - `SecStructuredDataService.ingestIssuer({ cik, mode })` normalizes and returns
-  inserted, updated, deduped, rejected, source, and fact counts.
+  inserted, updated, deduped, rejected, source, and fact counts. Its
+  `sourceUpdates` metadata separates fetched, new-content, and unchanged
+  Submissions/CompanyFacts snapshots for production collection reporting.
 - `PostgresSecStructuredRepository.ingestBatch(batch)` writes batches in one
   short transaction with database conflicts as the idempotency boundary.
 - `readIssuerTickers(cik)`, `readFilings(cik, limit)`, and `readFacts(filter)`

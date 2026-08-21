@@ -125,10 +125,20 @@ export type SecRepositoryWriteCounts = {
 export type SecIssuerIngestResult = SecRepositoryWriteCounts & {
   cik: string;
   mode: SecRefreshMode;
+  sourceUpdates: {
+    submissions: SecSourceUpdateCounts;
+    companyFacts: SecSourceUpdateCounts;
+  };
   rejected: number;
   rejectionReasons: Record<string, number>;
   sourceDocuments: number;
   normalizedFacts: number;
+};
+
+export type SecSourceUpdateCounts = {
+  fetched: number;
+  updated: number;
+  unchanged: number;
 };
 
 export interface SecStructuredSourceClient {
