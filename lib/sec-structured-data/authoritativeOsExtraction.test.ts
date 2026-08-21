@@ -273,7 +273,12 @@ test("official composed reader is read-only and invariant to candidate/artifact 
   const audited = audit("AAPL");
   const company = companySample(audited.sample_kind);
   const repository = new InMemorySecFilingXbrlArtifactRepository();
-  await repository.ingestArtifacts([artifact(audited, filingBody(audited))]);
+  const candidate = companyCandidates(audited.sample_kind)[0]!;
+  const ledger = ledgerFor(audited, candidate);
+  await repository.ingestArtifacts([
+    ...inventoryArtifacts(audited, ledger, "inline_xbrl"),
+    artifact(audited, filingBody(audited)),
+  ]);
   const calls: unknown[] = [];
   const structuredRepository = {
     async readFacts(filter: SecFactReadFilter) {
@@ -289,7 +294,7 @@ test("official composed reader is read-only and invariant to candidate/artifact 
   const replay = await readAuthoritativeOsCandidates({ structuredRepository, filingXbrlRepository: repository, cik: audited.cik });
   assert.deepEqual(replay, first);
   assert.equal(first.status, "ELIGIBLE");
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 8);
 });
 
 function audit(ticker: string) {
@@ -320,8 +325,73 @@ async function linkBody(
   role: "inline_xbrl" | "instance_xml" = "inline_xbrl",
 ) {
   const repository = new InMemorySecFilingXbrlArtifactRepository();
-  await repository.ingestArtifacts([artifact(audited, body, role)]);
-  return readOsCandidateFilingContexts({ candidate, repository });
+  const filing = ledgerFor(audited, candidate);
+  await repository.ingestArtifacts([
+    ...inventoryArtifacts(audited, filing, role),
+    artifact(audited, body, role),
+  ]);
+  return readOsCandidateFilingContexts({ candidate, filing, repository });
+}
+
+function ledgerFor(audited: AuditSample, candidate: SecOsFilingContextCandidate): SecFilingRow {
+  const base = companySample(audited.sample_kind).filings[0]!;
+  return {
+    ...base,
+    accessionNumber: candidate.accession,
+    issuerCik: candidate.issuerCik,
+    form: candidate.form,
+    filedDate: candidate.filedDate,
+    acceptedAt: candidate.acceptedAt,
+    primaryDocument: audited.ticker === "NEOM" ? "v351884_10qa.htm" : audited.document,
+    sourceRawId: candidate.filingLedgerRawSourceId,
+  };
+}
+
+function inventoryArtifacts(
+  audited: AuditSample,
+  filing: SecFilingRow,
+  role: "inline_xbrl" | "instance_xml",
+) {
+  const archive = audited.source_url.slice(0, audited.source_url.lastIndexOf("/"));
+  const directoryName = new URL(archive).pathname;
+  const documents = role === "inline_xbrl"
+    ? [{ name: audited.document, type: filing.form, inline: true }]
+    : [
+        { name: filing.primaryDocument!, type: filing.form, inline: false },
+        { name: audited.document, type: "EX-101.INS", inline: false },
+      ];
+  const filingIndex = `<html><body><div>SEC Accession No. ${filing.accessionNumber}</div><table summary="Document Format Files">${documents.map((document, index) =>
+    `<tr><td>${index + 1}</td><td>${document.type}</td><td><a href="${directoryName}/${document.name}">${document.name}</a>${document.inline ? " <span>iXBRL</span>" : ""}</td><td>${document.type}</td><td>100</td></tr>`
+  ).join("")}</table></body></html>`;
+  const inventory = [
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: filing.issuerCik,
+      accession: filing.accessionNumber,
+      documentName: "index.json",
+      sourceUrl: `${archive}/index.json`,
+      role: "archive_index",
+      rawContent: JSON.stringify({ directory: { name: directoryName, item: documents.map((document) => ({ name: document.name, size: 100 })) } }),
+    }),
+    createSecFilingXbrlFixtureArtifact({
+      issuerCik: filing.issuerCik,
+      accession: filing.accessionNumber,
+      documentName: `${filing.accessionNumber}-index.html`,
+      sourceUrl: `${archive}/${filing.accessionNumber}-index.html`,
+      role: "filing_index",
+      rawContent: filingIndex,
+    }),
+  ];
+  if (role === "instance_xml") {
+    inventory.push(createSecFilingXbrlFixtureArtifact({
+      issuerCik: filing.issuerCik,
+      accession: filing.accessionNumber,
+      documentName: filing.primaryDocument!,
+      sourceUrl: `${archive}/${filing.primaryDocument}`,
+      role: "primary_document",
+      rawContent: "<html><body>primary filing document</body></html>",
+    }));
+  }
+  return inventory;
 }
 
 function artifact(audited: AuditSample, body: string, role: "inline_xbrl" | "instance_xml" = "inline_xbrl") {

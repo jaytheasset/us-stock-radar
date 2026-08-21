@@ -14,6 +14,8 @@ const INLINE_XBRL_NAMESPACES = new Set([
   "http://www.xbrl.org/2013/inlineXBRL",
   "http://www.xbrl.org/2008/inlineXBRL",
 ]);
+const DEI_NAMESPACE_PATTERN = /^https?:\/\/xbrl\.sec\.gov\/dei\/\d{4}$/i;
+const US_GAAP_NAMESPACE_PATTERN = /^https?:\/\/fasb\.org\/us-gaap\/\d{4}$/i;
 
 export const SEC_FILING_XBRL_UNAVAILABLE_REASONS = [
   "ACCESSION_MISMATCH",
@@ -215,9 +217,14 @@ export type SecFilingXbrlDocumentSetResult =
 export type SecFilingXbrlFactRejection = {
   reason: SecFilingXbrlUnavailableReason;
   detail: string;
+  concept: SecXbrlQName | null;
   conceptQName: string | null;
   contextRef: string | null;
 };
+
+export type SecFilingXbrlCacheCompletenessResult =
+  | { status: "AVAILABLE"; discovery: SecFilingXbrlDiscovery; filingArtifacts: SecFilingXbrlRawArtifact[] }
+  | { status: "UNAVAILABLE"; reason: SecFilingXbrlUnavailableReason; detail: string };
 
 export type SecFilingXbrlParseResult =
   | SecFilingXbrlDocument
@@ -554,7 +561,7 @@ export class SecFilingXbrlContextService {
 
   async ingestFiling(filing: SecFilingRow): Promise<SecFilingXbrlIngestResult> {
     const cached = await this.repository.readArtifacts(filing.issuerCik, filing.accessionNumber);
-    if (cachedFilingIsComplete(filing, cached)) {
+    if (validateCachedFilingXbrlCompleteness(filing, cached).status === "AVAILABLE") {
       return { status: "AVAILABLE", source: "cache", artifacts: cached, inserted: 0, deduped: cached.length };
     }
     const fetched = await this.sourceClient.fetchFilingArtifacts(filing);
@@ -572,29 +579,68 @@ export class SecFilingXbrlContextService {
     return { status: "AVAILABLE", source: "sec", artifacts: fetched.artifacts, ...write };
   }
 
-  readOsCandidate(candidate: SecOsFilingContextCandidate) {
-    return readOsCandidateFilingContexts({ candidate, repository: this.repository });
+  readOsCandidate(candidate: SecOsFilingContextCandidate, filing: SecFilingRow) {
+    return readOsCandidateFilingContexts({ candidate, filing, repository: this.repository });
   }
 }
 
-function cachedFilingIsComplete(
+export function validateCachedFilingXbrlCompleteness(
   filing: SecFilingRow,
   artifacts: readonly SecFilingXbrlRawArtifact[],
-) {
+): SecFilingXbrlCacheCompletenessResult {
+  const identity = validateFilingIdentity(filing);
+  if (!identity.ok) return { status: "UNAVAILABLE", reason: "FILING_IDENTITY_INVALID", detail: identity.detail };
+  if (artifacts.some((artifact) => artifact.issuerCik !== filing.issuerCik || artifact.accession !== filing.accessionNumber)) {
+    return { status: "UNAVAILABLE", reason: "ACCESSION_MISMATCH", detail: "cached artifact lineage does not match filing ledger" };
+  }
   const archiveIndex = artifacts.filter((artifact) => artifact.role === "archive_index");
   const filingIndex = artifacts.filter((artifact) => artifact.role === "filing_index");
-  if (archiveIndex.length !== 1 || filingIndex.length !== 1) return false;
-  const discovery = discoverSecFilingXbrlDocuments(filing, archiveIndex[0]!.rawContent, filingIndex[0]!.rawContent);
-  if (discovery.status === "UNAVAILABLE") return false;
-  if (discovery.discovery.primaryDocument.isInlineXbrl) {
-    if (discovery.discovery.documents.some((document) => document.ixdsDisposition === "ambiguous")) return false;
-    const persisted = new Set(
-      artifacts.filter((artifact) => artifact.role === "inline_xbrl").map((artifact) => artifact.documentName),
-    );
-    return discovery.discovery.primaryIxdsDocuments.length > 0
-      && discovery.discovery.primaryIxdsDocuments.every((document) => persisted.has(document.documentName));
+  if (archiveIndex.length !== 1 || filingIndex.length !== 1) {
+    return {
+      status: "UNAVAILABLE",
+      reason: "FILING_ARTIFACT_MISSING",
+      detail: `complete filing inventory requires exactly one archive index and one filing index; found ${archiveIndex.length} and ${filingIndex.length}`,
+    };
   }
-  return artifacts.some((artifact) => artifact.role === "instance_xml");
+  const discovery = discoverSecFilingXbrlDocuments(filing, archiveIndex[0]!.rawContent, filingIndex[0]!.rawContent);
+  if (discovery.status === "UNAVAILABLE") return discovery;
+  if (discovery.discovery.primaryDocument.isInlineXbrl) {
+    const ambiguous = discovery.discovery.documents.filter((document) => document.ixdsDisposition === "ambiguous");
+    if (ambiguous.length > 0) {
+      return {
+        status: "UNAVAILABLE",
+        reason: "PRIMARY_IXDS_MEMBERSHIP_AMBIGUOUS",
+        detail: `primary IXDS membership is ambiguous for ${ambiguous.map((document) => document.documentName).join(", ")}`,
+      };
+    }
+    const expected = discovery.discovery.primaryIxdsDocuments.map((document) => document.documentName).sort();
+    const persisted = artifacts.filter((artifact) => artifact.role === "inline_xbrl");
+    const actual = persisted.map((artifact) => artifact.documentName).sort();
+    if (expected.length === 0 || stableJson(actual) !== stableJson(expected)) {
+      const missing = expected.filter((name) => !actual.includes(name));
+      const unexpected = actual.filter((name) => !expected.includes(name));
+      return {
+        status: "UNAVAILABLE",
+        reason: "PRIMARY_IXDS_INCOMPLETE",
+        detail: `cached primary IXDS set is incomplete or ambiguous; missing [${missing.join(", ")}], unexpected [${unexpected.join(", ")}], expected ${expected.length}, found ${actual.length}`,
+      };
+    }
+    return { status: "AVAILABLE", discovery: discovery.discovery, filingArtifacts: persisted.sort(compareArtifacts) };
+  }
+  const primary = artifacts.filter((artifact) =>
+    artifact.role === "primary_document" && artifact.documentName === discovery.discovery.primaryDocument.documentName
+  );
+  const expectedInstances = discovery.discovery.documents.filter((document) => document.isInstanceCandidate);
+  const instances = artifacts.filter((artifact) => artifact.role === "instance_xml");
+  if (primary.length !== 1 || expectedInstances.length !== 1 || instances.length !== 1
+    || instances[0]!.documentName !== expectedInstances[0]!.documentName) {
+    return {
+      status: "UNAVAILABLE",
+      reason: expectedInstances.length !== 1 ? "FILING_XBRL_DOCUMENT_AMBIGUOUS" : "PRIMARY_IXDS_INCOMPLETE",
+      detail: `complete non-inline filing cache requires one primary document and its one discovered instance; found ${primary.length} primary and ${instances.length} instance artifacts`,
+    };
+  }
+  return { status: "AVAILABLE", discovery: discovery.discovery, filingArtifacts: instances };
 }
 
 export function discoverSecFilingXbrlDocuments(
@@ -846,24 +892,25 @@ function parseArtifactStructure(artifact: SecFilingXbrlRawArtifact): {
 
 export async function readOsCandidateFilingContexts(input: {
   candidate: SecOsFilingContextCandidate;
+  filing: SecFilingRow | undefined;
   repository: SecFilingXbrlArtifactRepository;
 }): Promise<SecOsCandidateFilingContextResult> {
-  const { candidate, repository } = input;
+  const { candidate, filing, repository } = input;
+  if (!filing || !filingMatchesOsCandidate(filing, candidate)) {
+    return unavailableCandidate(candidate, "FILING_IDENTITY_INVALID", "filing ledger identity does not exactly match CompanyFacts candidate provenance");
+  }
   const artifacts = await repository.readArtifacts(candidate.issuerCik, candidate.accession);
-  const filingArtifacts = artifacts.filter((artifact) => artifact.role === "inline_xbrl" || artifact.role === "instance_xml");
-  if (filingArtifacts.length === 0) {
-    return unavailableCandidate(candidate, "FILING_ARTIFACT_MISSING", "no persisted filing XBRL artifact exists");
+  const completeness = validateCachedFilingXbrlCompleteness(filing, artifacts);
+  if (completeness.status === "UNAVAILABLE") {
+    return unavailableCandidate(candidate, completeness.reason, completeness.detail);
   }
-  if (filingArtifacts.some((artifact) => artifact.issuerCik !== candidate.issuerCik || artifact.accession !== candidate.accession)) {
-    return unavailableCandidate(candidate, "ACCESSION_MISMATCH", "artifact lineage does not match candidate");
-  }
-  const parsed = parseSecFilingXbrlArtifacts(filingArtifacts);
+  const parsed = parseSecFilingXbrlArtifacts(completeness.filingArtifacts);
   if (parsed.status === "UNAVAILABLE") return unavailableCandidate(candidate, parsed.reason, parsed.detail);
   const relevantRejections = parsed.rejections.filter((rejection) =>
-    rejection.conceptQName === `${candidate.taxonomy}:${candidate.concept}`
+    rejection.concept !== null && conceptMatchesCandidate(rejection.concept, candidate)
   );
   const matches = parsed.facts.filter((fact) =>
-    fact.concept.qname === `${candidate.taxonomy}:${candidate.concept}`
+    conceptMatchesCandidate(fact.concept, candidate)
     && fact.context.period.kind === "instant"
     && fact.context.period.instant === candidate.asOf
   );
@@ -880,6 +927,23 @@ export async function readOsCandidateFilingContexts(input: {
     relevantRejections,
     sources: parsed.sources,
   };
+}
+
+export function filingMatchesOsCandidate(filing: SecFilingRow, candidate: SecOsFilingContextCandidate) {
+  return filing.issuerCik === candidate.issuerCik
+    && filing.accessionNumber === candidate.accession
+    && filing.form === candidate.form
+    && filing.filedDate === candidate.filedDate
+    && filing.acceptedAt === candidate.acceptedAt
+    && filing.sourceKind === "submissions"
+    && filing.sourceRawId === candidate.filingLedgerRawSourceId;
+}
+
+function conceptMatchesCandidate(concept: SecXbrlQName, candidate: SecOsFilingContextCandidate) {
+  if (concept.localName !== candidate.concept || !concept.namespaceUri) return false;
+  return candidate.taxonomy === "dei"
+    ? DEI_NAMESPACE_PATTERN.test(concept.namespaceUri)
+    : US_GAAP_NAMESPACE_PATTERN.test(concept.namespaceUri);
 }
 
 function extractContexts(
@@ -1082,11 +1146,13 @@ function extractFacts(
   const rejections: SecFilingXbrlFactRejection[] = [];
   for (const node of factNodes) {
     const record = asRecord(node.value);
+    const rejectedConcept = node.conceptName ? resolveQName(node.conceptName, namespaces) : null;
     const unsupported = attribute(record, "unsupported");
     if (unsupported || attribute(record, "continuedAt")) {
       rejections.push({
         reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT",
         detail: unsupported ? `inline ${unsupported} fact is unsupported` : "continued inline fact is unsupported",
+        concept: rejectedConcept,
         conceptQName: node.conceptName || null,
         contextRef: attribute(record, "contextRef"),
       });
@@ -1094,12 +1160,12 @@ function extractFacts(
     }
     const contextRef = attribute(record, "contextRef");
     if (!contextRef) {
-      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: "filing fact is missing contextRef", conceptQName: node.conceptName || null, contextRef: null });
+      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: "filing fact is missing contextRef", concept: rejectedConcept, conceptQName: node.conceptName || null, contextRef: null });
       continue;
     }
     const context = contextsById.get(contextRef);
     if (!context) {
-      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: `contextRef ${contextRef} does not resolve`, conceptQName: node.conceptName || null, contextRef });
+      rejections.push({ reason: "BROKEN_CONTEXT_REF", detail: `contextRef ${contextRef} does not resolve`, concept: rejectedConcept, conceptQName: node.conceptName || null, contextRef });
       continue;
     }
     const concept = resolveQName(node.conceptName, namespaces);
@@ -1107,6 +1173,7 @@ function extractFacts(
       rejections.push({
         reason: "UNSUPPORTED_FILING_XBRL_CONSTRUCT",
         detail: `fact concept ${node.conceptName} has no namespace`,
+        concept: rejectedConcept,
         conceptQName: node.conceptName || null,
         contextRef,
       });
@@ -1118,6 +1185,7 @@ function extractFacts(
       rejections.push({
         reason: "BROKEN_UNIT_REF",
         detail: unitRef ? `unitRef ${unitRef} does not resolve` : "numeric filing fact is missing unitRef",
+        concept: rejectedConcept,
         conceptQName: node.conceptName || null,
         contextRef,
       });

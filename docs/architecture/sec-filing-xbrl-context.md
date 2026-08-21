@@ -16,7 +16,7 @@ SEC filing ledger (CIK + accession + primary document)
 
 The existing `sec_structured_raw_sources` table already admits the server-only `filing_xbrl` source kind and retains up to 256 MiB of exact source text. V1 therefore adds no migration. `PostgresSecFilingXbrlArtifactRepository` stores filing artifacts there; `InMemorySecFilingXbrlArtifactRepository` supports deterministic tests. The unique `(source_kind, source_identity, content_hash)` constraint remains the persistence dedupe boundary.
 
-`SecFilingXbrlContextService.ingestFiling()` reads the raw-artifact cache before fetching. An inline cache is complete only when both official inventories are present and every document identified as part of the primary IXDS is persisted. A primary-only or index-only cache is incomplete and is fetched again. A complete replay performs no second SEC request.
+`SecFilingXbrlContextService.ingestFiling()` reads the raw-artifact cache before fetching. `validateCachedFilingXbrlCompleteness()` is the shared ingestion/reader gate: an inline cache is complete only when exactly one archive index and one filing index are present, discovery has unambiguous primary-IXDS membership, and the persisted inline-document names exactly equal that complete membership. A non-inline cache requires exactly one discovered instance plus its primary document. A primary-only, index-only, duplicate, extra, or missing-member cache is incomplete. Ingestion fetches again; the official O/S reader returns `UNAVAILABLE` and never parses the partial set. A complete replay performs no second SEC request.
 
 ## Discovery
 
@@ -54,7 +54,7 @@ Unsupported individual facts (for example `ix:fraction` or `continuedAt`) are re
 
 ## O/S candidate linker boundary
 
-`readOsCandidateFilingContexts()` accepts only the existing `SecOsFilingContextCandidate` produced by `extractCompanyFactsOs()` / `readOsCandidates()`. It parses the primary IXDS as one document set, matches exact accession, canonical concept QName, and `as_of` instant, then returns the linked filing facts and contexts.
+`readOsCandidateFilingContexts()` accepts only the existing `SecOsFilingContextCandidate` produced by `extractCompanyFactsOs()` / `readOsCandidates()` plus its exact submissions-ledger filing. Before parsing, it applies the shared cache-completeness gate above. It then parses the complete primary IXDS as one document set and matches exact filing identity and `as_of` instant. Concept identity is the standard taxonomy namespace URI plus local name, so an issuer-selected lexical prefix does not affect matching.
 
 It does not:
 

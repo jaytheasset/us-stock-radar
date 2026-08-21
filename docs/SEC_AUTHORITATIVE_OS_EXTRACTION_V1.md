@@ -28,8 +28,10 @@ All of the following are required:
 
 1. The input is an existing `SecOsFilingContextCandidate` returned by
    `extractCompanyFactsOs()` or `readOsCandidates()`.
-2. `readOsCandidateFilingContexts()` successfully parses the complete primary
-   IXDS or the single filing instance and reports no rejected relevant fact.
+2. `readOsCandidateFilingContexts()` first proves cache completeness from the
+   exact filing ledger, archive index, filing index, and complete unambiguous
+   primary IXDS membership (or the primary document and single discovered
+   filing instance), then parses it and reports no rejected relevant fact.
 3. CIK, accession, concept, instant/as-of, filing document, and raw artifact
    lineage match exactly. The filing context entity identifier must normalize
    to the candidate CIK under the SEC CIK scheme.
@@ -39,8 +41,9 @@ All of the following are required:
 5. The filing numeric lexical value is transformed only by a supported exact
    Inline XBRL numeric transform plus explicit `scale`/`sign`. The resulting
    positive integer string must equal the exact CompanyFacts integer string.
-6. The concept is exactly
-   `dei:EntityCommonStockSharesOutstanding`. A
+6. The concept local name is exactly
+   `EntityCommonStockSharesOutstanding` in the versioned SEC DEI namespace;
+   the filing's namespace prefix is not identity. A
    `us-gaap:CommonStockSharesOutstanding` balance-sheet fact is preserved but
    is not promoted by this contract.
 7. The form is a domestic periodic `10-K`, `10-K/A`, `10-Q`, or `10-Q/A`.

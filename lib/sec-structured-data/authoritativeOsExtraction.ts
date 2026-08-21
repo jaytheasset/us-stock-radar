@@ -1,5 +1,6 @@
 import {
   readOsCandidateFilingContexts,
+  filingMatchesOsCandidate,
   type SecFilingXbrlArtifactRepository,
   type SecFilingXbrlFact,
   type SecOsCandidateFilingContextResult,
@@ -216,10 +217,13 @@ export async function readAuthoritativeOsCandidates(input: {
   cik: string;
 }): Promise<SecAuthoritativeOsReadResult> {
   const discovery = await readOsCandidates(input.structuredRepository, input.cik);
+  const filingLedger = await input.structuredRepository.readFilings(input.cik, 1000);
   const decisions: SecAuthoritativeOsDecision[] = [];
   for (const candidate of discovery.candidates) {
+    const exactFilings = filingLedger.filter((filing) => filingMatchesOsCandidate(filing, candidate));
     const linked = await readOsCandidateFilingContexts({
       candidate,
+      filing: exactFilings.length === 1 ? exactFilings[0] : undefined,
       repository: input.filingXbrlRepository,
     });
     decisions.push(resolveAuthoritativeOsFromFiling(linked));
