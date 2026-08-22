@@ -50,6 +50,8 @@ for O/S conflicts, execution conflicts, indeterminate timing, invalid ratios,
 missing provenance, or reader failures. It never presents the unadjusted
 historical number as current fallback.
 
-Coverage is always `reverse_split_only`. V1 does not cover forward splits,
-stock dividends, recapitalizations, ADS ratio changes, issuer-wide class
-aggregation, anchor reconciliation, market cap, or dilution.
+Coverage is always `reverse_split_only`. The read-only
+[Share Count Anchor Reconciliation V1](share-count-anchor-reconciliation-v1.md)
+may consume this projection, but the normalizer itself does not select anchors.
+V1 does not cover forward splits, stock dividends, recapitalizations, ADS ratio
+changes, issuer-wide class aggregation, market cap, or dilution.
