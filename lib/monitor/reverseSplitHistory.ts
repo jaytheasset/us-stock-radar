@@ -217,7 +217,7 @@ function compareHistoryItems(left: ReverseSplitHistoryItem, right: ReverseSplitH
 }
 
 function canonicalClassId(value: string, cik: string) {
-  return new RegExp(`^sc:v1:${cik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$`).test(value);
+  return new RegExp(`^sc:v1:${cik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127}|custom:[0-9a-f]{64}:[A-Za-z][A-Za-z0-9_.-]{1,127})$`).test(value);
 }
 
 function validDate(value: string) {

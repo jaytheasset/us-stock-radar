@@ -113,7 +113,7 @@ test("Alphabet aggregate and all classes remain separated without summing or sel
   const audited = audit("GOOG");
   const decision = resolveAuthoritativeOsFromFiling(await link(audited, companyCandidates(audited.sample_kind)[0]!));
   assert.equal(decision.status, "REQUIRES_FURTHER_CONTEXT");
-  assert.equal(decision.reason, "NON_DEI_AGGREGATE_OR_CLASS_BASIS_REQUIRES_CONTEXT");
+  assert.equal(decision.reason, "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION");
   assert.equal(decision.filingFacts.length, 4);
   assert.deepEqual(decision.filingFacts.map((fact) => fact.normalizedValue), [
     "12230000000", "5868000000", "835000000", "5527000000",

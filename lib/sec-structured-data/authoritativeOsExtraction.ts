@@ -12,6 +12,7 @@ import {
   type SecOsFilingContextCandidate,
   type SecOsUnavailableObservation,
 } from "./osCandidateExtraction.ts";
+import { isSourceBackedCommonStockClassIdentity } from "./shareCountSecurityIdentity.ts";
 import type { SecStructuredRepository } from "./types.ts";
 
 export const SEC_AUTHORITATIVE_OS_STATUSES = [
@@ -44,6 +45,7 @@ export type SecAuthoritativeOsReason = (typeof SEC_AUTHORITATIVE_OS_REASONS)[num
 
 export type SecAuthoritativeOsFilingFactEvidence = {
   factKey: string;
+  concept: SecFilingXbrlFact["concept"];
   lexicalValue: string | null;
   normalizedValue: string | null;
   contextRef: string;
@@ -169,15 +171,6 @@ export function resolveAuthoritativeOsFromFiling(
   if (!isDomesticPeriodicForm(candidate.form)) {
     return nonEligible(candidate, "UNAVAILABLE", "UNSUPPORTED_FORM_FOR_AUTHORITATIVE_OS", filingFacts);
   }
-  if (candidate.taxonomy !== "dei" || candidate.concept !== "EntityCommonStockSharesOutstanding") {
-    return nonEligible(
-      candidate,
-      "REQUIRES_FURTHER_CONTEXT",
-      "NON_DEI_AGGREGATE_OR_CLASS_BASIS_REQUIRES_CONTEXT",
-      filingFacts,
-    );
-  }
-
   const plain = filingContext.matches.filter((fact) => fact.context.dimensions.length === 0);
   const classSpecific = filingContext.matches.filter(hasSingleAuthoritativeCommonStockClassDimension);
   if (plain.length > 0 && classSpecific.length > 0) {
@@ -191,6 +184,14 @@ export function resolveAuthoritativeOsFromFiling(
   if (filingContext.matches.some((fact) => fact.context.dimensions.length > 0
     && !hasSingleAuthoritativeCommonStockClassDimension(fact))) {
     return nonEligible(candidate, "REQUIRES_FURTHER_CONTEXT", "SECURITY_CLASS_DIMENSION_UNSUPPORTED", filingFacts);
+  }
+  if (candidate.taxonomy !== "dei" || candidate.concept !== "EntityCommonStockSharesOutstanding") {
+    return nonEligible(
+      candidate,
+      "REQUIRES_FURTHER_CONTEXT",
+      "NON_DEI_AGGREGATE_OR_CLASS_BASIS_REQUIRES_CONTEXT",
+      filingFacts,
+    );
   }
   if (plain.length === 1 && exactMatches.length === 1 && filingContext.matches.length === 1) {
     return eligible(candidate, exactMatches[0]!, {
@@ -305,6 +306,7 @@ function nonEligible(
 function toFactEvidence(fact: SecFilingXbrlFact): SecAuthoritativeOsFilingFactEvidence {
   return {
     factKey: fact.factKey,
+    concept: structuredClone(fact.concept),
     lexicalValue: fact.valueText,
     normalizedValue: normalizeFilingInteger(fact),
     contextRef: fact.contextRef,
@@ -360,31 +362,17 @@ function contextMatchesIssuer(fact: SecFilingXbrlFact, cik: string) {
 }
 
 export function hasSingleAuthoritativeCommonStockClassDimension(
-  fact: Pick<SecFilingXbrlFact, "context">,
+  fact: Pick<SecFilingXbrlFact, "concept" | "context">,
 ): boolean {
   if (fact.context.dimensions.length !== 1) return false;
   const dimension = fact.context.dimensions[0];
   return dimension?.kind === "explicit"
-    && dimension.axis.localName === "StatementClassOfStockAxis"
-    && isUsGaapNamespace(dimension.axis.namespaceUri)
-    && isUsGaapNamespace(dimension.member.namespaceUri)
-    && SEC_AUTHORITATIVE_OS_STANDARD_COMMON_STOCK_MEMBER_SET.has(dimension.member.localName);
+    && isSourceBackedCommonStockClassIdentity({
+      sourceConcept: fact.concept,
+      axis: dimension.axis,
+      member: dimension.member,
+    });
 }
-
-function isUsGaapNamespace(value: string | null) {
-  return value !== null && /^http:\/\/fasb\.org\/us-gaap\/[0-9]{4}$/.test(value);
-}
-
-const SEC_AUTHORITATIVE_OS_STANDARD_COMMON_STOCK_MEMBERS = [
-  "CommonStockMember",
-  "CommonClassAMember",
-  "CommonClassBMember",
-  "CommonClassCMember",
-] as const;
-
-const SEC_AUTHORITATIVE_OS_STANDARD_COMMON_STOCK_MEMBER_SET = new Set<string>(
-  SEC_AUTHORITATIVE_OS_STANDARD_COMMON_STOCK_MEMBERS,
-);
 
 function isDomesticPeriodicForm(form: string) {
   return ["10-K", "10-K/A", "10-Q", "10-Q/A"].includes(form);

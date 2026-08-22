@@ -372,6 +372,28 @@ select ok(
   'all four event/collection timestamps remain distinct and exact'
 );
 
+update public.share_count_history
+set canonical_security_class_id =
+  'sc:v1:0000000099:common_stock:custom:' || repeat('c', 64) || ':IssuerClassBMember'
+where issuer_cik = '0000000099'
+  and source_fact_key = repeat('d', 64);
+select is(
+  (select canonical_security_class_id
+   from public.share_count_history
+   where issuer_cik = '0000000099'
+     and source_fact_key = repeat('d', 64)),
+  'sc:v1:0000000099:common_stock:custom:' || repeat('c', 64) || ':IssuerClassBMember',
+  'source-backed custom member identity is accepted as namespace hash plus local name'
+);
+select throws_ok(
+  $$update public.share_count_history
+      set canonical_security_class_id = 'sc:v1:0000000099:common_stock:custom:short:IssuerClassBMember'
+    where issuer_cik = '0000000099' and source_fact_key = repeat('d', 64)$$,
+  '23514',
+  null,
+  'custom member identity with an invalid namespace hash fails closed'
+);
+
 delete from public.share_count_history where issuer_cik = '0000000099';
 select is(
   (select count(*)::integer from public.share_count_history where issuer_cik = '0000000099'),

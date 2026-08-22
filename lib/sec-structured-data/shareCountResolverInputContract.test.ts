@@ -52,6 +52,10 @@ test("class-specific XBRL A/B/C identities remain separate and ambiguous Level 2
         axis: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: "StatementClassOfStockAxis" },
         member: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: member },
       },
+      sourceConcept: {
+        namespaceUri: "http://xbrl.sec.gov/dei/2026",
+        localName: "EntityCommonStockSharesOutstanding",
+      },
       sourceFactKey,
       sourceContextRef: member,
     }).canonicalSecurityClassId!);
@@ -63,6 +67,10 @@ test("class-specific XBRL A/B/C identities remain separate and ambiguous Level 2
     sourceIdentity: {
       axis: { namespaceUri: "http://fasb.org/us-gaap/2025", localName: "StatementClassOfStockAxis" },
       member: { namespaceUri: "http://fasb.org/us-gaap/2025", localName: "CommonClassAMember" },
+    },
+    sourceConcept: {
+      namespaceUri: "http://xbrl.sec.gov/dei/2025",
+      localName: "EntityCommonStockSharesOutstanding",
     },
     sourceFactKey,
     sourceContextRef: "prior-class-a",
@@ -78,6 +86,54 @@ test("class-specific XBRL A/B/C identities remain separate and ambiguous Level 2
     { status: ambiguous.status, id: ambiguous.canonicalSecurityClassId, kind: ambiguous.canonicalSecurityClassKind },
     { status: "unavailable", id: null, kind: null },
   );
+});
+
+test("custom common-stock member identity is prefix-independent and namespace-URI scoped", () => {
+  const sourceConcept = {
+    namespaceUri: "http://fasb.org/us-gaap/2026",
+    localName: "CommonStockSharesOutstanding",
+  };
+  const first = deriveAuthoritativeCanonicalSecurityClassIdentity({
+    issuerCik: cik,
+    basis: "CLASS_SPECIFIC_COMMON_STOCK",
+    sourceCanonicalKey: "fixture-custom-c",
+    sourceIdentity: {
+      axis: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: "StatementClassOfStockAxis" },
+      member: { namespaceUri: "https://issuer.example/taxonomy/20260630", localName: "CapitalClassCMember" },
+    },
+    sourceConcept,
+    sourceFactKey,
+    sourceContextRef: "custom-c",
+  });
+  const secondNamespace = deriveAuthoritativeCanonicalSecurityClassIdentity({
+    issuerCik: cik,
+    basis: "CLASS_SPECIFIC_COMMON_STOCK",
+    sourceCanonicalKey: "fixture-custom-c-next",
+    sourceIdentity: {
+      axis: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: "StatementClassOfStockAxis" },
+      member: { namespaceUri: "https://issuer.example/taxonomy/20260930", localName: "CapitalClassCMember" },
+    },
+    sourceConcept,
+    sourceFactKey,
+    sourceContextRef: "custom-c-next",
+  });
+  assert.equal(first.status, "mapped");
+  assert.match(first.canonicalSecurityClassId ?? "", /^sc:v1:0000000099:common_stock:custom:[0-9a-f]{64}:CapitalClassCMember$/);
+  assert.notEqual(first.canonicalSecurityClassId, secondNamespace.canonicalSecurityClassId);
+
+  const reservedPreferred = deriveAuthoritativeCanonicalSecurityClassIdentity({
+    issuerCik: cik,
+    basis: "CLASS_SPECIFIC_COMMON_STOCK",
+    sourceCanonicalKey: "fixture-preferred",
+    sourceIdentity: {
+      axis: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: "StatementClassOfStockAxis" },
+      member: { namespaceUri: "http://fasb.org/us-gaap/2026", localName: "PreferredStockMember" },
+    },
+    sourceConcept,
+    sourceFactKey,
+    sourceContextRef: "preferred",
+  });
+  assert.equal(reservedPreferred.status, "unavailable");
 });
 
 test("ADR/ordinary ambiguity cannot masquerade as the common-stock sidecar enum", () => {

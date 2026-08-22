@@ -111,7 +111,8 @@ create function pg_temp.insert_universe_snapshot(
   p_status text,
   p_classes text[],
   p_hash text,
-  p_evidence jsonb
+  p_evidence jsonb,
+  p_version text default 'issuer-common-class-universe-snapshot-v1'
 ) returns integer
 language plpgsql
 as $$
@@ -125,7 +126,7 @@ begin
     aggregate_evidence, excluded_evidence, completeness_provenance,
     source_identity_hash
   ) values (
-    'issuer-common-class-universe-snapshot-v1',
+    p_version,
     '0000000097',
     p_as_of,
     p_accepted_at,
@@ -179,10 +180,11 @@ select is(
     'COMPLETE_MULTI',
     array[
       'sc:v1:0000000097:common_stock:us-gaap:CommonClassAMember',
-      'sc:v1:0000000097:common_stock:us-gaap:CommonClassBMember'
+      'sc:v1:0000000097:common_stock:custom:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:IssuerClassBMember'
     ],
     repeat('b', 64),
-    '[{"canonicalSecurityClassId":"sc:v1:0000000097:common_stock:us-gaap:CommonClassAMember","sharesOutstanding":"60","sourceFacts":[]},{"canonicalSecurityClassId":"sc:v1:0000000097:common_stock:us-gaap:CommonClassBMember","sharesOutstanding":"40","sourceFacts":[]}]'::jsonb
+    '[{"canonicalSecurityClassId":"sc:v1:0000000097:common_stock:us-gaap:CommonClassAMember","sharesOutstanding":"60","sourceFacts":[]},{"canonicalSecurityClassId":"sc:v1:0000000097:common_stock:custom:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:IssuerClassBMember","sharesOutstanding":"40","sourceFacts":[]}]'::jsonb,
+    'issuer-common-class-universe-snapshot-v2'
   ),
   1,
   'complete-multi snapshot appends separately'
@@ -197,14 +199,29 @@ select is(
 select is(
   (select pg_catalog.cardinality(required_canonical_security_class_ids)
    from public.issuer_common_class_universe_snapshots
-   where status = 'COMPLETE_MULTI'),
+   where issuer_cik = '0000000097' and status = 'COMPLETE_MULTI'),
   2,
   'complete-multi snapshot preserves the exact required class list'
+);
+select is(
+  (select snapshot_version
+   from public.issuer_common_class_universe_snapshots
+   where issuer_cik = '0000000097' and status = 'COMPLETE_MULTI'),
+  'issuer-common-class-universe-snapshot-v2',
+  'complete multi-class filing evidence persists under the V2 source contract'
+);
+select ok(
+  (select required_canonical_security_class_ids @> array[
+   'sc:v1:0000000097:common_stock:custom:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:IssuerClassBMember'
+  ]
+   from public.issuer_common_class_universe_snapshots
+   where issuer_cik = '0000000097' and status = 'COMPLETE_MULTI'),
+  'V2 preserves a namespace-hash plus local-name custom class identity'
 );
 select ok(
   (select completeness_provenance ->> 'historicalClassUnionUsed' = 'false'
    from public.issuer_common_class_universe_snapshots
-   where status = 'COMPLETE_MULTI'),
+   where issuer_cik = '0000000097' and status = 'COMPLETE_MULTI'),
   'snapshot provenance explicitly rejects historical class union completeness'
 );
 

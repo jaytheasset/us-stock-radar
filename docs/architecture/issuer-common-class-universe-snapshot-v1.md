@@ -1,4 +1,4 @@
-# Issuer Common-Class Universe Snapshot V1
+# Issuer Common-Class Universe Snapshot V1/V2
 
 This foundation records which canonical common-stock classes a single complete
 SEC filing proves existed at one O/S measurement date. It does not calculate an
@@ -26,7 +26,9 @@ the existing canonical security-class identity function.
   `single` canonical common class, no separate class facts, and no foreign or
   class ambiguity.
 - `COMPLETE_MULTI`: at least two same-date class-specific common O/S facts and
-  every member maps to an existing canonical `us-gaap` common-class identity.
+  every member maps to a source-backed canonical common-class identity. V2
+  accepts either an existing `us-gaap:<member-local-name>` ID or an issuer
+  extension `custom:<namespace-uri-sha256>:<member-local-name>` ID.
 - `INCOMPLETE`: the filing set, breakdown, provenance, member mapping, or
   aggregate corroboration cannot prove the complete set.
 - `AMBIGUOUS`: foreign/ADS basis or same-class fact conflicts prevent a safe
@@ -37,6 +39,16 @@ an aggregate fact is present, it is corroboration only: its exact integer must
 equal the exact sum of the class facts. It never supplies or reverse-engineers a
 missing class. Preferred, warrant, option, convertible, float, reserved-share,
 and other unsupported members are never returned as required common classes.
+
+Custom identity is generic and QName-based. The source concept must be DEI
+`EntityCommonStockSharesOutstanding` or US-GAAP
+`CommonStockSharesOutstanding`; the axis must be the US-GAAP
+`StatementClassOfStockAxis`; and the member must have an exact resolved
+namespace URI and local name. Prefix spelling, ticker presence, filing title,
+accession, and member-title synonyms are never identity evidence. Standard
+US-GAAP IDs remain unchanged. An issuer extension namespace is stored in
+provenance and represented in the canonical ID by its exact SHA-256, so equal
+local names in different namespaces cannot collide.
 
 Non-complete snapshots persist with an empty required-class list. This prevents
 a partial list from being mistaken for an aggregation contract while retaining
@@ -55,6 +67,12 @@ have no direct access; `service_role` has only `SELECT` and `INSERT` plus the
 identity-sequence privileges. A deterministic filing/fact identity hash makes
 exact replay insert zero rows. There is no current-universe column or update
 path.
+
+V2 is an additive source-contract correction. V1 rows remain immutable. When
+V1 and V2 describe the same issuer/as-of/acceptance/accession observation, the
+official reader keeps the highest supported version before testing the latest
+frontier for conflicts. This lets a V2 result supersede a prior V1 gap without
+rewriting append-only history.
 
 ## Official event-time reader
 

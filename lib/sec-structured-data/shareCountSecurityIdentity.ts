@@ -1,5 +1,10 @@
+import { createHash } from "node:crypto";
+
 export const SHARE_COUNT_SECURITY_CLASS_ID_VERSION = "share-count-security-class-v1" as const;
 export const SHARE_COUNT_SECURITY_CLASS_KIND = "common_stock" as const;
+
+export const CANONICAL_SECURITY_CLASS_ID_PATTERN =
+  /^sc:v1:[0-9]{10}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127}|custom:[0-9a-f]{64}:[A-Za-z][A-Za-z0-9_.-]{1,127})$/;
 
 export type CanonicalSecurityClassIdentity = {
   status: "mapped" | "unavailable";
@@ -25,6 +30,7 @@ export type AuthoritativeSecurityClassInput =
         axis: { namespaceUri: string | null; localName: string };
         member: { namespaceUri: string | null; localName: string };
       };
+      sourceConcept: { namespaceUri: string | null; localName: string };
       sourceFactKey: string;
       sourceContextRef: string;
     };
@@ -65,24 +71,68 @@ export function deriveAuthoritativeCanonicalSecurityClassIdentity(
   }
 
   const { axis, member } = input.sourceIdentity;
-  if (!resolvedQName(axis) || !resolvedQName(member)
-    || axis.localName !== "StatementClassOfStockAxis"
-    || !isUsGaapNamespace(axis.namespaceUri)
-    || !isUsGaapNamespace(member.namespaceUri)) {
+  if (!isSourceBackedCommonStockClassIdentity({
+    sourceConcept: input.sourceConcept,
+    axis,
+    member,
+  })) {
     return unavailable(baseProvenance, "UNSUPPORTED_CLASS_MEMBER_IDENTITY");
   }
 
   const memberIdentity = `${axis.namespaceUri}#${axis.localName}|${member.namespaceUri}#${member.localName}`;
+  const standardMember = isUsGaapNamespace(member.namespaceUri);
+  const taxonomyIdentity = standardMember
+    ? "us-gaap"
+    : `custom:${sha256(member.namespaceUri!)}`;
   return {
     status: "mapped",
-    canonicalSecurityClassId: `sc:v1:${input.issuerCik}:common_stock:us-gaap:${member.localName}`,
+    canonicalSecurityClassId:
+      `sc:v1:${input.issuerCik}:common_stock:${taxonomyIdentity}:${member.localName}`,
     canonicalSecurityClassKind: SHARE_COUNT_SECURITY_CLASS_KIND,
     provenance: {
       ...baseProvenance,
-      rule: "eligible_class_specific_common_stock_filing_context",
+      rule: standardMember
+        ? "eligible_standard_class_specific_common_stock_filing_context"
+        : "eligible_custom_class_specific_common_stock_filing_context",
       memberIdentity,
+      sourceConcept: structuredClone(input.sourceConcept),
+      taxonomyIdentity: standardMember ? {
+        kind: "us-gaap",
+        namespaceUri: member.namespaceUri,
+      } : {
+        kind: "namespace_uri_sha256",
+        namespaceUri: member.namespaceUri,
+        sha256: sha256(member.namespaceUri!),
+      },
     },
   };
+}
+
+export function isSourceBackedCommonStockClassIdentity(input: {
+  sourceConcept: { namespaceUri: string | null; localName: string };
+  axis: { namespaceUri: string | null; localName: string };
+  member: { namespaceUri: string | null; localName: string };
+}) {
+  if (!isSourceBackedCommonStockConcept(input.sourceConcept)
+    || !resolvedQName(input.axis)
+    || !resolvedQName(input.member)
+    || input.axis.localName !== "StatementClassOfStockAxis"
+    || !isUsGaapNamespace(input.axis.namespaceUri)
+    || !MEMBER_LOCAL_NAME_PATTERN.test(input.member.localName)) return false;
+  if (isUsGaapNamespace(input.member.namespaceUri)) {
+    return STANDARD_COMMON_STOCK_MEMBER_SET.has(input.member.localName);
+  }
+  return isIssuerExtensionNamespace(input.member.namespaceUri);
+}
+
+export function isSourceBackedCommonStockConcept(
+  concept: { namespaceUri: string | null; localName: string },
+) {
+  return (concept.localName === "EntityCommonStockSharesOutstanding"
+      && concept.namespaceUri !== null
+      && /^https?:\/\/xbrl\.sec\.gov\/dei\/[0-9]{4}$/.test(concept.namespaceUri))
+    || (concept.localName === "CommonStockSharesOutstanding"
+      && isUsGaapNamespace(concept.namespaceUri));
 }
 
 export function deriveLevel2CanonicalSecurityClassIdentity(input: {
@@ -175,3 +225,31 @@ function resolvedQName(value: { namespaceUri: string | null; localName: string }
 function isUsGaapNamespace(value: string | null) {
   return value !== null && /^http:\/\/fasb\.org\/us-gaap\/[0-9]{4}$/.test(value);
 }
+
+function isIssuerExtensionNamespace(value: string | null) {
+  if (!value) return false;
+  let uri: URL;
+  try {
+    uri = new URL(value);
+  } catch {
+    return false;
+  }
+  if (uri.protocol !== "http:" && uri.protocol !== "https:") return false;
+  return !/(^|\.)fasb\.org$/i.test(uri.hostname)
+    && !/(^|\.)xbrl\.sec\.gov$/i.test(uri.hostname)
+    && !/(^|\.)xbrl\.org$/i.test(uri.hostname);
+}
+
+function sha256(value: string) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+const STANDARD_COMMON_STOCK_MEMBERS = [
+  "CommonStockMember",
+  "CommonClassAMember",
+  "CommonClassBMember",
+  "CommonClassCMember",
+] as const;
+
+const STANDARD_COMMON_STOCK_MEMBER_SET = new Set<string>(STANDARD_COMMON_STOCK_MEMBERS);
+const MEMBER_LOCAL_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{1,127}$/;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 // @ts-expect-error The project uses pg from JavaScript scripts without bundled declarations.
 import { Client } from "pg";
 import {
-  PostgresSecFilingXbrlArtifactRepository,
+  InMemorySecFilingXbrlArtifactRepository,
   SecFilingXbrlContextService,
 } from "../lib/sec-structured-data/filingXbrlContext.ts";
 import {
@@ -31,20 +31,36 @@ try {
   const migration = await client.query(
     "select version from supabase_migrations.schema_migrations order by version desc limit 1",
   );
-  assert.equal(migration.rows[0]?.version, "20260822142022");
+  assert.equal(migration.rows[0]?.version, "20260822201302");
   const baseline = await fixtureCounts(client, ciks);
 
   await client.query("begin");
   await client.query("set local statement_timeout = '30s'");
+  const transactionStartedAt = (await client.query(
+    "select transaction_timestamp()::text as value",
+  )).rows[0].value;
   const serialSql = createSerialSqlClient(client);
-  const structuredRepository = new PostgresSecStructuredRepository(serialSql, "external");
-  const filingRepository = new PostgresSecFilingXbrlArtifactRepository(serialSql);
+  const databaseStructuredRepository = new PostgresSecStructuredRepository(serialSql, "external");
+  const structuredRepository = {
+    async readFacts(filter: Parameters<typeof databaseStructuredRepository.readFacts>[0]) {
+      const audit = audits.find((sample) => sample.cik === filter.cik)!;
+      return (await databaseStructuredRepository.readFacts(filter)).filter((row) =>
+        row.filingAccession === audit.accession
+        && row.instantDate === audit.as_of);
+    },
+    async readFilings(cik: string, limit?: number) {
+      const audit = audits.find((sample) => sample.cik === cik)!;
+      return (await databaseStructuredRepository.readFilings(cik, limit)).filter((row) =>
+        row.accessionNumber === audit.accession);
+    },
+  };
+  const filingRepository = new InMemorySecFilingXbrlArtifactRepository();
   const historyRepository = new PostgresShareCountHistoryRepository(serialSql);
   const universeRepository = new PostgresIssuerCommonClassUniverseRepository(serialSql);
   const sourceClient = new FiveIssuerAcceptanceSourceClient();
   const filingSource = new FiveIssuerAcceptanceFilingSource();
   const collector = new SecOsProductionCollector({
-    structuredService: new SecStructuredDataService(sourceClient, structuredRepository, () => new Date(executedAt)),
+    structuredService: new SecStructuredDataService(sourceClient, databaseStructuredRepository, () => new Date(executedAt)),
     structuredRepository,
     filingService: new SecFilingXbrlContextService(filingSource, filingRepository),
     filingRepository,
@@ -63,49 +79,77 @@ try {
        from public.share_count_history
       where issuer_cik = any($1::text[])
         and accession_number = any($2::text[])
+        and ingested_at = $3::timestamptz
       order by issuer_cik, accession_number, source_fact_key`,
-    [ciks, accessions],
+    [ciks, accessions, executedAt],
   );
-  assert.equal(saved.rows.length, 2);
-  assert.deepEqual(saved.rows.map((row: Record<string, unknown>) => [
+  const auditedRows = saved.rows.filter((row: Record<string, unknown>) => audits.some((audit) =>
+    audit.cik === row.issuer_cik
+    && audit.accession === row.accession_number
+    && audit.as_of === row.as_of));
+  assert.equal(auditedRows.length, 5);
+  assert.deepEqual(auditedRows.map((row: Record<string, unknown>) => [
     row.issuer_cik, row.accession_number, row.shares_outstanding, row.as_of,
-  ]), [
+  ]).sort((left: unknown[], right: unknown[]) => JSON.stringify(left).localeCompare(JSON.stringify(right))), [
     ["0000320193", "0000320193-26-000020", "14594180000", "2026-07-17"],
     ["0001022701", "0001144204-13-044345", "4984827279", "2013-08-02"],
-  ]);
-  assert.ok(saved.rows.every((row: Record<string, unknown>) =>
+    ["0001652044", "0001652044-26-000071", "5527000000", "2026-06-30"],
+    ["0001652044", "0001652044-26-000071", "5868000000", "2026-06-30"],
+    ["0001652044", "0001652044-26-000071", "835000000", "2026-06-30"],
+  ].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))));
+  assert.ok(auditedRows.every((row: Record<string, unknown>) =>
     row.accepted_at_source === "sec_filing_ledger"
     && row.canonical_security_class_kind === "common_stock"
     && row.canonical_security_class_status === "mapped"
     && String(row.canonical_security_class_id).startsWith(`sc:v1:${row.issuer_cik}:common_stock:`)));
   const snapshots = await client.query(
-    `select issuer_cik, status, reason, required_canonical_security_class_ids
+    `select issuer_cik, universe_as_of::text, source_accession, status, reason,
+            required_canonical_security_class_ids
        from public.issuer_common_class_universe_snapshots
       where issuer_cik = any($1::text[])
         and source_accession = any($2::text[])
+        and snapshot_version = 'issuer-common-class-universe-snapshot-v2'
+        and created_at >= $3::timestamptz
       order by issuer_cik, universe_as_of, accepted_at, source_identity_hash`,
-    [ciks, accessions],
+    [ciks, accessions, transactionStartedAt],
   );
-  assert.deepEqual(snapshots.rows.map((row: Record<string, unknown>) => [
+  const auditedSnapshots = snapshots.rows.filter((row: Record<string, unknown>) => audits.some((audit) =>
+    audit.cik === row.issuer_cik
+    && audit.accession === row.source_accession
+    && audit.as_of === row.universe_as_of));
+  const snapshotOutcomes = [...new Map<string, Record<string, unknown>>(
+    auditedSnapshots.map((row: Record<string, unknown>) => [
+    [row.issuer_cik, row.status, row.reason].join("|"), row,
+    ]),
+  ).values()];
+  assert.deepEqual(snapshotOutcomes.map((row: Record<string, unknown>) => [
     row.issuer_cik, row.status, row.reason,
   ]), [
     ["0000320193", "COMPLETE_SINGLE", "COMPLETE_SINGLE_COMMON_STOCK"],
     ["0001022701", "COMPLETE_SINGLE", "COMPLETE_SINGLE_COMMON_STOCK"],
     ["0001123799", "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS"],
-    ["0001652044", "INCOMPLETE", "AUTHORITATIVE_SOURCE_NOT_ELIGIBLE"],
+    ["0001652044", "COMPLETE_MULTI", "COMPLETE_MULTI_COMMON_STOCK"],
     ["0001973239", "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS"],
   ]);
   const replay = await collector.collectBatch({ ciks, mode: "incremental" });
   assert.equal(total(replay, "persistedObservations"), 0);
   assert.equal(total(replay, "duplicates"), total(replay, "eligibleObservations"));
-  assert.ok(total(replay, "filingContextCacheHits") >= 4);
+  assert.equal(total(replay, "filingContextCacheHits"), 4);
   assert.equal(total(replay, "filingContextsFetched"), 1);
   assert.equal(total(replay, "universeSnapshotsInserted"), 0);
   assert.equal(total(replay, "universeSnapshotDuplicates"), total(replay, "universeSnapshotsEvaluated"));
-  assert.equal((await client.query(
-    "select count(*)::integer as count from public.share_count_history where issuer_cik = any($1::text[]) and accession_number = any($2::text[])",
-    [ciks, accessions],
-  )).rows[0].count, 2);
+  const replayRows = (await client.query(
+    `select issuer_cik, accession_number, as_of::text
+       from public.share_count_history
+      where issuer_cik = any($1::text[])
+        and accession_number = any($2::text[])
+        and ingested_at = $3::timestamptz`,
+    [ciks, accessions, executedAt],
+  )).rows.filter((row: Record<string, unknown>) => audits.some((audit) =>
+    audit.cik === row.issuer_cik
+    && audit.accession === row.accession_number
+    && audit.as_of === row.as_of));
+  assert.equal(replayRows.length, 5);
 
   const acceptance = audits.map((audit) => {
     const result = bootstrap.issuers.find((issuer) => issuer.issuerCik === audit.cik)!;
@@ -138,8 +182,8 @@ try {
     bootstrapCounts: aggregateCounts(bootstrap),
     replayCounts: aggregateCounts(replay),
     acceptance,
-    savedRows: saved.rows,
-    universeSnapshots: snapshots.rows,
+    savedRows: auditedRows,
+    universeSnapshots: snapshotOutcomes,
     filingFetchCalls: filingSource.callsByAccession(),
     cleanup,
     llmCalls: 0,
