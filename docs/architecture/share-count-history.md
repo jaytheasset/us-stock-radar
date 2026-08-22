@@ -4,6 +4,9 @@ Resolver input identity and trusted acceptance-time provenance are specified in
 `share-count-resolver-input-contract-v1.md`. This history remains append-only and
 does not select a current or winning observation.
 
+Class-specific event-time selection is defined separately in
+`class-specific-os-resolver-v1.md`; the history reader itself remains winner-free.
+
 This foundation stores append-only issuer/time share-count observations. It does
 not determine current O/S, select a winner, sum classes, apply corporate-action
 adjustments, or calculate dilution. It accepts authoritative XBRL observations
