@@ -2,7 +2,6 @@ import {
   CORPORATE_ACTION_ANALYZER_INPUT_VERSION,
   type CorporateActionAnalyzerInput,
   type CorporateActionIssuerContext,
-  type ReverseSplitActionCandidate,
   type CorporateActionSecurityClassCandidate,
   type CorporateActionSourceDocument,
   type CorporateActionSourceFamily,
@@ -57,8 +56,6 @@ export function adaptSec8k6kCorporateActionSource(input: {
   }>;
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
-  origin_event_id?: string;
-  reverse_split_action_candidates?: ReverseSplitActionCandidate[];
 }): CorporateActionAnalyzerInput {
   return buildInput({
     sourceFamily: "sec",
@@ -68,8 +65,6 @@ export function adaptSec8k6kCorporateActionSource(input: {
     title: input.title,
     issuerContext: input.issuer_context,
     securityClassCandidates: input.security_class_candidates,
-    originEventId: input.origin_event_id,
-    actionCandidates: input.reverse_split_action_candidates,
     documents: input.cleaned_source_blocks.map((block) => ({
       source_ref: block.block_id,
       label: block.document_reference || block.source_ref || block.label || null,
@@ -87,8 +82,6 @@ function buildInput(input: {
   documents: CorporateActionSourceDocument[];
   issuerContext?: CorporateActionIssuerContext;
   securityClassCandidates?: CorporateActionSecurityClassCandidate[];
-  originEventId?: string;
-  actionCandidates?: ReverseSplitActionCandidate[];
 }) {
   const issuerContext = input.issuerContext ?? (input.sourceFamily === "sec"
     ? { availability: "unavailable" as const, reason: "filing_ledger_identity_unavailable" as const }
@@ -110,19 +103,6 @@ function buildInput(input: {
       ...candidate,
       supporting_accessions: [...candidate.supporting_accessions],
     })) ?? [],
-    ...(input.originEventId ? { origin_event_id: input.originEventId } : {}),
-    ...(input.actionCandidates ? {
-      reverse_split_action_candidates: input.actionCandidates.map((candidate) => ({
-        ...candidate,
-        known_ratio: { ...candidate.known_ratio },
-        known_effective_date: { ...candidate.known_effective_date },
-        prior_observations: candidate.prior_observations.map((observation) => ({
-          ...observation,
-          ratio: { ...observation.ratio },
-          effective_date: { ...observation.effective_date },
-        })),
-      })),
-    } : {}),
   };
   const errors = validateCorporateActionAnalyzerInput(result);
   if (errors.length) throw new Error(`Invalid Corporate Action analyzer input: ${errors.join("; ")}`);

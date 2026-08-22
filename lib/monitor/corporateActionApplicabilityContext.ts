@@ -1,13 +1,7 @@
 import type {
   CorporateActionIssuerContext,
-  ReverseSplitActionCandidate,
   CorporateActionSecurityClassCandidate,
 } from "./corporateActionCanonicalFacts.ts";
-import {
-  readCurrentCorporateActionFacts,
-  type CurrentCorporateActionReadResult,
-} from "./corporateActionPersistence.ts";
-import { readReverseSplitActionCandidatesForAnalyzer } from "./reverseSplitActionLifecycle.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CIK_PATTERN = /^\d{10}$/;
@@ -16,7 +10,6 @@ const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
 export type CorporateActionApplicabilityContext = {
   issuerContext: CorporateActionIssuerContext;
   securityClassCandidates: CorporateActionSecurityClassCandidate[];
-  actionCandidates: ReverseSplitActionCandidate[];
 };
 
 type ApplicabilityContextDependencies = {
@@ -26,7 +19,6 @@ type ApplicabilityContextDependencies = {
     data: unknown;
     error?: string;
   }>;
-  readCurrent?(eventId: string): Promise<CurrentCorporateActionReadResult>;
 };
 
 const defaultDependencies: ApplicabilityContextDependencies = {
@@ -42,7 +34,6 @@ export function unavailableCorporateActionApplicabilityContext(
   return {
     issuerContext: { availability: "unavailable", reason },
     securityClassCandidates: [],
-    actionCandidates: [],
   };
 }
 
@@ -60,17 +51,7 @@ export async function readCorporateActionApplicabilityContext(
   if (!response.ok) {
     throw new Error(`Corporate Action applicability context reader failed: ${response.error || response.status}`);
   }
-  const context = validateCorporateActionApplicabilityContextResponse(response.data);
-  if (context.issuerContext.availability !== "available") return context;
-  const actionCandidates = await readReverseSplitActionCandidatesForAnalyzer({
-    issuerCik: context.issuerContext.issuer_cik,
-    acceptedAt: context.issuerContext.accepted_at,
-    allowedSecurityClassIds: context.securityClassCandidates.map((item) => item.canonical_security_class_id),
-  }, {
-    rpc: dependencies.rpc,
-    readCurrent: dependencies.readCurrent || readCurrentCorporateActionFacts,
-  });
-  return { ...context, actionCandidates };
+  return validateCorporateActionApplicabilityContextResponse(response.data);
 }
 
 export function validateCorporateActionApplicabilityContextResponse(
@@ -141,7 +122,6 @@ export function validateCorporateActionApplicabilityContextResponse(
       provenance: "sec_filing_ledger",
     },
     securityClassCandidates: candidates,
-    actionCandidates: [],
   };
 }
 

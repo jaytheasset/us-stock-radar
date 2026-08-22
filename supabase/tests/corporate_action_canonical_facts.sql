@@ -132,21 +132,6 @@ as $function$
       ),
       'effective_timing', pg_catalog.jsonb_build_object(
         'availability', 'unavailable', 'reason', 'date_only'
-      ),
-      'action_identity', pg_catalog.jsonb_build_object(
-        'version', 'reverse_split_action_identity_v1',
-        'link_status', 'unresolved',
-        'link_decision', 'UNRESOLVED_ACTION_LINK',
-        'reverse_split_action_id', null,
-        'origin_event_id', null,
-        'source_ref', null,
-        'evidence', pg_catalog.jsonb_build_object(
-          'availability', 'unavailable', 'reason', 'not_provided'
-        ),
-        'unresolved_reason', 'issuer_or_security_class_unavailable',
-        'provenance', pg_catalog.jsonb_build_object(
-          'rule', 'llm_unresolved_action_link', 'candidate_action_id', null
-        )
       )
     )
 $function$;
@@ -525,19 +510,6 @@ select is(
    where source_execution_id = '72000000-0000-4000-8000-000000000010'),
   'unavailable:date_only',
   'date-only effective timing preserves unresolved same-day ordering'
-);
-select is(
-  (select action_link_status
-   from public.event_corporate_action_facts
-   where source_execution_id = '72000000-0000-4000-8000-000000000010'),
-  'unresolved',
-  'legacy-compatible non-SEC action links materialize as unresolved without an action ID'
-);
-select ok(
-  (select reverse_split_action_id is null and action_origin_event_id is null
-   from public.event_corporate_action_facts
-   where source_execution_id = '72000000-0000-4000-8000-000000000010'),
-  'unresolved action links cannot become action-history identities'
 );
 
 select ok(
