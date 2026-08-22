@@ -62,11 +62,11 @@ export const LISTING_RISK_MONITOR_ROUTING_PROMPT_INSTRUCTIONS = [
 ].join("\n");
 
 export const CORPORATE_ACTION_MONITOR_ROUTING_PROMPT_INSTRUCTIONS = [
-  "Independently from event_type and every other route, include {\"monitor_analyzer_key\":\"corporate_action\"} when the complete stored source may semantically establish a reverse stock split, including an announcement, board approval, shareholder approval, confirmed schedule, or effective action.",
+  "Independently from event_type and every other route, include {\"monitor_analyzer_key\":\"corporate_action\"} when the complete stored source may semantically establish an explicit reverse or forward stock split, including an announcement, board approval, shareholder approval, confirmed schedule, or effective action.",
   "This route is recall-oriented analyzer work, not a canonical fact. Do not output a stage, ratio, date, evidence, confidence, reason, or any other corporate-action fact in monitor_routes.",
   "Do not route corporate_action from parser event-family values, calendar items, badges, event_type, SEC capital_mode, keywords, regex matches, ticker metadata, or prior AI summaries. Use the complete original source semantics.",
-  "Do not route corporate_action for a forward split, merger, spin-off, dividend, broad capital-structure discussion, or an unrelated listing action unless the source may also establish a reverse split.",
-  "Return monitor_routes as an unordered array containing zero, one, or both distinct implemented analyzer routes. A source with separate listing-risk and reverse-split semantics may route both analyzers.",
+  "Do not route corporate_action for a stock dividend, merger, spin-off, recapitalization, ADS-ratio change, broad capital-structure discussion, historical split-adjusted value, or unrelated listing action unless the source may also establish an explicit reverse or forward stock split.",
+  "Return monitor_routes as an unordered array containing zero, one, or both distinct implemented analyzer routes. A source with separate listing-risk and stock-split semantics may route both analyzers.",
 ].join("\n");
 
 export function validateMonitorRoutingResult(

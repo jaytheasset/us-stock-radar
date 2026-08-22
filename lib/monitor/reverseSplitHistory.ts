@@ -1,5 +1,6 @@
 import {
   readCorporateActionAnalyzerResult,
+  type CorporateActionEventKind,
   type CorporateActionCanonicalFacts,
 } from "./corporateActionCanonicalFacts.ts";
 import {
@@ -40,6 +41,22 @@ export type ReverseSplitHistoryReadResult = {
   items: ReverseSplitHistoryItem[];
 };
 
+export type ForwardSplitHistoryItem = ReverseSplitHistoryItem;
+
+export type ForwardSplitHistoryReadResult = Omit<
+  ReverseSplitHistoryReadResult,
+  "basisChangeCoverage" | "items"
+> & {
+  basisChangeCoverage: "forward_split_only";
+  items: ForwardSplitHistoryItem[];
+};
+
+export type StockSplitHistoryFilter = ReverseSplitHistoryFilter & {
+  actionKind: CorporateActionEventKind;
+};
+
+export type StockSplitHistoryReadResult = ReverseSplitHistoryReadResult | ForwardSplitHistoryReadResult;
+
 type ReverseSplitHistoryDependencies = CorporateActionPersistenceDependencies & {
   readCurrent(eventId: string): Promise<CurrentCorporateActionReadResult>;
 };
@@ -56,15 +73,43 @@ export async function readReverseSplitHistory(
   filter: ReverseSplitHistoryFilter,
   dependencies: ReverseSplitHistoryDependencies = defaultDependencies,
 ): Promise<ReverseSplitHistoryReadResult> {
-  validateFilter(filter);
-  const response = await dependencies.rpc("read_reverse_split_history_candidates", {
+  return readStockSplitHistoryInternal(
+    { ...filter, actionKind: "reverse_split" },
+    dependencies,
+    "read_reverse_split_history_candidates",
+    false,
+  ) as Promise<ReverseSplitHistoryReadResult>;
+}
+
+export async function readStockSplitHistory(
+  filter: StockSplitHistoryFilter,
+  dependencies: ReverseSplitHistoryDependencies = defaultDependencies,
+): Promise<StockSplitHistoryReadResult> {
+  return readStockSplitHistoryInternal(
+    filter,
+    dependencies,
+    "read_stock_split_history_candidates",
+    true,
+  );
+}
+
+async function readStockSplitHistoryInternal(
+  filter: StockSplitHistoryFilter,
+  dependencies: ReverseSplitHistoryDependencies,
+  rpcFunction: string,
+  genericRpc: boolean,
+): Promise<StockSplitHistoryReadResult> {
+  const errorLabel = genericRpc ? "Stock split" : "Reverse split";
+  validateFilter(filter, errorLabel);
+  const response = await dependencies.rpc(rpcFunction, {
+    ...(genericRpc ? { p_action_kind: filter.actionKind } : {}),
     p_issuer_cik: filter.cik,
     p_canonical_security_class_id: filter.canonicalSecurityClassId ?? null,
     p_from: filter.from,
     p_to: filter.to,
   });
-  if (!response.ok) throw new Error(`Reverse split history candidate reader failed: ${response.error || response.status}`);
-  const candidates = validateCandidateResponse(response.data, filter);
+  if (!response.ok) throw new Error(`${errorLabel} history candidate reader failed: ${response.error || response.status}`);
+  const candidates = validateCandidateResponse(response.data, filter, genericRpc, errorLabel);
   const items: ReverseSplitHistoryItem[] = [];
   for (const candidate of candidates) {
     const current = await dependencies.readCurrent(candidate.eventId);
@@ -73,6 +118,7 @@ export async function readReverseSplitHistory(
     const affected = applicability?.affected_security;
     if (!applicability || applicability.issuer.availability !== "available"
       || affected?.availability !== "available"
+      || current.facts.event_kind !== filter.actionKind
       || applicability.issuer.issuer_cik !== filter.cik
       || affected.canonical_security_class_id !== candidate.canonicalSecurityClassId
       || (filter.canonicalSecurityClassId
@@ -101,17 +147,24 @@ export async function readReverseSplitHistory(
     canonicalSecurityClassId: filter.canonicalSecurityClassId ?? null,
     from: filter.from,
     to: filter.to,
-    basisChangeCoverage: "reverse_split_only",
+    basisChangeCoverage: filter.actionKind === "reverse_split"
+      ? "reverse_split_only" : "forward_split_only",
     items,
   };
 }
 
-function validateCandidateResponse(value: unknown, filter: ReverseSplitHistoryFilter) {
+function validateCandidateResponse(
+  value: unknown,
+  filter: StockSplitHistoryFilter,
+  genericRpc: boolean,
+  errorLabel: "Reverse split" | "Stock split",
+) {
   const root = record(value);
   if (!root || root.status !== "available" || root.issuer_cik !== filter.cik
+    || (genericRpc && root.action_kind !== filter.actionKind)
     || (root.canonical_security_class_id ?? null) !== (filter.canonicalSecurityClassId ?? null)
     || root.from !== filter.from || root.to !== filter.to || !Array.isArray(root.candidates)) {
-    throw new Error("Reverse split history candidate response is invalid");
+    throw new Error(`${errorLabel} history candidate response is invalid`);
   }
   return root.candidates.map((candidateValue, index) => {
     const candidate = record(candidateValue);
@@ -128,19 +181,24 @@ function validateCandidateResponse(value: unknown, filter: ReverseSplitHistoryFi
       || !validDate(effectiveDate)
       || effectiveDate < filter.from || effectiveDate > filter.to
       || !Number.isFinite(Date.parse(persistedAt))
-      || !canonical?.applicable) {
-      throw new Error(`Reverse split history candidate ${index} is invalid`);
+      || !canonical?.applicable
+      || canonical.facts.event_kind !== filter.actionKind) {
+      throw new Error(`${errorLabel} history candidate ${index} is invalid`);
     }
     return { eventId, sourceExecutionId, canonicalSecurityClassId, effectiveDate };
   });
 }
 
-function validateFilter(filter: ReverseSplitHistoryFilter) {
+function validateFilter(
+  filter: StockSplitHistoryFilter,
+  errorLabel: "Reverse split" | "Stock split",
+) {
   if (!CIK_PATTERN.test(filter.cik) || !validDate(filter.from) || !validDate(filter.to)
+    || (filter.actionKind !== "reverse_split" && filter.actionKind !== "forward_split")
     || filter.from > filter.to
     || (filter.canonicalSecurityClassId !== undefined
       && !canonicalClassId(filter.canonicalSecurityClassId, filter.cik))) {
-    throw new Error("Reverse split history filter is invalid");
+    throw new Error(`${errorLabel} history filter is invalid`);
   }
 }
 

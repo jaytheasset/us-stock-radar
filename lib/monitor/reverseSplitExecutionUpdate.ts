@@ -1,4 +1,7 @@
-import type { CorporateActionCanonicalFacts } from "./corporateActionCanonicalFacts.ts";
+import type {
+  CorporateActionCanonicalFacts,
+  CorporateActionEventKind,
+} from "./corporateActionCanonicalFacts.ts";
 import {
   readCurrentCorporateActionFacts,
   type CorporateActionPersistenceDependencies,
@@ -25,6 +28,10 @@ export type ReverseSplitExecutionUpdateReadResult = {
   updates: ReverseSplitExecutionUpdateObservation[];
 };
 
+export type ForwardSplitExecutionUpdateObservation = ReverseSplitExecutionUpdateObservation;
+export type ForwardSplitExecutionUpdateReadResult = ReverseSplitExecutionUpdateReadResult;
+export type StockSplitExecutionUpdateReadResult = ReverseSplitExecutionUpdateReadResult;
+
 type ReverseSplitExecutionUpdateDependencies = CorporateActionPersistenceDependencies & {
   readCurrent(eventId: string): Promise<CurrentCorporateActionReadResult>;
 };
@@ -41,23 +48,61 @@ export async function readReverseSplitExecutionUpdates(
   input: { cik: string; targetAt: string },
   dependencies: ReverseSplitExecutionUpdateDependencies = defaultDependencies,
 ): Promise<ReverseSplitExecutionUpdateReadResult> {
+  return readStockSplitExecutionUpdatesInternal(
+    { ...input, actionKind: "reverse_split" },
+    dependencies,
+    "read_reverse_split_execution_update_candidates",
+    false,
+  );
+}
+
+export async function readStockSplitExecutionUpdates(
+  input: { cik: string; targetAt: string; actionKind: CorporateActionEventKind },
+  dependencies: ReverseSplitExecutionUpdateDependencies = defaultDependencies,
+): Promise<StockSplitExecutionUpdateReadResult> {
+  return readStockSplitExecutionUpdatesInternal(
+    input,
+    dependencies,
+    "read_stock_split_execution_update_candidates",
+    true,
+  );
+}
+
+async function readStockSplitExecutionUpdatesInternal(
+  input: { cik: string; targetAt: string; actionKind: CorporateActionEventKind },
+  dependencies: ReverseSplitExecutionUpdateDependencies,
+  rpcFunction: string,
+  genericRpc: boolean,
+): Promise<StockSplitExecutionUpdateReadResult> {
+  const errorLabel = genericRpc ? "Stock split" : "Reverse split";
   if (!CIK_PATTERN.test(input.cik) || !validTimestamp(input.targetAt)) {
-    throw new Error("Reverse split execution update filter is invalid");
+    throw new Error(`${errorLabel} execution update filter is invalid`);
   }
-  const response = await dependencies.rpc("read_reverse_split_execution_update_candidates", {
+  if (input.actionKind !== "reverse_split" && input.actionKind !== "forward_split") {
+    throw new Error("Stock split execution update action kind is invalid");
+  }
+  const response = await dependencies.rpc(rpcFunction, {
+    ...(genericRpc ? { p_action_kind: input.actionKind } : {}),
     p_issuer_cik: input.cik,
   });
   if (!response.ok) {
-    throw new Error(`Reverse split execution update candidate reader failed: ${response.error || response.status}`);
+    throw new Error(`${errorLabel} execution update candidate reader failed: ${response.error || response.status}`);
   }
-  const candidates = validateCandidates(response.data, input.cik);
+  const candidates = validateCandidates(
+    response.data,
+    input.cik,
+    input.actionKind,
+    genericRpc,
+    errorLabel,
+  );
   const updates: ReverseSplitExecutionUpdateObservation[] = [];
   for (const candidate of candidates) {
     const current = await dependencies.readCurrent(candidate.eventId);
     if (current.status !== "available" || current.sourceExecutionId !== candidate.sourceExecutionId) continue;
     const update = current.facts.execution_update;
     const issuer = current.facts.applicability?.issuer;
-    if (!update || issuer?.availability !== "available" || issuer.issuer_cik !== input.cik
+    if (!update || current.facts.event_kind !== input.actionKind
+      || issuer?.availability !== "available" || issuer.issuer_cik !== input.cik
       || !validTimestamp(issuer.accepted_at) || Date.parse(issuer.accepted_at!) > Date.parse(input.targetAt)) continue;
     updates.push({
       eventId: current.eventId,
@@ -74,11 +119,18 @@ export async function readReverseSplitExecutionUpdates(
   return { status: "available", issuerCik: input.cik, targetAt: input.targetAt, updates };
 }
 
-function validateCandidates(value: unknown, cik: string) {
+function validateCandidates(
+  value: unknown,
+  cik: string,
+  actionKind: CorporateActionEventKind,
+  genericRpc: boolean,
+  errorLabel: "Reverse split" | "Stock split",
+) {
   const root = record(value);
   if (!root || root.status !== "available" || root.issuer_cik !== cik
+    || (genericRpc && root.action_kind !== actionKind)
     || !Array.isArray(root.candidates) || root.candidates.length > 512) {
-    throw new Error("Reverse split execution update candidate response is invalid");
+    throw new Error(`${errorLabel} execution update candidate response is invalid`);
   }
   return root.candidates.map((candidateValue, index) => {
     const candidate = record(candidateValue);
@@ -87,7 +139,7 @@ function validateCandidates(value: unknown, cik: string) {
     const persistedAt = stringValue(candidate?.persisted_at);
     if (!UUID_PATTERN.test(eventId) || !UUID_PATTERN.test(sourceExecutionId)
       || !validTimestamp(persistedAt)) {
-      throw new Error(`Reverse split execution update candidate ${index} is invalid`);
+      throw new Error(`${errorLabel} execution update candidate ${index} is invalid`);
     }
     return { eventId, sourceExecutionId, persistedAt };
   });

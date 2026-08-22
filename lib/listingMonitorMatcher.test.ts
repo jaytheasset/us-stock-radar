@@ -381,6 +381,20 @@ test("Corporate Action stage is an exact lifecycle restriction while event kind 
   ]).status, "match");
 });
 
+test("source-backed forward split facts match the same Corporate Action Alert lifecycle semantics", () => {
+  const scheduled = availableCorporateAction("scheduled", "forward_split");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "forward_split" },
+  ]).status, "match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "forward_split" },
+    { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
+  ]).status, "match");
+  assert.equal(evaluateCorporate(scheduled, [
+    { key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" },
+  ]).status, "no_match");
+});
+
 test("price plus reverse split uses common AND semantics and fails closed for unusable prices", () => {
   const conditions = [
     { key: "market.price", operator: "lt", value: 1 },
@@ -560,19 +574,23 @@ function corporateActionLineage() {
 
 function availableCorporateAction(
   actionStage: "announced" | "board_approved" | "shareholder_approved" | "scheduled" | "effective" = "scheduled",
+  eventKind: "reverse_split" | "forward_split" = "reverse_split",
 ): Extract<CurrentCorporateActionReadResult, { status: "available" }> {
+  const version = eventKind === "reverse_split"
+    ? "corporate_action_reverse_split_facts_v1" as const
+    : "corporate_action_forward_split_facts_v1" as const;
   return {
     status: "available",
     ...corporateActionLineage(),
-    factSchemaVersion: "corporate_action_reverse_split_facts_v1",
+    factSchemaVersion: version,
     facts: {
-      version: "corporate_action_reverse_split_facts_v1",
-      event_kind: "reverse_split",
+      version,
+      event_kind: eventKind,
       action_stage: actionStage,
       effective_date: { availability: "available", value: "2026-08-18" },
       ratio: { old_shares_per_new_share: { availability: "available", value: 20 } },
       source_ref: "aemd_source",
-      evidence: { availability: "available", value: "AEMD announced a reverse stock split." },
+      evidence: { availability: "available", value: `AEMD announced a ${eventKind === "reverse_split" ? "reverse" : "forward"} stock split.` },
       confidence: "high",
       as_of: { availability: "available", value: "2026-08-14" },
       source: { source_family: "news", source_id: "AEMD", source_url: "https://example.com/aemd" },

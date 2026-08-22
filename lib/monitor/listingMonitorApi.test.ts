@@ -27,6 +27,9 @@ const SCHEDULED_REVERSE_SPLIT_CONDITIONS = Object.freeze([
   Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "reverse_split" }),
   Object.freeze({ key: "corporate_action.action_stage", operator: "eq", value: "scheduled" }),
 ]);
+const FORWARD_SPLIT_CONDITIONS = Object.freeze([
+  Object.freeze({ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }),
+]);
 
 test("create and preview accept only Registry-valid canonical Listing conditions", () => {
   const parsed = parseListingMonitorCreateRequest({ conditions: CONDITIONS });
@@ -43,6 +46,9 @@ test("create and preview accept only Registry-valid canonical Listing conditions
   const scheduled = parseListingMonitorCreateRequest({ conditions: SCHEDULED_REVERSE_SPLIT_CONDITIONS });
   assert.equal(scheduled.ok, true);
   if (scheduled.ok) assert.deepEqual(scheduled.value.conditions, SCHEDULED_REVERSE_SPLIT_CONDITIONS);
+  const forward = parseListingMonitorCreateRequest({ conditions: FORWARD_SPLIT_CONDITIONS });
+  assert.equal(forward.ok, true);
+  if (forward.ok) assert.deepEqual(forward.value.conditions, FORWARD_SPLIT_CONDITIONS);
 });
 
 test("invalid, unsupported, and malformed monitor requests fail closed", () => {
@@ -52,7 +58,7 @@ test("invalid, unsupported, and malformed monitor requests fail closed", () => {
     { conditions: [{ key: "listing.event_kind", operator: "eq", value: "not_a_kind" }] },
     { conditions: [{ key: "market.price", operator: "lt", value: 0 }] },
     { conditions: [{ key: "market.price", operator: "eq", value: 1 }] },
-    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }] },
+    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "stock_dividend" }] },
     { conditions: [{ key: "corporate_action.action_stage", operator: "eq", value: "unknown" }] },
     { conditions: [{ operator: "eq", value: "adverse" }] },
     { conditions: [] },

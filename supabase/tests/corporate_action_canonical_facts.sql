@@ -12,6 +12,18 @@ select has_function(
   array['text'],
   'Reverse Split execution-update lineage reader exists'
 );
+select has_function(
+  'public',
+  'read_stock_split_history_candidates',
+  array['text', 'text', 'text', 'date', 'date'],
+  'Generic stock-split history lineage reader exists'
+);
+select has_function(
+  'public',
+  'read_stock_split_execution_update_candidates',
+  array['text', 'text'],
+  'Generic stock-split execution-update lineage reader exists'
+);
 select ok(
   (select relrowsecurity from pg_catalog.pg_class where oid = 'public.event_corporate_action_results'::regclass)
   and (select relrowsecurity from pg_catalog.pg_class where oid = 'public.event_corporate_action_facts'::regclass),
@@ -53,6 +65,15 @@ select ok(
     from pg_catalog.pg_proc
     where oid = 'public.read_reverse_split_execution_update_candidates(text)'::regprocedure),
   'execution-update lineage reader is service-role-only with an empty search_path'
+);
+select ok(
+  not pg_catalog.has_function_privilege('anon', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and not pg_catalog.has_function_privilege('anon', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute'),
+  'generic stock-split lineage readers are service-role-only'
 );
 
 insert into public.sources (code, name, source_group, runtime_owner, enabled)
@@ -149,6 +170,74 @@ as $function$
         'availability', 'unavailable', 'reason', 'date_only'
       )
     )
+$function$;
+
+create function pg_temp.ca_forward_facts()
+returns jsonb
+language sql
+as $function$
+  select pg_catalog.jsonb_build_object(
+    'version', 'corporate_action_forward_split_facts_v1',
+    'event_kind', 'forward_split',
+    'action_stage', 'scheduled',
+    'effective_date', pg_catalog.jsonb_build_object(
+      'availability', 'available', 'value', '2026-09-01'
+    ),
+    'ratio', pg_catalog.jsonb_build_object(
+      'old_shares_per_new_share', pg_catalog.jsonb_build_object(
+        'availability', 'available', 'value', 0.25
+      ),
+      'exact_source_components', pg_catalog.jsonb_build_object(
+        'availability', 'available', 'old_share_units', '1', 'new_share_units', '4'
+      )
+    ),
+    'applicability', pg_catalog.jsonb_build_object(
+      'version', 'forward_split_applicability_v1',
+      'issuer', pg_catalog.jsonb_build_object(
+        'availability', 'unavailable', 'reason', 'non_sec_source'
+      ),
+      'affected_security', pg_catalog.jsonb_build_object(
+        'availability', 'unavailable',
+        'reason', 'issuer_identity_unavailable',
+        'source_ref', null,
+        'evidence', pg_catalog.jsonb_build_object(
+          'availability', 'unavailable', 'reason', 'not_provided'
+        )
+      ),
+      'basis_change_capability', 'forward_split_only'
+    ),
+    'effective_timing', pg_catalog.jsonb_build_object(
+      'availability', 'unavailable', 'reason', 'date_only'
+    ),
+    'execution_update', pg_catalog.jsonb_build_object(
+      'version', 'forward_split_execution_update_v1',
+      'decision', 'NEW_EXECUTION',
+      'target_execution_id', null,
+      'target_issuer_cik', null,
+      'target_canonical_security_class_id', null,
+      'candidate_execution_ids', '[]'::jsonb,
+      'source_ref', 'news_article_body',
+      'evidence', pg_catalog.jsonb_build_object(
+        'availability', 'available', 'value', '4-for-1 forward stock split'
+      ),
+      'provenance', pg_catalog.jsonb_build_object(
+        'rule', 'llm_explicit_execution_update_exact_candidate'
+      )
+    ),
+    'source_ref', 'news_article_body',
+    'evidence', pg_catalog.jsonb_build_object(
+      'availability', 'available', 'value', '4-for-1 forward stock split'
+    ),
+    'confidence', 'high',
+    'as_of', pg_catalog.jsonb_build_object(
+      'availability', 'available', 'value', '2026-09-01'
+    ),
+    'source', pg_catalog.jsonb_build_object(
+      'source_family', 'news',
+      'source_id', 'canonical-ca-source',
+      'source_url', 'https://example.com/canonical-ca'
+    )
+  )
 $function$;
 
 create function pg_temp.ca_add_parent(
@@ -527,12 +616,75 @@ select is(
   'date-only effective timing preserves unresolved same-day ordering'
 );
 
+select pg_temp.ca_add_child(
+  '72000000-0000-4000-8000-000000000011',
+  '72000000-0000-4000-8000-000000000007',
+  '72000000-0000-4000-8000-000000000111',
+  '2026-08-14 00:14:00+00'
+);
+select is(
+  public.persist_corporate_action_analyzer_result(
+    '72000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000011',
+    pg_catalog.jsonb_build_object('applicable', true, 'facts', pg_temp.ca_forward_facts())
+  )->>'status',
+  'saved',
+  'existing Corporate Action persistence accepts one canonical forward split'
+);
+select pg_temp.ca_terminalize(
+  '72000000-0000-4000-8000-000000000011',
+  '72000000-0000-4000-8000-000000000211',
+  'succeeded_applicable', '2026-08-14 00:15:00+00'
+);
+select is(
+  (select fact_schema_version || ':' || event_kind
+   from public.event_corporate_action_facts
+   where source_execution_id = '72000000-0000-4000-8000-000000000011'),
+  'corporate_action_forward_split_facts_v1:forward_split',
+  'forward fact version and action kind materialize as one locked pair'
+);
+select is(
+  (select ratio_old_share_units::text || ':' || ratio_new_share_units::text
+   from public.event_corporate_action_facts
+   where source_execution_id = '72000000-0000-4000-8000-000000000011'),
+  '1:4',
+  '4-for-1 stores exact old=1 and new=4 orientation'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_reverse_split_analyzer_v1'
+  )#>>'{facts,event_kind}',
+  'forward_split',
+  'official current reader returns the current forward split under existing lineage'
+);
+select is(
+  public.read_stock_split_history_candidates(
+    'forward_split', '0000000001', null, '2026-01-01', '2026-12-31'
+  )->>'action_kind',
+  'forward_split',
+  'generic history reader preserves requested action kind'
+);
+select is(
+  public.read_stock_split_execution_update_candidates(
+    'reverse_split', '0000000001'
+  )->>'action_kind',
+  'reverse_split',
+  'generic update reader preserves reverse action isolation'
+);
+
 select ok(
   not pg_catalog.has_function_privilege('anon', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
   and not pg_catalog.has_function_privilege('authenticated', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
   and pg_catalog.has_function_privilege('service_role', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
   and not pg_catalog.has_function_privilege('anon', 'public.read_reverse_split_history_candidates(text,text,date,date)', 'execute')
-  and pg_catalog.has_function_privilege('service_role', 'public.read_reverse_split_history_candidates(text,text,date,date)', 'execute'),
+  and pg_catalog.has_function_privilege('service_role', 'public.read_reverse_split_history_candidates(text,text,date,date)', 'execute')
+  and not pg_catalog.has_function_privilege('anon', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_stock_split_history_candidates(text,text,text,date,date)', 'execute')
+  and not pg_catalog.has_function_privilege('anon', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_stock_split_execution_update_candidates(text,text)', 'execute'),
   'applicability context and history candidate readers remain service-role-only'
 );
 

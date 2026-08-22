@@ -183,6 +183,7 @@ export function buildCorporateActionAnalyzerInput(
     issuer_context: applicabilityContext?.issuerContext,
     security_class_candidates: applicabilityContext?.securityClassCandidates,
     reverse_split_execution_candidates: applicabilityContext?.reverseSplitExecutionCandidates,
+    forward_split_execution_candidates: applicabilityContext?.forwardSplitExecutionCandidates,
   });
 }
 

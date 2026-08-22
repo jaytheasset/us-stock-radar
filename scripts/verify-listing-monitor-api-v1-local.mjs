@@ -90,7 +90,7 @@ try {
     { conditions: [{ key: "listing.unsupported", operator: "eq", value: "adverse" }] },
     { conditions: [{ key: "listing.event_kind", operator: "within_days", value: 1 }] },
     { conditions: [{ key: "listing.event_kind", operator: "eq", value: "unsupported_value" }] },
-    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "forward_split" }] },
+    { conditions: [{ key: "corporate_action.event_kind", operator: "eq", value: "stock_dividend" }] },
     { conditions: [{ key: "corporate_action.action_stage", operator: "eq", value: "unknown" }] },
     { conditions: [{ operator: "eq", value: "adverse" }] },
     { domain: "offering", conditions: CONDITIONS },

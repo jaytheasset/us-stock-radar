@@ -1,6 +1,5 @@
 import {
   CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
-  CORPORATE_ACTION_FACTS_VERSION,
   readCorporateActionAnalyzerResult,
   type CorporateActionAnalyzerResult,
   type CorporateActionCanonicalFacts,
@@ -114,13 +113,13 @@ export function validateCurrentCorporateActionReadResult(value: unknown): Curren
   if (!lineage) return { status: "not_ready", reason: "reader_lineage_validation_failed" };
   if (row.status === "not_applicable") return { status: "not_applicable", ...lineage };
   const canonical = readCorporateActionAnalyzerResult({ applicable: true, facts: row.facts });
-  if (row.fact_schema_version !== CORPORATE_ACTION_FACTS_VERSION || !canonical?.applicable) {
+  if (!canonical?.applicable || row.fact_schema_version !== canonical.facts.version) {
     return { status: "not_ready", reason: "reader_facts_validation_failed" };
   }
   return {
     status: "available",
     ...lineage,
-    factSchemaVersion: CORPORATE_ACTION_FACTS_VERSION,
+    factSchemaVersion: canonical.facts.version,
     facts: canonical.facts,
   };
 }
