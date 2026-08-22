@@ -41,7 +41,7 @@ export async function processGenericMonitorChildWithDependencies<
       identity: GenericMonitorChildIdentity,
       rawItem: Record<string, unknown>,
       primaryAnalysis: Record<string, unknown>,
-    ): TInput;
+    ): TInput | Promise<TInput>;
     runAnalyzer(input: TInput): Promise<GenericMonitorAnalyzerRun<TResult>>;
     persist(input: {
       identity: GenericMonitorChildIdentity;
@@ -78,7 +78,7 @@ export async function processGenericMonitorChildWithDependencies<
 
   let analyzerInput: TInput;
   try {
-    analyzerInput = dependencies.buildAnalyzerInput(identity, parent.rawItem, parent.analysis);
+    analyzerInput = await dependencies.buildAnalyzerInput(identity, parent.rawItem, parent.analysis);
   } catch (error) {
     await repository.recordTerminal(identity, "failed", { error });
     return { status: "failed" as const, jobId: identity.executionId, providerCalls: 0, error: errorMessage(error) };

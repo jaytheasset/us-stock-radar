@@ -1,6 +1,8 @@
 import {
   CORPORATE_ACTION_ANALYZER_INPUT_VERSION,
   type CorporateActionAnalyzerInput,
+  type CorporateActionIssuerContext,
+  type CorporateActionSecurityClassCandidate,
   type CorporateActionSourceDocument,
   type CorporateActionSourceFamily,
   validateCorporateActionAnalyzerInput,
@@ -52,6 +54,8 @@ export function adaptSec8k6kCorporateActionSource(input: {
     document_reference?: string | null;
     text: string;
   }>;
+  issuer_context?: CorporateActionIssuerContext;
+  security_class_candidates?: CorporateActionSecurityClassCandidate[];
 }): CorporateActionAnalyzerInput {
   return buildInput({
     sourceFamily: "sec",
@@ -59,6 +63,8 @@ export function adaptSec8k6kCorporateActionSource(input: {
     sourceUrl: input.source_url,
     publishedAt: input.filed_at,
     title: input.title,
+    issuerContext: input.issuer_context,
+    securityClassCandidates: input.security_class_candidates,
     documents: input.cleaned_source_blocks.map((block) => ({
       source_ref: block.block_id,
       label: block.document_reference || block.source_ref || block.label || null,
@@ -74,7 +80,12 @@ function buildInput(input: {
   publishedAt: string | null;
   title: string | null;
   documents: CorporateActionSourceDocument[];
+  issuerContext?: CorporateActionIssuerContext;
+  securityClassCandidates?: CorporateActionSecurityClassCandidate[];
 }) {
+  const issuerContext = input.issuerContext ?? (input.sourceFamily === "sec"
+    ? { availability: "unavailable" as const, reason: "filing_ledger_identity_unavailable" as const }
+    : { availability: "unavailable" as const, reason: "non_sec_source" as const });
   const result: CorporateActionAnalyzerInput = {
     version: CORPORATE_ACTION_ANALYZER_INPUT_VERSION,
     source_family: input.sourceFamily,
@@ -87,6 +98,11 @@ function buildInput(input: {
       label: cleanNullableText(document.label),
       text: document.text.trim(),
     })),
+    issuer_context: issuerContext,
+    security_class_candidates: input.securityClassCandidates?.map((candidate) => ({
+      ...candidate,
+      supporting_accessions: [...candidate.supporting_accessions],
+    })) ?? [],
   };
   const errors = validateCorporateActionAnalyzerInput(result);
   if (errors.length) throw new Error(`Invalid Corporate Action analyzer input: ${errors.join("; ")}`);

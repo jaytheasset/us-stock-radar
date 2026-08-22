@@ -46,7 +46,8 @@ insert into public.sec_filing_ledger (
   ('0000000099-26-000001', '0000000099', '10-Q', '2026-08-20', '2026-08-20 12:00:00+00', 'fixture.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-20 13:00:00+00'),
   ('0000000099-26-000002', '0000000099', '10-Q', '2026-08-21', '2026-08-21 12:00:00+00', 'fixture.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-21 13:00:00+00'),
   ('0000000099-26-000003', '0000000099', '10-Q', '2026-08-21', '2026-08-21 12:01:00+00', 'fixture.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-21 13:00:00+00'),
-  ('0000000099-26-000004', '0000000099', '10-Q', '2026-08-21', '2026-08-21 12:02:00+00', 'fixture.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-21 13:00:00+00')
+  ('0000000099-26-000004', '0000000099', '10-Q', '2026-08-21', '2026-08-21 12:02:00+00', 'fixture.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-21 13:00:00+00'),
+  ('0000000099-26-000005', '0000000099', '8-K', '2026-08-22', '2026-08-22 13:00:00+00', 'reverse-split.htm', true, true, '93000000-0000-5000-8000-000000000001', '2026-08-22 13:01:00+00')
 on conflict do nothing;
 
 create function pg_temp.insert_share_history(
@@ -279,6 +280,56 @@ select is(
   2, 'Class A and Class B have distinct source-independent canonical identities'
 );
 
+insert into public.raw_items (
+  id, source_code, source_group, source_unique_id, source_url, fetched_at,
+  published_at, title, body_text, raw_payload, metadata
+) values (
+  '96000000-0000-5000-8000-000000000001', 'sec_edgar', 'filings',
+  '0000000099-26-000005', 'https://www.sec.gov/Archives/edgar/data/99/reverse-split.htm',
+  '2026-08-22 13:01:00+00', '2026-08-22 13:00:00+00', 'Reverse split fixture',
+  'The issuer will effect a reverse split.',
+  '{"accession_number":"0000000099-26-000005"}'::jsonb, '{}'::jsonb
+);
+insert into public.events (
+  id, raw_item_id, source_code, source_group, source_name, published_at, ticker,
+  event_type, score, delivery_level, impact, signal, market_scope, title,
+  group_dedupe_key, metadata
+) values (
+  '96000000-0000-5000-8000-000000000002',
+  '96000000-0000-5000-8000-000000000001',
+  'sec_edgar', 'filings', 'SEC EDGAR', '2026-08-22 13:00:00+00', 'FIX',
+  'other', 0, 'feed', 'low', 'neutral', 'company', 'Reverse split fixture',
+  'reverse-split-applicability:fixture', '{}'::jsonb
+);
+
+select is(
+  public.read_corporate_action_applicability_context(
+    '96000000-0000-5000-8000-000000000002',
+    '96000000-0000-5000-8000-000000000001'
+  ) #>> '{issuer_context,issuer_cik}',
+  '0000000099',
+  'Corporate Action applicability context resolves CIK only through the exact filing ledger accession'
+);
+select is(
+  pg_catalog.jsonb_array_length(public.read_corporate_action_applicability_context(
+    '96000000-0000-5000-8000-000000000002',
+    '96000000-0000-5000-8000-000000000001'
+  ) -> 'security_class_candidates'),
+  3,
+  'all distinct pre-source-time canonical single/Class A/Class B candidates remain separate'
+);
+select ok(
+  public.read_corporate_action_applicability_context(
+    '96000000-0000-5000-8000-000000000002',
+    '96000000-0000-5000-8000-000000000001'
+  ) -> 'security_class_candidates' @> '[{"canonical_security_class_id":"sc:v1:0000000099:common_stock:us-gaap:CommonClassAMember"}]'::jsonb
+  and public.read_corporate_action_applicability_context(
+    '96000000-0000-5000-8000-000000000002',
+    '96000000-0000-5000-8000-000000000001'
+  ) -> 'security_class_candidates' @> '[{"canonical_security_class_id":"sc:v1:0000000099:common_stock:us-gaap:CommonClassBMember"}]'::jsonb,
+  'multi-class canonical candidates preserve exact Class A and Class B identities without mapping them together'
+);
+
 select throws_ok(
   $$select pg_temp.insert_share_history('0000000099-26-000001', '2026-08-01', 0, repeat('e', 64), 'bad-shares', '2026-08-20', '2026-08-20 12:00:00+00')$$,
   '23514', null, 'non-positive shares fail closed'
@@ -326,6 +377,8 @@ select is(
   (select count(*)::integer from public.share_count_history where issuer_cik = '0000000099'),
   0, 'local acceptance cleanup leaves fixture history rows zero'
 );
+delete from public.events where id = '96000000-0000-5000-8000-000000000002';
+delete from public.raw_items where id = '96000000-0000-5000-8000-000000000001';
 delete from public.sec_filing_ledger where issuer_cik = '0000000099';
 delete from public.sec_issuers where cik = '0000000099';
 delete from public.sec_structured_raw_sources where cik = '0000000099';

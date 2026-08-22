@@ -13,6 +13,11 @@ import type {
   CorporateActionAnalyzerInput,
   CorporateActionAnalyzerResult,
 } from "./corporateActionCanonicalFacts.ts";
+import {
+  readCorporateActionApplicabilityContext,
+  type CorporateActionApplicabilityContext,
+  unavailableCorporateActionApplicabilityContext,
+} from "./corporateActionApplicabilityContext.ts";
 import type { GenericMonitorChildIdentity } from "./genericMonitorChildExecution.ts";
 import { genericMonitorChildRepository } from "./genericMonitorChildSupabaseRepository.ts";
 import {
@@ -66,6 +71,10 @@ export async function processGenericMonitorChild(
       identity: GenericMonitorChildIdentity;
       result: CorporateActionAnalyzerResult;
     }) => Promise<CorporateActionPersistenceResult>;
+    loadCorporateActionApplicabilityContext?: (input: {
+      eventId: string;
+      rawItemId: string;
+    }) => Promise<CorporateActionApplicabilityContext>;
     persistShareCountObservation?: (input: {
       identity: GenericMonitorChildIdentity;
       rawItem: Record<string, unknown>;
@@ -75,9 +84,22 @@ export async function processGenericMonitorChild(
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
   if (identity.monitorAnalyzerKey === "corporate_action") {
+    const loadApplicabilityContext = dependencies.loadCorporateActionApplicabilityContext
+      || readCorporateActionApplicabilityContext;
     return processGenericMonitorChildWithDependencies(identity, {
       repository,
-      buildAnalyzerInput: buildCorporateActionAnalyzerInput,
+      buildAnalyzerInput: async (childIdentity, rawItem, primaryAnalysis) =>
+        buildCorporateActionAnalyzerInput(
+          childIdentity,
+          rawItem,
+          primaryAnalysis,
+          childIdentity.sourceFamily === "sec_8k_6k"
+            ? await loadApplicabilityContext({
+                eventId: childIdentity.eventId,
+                rawItemId: childIdentity.rawItemId,
+              })
+            : unavailableCorporateActionApplicabilityContext("non_sec_source"),
+        ),
       runAnalyzer: dependencies.runCorporateActionAnalyzer || runCorporateActionCanonicalAnalyzerPreview,
       persist: dependencies.persistCorporateAction || persistCorporateActionAnalyzerResult,
       persistShareCountObservation: dependencies.persistShareCountObservation
@@ -121,6 +143,7 @@ export function buildCorporateActionAnalyzerInput(
   identity: GenericMonitorChildIdentity,
   rawItem: Record<string, unknown>,
   _primaryAnalysis: Record<string, unknown>,
+  applicabilityContext?: CorporateActionApplicabilityContext,
 ): CorporateActionAnalyzerInput {
   const common = {
     source_unique_id: nullableText(rawItem.source_unique_id),
@@ -157,6 +180,8 @@ export function buildCorporateActionAnalyzerInput(
     filed_at: nullableText(rawItem.published_at),
     title: nullableText(rawItem.title),
     cleaned_source_blocks: sourceInput.cleaned_source_blocks,
+    issuer_context: applicabilityContext?.issuerContext,
+    security_class_candidates: applicabilityContext?.securityClassCandidates,
   });
 }
 
