@@ -138,6 +138,7 @@ export async function reconcileShareCountAnchors(
     securityClassId: string;
     startAnchor: { asOf: string };
     endAnchor: { asOf: string };
+    executionKnownAt?: string;
   },
   dependencies: ShareCountAnchorReconciliationDependencies = {},
 ): Promise<ShareCountAnchorReconciliation> {
@@ -209,6 +210,7 @@ export async function reconcileShareCountAnchors(
     basisTargetAt,
     start.anchor.authoritativeObservations,
     dependencies,
+    input.executionKnownAt,
   );
   if (startNormalization.status !== "NORMALIZED") {
     return unavailable(
@@ -223,7 +225,13 @@ export async function reconcileShareCountAnchors(
 
   const intermediateObservations: ReconciledIntermediateShareCount[] = [];
   for (const rows of groupedIntermediate) {
-    const normalization = await normalizeObservationGroup(input, basisTargetAt, rows, dependencies);
+    const normalization = await normalizeObservationGroup(
+      input,
+      basisTargetAt,
+      rows,
+      dependencies,
+      input.executionKnownAt,
+    );
     if (normalization.status !== "NORMALIZED") {
       return unavailable(
         input,
@@ -306,6 +314,7 @@ async function normalizeObservationGroup(
   basisTargetAt: string,
   rows: ShareCountHistoryObservation[],
   dependencies: ShareCountAnchorReconciliationDependencies,
+  executionKnownAt?: string,
 ): Promise<StockSplitShareBasisNormalization> {
   const normalization = dependencies.normalizeShareCountAt ?? normalizeClassShareCountForStockSplitsAt;
   const resolution = resolvedObservationGroup(input, basisTargetAt, rows);
@@ -314,7 +323,13 @@ async function normalizeObservationGroup(
   };
   if (dependencies.readExecutions) normalizerDependencies.readExecutions = dependencies.readExecutions;
   return normalization(
-    { repository: input.repository, cik: input.cik, securityClassId: input.securityClassId, targetAt: basisTargetAt },
+    {
+      repository: input.repository,
+      cik: input.cik,
+      securityClassId: input.securityClassId,
+      targetAt: basisTargetAt,
+      ...(executionKnownAt ? { executionKnownAt } : {}),
+    },
     normalizerDependencies,
   );
 }
@@ -573,6 +588,7 @@ function validateInput(input: {
   securityClassId: string;
   startAnchor: { asOf: string };
   endAnchor: { asOf: string };
+  executionKnownAt?: string;
 }) {
   if (!CIK_PATTERN.test(input.cik) || input.cik === "0000000000") throw new Error("invalid CIK");
   if (!CANONICAL_SECURITY_CLASS_ID_PATTERN.test(input.securityClassId)
@@ -582,6 +598,9 @@ function validateInput(input: {
   if (!validDate(input.startAnchor.asOf) || !validDate(input.endAnchor.asOf)
     || input.startAnchor.asOf >= input.endAnchor.asOf) {
     throw new Error("anchor asOf dates must be valid and strictly increasing");
+  }
+  if (input.executionKnownAt !== undefined && !validTimestamp(input.executionKnownAt)) {
+    throw new Error("executionKnownAt must be a valid timestamp");
   }
 }
 

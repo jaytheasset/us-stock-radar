@@ -96,6 +96,7 @@ export type StockSplitExecutionReadInput = {
   from: string;
   to: string;
   targetAt: string;
+  knownAt?: string;
 };
 
 export type StockSplitShareBasisNormalizerDependencies = {
@@ -116,6 +117,7 @@ export async function normalizeClassShareCountForStockSplitsAt(
     cik: string;
     securityClassId: string;
     targetAt: string;
+    executionKnownAt?: string;
   },
   dependencies: StockSplitShareBasisNormalizerDependencies = {},
 ): Promise<StockSplitShareBasisNormalization> {
@@ -145,6 +147,7 @@ export async function normalizeClassShareCountForStockSplitsAt(
         from: firstExecutionDate,
         to: targetDate,
         targetAt,
+        ...(input.executionKnownAt ? { knownAt: input.executionKnownAt } : {}),
       })));
   } catch {
     return unavailable(input, targetAt, targetDate, resolution, "EXECUTION_READ_FAILED");

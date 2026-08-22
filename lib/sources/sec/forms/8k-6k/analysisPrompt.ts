@@ -33,7 +33,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v45-corporate-action-routing";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v49-live-stock-split-effective-date";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -1409,6 +1409,7 @@ export const sec8k6kFinalOutputCheckPrompt = [
   "For earnings, recheck earnings quality before returning. If a reported profit or profit inflection is driven mainly by a non-cash fair-value change, warrant-liability remeasurement, tax benefit, asset-sale gain, or another one-time accounting item, identify that driver in Summary and any affected Snapshot note. Do not use that accounting gain alone to produce a bullish signal or score of 75 or above; recurring operating performance, adjusted profitability, cash flow, demand, or guidance must independently support the direction and range.",
   "For operating_legal_routine, verify regulatory_stage matches the primary FDA or clinical event and is not_applicable when the filing has no controlling FDA or clinical event.",
   "For fda_clinical, recheck that the score follows the most advanced source-backed stage rather than keyword intensity: an appeal, hold removal, review acceptance, PDUFA date, or advisory event must not be described as final approval, and material safety restrictions or remaining review conditions must appear as offsets when they change the score.",
+  "Final monitor-route invariant: re-read the complete original source blocks and the JSON you are about to return. If any source-backed output field states that this current filing announces, approves, schedules, makes effective, or completes an explicit reverse or forward stock split, analysis_output.monitor_routes must include exactly one corporate_action route. It is invalid to describe such a split anywhere in the JSON while returning no corporate_action route.",
 ].join("\n");
 
 export function buildSec8k6kAnalysisPromptDraft(input: Sec8k6kAnalysisPromptInput) {

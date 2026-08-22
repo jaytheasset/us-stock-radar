@@ -187,6 +187,7 @@ test("multi-class maps explicit Class A only and rejects an unsupplied class", (
     candidate(classBId, "CLASS_SPECIFIC_COMMON_STOCK", "CommonClassBMember"),
   ];
   const classATransport = transport({
+    evidence: source,
     affected_security: {
       availability: "available",
       canonical_security_class_id: classAId,
@@ -200,6 +201,17 @@ test("multi-class maps explicit Class A only and rejects an unsupplied class", (
   assert.deepEqual(canonical.errors, []);
   assert.equal(canonical.result?.applicable && canonical.result.facts.applicability?.affected_security.availability === "available"
     ? canonical.result.facts.applicability.affected_security.canonical_security_class_id : null, classAId);
+
+  const missingCanonicalEvidence = canonicalizeCorporateActionAnalyzerResult(
+    transport({
+      evidence: "not an exact source span",
+      affected_security: (classATransport as Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>)
+        .affected_security,
+    }),
+    input(source, candidates),
+  );
+  assert.equal(missingCanonicalEvidence.result, null);
+  assert.match(missingCanonicalEvidence.errors.join("; "), /must materialize as compact canonical evidence/);
 
   const foreignClass = canonicalizeCorporateActionAnalyzerResult(transport({
     affected_security: {

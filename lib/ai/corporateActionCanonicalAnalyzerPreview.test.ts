@@ -3,7 +3,10 @@ import test from "node:test";
 import type { GeminiStructuredJsonRun } from "./geminiStructuredJson.ts";
 import { runCorporateActionCanonicalAnalyzerPreview } from "./corporateActionCanonicalAnalyzerPreview.ts";
 import { adaptNasdaqCorporateActionSource, adaptSec8k6kCorporateActionSource } from "../monitor/corporateActionSourceAdapters.ts";
-import { CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA } from "../prompts/corporateActionCanonicalAnalysis.ts";
+import {
+  buildCorporateActionCanonicalResponseSchema,
+  CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA,
+} from "../prompts/corporateActionCanonicalAnalysis.ts";
 
 const input = adaptNasdaqCorporateActionSource({
   source_unique_id: "ECA-provider-test",
@@ -47,9 +50,16 @@ test("analyzer makes one bounded provider call with a small plain response schem
     },
   });
   assert.equal(requests.length, 1);
-  assert.deepEqual(requests[0]?.responseSchema, CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA);
-  assert.equal(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA).length < 5_000, true);
-  assert.equal(requests[0]?.maxOutputTokens, 1_200);
+  const expectedSchema = buildCorporateActionCanonicalResponseSchema(input);
+  assert.deepEqual(requests[0]?.responseSchema, expectedSchema);
+  assert.deepEqual(
+    ((expectedSchema.anyOf as Array<{ properties: Record<string, { enum?: string[] }> }>)[1]
+      .properties.source_ref.enum),
+    ["nasdaq_notice_body"],
+  );
+  assert.equal(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA).includes("maxLength"), false);
+  assert.equal(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA).length < 6_000, true);
+  assert.equal(requests[0]?.maxOutputTokens, 2_400);
   assert.equal(result.stage, "complete");
   assert.equal(result.repair, null);
   assert.equal(result.stage === "complete" ? result.result.applicable : false, true);

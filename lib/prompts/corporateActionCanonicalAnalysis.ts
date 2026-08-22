@@ -17,10 +17,13 @@ import {
 
 export const CORPORATE_ACTION_CANONICAL_ANALYSIS_PROMPT_KEY = "corporate_action_canonical_analyzer";
 
-export const CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA = {
+const CORPORATE_ACTION_APPLICABLE_RESPONSE_SCHEMA = {
   type: "object",
   properties: {
-    applicable: { type: "boolean" },
+    applicable: {
+      type: "boolean",
+      description: "Exactly true for this branch. Use the other anyOf branch when the source is not applicable.",
+    },
     event_kind: { type: "string", enum: CORPORATE_ACTION_EVENT_KINDS },
     action_stage: { type: "string", enum: CORPORATE_ACTION_STAGES },
     effective_date: dateAvailabilitySchema(),
@@ -58,7 +61,7 @@ export const CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA = {
             security_type: { type: "string", enum: ["common_stock"] },
             source_security_title: { type: "string" },
             source_ref: { type: "string" },
-            evidence: { type: "string" },
+            evidence: { type: "string", description: "One compact exact source span of at most 800 characters." },
           },
           required: [
             "availability",
@@ -88,7 +91,7 @@ export const CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA = {
             kind: { type: "string", enum: CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS },
             timestamp: { type: "string", nullable: true },
             source_ref: { type: "string" },
-            evidence: { type: "string" },
+            evidence: { type: "string", description: "One compact exact source span of at most 800 characters." },
           },
           required: ["availability", "kind", "timestamp", "source_ref", "evidence"],
         },
@@ -100,18 +103,72 @@ export const CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA = {
         decision: { type: "string", enum: REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS },
         target_execution_id: { type: "string", nullable: true },
         source_ref: { type: "string" },
-        evidence: { type: "string" },
+        evidence: { type: "string", description: "One compact exact source span of at most 800 characters." },
       },
       required: ["decision", "target_execution_id", "source_ref", "evidence"],
     },
     source_ref: { type: "string" },
-    evidence: { type: "string", nullable: true },
+    evidence: { type: "string", description: "One compact exact source span of at most 800 characters." },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     as_of: dateAvailabilitySchema(),
     [LEVEL2_SHARE_COUNT_OBSERVATION_FIELD]: LEVEL2_SHARE_COUNT_PROVIDER_SCHEMA,
   },
-  required: ["applicable"],
+  required: [
+    "applicable",
+    "event_kind",
+    "action_stage",
+    "effective_date",
+    "ratio",
+    "affected_security",
+    "effective_timing",
+    "execution_update",
+    "source_ref",
+    "evidence",
+    "confidence",
+    "as_of",
+  ],
 } as const;
+
+export const CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA = {
+  anyOf: [
+    {
+      type: "object",
+      properties: {
+        applicable: {
+          type: "boolean",
+          description: "Exactly false for this branch. Do not return Corporate Action fields.",
+        },
+        [LEVEL2_SHARE_COUNT_OBSERVATION_FIELD]: LEVEL2_SHARE_COUNT_PROVIDER_SCHEMA,
+      },
+      required: ["applicable"],
+    },
+    CORPORATE_ACTION_APPLICABLE_RESPONSE_SCHEMA,
+  ],
+} as const;
+
+export function buildCorporateActionCanonicalResponseSchema(input: CorporateActionAnalyzerInput) {
+  const schema = JSON.parse(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA)) as Record<string, unknown>;
+  const sourceRefs = input.source_documents.map((document) => document.source_ref);
+  constrainRequiredSourceRefs(schema, sourceRefs);
+  return schema;
+}
+
+function constrainRequiredSourceRefs(value: unknown, sourceRefs: string[]) {
+  if (Array.isArray(value)) {
+    for (const child of value) constrainRequiredSourceRefs(child, sourceRefs);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "source_ref" && child && typeof child === "object" && !Array.isArray(child)) {
+      const sourceRefSchema = child as Record<string, unknown>;
+      if (sourceRefSchema.type === "string" && sourceRefSchema.nullable !== true) {
+        sourceRefSchema.enum = sourceRefs;
+      }
+    }
+    constrainRequiredSourceRefs(child, sourceRefs);
+  }
+}
 
 function unavailableSchema() {
   return {
@@ -150,6 +207,7 @@ export const CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT = [
   `For a non-applicable source return applicable false and no Corporate Action fields; the independent optional ${LEVEL2_SHARE_COUNT_OBSERVATION_FIELD} may still be present only when its SEC filing contract is satisfied. Failure, uncertainty about transport, or missing source text is not not-applicable.`,
   `For an applicable source return exactly these keys: applicable, event_kind, action_stage, effective_date, ratio, affected_security, effective_timing, execution_update, source_ref, evidence, confidence, as_of. applicable is true and event_kind is exactly one of ${CORPORATE_ACTION_EVENT_KINDS.join(", ")}. Use forward_split only for an explicit increase in shares per old share, never a stock dividend or inferred adjustment.`,
   "effective_date is exactly {availability:unavailable} when the source does not establish the stock-split effective date, otherwise {availability:available,value:YYYY-MM-DD}. Do not substitute publication, record, marketplace, payment, approval, or trading dates.",
+  "For a forward split effected by distributing additional shares, a source-stated distribution date and session establish the split execution date and timing. Preserve that distribution date/session as effective_date/effective_timing; never replace them with a later split-adjusted trading commencement date.",
   "ratio is exactly {availability:unavailable} when the source does not establish a ratio. Otherwise return {availability:available,old_shares:string,new_shares:string}, where old_shares and new_shares are positive plain decimal strings representing source-backed old and new share quantities. Preserve execution orientation: for a 1-for-20 reverse split return old_shares 20 and new_shares 1; for a 4-for-1 forward split return old_shares 1 and new_shares 4; for a 3-for-2 forward split return old_shares 2 and new_shares 3. Application code alone performs division into old_shares_per_new_share and does not calculate outstanding shares.",
   "issuer_context and security_class_candidates are deterministic, authoritative context, not semantic truth about which security the stock split affects. Never invent a CIK, class, candidate, or equivalence.",
   "affected_security is available only when the source meaning explicitly identifies an affected common-stock security and exactly one supplied security_class_candidate is the same security. Copy that exact canonical_security_class_id. source_security_title and evidence must be compact contiguous exact spans from the cited source_ref. A single-common candidate may be selected for source-stated common stock only when issuer_context is available and the supplied candidate basis is SINGLE_COMMON_STOCK_CLASS.",
@@ -160,6 +218,7 @@ export const CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT = [
   "execution_update source_ref and evidence must be one compact contiguous exact source span that establishes the relation or new execution. Candidate metadata is bounded deterministic context; only the source text may establish what the current source means.",
   "Use exactly one supplied source_ref that supports applicability and every available semantic value. Never invent, alter, concatenate, or copy a label in place of source_ref.",
   "evidence is one shortest useful contiguous verbatim span from the cited source_document.text, or null only when no compact span can be safely copied. Do not paraphrase, normalize whitespace, join passages, or use another document.",
+  "For an applicable result, root evidence must be one compact exact span of at most 800 characters; do not copy a whole section when a shorter supporting paragraph, sentence, or clause exists.",
   "confidence is exactly high, medium, or low and reflects semantic certainty from the cited stored source, not confidence in parser or prior AI context.",
   "as_of is exactly {availability:unavailable} when no source-backed observation or effective basis date applies, otherwise {availability:available,value:YYYY-MM-DD}. Do not copy another date merely to populate it.",
   LEVEL2_SHARE_COUNT_PROMPT_CONTRACT,

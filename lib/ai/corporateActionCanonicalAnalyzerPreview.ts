@@ -12,7 +12,7 @@ import {
 } from "../monitor/corporateActionCanonicalFacts.ts";
 import {
   buildCorporateActionCanonicalAnalysisPrompt,
-  CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA,
+  buildCorporateActionCanonicalResponseSchema,
 } from "../prompts/corporateActionCanonicalAnalysis.ts";
 import {
   extractLevel2ShareCountSidecar,
@@ -70,14 +70,15 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
   }
 
   const prompt = buildCorporateActionCanonicalAnalysisPrompt(input);
+  const responseSchema = buildCorporateActionCanonicalResponseSchema(input);
   const run = await (options.runPrompt || runStructuredGeminiJson)({
     apiKey,
     model,
     prompt,
-    maxOutputTokens: options.maxOutputTokens ?? 1_200,
-    responseSchema: CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA,
+    maxOutputTokens: options.maxOutputTokens ?? 2_400,
+    responseSchema,
   });
-  if (!run.responseOk) {
+  if (!run.ok) {
     return {
       stage: "provider_error",
       result: null,
