@@ -15,3 +15,9 @@ Among eligible observations, the latest `as_of` group is selected. XBRL and Leve
 `RESOLVED` returns the exact integer string, source `as_of`, normalized `targetAt`, whole `ageDays`, one deterministic representational `selectedObservation`, and all latest-date supporting observations. The selected record does not establish source priority because every supporting record has the same resolved value. `CONFLICT` returns the conflicting latest-date observations with `selectedObservation=null`.
 
 No arbitrary freshness cutoff exists in V1. `ageDays` is metadata for later policy. The read-only [Reverse Split Share-Basis Normalizer V1](reverse-split-share-basis-normalization-v1.md) consumes this result without transforming the stored history row. Class A, Class B, Class C, and the single-class identity are always resolved independently and never summed.
+
+The resolver does not discover which classes must be resolved. That separate,
+filing-backed completeness contract is provided by [Issuer Common-Class
+Universe Snapshot V1](issuer-common-class-universe-snapshot-v1.md). A future
+issuer-total calculation must receive an `AVAILABLE` universe and resolve every
+required canonical class; this resolver never authorizes a partial class sum.
