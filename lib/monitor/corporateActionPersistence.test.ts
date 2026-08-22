@@ -146,6 +146,20 @@ test("applicability migration reuses canonical class support and exposes only cu
   assert.doesNotMatch(migration, /sec_issuer_ticker_observations|company_name|forward_split|stock_dividend/i);
 });
 
+test("execution update migration exposes bounded service-only lineage candidates without lifecycle inference", () => {
+  const migration = readFileSync(
+    new URL("../../supabase/migrations/20260822124557_reverse_split_execution_update_safety_v1.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /read_reverse_split_execution_update_candidates/);
+  assert.match(migration, /facts_payload \? 'execution_update'/);
+  assert.match(migration, /limit 512/);
+  assert.match(migration, /security definer[\s\S]*set search_path = ''/);
+  assert.match(migration, /revoke all on function public\.read_reverse_split_execution_update_candidates\(text\)[\s\S]*authenticated/);
+  assert.match(migration, /grant execute on function public\.read_reverse_split_execution_update_candidates\(text\)[\s\S]*service_role/);
+  assert.doesNotMatch(migration, /ratio.*similar|ticker|company_name|old_share_units|new_share_units/i);
+});
+
 function childIdentity(): GenericMonitorChildIdentity {
   return buildGenericMonitorChildIdentities({
     primary: {

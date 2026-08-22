@@ -8,6 +8,11 @@ import {
   type ReverseSplitHistoryItem,
   type ReverseSplitHistoryReadResult,
 } from "./reverseSplitHistory.ts";
+import {
+  readReverseSplitExecutionUpdates,
+  type ReverseSplitExecutionUpdateObservation,
+  type ReverseSplitExecutionUpdateReadResult,
+} from "./reverseSplitExecutionUpdate.ts";
 
 export const REVERSE_SPLIT_EXECUTION_VERSION = "reverse_split_execution_v1";
 
@@ -39,6 +44,7 @@ export type ReverseSplitExecutionObservation = {
 export type ReverseSplitExecution = {
   version: typeof REVERSE_SPLIT_EXECUTION_VERSION;
   status: "CALCULATION_ELIGIBLE";
+  executionStatus: "scheduled" | "effective";
   executionId: string;
   issuerCik: string;
   canonicalSecurityClassId: string;
@@ -48,9 +54,19 @@ export type ReverseSplitExecution = {
   observations: ReverseSplitExecutionObservation[];
 };
 
-export type ReverseSplitExecutionConflict = {
+export type InactiveReverseSplitExecution = Omit<
+  ReverseSplitExecution,
+  "status" | "executionStatus"
+> & {
+  status: "CALCULATION_INELIGIBLE";
+  executionStatus: "superseded" | "cancelled";
+  updateObservation: ReverseSplitExecutionUpdateObservation;
+};
+
+export type ReverseSplitExecutionTupleConflict = {
   version: typeof REVERSE_SPLIT_EXECUTION_VERSION;
   status: "EXECUTION_CONFLICT";
+  executionStatus: "conflict";
   conflictId: string;
   issuerCik: string;
   canonicalSecurityClassId: string;
@@ -60,14 +76,33 @@ export type ReverseSplitExecutionConflict = {
   observations: ReverseSplitExecutionObservation[];
 };
 
+export type ReverseSplitExecutionUpdateConflict = {
+  version: typeof REVERSE_SPLIT_EXECUTION_VERSION;
+  status: "EXECUTION_CONFLICT";
+  executionStatus: "conflict";
+  conflictId: string;
+  issuerCik: string;
+  canonicalSecurityClassId: null;
+  effectiveDate: null;
+  reasons: Array<"UNRESOLVED_EXECUTION_UPDATE" | "TARGET_EXECUTION_NOT_FOUND">;
+  candidateExecutionIds: string[];
+  updateObservations: ReverseSplitExecutionUpdateObservation[];
+};
+
+export type ReverseSplitExecutionConflict =
+  | ReverseSplitExecutionTupleConflict
+  | ReverseSplitExecutionUpdateConflict;
+
 export type ReverseSplitExecutionReadResult = {
   status: "available";
   issuerCik: string;
   canonicalSecurityClassId: string | null;
   from: string;
   to: string;
+  targetAt: string;
   basisChangeCoverage: "reverse_split_only";
   executions: ReverseSplitExecution[];
+  inactiveExecutions: InactiveReverseSplitExecution[];
   conflicts: ReverseSplitExecutionConflict[];
 };
 
@@ -98,10 +133,15 @@ type ReverseSplitExecutionDependencies = {
     from: string;
     to: string;
   }): Promise<ReverseSplitHistoryReadResult>;
+  readUpdates(input: {
+    cik: string;
+    targetAt: string;
+  }): Promise<ReverseSplitExecutionUpdateReadResult>;
 };
 
 const defaultDependencies: ReverseSplitExecutionDependencies = {
   readHistory: (input) => readReverseSplitHistory(input),
+  readUpdates: (input) => readReverseSplitExecutionUpdates(input),
 };
 
 export async function readReverseSplitExecutions(
@@ -110,36 +150,59 @@ export async function readReverseSplitExecutions(
     canonicalSecurityClassId?: string;
     from: string;
     to: string;
+    targetAt: string;
   },
   dependencies: ReverseSplitExecutionDependencies = defaultDependencies,
 ): Promise<ReverseSplitExecutionReadResult> {
+  if (!validTimestamp(filter.targetAt)) {
+    throw new Error("Reverse split execution target timestamp is invalid");
+  }
   const history = await dependencies.readHistory(filter);
+  const updateHistory = await dependencies.readUpdates({ cik: filter.cik, targetAt: filter.targetAt });
   if (history.status !== "available" || history.issuerCik !== filter.cik
     || history.canonicalSecurityClassId !== (filter.canonicalSecurityClassId ?? null)
     || history.from !== filter.from || history.to !== filter.to
     || history.basisChangeCoverage !== "reverse_split_only") {
     throw new Error("Reverse split execution history response is invalid");
   }
+  if (updateHistory.status !== "available" || updateHistory.issuerCik !== filter.cik
+    || updateHistory.targetAt !== filter.targetAt) {
+    throw new Error("Reverse split execution update history response is invalid");
+  }
 
   const observations = dedupeObservations(history.items
     .map(calculationObservation)
-    .filter((item): item is ReverseSplitExecutionObservation => item !== null));
-  const effectiveDateGroups = new Map<string, ReverseSplitExecutionObservation[]>();
+    .filter((item): item is ReverseSplitExecutionObservation => item !== null)
+    .filter((item) => Date.parse(item.acceptedAt) <= Date.parse(filter.targetAt)));
+  const exactTupleGroups = new Map<string, ReverseSplitExecutionObservation[]>();
   for (const observation of observations) {
-    const key = dateGroupKey(observation);
-    const group = effectiveDateGroups.get(key) ?? [];
+    const key = reverseSplitExecutionId({
+      issuerCik: observation.issuerCik,
+      canonicalSecurityClassId: observation.canonicalSecurityClassId,
+      effectiveDate: observation.effectiveDate,
+      oldShareUnits: observation.exactRatio.oldShareUnits,
+      newShareUnits: observation.exactRatio.newShareUnits,
+    });
+    const group = exactTupleGroups.get(key) ?? [];
     group.push(observation);
-    effectiveDateGroups.set(key, group);
+    exactTupleGroups.set(key, group);
   }
 
   const executions: ReverseSplitExecution[] = [];
   const conflicts: ReverseSplitExecutionConflict[] = [];
-  for (const group of effectiveDateGroups.values()) {
-    const projection = projectExecutionGroup(group);
+  for (const group of exactTupleGroups.values()) {
+    const projection = projectExecutionGroup(group, filter.targetAt);
     if (projection.status === "CALCULATION_ELIGIBLE") executions.push(projection);
     else conflicts.push(projection);
   }
-  executions.sort(compareExecutions);
+  const updateProjection = applyExecutionUpdates(executions, updateHistory.updates);
+  conflicts.push(...updateProjection.conflicts);
+  const dateProjection = resolveRemainingDateConflicts(updateProjection.executions);
+  conflicts.push(...dateProjection.conflicts);
+  const activeExecutions = dateProjection.executions;
+  const inactiveExecutions = updateProjection.inactiveExecutions;
+  activeExecutions.sort(compareExecutions);
+  inactiveExecutions.sort(compareInactiveExecutions);
   conflicts.sort(compareConflicts);
   return {
     status: "available",
@@ -147,10 +210,48 @@ export async function readReverseSplitExecutions(
     canonicalSecurityClassId: filter.canonicalSecurityClassId ?? null,
     from: filter.from,
     to: filter.to,
+    targetAt: filter.targetAt,
     basisChangeCoverage: "reverse_split_only",
-    executions,
+    executions: activeExecutions,
+    inactiveExecutions,
     conflicts,
   };
+}
+
+function resolveRemainingDateConflicts(projected: readonly ReverseSplitExecution[]): {
+  executions: ReverseSplitExecution[];
+  conflicts: ReverseSplitExecutionTupleConflict[];
+} {
+  const groups = new Map<string, ReverseSplitExecution[]>();
+  for (const execution of projected) {
+    const key = dateGroupKey(execution.observations[0]!);
+    const group = groups.get(key) ?? [];
+    group.push(execution);
+    groups.set(key, group);
+  }
+  const executions: ReverseSplitExecution[] = [];
+  const conflicts: ReverseSplitExecutionTupleConflict[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      executions.push(group[0]!);
+      continue;
+    }
+    const observations = group.flatMap((execution) => execution.observations).sort(compareObservations);
+    const first = observations[0]!;
+    conflicts.push({
+      version: REVERSE_SPLIT_EXECUTION_VERSION,
+      status: "EXECUTION_CONFLICT",
+      executionStatus: "conflict",
+      conflictId: `rsec:v1:${sha256(dateGroupKey(first))}`,
+      issuerCik: first.issuerCik,
+      canonicalSecurityClassId: first.canonicalSecurityClassId,
+      effectiveDate: first.effectiveDate,
+      reasons: ["FINAL_RATIO_CONFLICT"],
+      candidateExecutionIds: group.map((execution) => execution.executionId).sort(),
+      observations,
+    });
+  }
+  return { executions, conflicts };
 }
 
 export function reverseSplitExecutionActivationDecision(input: {
@@ -241,20 +342,22 @@ function calculationObservation(item: ReverseSplitHistoryItem): ReverseSplitExec
 
 function projectExecutionGroup(
   observationsValue: readonly ReverseSplitExecutionObservation[],
-): ReverseSplitExecution | ReverseSplitExecutionConflict {
+  targetAt: string,
+): ReverseSplitExecution | ReverseSplitExecutionTupleConflict {
   if (!observationsValue.length) throw new Error("Reverse split execution projection requires observations");
   const observations = [...observationsValue].sort(compareObservations);
   const first = observations[0]!;
   const ratioKeys = distinct(observations.map((item) => ratioKey(item.exactRatio)));
   const availableTimings = distinct(observations.flatMap((item) => item.effectiveTiming.availability === "available"
     ? [timingKey(item.effectiveTiming)] : []));
-  const reasons: ReverseSplitExecutionConflict["reasons"] = [];
+  const reasons: ReverseSplitExecutionTupleConflict["reasons"] = [];
   if (ratioKeys.length > 1) reasons.push("FINAL_RATIO_CONFLICT");
   if (availableTimings.length > 1) reasons.push("EFFECTIVE_TIMING_CONFLICT");
   if (reasons.length) {
     return {
       version: REVERSE_SPLIT_EXECUTION_VERSION,
       status: "EXECUTION_CONFLICT",
+      executionStatus: "conflict",
       conflictId: `rsec:v1:${sha256(dateGroupKey(first))}`,
       issuerCik: first.issuerCik,
       canonicalSecurityClassId: first.canonicalSecurityClassId,
@@ -277,6 +380,7 @@ function projectExecutionGroup(
   return {
     version: REVERSE_SPLIT_EXECUTION_VERSION,
     status: "CALCULATION_ELIGIBLE",
+    executionStatus: calculationStatus(first.effectiveDate, targetAt),
     executionId: reverseSplitExecutionId({
       issuerCik: first.issuerCik,
       canonicalSecurityClassId: first.canonicalSecurityClassId,
@@ -293,6 +397,79 @@ function projectExecutionGroup(
       : unavailableTimingProjection(observations),
     observations,
   };
+}
+
+function applyExecutionUpdates(
+  projected: readonly ReverseSplitExecution[],
+  updates: readonly ReverseSplitExecutionUpdateObservation[],
+): {
+  executions: ReverseSplitExecution[];
+  inactiveExecutions: InactiveReverseSplitExecution[];
+  conflicts: ReverseSplitExecutionUpdateConflict[];
+} {
+  const active = new Map(projected.map((execution) => [execution.executionId, execution]));
+  const inactive = new Map<string, InactiveReverseSplitExecution>();
+  const conflicts: ReverseSplitExecutionUpdateConflict[] = [];
+  for (const observation of updates) {
+    const update = observation.update;
+    if (update.decision === "KEEP_OR_CONFIRM" || update.decision === "NEW_EXECUTION") continue;
+    if (update.decision === "UNRESOLVED_EXECUTION_UPDATE") {
+      conflicts.push(updateConflict(observation, "UNRESOLVED_EXECUTION_UPDATE"));
+      for (const [executionId, execution] of active) {
+        if (executionWasKnownAt(execution, observation.acceptedAt)) active.delete(executionId);
+      }
+      continue;
+    }
+    const targetId = update.target_execution_id!;
+    const target = active.get(targetId);
+    if (!target) {
+      if (!inactive.has(targetId)) {
+        conflicts.push(updateConflict(observation, "TARGET_EXECUTION_NOT_FOUND"));
+      }
+      continue;
+    }
+    const executionStatus = update.decision === "SUPERSEDE_EXISTING_EXECUTION"
+      ? "superseded" as const
+      : "cancelled" as const;
+    active.delete(targetId);
+    inactive.set(targetId, {
+      ...target,
+      status: "CALCULATION_INELIGIBLE",
+      executionStatus,
+      updateObservation: observation,
+    });
+  }
+  return {
+    executions: [...active.values()],
+    inactiveExecutions: [...inactive.values()],
+    conflicts,
+  };
+}
+
+function executionWasKnownAt(execution: ReverseSplitExecution, acceptedAt: string) {
+  return execution.observations.some((observation) => Date.parse(observation.acceptedAt) <= Date.parse(acceptedAt));
+}
+
+function updateConflict(
+  observation: ReverseSplitExecutionUpdateObservation,
+  reason: ReverseSplitExecutionUpdateConflict["reasons"][number],
+): ReverseSplitExecutionUpdateConflict {
+  return {
+    version: REVERSE_SPLIT_EXECUTION_VERSION,
+    status: "EXECUTION_CONFLICT",
+    executionStatus: "conflict",
+    conflictId: `rseuc:v1:${sha256(`${observation.eventId}:${observation.sourceExecutionId}:${reason}`)}`,
+    issuerCik: observation.issuerCik,
+    canonicalSecurityClassId: null,
+    effectiveDate: null,
+    reasons: [reason],
+    candidateExecutionIds: [...observation.update.candidate_execution_ids],
+    updateObservations: [observation],
+  };
+}
+
+function calculationStatus(effectiveDate: string, targetAt: string): "scheduled" | "effective" {
+  return targetAt.slice(0, 10) < effectiveDate ? "scheduled" : "effective";
 }
 
 function dedupeObservations(observations: readonly ReverseSplitExecutionObservation[]) {
@@ -378,9 +555,15 @@ function compareExecutions(left: ReverseSplitExecution, right: ReverseSplitExecu
     || left.executionId.localeCompare(right.executionId);
 }
 
-function compareConflicts(left: ReverseSplitExecutionConflict, right: ReverseSplitExecutionConflict) {
+function compareInactiveExecutions(left: InactiveReverseSplitExecution, right: InactiveReverseSplitExecution) {
   return left.effectiveDate.localeCompare(right.effectiveDate)
     || left.canonicalSecurityClassId.localeCompare(right.canonicalSecurityClassId)
+    || left.executionId.localeCompare(right.executionId);
+}
+
+function compareConflicts(left: ReverseSplitExecutionConflict, right: ReverseSplitExecutionConflict) {
+  return (left.effectiveDate ?? "").localeCompare(right.effectiveDate ?? "")
+    || (left.canonicalSecurityClassId ?? "").localeCompare(right.canonicalSecurityClassId ?? "")
     || left.conflictId.localeCompare(right.conflictId);
 }
 

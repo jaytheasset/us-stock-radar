@@ -59,6 +59,12 @@ function transport(overrides: Partial<Extract<CorporateActionAnalyzerTransportRe
     action_stage: "scheduled",
     effective_date: { availability: "available", value: "2026-08-10" },
     ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "sec_block_1",
+      evidence: "reverse stock split",
+    },
     affected_security: {
       availability: "available",
       canonical_security_class_id: singleClassId,
@@ -102,6 +108,7 @@ test("SEC ledger CIK and canonical class candidates are validated without ticker
   }), {
     issuerContext: { availability: "unavailable", reason: "non_sec_source" },
     securityClassCandidates: [],
+    reverseSplitExecutionCandidates: [],
   });
 });
 
@@ -128,8 +135,22 @@ test("production context reader uses one exact event/raw RPC boundary", async ()
         },
       };
     },
+    readExecutionCandidates: async ({ cik: requestedCik, targetAt }) => {
+      assert.equal(requestedCik, cik);
+      assert.equal(targetAt, "2026-08-01T16:30:00Z");
+      return [{
+        execution_id: `rse:v1:${"a".repeat(64)}`,
+        issuer_cik: cik,
+        canonical_security_class_id: singleClassId,
+        effective_date: "2026-08-10",
+        old_share_units: "10",
+        new_share_units: "1",
+        calculation_status: "scheduled",
+      }];
+    },
   });
   assert.equal(result.securityClassCandidates.length, 1);
+  assert.equal(result.reverseSplitExecutionCandidates.length, 1);
   assert.deepEqual(calls, [{
     name: "read_corporate_action_applicability_context",
     payload: { p_event_id: eventId, p_raw_item_id: rawItemId },
@@ -211,6 +232,12 @@ test("generic multi-class and ADR/ordinary ambiguity remain unavailable", () => 
 
   const adr = canonicalizeCorporateActionAnalyzerResult(transport({
     ratio: { availability: "unavailable" },
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "sec_block_1",
+      evidence: "reverse split",
+    },
     affected_security: {
       availability: "unavailable",
       reason: "ads_or_ordinary_ambiguous",

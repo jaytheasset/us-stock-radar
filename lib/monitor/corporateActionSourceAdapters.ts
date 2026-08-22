@@ -2,6 +2,7 @@ import {
   CORPORATE_ACTION_ANALYZER_INPUT_VERSION,
   type CorporateActionAnalyzerInput,
   type CorporateActionIssuerContext,
+  type ReverseSplitExecutionCandidate,
   type CorporateActionSecurityClassCandidate,
   type CorporateActionSourceDocument,
   type CorporateActionSourceFamily,
@@ -56,6 +57,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
   }>;
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
+  reverse_split_execution_candidates?: ReverseSplitExecutionCandidate[];
 }): CorporateActionAnalyzerInput {
   return buildInput({
     sourceFamily: "sec",
@@ -65,6 +67,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
     title: input.title,
     issuerContext: input.issuer_context,
     securityClassCandidates: input.security_class_candidates,
+    reverseSplitExecutionCandidates: input.reverse_split_execution_candidates,
     documents: input.cleaned_source_blocks.map((block) => ({
       source_ref: block.block_id,
       label: block.document_reference || block.source_ref || block.label || null,
@@ -82,6 +85,7 @@ function buildInput(input: {
   documents: CorporateActionSourceDocument[];
   issuerContext?: CorporateActionIssuerContext;
   securityClassCandidates?: CorporateActionSecurityClassCandidate[];
+  reverseSplitExecutionCandidates?: ReverseSplitExecutionCandidate[];
 }) {
   const issuerContext = input.issuerContext ?? (input.sourceFamily === "sec"
     ? { availability: "unavailable" as const, reason: "filing_ledger_identity_unavailable" as const }
@@ -102,6 +106,9 @@ function buildInput(input: {
     security_class_candidates: input.securityClassCandidates?.map((candidate) => ({
       ...candidate,
       supporting_accessions: [...candidate.supporting_accessions],
+    })) ?? [],
+    reverse_split_execution_candidates: input.reverseSplitExecutionCandidates?.map((candidate) => ({
+      ...candidate,
     })) ?? [],
   };
   const errors = validateCorporateActionAnalyzerInput(result);

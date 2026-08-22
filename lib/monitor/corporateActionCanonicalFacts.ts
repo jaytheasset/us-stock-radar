@@ -4,6 +4,7 @@ export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyze
 export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
 export const REVERSE_SPLIT_APPLICABILITY_VERSION = "reverse_split_applicability_v1";
+export const REVERSE_SPLIT_EXECUTION_UPDATE_VERSION = "reverse_split_execution_update_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 520;
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
@@ -105,6 +106,27 @@ export type CorporateActionSecurityClassCandidate = {
   supporting_accessions: string[];
 };
 
+export const REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS = [
+  "KEEP_OR_CONFIRM",
+  "SUPERSEDE_EXISTING_EXECUTION",
+  "CANCEL_EXISTING_EXECUTION",
+  "NEW_EXECUTION",
+  "UNRESOLVED_EXECUTION_UPDATE",
+] as const;
+
+export type ReverseSplitExecutionUpdateDecision =
+  (typeof REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS)[number];
+
+export type ReverseSplitExecutionCandidate = {
+  execution_id: string;
+  issuer_cik: string;
+  canonical_security_class_id: string;
+  effective_date: string;
+  old_share_units: string;
+  new_share_units: string;
+  calculation_status: "scheduled" | "effective";
+};
+
 export type CorporateActionAnalyzerInput = {
   version: typeof CORPORATE_ACTION_ANALYZER_INPUT_VERSION;
   source_family: CorporateActionSourceFamily;
@@ -115,6 +137,7 @@ export type CorporateActionAnalyzerInput = {
   source_documents: CorporateActionSourceDocument[];
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
+  reverse_split_execution_candidates: ReverseSplitExecutionCandidate[];
 };
 
 type Unavailable = { availability: "unavailable" };
@@ -194,6 +217,12 @@ export type CorporateActionAnalyzerTransportResult =
           };
       affected_security?: CorporateActionAffectedSecurityTransport;
       effective_timing?: CorporateActionEffectiveTimingTransport;
+      execution_update: {
+        decision: ReverseSplitExecutionUpdateDecision;
+        target_execution_id: string | null;
+        source_ref: string;
+        evidence: string;
+      };
       source_ref: string;
       evidence: string | null;
       confidence: CorporateActionConfidence;
@@ -255,6 +284,19 @@ export type CorporateActionCanonicalFacts = {
         availability: "unavailable";
         reason: (typeof CORPORATE_ACTION_EFFECTIVE_TIMING_UNAVAILABLE_REASONS)[number];
       };
+  execution_update?: {
+    version: typeof REVERSE_SPLIT_EXECUTION_UPDATE_VERSION;
+    decision: ReverseSplitExecutionUpdateDecision;
+    target_execution_id: string | null;
+    target_issuer_cik: string | null;
+    target_canonical_security_class_id: string | null;
+    candidate_execution_ids: string[];
+    source_ref: string;
+    evidence: Extract<CorporateActionCanonicalFacts["evidence"], { availability: "available" }>;
+    provenance: {
+      rule: "llm_explicit_execution_update_exact_candidate";
+    };
+  };
   source_ref: string;
   evidence:
     | { availability: "available"; value: string }
@@ -287,6 +329,7 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
     "published_at",
     "title",
     "source_documents",
+    "reverse_split_execution_candidates",
   ], ["issuer_context", "security_class_candidates"], "input", errors);
   if (root.version !== CORPORATE_ACTION_ANALYZER_INPUT_VERSION) errors.push("input.version is invalid");
   if (!oneOf(root.source_family, ["nasdaq", "news", "sec"])) errors.push("input.source_family is invalid");
@@ -329,6 +372,12 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
       errors,
     );
   }
+  validateReverseSplitExecutionCandidates(
+    root.reverse_split_execution_candidates,
+    root.issuer_context,
+    "input.reverse_split_execution_candidates",
+    errors,
+  );
   return errors;
 }
 
@@ -362,6 +411,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
     "action_stage",
     "effective_date",
     "ratio",
+    "execution_update",
     "source_ref",
     "evidence",
     "confidence",
@@ -378,6 +428,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
   if (root.effective_timing !== undefined) {
     validateEffectiveTimingTransport(root.effective_timing, "result.effective_timing", errors);
   }
+  validateExecutionUpdateTransport(root.execution_update, errors);
   if (!stableSourceRef(root.source_ref)) errors.push("result.source_ref is invalid");
   if (!(root.evidence === null || boundedText(root.evidence, 4_000))) errors.push("result.evidence is invalid");
   if (!oneOf(root.confidence, CORPORATE_ACTION_CONFIDENCES)) errors.push("result.confidence is invalid");
@@ -420,6 +471,12 @@ export function canonicalizeCorporateActionAnalyzerResult(
     input.source_documents,
   );
   if (effectiveTiming.errors.length) return { result: null, errors: effectiveTiming.errors };
+  const executionUpdate = canonicalExecutionUpdate(
+    transport.execution_update,
+    input.reverse_split_execution_candidates,
+    input.source_documents,
+  );
+  if (executionUpdate.errors.length) return { result: null, errors: executionUpdate.errors };
 
   const evidence = canonicalEvidence(transport.evidence, document.text);
   return {
@@ -447,6 +504,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
           basis_change_capability: "reverse_split_only",
         },
         effective_timing: effectiveTiming.value!,
+        execution_update: executionUpdate.value!,
         source_ref: transport.source_ref,
         evidence,
         confidence: transport.confidence,
@@ -485,7 +543,7 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     "confidence",
     "as_of",
     "source",
-  ], ["applicability", "effective_timing"], "canonical result.facts", errors);
+  ], ["applicability", "effective_timing", "execution_update"], "canonical result.facts", errors);
   if (facts.version !== CORPORATE_ACTION_FACTS_VERSION) errors.push("canonical facts.version is invalid");
   if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("canonical facts.event_kind must be reverse_split");
   if (!oneOf(facts.action_stage, CORPORATE_ACTION_STAGES)) errors.push("canonical facts.action_stage is invalid");
@@ -521,6 +579,9 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
   if (facts.effective_timing !== undefined) {
     validateCanonicalEffectiveTiming(facts.effective_timing, facts.effective_date, errors);
   }
+  if (facts.execution_update !== undefined) {
+    validateCanonicalExecutionUpdate(facts.execution_update, facts.applicability, errors);
+  }
   if (!stableSourceRef(facts.source_ref)) errors.push("canonical facts.source_ref is invalid");
   validateCanonicalEvidence(facts.evidence, errors);
   if (!oneOf(facts.confidence, CORPORATE_ACTION_CONFIDENCES)) errors.push("canonical facts.confidence is invalid");
@@ -541,6 +602,205 @@ export function readCorporateActionAnalyzerResult(value: unknown): CorporateActi
   return validateCorporateActionAnalyzerResult(value).length === 0
     ? value as CorporateActionAnalyzerResult
     : null;
+}
+
+function canonicalExecutionUpdate(
+  transport: Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>["execution_update"],
+  candidates: readonly ReverseSplitExecutionCandidate[],
+  documents: readonly CorporateActionSourceDocument[],
+): {
+  value: NonNullable<CorporateActionCanonicalFacts["execution_update"]> | null;
+  errors: string[];
+} {
+  const document = documents.find((item) => item.source_ref === transport.source_ref);
+  if (!document) {
+    return { value: null, errors: ["result.execution_update.source_ref must identify a supplied source document"] };
+  }
+  const evidence = canonicalEvidence(transport.evidence, document.text);
+  if (evidence.availability !== "available") {
+    return { value: null, errors: ["result.execution_update requires compact exact source evidence"] };
+  }
+  const targetsExisting = transport.decision === "KEEP_OR_CONFIRM"
+    || transport.decision === "SUPERSEDE_EXISTING_EXECUTION"
+    || transport.decision === "CANCEL_EXISTING_EXECUTION";
+  const target = transport.target_execution_id === null
+    ? null
+    : candidates.find((candidate) => candidate.execution_id === transport.target_execution_id) ?? null;
+  if (targetsExisting && !target) {
+    return { value: null, errors: ["result.execution_update must target one supplied execution candidate"] };
+  }
+  if (!targetsExisting && transport.target_execution_id !== null) {
+    return { value: null, errors: ["result.execution_update target is not allowed for this decision"] };
+  }
+  return {
+    value: {
+      version: REVERSE_SPLIT_EXECUTION_UPDATE_VERSION,
+      decision: transport.decision,
+      target_execution_id: target?.execution_id ?? null,
+      target_issuer_cik: target?.issuer_cik ?? null,
+      target_canonical_security_class_id: target?.canonical_security_class_id ?? null,
+      candidate_execution_ids: transport.decision === "UNRESOLVED_EXECUTION_UPDATE"
+        ? candidates.map((candidate) => candidate.execution_id).sort()
+        : target ? [target.execution_id] : [],
+      source_ref: transport.source_ref,
+      evidence,
+      provenance: { rule: "llm_explicit_execution_update_exact_candidate" },
+    },
+    errors: [],
+  };
+}
+
+function validateReverseSplitExecutionCandidates(
+  value: unknown,
+  issuerContextValue: unknown,
+  path: string,
+  errors: string[],
+) {
+  if (!Array.isArray(value) || value.length > 12) {
+    errors.push(`${path} must contain at most 12 candidates`);
+    return;
+  }
+  const issuer = record(issuerContextValue);
+  const issuerCik = issuer?.availability === "available" ? textValue(issuer.issuer_cik) : null;
+  if (!issuerCik && value.length) {
+    errors.push(`${path} requires authoritative issuer context`);
+    return;
+  }
+  const ids = new Set<string>();
+  value.forEach((candidateValue, index) => {
+    const candidate = record(candidateValue);
+    const candidatePath = `${path}[${index}]`;
+    if (!candidate) {
+      errors.push(`${candidatePath} must be an object`);
+      return;
+    }
+    exactKeys(candidate, [
+      "execution_id",
+      "issuer_cik",
+      "canonical_security_class_id",
+      "effective_date",
+      "old_share_units",
+      "new_share_units",
+      "calculation_status",
+    ], candidatePath, errors);
+    const executionId = textValue(candidate.execution_id);
+    const candidateCik = textValue(candidate.issuer_cik);
+    const classId = textValue(candidate.canonical_security_class_id);
+    if (!reverseSplitExecutionIdValue(executionId) || ids.has(executionId)) {
+      errors.push(`${candidatePath}.execution_id is invalid or duplicated`);
+    }
+    if (candidateCik !== issuerCik || !canonicalSecurityClassId(classId, candidateCik)) {
+      errors.push(`${candidatePath} issuer or security class is invalid`);
+    }
+    if (!validDate(candidate.effective_date)
+      || strictPositiveNumber(candidate.old_share_units) === null
+      || strictPositiveNumber(candidate.new_share_units) === null
+      || !oneOf(candidate.calculation_status, ["scheduled", "effective"])) {
+      errors.push(`${candidatePath} execution tuple is invalid`);
+    }
+    ids.add(executionId);
+  });
+}
+
+function validateExecutionUpdateTransport(value: unknown, errors: string[]) {
+  const update = record(value);
+  if (!update) {
+    errors.push("result.execution_update must be an object");
+    return;
+  }
+  exactKeys(update, ["decision", "target_execution_id", "source_ref", "evidence"], "result.execution_update", errors);
+  if (!oneOf(update.decision, REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS)) {
+    errors.push("result.execution_update.decision is invalid");
+  }
+  const targetsExisting = update.decision === "KEEP_OR_CONFIRM"
+    || update.decision === "SUPERSEDE_EXISTING_EXECUTION"
+    || update.decision === "CANCEL_EXISTING_EXECUTION";
+  if (targetsExisting) {
+    if (!reverseSplitExecutionIdValue(update.target_execution_id)) {
+      errors.push("result.execution_update.target_execution_id is required");
+    }
+  } else if (update.target_execution_id !== null) {
+    errors.push("result.execution_update.target_execution_id must be null");
+  }
+  if (!stableSourceRef(update.source_ref)) errors.push("result.execution_update.source_ref is invalid");
+  if (!boundedText(update.evidence, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH)) {
+    errors.push("result.execution_update.evidence is invalid");
+  }
+}
+
+function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: unknown, errors: string[]) {
+  const update = record(value);
+  if (!update) {
+    errors.push("canonical execution update must be an object");
+    return;
+  }
+  exactKeys(update, [
+    "version",
+    "decision",
+    "target_execution_id",
+    "target_issuer_cik",
+    "target_canonical_security_class_id",
+    "candidate_execution_ids",
+    "source_ref",
+    "evidence",
+    "provenance",
+  ], "canonical execution update", errors);
+  if (update.version !== REVERSE_SPLIT_EXECUTION_UPDATE_VERSION
+    || !oneOf(update.decision, REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS)) {
+    errors.push("canonical execution update version or decision is invalid");
+  }
+  const targetsExisting = update.decision === "KEEP_OR_CONFIRM"
+    || update.decision === "SUPERSEDE_EXISTING_EXECUTION"
+    || update.decision === "CANCEL_EXISTING_EXECUTION";
+  const targetId = update.target_execution_id;
+  const targetCik = textValue(update.target_issuer_cik);
+  const targetClass = textValue(update.target_canonical_security_class_id);
+  if (targetsExisting) {
+    if (!reverseSplitExecutionIdValue(targetId) || !validCik(targetCik)
+      || !canonicalSecurityClassId(targetClass, targetCik)) {
+      errors.push("canonical execution update target identity is invalid");
+    }
+    const applicability = record(applicabilityValue);
+    const issuer = record(applicability?.issuer);
+    if (issuer?.availability !== "available" || issuer.issuer_cik !== targetCik) {
+      errors.push("canonical execution update target issuer must match applicability issuer");
+    }
+  } else if (targetId !== null || update.target_issuer_cik !== null
+    || update.target_canonical_security_class_id !== null) {
+    errors.push("canonical execution update target identity must be null");
+  }
+  const candidateIds = Array.isArray(update.candidate_execution_ids)
+    ? update.candidate_execution_ids : [];
+  if (!Array.isArray(update.candidate_execution_ids)
+    || candidateIds.length > 12
+    || candidateIds.some((item) => !reverseSplitExecutionIdValue(item))
+    || new Set(candidateIds).size !== candidateIds.length) {
+    errors.push("canonical execution update candidate identities are invalid");
+  }
+  if (targetsExisting && (candidateIds.length !== 1 || candidateIds[0] !== targetId)) {
+    errors.push("canonical execution update target candidate lineage is invalid");
+  }
+  if (update.decision === "NEW_EXECUTION" && candidateIds.length !== 0) {
+    errors.push("canonical new execution cannot carry candidate identities");
+  }
+  if (!stableSourceRef(update.source_ref)) errors.push("canonical execution update source_ref is invalid");
+  validateCanonicalEvidence(update.evidence, errors);
+  if (record(update.evidence)?.availability !== "available") {
+    errors.push("canonical execution update requires available evidence");
+  }
+  const provenance = record(update.provenance);
+  if (!provenance) {
+    errors.push("canonical execution update provenance must be an object");
+  } else {
+    exactKeys(provenance, ["rule"], "canonical execution update provenance", errors);
+    if (provenance.rule !== "llm_explicit_execution_update_exact_candidate") {
+      errors.push("canonical execution update provenance is invalid");
+    }
+  }
+}
+
+function reverseSplitExecutionIdValue(value: unknown) {
+  return typeof value === "string" && /^rse:v1:[0-9a-f]{64}$/.test(value);
 }
 
 function unavailableIssuerContext(sourceFamily: CorporateActionSourceFamily): CorporateActionIssuerContext {
@@ -1089,6 +1349,10 @@ function stableSourceRef(value: unknown): value is string {
 
 function boundedText(value: unknown, max: number): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.length <= max;
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function validTimestamp(value: unknown) {

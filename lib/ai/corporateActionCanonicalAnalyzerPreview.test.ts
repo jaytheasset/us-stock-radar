@@ -33,6 +33,12 @@ test("analyzer makes one bounded provider call with a small plain response schem
           evidence: null,
         },
         effective_timing: { availability: "unavailable", reason: "date_only" },
+        execution_update: {
+          decision: "NEW_EXECUTION",
+          target_execution_id: null,
+          source_ref: "nasdaq_notice_body",
+          evidence: "A one-for-ten reverse split will become effective on August 8, 2026.",
+        },
         source_ref: "nasdaq_notice_body",
         evidence: "A one-for-ten reverse split will become effective on August 8, 2026.",
         confidence: "high",

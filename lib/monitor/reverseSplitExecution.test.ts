@@ -6,6 +6,8 @@ import {
   type CorporateActionCanonicalFacts,
   type CorporateActionEffectiveTimingTransport,
   type CorporateActionStage,
+  type ReverseSplitExecutionCandidate,
+  type ReverseSplitExecutionUpdateDecision,
 } from "./corporateActionCanonicalFacts.ts";
 import { adaptSec8k6kCorporateActionSource } from "./corporateActionSourceAdapters.ts";
 import {
@@ -14,6 +16,7 @@ import {
   reverseSplitExecutionId,
 } from "./reverseSplitExecution.ts";
 import type { ReverseSplitHistoryItem, ReverseSplitHistoryReadResult } from "./reverseSplitHistory.ts";
+import type { ReverseSplitExecutionUpdateObservation } from "./reverseSplitExecutionUpdate.ts";
 
 const cik = "0001234567";
 const singleClassId = `sc:v1:${cik}:common_stock:single`;
@@ -58,8 +61,9 @@ test("8-K, effective filing and later 10-Q with the same exact tuple dedupe to o
     historyItem(2, factsFor({ sequence: 2, stage: "effective" })),
     historyItem(90, factsFor({ sequence: 90, stage: "effective" })),
   ];
-  const first = await readWith(observations);
-  const replay = await readWith([...observations, observations[1]!]);
+  const target = { targetAt: "2026-11-30T23:00:00Z" };
+  const first = await readWith(observations, undefined, target);
+  const replay = await readWith([...observations, observations[1]!], undefined, target);
   assert.equal(first.executions.length, 1);
   assert.equal(first.executions[0]?.observations.length, 3);
   assert.equal(replay.executions.length, 1);
@@ -72,6 +76,160 @@ test("8-K, effective filing and later 10-Q with the same exact tuple dedupe to o
     oldShareUnits: "10",
     newShareUnits: "1",
   }));
+});
+
+test("an unchanged confirmation preserves one execution", async () => {
+  const scheduled = factsFor({ sequence: 15 });
+  const target = candidateFor(scheduled, "scheduled");
+  const confirmed = factsFor({
+    sequence: 22,
+    stage: "scheduled",
+    executionCandidates: [target],
+    updateDecision: "KEEP_OR_CONFIRM",
+    targetExecutionId: target.execution_id,
+  });
+  const result = await readWith(
+    [historyItem(15, scheduled), historyItem(22, confirmed)],
+    { from: "2026-08-01", to: "2026-08-31" },
+    { targetAt: "2026-08-24T23:00:00Z", updates: [updateObservation(22, confirmed)] },
+  );
+  assert.equal(result.executions.length, 1);
+  assert.equal(result.inactiveExecutions.length, 0);
+  assert.equal(result.executions[0]?.executionId, target.execution_id);
+  assert.equal(result.executions[0]?.observations.length, 2);
+});
+
+test("an explicit effective-date change supersedes the old execution and leaves one active execution", async () => {
+  const scheduled = factsFor({ sequence: 15 });
+  const target = candidateFor(scheduled, "scheduled");
+  const changedSource = "The Company changed its 1-for-10 reverse stock split of its common stock from August 25, 2026 to September 1, 2026.";
+  const changed = factsFor({
+    sequence: 22,
+    effectiveDate: "2026-09-01",
+    source: changedSource,
+    executionCandidates: [target],
+    updateDecision: "SUPERSEDE_EXISTING_EXECUTION",
+    targetExecutionId: target.execution_id,
+    updateEvidence: changedSource,
+  });
+  const result = await readWith(
+    [historyItem(15, scheduled), historyItem(22, changed)],
+    { from: "2026-08-01", to: "2026-09-30" },
+    { targetAt: "2026-08-24T23:00:00Z", updates: [updateObservation(22, changed)] },
+  );
+  assert.deepEqual(result.executions.map((item) => item.effectiveDate), ["2026-09-01"]);
+  assert.equal(result.inactiveExecutions.length, 1);
+  assert.equal(result.inactiveExecutions[0]?.executionId, target.execution_id);
+  assert.equal(result.inactiveExecutions[0]?.executionStatus, "superseded");
+});
+
+test("an explicit ratio change supersedes the old tuple before same-date conflict evaluation", async () => {
+  const scheduled = factsFor({ sequence: 15 });
+  const target = candidateFor(scheduled, "scheduled");
+  const changedSource = "The Company changed its August 25, 2026 reverse stock split of its common stock from 1-for-10 to 1-for-20.";
+  const changed = factsFor({
+    sequence: 22,
+    ratio: [20, 1],
+    source: changedSource,
+    executionCandidates: [target],
+    updateDecision: "SUPERSEDE_EXISTING_EXECUTION",
+    targetExecutionId: target.execution_id,
+    updateEvidence: changedSource,
+  });
+  const result = await readWith(
+    [historyItem(15, scheduled), historyItem(22, changed)],
+    { from: "2026-08-01", to: "2026-08-31" },
+    { targetAt: "2026-08-24T23:00:00Z", updates: [updateObservation(22, changed)] },
+  );
+  assert.deepEqual(result.executions.map((item) => item.exactRatio), [
+    { oldShareUnits: "20", newShareUnits: "1" },
+  ]);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.inactiveExecutions.length, 1);
+  assert.equal(result.inactiveExecutions[0]?.executionId, target.execution_id);
+  assert.equal(result.inactiveExecutions[0]?.executionStatus, "superseded");
+});
+
+test("an explicit cancellation removes the scheduled execution from calculation eligibility", async () => {
+  const scheduled = factsFor({ sequence: 15 });
+  const target = candidateFor(scheduled, "scheduled");
+  const cancelledSource = "The Company cancelled the previously scheduled reverse stock split of its common stock.";
+  const cancelled = factsFor({
+    sequence: 23,
+    stage: "unknown",
+    ratio: null,
+    effectiveDate: null,
+    source: cancelledSource,
+    executionCandidates: [target],
+    updateDecision: "CANCEL_EXISTING_EXECUTION",
+    targetExecutionId: target.execution_id,
+    updateEvidence: cancelledSource,
+  });
+  const result = await readWith(
+    [historyItem(15, scheduled)],
+    { from: "2026-08-01", to: "2026-08-31" },
+    { targetAt: "2026-08-24T23:00:00Z", updates: [updateObservation(23, cancelled)] },
+  );
+  assert.equal(result.executions.length, 0);
+  assert.equal(result.inactiveExecutions.length, 1);
+  assert.equal(result.inactiveExecutions[0]?.executionStatus, "cancelled");
+});
+
+test("a historical re-mention confirms the exact prior execution without creating a new one", async () => {
+  const effective = factsFor({ sequence: 15, stage: "effective" });
+  const target = candidateFor(effective, "effective");
+  const historical = factsFor({
+    sequence: 90,
+    stage: "effective",
+    executionCandidates: [target],
+    updateDecision: "KEEP_OR_CONFIRM",
+    targetExecutionId: target.execution_id,
+  });
+  const result = await readWith(
+    [historyItem(15, effective), historyItem(90, historical)],
+    { from: "2026-01-01", to: "2026-12-31" },
+    { targetAt: "2026-11-30T23:00:00Z", updates: [updateObservation(90, historical)] },
+  );
+  assert.equal(result.executions.length, 1);
+  assert.equal(result.executions[0]?.observations.length, 2);
+});
+
+test("a genuinely new reverse split remains a separate execution", async () => {
+  const first = factsFor({ sequence: 15, stage: "effective" });
+  const second = factsFor({ sequence: 120, effectiveDate: "2026-12-20", ratio: [20, 1] });
+  const result = await readWith(
+    [historyItem(15, first), historyItem(120, second)],
+    { from: "2026-01-01", to: "2026-12-31" },
+    { targetAt: "2026-12-31T23:00:00Z", updates: [updateObservation(120, second)] },
+  );
+  assert.deepEqual(result.executions.map((item) => item.effectiveDate), ["2026-08-25", "2026-12-20"]);
+});
+
+test("an unresolved update fails closed without arbitrarily mutating one execution", async () => {
+  const scheduled = factsFor({ sequence: 15 });
+  const later = factsFor({ sequence: 30, effectiveDate: "2026-12-20", ratio: [20, 1] });
+  const target = candidateFor(scheduled, "scheduled");
+  const unclearSource = "The Company changed or cancelled a previously disclosed reverse stock split of its common stock, but the affected schedule is not identified.";
+  const unresolved = factsFor({
+    sequence: 23,
+    stage: "unknown",
+    ratio: null,
+    effectiveDate: null,
+    source: unclearSource,
+    executionCandidates: [target],
+    updateDecision: "UNRESOLVED_EXECUTION_UPDATE",
+    targetExecutionId: null,
+    updateEvidence: unclearSource,
+  });
+  const result = await readWith(
+    [historyItem(15, scheduled), historyItem(30, later)],
+    { from: "2026-08-01", to: "2026-12-31" },
+    { targetAt: "2026-12-31T23:00:00Z", updates: [updateObservation(23, unresolved)] },
+  );
+  assert.deepEqual(result.executions.map((item) => item.effectiveDate), ["2026-12-20"]);
+  assert.equal(result.inactiveExecutions.length, 0);
+  assert.deepEqual(result.conflicts[0]?.reasons, ["UNRESOLVED_EXECUTION_UPDATE"]);
+  assert.deepEqual(result.conflicts[0]?.candidateExecutionIds, [target.execution_id]);
 });
 
 test("a genuinely later split is separate while elapsed time alone never creates an execution", async () => {
@@ -94,7 +252,10 @@ test("same class and effective date with conflicting final ratios is ineligible 
   assert.equal(result.conflicts.length, 1);
   assert.deepEqual(result.conflicts[0]?.reasons, ["FINAL_RATIO_CONFLICT"]);
   assert.equal(result.conflicts[0]?.candidateExecutionIds.length, 2);
-  assert.equal(result.conflicts[0]?.observations.length, 2);
+  assert.equal("observations" in result.conflicts[0]!, true);
+  if ("observations" in result.conflicts[0]!) {
+    assert.equal(result.conflicts[0].observations.length, 2);
+  }
 });
 
 test("canonical security classes remain isolated and ambiguous applicability produces no input observation", async () => {
@@ -164,6 +325,11 @@ type FactsOptions = {
   effectiveDate?: string | null;
   canonicalSecurityClassId?: string;
   timing?: CorporateActionEffectiveTimingTransport;
+  source?: string;
+  executionCandidates?: ReverseSplitExecutionCandidate[];
+  updateDecision?: ReverseSplitExecutionUpdateDecision;
+  targetExecutionId?: string | null;
+  updateEvidence?: string;
 };
 
 function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
@@ -171,7 +337,8 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
   const effectiveDate = options.effectiveDate === undefined ? "2026-08-25" : options.effectiveDate;
   const ratio = options.ratio === undefined ? [10, 1] as [number, number] : options.ratio;
   const classId = options.canonicalSecurityClassId ?? singleClassId;
-  const source = "The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.";
+  const source = options.source
+    ?? "The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.";
   const member = classId === classAId ? "CommonClassAMember" : classId === classBId ? "CommonClassBMember" : null;
   const input = adaptSec8k6kCorporateActionSource({
     accession_number: accession,
@@ -193,6 +360,7 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
       source_member_local_name: member,
       supporting_accessions: [accession],
     }],
+    reverse_split_execution_candidates: options.executionCandidates ?? [],
   });
   const transport: CorporateActionAnalyzerTransportResult = {
     applicable: true,
@@ -215,6 +383,12 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
     effective_timing: options.timing ?? {
       availability: "unavailable",
       reason: effectiveDate ? "date_only" : "not_provided",
+    },
+    execution_update: {
+      decision: options.updateDecision ?? "NEW_EXECUTION",
+      target_execution_id: options.targetExecutionId ?? null,
+      source_ref: "sec_block_1",
+      evidence: options.updateEvidence ?? source,
     },
     source_ref: "sec_block_1",
     evidence: source,
@@ -252,10 +426,61 @@ function historyItem(
 async function readWith(
   items: ReverseSplitHistoryItem[],
   range: { from: string; to: string } = { from: "2026-08-01", to: "2026-08-31" },
+  options: { targetAt?: string; updates?: ReverseSplitExecutionUpdateObservation[] } = {},
 ) {
-  return readReverseSplitExecutions({ cik, ...range }, {
+  const targetAt = options.targetAt ?? `${range.to}T23:59:59Z`;
+  return readReverseSplitExecutions({ cik, ...range, targetAt }, {
     readHistory: async () => history(items, range),
+    readUpdates: async ({ targetAt }) => ({
+      status: "available",
+      issuerCik: cik,
+      targetAt,
+      updates: options.updates ?? [],
+    }),
   });
+}
+
+function candidateFor(
+  facts: CorporateActionCanonicalFacts,
+  calculationStatus: "scheduled" | "effective",
+): ReverseSplitExecutionCandidate {
+  assert.equal(facts.effective_date.availability, "available");
+  assert.equal(facts.ratio.exact_source_components?.availability, "available");
+  const affected = facts.applicability?.affected_security;
+  assert.equal(affected?.availability, "available");
+  const exact = facts.ratio.exact_source_components!;
+  const classId = affected!.availability === "available" ? affected!.canonical_security_class_id : "";
+  return {
+    execution_id: reverseSplitExecutionId({
+      issuerCik: cik,
+      canonicalSecurityClassId: classId,
+      effectiveDate: facts.effective_date.availability === "available" ? facts.effective_date.value : "",
+      oldShareUnits: exact.availability === "available" ? exact.old_share_units : "",
+      newShareUnits: exact.availability === "available" ? exact.new_share_units : "",
+    }),
+    issuer_cik: cik,
+    canonical_security_class_id: classId,
+    effective_date: facts.effective_date.availability === "available" ? facts.effective_date.value : "",
+    old_share_units: exact.availability === "available" ? exact.old_share_units : "",
+    new_share_units: exact.availability === "available" ? exact.new_share_units : "",
+    calculation_status: calculationStatus,
+  };
+}
+
+function updateObservation(
+  sequence: number,
+  facts: CorporateActionCanonicalFacts,
+): ReverseSplitExecutionUpdateObservation {
+  assert.ok(facts.execution_update);
+  return {
+    eventId: uuid("1", sequence),
+    sourceExecutionId: uuid("2", sequence),
+    issuerCik: cik,
+    acceptedAt: acceptedAt(sequence),
+    persistedAt: acceptedAt(sequence),
+    update: facts.execution_update!,
+    facts,
+  };
 }
 
 function history(

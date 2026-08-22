@@ -39,6 +39,36 @@ one execution whose `observations[]` preserves every source. Elapsed time is not
 part of the identity. A genuinely different source-backed tuple creates a
 different execution.
 
+## Amendment and cancellation safety
+
+Before the existing Corporate Action Gemini call runs, deterministic context
+may supply up to 12 calculation-eligible execution candidates for the same SEC
+issuer. The source analysis returns one small `execution_update` sidecar:
+
+- `KEEP_OR_CONFIRM`
+- `SUPERSEDE_EXISTING_EXECUTION`
+- `CANCEL_EXISTING_EXECUTION`
+- `NEW_EXECUTION`
+- `UNRESOLVED_EXECUTION_UPDATE`
+
+An existing target must be one exact supplied `rse:v1` ID. The analyzer may
+select it only when the current source explicitly confirms, changes, or cancels
+that execution. Code never links by ratio/date similarity, ticker, title, or
+elapsed time. The sidecar is part of the existing one provider response and
+retains compact exact source evidence; it is not a second analyzer or lifecycle
+graph.
+
+`readReverseSplitExecutions()` is target-time aware. A superseded or cancelled
+execution is returned separately as calculation-ineligible and never appears in
+the active `executions[]` list after the update's SEC acceptance timestamp. An
+unresolved update creates a conflict and fail-closes every active execution
+already known at that update timestamp; it does not select or mutate one
+arbitrary candidate. A genuinely new execution disclosed later remains
+independent.
+
+The calculation statuses `scheduled`, `effective`, `superseded`, `cancelled`,
+and `conflict` are separate from Corporate Action Alert/Timeline `action_stage`.
+
 ## Conflict and class isolation
 
 Different exact final ratios for the same issuer, canonical class, and
@@ -70,8 +100,9 @@ on 8/25 and 8/26 under ordinary date-only semantics.
 
 ## Unchanged systems
 
-The Corporate Action analyzer schema and prompt, stage semantics, Reverse Split
-Monitor, Level 2 Share Count sidecar, Generic Monitor fanout, Offering, and
-Listing contracts are unchanged. Provider calls remain one per Corporate Action
-analysis, with no execution-specific LLM call. No database migration or parallel
-execution table is introduced in V1.
+Corporate Action stage semantics, Reverse Split Monitor, Level 2 Share Count
+sidecar, Generic Monitor fanout, Offering, and Listing contracts are unchanged.
+Provider calls remain one per Corporate Action analysis, with no
+execution-specific LLM call. The existing canonical JSON gains only the bounded
+update sidecar. One service-role lineage-reader migration is added; no parallel
+execution table or O/S arithmetic is introduced in V1.

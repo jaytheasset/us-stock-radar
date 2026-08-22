@@ -1,6 +1,7 @@
 import type {
   CorporateActionIssuerContext,
   CorporateActionSecurityClassCandidate,
+  ReverseSplitExecutionCandidate,
 } from "./corporateActionCanonicalFacts.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -10,6 +11,7 @@ const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
 export type CorporateActionApplicabilityContext = {
   issuerContext: CorporateActionIssuerContext;
   securityClassCandidates: CorporateActionSecurityClassCandidate[];
+  reverseSplitExecutionCandidates: ReverseSplitExecutionCandidate[];
 };
 
 type ApplicabilityContextDependencies = {
@@ -19,12 +21,40 @@ type ApplicabilityContextDependencies = {
     data: unknown;
     error?: string;
   }>;
+  readExecutionCandidates?(input: {
+    cik: string;
+    targetAt: string;
+  }): Promise<ReverseSplitExecutionCandidate[]>;
 };
 
 const defaultDependencies: ApplicabilityContextDependencies = {
   rpc: async (functionName, payload) => {
     const repository = await import("../supabase.ts");
     return repository.supabaseRpc(functionName, payload);
+  },
+  readExecutionCandidates: async ({ cik, targetAt }) => {
+    const execution = await import("./reverseSplitExecution.ts");
+    const result = await execution.readReverseSplitExecutions({
+      cik,
+      from: "1900-01-01",
+      to: "9999-12-31",
+      targetAt,
+    });
+    if (result.conflicts.length) return [];
+    return result.executions
+      .slice()
+      .sort((left, right) => right.effectiveDate.localeCompare(left.effectiveDate)
+        || right.executionId.localeCompare(left.executionId))
+      .slice(0, 12)
+      .map((item) => ({
+        execution_id: item.executionId,
+        issuer_cik: item.issuerCik,
+        canonical_security_class_id: item.canonicalSecurityClassId,
+        effective_date: item.effectiveDate,
+        old_share_units: item.exactRatio.oldShareUnits,
+        new_share_units: item.exactRatio.newShareUnits,
+        calculation_status: item.executionStatus,
+      }));
   },
 };
 
@@ -34,6 +64,7 @@ export function unavailableCorporateActionApplicabilityContext(
   return {
     issuerContext: { availability: "unavailable", reason },
     securityClassCandidates: [],
+    reverseSplitExecutionCandidates: [],
   };
 }
 
@@ -51,7 +82,19 @@ export async function readCorporateActionApplicabilityContext(
   if (!response.ok) {
     throw new Error(`Corporate Action applicability context reader failed: ${response.error || response.status}`);
   }
-  return validateCorporateActionApplicabilityContextResponse(response.data);
+  const context = validateCorporateActionApplicabilityContextResponse(response.data);
+  if (context.issuerContext.availability !== "available" || context.issuerContext.accepted_at === null) {
+    return context;
+  }
+  const readExecutionCandidates = dependencies.readExecutionCandidates
+    ?? defaultDependencies.readExecutionCandidates!;
+  return {
+    ...context,
+    reverseSplitExecutionCandidates: await readExecutionCandidates({
+      cik: context.issuerContext.issuer_cik,
+      targetAt: context.issuerContext.accepted_at,
+    }),
+  };
 }
 
 export function validateCorporateActionApplicabilityContextResponse(
@@ -122,6 +165,7 @@ export function validateCorporateActionApplicabilityContextResponse(
       provenance: "sec_filing_ledger",
     },
     securityClassCandidates: candidates,
+    reverseSplitExecutionCandidates: [],
   };
 }
 

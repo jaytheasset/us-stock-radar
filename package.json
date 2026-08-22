@@ -33,7 +33,7 @@
     "verify:share-count-resolver-input-contract": "node --test --experimental-strip-types lib/sec-structured-data/shareCountResolverInputContract.test.ts lib/sec-structured-data/level2ShareCountObservation.test.ts lib/sec-structured-data/shareCountHistory.test.ts",
     "verify:class-share-count-resolver": "node --test --experimental-strip-types lib/sec-structured-data/classShareCountResolver.test.ts",
     "verify:reverse-split-applicability-history": "node --test --experimental-strip-types lib/monitor/reverseSplitApplicabilityHistory.test.ts lib/monitor/corporateActionCanonicalFacts.test.ts lib/monitor/corporateActionPersistence.test.ts lib/ai/corporateActionCanonicalAnalyzerPreview.test.ts",
-    "verify:reverse-split-execution": "node --test --experimental-strip-types lib/monitor/reverseSplitExecution.test.ts",
+    "verify:reverse-split-execution": "node --test --experimental-strip-types lib/monitor/reverseSplitExecution.test.ts lib/monitor/reverseSplitExecutionUpdate.test.ts",
     "verify:sec-os-production-collection": "node --test --experimental-strip-types lib/sec-structured-data/secRequestPolicy.test.ts lib/sec-structured-data/osProductionCollector.test.ts",
     "verify:sec-os-production-collection:local": "node --experimental-strip-types scripts/verify-sec-os-production-collection-local.ts",
     "verify:filing-xbrl-context": "node --test --experimental-strip-types lib/sec-structured-data/filingXbrlContext.test.ts",

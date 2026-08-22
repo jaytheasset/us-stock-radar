@@ -13,6 +13,11 @@ The deterministic context reader supplies only canonical common-stock class IDs 
 
 The existing Corporate Action Gemini call reads the source and may select exactly one supplied candidate. It cannot create an ID. A generic common-stock reference with multiple candidates, unsupported/custom class identity, or ADS-versus-ordinary ambiguity is stored as unavailable. No title/synonym/ticker mapping exists in code.
 
+The same pre-source-time context may include bounded active reverse-split
+execution candidates. These exact IDs exist only so the same analyzer call can
+explicitly confirm, supersede, or cancel a prior calculation execution. They do
+not change issuer/security-class mapping and are never matched heuristically.
+
 ## Canonical extension
 
 Existing `corporate_action_reverse_split_facts_v1` fields remain valid. New results also contain:
