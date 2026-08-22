@@ -27,8 +27,9 @@ supporting provenance. Different values for the same class and `as_of` are a
 ## Basis and arithmetic
 
 The start anchor and every trusted intermediate Level 2 point are passed through
-the locked `normalizeClassShareCountAt()` arithmetic to the end anchor's date
-basis. Only calculation-eligible reverse-split executions are covered.
+the locked `normalizeClassShareCountForStockSplitsAt()` arithmetic to the end
+anchor's date basis. Calculation-eligible forward and reverse split executions
+are covered.
 
 ```text
 net change shares = end anchor shares - normalized start shares
@@ -55,7 +56,7 @@ raw history remains append-only and unchanged.
 Coverage is intentionally limited to:
 
 - `authoritative_periodic_anchor`
-- `reverse_split_only_basis_normalization`
+- `stock_split_basis_normalization`
 
 Offering, ATM, warrant, convertible, issuer-total aggregation, and dilution
 attribution remain outside V1. A later attribution layer can subtract known

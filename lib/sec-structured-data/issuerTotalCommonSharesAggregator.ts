@@ -9,12 +9,13 @@ import {
   type ClassShareCountResolution,
 } from "./classShareCountResolver.ts";
 import {
-  normalizeClassShareCountAt,
-  type AppliedReverseSplitExecution,
+  normalizeClassShareCountForStockSplitsAt,
+  type AppliedStockSplitExecution,
   type ExactShareCount,
-  type ReverseSplitShareBasisNormalization,
-  type ReverseSplitShareBasisNormalizerDependencies,
-} from "./reverseSplitShareBasisNormalizer.ts";
+  type StockSplitShareBasisNormalization,
+  type StockSplitShareBasisNormalizerDependencies,
+} from "./stockSplitShareBasisNormalizer.ts";
+import type { AppliedReverseSplitExecution } from "./reverseSplitShareBasisNormalizer.ts";
 import type {
   ShareCountHistoryObservation,
   ShareCountHistoryRepository,
@@ -26,7 +27,7 @@ export const ISSUER_TOTAL_COMMON_SHARES_AGGREGATOR_VERSION =
 export const ISSUER_TOTAL_COMMON_SHARES_COVERAGE = [
   "complete_common_class_universe",
   "event_time_observations",
-  "reverse_split_only_basis_normalization",
+  "stock_split_basis_normalization",
 ] as const;
 
 export type IssuerTotalCommonSharesCoverage =
@@ -55,7 +56,9 @@ export type IssuerTotalCommonSharesClassComponent = {
   acceptedAt: string | null;
   ageDays: number | null;
   resolution: ClassShareCountResolution | null;
-  normalization: ReverseSplitShareBasisNormalization | null;
+  normalization: StockSplitShareBasisNormalization | null;
+  appliedStockSplitExecutions: AppliedStockSplitExecution[];
+  /** @deprecated Use appliedStockSplitExecutions. */
   appliedReverseSplitExecutions: AppliedReverseSplitExecution[];
   selectedObservation: ShareCountHistoryObservation | null;
   supportingObservations: ShareCountHistoryObservation[];
@@ -108,8 +111,8 @@ export type IssuerTotalCommonShares =
 export type IssuerTotalCommonSharesAggregatorDependencies = {
   readUniverse?: typeof readIssuerCommonClassUniverseAt;
   resolveShareCount?: typeof resolveClassShareCountAt;
-  normalizeShareCount?: typeof normalizeClassShareCountAt;
-  readExecutions?: ReverseSplitShareBasisNormalizerDependencies["readExecutions"];
+  normalizeShareCount?: typeof normalizeClassShareCountForStockSplitsAt;
+  readExecutions?: StockSplitShareBasisNormalizerDependencies["readExecutions"];
 };
 
 export async function resolveIssuerTotalCommonSharesAt(
@@ -125,7 +128,7 @@ export async function resolveIssuerTotalCommonSharesAt(
   const targetAt = new Date(input.targetAt).toISOString();
   const readUniverse = dependencies.readUniverse ?? readIssuerCommonClassUniverseAt;
   const resolveShareCount = dependencies.resolveShareCount ?? resolveClassShareCountAt;
-  const normalizeShareCount = dependencies.normalizeShareCount ?? normalizeClassShareCountAt;
+  const normalizeShareCount = dependencies.normalizeShareCount ?? normalizeClassShareCountForStockSplitsAt;
 
   let universe: IssuerCommonClassUniverseAt;
   try {
@@ -186,8 +189,8 @@ async function resolveClassComponent(input: {
   securityClassId: string;
   targetAt: string;
   resolveShareCount: typeof resolveClassShareCountAt;
-  normalizeShareCount: typeof normalizeClassShareCountAt;
-  readExecutions: ReverseSplitShareBasisNormalizerDependencies["readExecutions"];
+  normalizeShareCount: typeof normalizeClassShareCountForStockSplitsAt;
+  readExecutions: StockSplitShareBasisNormalizerDependencies["readExecutions"];
 }): Promise<IssuerTotalCommonSharesClassComponent> {
   let resolution: ClassShareCountResolution;
   try {
@@ -204,7 +207,7 @@ async function resolveClassComponent(input: {
     return failedComponent(input.securityClassId, "CLASS_COMPONENT_IDENTITY_MISMATCH", resolution);
   }
 
-  const normalizerDependencies: ReverseSplitShareBasisNormalizerDependencies = {
+  const normalizerDependencies: StockSplitShareBasisNormalizerDependencies = {
     resolveShareCount: async (normalizerInput) => {
       if (normalizerInput.cik !== input.cik
         || normalizerInput.securityClassId !== input.securityClassId
@@ -216,7 +219,7 @@ async function resolveClassComponent(input: {
   };
   if (input.readExecutions) normalizerDependencies.readExecutions = input.readExecutions;
 
-  let normalization: ReverseSplitShareBasisNormalization;
+  let normalization: StockSplitShareBasisNormalization;
   try {
     normalization = await input.normalizeShareCount(
       {
@@ -267,7 +270,7 @@ function componentFromUpstream(
   securityClassId: string,
   reason: IssuerTotalCommonSharesClassComponent["reason"],
   resolution: ClassShareCountResolution,
-  normalization: ReverseSplitShareBasisNormalization,
+  normalization: StockSplitShareBasisNormalization,
 ): IssuerTotalCommonSharesClassComponent {
   const resolved = resolution.status === "RESOLVED";
   const normalized = normalization.status === "NORMALIZED";
@@ -283,8 +286,11 @@ function componentFromUpstream(
     ageDays: resolution.ageDays,
     resolution: structuredClone(resolution),
     normalization: structuredClone(normalization),
-    appliedReverseSplitExecutions: normalized
+    appliedStockSplitExecutions: normalized
       ? structuredClone(normalization.appliedExecutions)
+      : [],
+    appliedReverseSplitExecutions: normalized
+      ? reverseExecutions(normalization.appliedExecutions)
       : [],
     selectedObservation: resolved ? structuredClone(resolution.selectedObservation) : null,
     supportingObservations: structuredClone(resolution.supportingObservations),
@@ -296,7 +302,7 @@ function failedComponent(
   reason: Extract<IssuerTotalCommonSharesClassComponent["reason"],
     "CLASS_RESOLUTION_FAILED" | "CLASS_NORMALIZATION_FAILED" | "CLASS_COMPONENT_IDENTITY_MISMATCH">,
   resolution: ClassShareCountResolution | null = null,
-  normalization: ReverseSplitShareBasisNormalization | null = null,
+  normalization: StockSplitShareBasisNormalization | null = null,
 ): IssuerTotalCommonSharesClassComponent {
   return {
     status: "UNAVAILABLE",
@@ -310,6 +316,7 @@ function failedComponent(
     ageDays: resolution?.ageDays ?? null,
     resolution: resolution ? structuredClone(resolution) : null,
     normalization: normalization ? structuredClone(normalization) : null,
+    appliedStockSplitExecutions: [],
     appliedReverseSplitExecutions: [],
     selectedObservation: resolution?.status === "RESOLVED"
       ? structuredClone(resolution.selectedObservation)
@@ -375,14 +382,14 @@ function validResolutionIdentity(
 }
 
 function validNormalizationIdentity(
-  normalization: ReverseSplitShareBasisNormalization,
+  normalization: StockSplitShareBasisNormalization,
   resolution: ClassShareCountResolution,
   input: { cik: string; securityClassId: string; targetAt: string },
 ) {
   return normalization.cik === input.cik
     && normalization.securityClassId === input.securityClassId
     && normalization.targetAt === input.targetAt
-    && normalization.coverage === "reverse_split_only"
+    && normalization.coverage === "stock_split_basis_normalization"
     && normalization.originalResolution.cik === resolution.cik
     && normalization.originalResolution.securityClassId === resolution.securityClassId
     && normalization.originalResolution.targetAt === resolution.targetAt
@@ -393,6 +400,11 @@ function validExact(value: ExactShareCount) {
   return POSITIVE_INTEGER_PATTERN.test(value.numerator)
     && POSITIVE_INTEGER_PATTERN.test(value.denominator)
     && BigInt(value.denominator) > BigInt(0);
+}
+
+function reverseExecutions(executions: AppliedStockSplitExecution[]): AppliedReverseSplitExecution[] {
+  return structuredClone(executions.filter((execution) => execution.kind === "reverse_split")
+    .map(({ kind: _kind, ...execution }) => execution));
 }
 
 function addExact(left: ExactShareCount, right: ExactShareCount): ExactShareCount {

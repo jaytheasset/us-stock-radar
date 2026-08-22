@@ -17,10 +17,13 @@ import type {
   ShareCountHistoryRepository,
 } from "./shareCountHistory.ts";
 import {
+  FORWARD_SPLIT_EXECUTION_VERSION,
   REVERSE_SPLIT_EXECUTION_VERSION,
-  reverseSplitExecutionId,
+  stockSplitExecutionId,
+  type StockSplitExecution,
+  type ForwardSplitExecution,
   type ReverseSplitExecution,
-  type ReverseSplitExecutionReadResult,
+  type StockSplitExecutionReadResult,
 } from "../monitor/reverseSplitExecution.ts";
 import type { CorporateActionCanonicalFacts } from "../monitor/corporateActionCanonicalFacts.ts";
 
@@ -81,7 +84,24 @@ test("a class-specific reverse split is applied before the class totals are adde
   assert.equal(result.totalCommonShares.integerShares, "46000000");
   const classA = result.classComponents.find((component) => component.securityClassId === CLASS_A)!;
   assert.deepEqual(classA.normalizedShares, { numerator: "6000000", denominator: "1" });
-  assert.deepEqual(classA.appliedReverseSplitExecutions.map((item) => item.executionId), [split.executionId]);
+  assert.deepEqual(classA.appliedStockSplitExecutions.map((item) => item.executionId), [split.executionId]);
+});
+
+test("K. each class applies forward or reverse splits before the exact issuer total is added", async () => {
+  const repository = historyRepository([
+    observation(CLASS_A, "100000000", "2026-07-01", "2026-07-02T10:00:00.000Z", 1),
+    observation(CLASS_B, "50000000", "2026-07-01", "2026-07-02T10:00:00.000Z", 2),
+  ]);
+  const forward = execution(CLASS_A, "2026-08-10", "1", "4", 1, "forward_split");
+  const reverse = execution(CLASS_B, "2026-08-12", "10", "1", 2);
+  const result = await aggregate([CLASS_A, CLASS_B], repository, [forward, reverse]);
+  assert.equal(result.status, "RESOLVED");
+  assert.equal(result.totalCommonShares.integerShares, "405000000");
+  assert.deepEqual(result.classComponents.map((component) => component.normalizedIntegerShares), [
+    "400000000", "5000000",
+  ]);
+  assert.deepEqual(result.classComponents.flatMap((component) =>
+    component.appliedStockSplitExecutions.map((item) => item.kind)), ["forward_split", "reverse_split"]);
 });
 
 test("one unavailable required class blocks the official total and never promotes a partial sum", async () => {
@@ -256,7 +276,7 @@ test("same input replay is deterministic and writes no history", async () => {
 function aggregate(
   classes: string[],
   repository: StaticHistoryRepository,
-  executions: ReverseSplitExecution[] = [],
+  executions: StockSplitExecution[] = [],
 ) {
   return resolveIssuerTotalCommonSharesAt(baseInput(repository), dependencies(classes, executions));
 }
@@ -272,7 +292,7 @@ function baseInput(repository: StaticHistoryRepository) {
 
 function dependencies(
   classes: string[],
-  executions: ReverseSplitExecution[] = [],
+  executions: StockSplitExecution[] = [],
   conflicting = false,
 ): IssuerTotalCommonSharesAggregatorDependencies {
   return {
@@ -341,14 +361,27 @@ function universeSnapshot(classes: string[]): IssuerCommonClassUniverseSnapshot 
   };
 }
 
-function executionReader(executions: ReverseSplitExecution[], conflicting = false) {
+function executionReader(executions: StockSplitExecution[], conflicting = false) {
   return async (input: {
+    actionKind: "forward_split" | "reverse_split";
     cik: string;
     canonicalSecurityClassId?: string;
     from: string;
     to: string;
     targetAt: string;
-  }): Promise<ReverseSplitExecutionReadResult> => ({
+  }): Promise<StockSplitExecutionReadResult> => input.actionKind === "forward_split" ? ({
+    status: "available",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "forward_split_only",
+    executions: structuredClone(executions.filter((item): item is ForwardSplitExecution => item.version === FORWARD_SPLIT_EXECUTION_VERSION
+      && item.canonicalSecurityClassId === input.canonicalSecurityClassId)),
+    inactiveExecutions: [],
+    conflicts: [],
+  }) : ({
     status: "available",
     issuerCik: input.cik,
     canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
@@ -356,8 +389,8 @@ function executionReader(executions: ReverseSplitExecution[], conflicting = fals
     to: input.to,
     targetAt: input.targetAt,
     basisChangeCoverage: "reverse_split_only",
-    executions: structuredClone(executions.filter((item) =>
-      item.canonicalSecurityClassId === input.canonicalSecurityClassId)),
+    executions: structuredClone(executions.filter((item): item is ReverseSplitExecution => item.version === REVERSE_SPLIT_EXECUTION_VERSION
+      && item.canonicalSecurityClassId === input.canonicalSecurityClassId)),
     inactiveExecutions: [],
     conflicts: conflicting ? [{
       version: REVERSE_SPLIT_EXECUTION_VERSION,
@@ -380,8 +413,10 @@ function execution(
   oldShares: string,
   newShares: string,
   sequence: number,
-): ReverseSplitExecution {
-  const executionId = reverseSplitExecutionId({
+  kind: "forward_split" | "reverse_split" = "reverse_split",
+): StockSplitExecution {
+  const executionId = stockSplitExecutionId({
+    actionKind: kind,
     issuerCik: CIK,
     canonicalSecurityClassId: securityClassId,
     effectiveDate,
@@ -390,7 +425,7 @@ function execution(
   });
   const accessionNumber = `0000000099-26-${sequence.toString().padStart(6, "0")}`;
   return {
-    version: REVERSE_SPLIT_EXECUTION_VERSION,
+    version: kind === "forward_split" ? FORWARD_SPLIT_EXECUTION_VERSION : REVERSE_SPLIT_EXECUTION_VERSION,
     status: "CALCULATION_ELIGIBLE",
     executionStatus: "scheduled",
     executionId,

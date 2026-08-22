@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { CorporateActionCanonicalFacts } from "../monitor/corporateActionCanonicalFacts.ts";
 import {
+  FORWARD_SPLIT_EXECUTION_VERSION,
   REVERSE_SPLIT_EXECUTION_VERSION,
-  reverseSplitExecutionId,
-  type ReverseSplitExecution,
+  stockSplitExecutionId,
   type ReverseSplitExecutionConflict,
-  type ReverseSplitExecutionReadResult,
+  type ForwardSplitExecution,
+  type ReverseSplitExecution,
+  type StockSplitExecution,
+  type StockSplitExecutionReadResult,
 } from "../monitor/reverseSplitExecution.ts";
 import { resolveClassShareCountAt } from "./classShareCountResolver.ts";
 import {
@@ -36,7 +39,7 @@ test("A. authoritative anchors without a split reconcile +11M and +55%", async (
   assert.deepEqual(result.endShares, { numerator: "31000000", denominator: "1" });
   assert.deepEqual(result.netChangeShares, { numerator: "11000000", denominator: "1" });
   assert.deepEqual(result.netChangePct, { numerator: "55", denominator: "1" });
-  assert.deepEqual(result.coverage, ["authoritative_periodic_anchor", "reverse_split_only_basis_normalization"]);
+  assert.deepEqual(result.coverage, ["authoritative_periodic_anchor", "stock_split_basis_normalization"]);
 });
 
 test("B. start anchor is normalized to the end-anchor basis before calculating +2M", async () => {
@@ -50,7 +53,26 @@ test("B. start anchor is normalized to the end-anchor basis before calculating +
   assert.deepEqual(result.normalizedStartShares, { numerator: "10000000", denominator: "1" });
   assert.deepEqual(result.netChangeShares, { numerator: "2000000", denominator: "1" });
   assert.deepEqual(result.netChangePct, { numerator: "20", denominator: "1" });
-  assert.deepEqual(result.appliedReverseSplitExecutions.map((row) => row.executionId), [split.executionId]);
+  assert.deepEqual(result.appliedStockSplitExecutions.map((row) => row.executionId), [split.executionId]);
+});
+
+test("J. a 4-for-1 forward split normalizes a 100M start anchor before the 430M end anchor", async () => {
+  const repository = historyRepository([
+    anchor({ asOf: "2026-06-30", shares: "100000000", sequence: 1 }),
+    anchor({ asOf: "2026-09-30", shares: "430000000", sequence: 2 }),
+  ]);
+  const split = execution({
+    kind: "forward_split",
+    effectiveDate: "2026-07-15",
+    oldShares: "1",
+    newShares: "4",
+  });
+  const result = await reconcile(repository, executionReader([split]));
+  assert.equal(result.status, "RECONCILED");
+  assert.deepEqual(result.normalizedStartShares, { numerator: "400000000", denominator: "1" });
+  assert.deepEqual(result.netChangeShares, { numerator: "30000000", denominator: "1" });
+  assert.deepEqual(result.netChangePct, { numerator: "15", denominator: "2" });
+  assert.equal(result.appliedStockSplitExecutions[0]!.kind, "forward_split");
 });
 
 test("C. Level 2 values between anchors are preserved as non-conflicting intermediate points", async () => {
@@ -243,10 +265,22 @@ function reconcile(
 }
 
 function executionReader(
-  executions: ReverseSplitExecution[],
+  executions: StockSplitExecution[],
   conflicts: ReverseSplitExecutionConflict[] = [],
 ): NonNullable<ShareCountAnchorReconciliationDependencies["readExecutions"]> {
-  return async (input): Promise<ReverseSplitExecutionReadResult> => ({
+  return async (input): Promise<StockSplitExecutionReadResult> => input.actionKind === "forward_split" ? ({
+    status: "available",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "forward_split_only",
+    executions: structuredClone(executions.filter((item): item is ForwardSplitExecution =>
+      item.version === FORWARD_SPLIT_EXECUTION_VERSION)),
+    inactiveExecutions: [],
+    conflicts: [],
+  }) : ({
     status: "available",
     issuerCik: input.cik,
     canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
@@ -254,14 +288,22 @@ function executionReader(
     to: input.to,
     targetAt: input.targetAt,
     basisChangeCoverage: "reverse_split_only",
-    executions: structuredClone(executions),
+    executions: structuredClone(executions.filter((item): item is ReverseSplitExecution =>
+      item.version === REVERSE_SPLIT_EXECUTION_VERSION)),
     inactiveExecutions: [],
     conflicts: structuredClone(conflicts),
   });
 }
 
-function execution(input: { effectiveDate: string; oldShares: string; newShares: string }): ReverseSplitExecution {
-  const executionId = reverseSplitExecutionId({
+function execution(input: {
+  kind?: "forward_split" | "reverse_split";
+  effectiveDate: string;
+  oldShares: string;
+  newShares: string;
+}): StockSplitExecution {
+  const kind = input.kind ?? "reverse_split";
+  const executionId = stockSplitExecutionId({
+    actionKind: kind,
     issuerCik: CIK,
     canonicalSecurityClassId: CLASS_A,
     effectiveDate: input.effectiveDate,
@@ -270,7 +312,7 @@ function execution(input: { effectiveDate: string; oldShares: string; newShares:
   });
   const accession = "0000000099-26-000090";
   return {
-    version: REVERSE_SPLIT_EXECUTION_VERSION,
+    version: kind === "forward_split" ? FORWARD_SPLIT_EXECUTION_VERSION : REVERSE_SPLIT_EXECUTION_VERSION,
     status: "CALCULATION_ELIGIBLE",
     executionStatus: "scheduled",
     executionId,

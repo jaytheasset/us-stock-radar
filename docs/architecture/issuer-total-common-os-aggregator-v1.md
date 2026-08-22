@@ -14,7 +14,7 @@ targetAt
   -> readIssuerCommonClassUniverseAt()
   -> requiredCanonicalSecurityClassIds
   -> resolveClassShareCountAt() for every required class
-  -> normalizeClassShareCountAt() for every resolved class
+  -> normalizeClassShareCountForStockSplitsAt() for every resolved class
   -> exact rational sum after every class succeeds
 ```
 
@@ -58,7 +58,7 @@ Coverage is explicitly limited to:
 
 - `complete_common_class_universe`
 - `event_time_observations`
-- `reverse_split_only_basis_normalization`
+- `stock_split_basis_normalization`
 
 Calling the interface with `targetAt = now` yields the issuer common O/S
 resolved from information publicly available by that time, using the complete
