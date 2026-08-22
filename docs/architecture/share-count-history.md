@@ -10,6 +10,11 @@ Retrospective periodic-anchor quality control is defined separately in
 `share-count-anchor-reconciliation-v1.md` and never writes reconciled values back
 to this history.
 
+Issuer common-class completeness is defined separately in
+`issuer-common-class-universe-snapshot-v1.md`. The classes observed in this
+history are never unioned to claim that an issuer's full common-class universe
+is known.
+
 This foundation stores append-only issuer/time share-count observations. It does
 not determine current O/S, select a winner, sum classes, apply corporate-action
 adjustments, or calculate dilution. It accepts authoritative XBRL observations
