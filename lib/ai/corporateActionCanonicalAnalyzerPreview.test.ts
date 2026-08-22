@@ -191,7 +191,7 @@ test("timing transport keeps one call, preserves bounded failure detail, and nor
       raw_timestamp: "12:07 P.M.",
       raw_timestamp_truncated: false,
       effective_date: "2026-08-08",
-      validation_reason: "result.effective_timing.exact_timestamp requires a valid RFC3339 timestamp with timezone/offset",
+      validation_reason: "result.effective_timing.kind is invalid",
     });
     assert.match(malformedExact.error, /effective_timing_diagnostic=/);
     assert.doesNotMatch(malformedExact.error, /A one-for-ten reverse split.*A one-for-ten reverse split/);

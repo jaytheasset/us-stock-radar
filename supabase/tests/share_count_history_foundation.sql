@@ -234,7 +234,9 @@ select is(
 select ok(
   (select accepted_at_source = 'sec_raw_payload_acceptance'
           and accepted_at = '2026-08-18 12:00:00+00'::timestamptz
-   from public.share_count_history where source_type = 'sec_filing_text_level2'),
+   from public.share_count_history
+   where issuer_cik = '0000000099'
+     and source_type = 'sec_filing_text_level2'),
   'Level 2 accepted_at records the exact SEC raw-payload acceptance provenance'
 );
 select is(

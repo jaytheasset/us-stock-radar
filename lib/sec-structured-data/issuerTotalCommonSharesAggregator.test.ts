@@ -118,6 +118,21 @@ test("one unavailable required class blocks the official total and never promote
   assert.equal("partialTotal" in result, false);
 });
 
+test("split materialization failure makes the issuer total unavailable", async () => {
+  const repository = historyRepository([
+    observation(SINGLE, "27500000", "2026-07-01", "2026-07-02T10:00:00.000Z", 1),
+  ]);
+  const result = await resolveIssuerTotalCommonSharesAt(baseInput(repository), {
+    readUniverse: async (input) => availableUniverse([SINGLE], input.targetAt),
+    readExecutions: materializationFailureReader,
+  });
+  assert.equal(result.status, "UNAVAILABLE");
+  assert.equal(result.reason, "CLASS_NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.classComponents[0]?.normalization?.status, "NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.classComponents[0]?.normalization?.reason, "SPLIT_MATERIALIZATION_FAILED");
+  assert.equal(result.totalCommonShares, null);
+});
+
 test("stale, incomplete, ambiguous, and future universe results block all class reads", async () => {
   for (const universe of [
     unavailableUniverse("CLASS_UNIVERSE_STALE", "LATER_CANONICAL_COMMON_CLASS_DISCOVERED"),
@@ -406,6 +421,34 @@ function executionReader(executions: StockSplitExecution[], conflicting = false)
     }] : [],
   });
 }
+
+const materializationFailureReader: NonNullable<IssuerTotalCommonSharesAggregatorDependencies["readExecutions"]> =
+  async (input): Promise<StockSplitExecutionReadResult> => input.actionKind === "reverse_split" ? ({
+    status: "materialization_unavailable",
+    materializationStatus: "SPLIT_MATERIALIZATION_FAILED",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "reverse_split_only",
+    failures: [{} as never],
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  }) : ({
+    status: "available",
+    materializationStatus: "NO_SPLIT_EVIDENCE",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "forward_split_only",
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  });
 
 function execution(
   securityClassId: string,

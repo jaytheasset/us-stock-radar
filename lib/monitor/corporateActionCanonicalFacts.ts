@@ -179,7 +179,6 @@ export const CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS = [
   "market_open",
   "start_of_trading",
   "after_market_close",
-  "exact_timestamp",
 ] as const;
 
 export type CorporateActionEffectiveTimingKind =
@@ -469,7 +468,7 @@ function normalizeNonExactEffectiveTimingTimestamp(value: unknown): {
   const timing = record(root?.effective_timing);
   if (!root || !timing || timing.availability !== "available"
     || !oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)
-    || timing.kind === "exact_timestamp" || timing.timestamp === null) {
+    || timing.timestamp === null) {
     return { value, timestampDiagnostic: null };
   }
   const raw = boundedDiagnosticScalar(timing.timestamp, 160);
@@ -1116,22 +1115,11 @@ function canonicalEffectiveTiming(
   if (evidence.availability !== "available") {
     return { value: null, errors: ["result.effective_timing requires compact exact source evidence"] };
   }
-  if (transport.kind === "exact_timestamp") {
-    if (!validExactTimestamp(transport.timestamp)
-      || !transport.evidence.includes(transport.timestamp!)
-      || transport.timestamp!.slice(0, 10) !== effectiveDate.value) {
-      return {
-        value: null,
-        errors: [
-          "result.effective_timing exact_timestamp requires a source-verbatim RFC3339 timestamp with timezone/offset matching effective_date",
-        ],
-      };
-    }
-  } else if (transport.timestamp !== null) {
-    return { value: null, errors: ["result.effective_timing timestamp is only allowed for exact_timestamp"] };
+  if (transport.timestamp !== null) {
+    return { value: null, errors: ["result.effective_timing timestamp must be null"] };
   }
-  const timestampDiagnostic = transport.kind !== "exact_timestamp"
-    && transportDiagnostic?.validation_reason === CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON
+  const timestampDiagnostic = transportDiagnostic?.validation_reason
+    === CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON
     && transportDiagnostic.raw_timestamp !== null
     ? {
         reason: CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON,
@@ -1350,13 +1338,7 @@ function validateEffectiveTimingTransport(value: unknown, path: string, errors: 
   exactKeys(timing, ["availability", "kind", "timestamp", "source_ref", "evidence"], path, errors);
   if (timing.availability !== "available") errors.push(`${path}.availability is invalid`);
   if (!oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)) errors.push(`${path}.kind is invalid`);
-  if (timing.kind === "exact_timestamp") {
-    if (!validExactTimestamp(timing.timestamp)) {
-      errors.push(`${path}.exact_timestamp requires a valid RFC3339 timestamp with timezone/offset`);
-    }
-  } else if (timing.timestamp !== null) {
-    errors.push(`${path}.timestamp is only allowed for exact_timestamp`);
-  }
+  if (timing.timestamp !== null) errors.push(`${path}.timestamp must be null`);
   if (!stableSourceRef(timing.source_ref)) errors.push(`${path}.source_ref is invalid`);
   if (!boundedText(timing.evidence, 4_000)) errors.push(`${path}.evidence is invalid`);
 }
@@ -1490,13 +1472,7 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
   );
   if (timing.availability !== "available") errors.push("canonical effective timing availability is invalid");
   if (!oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)) errors.push("canonical effective timing kind is invalid");
-  if (!(timing.timestamp === null || validExactTimestamp(timing.timestamp))) errors.push("canonical effective timing timestamp is invalid");
-  if (timing.kind === "exact_timestamp" && !validExactTimestamp(timing.timestamp)) {
-    errors.push("canonical exact effective timing requires timestamp");
-  }
-  if (timing.kind !== "exact_timestamp" && timing.timestamp !== null) {
-    errors.push("canonical non-exact effective timing cannot have timestamp");
-  }
+  if (timing.timestamp !== null) errors.push("canonical effective timing timestamp must be null");
   const effectiveDate = record(effectiveDateValue);
   if (effectiveDate?.availability !== "available") errors.push("canonical effective timing requires effective date");
   if (validExactTimestamp(timing.timestamp)
@@ -1528,9 +1504,6 @@ function validateEffectiveTimingTimestampDiagnostic(
     "canonical effective timing timestamp diagnostic",
     errors,
   );
-  if (timingKind === "exact_timestamp") {
-    errors.push("canonical exact effective timing cannot have a timestamp diagnostic");
-  }
   if (diagnostic.reason !== CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON) {
     errors.push("canonical effective timing timestamp diagnostic reason is invalid");
   }

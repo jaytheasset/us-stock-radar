@@ -144,6 +144,18 @@ test("F. unavailable reverse-split normalization fails closed without estimating
   assert.equal(result.normalizationFailures[0]?.reason, "EXECUTION_CONFLICT");
 });
 
+test("split materialization failure propagates through reconciliation unavailable", async () => {
+  const result = await reconcile(historyRepository([
+    anchor({ asOf: "2026-06-30", shares: "100000000", sequence: 1 }),
+    anchor({ asOf: "2026-09-30", shares: "12000000", sequence: 2 }),
+  ]), materializationFailureReader);
+  assert.equal(result.status, "RECONCILIATION_UNAVAILABLE");
+  assert.equal(result.reason, "START_BASIS_NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.normalizationFailures[0]?.status, "NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.normalizationFailures[0]?.reason, "SPLIT_MATERIALIZATION_FAILED");
+  assert.equal(result.netChangePct, null);
+});
+
 test("G. a change above 100% is still a valid net-change result", async () => {
   const result = await reconcile(historyRepository([
     anchor({ asOf: "2026-06-30", shares: "20000000", sequence: 1 }),
@@ -294,6 +306,34 @@ function executionReader(
     conflicts: structuredClone(conflicts),
   });
 }
+
+const materializationFailureReader: NonNullable<ShareCountAnchorReconciliationDependencies["readExecutions"]> =
+  async (input): Promise<StockSplitExecutionReadResult> => input.actionKind === "reverse_split" ? ({
+    status: "materialization_unavailable",
+    materializationStatus: "SPLIT_MATERIALIZATION_FAILED",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "reverse_split_only",
+    failures: [{} as never],
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  }) : ({
+    status: "available",
+    materializationStatus: "NO_SPLIT_EVIDENCE",
+    issuerCik: input.cik,
+    canonicalSecurityClassId: input.canonicalSecurityClassId ?? null,
+    from: input.from,
+    to: input.to,
+    targetAt: input.targetAt,
+    basisChangeCoverage: "forward_split_only",
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  });
 
 function execution(input: {
   kind?: "forward_split" | "reverse_split";

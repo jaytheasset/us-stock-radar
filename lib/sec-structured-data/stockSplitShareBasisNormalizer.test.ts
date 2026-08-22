@@ -75,6 +75,16 @@ test("H-I. either forward or reverse execution conflict fails closed", async () 
   }
 });
 
+test("relevant split materialization failure propagates as normalization unavailable", async () => {
+  const result = await normalizeClassShareCountForStockSplitsAt(input(), {
+    resolveShareCount: async () => resolution(),
+    readExecutions: materializationFailureReader,
+  });
+  assert.equal(result.status, "NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.reason, "SPLIT_MATERIALIZATION_FAILED");
+  assert.equal(result.normalizedExactShares, null);
+});
+
 test("effective-day timing lock and deterministic replay are preserved", async () => {
   const afterClose = execution("forward_split", "2026-08-20", "1", "4", 8,
     { availability: "available", kind: "after_market_close", timestamp: null, source_ref: "fixture", evidence: { availability: "available", value: "after close" } });
@@ -145,6 +155,34 @@ function dependenciesFor(
     };
   } };
 }
+
+const materializationFailureReader: NonNullable<StockSplitShareBasisNormalizerDependencies["readExecutions"]> =
+  async (readInput): Promise<StockSplitExecutionReadResult> => readInput.actionKind === "reverse_split" ? ({
+    status: "materialization_unavailable",
+    materializationStatus: "SPLIT_MATERIALIZATION_FAILED",
+    issuerCik: readInput.cik,
+    canonicalSecurityClassId: readInput.canonicalSecurityClassId ?? null,
+    from: readInput.from,
+    to: readInput.to,
+    targetAt: readInput.targetAt,
+    basisChangeCoverage: "reverse_split_only",
+    failures: [{} as never],
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  }) : ({
+    status: "available",
+    materializationStatus: "NO_SPLIT_EVIDENCE",
+    issuerCik: readInput.cik,
+    canonicalSecurityClassId: readInput.canonicalSecurityClassId ?? null,
+    from: readInput.from,
+    to: readInput.to,
+    targetAt: readInput.targetAt,
+    basisChangeCoverage: "forward_split_only",
+    executions: [],
+    inactiveExecutions: [],
+    conflicts: [],
+  });
 
 function resolution(shares = "100000000", asOf = "2026-07-01"): ClassShareCountResolved {
   return {

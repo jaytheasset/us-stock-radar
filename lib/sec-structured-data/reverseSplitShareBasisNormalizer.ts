@@ -69,6 +69,7 @@ export type ReverseSplitShareBasisNormalizationUnavailable =
       | "SHARE_COUNT_UNAVAILABLE"
       | "SHARE_COUNT_CONFLICT"
       | "EXECUTION_READ_FAILED"
+      | "SPLIT_MATERIALIZATION_FAILED"
       | "EXECUTION_READER_INVALID"
       | "EXECUTION_CONFLICT"
       | "EXECUTION_TIMING_INDETERMINATE"
@@ -134,6 +135,15 @@ export async function normalizeClassShareCountAt(
     });
   } catch {
     return unavailable({ input, targetAt, targetDate, resolution, reason: "EXECUTION_READ_FAILED" });
+  }
+  if (executionRead && executionRead.status === "materialization_unavailable"
+    && executionRead.materializationStatus === "SPLIT_MATERIALIZATION_FAILED"
+    && executionRead.issuerCik === input.cik
+    && executionRead.canonicalSecurityClassId === input.securityClassId
+    && executionRead.from === firstExecutionDate && executionRead.to === targetDate
+    && executionRead.targetAt === targetAt
+    && executionRead.basisChangeCoverage === "reverse_split_only") {
+    return unavailable({ input, targetAt, targetDate, resolution, reason: "SPLIT_MATERIALIZATION_FAILED" });
   }
   if (!validExecutionRead(executionRead, input, firstExecutionDate, targetDate, targetAt)) {
     return unavailable({ input, targetAt, targetDate, resolution, reason: "EXECUTION_READER_INVALID" });

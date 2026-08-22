@@ -20,6 +20,11 @@ import {
   type Level2ShareCountValidatedCandidate,
 } from "../sec-structured-data/level2ShareCountObservation.ts";
 import { parseJsonWithoutDuplicateKeys } from "../minimalOfferingMonitor.ts";
+import {
+  buildPrevalidationStockSplitMaterializationDiagnostic,
+  stockSplitMaterializationError,
+  type StockSplitMaterializationDiagnostic,
+} from "../monitor/stockSplitMaterialization.ts";
 
 export type CorporateActionCanonicalAnalyzerPreviewResult =
   | {
@@ -37,6 +42,8 @@ export type CorporateActionCanonicalAnalyzerPreviewResult =
       error: string;
       validation_errors?: string[];
       timing_diagnostic?: CorporateActionEffectiveTimingTransportDiagnostic | null;
+      materialization_diagnostic?: StockSplitMaterializationDiagnostic | null;
+      retryError?: unknown;
     };
 
 export async function runCorporateActionCanonicalAnalyzerPreview(
@@ -117,6 +124,11 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
   });
   const parsed = parseCorporateActionAnalyzerTransportJson(JSON.stringify(sidecar.domainPayload));
   if (!parsed.transport) {
+    const materializationDiagnostic = buildPrevalidationStockSplitMaterializationDiagnostic(
+      sidecar.domainPayload,
+      input,
+      parsed.errors.join("; "),
+    );
     return {
       stage: "validation_error",
       result: null,
@@ -124,12 +136,21 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
       error: validationErrorMessage(parsed.errors, parsed.effectiveTimingDiagnostic),
       validation_errors: parsed.errors,
       timing_diagnostic: parsed.effectiveTimingDiagnostic,
+      materialization_diagnostic: materializationDiagnostic,
+      ...(materializationDiagnostic
+        ? { retryError: stockSplitMaterializationError(materializationDiagnostic) }
+        : {}),
     };
   }
   const canonicalized = canonicalizeCorporateActionAnalyzerResult(parsed.transport, input, {
     effectiveTimingDiagnostic: parsed.effectiveTimingDiagnostic,
   });
   if (!canonicalized.result) {
+    const materializationDiagnostic = buildPrevalidationStockSplitMaterializationDiagnostic(
+      sidecar.domainPayload,
+      input,
+      canonicalized.errors.join("; "),
+    );
     return {
       stage: "validation_error",
       result: null,
@@ -137,6 +158,10 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
       error: validationErrorMessage(canonicalized.errors, parsed.effectiveTimingDiagnostic),
       validation_errors: canonicalized.errors,
       timing_diagnostic: parsed.effectiveTimingDiagnostic,
+      materialization_diagnostic: materializationDiagnostic,
+      ...(materializationDiagnostic
+        ? { retryError: stockSplitMaterializationError(materializationDiagnostic) }
+        : {}),
     };
   }
   return {

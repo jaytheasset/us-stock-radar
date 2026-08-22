@@ -205,7 +205,7 @@ test("I. exact multi-class applicability stays isolated for Class A, B, and C", 
   );
 });
 
-test("effective-date activation exactly reuses date-only/open/after-close/timestamp semantics", async () => {
+test("effective-date activation exactly reuses date-only/open/after-close semantics", async () => {
   const dateOnly = (await readWith([historyItem(51, factsFor({ sequence: 51 }))])).executions[0]!;
   assert.equal(stockSplitExecutionActivationDecision({ execution: dateOnly, targetDate: "2026-08-24" }).status, "NOT_APPLIED");
   assert.equal(stockSplitExecutionActivationDecision({ execution: dateOnly, targetDate: "2026-08-25" }).status, "APPLIED");
@@ -221,21 +221,6 @@ test("effective-date activation exactly reuses date-only/open/after-close/timest
   }))])).executions[0]!;
   assert.equal(stockSplitExecutionActivationDecision({ execution: afterClose, targetDate: "2026-08-25" }).status, "NOT_APPLIED");
 
-  const exact = (await readWith([historyItem(54, factsFor({
-    sequence: 54,
-    timing: availableTiming("exact_timestamp", "2026-08-25T13:30:00Z"),
-  }))])).executions[0]!;
-  assert.equal(stockSplitExecutionActivationDecision({ execution: exact, targetDate: "2026-08-25" }).status, "INDETERMINATE");
-  assert.equal(stockSplitExecutionActivationDecision({
-    execution: exact,
-    targetDate: "2026-08-25",
-    targetAt: "2026-08-25T13:29:59Z",
-  }).status, "NOT_APPLIED");
-  assert.equal(stockSplitExecutionActivationDecision({
-    execution: exact,
-    targetDate: "2026-08-25",
-    targetAt: "2026-08-25T13:30:00Z",
-  }).status, "APPLIED");
 });
 
 type FactsOptions = {
@@ -261,10 +246,7 @@ function canonicalForward(options: FactsOptions) {
   const member = classMember(classId);
   const title = classTitle(classId);
   const source = options.source
-    ?? `The Company will effect a ${ratio?.[1] ?? 4}-for-${ratio?.[0] ?? 1} forward stock split of its ${title} effective August 25, 2026.${
-      options.timing?.availability === "available" && options.timing.kind === "exact_timestamp"
-        ? ` Exact source timestamp ${options.timing.timestamp}.` : ""
-    }`;
+    ?? `The Company will effect a ${ratio?.[1] ?? 4}-for-${ratio?.[0] ?? 1} forward stock split of its ${title} effective August 25, 2026.`;
   const input = adaptSec8k6kCorporateActionSource({
     accession_number: accession,
     source_url: `https://www.sec.gov/Archives/edgar/data/1234567/${accession.replaceAll("-", "")}/filing.htm`,
@@ -436,16 +418,14 @@ function updateObservation(
 }
 
 function availableTiming(
-  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
-  timestamp: string | null = null,
+  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close",
 ): CorporateActionEffectiveTimingTransport {
   return {
     availability: "available",
     kind,
-    timestamp,
+    timestamp: null,
     source_ref: "sec_block_1",
-    evidence: kind === "exact_timestamp" && timestamp
-      ? `Exact source timestamp ${timestamp}.` : "effective August 25, 2026",
+    evidence: "effective August 25, 2026",
   };
 }
 
