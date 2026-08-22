@@ -76,7 +76,7 @@ is used.
 
 ## Downstream boundary
 
-The future issuer-total aggregator may consume only an `AVAILABLE` reader result
-and must resolve and share-basis-normalize every ID in
-`requiredCanonicalSecurityClassIds`. Partial sums are outside this foundation
-and remain forbidden.
+The [Issuer Total Common O/S Aggregator V1](issuer-total-common-os-aggregator-v1.md)
+consumes only an `AVAILABLE` reader result and resolves and
+share-basis-normalizes every ID in `requiredCanonicalSecurityClassIds`. Partial
+sums remain forbidden.

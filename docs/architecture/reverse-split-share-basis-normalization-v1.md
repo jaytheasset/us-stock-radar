@@ -52,6 +52,8 @@ historical number as current fallback.
 
 Coverage is always `reverse_split_only`. The read-only
 [Share Count Anchor Reconciliation V1](share-count-anchor-reconciliation-v1.md)
-may consume this projection, but the normalizer itself does not select anchors.
+and [Issuer Total Common O/S Aggregator V1](issuer-total-common-os-aggregator-v1.md)
+may consume this projection, but the normalizer itself does not select anchors
+or classes.
 V1 does not cover forward splits, stock dividends, recapitalizations, ADS ratio
 changes, issuer-wide class aggregation, market cap, or dilution.
