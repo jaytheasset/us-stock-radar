@@ -6,6 +6,9 @@ does not select a current or winning observation.
 
 Class-specific event-time selection is defined separately in
 `class-specific-os-resolver-v1.md`; the history reader itself remains winner-free.
+Retrospective periodic-anchor quality control is defined separately in
+`share-count-anchor-reconciliation-v1.md` and never writes reconciled values back
+to this history.
 
 This foundation stores append-only issuer/time share-count observations. It does
 not determine current O/S, select a winner, sum classes, apply corporate-action
