@@ -102,16 +102,29 @@ test("SEC ledger CIK and canonical class candidates are validated without ticker
   }), {
     issuerContext: { availability: "unavailable", reason: "non_sec_source" },
     securityClassCandidates: [],
+    actionCandidates: [],
   });
 });
 
-test("production context reader uses one exact event/raw RPC boundary", async () => {
+test("production context reader uses exact applicability and bounded action-candidate RPC boundaries", async () => {
   const calls: Array<{ name: string; payload: Record<string, unknown> }> = [];
   const eventId = "10000000-0000-4000-8000-000000000010";
   const rawItemId = "10000000-0000-4000-8000-000000000011";
   const result = await readCorporateActionApplicabilityContext({ eventId, rawItemId }, {
     rpc: async (name, payload) => {
       calls.push({ name, payload });
+      if (name === "read_reverse_split_action_link_candidates") {
+        return {
+          ok: true,
+          status: 200,
+          data: {
+            status: "available",
+            issuer_cik: cik,
+            before_accepted_at: "2026-08-01T16:30:00Z",
+            candidates: [],
+          },
+        };
+      }
       return {
         ok: true,
         status: 200,
@@ -130,10 +143,17 @@ test("production context reader uses one exact event/raw RPC boundary", async ()
     },
   });
   assert.equal(result.securityClassCandidates.length, 1);
-  assert.deepEqual(calls, [{
-    name: "read_corporate_action_applicability_context",
-    payload: { p_event_id: eventId, p_raw_item_id: rawItemId },
-  }]);
+  assert.equal(result.actionCandidates.length, 0);
+  assert.deepEqual(calls, [
+    {
+      name: "read_corporate_action_applicability_context",
+      payload: { p_event_id: eventId, p_raw_item_id: rawItemId },
+    },
+    {
+      name: "read_reverse_split_action_link_candidates",
+      payload: { p_issuer_cik: cik, p_before_accepted_at: "2026-08-01T16:30:00Z" },
+    },
+  ]);
 });
 
 test("single-common source maps only to the supplied issuer-scoped canonical class", () => {

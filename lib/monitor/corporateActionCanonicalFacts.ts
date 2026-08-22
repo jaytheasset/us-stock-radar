@@ -4,6 +4,7 @@ export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyze
 export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
 export const REVERSE_SPLIT_APPLICABILITY_VERSION = "reverse_split_applicability_v1";
+export const REVERSE_SPLIT_ACTION_IDENTITY_VERSION = "reverse_split_action_identity_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 520;
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
@@ -105,6 +106,47 @@ export type CorporateActionSecurityClassCandidate = {
   supporting_accessions: string[];
 };
 
+export const REVERSE_SPLIT_ACTION_LINK_DECISIONS = [
+  "NEW_ACTION",
+  "EXISTING_ACTION_ID",
+  "UNRESOLVED_ACTION_LINK",
+] as const;
+
+export const REVERSE_SPLIT_ACTION_LINK_UNRESOLVED_REASONS = [
+  "issuer_or_security_class_unavailable",
+  "no_safe_candidate",
+  "ambiguous_candidate_match",
+  "insufficient_source_evidence",
+] as const;
+
+export type ReverseSplitActionLinkDecision =
+  (typeof REVERSE_SPLIT_ACTION_LINK_DECISIONS)[number];
+
+export type ReverseSplitActionCandidateObservation = {
+  accession_number: string;
+  accepted_at: string;
+  action_stage: CorporateActionStage;
+  ratio: { availability: "unavailable" } | {
+    availability: "available";
+    old_shares: string;
+    new_shares: string;
+  };
+  effective_date: { availability: "unavailable" } | { availability: "available"; value: string };
+  evidence_summary: string | null;
+};
+
+export type ReverseSplitActionCandidate = {
+  action_id: string;
+  origin_event_id: string;
+  issuer_cik: string;
+  canonical_security_class_id: string;
+  projection_status: "ACTION_AVAILABLE" | "ACTION_UNRESOLVED";
+  current_stage: CorporateActionStage | null;
+  known_ratio: ReverseSplitActionCandidateObservation["ratio"];
+  known_effective_date: ReverseSplitActionCandidateObservation["effective_date"];
+  prior_observations: ReverseSplitActionCandidateObservation[];
+};
+
 export type CorporateActionAnalyzerInput = {
   version: typeof CORPORATE_ACTION_ANALYZER_INPUT_VERSION;
   source_family: CorporateActionSourceFamily;
@@ -115,6 +157,8 @@ export type CorporateActionAnalyzerInput = {
   source_documents: CorporateActionSourceDocument[];
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
+  origin_event_id?: string;
+  reverse_split_action_candidates?: ReverseSplitActionCandidate[];
 };
 
 type Unavailable = { availability: "unavailable" };
@@ -178,6 +222,14 @@ export type CorporateActionEffectiveTimingTransport =
       reason: (typeof CORPORATE_ACTION_EFFECTIVE_TIMING_UNAVAILABLE_REASONS)[number];
     };
 
+export type ReverseSplitActionLinkTransport = {
+  decision: ReverseSplitActionLinkDecision;
+  existing_action_id: string | null;
+  source_ref: string | null;
+  evidence: string | null;
+  unresolved_reason: (typeof REVERSE_SPLIT_ACTION_LINK_UNRESOLVED_REASONS)[number] | null;
+};
+
 export type CorporateActionAnalyzerTransportResult =
   | { applicable: false }
   | {
@@ -194,6 +246,7 @@ export type CorporateActionAnalyzerTransportResult =
           };
       affected_security?: CorporateActionAffectedSecurityTransport;
       effective_timing?: CorporateActionEffectiveTimingTransport;
+      action_link?: ReverseSplitActionLinkTransport;
       source_ref: string;
       evidence: string | null;
       confidence: CorporateActionConfidence;
@@ -255,6 +308,35 @@ export type CorporateActionCanonicalFacts = {
         availability: "unavailable";
         reason: (typeof CORPORATE_ACTION_EFFECTIVE_TIMING_UNAVAILABLE_REASONS)[number];
       };
+  action_identity?:
+    | {
+        version: typeof REVERSE_SPLIT_ACTION_IDENTITY_VERSION;
+        link_status: "linked";
+        link_decision: "NEW_ACTION" | "EXISTING_ACTION_ID";
+        reverse_split_action_id: string;
+        origin_event_id: string;
+        source_ref: string;
+        evidence: Extract<CorporateActionCanonicalFacts["evidence"], { availability: "available" }>;
+        unresolved_reason: null;
+        provenance: {
+          rule: "llm_new_action_exact_source_evidence" | "llm_existing_candidate_exact_source_evidence";
+          candidate_action_id: string | null;
+        };
+      }
+    | {
+        version: typeof REVERSE_SPLIT_ACTION_IDENTITY_VERSION;
+        link_status: "unresolved";
+        link_decision: "UNRESOLVED_ACTION_LINK";
+        reverse_split_action_id: null;
+        origin_event_id: null;
+        source_ref: string | null;
+        evidence: CorporateActionCanonicalFacts["evidence"];
+        unresolved_reason: (typeof REVERSE_SPLIT_ACTION_LINK_UNRESOLVED_REASONS)[number];
+        provenance: {
+          rule: "llm_unresolved_action_link";
+          candidate_action_id: null;
+        };
+      };
   source_ref: string;
   evidence:
     | { availability: "available"; value: string }
@@ -287,7 +369,12 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
     "published_at",
     "title",
     "source_documents",
-  ], ["issuer_context", "security_class_candidates"], "input", errors);
+  ], [
+    "issuer_context",
+    "security_class_candidates",
+    "origin_event_id",
+    "reverse_split_action_candidates",
+  ], "input", errors);
   if (root.version !== CORPORATE_ACTION_ANALYZER_INPUT_VERSION) errors.push("input.version is invalid");
   if (!oneOf(root.source_family, ["nasdaq", "news", "sec"])) errors.push("input.source_family is invalid");
   if (!boundedText(root.source_id, 240)) errors.push("input.source_id is required");
@@ -329,6 +416,17 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
       errors,
     );
   }
+  if (root.origin_event_id !== undefined && !validUuid(root.origin_event_id)) {
+    errors.push("input.origin_event_id is invalid");
+  }
+  if (root.reverse_split_action_candidates !== undefined) {
+    validateReverseSplitActionCandidates(
+      root.reverse_split_action_candidates,
+      root.issuer_context,
+      root.security_class_candidates,
+      errors,
+    );
+  }
   return errors;
 }
 
@@ -366,7 +464,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
     "evidence",
     "confidence",
     "as_of",
-  ], ["affected_security", "effective_timing"], "result", errors);
+  ], ["affected_security", "effective_timing", "action_link"], "result", errors);
   if (root.applicable !== true) errors.push("result.applicable must be boolean");
   if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be reverse_split");
   if (!oneOf(root.action_stage, CORPORATE_ACTION_STAGES)) errors.push("result.action_stage is invalid");
@@ -378,6 +476,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
   if (root.effective_timing !== undefined) {
     validateEffectiveTimingTransport(root.effective_timing, "result.effective_timing", errors);
   }
+  if (root.action_link !== undefined) validateReverseSplitActionLinkTransport(root.action_link, errors);
   if (!stableSourceRef(root.source_ref)) errors.push("result.source_ref is invalid");
   if (!(root.evidence === null || boundedText(root.evidence, 4_000))) errors.push("result.evidence is invalid");
   if (!oneOf(root.confidence, CORPORATE_ACTION_CONFIDENCES)) errors.push("result.confidence is invalid");
@@ -395,6 +494,9 @@ export function canonicalizeCorporateActionAnalyzerResult(
     return { result: null, errors: [...inputErrors, ...transportErrors] };
   }
   if (!transport.applicable) return { result: { applicable: false }, errors: [] };
+  if (input.origin_event_id && !transport.action_link) {
+    return { result: null, errors: ["result.action_link is required for production action identity input"] };
+  }
 
   const document = input.source_documents.find((item) => item.source_ref === transport.source_ref);
   if (!document) {
@@ -420,6 +522,15 @@ export function canonicalizeCorporateActionAnalyzerResult(
     input.source_documents,
   );
   if (effectiveTiming.errors.length) return { result: null, errors: effectiveTiming.errors };
+  const actionIdentity = canonicalReverseSplitActionIdentity(
+    transport.action_link,
+    issuer,
+    affectedSecurity.value!,
+    input.origin_event_id,
+    input.reverse_split_action_candidates ?? [],
+    input.source_documents,
+  );
+  if (actionIdentity.errors.length) return { result: null, errors: actionIdentity.errors };
 
   const evidence = canonicalEvidence(transport.evidence, document.text);
   return {
@@ -447,6 +558,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
           basis_change_capability: "reverse_split_only",
         },
         effective_timing: effectiveTiming.value!,
+        ...(actionIdentity.value ? { action_identity: actionIdentity.value } : {}),
         source_ref: transport.source_ref,
         evidence,
         confidence: transport.confidence,
@@ -485,7 +597,7 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     "confidence",
     "as_of",
     "source",
-  ], ["applicability", "effective_timing"], "canonical result.facts", errors);
+  ], ["applicability", "effective_timing", "action_identity"], "canonical result.facts", errors);
   if (facts.version !== CORPORATE_ACTION_FACTS_VERSION) errors.push("canonical facts.version is invalid");
   if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("canonical facts.event_kind must be reverse_split");
   if (!oneOf(facts.action_stage, CORPORATE_ACTION_STAGES)) errors.push("canonical facts.action_stage is invalid");
@@ -520,6 +632,9 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
   if (facts.applicability !== undefined) validateCanonicalApplicability(facts.applicability, errors);
   if (facts.effective_timing !== undefined) {
     validateCanonicalEffectiveTiming(facts.effective_timing, facts.effective_date, errors);
+  }
+  if (facts.action_identity !== undefined) {
+    validateCanonicalReverseSplitActionIdentity(facts.action_identity, facts.applicability, errors);
   }
   if (!stableSourceRef(facts.source_ref)) errors.push("canonical facts.source_ref is invalid");
   validateCanonicalEvidence(facts.evidence, errors);
@@ -687,6 +802,350 @@ function canonicalEffectiveTiming(
     },
     errors: [],
   };
+}
+
+function canonicalReverseSplitActionIdentity(
+  transport: ReverseSplitActionLinkTransport | undefined,
+  issuer: CorporateActionIssuerContext,
+  affectedSecurity: NonNullable<CorporateActionCanonicalFacts["applicability"]>["affected_security"],
+  originEventId: string | undefined,
+  candidates: readonly ReverseSplitActionCandidate[],
+  documents: readonly CorporateActionSourceDocument[],
+): {
+  value: CorporateActionCanonicalFacts["action_identity"] | null;
+  errors: string[];
+} {
+  // Old rows and deterministic fixtures remain readable. The production
+  // provider schema requires action_link for every new applicable result.
+  if (!transport) return { value: null, errors: [] };
+  if (transport.decision === "UNRESOLVED_ACTION_LINK") {
+    const evidenceResult = canonicalActionLinkEvidence(transport.source_ref, transport.evidence, documents);
+    if (evidenceResult.errors.length) return { value: null, errors: evidenceResult.errors };
+    return {
+      value: {
+        version: REVERSE_SPLIT_ACTION_IDENTITY_VERSION,
+        link_status: "unresolved",
+        link_decision: "UNRESOLVED_ACTION_LINK",
+        reverse_split_action_id: null,
+        origin_event_id: null,
+        source_ref: transport.source_ref,
+        evidence: evidenceResult.evidence,
+        unresolved_reason: transport.unresolved_reason!,
+        provenance: {
+          rule: "llm_unresolved_action_link",
+          candidate_action_id: null,
+        },
+      },
+      errors: [],
+    };
+  }
+  if (issuer.availability !== "available" || affectedSecurity.availability !== "available") {
+    return { value: null, errors: ["linked reverse-split action requires mapped issuer and affected security"] };
+  }
+  const evidenceResult = canonicalActionLinkEvidence(transport.source_ref, transport.evidence, documents);
+  if (evidenceResult.errors.length || evidenceResult.evidence.availability !== "available" || !transport.source_ref) {
+    return {
+      value: null,
+      errors: evidenceResult.errors.length
+        ? evidenceResult.errors
+        : ["linked reverse-split action requires compact exact source evidence"],
+    };
+  }
+  if (transport.decision === "NEW_ACTION") {
+    if (!validUuid(originEventId)) {
+      return { value: null, errors: ["NEW_ACTION requires a valid origin event identity"] };
+    }
+    return {
+      value: {
+        version: REVERSE_SPLIT_ACTION_IDENTITY_VERSION,
+        link_status: "linked",
+        link_decision: "NEW_ACTION",
+        reverse_split_action_id: buildReverseSplitActionId(issuer.issuer_cik, originEventId!),
+        origin_event_id: originEventId!.toLowerCase(),
+        source_ref: transport.source_ref,
+        evidence: evidenceResult.evidence,
+        unresolved_reason: null,
+        provenance: {
+          rule: "llm_new_action_exact_source_evidence",
+          candidate_action_id: null,
+        },
+      },
+      errors: [],
+    };
+  }
+  const candidate = candidates.find((item) => item.action_id === transport.existing_action_id);
+  if (!candidate) {
+    return { value: null, errors: ["EXISTING_ACTION_ID must select one supplied action candidate"] };
+  }
+  if (candidate.issuer_cik !== issuer.issuer_cik
+    || candidate.canonical_security_class_id !== affectedSecurity.canonical_security_class_id) {
+    return { value: null, errors: ["EXISTING_ACTION_ID candidate issuer or security class does not match"] };
+  }
+  return {
+    value: {
+      version: REVERSE_SPLIT_ACTION_IDENTITY_VERSION,
+      link_status: "linked",
+      link_decision: "EXISTING_ACTION_ID",
+      reverse_split_action_id: candidate.action_id,
+      origin_event_id: candidate.origin_event_id,
+      source_ref: transport.source_ref,
+      evidence: evidenceResult.evidence,
+      unresolved_reason: null,
+      provenance: {
+        rule: "llm_existing_candidate_exact_source_evidence",
+        candidate_action_id: candidate.action_id,
+      },
+    },
+    errors: [],
+  };
+}
+
+function canonicalActionLinkEvidence(
+  sourceRef: string | null,
+  evidence: string | null,
+  documents: readonly CorporateActionSourceDocument[],
+) {
+  if (sourceRef === null) {
+    return evidence === null
+      ? { evidence: { availability: "unavailable" as const, reason: "not_provided" as const }, errors: [] }
+      : { evidence: { availability: "unavailable" as const, reason: "not_provided" as const }, errors: [
+          "result.action_link.evidence requires source_ref",
+        ] };
+  }
+  const document = documents.find((item) => item.source_ref === sourceRef);
+  if (!document) {
+    return { evidence: { availability: "unavailable" as const, reason: "not_provided" as const }, errors: [
+      "result.action_link.source_ref must identify a supplied source document",
+    ] };
+  }
+  return { evidence: canonicalEvidence(evidence, document.text), errors: [] };
+}
+
+function validateReverseSplitActionLinkTransport(value: unknown, errors: string[]) {
+  const link = record(value);
+  if (!link) {
+    errors.push("result.action_link must be an object");
+    return;
+  }
+  exactKeys(link, [
+    "decision",
+    "existing_action_id",
+    "source_ref",
+    "evidence",
+    "unresolved_reason",
+  ], "result.action_link", errors);
+  if (!oneOf(link.decision, REVERSE_SPLIT_ACTION_LINK_DECISIONS)) {
+    errors.push("result.action_link.decision is invalid");
+    return;
+  }
+  if (link.decision === "NEW_ACTION") {
+    if (link.existing_action_id !== null || link.unresolved_reason !== null
+      || !stableSourceRef(link.source_ref) || !boundedText(link.evidence, 4_000)) {
+      errors.push("result.action_link NEW_ACTION shape is invalid");
+    }
+    return;
+  }
+  if (link.decision === "EXISTING_ACTION_ID") {
+    if (!reverseSplitActionId(link.existing_action_id) || link.unresolved_reason !== null
+      || !stableSourceRef(link.source_ref) || !boundedText(link.evidence, 4_000)) {
+      errors.push("result.action_link EXISTING_ACTION_ID shape is invalid");
+    }
+    return;
+  }
+  if (link.existing_action_id !== null
+    || !(link.source_ref === null || stableSourceRef(link.source_ref))
+    || !(link.evidence === null || boundedText(link.evidence, 4_000))
+    || !oneOf(link.unresolved_reason, REVERSE_SPLIT_ACTION_LINK_UNRESOLVED_REASONS)) {
+    errors.push("result.action_link UNRESOLVED_ACTION_LINK shape is invalid");
+  }
+}
+
+function validateReverseSplitActionCandidates(
+  value: unknown,
+  issuerValue: unknown,
+  securityCandidatesValue: unknown,
+  errors: string[],
+) {
+  if (!Array.isArray(value) || value.length > 12) {
+    errors.push("input.reverse_split_action_candidates must contain at most 12 candidates");
+    return;
+  }
+  const issuer = record(issuerValue);
+  const issuerCik = issuer?.availability === "available" && typeof issuer.issuer_cik === "string"
+    ? issuer.issuer_cik : "";
+  const allowedClasses = new Set(Array.isArray(securityCandidatesValue)
+    ? securityCandidatesValue.map((item) => stringValue(record(item)?.canonical_security_class_id)).filter(Boolean)
+    : []);
+  const ids = new Set<string>();
+  value.forEach((candidateValue, index) => {
+    const path = `input.reverse_split_action_candidates[${index}]`;
+    const candidate = record(candidateValue);
+    if (!candidate) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    exactKeys(candidate, [
+      "action_id",
+      "origin_event_id",
+      "issuer_cik",
+      "canonical_security_class_id",
+      "projection_status",
+      "current_stage",
+      "known_ratio",
+      "known_effective_date",
+      "prior_observations",
+    ], path, errors);
+    const actionId = stringValue(candidate.action_id);
+    const originEventId = stringValue(candidate.origin_event_id);
+    const classId = stringValue(candidate.canonical_security_class_id);
+    if (!issuerCik || candidate.issuer_cik !== issuerCik
+      || !reverseSplitActionId(actionId, issuerCik, originEventId)
+      || ids.has(actionId)
+      || !allowedClasses.has(classId)) {
+      errors.push(`${path} identity is invalid`);
+    }
+    if (!oneOf(candidate.projection_status, ["ACTION_AVAILABLE", "ACTION_UNRESOLVED"])) {
+      errors.push(`${path}.projection_status is invalid`);
+    }
+    if (!(candidate.current_stage === null || oneOf(candidate.current_stage, CORPORATE_ACTION_STAGES))) {
+      errors.push(`${path}.current_stage is invalid`);
+    }
+    validateActionCandidateRatio(candidate.known_ratio, `${path}.known_ratio`, errors);
+    validateDateEnvelope(candidate.known_effective_date, `${path}.known_effective_date`, errors);
+    if (!Array.isArray(candidate.prior_observations)
+      || candidate.prior_observations.length < 1 || candidate.prior_observations.length > 4) {
+      errors.push(`${path}.prior_observations must contain 1 to 4 observations`);
+    } else {
+      candidate.prior_observations.forEach((observationValue, observationIndex) => {
+        const observationPath = `${path}.prior_observations[${observationIndex}]`;
+        const observation = record(observationValue);
+        if (!observation) {
+          errors.push(`${observationPath} must be an object`);
+          return;
+        }
+        exactKeys(observation, [
+          "accession_number",
+          "accepted_at",
+          "action_stage",
+          "ratio",
+          "effective_date",
+          "evidence_summary",
+        ], observationPath, errors);
+        if (!validAccession(observation.accession_number) || !validTimestamp(observation.accepted_at)
+          || !oneOf(observation.action_stage, CORPORATE_ACTION_STAGES)
+          || !(observation.evidence_summary === null || boundedText(observation.evidence_summary, 240))) {
+          errors.push(`${observationPath} provenance is invalid`);
+        }
+        validateActionCandidateRatio(observation.ratio, `${observationPath}.ratio`, errors);
+        validateDateEnvelope(observation.effective_date, `${observationPath}.effective_date`, errors);
+      });
+    }
+    ids.add(actionId);
+  });
+}
+
+function validateActionCandidateRatio(value: unknown, path: string, errors: string[]) {
+  const ratio = record(value);
+  if (!ratio) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  if (ratio.availability === "unavailable") {
+    exactKeys(ratio, ["availability"], path, errors);
+    return;
+  }
+  exactKeys(ratio, ["availability", "old_shares", "new_shares"], path, errors);
+  if (ratio.availability !== "available"
+    || strictPositiveNumber(ratio.old_shares) === null
+    || strictPositiveNumber(ratio.new_shares) === null) {
+    errors.push(`${path} available ratio is invalid`);
+  }
+}
+
+function validateCanonicalReverseSplitActionIdentity(
+  value: unknown,
+  applicabilityValue: unknown,
+  errors: string[],
+) {
+  const identity = record(value);
+  if (!identity) {
+    errors.push("canonical action identity must be an object");
+    return;
+  }
+  exactKeys(identity, [
+    "version",
+    "link_status",
+    "link_decision",
+    "reverse_split_action_id",
+    "origin_event_id",
+    "source_ref",
+    "evidence",
+    "unresolved_reason",
+    "provenance",
+  ], "canonical action identity", errors);
+  if (identity.version !== REVERSE_SPLIT_ACTION_IDENTITY_VERSION) {
+    errors.push("canonical action identity version is invalid");
+  }
+  const provenance = record(identity.provenance);
+  if (!provenance) {
+    errors.push("canonical action identity provenance must be an object");
+    return;
+  }
+  exactKeys(provenance, ["rule", "candidate_action_id"], "canonical action identity provenance", errors);
+  if (identity.link_status === "unresolved") {
+    if (identity.link_decision !== "UNRESOLVED_ACTION_LINK"
+      || identity.reverse_split_action_id !== null || identity.origin_event_id !== null
+      || !(identity.source_ref === null || stableSourceRef(identity.source_ref))
+      || !oneOf(identity.unresolved_reason, REVERSE_SPLIT_ACTION_LINK_UNRESOLVED_REASONS)
+      || provenance.rule !== "llm_unresolved_action_link" || provenance.candidate_action_id !== null) {
+      errors.push("canonical unresolved action identity is invalid");
+    }
+    validateCanonicalEvidence(identity.evidence, errors);
+    return;
+  }
+  const applicability = record(applicabilityValue);
+  const issuer = record(applicability?.issuer);
+  const affected = record(applicability?.affected_security);
+  const issuerCik = issuer?.availability === "available" ? stringValue(issuer.issuer_cik) : "";
+  if (identity.link_status !== "linked"
+    || !oneOf(identity.link_decision, ["NEW_ACTION", "EXISTING_ACTION_ID"])
+    || !reverseSplitActionId(identity.reverse_split_action_id, issuerCik, identity.origin_event_id)
+    || affected?.availability !== "available"
+    || !stableSourceRef(identity.source_ref)
+    || identity.unresolved_reason !== null) {
+    errors.push("canonical linked action identity is invalid");
+  }
+  validateCanonicalEvidence(identity.evidence, errors);
+  if (record(identity.evidence)?.availability !== "available") {
+    errors.push("canonical linked action identity requires available evidence");
+  }
+  if (identity.link_decision === "NEW_ACTION") {
+    if (provenance.rule !== "llm_new_action_exact_source_evidence" || provenance.candidate_action_id !== null) {
+      errors.push("canonical NEW_ACTION provenance is invalid");
+    }
+  } else if (provenance.rule !== "llm_existing_candidate_exact_source_evidence"
+    || provenance.candidate_action_id !== identity.reverse_split_action_id) {
+    errors.push("canonical EXISTING_ACTION_ID provenance is invalid");
+  }
+}
+
+export function buildReverseSplitActionId(issuerCik: string, originEventId: string) {
+  if (!/^\d{10}$/.test(issuerCik) || !validUuid(originEventId)) {
+    throw new Error("Reverse split action origin identity is invalid");
+  }
+  return `rsa:v1:${issuerCik}:${originEventId.toLowerCase()}`;
+}
+
+export function reverseSplitActionId(
+  value: unknown,
+  issuerCik?: string,
+  originEventId?: unknown,
+) {
+  if (typeof value !== "string") return false;
+  const match = /^rsa:v1:(\d{10}):([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(value);
+  return Boolean(match
+    && (!issuerCik || match[1] === issuerCik)
+    && (originEventId === undefined || (validUuid(originEventId) && match[2].toLowerCase() === String(originEventId).toLowerCase())));
 }
 
 function mechanicalOldSharesPerNewShare(oldShares: string, newShares: string) {
@@ -1095,6 +1554,11 @@ function validTimestamp(value: unknown) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
+function validUuid(value: unknown) {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function validCik(value: unknown) {
   return typeof value === "string" && /^\d{10}$/.test(value);
 }
@@ -1128,6 +1592,10 @@ function nullableHttpUrl(value: unknown) {
 
 function oneOf(value: unknown, allowed: readonly string[]) {
   return typeof value === "string" && allowed.includes(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function record(value: unknown): Record<string, unknown> | null {

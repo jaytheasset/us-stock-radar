@@ -32,4 +32,9 @@ A date-only fact does not establish same-day ordering. The future normalizer mus
 
 `readReverseSplitHistory({ cik, canonicalSecurityClassId?, from, to })` first reads mapped candidates, then calls the existing current-event Corporate Action reader for every candidate. A stale parent, superseded child, not-applicable result, or mismatched execution is excluded. Results retain event, execution, accession/source, ratio, applicability, timing, and evidence provenance. Multiple dated splits are returned in effective-date chronology. A deterministic tie order does not convert date-only items into semantic same-day ordering.
 
+For basis-normalization consumers, this raw observation reader is superseded by
+`readReverseSplitActionHistory()`. The successor groups current observations by
+the canonical lifecycle ID so multiple filings for one real split cannot be
+applied as separate actions. See `reverse-split-canonical-action-identity-v1.md`.
+
 The reader reports `basisChangeCoverage = reverse_split_only`. Forward splits, stock dividends, recapitalizations, ADS-ratio changes, and other basis changes are not detected by this V1 contract; downstream code must never infer their absence from an empty reverse-split history.

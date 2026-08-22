@@ -175,10 +175,10 @@ test("all stored-source adapters preserve exact source identity and never load p
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 7_451);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 8_536);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "7182ff4798c02f5a0eb18b97f5197a5c663323f750d788111bce1ace8e77c3d2",
+    "f83580e9b86709cec669c66ef1306a0e94882fd4e629bd0f53ef542822e23cc2",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -191,4 +191,5 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not map generic common stock across multiple class candidates/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer market session ordering from a date alone/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never link by ratio, date proximity, ticker, title, or class alone/i);
 });

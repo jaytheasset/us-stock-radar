@@ -110,6 +110,74 @@ test("SEC Corporate Action uses the same one provider call and returns O/S witho
   assert.equal(result.stage === "complete" ? result.shareCountObservation?.sharesOutstanding : null, "27500000");
 });
 
+test("SEC action identity decision remains inside the same single provider call", async () => {
+  const eventId = "10000000-0000-4000-8000-000000000001";
+  const cik = "0001234567";
+  const source = "The company will effect a 1-for-10 reverse stock split of its common stock on August 25, 2026.";
+  const secInput = adaptSec8k6kCorporateActionSource({
+    accession_number: "0001234567-26-000010",
+    source_url: "https://www.sec.gov/Archives/edgar/data/1234567/fixture.htm",
+    filed_at: "2026-08-18T12:00:00Z",
+    title: "Current report",
+    cleaned_source_blocks: [{ block_id: "sec-cover", source_ref: "fixture.htm", text: source }],
+    issuer_context: {
+      availability: "available",
+      issuer_cik: cik,
+      accession_number: "0001234567-26-000010",
+      accepted_at: "2026-08-18T12:00:00Z",
+      provenance: "sec_filing_ledger",
+    },
+    security_class_candidates: [{
+      canonical_security_class_id: `sc:v1:${cik}:common_stock:single`,
+      security_type: "common_stock",
+      security_class_basis: "SINGLE_COMMON_STOCK_CLASS",
+      source_member_local_name: null,
+      supporting_accessions: ["0001234567-26-000009"],
+    }],
+    origin_event_id: eventId,
+    reverse_split_action_candidates: [],
+  });
+  let calls = 0;
+  const result = await runCorporateActionCanonicalAnalyzerPreview(secInput, {
+    apiKey: "test-key",
+    runPrompt: async () => {
+      calls += 1;
+      return run({
+        applicable: true,
+        event_kind: "reverse_split",
+        action_stage: "scheduled",
+        effective_date: { availability: "available", value: "2026-08-25" },
+        ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+        affected_security: {
+          availability: "available",
+          canonical_security_class_id: `sc:v1:${cik}:common_stock:single`,
+          security_type: "common_stock",
+          source_security_title: "common stock",
+          source_ref: "sec-cover",
+          evidence: "reverse stock split of its common stock",
+        },
+        effective_timing: { availability: "unavailable", reason: "date_only" },
+        action_link: {
+          decision: "NEW_ACTION",
+          existing_action_id: null,
+          source_ref: "sec-cover",
+          evidence: source,
+          unresolved_reason: null,
+        },
+        source_ref: "sec-cover",
+        evidence: source,
+        confidence: "high",
+        as_of: { availability: "available", value: "2026-08-25" },
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.stage, "complete");
+  assert.equal(result.stage === "complete" && result.result.applicable
+    ? result.result.facts.action_identity?.reverse_split_action_id : null,
+  `rsa:v1:${cik}:${eventId}`);
+});
+
 function run(parsed: Record<string, unknown> | null, overrides: Partial<GeminiStructuredJsonRun> = {}): GeminiStructuredJsonRun {
   return {
     ok: true,
