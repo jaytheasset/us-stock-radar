@@ -88,7 +88,8 @@ V1 is a day-basis product contract and has no exchange calendar or synthetic
 
 - target date before effective date: not applied
 - target date after effective date: applied
-- same date with date-only, market-open, or start-of-trading timing: applied
+- same date with date-only, business-day-open, market-open, or
+  start-of-trading timing: applied
 - same date with after-market-close timing: not applied for that day's ordinary
   basis; a later date is applied
 - same date with exact timestamp: compare only when the consumer supplies an

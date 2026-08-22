@@ -174,6 +174,8 @@ export type CorporateActionAffectedSecurityUnavailableReason =
   (typeof CORPORATE_ACTION_AFFECTED_SECURITY_UNAVAILABLE_REASONS)[number];
 
 export const CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS = [
+  "date_only",
+  "business_day_open",
   "market_open",
   "start_of_trading",
   "after_market_close",
@@ -182,6 +184,23 @@ export const CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS = [
 
 export type CorporateActionEffectiveTimingKind =
   (typeof CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)[number];
+
+export const CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON =
+  "non_exact_timestamp_normalized_to_null" as const;
+
+export type CorporateActionEffectiveTimingTimestampDiagnostic = {
+  reason: typeof CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON;
+  raw_timestamp: string;
+  raw_timestamp_truncated: boolean;
+};
+
+export type CorporateActionEffectiveTimingTransportDiagnostic = {
+  timing_kind: string | null;
+  raw_timestamp: string | null;
+  raw_timestamp_truncated: boolean;
+  effective_date: string | null;
+  validation_reason: string;
+};
 
 export const CORPORATE_ACTION_EFFECTIVE_TIMING_UNAVAILABLE_REASONS = [
   "not_provided",
@@ -297,6 +316,7 @@ export type CorporateActionCanonicalFacts = {
         availability: "available";
         kind: CorporateActionEffectiveTimingKind;
         timestamp: string | null;
+        timestamp_diagnostic?: CorporateActionEffectiveTimingTimestampDiagnostic;
         source_ref: string;
         evidence: CorporateActionCanonicalFacts["evidence"];
       }
@@ -413,17 +433,100 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
 export function parseCorporateActionAnalyzerTransportJson(value: string): {
   transport: CorporateActionAnalyzerTransportResult | null;
   errors: string[];
+  effectiveTimingDiagnostic: CorporateActionEffectiveTimingTransportDiagnostic | null;
 } {
   let parsed: unknown;
   try {
     parsed = parseJsonWithoutDuplicateKeys(value);
   } catch (error) {
-    return { transport: null, errors: [error instanceof Error ? error.message : "invalid JSON"] };
+    return {
+      transport: null,
+      errors: [error instanceof Error ? error.message : "invalid JSON"],
+      effectiveTimingDiagnostic: null,
+    };
   }
-  const errors = validateCorporateActionAnalyzerTransportResult(parsed);
+  const normalized = normalizeNonExactEffectiveTimingTimestamp(parsed);
+  const errors = validateCorporateActionAnalyzerTransportResult(normalized.value);
+  const effectiveTimingDiagnostic = buildEffectiveTimingTransportDiagnostic(
+    parsed,
+    normalized.timestampDiagnostic,
+    errors,
+  );
   return errors.length
-    ? { transport: null, errors }
-    : { transport: parsed as CorporateActionAnalyzerTransportResult, errors: [] };
+    ? { transport: null, errors, effectiveTimingDiagnostic }
+    : {
+        transport: normalized.value as CorporateActionAnalyzerTransportResult,
+        errors: [],
+        effectiveTimingDiagnostic,
+      };
+}
+
+function normalizeNonExactEffectiveTimingTimestamp(value: unknown): {
+  value: unknown;
+  timestampDiagnostic: CorporateActionEffectiveTimingTimestampDiagnostic | null;
+} {
+  const root = record(value);
+  const timing = record(root?.effective_timing);
+  if (!root || !timing || timing.availability !== "available"
+    || !oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)
+    || timing.kind === "exact_timestamp" || timing.timestamp === null) {
+    return { value, timestampDiagnostic: null };
+  }
+  const raw = boundedDiagnosticScalar(timing.timestamp, 160);
+  const timestampDiagnostic = {
+    reason: CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON,
+    raw_timestamp: raw.value,
+    raw_timestamp_truncated: raw.truncated,
+  };
+  return {
+    value: {
+      ...root,
+      effective_timing: {
+        ...timing,
+        timestamp: null,
+      },
+    },
+    timestampDiagnostic,
+  };
+}
+
+function buildEffectiveTimingTransportDiagnostic(
+  rawValue: unknown,
+  timestampDiagnostic: CorporateActionEffectiveTimingTimestampDiagnostic | null,
+  errors: readonly string[],
+): CorporateActionEffectiveTimingTransportDiagnostic | null {
+  const root = record(rawValue);
+  const timing = record(root?.effective_timing);
+  const timingError = errors.find((error) => error.includes("effective_timing"));
+  if (!timestampDiagnostic && !timingError) return null;
+  const rawTimestamp = timestampDiagnostic
+    ? {
+        value: timestampDiagnostic.raw_timestamp,
+        truncated: timestampDiagnostic.raw_timestamp_truncated,
+      }
+    : boundedNullableDiagnosticScalar(timing?.timestamp, 160);
+  const effectiveDate = record(root?.effective_date);
+  return {
+    timing_kind: typeof timing?.kind === "string" ? timing.kind.slice(0, 80) : null,
+    raw_timestamp: rawTimestamp.value,
+    raw_timestamp_truncated: rawTimestamp.truncated,
+    effective_date: typeof effectiveDate?.value === "string"
+      ? effectiveDate.value.slice(0, 32) : null,
+    validation_reason: timestampDiagnostic?.reason || timingError!.slice(0, 500),
+  };
+}
+
+function boundedNullableDiagnosticScalar(value: unknown, max: number) {
+  if (value === null || value === undefined) return { value: null, truncated: false };
+  return boundedDiagnosticScalar(value, max);
+}
+
+function boundedDiagnosticScalar(value: unknown, max: number) {
+  let raw: string;
+  if (typeof value === "string") raw = value;
+  else if (typeof value === "number" || typeof value === "boolean") raw = String(value);
+  else raw = `[${Array.isArray(value) ? "array" : typeof value}]`;
+  return { value: raw.slice(0, max), truncated: raw.length > max };
 }
 
 export function validateCorporateActionAnalyzerTransportResult(value: unknown): string[] {
@@ -468,6 +571,9 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
 export function canonicalizeCorporateActionAnalyzerResult(
   transport: CorporateActionAnalyzerTransportResult,
   input: CorporateActionAnalyzerInput,
+  transportDiagnostics: {
+    effectiveTimingDiagnostic?: CorporateActionEffectiveTimingTransportDiagnostic | null;
+  } = {},
 ): { result: CorporateActionAnalyzerResult | null; errors: string[] } {
   const inputErrors = validateCorporateActionAnalyzerInput(input);
   const transportErrors = validateCorporateActionAnalyzerTransportResult(transport);
@@ -502,6 +608,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
     transport.effective_timing,
     transport.effective_date,
     input.source_documents,
+    transportDiagnostics.effectiveTimingDiagnostic,
   );
   if (effectiveTiming.errors.length) return { result: null, errors: effectiveTiming.errors };
   const executionUpdate = canonicalExecutionUpdate(
@@ -983,6 +1090,7 @@ function canonicalEffectiveTiming(
   transport: CorporateActionEffectiveTimingTransport | undefined,
   effectiveDate: Unavailable | AvailableDate,
   documents: readonly CorporateActionSourceDocument[],
+  transportDiagnostic?: CorporateActionEffectiveTimingTransportDiagnostic | null,
 ): {
   value: NonNullable<CorporateActionCanonicalFacts["effective_timing"]> | null;
   errors: string[];
@@ -1009,18 +1117,34 @@ function canonicalEffectiveTiming(
     return { value: null, errors: ["result.effective_timing requires compact exact source evidence"] };
   }
   if (transport.kind === "exact_timestamp") {
-    if (!validTimestamp(transport.timestamp)
+    if (!validExactTimestamp(transport.timestamp)
+      || !transport.evidence.includes(transport.timestamp!)
       || transport.timestamp!.slice(0, 10) !== effectiveDate.value) {
-      return { value: null, errors: ["result.effective_timing exact timestamp must match effective_date"] };
+      return {
+        value: null,
+        errors: [
+          "result.effective_timing exact_timestamp requires a source-verbatim RFC3339 timestamp with timezone/offset matching effective_date",
+        ],
+      };
     }
   } else if (transport.timestamp !== null) {
     return { value: null, errors: ["result.effective_timing timestamp is only allowed for exact_timestamp"] };
   }
+  const timestampDiagnostic = transport.kind !== "exact_timestamp"
+    && transportDiagnostic?.validation_reason === CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON
+    && transportDiagnostic.raw_timestamp !== null
+    ? {
+        reason: CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON,
+        raw_timestamp: transportDiagnostic.raw_timestamp,
+        raw_timestamp_truncated: transportDiagnostic.raw_timestamp_truncated,
+      }
+    : undefined;
   return {
     value: {
       availability: "available",
       kind: transport.kind,
       timestamp: transport.timestamp,
+      ...(timestampDiagnostic ? { timestamp_diagnostic: timestampDiagnostic } : {}),
       source_ref: transport.source_ref,
       evidence,
     },
@@ -1226,7 +1350,13 @@ function validateEffectiveTimingTransport(value: unknown, path: string, errors: 
   exactKeys(timing, ["availability", "kind", "timestamp", "source_ref", "evidence"], path, errors);
   if (timing.availability !== "available") errors.push(`${path}.availability is invalid`);
   if (!oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)) errors.push(`${path}.kind is invalid`);
-  if (!(timing.timestamp === null || validTimestamp(timing.timestamp))) errors.push(`${path}.timestamp is invalid`);
+  if (timing.kind === "exact_timestamp") {
+    if (!validExactTimestamp(timing.timestamp)) {
+      errors.push(`${path}.exact_timestamp requires a valid RFC3339 timestamp with timezone/offset`);
+    }
+  } else if (timing.timestamp !== null) {
+    errors.push(`${path}.timestamp is only allowed for exact_timestamp`);
+  }
   if (!stableSourceRef(timing.source_ref)) errors.push(`${path}.source_ref is invalid`);
   if (!boundedText(timing.evidence, 4_000)) errors.push(`${path}.evidence is invalid`);
 }
@@ -1351,11 +1481,17 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
     }
     return;
   }
-  exactKeys(timing, ["availability", "kind", "timestamp", "source_ref", "evidence"], "canonical effective timing", errors);
+  exactKeysAllowingOptional(
+    timing,
+    ["availability", "kind", "timestamp", "source_ref", "evidence"],
+    ["timestamp_diagnostic"],
+    "canonical effective timing",
+    errors,
+  );
   if (timing.availability !== "available") errors.push("canonical effective timing availability is invalid");
   if (!oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)) errors.push("canonical effective timing kind is invalid");
-  if (!(timing.timestamp === null || validTimestamp(timing.timestamp))) errors.push("canonical effective timing timestamp is invalid");
-  if (timing.kind === "exact_timestamp" && !validTimestamp(timing.timestamp)) {
+  if (!(timing.timestamp === null || validExactTimestamp(timing.timestamp))) errors.push("canonical effective timing timestamp is invalid");
+  if (timing.kind === "exact_timestamp" && !validExactTimestamp(timing.timestamp)) {
     errors.push("canonical exact effective timing requires timestamp");
   }
   if (timing.kind !== "exact_timestamp" && timing.timestamp !== null) {
@@ -1363,7 +1499,7 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
   }
   const effectiveDate = record(effectiveDateValue);
   if (effectiveDate?.availability !== "available") errors.push("canonical effective timing requires effective date");
-  if (validTimestamp(timing.timestamp)
+  if (validExactTimestamp(timing.timestamp)
     && (timing.timestamp as string).slice(0, 10) !== effectiveDate?.value) {
     errors.push("canonical effective timing timestamp must match effective date");
   }
@@ -1371,6 +1507,38 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
   validateCanonicalEvidence(timing.evidence, errors);
   if (record(timing.evidence)?.availability !== "available") {
     errors.push("canonical available effective timing requires available evidence");
+  }
+  validateEffectiveTimingTimestampDiagnostic(timing.timestamp_diagnostic, timing.kind, errors);
+}
+
+function validateEffectiveTimingTimestampDiagnostic(
+  value: unknown,
+  timingKind: unknown,
+  errors: string[],
+) {
+  if (value === undefined) return;
+  const diagnostic = record(value);
+  if (!diagnostic) {
+    errors.push("canonical effective timing timestamp diagnostic must be an object");
+    return;
+  }
+  exactKeys(
+    diagnostic,
+    ["reason", "raw_timestamp", "raw_timestamp_truncated"],
+    "canonical effective timing timestamp diagnostic",
+    errors,
+  );
+  if (timingKind === "exact_timestamp") {
+    errors.push("canonical exact effective timing cannot have a timestamp diagnostic");
+  }
+  if (diagnostic.reason !== CORPORATE_ACTION_EFFECTIVE_TIMING_TIMESTAMP_DIAGNOSTIC_REASON) {
+    errors.push("canonical effective timing timestamp diagnostic reason is invalid");
+  }
+  if (!boundedText(diagnostic.raw_timestamp, 160)) {
+    errors.push("canonical effective timing timestamp diagnostic raw value is invalid");
+  }
+  if (typeof diagnostic.raw_timestamp_truncated !== "boolean") {
+    errors.push("canonical effective timing timestamp diagnostic truncation flag is invalid");
   }
 }
 
@@ -1446,6 +1614,12 @@ function boundedText(value: unknown, max: number): value is string {
 
 function textValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function validExactTimestamp(value: unknown) {
+  return typeof value === "string"
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value));
 }
 
 function validTimestamp(value: unknown) {

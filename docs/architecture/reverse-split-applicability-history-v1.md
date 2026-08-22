@@ -27,7 +27,16 @@ Existing `corporate_action_reverse_split_facts_v1` fields remain valid. New resu
 - affected security mapping or an unavailable reason, exact source evidence, and candidate provenance
 - `basis_change_capability = reverse_split_only`
 - exact ratio source components (`old_share_units`, `new_share_units`) in addition to the backward-compatible derived `old_shares_per_new_share`
-- effective timing that is either source-backed `market_open`, `start_of_trading`, `after_market_close`, or `exact_timestamp`, or explicitly unavailable (`not_provided`, `date_only`, `ambiguous`)
+- effective timing that is either source-backed `date_only`, `business_day_open`,
+  `market_open`, `start_of_trading`, `after_market_close`, or `exact_timestamp`,
+  or explicitly unavailable (`not_provided`, legacy `date_only`, `ambiguous`)
+
+`exact_timestamp` requires a source-verbatim RFC3339 instant with `Z` or an
+explicit numeric offset. A non-exact kind always carries `timestamp: null`.
+If the provider includes an optional timestamp on a non-exact kind, transport
+normalization discards only that timestamp and retains a bounded diagnostic;
+the ratio, class, effective date, and exact evidence continue through normal
+fail-closed validation.
 
 A date-only fact does not establish an intraday instant. The later execution
 contract deliberately defines ordinary day-basis application from the effective

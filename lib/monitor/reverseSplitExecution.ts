@@ -466,7 +466,8 @@ function stockSplitExecutionActivationDecisionInternal(
       ? { status: "APPLIED", reason: "effective_date_day_basis" }
       : { status: "INDETERMINATE", reason: "effective_timing_unresolved" };
   }
-  if (timing.kind === "market_open" || timing.kind === "start_of_trading") {
+  if (timing.kind === "date_only" || timing.kind === "business_day_open"
+    || timing.kind === "market_open" || timing.kind === "start_of_trading") {
     return { status: "APPLIED", reason: "effective_date_day_basis" };
   }
   if (timing.kind === "after_market_close") {
