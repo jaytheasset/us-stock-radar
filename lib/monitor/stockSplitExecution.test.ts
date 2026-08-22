@@ -148,6 +148,26 @@ test("F. explicit cancellation leaves zero active executions", async () => {
   assert.equal(result.inactiveExecutions[0]?.executionStatus, "cancelled");
 });
 
+test("source-backed split history that cannot materialize fails closed", async () => {
+  const malformed = historyItem(33, factsFor({ sequence: 33 }));
+  malformed.effectiveDate = "2026-08-26";
+
+  await assert.rejects(
+    () => readWith([malformed]),
+    /source-backed evidence that cannot be materialized as an execution/,
+  );
+});
+
+test("hindsight can separate the execution knowledge cutoff from the historical basis target", async () => {
+  const facts = factsFor({ sequence: 74 });
+  const lateMaterialized = historyItem(74, facts);
+  lateMaterialized.persistedAt = "2027-01-02T00:00:00Z";
+  assert.equal((await readWith([lateMaterialized])).executions.length, 0);
+  const hindsight = await readWith([lateMaterialized], [], "2027-01-03T00:00:00Z");
+  assert.equal(hindsight.targetAt, "2026-12-31T23:59:59Z");
+  assert.equal(hindsight.executions.length, 1);
+});
+
 test("H. execution identity includes action kind and cannot collide with reverse", () => {
   const tuple = {
     issuerCik: cik,
@@ -336,6 +356,7 @@ function historyItem(
 async function readWith(
   items: ReverseSplitHistoryItem[],
   updates: ReverseSplitExecutionUpdateObservation[] = [],
+  knownAt?: string,
 ) {
   return readStockSplitExecutions({
     actionKind: "forward_split",
@@ -343,6 +364,7 @@ async function readWith(
     from: "2026-01-01",
     to: "2026-12-31",
     targetAt: "2026-12-31T23:59:59Z",
+    ...(knownAt ? { knownAt } : {}),
   }, {
     readHistory: async ({ actionKind }) => {
       assert.equal(actionKind, "forward_split");

@@ -192,12 +192,17 @@ test("all stored-source adapters preserve exact source identity and never load p
 });
 
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
-  assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
-  assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 9_782);
+  const applicableSchema = CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.anyOf[1];
+  assert.deepEqual(applicableSchema.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
+  assert.deepEqual(applicableSchema.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
+  assert.deepEqual(applicableSchema.required, [
+    "applicable", "event_kind", "action_stage", "effective_date", "ratio", "affected_security",
+    "effective_timing", "execution_update", "source_ref", "evidence", "confidence", "as_of",
+  ]);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 10_280);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "74bfb1629d955401d4caceece6ebf4fac32d8f4e3220a0962f9a3aebc8fa1c08",
+    "4d7548254e0d6e14fe030314d5f11c38451a354410cf405f001ebfa98f175361",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -207,6 +212,7 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never upgrade a historical notice/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /parser values, calendar values/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Application code alone performs division/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /distribution date and session.*never replace.*trading commencement/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /4-for-1 forward split return old_shares 1 and new_shares 4/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /does not calculate outstanding shares/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);

@@ -269,6 +269,7 @@ export async function readReverseSplitExecutions(
     from: string;
     to: string;
     targetAt: string;
+    knownAt?: string;
   },
   dependencies: ReverseSplitExecutionDependencies = defaultDependencies,
 ): Promise<ReverseSplitExecutionReadResult> {
@@ -287,6 +288,7 @@ export async function readStockSplitExecutions(
     from: string;
     to: string;
     targetAt: string;
+    knownAt?: string;
   },
   dependencies: StockSplitExecutionDependencies = defaultStockSplitDependencies,
 ): Promise<StockSplitExecutionReadResult> {
@@ -305,11 +307,16 @@ async function readStockSplitExecutionsInternal(
     from: string;
     to: string;
     targetAt: string;
+    knownAt?: string;
   },
   dependencies: StockSplitProjectionDependencies,
 ): Promise<StockSplitExecutionProjectionResult> {
   if (!validTimestamp(filter.targetAt)) {
     throw new Error(`${contract.errorLabel} execution target timestamp is invalid`);
+  }
+  const knownAt = filter.knownAt ?? filter.targetAt;
+  if (!validTimestamp(knownAt)) {
+    throw new Error(`${contract.errorLabel} execution knowledge timestamp is invalid`);
   }
   const history = await dependencies.readHistory(filter);
   const updateHistory = await dependencies.readUpdates({ cik: filter.cik, targetAt: filter.targetAt });
@@ -324,10 +331,19 @@ async function readStockSplitExecutionsInternal(
     throw new Error(`${contract.errorLabel} execution update history response is invalid`);
   }
 
-  const observations = dedupeObservations(history.items
-    .map((item) => calculationObservation(item, contract.actionKind))
-    .filter((item): item is ReverseSplitExecutionObservation => item !== null)
-    .filter((item) => Date.parse(item.acceptedAt) <= Date.parse(filter.targetAt)));
+  const knownHistoryItems = history.items.filter((item) =>
+    Date.parse(item.persistedAt) <= Date.parse(knownAt));
+  const materializedObservations = knownHistoryItems.map((item) =>
+    calculationObservation(item, contract.actionKind));
+  if (materializedObservations.some((item, index) => item === null
+    && hasCompleteCalculationEvidence(knownHistoryItems[index]!.facts, contract.actionKind))) {
+    throw new Error(`${contract.errorLabel} history contains source-backed evidence that cannot be materialized as an execution`);
+  }
+  const observations = dedupeObservations(
+    materializedObservations
+      .filter((item): item is ReverseSplitExecutionObservation => item !== null)
+      .filter((item) => Date.parse(item.acceptedAt) <= Date.parse(filter.targetAt)),
+  );
   const exactTupleGroups = new Map<string, ReverseSplitExecutionObservation[]>();
   for (const observation of observations) {
     const key = stockSplitExecutionId({
@@ -532,6 +548,27 @@ function calculationObservation(
     persistedAt: item.persistedAt,
     facts,
   };
+}
+
+function hasCompleteCalculationEvidence(
+  facts: CorporateActionCanonicalFacts,
+  actionKind: CorporateActionEventKind,
+) {
+  const issuer = facts.applicability?.issuer;
+  const affected = facts.applicability?.affected_security;
+  const exact = facts.ratio.exact_source_components;
+  return facts.event_kind === actionKind
+    && issuer?.availability === "available"
+    && affected?.availability === "available"
+    && validAccession(issuer.accession_number)
+    && validTimestamp(issuer.accepted_at)
+    && facts.source.source_family === "sec"
+    && facts.source.source_id === issuer.accession_number
+    && facts.effective_date.availability === "available"
+    && exact?.availability === "available"
+    && positiveDecimal(exact.old_share_units)
+    && positiveDecimal(exact.new_share_units)
+    && facts.evidence.availability === "available";
 }
 
 function projectExecutionGroup(

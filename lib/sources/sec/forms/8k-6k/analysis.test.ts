@@ -125,7 +125,7 @@ const analysisUserPayload = JSON.parse(prompt.user) as Record<string, any>;
 
 assert.equal(prompt.key, SEC_8K_6K_ANALYSIS_PROMPT_KEY);
 assert.equal(prompt.version, SEC_8K_6K_ANALYSIS_PROMPT_VERSION);
-assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v45-corporate-action-routing");
+assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v49-live-stock-split-effective-date");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "listing_risk" }), "risk_status");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "financial_risk" }), "risk_status");
 assert.equal(
@@ -200,6 +200,14 @@ assert.strictEqual(
 assert.match(sec8k6kAnalysisSystemPrompt, /regained compliance/i);
 assert.match(sec8k6kAnalysisSystemPrompt, /simple reverse split without explicit listing or compliance context/i);
 assert.match(sec8k6kAnalysisSystemPrompt, /Do not derive monitor_routes from event_type/i);
+assert.match(
+  sec8k6kAnalysisSystemPrompt,
+  /Never state an explicit current stock split anywhere in the output while returning an empty corporate_action route/i,
+);
+assert.match(
+  sec8k6kFinalOutputCheckPrompt,
+  /It is invalid to describe such a split anywhere in the JSON while returning no corporate_action route/i,
+);
 assert.match(
   sec8k6kAnalysisSystemPrompt,
   /Preserve primary_route_candidate, route_candidates, and material_events[\s\S]*?never convert or copy any of them into monitor_routes/i,

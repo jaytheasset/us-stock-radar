@@ -8,7 +8,7 @@ export const REVERSE_SPLIT_APPLICABILITY_VERSION = "reverse_split_applicability_
 export const FORWARD_SPLIT_APPLICABILITY_VERSION = "forward_split_applicability_v1";
 export const REVERSE_SPLIT_EXECUTION_UPDATE_VERSION = "reverse_split_execution_update_v1";
 export const FORWARD_SPLIT_EXECUTION_UPDATE_VERSION = "forward_split_execution_update_v1";
-export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 520;
+export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 800;
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
   value: TValue;
@@ -514,7 +514,21 @@ export function canonicalizeCorporateActionAnalyzerResult(
   );
   if (executionUpdate.errors.length) return { result: null, errors: executionUpdate.errors };
 
-  const evidence = canonicalEvidence(transport.evidence, document.text);
+  const evidence = canonicalEvidence(
+    transport.evidence,
+    document.text,
+    CORPORATE_ACTION_EVIDENCE_MAX_LENGTH,
+  );
+  const calculationEvidenceComplete = transport.effective_date.availability === "available"
+    && transport.ratio.availability === "available"
+    && issuer.availability === "available"
+    && affectedSecurity.value?.availability === "available";
+  if (calculationEvidenceComplete && evidence.availability !== "available") {
+    return {
+      result: null,
+      errors: ["calculation-eligible source-backed stock split evidence must materialize as compact canonical evidence"],
+    };
+  }
   return {
     result: {
       applicable: true,
@@ -1030,9 +1044,13 @@ function strictPositiveNumber(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function canonicalEvidence(value: string | null, sourceText: string): CorporateActionCanonicalFacts["evidence"] {
+function canonicalEvidence(
+  value: string | null,
+  sourceText: string,
+  maxLength = CORPORATE_ACTION_EVIDENCE_MAX_LENGTH,
+): CorporateActionCanonicalFacts["evidence"] {
   if (typeof value !== "string" || !value.trim()) return { availability: "unavailable", reason: "not_provided" };
-  if (Array.from(value).length > CORPORATE_ACTION_EVIDENCE_MAX_LENGTH) {
+  if (Array.from(value).length > maxLength) {
     return { availability: "unavailable", reason: "too_long" };
   }
   if (!sourceText.includes(value)) return { availability: "unavailable", reason: "not_exact_span" };
@@ -1381,7 +1399,9 @@ function validateCanonicalEvidence(value: unknown, errors: string[]) {
   }
   if (evidence.availability === "available") {
     exactKeys(evidence, ["availability", "value"], "canonical facts.evidence", errors);
-    if (!boundedText(evidence.value, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH)) errors.push("canonical evidence value is invalid");
+    if (!boundedText(evidence.value, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH)) {
+      errors.push("canonical evidence value is invalid");
+    }
     return;
   }
   exactKeys(evidence, ["availability", "reason"], "canonical facts.evidence", errors);
