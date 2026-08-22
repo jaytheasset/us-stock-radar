@@ -42,6 +42,12 @@ function applicable(overrides: Partial<Extract<CorporateActionAnalyzerTransportR
     action_stage: "scheduled",
     effective_date: { availability: "available", value: "2026-08-04" },
     ratio: { availability: "available", old_shares: "20", new_shares: "1" },
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "nasdaq_notice_body",
+      evidence: "The company will effect a one-for-twenty reverse stock split.",
+    },
     source_ref: "nasdaq_notice_body",
     evidence: "The reverse stock split will become effective on August 4, 2026.",
     confidence: "high",
@@ -132,6 +138,14 @@ test("source ref, date, ratio values, duplicate keys, and unknown semantics hard
     event_kind: "forward_split",
   }), []);
   assert.equal(canonicalizeCorporateActionAnalyzerResult(applicable({ source_ref: "foreign_document" }), input()).result, null);
+  assert.match(canonicalizeCorporateActionAnalyzerResult(applicable({
+    execution_update: {
+      decision: "CANCEL_EXISTING_EXECUTION",
+      target_execution_id: `rse:v1:${"a".repeat(64)}`,
+      source_ref: "nasdaq_notice_body",
+      evidence: "reverse stock split",
+    },
+  }), input()).errors.join("; "), /supplied execution candidate/);
 });
 
 test("evidence exactness is separated from semantic/source eligibility", () => {
@@ -175,10 +189,10 @@ test("all stored-source adapters preserve exact source identity and never load p
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 7_451);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 8_981);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "7182ff4798c02f5a0eb18b97f5197a5c663323f750d788111bce1ace8e77c3d2",
+    "ae95478e0f3b2592c29f35afaf3c82c97b5d1746bc5ae3de6d90848015bd5f6b",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -191,4 +205,7 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not map generic common stock across multiple class candidates/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer market session ordering from a date alone/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /SUPERSEDE_EXISTING_EXECUTION/);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /CANCEL_EXISTING_EXECUTION/);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never match executions by ratio\/date similarity/i);
 });

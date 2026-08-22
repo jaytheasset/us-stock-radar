@@ -182,6 +182,7 @@ export function buildCorporateActionAnalyzerInput(
     cleaned_source_blocks: sourceInput.cleaned_source_blocks,
     issuer_context: applicabilityContext?.issuerContext,
     security_class_candidates: applicabilityContext?.securityClassCandidates,
+    reverse_split_execution_candidates: applicabilityContext?.reverseSplitExecutionCandidates,
   });
 }
 

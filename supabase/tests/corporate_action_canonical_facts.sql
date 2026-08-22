@@ -6,6 +6,12 @@ select no_plan();
 
 select has_table('public', 'event_corporate_action_results', 'Corporate Action has execution-keyed result history');
 select has_table('public', 'event_corporate_action_facts', 'Corporate Action has applicable-only typed facts');
+select has_function(
+  'public',
+  'read_reverse_split_execution_update_candidates',
+  array['text'],
+  'Reverse Split execution-update lineage reader exists'
+);
 select ok(
   (select relrowsecurity from pg_catalog.pg_class where oid = 'public.event_corporate_action_results'::regclass)
   and (select relrowsecurity from pg_catalog.pg_class where oid = 'public.event_corporate_action_facts'::regclass),
@@ -38,6 +44,15 @@ select ok(
    from pg_catalog.pg_proc
    where oid = 'public.read_current_event_corporate_action_facts(uuid,text)'::regprocedure),
   'both definer RPCs fix an empty search_path'
+);
+select ok(
+  not pg_catalog.has_function_privilege('anon', 'public.read_reverse_split_execution_update_candidates(text)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_reverse_split_execution_update_candidates(text)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_reverse_split_execution_update_candidates(text)', 'execute')
+  and (select prosecdef and proconfig @> array['search_path=""']
+    from pg_catalog.pg_proc
+    where oid = 'public.read_reverse_split_execution_update_candidates(text)'::regprocedure),
+  'execution-update lineage reader is service-role-only with an empty search_path'
 );
 
 insert into public.sources (code, name, source_group, runtime_owner, enabled)
