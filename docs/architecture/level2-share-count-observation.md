@@ -1,5 +1,10 @@
 # Level 2 Share Count Observation V1
 
+The source-stated sidecar also emits the exact class kind `common_stock` when it
+is safe to do so. Cross-source mapping and verified SEC acceptance-time rules are
+defined in `share-count-resolver-input-contract-v1.md`; title/synonym matching and
+published-time fallback are not permitted.
+
 This feature adds one optional source-stated shares-outstanding sidecar to the
 existing Level 2 domain analyzer calls. It does not add an analyzer, provider
 call, repair, fallback, resolver, source priority, split adjustment, dilution

@@ -3,6 +3,9 @@ import type {
   SecAuthoritativeOsDecision,
   SecAuthoritativeOsEligibleDecision,
 } from "./authoritativeOsExtraction.ts";
+import {
+  deriveAuthoritativeCanonicalSecurityClassIdentity,
+} from "./shareCountSecurityIdentity.ts";
 
 export const SHARE_COUNT_HISTORY_SOURCE_TYPE = "sec_authoritative_os" as const;
 export const SHARE_COUNT_HISTORY_SHARE_BASIS = "shares_outstanding:xbrli_shares" as const;
@@ -17,13 +20,19 @@ type ShareCountHistoryObservationCommon = {
   securityClassBasis: "SINGLE_COMMON_STOCK_CLASS" | "CLASS_SPECIFIC_COMMON_STOCK" | "SOURCE_STATED_SECURITY_CLASS";
   securityClassIdentity: Record<string, unknown>;
   securityClassMetadata: Record<string, unknown>;
+  canonicalSecurityClassId: string | null;
+  canonicalSecurityClassKind: "common_stock" | null;
+  canonicalSecurityClassStatus: "mapped" | "unavailable";
+  canonicalSecurityClassProvenance: Record<string, unknown>;
   shareBasisIdentity: typeof SHARE_COUNT_HISTORY_SHARE_BASIS | "shares_outstanding:source_stated";
   shareBasisMetadata: Record<string, unknown>;
   accessionNumber: string;
   form: string;
   filingDocument: string;
   filedDate: string;
-  acceptedAt: string;
+  acceptedAt: string | null;
+  acceptedAtSource: "sec_filing_ledger" | "sec_raw_payload_acceptance" | "unavailable";
+  acceptedAtProvenance: Record<string, unknown>;
   ingestedAt: string;
   sourceConceptNamespaceUri: string | null;
   sourceConceptLocalName: "EntityCommonStockSharesOutstanding" | null;
@@ -66,6 +75,11 @@ export type AuthoritativeShareCountHistoryObservation = ShareCountHistoryObserva
   authoritativeDecisionLineage: Record<string, unknown>;
   sourceEvidence: null;
   sourceAnalyzer: null;
+  canonicalSecurityClassId: string;
+  canonicalSecurityClassKind: "common_stock";
+  canonicalSecurityClassStatus: "mapped";
+  acceptedAt: string;
+  acceptedAtSource: "sec_filing_ledger";
 };
 
 export type Level2ShareCountHistoryObservation = ShareCountHistoryObservationCommon & {
@@ -82,6 +96,7 @@ export type Level2ShareCountHistoryObservation = ShareCountHistoryObservationCom
   authoritativeDecisionLineage: null;
   sourceEvidence: string;
   sourceAnalyzer: string;
+  acceptedAtSource: "sec_raw_payload_acceptance" | "unavailable";
 };
 
 export type ShareCountHistoryObservation =
@@ -94,6 +109,7 @@ export type ShareCountHistoryReadFilter = {
   asOfFrom?: string;
   asOfTo?: string;
   securityClassCanonicalKey?: string;
+  canonicalSecurityClassId?: string;
 };
 
 export interface ShareCountHistoryRepository {
@@ -148,6 +164,19 @@ export function toShareCountHistoryObservation(
     canonicalKey: securityClassCanonicalKey(value.securityClass),
     identity: structuredClone(value.securityClass.identity),
   };
+  const canonicalSecurityClass = deriveAuthoritativeCanonicalSecurityClassIdentity({
+    issuerCik: value.issuerCik,
+    basis: value.securityClass.basis,
+    sourceCanonicalKey: String(securityClassIdentity.canonicalKey),
+    sourceIdentity: structuredClone(value.securityClass.identity),
+    sourceFactKey: value.factKey,
+    sourceContextRef: value.contextRef,
+  } as Parameters<typeof deriveAuthoritativeCanonicalSecurityClassIdentity>[0]);
+  if (canonicalSecurityClass.status !== "mapped"
+    || !canonicalSecurityClass.canonicalSecurityClassId
+    || canonicalSecurityClass.canonicalSecurityClassKind !== "common_stock") {
+    throw new Error("authoritative security class cannot be assigned a canonical identity");
+  }
   const observation: ShareCountHistoryObservation = {
     observationType: SHARE_COUNT_HISTORY_OBSERVATION_TYPE,
     issuerCik: value.issuerCik,
@@ -160,6 +189,10 @@ export function toShareCountHistoryObservation(
       contextRef: value.securityClass.contextRef,
       dimensions: structuredClone(value.securityClass.dimensions),
     },
+    canonicalSecurityClassId: canonicalSecurityClass.canonicalSecurityClassId,
+    canonicalSecurityClassKind: canonicalSecurityClass.canonicalSecurityClassKind,
+    canonicalSecurityClassStatus: canonicalSecurityClass.status,
+    canonicalSecurityClassProvenance: canonicalSecurityClass.provenance,
     shareBasisIdentity: SHARE_COUNT_HISTORY_SHARE_BASIS,
     shareBasisMetadata: {
       measurement: "shares_outstanding",
@@ -178,6 +211,12 @@ export function toShareCountHistoryObservation(
     filingDocument: value.filingDocument,
     filedDate: value.filedDate,
     acceptedAt: value.acceptedAt,
+    acceptedAtSource: "sec_filing_ledger",
+    acceptedAtProvenance: {
+      source: "sec_filing_ledger.accepted_at",
+      accessionNumber: value.accession,
+      filingLedgerRawSourceId: value.filingLedgerRawSourceId,
+    },
     ingestedAt: new Date(ingestedAt).toISOString(),
     sourceConceptNamespaceUri: value.conceptNamespaceUri,
     sourceConceptLocalName: value.conceptLocalName,
@@ -248,6 +287,8 @@ export class InMemoryShareCountHistoryRepository implements ShareCountHistoryRep
       .filter((row) => !filter.asOfTo || row.asOf <= filter.asOfTo)
       .filter((row) => !filter.securityClassCanonicalKey
         || row.securityClassIdentity.canonicalKey === filter.securityClassCanonicalKey)
+      .filter((row) => !filter.canonicalSecurityClassId
+        || row.canonicalSecurityClassId === filter.canonicalSecurityClassId)
       .sort(compareHistory)
       .map((row) => structuredClone(row));
   }
@@ -263,6 +304,10 @@ export function toShareCountHistoryDatabaseRow(row: ShareCountHistoryObservation
     security_class_basis: row.securityClassBasis,
     security_class_identity: row.securityClassIdentity,
     security_class_metadata: row.securityClassMetadata,
+    canonical_security_class_id: row.canonicalSecurityClassId,
+    canonical_security_class_kind: row.canonicalSecurityClassKind,
+    canonical_security_class_status: row.canonicalSecurityClassStatus,
+    canonical_security_class_provenance: row.canonicalSecurityClassProvenance,
     share_basis_identity: row.shareBasisIdentity,
     share_basis_metadata: row.shareBasisMetadata,
     accession_number: row.accessionNumber,
@@ -270,6 +315,8 @@ export function toShareCountHistoryDatabaseRow(row: ShareCountHistoryObservation
     filing_document: row.filingDocument,
     filed_date: row.filedDate,
     accepted_at: row.acceptedAt,
+    accepted_at_source: row.acceptedAtSource,
+    accepted_at_provenance: row.acceptedAtProvenance,
     ingested_at: row.ingestedAt,
     source_concept_namespace_uri: row.sourceConceptNamespaceUri,
     source_concept_local_name: row.sourceConceptLocalName,
@@ -303,11 +350,14 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
   async insertObservation(observation: ShareCountHistoryObservation) {
     validateObservation(observation);
     const result = await this.client.query<{ id: string }>(
-      `insert into public.share_count_history (
+       `insert into public.share_count_history (
          observation_type, issuer_cik, shares_outstanding, as_of, security_class_basis,
          security_class_identity, security_class_metadata, share_basis_identity,
+         canonical_security_class_id, canonical_security_class_kind,
+         canonical_security_class_status, canonical_security_class_provenance,
          share_basis_metadata, accession_number, form, filing_document, filed_date,
-         accepted_at, ingested_at, source_concept_namespace_uri,
+         accepted_at, accepted_at_source, accepted_at_provenance, ingested_at,
+         source_concept_namespace_uri,
          source_concept_local_name, source_fact_key, source_context_ref,
          source_artifact_id, filing_ledger_raw_source_id, source_fact_identity,
          source_context, source_dimensions, source_provenance,
@@ -315,11 +365,12 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
          authoritative_decision_reason, authoritative_decision_lineage,
          source_document_url, source_content_hash, source_evidence, source_analyzer
        ) values (
-         $1, $2, $3::numeric, $4::date, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb,
-         $10, $11, $12, $13::date, $14::timestamptz, $15::timestamptz, $16,
-         $17, $18, $19, $20::uuid, $21::uuid, $22::jsonb, $23::jsonb,
-         $24::jsonb, $25::jsonb, $26, $27, $28, $29, $30::jsonb, $31, $32,
-         $33, $34
+         $1, $2, $3::numeric, $4::date, $5, $6::jsonb, $7::jsonb, $8,
+         $9, $10, $11, $12::jsonb, $13::jsonb, $14, $15, $16, $17::date,
+         $18::timestamptz, $19, $20::jsonb, $21::timestamptz, $22, $23,
+         $24, $25, $26::uuid, $27::uuid, $28::jsonb, $29::jsonb,
+         $30::jsonb, $31::jsonb, $32, $33, $34, $35, $36::jsonb, $37, $38,
+         $39, $40
        )
        on conflict on constraint share_count_history_canonical_source_unique do nothing
        returning id::text`,
@@ -332,10 +383,13 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
     validateCik(cik);
     validateReadFilter(filter);
     const result = await this.client.query<Record<string, unknown>>(
-      `select id::text, observation_type, issuer_cik, shares_outstanding::text, as_of::text,
+       `select id::text, observation_type, issuer_cik, shares_outstanding::text, as_of::text,
               security_class_basis, security_class_identity, security_class_metadata,
+              canonical_security_class_id, canonical_security_class_kind,
+              canonical_security_class_status, canonical_security_class_provenance,
               share_basis_identity, share_basis_metadata, accession_number, form,
-              filing_document, filed_date::text, accepted_at::text, ingested_at::text,
+              filing_document, filed_date::text, accepted_at::text, accepted_at_source,
+              accepted_at_provenance, ingested_at::text,
               source_concept_namespace_uri, source_concept_local_name, source_fact_key,
               source_context_ref, source_artifact_id::text, filing_ledger_raw_source_id::text,
               source_fact_identity, source_context, source_dimensions,
@@ -348,8 +402,10 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
          and ($2::date is null or as_of >= $2::date)
          and ($3::date is null or as_of <= $3::date)
          and ($4::text is null or security_class_identity ->> 'canonicalKey' = $4)
+         and ($5::text is null or canonical_security_class_id = $5)
        order by as_of, accepted_at, accession_number, id`,
-      [cik, filter.asOfFrom ?? null, filter.asOfTo ?? null, filter.securityClassCanonicalKey ?? null],
+      [cik, filter.asOfFrom ?? null, filter.asOfTo ?? null,
+        filter.securityClassCanonicalKey ?? null, filter.canonicalSecurityClassId ?? null],
     );
     return result.rows.map(mapHistoryRow);
   }
@@ -440,7 +496,22 @@ function validateObservation(row: ShareCountHistoryObservation) {
   if (!POSITIVE_INTEGER_PATTERN.test(row.sharesOutstanding)) throw new Error("sharesOutstanding must be positive integer");
   validateDate(row.asOf, "asOf");
   validateDate(row.filedDate, "filedDate");
-  validateTimestamp(row.acceptedAt, "acceptedAt");
+  if (row.acceptedAt === null) {
+    if (row.acceptedAtSource !== "unavailable") throw new Error("acceptedAt source requires a timestamp");
+  } else {
+    validateTimestamp(row.acceptedAt, "acceptedAt");
+    if (row.acceptedAtSource === "unavailable") throw new Error("untrusted acceptedAt cannot be stored");
+  }
+  if (!isRecord(row.acceptedAtProvenance)) throw new Error("acceptedAt provenance is incomplete");
+  const expectedAcceptedAtProvenanceSource = row.acceptedAtSource === "sec_filing_ledger"
+    ? "sec_filing_ledger.accepted_at"
+    : row.acceptedAtSource === "sec_raw_payload_acceptance"
+      ? "raw_items.raw_payload.accepted_at"
+      : "unavailable";
+  if (row.acceptedAtProvenance.source !== expectedAcceptedAtProvenanceSource
+    || (row.acceptedAtSource === "unavailable" && !compact(String(row.acceptedAtProvenance.reason ?? "")))) {
+    throw new Error("acceptedAt provenance source is invalid");
+  }
   validateTimestamp(row.ingestedAt, "ingestedAt");
   if (!ACCESSION_PATTERN.test(row.accessionNumber) || !compact(row.form) || !compact(row.filingDocument)) throw new Error("filing identity is incomplete");
   if (!HEX_64_PATTERN.test(row.sourceFactKey) || !compact(row.sourceContextRef)
@@ -450,6 +521,7 @@ function validateObservation(row: ShareCountHistoryObservation) {
     || !isRecord(row.sourceProvenance)) throw new Error("source fact/provenance identity is incomplete");
   const classIdentity = row.securityClassIdentity.identity;
   if (!compact(String(row.securityClassIdentity.canonicalKey ?? ""))) throw new Error("security-class identity is incomplete");
+  validateCanonicalSecurityClass(row);
   if (row.sourceType === "sec_filing_text_level2") {
     validateLevel2Observation(row);
     return;
@@ -486,7 +558,10 @@ function validateObservation(row: ShareCountHistoryObservation) {
     throw new Error("security-class metadata lineage mismatch");
   }
   if (row.sourceType !== SHARE_COUNT_HISTORY_SOURCE_TYPE || row.authoritativeStatus !== "ELIGIBLE"
-    || row.authoritativeDecisionVersion !== "authoritative-os-extraction-v1") throw new Error("unsupported share-count source lineage");
+    || row.authoritativeDecisionVersion !== "authoritative-os-extraction-v1"
+    || row.acceptedAtSource !== "sec_filing_ledger" || row.acceptedAt === null) {
+    throw new Error("unsupported share-count source lineage");
+  }
   if (!DEI_NAMESPACE_PATTERN.test(row.sourceConceptNamespaceUri)
     || row.sourceConceptLocalName !== "EntityCommonStockSharesOutstanding"
     || !row.filingLedgerRawSourceId || !UUID_PATTERN.test(row.filingLedgerRawSourceId)
@@ -541,6 +616,9 @@ function validateLevel2Observation(row: Level2ShareCountHistoryObservation) {
     || row.authoritativeDecisionLineage !== null) {
     throw new Error("unsupported Level 2 share-count source lineage");
   }
+  if (row.acceptedAtSource !== "sec_raw_payload_acceptance" && row.acceptedAtSource !== "unavailable") {
+    throw new Error("Level 2 acceptedAt source is invalid");
+  }
   const identity = row.securityClassIdentity.identity;
   if (!isRecord(identity) || !compact(String(identity.title ?? ""))
     || row.securityClassIdentity.canonicalKey !== `SOURCE_STATED_SECURITY_CLASS|${sha256(String(identity.title))}`) {
@@ -587,14 +665,20 @@ function validateReadFilter(filter: ShareCountHistoryReadFilter) {
   if (filter.securityClassCanonicalKey !== undefined && !compact(filter.securityClassCanonicalKey)) {
     throw new Error("securityClassCanonicalKey must be non-empty");
   }
+  if (filter.canonicalSecurityClassId !== undefined && !CANONICAL_SECURITY_CLASS_ID_PATTERN.test(filter.canonicalSecurityClassId)) {
+    throw new Error("canonicalSecurityClassId is invalid");
+  }
 }
 
 function observationValues(row: ShareCountHistoryObservation) {
   return [
     row.observationType, row.issuerCik, row.sharesOutstanding, row.asOf, row.securityClassBasis,
     JSON.stringify(row.securityClassIdentity), JSON.stringify(row.securityClassMetadata),
-    row.shareBasisIdentity, JSON.stringify(row.shareBasisMetadata), row.accessionNumber,
-    row.form, row.filingDocument, row.filedDate, row.acceptedAt, row.ingestedAt,
+    row.shareBasisIdentity, row.canonicalSecurityClassId, row.canonicalSecurityClassKind,
+    row.canonicalSecurityClassStatus, JSON.stringify(row.canonicalSecurityClassProvenance),
+    JSON.stringify(row.shareBasisMetadata), row.accessionNumber,
+    row.form, row.filingDocument, row.filedDate, row.acceptedAt, row.acceptedAtSource,
+    JSON.stringify(row.acceptedAtProvenance), row.ingestedAt,
     row.sourceConceptNamespaceUri, row.sourceConceptLocalName, row.sourceFactKey,
     row.sourceContextRef, row.sourceArtifactId, row.filingLedgerRawSourceId,
     JSON.stringify(row.sourceFactIdentity), JSON.stringify(row.sourceContext),
@@ -611,10 +695,18 @@ function mapHistoryRow(row: Record<string, unknown>): ShareCountHistoryObservati
     issuerCik: String(row.issuer_cik), sharesOutstanding: String(row.shares_outstanding),
     asOf: String(row.as_of), securityClassBasis: String(row.security_class_basis) as ShareCountHistoryObservation["securityClassBasis"],
     securityClassIdentity: jsonRecord(row.security_class_identity), securityClassMetadata: jsonRecord(row.security_class_metadata),
+    canonicalSecurityClassId: nullableStoredString(row.canonical_security_class_id),
+    canonicalSecurityClassKind: nullableStoredString(row.canonical_security_class_kind),
+    canonicalSecurityClassStatus: String(row.canonical_security_class_status),
+    canonicalSecurityClassProvenance: jsonRecord(row.canonical_security_class_provenance),
     shareBasisIdentity: String(row.share_basis_identity),
     shareBasisMetadata: jsonRecord(row.share_basis_metadata), accessionNumber: String(row.accession_number),
     form: String(row.form), filingDocument: String(row.filing_document), filedDate: String(row.filed_date),
-    acceptedAt: new Date(String(row.accepted_at)).toISOString(), ingestedAt: new Date(String(row.ingested_at)).toISOString(),
+    acceptedAt: row.accepted_at === null || row.accepted_at === undefined
+      ? null : new Date(String(row.accepted_at)).toISOString(),
+    acceptedAtSource: String(row.accepted_at_source),
+    acceptedAtProvenance: jsonRecord(row.accepted_at_provenance),
+    ingestedAt: new Date(String(row.ingested_at)).toISOString(),
     sourceConceptNamespaceUri: nullableStoredString(row.source_concept_namespace_uri),
     sourceConceptLocalName: nullableStoredString(row.source_concept_local_name),
     sourceFactKey: String(row.source_fact_key), sourceContextRef: String(row.source_context_ref),
@@ -655,8 +747,28 @@ function canonicalSourceIdentity(row: ShareCountHistoryObservation) {
 }
 
 function compareHistory(left: ShareCountHistoryObservation, right: ShareCountHistoryObservation) {
-  return [left.asOf, left.acceptedAt, left.accessionNumber, left.id ?? ""].join("|")
-    .localeCompare([right.asOf, right.acceptedAt, right.accessionNumber, right.id ?? ""].join("|"));
+  return [left.asOf, left.acceptedAt ?? "9999-12-31T23:59:59.999Z", left.accessionNumber, left.id ?? ""].join("|")
+    .localeCompare([right.asOf, right.acceptedAt ?? "9999-12-31T23:59:59.999Z", right.accessionNumber, right.id ?? ""].join("|"));
+}
+
+function validateCanonicalSecurityClass(row: ShareCountHistoryObservation) {
+  if (!isRecord(row.canonicalSecurityClassProvenance)) {
+    throw new Error("canonical security-class provenance is incomplete");
+  }
+  if (row.canonicalSecurityClassStatus === "mapped") {
+    if (row.canonicalSecurityClassKind !== "common_stock"
+      || !row.canonicalSecurityClassId
+      || !CANONICAL_SECURITY_CLASS_ID_PATTERN.test(row.canonicalSecurityClassId)
+      || !row.canonicalSecurityClassId.startsWith(`sc:v1:${row.issuerCik}:common_stock:`)) {
+      throw new Error("canonical security-class mapping is invalid");
+    }
+    return;
+  }
+  if (row.canonicalSecurityClassStatus !== "unavailable"
+    || row.canonicalSecurityClassId !== null
+    || row.canonicalSecurityClassKind !== null) {
+    throw new Error("unavailable canonical security class must remain unmapped");
+  }
 }
 
 function validateCik(value: string) {
@@ -727,3 +839,4 @@ const DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const TIMESTAMP_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$/;
 const DEI_NAMESPACE_PATTERN = /^https?:\/\/xbrl\.sec\.gov\/dei\/[0-9]{4}$/;
 const SEC_URL_PATTERN = /^https:\/\/([a-z0-9-]+\.)*sec\.gov\//;
+const CANONICAL_SECURITY_CLASS_ID_PATTERN = /^sc:v1:[0-9]{10}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$/;

@@ -113,6 +113,7 @@ test("SEC XBRL and Level 2 observations coexist across dates and source types wi
         observation_type: "source_stated",
         shares_outstanding: "27500000",
         as_of: "2026-08-18",
+        security_class_kind: "common_stock",
         security_class_title: "common stock",
         source_ref: "sec:cover",
         evidence,
@@ -131,12 +132,24 @@ test("SEC XBRL and Level 2 observations coexist across dates and source types wi
       form: "8-K",
       filedDate: "2026-08-18",
       acceptedAt: "2026-08-18T12:00:00Z",
+      acceptedAtSource: "sec_raw_payload_acceptance",
+      acceptedAtProvenance: { source: "raw_items.raw_payload.accepted_at" },
       ingestedAt: "2026-08-22T08:01:00Z",
       rawItemId: "10000000-0000-5000-8000-000000000001",
       eventId: "20000000-0000-5000-8000-000000000001",
       parentPrimaryAiRunId: "30000000-0000-5000-8000-000000000001",
       sourceExecutionId: "40000000-0000-5000-8000-000000000001",
       analyzerKey: "listing_risk",
+      canonicalSecurityClassSupports: (await readShareCountHistory(repository, "0000000099"))
+        .filter((row) => row.sourceType === "sec_authoritative_os")
+        .map((row) => ({
+          observationId: row.id ?? null,
+          canonicalSecurityClassId: row.canonicalSecurityClassId!,
+          canonicalSecurityClassKind: "common_stock" as const,
+          securityClassBasis: row.securityClassBasis as "SINGLE_COMMON_STOCK_CLASS",
+          sourceFactKey: row.sourceFactKey,
+          accessionNumber: row.accessionNumber,
+        })),
     },
   });
   const history = await readShareCountHistory(repository, "0000000099");
@@ -144,6 +157,7 @@ test("SEC XBRL and Level 2 observations coexist across dates and source types wi
     ["2026-06-30", "20000000", "sec_authoritative_os"],
     ["2026-08-18", "27500000", "sec_filing_text_level2"],
   ]);
+  assert.equal(new Set(history.map((row) => row.canonicalSecurityClassId)).size, 1);
   assert.equal(history.some((row) => "winner" in row || "latest" in row || "isCurrent" in row), false);
 });
 

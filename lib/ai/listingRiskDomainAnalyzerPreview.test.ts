@@ -76,6 +76,7 @@ test("SEC Listing uses the same one provider call and returns an independent O/S
           observation_type: "source_stated",
           shares_outstanding: "27500000",
           as_of: "2026-08-18",
+          security_class_kind: "common_stock",
           security_class_title: "common stock",
           source_ref: "sec-cover",
           evidence,

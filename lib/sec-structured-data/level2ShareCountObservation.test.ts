@@ -21,6 +21,7 @@ test("exact source-stated O/S validates, preserves stated basis, persists, and r
         observation_type: "source_stated",
         shares_outstanding: "27500000",
         as_of: "2026-08-18",
+        security_class_kind: "common_stock",
         security_class_title: "common stock",
         basis: "issued and outstanding",
         source_ref: source.source_ref,
@@ -50,6 +51,8 @@ test("exact source-stated O/S validates, preserves stated basis, persists, and r
   assert.equal(history[0]?.sourceType, "sec_filing_text_level2");
   assert.equal(history[0]?.observationType, "source_stated");
   assert.equal(history[0]?.sourceEvidence, exactEvidence);
+  assert.equal(history[0]?.canonicalSecurityClassId, "sc:v1:0000000099:common_stock:single");
+  assert.equal(history[0]?.acceptedAtSource, "sec_raw_payload_acceptance");
   assert.equal("winner" in history[0]! || "latest" in history[0]! || "isCurrent" in history[0]!, false);
 });
 
@@ -74,6 +77,40 @@ test("absence and forbidden semantic controls produce no deterministic candidate
   assert.equal((await readShareCountHistory(repository, "0000000099")).length, 0);
 });
 
+test("missing SEC acceptance timestamp persists as unavailable without promoting fallback time", async () => {
+  const extraction = extractLevel2ShareCountSidecar({
+    payload: {
+      share_count_observation: {
+        observation_type: "source_stated",
+        shares_outstanding: "27500000",
+        as_of: "2026-08-18",
+        security_class_kind: "common_stock",
+        security_class_title: "common stock",
+        source_ref: source.source_ref,
+        evidence: exactEvidence,
+      },
+    },
+    accessionNumber: "0000000099-26-000010",
+    sourceDocumentUrl: "https://www.sec.gov/Archives/edgar/data/99/issuer-20260818.htm",
+    sourceDocuments: [source],
+  });
+  const repository = new InMemoryShareCountHistoryRepository();
+  const context = {
+    ...persistenceContext(),
+    acceptedAt: null,
+    acceptedAtSource: "unavailable" as const,
+    acceptedAtProvenance: {
+      source: "unavailable",
+      reason: "SEC_ACCEPTANCE_TIMESTAMP_UNAVAILABLE",
+      rejectedFallbacks: { publishedAt: "2026-08-19T00:00:00.000Z", filedDate: "2026-08-18" },
+    },
+  };
+  await writeLevel2ShareCountObservation({ repository, candidate: extraction.candidate!, context });
+  const [stored] = await readShareCountHistory(repository, "0000000099");
+  assert.equal(stored?.acceptedAt, null);
+  assert.equal(stored?.acceptedAtSource, "unavailable");
+});
+
 test("deterministic validation rejects missing date, invalid integer, class omission, foreign provenance, and noncontiguous evidence", () => {
   const invalidCandidates = [
     { shares_outstanding: "27500000", security_class_title: "common stock" },
@@ -87,6 +124,7 @@ test("deterministic validation rejects missing date, invalid integer, class omis
       payload: {
         share_count_observation: {
           observation_type: "source_stated",
+          security_class_kind: "common_stock",
           source_ref: source.source_ref,
           evidence: exactEvidence,
           ...partial,
@@ -107,11 +145,21 @@ function persistenceContext() {
     form: "8-K",
     filedDate: "2026-08-18",
     acceptedAt: "2026-08-18T12:00:00.000Z",
+    acceptedAtSource: "sec_raw_payload_acceptance",
+    acceptedAtProvenance: { source: "raw_items.raw_payload.accepted_at" },
     ingestedAt: "2026-08-22T12:00:00.000Z",
     rawItemId: "10000000-0000-5000-8000-000000000001",
     eventId: "20000000-0000-5000-8000-000000000001",
     parentPrimaryAiRunId: "30000000-0000-5000-8000-000000000001",
     sourceExecutionId: "40000000-0000-5000-8000-000000000001",
     analyzerKey: "listing_risk",
+    canonicalSecurityClassSupports: [{
+      observationId: "1",
+      canonicalSecurityClassId: "sc:v1:0000000099:common_stock:single",
+      canonicalSecurityClassKind: "common_stock",
+      securityClassBasis: "SINGLE_COMMON_STOCK_CLASS",
+      sourceFactKey: "a".repeat(64),
+      accessionNumber: "0000000099-26-000009",
+    }],
   } as const;
 }
