@@ -269,6 +269,42 @@ test("valid direct object reuses canonical validation and code-only total", () =
   assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 15_000_000);
 });
 
+test("Offering keeps the same domain candidate while validating an optional source-stated O/S sidecar", () => {
+  const fixture = artifacts();
+  const evidence = "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.";
+  fixture.sourceInput.blocks[0] = {
+    ...fixture.sourceInput.blocks[0]!,
+    text: evidence,
+  };
+  const inputPackage = buildOfferingMonitorSecondStagePackage({ identity, artifacts: fixture });
+  const domainPayload = validDirectPayload();
+  const candidate = validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({
+      parsed: {
+        ...domainPayload,
+        share_count_observation: {
+          observation_type: "source_stated",
+          shares_outstanding: "27500000",
+          as_of: "2026-08-18",
+          security_class_title: "common stock",
+          source_ref: fixture.sourceInput.blocks[0]!.source_ref,
+          evidence,
+        },
+      },
+    }),
+  });
+  assert.equal(candidate.validation.status, "success");
+  assert.deepEqual(candidate.canonical_candidate, validateOfferingMonitorProviderOutput({
+    identity,
+    package: inputPackage,
+    run: providerRun({ parsed: domainPayload }),
+  }).canonical_candidate);
+  assert.equal(candidate.share_count_observation_candidate?.sharesOutstanding, "27500000");
+  assert.deepEqual(candidate.share_count_observation_validation, { present: true, errors: [] });
+});
+
 test("allowed provenance membership is mechanical and exact source semantics do not block fact eligibility", () => {
   const fixture = artifacts();
   fixture.sourceInput.blocks[0].text = "Administrative filing context retained as supplied SEC evidence.";
@@ -624,7 +660,11 @@ function artifacts(): OfferingMonitorSecondStageArtifacts {
     rawItem: { id: identity.rawItemId, source_unique_id: identity.sourceIdentity },
     event: { id: identity.eventId },
     sourceInput: {
-      currentFiling: { accession_number: identity.sourceIdentity, form_type: "S-1" },
+      currentFiling: {
+        accession_number: identity.sourceIdentity,
+        form_type: "S-1",
+        primary_document_url: "https://www.sec.gov/Archives/edgar/data/1437749/main.htm",
+      },
       sourceInventory: { sourceBlockBudget: { includedTextChars: 10_000 } },
       attachmentInventory: [{ filename: "agreement.txt" }],
       blocks: [

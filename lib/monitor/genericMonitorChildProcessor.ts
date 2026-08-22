@@ -2,6 +2,7 @@ import type { GenericMonitorChildIdentity } from "./genericMonitorChildExecution
 import type { GenericMonitorChildTerminalState } from "./genericMonitorChildExecution.ts";
 import type { GenericMonitorExactParent } from "./genericMonitorChildRepository.ts";
 import type { ListingMonitorAlertConsumerResult } from "./listingMonitorAlertConsumer.ts";
+import type { Level2ShareCountValidatedCandidate } from "../sec-structured-data/level2ShareCountObservation.ts";
 
 export type ListingMonitorAlertHookResult = ListingMonitorAlertConsumerResult | Readonly<{
   status: "failed";
@@ -21,7 +22,11 @@ export type GenericMonitorChildProcessorRepository = {
 };
 
 type GenericMonitorAnalyzerRun<TResult> =
-  | { stage: "complete"; result: TResult }
+  | {
+      stage: "complete";
+      result: TResult;
+      shareCountObservation?: Level2ShareCountValidatedCandidate | null;
+    }
   | { stage: string; result: null; error: string };
 
 export async function processGenericMonitorChildWithDependencies<
@@ -42,6 +47,11 @@ export async function processGenericMonitorChildWithDependencies<
       identity: GenericMonitorChildIdentity;
       result: TResult;
     }): Promise<TPersistence>;
+    persistShareCountObservation?(input: {
+      identity: GenericMonitorChildIdentity;
+      rawItem: Record<string, unknown>;
+      candidate: Level2ShareCountValidatedCandidate;
+    }): Promise<{ inserted: number; deduped: number }>;
     terminalStateAfterPersistence?(
       result: TResult,
       persistence: TPersistence,
@@ -98,6 +108,22 @@ export async function processGenericMonitorChildWithDependencies<
     await repository.recordTerminal(identity, "stale");
     return { status: "stale" as const, jobId: identity.executionId, providerCalls: 1 };
   }
+  let shareCountPersistence: { inserted: number; deduped: number } | undefined;
+  const shareCountObservation = "shareCountObservation" in analyzerRun
+    ? analyzerRun.shareCountObservation
+    : null;
+  if (shareCountObservation && dependencies.persistShareCountObservation) {
+    try {
+      shareCountPersistence = await dependencies.persistShareCountObservation({
+        identity,
+        rawItem: parent.rawItem,
+        candidate: shareCountObservation,
+      });
+    } catch (error) {
+      await repository.releaseForRetry(identity, error);
+      return retryableFailure(identity, error);
+    }
+  }
   const terminalState = dependencies.terminalStateAfterPersistence
     ? dependencies.terminalStateAfterPersistence(analyzerRun.result, persistence)
     : defaultListingTerminalState(analyzerRun.result, persistence);
@@ -124,6 +150,7 @@ export async function processGenericMonitorChildWithDependencies<
     jobId: identity.executionId,
     providerCalls: 1,
     persistence: persistence.status,
+    ...(shareCountPersistence ? { shareCountPersistence } : {}),
     ...(listingMonitorAlerts ? { listingMonitorAlerts } : {}),
   };
 }

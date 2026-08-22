@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import type { GeminiStructuredJsonRun } from "./geminiStructuredJson.ts";
 import { runListingRiskDomainAnalyzerPreview } from "./listingRiskDomainAnalyzerPreview.ts";
-import { adaptNewsListingRiskSource } from "../monitor/listingRiskSourceAdapters.ts";
+import { adaptNewsListingRiskSource, adaptSec8k6kListingRiskSource } from "../monitor/listingRiskSourceAdapters.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -52,6 +52,41 @@ test("preview keeps provider failure separate from semantic results", async () =
   assert.equal(result.stage, "provider_error");
   assert.equal(result.result, null);
   assert.equal(result.error, "provider unavailable");
+});
+
+test("SEC Listing uses the same one provider call and returns an independent O/S sidecar without changing Listing output", async () => {
+  const evidence = "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.";
+  const secInput = adaptSec8k6kListingRiskSource({
+    accession_number: "0000000099-26-000010",
+    source_url: "https://www.sec.gov/Archives/edgar/data/99/fixture.htm",
+    filed_at: "2026-08-18T12:00:00Z",
+    title: "Current report",
+    cleaned_source_blocks: [{ block_id: "sec-cover", source_ref: "fixture.htm", text: evidence }],
+  });
+  let calls = 0;
+  const result = await runListingRiskDomainAnalyzerPreview(secInput, {
+    apiKey: "test-key",
+    runPrompt: async () => {
+      calls += 1;
+      return providerRun({
+        status: "not_applicable",
+        core_facts: [],
+        agent_context: { fact_provenance: [], as_of: { availability: "unavailable" }, confidence: "unknown", sources: [] },
+        share_count_observation: {
+          observation_type: "source_stated",
+          shares_outstanding: "27500000",
+          as_of: "2026-08-18",
+          security_class_title: "common stock",
+          source_ref: "sec-cover",
+          evidence,
+        },
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.stage, "complete");
+  assert.deepEqual(result.result, { status: "not_applicable" });
+  assert.equal(result.stage === "complete" ? result.shareCountObservation?.sharesOutstanding : null, "27500000");
 });
 
 test("preview module has no persistence, enqueue, fan-out, or worker integration", () => {

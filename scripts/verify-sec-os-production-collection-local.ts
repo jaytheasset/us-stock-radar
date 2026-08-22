@@ -29,7 +29,7 @@ try {
   const migration = await client.query(
     "select version from supabase_migrations.schema_migrations order by version desc limit 1",
   );
-  assert.equal(migration.rows[0]?.version, "20260821184556");
+  assert.equal(migration.rows[0]?.version, "20260821205806");
   assert.deepEqual(await fixtureCounts(client, ciks), emptyFixtureCounts());
 
   await client.query("begin");

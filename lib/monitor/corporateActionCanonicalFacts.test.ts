@@ -175,10 +175,10 @@ test("all stored-source adapters preserve exact source identity and never load p
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 3_899);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 5_593);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "f8a06bae93b3f339f9423b572517fb5b8dee0f643b027359d010f40d63f81f6f",
+    "af815f1ccb19801f28c5d198a1f24a0c7e2e1447ac3275eaa367532ae6b09d60",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);

@@ -14,6 +14,10 @@ import {
   LISTING_PROCEEDING_STATUSES,
   LISTING_VALUE_QUALITIES,
 } from "../monitor/listingRiskFacts.ts";
+import {
+  LEVEL2_SHARE_COUNT_OBSERVATION_FIELD,
+  LEVEL2_SHARE_COUNT_PROMPT_CONTRACT,
+} from "../sec-structured-data/level2ShareCountObservation.ts";
 
 export const LISTING_RISK_DOMAIN_ANALYZER_PROMPT_KEY = "listing_risk_domain_analyzer";
 
@@ -185,7 +189,7 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "A merger cleanup, security substitution, successor listing, or voluntary withdrawal can be applicable and may be procedural; do not force adverse merely because a security is removed.",
   "Keep notice date, compliance deadline, hearing date, appeal deadline, trading suspension date, and removal effective date distinct. Never copy one date into another role. Use unavailable fields when the source does not establish a value, rule, security basis, venue, or date.",
   "The LLM owns listing meaning. Do not infer applicability from event_type, monitor_routes, source family, form, exchange names, rule numbers, keywords, or regex-like word matches.",
-  "Return one complete JSON object directly. Do not use markdown fences, prose, explanations, prefixes, suffixes, a payload wrapper, or JSON embedded inside a string. The root has exactly status, core_facts, and agent_context.",
+  `Return one complete JSON object directly. Do not use markdown fences, prose, explanations, prefixes, suffixes, a payload wrapper, or JSON embedded inside a string. The root has exactly status, core_facts, agent_context, and optional ${LEVEL2_SHARE_COUNT_OBSERVATION_FIELD}.`,
   "Core Monitor Facts are the condition-evaluation layer. For applicable, return all 19 canonical fact keys exactly once in core_facts, each with explicit availability available or unavailable. Never omit a known fact and never invent another key. Return every source-supported condition-relevant listing_risk_event_facts_v2 value, including supported exchange, rule or requirement, affected security and security basis, proceeding, distinct date roles, compliance period, and continued trading. Continue through all supported facts; do not stop after classification or after finding evidence.",
   "For not_applicable, return status not_applicable, core_facts [], and agent_context {fact_provenance: [], as_of: {availability: unavailable}, confidence: unknown, sources: []}. Do not create fake facts, provenance, sources, or evidence.",
   "Distinguish semantic inference from schema-required mechanical representation. You may represent an explicitly source-supported value in the exact required schema shape, but must not change, complete, correct, calculate, or supplement its semantic value.",
@@ -204,6 +208,7 @@ export const LISTING_RISK_DOMAIN_ANALYZER_SYSTEM_PROMPT = [
   "Every available Core fact and matching provenance row must cite a supplied source_ref. Root agent_context.as_of remains LLM-owned: return either exactly {availability: unavailable} or an available object with exactly availability, value, value_quality, date_status, and source_ref. Never infer as_of from another date.",
   "For applicable, agent_context.sources is the exact cited source catalog. Include each source_ref cited by an available Core fact or available as_of exactly once and no uncited source_ref. Each source row has exactly source_ref. Application code copies source_family, source_id, source_url, and null source-level compatibility evidence from the analyzer input; fact-level evidence is authoritative.",
   `Short educational row example only, not a complete response; a real applicable response must still include all 19 Core keys and every matching provenance row (example source_document.text is ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_EXAMPLE_SOURCE_TEXT)}): ${JSON.stringify(LISTING_RISK_DOMAIN_ANALYZER_SHORT_EXAMPLE)}`,
+  LEVEL2_SHARE_COUNT_PROMPT_CONTRACT,
   "Do not guess missing values. Do not calculate, correct, replace, or supply fallback fact values. Return only the direct JSON object matching this contract.",
 ].join("\n");
 

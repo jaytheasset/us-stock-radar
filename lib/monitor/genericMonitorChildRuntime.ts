@@ -40,6 +40,8 @@ import {
   consumeListingMonitorAlertsForEvent,
   type ListingMonitorAlertConsumerResult,
 } from "./listingMonitorAlertConsumer.ts";
+import { persistLevel2ShareCountObservationFromSecRawItem } from "../sec-structured-data/level2ShareCountPersistenceRuntime.ts";
+import type { Level2ShareCountValidatedCandidate } from "../sec-structured-data/level2ShareCountObservation.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -64,6 +66,11 @@ export async function processGenericMonitorChild(
       identity: GenericMonitorChildIdentity;
       result: CorporateActionAnalyzerResult;
     }) => Promise<CorporateActionPersistenceResult>;
+    persistShareCountObservation?: (input: {
+      identity: GenericMonitorChildIdentity;
+      rawItem: Record<string, unknown>;
+      candidate: Level2ShareCountValidatedCandidate;
+    }) => Promise<{ inserted: number; deduped: number }>;
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
@@ -73,6 +80,8 @@ export async function processGenericMonitorChild(
       buildAnalyzerInput: buildCorporateActionAnalyzerInput,
       runAnalyzer: dependencies.runCorporateActionAnalyzer || runCorporateActionCanonicalAnalyzerPreview,
       persist: dependencies.persistCorporateAction || persistCorporateActionAnalyzerResult,
+      persistShareCountObservation: dependencies.persistShareCountObservation
+        || persistGenericMonitorShareCountObservation,
       terminalStateAfterPersistence: corporateActionTerminalStateAfterPersistence,
       consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
         || consumeListingMonitorAlertsForEvent,
@@ -84,9 +93,27 @@ export async function processGenericMonitorChild(
     runAnalyzer: dependencies.runListingRiskAnalyzer || runListingRiskDomainAnalyzerPreview,
     persist: dependencies.persistListingRisk
       || ((input) => persistListingRiskAnalyzerResult(input)),
+    persistShareCountObservation: dependencies.persistShareCountObservation
+      || persistGenericMonitorShareCountObservation,
     terminalStateAfterPersistence: listingRiskTerminalStateAfterPersistence,
     consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
       || consumeListingMonitorAlertsForEvent,
+  });
+}
+
+function persistGenericMonitorShareCountObservation(input: {
+  identity: GenericMonitorChildIdentity;
+  rawItem: Record<string, unknown>;
+  candidate: Level2ShareCountValidatedCandidate;
+}) {
+  return persistLevel2ShareCountObservationFromSecRawItem({
+    candidate: input.candidate,
+    rawItem: input.rawItem,
+    eventId: input.identity.eventId,
+    rawItemId: input.identity.rawItemId,
+    parentPrimaryAiRunId: input.identity.parentPrimaryAiRunId,
+    sourceExecutionId: input.identity.executionId,
+    analyzerKey: input.identity.monitorAnalyzerKey,
   });
 }
 

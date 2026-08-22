@@ -69,7 +69,7 @@ declare
   source_url text := 'https://www.sec.gov/Archives/edgar/data/99/fixture.htm';
 begin
   insert into public.share_count_history (
-    issuer_cik, shares_outstanding, as_of, security_class_basis,
+    observation_type, issuer_cik, shares_outstanding, as_of, security_class_basis,
     security_class_identity, security_class_metadata, share_basis_identity,
     share_basis_metadata, accession_number, form, filing_document, filed_date,
     accepted_at, ingested_at, source_concept_namespace_uri,
@@ -80,7 +80,7 @@ begin
     authoritative_decision_reason, authoritative_decision_lineage,
     source_document_url, source_content_hash
   ) values (
-    '0000000099', p_shares, p_as_of, p_security_basis,
+    'authoritative_xbrl', '0000000099', p_shares, p_as_of, p_security_basis,
     p_security_identity,
     pg_catalog.jsonb_build_object('evidenceFactKey', p_fact_key, 'contextRef', p_context_ref, 'dimensions', p_dimensions),
     'shares_outstanding:xbrli_shares',
@@ -124,9 +124,77 @@ begin
 end;
 $$;
 
+create function pg_temp.insert_level2_history()
+returns integer
+language plpgsql
+as $$
+declare
+  affected integer;
+begin
+  insert into public.share_count_history (
+    observation_type, issuer_cik, shares_outstanding, as_of,
+    security_class_basis, security_class_identity, security_class_metadata,
+    share_basis_identity, share_basis_metadata, accession_number, form,
+    filing_document, filed_date, accepted_at, ingested_at,
+    source_concept_namespace_uri, source_concept_local_name, source_fact_key,
+    source_context_ref, source_artifact_id, filing_ledger_raw_source_id,
+    source_fact_identity, source_context, source_dimensions, source_provenance,
+    source_type, authoritative_status, authoritative_decision_version,
+    authoritative_decision_reason, authoritative_decision_lineage,
+    source_document_url, source_content_hash, source_evidence, source_analyzer
+  ) values (
+    'source_stated', '0000000099', 27500000, '2026-08-18',
+    'SOURCE_STATED_SECURITY_CLASS',
+    pg_catalog.jsonb_build_object(
+      'canonicalKey', 'SOURCE_STATED_SECURITY_CLASS|' || repeat('7', 64),
+      'identity', pg_catalog.jsonb_build_object('title', 'common stock')
+    ),
+    pg_catalog.jsonb_build_object(
+      'sourceRef', 'sec-cover',
+      'evidence', 'As of August 18, 2026, 27,500,000 shares of common stock were outstanding.'
+    ),
+    'shares_outstanding:source_stated',
+    '{"measurement":"shares_outstanding","unit":{"kind":"shares","representation":"positive_integer"},"sourceStatedBasis":null}'::jsonb,
+    '0000000099-26-000001', '8-K', 'fixture-level2.htm', '2026-08-18',
+    '2026-08-18 12:00:00+00', '2026-08-22 12:00:00+00',
+    null, null, repeat('6', 64), 'sec-cover',
+    '95000000-0000-5000-8000-000000000001', null,
+    pg_catalog.jsonb_build_object(
+      'factKey', repeat('6', 64), 'sourceRef', 'sec-cover',
+      'accession', '0000000099-26-000001', 'documentName', 'fixture-level2.htm',
+      'observationType', 'source_stated'
+    ),
+    '{"sourceRef":"sec-cover","asOf":"2026-08-18","issuerCik":"0000000099"}'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_object(
+      'rawItemId', '95000000-0000-5000-8000-000000000001',
+      'eventId', '95000000-0000-5000-8000-000000000002',
+      'parentPrimaryAiRunId', '95000000-0000-5000-8000-000000000003',
+      'sourceExecutionId', '95000000-0000-5000-8000-000000000004',
+      'analyzerKey', 'listing_risk', 'sourceRef', 'sec-cover'
+    ),
+    'sec_filing_text_level2', null, null, null, null,
+    'https://www.sec.gov/Archives/edgar/data/99/fixture-level2.htm', repeat('5', 64),
+    'As of August 18, 2026, 27,500,000 shares of common stock were outstanding.',
+    'listing_risk'
+  ) on conflict on constraint share_count_history_canonical_source_unique do nothing;
+  get diagnostics affected = row_count;
+  return affected;
+end;
+$$;
+
 select is(
   pg_temp.insert_share_history('0000000099-26-000001', '2026-08-01', 100, repeat('a', 64), 'c-1', '2026-08-20', '2026-08-20 12:00:00+00'),
   1, 'ELIGIBLE observation saves'
+);
+select is(pg_temp.insert_level2_history(), 1, 'exact source-stated Level 2 observation saves');
+select is(pg_temp.insert_level2_history(), 0, 'exact Level 2 replay inserts zero rows');
+select is(
+  (select count(*)::integer from public.share_count_history
+   where issuer_cik = '0000000099'
+     and source_type in ('sec_authoritative_os', 'sec_filing_text_level2')),
+  2,
+  'SEC XBRL and Level 2 sources coexist without cross-source replacement'
 );
 select is(
   pg_temp.insert_share_history('0000000099-26-000001', '2026-08-01', 100, repeat('a', 64), 'c-1', '2026-08-20', '2026-08-20 12:00:00+00'),

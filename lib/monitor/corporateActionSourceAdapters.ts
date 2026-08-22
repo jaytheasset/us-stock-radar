@@ -49,6 +49,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
     block_id: string;
     source_ref?: string | null;
     label?: string | null;
+    document_reference?: string | null;
     text: string;
   }>;
 }): CorporateActionAnalyzerInput {
@@ -60,7 +61,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
     title: input.title,
     documents: input.cleaned_source_blocks.map((block) => ({
       source_ref: block.block_id,
-      label: block.source_ref || block.label || null,
+      label: block.document_reference || block.source_ref || block.label || null,
       text: block.text,
     })),
   });

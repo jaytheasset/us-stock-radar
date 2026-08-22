@@ -16,6 +16,10 @@ import {
   writeAuthoritativeShareCountObservation,
   type ShareCountHistorySqlClient,
 } from "./shareCountHistory.ts";
+import {
+  extractLevel2ShareCountSidecar,
+  writeLevel2ShareCountObservation,
+} from "./level2ShareCountObservation.ts";
 
 type AuditSample = {
   ticker: string;
@@ -84,6 +88,63 @@ test("Class A and Class B identities remain separate under one issuer without su
   assert.deepEqual(history.map((row) =>
     (row.securityClassIdentity.identity as { member: { localName: string } }).member.localName).sort(),
   ["CommonClassAMember", "CommonClassBMember"]);
+});
+
+test("SEC XBRL and Level 2 observations coexist across dates and source types without winner selection", async () => {
+  const repository = new InMemoryShareCountHistoryRepository();
+  const xbrl = eligibleDecision({
+    ...audit("AAPL"),
+    cik: "0000000099",
+    accession: "0000000099-26-000009",
+    document: "issuer-20260630.htm",
+    source_url: "https://www.sec.gov/Archives/edgar/data/99/issuer-20260630.htm",
+    companyfacts_value: "20000000",
+    filing_lexical_value: "20,000,000",
+    as_of: "2026-06-30",
+    context_ref: "xbrl-cover",
+  });
+  await writeAuthoritativeShareCountObservation({
+    repository, decision: xbrl, ingestedAt: "2026-08-22T08:00:00Z",
+  });
+  const evidence = "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.";
+  const level2 = extractLevel2ShareCountSidecar({
+    payload: {
+      share_count_observation: {
+        observation_type: "source_stated",
+        shares_outstanding: "27500000",
+        as_of: "2026-08-18",
+        security_class_title: "common stock",
+        source_ref: "sec:cover",
+        evidence,
+      },
+    },
+    accessionNumber: "0000000099-26-000010",
+    sourceDocumentUrl: "https://www.sec.gov/Archives/edgar/data/99/issuer-20260818.htm",
+    sourceDocuments: [{ source_ref: "sec:cover", document_name: "issuer-20260818.htm", text: evidence }],
+  }).candidate;
+  assert.ok(level2);
+  await writeLevel2ShareCountObservation({
+    repository,
+    candidate: level2,
+    context: {
+      issuerCik: "0000000099",
+      form: "8-K",
+      filedDate: "2026-08-18",
+      acceptedAt: "2026-08-18T12:00:00Z",
+      ingestedAt: "2026-08-22T08:01:00Z",
+      rawItemId: "10000000-0000-5000-8000-000000000001",
+      eventId: "20000000-0000-5000-8000-000000000001",
+      parentPrimaryAiRunId: "30000000-0000-5000-8000-000000000001",
+      sourceExecutionId: "40000000-0000-5000-8000-000000000001",
+      analyzerKey: "listing_risk",
+    },
+  });
+  const history = await readShareCountHistory(repository, "0000000099");
+  assert.deepEqual(history.map((row) => [row.asOf, row.sharesOutstanding, row.sourceType]), [
+    ["2026-06-30", "20000000", "sec_authoritative_os"],
+    ["2026-08-18", "27500000", "sec_filing_text_level2"],
+  ]);
+  assert.equal(history.some((row) => "winner" in row || "latest" in row || "isCurrent" in row), false);
 });
 
 test("REQUIRES_FURTHER_CONTEXT and UNAVAILABLE decisions save zero rows", async () => {
