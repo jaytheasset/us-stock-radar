@@ -128,6 +128,24 @@ test("migration is server-only, exact-lineage, stale-safe, and contains no parse
   assert.doesNotMatch(migration, /event_calendar_items|corporate_action_event_family|event_type\s*=\s*'listing_risk'/i);
 });
 
+test("applicability migration reuses canonical class support and exposes only current-verified history candidates", () => {
+  const migration = readFileSync(
+    new URL("../../supabase/migrations/20260822104833_reverse_split_applicability_history_contract_v1.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /alter table public\.event_corporate_action_facts/);
+  assert.match(migration, /references public\.sec_issuers\(cik\)/);
+  assert.match(migration, /support\.canonical_security_class_id = new\.canonical_security_class_id/);
+  assert.match(migration, /support\.accepted_at <= v_ledger\.accepted_at/);
+  assert.match(migration, /ratio_old_share_units numeric/);
+  assert.match(migration, /ratio_new_share_units numeric/);
+  assert.match(migration, /read_corporate_action_applicability_context/);
+  assert.match(migration, /read_reverse_split_history_candidates/);
+  assert.match(migration, /applicability_status = 'mapped'/);
+  assert.match(migration, /grant execute on function public\.read_reverse_split_history_candidates[\s\S]*?to service_role/);
+  assert.doesNotMatch(migration, /sec_issuer_ticker_observations|company_name|forward_split|stock_dividend/i);
+});
+
 function childIdentity(): GenericMonitorChildIdentity {
   return buildGenericMonitorChildIdentities({
     primary: {

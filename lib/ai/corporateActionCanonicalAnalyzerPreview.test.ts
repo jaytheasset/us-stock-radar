@@ -26,6 +26,13 @@ test("analyzer makes one bounded provider call with a small plain response schem
         action_stage: "scheduled",
         effective_date: { availability: "available", value: "2026-08-08" },
         ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+        affected_security: {
+          availability: "unavailable",
+          reason: "issuer_identity_unavailable",
+          source_ref: null,
+          evidence: null,
+        },
+        effective_timing: { availability: "unavailable", reason: "date_only" },
         source_ref: "nasdaq_notice_body",
         evidence: "A one-for-ten reverse split will become effective on August 8, 2026.",
         confidence: "high",
@@ -35,10 +42,17 @@ test("analyzer makes one bounded provider call with a small plain response schem
   });
   assert.equal(requests.length, 1);
   assert.deepEqual(requests[0]?.responseSchema, CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA);
-  assert.equal(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA).length < 2_500, true);
+  assert.equal(JSON.stringify(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA).length < 5_000, true);
   assert.equal(requests[0]?.maxOutputTokens, 1_200);
   assert.equal(result.stage, "complete");
   assert.equal(result.repair, null);
+  assert.equal(result.stage === "complete" ? result.result.applicable : false, true);
+  if (result.stage === "complete" && result.result.applicable) {
+    assert.equal(result.result.facts.applicability?.affected_security.availability, "unavailable");
+    assert.deepEqual(result.result.facts.ratio.exact_source_components, {
+      availability: "available", old_share_units: "10", new_share_units: "1",
+    });
+  }
 });
 
 test("provider, invalid output, and semantic not-applicable remain separate", async () => {

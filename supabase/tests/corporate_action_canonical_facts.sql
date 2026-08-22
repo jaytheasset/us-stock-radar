@@ -101,6 +101,41 @@ as $function$
   )
 $function$;
 
+create function pg_temp.ca_extended_facts()
+returns jsonb
+language sql
+as $function$
+  select pg_temp.ca_facts()
+    || pg_catalog.jsonb_build_object(
+      'ratio', pg_catalog.jsonb_build_object(
+        'old_shares_per_new_share', pg_catalog.jsonb_build_object(
+          'availability', 'available', 'value', 20
+        ),
+        'exact_source_components', pg_catalog.jsonb_build_object(
+          'availability', 'available', 'old_share_units', '20', 'new_share_units', '1'
+        )
+      ),
+      'applicability', pg_catalog.jsonb_build_object(
+        'version', 'reverse_split_applicability_v1',
+        'issuer', pg_catalog.jsonb_build_object(
+          'availability', 'unavailable', 'reason', 'non_sec_source'
+        ),
+        'affected_security', pg_catalog.jsonb_build_object(
+          'availability', 'unavailable',
+          'reason', 'issuer_identity_unavailable',
+          'source_ref', null,
+          'evidence', pg_catalog.jsonb_build_object(
+            'availability', 'unavailable', 'reason', 'not_provided'
+          )
+        ),
+        'basis_change_capability', 'reverse_split_only'
+      ),
+      'effective_timing', pg_catalog.jsonb_build_object(
+        'availability', 'unavailable', 'reason', 'date_only'
+      )
+    )
+$function$;
+
 create function pg_temp.ca_add_parent(
   p_parent_id uuid,
   p_output_id uuid,
@@ -439,6 +474,51 @@ select is(
   )#>>'{facts,action_stage}',
   'effective',
   'newer exact-parent fact is current'
+);
+
+select pg_temp.ca_add_child(
+  '72000000-0000-4000-8000-000000000010',
+  '72000000-0000-4000-8000-000000000007',
+  '72000000-0000-4000-8000-000000000110',
+  '2026-08-14 00:12:00+00'
+);
+select is(
+  public.persist_corporate_action_analyzer_result(
+    '72000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000010',
+    pg_catalog.jsonb_build_object('applicable', true, 'facts', pg_temp.ca_extended_facts())
+  )->>'status',
+  'saved',
+  'backward-compatible persistence accepts the applicability/timing/exact-ratio extension'
+);
+select is(
+  (select applicability_status from public.event_corporate_action_facts
+   where source_execution_id = '72000000-0000-4000-8000-000000000010'),
+  'unavailable',
+  'non-SEC source preserves unavailable affected-security applicability'
+);
+select is(
+  (select ratio_old_share_units::text || ':' || ratio_new_share_units::text
+   from public.event_corporate_action_facts
+   where source_execution_id = '72000000-0000-4000-8000-000000000010'),
+  '20:1',
+  'exact old/new ratio components materialize without floating-point-only storage'
+);
+select is(
+  (select effective_timing_status || ':' || (effective_timing_payload ->> 'reason')
+   from public.event_corporate_action_facts
+   where source_execution_id = '72000000-0000-4000-8000-000000000010'),
+  'unavailable:date_only',
+  'date-only effective timing preserves unresolved same-day ordering'
+);
+
+select ok(
+  not pg_catalog.has_function_privilege('anon', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
+  and not pg_catalog.has_function_privilege('authenticated', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
+  and not pg_catalog.has_function_privilege('anon', 'public.read_reverse_split_history_candidates(text,text,date,date)', 'execute')
+  and pg_catalog.has_function_privilege('service_role', 'public.read_reverse_split_history_candidates(text,text,date,date)', 'execute'),
+  'applicability context and history candidate readers remain service-role-only'
 );
 
 select * from finish();
