@@ -10,19 +10,20 @@ import {
   type ShareCountHistoryRepository,
 } from "./shareCountHistory.ts";
 import {
-  normalizeClassShareCountAt,
-  type AppliedReverseSplitExecution,
+  normalizeClassShareCountForStockSplitsAt,
+  type AppliedStockSplitExecution,
   type ExactShareCount,
-  type ReverseSplitShareBasisNormalizerDependencies,
-  type ReverseSplitShareBasisNormalization,
-} from "./reverseSplitShareBasisNormalizer.ts";
+  type StockSplitShareBasisNormalizerDependencies,
+  type StockSplitShareBasisNormalization,
+} from "./stockSplitShareBasisNormalizer.ts";
+import type { AppliedReverseSplitExecution } from "./reverseSplitShareBasisNormalizer.ts";
 
 export const SHARE_COUNT_ANCHOR_RECONCILIATION_VERSION =
   "share-count-anchor-reconciliation-v1" as const;
 
 export const SHARE_COUNT_ANCHOR_RECONCILIATION_COVERAGE = [
   "authoritative_periodic_anchor",
-  "reverse_split_only_basis_normalization",
+  "stock_split_basis_normalization",
 ] as const;
 
 export type ExactSignedRational = {
@@ -45,7 +46,7 @@ export type ReconciledIntermediateShareCount = {
   normalizedIntegerShares: string | null;
   supportingObservations: Level2ShareCountHistoryObservation[];
   appliedExecutionIds: string[];
-  appliedExecutions: AppliedReverseSplitExecution[];
+  appliedExecutions: AppliedStockSplitExecution[];
 };
 
 export type ShareCountReconciliationConflict = {
@@ -70,8 +71,10 @@ type ShareCountAnchorReconciliationBase = {
   netChangeShares: ExactSignedRational | null;
   netChangePct: ExactSignedRational | null;
   intermediateObservations: ReconciledIntermediateShareCount[];
+  appliedStockSplitExecutions: AppliedStockSplitExecution[];
+  /** @deprecated Use appliedStockSplitExecutions. */
   appliedReverseSplitExecutions: AppliedReverseSplitExecution[];
-  normalizationFailures: ReverseSplitShareBasisNormalization[];
+  normalizationFailures: StockSplitShareBasisNormalization[];
   conflicts: ShareCountReconciliationConflict[];
   provenance: {
     historySource: "share_count_history";
@@ -124,8 +127,8 @@ export type ShareCountAnchorReconciliation =
   | ShareCountAnchorReconciliationUnavailable;
 
 export type ShareCountAnchorReconciliationDependencies = {
-  normalizeShareCountAt?: typeof normalizeClassShareCountAt;
-  readExecutions?: NonNullable<ReverseSplitShareBasisNormalizerDependencies["readExecutions"]>;
+  normalizeShareCountAt?: typeof normalizeClassShareCountForStockSplitsAt;
+  readExecutions?: NonNullable<StockSplitShareBasisNormalizerDependencies["readExecutions"]>;
 };
 
 export async function reconcileShareCountAnchors(
@@ -256,7 +259,8 @@ export async function reconcileShareCountAnchors(
     netChangeShares,
     netChangePct,
     intermediateObservations,
-    appliedReverseSplitExecutions: structuredClone(startNormalization.appliedExecutions),
+    appliedStockSplitExecutions: structuredClone(startNormalization.appliedExecutions),
+    appliedReverseSplitExecutions: reverseExecutions(startNormalization.appliedExecutions),
     normalizationFailures: [],
     conflicts: [],
     provenance: provenance(start.anchor, end.anchor, intermediateRows),
@@ -302,10 +306,10 @@ async function normalizeObservationGroup(
   basisTargetAt: string,
   rows: ShareCountHistoryObservation[],
   dependencies: ShareCountAnchorReconciliationDependencies,
-): Promise<ReverseSplitShareBasisNormalization> {
-  const normalization = dependencies.normalizeShareCountAt ?? normalizeClassShareCountAt;
+): Promise<StockSplitShareBasisNormalization> {
+  const normalization = dependencies.normalizeShareCountAt ?? normalizeClassShareCountForStockSplitsAt;
   const resolution = resolvedObservationGroup(input, basisTargetAt, rows);
-  const normalizerDependencies: ReverseSplitShareBasisNormalizerDependencies = {
+  const normalizerDependencies: StockSplitShareBasisNormalizerDependencies = {
     resolveShareCount: async () => structuredClone(resolution),
   };
   if (dependencies.readExecutions) normalizerDependencies.readExecutions = dependencies.readExecutions;
@@ -461,7 +465,7 @@ function unavailable(
   reason: ShareCountAnchorReconciliationUnavailable["reason"],
   startAnchor: ShareCountAnchorSelection | null = null,
   endAnchor: ShareCountAnchorSelection | null = null,
-  normalizationFailures: ReverseSplitShareBasisNormalization[] = [],
+  normalizationFailures: StockSplitShareBasisNormalization[] = [],
 ): ShareCountAnchorReconciliationUnavailable {
   return {
     ...baseResult(input, basisTargetAt, startAnchor, endAnchor),
@@ -472,6 +476,7 @@ function unavailable(
     netChangeShares: null,
     netChangePct: null,
     intermediateObservations: [],
+    appliedStockSplitExecutions: [],
     appliedReverseSplitExecutions: [],
     normalizationFailures: structuredClone(normalizationFailures),
     conflicts: [],
@@ -496,6 +501,7 @@ function conflictResult(
     netChangeShares: null,
     netChangePct: null,
     intermediateObservations: [],
+    appliedStockSplitExecutions: [],
     appliedReverseSplitExecutions: [],
     normalizationFailures: [],
     conflicts: [structuredClone(conflict)],
@@ -537,6 +543,11 @@ function provenance(
 
 function sourceIdentities(rows: ShareCountHistoryObservation[]) {
   return rows.map(sourceIdentity).sort();
+}
+
+function reverseExecutions(executions: AppliedStockSplitExecution[]): AppliedReverseSplitExecution[] {
+  return structuredClone(executions.filter((execution) => execution.kind === "reverse_split")
+    .map(({ kind: _kind, ...execution }) => execution));
 }
 
 function sourceIdentity(row: ShareCountHistoryObservation) {
