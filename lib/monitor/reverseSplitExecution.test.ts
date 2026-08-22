@@ -300,24 +300,6 @@ test("day-basis activates date-only/opening executions on effective date and pre
   });
 });
 
-test("exact timestamp remains timestamp-aware and unresolved timing fails closed", async () => {
-  const exact = (await readWith([historyItem(1, factsFor({
-    sequence: 1,
-    timing: availableTiming("exact_timestamp", "2026-08-25T13:30:00Z"),
-  }))])).executions[0]!;
-  assert.equal(reverseSplitExecutionActivationDecision({ execution: exact, targetDate: "2026-08-25" }).status, "INDETERMINATE");
-  assert.equal(reverseSplitExecutionActivationDecision({
-    execution: exact,
-    targetDate: "2026-08-25",
-    targetAt: "2026-08-25T13:29:59Z",
-  }).status, "NOT_APPLIED");
-  assert.equal(reverseSplitExecutionActivationDecision({
-    execution: exact,
-    targetDate: "2026-08-25",
-    targetAt: "2026-08-25T13:30:00Z",
-  }).status, "APPLIED");
-});
-
 type FactsOptions = {
   sequence: number;
   stage?: CorporateActionStage;
@@ -338,10 +320,7 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
   const ratio = options.ratio === undefined ? [10, 1] as [number, number] : options.ratio;
   const classId = options.canonicalSecurityClassId ?? singleClassId;
   const source = options.source
-    ?? `The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.${
-      options.timing?.availability === "available" && options.timing.kind === "exact_timestamp"
-        ? ` Exact source timestamp ${options.timing.timestamp}.` : ""
-    }`;
+    ?? "The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.";
   const member = classId === classAId ? "CommonClassAMember" : classId === classBId ? "CommonClassBMember" : null;
   const input = adaptSec8k6kCorporateActionSource({
     accession_number: accession,
@@ -502,16 +481,14 @@ function history(
 }
 
 function availableTiming(
-  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
-  timestamp: string | null = null,
+  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close",
 ): CorporateActionEffectiveTimingTransport {
   return {
     availability: "available",
     kind,
-    timestamp,
+    timestamp: null,
     source_ref: "sec_block_1",
-    evidence: kind === "exact_timestamp" && timestamp
-      ? `Exact source timestamp ${timestamp}.` : "effective August 25, 2026",
+    evidence: "effective August 25, 2026",
   };
 }
 

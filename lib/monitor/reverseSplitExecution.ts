@@ -154,8 +154,9 @@ type StockSplitExecutionTupleConflict = ReverseSplitExecutionTupleConflict<Stock
 type StockSplitExecutionUpdateConflict = ReverseSplitExecutionUpdateConflict<StockSplitExecutionVersion>;
 type StockSplitExecutionConflict = ReverseSplitExecutionConflict<StockSplitExecutionVersion>;
 
-export type ReverseSplitExecutionReadResult = {
+type ReverseSplitExecutionAvailable = {
   status: "available";
+  materializationStatus?: "NO_SPLIT_EVIDENCE" | "SPLIT_EXECUTIONS_AVAILABLE";
   issuerCik: string;
   canonicalSecurityClassId: string | null;
   from: string;
@@ -167,48 +168,65 @@ export type ReverseSplitExecutionReadResult = {
   conflicts: ReverseSplitExecutionConflict[];
 };
 
+export type StockSplitExecutionMaterializationUnavailable = {
+  status: "materialization_unavailable";
+  materializationStatus: "SPLIT_MATERIALIZATION_FAILED";
+  issuerCik: string;
+  canonicalSecurityClassId: string | null;
+  from: string;
+  to: string;
+  targetAt: string;
+  basisChangeCoverage: "reverse_split_only" | "forward_split_only";
+  failures: import("./stockSplitMaterialization.ts").StockSplitMaterializationDiagnostic[];
+  executions: never[];
+  inactiveExecutions: never[];
+  conflicts: never[];
+};
+
+export type ReverseSplitExecutionReadResult =
+  | ReverseSplitExecutionAvailable
+  | (StockSplitExecutionMaterializationUnavailable & { basisChangeCoverage: "reverse_split_only" });
+
 export type ForwardSplitExecutionReadResult = Omit<
-  ReverseSplitExecutionReadResult,
+  ReverseSplitExecutionAvailable,
   "basisChangeCoverage" | "executions" | "inactiveExecutions" | "conflicts"
 > & {
   basisChangeCoverage: "forward_split_only";
   executions: ForwardSplitExecution[];
   inactiveExecutions: InactiveReverseSplitExecution<typeof FORWARD_SPLIT_EXECUTION_VERSION>[];
   conflicts: ReverseSplitExecutionConflict<typeof FORWARD_SPLIT_EXECUTION_VERSION>[];
-};
+} | (StockSplitExecutionMaterializationUnavailable & { basisChangeCoverage: "forward_split_only" });
 
 export type StockSplitExecutionReadResult =
   | ReverseSplitExecutionReadResult
   | ForwardSplitExecutionReadResult;
 
 type StockSplitExecutionProjectionResult = Omit<
-  ReverseSplitExecutionReadResult,
+  ReverseSplitExecutionAvailable,
   "basisChangeCoverage" | "executions" | "inactiveExecutions" | "conflicts"
 > & {
   basisChangeCoverage: StockSplitExecutionContract["basisChangeCoverage"];
   executions: StockSplitExecution[];
   inactiveExecutions: InactiveStockSplitExecution[];
   conflicts: StockSplitExecutionConflict[];
-};
+} | StockSplitExecutionMaterializationUnavailable;
 
 export type ReverseSplitExecutionActivationDecision =
   | {
       status: "APPLIED";
       reason:
         | "target_after_effective_date"
-        | "effective_date_day_basis"
-        | "exact_timestamp_reached";
+        | "effective_date_day_basis";
     }
   | {
       status: "NOT_APPLIED";
       reason:
         | "target_before_effective_date"
-        | "after_market_close_same_day"
-        | "exact_timestamp_not_reached";
+        | "after_market_close_same_day";
     }
   | {
       status: "INDETERMINATE";
-      reason: "exact_timestamp_requires_target_at" | "effective_timing_unresolved";
+      reason: "effective_timing_unresolved";
     };
 
 type ReverseSplitExecutionDependencies = {
@@ -319,13 +337,29 @@ async function readStockSplitExecutionsInternal(
     throw new Error(`${contract.errorLabel} execution knowledge timestamp is invalid`);
   }
   const history = await dependencies.readHistory(filter);
-  const updateHistory = await dependencies.readUpdates({ cik: filter.cik, targetAt: filter.targetAt });
+  if (history.status === "materialization_unavailable") {
+    return {
+      status: "materialization_unavailable",
+      materializationStatus: "SPLIT_MATERIALIZATION_FAILED",
+      issuerCik: history.issuerCik,
+      canonicalSecurityClassId: history.canonicalSecurityClassId,
+      from: history.from,
+      to: history.to,
+      targetAt: filter.targetAt,
+      basisChangeCoverage: contract.basisChangeCoverage,
+      failures: structuredClone(history.failures),
+      executions: [],
+      inactiveExecutions: [],
+      conflicts: [],
+    };
+  }
   if (history.status !== "available" || history.issuerCik !== filter.cik
     || history.canonicalSecurityClassId !== (filter.canonicalSecurityClassId ?? null)
     || history.from !== filter.from || history.to !== filter.to
     || history.basisChangeCoverage !== contract.basisChangeCoverage) {
     throw new Error(`${contract.errorLabel} execution history response is invalid`);
   }
+  const updateHistory = await dependencies.readUpdates({ cik: filter.cik, targetAt: filter.targetAt });
   if (updateHistory.status !== "available" || updateHistory.issuerCik !== filter.cik
     || updateHistory.targetAt !== filter.targetAt) {
     throw new Error(`${contract.errorLabel} execution update history response is invalid`);
@@ -377,6 +411,8 @@ async function readStockSplitExecutionsInternal(
   conflicts.sort(compareConflicts);
   return {
     status: "available",
+    materializationStatus: activeExecutions.length || inactiveExecutions.length
+      ? "SPLIT_EXECUTIONS_AVAILABLE" : "NO_SPLIT_EVIDENCE",
     issuerCik: filter.cik,
     canonicalSecurityClassId: filter.canonicalSecurityClassId ?? null,
     from: filter.from,
@@ -473,13 +509,7 @@ function stockSplitExecutionActivationDecisionInternal(
   if (timing.kind === "after_market_close") {
     return { status: "NOT_APPLIED", reason: "after_market_close_same_day" };
   }
-  if (!input.targetAt) {
-    return { status: "INDETERMINATE", reason: "exact_timestamp_requires_target_at" };
-  }
-  if (!validTimestamp(input.targetAt)) throw new Error(`${errorLabel} execution target timestamp is invalid`);
-  return Date.parse(input.targetAt) >= Date.parse(timing.timestamp!)
-    ? { status: "APPLIED", reason: "exact_timestamp_reached" }
-    : { status: "NOT_APPLIED", reason: "exact_timestamp_not_reached" };
+  return { status: "INDETERMINATE", reason: "effective_timing_unresolved" };
 }
 
 export function reverseSplitExecutionId(input: {
@@ -750,9 +780,7 @@ function unavailableTimingProjection(observations: readonly ReverseSplitExecutio
 }
 
 function timingKey(timing: Extract<EffectiveTiming, { availability: "available" }>) {
-  return timing.kind === "exact_timestamp"
-    ? `${timing.kind}:${new Date(timing.timestamp!).toISOString()}`
-    : timing.kind;
+  return timing.kind;
 }
 
 function timingFromKey(

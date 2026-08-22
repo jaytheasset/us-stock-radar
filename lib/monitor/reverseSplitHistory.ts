@@ -1,4 +1,5 @@
 import {
+  CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
   readCorporateActionAnalyzerResult,
   type CorporateActionEventKind,
   type CorporateActionCanonicalFacts,
@@ -8,6 +9,11 @@ import {
   type CurrentCorporateActionReadResult,
   type CorporateActionPersistenceDependencies,
 } from "./corporateActionPersistence.ts";
+import {
+  readStockSplitMaterializationDiagnostic,
+  STOCK_SPLIT_MATERIALIZATION_ERROR_PREFIX,
+  type StockSplitMaterializationDiagnostic,
+} from "./stockSplitMaterialization.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CIK_PATTERN = /^\d{10}$/;
@@ -31,8 +37,9 @@ export type ReverseSplitHistoryItem = {
   persistedAt: string;
 };
 
-export type ReverseSplitHistoryReadResult = {
+type ReverseSplitHistoryAvailable = {
   status: "available";
+  materializationStatus?: "NO_SPLIT_EVIDENCE" | "SPLIT_EXECUTIONS_AVAILABLE";
   issuerCik: string;
   canonicalSecurityClassId: string | null;
   from: string;
@@ -41,15 +48,31 @@ export type ReverseSplitHistoryReadResult = {
   items: ReverseSplitHistoryItem[];
 };
 
+export type StockSplitHistoryMaterializationUnavailable = {
+  status: "materialization_unavailable";
+  materializationStatus: "SPLIT_MATERIALIZATION_FAILED";
+  issuerCik: string;
+  canonicalSecurityClassId: string | null;
+  from: string;
+  to: string;
+  basisChangeCoverage: "reverse_split_only" | "forward_split_only";
+  items: never[];
+  failures: StockSplitMaterializationDiagnostic[];
+};
+
+export type ReverseSplitHistoryReadResult =
+  | ReverseSplitHistoryAvailable
+  | (StockSplitHistoryMaterializationUnavailable & { basisChangeCoverage: "reverse_split_only" });
+
 export type ForwardSplitHistoryItem = ReverseSplitHistoryItem;
 
 export type ForwardSplitHistoryReadResult = Omit<
-  ReverseSplitHistoryReadResult,
+  ReverseSplitHistoryAvailable,
   "basisChangeCoverage" | "items"
 > & {
   basisChangeCoverage: "forward_split_only";
   items: ForwardSplitHistoryItem[];
-};
+} | (StockSplitHistoryMaterializationUnavailable & { basisChangeCoverage: "forward_split_only" });
 
 export type StockSplitHistoryFilter = ReverseSplitHistoryFilter & {
   actionKind: CorporateActionEventKind;
@@ -59,6 +82,7 @@ export type StockSplitHistoryReadResult = ReverseSplitHistoryReadResult | Forwar
 
 type ReverseSplitHistoryDependencies = CorporateActionPersistenceDependencies & {
   readCurrent(eventId: string): Promise<CurrentCorporateActionReadResult>;
+  readMaterializationFailures?(): Promise<StockSplitMaterializationDiagnostic[]>;
 };
 
 const defaultDependencies: ReverseSplitHistoryDependencies = {
@@ -67,6 +91,7 @@ const defaultDependencies: ReverseSplitHistoryDependencies = {
     return repository.supabaseRpc(functionName, payload);
   },
   readCurrent: (eventId) => readCurrentCorporateActionFacts(eventId),
+  readMaterializationFailures: readPersistedStockSplitMaterializationFailures,
 };
 
 export async function readReverseSplitHistory(
@@ -141,8 +166,33 @@ async function readStockSplitHistoryInternal(
     });
   }
   items.sort(compareHistoryItems);
+  const persistedFailures = dependencies.readMaterializationFailures
+    ? await dependencies.readMaterializationFailures()
+    : [];
+  const failures = persistedFailures.filter((failure) =>
+    failure.actionKind === filter.actionKind
+    && failure.issuerCik === filter.cik
+    && failure.effectiveDate >= filter.from && failure.effectiveDate <= filter.to
+    && (!filter.canonicalSecurityClassId
+      || failure.canonicalSecurityClassId === filter.canonicalSecurityClassId)
+    && !items.some((item) => materializesFailure(item, failure)));
+  if (failures.length > 0) {
+    return {
+      status: "materialization_unavailable",
+      materializationStatus: "SPLIT_MATERIALIZATION_FAILED",
+      issuerCik: filter.cik,
+      canonicalSecurityClassId: filter.canonicalSecurityClassId ?? null,
+      from: filter.from,
+      to: filter.to,
+      basisChangeCoverage: filter.actionKind === "reverse_split"
+        ? "reverse_split_only" : "forward_split_only",
+      items: [],
+      failures: structuredClone(failures),
+    } as StockSplitHistoryReadResult;
+  }
   return {
     status: "available",
+    materializationStatus: items.length ? "SPLIT_EXECUTIONS_AVAILABLE" : "NO_SPLIT_EVIDENCE",
     issuerCik: filter.cik,
     canonicalSecurityClassId: filter.canonicalSecurityClassId ?? null,
     from: filter.from,
@@ -150,7 +200,7 @@ async function readStockSplitHistoryInternal(
     basisChangeCoverage: filter.actionKind === "reverse_split"
       ? "reverse_split_only" : "forward_split_only",
     items,
-  };
+  } as StockSplitHistoryReadResult;
 }
 
 function validateCandidateResponse(
@@ -205,15 +255,45 @@ function validateFilter(
 function compareHistoryItems(left: ReverseSplitHistoryItem, right: ReverseSplitHistoryItem) {
   const date = left.effectiveDate.localeCompare(right.effectiveDate);
   if (date !== 0) return date;
-  const leftTimestamp = left.effectiveTiming.availability === "available"
-    && left.effectiveTiming.kind === "exact_timestamp" ? left.effectiveTiming.timestamp : null;
-  const rightTimestamp = right.effectiveTiming.availability === "available"
-    && right.effectiveTiming.kind === "exact_timestamp" ? right.effectiveTiming.timestamp : null;
-  if (leftTimestamp && rightTimestamp) {
-    const timestamp = leftTimestamp.localeCompare(rightTimestamp);
-    if (timestamp !== 0) return timestamp;
-  }
   return left.sourceExecutionId.localeCompare(right.sourceExecutionId);
+}
+
+async function readPersistedStockSplitMaterializationFailures() {
+  const repository = await import("../supabase.ts");
+  const response = await repository.supabaseSelect("ai_runs", {
+    select: "error_message",
+    prompt_key: "eq.domain_monitor_child",
+    prompt_version: `eq.${CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION}`,
+    "metadata->>monitor_analyzer_key": "eq.corporate_action",
+    status: "in.(pending,failed)",
+    error_message: `like.${STOCK_SPLIT_MATERIALIZATION_ERROR_PREFIX}*`,
+    order: "started_at.desc.nullslast,id.desc",
+    limit: "1000",
+  });
+  if (!response.ok || !Array.isArray(response.data)) {
+    throw new Error(`Stock split materialization diagnostic read failed: ${response.error || response.status}`);
+  }
+  return response.data.flatMap((value) => {
+    const diagnostic = readStockSplitMaterializationDiagnostic(record(value)?.error_message);
+    return diagnostic ? [diagnostic] : [];
+  });
+}
+
+function materializesFailure(
+  item: ReverseSplitHistoryItem,
+  failure: StockSplitMaterializationDiagnostic,
+) {
+  const exact = item.facts.ratio.exact_source_components;
+  const issuer = item.facts.applicability?.issuer;
+  return item.facts.event_kind === failure.actionKind
+    && item.issuerCik === failure.issuerCik
+    && item.canonicalSecurityClassId === failure.canonicalSecurityClassId
+    && item.effectiveDate === failure.effectiveDate
+    && issuer?.availability === "available"
+    && issuer.accession_number === failure.accessionNumber
+    && exact?.availability === "available"
+    && exact.old_share_units === failure.oldShareUnits
+    && exact.new_share_units === failure.newShareUnits;
 }
 
 function canonicalClassId(value: string, cik: string) {

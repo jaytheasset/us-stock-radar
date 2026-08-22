@@ -78,6 +78,7 @@ export type StockSplitShareBasisNormalizationUnavailable = StockSplitShareBasisN
     | "SHARE_COUNT_UNAVAILABLE"
     | "SHARE_COUNT_CONFLICT"
     | "EXECUTION_READ_FAILED"
+    | "SPLIT_MATERIALIZATION_FAILED"
     | "EXECUTION_READER_INVALID"
     | "EXECUTION_CONFLICT"
     | "EXECUTION_TIMING_INDETERMINATE"
@@ -154,6 +155,16 @@ export async function normalizeClassShareCountForStockSplitsAt(
   }
 
   const kinds = ["forward_split", "reverse_split"] as const;
+  if (reads.some((read, index) => read.status === "materialization_unavailable"
+    && read.materializationStatus === "SPLIT_MATERIALIZATION_FAILED"
+    && read.issuerCik === input.cik
+    && read.canonicalSecurityClassId === input.securityClassId
+    && read.from === firstExecutionDate && read.to === targetDate
+    && read.targetAt === targetAt
+    && read.basisChangeCoverage === (kinds[index] === "forward_split"
+      ? "forward_split_only" : "reverse_split_only"))) {
+    return unavailable(input, targetAt, targetDate, resolution, "SPLIT_MATERIALIZATION_FAILED");
+  }
   if (reads.some((read, index) => !validExecutionRead(
     read, kinds[index]!, input, firstExecutionDate, targetDate, targetAt,
   ))) {

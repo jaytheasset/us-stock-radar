@@ -47,6 +47,10 @@ import {
 } from "./listingMonitorAlertConsumer.ts";
 import { persistLevel2ShareCountObservationFromSecRawItem } from "../sec-structured-data/level2ShareCountPersistenceRuntime.ts";
 import type { Level2ShareCountValidatedCandidate } from "../sec-structured-data/level2ShareCountObservation.ts";
+import {
+  buildPersistedStockSplitMaterializationDiagnostic,
+  stockSplitMaterializationError,
+} from "./stockSplitMaterialization.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -105,6 +109,14 @@ export async function processGenericMonitorChild(
       persistShareCountObservation: dependencies.persistShareCountObservation
         || persistGenericMonitorShareCountObservation,
       terminalStateAfterPersistence: corporateActionTerminalStateAfterPersistence,
+      persistenceFailureError: (result: CorporateActionAnalyzerResult, error) => {
+        if (!result.applicable) return error;
+        const diagnostic = buildPersistedStockSplitMaterializationDiagnostic(
+          result.facts,
+          error instanceof Error ? error.message : String(error),
+        );
+        return diagnostic ? stockSplitMaterializationError(diagnostic) : error;
+      },
       consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
         || consumeListingMonitorAlertsForEvent,
     });

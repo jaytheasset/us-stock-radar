@@ -27,7 +27,7 @@ type GenericMonitorAnalyzerRun<TResult> =
       result: TResult;
       shareCountObservation?: Level2ShareCountValidatedCandidate | null;
     }
-  | { stage: string; result: null; error: string };
+  | { stage: string; result: null; error: string; retryError?: unknown };
 
 export async function processGenericMonitorChildWithDependencies<
   TInput,
@@ -56,6 +56,7 @@ export async function processGenericMonitorChildWithDependencies<
       result: TResult,
       persistence: TPersistence,
     ): GenericMonitorChildTerminalState | null;
+    persistenceFailureError?(result: TResult, error: unknown): unknown;
     consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
       Promise<ListingMonitorAlertConsumerResult>;
   },
@@ -93,7 +94,9 @@ export async function processGenericMonitorChildWithDependencies<
   }
   if (analyzerRun.stage !== "complete" || analyzerRun.result === null) {
     const error = "error" in analyzerRun ? analyzerRun.error : "Analyzer result is unavailable";
-    await repository.releaseForRetry(identity, error);
+    const retryError = "retryError" in analyzerRun && analyzerRun.retryError
+      ? analyzerRun.retryError : error;
+    await repository.releaseForRetry(identity, retryError);
     return retryableFailure(identity, error);
   }
 
@@ -101,7 +104,10 @@ export async function processGenericMonitorChildWithDependencies<
   try {
     persistence = await dependencies.persist({ identity, result: analyzerRun.result });
   } catch (error) {
-    await repository.releaseForRetry(identity, error);
+    const retryError = dependencies.persistenceFailureError
+      ? dependencies.persistenceFailureError(analyzerRun.result, error)
+      : error;
+    await repository.releaseForRetry(identity, retryError);
     return retryableFailure(identity, error);
   }
   if (persistence.status === "stale") {
