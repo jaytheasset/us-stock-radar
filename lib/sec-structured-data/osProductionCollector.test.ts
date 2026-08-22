@@ -10,6 +10,10 @@ import {
 import { SecOsProductionCollector } from "./osProductionCollector.ts";
 import { SecStructuredDataService } from "./service.ts";
 import { InMemoryShareCountHistoryRepository } from "./shareCountHistory.ts";
+import {
+  InMemoryIssuerCommonClassUniverseRepository,
+  readIssuerCommonClassUniverseAt,
+} from "./issuerCommonClassUniverse.ts";
 import type {
   SecCompanyFactRow,
   SecFactReadFilter,
@@ -41,6 +45,11 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   assert.equal(sum(first.issuers, "eligibleObservations"), 2);
   assert.equal(sum(first.issuers, "persistedObservations"), 2);
   assert.equal(sum(first.issuers, "duplicates"), 0);
+  assert.equal(sum(first.issuers, "universeSnapshotsEvaluated"), 6);
+  assert.equal(sum(first.issuers, "universeSnapshotsInserted"), 5);
+  assert.equal(sum(first.issuers, "universeSnapshotDuplicates"), 1);
+  assert.equal(sum(first.issuers, "universeSnapshotsIncomplete"), 1);
+  assert.equal(sum(first.issuers, "universeSnapshotsAmbiguous"), 3);
 
   const aapl = issuer(first.issuers, "AAPL");
   const neom = issuer(first.issuers, "NEOM");
@@ -54,6 +63,12 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   assert.equal(arm.status, "PARTIAL");
   assert.equal(arm.reasonCounts.INCOMPLETE_IXDS, 1);
   assert.equal(arm.observations.every((row) => row.status === "UNAVAILABLE"), true);
+
+  assert.deepEqual(await universeStatuses(harness, "AAPL"), ["COMPLETE_SINGLE"]);
+  assert.deepEqual(await universeStatuses(harness, "NEOM"), ["COMPLETE_SINGLE"]);
+  assert.deepEqual(await universeStatuses(harness, "GOOG"), ["INCOMPLETE"]);
+  assert.deepEqual(await universeStatuses(harness, "WIT"), ["AMBIGUOUS"]);
+  assert.deepEqual(await universeStatuses(harness, "ARM"), ["AMBIGUOUS"]);
 
   const aaplHistory = await harness.historyRepository.readHistory(acceptanceAudit("AAPL").cik);
   const neomHistory = await harness.historyRepository.readHistory(acceptanceAudit("NEOM").cik);
@@ -79,6 +94,17 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
     sourceContextRef: "c-9",
   });
   assert.notEqual(aaplHistory[0]!.asOf, aaplHistory[0]!.ingestedAt.slice(0, 10));
+  const aaplUniverse = await readIssuerCommonClassUniverseAt({
+    repository: harness.universeRepository,
+    shareCountHistoryRepository: harness.historyRepository,
+    cik: acceptanceAudit("AAPL").cik,
+    targetAt: EXECUTED_AT,
+  });
+  assert.equal(aaplUniverse.status, "AVAILABLE");
+  if (aaplUniverse.status !== "AVAILABLE") throw new Error("AAPL universe unavailable");
+  assert.deepEqual(aaplUniverse.requiredCanonicalSecurityClassIds, [
+    "sc:v1:0000320193:common_stock:single",
+  ]);
   assert.deepEqual(
     [aaplHistory[0]!, neomHistory[0]!].map((row) => [
       row.issuerCik, row.accessionNumber, row.filingDocument, row.sourceContentHash,
@@ -98,6 +124,11 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   assert.equal(sum(replay.issuers, "eligibleObservations"), 2);
   assert.equal(sum(replay.issuers, "persistedObservations"), 0);
   assert.equal(sum(replay.issuers, "duplicates"), 2);
+  assert.equal(sum(replay.issuers, "universeSnapshotsEvaluated"), 6);
+  assert.equal(sum(replay.issuers, "universeSnapshotsInserted"), 0);
+  assert.equal(sum(replay.issuers, "universeSnapshotDuplicates"), 6);
+  assert.equal(sum(replay.issuers, "universeSnapshotsIncomplete"), 1);
+  assert.equal(sum(replay.issuers, "universeSnapshotsAmbiguous"), 3);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("AAPL").cik)).length, 1);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("NEOM").cik)).length, 1);
   assert.deepEqual(harness.filingSource.callsByAccession(), {
@@ -134,14 +165,26 @@ test("issuer and filing failures are isolated and classified without semantic fa
   assert.equal(issuer(persistence.issuers, "AAPL").reasonCounts.DB_PERSISTENCE_FAILURE, 1);
   assert.equal(issuer(persistence.issuers, "AAPL").counts.persistedObservations, 0);
   assert.equal(issuer(persistence.issuers, "NEOM").counts.persistedObservations, 1);
+  assert.equal(sum(persistence.issuers, "universeSnapshotsInserted"), 2);
+
+  const universePersistenceHarness = createHarness({ failUniversePersistenceCik: acceptanceAudit("AAPL").cik });
+  const universePersistence = await universePersistenceHarness.collector.collectBatch({
+    ciks: [acceptanceAudit("AAPL").cik, acceptanceAudit("NEOM").cik],
+    mode: "bootstrap",
+  });
+  assert.equal(issuer(universePersistence.issuers, "AAPL").reasonCounts.DB_PERSISTENCE_FAILURE, 1);
+  assert.equal(issuer(universePersistence.issuers, "AAPL").counts.persistedObservations, 1);
+  assert.equal(issuer(universePersistence.issuers, "AAPL").counts.universeSnapshotsInserted, 0);
+  assert.equal(issuer(universePersistence.issuers, "NEOM").counts.universeSnapshotsInserted, 1);
 });
 
-function createHarness(options: { failPersistenceCik?: string } = {}) {
+function createHarness(options: { failPersistenceCik?: string; failUniversePersistenceCik?: string } = {}) {
   const structuredRepository = new MemoryStructuredRepository();
   const sourceClient = new FiveIssuerAcceptanceSourceClient();
   const filingRepository = new InMemorySecFilingXbrlArtifactRepository();
   const filingSource = new FiveIssuerAcceptanceFilingSource();
   const historyRepository = new InMemoryShareCountHistoryRepository();
+  const universeRepository = new InMemoryIssuerCommonClassUniverseRepository();
   const history = options.failPersistenceCik ? {
     async insertObservation(observation: Parameters<typeof historyRepository.insertObservation>[0]) {
       if (observation.issuerCik === options.failPersistenceCik) throw new Error("fixture history insert failed");
@@ -149,15 +192,23 @@ function createHarness(options: { failPersistenceCik?: string } = {}) {
     },
     readHistory: historyRepository.readHistory.bind(historyRepository),
   } : historyRepository;
+  const universe = options.failUniversePersistenceCik ? {
+    async insertSnapshot(snapshot: Parameters<typeof universeRepository.insertSnapshot>[0]) {
+      if (snapshot.issuerCik === options.failUniversePersistenceCik) throw new Error("fixture universe insert failed");
+      return universeRepository.insertSnapshot(snapshot);
+    },
+    readSnapshots: universeRepository.readSnapshots.bind(universeRepository),
+  } : universeRepository;
   const collector = new SecOsProductionCollector({
     structuredService: new SecStructuredDataService(sourceClient, structuredRepository, () => new Date(EXECUTED_AT)),
     structuredRepository,
     filingService: new SecFilingXbrlContextService(filingSource, filingRepository),
     filingRepository,
     historyRepository: history,
+    universeRepository: universe,
     now: () => new Date(EXECUTED_AT),
   });
-  return { collector, sourceClient, filingSource, historyRepository };
+  return { collector, sourceClient, filingSource, historyRepository, universeRepository };
 }
 
 class MemoryStructuredRepository implements SecStructuredRepository {
@@ -231,4 +282,12 @@ function sum(
   key: keyof Awaited<ReturnType<SecOsProductionCollector["collectIssuer"]>>["counts"],
 ) {
   return results.reduce((total, result) => total + result.counts[key], 0);
+}
+
+async function universeStatuses(
+  harness: ReturnType<typeof createHarness>,
+  ticker: string,
+) {
+  return (await harness.universeRepository.readSnapshots(acceptanceAudit(ticker).cik))
+    .map((snapshot) => snapshot.status);
 }

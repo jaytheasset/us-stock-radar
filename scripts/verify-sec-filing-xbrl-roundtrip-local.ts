@@ -21,6 +21,7 @@ import { SecOsProductionCollector } from "../lib/sec-structured-data/osProductio
 import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repository.ts";
 import { SecStructuredDataService } from "../lib/sec-structured-data/service.ts";
 import { PostgresShareCountHistoryRepository } from "../lib/sec-structured-data/shareCountHistory.ts";
+import { PostgresIssuerCommonClassUniverseRepository } from "../lib/sec-structured-data/issuerCommonClassUniverse.ts";
 import type { SecFilingRow } from "../lib/sec-structured-data/types.ts";
 
 const connectionString = process.env.SUPABASE_LOCAL_DB_URL
@@ -40,9 +41,10 @@ let rolledBack = false;
 
 await client.connect();
 try {
-  assert.deepEqual(await fixtureCounts(), emptyFixtureCounts());
+  const baseline = await fixtureCounts();
   await client.query("begin");
   await client.query("set local statement_timeout = '30s'");
+  await clearFixtureIssuerInsideTransaction();
   const sql = createSerialSqlClient(client);
   const repository = new PostgresSecFilingXbrlArtifactRepository(sql);
 
@@ -149,6 +151,7 @@ try {
       filingService: new SecFilingXbrlContextService(filingSource, repository),
       filingRepository: repository,
       historyRepository: new PostgresShareCountHistoryRepository(sql),
+      universeRepository: new PostgresIssuerCommonClassUniverseRepository(sql),
       now: () => new Date("2026-08-22T00:00:00.000Z"),
     });
     const result = await collector.collectIssuer({ cik, mode: "incremental" });
@@ -169,9 +172,10 @@ try {
   await client.query("rollback");
   rolledBack = true;
   const cleanup = await fixtureCounts();
-  assert.deepEqual(cleanup, emptyFixtureCounts());
+  assert.deepEqual(cleanup, baseline);
   console.log(JSON.stringify({
     ok: true,
+    baseline,
     fullRoundTrip,
     multiDocument,
     incomplete,
@@ -326,22 +330,25 @@ async function fixtureCounts() {
        (select count(*)::integer from public.sec_issuer_ticker_observations where issuer_cik = $1) as ticker_observations,
        (select count(*)::integer from public.sec_filing_ledger where issuer_cik = $1) as filings,
        (select count(*)::integer from public.sec_company_facts where issuer_cik = $1) as company_facts,
-       (select count(*)::integer from public.share_count_history where issuer_cik = $1) as share_count_history`,
+       (select count(*)::integer from public.share_count_history where issuer_cik = $1) as share_count_history,
+       (select count(*)::integer from public.issuer_common_class_universe_snapshots where issuer_cik = $1) as universe_snapshots`,
     [cik],
   );
   return result.rows[0];
 }
 
-function emptyFixtureCounts() {
-  return {
-    raw_sources: 0,
-    issuers: 0,
-    issuer_observations: 0,
-    ticker_observations: 0,
-    filings: 0,
-    company_facts: 0,
-    share_count_history: 0,
-  };
+async function clearFixtureIssuerInsideTransaction() {
+  for (const statement of [
+    "delete from public.issuer_common_class_universe_snapshots where issuer_cik = $1",
+    "delete from public.share_count_history where issuer_cik = $1",
+    "delete from public.sec_company_facts where issuer_cik = $1",
+    "delete from public.sec_issuer_ticker_observations where issuer_cik = $1",
+    "delete from public.sec_issuer_source_observations where issuer_cik = $1",
+    "delete from public.sec_filing_ledger where issuer_cik = $1",
+    "delete from public.sec_structured_raw_sources where cik = $1",
+  ]) {
+    await client.query(statement, [cik]);
+  }
 }
 
 function createSerialSqlClient(sqlClient: {

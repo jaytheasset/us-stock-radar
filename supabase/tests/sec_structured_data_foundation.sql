@@ -132,8 +132,8 @@ select ok(
 );
 select is((select count(*)::integer from public.sec_issuer_ticker_observations where issuer_cik = '0000000001'), 2, 'multiple tickers do not split issuer identity');
 select is((select accepted_at from public.sec_filing_ledger where accession_number = '0000000001-26-000001'), '2026-05-01 12:34:56+00'::timestamptz, 'authoritative acceptance timestamp round-trips separately');
-select is((select count(*)::integer from public.sec_company_facts where instant_date is not null), 1, 'instant is preserved');
-select is((select count(*)::integer from public.sec_company_facts where start_date is not null and end_date is not null), 1, 'duration is preserved');
+select is((select count(*)::integer from public.sec_company_facts where issuer_cik = '0000000001' and instant_date is not null), 1, 'instant is preserved');
+select is((select count(*)::integer from public.sec_company_facts where issuer_cik = '0000000001' and start_date is not null and end_date is not null), 1, 'duration is preserved');
 select is((select count(*)::integer from public.sec_company_facts where source_raw_id = '81000000-0000-5000-8000-000000000002'), 2, 'facts retain exact raw source linkage');
 
 insert into public.sec_company_facts (

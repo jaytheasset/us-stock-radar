@@ -17,6 +17,12 @@ import {
   type SecOsFilingContextCandidate,
   type SecOsUnavailableObservation,
 } from "./osCandidateExtraction.ts";
+import {
+  deriveIssuerCommonClassUniverseSnapshot,
+  PostgresIssuerCommonClassUniverseRepository,
+  writeIssuerCommonClassUniverseSnapshot,
+  type IssuerCommonClassUniverseRepository,
+} from "./issuerCommonClassUniverse.ts";
 import { PostgresSecStructuredRepository, type SecStructuredSqlClient } from "./repository.ts";
 import { SecRequestError, SecRequestPolicy, type SecRequestPolicyOptions } from "./secRequestPolicy.ts";
 import { SecStructuredDataService } from "./service.ts";
@@ -57,11 +63,16 @@ export type SecOsCollectionCounts = {
   eligibleObservations: number;
   persistedObservations: number;
   duplicates: number;
+  universeSnapshotsEvaluated: number;
+  universeSnapshotsInserted: number;
+  universeSnapshotDuplicates: number;
+  universeSnapshotsIncomplete: number;
+  universeSnapshotsAmbiguous: number;
 };
 
 export type SecOsCollectionIssue = {
   reason: SecOsCollectionReason;
-  stage: "structured_data" | "candidate_discovery" | "filing_context" | "authoritative_extraction" | "history_persistence";
+  stage: "structured_data" | "candidate_discovery" | "filing_context" | "authoritative_extraction" | "universe_persistence" | "history_persistence";
   accession: string | null;
   detail: string;
 };
@@ -132,6 +143,7 @@ type CollectorDependencies = {
   filingService: Pick<SecFilingXbrlContextService, "ingestFiling">;
   filingRepository: SecFilingXbrlArtifactRepository;
   historyRepository: ShareCountHistoryRepository;
+  universeRepository: IssuerCommonClassUniverseRepository;
   now?: () => Date;
 };
 
@@ -241,6 +253,20 @@ export class SecOsProductionCollector {
           repository: this.dependencies.filingRepository,
         });
         const decision = resolveAuthoritativeOsFromFiling(linked);
+        try {
+          const snapshot = deriveIssuerCommonClassUniverseSnapshot(decision);
+          counts.universeSnapshotsEvaluated += 1;
+          if (snapshot.status === "INCOMPLETE") counts.universeSnapshotsIncomplete += 1;
+          if (snapshot.status === "AMBIGUOUS") counts.universeSnapshotsAmbiguous += 1;
+          const persisted = await writeIssuerCommonClassUniverseSnapshot({
+            repository: this.dependencies.universeRepository,
+            decision,
+          });
+          counts.universeSnapshotsInserted += persisted.inserted;
+          counts.universeSnapshotDuplicates += persisted.deduped;
+        } catch (error) {
+          issues.push(issue("DB_PERSISTENCE_FAILURE", "universe_persistence", candidate.accession, stableErrorDetail(error)));
+        }
         if (decision.status !== "ELIGIBLE") {
           observations.push(toCollectedObservation(decision, "not_eligible"));
           issues.push(issue("NON_ELIGIBLE_OS", "authoritative_extraction", candidate.accession, decision.reason));
@@ -306,6 +332,7 @@ export function createSecOsProductionCollector(input: {
   const structuredRepository = new PostgresSecStructuredRepository(input.sqlClient);
   const filingRepository = new PostgresSecFilingXbrlArtifactRepository(input.sqlClient);
   const historyRepository = new PostgresShareCountHistoryRepository(input.sqlClient);
+  const universeRepository = new PostgresIssuerCommonClassUniverseRepository(input.sqlClient);
   const structuredClient = new SecStructuredHttpClient(
     input.userAgent,
     input.requestPolicy?.minimumIntervalMs,
@@ -326,6 +353,7 @@ export function createSecOsProductionCollector(input: {
     filingService: new SecFilingXbrlContextService(filingClient, filingRepository),
     filingRepository,
     historyRepository,
+    universeRepository,
     now,
   });
 }
@@ -343,6 +371,11 @@ function emptyCounts(): SecOsCollectionCounts {
     eligibleObservations: 0,
     persistedObservations: 0,
     duplicates: 0,
+    universeSnapshotsEvaluated: 0,
+    universeSnapshotsInserted: 0,
+    universeSnapshotDuplicates: 0,
+    universeSnapshotsIncomplete: 0,
+    universeSnapshotsAmbiguous: 0,
   };
 }
 

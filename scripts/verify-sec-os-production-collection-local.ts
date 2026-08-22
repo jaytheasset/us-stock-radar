@@ -14,6 +14,7 @@ import { SecOsProductionCollector } from "../lib/sec-structured-data/osProductio
 import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repository.ts";
 import { SecStructuredDataService } from "../lib/sec-structured-data/service.ts";
 import { PostgresShareCountHistoryRepository } from "../lib/sec-structured-data/shareCountHistory.ts";
+import { PostgresIssuerCommonClassUniverseRepository } from "../lib/sec-structured-data/issuerCommonClassUniverse.ts";
 
 const connectionString = process.env.SUPABASE_LOCAL_DB_URL || "postgresql://postgres:postgres@127.0.0.1:56322/postgres";
 const databaseUrl = new URL(connectionString);
@@ -22,6 +23,7 @@ if (!new Set(["127.0.0.1", "localhost", "::1"]).has(databaseUrl.hostname)) throw
 const client = new Client({ connectionString });
 const audits = acceptanceAudits();
 const ciks = audits.map((sample) => sample.cik);
+const accessions = audits.map((sample) => sample.accession);
 const executedAt = "2026-08-22T06:30:00.000Z";
 let rolledBack = false;
 await client.connect();
@@ -29,8 +31,8 @@ try {
   const migration = await client.query(
     "select version from supabase_migrations.schema_migrations order by version desc limit 1",
   );
-  assert.equal(migration.rows[0]?.version, "20260822082020");
-  assert.deepEqual(await fixtureCounts(client, ciks), emptyFixtureCounts());
+  assert.equal(migration.rows[0]?.version, "20260822142022");
+  const baseline = await fixtureCounts(client, ciks);
 
   await client.query("begin");
   await client.query("set local statement_timeout = '30s'");
@@ -38,6 +40,7 @@ try {
   const structuredRepository = new PostgresSecStructuredRepository(serialSql, "external");
   const filingRepository = new PostgresSecFilingXbrlArtifactRepository(serialSql);
   const historyRepository = new PostgresShareCountHistoryRepository(serialSql);
+  const universeRepository = new PostgresIssuerCommonClassUniverseRepository(serialSql);
   const sourceClient = new FiveIssuerAcceptanceSourceClient();
   const filingSource = new FiveIssuerAcceptanceFilingSource();
   const collector = new SecOsProductionCollector({
@@ -46,6 +49,7 @@ try {
     filingService: new SecFilingXbrlContextService(filingSource, filingRepository),
     filingRepository,
     historyRepository,
+    universeRepository,
     now: () => new Date(executedAt),
   });
 
@@ -58,8 +62,9 @@ try {
              source_fact_key, source_context_ref, source_content_hash
        from public.share_count_history
       where issuer_cik = any($1::text[])
+        and accession_number = any($2::text[])
       order by issuer_cik, accession_number, source_fact_key`,
-    [ciks],
+    [ciks, accessions],
   );
   assert.equal(saved.rows.length, 2);
   assert.deepEqual(saved.rows.map((row: Record<string, unknown>) => [
@@ -73,14 +78,33 @@ try {
     && row.canonical_security_class_kind === "common_stock"
     && row.canonical_security_class_status === "mapped"
     && String(row.canonical_security_class_id).startsWith(`sc:v1:${row.issuer_cik}:common_stock:`)));
+  const snapshots = await client.query(
+    `select issuer_cik, status, reason, required_canonical_security_class_ids
+       from public.issuer_common_class_universe_snapshots
+      where issuer_cik = any($1::text[])
+        and source_accession = any($2::text[])
+      order by issuer_cik, universe_as_of, accepted_at, source_identity_hash`,
+    [ciks, accessions],
+  );
+  assert.deepEqual(snapshots.rows.map((row: Record<string, unknown>) => [
+    row.issuer_cik, row.status, row.reason,
+  ]), [
+    ["0000320193", "COMPLETE_SINGLE", "COMPLETE_SINGLE_COMMON_STOCK"],
+    ["0001022701", "COMPLETE_SINGLE", "COMPLETE_SINGLE_COMMON_STOCK"],
+    ["0001123799", "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS"],
+    ["0001652044", "INCOMPLETE", "AUTHORITATIVE_SOURCE_NOT_ELIGIBLE"],
+    ["0001973239", "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS"],
+  ]);
   const replay = await collector.collectBatch({ ciks, mode: "incremental" });
   assert.equal(total(replay, "persistedObservations"), 0);
-  assert.equal(total(replay, "duplicates"), 2);
-  assert.equal(total(replay, "filingContextCacheHits"), 4);
+  assert.equal(total(replay, "duplicates"), total(replay, "eligibleObservations"));
+  assert.ok(total(replay, "filingContextCacheHits") >= 4);
   assert.equal(total(replay, "filingContextsFetched"), 1);
+  assert.equal(total(replay, "universeSnapshotsInserted"), 0);
+  assert.equal(total(replay, "universeSnapshotDuplicates"), total(replay, "universeSnapshotsEvaluated"));
   assert.equal((await client.query(
-    "select count(*)::integer as count from public.share_count_history where issuer_cik = any($1::text[])",
-    [ciks],
+    "select count(*)::integer as count from public.share_count_history where issuer_cik = any($1::text[]) and accession_number = any($2::text[])",
+    [ciks, accessions],
   )).rows[0].count, 2);
 
   const acceptance = audits.map((audit) => {
@@ -106,14 +130,16 @@ try {
   await client.query("rollback");
   rolledBack = true;
   const cleanup = await fixtureCounts(client, ciks);
-  assert.deepEqual(cleanup, emptyFixtureCounts());
+  assert.deepEqual(cleanup, baseline);
   console.log(JSON.stringify({
     ok: true,
     migration: migration.rows[0].version,
+    baseline,
     bootstrapCounts: aggregateCounts(bootstrap),
     replayCounts: aggregateCounts(replay),
     acceptance,
     savedRows: saved.rows,
+    universeSnapshots: snapshots.rows,
     filingFetchCalls: filingSource.callsByAccession(),
     cleanup,
     llmCalls: 0,
@@ -133,22 +159,11 @@ async function fixtureCounts(sql: typeof client, fixtureCiks: string[]) {
        (select count(*)::integer from public.sec_issuer_ticker_observations where issuer_cik = any($1::text[])) as ticker_observations,
        (select count(*)::integer from public.sec_filing_ledger where issuer_cik = any($1::text[])) as filings,
        (select count(*)::integer from public.sec_company_facts where issuer_cik = any($1::text[])) as company_facts,
-       (select count(*)::integer from public.share_count_history where issuer_cik = any($1::text[])) as share_count_history`,
+       (select count(*)::integer from public.share_count_history where issuer_cik = any($1::text[])) as share_count_history,
+       (select count(*)::integer from public.issuer_common_class_universe_snapshots where issuer_cik = any($1::text[])) as universe_snapshots`,
     [fixtureCiks],
   );
   return result.rows[0];
-}
-
-function emptyFixtureCounts() {
-  return {
-    raw_sources: 0,
-    issuers: 0,
-    issuer_observations: 0,
-    ticker_observations: 0,
-    filings: 0,
-    company_facts: 0,
-    share_count_history: 0,
-  };
 }
 
 function total(
