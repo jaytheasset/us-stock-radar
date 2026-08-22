@@ -170,6 +170,7 @@ test("optional O/S persists after the unchanged domain result with one provider 
     observationType: "source_stated",
     sharesOutstanding: "27500000",
     asOf: "2026-08-18",
+    securityClassKind: "common_stock",
     securityClassTitle: "common stock",
     basis: null,
     accessionNumber: "0000000099-26-000010",

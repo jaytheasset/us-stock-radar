@@ -8,6 +8,8 @@ select has_table('public', 'share_count_history', 'common Share Count History ta
 select has_column('public', 'share_count_history', 'security_class_identity', 'security-class identity is preserved');
 select has_column('public', 'share_count_history', 'share_basis_metadata', 'share-basis metadata is preserved');
 select has_column('public', 'share_count_history', 'authoritative_decision_lineage', 'authoritative decision lineage is preserved');
+select has_column('public', 'share_count_history', 'canonical_security_class_id', 'source-independent canonical security-class identity is preserved');
+select has_column('public', 'share_count_history', 'accepted_at_source', 'SEC acceptance timestamp provenance is preserved');
 
 select ok(
   (select relrowsecurity from pg_catalog.pg_class where oid = 'public.share_count_history'::regclass),
@@ -70,9 +72,13 @@ declare
 begin
   insert into public.share_count_history (
     observation_type, issuer_cik, shares_outstanding, as_of, security_class_basis,
-    security_class_identity, security_class_metadata, share_basis_identity,
+    security_class_identity, security_class_metadata,
+    canonical_security_class_id, canonical_security_class_kind,
+    canonical_security_class_status, canonical_security_class_provenance,
+    share_basis_identity,
     share_basis_metadata, accession_number, form, filing_document, filed_date,
-    accepted_at, ingested_at, source_concept_namespace_uri,
+    accepted_at, accepted_at_source, accepted_at_provenance, ingested_at,
+    source_concept_namespace_uri,
     source_concept_local_name, source_fact_key, source_context_ref,
     source_artifact_id, filing_ledger_raw_source_id, source_fact_identity,
     source_context, source_dimensions, source_provenance, source_type,
@@ -83,9 +89,17 @@ begin
     'authoritative_xbrl', '0000000099', p_shares, p_as_of, p_security_basis,
     p_security_identity,
     pg_catalog.jsonb_build_object('evidenceFactKey', p_fact_key, 'contextRef', p_context_ref, 'dimensions', p_dimensions),
+    case when p_security_basis = 'SINGLE_COMMON_STOCK_CLASS'
+      then 'sc:v1:0000000099:common_stock:single'
+      else 'sc:v1:0000000099:common_stock:us-gaap:' ||
+        (p_security_identity #>> '{identity,member,localName}') end,
+    'common_stock', 'mapped',
+    pg_catalog.jsonb_build_object('version', 'share-count-security-class-v1', 'fixture', true),
     'shares_outstanding:xbrli_shares',
     '{"measurement":"shares_outstanding","unit":{"namespaceUri":"http://www.xbrl.org/2003/instance","localName":"shares"}}'::jsonb,
     p_accession, '10-Q', 'fixture.htm', p_filed_date, p_accepted_at,
+    'sec_filing_ledger',
+    pg_catalog.jsonb_build_object('source', 'sec_filing_ledger.accepted_at', 'accessionNumber', p_accession),
     '2026-08-22 01:02:03+00', 'http://xbrl.sec.gov/dei/2025',
     'EntityCommonStockSharesOutstanding', p_fact_key, p_context_ref,
     artifact_id, '93000000-0000-5000-8000-000000000001',
@@ -134,8 +148,11 @@ begin
   insert into public.share_count_history (
     observation_type, issuer_cik, shares_outstanding, as_of,
     security_class_basis, security_class_identity, security_class_metadata,
+    canonical_security_class_id, canonical_security_class_kind,
+    canonical_security_class_status, canonical_security_class_provenance,
     share_basis_identity, share_basis_metadata, accession_number, form,
-    filing_document, filed_date, accepted_at, ingested_at,
+    filing_document, filed_date, accepted_at, accepted_at_source,
+    accepted_at_provenance, ingested_at,
     source_concept_namespace_uri, source_concept_local_name, source_fact_key,
     source_context_ref, source_artifact_id, filing_ledger_raw_source_id,
     source_fact_identity, source_context, source_dimensions, source_provenance,
@@ -151,12 +168,21 @@ begin
     ),
     pg_catalog.jsonb_build_object(
       'sourceRef', 'sec-cover',
-      'evidence', 'As of August 18, 2026, 27,500,000 shares of common stock were outstanding.'
+      'evidence', 'As of August 18, 2026, 27,500,000 shares of common stock were outstanding.',
+      'sourceDeclaredClassKind', 'common_stock'
+    ),
+    'sc:v1:0000000099:common_stock:single', 'common_stock', 'mapped',
+    pg_catalog.jsonb_build_object(
+      'version', 'share-count-security-class-v1',
+      'derivation', 'level2_explicit_common_stock_plus_authoritative_single_class_evidence',
+      'supportingObservations', pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('sourceFactKey', repeat('a', 64)))
     ),
     'shares_outstanding:source_stated',
     '{"measurement":"shares_outstanding","unit":{"kind":"shares","representation":"positive_integer"},"sourceStatedBasis":null}'::jsonb,
     '0000000099-26-000001', '8-K', 'fixture-level2.htm', '2026-08-18',
-    '2026-08-18 12:00:00+00', '2026-08-22 12:00:00+00',
+    '2026-08-18 12:00:00+00', 'sec_raw_payload_acceptance',
+    '{"source":"raw_items.raw_payload.accepted_at"}'::jsonb,
+    '2026-08-22 12:00:00+00',
     null, null, repeat('6', 64), 'sec-cover',
     '95000000-0000-5000-8000-000000000001', null,
     pg_catalog.jsonb_build_object(
@@ -197,6 +223,20 @@ select is(
   'SEC XBRL and Level 2 sources coexist without cross-source replacement'
 );
 select is(
+  (select count(distinct canonical_security_class_id)::integer
+   from public.share_count_history
+   where issuer_cik = '0000000099'
+     and source_type in ('sec_authoritative_os', 'sec_filing_text_level2')),
+  1,
+  'single-class XBRL and explicit Level 2 common stock share one canonical identity'
+);
+select ok(
+  (select accepted_at_source = 'sec_raw_payload_acceptance'
+          and accepted_at = '2026-08-18 12:00:00+00'::timestamptz
+   from public.share_count_history where source_type = 'sec_filing_text_level2'),
+  'Level 2 accepted_at records the exact SEC raw-payload acceptance provenance'
+);
+select is(
   pg_temp.insert_share_history('0000000099-26-000001', '2026-08-01', 100, repeat('a', 64), 'c-1', '2026-08-20', '2026-08-20 12:00:00+00'),
   0, 'exact authoritative replay inserts zero rows'
 );
@@ -232,6 +272,12 @@ select is(
    from public.share_count_history where issuer_cik = '0000000099' and security_class_basis = 'CLASS_SPECIFIC_COMMON_STOCK'),
   2, 'multi-class identities remain separate without summing or winner selection'
 );
+select is(
+  (select count(distinct canonical_security_class_id)::integer
+   from public.share_count_history where issuer_cik = '0000000099'
+     and security_class_basis = 'CLASS_SPECIFIC_COMMON_STOCK'),
+  2, 'Class A and Class B have distinct source-independent canonical identities'
+);
 
 select throws_ok(
   $$select pg_temp.insert_share_history('0000000099-26-000001', '2026-08-01', 0, repeat('e', 64), 'bad-shares', '2026-08-20', '2026-08-20 12:00:00+00')$$,
@@ -252,6 +298,10 @@ select throws_ok(
 select throws_ok(
   $$update public.share_count_history set security_class_identity = '{}'::jsonb where issuer_cik = '0000000099'$$,
   '23514', null, 'unresolved security-class identity fails closed'
+);
+select throws_ok(
+  $$update public.share_count_history set accepted_at_source = 'unavailable' where source_type = 'sec_filing_text_level2'$$,
+  '23514', null, 'published/filed fallback cannot coexist with a non-null accepted_at'
 );
 
 select is(

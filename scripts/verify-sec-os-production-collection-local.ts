@@ -29,7 +29,7 @@ try {
   const migration = await client.query(
     "select version from supabase_migrations.schema_migrations order by version desc limit 1",
   );
-  assert.equal(migration.rows[0]?.version, "20260821205806");
+  assert.equal(migration.rows[0]?.version, "20260822082020");
   assert.deepEqual(await fixtureCounts(client, ciks), emptyFixtureCounts());
 
   await client.query("begin");
@@ -52,8 +52,10 @@ try {
   const bootstrap = await collector.collectBatch({ ciks, mode: "bootstrap" });
   const saved = await client.query(
     `select issuer_cik, accession_number, filing_document, shares_outstanding::text,
-            as_of::text, filed_date::text, accepted_at::text, ingested_at::text,
-            source_fact_key, source_context_ref, source_content_hash
+             as_of::text, filed_date::text, accepted_at::text, ingested_at::text,
+             accepted_at_source, canonical_security_class_id,
+             canonical_security_class_kind, canonical_security_class_status,
+             source_fact_key, source_context_ref, source_content_hash
        from public.share_count_history
       where issuer_cik = any($1::text[])
       order by issuer_cik, accession_number, source_fact_key`,
@@ -66,6 +68,11 @@ try {
     ["0000320193", "0000320193-26-000020", "14594180000", "2026-07-17"],
     ["0001022701", "0001144204-13-044345", "4984827279", "2013-08-02"],
   ]);
+  assert.ok(saved.rows.every((row: Record<string, unknown>) =>
+    row.accepted_at_source === "sec_filing_ledger"
+    && row.canonical_security_class_kind === "common_stock"
+    && row.canonical_security_class_status === "mapped"
+    && String(row.canonical_security_class_id).startsWith(`sc:v1:${row.issuer_cik}:common_stock:`)));
   const replay = await collector.collectBatch({ ciks, mode: "incremental" });
   assert.equal(total(replay, "persistedObservations"), 0);
   assert.equal(total(replay, "duplicates"), 2);

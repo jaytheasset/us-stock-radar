@@ -1,4 +1,4 @@
-import { supabaseUpsert } from "../supabase.ts";
+import { supabaseSelect, supabaseUpsert } from "../supabase.ts";
 import {
   toShareCountHistoryDatabaseRow,
   type ShareCountHistoryRepository,
@@ -7,6 +7,8 @@ import {
   writeLevel2ShareCountObservation,
   type Level2ShareCountValidatedCandidate,
 } from "./level2ShareCountObservation.ts";
+import { resolveLevel2SecAcceptanceTimestamp } from "./shareCountAcceptanceTimestamp.ts";
+import { canonicalSecurityClassSupportsFromDatabaseRows } from "./shareCountSecurityIdentity.ts";
 
 const LEVEL2_HISTORY_CONFLICT_COLUMNS = [
   "source_type",
@@ -34,14 +36,34 @@ export async function persistLevel2ShareCountObservationFromSecRawItem(input: {
     stringValue(rawPayload.cik) || stringValue(metadata.cik),
   );
   const form = stringValue(rawPayload.form_type) || stringValue(metadata.form_type);
-  const acceptedAt = normalizeTimestamp(stringValue(input.rawItem.published_at));
+  const accepted = resolveLevel2SecAcceptanceTimestamp({
+    rawAcceptedAt: rawPayload.accepted_at,
+    publishedAt: input.rawItem.published_at,
+    filedDate: rawPayload.filing_date ?? rawPayload.filed_at,
+    accessionNumber: input.candidate.accessionNumber,
+    rawItemId: input.rawItemId,
+  });
+  const { acceptedAt, acceptedAtSource, acceptedAtProvenance } = accepted;
   const filedDate = normalizeDate(
     stringValue(rawPayload.filing_date)
       || stringValue(rawPayload.filed_at)
-      || stringValue(metadata.filing_date)
-      || acceptedAt,
+      || stringValue(metadata.filing_date),
   );
   const ingestedAt = normalizeTimestamp(input.now || new Date().toISOString());
+  const supportResult = await supabaseSelect("share_count_history", {
+    select: "id,issuer_cik,source_type,canonical_security_class_id,canonical_security_class_kind,canonical_security_class_status,security_class_basis,source_fact_key,accession_number",
+    issuer_cik: `eq.${issuerCik}`,
+    source_type: "eq.sec_authoritative_os",
+    canonical_security_class_status: "eq.mapped",
+    limit: "1000",
+  });
+  if (!supportResult.ok || !Array.isArray(supportResult.data)) {
+    throw new Error(`Level 2 canonical security-class evidence read failed: ${supportResult.error || supportResult.status}`);
+  }
+  const canonicalSecurityClassSupports = canonicalSecurityClassSupportsFromDatabaseRows(
+    supportResult.data as Record<string, unknown>[],
+    issuerCik,
+  );
   const repository: ShareCountHistoryRepository = {
     async insertObservation(observation) {
       const result = await supabaseUpsert(
@@ -69,12 +91,15 @@ export async function persistLevel2ShareCountObservationFromSecRawItem(input: {
       form,
       filedDate,
       acceptedAt,
+      acceptedAtSource,
+      acceptedAtProvenance,
       ingestedAt,
       rawItemId: input.rawItemId,
       eventId: input.eventId,
       parentPrimaryAiRunId: input.parentPrimaryAiRunId,
       sourceExecutionId: input.sourceExecutionId,
       analyzerKey: input.analyzerKey,
+      canonicalSecurityClassSupports,
     },
   });
 }
