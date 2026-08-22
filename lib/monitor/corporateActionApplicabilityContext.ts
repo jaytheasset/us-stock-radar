@@ -147,7 +147,7 @@ export function validateCorporateActionApplicabilityContextResponse(
     const basis = candidate.security_class_basis;
     const sourceMemberLocalName = candidate.source_member_local_name === null
       ? null : stringValue(candidate.source_member_local_name);
-    if (!new RegExp(`^sc:v1:${issuerCik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$`)
+    if (!new RegExp(`^sc:v1:${issuerCik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127}|custom:[0-9a-f]{64}:[A-Za-z][A-Za-z0-9_.-]{1,127})$`)
       .test(canonicalSecurityClassId)
       || ids.has(canonicalSecurityClassId)
       || candidate.security_type !== "common_stock"

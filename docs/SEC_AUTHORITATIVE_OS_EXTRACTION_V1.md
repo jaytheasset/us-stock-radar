@@ -41,11 +41,11 @@ All of the following are required:
 5. The filing numeric lexical value is transformed only by a supported exact
    Inline XBRL numeric transform plus explicit `scale`/`sign`. The resulting
    positive integer string must equal the exact CompanyFacts integer string.
-6. The concept local name is exactly
+6. Direct `ELIGIBLE` selection still requires the concept local name exactly
    `EntityCommonStockSharesOutstanding` in the versioned SEC DEI namespace;
    the filing's namespace prefix is not identity. A
    `us-gaap:CommonStockSharesOutstanding` balance-sheet fact is preserved but
-   is not promoted by this contract.
+   is not promoted as a single authoritative observation by this contract.
 7. The form is a domestic periodic `10-K`, `10-K/A`, `10-Q`, or `10-Q/A`.
    Form is only a gate; it is never authority by itself.
 8. Security identity is mechanically established by one of these shapes:
@@ -82,8 +82,20 @@ aggregate to its class components. A `us-gaap` aggregate, an
 aggregate-plus-class set, or more than one exact matching class remains
 `REQUIRES_FURTHER_CONTEXT`.
 
-This V1 produces an issuer/filed-fact observation. It does not map a ticker to
-a class. Multiple tickers under one CIK therefore do not create authority.
+The shape is classified before the direct-DEI eligibility gate. Therefore a
+complete US-GAAP aggregate-plus-class filing returns
+`AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION`, preserving the exact
+aggregate, every class fact, concept QName, context, axis/member QName, and
+filing lineage. The separate Common-Class Universe V2 contract may prove a
+`COMPLETE_MULTI` set from that one filing. Its specialized history writer then
+persists the class facts only under
+`authoritative-multi-class-os-extraction-v1`; the aggregate remains
+corroboration and never becomes a fourth class or a calculated fallback.
+
+This V1 produces an issuer/filed-fact decision. It does not map a ticker to a
+class. Multiple tickers under one CIK therefore do not create authority, and a
+non-traded common class remains eligible only when its filing QName/context
+evidence is part of the complete class breakdown.
 
 ## Ordinary shares, ADSs, and ADRs
 

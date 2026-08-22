@@ -1463,7 +1463,7 @@ function validAccession(value: unknown) {
 function canonicalSecurityClassId(value: unknown, issuerCik: string) {
   return typeof value === "string"
     && validCik(issuerCik)
-    && new RegExp(`^sc:v1:${issuerCik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$`).test(value);
+    && new RegExp(`^sc:v1:${issuerCik}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127}|custom:[0-9a-f]{64}:[A-Za-z][A-Za-z0-9_.-]{1,127})$`).test(value);
 }
 
 function validDate(value: unknown) {

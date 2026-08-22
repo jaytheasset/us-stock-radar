@@ -11,10 +11,20 @@ import {
   type ShareCountHistoryRepository,
   type ShareCountHistorySqlClient,
 } from "./shareCountHistory.ts";
-import { deriveAuthoritativeCanonicalSecurityClassIdentity } from "./shareCountSecurityIdentity.ts";
+import {
+  CANONICAL_SECURITY_CLASS_ID_PATTERN,
+  deriveAuthoritativeCanonicalSecurityClassIdentity,
+  isSourceBackedCommonStockConcept,
+} from "./shareCountSecurityIdentity.ts";
 
+export const ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS = [
+  "issuer-common-class-universe-snapshot-v1",
+  "issuer-common-class-universe-snapshot-v2",
+] as const;
+export type IssuerCommonClassUniverseVersion =
+  (typeof ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS)[number];
 export const ISSUER_COMMON_CLASS_UNIVERSE_VERSION =
-  "issuer-common-class-universe-snapshot-v1" as const;
+  "issuer-common-class-universe-snapshot-v2" as const;
 
 export const ISSUER_COMMON_CLASS_UNIVERSE_STATUSES = [
   "COMPLETE_SINGLE",
@@ -40,6 +50,7 @@ export type IssuerCommonClassUniverseReason =
 
 export type IssuerCommonClassSourceFact = {
   factKey: string;
+  concept?: SecAuthoritativeOsFilingFactEvidence["concept"];
   contextRef: string;
   sharesOutstanding: string;
   documentName: string;
@@ -65,7 +76,7 @@ export type IssuerCommonClassExcludedEvidence = {
 
 export type IssuerCommonClassUniverseSnapshot = {
   id: string | null;
-  snapshotVersion: typeof ISSUER_COMMON_CLASS_UNIVERSE_VERSION;
+  snapshotVersion: IssuerCommonClassUniverseVersion;
   issuerCik: string;
   universeAsOf: string;
   acceptedAt: string;
@@ -156,8 +167,7 @@ export function deriveIssuerCommonClassUniverseSnapshot(
     return buildSnapshot(decision, base, "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS", [], []);
   }
   if (!isDomesticPeriodicForm(decision.candidate.form)
-    || decision.candidate.taxonomy !== "dei"
-    || decision.candidate.concept !== "EntityCommonStockSharesOutstanding") {
+    || !isSupportedUniverseCandidateConcept(decision)) {
     return buildSnapshot(decision, base, "INCOMPLETE", "AUTHORITATIVE_SOURCE_NOT_ELIGIBLE", [], []);
   }
   if (decision.reason === "FILING_CONTEXT_UNAVAILABLE"
@@ -170,11 +180,9 @@ export function deriveIssuerCommonClassUniverseSnapshot(
   }
 
   const aggregateFacts = facts.filter((fact) => fact.dimensions.length === 0);
-  const supportedClassFacts = facts.filter((fact) => hasSingleAuthoritativeCommonStockClassDimension({
-    context: fact.context,
-  }));
+  const supportedClassFacts = facts.filter(hasSingleAuthoritativeCommonStockClassDimension);
   const unsupportedFacts = facts.filter((fact) => fact.dimensions.length > 0
-    && !hasSingleAuthoritativeCommonStockClassDimension({ context: fact.context }));
+    && !hasSingleAuthoritativeCommonStockClassDimension(fact));
   const excludedEvidence = unsupportedFacts.map(toExcludedEvidence);
   const aggregateEvidence = aggregateFacts.map(toSourceFact);
   const nextBase = { ...base, aggregateEvidence, excludedEvidence };
@@ -284,13 +292,13 @@ export async function readIssuerCommonClassUniverseAt(input: {
   } catch {
     return unavailableRead(normalizedInput, "UNAVAILABLE", "UNIVERSE_REPOSITORY_READ_FAILED");
   }
-  const eligible = snapshots
+  const sourceEligible = snapshots
     .map((snapshot) => structuredClone(snapshot))
     .filter((snapshot) => snapshot.issuerCik === input.cik
       && snapshot.universeAsOf <= targetDate
-      && new Date(snapshot.acceptedAt).valueOf() <= new Date(normalizedInput.targetAt).valueOf())
-    .sort(compareSnapshots);
-  for (const snapshot of eligible) validateSnapshot(snapshot);
+      && new Date(snapshot.acceptedAt).valueOf() <= new Date(normalizedInput.targetAt).valueOf());
+  for (const snapshot of sourceEligible) validateSnapshot(snapshot);
+  const eligible = preferLatestSnapshotVersion(sourceEligible).sort(compareSnapshots);
   if (eligible.length === 0) {
     return unavailableRead(normalizedInput, "UNAVAILABLE", "NO_UNIVERSE_SNAPSHOT_AVAILABLE");
   }
@@ -446,6 +454,7 @@ function groupClassFacts(
       basis: "CLASS_SPECIFIC_COMMON_STOCK",
       sourceCanonicalKey: `CLASS_SPECIFIC_COMMON_STOCK|${qnameKey(dimension.axis)}|${qnameKey(dimension.member)}`,
       sourceIdentity: { axis: dimension.axis, member: dimension.member },
+      sourceConcept: fact.concept,
       sourceFactKey: fact.factKey,
       sourceContextRef: fact.contextRef,
     });
@@ -517,6 +526,7 @@ function buildSnapshot(
     requiredCanonicalSecurityClassIds,
     facts: decision.filingFacts.map((fact) => ({
       factKey: fact.factKey,
+      concept: fact.concept,
       contextRef: fact.contextRef,
       normalizedValue: fact.normalizedValue,
       documentName: fact.source.documentName,
@@ -553,6 +563,8 @@ function validUniverseFact(
     && nonEmpty(fact.contextRef)
     && fact.context.period.kind === "instant"
     && fact.context.period.instant === decision.candidate.asOf
+    && isSourceBackedCommonStockConcept(fact.concept)
+    && fact.concept.localName === decision.candidate.concept
     && fact.context.entityIdentifier.padStart(10, "0") === decision.issuerCik
     && JSON.stringify(fact.context.dimensions) === JSON.stringify(fact.dimensions)
     && fact.unit?.kind === "measure"
@@ -569,6 +581,7 @@ function validUniverseFact(
 function toSourceFact(fact: SecAuthoritativeOsFilingFactEvidence): IssuerCommonClassSourceFact {
   return {
     factKey: fact.factKey,
+    concept: structuredClone(fact.concept),
     contextRef: fact.contextRef,
     sharesOutstanding: fact.normalizedValue!,
     documentName: fact.source.documentName,
@@ -620,6 +633,29 @@ function frontierEquivalent(rows: IssuerCommonClassUniverseSnapshot[]) {
   return signatures.size === 1;
 }
 
+function preferLatestSnapshotVersion(rows: IssuerCommonClassUniverseSnapshot[]) {
+  const latestBySource = new Map<string, number>();
+  for (const row of rows) {
+    const key = snapshotSourceKey(row);
+    latestBySource.set(key, Math.max(latestBySource.get(key) ?? 0, snapshotVersionRank(row.snapshotVersion)));
+  }
+  return rows.filter((row) =>
+    snapshotVersionRank(row.snapshotVersion) === latestBySource.get(snapshotSourceKey(row)));
+}
+
+function snapshotSourceKey(snapshot: IssuerCommonClassUniverseSnapshot) {
+  return [
+    snapshot.issuerCik,
+    snapshot.universeAsOf,
+    snapshot.acceptedAt,
+    snapshot.sourceAccession,
+  ].join("|");
+}
+
+function snapshotVersionRank(version: IssuerCommonClassUniverseVersion) {
+  return ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS.indexOf(version) + 1;
+}
+
 function snapshotValues(snapshot: IssuerCommonClassUniverseSnapshot): unknown[] {
   return [
     snapshot.snapshotVersion,
@@ -644,7 +680,7 @@ function snapshotValues(snapshot: IssuerCommonClassUniverseSnapshot): unknown[] 
 function mapSnapshotRow(row: Record<string, unknown>): IssuerCommonClassUniverseSnapshot {
   const snapshot: IssuerCommonClassUniverseSnapshot = {
     id: String(row.id),
-    snapshotVersion: String(row.snapshot_version) as typeof ISSUER_COMMON_CLASS_UNIVERSE_VERSION,
+    snapshotVersion: String(row.snapshot_version) as IssuerCommonClassUniverseVersion,
     issuerCik: String(row.issuer_cik),
     universeAsOf: String(row.universe_as_of),
     acceptedAt: new Date(String(row.accepted_at)).toISOString(),
@@ -671,7 +707,7 @@ function validateSnapshot(snapshot: IssuerCommonClassUniverseSnapshot) {
   validateDate(snapshot.universeAsOf, "universeAsOf");
   validateTimestamp(snapshot.acceptedAt, "acceptedAt");
   validateDate(snapshot.sourceFiledDate, "sourceFiledDate");
-  if (snapshot.snapshotVersion !== ISSUER_COMMON_CLASS_UNIVERSE_VERSION
+  if (!ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS.includes(snapshot.snapshotVersion)
     || !ISSUER_COMMON_CLASS_UNIVERSE_STATUSES.includes(snapshot.status)
     || !ACCESSION_PATTERN.test(snapshot.sourceAccession)
     || !nonEmpty(snapshot.sourceForm)
@@ -711,10 +747,10 @@ function validateSnapshot(snapshot: IssuerCommonClassUniverseSnapshot) {
       || snapshot.classEvidence.some((evidence) => !ids.includes(evidence.canonicalSecurityClassId)
         || !POSITIVE_INTEGER_PATTERN.test(evidence.sharesOutstanding)
         || evidence.sourceFacts.length === 0
-        || evidence.sourceFacts.some((sourceFact) => !validStoredSourceFact(sourceFact))))) {
+        || evidence.sourceFacts.some((sourceFact) => !validStoredSourceFact(sourceFact, snapshot.snapshotVersion))))) {
     throw new Error("complete snapshot evidence is incomplete");
   }
-  if (snapshot.aggregateEvidence.some((sourceFact) => !validStoredSourceFact(sourceFact))
+  if (snapshot.aggregateEvidence.some((sourceFact) => !validStoredSourceFact(sourceFact, snapshot.snapshotVersion))
     || snapshot.excludedEvidence.some((evidence) => evidence.reason !== "NON_COMMON_OR_UNSUPPORTED_CLASS_MEMBER"
       || !HEX_64_PATTERN.test(evidence.factKey)
       || !nonEmpty(evidence.contextRef))
@@ -735,7 +771,10 @@ function validateDecisionIdentity(decision: SecAuthoritativeOsDecision) {
   }
 }
 
-function validStoredSourceFact(fact: IssuerCommonClassSourceFact) {
+function validStoredSourceFact(
+  fact: IssuerCommonClassSourceFact,
+  snapshotVersion: IssuerCommonClassUniverseVersion,
+) {
   return HEX_64_PATTERN.test(fact.factKey)
     && nonEmpty(fact.contextRef)
     && POSITIVE_INTEGER_PATTERN.test(fact.sharesOutstanding)
@@ -743,7 +782,9 @@ function validStoredSourceFact(fact: IssuerCommonClassSourceFact) {
     && nonEmpty(fact.sourceUrl)
     && HEX_64_PATTERN.test(fact.contentHash)
     && UUID_PATTERN.test(fact.artifactId)
-    && Array.isArray(fact.dimensions);
+    && Array.isArray(fact.dimensions)
+    && (snapshotVersion === "issuer-common-class-universe-snapshot-v1"
+      || (fact.concept !== undefined && isSourceBackedCommonStockConcept(fact.concept)));
 }
 
 function validStatusReason(
@@ -848,6 +889,13 @@ function isDomesticPeriodicForm(form: string) {
   return ["10-K", "10-K/A", "10-Q", "10-Q/A"].includes(form);
 }
 
+function isSupportedUniverseCandidateConcept(decision: SecAuthoritativeOsDecision) {
+  return (decision.candidate.taxonomy === "dei"
+      && decision.candidate.concept === "EntityCommonStockSharesOutstanding")
+    || (decision.candidate.taxonomy === "us-gaap"
+      && decision.candidate.concept === "CommonStockSharesOutstanding");
+}
+
 function isForeignForm(form: string) {
   return ["20-F", "20-F/A", "40-F", "40-F/A", "6-K", "6-K/A"].includes(form);
 }
@@ -859,4 +907,3 @@ const ACCESSION_PATTERN = /^[0-9]{10}-[0-9]{2}-[0-9]{6}$/;
 const HEX_64_PATTERN = /^[0-9a-f]{64}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
-const CANONICAL_SECURITY_CLASS_ID_PATTERN = /^sc:v1:[0-9]{10}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$/;

@@ -4,12 +4,19 @@ import type {
   SecAuthoritativeOsEligibleDecision,
 } from "./authoritativeOsExtraction.ts";
 import {
+  CANONICAL_SECURITY_CLASS_ID_PATTERN,
   deriveAuthoritativeCanonicalSecurityClassIdentity,
+  isSourceBackedCommonStockConcept,
 } from "./shareCountSecurityIdentity.ts";
+import type { IssuerCommonClassUniverseSnapshot } from "./issuerCommonClassUniverse.ts";
 
 export const SHARE_COUNT_HISTORY_SOURCE_TYPE = "sec_authoritative_os" as const;
 export const SHARE_COUNT_HISTORY_SHARE_BASIS = "shares_outstanding:xbrli_shares" as const;
 export const SHARE_COUNT_HISTORY_OBSERVATION_TYPE = "authoritative_xbrl" as const;
+export const COMPLETE_MULTI_CLASS_OS_DECISION_VERSION =
+  "authoritative-multi-class-os-extraction-v1" as const;
+export const COMPLETE_MULTI_CLASS_OS_DECISION_REASON =
+  "ELIGIBLE_COMPLETE_MULTI_COMMON_STOCK_CONTEXT" as const;
 
 type ShareCountHistoryObservationCommon = {
   id?: string;
@@ -35,7 +42,10 @@ type ShareCountHistoryObservationCommon = {
   acceptedAtProvenance: Record<string, unknown>;
   ingestedAt: string;
   sourceConceptNamespaceUri: string | null;
-  sourceConceptLocalName: "EntityCommonStockSharesOutstanding" | null;
+  sourceConceptLocalName:
+    | "EntityCommonStockSharesOutstanding"
+    | "CommonStockSharesOutstanding"
+    | null;
   sourceFactKey: string;
   sourceContextRef: string;
   sourceArtifactId: string;
@@ -46,10 +56,14 @@ type ShareCountHistoryObservationCommon = {
   sourceProvenance: Record<string, unknown>;
   sourceType: typeof SHARE_COUNT_HISTORY_SOURCE_TYPE | "sec_filing_text_level2";
   authoritativeStatus: "ELIGIBLE" | null;
-  authoritativeDecisionVersion: "authoritative-os-extraction-v1" | null;
+  authoritativeDecisionVersion:
+    | "authoritative-os-extraction-v1"
+    | typeof COMPLETE_MULTI_CLASS_OS_DECISION_VERSION
+    | null;
   authoritativeDecisionReason:
     | "ELIGIBLE_CLASS_SPECIFIC_DEI_CONTEXT"
     | "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT"
+    | typeof COMPLETE_MULTI_CLASS_OS_DECISION_REASON
     | null;
   authoritativeDecisionLineage: Record<string, unknown> | null;
   sourceDocumentUrl: string;
@@ -64,14 +78,19 @@ export type AuthoritativeShareCountHistoryObservation = ShareCountHistoryObserva
   securityClassBasis: "SINGLE_COMMON_STOCK_CLASS" | "CLASS_SPECIFIC_COMMON_STOCK";
   shareBasisIdentity: typeof SHARE_COUNT_HISTORY_SHARE_BASIS;
   sourceConceptNamespaceUri: string;
-  sourceConceptLocalName: "EntityCommonStockSharesOutstanding";
+  sourceConceptLocalName:
+    | "EntityCommonStockSharesOutstanding"
+    | "CommonStockSharesOutstanding";
   filingLedgerRawSourceId: string;
   sourceType: typeof SHARE_COUNT_HISTORY_SOURCE_TYPE;
   authoritativeStatus: "ELIGIBLE";
-  authoritativeDecisionVersion: "authoritative-os-extraction-v1";
+  authoritativeDecisionVersion:
+    | "authoritative-os-extraction-v1"
+    | typeof COMPLETE_MULTI_CLASS_OS_DECISION_VERSION;
   authoritativeDecisionReason:
     | "ELIGIBLE_CLASS_SPECIFIC_DEI_CONTEXT"
-    | "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT";
+    | "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT"
+    | typeof COMPLETE_MULTI_CLASS_OS_DECISION_REASON;
   authoritativeDecisionLineage: Record<string, unknown>;
   sourceEvidence: null;
   sourceAnalyzer: null;
@@ -142,6 +161,178 @@ export async function writeAuthoritativeShareCountObservation(input: {
   return { inserted: inserted ? 1 : 0, deduped: inserted ? 0 : 1 };
 }
 
+export async function writeCompleteMultiClassShareCountObservations(input: {
+  repository: ShareCountHistoryRepository;
+  decision: SecAuthoritativeOsDecision;
+  snapshot: IssuerCommonClassUniverseSnapshot;
+  ingestedAt: string;
+}): Promise<ShareCountHistoryWriteResult> {
+  const observations = toCompleteMultiClassShareCountObservations(input);
+  let inserted = 0;
+  for (const observation of observations) {
+    if (await input.repository.insertObservation(observation)) inserted += 1;
+  }
+  return { inserted, deduped: observations.length - inserted };
+}
+
+export function toCompleteMultiClassShareCountObservations(input: {
+  decision: SecAuthoritativeOsDecision;
+  snapshot: IssuerCommonClassUniverseSnapshot;
+  ingestedAt: string;
+}): AuthoritativeShareCountHistoryObservation[] {
+  validateCompleteMultiClassSource(input);
+  const { decision, snapshot } = input;
+  const observations = snapshot.classEvidence.flatMap((evidence) =>
+    evidence.sourceFacts.map((sourceFact) => {
+      const filingFact = decision.filingFacts.find((fact) => fact.factKey === sourceFact.factKey)!;
+      const dimension = filingFact.dimensions[0];
+      if (!dimension || dimension.kind !== "explicit" || filingFact.unit?.kind !== "measure") {
+        throw new Error("complete-multi class fact identity is unresolved");
+      }
+      const securityClassIdentity = {
+        canonicalKey: `CLASS_SPECIFIC_COMMON_STOCK|${dimension.axis.namespaceUri}#${dimension.axis.localName}|${dimension.member.namespaceUri}#${dimension.member.localName}`,
+        identity: { axis: structuredClone(dimension.axis), member: structuredClone(dimension.member) },
+      };
+      const canonicalSecurityClass = deriveAuthoritativeCanonicalSecurityClassIdentity({
+        issuerCik: decision.issuerCik,
+        basis: "CLASS_SPECIFIC_COMMON_STOCK",
+        sourceCanonicalKey: securityClassIdentity.canonicalKey,
+        sourceIdentity: structuredClone(securityClassIdentity.identity),
+        sourceConcept: structuredClone(filingFact.concept),
+        sourceFactKey: filingFact.factKey,
+        sourceContextRef: filingFact.contextRef,
+      });
+      if (canonicalSecurityClass.status !== "mapped"
+        || canonicalSecurityClass.canonicalSecurityClassId !== evidence.canonicalSecurityClassId
+        || canonicalSecurityClass.canonicalSecurityClassKind !== "common_stock") {
+        throw new Error("complete-multi canonical class identity mismatch");
+      }
+      const sourceConceptLocalName = filingFact.concept.localName;
+      if (sourceConceptLocalName !== "CommonStockSharesOutstanding"
+        && sourceConceptLocalName !== "EntityCommonStockSharesOutstanding") {
+        throw new Error("complete-multi source concept is unsupported");
+      }
+      const candidateLineage = {
+        issuerCik: decision.issuerCik,
+        sharesOutstanding: filingFact.normalizedValue,
+        asOf: snapshot.universeAsOf,
+        accession: snapshot.sourceAccession,
+        form: snapshot.sourceForm,
+        filedDate: snapshot.sourceFiledDate,
+        acceptedAt: snapshot.acceptedAt,
+        taxonomy: decision.candidate.taxonomy,
+        concept: decision.candidate.concept,
+        unit: "shares",
+        sourceKind: "filing_xbrl",
+        contextKind: "filing_xbrl_explicit",
+        discoveryBasis: "complete_multi_common_stock_filing_context",
+        aggregateCompanyFactsCandidate: structuredClone(decision.candidate),
+      };
+      const observation: AuthoritativeShareCountHistoryObservation = {
+        observationType: SHARE_COUNT_HISTORY_OBSERVATION_TYPE,
+        issuerCik: decision.issuerCik,
+        sharesOutstanding: filingFact.normalizedValue!,
+        asOf: snapshot.universeAsOf,
+        securityClassBasis: "CLASS_SPECIFIC_COMMON_STOCK",
+        securityClassIdentity,
+        securityClassMetadata: {
+          evidenceFactKey: filingFact.factKey,
+          contextRef: filingFact.contextRef,
+          dimensions: structuredClone(filingFact.dimensions),
+          completeUniverseSourceIdentityHash: snapshot.sourceIdentityHash,
+        },
+        canonicalSecurityClassId: canonicalSecurityClass.canonicalSecurityClassId,
+        canonicalSecurityClassKind: canonicalSecurityClass.canonicalSecurityClassKind,
+        canonicalSecurityClassStatus: canonicalSecurityClass.status,
+        canonicalSecurityClassProvenance: canonicalSecurityClass.provenance,
+        shareBasisIdentity: SHARE_COUNT_HISTORY_SHARE_BASIS,
+        shareBasisMetadata: {
+          measurement: "shares_outstanding",
+          unit: structuredClone(filingFact.unit.measure),
+          companyFactsAggregateValue: decision.candidate.sharesOutstanding,
+          filingLexicalValue: filingFact.lexicalValue,
+          decimals: filingFact.decimals,
+          precision: filingFact.precision,
+          scale: filingFact.scale,
+          sign: filingFact.sign,
+          inlineFormat: filingFact.inlineFormat,
+        },
+        accessionNumber: snapshot.sourceAccession,
+        form: snapshot.sourceForm,
+        filingDocument: filingFact.source.documentName,
+        filedDate: snapshot.sourceFiledDate,
+        acceptedAt: snapshot.acceptedAt,
+        acceptedAtSource: "sec_filing_ledger",
+        acceptedAtProvenance: {
+          source: "sec_filing_ledger.accepted_at",
+          accessionNumber: snapshot.sourceAccession,
+          filingLedgerRawSourceId: decision.candidate.filingLedgerRawSourceId,
+        },
+        ingestedAt: new Date(input.ingestedAt).toISOString(),
+        sourceConceptNamespaceUri: filingFact.concept.namespaceUri!,
+        sourceConceptLocalName,
+        sourceFactKey: filingFact.factKey,
+        sourceContextRef: filingFact.contextRef,
+        sourceArtifactId: filingFact.source.artifactId,
+        filingLedgerRawSourceId: decision.candidate.filingLedgerRawSourceId,
+        sourceFactIdentity: {
+          factKey: filingFact.factKey,
+          contextRef: filingFact.contextRef,
+          accession: snapshot.sourceAccession,
+          documentName: filingFact.source.documentName,
+          artifactId: filingFact.source.artifactId,
+          concept: {
+            namespaceUri: filingFact.concept.namespaceUri,
+            localName: filingFact.concept.localName,
+          },
+        },
+        sourceContext: structuredClone(filingFact.context) as unknown as Record<string, unknown>,
+        sourceDimensions: structuredClone(filingFact.dimensions),
+        sourceProvenance: {
+          companyFacts: structuredClone(decision.candidate.sourceFacts),
+          filingLedgerRawSourceId: decision.candidate.filingLedgerRawSourceId,
+          filingFactSource: structuredClone(filingFact.source),
+          completeMultiClassUniverse: {
+            snapshotVersion: snapshot.snapshotVersion,
+            sourceIdentityHash: snapshot.sourceIdentityHash,
+            requiredCanonicalSecurityClassIds: [...snapshot.requiredCanonicalSecurityClassIds],
+            aggregateFactKeys: snapshot.aggregateEvidence.map((fact) => fact.factKey).sort(),
+          },
+        },
+        sourceType: SHARE_COUNT_HISTORY_SOURCE_TYPE,
+        authoritativeStatus: "ELIGIBLE",
+        authoritativeDecisionVersion: COMPLETE_MULTI_CLASS_OS_DECISION_VERSION,
+        authoritativeDecisionReason: COMPLETE_MULTI_CLASS_OS_DECISION_REASON,
+        authoritativeDecisionLineage: {
+          status: "ELIGIBLE",
+          decisionVersion: COMPLETE_MULTI_CLASS_OS_DECISION_VERSION,
+          reason: COMPLETE_MULTI_CLASS_OS_DECISION_REASON,
+          candidate: candidateLineage,
+          filingFacts: structuredClone(decision.filingFacts),
+          parentDecision: {
+            status: decision.status,
+            reason: decision.reason,
+            decisionVersion: decision.decisionVersion,
+          },
+          universe: {
+            snapshotVersion: snapshot.snapshotVersion,
+            sourceIdentityHash: snapshot.sourceIdentityHash,
+            status: snapshot.status,
+            reason: snapshot.reason,
+            requiredCanonicalSecurityClassIds: [...snapshot.requiredCanonicalSecurityClassIds],
+          },
+        },
+        sourceDocumentUrl: filingFact.source.sourceUrl,
+        sourceContentHash: filingFact.source.contentHash,
+        sourceEvidence: null,
+        sourceAnalyzer: null,
+      };
+      validateObservation(observation);
+      return observation;
+    }));
+  return observations.sort(compareHistory);
+}
+
 export async function readShareCountHistory(
   repository: ShareCountHistoryRepository,
   cik: string,
@@ -169,6 +360,12 @@ export function toShareCountHistoryObservation(
     basis: value.securityClass.basis,
     sourceCanonicalKey: String(securityClassIdentity.canonicalKey),
     sourceIdentity: structuredClone(value.securityClass.identity),
+    ...(value.securityClass.basis === "CLASS_SPECIFIC_COMMON_STOCK" ? {
+      sourceConcept: {
+        namespaceUri: value.conceptNamespaceUri,
+        localName: value.conceptLocalName,
+      },
+    } : {}),
     sourceFactKey: value.factKey,
     sourceContextRef: value.contextRef,
   } as Parameters<typeof deriveAuthoritativeCanonicalSecurityClassIdentity>[0]);
@@ -411,6 +608,79 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
   }
 }
 
+function validateCompleteMultiClassSource(input: {
+  decision: SecAuthoritativeOsDecision;
+  snapshot: IssuerCommonClassUniverseSnapshot;
+  ingestedAt: string;
+}) {
+  const { decision, snapshot } = input;
+  validateTimestamp(input.ingestedAt, "ingestedAt");
+  if (snapshot.snapshotVersion !== "issuer-common-class-universe-snapshot-v2"
+    || snapshot.status !== "COMPLETE_MULTI"
+    || snapshot.reason !== "COMPLETE_MULTI_COMMON_STOCK"
+    || decision.status !== "REQUIRES_FURTHER_CONTEXT"
+    || decision.reason !== "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION"
+    || decision.candidate.taxonomy !== "us-gaap"
+    || decision.candidate.concept !== "CommonStockSharesOutstanding") {
+    throw new Error("complete-multi authoritative source contract is unavailable");
+  }
+  if (decision.issuerCik !== snapshot.issuerCik
+    || decision.candidate.issuerCik !== snapshot.issuerCik
+    || decision.candidate.asOf !== snapshot.universeAsOf
+    || decision.candidate.accession !== snapshot.sourceAccession
+    || decision.candidate.form !== snapshot.sourceForm
+    || decision.candidate.filedDate !== snapshot.sourceFiledDate
+    || new Date(decision.candidate.acceptedAt).toISOString() !== snapshot.acceptedAt) {
+    throw new Error("complete-multi filing identity lineage mismatch");
+  }
+  if (!UUID_PATTERN.test(decision.candidate.filingLedgerRawSourceId)
+    || decision.candidate.sourceFacts.length === 0
+    || decision.candidate.sourceFacts.some((source) => !HEX_64_PATTERN.test(source.sourceFactKey)
+      || !compact(source.sourceFactPath) || !UUID_PATTERN.test(source.sourceRawId))) {
+    throw new Error("complete-multi CompanyFacts/filing ledger anchor is incomplete");
+  }
+  if (snapshot.requiredCanonicalSecurityClassIds.length < 2
+    || snapshot.classEvidence.length !== snapshot.requiredCanonicalSecurityClassIds.length
+    || snapshot.aggregateEvidence.length !== 1
+    || snapshot.aggregateEvidence[0]?.sharesOutstanding !== decision.candidate.sharesOutstanding) {
+    throw new Error("complete-multi universe evidence is incomplete");
+  }
+  const classSum = snapshot.classEvidence.reduce(
+    (sum, evidence) => sum + BigInt(evidence.sharesOutstanding),
+    BigInt(0),
+  );
+  if (classSum !== BigInt(decision.candidate.sharesOutstanding)) {
+    throw new Error("complete-multi aggregate corroboration mismatch");
+  }
+  const evidenceIds = snapshot.classEvidence.map((evidence) => evidence.canonicalSecurityClassId).sort();
+  if (evidenceIds.join("|") !== [...snapshot.requiredCanonicalSecurityClassIds].sort().join("|")
+    || new Set(evidenceIds).size !== evidenceIds.length) {
+    throw new Error("complete-multi required class coverage mismatch");
+  }
+  for (const evidence of snapshot.classEvidence) {
+    if (!POSITIVE_INTEGER_PATTERN.test(evidence.sharesOutstanding) || evidence.sourceFacts.length === 0) {
+      throw new Error("complete-multi class value is invalid");
+    }
+    for (const sourceFact of evidence.sourceFacts) {
+      const fact = decision.filingFacts.find((candidate) => candidate.factKey === sourceFact.factKey);
+      if (!fact || fact.normalizedValue !== evidence.sharesOutstanding
+        || fact.contextRef !== sourceFact.contextRef
+        || fact.context.period.kind !== "instant"
+        || fact.context.period.instant !== snapshot.universeAsOf
+        || fact.concept.namespaceUri !== sourceFact.concept?.namespaceUri
+        || fact.concept.localName !== sourceFact.concept?.localName
+        || !isSourceBackedCommonStockConcept(fact.concept)
+        || fact.dimensions.length !== 1
+        || fact.dimensions[0]?.kind !== "explicit"
+        || fact.unit?.kind !== "measure"
+        || fact.unit.measure.namespaceUri !== "http://www.xbrl.org/2003/instance"
+        || fact.unit.measure.localName !== "shares") {
+        throw new Error("complete-multi source fact lineage is incomplete");
+      }
+    }
+  }
+}
+
 function validateEligibleDecision(decision: SecAuthoritativeOsEligibleDecision, ingestedAt: string) {
   const value = decision.authoritative;
   validateTimestamp(ingestedAt, "ingestedAt");
@@ -558,12 +828,15 @@ function validateObservation(row: ShareCountHistoryObservation) {
     throw new Error("security-class metadata lineage mismatch");
   }
   if (row.sourceType !== SHARE_COUNT_HISTORY_SOURCE_TYPE || row.authoritativeStatus !== "ELIGIBLE"
-    || row.authoritativeDecisionVersion !== "authoritative-os-extraction-v1"
+    || (row.authoritativeDecisionVersion !== "authoritative-os-extraction-v1"
+      && row.authoritativeDecisionVersion !== COMPLETE_MULTI_CLASS_OS_DECISION_VERSION)
     || row.acceptedAtSource !== "sec_filing_ledger" || row.acceptedAt === null) {
     throw new Error("unsupported share-count source lineage");
   }
-  if (!DEI_NAMESPACE_PATTERN.test(row.sourceConceptNamespaceUri)
-    || row.sourceConceptLocalName !== "EntityCommonStockSharesOutstanding"
+  if (!isSourceBackedCommonStockConcept({
+    namespaceUri: row.sourceConceptNamespaceUri,
+    localName: row.sourceConceptLocalName ?? "",
+  })
     || !row.filingLedgerRawSourceId || !UUID_PATTERN.test(row.filingLedgerRawSourceId)
     || row.sourceEvidence !== null || row.sourceAnalyzer !== null) {
     throw new Error("source fact/provenance identity is incomplete");
@@ -601,6 +874,32 @@ function validateObservation(row: ShareCountHistoryObservation) {
     || row.authoritativeDecisionLineage.candidate.filedDate !== row.filedDate
     || !Array.isArray(row.authoritativeDecisionLineage.filingFacts)
     || row.authoritativeDecisionLineage.filingFacts.length === 0) throw new Error("authoritative lineage is incomplete");
+  const v1 = row.authoritativeDecisionVersion === "authoritative-os-extraction-v1"
+    && (row.authoritativeDecisionReason === "ELIGIBLE_CLASS_SPECIFIC_DEI_CONTEXT"
+      || row.authoritativeDecisionReason === "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT")
+    && row.sourceConceptLocalName === "EntityCommonStockSharesOutstanding"
+    && DEI_NAMESPACE_PATTERN.test(row.sourceConceptNamespaceUri);
+  const completeMultiUniverse = row.sourceProvenance.completeMultiClassUniverse;
+  const lineageUniverse = row.authoritativeDecisionLineage.universe;
+  const lineageParent = row.authoritativeDecisionLineage.parentDecision;
+  const completeMulti = row.authoritativeDecisionVersion === COMPLETE_MULTI_CLASS_OS_DECISION_VERSION
+    && row.authoritativeDecisionReason === COMPLETE_MULTI_CLASS_OS_DECISION_REASON
+    && row.securityClassBasis === "CLASS_SPECIFIC_COMMON_STOCK"
+    && isRecord(completeMultiUniverse)
+    && completeMultiUniverse.snapshotVersion === "issuer-common-class-universe-snapshot-v2"
+    && completeMultiUniverse.sourceIdentityHash === row.securityClassMetadata.completeUniverseSourceIdentityHash
+    && Array.isArray(completeMultiUniverse.requiredCanonicalSecurityClassIds)
+    && completeMultiUniverse.requiredCanonicalSecurityClassIds.includes(row.canonicalSecurityClassId)
+    && isRecord(lineageUniverse)
+    && lineageUniverse.snapshotVersion === completeMultiUniverse.snapshotVersion
+    && lineageUniverse.sourceIdentityHash === completeMultiUniverse.sourceIdentityHash
+    && lineageUniverse.status === "COMPLETE_MULTI"
+    && lineageUniverse.reason === "COMPLETE_MULTI_COMMON_STOCK"
+    && isRecord(lineageParent)
+    && lineageParent.status === "REQUIRES_FURTHER_CONTEXT"
+    && lineageParent.reason === "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION"
+    && lineageParent.decisionVersion === "authoritative-os-extraction-v1";
+  if (!v1 && !completeMulti) throw new Error("authoritative decision contract is unsupported");
 }
 
 function validateLevel2Observation(row: Level2ShareCountHistoryObservation) {
@@ -839,4 +1138,3 @@ const DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const TIMESTAMP_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$/;
 const DEI_NAMESPACE_PATTERN = /^https?:\/\/xbrl\.sec\.gov\/dei\/[0-9]{4}$/;
 const SEC_URL_PATTERN = /^https:\/\/([a-z0-9-]+\.)*sec\.gov\//;
-const CANONICAL_SECURITY_CLASS_ID_PATTERN = /^sc:v1:[0-9]{10}:common_stock:(?:single|us-gaap:[A-Za-z][A-Za-z0-9_.-]{1,127})$/;

@@ -18,6 +18,8 @@ SEC Submissions + CompanyFacts
   -> resolveAuthoritativeOsFromFiling()
   -> writeIssuerCommonClassUniverseSnapshot()
        (COMPLETE_SINGLE / COMPLETE_MULTI / INCOMPLETE / AMBIGUOUS)
+  -> COMPLETE_MULTI V2 only -> writeCompleteMultiClassShareCountObservations()
+       (class facts only; aggregate is corroboration)
   -> ELIGIBLE only -> writeAuthoritativeShareCountObservation()
 ```
 
@@ -26,7 +28,11 @@ eligibility boundaries. Every valid filing-level authoritative decision is
 promoted through the existing deterministic universe writer, including
 `INCOMPLETE` and `AMBIGUOUS` snapshots. This prevents a newer unresolved filing
 from silently falling back to an older complete class universe. Share Count
-History remains unchanged and accepts only `ELIGIBLE` authoritative O/S.
+History accepts either the existing direct `ELIGIBLE` authoritative O/S or the
+specialized class observations from a persisted V2 `COMPLETE_MULTI` snapshot.
+The latter requires one exact domestic filing, a US-GAAP common-stock aggregate
+candidate, a complete source-backed class set, and an exact aggregate/class
+sum. A universe-persistence failure blocks that specialized history write.
 
 `SecOsProductionCollector.collectIssuer()` is the single issuer contract for
 `bootstrap`, `backfill`, and `incremental`. `collectBatch()` runs the same
@@ -129,13 +135,21 @@ local-Postgres transaction and rolls back all fixture rows.
 | --- | --- | --- |
 | Ordinary single class | AAPL / `0000320193` | `ELIGIBLE`, one history row |
 | Small-cap amendment | NEOM / `0001022701` | `ELIGIBLE`, one history row |
-| Multi-class | GOOG / `0001652044` | `REQUIRES_FURTHER_CONTEXT`, no row |
+| Multi-class | GOOG / `0001652044` | parent `REQUIRES_FURTHER_CONTEXT`; V2 `COMPLETE_MULTI`; three class rows |
 | Foreign/ADR | WIT / `0001123799` | `REQUIRES_FURTHER_CONTEXT`, no row |
 | Incomplete negative control | ARM / `0001973239` | incomplete IXDS, `UNAVAILABLE`, no row |
 
-The acceptance asserts first-run persistence of exactly two observations and
-five universe snapshots (two complete single-class, one incomplete, and two
-ambiguous), identical replay persistence of zero with history and universe
-duplicates, four complete cache hits, one fail-closed incomplete refetch, zero
-public SEC requests, zero LLM/Gemini calls, and zero fixture rows after
-rollback.
+The acceptance asserts the exact five audited observations (two single-class
+and three multi-class rows), V2 universe outcomes (two complete single-class,
+one complete multi-class, and two ambiguous), replay persistence of zero with
+history and universe duplicates, complete-cache reuse where available, zero
+public SEC requests, zero LLM/Gemini calls, and zero fixture changes after
+rollback. It isolates each fixture by exact accession and O/S as-of so retained
+live-validation history in the shared local database cannot contaminate it.
+
+`npm run verify:live-multi-class-os-production-path:local` is the retained-data
+acceptance. It uses the existing local Alphabet CompanyFacts, filing ledger,
+and filing-XBRL cache, blocks/counts any attempted SEC filing request, executes
+the production collector twice, and verifies the event-time universe reader,
+class resolver, no-lookahead behavior, and issuer-total aggregator at two real
+filing timepoints.

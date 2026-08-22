@@ -12,6 +12,7 @@ import {
   InMemoryIssuerCommonClassUniverseRepository,
   ISSUER_COMMON_CLASS_UNIVERSE_STATUSES,
   ISSUER_COMMON_CLASS_UNIVERSE_VERSION,
+  ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS,
   PostgresIssuerCommonClassUniverseRepository,
   deriveIssuerCommonClassUniverseSnapshot,
   readIssuerCommonClassUniverseAt,
@@ -29,7 +30,11 @@ const ACCEPTED_AT = "2026-08-01T12:30:45.000Z";
 const US_GAAP = "http://fasb.org/us-gaap/2026";
 
 test("universe status and version contracts are bounded", () => {
-  assert.equal(ISSUER_COMMON_CLASS_UNIVERSE_VERSION, "issuer-common-class-universe-snapshot-v1");
+  assert.equal(ISSUER_COMMON_CLASS_UNIVERSE_VERSION, "issuer-common-class-universe-snapshot-v2");
+  assert.deepEqual(ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS, [
+    "issuer-common-class-universe-snapshot-v1",
+    "issuer-common-class-universe-snapshot-v2",
+  ]);
   assert.deepEqual(ISSUER_COMMON_CLASS_UNIVERSE_STATUSES, [
     "COMPLETE_SINGLE",
     "COMPLETE_MULTI",
@@ -70,6 +75,43 @@ test("complete class-specific A/B/C fact set produces exact COMPLETE_MULTI unive
     `sc:v1:${CIK}:common_stock:us-gaap:CommonClassCMember`,
   ]);
   assert.deepEqual(snapshot.classEvidence.map((row) => row.sharesOutstanding), ["100", "200", "300"]);
+});
+
+test("source-backed custom member uses namespace URI plus local name without changing us-gaap IDs", () => {
+  const customNamespace = "https://issuer.example/taxonomy/20260630";
+  const snapshot = deriveIssuerCommonClassUniverseSnapshot(decision({
+    facts: [
+      fact({ value: "600", suffix: "custom-aggregate", concept: "us-gaap" }),
+      fact({ value: "100", member: "CommonClassAMember", suffix: "custom-a", concept: "us-gaap" }),
+      fact({ value: "200", member: "CommonClassBMember", suffix: "custom-b", concept: "us-gaap" }),
+      fact({
+        value: "300",
+        member: "CapitalClassCMember",
+        memberNamespaceUri: customNamespace,
+        suffix: "custom-c",
+        concept: "us-gaap",
+      }),
+    ],
+    status: "REQUIRES_FURTHER_CONTEXT",
+    reason: "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION",
+    taxonomy: "us-gaap",
+    concept: "CommonStockSharesOutstanding",
+  }));
+
+  assert.equal(snapshot.status, "COMPLETE_MULTI");
+  assert.ok(snapshot.requiredCanonicalSecurityClassIds.includes(
+    `sc:v1:${CIK}:common_stock:us-gaap:CommonClassAMember`,
+  ));
+  assert.ok(snapshot.requiredCanonicalSecurityClassIds.includes(
+    `sc:v1:${CIK}:common_stock:us-gaap:CommonClassBMember`,
+  ));
+  const customId = snapshot.requiredCanonicalSecurityClassIds.find((id) => id.includes(":custom:"));
+  assert.match(customId ?? "", new RegExp(
+    `^sc:v1:${CIK}:common_stock:custom:[0-9a-f]{64}:CapitalClassCMember$`,
+  ));
+  const customEvidence = snapshot.classEvidence.find((row) => row.canonicalSecurityClassId === customId);
+  assert.equal(customEvidence?.sourceFacts[0]?.concept?.namespaceUri, US_GAAP);
+  assert.equal(customEvidence?.sourceFacts[0]?.dimensions[0]?.kind, "explicit");
 });
 
 test("incomplete filing context never upgrades observed A/B facts into a complete universe", () => {
@@ -126,7 +168,7 @@ test("class facts with different O/S instant dates cannot form one complete snap
   assert.deepEqual(snapshot.requiredCanonicalSecurityClassIds, []);
 });
 
-test("unsupported preferred/custom member is excluded and forces fail-closed coverage", () => {
+test("unsupported standard preferred member is excluded and forces fail-closed coverage", () => {
   const snapshot = deriveIssuerCommonClassUniverseSnapshot(decision({
     facts: [fact({ value: "100", member: "PreferredStockMember", suffix: "preferred" })],
     status: "REQUIRES_FURTHER_CONTEXT",
@@ -207,6 +249,38 @@ test("reader selects the event-time complete snapshot without future look-ahead"
     assert.equal(afterAcceptance.universeAsOf, "2026-09-30");
     assert.equal(afterAcceptance.requiredCanonicalSecurityClassIds.length, 3);
   }
+});
+
+test("reader supersedes a V1 source result with the V2 result for the same filing observation", async () => {
+  const repository = new InMemoryIssuerCommonClassUniverseRepository();
+  const completeV2 = deriveIssuerCommonClassUniverseSnapshot(classDecision([
+    ["CommonClassAMember", "100"],
+    ["CommonClassBMember", "200"],
+  ]));
+  const incompleteV1 = {
+    ...structuredClone(completeV2),
+    snapshotVersion: "issuer-common-class-universe-snapshot-v1" as const,
+    status: "INCOMPLETE" as const,
+    reason: "AUTHORITATIVE_SOURCE_NOT_ELIGIBLE" as const,
+    requiredCanonicalSecurityClassIds: [],
+    classEvidence: [],
+    aggregateEvidence: [],
+    excludedEvidence: [],
+    sourceIdentityHash: hash("same-source-v1"),
+  };
+  await repository.insertSnapshot(incompleteV1);
+  await repository.insertSnapshot(completeV2);
+
+  const result = await readIssuerCommonClassUniverseAt({
+    repository,
+    shareCountHistoryRepository: historyRepository([]),
+    cik: CIK,
+    targetAt: "2026-08-02T00:00:00.000Z",
+  });
+  assert.equal(result.status, "AVAILABLE");
+  if (result.status !== "AVAILABLE") throw new Error("V2 snapshot unavailable");
+  assert.equal(result.selectedSnapshot.snapshotVersion, "issuer-common-class-universe-snapshot-v2");
+  assert.equal(result.selectedSnapshot.status, "COMPLETE_MULTI");
 });
 
 test("a later canonical common class invalidates an older complete universe", async () => {
@@ -365,6 +439,8 @@ type DecisionOptions = {
   asOf?: string;
   acceptedAt?: string;
   accession?: string;
+  taxonomy?: "dei" | "us-gaap";
+  concept?: "EntityCommonStockSharesOutstanding" | "CommonStockSharesOutstanding";
 };
 
 function decision(options: DecisionOptions): SecAuthoritativeOsDecision {
@@ -373,8 +449,8 @@ function decision(options: DecisionOptions): SecAuthoritativeOsDecision {
   const accession = options.accession ?? "0000000099-26-000001";
   const candidate = {
     issuerCik: CIK,
-    taxonomy: "dei",
-    concept: "EntityCommonStockSharesOutstanding",
+    taxonomy: options.taxonomy ?? "dei",
+    concept: options.concept ?? "EntityCommonStockSharesOutstanding",
     unit: "shares",
     sharesOutstanding: options.facts[0]?.normalizedValue ?? "1",
     asOf,
@@ -400,17 +476,30 @@ function decision(options: DecisionOptions): SecAuthoritativeOsDecision {
 function fact(input: {
   value: string;
   member?: string;
+  memberNamespaceUri?: string;
+  concept?: "dei" | "us-gaap";
   suffix?: string;
   asOf?: string;
   accession?: string;
 }): SecAuthoritativeOsFilingFactEvidence {
   const suffix = input.suffix ?? `${input.member ?? "aggregate"}-${input.value}`;
   const axis = qname("us-gaap:StatementClassOfStockAxis", US_GAAP);
+  const concept = input.concept === "us-gaap"
+    ? qname("us-gaap:CommonStockSharesOutstanding", US_GAAP)
+    : qname("dei:EntityCommonStockSharesOutstanding", "http://xbrl.sec.gov/dei/2026");
   const dimensions = input.member
-    ? [{ kind: "explicit" as const, axis, member: qname(`us-gaap:${input.member}`, US_GAAP) }]
+    ? [{
+        kind: "explicit" as const,
+        axis,
+        member: qname(
+          `${input.memberNamespaceUri ? "issuer" : "us-gaap"}:${input.member}`,
+          input.memberNamespaceUri ?? US_GAAP,
+        ),
+      }]
     : [];
   return {
     factKey: hash(`fact:${suffix}`),
+    concept,
     lexicalValue: input.value,
     normalizedValue: input.value,
     contextRef: `ctx-${hash(suffix).slice(0, 12)}`,

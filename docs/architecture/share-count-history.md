@@ -30,6 +30,11 @@ SEC CompanyFacts candidate
   -> writeAuthoritativeShareCountObservation()
   -> public.share_count_history
 
+US-GAAP aggregate plus complete filing class breakdown
+  -> Common-Class Universe V2 COMPLETE_MULTI
+  -> writeCompleteMultiClassShareCountObservations()
+  -> class facts only -> public.share_count_history
+
 Existing Level 2 domain provider call
   -> optional source-stated sidecar
   -> deterministic provenance validation
@@ -41,6 +46,15 @@ Existing Level 2 domain provider call
 access. The writer consumes the typed output of
 `resolveAuthoritativeOsFromFiling()`; it does not parse a filing or reproduce
 security semantics.
+
+The sole specialized exception is the complete-multi writer. It requires the
+parent decision to remain `REQUIRES_FURTHER_CONTEXT` with the exact
+aggregate-plus-class reason and independently validates the V2 universe,
+source fact linkage, required-class coverage, and aggregate equality. It emits
+one observation per source class fact with decision version
+`authoritative-multi-class-os-extraction-v1`. It never emits the aggregate,
+repairs a value, infers a missing class, or promotes an incomplete/ambiguous
+snapshot.
 
 ## History identity
 
@@ -58,7 +72,11 @@ delete privilege is granted to the service role.
 Security classes are independent identities. The single-common-stock identity
 is the extractor's required-context identity. A class-specific identity is the
 exact namespace/local-name pair for both `StatementClassOfStockAxis` and its
-member. Aggregate and class-specific rows are never combined.
+member. Standard members retain the backward-compatible
+`us-gaap:<member-local-name>` canonical ID. A source-backed issuer-extension
+member uses `custom:<namespace-uri-sha256>:<member-local-name>` while retaining
+the exact namespace URI in provenance. Aggregate and class-specific rows are
+never combined.
 
 The share basis is `shares_outstanding:xbrli_shares`. Metadata preserves the
 resolved XBRL unit, CompanyFacts integer, filing lexical value, and inline

@@ -42,13 +42,13 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   assert.equal(sum(first.issuers, "filingContextsRequired"), 5);
   assert.equal(sum(first.issuers, "filingContextsFetched"), 5);
   assert.equal(sum(first.issuers, "filingContextCacheHits"), 0);
-  assert.equal(sum(first.issuers, "eligibleObservations"), 2);
-  assert.equal(sum(first.issuers, "persistedObservations"), 2);
+  assert.equal(sum(first.issuers, "eligibleObservations"), 5);
+  assert.equal(sum(first.issuers, "persistedObservations"), 5);
   assert.equal(sum(first.issuers, "duplicates"), 0);
   assert.equal(sum(first.issuers, "universeSnapshotsEvaluated"), 6);
   assert.equal(sum(first.issuers, "universeSnapshotsInserted"), 5);
   assert.equal(sum(first.issuers, "universeSnapshotDuplicates"), 1);
-  assert.equal(sum(first.issuers, "universeSnapshotsIncomplete"), 1);
+  assert.equal(sum(first.issuers, "universeSnapshotsIncomplete"), 0);
   assert.equal(sum(first.issuers, "universeSnapshotsAmbiguous"), 3);
 
   const aapl = issuer(first.issuers, "AAPL");
@@ -66,14 +66,25 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
 
   assert.deepEqual(await universeStatuses(harness, "AAPL"), ["COMPLETE_SINGLE"]);
   assert.deepEqual(await universeStatuses(harness, "NEOM"), ["COMPLETE_SINGLE"]);
-  assert.deepEqual(await universeStatuses(harness, "GOOG"), ["INCOMPLETE"]);
+  assert.deepEqual(await universeStatuses(harness, "GOOG"), ["COMPLETE_MULTI"]);
   assert.deepEqual(await universeStatuses(harness, "WIT"), ["AMBIGUOUS"]);
   assert.deepEqual(await universeStatuses(harness, "ARM"), ["AMBIGUOUS"]);
 
   const aaplHistory = await harness.historyRepository.readHistory(acceptanceAudit("AAPL").cik);
   const neomHistory = await harness.historyRepository.readHistory(acceptanceAudit("NEOM").cik);
+  const googHistory = await harness.historyRepository.readHistory(acceptanceAudit("GOOG").cik);
   assert.equal(aaplHistory.length, 1);
   assert.equal(neomHistory.length, 1);
+  assert.equal(googHistory.length, 3);
+  assert.deepEqual(googHistory.map((row) => [
+    row.canonicalSecurityClassId,
+    row.sharesOutstanding,
+    row.authoritativeDecisionReason,
+  ]), [
+    ["sc:v1:0001652044:common_stock:us-gaap:CommonClassAMember", "5868000000", "ELIGIBLE_COMPLETE_MULTI_COMMON_STOCK_CONTEXT"],
+    ["sc:v1:0001652044:common_stock:us-gaap:CommonClassBMember", "835000000", "ELIGIBLE_COMPLETE_MULTI_COMMON_STOCK_CONTEXT"],
+    ["sc:v1:0001652044:common_stock:us-gaap:CommonClassCMember", "5527000000", "ELIGIBLE_COMPLETE_MULTI_COMMON_STOCK_CONTEXT"],
+  ]);
   assert.deepEqual({
     issuerCik: aaplHistory[0]!.issuerCik,
     accession: aaplHistory[0]!.accessionNumber,
@@ -121,16 +132,17 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   assert.equal(sum(replay.issuers, "companyFactsUpdated"), 0);
   assert.equal(sum(replay.issuers, "filingContextsFetched"), 1);
   assert.equal(sum(replay.issuers, "filingContextCacheHits"), 4);
-  assert.equal(sum(replay.issuers, "eligibleObservations"), 2);
+  assert.equal(sum(replay.issuers, "eligibleObservations"), 5);
   assert.equal(sum(replay.issuers, "persistedObservations"), 0);
-  assert.equal(sum(replay.issuers, "duplicates"), 2);
+  assert.equal(sum(replay.issuers, "duplicates"), 5);
   assert.equal(sum(replay.issuers, "universeSnapshotsEvaluated"), 6);
   assert.equal(sum(replay.issuers, "universeSnapshotsInserted"), 0);
   assert.equal(sum(replay.issuers, "universeSnapshotDuplicates"), 6);
-  assert.equal(sum(replay.issuers, "universeSnapshotsIncomplete"), 1);
+  assert.equal(sum(replay.issuers, "universeSnapshotsIncomplete"), 0);
   assert.equal(sum(replay.issuers, "universeSnapshotsAmbiguous"), 3);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("AAPL").cik)).length, 1);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("NEOM").cik)).length, 1);
+  assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("GOOG").cik)).length, 3);
   assert.deepEqual(harness.filingSource.callsByAccession(), {
     "0000320193-26-000020": 1,
     "0001144204-13-044345": 1,

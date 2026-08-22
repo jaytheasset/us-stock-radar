@@ -29,6 +29,7 @@ import { SecStructuredDataService } from "./service.ts";
 import {
   PostgresShareCountHistoryRepository,
   writeAuthoritativeShareCountObservation,
+  writeCompleteMultiClassShareCountObservations,
   type ShareCountHistoryRepository,
 } from "./shareCountHistory.ts";
 import type {
@@ -253,8 +254,10 @@ export class SecOsProductionCollector {
           repository: this.dependencies.filingRepository,
         });
         const decision = resolveAuthoritativeOsFromFiling(linked);
+        let universePersistenceAvailable = false;
+        let snapshot: ReturnType<typeof deriveIssuerCommonClassUniverseSnapshot> | null = null;
         try {
-          const snapshot = deriveIssuerCommonClassUniverseSnapshot(decision);
+          snapshot = deriveIssuerCommonClassUniverseSnapshot(decision);
           counts.universeSnapshotsEvaluated += 1;
           if (snapshot.status === "INCOMPLETE") counts.universeSnapshotsIncomplete += 1;
           if (snapshot.status === "AMBIGUOUS") counts.universeSnapshotsAmbiguous += 1;
@@ -264,8 +267,28 @@ export class SecOsProductionCollector {
           });
           counts.universeSnapshotsInserted += persisted.inserted;
           counts.universeSnapshotDuplicates += persisted.deduped;
+          universePersistenceAvailable = true;
         } catch (error) {
           issues.push(issue("DB_PERSISTENCE_FAILURE", "universe_persistence", candidate.accession, stableErrorDetail(error)));
+        }
+        if (universePersistenceAvailable && snapshot?.status === "COMPLETE_MULTI") {
+          const classObservationCount = snapshot.classEvidence.reduce(
+            (sum, evidence) => sum + evidence.sourceFacts.length,
+            0,
+          );
+          counts.eligibleObservations += classObservationCount;
+          try {
+            const classPersistence = await writeCompleteMultiClassShareCountObservations({
+              repository: this.dependencies.historyRepository,
+              decision,
+              snapshot,
+              ingestedAt: executedAt,
+            });
+            counts.persistedObservations += classPersistence.inserted;
+            counts.duplicates += classPersistence.deduped;
+          } catch (error) {
+            issues.push(issue("DB_PERSISTENCE_FAILURE", "history_persistence", candidate.accession, stableErrorDetail(error)));
+          }
         }
         if (decision.status !== "ELIGIBLE") {
           observations.push(toCollectedObservation(decision, "not_eligible"));
