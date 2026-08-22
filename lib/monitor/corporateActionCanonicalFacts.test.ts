@@ -24,6 +24,12 @@ import {
 } from "../prompts/corporateActionCanonicalAnalysis.ts";
 
 const sourceText = "The company will effect a one-for-twenty reverse stock split. The reverse stock split will become effective on August 4, 2026.";
+const timingSourceText = [
+  sourceText,
+  "The reverse stock split will be effective at market open on August 4, 2026.",
+  "The reverse stock split may instead be effective at the start of trading or after market close.",
+  "The source-stated exact timestamp is 2026-08-04T09:30:00-04:00.",
+].join(" ");
 
 function input() {
   return adaptNasdaqCorporateActionSource({
@@ -54,6 +60,29 @@ function applicable(overrides: Partial<Extract<CorporateActionAnalyzerTransportR
     as_of: { availability: "available", value: "2026-08-04" },
     ...overrides,
   } as CorporateActionAnalyzerTransportResult;
+}
+
+function timingInput() {
+  return adaptNasdaqCorporateActionSource({
+    source_unique_id: "ECA-timing-source",
+    source_url: "https://example.com/notices/timing",
+    published_at: "2026-08-01T00:00:00Z",
+    title: "Stored timing notice",
+    body_text: timingSourceText,
+  });
+}
+
+function timingTransport(kind: string, timestamp: unknown, evidence: string) {
+  return {
+    ...applicable(),
+    effective_timing: {
+      availability: "available",
+      kind,
+      timestamp,
+      source_ref: "nasdaq_notice_body",
+      evidence,
+    },
+  };
 }
 
 test("applicable transport materializes only the reverse-split contract and mechanically converts old/new shares", () => {
@@ -169,6 +198,97 @@ test("evidence exactness is separated from semantic/source eligibility", () => {
   }
 });
 
+test("effective timing exact and non-exact transport contracts preserve facts fail-closed", () => {
+  const nonExactCases = [
+    ["date_only", "The reverse stock split will become effective on August 4, 2026."],
+    ["business_day_open", "The reverse stock split will be effective at market open on August 4, 2026."],
+    ["market_open", "The reverse stock split will be effective at market open on August 4, 2026."],
+    ["start_of_trading", "effective at the start of trading"],
+    ["after_market_close", "after market close"],
+  ] as const;
+  for (const [kind, evidence] of nonExactCases) {
+    const parsed = parseCorporateActionAnalyzerTransportJson(JSON.stringify(timingTransport(kind, null, evidence)));
+    assert.deepEqual(parsed.errors, [], `${kind} should accept null timestamp`);
+    assert.ok(parsed.transport?.applicable);
+    const canonical = canonicalizeCorporateActionAnalyzerResult(parsed.transport!, timingInput(), {
+      effectiveTimingDiagnostic: parsed.effectiveTimingDiagnostic,
+    });
+    assert.deepEqual(canonical.errors, []);
+    assert.equal(canonical.result?.applicable && canonical.result.facts.effective_timing?.availability === "available"
+      ? canonical.result.facts.effective_timing.kind : null, kind);
+  }
+
+  const exactTimestamp = "2026-08-04T09:30:00-04:00";
+  const exact = parseCorporateActionAnalyzerTransportJson(JSON.stringify(timingTransport(
+    "exact_timestamp",
+    exactTimestamp,
+    `The source-stated exact timestamp is ${exactTimestamp}.`,
+  )));
+  assert.deepEqual(exact.errors, []);
+  const exactCanonical = canonicalizeCorporateActionAnalyzerResult(exact.transport!, timingInput(), {
+    effectiveTimingDiagnostic: exact.effectiveTimingDiagnostic,
+  });
+  assert.deepEqual(exactCanonical.errors, []);
+  assert.equal(exactCanonical.result?.applicable
+    && exactCanonical.result.facts.effective_timing?.availability === "available"
+    ? exactCanonical.result.facts.effective_timing.timestamp : null, exactTimestamp);
+
+  const malformedExact = parseCorporateActionAnalyzerTransportJson(JSON.stringify(timingTransport(
+    "exact_timestamp",
+    "12:07 P.M.",
+    "12:07 P.M.",
+  )));
+  assert.equal(malformedExact.transport, null);
+  assert.match(malformedExact.errors.join("; "), /RFC3339 timestamp with timezone\/offset/);
+  assert.deepEqual(malformedExact.effectiveTimingDiagnostic, {
+    timing_kind: "exact_timestamp",
+    raw_timestamp: "12:07 P.M.",
+    raw_timestamp_truncated: false,
+    effective_date: "2026-08-04",
+    validation_reason: "result.effective_timing.exact_timestamp requires a valid RFC3339 timestamp with timezone/offset",
+  });
+});
+
+test("non-exact hallucinated timestamps normalize to null with a bounded diagnostic and retain the fact", () => {
+  const parsed = parseCorporateActionAnalyzerTransportJson(JSON.stringify(timingTransport(
+    "market_open",
+    "09:30 local time",
+    "The reverse stock split will be effective at market open on August 4, 2026.",
+  )));
+  assert.deepEqual(parsed.errors, []);
+  assert.ok(parsed.transport?.applicable);
+  if (!parsed.transport?.applicable) return;
+  assert.equal(parsed.transport.effective_timing?.availability === "available"
+    ? parsed.transport.effective_timing.timestamp : undefined, null);
+  const canonical = canonicalizeCorporateActionAnalyzerResult(parsed.transport, timingInput(), {
+    effectiveTimingDiagnostic: parsed.effectiveTimingDiagnostic,
+  });
+  assert.deepEqual(canonical.errors, []);
+  assert.ok(canonical.result?.applicable);
+  if (!canonical.result?.applicable || canonical.result.facts.effective_timing?.availability !== "available") return;
+  assert.equal(canonical.result.facts.ratio.exact_source_components?.availability, "available");
+  assert.deepEqual(canonical.result.facts.effective_timing.timestamp_diagnostic, {
+    reason: "non_exact_timestamp_normalized_to_null",
+    raw_timestamp: "09:30 local time",
+    raw_timestamp_truncated: false,
+  });
+});
+
+test("generated 09:30 and 00:00 exact timestamps without source-verbatim offset remain fail-closed", () => {
+  let accepted = 0;
+  for (const timestamp of ["2026-08-04T09:30:00-04:00", "2026-08-04T00:00:00Z"]) {
+    const generated = timingTransport(
+      "exact_timestamp",
+      timestamp,
+      "The reverse stock split will become effective on August 4, 2026.",
+    ) as CorporateActionAnalyzerTransportResult;
+    const canonical = canonicalizeCorporateActionAnalyzerResult(generated, timingInput());
+    if (canonical.result) accepted += 1;
+    assert.match(canonical.errors.join("; "), /source-verbatim RFC3339 timestamp/);
+  }
+  assert.equal(accepted, 0);
+});
+
 test("all stored-source adapters preserve exact source identity and never load parser or Primary semantic truth", () => {
   const news = adaptNewsCorporateActionSource({
     source_unique_id: "news-1",
@@ -199,10 +319,10 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
     "applicable", "event_kind", "action_stage", "effective_date", "ratio", "affected_security",
     "effective_timing", "execution_update", "source_ref", "evidence", "confidence", "as_of",
   ]);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 10_280);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 12_180);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "4d7548254e0d6e14fe030314d5f11c38451a354410cf405f001ebfa98f175361",
+    "f526acdf21ff74df3e1221d0ae8faa4fde8917e45dfca0b3ca666f244de2b091",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -218,6 +338,11 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not map generic common stock across multiple class candidates/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer market session ordering from a date alone/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /opening of the business day.*business_day_open/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never generate or repair 09:30, 00:00/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete clock timestamp and its timezone or numeric UTC offset/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /legal-amendment clock time is not exact_timestamp/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not cite a different action's timestamp/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /SUPERSEDE_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /CANCEL_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never match executions by ratio\/date similarity/i);

@@ -211,7 +211,7 @@ test("effective-date activation exactly reuses date-only/open/after-close/timest
   assert.equal(stockSplitExecutionActivationDecision({ execution: dateOnly, targetDate: "2026-08-25" }).status, "APPLIED");
   assert.equal(stockSplitExecutionActivationDecision({ execution: dateOnly, targetDate: "2026-08-26" }).status, "APPLIED");
 
-  for (const kind of ["market_open", "start_of_trading"] as const) {
+  for (const kind of ["date_only", "business_day_open", "market_open", "start_of_trading"] as const) {
     const execution = (await readWith([historyItem(52, factsFor({ sequence: 52, timing: availableTiming(kind) }))])).executions[0]!;
     assert.equal(stockSplitExecutionActivationDecision({ execution, targetDate: "2026-08-25" }).status, "APPLIED");
   }
@@ -261,7 +261,10 @@ function canonicalForward(options: FactsOptions) {
   const member = classMember(classId);
   const title = classTitle(classId);
   const source = options.source
-    ?? `The Company will effect a ${ratio?.[1] ?? 4}-for-${ratio?.[0] ?? 1} forward stock split of its ${title} effective August 25, 2026.`;
+    ?? `The Company will effect a ${ratio?.[1] ?? 4}-for-${ratio?.[0] ?? 1} forward stock split of its ${title} effective August 25, 2026.${
+      options.timing?.availability === "available" && options.timing.kind === "exact_timestamp"
+        ? ` Exact source timestamp ${options.timing.timestamp}.` : ""
+    }`;
   const input = adaptSec8k6kCorporateActionSource({
     accession_number: accession,
     source_url: `https://www.sec.gov/Archives/edgar/data/1234567/${accession.replaceAll("-", "")}/filing.htm`,
@@ -433,7 +436,7 @@ function updateObservation(
 }
 
 function availableTiming(
-  kind: "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
+  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
   timestamp: string | null = null,
 ): CorporateActionEffectiveTimingTransport {
   return {
@@ -441,7 +444,8 @@ function availableTiming(
     kind,
     timestamp,
     source_ref: "sec_block_1",
-    evidence: "effective August 25, 2026",
+    evidence: kind === "exact_timestamp" && timestamp
+      ? `Exact source timestamp ${timestamp}.` : "effective August 25, 2026",
   };
 }
 

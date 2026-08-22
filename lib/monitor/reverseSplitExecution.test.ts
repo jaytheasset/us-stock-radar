@@ -284,7 +284,7 @@ test("day-basis activates date-only/opening executions on effective date and pre
     status: "APPLIED", reason: "target_after_effective_date",
   });
 
-  for (const kind of ["market_open", "start_of_trading"] as const) {
+  for (const kind of ["date_only", "business_day_open", "market_open", "start_of_trading"] as const) {
     const execution = (await readWith([historyItem(2, factsFor({
       sequence: 2,
       timing: availableTiming(kind),
@@ -338,7 +338,10 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
   const ratio = options.ratio === undefined ? [10, 1] as [number, number] : options.ratio;
   const classId = options.canonicalSecurityClassId ?? singleClassId;
   const source = options.source
-    ?? "The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.";
+    ?? `The Company will effect a 1-for-10 reverse stock split of its common stock effective August 25, 2026.${
+      options.timing?.availability === "available" && options.timing.kind === "exact_timestamp"
+        ? ` Exact source timestamp ${options.timing.timestamp}.` : ""
+    }`;
   const member = classId === classAId ? "CommonClassAMember" : classId === classBId ? "CommonClassBMember" : null;
   const input = adaptSec8k6kCorporateActionSource({
     accession_number: accession,
@@ -499,7 +502,7 @@ function history(
 }
 
 function availableTiming(
-  kind: "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
+  kind: "date_only" | "business_day_open" | "market_open" | "start_of_trading" | "after_market_close" | "exact_timestamp",
   timestamp: string | null = null,
 ): CorporateActionEffectiveTimingTransport {
   return {
@@ -507,7 +510,8 @@ function availableTiming(
     kind,
     timestamp,
     source_ref: "sec_block_1",
-    evidence: "effective August 25, 2026",
+    evidence: kind === "exact_timestamp" && timestamp
+      ? `Exact source timestamp ${timestamp}.` : "effective August 25, 2026",
   };
 }
 

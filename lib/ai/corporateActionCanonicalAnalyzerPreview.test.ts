@@ -142,6 +142,62 @@ test("provider, invalid output, and semantic not-applicable remain separate", as
   assert.deepEqual(negative.result, { applicable: false });
 });
 
+test("timing transport keeps one call, preserves bounded failure detail, and normalizes optional non-exact timestamps", async () => {
+  let nonExactCalls = 0;
+  const nonExact = await runCorporateActionCanonicalAnalyzerPreview(input, {
+    apiKey: "test-key",
+    runPrompt: async () => {
+      nonExactCalls += 1;
+      return run(applicablePayload({
+        availability: "available",
+        kind: "date_only",
+        timestamp: "2026-08-08T00:00:00Z",
+        source_ref: "nasdaq_notice_body",
+        evidence: "will become effective on August 8, 2026",
+      }));
+    },
+  });
+  assert.equal(nonExactCalls, 1);
+  assert.equal(nonExact.stage, "complete");
+  if (nonExact.stage === "complete" && nonExact.result.applicable
+    && nonExact.result.facts.effective_timing?.availability === "available") {
+    assert.equal(nonExact.result.facts.effective_timing.timestamp, null);
+    assert.deepEqual(nonExact.result.facts.effective_timing.timestamp_diagnostic, {
+      reason: "non_exact_timestamp_normalized_to_null",
+      raw_timestamp: "2026-08-08T00:00:00Z",
+      raw_timestamp_truncated: false,
+    });
+  }
+
+  let exactCalls = 0;
+  const malformedExact = await runCorporateActionCanonicalAnalyzerPreview(input, {
+    apiKey: "test-key",
+    runPrompt: async () => {
+      exactCalls += 1;
+      return run(applicablePayload({
+        availability: "available",
+        kind: "exact_timestamp",
+        timestamp: "12:07 P.M.",
+        source_ref: "nasdaq_notice_body",
+        evidence: "will become effective on August 8, 2026",
+      }));
+    },
+  });
+  assert.equal(exactCalls, 1);
+  assert.equal(malformedExact.stage, "validation_error");
+  if (malformedExact.stage === "validation_error") {
+    assert.deepEqual(malformedExact.timing_diagnostic, {
+      timing_kind: "exact_timestamp",
+      raw_timestamp: "12:07 P.M.",
+      raw_timestamp_truncated: false,
+      effective_date: "2026-08-08",
+      validation_reason: "result.effective_timing.exact_timestamp requires a valid RFC3339 timestamp with timezone/offset",
+    });
+    assert.match(malformedExact.error, /effective_timing_diagnostic=/);
+    assert.doesNotMatch(malformedExact.error, /A one-for-ten reverse split.*A one-for-ten reverse split/);
+  }
+});
+
 test("SEC Corporate Action uses the same one provider call and returns O/S without changing Corporate Action output", async () => {
   const evidence = "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.";
   const secInput = adaptSec8k6kCorporateActionSource({
@@ -189,5 +245,32 @@ function run(parsed: Record<string, unknown> | null, overrides: Partial<GeminiSt
     usage: null,
     body: null,
     ...overrides,
+  };
+}
+
+function applicablePayload(effectiveTiming: Record<string, unknown>) {
+  return {
+    applicable: true,
+    event_kind: "reverse_split",
+    action_stage: "scheduled",
+    effective_date: { availability: "available", value: "2026-08-08" },
+    ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+    affected_security: {
+      availability: "unavailable",
+      reason: "issuer_identity_unavailable",
+      source_ref: null,
+      evidence: null,
+    },
+    effective_timing: effectiveTiming,
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "nasdaq_notice_body",
+      evidence: "A one-for-ten reverse split will become effective on August 8, 2026.",
+    },
+    source_ref: "nasdaq_notice_body",
+    evidence: "A one-for-ten reverse split will become effective on August 8, 2026.",
+    confidence: "high",
+    as_of: { availability: "available", value: "2026-08-08" },
   };
 }

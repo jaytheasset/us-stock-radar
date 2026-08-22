@@ -8,6 +8,7 @@ import {
   parseCorporateActionAnalyzerTransportJson,
   type CorporateActionAnalyzerInput,
   type CorporateActionAnalyzerResult,
+  type CorporateActionEffectiveTimingTransportDiagnostic,
   validateCorporateActionAnalyzerInput,
 } from "../monitor/corporateActionCanonicalFacts.ts";
 import {
@@ -35,6 +36,7 @@ export type CorporateActionCanonicalAnalyzerPreviewResult =
       run: GeminiStructuredJsonRun | null;
       error: string;
       validation_errors?: string[];
+      timing_diagnostic?: CorporateActionEffectiveTimingTransportDiagnostic | null;
     };
 
 export async function runCorporateActionCanonicalAnalyzerPreview(
@@ -102,8 +104,9 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
       stage: "validation_error",
       result: null,
       run,
-      error: parsed.errors.join("; "),
+      error: validationErrorMessage(parsed.errors, parsed.effectiveTimingDiagnostic),
       validation_errors: parsed.errors,
+      timing_diagnostic: parsed.effectiveTimingDiagnostic,
     };
   }
   const sidecar = extractLevel2ShareCountSidecar({
@@ -118,18 +121,22 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
       stage: "validation_error",
       result: null,
       run,
-      error: parsed.errors.join("; "),
+      error: validationErrorMessage(parsed.errors, parsed.effectiveTimingDiagnostic),
       validation_errors: parsed.errors,
+      timing_diagnostic: parsed.effectiveTimingDiagnostic,
     };
   }
-  const canonicalized = canonicalizeCorporateActionAnalyzerResult(parsed.transport, input);
+  const canonicalized = canonicalizeCorporateActionAnalyzerResult(parsed.transport, input, {
+    effectiveTimingDiagnostic: parsed.effectiveTimingDiagnostic,
+  });
   if (!canonicalized.result) {
     return {
       stage: "validation_error",
       result: null,
       run,
-      error: canonicalized.errors.join("; "),
+      error: validationErrorMessage(canonicalized.errors, parsed.effectiveTimingDiagnostic),
       validation_errors: canonicalized.errors,
+      timing_diagnostic: parsed.effectiveTimingDiagnostic,
     };
   }
   return {
@@ -140,4 +147,14 @@ export async function runCorporateActionCanonicalAnalyzerPreview(
     run,
     repair: null,
   };
+}
+
+function validationErrorMessage(
+  errors: readonly string[],
+  diagnostic: CorporateActionEffectiveTimingTransportDiagnostic | null,
+) {
+  const base = errors.join("; ");
+  return diagnostic
+    ? `${base}; effective_timing_diagnostic=${JSON.stringify(diagnostic)}`
+    : base;
 }
