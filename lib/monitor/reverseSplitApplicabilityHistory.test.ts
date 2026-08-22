@@ -109,6 +109,7 @@ test("SEC ledger CIK and canonical class candidates are validated without ticker
     issuerContext: { availability: "unavailable", reason: "non_sec_source" },
     securityClassCandidates: [],
     reverseSplitExecutionCandidates: [],
+    forwardSplitExecutionCandidates: [],
   });
 });
 
@@ -135,11 +136,11 @@ test("production context reader uses one exact event/raw RPC boundary", async ()
         },
       };
     },
-    readExecutionCandidates: async ({ cik: requestedCik, targetAt }) => {
+    readExecutionCandidates: async ({ actionKind, cik: requestedCik, targetAt }) => {
       assert.equal(requestedCik, cik);
       assert.equal(targetAt, "2026-08-01T16:30:00Z");
       return [{
-        execution_id: `rse:v1:${"a".repeat(64)}`,
+        execution_id: `${actionKind === "reverse_split" ? "rse" : "fse"}:v1:${"a".repeat(64)}`,
         issuer_cik: cik,
         canonical_security_class_id: singleClassId,
         effective_date: "2026-08-10",
@@ -151,6 +152,7 @@ test("production context reader uses one exact event/raw RPC boundary", async ()
   });
   assert.equal(result.securityClassCandidates.length, 1);
   assert.equal(result.reverseSplitExecutionCandidates.length, 1);
+  assert.equal(result.forwardSplitExecutionCandidates.length, 1);
   assert.deepEqual(calls, [{
     name: "read_corporate_action_applicability_context",
     payload: { p_event_id: eventId, p_raw_item_id: rawItemId },

@@ -91,6 +91,11 @@ test("canonical vocabulary is the single ordered source for Analyzer values and 
     description: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
     monitorable: true,
     displayLabel: "Reverse stock split",
+  }, {
+    value: "forward_split",
+    description: "The event establishes an explicit forward stock split, regardless of its lifecycle stage.",
+    monitorable: true,
+    displayLabel: "Forward stock split",
   }]);
   assert.deepEqual(CORPORATE_ACTION_STAGE_VOCABULARY.map(({ value, monitorable, displayLabel }) => ({
     value,
@@ -108,7 +113,7 @@ test("canonical vocabulary is the single ordered source for Analyzer values and 
     .every((entry) => entry.description.trim() && entry.displayLabel.trim()));
 });
 
-test("non-reverse sources have one exact not-applicable representation with no fake facts", () => {
+test("non-stock-split sources have one exact not-applicable representation with no fake facts", () => {
   const parsed = parseCorporateActionAnalyzerTransportJson('{"applicable":false}');
   assert.deepEqual(parsed.errors, []);
   assert.equal(parsed.transport?.applicable, false);
@@ -135,7 +140,7 @@ test("source ref, date, ratio values, duplicate keys, and unknown semantics hard
   })), []);
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult({
     ...applicable(),
-    event_kind: "forward_split",
+    event_kind: "stock_dividend",
   }), []);
   assert.equal(canonicalizeCorporateActionAnalyzerResult(applicable({ source_ref: "foreign_document" }), input()).result, null);
   assert.match(canonicalizeCorporateActionAnalyzerResult(applicable({
@@ -189,10 +194,10 @@ test("all stored-source adapters preserve exact source identity and never load p
 test("one-call prompt defines full-source stage semantics and forbids semantic fallbacks", () => {
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
   assert.deepEqual(CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 8_981);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 9_782);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "ae95478e0f3b2592c29f35afaf3c82c97b5d1746bc5ae3de6d90848015bd5f6b",
+    "74bfb1629d955401d4caceece6ebf4fac32d8f4e3220a0962f9a3aebc8fa1c08",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -202,10 +207,13 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never upgrade a historical notice/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /parser values, calendar values/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Application code alone performs division/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /4-for-1 forward split return old_shares 1 and new_shares 4/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /does not calculate outstanding shares/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not map generic common stock across multiple class candidates/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer market session ordering from a date alone/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /SUPERSEDE_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /CANCEL_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never match executions by ratio\/date similarity/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /reverse execution is never a forward target/i);
 });

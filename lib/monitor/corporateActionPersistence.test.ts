@@ -110,6 +110,19 @@ test("official reader validates available and not-applicable without fallback", 
     fact_schema_version: facts.version,
     facts: { ...facts, event_kind: "forward_split" },
   }), { status: "not_ready", reason: "reader_facts_validation_failed" });
+  const forwardFacts = {
+    ...facts,
+    version: "corporate_action_forward_split_facts_v1" as const,
+    event_kind: "forward_split" as const,
+    ratio: { old_shares_per_new_share: { availability: "available" as const, value: 0.25 } },
+    evidence: { availability: "available" as const, value: "4-for-1 forward stock split" },
+  };
+  assert.equal(validateCurrentCorporateActionReadResult({
+    status: "available",
+    ...lineage,
+    fact_schema_version: forwardFacts.version,
+    facts: forwardFacts,
+  }).status, "available");
 });
 
 test("migration is server-only, exact-lineage, stale-safe, and contains no parser/calendar fallback", () => {
@@ -158,6 +171,21 @@ test("execution update migration exposes bounded service-only lineage candidates
   assert.match(migration, /revoke all on function public\.read_reverse_split_execution_update_candidates\(text\)[\s\S]*authenticated/);
   assert.match(migration, /grant execute on function public\.read_reverse_split_execution_update_candidates\(text\)[\s\S]*service_role/);
   assert.doesNotMatch(migration, /ratio.*similar|ticker|company_name|old_share_units|new_share_units/i);
+});
+
+test("forward split migration extends the existing lineage and reader without O/S arithmetic or a parallel table", () => {
+  const migration = readFileSync(
+    new URL("../../supabase/migrations/20260822171825_forward_stock_split_canonical_execution_v1.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /corporate_action_forward_split_facts_v1/);
+  assert.match(migration, /read_stock_split_history_candidates/);
+  assert.match(migration, /read_stock_split_execution_update_candidates/);
+  assert.match(migration, /ratio_new_share_units > ratio_old_share_units/);
+  assert.match(migration, /pg_get_functiondef[\s\S]*persist_corporate_action_analyzer_result/);
+  assert.match(migration, /pg_get_functiondef[\s\S]*read_current_event_corporate_action_facts/);
+  assert.doesNotMatch(migration, /create table[\s\S]*(?:forward|stock)_split_execution/i);
+  assert.doesNotMatch(migration, /outstanding_shares|shares_outstanding|normalizeClassShareCountAt|anchor reconciliation|dilution/i);
 });
 
 function childIdentity(): GenericMonitorChildIdentity {

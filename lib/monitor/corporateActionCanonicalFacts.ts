@@ -3,8 +3,11 @@ import { parseJsonWithoutDuplicateKeys } from "./listingRiskAnalyzer.ts";
 export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyzer_input_v1";
 export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
+export const FORWARD_SPLIT_FACTS_VERSION = "corporate_action_forward_split_facts_v1";
 export const REVERSE_SPLIT_APPLICABILITY_VERSION = "reverse_split_applicability_v1";
+export const FORWARD_SPLIT_APPLICABILITY_VERSION = "forward_split_applicability_v1";
 export const REVERSE_SPLIT_EXECUTION_UPDATE_VERSION = "reverse_split_execution_update_v1";
+export const FORWARD_SPLIT_EXECUTION_UPDATE_VERSION = "forward_split_execution_update_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 520;
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
@@ -20,6 +23,12 @@ export const CORPORATE_ACTION_EVENT_KIND_VOCABULARY = [
     description: "The event establishes a reverse stock split, regardless of its lifecycle stage.",
     monitorable: true,
     displayLabel: "Reverse stock split",
+  },
+  {
+    value: "forward_split",
+    description: "The event establishes an explicit forward stock split, regardless of its lifecycle stage.",
+    monitorable: true,
+    displayLabel: "Forward stock split",
   },
 ] as const satisfies readonly CorporateActionCanonicalVocabularyEntry[];
 
@@ -50,13 +59,13 @@ export const CORPORATE_ACTION_STAGE_VOCABULARY = [
   },
   {
     value: "effective",
-    description: "the reverse split is already effective or the source is the effective action itself",
+    description: "the stock split is already effective or the source is the effective action itself",
     monitorable: true,
     displayLabel: "Effective",
   },
   {
     value: "unknown",
-    description: "a reverse split is certain but the stage cannot safely be normalized",
+    description: "a stock split is certain but the stage cannot safely be normalized",
     monitorable: false,
     displayLabel: "Unknown",
   },
@@ -127,6 +136,16 @@ export type ReverseSplitExecutionCandidate = {
   calculation_status: "scheduled" | "effective";
 };
 
+export type ForwardSplitExecutionCandidate = {
+  execution_id: string;
+  issuer_cik: string;
+  canonical_security_class_id: string;
+  effective_date: string;
+  old_share_units: string;
+  new_share_units: string;
+  calculation_status: "scheduled" | "effective";
+};
+
 export type CorporateActionAnalyzerInput = {
   version: typeof CORPORATE_ACTION_ANALYZER_INPUT_VERSION;
   source_family: CorporateActionSourceFamily;
@@ -138,6 +157,7 @@ export type CorporateActionAnalyzerInput = {
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
   reverse_split_execution_candidates: ReverseSplitExecutionCandidate[];
+  forward_split_execution_candidates: ForwardSplitExecutionCandidate[];
 };
 
 type Unavailable = { availability: "unavailable" };
@@ -230,7 +250,7 @@ export type CorporateActionAnalyzerTransportResult =
     };
 
 export type CorporateActionCanonicalFacts = {
-  version: typeof CORPORATE_ACTION_FACTS_VERSION;
+  version: typeof CORPORATE_ACTION_FACTS_VERSION | typeof FORWARD_SPLIT_FACTS_VERSION;
   event_kind: CorporateActionEventKind;
   action_stage: CorporateActionStage;
   effective_date: Unavailable | AvailableDate;
@@ -247,7 +267,7 @@ export type CorporateActionCanonicalFacts = {
         };
   };
   applicability?: {
-    version: typeof REVERSE_SPLIT_APPLICABILITY_VERSION;
+    version: typeof REVERSE_SPLIT_APPLICABILITY_VERSION | typeof FORWARD_SPLIT_APPLICABILITY_VERSION;
     issuer: CorporateActionIssuerContext;
     affected_security:
       | {
@@ -270,7 +290,7 @@ export type CorporateActionCanonicalFacts = {
           source_ref: string | null;
           evidence: CorporateActionCanonicalFacts["evidence"];
         };
-    basis_change_capability: "reverse_split_only";
+    basis_change_capability: "reverse_split_only" | "forward_split_only";
   };
   effective_timing?:
     | {
@@ -285,7 +305,7 @@ export type CorporateActionCanonicalFacts = {
         reason: (typeof CORPORATE_ACTION_EFFECTIVE_TIMING_UNAVAILABLE_REASONS)[number];
       };
   execution_update?: {
-    version: typeof REVERSE_SPLIT_EXECUTION_UPDATE_VERSION;
+    version: typeof REVERSE_SPLIT_EXECUTION_UPDATE_VERSION | typeof FORWARD_SPLIT_EXECUTION_UPDATE_VERSION;
     decision: ReverseSplitExecutionUpdateDecision;
     target_execution_id: string | null;
     target_issuer_cik: string | null;
@@ -330,6 +350,7 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
     "title",
     "source_documents",
     "reverse_split_execution_candidates",
+    "forward_split_execution_candidates",
   ], ["issuer_context", "security_class_candidates"], "input", errors);
   if (root.version !== CORPORATE_ACTION_ANALYZER_INPUT_VERSION) errors.push("input.version is invalid");
   if (!oneOf(root.source_family, ["nasdaq", "news", "sec"])) errors.push("input.source_family is invalid");
@@ -372,10 +393,18 @@ export function validateCorporateActionAnalyzerInput(value: unknown): string[] {
       errors,
     );
   }
-  validateReverseSplitExecutionCandidates(
+  validateStockSplitExecutionCandidates(
     root.reverse_split_execution_candidates,
     root.issuer_context,
+    "reverse_split",
     "input.reverse_split_execution_candidates",
+    errors,
+  );
+  validateStockSplitExecutionCandidates(
+    root.forward_split_execution_candidates,
+    root.issuer_context,
+    "forward_split",
+    "input.forward_split_execution_candidates",
     errors,
   );
   return errors;
@@ -418,7 +447,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
     "as_of",
   ], ["affected_security", "effective_timing"], "result", errors);
   if (root.applicable !== true) errors.push("result.applicable must be boolean");
-  if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be reverse_split");
+  if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be a supported stock split");
   if (!oneOf(root.action_stage, CORPORATE_ACTION_STAGES)) errors.push("result.action_stage is invalid");
   validateDateEnvelope(root.effective_date, "result.effective_date", errors);
   validateRatioEnvelope(root.ratio, errors);
@@ -455,6 +484,10 @@ export function canonicalizeCorporateActionAnalyzerResult(
     ? { availability: "unavailable" as const }
     : mechanicalOldSharesPerNewShare(transport.ratio.old_shares, transport.ratio.new_shares);
   if (!ratio) return { result: null, errors: ["result.ratio contains an invalid positive finite value"] };
+  if (transport.event_kind === "forward_split" && transport.ratio.availability === "available"
+    && !(Number(transport.ratio.new_shares) > Number(transport.ratio.old_shares))) {
+    return { result: null, errors: ["result.ratio must preserve forward-split old/new orientation"] };
+  }
 
   const issuer = input.issuer_context ?? unavailableIssuerContext(input.source_family);
   const securityCandidates = input.security_class_candidates ?? [];
@@ -473,7 +506,10 @@ export function canonicalizeCorporateActionAnalyzerResult(
   if (effectiveTiming.errors.length) return { result: null, errors: effectiveTiming.errors };
   const executionUpdate = canonicalExecutionUpdate(
     transport.execution_update,
-    input.reverse_split_execution_candidates,
+    transport.event_kind,
+    transport.event_kind === "reverse_split"
+      ? input.reverse_split_execution_candidates
+      : input.forward_split_execution_candidates,
     input.source_documents,
   );
   if (executionUpdate.errors.length) return { result: null, errors: executionUpdate.errors };
@@ -483,8 +519,8 @@ export function canonicalizeCorporateActionAnalyzerResult(
     result: {
       applicable: true,
       facts: {
-        version: CORPORATE_ACTION_FACTS_VERSION,
-        event_kind: CORPORATE_ACTION_EVENT_KIND_VOCABULARY[0].value,
+        version: factsVersion(transport.event_kind),
+        event_kind: transport.event_kind,
         action_stage: transport.action_stage,
         effective_date: transport.effective_date,
         ratio: {
@@ -498,10 +534,11 @@ export function canonicalizeCorporateActionAnalyzerResult(
             : { availability: "unavailable" },
         },
         applicability: {
-          version: REVERSE_SPLIT_APPLICABILITY_VERSION,
+          version: applicabilityVersion(transport.event_kind),
           issuer,
           affected_security: affectedSecurity.value!,
-          basis_change_capability: "reverse_split_only",
+          basis_change_capability: transport.event_kind === "reverse_split"
+            ? "reverse_split_only" : "forward_split_only",
         },
         effective_timing: effectiveTiming.value!,
         execution_update: executionUpdate.value!,
@@ -544,8 +581,11 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     "as_of",
     "source",
   ], ["applicability", "effective_timing", "execution_update"], "canonical result.facts", errors);
-  if (facts.version !== CORPORATE_ACTION_FACTS_VERSION) errors.push("canonical facts.version is invalid");
-  if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("canonical facts.event_kind must be reverse_split");
+  if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) {
+    errors.push("canonical facts.event_kind must be a supported stock split");
+  } else if (facts.version !== factsVersion(facts.event_kind as CorporateActionEventKind)) {
+    errors.push("canonical facts.version is invalid for event kind");
+  }
   if (!oneOf(facts.action_stage, CORPORATE_ACTION_STAGES)) errors.push("canonical facts.action_stage is invalid");
   validateDateEnvelope(facts.effective_date, "canonical facts.effective_date", errors);
   const ratio = record(facts.ratio);
@@ -572,15 +612,28 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
         if (!mechanical || mechanical.value !== derived.value) {
           errors.push("canonical exact ratio components do not match derived ratio");
         }
+        const oldUnits = strictPositiveNumber(exact.old_share_units);
+        const newUnits = strictPositiveNumber(exact.new_share_units);
+        if (facts.event_kind === "forward_split" && oldUnits !== null && newUnits !== null
+          && !(newUnits > oldUnits)) {
+          errors.push("canonical forward-split ratio must preserve old/new orientation");
+        }
       }
     }
   }
-  if (facts.applicability !== undefined) validateCanonicalApplicability(facts.applicability, errors);
+  if (facts.applicability !== undefined) {
+    validateCanonicalApplicability(facts.applicability, facts.event_kind, errors);
+  }
   if (facts.effective_timing !== undefined) {
     validateCanonicalEffectiveTiming(facts.effective_timing, facts.effective_date, errors);
   }
   if (facts.execution_update !== undefined) {
-    validateCanonicalExecutionUpdate(facts.execution_update, facts.applicability, errors);
+    validateCanonicalExecutionUpdate(
+      facts.execution_update,
+      facts.applicability,
+      facts.event_kind,
+      errors,
+    );
   }
   if (!stableSourceRef(facts.source_ref)) errors.push("canonical facts.source_ref is invalid");
   validateCanonicalEvidence(facts.evidence, errors);
@@ -606,7 +659,8 @@ export function readCorporateActionAnalyzerResult(value: unknown): CorporateActi
 
 function canonicalExecutionUpdate(
   transport: Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>["execution_update"],
-  candidates: readonly ReverseSplitExecutionCandidate[],
+  eventKind: CorporateActionEventKind,
+  candidates: readonly (ReverseSplitExecutionCandidate | ForwardSplitExecutionCandidate)[],
   documents: readonly CorporateActionSourceDocument[],
 ): {
   value: NonNullable<CorporateActionCanonicalFacts["execution_update"]> | null;
@@ -634,7 +688,7 @@ function canonicalExecutionUpdate(
   }
   return {
     value: {
-      version: REVERSE_SPLIT_EXECUTION_UPDATE_VERSION,
+      version: executionUpdateVersion(eventKind),
       decision: transport.decision,
       target_execution_id: target?.execution_id ?? null,
       target_issuer_cik: target?.issuer_cik ?? null,
@@ -650,9 +704,10 @@ function canonicalExecutionUpdate(
   };
 }
 
-function validateReverseSplitExecutionCandidates(
+function validateStockSplitExecutionCandidates(
   value: unknown,
   issuerContextValue: unknown,
+  actionKind: CorporateActionEventKind,
   path: string,
   errors: string[],
 ) {
@@ -686,7 +741,7 @@ function validateReverseSplitExecutionCandidates(
     const executionId = textValue(candidate.execution_id);
     const candidateCik = textValue(candidate.issuer_cik);
     const classId = textValue(candidate.canonical_security_class_id);
-    if (!reverseSplitExecutionIdValue(executionId) || ids.has(executionId)) {
+    if (!stockSplitExecutionIdValue(executionId, actionKind) || ids.has(executionId)) {
       errors.push(`${candidatePath}.execution_id is invalid or duplicated`);
     }
     if (candidateCik !== issuerCik || !canonicalSecurityClassId(classId, candidateCik)) {
@@ -716,7 +771,7 @@ function validateExecutionUpdateTransport(value: unknown, errors: string[]) {
     || update.decision === "SUPERSEDE_EXISTING_EXECUTION"
     || update.decision === "CANCEL_EXISTING_EXECUTION";
   if (targetsExisting) {
-    if (!reverseSplitExecutionIdValue(update.target_execution_id)) {
+    if (!stockSplitExecutionIdValue(update.target_execution_id)) {
       errors.push("result.execution_update.target_execution_id is required");
     }
   } else if (update.target_execution_id !== null) {
@@ -728,7 +783,12 @@ function validateExecutionUpdateTransport(value: unknown, errors: string[]) {
   }
 }
 
-function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: unknown, errors: string[]) {
+function validateCanonicalExecutionUpdate(
+  value: unknown,
+  applicabilityValue: unknown,
+  eventKindValue: unknown,
+  errors: string[],
+) {
   const update = record(value);
   if (!update) {
     errors.push("canonical execution update must be an object");
@@ -745,7 +805,9 @@ function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: un
     "evidence",
     "provenance",
   ], "canonical execution update", errors);
-  if (update.version !== REVERSE_SPLIT_EXECUTION_UPDATE_VERSION
+  const eventKind = oneOf(eventKindValue, CORPORATE_ACTION_EVENT_KINDS)
+    ? eventKindValue as CorporateActionEventKind : null;
+  if (!eventKind || update.version !== executionUpdateVersion(eventKind)
     || !oneOf(update.decision, REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS)) {
     errors.push("canonical execution update version or decision is invalid");
   }
@@ -756,7 +818,7 @@ function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: un
   const targetCik = textValue(update.target_issuer_cik);
   const targetClass = textValue(update.target_canonical_security_class_id);
   if (targetsExisting) {
-    if (!reverseSplitExecutionIdValue(targetId) || !validCik(targetCik)
+    if (!eventKind || !stockSplitExecutionIdValue(targetId, eventKind) || !validCik(targetCik)
       || !canonicalSecurityClassId(targetClass, targetCik)) {
       errors.push("canonical execution update target identity is invalid");
     }
@@ -773,7 +835,7 @@ function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: un
     ? update.candidate_execution_ids : [];
   if (!Array.isArray(update.candidate_execution_ids)
     || candidateIds.length > 12
-    || candidateIds.some((item) => !reverseSplitExecutionIdValue(item))
+    || candidateIds.some((item) => !stockSplitExecutionIdValue(item, eventKind ?? undefined))
     || new Set(candidateIds).size !== candidateIds.length) {
     errors.push("canonical execution update candidate identities are invalid");
   }
@@ -799,8 +861,11 @@ function validateCanonicalExecutionUpdate(value: unknown, applicabilityValue: un
   }
 }
 
-function reverseSplitExecutionIdValue(value: unknown) {
-  return typeof value === "string" && /^rse:v1:[0-9a-f]{64}$/.test(value);
+function stockSplitExecutionIdValue(value: unknown, actionKind?: CorporateActionEventKind) {
+  if (typeof value !== "string") return false;
+  const prefix = actionKind === "reverse_split" ? "rse"
+    : actionKind === "forward_split" ? "fse" : "(?:rse|fse)";
+  return new RegExp(`^${prefix}:v1:[0-9a-f]{64}$`).test(value);
 }
 
 function unavailableIssuerContext(sourceFamily: CorporateActionSourceFamily): CorporateActionIssuerContext {
@@ -1164,7 +1229,11 @@ function validateExactRatioComponents(value: unknown, errors: string[]) {
   if (strictPositiveNumber(components.new_share_units) === null) errors.push("canonical exact new share units are invalid");
 }
 
-function validateCanonicalApplicability(value: unknown, errors: string[]) {
+function validateCanonicalApplicability(
+  value: unknown,
+  eventKindValue: unknown,
+  errors: string[],
+) {
   const applicability = record(value);
   if (!applicability) {
     errors.push("canonical facts.applicability must be an object");
@@ -1176,11 +1245,15 @@ function validateCanonicalApplicability(value: unknown, errors: string[]) {
     "affected_security",
     "basis_change_capability",
   ], "canonical facts.applicability", errors);
-  if (applicability.version !== REVERSE_SPLIT_APPLICABILITY_VERSION) {
+  const eventKind = oneOf(eventKindValue, CORPORATE_ACTION_EVENT_KINDS)
+    ? eventKindValue as CorporateActionEventKind : null;
+  if (!eventKind || applicability.version !== applicabilityVersion(eventKind)) {
     errors.push("canonical facts.applicability.version is invalid");
   }
   validateIssuerContext(applicability.issuer, "canonical facts.applicability.issuer", errors);
-  if (applicability.basis_change_capability !== "reverse_split_only") {
+  const expectedCapability = eventKind === "forward_split"
+    ? "forward_split_only" : "reverse_split_only";
+  if (applicability.basis_change_capability !== expectedCapability) {
     errors.push("canonical facts.applicability.basis_change_capability is invalid");
   }
   const affected = record(applicability.affected_security);
@@ -1392,6 +1465,21 @@ function nullableHttpUrl(value: unknown) {
 
 function oneOf(value: unknown, allowed: readonly string[]) {
   return typeof value === "string" && allowed.includes(value);
+}
+
+function factsVersion(eventKind: CorporateActionEventKind) {
+  return eventKind === "reverse_split"
+    ? CORPORATE_ACTION_FACTS_VERSION : FORWARD_SPLIT_FACTS_VERSION;
+}
+
+function applicabilityVersion(eventKind: CorporateActionEventKind) {
+  return eventKind === "reverse_split"
+    ? REVERSE_SPLIT_APPLICABILITY_VERSION : FORWARD_SPLIT_APPLICABILITY_VERSION;
+}
+
+function executionUpdateVersion(eventKind: CorporateActionEventKind) {
+  return eventKind === "reverse_split"
+    ? REVERSE_SPLIT_EXECUTION_UPDATE_VERSION : FORWARD_SPLIT_EXECUTION_UPDATE_VERSION;
 }
 
 function record(value: unknown): Record<string, unknown> | null {

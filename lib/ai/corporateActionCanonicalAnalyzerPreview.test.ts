@@ -61,6 +61,56 @@ test("analyzer makes one bounded provider call with a small plain response schem
   }
 });
 
+test("forward split uses the same single provider call with no verifier or repair call", async () => {
+  const forwardInput = adaptNasdaqCorporateActionSource({
+    source_unique_id: "ECA-forward-provider-test",
+    source_url: "https://example.com/forward-provider-test",
+    published_at: "2026-08-01",
+    title: "Official notice",
+    body_text: "A 4-for-1 forward stock split will become effective on August 8, 2026.",
+  });
+  let calls = 0;
+  const result = await runCorporateActionCanonicalAnalyzerPreview(forwardInput, {
+    apiKey: "test-key",
+    runPrompt: async () => {
+      calls += 1;
+      return run({
+        applicable: true,
+        event_kind: "forward_split",
+        action_stage: "scheduled",
+        effective_date: { availability: "available", value: "2026-08-08" },
+        ratio: { availability: "available", old_shares: "1", new_shares: "4" },
+        affected_security: {
+          availability: "unavailable",
+          reason: "issuer_identity_unavailable",
+          source_ref: null,
+          evidence: null,
+        },
+        effective_timing: { availability: "unavailable", reason: "date_only" },
+        execution_update: {
+          decision: "NEW_EXECUTION",
+          target_execution_id: null,
+          source_ref: "nasdaq_notice_body",
+          evidence: "A 4-for-1 forward stock split will become effective on August 8, 2026.",
+        },
+        source_ref: "nasdaq_notice_body",
+        evidence: "A 4-for-1 forward stock split will become effective on August 8, 2026.",
+        confidence: "high",
+        as_of: { availability: "available", value: "2026-08-08" },
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.stage, "complete");
+  assert.equal(result.stage === "complete" ? result.repair : undefined, null);
+  if (result.stage === "complete" && result.result.applicable) {
+    assert.equal(result.result.facts.event_kind, "forward_split");
+    assert.deepEqual(result.result.facts.ratio.exact_source_components, {
+      availability: "available", old_share_units: "1", new_share_units: "4",
+    });
+  }
+});
+
 test("provider, invalid output, and semantic not-applicable remain separate", async () => {
   const providerFailure = await runCorporateActionCanonicalAnalyzerPreview(input, {
     apiKey: "test-key",

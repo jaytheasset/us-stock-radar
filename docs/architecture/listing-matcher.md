@@ -30,9 +30,9 @@ One condition set uses AND aggregation and returns `match`, `no_match`, or
 `ineligible`; a definite `no_match` takes precedence over an ineligible sibling
 condition.
 
-`corporate_action.event_kind = reverse_split` is evaluable only when the
-official Corporate Action reader returns an available reverse-split fact.
-`not_ready` and `not_applicable` are ineligible. A plain reverse-split condition
+`corporate_action.event_kind = reverse_split` or `forward_split` is evaluable only
+when the official Corporate Action reader returns an available matching stock-split
+fact. `not_ready` and `not_applicable` are ineligible. A plain stock-split kind condition
 does not imply an action stage. An explicit `corporate_action.action_stage`
 condition is a lifecycle restriction and uses the exact canonical stage meaning
 shared by the Analyzer, official reader, Registry, and Compiler catalog. The

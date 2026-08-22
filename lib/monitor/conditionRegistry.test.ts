@@ -21,14 +21,14 @@ import {
   LISTING_PROCEEDING_STATUSES,
 } from "./listingRiskFacts.ts";
 
-test("Corporate Action Monitor V1 derives reverse split and monitorable stages from canonical vocabulary", () => {
+test("Corporate Action Monitor V1 derives stock splits and monitorable stages from canonical vocabulary", () => {
   const entries = getReadyMonitorConditions().filter((entry) => entry.family === "corporate_action");
   assert.deepEqual(entries.map((entry) => entry.key), [
     "corporate_action.event_kind",
     "corporate_action.action_stage",
   ]);
   assert.deepEqual(entries.map((entry) => entry.allowedOperators), [["eq", "in"], ["eq", "in"]]);
-  assert.deepEqual(entries[0].enumValues, ["reverse_split"]);
+  assert.deepEqual(entries[0].enumValues, ["reverse_split", "forward_split"]);
   assert.deepEqual(entries[1].enumValues, CORPORATE_ACTION_STAGE_VOCABULARY
     .filter((entry) => entry.monitorable)
     .map((entry) => entry.value));
@@ -41,6 +41,7 @@ test("Corporate Action Monitor V1 derives reverse split and monitorable stages f
   ]);
   assert.equal(entries[0].display?.label, "Corporate action");
   assert.equal(entries[0].display?.enumValueLabels?.reverse_split, "Reverse stock split");
+  assert.equal(entries[0].display?.enumValueLabels?.forward_split, "Forward stock split");
   assert.equal(entries[1].display?.label, "Corporate action stage");
   assert.equal(entries[1].display?.enumValueLabels?.effective, "Effective");
   assert.equal(entries[0].requiresExplicitConfirmationInAiDraft, undefined);
@@ -92,7 +93,12 @@ test("Corporate Action input validation accepts monitorable canonical values and
   assert.deepEqual(validateMonitorConditionInput({
     key: "corporate_action.event_kind",
     operator: "in",
-    value: ["reverse_split"],
+    value: ["reverse_split", "forward_split"],
+  }), []);
+  assert.deepEqual(validateMonitorConditionInput({
+    key: "corporate_action.event_kind",
+    operator: "eq",
+    value: "forward_split",
   }), []);
   assert.deepEqual(validateMonitorConditionInput({
     key: "corporate_action.action_stage",

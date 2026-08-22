@@ -6,6 +6,7 @@ import {
   type CorporateActionSecurityClassCandidate,
   type CorporateActionSourceDocument,
   type CorporateActionSourceFamily,
+  type ForwardSplitExecutionCandidate,
   validateCorporateActionAnalyzerInput,
 } from "./corporateActionCanonicalFacts.ts";
 
@@ -58,6 +59,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
   issuer_context?: CorporateActionIssuerContext;
   security_class_candidates?: CorporateActionSecurityClassCandidate[];
   reverse_split_execution_candidates?: ReverseSplitExecutionCandidate[];
+  forward_split_execution_candidates?: ForwardSplitExecutionCandidate[];
 }): CorporateActionAnalyzerInput {
   return buildInput({
     sourceFamily: "sec",
@@ -68,6 +70,7 @@ export function adaptSec8k6kCorporateActionSource(input: {
     issuerContext: input.issuer_context,
     securityClassCandidates: input.security_class_candidates,
     reverseSplitExecutionCandidates: input.reverse_split_execution_candidates,
+    forwardSplitExecutionCandidates: input.forward_split_execution_candidates,
     documents: input.cleaned_source_blocks.map((block) => ({
       source_ref: block.block_id,
       label: block.document_reference || block.source_ref || block.label || null,
@@ -86,6 +89,7 @@ function buildInput(input: {
   issuerContext?: CorporateActionIssuerContext;
   securityClassCandidates?: CorporateActionSecurityClassCandidate[];
   reverseSplitExecutionCandidates?: ReverseSplitExecutionCandidate[];
+  forwardSplitExecutionCandidates?: ForwardSplitExecutionCandidate[];
 }) {
   const issuerContext = input.issuerContext ?? (input.sourceFamily === "sec"
     ? { availability: "unavailable" as const, reason: "filing_ledger_identity_unavailable" as const }
@@ -108,6 +112,9 @@ function buildInput(input: {
       supporting_accessions: [...candidate.supporting_accessions],
     })) ?? [],
     reverse_split_execution_candidates: input.reverseSplitExecutionCandidates?.map((candidate) => ({
+      ...candidate,
+    })) ?? [],
+    forward_split_execution_candidates: input.forwardSplitExecutionCandidates?.map((candidate) => ({
       ...candidate,
     })) ?? [],
   };

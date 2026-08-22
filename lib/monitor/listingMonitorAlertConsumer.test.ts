@@ -186,6 +186,28 @@ test("$0.82 plus AEMD reverse split creates exactly one Alert and replay preserv
   assert.equal(alerts.size, 1);
 });
 
+test("source-backed forward split creates one Alert through the unchanged consumer", async () => {
+  let writes = 0;
+  const result = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, {
+    readCorporateActionFacts: async () => availableCorporateAction("forward_split"),
+    listActiveMonitors: async () => ({
+      monitors: [monitor("a2000000-0000-4000-8000-000000000033", [
+        { key: "corporate_action.event_kind", operator: "eq", value: "forward_split" },
+        { key: "corporate_action.action_stage", operator: "eq", value: "scheduled" },
+      ])],
+      diagnostics: [],
+    }),
+    createAlert: async (input) => {
+      writes += 1;
+      return { status: "created", monitorId: input.monitorId, alertId: input.monitorId };
+    },
+    now: () => new Date("2026-08-14T12:00:00.000Z"),
+  });
+  assert.deepEqual(result.evaluations.map((item) => item.status), ["match"]);
+  assert.equal(result.createdCount, 1);
+  assert.equal(writes, 1);
+});
+
 function clarifiedReverseSplitConditions() {
   const text = "Alert me when a stock below $1 announces a reverse split.";
   const result = validateNaturalLanguageConditionCompilerOutput({
@@ -389,7 +411,12 @@ function availableCurrent(
   };
 }
 
-function availableCorporateAction(): Extract<CurrentCorporateActionReadResult, { status: "available" }> {
+function availableCorporateAction(
+  eventKind: "reverse_split" | "forward_split" = "reverse_split",
+): Extract<CurrentCorporateActionReadResult, { status: "available" }> {
+  const version = eventKind === "reverse_split"
+    ? "corporate_action_reverse_split_facts_v1" as const
+    : "corporate_action_forward_split_facts_v1" as const;
   return {
     status: "available",
     eventId: EVENT_ID,
@@ -399,15 +426,15 @@ function availableCorporateAction(): Extract<CurrentCorporateActionReadResult, {
     monitorAnalyzerKey: "corporate_action",
     analyzerContractVersion: "corporate_action_reverse_split_analyzer_v1",
     persistedAt: "2026-08-14T00:00:00.000Z",
-    factSchemaVersion: "corporate_action_reverse_split_facts_v1",
+    factSchemaVersion: version,
     facts: {
-      version: "corporate_action_reverse_split_facts_v1",
-      event_kind: "reverse_split",
+      version,
+      event_kind: eventKind,
       action_stage: "scheduled",
       effective_date: { availability: "unavailable" },
       ratio: { old_shares_per_new_share: { availability: "unavailable" } },
       source_ref: "aemd_source",
-      evidence: { availability: "available", value: "AEMD scheduled a reverse stock split." },
+      evidence: { availability: "available", value: `AEMD scheduled a ${eventKind === "reverse_split" ? "reverse" : "forward"} stock split.` },
       confidence: "high",
       as_of: { availability: "available", value: "2026-08-14" },
       source: { source_family: "news", source_id: "AEMD", source_url: "https://example.com/aemd" },

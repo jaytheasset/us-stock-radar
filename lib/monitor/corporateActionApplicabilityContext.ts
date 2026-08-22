@@ -1,6 +1,7 @@
 import type {
   CorporateActionIssuerContext,
   CorporateActionSecurityClassCandidate,
+  ForwardSplitExecutionCandidate,
   ReverseSplitExecutionCandidate,
 } from "./corporateActionCanonicalFacts.ts";
 
@@ -12,6 +13,7 @@ export type CorporateActionApplicabilityContext = {
   issuerContext: CorporateActionIssuerContext;
   securityClassCandidates: CorporateActionSecurityClassCandidate[];
   reverseSplitExecutionCandidates: ReverseSplitExecutionCandidate[];
+  forwardSplitExecutionCandidates: ForwardSplitExecutionCandidate[];
 };
 
 type ApplicabilityContextDependencies = {
@@ -22,9 +24,10 @@ type ApplicabilityContextDependencies = {
     error?: string;
   }>;
   readExecutionCandidates?(input: {
+    actionKind: "reverse_split" | "forward_split";
     cik: string;
     targetAt: string;
-  }): Promise<ReverseSplitExecutionCandidate[]>;
+  }): Promise<Array<ReverseSplitExecutionCandidate | ForwardSplitExecutionCandidate>>;
 };
 
 const defaultDependencies: ApplicabilityContextDependencies = {
@@ -32,9 +35,10 @@ const defaultDependencies: ApplicabilityContextDependencies = {
     const repository = await import("../supabase.ts");
     return repository.supabaseRpc(functionName, payload);
   },
-  readExecutionCandidates: async ({ cik, targetAt }) => {
-    const execution = await import("./reverseSplitExecution.ts");
-    const result = await execution.readReverseSplitExecutions({
+  readExecutionCandidates: async ({ actionKind, cik, targetAt }) => {
+    const execution = await import("./stockSplitExecution.ts");
+    const result = await execution.readStockSplitExecutions({
+      actionKind,
       cik,
       from: "1900-01-01",
       to: "9999-12-31",
@@ -65,6 +69,7 @@ export function unavailableCorporateActionApplicabilityContext(
     issuerContext: { availability: "unavailable", reason },
     securityClassCandidates: [],
     reverseSplitExecutionCandidates: [],
+    forwardSplitExecutionCandidates: [],
   };
 }
 
@@ -88,12 +93,22 @@ export async function readCorporateActionApplicabilityContext(
   }
   const readExecutionCandidates = dependencies.readExecutionCandidates
     ?? defaultDependencies.readExecutionCandidates!;
-  return {
-    ...context,
-    reverseSplitExecutionCandidates: await readExecutionCandidates({
+  const [reverseSplitExecutionCandidates, forwardSplitExecutionCandidates] = await Promise.all([
+    readExecutionCandidates({
+      actionKind: "reverse_split",
       cik: context.issuerContext.issuer_cik,
       targetAt: context.issuerContext.accepted_at,
     }),
+    readExecutionCandidates({
+      actionKind: "forward_split",
+      cik: context.issuerContext.issuer_cik,
+      targetAt: context.issuerContext.accepted_at,
+    }),
+  ]);
+  return {
+    ...context,
+    reverseSplitExecutionCandidates,
+    forwardSplitExecutionCandidates,
   };
 }
 
@@ -166,6 +181,7 @@ export function validateCorporateActionApplicabilityContextResponse(
     },
     securityClassCandidates: candidates,
     reverseSplitExecutionCandidates: [],
+    forwardSplitExecutionCandidates: [],
   };
 }
 
