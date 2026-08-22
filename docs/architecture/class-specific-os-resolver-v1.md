@@ -18,6 +18,7 @@ No arbitrary freshness cutoff exists in V1. `ageDays` is metadata for later poli
 
 The resolver does not discover which classes must be resolved. That separate,
 filing-backed completeness contract is provided by [Issuer Common-Class
-Universe Snapshot V1](issuer-common-class-universe-snapshot-v1.md). A future
-issuer-total calculation must receive an `AVAILABLE` universe and resolve every
-required canonical class; this resolver never authorizes a partial class sum.
+Universe Snapshot V1](issuer-common-class-universe-snapshot-v1.md). The
+[Issuer Total Common O/S Aggregator V1](issuer-total-common-os-aggregator-v1.md)
+receives an `AVAILABLE` universe and resolves every required canonical class;
+this resolver never authorizes a partial class sum.
