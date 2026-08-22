@@ -2,7 +2,7 @@
 
 This collector is the official issuer/CIK execution path that composes the
 locked SEC Structured Data, O/S Candidate, Filing XBRL Context, Authoritative
-O/S Extraction, and Share Count History foundations. It adds no parser,
+O/S Extraction, Share Count History, and Common-Class Universe foundations. It adds no parser,
 semantic resolver, storage model, scheduler, current-O/S selection, split
 adjustment, dilution calculation, or LLM call.
 
@@ -16,9 +16,17 @@ SEC Submissions + CompanyFacts
   -> SecFilingXbrlContextService.ingestFiling()
   -> readOsCandidateFilingContexts()
   -> resolveAuthoritativeOsFromFiling()
-  -> ELIGIBLE only
-  -> writeAuthoritativeShareCountObservation()
+  -> writeIssuerCommonClassUniverseSnapshot()
+       (COMPLETE_SINGLE / COMPLETE_MULTI / INCOMPLETE / AMBIGUOUS)
+  -> ELIGIBLE only -> writeAuthoritativeShareCountObservation()
 ```
+
+Universe promotion and O/S history persistence intentionally have different
+eligibility boundaries. Every valid filing-level authoritative decision is
+promoted through the existing deterministic universe writer, including
+`INCOMPLETE` and `AMBIGUOUS` snapshots. This prevents a newer unresolved filing
+from silently falling back to an older complete class universe. Share Count
+History remains unchanged and accepts only `ELIGIBLE` authoritative O/S.
 
 `SecOsProductionCollector.collectIssuer()` is the single issuer contract for
 `bootstrap`, `backfill`, and `incremental`. `collectBatch()` runs the same
@@ -86,6 +94,7 @@ Every issuer result includes:
 - O/S candidates and unique filing contexts required;
 - SEC filing fetches and complete-cache hits;
 - eligible, persisted, and duplicate observation counts;
+- evaluated, inserted, duplicate, incomplete, and ambiguous universe snapshot counts;
 - existing O/S candidate-extraction rejections with exact CompanyFacts keys;
 - accession-level filing outcomes;
 - decision status/reason and canonical stored identity; and
@@ -101,11 +110,12 @@ promotion.
 
 ## Incremental and replay behavior
 
-The collector reuses existing raw-source, fact, accession, filing-artifact, and
-Share Count History identities. Incremental mode skips historical Submissions
+The collector reuses existing raw-source, fact, accession, filing-artifact,
+Share Count History, and universe snapshot identities. Incremental mode skips historical Submissions
 files. Complete filing caches are not downloaded again. The history writer's
-canonical identity remains the final concurrency/idempotency boundary, so an
-exact replay inserts zero rows and reports duplicates. New execution time is
+canonical identity and the universe writer's deterministic source hash remain
+the final concurrency/idempotency boundaries, so an exact replay inserts zero
+rows and reports duplicates. New execution time is
 used only as history `ingested_at`; source timestamps and filing provenance are
 preserved unchanged.
 
@@ -123,7 +133,9 @@ local-Postgres transaction and rolls back all fixture rows.
 | Foreign/ADR | WIT / `0001123799` | `REQUIRES_FURTHER_CONTEXT`, no row |
 | Incomplete negative control | ARM / `0001973239` | incomplete IXDS, `UNAVAILABLE`, no row |
 
-The acceptance asserts first-run persistence of exactly two observations,
-identical replay persistence of zero with two duplicates, four complete cache
-hits, one fail-closed incomplete refetch, zero public SEC requests, zero
-LLM/Gemini calls, and zero fixture rows after rollback.
+The acceptance asserts first-run persistence of exactly two observations and
+five universe snapshots (two complete single-class, one incomplete, and two
+ambiguous), identical replay persistence of zero with history and universe
+duplicates, four complete cache hits, one fail-closed incomplete refetch, zero
+public SEC requests, zero LLM/Gemini calls, and zero fixture rows after
+rollback.
