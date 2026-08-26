@@ -82,6 +82,7 @@
     "verify:condition-compiler:provider": "node --experimental-strip-types scripts/verify-natural-language-condition-compiler-v1-provider.mjs",
     "verify:minimal-offering-monitor": "node --test --experimental-strip-types lib/minimalOfferingMonitor.test.ts",
     "verify:dilution-identity-contracts": "node --test --experimental-strip-types lib/dilution/economicExposureContracts.test.ts",
+    "verify:economic-exposure-identity-resolver": "node --test --experimental-strip-types lib/dilution/economicExposureIdentityResolver.test.ts",
     "verify:offering-matcher": "node --test --experimental-strip-types lib/offeringMonitorMatcher.test.ts",
     "verify:async-monitor-foundation": "node --test --experimental-strip-types lib/offeringMonitorJobFoundation.test.ts",
     "verify:analysis-market-data": "node --test --experimental-strip-types lib/analysisPeerSelection.test.ts lib/analysisPeerProviderContract.test.ts lib/analysisMarketDataContract.test.ts lib/analysisMarketIntegration.test.ts lib/marketChartMovement.test.ts lib/marketRequestCoalescing.test.ts",
