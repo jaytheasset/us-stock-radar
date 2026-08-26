@@ -1,5 +1,6 @@
 import {
   CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+  CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
   readCorporateActionAnalyzerResult,
   type CorporateActionAnalyzerResult,
   type CorporateActionCanonicalFacts,
@@ -92,24 +93,47 @@ export async function readCurrentCorporateActionFacts(
   dependencies: CorporateActionPersistenceDependencies = defaultDependencies,
 ): Promise<CurrentCorporateActionReadResult> {
   if (!UUID_PATTERN.test(eventId)) return { status: "not_ready", reason: "invalid_event_id" };
+  const current = await readCurrentCorporateActionFactsForContract(
+    eventId,
+    CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+    dependencies,
+  );
+  if (current.status !== "not_ready" || current.reason !== "current_successful_result_missing") {
+    return current;
+  }
+  return readCurrentCorporateActionFactsForContract(
+    eventId,
+    CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
+    dependencies,
+  );
+}
+
+async function readCurrentCorporateActionFactsForContract(
+  eventId: string,
+  analyzerContractVersion: string,
+  dependencies: CorporateActionPersistenceDependencies,
+) {
   const response = await dependencies.rpc("read_current_event_corporate_action_facts", {
     p_event_id: eventId,
-    p_analyzer_contract_version: CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+    p_analyzer_contract_version: analyzerContractVersion,
   });
   if (!response.ok) {
     throw new Error(`Corporate Action current reader failed: ${response.error || response.status}`);
   }
-  return validateCurrentCorporateActionReadResult(response.data);
+  return validateCurrentCorporateActionReadResult(response.data, analyzerContractVersion);
 }
 
-export function validateCurrentCorporateActionReadResult(value: unknown): CurrentCorporateActionReadResult {
+export function validateCurrentCorporateActionReadResult(
+  value: unknown,
+  expectedAnalyzerContractVersion = CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+): CurrentCorporateActionReadResult {
   const row = record(value);
   if (!row) return { status: "not_ready", reason: "invalid_reader_response" };
   if (row.status === "not_ready") return { status: "not_ready", reason: stringValue(row.reason) || "unknown" };
   if (row.status !== "available" && row.status !== "not_applicable") {
     return { status: "not_ready", reason: "invalid_reader_status" };
   }
-  const lineage = readLineage(row);
+  const lineage = readLineage(row, expectedAnalyzerContractVersion);
   if (!lineage) return { status: "not_ready", reason: "reader_lineage_validation_failed" };
   if (row.status === "not_applicable") return { status: "not_applicable", ...lineage };
   const canonical = readCorporateActionAnalyzerResult({ applicable: true, facts: row.facts });
@@ -158,7 +182,10 @@ function readPersistenceResult(value: unknown, expectedApplicable: boolean): Cor
   return { status: "rejected", reason: "invalid_persistence_response" };
 }
 
-function readLineage(row: Record<string, unknown>): CurrentCorporateActionLineage | null {
+function readLineage(
+  row: Record<string, unknown>,
+  expectedAnalyzerContractVersion: string,
+): CurrentCorporateActionLineage | null {
   const eventId = stringValue(row.event_id);
   const rawItemId = stringValue(row.raw_item_id);
   const parentPrimaryAiRunId = stringValue(row.parent_primary_ai_run_id);
@@ -171,7 +198,7 @@ function readLineage(row: Record<string, unknown>): CurrentCorporateActionLineag
     || !UUID_PATTERN.test(parentPrimaryAiRunId)
     || !UUID_PATTERN.test(sourceExecutionId)
     || row.monitor_analyzer_key !== "corporate_action"
-    || analyzerContractVersion !== CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION
+    || analyzerContractVersion !== expectedAnalyzerContractVersion
     || !Number.isFinite(Date.parse(persistedAt))
   ) return null;
   return {

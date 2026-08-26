@@ -57,8 +57,19 @@ function transport(overrides: Partial<Extract<CorporateActionAnalyzerTransportRe
     applicable: true,
     event_kind: "reverse_split",
     action_stage: "scheduled",
-    effective_date: { availability: "available", value: "2026-08-10" },
-    ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+    effective_date: {
+      availability: "available",
+      value: "2026-08-10",
+      source_ref: "sec_block_1",
+      evidence: "August 10, 2026",
+    },
+    ratio: {
+      availability: "available",
+      old_shares: "10",
+      new_shares: "1",
+      source_ref: "sec_block_1",
+      evidence: "1-for-10 reverse stock split",
+    },
     execution_update: {
       decision: "NEW_EXECUTION",
       target_execution_id: null,
@@ -171,11 +182,10 @@ test("single-common source maps only to the supplied issuer-scoped canonical cla
       ? canonical.result.facts.applicability.affected_security.canonical_security_class_id : null,
     singleClassId,
   );
-  assert.deepEqual(canonical.result.facts.ratio.exact_source_components, {
-    availability: "available",
-    old_share_units: "10",
-    new_share_units: "1",
-  });
+  const exact = canonical.result.facts.ratio.exact_source_components;
+  assert.equal(exact?.availability, "available");
+  assert.equal(exact?.availability === "available" ? exact.old_share_units : null, "10");
+  assert.equal(exact?.availability === "available" ? exact.new_share_units : null, "1");
   assert.equal(canonical.result.facts.effective_timing?.availability, "available");
   assert.deepEqual(validateCorporateActionAnalyzerResult(canonical.result), []);
 });
@@ -202,7 +212,7 @@ test("multi-class maps explicit Class A only and rejects an unsupplied class", (
   assert.equal(canonical.result?.applicable && canonical.result.facts.applicability?.affected_security.availability === "available"
     ? canonical.result.facts.applicability.affected_security.canonical_security_class_id : null, classAId);
 
-  const missingCanonicalEvidence = canonicalizeCorporateActionAnalyzerResult(
+  const unavailableRootPreview = canonicalizeCorporateActionAnalyzerResult(
     transport({
       evidence: "not an exact source span",
       affected_security: (classATransport as Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>)
@@ -210,8 +220,12 @@ test("multi-class maps explicit Class A only and rejects an unsupplied class", (
     }),
     input(source, candidates),
   );
-  assert.equal(missingCanonicalEvidence.result, null);
-  assert.match(missingCanonicalEvidence.errors.join("; "), /must materialize as compact canonical evidence/);
+  assert.equal(unavailableRootPreview.result?.applicable, true);
+  assert.deepEqual(unavailableRootPreview.errors, []);
+  if (unavailableRootPreview.result?.applicable) {
+    assert.equal(unavailableRootPreview.result.facts.evidence.availability, "unavailable");
+    assert.equal(unavailableRootPreview.result.facts.calculation_activation?.state, "ON_EFFECTIVE_DATE");
+  }
 
   const foreignClass = canonicalizeCorporateActionAnalyzerResult(transport({
     affected_security: {
@@ -266,10 +280,16 @@ test("generic multi-class and ADR/ordinary ambiguity remain unavailable", () => 
   }
 });
 
-test("nonstandard ratio components remain exact and date-only timing stays indeterminate", () => {
+test("nonstandard ratio components remain exact while date-only calculation activates on the effective date", () => {
   const source = "The company will effect a two-for-fifteen reverse stock split of its common stock on August 10, 2026.";
   const canonical = canonicalizeCorporateActionAnalyzerResult(transport({
-    ratio: { availability: "available", old_shares: "15", new_shares: "2" },
+    ratio: {
+      availability: "available",
+      old_shares: "15",
+      new_shares: "2",
+      source_ref: "sec_block_1",
+      evidence: source,
+    },
     affected_security: {
       availability: "available",
       canonical_security_class_id: singleClassId,
@@ -283,11 +303,10 @@ test("nonstandard ratio components remain exact and date-only timing stays indet
   }), input(source));
   assert.equal(canonical.result?.applicable, true);
   if (!canonical.result?.applicable) return;
-  assert.deepEqual(canonical.result.facts.ratio.exact_source_components, {
-    availability: "available",
-    old_share_units: "15",
-    new_share_units: "2",
-  });
+  const exact = canonical.result.facts.ratio.exact_source_components;
+  assert.equal(exact?.availability, "available");
+  assert.equal(exact?.availability === "available" ? exact.old_share_units : null, "15");
+  assert.equal(exact?.availability === "available" ? exact.new_share_units : null, "2");
   assert.deepEqual(canonical.result.facts.ratio.old_shares_per_new_share, {
     availability: "available",
     value: 7.5,
@@ -296,6 +315,7 @@ test("nonstandard ratio components remain exact and date-only timing stays indet
     availability: "unavailable",
     reason: "date_only",
   });
+  assert.equal(canonical.result.facts.calculation_activation?.state, "ON_EFFECTIVE_DATE");
 });
 
 test("official history returns current mapped splits in effective chronology and excludes stale lineage", async () => {
@@ -346,8 +366,19 @@ test("official history returns current mapped splits in effective chronology and
 function canonicalFacts(effectiveDate: string, oldShares: string, newShares: string): CorporateActionCanonicalFacts {
   const source = `The company will effect a ${newShares}-for-${oldShares} reverse stock split of its common stock on ${effectiveDate}.`;
   const result = canonicalizeCorporateActionAnalyzerResult(transport({
-    effective_date: { availability: "available", value: effectiveDate },
-    ratio: { availability: "available", old_shares: oldShares, new_shares: newShares },
+    effective_date: {
+      availability: "available",
+      value: effectiveDate,
+      source_ref: "sec_block_1",
+      evidence: source,
+    },
+    ratio: {
+      availability: "available",
+      old_shares: oldShares,
+      new_shares: newShares,
+      source_ref: "sec_block_1",
+      evidence: source,
+    },
     affected_security: {
       availability: "available",
       canonical_security_class_id: singleClassId,

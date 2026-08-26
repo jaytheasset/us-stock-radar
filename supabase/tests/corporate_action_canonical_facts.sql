@@ -282,7 +282,8 @@ create function pg_temp.ca_add_child(
   p_parent_id uuid,
   p_logical_job_id uuid,
   p_started_at timestamptz,
-  p_source_identity text default 'canonical-ca-source'
+  p_source_identity text default 'canonical-ca-source',
+  p_contract_version text default 'corporate_action_reverse_split_analyzer_v1'
 )
 returns void
 language sql
@@ -294,7 +295,7 @@ as $function$
     p_execution_id,
     '72000000-0000-4000-8000-000000000002',
     '72000000-0000-4000-8000-000000000001',
-    'domain_monitor_child', 'corporate_action_reverse_split_analyzer_v1',
+    'domain_monitor_child', p_contract_version,
     'fixture', 'running', p_started_at, null, '{}'::jsonb,
     pg_catalog.jsonb_build_object(
       'child_schema_version', 'generic_monitor_child_execution_v1',
@@ -302,7 +303,7 @@ as $function$
       'logical_job_id', p_logical_job_id,
       'execution_id', p_execution_id,
       'monitor_analyzer_key', 'corporate_action',
-      'analyzer_contract_version', 'corporate_action_reverse_split_analyzer_v1',
+      'analyzer_contract_version', p_contract_version,
       'attempt_kind', 'automatic', 'attempt_key', 'automatic',
       'parent_primary_ai_run_id', p_parent_id,
       'parent_prompt_key', 'news_event_analysis',
@@ -348,7 +349,7 @@ begin
       'execution_id', p_execution_id,
       'parent_primary_ai_run_id', v_run.metadata->>'parent_primary_ai_run_id',
       'monitor_analyzer_key', 'corporate_action',
-      'analyzer_contract_version', 'corporate_action_reverse_split_analyzer_v1',
+      'analyzer_contract_version', v_run.prompt_version,
       'result_classification', p_execution_state
     )
   );
@@ -671,6 +672,92 @@ select is(
   )->>'action_kind',
   'reverse_split',
   'generic update reader preserves reverse action isolation'
+);
+
+select pg_temp.ca_add_child(
+  '72000000-0000-4000-8000-000000000012',
+  '72000000-0000-4000-8000-000000000007',
+  '72000000-0000-4000-8000-000000000112',
+  '2026-08-14 00:16:00+00',
+  'canonical-ca-source',
+  'corporate_action_stock_split_day_basis_evidence_v3'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_stock_split_day_basis_evidence_v3'
+  )->>'reason',
+  'current_contract_result_incomplete_or_failed',
+  'an exact-current pending V3 child blocks fallback to the persisted V1 success'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_reverse_split_analyzer_v1'
+  )->>'reason',
+  'current_contract_result_incomplete_or_failed',
+  'the V1 fallback reader rechecks and blocks an exact-current pending V3 child'
+);
+select is(
+  public.persist_corporate_action_analyzer_result(
+    '72000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000012',
+    pg_catalog.jsonb_build_object(
+      'applicable', true,
+      'facts', pg_temp.ca_extended_facts()
+        || pg_catalog.jsonb_build_object(
+          'evidence', pg_catalog.jsonb_build_object(
+            'availability', 'available',
+            'value', pg_catalog.repeat('x', 800),
+            'preview_truncated', true
+          ),
+          'evidence_identity', pg_catalog.jsonb_build_object(
+            'version', 'corporate_action_evidence_identity_v1',
+            'source_ref', 'news_article_body',
+            'range_start', 0,
+            'range_end', 1001,
+            'source_content_hash', pg_catalog.repeat('a', 64),
+            'exact_source', true
+          ),
+          'calculation_activation', pg_catalog.jsonb_build_object(
+            'version', 'stock_split_day_basis_activation_v1',
+            'state', 'ON_EFFECTIVE_DATE',
+            'source_meaning', 'date_only',
+            'evidence_identity', pg_catalog.jsonb_build_object(
+              'version', 'corporate_action_evidence_identity_v1',
+              'source_ref', 'news_article_body',
+              'range_start', 0,
+              'range_end', 1001,
+              'source_content_hash', pg_catalog.repeat('a', 64),
+              'exact_source', true
+            )
+          )
+        )
+    )
+  )->>'status',
+  'saved',
+  'V3 persistence accepts an 800-character preview with an independent long-source identity'
+);
+select pg_temp.ca_terminalize(
+  '72000000-0000-4000-8000-000000000012',
+  '72000000-0000-4000-8000-000000000212',
+  'succeeded_applicable', '2026-08-14 00:17:00+00'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_stock_split_day_basis_evidence_v3'
+  )#>>'{facts,evidence_identity,range_end}',
+  '1001',
+  'V3 current reader retains the authoritative range beyond the preview limit'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_stock_split_day_basis_evidence_v3'
+  )#>>'{facts,calculation_activation,state}',
+  'ON_EFFECTIVE_DATE',
+  'V3 current reader retains the day-basis calculation activation'
 );
 
 select ok(

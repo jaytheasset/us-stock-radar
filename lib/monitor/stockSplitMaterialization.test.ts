@@ -12,20 +12,20 @@ import {
   stockSplitMaterializationError,
 } from "./stockSplitMaterialization.ts";
 
-const CIK = "0001499961";
+const CIK = "0000000001";
 const CLASS_ID = `sc:v1:${CIK}:common_stock:single`;
-const ACCESSION = "0001104659-23-056549";
+const ACCESSION = "0000000001-23-000001";
 const ACCEPTED_AT = "2023-05-05T20:15:35Z";
-const EVENT_ID = "48567306-ff8e-417c-9fe0-592b865042a4";
-const EXECUTION_ID = "78c8bfec-3b16-5d45-b339-57d44d0192ff";
-const SOURCE = "Mullen Automotive Inc. (the Company) will effect a 1-for-25 reverse stock split of its common stock, par value $0.001 per share. Mullen's Common Stock will continue to trade on The Nasdaq Capital Market and will begin trading on a split-adjusted basis when the market opens on May 4, 2023.";
+const EVENT_ID = "10000000-0000-4000-8000-000000000001";
+const EXECUTION_ID = "20000000-0000-4000-8000-000000000001";
+const SOURCE = "Example Issuer will effect a 1-for-25 reverse stock split of its common stock. The common stock will begin trading on a split-adjusted basis when the market opens on May 4, 2023.";
 
 const input = adaptSec8k6kCorporateActionSource({
   accession_number: ACCESSION,
-  source_url: "https://www.sec.gov/Archives/edgar/data/1499961/000110465923056549/tm2316075d1_8k.htm",
+  source_url: "https://www.sec.gov/Archives/edgar/data/1/000000000123000001/example_8k.htm",
   filed_at: ACCEPTED_AT,
-  title: "MULLEN AUTOMOTIVE INC. files 8-K",
-  cleaned_source_blocks: [{ block_id: "mullen-8k-split", text: SOURCE }],
+  title: "Example Issuer files 8-K",
+  cleaned_source_blocks: [{ block_id: "stock-split-source", text: SOURCE }],
   issuer_context: {
     availability: "available",
     issuer_cik: CIK,
@@ -42,7 +42,7 @@ const input = adaptSec8k6kCorporateActionSource({
   }],
 });
 
-test("BINI cached filing rejects invented exact timing with one call and retains a strict materialization diagnostic", async () => {
+test("invalid semantic timing fails closed without being mislabeled as an evidence-promotion failure", async () => {
   let calls = 0;
   const result = await runCorporateActionCanonicalAnalyzerPreview(input, {
     apiKey: "test-key",
@@ -52,7 +52,7 @@ test("BINI cached filing rejects invented exact timing with one call and retains
         availability: "available",
         kind: "exact_timestamp",
         timestamp: "2023-05-04T00:01:00-04:00",
-        source_ref: "mullen-8k-split",
+        source_ref: "stock-split-source",
         evidence: SOURCE,
       }));
     },
@@ -60,13 +60,8 @@ test("BINI cached filing rejects invented exact timing with one call and retains
   assert.equal(calls, 1);
   assert.equal(result.stage, "validation_error");
   if (result.stage !== "validation_error") return;
-  assert.equal(result.materialization_diagnostic?.status, "SPLIT_MATERIALIZATION_FAILED");
-  assert.equal(result.materialization_diagnostic?.actionKind, "reverse_split");
-  assert.equal(result.materialization_diagnostic?.oldShareUnits, "25");
-  assert.equal(result.materialization_diagnostic?.newShareUnits, "1");
-  assert.equal(result.materialization_diagnostic?.effectiveDate, "2023-05-04");
-  assert.ok(result.retryError instanceof Error);
-  assert.ok(readStockSplitMaterializationDiagnostic(result.retryError.message));
+  assert.equal(result.materialization_diagnostic, null);
+  assert.equal(result.retryError, undefined);
 });
 
 test("arbitrary LLM split fields cannot become a blocking prevalidation diagnostic", () => {
@@ -74,10 +69,16 @@ test("arbitrary LLM split fields cannot become a blocking prevalidation diagnost
     availability: "available",
     kind: "exact_timestamp",
     timestamp: "2023-05-04T00:01:00-04:00",
-    source_ref: "mullen-8k-split",
+    source_ref: "stock-split-source",
     evidence: SOURCE,
   });
-  forgedRatio.ratio = { availability: "available", old_shares: "20", new_shares: "1" };
+  forgedRatio.ratio = {
+    availability: "available",
+    old_shares: "20",
+    new_shares: "1",
+    source_ref: "stock-split-source",
+    evidence: SOURCE,
+  };
   assert.equal(buildPrevalidationStockSplitMaterializationDiagnostic(
     forgedRatio,
     input,
@@ -95,7 +96,7 @@ test("arbitrary LLM split fields cannot become a blocking prevalidation diagnost
   ), null);
 });
 
-test("BINI source-correct market-open timing materializes one canonical fact and one active execution", async () => {
+test("source-correct market-open timing materializes one canonical fact and one active execution", async () => {
   let calls = 0;
   const result = await runCorporateActionCanonicalAnalyzerPreview(input, {
     apiKey: "test-key",
@@ -105,7 +106,7 @@ test("BINI source-correct market-open timing materializes one canonical fact and
         availability: "available",
         kind: "market_open",
         timestamp: null,
-        source_ref: "mullen-8k-split",
+        source_ref: "stock-split-source",
         evidence: SOURCE,
       }));
     },
@@ -115,9 +116,11 @@ test("BINI source-correct market-open timing materializes one canonical fact and
   if (result.stage !== "complete" || !result.result.applicable) return;
   const facts = result.result.facts;
   assert.equal(facts.event_kind, "reverse_split");
-  assert.deepEqual(facts.ratio.exact_source_components, {
-    availability: "available", old_share_units: "25", new_share_units: "1",
-  });
+  const exact = facts.ratio.exact_source_components;
+  assert.equal(exact?.availability, "available");
+  assert.equal(exact?.availability === "available" ? exact.old_share_units : null, "25");
+  assert.equal(exact?.availability === "available" ? exact.new_share_units : null, "1");
+  assert.equal(facts.calculation_activation?.state, "ON_EFFECTIVE_DATE");
   assert.equal(facts.effective_date.availability, "available");
   assert.equal(facts.effective_date.availability === "available" ? facts.effective_date.value : null, "2023-05-04");
   assert.equal(facts.effective_timing?.availability === "available"
@@ -151,7 +154,7 @@ test("coverage distinguishes relevant failures, unrelated failures, no evidence,
     apiKey: "test-key",
     runPrompt: async () => providerRun(payload({
       availability: "available", kind: "market_open", timestamp: null,
-      source_ref: "mullen-8k-split", evidence: SOURCE,
+      source_ref: "stock-split-source", evidence: SOURCE,
     })),
   });
   assert.equal(successful.stage, "complete");
@@ -182,6 +185,12 @@ test("coverage distinguishes relevant failures, unrelated failures, no evidence,
   const replay = await history([facts], [persistenceFailure!]);
   assert.equal(replay.status, "available");
   assert.equal(replay.items.length, 1);
+
+  const legacyFacts = structuredClone(facts);
+  delete legacyFacts.calculation_activation;
+  const legacyFallback = await history([legacyFacts], [persistenceFailure!]);
+  assert.equal(legacyFallback.status, "materialization_unavailable");
+  assert.equal(legacyFallback.materializationStatus, "SPLIT_MATERIALIZATION_FAILED");
 });
 
 function payload(effectiveTiming: Record<string, unknown>) {
@@ -189,24 +198,30 @@ function payload(effectiveTiming: Record<string, unknown>) {
     applicable: true,
     event_kind: "reverse_split",
     action_stage: "effective",
-    effective_date: { availability: "available", value: "2023-05-04" },
-    ratio: { availability: "available", old_shares: "25", new_shares: "1" },
+    effective_date: {
+      availability: "available", value: "2023-05-04",
+      source_ref: "stock-split-source", evidence: SOURCE,
+    },
+    ratio: {
+      availability: "available", old_shares: "25", new_shares: "1",
+      source_ref: "stock-split-source", evidence: SOURCE,
+    },
     affected_security: {
       availability: "available",
       canonical_security_class_id: CLASS_ID,
       security_type: "common_stock",
       source_security_title: "common stock",
-      source_ref: "mullen-8k-split",
+      source_ref: "stock-split-source",
       evidence: SOURCE,
     },
     effective_timing: effectiveTiming,
     execution_update: {
       decision: "NEW_EXECUTION",
       target_execution_id: null,
-      source_ref: "mullen-8k-split",
+      source_ref: "stock-split-source",
       evidence: SOURCE,
     },
-    source_ref: "mullen-8k-split",
+    source_ref: "stock-split-source",
     evidence: SOURCE,
     confidence: "high",
     as_of: { availability: "available", value: "2023-05-04" },
@@ -286,11 +301,13 @@ async function history(
     readCurrent: async () => facts.length ? ({
       status: "available",
       eventId: EVENT_ID,
-      rawItemId: "82a1564b-d0bf-463d-892b-8d25e672c346",
-      parentPrimaryAiRunId: "5cec39bd-b841-4d0d-b041-dbd8ee1b9ae6",
+      rawItemId: "30000000-0000-4000-8000-000000000001",
+      parentPrimaryAiRunId: "40000000-0000-4000-8000-000000000001",
       sourceExecutionId: EXECUTION_ID,
       monitorAnalyzerKey: "corporate_action",
-      analyzerContractVersion: "corporate_action_reverse_split_analyzer_v1",
+      analyzerContractVersion: facts[0]!.calculation_activation
+        ? "corporate_action_stock_split_day_basis_evidence_v3"
+        : "corporate_action_reverse_split_analyzer_v1",
       factSchemaVersion: facts[0]!.version,
       facts: facts[0]!,
       persistedAt: "2026-08-23T00:00:00Z",

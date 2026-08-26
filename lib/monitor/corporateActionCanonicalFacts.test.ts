@@ -11,6 +11,7 @@ import {
   parseCorporateActionAnalyzerTransportJson,
   validateCorporateActionAnalyzerResult,
   validateCorporateActionAnalyzerTransportResult,
+  verifyCorporateActionEvidenceIdentity,
   type CorporateActionAnalyzerTransportResult,
 } from "./corporateActionCanonicalFacts.ts";
 import {
@@ -46,8 +47,19 @@ function applicable(overrides: Partial<Extract<CorporateActionAnalyzerTransportR
     applicable: true,
     event_kind: "reverse_split",
     action_stage: "scheduled",
-    effective_date: { availability: "available", value: "2026-08-04" },
-    ratio: { availability: "available", old_shares: "20", new_shares: "1" },
+    effective_date: {
+      availability: "available",
+      value: "2026-08-04",
+      source_ref: "nasdaq_notice_body",
+      evidence: "The reverse stock split will become effective on August 4, 2026.",
+    },
+    ratio: {
+      availability: "available",
+      old_shares: "20",
+      new_shares: "1",
+      source_ref: "nasdaq_notice_body",
+      evidence: "The company will effect a one-for-twenty reverse stock split.",
+    },
     execution_update: {
       decision: "NEW_EXECUTION",
       target_execution_id: null,
@@ -96,7 +108,9 @@ test("applicable transport materializes only the reverse-split contract and mech
     availability: "available",
     value: 20,
   });
-  assert.deepEqual(canonical.result.facts.effective_date, { availability: "available", value: "2026-08-04" });
+  assert.equal(canonical.result.facts.effective_date.availability, "available");
+  assert.equal(canonical.result.facts.effective_date.availability === "available"
+    ? canonical.result.facts.effective_date.value : null, "2026-08-04");
   assert.deepEqual(canonical.result.facts.source, {
     source_family: "nasdaq",
     source_id: "ECA-test-source",
@@ -165,7 +179,13 @@ test("source ref, date, ratio values, duplicate keys, and unknown semantics hard
     effective_date: { availability: "available", value: "2026-02-30" },
   })), []);
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult(applicable({
-    ratio: { availability: "available", old_shares: "Infinity", new_shares: "1" },
+    ratio: {
+      availability: "available",
+      old_shares: "Infinity",
+      new_shares: "1",
+      source_ref: "nasdaq_notice_body",
+      evidence: "The company will effect a one-for-twenty reverse stock split.",
+    },
   })), []);
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult({
     ...applicable(),
@@ -196,6 +216,81 @@ test("evidence exactness is separated from semantic/source eligibility", () => {
     assert.deepEqual(unavailable.result.facts.effective_date, exact.result.facts.effective_date);
     assert.deepEqual(unavailable.result.facts.ratio, exact.result.facts.ratio);
   }
+});
+
+test("authoritative evidence identity retains an exact long range and hash while preview stays at 800", () => {
+  const factClause = "The company will effect a one-for-twenty reverse stock split on August 4, 2026. ";
+  const longEvidence = `${factClause}${"source context ".repeat(100)}`.slice(0, 1001).padEnd(1001, "x");
+  const source = `${"p".repeat(90)}${longEvidence} trailing source`;
+  const longInput = adaptNasdaqCorporateActionSource({
+    source_unique_id: "long-evidence",
+    source_url: "https://example.com/notices/long-evidence",
+    published_at: "2026-08-01T00:00:00Z",
+    title: "Long exact evidence",
+    body_text: source,
+  });
+  const canonical = canonicalizeCorporateActionAnalyzerResult(applicable({
+    effective_date: {
+      availability: "available",
+      value: "2026-08-04",
+      source_ref: "nasdaq_notice_body",
+      evidence: longEvidence,
+    },
+    ratio: {
+      availability: "available",
+      old_shares: "20",
+      new_shares: "1",
+      source_ref: "nasdaq_notice_body",
+      evidence: longEvidence,
+    },
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "nasdaq_notice_body",
+      evidence: longEvidence,
+    },
+    source_ref: "nasdaq_notice_body",
+    evidence: longEvidence,
+  }), longInput);
+  assert.deepEqual(canonical.errors, []);
+  assert.equal(canonical.result?.applicable, true);
+  if (!canonical.result?.applicable) return;
+  assert.equal(canonical.result.facts.evidence.availability, "available");
+  assert.equal(canonical.result.facts.evidence.availability === "available"
+    ? Array.from(canonical.result.facts.evidence.value).length : 0, 800);
+  assert.equal(canonical.result.facts.evidence.availability === "available"
+    ? canonical.result.facts.evidence.preview_truncated : false, true);
+  assert.deepEqual(canonical.result.facts.evidence_identity, {
+    version: "corporate_action_evidence_identity_v1",
+    source_ref: "nasdaq_notice_body",
+    range_start: 90,
+    range_end: 1091,
+    source_content_hash: createHash("sha256").update(longEvidence).digest("hex"),
+    exact_source: true,
+  });
+  assert.equal(verifyCorporateActionEvidenceIdentity(
+    canonical.result.facts.evidence_identity,
+    longInput.source_documents,
+  ), true);
+  const tamperedDocuments = longInput.source_documents.map((document) => ({
+    ...document,
+    text: `${document.text.slice(0, 100)}!${document.text.slice(101)}`,
+  }));
+  assert.equal(verifyCorporateActionEvidenceIdentity(
+    canonical.result.facts.evidence_identity,
+    tamperedDocuments,
+  ), false);
+});
+
+test("field evidence mismatch fails closed instead of falling back to root preview", () => {
+  const transport = applicable();
+  assert.equal(transport.applicable, true);
+  if (!transport.applicable) return;
+  if (transport.ratio.availability !== "available") return;
+  transport.ratio.evidence = "A paraphrased ratio that is not in the source";
+  const canonical = canonicalizeCorporateActionAnalyzerResult(transport, input());
+  assert.equal(canonical.result, null);
+  assert.match(canonical.errors.join("; "), /ratio requires exact source evidence identity/);
 });
 
 test("effective timing accepts only non-exact transport contracts", () => {
@@ -314,10 +409,10 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
     "applicable", "event_kind", "action_stage", "effective_date", "ratio", "affected_security",
     "effective_timing", "execution_update", "source_ref", "evidence", "confidence", "as_of",
   ]);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 11_681);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 11_407);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "afc1fe268c9a2fe607cad462b78e11a49e27379a24d1293a3644605294382e93",
+    "62a646e8514abfd2bb3a7f0fe5e1a8285eca6a0ef5d41b24fb0225c9f3aaa544",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -328,16 +423,17 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /parser values, calendar values/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Application code alone performs division/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /distribution date and session.*never replace.*trading commencement/i);
-  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /4-for-1 forward split return old_shares 1 and new_shares 4/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /positive plain decimal strings in execution orientation/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /does not calculate outstanding shares/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exactly one supplied security_class_candidate/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not map generic common stock across multiple class candidates/i);
-  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer market session ordering from a date alone/i);
-  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /opening of the business day.*business_day_open/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never infer a clock time, timezone, exchange calendar/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /business_day_open, market_open, and start_of_trading all activate on the effective date/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never generate or repair 09:30, 00:00/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /never transports an exact clock timestamp/i);
-  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /legal-amendment clock time is unrelated/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not cite a different action's timestamp/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /exceeds 800 characters.*display preview capped at 800/i);
+  assert.doesNotMatch(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /BINI|0001104659-23-056549/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /SUPERSEDE_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /CANCEL_EXISTING_EXECUTION/);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never match executions by ratio\/date similarity/i);

@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 import type {
+  CorporateActionCanonicalEvidence,
   CorporateActionCanonicalFacts,
   CorporateActionEventKind,
   CorporateActionStage,
+  StockSplitCalculationActivation,
 } from "./corporateActionCanonicalFacts.ts";
+import { validateCorporateActionEvidenceIdentity } from "./corporateActionCanonicalFacts.ts";
 import {
   readReverseSplitHistory,
   readStockSplitHistory,
@@ -74,8 +77,9 @@ export type ReverseSplitExecutionObservation = {
   exactRatio: ExactRatio;
   effectiveDate: string;
   effectiveTiming: EffectiveTiming;
+  calculationActivation?: StockSplitCalculationActivation;
   sourceRef: string;
-  evidence: Extract<CorporateActionCanonicalFacts["evidence"], { availability: "available" }>;
+  evidence: Extract<CorporateActionCanonicalEvidence, { availability: "available" }>;
   source: CorporateActionCanonicalFacts["source"];
   persistedAt: string;
   facts: CorporateActionCanonicalFacts;
@@ -93,6 +97,7 @@ export type ReverseSplitExecution<
   effectiveDate: string;
   exactRatio: ExactRatio;
   effectiveTiming: EffectiveTiming;
+  calculationActivation?: StockSplitCalculationActivation;
   observations: ReverseSplitExecutionObservation[];
 };
 
@@ -123,7 +128,7 @@ export type ReverseSplitExecutionTupleConflict<
   issuerCik: string;
   canonicalSecurityClassId: string;
   effectiveDate: string;
-  reasons: Array<"FINAL_RATIO_CONFLICT" | "EFFECTIVE_TIMING_CONFLICT">;
+  reasons: Array<"FINAL_RATIO_CONFLICT" | "CALCULATION_ACTIVATION_CONFLICT">;
   candidateExecutionIds: string[];
   observations: ReverseSplitExecutionObservation[];
 };
@@ -496,17 +501,14 @@ function stockSplitExecutionActivationDecisionInternal(
     return { status: "APPLIED", reason: "target_after_effective_date" };
   }
 
-  const timing = input.execution.effectiveTiming;
-  if (timing.availability === "unavailable") {
-    return timing.reason === "date_only"
-      ? { status: "APPLIED", reason: "effective_date_day_basis" }
-      : { status: "INDETERMINATE", reason: "effective_timing_unresolved" };
-  }
-  if (timing.kind === "date_only" || timing.kind === "business_day_open"
-    || timing.kind === "market_open" || timing.kind === "start_of_trading") {
+  const activationState = input.execution.calculationActivation?.state
+    ?? (input.execution.effectiveTiming.availability === "available"
+      && input.execution.effectiveTiming.kind === "after_market_close"
+      ? "AFTER_MARKET_CLOSE" : "ON_EFFECTIVE_DATE");
+  if (activationState === "ON_EFFECTIVE_DATE") {
     return { status: "APPLIED", reason: "effective_date_day_basis" };
   }
-  if (timing.kind === "after_market_close") {
+  if (activationState === "AFTER_MARKET_CLOSE") {
     return { status: "NOT_APPLIED", reason: "after_market_close_same_day" };
   }
   return { status: "INDETERMINATE", reason: "effective_timing_unresolved" };
@@ -546,6 +548,8 @@ function calculationObservation(
   const issuer = facts.applicability?.issuer;
   const affected = facts.applicability?.affected_security;
   const exact = facts.ratio.exact_source_components;
+  const calculationActivation = stockSplitCalculationActivation(facts);
+  const evidence = calculationEvidencePreview(facts);
   if (facts.event_kind !== actionKind
     || issuer?.availability !== "available" || affected?.availability !== "available"
     || issuer.issuer_cik !== item.issuerCik
@@ -556,7 +560,8 @@ function calculationObservation(
     || facts.effective_date.value !== item.effectiveDate
     || exact?.availability !== "available"
     || !positiveDecimal(exact.old_share_units) || !positiveDecimal(exact.new_share_units)
-    || facts.evidence.availability !== "available") {
+    || !calculationActivation || calculationActivation.state === "INDETERMINATE"
+    || !evidence || !hasCompleteCalculationEvidence(facts, actionKind)) {
     return null;
   }
   return {
@@ -573,8 +578,10 @@ function calculationObservation(
     },
     effectiveDate: item.effectiveDate,
     effectiveTiming: item.effectiveTiming,
-    sourceRef: facts.source_ref,
-    evidence: facts.evidence,
+    calculationActivation,
+    sourceRef: facts.evidence_identity?.source_ref ?? calculationActivation.evidence_identity?.source_ref
+      ?? facts.source_ref,
+    evidence,
     source: { ...facts.source },
     persistedAt: item.persistedAt,
     facts,
@@ -599,7 +606,67 @@ function hasCompleteCalculationEvidence(
     && exact?.availability === "available"
     && positiveDecimal(exact.old_share_units)
     && positiveDecimal(exact.new_share_units)
-    && facts.evidence.availability === "available";
+    && (facts.calculation_activation
+      ? fieldEvidenceIdentityComplete(facts)
+      : facts.evidence.availability === "available");
+}
+
+function stockSplitCalculationActivation(
+  facts: CorporateActionCanonicalFacts,
+): StockSplitCalculationActivation | null {
+  if (facts.calculation_activation) return facts.calculation_activation;
+  if (facts.effective_date.availability !== "available") {
+    return {
+      version: "stock_split_day_basis_activation_v1",
+      state: "INDETERMINATE",
+      source_meaning: "effective_date_unavailable",
+      evidence_identity: null,
+    };
+  }
+  const timing = facts.effective_timing;
+  return {
+    version: "stock_split_day_basis_activation_v1",
+    state: timing?.availability === "available" && timing.kind === "after_market_close"
+      ? "AFTER_MARKET_CLOSE" : "ON_EFFECTIVE_DATE",
+    source_meaning: timing?.availability === "available" ? timing.kind : "date_only",
+    evidence_identity: null,
+  };
+}
+
+function calculationEvidencePreview(
+  facts: CorporateActionCanonicalFacts,
+): Extract<CorporateActionCanonicalEvidence, { availability: "available" }> | null {
+  const candidates = [
+    facts.evidence,
+    facts.ratio.exact_source_components?.availability === "available"
+      ? facts.ratio.exact_source_components.evidence : null,
+    facts.effective_date.availability === "available"
+      && typeof facts.effective_date.evidence === "object"
+      ? facts.effective_date.evidence : null,
+    facts.applicability?.affected_security.evidence,
+    facts.effective_timing?.availability === "available"
+      ? facts.effective_timing.evidence : null,
+  ];
+  return candidates.find((candidate): candidate is Extract<
+    CorporateActionCanonicalEvidence,
+    { availability: "available" }
+  > => candidate?.availability === "available") ?? null;
+}
+
+function fieldEvidenceIdentityComplete(facts: CorporateActionCanonicalFacts) {
+  const date = facts.effective_date;
+  const ratio = facts.ratio.exact_source_components;
+  const affected = facts.applicability?.affected_security;
+  const activation = facts.calculation_activation;
+  if (date.availability !== "available" || ratio?.availability !== "available"
+    || affected?.availability !== "available" || !activation
+    || activation.state === "INDETERMINATE") return false;
+  return [
+    date.evidence_identity,
+    ratio.evidence_identity,
+    affected.evidence_identity,
+    activation.evidence_identity,
+  ].every((identity) => validateCorporateActionEvidenceIdentity(identity).length === 0);
 }
 
 function projectExecutionGroup(
@@ -613,11 +680,12 @@ function projectExecutionGroup(
   const observations = [...observationsValue].sort(compareObservations);
   const first = observations[0]!;
   const ratioKeys = distinct(observations.map((item) => ratioKey(item.exactRatio)));
+  const activationStates = distinct(observations.map((item) => item.calculationActivation!.state));
   const availableTimings = distinct(observations.flatMap((item) => item.effectiveTiming.availability === "available"
     ? [timingKey(item.effectiveTiming)] : []));
   const reasons: StockSplitExecutionTupleConflict["reasons"] = [];
   if (ratioKeys.length > 1) reasons.push("FINAL_RATIO_CONFLICT");
-  if (availableTimings.length > 1) reasons.push("EFFECTIVE_TIMING_CONFLICT");
+  if (activationStates.length > 1) reasons.push("CALCULATION_ACTIVATION_CONFLICT");
   if (reasons.length) {
     return {
       version: contract.executionVersion,
@@ -662,6 +730,7 @@ function projectExecutionGroup(
     effectiveTiming: availableTimings.length === 1
       ? timingFromKey(availableTimings[0]!, observations)
       : unavailableTimingProjection(observations),
+    calculationActivation: observations[0]!.calculationActivation!,
     observations,
   };
 }

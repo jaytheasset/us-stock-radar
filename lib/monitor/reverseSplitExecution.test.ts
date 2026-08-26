@@ -38,6 +38,13 @@ test("Alert lifecycle stages remain independent while incomplete stages create n
     effectiveDate: null,
   }).action_stage), stages);
 
+  const indeterminateDate = factsFor({
+    sequence: 9,
+    ratio: [10, 1],
+    effectiveDate: null,
+  });
+  assert.equal(indeterminateDate.calculation_activation?.state, "INDETERMINATE");
+
   const rangeOnly = factsFor({ sequence: 10, stage: "shareholder_approved", ratio: null });
   const result = await readWith([historyItem(10, rangeOnly)]);
   assert.equal(result.executions.length, 0);
@@ -298,6 +305,30 @@ test("day-basis activates date-only/opening executions on effective date and pre
   assert.deepEqual(reverseSplitExecutionActivationDecision({ execution: afterClose, targetDate: "2026-08-25" }), {
     status: "NOT_APPLIED", reason: "after_market_close_same_day",
   });
+  assert.deepEqual(reverseSplitExecutionActivationDecision({ execution: afterClose, targetDate: "2026-08-26" }), {
+    status: "APPLIED", reason: "target_after_effective_date",
+  });
+
+  const sourceTimingAmbiguous = (await readWith([historyItem(4, factsFor({
+    sequence: 4,
+    timing: { availability: "unavailable", reason: "ambiguous" },
+  }))])).executions[0]!;
+  assert.equal(sourceTimingAmbiguous.calculationActivation?.state, "ON_EFFECTIVE_DATE");
+  assert.equal(reverseSplitExecutionActivationDecision({
+    execution: sourceTimingAmbiguous,
+    targetDate: "2026-08-25",
+  }).status, "APPLIED");
+});
+
+test("calculation dedupes richer opening meanings that share one day-basis activation", async () => {
+  const result = await readWith([
+    historyItem(5, factsFor({ sequence: 5, timing: availableTiming("market_open") })),
+    historyItem(6, factsFor({ sequence: 6, timing: availableTiming("start_of_trading") })),
+  ]);
+  assert.equal(result.executions.length, 1);
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(result.executions[0]?.calculationActivation?.state, "ON_EFFECTIVE_DATE");
+  assert.equal(result.executions[0]?.observations.length, 2);
 });
 
 type FactsOptions = {
@@ -349,10 +380,21 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
     event_kind: "reverse_split",
     action_stage: options.stage ?? "scheduled",
     effective_date: effectiveDate
-      ? { availability: "available", value: effectiveDate }
+      ? {
+          availability: "available",
+          value: effectiveDate,
+          source_ref: "sec_block_1",
+          evidence: source,
+        }
       : { availability: "unavailable" },
     ratio: ratio
-      ? { availability: "available", old_shares: String(ratio[0]), new_shares: String(ratio[1]) }
+      ? {
+          availability: "available",
+          old_shares: String(ratio[0]),
+          new_shares: String(ratio[1]),
+          source_ref: "sec_block_1",
+          evidence: source,
+        }
       : { availability: "unavailable" },
     affected_security: {
       availability: "available",
