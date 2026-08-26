@@ -27,6 +27,7 @@ const { genericMonitorChildRepository } = jiti("../lib/monitor/genericMonitorChi
 const { processGenericMonitorChild } = jiti("../lib/monitor/genericMonitorChildRuntime.ts");
 const { runCorporateActionCanonicalAnalyzerPreview } = jiti("../lib/ai/corporateActionCanonicalAnalyzerPreview.ts");
 const { readCurrentCorporateActionFacts } = jiti("../lib/monitor/corporateActionPersistence.ts");
+const { assertHistoricalReplayCanonicalContractState } = jiti("./historicalReplayCanonicalContractGate.ts");
 const { readStockSplitExecutions } = jiti("../lib/monitor/stockSplitExecution.ts");
 const { PostgresShareCountHistoryRepository } = jiti("../lib/sec-structured-data/shareCountHistory.ts");
 const { reconcileShareCountAnchors } = jiti("../lib/sec-structured-data/shareCountAnchorReconciliation.ts");
@@ -70,7 +71,7 @@ async function main() {
     const affected = facts.applicability?.affected_security;
     if (affected?.availability !== "available") fail("Canonical security class is unavailable");
     const securityClassId = affected.canonical_security_class_id;
-    const factState = await readFactState(source.event_id, source.parent_primary_ai_run_id);
+    const factState = await readFactState(current);
     const executionRead = await readStockSplitExecutions({
       actionKind: "forward_split",
       cik: args.cik,
@@ -113,8 +114,12 @@ async function main() {
         execution_status: execution.status,
         persistence: execution.persistence,
         provider_calls: execution.providerCalls,
-        canonical_fact_count: factState.fact_count,
-        preserved_prior_fact_count: factState.prior_fact_count,
+        current_analyzer_contract_version: factState.current_analyzer_contract_version,
+        selected_source_execution_id: factState.selected_source_execution_id,
+        canonical_fact_count: factState.current_contract_fact_count,
+        canonical_result_count: factState.current_contract_result_count,
+        preserved_prior_fact_count: factState.preserved_legacy_or_prior_fact_count,
+        preserved_prior_result_count: factState.preserved_legacy_or_prior_result_count,
         execution_known_at: factState.known_at,
         duplicate_status: duplicate.status,
         duplicate_provider_calls: duplicate.providerCalls,
@@ -181,21 +186,66 @@ async function main() {
   }
 }
 
-async function readFactState(eventId, parentPrimaryAiRunId) {
+async function readFactState(current) {
   const result = await client.query(
-    `select count(*) filter (where parent_primary_ai_run_id = $2)::integer as fact_count,
-            count(*) filter (where parent_primary_ai_run_id <> $2)::integer as prior_fact_count,
-            max(persisted_at) filter (where parent_primary_ai_run_id = $2)::text as known_at
-       from public.event_corporate_action_facts
-      where event_id = $1`,
-    [eventId, parentPrimaryAiRunId],
+    `select
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as current_contract_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as current_contract_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.source_execution_id = $4
+           and results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as selected_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and not (
+             facts.parent_primary_ai_run_id = $2
+             and facts.monitor_analyzer_key = 'corporate_action'
+             and facts.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and not (
+             results.parent_primary_ai_run_id = $2
+             and results.monitor_analyzer_key = 'corporate_action'
+             and results.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_result_count,
+       (select max(facts.persisted_at)::text
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_persisted_at`,
+    [
+      current.eventId,
+      current.parentPrimaryAiRunId,
+      current.analyzerContractVersion,
+      current.sourceExecutionId,
+    ],
   );
-  const state = result.rows[0];
-  if (state?.fact_count !== 1 || !state.known_at) {
-    fail(`Expected exactly one canonical fact, found ${state?.fact_count ?? 0}`);
-  }
-  state.known_at = new Date(Date.parse(state.known_at) + 1_000).toISOString();
-  return state;
+  return assertHistoricalReplayCanonicalContractState(current, result.rows[0]);
 }
 
 async function readShareCountHistoryCount() {
