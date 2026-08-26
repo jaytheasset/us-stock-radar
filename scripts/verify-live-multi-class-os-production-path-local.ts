@@ -16,9 +16,12 @@ import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repo
 import { PostgresShareCountHistoryRepository } from "../lib/sec-structured-data/shareCountHistory.ts";
 import type { StockSplitExecutionReadInput } from "../lib/sec-structured-data/stockSplitShareBasisNormalizer.ts";
 import type { SecIssuerIngestResult, SecRefreshMode } from "../lib/sec-structured-data/types.ts";
+import {
+  assertHistoricalReplayMigrationPrerequisites,
+  isHistoricalReplayMigrationPrecheckOnly,
+} from "./historicalReplayMigrationGate.ts";
 
 const CIK = "0001652044";
-const MIGRATION = "20260822201302";
 const EXPECTED_CANDIDATES = 26;
 const EXPECTED_CLASS_OBSERVATIONS = 78;
 const EXPECTED_TIMEPOINTS = [
@@ -48,11 +51,11 @@ let secFilingRequests = 0;
 let splitReaderCalls = 0;
 await client.connect();
 try {
-  const migration = await client.query(
-    "select version from supabase_migrations.schema_migrations order by version desc limit 1",
-  );
-  assert.equal(migration.rows[0]?.version, MIGRATION);
+  const migrationGate = await assertHistoricalReplayMigrationPrerequisites(client);
 
+  if (isHistoricalReplayMigrationPrecheckOnly(process.argv.slice(2))) {
+    console.log(JSON.stringify({ ok: true, stage: "migration_prerequisites", ...migrationGate }, null, 2));
+  } else {
   const sql = createSerialSqlClient(client);
   const structuredRepository = new PostgresSecStructuredRepository(sql, "external");
   const filingRepository = new PostgresSecFilingXbrlArtifactRepository(sql);
@@ -217,7 +220,8 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    migration: MIGRATION,
+    migration: migrationGate.requiredMigration,
+    latestMigration: migrationGate.latestMigration,
     source: "existing local GOOG CompanyFacts, filing ledger, and complete filing-XBRL cache",
     baseline,
     bootstrapCounts: bootstrap.counts,
@@ -239,6 +243,7 @@ try {
     wrongConfidentIssuerTotals,
     llmCalls: 0,
   }, null, 2));
+  }
 } finally {
   await client.end();
 }
