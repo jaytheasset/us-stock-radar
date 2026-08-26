@@ -15,6 +15,10 @@ import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repo
 import { SecStructuredDataService } from "../lib/sec-structured-data/service.ts";
 import { PostgresShareCountHistoryRepository } from "../lib/sec-structured-data/shareCountHistory.ts";
 import { PostgresIssuerCommonClassUniverseRepository } from "../lib/sec-structured-data/issuerCommonClassUniverse.ts";
+import {
+  assertHistoricalReplayMigrationPrerequisites,
+  isHistoricalReplayMigrationPrecheckOnly,
+} from "./historicalReplayMigrationGate.ts";
 
 const connectionString = process.env.SUPABASE_LOCAL_DB_URL || "postgresql://postgres:postgres@127.0.0.1:56322/postgres";
 const databaseUrl = new URL(connectionString);
@@ -26,15 +30,17 @@ const ciks = audits.map((sample) => sample.cik);
 const accessions = audits.map((sample) => sample.accession);
 const executedAt = "2026-08-22T06:30:00.000Z";
 let rolledBack = false;
+let transactionStarted = false;
 await client.connect();
 try {
-  const migration = await client.query(
-    "select version from supabase_migrations.schema_migrations order by version desc limit 1",
-  );
-  assert.equal(migration.rows[0]?.version, "20260822201302");
+  const migrationGate = await assertHistoricalReplayMigrationPrerequisites(client);
+  if (isHistoricalReplayMigrationPrecheckOnly(process.argv.slice(2))) {
+    console.log(JSON.stringify({ ok: true, stage: "migration_prerequisites", ...migrationGate }, null, 2));
+  } else {
   const baseline = await fixtureCounts(client, ciks);
 
   await client.query("begin");
+  transactionStarted = true;
   await client.query("set local statement_timeout = '30s'");
   const transactionStartedAt = (await client.query(
     "select transaction_timestamp()::text as value",
@@ -177,7 +183,8 @@ try {
   assert.deepEqual(cleanup, baseline);
   console.log(JSON.stringify({
     ok: true,
-    migration: migration.rows[0].version,
+    migration: migrationGate.requiredMigration,
+    latestMigration: migrationGate.latestMigration,
     baseline,
     bootstrapCounts: aggregateCounts(bootstrap),
     replayCounts: aggregateCounts(replay),
@@ -189,8 +196,9 @@ try {
     llmCalls: 0,
     publicSecCalls: 0,
   }, null, 2));
+  }
 } finally {
-  if (!rolledBack) await client.query("rollback").catch(() => undefined);
+  if (transactionStarted && !rolledBack) await client.query("rollback").catch(() => undefined);
   await client.end();
 }
 
