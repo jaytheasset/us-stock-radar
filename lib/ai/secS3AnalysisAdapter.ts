@@ -1,4 +1,10 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
+  economicExposureIdentityFilingMetadata,
+  transportEconomicExposureIdentitySidecar,
+  type EconomicExposureIdentitySidecarTransportResult,
+} from "@/lib/dilution/economicExposureIdentityObservationSidecar";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import {
   buildSecS3AmendmentTriagePrompt,
@@ -51,7 +57,7 @@ export type SecS3ValidationRepairPlan = {
 };
 
 export type SecS3AnalysisAdapterResult =
-  | { ok: true; analysis: Record<string, unknown> }
+  | { ok: true; analysis: Record<string, unknown>; economicExposureIdentitySidecar?: EconomicExposureIdentitySidecarTransportResult }
   | { ok: false; error: string };
 
 export function isS3FilingInput(input: SecFilingAnalysisInput) {
@@ -87,7 +93,11 @@ export function isS3AmendmentInput(input: SecFilingAnalysisInput) {
 }
 
 export function buildSecS3AnalysisPrompt(input: SecFilingAnalysisInput) {
-  return buildSecS3OfferingAnalysisPrompt(input);
+  const prompt = buildSecS3OfferingAnalysisPrompt(input);
+  return {
+    ...prompt,
+    system: [prompt.system, ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT].join("\n"),
+  };
 }
 
 export function buildSecS3TriagePrompt(input: SecFilingAnalysisInput) {
@@ -594,8 +604,18 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     };
   }
 
+  const promptPayload = readRecordFromJson(buildSecS3AnalysisPrompt(input).user) || {};
+  const economicExposureIdentitySidecar = transportEconomicExposureIdentitySidecar({
+    provider_output: root,
+    source_blocks: Array.isArray(promptPayload.cleaned_source_blocks)
+      ? promptPayload.cleaned_source_blocks as Array<Record<string, unknown>>
+      : [],
+    ...economicExposureIdentityFilingMetadata(filingPackage || {}),
+  });
+
   return {
     ok: true,
+    economicExposureIdentitySidecar,
     analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
 }
@@ -794,6 +814,15 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function readRecordFromJson(value: unknown) {
+  if (typeof value !== "string") return null;
+  try {
+    return readRecord(JSON.parse(value));
+  } catch {
+    return null;
+  }
 }
 
 function stringValue(value: unknown) {

@@ -160,6 +160,10 @@ export function get424bAnalysisSourceBlockIds(parserOutput: Sec424bParserOutput)
     .filter(Boolean);
 }
 
+export function get424bAnalysisSourceBlocks(parserOutput: Sec424bParserOutput) {
+  return build424bAnalysisSourceBundle(parserOutput).cleaned_source_blocks;
+}
+
 export function requires424b5MaterialEvents(parserOutput: Sec424bParserOutput): boolean {
   return parserOutput.formType.toUpperCase().replace(/\s+/g, "") === "424B5";
 }
