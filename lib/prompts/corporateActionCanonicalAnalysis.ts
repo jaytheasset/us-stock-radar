@@ -7,6 +7,7 @@ import {
   REVERSE_SPLIT_EXECUTION_UPDATE_DECISIONS,
   CORPORATE_ACTION_STAGE_VOCABULARY,
   CORPORATE_ACTION_STAGES,
+  STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES,
   type CorporateActionAnalyzerInput,
 } from "../monitor/corporateActionCanonicalFacts.ts";
 import {
@@ -211,10 +212,14 @@ function effectiveDateAvailabilitySchema() {
         properties: {
           availability: { type: "string", enum: ["available"] },
           value: { type: "string", format: "date" },
+          calculation_basis: { type: "string", enum: STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES },
           source_ref: { type: "string" },
-          evidence: { type: "string", description: "One contiguous exact source span supporting the effective date." },
+          evidence: {
+            type: "string",
+            description: "One contiguous exact source span supporting both the effective date and its calculation basis.",
+          },
         },
-        required: ["availability", "value", "source_ref", "evidence"],
+        required: ["availability", "value", "calculation_basis", "source_ref", "evidence"],
       },
     ],
   } as const;
@@ -230,7 +235,10 @@ export const CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT = [
   "Do not decide a stage from one word. A confirmed effective date that was future at the source time is scheduled even if the source is an official exchange notice or also describes earlier approvals. Use effective only when the source establishes that the action had already taken effect at source time or is itself a contemporaneous notice of an action taking effect.",
   `For a non-applicable source return applicable false and no Corporate Action fields; the independent optional ${LEVEL2_SHARE_COUNT_OBSERVATION_FIELD} may still be present only when its SEC filing contract is satisfied. Failure, uncertainty about transport, or missing source text is not not-applicable.`,
   `For an applicable source return exactly these keys: applicable, event_kind, action_stage, effective_date, ratio, affected_security, effective_timing, execution_update, source_ref, evidence, confidence, as_of. applicable is true and event_kind is exactly one of ${CORPORATE_ACTION_EVENT_KINDS.join(", ")}. Use forward_split only for an explicit increase in shares per old share, never a stock dividend or inferred adjustment.`,
-  "effective_date is exactly {availability:unavailable} when the source does not establish the stock-split effective date. Otherwise return {availability:available,value:YYYY-MM-DD,source_ref,evidence}, where evidence is one contiguous exact source span supporting that date. Do not substitute publication, record, marketplace, payment, approval, or unrelated trading dates.",
+  `effective_date is exactly {availability:unavailable} when the source does not safely establish the stock-split calculation effective date. Otherwise return {availability:available,value:YYYY-MM-DD,calculation_basis,source_ref,evidence}, where calculation_basis is exactly one of ${STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES.join(", ")} and the contiguous exact evidence span supports both the date and that semantic role.`,
+  "The calculation effective date is the date on which outstanding common shares change to the post-split share basis. Do not use a shareholder approval date, board approval date, certificate or amendment filing date, legal amendment date, filing/report date, announcement/publication date, record date, or payment date unless the cited source explicitly states that the outstanding shares themselves become combined, reclassified, or post-split on that date or time.",
+  "Use calculation_basis split_effective when the cited passage explicitly makes the reverse or forward split effective; shares_reclassified when it explicitly makes the outstanding shares combine, reclassify, or change to the post-split basis; and split_adjusted_trading only when the source explicitly binds split-adjusted trading to the share-basis change. A legal instrument becoming effective without that share-basis meaning is not eligible.",
+  "When one source bundle contains an approval, filing, amendment, or other legal date and a different split-effective or share-basis date, bind effective_date only to the split/share-basis event. Do not use nearby-date logic. If the roles cannot be distinguished safely, return effective_date unavailable rather than a confident date.",
   "For a forward split effected by distributing additional shares, a source-stated distribution date and session establish the split execution date and timing. Preserve that distribution date/session as effective_date/effective_timing; never replace them with a later split-adjusted trading commencement date.",
   "ratio is exactly {availability:unavailable} when the source does not establish a ratio. Otherwise return {availability:available,old_shares:string,new_shares:string,source_ref,evidence}, where old_shares and new_shares are positive plain decimal strings in execution orientation and evidence is one contiguous exact source span supporting those exact components. For reverse splits old_shares is the pre-split quantity replaced by new_shares; for forward splits old_shares is the pre-split quantity expanded to new_shares. Application code alone performs division into old_shares_per_new_share and does not calculate outstanding shares.",
   "issuer_context and security_class_candidates are deterministic, authoritative context, not semantic truth about which security the stock split affects. Never invent a CIK, class, candidate, or equivalence.",

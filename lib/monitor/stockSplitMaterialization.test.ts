@@ -200,6 +200,7 @@ function payload(effectiveTiming: Record<string, unknown>) {
     action_stage: "effective",
     effective_date: {
       availability: "available", value: "2023-05-04",
+      calculation_basis: "split_effective",
       source_ref: "stock-split-source", evidence: SOURCE,
     },
     ratio: {
@@ -306,7 +307,7 @@ async function history(
       sourceExecutionId: EXECUTION_ID,
       monitorAnalyzerKey: "corporate_action",
       analyzerContractVersion: facts[0]!.calculation_activation
-        ? "corporate_action_stock_split_day_basis_evidence_v3"
+        ? "corporate_action_stock_split_day_basis_evidence_v4"
         : "corporate_action_reverse_split_analyzer_v1",
       factSchemaVersion: facts[0]!.version,
       facts: facts[0]!,

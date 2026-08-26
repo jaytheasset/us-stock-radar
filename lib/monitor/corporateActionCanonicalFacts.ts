@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { parseJsonWithoutDuplicateKeys } from "./listingRiskAnalyzer.ts";
 
 export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyzer_input_v1";
-export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_stock_split_day_basis_evidence_v3";
+export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_stock_split_day_basis_evidence_v4";
+export const CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION = "corporate_action_stock_split_day_basis_evidence_v3";
 export const CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
 export const FORWARD_SPLIT_FACTS_VERSION = "corporate_action_forward_split_facts_v1";
@@ -13,6 +14,14 @@ export const FORWARD_SPLIT_EXECUTION_UPDATE_VERSION = "forward_split_execution_u
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 800;
 export const CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION = "corporate_action_evidence_identity_v1";
 export const STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION = "stock_split_day_basis_activation_v1";
+export const STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES = [
+  "split_effective",
+  "shares_reclassified",
+  "split_adjusted_trading",
+] as const;
+
+export type StockSplitCalculationEffectiveDateBasis =
+  (typeof STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES)[number];
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
   value: TValue;
@@ -203,6 +212,11 @@ type AvailableDate = {
   source_ref?: string;
   evidence?: string | CorporateActionCanonicalEvidence;
   evidence_identity?: CorporateActionEvidenceIdentity;
+  calculation_basis?: StockSplitCalculationEffectiveDateBasis;
+};
+
+type AvailableCalculationEffectiveDate = AvailableDate & {
+  calculation_basis: StockSplitCalculationEffectiveDateBasis;
 };
 
 export const CORPORATE_ACTION_AFFECTED_SECURITY_UNAVAILABLE_REASONS = [
@@ -287,7 +301,7 @@ export type CorporateActionAnalyzerTransportResult =
       applicable: true;
       event_kind: CorporateActionEventKind;
       action_stage: CorporateActionStage;
-      effective_date: Unavailable | AvailableDate;
+      effective_date: Unavailable | AvailableCalculationEffectiveDate;
       ratio:
         | Unavailable
         | {
@@ -597,7 +611,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
   if (root.applicable !== true) errors.push("result.applicable must be boolean");
   if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be a supported stock split");
   if (!oneOf(root.action_stage, CORPORATE_ACTION_STAGES)) errors.push("result.action_stage is invalid");
-  validateDateEnvelope(root.effective_date, "result.effective_date", errors);
+  validateDateEnvelope(root.effective_date, "result.effective_date", errors, "required");
   const effectiveDate = record(root.effective_date);
   if (effectiveDate?.availability === "available") {
     if (!stableSourceRef(effectiveDate.source_ref)) errors.push("result.effective_date.source_ref is invalid");
@@ -774,7 +788,7 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     errors.push("canonical facts.version is invalid for event kind");
   }
   if (!oneOf(facts.action_stage, CORPORATE_ACTION_STAGES)) errors.push("canonical facts.action_stage is invalid");
-  validateDateEnvelope(facts.effective_date, "canonical facts.effective_date", errors);
+  validateDateEnvelope(facts.effective_date, "canonical facts.effective_date", errors, "optional");
   const ratio = record(facts.ratio);
   if (!ratio) {
     errors.push("canonical facts.ratio must be an object");
@@ -1226,9 +1240,9 @@ function canonicalEffectiveTiming(
 }
 
 function canonicalEffectiveDate(
-  transport: Unavailable | AvailableDate,
+  transport: Unavailable | AvailableCalculationEffectiveDate,
   documents: readonly CorporateActionSourceDocument[],
-): { value: Unavailable | AvailableDate | null; errors: string[] } {
+): { value: Unavailable | AvailableCalculationEffectiveDate | null; errors: string[] } {
   if (transport.availability === "unavailable") {
     return { value: { availability: "unavailable" }, errors: [] };
   }
@@ -1242,6 +1256,7 @@ function canonicalEffectiveDate(
     value: {
       availability: "available",
       value: transport.value,
+      calculation_basis: transport.calculation_basis,
       source_ref: sourceRef,
       evidence: materialized.evidence,
       evidence_identity: materialized.identity,
@@ -1373,7 +1388,12 @@ export function verifyCorporateActionEvidenceIdentity(
     && createHash("sha256").update(exactSource).digest("hex") === identity.source_content_hash;
 }
 
-function validateDateEnvelope(value: unknown, path: string, errors: string[]) {
+function validateDateEnvelope(
+  value: unknown,
+  path: string,
+  errors: string[],
+  calculationBasis: "forbidden" | "optional" | "required" = "forbidden",
+) {
   const envelope = record(value);
   if (!envelope) {
     errors.push(`${path} must be an object`);
@@ -1386,7 +1406,12 @@ function validateDateEnvelope(value: unknown, path: string, errors: string[]) {
   exactKeysAllowingOptional(
     envelope,
     ["availability", "value"],
-    ["source_ref", "evidence", "evidence_identity"],
+    [
+      "source_ref",
+      "evidence",
+      "evidence_identity",
+      ...(calculationBasis === "forbidden" ? [] : ["calculation_basis"]),
+    ],
     path,
     errors,
   );
@@ -1402,6 +1427,19 @@ function validateDateEnvelope(value: unknown, path: string, errors: string[]) {
     errors.push(...validateCorporateActionEvidenceIdentity(envelope.evidence_identity)
       .map((error) => `${path}.${error}`));
   }
+  if (calculationBasis === "required"
+    && !oneOf(envelope.calculation_basis, STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES)) {
+    errors.push(`${path}.calculation_basis is required for an available calculation effective date`);
+  } else if (calculationBasis === "optional" && envelope.calculation_basis !== undefined
+    && !oneOf(envelope.calculation_basis, STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES)) {
+    errors.push(`${path}.calculation_basis is invalid`);
+  }
+}
+
+export function validateStockSplitCalculationEffectiveDateRole(value: unknown): string[] {
+  const errors: string[] = [];
+  validateDateEnvelope(value, "canonical facts.effective_date", errors, "required");
+  return errors;
 }
 
 function validateRatioEnvelope(value: unknown, errors: string[]) {

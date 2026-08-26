@@ -50,6 +50,7 @@ function applicable(overrides: Partial<Extract<CorporateActionAnalyzerTransportR
     effective_date: {
       availability: "available",
       value: "2026-08-04",
+      calculation_basis: "split_effective",
       source_ref: "nasdaq_notice_body",
       evidence: "The reverse stock split will become effective on August 4, 2026.",
     },
@@ -176,7 +177,13 @@ test("source ref, date, ratio values, duplicate keys, and unknown semantics hard
   );
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult(applicable({ source_ref: "missing ref" })), []);
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult(applicable({
-    effective_date: { availability: "available", value: "2026-02-30" },
+    effective_date: {
+      availability: "available",
+      value: "2026-02-30",
+      calculation_basis: "split_effective",
+      source_ref: "nasdaq_notice_body",
+      evidence: "The reverse stock split will become effective on August 4, 2026.",
+    },
   })), []);
   assert.notDeepEqual(validateCorporateActionAnalyzerTransportResult(applicable({
     ratio: {
@@ -233,6 +240,7 @@ test("authoritative evidence identity retains an exact long range and hash while
     effective_date: {
       availability: "available",
       value: "2026-08-04",
+      calculation_basis: "split_effective",
       source_ref: "nasdaq_notice_body",
       evidence: longEvidence,
     },
@@ -291,6 +299,132 @@ test("field evidence mismatch fails closed instead of falling back to root previ
   const canonical = canonicalizeCorporateActionAnalyzerResult(transport, input());
   assert.equal(canonical.result, null);
   assert.match(canonical.errors.join("; "), /ratio requires exact source evidence identity/);
+});
+
+test("semantic-role-bound effective dates cover approval, legal, ambiguous, and after-close source meanings", () => {
+  const canonicalizeSynthetic = (
+    source: string,
+    effectiveDate: Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>["effective_date"],
+    actionStage: Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>["action_stage"],
+    effectiveTiming: Extract<CorporateActionAnalyzerTransportResult, { applicable: true }>["effective_timing"],
+  ) => canonicalizeCorporateActionAnalyzerResult({
+    applicable: true,
+    event_kind: "reverse_split",
+    action_stage: actionStage,
+    effective_date: effectiveDate,
+    ratio: {
+      availability: "available",
+      old_shares: "20",
+      new_shares: "1",
+      source_ref: "nasdaq_notice_body",
+      evidence: "one-for-twenty reverse stock split",
+    },
+    effective_timing: effectiveTiming,
+    execution_update: {
+      decision: "NEW_EXECUTION",
+      target_execution_id: null,
+      source_ref: "nasdaq_notice_body",
+      evidence: source,
+    },
+    source_ref: "nasdaq_notice_body",
+    evidence: source,
+    confidence: "high",
+    as_of: { availability: "unavailable" },
+  }, adaptNasdaqCorporateActionSource({
+    source_unique_id: "semantic-role-synthetic",
+    source_url: "https://example.com/notices/semantic-role-synthetic",
+    published_at: "2022-12-15T20:00:00Z",
+    title: "Generic stock split notice",
+    body_text: source,
+  }));
+
+  const boardAndSplitSource = "The board approved a one-for-twenty reverse stock split on December 15, 2022. The reverse stock split becomes effective on December 16, 2022.";
+  const boardAndSplit = canonicalizeSynthetic(boardAndSplitSource, {
+    availability: "available",
+    value: "2022-12-16",
+    calculation_basis: "split_effective",
+    source_ref: "nasdaq_notice_body",
+    evidence: "The reverse stock split becomes effective on December 16, 2022.",
+  }, "scheduled", { availability: "unavailable", reason: "date_only" });
+  assert.deepEqual(boardAndSplit.errors, []);
+  assert.equal(boardAndSplit.result?.applicable
+    && boardAndSplit.result.facts.effective_date.availability === "available"
+    ? boardAndSplit.result.facts.effective_date.value : null, "2022-12-16");
+
+  const reclassificationSource = "An amendment for a one-for-twenty reverse stock split was filed on December 15, 2022. All outstanding common shares are automatically reclassified to the post-split basis on December 15, 2022.";
+  const reclassificationEvidence = "All outstanding common shares are automatically reclassified to the post-split basis on December 15, 2022.";
+  const reclassification = canonicalizeSynthetic(reclassificationSource, {
+    availability: "available",
+    value: "2022-12-15",
+    calculation_basis: "shares_reclassified",
+    source_ref: "nasdaq_notice_body",
+    evidence: reclassificationEvidence,
+  }, "effective", { availability: "unavailable", reason: "date_only" });
+  assert.deepEqual(reclassification.errors, []);
+  assert.equal(reclassification.result?.applicable
+    && reclassification.result.facts.effective_date.availability === "available"
+    ? reclassification.result.facts.effective_date.calculation_basis : null, "shares_reclassified");
+
+  const tradingSource = "A legal action for a one-for-twenty reverse stock split occurred on December 15, 2022. The outstanding shares move to the post-split basis when split-adjusted trading starts on December 16, 2022.";
+  const tradingEvidence = "The outstanding shares move to the post-split basis when split-adjusted trading starts on December 16, 2022.";
+  const trading = canonicalizeSynthetic(tradingSource, {
+    availability: "available",
+    value: "2022-12-16",
+    calculation_basis: "split_adjusted_trading",
+    source_ref: "nasdaq_notice_body",
+    evidence: tradingEvidence,
+  }, "scheduled", {
+    availability: "available",
+    kind: "start_of_trading",
+    timestamp: null,
+    source_ref: "nasdaq_notice_body",
+    evidence: tradingEvidence,
+  });
+  assert.deepEqual(trading.errors, []);
+  assert.equal(trading.result?.applicable && trading.result.facts.effective_date.availability === "available"
+    ? trading.result.facts.effective_date.value : null, "2022-12-16");
+  assert.equal(trading.result?.applicable && trading.result.facts.effective_date.availability === "available"
+    ? trading.result.facts.effective_date.calculation_basis : null, "split_adjusted_trading");
+  assert.equal(trading.result?.applicable ? trading.result.facts.calculation_activation?.state : null,
+    "ON_EFFECTIVE_DATE");
+
+  for (const [source, stage] of [
+    [
+      "A one-for-twenty reverse stock split was approved on December 15, 2022 and a legal instrument is dated December 16, 2022, without identifying the share-basis date.",
+      "board_approved",
+    ],
+    [
+      "A one-for-twenty reverse stock split was announced on December 15, 2022 without stating when outstanding shares change basis.",
+      "announced",
+    ],
+  ] as const) {
+    const result = canonicalizeSynthetic(
+      source,
+      { availability: "unavailable" },
+      stage,
+      { availability: "unavailable", reason: "ambiguous" },
+    );
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.result?.applicable ? result.result.facts.calculation_activation?.state : null, "INDETERMINATE");
+  }
+
+  const afterCloseSource = "A one-for-twenty reverse stock split becomes effective after market close on December 16, 2022.";
+  const afterClose = canonicalizeSynthetic(afterCloseSource, {
+      availability: "available",
+      value: "2022-12-16",
+      calculation_basis: "split_effective",
+      source_ref: "nasdaq_notice_body",
+    evidence: afterCloseSource,
+  }, "scheduled", {
+    availability: "available",
+    kind: "after_market_close",
+    timestamp: null,
+    source_ref: "nasdaq_notice_body",
+    evidence: afterCloseSource,
+  });
+  assert.deepEqual(afterClose.errors, []);
+  assert.equal(afterClose.result?.applicable ? afterClose.result.facts.calculation_activation?.state : null,
+    "AFTER_MARKET_CLOSE");
 });
 
 test("effective timing accepts only non-exact transport contracts", () => {
@@ -405,14 +539,23 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   const applicableSchema = CORPORATE_ACTION_CANONICAL_RESPONSE_SCHEMA.anyOf[1];
   assert.deepEqual(applicableSchema.properties.event_kind.enum, CORPORATE_ACTION_EVENT_KINDS);
   assert.deepEqual(applicableSchema.properties.action_stage.enum, CORPORATE_ACTION_STAGES);
+  const availableEffectiveDateSchema = applicableSchema.properties.effective_date.anyOf[1];
+  assert.deepEqual(availableEffectiveDateSchema.properties.calculation_basis.enum, [
+    "split_effective",
+    "shares_reclassified",
+    "split_adjusted_trading",
+  ]);
+  assert.deepEqual(availableEffectiveDateSchema.required, [
+    "availability", "value", "calculation_basis", "source_ref", "evidence",
+  ]);
   assert.deepEqual(applicableSchema.required, [
     "applicable", "event_kind", "action_stage", "effective_date", "ratio", "affected_security",
     "effective_timing", "execution_update", "source_ref", "evidence", "confidence", "as_of",
   ]);
-  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 11_407);
+  assert.equal(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT.length, 12_704);
   assert.equal(
     createHash("sha256").update(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT).digest("hex"),
-    "62a646e8514abfd2bb3a7f0fe5e1a8285eca6a0ef5d41b24fb0225c9f3aaa544",
+    "b52d142840e3df330c5824f00a1b53b6b1ef7605061889273b1475fe44ffef38",
   );
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /complete stored source documents/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /board_approved/);
@@ -422,6 +565,10 @@ test("one-call prompt defines full-source stage semantics and forbids semantic f
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Never upgrade a historical notice/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /parser values, calendar values/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Application code alone performs division/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /outstanding common shares change to the post-split share basis/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /shareholder approval date, board approval date.*legal amendment date/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /Do not use nearby-date logic/i);
+  assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /roles cannot be distinguished safely.*effective_date unavailable/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /distribution date and session.*never replace.*trading commencement/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /positive plain decimal strings in execution orientation/i);
   assert.match(CORPORATE_ACTION_CANONICAL_ANALYSIS_SYSTEM_PROMPT, /does not calculate outstanding shares/i);

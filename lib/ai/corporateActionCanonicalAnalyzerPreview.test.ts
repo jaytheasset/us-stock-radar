@@ -29,6 +29,7 @@ test("analyzer makes one bounded provider call with a small plain response schem
         action_stage: "scheduled",
         effective_date: {
           availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+          calculation_basis: "split_effective",
           evidence: "will become effective on August 8, 2026",
         },
         ratio: {
@@ -97,6 +98,7 @@ test("forward split uses the same single provider call with no verifier or repai
         action_stage: "scheduled",
         effective_date: {
           availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+          calculation_basis: "split_effective",
           evidence: "will become effective on August 8, 2026",
         },
         ratio: {
@@ -269,6 +271,7 @@ function applicablePayload(effectiveTiming: Record<string, unknown>) {
     action_stage: "scheduled",
     effective_date: {
       availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+      calculation_basis: "split_effective",
       evidence: "will become effective on August 8, 2026",
     },
     ratio: {

@@ -76,8 +76,20 @@ async function main() {
         applicable: true,
         event_kind: "reverse_split",
         action_stage: "effective",
-        effective_date: { availability: "available", value: "2023-05-04" },
-        ratio: { availability: "available", old_shares: "25", new_shares: "1" },
+        effective_date: {
+          availability: "available",
+          value: "2023-05-04",
+          calculation_basis: "split_adjusted_trading",
+          source_ref: sourceEvidence.sourceRef,
+          evidence: sourceEvidence.text,
+        },
+        ratio: {
+          availability: "available",
+          old_shares: "25",
+          new_shares: "1",
+          source_ref: sourceEvidence.sourceRef,
+          evidence: sourceEvidence.text,
+        },
         affected_security: {
           availability: "available",
           canonical_security_class_id: CLASS_ID,
@@ -126,14 +138,18 @@ async function main() {
   }
   const facts = preview.result.facts;
   assert.equal(facts.event_kind, "reverse_split");
-  assert.deepEqual(facts.ratio.exact_source_components, {
-    availability: "available",
-    old_share_units: "25",
-    new_share_units: "1",
-  });
+  assert.equal(facts.ratio.exact_source_components?.availability, "available");
+  assert.equal(facts.ratio.exact_source_components?.availability === "available"
+    ? facts.ratio.exact_source_components.old_share_units : null, "25");
+  assert.equal(facts.ratio.exact_source_components?.availability === "available"
+    ? facts.ratio.exact_source_components.new_share_units : null, "1");
+  assert.equal(facts.ratio.exact_source_components?.availability === "available"
+    ? facts.ratio.exact_source_components.evidence_identity?.exact_source : null, true);
   assert.equal(facts.effective_date.availability, "available");
   assert.equal(facts.effective_date.availability === "available" ? facts.effective_date.value : null,
     "2023-05-04");
+  assert.equal(facts.effective_date.availability === "available"
+    ? facts.effective_date.calculation_basis : null, "split_adjusted_trading");
   assert.equal(facts.effective_timing?.availability, "available");
   assert.equal(facts.effective_timing?.availability === "available" ? facts.effective_timing.kind : null,
     "market_open");
