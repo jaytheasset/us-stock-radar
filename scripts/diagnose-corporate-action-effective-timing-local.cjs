@@ -31,7 +31,11 @@ const { parseJsonWithoutDuplicateKeys } = jiti("../lib/minimalOfferingMonitor.ts
 const { genericMonitorChildRepository } = jiti("../lib/monitor/genericMonitorChildSupabaseRepository.ts");
 const { processGenericMonitorChild } = jiti("../lib/monitor/genericMonitorChildRuntime.ts");
 const { readCurrentCorporateActionFacts } = jiti("../lib/monitor/corporateActionPersistence.ts");
-const { readReverseSplitExecutions } = jiti("../lib/monitor/reverseSplitExecution.ts");
+const { assertHistoricalReplayCanonicalContractState } = jiti("./historicalReplayCanonicalContractGate.ts");
+const {
+  readReverseSplitExecutions,
+  stockSplitExecutionActivationDecision,
+} = jiti("../lib/monitor/reverseSplitExecution.ts");
 const { PostgresShareCountHistoryRepository } = jiti("../lib/sec-structured-data/shareCountHistory.ts");
 const { normalizeClassShareCountForStockSplitsAt } = jiti("../lib/sec-structured-data/stockSplitShareBasisNormalizer.ts");
 
@@ -124,13 +128,14 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
       timing_diagnostic: providerResult?.timing_diagnostic || null,
     })}`);
   }
-  const beforeReplay = await readPersistenceCounts(source);
+  const currentBeforeReplay = await readCurrentCorporateActionFacts(source.event_id);
+  const beforeReplay = await readFactState(currentBeforeReplay);
   const replay = await processGenericMonitorChild(identity, {
     loadCorporateActionApplicabilityContext: async () => applicabilityContext,
   });
-  const afterReplay = await readPersistenceCounts(source);
   const current = await readCurrentCorporateActionFacts(source.event_id);
   if (current.status !== "available") fail(`COSM current facts returned ${current.status}`);
+  const afterReplay = await readFactState(current);
   const facts = current.facts;
   const exactRatio = facts.ratio.exact_source_components;
   const issuer = facts.applicability?.issuer;
@@ -144,34 +149,52 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
     from: "2022-12-16",
     to: "2022-12-16",
     targetAt: new Date(Date.parse(issuer.accepted_at) + 1_000).toISOString(),
-    knownAt: new Date(Date.parse(afterReplay.persisted_at) + 1_000).toISOString(),
+    knownAt: afterReplay.known_at,
   });
   const active = executionRead.executions[0];
+  const beforeEffectiveDate = active
+    ? stockSplitExecutionActivationDecision({ execution: active, targetDate: "2022-12-15" })
+    : null;
+  const onEffectiveDate = active
+    ? stockSplitExecutionActivationDecision({ execution: active, targetDate: "2022-12-16" })
+    : null;
   const accepted = facts.event_kind === "reverse_split"
     && exactRatio?.availability === "available"
     && exactRatio.old_share_units === "25"
     && exactRatio.new_share_units === "1"
+    && current.analyzerContractVersion === "corporate_action_stock_split_day_basis_evidence_v4"
     && facts.effective_date.availability === "available"
     && facts.effective_date.value === "2022-12-16"
+    && facts.effective_date.calculation_basis === "split_effective"
     && facts.effective_timing?.availability === "available"
-    && facts.effective_timing.kind !== "exact_timestamp"
+    && facts.effective_timing.kind === "business_day_open"
     && facts.effective_timing.timestamp === null
-    && beforeReplay.fact_count === 1
-    && beforeReplay.result_count === 1
-    && afterReplay.fact_count === 1
-    && afterReplay.result_count === 1
+    && facts.calculation_activation?.state === "ON_EFFECTIVE_DATE"
+    && beforeReplay.current_contract_fact_count === 1
+    && beforeReplay.current_contract_result_count === 1
+    && beforeReplay.selected_fact_count === 1
+    && beforeReplay.selected_result_count === 1
+    && afterReplay.current_contract_fact_count === 1
+    && afterReplay.current_contract_result_count === 1
+    && afterReplay.selected_fact_count === 1
+    && afterReplay.selected_result_count === 1
+    && beforeReplay.current_analyzer_contract_version === afterReplay.current_analyzer_contract_version
+    && beforeReplay.selected_source_execution_id === afterReplay.selected_source_execution_id
     && replay.status === "duplicate"
     && replay.providerCalls === 0
     && executionRead.status === "available"
     && executionRead.executions.length === 1
     && executionRead.inactiveExecutions.length === 0
-    && executionRead.conflicts.length === 0;
+    && executionRead.conflicts.length === 0
+    && beforeEffectiveDate?.status === "NOT_APPLIED"
+    && onEffectiveDate?.status === "APPLIED";
   if (!accepted) {
     fail(`COSM canonical/execution/replay acceptance did not match the contract: ${JSON.stringify({
       event_kind: facts.event_kind,
       exact_ratio: exactRatio,
       effective_date: facts.effective_date,
       effective_timing: facts.effective_timing,
+      calculation_activation: facts.calculation_activation,
       before_replay: beforeReplay,
       after_replay: afterReplay,
       replay,
@@ -179,6 +202,8 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
       active_count: executionRead.executions.length,
       inactive_count: executionRead.inactiveExecutions.length,
       conflict_count: executionRead.conflicts.length,
+      before_effective_date: beforeEffectiveDate,
+      on_effective_date: onEffectiveDate,
     })}`);
   }
   const osObservationCount = await readCosmOsObservationCount(issuer.issuer_cik);
@@ -188,7 +213,7 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
         cik: issuer.issuer_cik,
         securityClassId: affected.canonical_security_class_id,
         targetAt: "2023-04-11T23:59:59Z",
-        executionKnownAt: new Date(Date.parse(afterReplay.persisted_at) + 1_000).toISOString(),
+        executionKnownAt: afterReplay.known_at,
       })
     : null;
   if (normalization && (normalization.status !== "NORMALIZED"
@@ -226,13 +251,24 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
     canonical: {
       event_kind: facts.event_kind,
       action_stage: facts.action_stage,
+      analyzer_contract_version: afterReplay.current_analyzer_contract_version,
+      selected_source_execution_id: afterReplay.selected_source_execution_id,
       ratio: exactRatio,
       effective_date: facts.effective_date,
       effective_timing: facts.effective_timing,
+      calculation_activation: facts.calculation_activation,
       issuer_cik: issuer.issuer_cik,
       canonical_security_class_id: affected.canonical_security_class_id,
-      fact_count: afterReplay.fact_count,
-      result_count: afterReplay.result_count,
+      current_contract_fact_count: afterReplay.current_contract_fact_count,
+      current_contract_result_count: afterReplay.current_contract_result_count,
+      selected_fact_count: afterReplay.selected_fact_count,
+      selected_result_count: afterReplay.selected_result_count,
+      preserved_legacy_or_prior_fact_count: afterReplay.preserved_legacy_or_prior_fact_count,
+      preserved_legacy_or_prior_result_count: afterReplay.preserved_legacy_or_prior_result_count,
+      historical_fact_count:
+        afterReplay.current_contract_fact_count + afterReplay.preserved_legacy_or_prior_fact_count,
+      historical_result_count:
+        afterReplay.current_contract_result_count + afterReplay.preserved_legacy_or_prior_result_count,
     },
     reverse_execution: {
       active_count: executionRead.executions.length,
@@ -244,12 +280,16 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
       effective_timing: active.effectiveTiming,
       exact_ratio: active.exactRatio,
       observation_count: active.observations.length,
+      before_effective_date: beforeEffectiveDate,
+      on_effective_date: onEffectiveDate,
     },
     replay: {
       status: replay.status,
       provider_calls: replay.providerCalls,
-      canonical_duplicates_added: afterReplay.fact_count - beforeReplay.fact_count,
-      result_duplicates_added: afterReplay.result_count - beforeReplay.result_count,
+      canonical_duplicates_added:
+        afterReplay.current_contract_fact_count - beforeReplay.current_contract_fact_count,
+      result_duplicates_added:
+        afterReplay.current_contract_result_count - beforeReplay.current_contract_result_count,
       execution_duplicates_added: executionRead.executions.length - 1,
     },
     stock_split_normalizer: normalization
@@ -268,18 +308,66 @@ async function runPersistenceAcceptance({ source, identity, applicabilityContext
   }, null, 2)}\n`);
 }
 
-async function readPersistenceCounts(source) {
+async function readFactState(current) {
   const result = await client.query(
     `select
-       (select count(*)::integer from public.event_corporate_action_facts
-         where event_id = $1 and parent_primary_ai_run_id = $2) as fact_count,
-       (select count(*)::integer from public.event_corporate_action_results
-         where event_id = $1 and parent_primary_ai_run_id = $2) as result_count,
-       (select max(persisted_at)::text from public.event_corporate_action_facts
-         where event_id = $1 and parent_primary_ai_run_id = $2) as persisted_at`,
-    [source.event_id, source.parent_primary_ai_run_id],
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as current_contract_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as current_contract_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.source_execution_id = $4
+           and results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as selected_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and not (
+             facts.parent_primary_ai_run_id = $2
+             and facts.monitor_analyzer_key = 'corporate_action'
+             and facts.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and not (
+             results.parent_primary_ai_run_id = $2
+             and results.monitor_analyzer_key = 'corporate_action'
+             and results.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_result_count,
+       (select max(facts.persisted_at)::text
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_persisted_at`,
+    [
+      current.eventId,
+      current.parentPrimaryAiRunId,
+      current.analyzerContractVersion,
+      current.sourceExecutionId,
+    ],
   );
-  return result.rows[0];
+  return assertHistoricalReplayCanonicalContractState(current, result.rows[0]);
 }
 
 async function readCosmOsObservationCount(cik) {
