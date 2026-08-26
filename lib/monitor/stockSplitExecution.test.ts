@@ -278,6 +278,7 @@ function canonicalForward(options: FactsOptions) {
       ? {
           availability: "available",
           value: effectiveDate,
+          calculation_basis: "split_effective",
           source_ref: "sec_block_1",
           evidence: source,
         }

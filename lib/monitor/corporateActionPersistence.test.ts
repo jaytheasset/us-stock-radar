@@ -14,13 +14,18 @@ import {
 import {
   CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
   CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
+  CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION,
 } from "./corporateActionCanonicalFacts.ts";
 
 const facts = {
   version: "corporate_action_reverse_split_facts_v1",
   event_kind: "reverse_split",
   action_stage: "scheduled",
-  effective_date: { availability: "available", value: "2026-08-04" },
+  effective_date: {
+    availability: "available",
+    value: "2026-08-04",
+    calculation_basis: "split_effective",
+  },
   ratio: { old_shares_per_new_share: { availability: "available", value: 20 } },
   source_ref: "nasdaq_notice_body",
   evidence: { availability: "available", value: "reverse split effective August 4, 2026" },
@@ -130,7 +135,7 @@ test("official reader validates exact-contract available and not-applicable payl
   }).status, "available");
 });
 
-test("current reader prefers V3 and falls back to current-lineage V1 only when V3 has no successful result", async () => {
+test("current reader prefers V4 and falls back to current-lineage V3 only when V4 has no attempt", async () => {
   const identity = childIdentity();
   const calls: string[] = [];
   const current = await readCurrentCorporateActionFacts(identity.eventId, {
@@ -138,6 +143,38 @@ test("current reader prefers V3 and falls back to current-lineage V1 only when V
       const version = String(payload.p_analyzer_contract_version);
       calls.push(version);
       if (version === CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION) {
+        return {
+          ok: true,
+          status: 200,
+          data: { status: "not_ready", reason: "current_successful_result_missing" },
+        };
+      }
+      if (version === CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION) return {
+        ok: true,
+        status: 200,
+        data: currentReaderPayload(identity, CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION),
+      };
+      throw new Error("legacy reader must not run");
+    },
+  });
+  assert.equal(current.status, "available");
+  if (current.status === "available") {
+    assert.equal(current.analyzerContractVersion, CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION);
+  }
+  assert.deepEqual(calls, [
+    CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+    CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION,
+  ]);
+});
+
+test("current reader reaches legacy V1 only when both V4 and V3 are genuinely absent", async () => {
+  const identity = childIdentity();
+  const calls: string[] = [];
+  const current = await readCurrentCorporateActionFacts(identity.eventId, {
+    async rpc(_name, payload) {
+      const version = String(payload.p_analyzer_contract_version);
+      calls.push(version);
+      if (version !== CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION) {
         return {
           ok: true,
           status: 200,
@@ -157,11 +194,12 @@ test("current reader prefers V3 and falls back to current-lineage V1 only when V
   }
   assert.deepEqual(calls, [
     CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+    CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION,
     CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
   ]);
 });
 
-test("current reader never masks an incomplete or failed exact-current V3 attempt with legacy success", async () => {
+test("current reader never masks an incomplete or failed exact-current V4 attempt with prior success", async () => {
   const identity = childIdentity();
   const calls: string[] = [];
   const current = await readCurrentCorporateActionFacts(identity.eventId, {
@@ -181,7 +219,7 @@ test("current reader never masks an incomplete or failed exact-current V3 attemp
   assert.deepEqual(calls, [CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION]);
 });
 
-test("current V3 not-applicable is terminal and never revives a legacy applicable fact", async () => {
+test("current V4 not-applicable is terminal and never revives a prior applicable fact", async () => {
   const identity = childIdentity();
   let calls = 0;
   const current = await readCurrentCorporateActionFacts(identity.eventId, {
@@ -201,6 +239,25 @@ test("current V3 not-applicable is terminal and never revives a legacy applicabl
   });
   assert.equal(current.status, "not_applicable");
   assert.equal(calls, 1);
+});
+
+test("current V4 requires a calculation-date semantic role while persisted V3 remains readable", () => {
+  const identity = childIdentity();
+  const withoutRole = structuredClone(facts);
+  if (withoutRole.effective_date.availability === "available") {
+    delete (withoutRole.effective_date as { calculation_basis?: string }).calculation_basis;
+  }
+  assert.deepEqual(validateCurrentCorporateActionReadResult({
+    ...currentReaderPayload(identity, CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION),
+    facts: withoutRole,
+  }, CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION), {
+    status: "not_ready",
+    reason: "reader_calculation_effective_date_role_validation_failed",
+  });
+  assert.equal(validateCurrentCorporateActionReadResult({
+    ...currentReaderPayload(identity, CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION),
+    facts: withoutRole,
+  }, CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION).status, "available");
 });
 
 test("migration is server-only, exact-lineage, stale-safe, and contains no parser/calendar fallback", () => {
@@ -279,6 +336,18 @@ test("V3 migration preserves the SECURITY DEFINER boundary and distinguishes an 
   assert.match(migration, /current_successful_result_missing/);
   assert.match(migration, /Recheck V3 at the legacy-reader boundary/);
   assert.doesNotMatch(migration, /grant\s+(?:select|insert|update|delete)|security invoker|set search_path\s*=\s*public/i);
+});
+
+test("V4 migration admits semantic-role facts and blocks V4 attempts from V3 or V1 fallback", () => {
+  const migration = readFileSync(
+    new URL("../../supabase/migrations/20260826135027_stock_split_effective_date_semantic_role_binding_v1.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /corporate_action_stock_split_day_basis_evidence_v4/);
+  assert.match(migration, /calculation_effective_date_role_invalid/);
+  assert.match(migration, /split_effective[\s\S]*shares_reclassified[\s\S]*split_adjusted_trading/);
+  assert.match(migration, /p_analyzer_contract_version in \([\s\S]*evidence_v3/);
+  assert.doesNotMatch(migration, /create table|alter table|outstanding_shares|shares_outstanding|exchange calendar/i);
 });
 
 function currentReaderPayload(

@@ -760,6 +760,64 @@ select is(
   'V3 current reader retains the day-basis calculation activation'
 );
 
+select pg_temp.ca_add_child(
+  '72000000-0000-4000-8000-000000000013',
+  '72000000-0000-4000-8000-000000000007',
+  '72000000-0000-4000-8000-000000000113',
+  '2026-08-14 00:18:00+00',
+  'canonical-ca-source',
+  'corporate_action_stock_split_day_basis_evidence_v4'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_stock_split_day_basis_evidence_v3'
+  )->>'reason',
+  'current_contract_result_incomplete_or_failed',
+  'a current pending V4 child blocks fallback to the persisted V3 success'
+);
+select is(
+  public.persist_corporate_action_analyzer_result(
+    '72000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000013',
+    pg_catalog.jsonb_build_object('applicable', true, 'facts', pg_temp.ca_extended_facts())
+  )->>'reason',
+  'calculation_effective_date_role_invalid',
+  'V4 persistence rejects an available effective date without a semantic calculation role'
+);
+select is(
+  public.persist_corporate_action_analyzer_result(
+    '72000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000013',
+    pg_catalog.jsonb_build_object(
+      'applicable', true,
+      'facts', pg_temp.ca_extended_facts()
+        || pg_catalog.jsonb_build_object(
+          'effective_date', pg_catalog.jsonb_build_object(
+            'availability', 'available',
+            'value', '2026-08-04',
+            'calculation_basis', 'split_effective'
+          )
+        )
+    )
+  )->>'status',
+  'saved',
+  'V4 persistence accepts a source-bound split-effective calculation role'
+);
+select pg_temp.ca_terminalize(
+  '72000000-0000-4000-8000-000000000013',
+  '72000000-0000-4000-8000-000000000213',
+  'succeeded_applicable', '2026-08-14 00:19:00+00'
+);
+select is(
+  public.read_current_event_corporate_action_facts(
+    '72000000-0000-4000-8000-000000000002',
+    'corporate_action_stock_split_day_basis_evidence_v4'
+  )#>>'{facts,effective_date,calculation_basis}',
+  'split_effective',
+  'V4 current reader retains the LLM-bound calculation-date semantic role'
+);
+
 select ok(
   not pg_catalog.has_function_privilege('anon', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')
   and not pg_catalog.has_function_privilege('authenticated', 'public.read_corporate_action_applicability_context(uuid,uuid)', 'execute')

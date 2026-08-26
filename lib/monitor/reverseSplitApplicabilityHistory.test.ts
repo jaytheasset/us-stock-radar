@@ -60,6 +60,7 @@ function transport(overrides: Partial<Extract<CorporateActionAnalyzerTransportRe
     effective_date: {
       availability: "available",
       value: "2026-08-10",
+      calculation_basis: "split_effective",
       source_ref: "sec_block_1",
       evidence: "August 10, 2026",
     },
@@ -369,6 +370,7 @@ function canonicalFacts(effectiveDate: string, oldShares: string, newShares: str
     effective_date: {
       availability: "available",
       value: effectiveDate,
+      calculation_basis: "split_effective",
       source_ref: "sec_block_1",
       evidence: source,
     },

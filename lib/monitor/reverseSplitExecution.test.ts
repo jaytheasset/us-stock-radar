@@ -383,6 +383,7 @@ function factsFor(options: FactsOptions): CorporateActionCanonicalFacts {
       ? {
           availability: "available",
           value: effectiveDate,
+          calculation_basis: "split_effective",
           source_ref: "sec_block_1",
           evidence: source,
         }

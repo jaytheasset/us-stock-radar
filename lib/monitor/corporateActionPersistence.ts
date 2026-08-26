@@ -1,10 +1,12 @@
 import {
   CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
   CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
+  CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION,
   readCorporateActionAnalyzerResult,
   type CorporateActionAnalyzerResult,
   type CorporateActionCanonicalFacts,
   validateCorporateActionAnalyzerResult,
+  validateStockSplitCalculationEffectiveDateRole,
 } from "./corporateActionCanonicalFacts.ts";
 import type {
   GenericMonitorChildIdentity,
@@ -93,19 +95,21 @@ export async function readCurrentCorporateActionFacts(
   dependencies: CorporateActionPersistenceDependencies = defaultDependencies,
 ): Promise<CurrentCorporateActionReadResult> {
   if (!UUID_PATTERN.test(eventId)) return { status: "not_ready", reason: "invalid_event_id" };
-  const current = await readCurrentCorporateActionFactsForContract(
-    eventId,
+  for (const analyzerContractVersion of [
     CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
-    dependencies,
-  );
-  if (current.status !== "not_ready" || current.reason !== "current_successful_result_missing") {
-    return current;
-  }
-  return readCurrentCorporateActionFactsForContract(
-    eventId,
+    CORPORATE_ACTION_PREVIOUS_ANALYZER_CONTRACT_VERSION,
     CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
-    dependencies,
-  );
+  ]) {
+    const current = await readCurrentCorporateActionFactsForContract(
+      eventId,
+      analyzerContractVersion,
+      dependencies,
+    );
+    if (current.status !== "not_ready" || current.reason !== "current_successful_result_missing") {
+      return current;
+    }
+  }
+  return { status: "not_ready", reason: "current_successful_result_missing" };
 }
 
 async function readCurrentCorporateActionFactsForContract(
@@ -139,6 +143,10 @@ export function validateCurrentCorporateActionReadResult(
   const canonical = readCorporateActionAnalyzerResult({ applicable: true, facts: row.facts });
   if (!canonical?.applicable || row.fact_schema_version !== canonical.facts.version) {
     return { status: "not_ready", reason: "reader_facts_validation_failed" };
+  }
+  if (expectedAnalyzerContractVersion === CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION
+    && validateStockSplitCalculationEffectiveDateRole(canonical.facts.effective_date).length) {
+    return { status: "not_ready", reason: "reader_calculation_effective_date_role_validation_failed" };
   }
   return {
     status: "available",
