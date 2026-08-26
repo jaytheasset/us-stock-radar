@@ -30,20 +30,17 @@ test("A/B. forward canonical extraction preserves 4-for-1 and 3-for-2 old/new or
   const fourForOne = factsFor({ sequence: 1, ratio: [1, 4] });
   assert.equal(fourForOne.event_kind, "forward_split");
   assert.equal(fourForOne.version, "corporate_action_forward_split_facts_v1");
-  assert.deepEqual(fourForOne.ratio.exact_source_components, {
-    availability: "available",
-    old_share_units: "1",
-    new_share_units: "4",
-  });
+  const fourForOneExact = fourForOne.ratio.exact_source_components;
+  assert.equal(fourForOneExact?.availability, "available");
+  assert.equal(fourForOneExact?.availability === "available" ? fourForOneExact.old_share_units : null, "1");
+  assert.equal(fourForOneExact?.availability === "available" ? fourForOneExact.new_share_units : null, "4");
   assert.deepEqual(fourForOne.ratio.old_shares_per_new_share, {
     availability: "available",
     value: 0.25,
   });
-  assert.deepEqual(factsFor({ sequence: 2, ratio: [2, 3] }).ratio.exact_source_components, {
-    availability: "available",
-    old_share_units: "2",
-    new_share_units: "3",
-  });
+  const threeForTwo = factsFor({ sequence: 2, ratio: [2, 3] }).ratio.exact_source_components;
+  assert.equal(threeForTwo?.availability === "available" ? threeForTwo.old_share_units : null, "2");
+  assert.equal(threeForTwo?.availability === "available" ? threeForTwo.new_share_units : null, "3");
 
   const invalid = canonicalForward({
     sequence: 3,
@@ -278,10 +275,21 @@ function canonicalForward(options: FactsOptions) {
     event_kind: "forward_split",
     action_stage: options.stage ?? "scheduled",
     effective_date: effectiveDate
-      ? { availability: "available", value: effectiveDate }
+      ? {
+          availability: "available",
+          value: effectiveDate,
+          source_ref: "sec_block_1",
+          evidence: source,
+        }
       : { availability: "unavailable" },
     ratio: ratio
-      ? { availability: "available", old_shares: String(ratio[0]), new_shares: String(ratio[1]) }
+      ? {
+          availability: "available",
+          old_shares: String(ratio[0]),
+          new_shares: String(ratio[1]),
+          source_ref: "sec_block_1",
+          evidence: source,
+        }
       : { availability: "unavailable" },
     affected_security: {
       availability: "available",

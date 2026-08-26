@@ -8,8 +8,13 @@ import {
 import {
   corporateActionTerminalStateAfterPersistence,
   persistCorporateActionAnalyzerResult,
+  readCurrentCorporateActionFacts,
   validateCurrentCorporateActionReadResult,
 } from "./corporateActionPersistence.ts";
+import {
+  CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+  CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
+} from "./corporateActionCanonicalFacts.ts";
 
 const facts = {
   version: "corporate_action_reverse_split_facts_v1",
@@ -77,7 +82,7 @@ test("invalid identity/result never reaches persistence and terminal state is fa
   }), null);
 });
 
-test("official reader validates available and not-applicable without fallback", () => {
+test("official reader validates exact-contract available and not-applicable payloads", () => {
   const identity = childIdentity();
   const lineage = {
     event_id: identity.eventId,
@@ -123,6 +128,79 @@ test("official reader validates available and not-applicable without fallback", 
     fact_schema_version: forwardFacts.version,
     facts: forwardFacts,
   }).status, "available");
+});
+
+test("current reader prefers V3 and falls back to current-lineage V1 only when V3 has no successful result", async () => {
+  const identity = childIdentity();
+  const calls: string[] = [];
+  const current = await readCurrentCorporateActionFacts(identity.eventId, {
+    async rpc(_name, payload) {
+      const version = String(payload.p_analyzer_contract_version);
+      calls.push(version);
+      if (version === CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION) {
+        return {
+          ok: true,
+          status: 200,
+          data: { status: "not_ready", reason: "current_successful_result_missing" },
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: currentReaderPayload(identity, CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION),
+      };
+    },
+  });
+  assert.equal(current.status, "available");
+  if (current.status === "available") {
+    assert.equal(current.analyzerContractVersion, CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION);
+  }
+  assert.deepEqual(calls, [
+    CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
+    CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION,
+  ]);
+});
+
+test("current reader never masks an incomplete or failed exact-current V3 attempt with legacy success", async () => {
+  const identity = childIdentity();
+  const calls: string[] = [];
+  const current = await readCurrentCorporateActionFacts(identity.eventId, {
+    async rpc(_name, payload) {
+      calls.push(String(payload.p_analyzer_contract_version));
+      return {
+        ok: true,
+        status: 200,
+        data: { status: "not_ready", reason: "current_contract_result_incomplete_or_failed" },
+      };
+    },
+  });
+  assert.deepEqual(current, {
+    status: "not_ready",
+    reason: "current_contract_result_incomplete_or_failed",
+  });
+  assert.deepEqual(calls, [CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION]);
+});
+
+test("current V3 not-applicable is terminal and never revives a legacy applicable fact", async () => {
+  const identity = childIdentity();
+  let calls = 0;
+  const current = await readCurrentCorporateActionFacts(identity.eventId, {
+    async rpc() {
+      calls += 1;
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ...currentReaderPayload(identity, CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION),
+          status: "not_applicable",
+          facts: undefined,
+          fact_schema_version: undefined,
+        },
+      };
+    },
+  });
+  assert.equal(current.status, "not_applicable");
+  assert.equal(calls, 1);
 });
 
 test("migration is server-only, exact-lineage, stale-safe, and contains no parser/calendar fallback", () => {
@@ -187,6 +265,39 @@ test("forward split migration extends the existing lineage and reader without O/
   assert.doesNotMatch(migration, /create table[\s\S]*(?:forward|stock)_split_execution/i);
   assert.doesNotMatch(migration, /outstanding_shares|shares_outstanding|normalizeClassShareCountAt|anchor reconciliation|dilution/i);
 });
+
+test("V3 migration preserves the SECURITY DEFINER boundary and distinguishes an exact-current failed attempt", () => {
+  const migration = readFileSync(
+    new URL("../../supabase/migrations/20260823023000_stock_split_day_basis_evidence_contract_v3.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /pg_get_functiondef[\s\S]*persist_corporate_action_analyzer_result/);
+  assert.match(migration, /pg_get_functiondef[\s\S]*read_current_event_corporate_action_facts/);
+  assert.match(migration, /corporate_action_reverse_split_analyzer_v1/);
+  assert.match(migration, /corporate_action_stock_split_day_basis_evidence_v3/);
+  assert.match(migration, /current_contract_result_incomplete_or_failed/);
+  assert.match(migration, /current_successful_result_missing/);
+  assert.match(migration, /Recheck V3 at the legacy-reader boundary/);
+  assert.doesNotMatch(migration, /grant\s+(?:select|insert|update|delete)|security invoker|set search_path\s*=\s*public/i);
+});
+
+function currentReaderPayload(
+  identity: GenericMonitorChildIdentity,
+  analyzerContractVersion: string,
+) {
+  return {
+    status: "available",
+    event_id: identity.eventId,
+    raw_item_id: identity.rawItemId,
+    parent_primary_ai_run_id: identity.parentPrimaryAiRunId,
+    source_execution_id: identity.executionId,
+    monitor_analyzer_key: "corporate_action",
+    analyzer_contract_version: analyzerContractVersion,
+    persisted_at: "2026-08-14T00:00:00Z",
+    fact_schema_version: facts.version,
+    facts,
+  };
+}
 
 function childIdentity(): GenericMonitorChildIdentity {
   return buildGenericMonitorChildIdentities({

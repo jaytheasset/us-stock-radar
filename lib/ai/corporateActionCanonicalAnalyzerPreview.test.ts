@@ -27,8 +27,14 @@ test("analyzer makes one bounded provider call with a small plain response schem
         applicable: true,
         event_kind: "reverse_split",
         action_stage: "scheduled",
-        effective_date: { availability: "available", value: "2026-08-08" },
-        ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+        effective_date: {
+          availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+          evidence: "will become effective on August 8, 2026",
+        },
+        ratio: {
+          availability: "available", old_shares: "10", new_shares: "1",
+          source_ref: "nasdaq_notice_body", evidence: "one-for-ten reverse split",
+        },
         affected_security: {
           availability: "unavailable",
           reason: "issuer_identity_unavailable",
@@ -65,9 +71,10 @@ test("analyzer makes one bounded provider call with a small plain response schem
   assert.equal(result.stage === "complete" ? result.result.applicable : false, true);
   if (result.stage === "complete" && result.result.applicable) {
     assert.equal(result.result.facts.applicability?.affected_security.availability, "unavailable");
-    assert.deepEqual(result.result.facts.ratio.exact_source_components, {
-      availability: "available", old_share_units: "10", new_share_units: "1",
-    });
+    const exact = result.result.facts.ratio.exact_source_components;
+    assert.equal(exact?.availability, "available");
+    assert.equal(exact?.availability === "available" ? exact.old_share_units : null, "10");
+    assert.equal(exact?.availability === "available" ? exact.new_share_units : null, "1");
   }
 });
 
@@ -88,8 +95,14 @@ test("forward split uses the same single provider call with no verifier or repai
         applicable: true,
         event_kind: "forward_split",
         action_stage: "scheduled",
-        effective_date: { availability: "available", value: "2026-08-08" },
-        ratio: { availability: "available", old_shares: "1", new_shares: "4" },
+        effective_date: {
+          availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+          evidence: "will become effective on August 8, 2026",
+        },
+        ratio: {
+          availability: "available", old_shares: "1", new_shares: "4",
+          source_ref: "nasdaq_notice_body", evidence: "4-for-1 forward stock split",
+        },
         affected_security: {
           availability: "unavailable",
           reason: "issuer_identity_unavailable",
@@ -115,9 +128,10 @@ test("forward split uses the same single provider call with no verifier or repai
   assert.equal(result.stage === "complete" ? result.repair : undefined, null);
   if (result.stage === "complete" && result.result.applicable) {
     assert.equal(result.result.facts.event_kind, "forward_split");
-    assert.deepEqual(result.result.facts.ratio.exact_source_components, {
-      availability: "available", old_share_units: "1", new_share_units: "4",
-    });
+    const exact = result.result.facts.ratio.exact_source_components;
+    assert.equal(exact?.availability, "available");
+    assert.equal(exact?.availability === "available" ? exact.old_share_units : null, "1");
+    assert.equal(exact?.availability === "available" ? exact.new_share_units : null, "4");
   }
 });
 
@@ -253,8 +267,14 @@ function applicablePayload(effectiveTiming: Record<string, unknown>) {
     applicable: true,
     event_kind: "reverse_split",
     action_stage: "scheduled",
-    effective_date: { availability: "available", value: "2026-08-08" },
-    ratio: { availability: "available", old_shares: "10", new_shares: "1" },
+    effective_date: {
+      availability: "available", value: "2026-08-08", source_ref: "nasdaq_notice_body",
+      evidence: "will become effective on August 8, 2026",
+    },
+    ratio: {
+      availability: "available", old_shares: "10", new_shares: "1",
+      source_ref: "nasdaq_notice_body", evidence: "one-for-ten reverse split",
+    },
     affected_security: {
       availability: "unavailable",
       reason: "issuer_identity_unavailable",

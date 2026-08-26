@@ -116,7 +116,7 @@ test("L. identical inputs replay to the exact same deterministic result", async 
   );
 });
 
-test("unresolved same-day timing fails closed while a later day remains deterministic", async () => {
+test("fine-grained timing ambiguity uses the established effective date for day-basis calculation", async () => {
   const split = execution({
     effectiveDate: "2026-08-25",
     oldShares: "10",
@@ -124,8 +124,7 @@ test("unresolved same-day timing fails closed while a later day remains determin
     timing: { availability: "unavailable", reason: "ambiguous" },
   });
   const sameDay = await normalize("2026-08-25T12:00:00Z", [split]);
-  assert.equal(sameDay.status, "NORMALIZATION_UNAVAILABLE");
-  assert.equal(sameDay.reason, "EXECUTION_TIMING_INDETERMINATE");
+  assertNormalized(sameDay, "10000000", "1", [split.executionId]);
   assertNormalized(await normalize("2026-08-26T12:00:00Z", [split]), "10000000", "1", [split.executionId]);
 });
 

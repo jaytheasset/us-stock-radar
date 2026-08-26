@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { parseJsonWithoutDuplicateKeys } from "./listingRiskAnalyzer.ts";
 
 export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyzer_input_v1";
-export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
+export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_stock_split_day_basis_evidence_v3";
+export const CORPORATE_ACTION_LEGACY_ANALYZER_CONTRACT_VERSION = "corporate_action_reverse_split_analyzer_v1";
 export const CORPORATE_ACTION_FACTS_VERSION = "corporate_action_reverse_split_facts_v1";
 export const FORWARD_SPLIT_FACTS_VERSION = "corporate_action_forward_split_facts_v1";
 export const REVERSE_SPLIT_APPLICABILITY_VERSION = "reverse_split_applicability_v1";
@@ -9,6 +11,8 @@ export const FORWARD_SPLIT_APPLICABILITY_VERSION = "forward_split_applicability_
 export const REVERSE_SPLIT_EXECUTION_UPDATE_VERSION = "reverse_split_execution_update_v1";
 export const FORWARD_SPLIT_EXECUTION_UPDATE_VERSION = "forward_split_execution_update_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 800;
+export const CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION = "corporate_action_evidence_identity_v1";
+export const STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION = "stock_split_day_basis_activation_v1";
 
 export type CorporateActionCanonicalVocabularyEntry<TValue extends string = string> = Readonly<{
   value: TValue;
@@ -90,6 +94,38 @@ export type CorporateActionSourceDocument = {
   text: string;
 };
 
+export type CorporateActionEvidenceIdentity = {
+  version: typeof CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION;
+  source_ref: string;
+  range_start: number;
+  range_end: number;
+  source_content_hash: string;
+  exact_source: true;
+};
+
+export type CorporateActionCanonicalEvidence =
+  | {
+      availability: "available";
+      value: string;
+      preview_truncated?: boolean;
+    }
+  | {
+      availability: "unavailable";
+      reason: "not_provided" | "too_long" | "not_exact_span";
+    };
+
+export type StockSplitCalculationActivationState =
+  | "ON_EFFECTIVE_DATE"
+  | "AFTER_MARKET_CLOSE"
+  | "INDETERMINATE";
+
+export type StockSplitCalculationActivation = {
+  version: typeof STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION;
+  state: StockSplitCalculationActivationState;
+  source_meaning: CorporateActionEffectiveTimingKind | "effective_date_unavailable";
+  evidence_identity: CorporateActionEvidenceIdentity | null;
+};
+
 export type CorporateActionIssuerContext =
   | {
       availability: "available";
@@ -161,7 +197,13 @@ export type CorporateActionAnalyzerInput = {
 };
 
 type Unavailable = { availability: "unavailable" };
-type AvailableDate = { availability: "available"; value: string };
+type AvailableDate = {
+  availability: "available";
+  value: string;
+  source_ref?: string;
+  evidence?: string | CorporateActionCanonicalEvidence;
+  evidence_identity?: CorporateActionEvidenceIdentity;
+};
 
 export const CORPORATE_ACTION_AFFECTED_SECURITY_UNAVAILABLE_REASONS = [
   "issuer_identity_unavailable",
@@ -252,6 +294,8 @@ export type CorporateActionAnalyzerTransportResult =
             availability: "available";
             old_shares: string;
             new_shares: string;
+            source_ref: string;
+            evidence: string;
           };
       affected_security?: CorporateActionAffectedSecurityTransport;
       effective_timing?: CorporateActionEffectiveTimingTransport;
@@ -282,6 +326,8 @@ export type CorporateActionCanonicalFacts = {
           availability: "available";
           old_share_units: string;
           new_share_units: string;
+          evidence?: CorporateActionCanonicalEvidence;
+          evidence_identity?: CorporateActionEvidenceIdentity;
         };
   };
   applicability?: {
@@ -295,6 +341,7 @@ export type CorporateActionCanonicalFacts = {
           source_security_title: string;
           source_ref: string;
           evidence: CorporateActionCanonicalFacts["evidence"];
+          evidence_identity?: CorporateActionEvidenceIdentity;
           provenance: {
             rule: "llm_source_meaning_exact_candidate";
             security_class_basis: "SINGLE_COMMON_STOCK_CLASS" | "CLASS_SPECIFIC_COMMON_STOCK";
@@ -318,6 +365,7 @@ export type CorporateActionCanonicalFacts = {
         timestamp_diagnostic?: CorporateActionEffectiveTimingTimestampDiagnostic;
         source_ref: string;
         evidence: CorporateActionCanonicalFacts["evidence"];
+        evidence_identity?: CorporateActionEvidenceIdentity;
       }
     | {
         availability: "unavailable";
@@ -332,17 +380,15 @@ export type CorporateActionCanonicalFacts = {
     candidate_execution_ids: string[];
     source_ref: string;
     evidence: Extract<CorporateActionCanonicalFacts["evidence"], { availability: "available" }>;
+    evidence_identity?: CorporateActionEvidenceIdentity;
     provenance: {
       rule: "llm_explicit_execution_update_exact_candidate";
     };
   };
   source_ref: string;
-  evidence:
-    | { availability: "available"; value: string }
-    | {
-        availability: "unavailable";
-        reason: "not_provided" | "too_long" | "not_exact_span";
-      };
+  evidence: CorporateActionCanonicalEvidence;
+  evidence_identity?: CorporateActionEvidenceIdentity;
+  calculation_activation?: StockSplitCalculationActivation;
   confidence: CorporateActionConfidence;
   as_of: Unavailable | AvailableDate;
   source: {
@@ -552,6 +598,11 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
   if (!oneOf(root.event_kind, CORPORATE_ACTION_EVENT_KINDS)) errors.push("result.event_kind must be a supported stock split");
   if (!oneOf(root.action_stage, CORPORATE_ACTION_STAGES)) errors.push("result.action_stage is invalid");
   validateDateEnvelope(root.effective_date, "result.effective_date", errors);
+  const effectiveDate = record(root.effective_date);
+  if (effectiveDate?.availability === "available") {
+    if (!stableSourceRef(effectiveDate.source_ref)) errors.push("result.effective_date.source_ref is invalid");
+    if (!boundedText(effectiveDate.evidence, 120_000)) errors.push("result.effective_date.evidence is invalid");
+  }
   validateRatioEnvelope(root.ratio, errors);
   if (root.affected_security !== undefined) {
     validateAffectedSecurityTransport(root.affected_security, "result.affected_security", errors);
@@ -561,7 +612,7 @@ export function validateCorporateActionAnalyzerTransportResult(value: unknown): 
   }
   validateExecutionUpdateTransport(root.execution_update, errors);
   if (!stableSourceRef(root.source_ref)) errors.push("result.source_ref is invalid");
-  if (!(root.evidence === null || boundedText(root.evidence, 4_000))) errors.push("result.evidence is invalid");
+  if (!(root.evidence === null || boundedText(root.evidence, 120_000))) errors.push("result.evidence is invalid");
   if (!oneOf(root.confidence, CORPORATE_ACTION_CONFIDENCES)) errors.push("result.confidence is invalid");
   validateDateEnvelope(root.as_of, "result.as_of", errors);
   return errors;
@@ -585,6 +636,8 @@ export function canonicalizeCorporateActionAnalyzerResult(
   if (!document) {
     return { result: null, errors: ["result.source_ref must identify a supplied source document"] };
   }
+  const effectiveDate = canonicalEffectiveDate(transport.effective_date, input.source_documents);
+  if (effectiveDate.errors.length) return { result: null, errors: effectiveDate.errors };
   const ratio = transport.ratio.availability === "unavailable"
     ? { availability: "unavailable" as const }
     : mechanicalOldSharesPerNewShare(transport.ratio.old_shares, transport.ratio.new_shares);
@@ -592,6 +645,16 @@ export function canonicalizeCorporateActionAnalyzerResult(
   if (transport.event_kind === "forward_split" && transport.ratio.availability === "available"
     && !(Number(transport.ratio.new_shares) > Number(transport.ratio.old_shares))) {
     return { result: null, errors: ["result.ratio must preserve forward-split old/new orientation"] };
+  }
+  const exactRatioEvidence = transport.ratio.availability === "available"
+      ? materializeCorporateActionEvidence(
+        transport.ratio.evidence,
+        transport.ratio.source_ref,
+        input.source_documents,
+      )
+    : null;
+  if (exactRatioEvidence && !exactRatioEvidence.identity) {
+    return { result: null, errors: ["result.ratio requires exact source evidence identity"] };
   }
 
   const issuer = input.issuer_context ?? unavailableIssuerContext(input.source_family);
@@ -605,7 +668,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
   if (affectedSecurity.errors.length) return { result: null, errors: affectedSecurity.errors };
   const effectiveTiming = canonicalEffectiveTiming(
     transport.effective_timing,
-    transport.effective_date,
+    effectiveDate.value!,
     input.source_documents,
     transportDiagnostics.effectiveTimingDiagnostic,
   );
@@ -620,21 +683,15 @@ export function canonicalizeCorporateActionAnalyzerResult(
   );
   if (executionUpdate.errors.length) return { result: null, errors: executionUpdate.errors };
 
-  const evidence = canonicalEvidence(
+  const rootEvidence = materializeCorporateActionEvidence(
     transport.evidence,
-    document.text,
-    CORPORATE_ACTION_EVIDENCE_MAX_LENGTH,
+    transport.source_ref,
+    input.source_documents,
   );
-  const calculationEvidenceComplete = transport.effective_date.availability === "available"
-    && transport.ratio.availability === "available"
-    && issuer.availability === "available"
-    && affectedSecurity.value?.availability === "available";
-  if (calculationEvidenceComplete && evidence.availability !== "available") {
-    return {
-      result: null,
-      errors: ["calculation-eligible source-backed stock split evidence must materialize as compact canonical evidence"],
-    };
-  }
+  const calculationActivation = canonicalCalculationActivation(
+    effectiveDate.value!,
+    effectiveTiming.value!,
+  );
   return {
     result: {
       applicable: true,
@@ -642,7 +699,7 @@ export function canonicalizeCorporateActionAnalyzerResult(
         version: factsVersion(transport.event_kind),
         event_kind: transport.event_kind,
         action_stage: transport.action_stage,
-        effective_date: transport.effective_date,
+        effective_date: effectiveDate.value!,
         ratio: {
           old_shares_per_new_share: ratio,
           exact_source_components: transport.ratio.availability === "available"
@@ -650,6 +707,8 @@ export function canonicalizeCorporateActionAnalyzerResult(
                 availability: "available",
                 old_share_units: transport.ratio.old_shares,
                 new_share_units: transport.ratio.new_shares,
+                evidence: exactRatioEvidence!.evidence,
+                evidence_identity: exactRatioEvidence!.identity!,
               }
             : { availability: "unavailable" },
         },
@@ -661,9 +720,11 @@ export function canonicalizeCorporateActionAnalyzerResult(
             ? "reverse_split_only" : "forward_split_only",
         },
         effective_timing: effectiveTiming.value!,
+        calculation_activation: calculationActivation,
         execution_update: executionUpdate.value!,
         source_ref: transport.source_ref,
-        evidence,
+        evidence: rootEvidence.evidence,
+        ...(rootEvidence.identity ? { evidence_identity: rootEvidence.identity } : {}),
         confidence: transport.confidence,
         as_of: transport.as_of,
         source: {
@@ -700,7 +761,13 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
     "confidence",
     "as_of",
     "source",
-  ], ["applicability", "effective_timing", "execution_update"], "canonical result.facts", errors);
+  ], [
+    "applicability",
+    "effective_timing",
+    "execution_update",
+    "evidence_identity",
+    "calculation_activation",
+  ], "canonical result.facts", errors);
   if (!oneOf(facts.event_kind, CORPORATE_ACTION_EVENT_KINDS)) {
     errors.push("canonical facts.event_kind must be a supported stock split");
   } else if (facts.version !== factsVersion(facts.event_kind as CorporateActionEventKind)) {
@@ -757,6 +824,13 @@ export function validateCorporateActionAnalyzerResult(value: unknown): string[] 
   }
   if (!stableSourceRef(facts.source_ref)) errors.push("canonical facts.source_ref is invalid");
   validateCanonicalEvidence(facts.evidence, errors);
+  if (facts.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(facts.evidence_identity)
+      .map((error) => `canonical facts ${error}`));
+  }
+  if (facts.calculation_activation !== undefined) {
+    validateStockSplitCalculationActivation(facts, errors);
+  }
   if (!oneOf(facts.confidence, CORPORATE_ACTION_CONFIDENCES)) errors.push("canonical facts.confidence is invalid");
   validateDateEnvelope(facts.as_of, "canonical facts.as_of", errors);
   const source = record(facts.source);
@@ -790,9 +864,9 @@ function canonicalExecutionUpdate(
   if (!document) {
     return { value: null, errors: ["result.execution_update.source_ref must identify a supplied source document"] };
   }
-  const evidence = canonicalEvidence(transport.evidence, document.text);
-  if (evidence.availability !== "available") {
-    return { value: null, errors: ["result.execution_update requires compact exact source evidence"] };
+  const evidence = materializeCorporateActionEvidence(transport.evidence, transport.source_ref, documents);
+  if (!evidence.identity || evidence.evidence.availability !== "available") {
+    return { value: null, errors: ["result.execution_update requires exact source evidence identity"] };
   }
   const targetsExisting = transport.decision === "KEEP_OR_CONFIRM"
     || transport.decision === "SUPERSEDE_EXISTING_EXECUTION"
@@ -817,7 +891,8 @@ function canonicalExecutionUpdate(
         ? candidates.map((candidate) => candidate.execution_id).sort()
         : target ? [target.execution_id] : [],
       source_ref: transport.source_ref,
-      evidence,
+      evidence: evidence.evidence,
+      evidence_identity: evidence.identity,
       provenance: { rule: "llm_explicit_execution_update_exact_candidate" },
     },
     errors: [],
@@ -898,7 +973,7 @@ function validateExecutionUpdateTransport(value: unknown, errors: string[]) {
     errors.push("result.execution_update.target_execution_id must be null");
   }
   if (!stableSourceRef(update.source_ref)) errors.push("result.execution_update.source_ref is invalid");
-  if (!boundedText(update.evidence, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH)) {
+  if (!boundedText(update.evidence, 120_000)) {
     errors.push("result.execution_update.evidence is invalid");
   }
 }
@@ -914,7 +989,7 @@ function validateCanonicalExecutionUpdate(
     errors.push("canonical execution update must be an object");
     return;
   }
-  exactKeys(update, [
+  exactKeysAllowingOptional(update, [
     "version",
     "decision",
     "target_execution_id",
@@ -924,7 +999,7 @@ function validateCanonicalExecutionUpdate(
     "source_ref",
     "evidence",
     "provenance",
-  ], "canonical execution update", errors);
+  ], ["evidence_identity"], "canonical execution update", errors);
   const eventKind = oneOf(eventKindValue, CORPORATE_ACTION_EVENT_KINDS)
     ? eventKindValue as CorporateActionEventKind : null;
   if (!eventKind || update.version !== executionUpdateVersion(eventKind)
@@ -969,6 +1044,10 @@ function validateCanonicalExecutionUpdate(
   validateCanonicalEvidence(update.evidence, errors);
   if (record(update.evidence)?.availability !== "available") {
     errors.push("canonical execution update requires available evidence");
+  }
+  if (update.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(update.evidence_identity)
+      .map((error) => `canonical execution update ${error}`));
   }
   const provenance = record(update.provenance);
   if (!provenance) {
@@ -1042,7 +1121,11 @@ function canonicalAffectedSecurity(
         availability: "unavailable",
         reason: transport.reason,
         source_ref: transport.source_ref,
-        evidence: canonicalEvidence(transport.evidence, document.text),
+        evidence: materializeCorporateActionEvidence(
+          transport.evidence,
+          transport.source_ref,
+          documents,
+        ).evidence,
       },
       errors: [],
     };
@@ -1062,9 +1145,9 @@ function canonicalAffectedSecurity(
   if (!document.text.includes(transport.source_security_title)) {
     return { value: null, errors: ["result.affected_security.source_security_title must be an exact source span"] };
   }
-  const evidence = canonicalEvidence(transport.evidence, document.text);
-  if (evidence.availability !== "available") {
-    return { value: null, errors: ["result.affected_security requires compact exact source evidence"] };
+  const evidence = materializeCorporateActionEvidence(transport.evidence, transport.source_ref, documents);
+  if (!evidence.identity || evidence.evidence.availability !== "available") {
+    return { value: null, errors: ["result.affected_security requires exact source evidence identity"] };
   }
   return {
     value: {
@@ -1073,7 +1156,8 @@ function canonicalAffectedSecurity(
       canonical_security_class_id: candidate.canonical_security_class_id,
       source_security_title: transport.source_security_title,
       source_ref: transport.source_ref,
-      evidence,
+      evidence: evidence.evidence,
+      evidence_identity: evidence.identity,
       provenance: {
         rule: "llm_source_meaning_exact_candidate",
         security_class_basis: candidate.security_class_basis,
@@ -1111,9 +1195,9 @@ function canonicalEffectiveTiming(
   if (!document) {
     return { value: null, errors: ["result.effective_timing.source_ref must identify a supplied source document"] };
   }
-  const evidence = canonicalEvidence(transport.evidence, document.text);
-  if (evidence.availability !== "available") {
-    return { value: null, errors: ["result.effective_timing requires compact exact source evidence"] };
+  const evidence = materializeCorporateActionEvidence(transport.evidence, transport.source_ref, documents);
+  if (!evidence.identity || evidence.evidence.availability !== "available") {
+    return { value: null, errors: ["result.effective_timing requires exact source evidence identity"] };
   }
   if (transport.timestamp !== null) {
     return { value: null, errors: ["result.effective_timing timestamp must be null"] };
@@ -1134,9 +1218,64 @@ function canonicalEffectiveTiming(
       timestamp: transport.timestamp,
       ...(timestampDiagnostic ? { timestamp_diagnostic: timestampDiagnostic } : {}),
       source_ref: transport.source_ref,
-      evidence,
+      evidence: evidence.evidence,
+      evidence_identity: evidence.identity,
     },
     errors: [],
+  };
+}
+
+function canonicalEffectiveDate(
+  transport: Unavailable | AvailableDate,
+  documents: readonly CorporateActionSourceDocument[],
+): { value: Unavailable | AvailableDate | null; errors: string[] } {
+  if (transport.availability === "unavailable") {
+    return { value: { availability: "unavailable" }, errors: [] };
+  }
+  const sourceRef = typeof transport.source_ref === "string" ? transport.source_ref : "";
+  const rawEvidence = typeof transport.evidence === "string" ? transport.evidence : null;
+  const materialized = materializeCorporateActionEvidence(rawEvidence, sourceRef, documents);
+  if (!materialized.identity || materialized.evidence.availability !== "available") {
+    return { value: null, errors: ["result.effective_date requires exact source evidence identity"] };
+  }
+  return {
+    value: {
+      availability: "available",
+      value: transport.value,
+      source_ref: sourceRef,
+      evidence: materialized.evidence,
+      evidence_identity: materialized.identity,
+    },
+    errors: [],
+  };
+}
+
+function canonicalCalculationActivation(
+  effectiveDate: Unavailable | AvailableDate,
+  effectiveTiming: NonNullable<CorporateActionCanonicalFacts["effective_timing"]>,
+): StockSplitCalculationActivation {
+  if (effectiveDate.availability !== "available") {
+    return {
+      version: STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION,
+      state: "INDETERMINATE",
+      source_meaning: "effective_date_unavailable",
+      evidence_identity: null,
+    };
+  }
+  if (effectiveTiming.availability === "available") {
+    return {
+      version: STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION,
+      state: effectiveTiming.kind === "after_market_close"
+        ? "AFTER_MARKET_CLOSE" : "ON_EFFECTIVE_DATE",
+      source_meaning: effectiveTiming.kind,
+      evidence_identity: effectiveTiming.evidence_identity ?? effectiveDate.evidence_identity ?? null,
+    };
+  }
+  return {
+    version: STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION,
+    state: "ON_EFFECTIVE_DATE",
+    source_meaning: "date_only",
+    evidence_identity: effectiveDate.evidence_identity ?? null,
   };
 }
 
@@ -1156,17 +1295,82 @@ function strictPositiveNumber(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function canonicalEvidence(
+export function materializeCorporateActionEvidence(
   value: string | null,
-  sourceText: string,
-  maxLength = CORPORATE_ACTION_EVIDENCE_MAX_LENGTH,
-): CorporateActionCanonicalFacts["evidence"] {
-  if (typeof value !== "string" || !value.trim()) return { availability: "unavailable", reason: "not_provided" };
-  if (Array.from(value).length > maxLength) {
-    return { availability: "unavailable", reason: "too_long" };
+  sourceRef: string,
+  documents: readonly CorporateActionSourceDocument[],
+): {
+  evidence: CorporateActionCanonicalEvidence;
+  identity: CorporateActionEvidenceIdentity | null;
+} {
+  if (typeof value !== "string" || !value.trim()) {
+    return { evidence: { availability: "unavailable", reason: "not_provided" }, identity: null };
   }
-  if (!sourceText.includes(value)) return { availability: "unavailable", reason: "not_exact_span" };
-  return { availability: "available", value };
+  const document = documents.find((item) => item.source_ref === sourceRef);
+  const rangeStart = document?.text.indexOf(value) ?? -1;
+  if (!document || rangeStart < 0) {
+    return { evidence: { availability: "unavailable", reason: "not_exact_span" }, identity: null };
+  }
+  const previewCharacters = Array.from(value);
+  return {
+    evidence: {
+      availability: "available",
+      value: previewCharacters.slice(0, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH).join(""),
+      preview_truncated: previewCharacters.length > CORPORATE_ACTION_EVIDENCE_MAX_LENGTH,
+    },
+    identity: {
+      version: CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION,
+      source_ref: sourceRef,
+      range_start: rangeStart,
+      range_end: rangeStart + value.length,
+      source_content_hash: createHash("sha256").update(value).digest("hex"),
+      exact_source: true,
+    },
+  };
+}
+
+export function validateCorporateActionEvidenceIdentity(value: unknown): string[] {
+  const errors: string[] = [];
+  const identity = record(value);
+  if (!identity) return ["evidence identity must be an object"];
+  exactKeys(identity, [
+    "version",
+    "source_ref",
+    "range_start",
+    "range_end",
+    "source_content_hash",
+    "exact_source",
+  ], "evidence identity", errors);
+  if (identity.version !== CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION) {
+    errors.push("evidence identity version is invalid");
+  }
+  if (!stableSourceRef(identity.source_ref)) errors.push("evidence identity source_ref is invalid");
+  if (!Number.isInteger(identity.range_start) || Number(identity.range_start) < 0) {
+    errors.push("evidence identity range_start is invalid");
+  }
+  if (!Number.isInteger(identity.range_end)
+    || Number(identity.range_end) <= Number(identity.range_start)) {
+    errors.push("evidence identity range_end is invalid");
+  }
+  if (typeof identity.source_content_hash !== "string"
+    || !/^[0-9a-f]{64}$/.test(identity.source_content_hash)) {
+    errors.push("evidence identity source_content_hash is invalid");
+  }
+  if (identity.exact_source !== true) errors.push("evidence identity exact_source must be true");
+  return errors;
+}
+
+export function verifyCorporateActionEvidenceIdentity(
+  value: unknown,
+  documents: readonly CorporateActionSourceDocument[],
+) {
+  if (validateCorporateActionEvidenceIdentity(value).length) return false;
+  const identity = value as CorporateActionEvidenceIdentity;
+  const document = documents.find((item) => item.source_ref === identity.source_ref);
+  if (!document || identity.range_end > document.text.length) return false;
+  const exactSource = document.text.slice(identity.range_start, identity.range_end);
+  return exactSource.length > 0
+    && createHash("sha256").update(exactSource).digest("hex") === identity.source_content_hash;
 }
 
 function validateDateEnvelope(value: unknown, path: string, errors: string[]) {
@@ -1179,9 +1383,25 @@ function validateDateEnvelope(value: unknown, path: string, errors: string[]) {
     exactKeys(envelope, ["availability"], path, errors);
     return;
   }
-  exactKeys(envelope, ["availability", "value"], path, errors);
+  exactKeysAllowingOptional(
+    envelope,
+    ["availability", "value"],
+    ["source_ref", "evidence", "evidence_identity"],
+    path,
+    errors,
+  );
   if (envelope.availability !== "available") errors.push(`${path}.availability is invalid`);
   if (!validDate(envelope.value)) errors.push(`${path}.value must be YYYY-MM-DD`);
+  if (envelope.source_ref !== undefined && !stableSourceRef(envelope.source_ref)) {
+    errors.push(`${path}.source_ref is invalid`);
+  }
+  if (envelope.evidence !== undefined && typeof envelope.evidence !== "string") {
+    validateCanonicalEvidence(envelope.evidence, errors);
+  }
+  if (envelope.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(envelope.evidence_identity)
+      .map((error) => `${path}.${error}`));
+  }
 }
 
 function validateRatioEnvelope(value: unknown, errors: string[]) {
@@ -1194,10 +1414,18 @@ function validateRatioEnvelope(value: unknown, errors: string[]) {
     exactKeys(ratio, ["availability"], "result.ratio", errors);
     return;
   }
-  exactKeys(ratio, ["availability", "old_shares", "new_shares"], "result.ratio", errors);
+  exactKeys(ratio, [
+    "availability",
+    "old_shares",
+    "new_shares",
+    "source_ref",
+    "evidence",
+  ], "result.ratio", errors);
   if (ratio.availability !== "available") errors.push("result.ratio.availability is invalid");
   if (strictPositiveNumber(ratio.old_shares) === null) errors.push("result.ratio.old_shares is invalid");
   if (strictPositiveNumber(ratio.new_shares) === null) errors.push("result.ratio.new_shares is invalid");
+  if (!stableSourceRef(ratio.source_ref)) errors.push("result.ratio.source_ref is invalid");
+  if (!boundedText(ratio.evidence, 120_000)) errors.push("result.ratio.evidence is invalid");
 }
 
 function validateIssuerContext(value: unknown, path: string, errors: string[]) {
@@ -1303,7 +1531,7 @@ function validateAffectedSecurityTransport(value: unknown, path: string, errors:
       errors.push(`${path}.reason is invalid`);
     }
     if (!(affected.source_ref === null || stableSourceRef(affected.source_ref))) errors.push(`${path}.source_ref is invalid`);
-    if (!(affected.evidence === null || boundedText(affected.evidence, 4_000))) errors.push(`${path}.evidence is invalid`);
+    if (!(affected.evidence === null || boundedText(affected.evidence, 120_000))) errors.push(`${path}.evidence is invalid`);
     return;
   }
   exactKeys(affected, [
@@ -1319,7 +1547,7 @@ function validateAffectedSecurityTransport(value: unknown, path: string, errors:
   if (affected.security_type !== "common_stock") errors.push(`${path}.security_type is invalid`);
   if (!boundedText(affected.source_security_title, 240)) errors.push(`${path}.source_security_title is invalid`);
   if (!stableSourceRef(affected.source_ref)) errors.push(`${path}.source_ref is invalid`);
-  if (!boundedText(affected.evidence, 4_000)) errors.push(`${path}.evidence is invalid`);
+  if (!boundedText(affected.evidence, 120_000)) errors.push(`${path}.evidence is invalid`);
 }
 
 function validateEffectiveTimingTransport(value: unknown, path: string, errors: string[]) {
@@ -1340,7 +1568,7 @@ function validateEffectiveTimingTransport(value: unknown, path: string, errors: 
   if (!oneOf(timing.kind, CORPORATE_ACTION_EFFECTIVE_TIMING_KINDS)) errors.push(`${path}.kind is invalid`);
   if (timing.timestamp !== null) errors.push(`${path}.timestamp must be null`);
   if (!stableSourceRef(timing.source_ref)) errors.push(`${path}.source_ref is invalid`);
-  if (!boundedText(timing.evidence, 4_000)) errors.push(`${path}.evidence is invalid`);
+  if (!boundedText(timing.evidence, 120_000)) errors.push(`${path}.evidence is invalid`);
 }
 
 function validateExactRatioComponents(value: unknown, errors: string[]) {
@@ -1353,10 +1581,21 @@ function validateExactRatioComponents(value: unknown, errors: string[]) {
     exactKeys(components, ["availability"], "canonical exact ratio", errors);
     return;
   }
-  exactKeys(components, ["availability", "old_share_units", "new_share_units"], "canonical exact ratio", errors);
+  exactKeysAllowingOptional(
+    components,
+    ["availability", "old_share_units", "new_share_units"],
+    ["evidence", "evidence_identity"],
+    "canonical exact ratio",
+    errors,
+  );
   if (components.availability !== "available") errors.push("canonical exact ratio availability is invalid");
   if (strictPositiveNumber(components.old_share_units) === null) errors.push("canonical exact old share units are invalid");
   if (strictPositiveNumber(components.new_share_units) === null) errors.push("canonical exact new share units are invalid");
+  if (components.evidence !== undefined) validateCanonicalEvidence(components.evidence, errors);
+  if (components.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(components.evidence_identity)
+      .map((error) => `canonical exact ratio ${error}`));
+  }
 }
 
 function validateCanonicalApplicability(
@@ -1402,7 +1641,7 @@ function validateCanonicalApplicability(
     validateCanonicalEvidence(affected.evidence, errors);
     return;
   }
-  exactKeys(affected, [
+  exactKeysAllowingOptional(affected, [
     "availability",
     "security_type",
     "canonical_security_class_id",
@@ -1410,7 +1649,7 @@ function validateCanonicalApplicability(
     "source_ref",
     "evidence",
     "provenance",
-  ], "canonical affected security", errors);
+  ], ["evidence_identity"], "canonical affected security", errors);
   if (affected.availability !== "available") errors.push("canonical affected security availability is invalid");
   if (affected.security_type !== "common_stock") errors.push("canonical affected security type is invalid");
   const issuer = record(applicability.issuer);
@@ -1424,6 +1663,10 @@ function validateCanonicalApplicability(
   validateCanonicalEvidence(affected.evidence, errors);
   if (record(affected.evidence)?.availability !== "available") {
     errors.push("canonical mapped affected security requires available evidence");
+  }
+  if (affected.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(affected.evidence_identity)
+      .map((error) => `canonical affected security ${error}`));
   }
   const provenance = record(affected.provenance);
   if (!provenance) {
@@ -1466,7 +1709,7 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
   exactKeysAllowingOptional(
     timing,
     ["availability", "kind", "timestamp", "source_ref", "evidence"],
-    ["timestamp_diagnostic"],
+    ["timestamp_diagnostic", "evidence_identity"],
     "canonical effective timing",
     errors,
   );
@@ -1484,7 +1727,77 @@ function validateCanonicalEffectiveTiming(value: unknown, effectiveDateValue: un
   if (record(timing.evidence)?.availability !== "available") {
     errors.push("canonical available effective timing requires available evidence");
   }
+  if (timing.evidence_identity !== undefined) {
+    errors.push(...validateCorporateActionEvidenceIdentity(timing.evidence_identity)
+      .map((error) => `canonical effective timing ${error}`));
+  }
   validateEffectiveTimingTimestampDiagnostic(timing.timestamp_diagnostic, timing.kind, errors);
+}
+
+function validateStockSplitCalculationActivation(
+  facts: Record<string, unknown>,
+  errors: string[],
+) {
+  const activation = record(facts.calculation_activation);
+  if (!activation) {
+    errors.push("canonical calculation activation must be an object");
+    return;
+  }
+  exactKeys(activation, [
+    "version",
+    "state",
+    "source_meaning",
+    "evidence_identity",
+  ], "canonical calculation activation", errors);
+  if (activation.version !== STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION) {
+    errors.push("canonical calculation activation version is invalid");
+  }
+  if (!oneOf(activation.state, [
+    "ON_EFFECTIVE_DATE",
+    "AFTER_MARKET_CLOSE",
+    "INDETERMINATE",
+  ])) errors.push("canonical calculation activation state is invalid");
+
+  const effectiveDate = record(facts.effective_date);
+  if (effectiveDate?.availability !== "available") {
+    if (activation.state !== "INDETERMINATE"
+      || activation.source_meaning !== "effective_date_unavailable"
+      || activation.evidence_identity !== null) {
+      errors.push("indeterminate calculation activation requires an unavailable effective date");
+    }
+    return;
+  }
+
+  const exactRatio = record(record(facts.ratio)?.exact_source_components);
+  const affected = record(record(facts.applicability)?.affected_security);
+  const timing = record(facts.effective_timing);
+  const expectedIdentity = timing?.availability === "available"
+    ? timing.evidence_identity : effectiveDate.evidence_identity;
+  const expectedState = timing?.availability === "available" && timing.kind === "after_market_close"
+    ? "AFTER_MARKET_CLOSE" : "ON_EFFECTIVE_DATE";
+  const expectedMeaning = timing?.availability === "available" ? timing.kind : "date_only";
+  if (activation.state !== expectedState || activation.source_meaning !== expectedMeaning) {
+    errors.push("canonical calculation activation does not match source timing meaning");
+  }
+  for (const [path, identity] of [
+    ["effective date", effectiveDate.evidence_identity],
+    ["calculation activation", activation.evidence_identity],
+  ] as const) {
+    if (validateCorporateActionEvidenceIdentity(identity).length) {
+      errors.push(`canonical ${path} requires authoritative evidence identity`);
+    }
+  }
+  if (exactRatio?.availability === "available"
+    && validateCorporateActionEvidenceIdentity(exactRatio.evidence_identity).length) {
+    errors.push("canonical exact ratio requires authoritative evidence identity");
+  }
+  if (affected?.availability === "available"
+    && validateCorporateActionEvidenceIdentity(affected.evidence_identity).length) {
+    errors.push("canonical affected security requires authoritative evidence identity");
+  }
+  if (JSON.stringify(activation.evidence_identity) !== JSON.stringify(expectedIdentity)) {
+    errors.push("canonical calculation activation evidence identity does not match its source field");
+  }
 }
 
 function validateEffectiveTimingTimestampDiagnostic(
@@ -1539,9 +1852,18 @@ function validateCanonicalEvidence(value: unknown, errors: string[]) {
     return;
   }
   if (evidence.availability === "available") {
-    exactKeys(evidence, ["availability", "value"], "canonical facts.evidence", errors);
+    exactKeysAllowingOptional(
+      evidence,
+      ["availability", "value"],
+      ["preview_truncated"],
+      "canonical facts.evidence",
+      errors,
+    );
     if (!boundedText(evidence.value, CORPORATE_ACTION_EVIDENCE_MAX_LENGTH)) {
       errors.push("canonical evidence value is invalid");
+    }
+    if (evidence.preview_truncated !== undefined && typeof evidence.preview_truncated !== "boolean") {
+      errors.push("canonical evidence preview_truncated is invalid");
     }
     return;
   }

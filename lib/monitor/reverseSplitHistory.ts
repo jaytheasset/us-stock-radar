@@ -175,7 +175,8 @@ async function readStockSplitHistoryInternal(
     && failure.effectiveDate >= filter.from && failure.effectiveDate <= filter.to
     && (!filter.canonicalSecurityClassId
       || failure.canonicalSecurityClassId === filter.canonicalSecurityClassId)
-    && !items.some((item) => materializesFailure(item, failure)));
+    && !items.some((item) => item.facts.calculation_activation !== undefined
+      && materializesFailure(item, failure)));
   if (failures.length > 0) {
     return {
       status: "materialization_unavailable",

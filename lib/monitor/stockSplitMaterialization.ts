@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
+import {
+  materializeCorporateActionEvidence,
+  validateCorporateActionAnalyzerTransportResult,
+  validateCorporateActionEvidenceIdentity,
+} from "./corporateActionCanonicalFacts.ts";
 import type {
   CorporateActionAnalyzerInput,
   CorporateActionCanonicalFacts,
+  CorporateActionEvidenceIdentity,
   CorporateActionEventKind,
 } from "./corporateActionCanonicalFacts.ts";
 
@@ -30,6 +36,7 @@ export type StockSplitMaterializationDiagnostic = {
   newShareUnits: string;
   sourceRef: string;
   evidence: string;
+  evidenceIdentity?: CorporateActionEvidenceIdentity;
 };
 
 export function buildPrevalidationStockSplitMaterializationDiagnostic(
@@ -38,6 +45,7 @@ export function buildPrevalidationStockSplitMaterializationDiagnostic(
   failureReason: string,
 ): StockSplitMaterializationDiagnostic | null {
   const root = record(value);
+  if (validateCorporateActionAnalyzerTransportResult(value).length > 0) return null;
   const issuer = input.issuer_context;
   const date = record(root?.effective_date);
   const ratio = record(root?.ratio);
@@ -63,18 +71,24 @@ export function buildPrevalidationStockSplitMaterializationDiagnostic(
     && item.security_type === "common_stock");
   if (!candidate || !canonicalClassId(candidate.canonical_security_class_id, issuer.issuer_cik)) return null;
 
-  const sourceRef = text(root.source_ref);
-  const evidence = text(root.evidence);
-  const document = input.source_documents.find((item) => item.source_ref === sourceRef);
   const sourceSecurityTitle = text(affected.source_security_title);
-  if (!document || !sourceRef || !boundedExactEvidence(evidence, document.text)
-    || !sourceSecurityTitle || !evidence.toLowerCase().includes(sourceSecurityTitle.toLowerCase())
-    || !evidenceSupportsSplitTuple(evidence, {
-      actionKind,
-      effectiveDate: String(date.value),
-      oldShareUnits: String(ratio.old_shares),
-      newShareUnits: String(ratio.new_shares),
-    })) return null;
+  const affectedDocument = input.source_documents.find((item) => item.source_ref === affected.source_ref);
+  if (!sourceSecurityTitle || !affectedDocument?.text.includes(sourceSecurityTitle)) return null;
+  const dateEvidence = exactEvidence(date, input);
+  const ratioEvidence = exactEvidence(ratio, input);
+  const affectedEvidence = exactEvidence(affected, input);
+  const timing = record(root.effective_timing);
+  const activationEvidence = timing?.availability === "available"
+    ? exactEvidence(timing, input) : dateEvidence;
+  if (!dateEvidence?.identity || !ratioEvidence?.identity || !affectedEvidence?.identity
+    || !activationEvidence?.identity) return null;
+  const rootEvidence = materializeCorporateActionEvidence(
+    typeof root.evidence === "string" ? root.evidence : null,
+    text(root.source_ref),
+    input.source_documents,
+  );
+  const selected = rootEvidence.identity ? rootEvidence : ratioEvidence;
+  if (selected.evidence.availability !== "available") return null;
 
   return diagnostic({
     failureStage: "ANALYZER_VALIDATION",
@@ -87,8 +101,9 @@ export function buildPrevalidationStockSplitMaterializationDiagnostic(
     effectiveDate: String(date.value),
     oldShareUnits: String(ratio.old_shares),
     newShareUnits: String(ratio.new_shares),
-    sourceRef,
-    evidence,
+    sourceRef: selected.identity!.source_ref,
+    evidence: selected.evidence.value,
+    evidenceIdentity: selected.identity!,
   });
 }
 
@@ -99,17 +114,23 @@ export function buildPersistedStockSplitMaterializationDiagnostic(
   const issuer = facts.applicability?.issuer;
   const affected = facts.applicability?.affected_security;
   const ratio = facts.ratio.exact_source_components;
+  const evidence = facts.evidence.availability === "available"
+    ? facts.evidence
+    : ratio?.availability === "available" && ratio.evidence?.availability === "available"
+      ? ratio.evidence : null;
+  const evidenceIdentity = facts.evidence_identity
+    ?? (ratio?.availability === "available" ? ratio.evidence_identity : undefined);
   if (issuer?.availability !== "available" || affected?.availability !== "available"
     || facts.effective_date.availability !== "available"
     || ratio?.availability !== "available"
-    || facts.evidence.availability !== "available"
+    || !evidence
     || !validCik(issuer.issuer_cik) || !validAccession(issuer.accession_number)
     || !validTimestamp(issuer.accepted_at)
     || !canonicalClassId(affected.canonical_security_class_id, issuer.issuer_cik)
     || !validDate(facts.effective_date.value)
     || !positiveDecimal(ratio.old_share_units) || !positiveDecimal(ratio.new_share_units)
-    || !boundedText(facts.source_ref, 240)
-    || !boundedText(facts.evidence.value, 800)) return null;
+    || !boundedText(evidence.value, 800)
+    || (facts.calculation_activation && !completeFieldEvidenceIdentities(facts))) return null;
   return diagnostic({
     failureStage: "PERSISTENCE",
     failureReason,
@@ -121,8 +142,9 @@ export function buildPersistedStockSplitMaterializationDiagnostic(
     effectiveDate: facts.effective_date.value,
     oldShareUnits: ratio.old_share_units,
     newShareUnits: ratio.new_share_units,
-    sourceRef: facts.source_ref,
-    evidence: facts.evidence.value,
+    sourceRef: evidenceIdentity?.source_ref ?? facts.source_ref,
+    evidence: evidence.value,
+    ...(evidenceIdentity ? { evidenceIdentity } : {}),
   });
 }
 
@@ -159,7 +181,9 @@ export function readStockSplitMaterializationDiagnostic(
     || !canonicalClassId(row.canonicalSecurityClassId, String(row.issuerCik))
     || !validDate(row.effectiveDate)
     || !positiveDecimal(row.oldShareUnits) || !positiveDecimal(row.newShareUnits)
-    || !boundedText(row.sourceRef, 240) || !boundedText(row.evidence, 800)) return null;
+    || !boundedText(row.sourceRef, 240) || !boundedText(row.evidence, 800)
+    || (row.evidenceIdentity !== undefined
+      && validateCorporateActionEvidenceIdentity(row.evidenceIdentity).length > 0)) return null;
   const expectedId = diagnosticId({
     actionKind: row.actionKind as CorporateActionEventKind,
     issuerCik: String(row.issuerCik),
@@ -170,6 +194,9 @@ export function readStockSplitMaterializationDiagnostic(
     newShareUnits: String(row.newShareUnits),
     sourceRef: String(row.sourceRef),
     evidence: String(row.evidence),
+    ...(row.evidenceIdentity
+      ? { evidenceIdentity: row.evidenceIdentity as CorporateActionEvidenceIdentity }
+      : {}),
   });
   return row.diagnosticId === expectedId
     ? row as StockSplitMaterializationDiagnostic
@@ -191,6 +218,7 @@ function diagnostic(input: Omit<
     newShareUnits: input.newShareUnits,
     sourceRef: input.sourceRef,
     evidence: input.evidence,
+    ...(input.evidenceIdentity ? { evidenceIdentity: input.evidenceIdentity } : {}),
   };
   return {
     version: STOCK_SPLIT_MATERIALIZATION_DIAGNOSTIC_VERSION,
@@ -211,6 +239,7 @@ function diagnosticId(input: {
   newShareUnits: string;
   sourceRef: string;
   evidence: string;
+  evidenceIdentity?: CorporateActionEvidenceIdentity;
 }) {
   return `ssmd:v1:${createHash("sha256").update(JSON.stringify([
     input.actionKind,
@@ -222,60 +251,32 @@ function diagnosticId(input: {
     input.newShareUnits,
     input.sourceRef,
     input.evidence,
+    input.evidenceIdentity ?? null,
   ])).digest("hex")}`;
 }
 
-function boundedExactEvidence(value: string, source: string) {
-  return boundedText(value, 800) && source.includes(value);
+function exactEvidence(value: Record<string, unknown>, input: CorporateActionAnalyzerInput) {
+  return materializeCorporateActionEvidence(
+    typeof value.evidence === "string" ? value.evidence : null,
+    text(value.source_ref),
+    input.source_documents,
+  );
 }
 
-function evidenceSupportsSplitTuple(
-  evidence: string,
-  input: {
-    actionKind: CorporateActionEventKind;
-    effectiveDate: string;
-    oldShareUnits: string;
-    newShareUnits: string;
-  },
-) {
-  const normalized = evidence.replace(/[‐‑‒–—]/g, "-");
-  const actionPattern = input.actionKind === "reverse_split"
-    ? /\breverse(?:\s+stock)?\s+split\b/i
-    : /\b(?:forward\s+)?stock\s+split\b/i;
-  const ratioPattern = new RegExp(
-    `\\b${escapeRegExp(input.newShareUnits)}\\s*-?\\s*for\\s*-?\\s*${escapeRegExp(input.oldShareUnits)}\\b`,
-    "i",
-  );
-  return actionPattern.test(normalized)
-    && ratioPattern.test(normalized)
-    && evidenceContainsDate(normalized, input.effectiveDate);
-}
-
-function evidenceContainsDate(evidence: string, isoDate: string) {
-  const [year, monthValue, dayValue] = isoDate.split("-");
-  const monthIndex = Number(monthValue) - 1;
-  const day = String(Number(dayValue));
-  const months = [
-    ["January", "Jan"], ["February", "Feb"], ["March", "Mar"], ["April", "Apr"],
-    ["May", "May"], ["June", "Jun"], ["July", "Jul"], ["August", "Aug"],
-    ["September", "Sep"], ["October", "Oct"], ["November", "Nov"], ["December", "Dec"],
-  ] as const;
-  const names = months[monthIndex];
-  if (!year || !names) return false;
-  const monthName = `(?:${names.map(escapeRegExp).join("|")})\\.?`;
-  const namedDate = new RegExp(
-    `(?:\\b${monthName}\\s+${day}(?:st|nd|rd|th)?(?:,)?\\s+${year}\\b|`
-      + `\\b${day}(?:st|nd|rd|th)?\\s+${monthName}(?:,)?\\s+${year}\\b)`,
-    "i",
-  );
-  const numericDate = new RegExp(
-    `\\b(?:${escapeRegExp(isoDate)}|${Number(monthValue)}[/-]${Number(dayValue)}[/-]${year})\\b`,
-  );
-  return namedDate.test(evidence) || numericDate.test(evidence);
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function completeFieldEvidenceIdentities(facts: CorporateActionCanonicalFacts) {
+  const date = facts.effective_date;
+  const ratio = facts.ratio.exact_source_components;
+  const affected = facts.applicability?.affected_security;
+  const activation = facts.calculation_activation;
+  if (date.availability !== "available" || ratio?.availability !== "available"
+    || affected?.availability !== "available" || !activation
+    || activation.state === "INDETERMINATE") return false;
+  return [
+    date.evidence_identity,
+    ratio.evidence_identity,
+    affected.evidence_identity,
+    activation.evidence_identity,
+  ].every((identity) => validateCorporateActionEvidenceIdentity(identity).length === 0);
 }
 
 function boundedText(value: unknown, max: number) {
