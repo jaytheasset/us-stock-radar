@@ -1,5 +1,12 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
+  economicExposureIdentityFilingMetadata,
+  transportEconomicExposureIdentitySidecar,
+  withEconomicExposureIdentitySidecarSchema,
+  type EconomicExposureIdentitySidecarTransportResult,
+} from "@/lib/dilution/economicExposureIdentityObservationSidecar";
+import {
   buildSec8k6kAnalysisPromptDraft,
   buildSec8k6kDisplayPayload,
   buildSec8k6kRouterPromptDraft,
@@ -39,7 +46,7 @@ export {
 };
 
 export type Sec8k6kAnalysisAdapterResult =
-  | { ok: true; analysis: Record<string, unknown> }
+  | { ok: true; analysis: Record<string, unknown>; economicExposureIdentitySidecar?: EconomicExposureIdentitySidecarTransportResult }
   | { ok: false; error: string };
 
 export type Sec8k6kValidationRepairIssue = {
@@ -84,8 +91,9 @@ export function buildSec8k6kAnalysisPromptForInput(
 ) {
   const promptInput = buildSec8k6kPromptInput(input);
   const promptFamily = resolveSec8k6kAnalysisPromptFamily(routerResult);
-  const runtimeResponseSchema =
-    getSec8k6kSpecializedRuntimeResponseSchema(promptFamily) || sec8k6kRuntimeAnalysisResponseSchema;
+  const runtimeResponseSchema = withEconomicExposureIdentitySidecarSchema(
+    getSec8k6kSpecializedRuntimeResponseSchema(promptFamily) || sec8k6kRuntimeAnalysisResponseSchema,
+  );
   const prompt = buildSec8k6kAnalysisPromptDraft({
     ...promptInput,
     router_result: routerResult,
@@ -98,6 +106,7 @@ export function buildSec8k6kAnalysisPromptForInput(
       "Runtime integration note: for analysis_prompt_family=capital_financing, strategic_transaction, governance_vote, or operating_legal_routine, return the LLM-authored display_payload required by the response schema. For every other family, integration preserves the supplied parser-built display payload and you should omit display_payload from the response.",
       "Runtime routing note: router_result.event_type, primary_route_candidate, and route_candidates are candidate routes only. Make the final event and materiality interpretation from all original cleaned_source_blocks in the analysis source bundle.",
       "Runtime scoring note: when router_result.analysis_needed is true, router_result.score is only an archive-gate placeholder. Assign analysis_output.score from the complete cleaned_source_blocks bundle, score policy, urgency, and evidence instead of copying the router placeholder.",
+      ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
     ].join("\n"),
     responseFormat: {
       json_schema: {
@@ -871,8 +880,16 @@ export function adaptSec8k6kAnalysisPromptResultForAnalysis(
     nullableString(policyAnalysisOutput.archive_summary) ||
     (score < 50 ? nullableString(readRecord(displayPayload.data)?.archive_summary) || nullableString(policyAnalysisOutput.summary) : null);
 
+  const promptPayload = parsePromptUser(buildSec8k6kAnalysisPromptForInput(input, routerResult).user) || {};
+  const economicExposureIdentitySidecar = transportEconomicExposureIdentitySidecar({
+    provider_output: root,
+    source_blocks: readRecordArray(promptPayload.cleaned_source_blocks),
+    ...economicExposureIdentityFilingMetadata(readFilingPackage(input)),
+  });
+
   return {
     ok: true,
+    economicExposureIdentitySidecar,
     analysis: normalize8k6kAnalysisForPersistence(
       {
         ...policyAnalysisOutput,

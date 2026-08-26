@@ -19,6 +19,7 @@ import {
   updateSecAnalysisAccession,
   withSecAnalysisSpan,
 } from "@/lib/ai/secAnalysisInstrumentation";
+import { ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD } from "@/lib/dilution/economicExposureIdentityObservationSidecar";
 
 export {
   buildSecFilingGroupDedupe,
@@ -72,7 +73,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         rawItemId: stringValue(rawResult.rawItem.id),
         eventId: null,
         analysis: analysisRun.analysis || null,
-        outputText: analysisRun.outputText || "",
+        outputText: withoutEconomicExposureIdentitySidecar(analysisRun.outputText),
         repairOutputText: analysisRun.repairOutputText,
         usage: analysisRun.usage || null,
         repairUsage: analysisRun.repairUsage || null,
@@ -110,6 +111,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
       audit: analysisRun.audit,
       analysis: analysisRun.analysis,
+      economicExposureIdentityObservations: arrayValue(readRecord(analysisRun)?.economicExposureIdentityObservations),
+      economicExposureIdentityRejected: arrayValue(readRecord(analysisRun)?.economicExposureIdentityRejected),
       auditOutputText: analysisRun.auditOutputText,
       outputText: analysisRun.outputText,
       auditUsage: analysisRun.auditUsage,
@@ -171,7 +174,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
           rawItemId: stringValue(rawResult.rawItem!.id),
           eventId: stringValue(persistedEvent.id),
           analysis: analysisRun.analysis!,
-          outputText: analysisRun.outputText || "",
+          outputText: withoutEconomicExposureIdentitySidecar(analysisRun.outputText),
           usage: analysisRun.usage || null,
           costEstimate: analysisRun.costEstimate || null,
           model: analysisRun.model || "",
@@ -246,6 +249,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     sourceItem: analysisRun.sourceItem,
     event: persistedEvent,
     analysis: analysisRun.analysis,
+    economicExposureIdentityObservations: arrayValue(readRecord(analysisRun)?.economicExposureIdentityObservations),
+    economicExposureIdentityRejected: arrayValue(readRecord(analysisRun)?.economicExposureIdentityRejected),
     runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
     outputText: analysisRun.outputText,
     usage: analysisRun.usage,
@@ -329,6 +334,24 @@ function summarizeSecAnalysisRuntime(input: unknown, prompt: unknown) {
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function arrayValue(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function withoutEconomicExposureIdentitySidecar(value: unknown) {
+  const text = stringValue(value);
+  if (!text || !text.includes(`"${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD}"`)) return text;
+  try {
+    const parsed = JSON.parse(text);
+    const root = readRecord(parsed);
+    if (!root) return "";
+    delete root[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD];
+    return JSON.stringify(root);
+  } catch {
+    return "";
+  }
 }
 
 function readStringArray(value: unknown) {
