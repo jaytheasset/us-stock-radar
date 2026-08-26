@@ -269,11 +269,17 @@ export type DilutionIdentityDecisionKind = (typeof DILUTION_IDENTITY_DECISIONS)[
 
 export const DILUTION_IDENTITY_DECISION_REASON_CODES = [
   "NO_PRIOR_CANDIDATE",
+  "SOURCE_BACKED_INDEPENDENT_STRONG_IDENTITY",
   "EXPLICIT_SOURCE_REFERENCE_MATCH",
   "EXPLICIT_AMENDMENT_REFERENCE_MATCH",
   "SOURCE_BACKED_STRONG_IDENTITY_MATCH",
   "INSUFFICIENT_SOURCE_BACKED_IDENTITY",
   "CONFLICTING_STRONG_IDENTITY_CLAIMS",
+  "CROSS_ISSUER_IDENTITY_CONFLICT",
+  "EXPOSURE_TYPE_CONFLICT",
+  "AMBIGUOUS_STRONG_IDENTITY_MATCH",
+  "AMBIGUOUS_AMENDMENT_TARGET",
+  "NON_EXPOSURE_OBSERVATION",
   "EVIDENCE_VALIDATION_FAILED",
 ] as const;
 
@@ -613,22 +619,36 @@ export function validateDilutionIdentityDecision(
     errors.push("identity decision target_exposure_id must be null");
   }
   const allowedReasons: Record<DilutionIdentityDecisionKind, readonly DilutionIdentityDecisionReasonCode[]> = {
-    CREATE_NEW: ["NO_PRIOR_CANDIDATE"],
+    CREATE_NEW: ["NO_PRIOR_CANDIDATE", "SOURCE_BACKED_INDEPENDENT_STRONG_IDENTITY"],
     LINK_EXISTING: ["EXPLICIT_SOURCE_REFERENCE_MATCH", "SOURCE_BACKED_STRONG_IDENTITY_MATCH"],
     AMEND_EXISTING: ["EXPLICIT_AMENDMENT_REFERENCE_MATCH"],
-    UNRESOLVED: ["INSUFFICIENT_SOURCE_BACKED_IDENTITY", "EVIDENCE_VALIDATION_FAILED"],
-    CONFLICT: ["CONFLICTING_STRONG_IDENTITY_CLAIMS"],
+    UNRESOLVED: [
+      "INSUFFICIENT_SOURCE_BACKED_IDENTITY",
+      "NON_EXPOSURE_OBSERVATION",
+      "EVIDENCE_VALIDATION_FAILED",
+    ],
+    CONFLICT: [
+      "CONFLICTING_STRONG_IDENTITY_CLAIMS",
+      "CROSS_ISSUER_IDENTITY_CONFLICT",
+      "EXPOSURE_TYPE_CONFLICT",
+      "AMBIGUOUS_STRONG_IDENTITY_MATCH",
+      "AMBIGUOUS_AMENDMENT_TARGET",
+    ],
   };
   if (includes(DILUTION_IDENTITY_DECISIONS, decision.decision)
     && !includes(allowedReasons[decision.decision as DilutionIdentityDecisionKind], decision.reason_code)) {
     errors.push("identity decision reason does not match the decision");
   }
+  const mayLackClaimReferences = decision.decision === "UNRESOLVED"
+    && (decision.reason_code === "NON_EXPOSURE_OBSERVATION"
+      || decision.reason_code === "EVIDENCE_VALIDATION_FAILED");
   if (!Array.isArray(decision.identity_claim_kinds)
-    || decision.identity_claim_kinds.length === 0
+    || (!mayLackClaimReferences && decision.identity_claim_kinds.length === 0)
     || decision.identity_claim_kinds.some((kind) => !includes(DILUTION_IDENTITY_CLAIM_KINDS, kind))) {
     errors.push("identity decision claim references are invalid");
   }
-  if (!Array.isArray(decision.identity_evidence) || decision.identity_evidence.length === 0
+  if (!Array.isArray(decision.identity_evidence)
+    || (!mayLackClaimReferences && decision.identity_evidence.length === 0)
     || decision.identity_evidence.some((identity) => !verifyDilutionEvidenceIdentity(identity, sourceDocuments))) {
     errors.push("identity decision evidence references are invalid");
   }
