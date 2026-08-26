@@ -28,6 +28,7 @@ const {
 } = jiti("../lib/monitor/genericMonitorChildRuntime.ts");
 const { runCorporateActionCanonicalAnalyzerPreview } = jiti("../lib/ai/corporateActionCanonicalAnalyzerPreview.ts");
 const { readCurrentCorporateActionFacts } = jiti("../lib/monitor/corporateActionPersistence.ts");
+const { assertHistoricalReplayCanonicalContractState } = jiti("./historicalReplayCanonicalContractGate.ts");
 const { readStockSplitExecutions } = jiti("../lib/monitor/stockSplitExecution.ts");
 const {
   verifyCorporateActionEvidenceIdentity,
@@ -82,18 +83,23 @@ async function main() {
       fail(`Corporate Action production child failed: ${JSON.stringify({ execution, providerTrace })}`);
     }
 
-    const beforeReplay = await readFactState(source);
+    const currentBeforeReplay = await readCurrentCorporateActionFacts(source.event_id);
+    const beforeReplay = await readFactState(currentBeforeReplay);
     const replay = await processGenericMonitorChild(identity, {
       loadCorporateActionApplicabilityContext: async () => applicabilityContext,
     });
-    const afterReplay = await readFactState(source);
+    const current = await readCurrentCorporateActionFacts(source.event_id);
+    const afterReplay = await readFactState(current);
     if (replay.status !== "duplicate" || replay.providerCalls !== 0
-      || afterReplay.fact_count !== beforeReplay.fact_count
-      || afterReplay.result_count !== beforeReplay.result_count) {
+      || afterReplay.current_contract_fact_count !== beforeReplay.current_contract_fact_count
+      || afterReplay.current_contract_result_count !== beforeReplay.current_contract_result_count
+      || afterReplay.selected_fact_count !== beforeReplay.selected_fact_count
+      || afterReplay.selected_result_count !== beforeReplay.selected_result_count
+      || afterReplay.current_analyzer_contract_version !== beforeReplay.current_analyzer_contract_version
+      || afterReplay.selected_source_execution_id !== beforeReplay.selected_source_execution_id) {
       fail(`Corporate Action replay was not duplicate-safe: ${JSON.stringify({ replay, beforeReplay, afterReplay })}`);
     }
 
-    const current = await readCurrentCorporateActionFacts(source.event_id);
     if (current.status !== "available") fail(`Current Corporate Action facts returned ${current.status}`);
     const facts = current.facts;
     const issuer = facts.applicability?.issuer;
@@ -114,7 +120,7 @@ async function main() {
       fail("Canonical evidence preview is unavailable or exceeds 800 characters");
     }
 
-    const executionKnownAt = new Date(Date.parse(afterReplay.persisted_at) + 1_000).toISOString();
+    const executionKnownAt = afterReplay.known_at;
     const executionRead = await readStockSplitExecutions({
       actionKind: args.expectedKind,
       cik: args.cik,
@@ -181,8 +187,18 @@ async function main() {
         calculation_activation: facts.calculation_activation,
         issuer_cik: issuer.issuer_cik,
         canonical_security_class_id: affected.canonical_security_class_id,
-        fact_count: afterReplay.fact_count,
-        result_count: afterReplay.result_count,
+        current_analyzer_contract_version: afterReplay.current_analyzer_contract_version,
+        selected_source_execution_id: afterReplay.selected_source_execution_id,
+        fact_count: afterReplay.current_contract_fact_count,
+        result_count: afterReplay.current_contract_result_count,
+        selected_fact_count: afterReplay.selected_fact_count,
+        selected_result_count: afterReplay.selected_result_count,
+        preserved_legacy_or_prior_fact_count: afterReplay.preserved_legacy_or_prior_fact_count,
+        preserved_legacy_or_prior_result_count: afterReplay.preserved_legacy_or_prior_result_count,
+        historical_fact_count:
+          afterReplay.current_contract_fact_count + afterReplay.preserved_legacy_or_prior_fact_count,
+        historical_result_count:
+          afterReplay.current_contract_result_count + afterReplay.preserved_legacy_or_prior_result_count,
         authoritative_evidence: facts.evidence_identity,
         evidence_preview: {
           character_length: Array.from(facts.evidence.value).length,
@@ -201,8 +217,10 @@ async function main() {
       replay: {
         status: replay.status,
         provider_calls: replay.providerCalls,
-        canonical_duplicates_added: afterReplay.fact_count - beforeReplay.fact_count,
-        result_duplicates_added: afterReplay.result_count - beforeReplay.result_count,
+        canonical_duplicates_added:
+          afterReplay.current_contract_fact_count - beforeReplay.current_contract_fact_count,
+        result_duplicates_added:
+          afterReplay.current_contract_result_count - beforeReplay.current_contract_result_count,
         execution_duplicates_added: executionRead.executions.length - 1,
       },
       os_reconciliation: {
@@ -269,22 +287,66 @@ async function readApplicabilityContext(source) {
   return validateCorporateActionApplicabilityContextResponse(result.rows[0].payload);
 }
 
-async function readFactState(source) {
+async function readFactState(current) {
   const result = await client.query(
     `select
-       (select count(*)::integer from public.event_corporate_action_facts
-         where event_id = $1 and parent_primary_ai_run_id = $2) as fact_count,
-       (select count(*)::integer from public.event_corporate_action_results
-         where event_id = $1 and parent_primary_ai_run_id = $2) as result_count,
-       (select max(persisted_at)::text from public.event_corporate_action_facts
-         where event_id = $1 and parent_primary_ai_run_id = $2) as persisted_at`,
-    [source.event_id, source.parent_primary_ai_run_id],
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as current_contract_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as current_contract_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.source_execution_id = $4
+           and results.event_id = $1
+           and results.parent_primary_ai_run_id = $2
+           and results.monitor_analyzer_key = 'corporate_action'
+           and results.analyzer_contract_version = $3) as selected_result_count,
+       (select count(*)::integer
+          from public.event_corporate_action_facts as facts
+         where facts.event_id = $1
+           and not (
+             facts.parent_primary_ai_run_id = $2
+             and facts.monitor_analyzer_key = 'corporate_action'
+             and facts.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_fact_count,
+       (select count(*)::integer
+          from public.event_corporate_action_results as results
+         where results.event_id = $1
+           and not (
+             results.parent_primary_ai_run_id = $2
+             and results.monitor_analyzer_key = 'corporate_action'
+             and results.analyzer_contract_version = $3
+           )) as preserved_legacy_or_prior_result_count,
+       (select max(facts.persisted_at)::text
+          from public.event_corporate_action_facts as facts
+         where facts.source_execution_id = $4
+           and facts.event_id = $1
+           and facts.parent_primary_ai_run_id = $2
+           and facts.monitor_analyzer_key = 'corporate_action'
+           and facts.analyzer_contract_version = $3) as selected_fact_persisted_at`,
+    [
+      current.eventId,
+      current.parentPrimaryAiRunId,
+      current.analyzerContractVersion,
+      current.sourceExecutionId,
+    ],
   );
-  const state = result.rows[0];
-  if (state?.fact_count !== 1 || state?.result_count !== 1 || !state.persisted_at) {
-    fail(`Expected one canonical fact/result: ${JSON.stringify(state)}`);
-  }
-  return state;
+  return assertHistoricalReplayCanonicalContractState(current, result.rows[0]);
 }
 
 async function readShareCountHistoryCount() {
