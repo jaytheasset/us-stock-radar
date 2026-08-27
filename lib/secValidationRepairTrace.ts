@@ -91,8 +91,10 @@ function readValidationWarnings(
   promptPayload: Record<string, unknown> | null,
   validation: Record<string, unknown> | null,
 ) {
-  const candidates = promptPayload
-    ? [
+  const candidates = [
+    validation?.diagnostic_findings,
+    ...(promptPayload
+      ? [
         promptPayload.validator_issues,
         promptPayload.validation_issues,
         promptPayload.validator_warnings,
@@ -100,7 +102,8 @@ function readValidationWarnings(
         promptPayload.issues,
         promptPayload.warnings,
       ]
-    : [];
+      : []),
+  ];
   const issueRecords = candidates
     .flatMap((value) => recordArray(value))
     .filter((issue, index, all) => {

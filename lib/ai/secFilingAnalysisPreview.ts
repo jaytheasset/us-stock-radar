@@ -32,11 +32,9 @@ import {
   SEC_S8_ANALYSIS_PROMPT_VERSION,
   SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
   adaptSec424bAnalysisPromptResultForAnalysis,
-  applySec424bValidationRepairPatches,
   adaptSec8k6kAnalysisPromptResultForAnalysis,
   applySec8k6kArchiveSafetyGate,
   applySec8k6kReverseSplitRouteGuard,
-  applySec8k6kValidationRepairPatches,
   adaptSec425AnalysisPromptResultForAnalysis,
   adaptOwnershipPromptResultForAnalysis,
   adaptSecNtAnalysisPromptResultForAnalysis,
@@ -53,19 +51,15 @@ import {
   adaptSecS8AnalysisPromptResultForAnalysis,
   applySecS8ValidationRepairPatches,
   adaptSecS3AnalysisPromptResultForAnalysis,
-  applySecS3ValidationRepairPatches,
   adaptSecS1F1AnalysisPromptResultForAnalysis,
-  applySecS1F1ValidationRepairPatches,
   applySecProxyValidationRepairPatches,
   buildDeterministicSc13Analysis,
   buildDeterministicS8ArchiveAnalysis,
   buildSec424bAnalysisPromptForInput,
-  buildSec424bValidationRepairPlan,
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kPreviewDebug,
   buildSec8k6kRouterPromptForInput,
-  buildSec8k6kValidationRepairPlan,
   buildSec425AnalysisPromptForInput,
   buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
@@ -84,9 +78,7 @@ import {
   buildSecS8ValidationRepairPlan,
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
-  buildSecS3ValidationRepairPlan,
   buildSecS1F1AnalysisPromptForInput,
-  buildSecS1F1ValidationRepairPlan,
   buildSecProxyValidationRepairPlan,
   buildSecTenderAnalysisPromptForInput,
   buildSecTenderValidationRepairPlan,
@@ -104,11 +96,20 @@ import {
   isS3FilingInput,
   isS1F1FilingInput,
   isTenderFilingInput,
+  inspectSec424bValidationIssues,
+  inspectSec8k6kValidationIssues,
+  inspectSecS1F1ValidationIssues,
+  inspectSecS3ValidationIssues,
   normalizeSec8k6kRouterResult,
   normalizeSec425RouterResultForInput,
   shouldRunSec8k6kAnalysis,
   shouldRunSec425Analysis,
 } from "@/lib/ai/secFormAnalysisAdapterRegistry";
+import {
+  applySecPrimarySemanticValidationDisposition,
+  buildSecPrimaryStructuralValidationDiagnostics,
+  type SecPrimaryValidationFamily,
+} from "@/lib/ai/secPrimaryValidationDisposition";
 import {
   appendSecProxyDisplayWarnings,
   validateSecProxyDisplayPayload,
@@ -1420,6 +1421,7 @@ export async function runSecFilingAnalysisForRawRow(
         outputText: analysisRun.outputText,
         usage: combineUsage(routerRun.usage, analysisRun.usage),
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: buildSecPrimaryPromptFailureDisposition("8-k-6-k", analysisRun),
         prompt: {
           key: prompt.key,
           version: prompt.version,
@@ -1435,9 +1437,21 @@ export async function runSecFilingAnalysisForRawRow(
       prompt_key: prompt.key,
       prompt_version: prompt.version,
     });
+    const semanticValidation = applySecPrimarySemanticValidationDisposition({
+      family: "8-k-6-k",
+      analysisResult: analysisRun.parsed,
+      issues: inspectSec8k6kValidationIssues({
+        analysisResult: analysisRun.parsed,
+        analysisPromptUser: prompt.user,
+      }),
+    });
     let sec8k6kAnalysis: ReturnType<typeof adaptSec8k6kAnalysisPromptResultForAnalysis>;
     try {
-      sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(analysisRun.parsed, input, routerResult);
+      sec8k6kAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(
+        semanticValidation.analysisResult,
+        input,
+        routerResult,
+      );
       endPrimaryValidation("primary_validation_end", {
         status: sec8k6kAnalysis.ok ? "success" : "error",
       });
@@ -1463,6 +1477,10 @@ export async function runSecFilingAnalysisForRawRow(
         outputText: analysisRun.outputText,
         usage: combineUsage(routerRun.usage, analysisRun.usage),
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: buildSecPrimaryStructuralValidationDiagnostics({
+          family: "8-k-6-k",
+          structuralFailureCode: "schema_contract",
+        }),
         prompt: {
           key: prompt.key,
           version: prompt.version,
@@ -1474,75 +1492,23 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const repairPlan = buildSec8k6kValidationRepairPlan({
-      analysisResult: analysisRun.parsed,
-      analysisPromptUser: prompt.user,
-      additionalSourceBlocks: () => buildCurrentReportAmendmentRepairSourceBlocks(input),
-    });
-    let repairRun: OpenAiPromptRun | null = null;
-    let appliedPatchPaths: string[] = [];
-    let ignoredPatchPaths: string[] = [];
-    let rationaleFallbackPaths: string[] = [];
-    let unresolvedWarningCodes: string[] = [];
-    let repairAdaptationError: string | null = null;
+    const validationRepair = semanticValidation.validationRepair;
+    sec8k6kDebug = {
+      ...sec8k6kDebug,
+      validation_repair: {
+        ...validationRepair,
+        remaining_display_warnings: readSec8k6kDisplayWarnings(sec8k6kAnalysis.analysis),
+      },
+    };
 
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repaired = applySec8k6kValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        appliedPatchPaths = repaired.appliedPatchPaths;
-        ignoredPatchPaths = repaired.ignoredPatchPaths;
-        rationaleFallbackPaths = repaired.rationaleFallbackPaths;
-        unresolvedWarningCodes = repaired.unresolvedWarningCodes;
-        if (appliedPatchPaths.length) {
-          const repairedAnalysis = adaptSec8k6kAnalysisPromptResultForAnalysis(
-            repaired.analysisResult,
-            input,
-            routerResult,
-          );
-          if (repairedAnalysis.ok) sec8k6kAnalysis = repairedAnalysis;
-          else repairAdaptationError = repairedAnalysis.error;
-        }
-      }
-
-      sec8k6kDebug = {
-        ...sec8k6kDebug,
-        validation_repair: {
-          attempted: true,
-          max_attempts: 1,
-          run_ok: repairRun.ok,
-          run_error: repairRun.error || null,
-          llm_run: summarizeSecLlmRun(repairRun),
-          issue_codes: repairPlan.issues.map((issue) => issue.code),
-          source_block_ids: repairPlan.sourceBlockIds,
-          allowed_patch_paths: repairPlan.allowedPatchPaths,
-          applied_patch_paths: appliedPatchPaths,
-          ignored_patch_paths: ignoredPatchPaths,
-          rationale_fallback_paths: rationaleFallbackPaths,
-          unresolved_warning_codes: unresolvedWarningCodes,
-          adaptation_error: repairAdaptationError,
-          remaining_display_warnings: sec8k6kAnalysis.ok
-            ? readSec8k6kDisplayWarnings(sec8k6kAnalysis.analysis)
-            : [],
-        },
-      };
-    }
-
-    const usage = combineUsage(routerRun.usage, analysisRun.usage, repairRun?.usage);
+    const usage = combineUsage(routerRun.usage, analysisRun.usage);
     return {
       ok: true,
       stage: "complete",
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
+      repairOpenAiResponseId: null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       triage: routerResult,
@@ -1552,9 +1518,7 @@ export async function runSecFilingAnalysisForRawRow(
       economicExposureIdentityRejected: sec8k6kAnalysis.economicExposureIdentitySidecar?.rejected ?? [],
       triageOutputText: routerRun.outputText,
       outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
       triageUsage: routerRun.usage,
-      repairUsage: repairRun?.usage,
       usage,
       costEstimate: estimateCost(llmConfig.model, usage),
       prompt: {
@@ -1564,17 +1528,8 @@ export async function runSecFilingAnalysisForRawRow(
           key: SEC_8K_6K_ROUTER_PROMPT_KEY,
           version: SEC_8K_6K_ROUTER_PROMPT_VERSION,
         },
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
       },
-      validationRepair: readRecord(sec8k6kDebug?.validation_repair),
+      validationRepair,
     };
   }
 
@@ -2088,6 +2043,7 @@ export async function runSecFilingAnalysisForRawRow(
         outputText: analysisRun.outputText,
         usage: analysisRun.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: buildSecPrimaryPromptFailureDisposition("424b", analysisRun),
         prompt: {
           key: prompt.key,
           version: prompt.version,
@@ -2095,44 +2051,14 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const repairPlan = buildSec424bValidationRepairPlan({ analysisResult: analysisRun.parsed, input });
-    let repairedValue = analysisRun.parsed;
-    let repairRun: OpenAiPromptRun | null = null;
-    let repairAppliedPaths: string[] = [];
-    let repairIgnoredPaths: string[] = [];
-    let repairUnresolved: unknown[] = [];
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repairApplication = applySec424bValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        repairedValue = repairApplication.value;
-        repairAppliedPaths = repairApplication.appliedPaths;
-        repairIgnoredPaths = repairApplication.ignoredPaths;
-        repairUnresolved = repairApplication.unresolved;
-      }
-    }
-    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
-    const validationRepair = repairPlan
-      ? {
-          attempted: true,
-          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-          issue_codes: repairPlan.issues.map((issue) => issue.code),
-          source_block_ids: repairPlan.sourceBlockIds,
-          allowed_patch_paths: repairPlan.allowedPatchPaths,
-          applied_patch_paths: repairAppliedPaths,
-          ignored_patch_paths: repairIgnoredPaths,
-          unresolved: repairUnresolved,
-          error: repairRun?.error || null,
-        }
-      : { attempted: false };
-    const sec424bAnalysis = adaptSec424bAnalysisPromptResultForAnalysis(repairedValue, input);
+    const semanticValidation = applySecPrimarySemanticValidationDisposition({
+      family: "424b",
+      analysisResult: analysisRun.parsed,
+      issues: inspectSec424bValidationIssues({ analysisResult: analysisRun.parsed, input }),
+    });
+    const validationRepair = semanticValidation.validationRepair;
+    const usage = combineUsage(analysisRun.usage);
+    const sec424bAnalysis = adaptSec424bAnalysisPromptResultForAnalysis(semanticValidation.analysisResult, input);
     if (!sec424bAnalysis.ok) {
       return {
         ok: false,
@@ -2142,23 +2068,15 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        repairOutputText: repairRun?.outputText,
         usage,
-        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        validationRepair,
+        validationRepair: buildSecPrimaryStructuralValidationDiagnostics({
+          family: "424b",
+          structuralFailureCode: "schema_contract",
+        }),
         prompt: {
           key: prompt.key,
           version: prompt.version,
-          repair: repairPlan
-            ? {
-                key: repairPlan.prompt.key,
-                version: repairPlan.prompt.version,
-                system: repairPlan.prompt.system,
-                user: repairPlan.prompt.user,
-                responseFormat: repairPlan.prompt.responseFormat,
-              }
-            : undefined,
         },
       };
     }
@@ -2169,30 +2087,19 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
+      repairOpenAiResponseId: null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: sec424bAnalysis.analysis,
       economicExposureIdentityObservations: sec424bAnalysis.economicExposureIdentitySidecar?.observations ?? [],
       economicExposureIdentityRejected: sec424bAnalysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
       usage,
-      repairUsage: repairRun?.usage,
       costEstimate: estimateCost(llmConfig.model, usage),
       validationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
       },
     };
   }
@@ -2211,6 +2118,7 @@ export async function runSecFilingAnalysisForRawRow(
         outputText: analysisRun.outputText,
         usage: analysisRun.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: buildSecPrimaryPromptFailureDisposition("s-1-f-1", analysisRun),
         prompt: {
           key: prompt.key,
           version: prompt.version,
@@ -2218,34 +2126,14 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const repairPlan = buildSecS1F1ValidationRepairPlan({
+    const semanticValidation = applySecPrimarySemanticValidationDisposition({
+      family: "s-1-f-1",
       analysisResult: analysisRun.parsed,
-      input,
+      issues: inspectSecS1F1ValidationIssues({ analysisResult: analysisRun.parsed }),
     });
-    let repairedValue = analysisRun.parsed;
-    let repairRun: OpenAiPromptRun | null = null;
-    let repairAppliedPaths: string[] = [];
-    let repairIgnoredPaths: string[] = [];
-    let repairUnresolved: unknown[] = [];
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repairApplication = applySecS1F1ValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        repairedValue = repairApplication.value;
-        repairAppliedPaths = repairApplication.appliedPaths;
-        repairIgnoredPaths = repairApplication.ignoredPaths;
-        repairUnresolved = repairApplication.unresolved;
-      }
-    }
-    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
-    const secS1F1Analysis = adaptSecS1F1AnalysisPromptResultForAnalysis(repairedValue, input);
+    const validationRepair = semanticValidation.validationRepair;
+    const usage = combineUsage(analysisRun.usage);
+    const secS1F1Analysis = adaptSecS1F1AnalysisPromptResultForAnalysis(semanticValidation.analysisResult, input);
     if (!secS1F1Analysis.ok) {
       return {
         ok: false,
@@ -2255,35 +2143,15 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        repairOutputText: repairRun?.outputText,
         usage,
-        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        validationRepair: repairPlan
-          ? {
-              attempted: true,
-              succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-              issue_codes: repairPlan.issues.map((issue) => issue.code),
-              source_block_ids: repairPlan.sourceBlockIds,
-              allowed_patch_paths: repairPlan.allowedPatchPaths,
-              applied_patch_paths: repairAppliedPaths,
-              ignored_patch_paths: repairIgnoredPaths,
-              unresolved: repairUnresolved,
-              error: repairRun?.error || null,
-            }
-          : { attempted: false },
+        validationRepair: buildSecPrimaryStructuralValidationDiagnostics({
+          family: "s-1-f-1",
+          structuralFailureCode: "schema_contract",
+        }),
         prompt: {
           key: prompt.key,
           version: prompt.version,
-          repair: repairPlan
-            ? {
-                key: repairPlan.prompt.key,
-                version: repairPlan.prompt.version,
-                system: repairPlan.prompt.system,
-                user: repairPlan.prompt.user,
-                responseFormat: repairPlan.prompt.responseFormat,
-              }
-            : undefined,
         },
       };
     }
@@ -2294,42 +2162,19 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
+      repairOpenAiResponseId: null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS1F1Analysis.analysis,
       economicExposureIdentityObservations: secS1F1Analysis.economicExposureIdentitySidecar?.observations ?? [],
       economicExposureIdentityRejected: secS1F1Analysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
       usage,
-      repairUsage: repairRun?.usage,
       costEstimate: estimateCost(llmConfig.model, usage),
-      validationRepair: repairPlan
-        ? {
-            attempted: true,
-            succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-            issue_codes: repairPlan.issues.map((issue) => issue.code),
-            source_block_ids: repairPlan.sourceBlockIds,
-            allowed_patch_paths: repairPlan.allowedPatchPaths,
-            applied_patch_paths: repairAppliedPaths,
-            ignored_patch_paths: repairIgnoredPaths,
-            unresolved: repairUnresolved,
-            error: repairRun?.error || null,
-          }
-        : { attempted: false },
+      validationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
       },
     };
   }
@@ -2349,6 +2194,7 @@ export async function runSecFilingAnalysisForRawRow(
         outputText: analysisRun.outputText,
         usage: analysisRun.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
+        validationRepair: buildSecPrimaryPromptFailureDisposition("s-3-f-3", analysisRun),
         prompt: {
           key: prompt.key,
           version: prompt.version,
@@ -2356,47 +2202,14 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const repairPlan = buildSecS3ValidationRepairPlan({
+    const semanticValidation = applySecPrimarySemanticValidationDisposition({
+      family: "s-3-f-3",
       analysisResult: analysisRun.parsed,
-      input,
+      issues: inspectSecS3ValidationIssues({ analysisResult: analysisRun.parsed, input }),
     });
-    let repairedValue = analysisRun.parsed;
-    let repairRun: OpenAiPromptRun | null = null;
-    let repairAppliedPaths: string[] = [];
-    let repairIgnoredPaths: string[] = [];
-    let repairUnresolved: unknown[] = [];
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repairApplication = applySecS3ValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        repairedValue = repairApplication.value;
-        repairAppliedPaths = repairApplication.appliedPaths;
-        repairIgnoredPaths = repairApplication.ignoredPaths;
-        repairUnresolved = repairApplication.unresolved;
-      }
-    }
-    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
-    const validationRepair = repairPlan
-      ? {
-          attempted: true,
-          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-          issue_codes: repairPlan.issues.map((issue) => issue.code),
-          source_block_ids: repairPlan.sourceBlockIds,
-          allowed_patch_paths: repairPlan.allowedPatchPaths,
-          applied_patch_paths: repairAppliedPaths,
-          ignored_patch_paths: repairIgnoredPaths,
-          unresolved: repairUnresolved,
-          error: repairRun?.error || null,
-        }
-      : { attempted: false };
-    const secS3Analysis = adaptSecS3AnalysisPromptResultForAnalysis(repairedValue, input);
+    const validationRepair = semanticValidation.validationRepair;
+    const usage = combineUsage(analysisRun.usage);
+    const secS3Analysis = adaptSecS3AnalysisPromptResultForAnalysis(semanticValidation.analysisResult, input);
     if (!secS3Analysis.ok) {
       return {
         ok: false,
@@ -2406,23 +2219,15 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        repairOutputText: repairRun?.outputText,
         usage,
-        repairUsage: repairRun?.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        validationRepair,
+        validationRepair: buildSecPrimaryStructuralValidationDiagnostics({
+          family: "s-3-f-3",
+          structuralFailureCode: "schema_contract",
+        }),
         prompt: {
           key: prompt.key,
           version: prompt.version,
-          repair: repairPlan
-            ? {
-                key: repairPlan.prompt.key,
-                version: repairPlan.prompt.version,
-                system: repairPlan.prompt.system,
-                user: repairPlan.prompt.user,
-                responseFormat: repairPlan.prompt.responseFormat,
-              }
-            : undefined,
         },
       };
     }
@@ -2433,30 +2238,19 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
+      repairOpenAiResponseId: null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS3Analysis.analysis,
       economicExposureIdentityObservations: secS3Analysis.economicExposureIdentitySidecar?.observations ?? [],
       economicExposureIdentityRejected: secS3Analysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
       usage,
-      repairUsage: repairRun?.usage,
       costEstimate: estimateCost(llmConfig.model, usage),
       validationRepair,
       prompt: {
         key: prompt.key,
         version: prompt.version,
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
       },
     };
   }
@@ -3657,6 +3451,17 @@ function isLowQualitySec8k6kArchiveRoute(value: Record<string, unknown>) {
   const eventType = stringValue(primaryCandidate?.route_type || normalized.event_type).toLowerCase();
   const confidence = stringValue(primaryCandidate?.confidence).toLowerCase();
   return eventType === "other" && (confidence === "low" || normalized.analysis_needed !== true);
+}
+
+function buildSecPrimaryPromptFailureDisposition(
+  family: SecPrimaryValidationFamily,
+  run: OpenAiPromptRun,
+) {
+  return buildSecPrimaryStructuralValidationDiagnostics({
+    family,
+    structuralFailureCode:
+      run.status >= 200 && run.status < 300 ? "json_parse" : "transport",
+  });
 }
 
 async function runOpenAiJsonPrompt(

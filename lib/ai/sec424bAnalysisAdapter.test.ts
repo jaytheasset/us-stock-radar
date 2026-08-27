@@ -8,9 +8,12 @@ import {
   buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
   collect424bDisplayPayloadWarnings,
+  inspectSec424bValidationIssues,
   normalize424bOfferingDisplayModel,
   synchronize424bAnalysisOverhangPercentages,
 } from "@/lib/ai/sec424bAnalysisAdapter";
+import { applySecPrimarySemanticValidationDisposition } from "@/lib/ai/secPrimaryValidationDisposition";
+import { buildSecValidationRepairTrace } from "@/lib/secValidationRepairTrace";
 import { get424bAnalysisSourceBlockIds } from "@/lib/sources/sec/forms/424b/analysisPrompt";
 
 describe("424B5 material events output contract", () => {
@@ -36,7 +39,7 @@ describe("424B5 material events output contract", () => {
     assert.deepEqual(adapted.analysis.material_events, result.analysis_output.material_events);
   });
 
-  it("retains a primary event for a routine analyzed 424B5 and rejects uncited source IDs", () => {
+  it("retains a primary event and records uncited source IDs as semantic diagnostics", () => {
     const input = build424b5MaterialEventsInput("424B5");
     const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
     const sourceBlockIds = get424bAnalysisSourceBlockIds(parserOutput);
@@ -44,11 +47,37 @@ describe("424B5 material events output contract", () => {
     const invalid = build424b5MaterialEventsResult(sourceBlockIds, 20);
     invalid.analysis_output.material_events[0].source_block_ids = ["invented_source_block"];
 
-    assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(routine, input).ok, true);
-    const rejected = adaptSec424bAnalysisPromptResultForAnalysis(invalid, input);
-    assert.equal(rejected.ok, false);
-    if (rejected.ok) return;
-    assert.match(rejected.error, /analysis source bundle/);
+    const baseline = adaptSec424bAnalysisPromptResultForAnalysis(routine, input);
+    assert.equal(baseline.ok, true);
+    const accepted = adaptSec424bAnalysisPromptResultForAnalysis(invalid, input);
+    assert.equal(accepted.ok, true);
+    if (!baseline.ok || !accepted.ok) return;
+    assert.deepEqual(accepted.analysis.display_payload, baseline.analysis.display_payload);
+    assert.deepEqual(
+      accepted.analysis.sec_424b_display_warnings,
+      baseline.analysis.sec_424b_display_warnings,
+    );
+    const issues = inspectSec424bValidationIssues({ analysisResult: invalid, input });
+    assert.ok(issues.some((issue) => issue.code === "material_events_semantic_contract"));
+    const beforeDisposition = JSON.stringify(invalid);
+    const disposition = applySecPrimarySemanticValidationDisposition({
+      family: "424b",
+      analysisResult: invalid,
+      issues,
+    });
+    assert.strictEqual(disposition.analysisResult, invalid);
+    assert.equal(JSON.stringify(invalid), beforeDisposition);
+    const trace = buildSecValidationRepairTrace({
+      analysis: accepted.analysis,
+      outputText: beforeDisposition,
+      usage: null,
+      model: "fixture-model",
+      openAiResponseId: "fixture-primary-response",
+      prompt: { key: "sec_424b_analysis", version: "fixture" },
+      validationRepair: disposition.validationRepair,
+    });
+    assert.equal(trace.attempted, false);
+    assert.ok(trace.warnings.some((warning) => warning.code === "material_events_semantic_contract"));
   });
 
   it("isolates malformed Monitor output without failing the existing 424B analysis", () => {
