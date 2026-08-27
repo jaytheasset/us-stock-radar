@@ -23,6 +23,7 @@ import {
   ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD,
   ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD,
 } from "@/lib/dilution/economicExposureIdentityObservationSidecar";
+import { persistEconomicExposureIdentityObservations } from "@/lib/dilution/economicExposurePersistence";
 
 export {
   buildSecFilingGroupDedupe,
@@ -200,6 +201,17 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   );
   const validationRepairTrace = aiTrace.repairTrace;
 
+  const economicExposurePersistence = await persistEconomicExposureIdentityObservations({
+    observations: arrayValue(readRecord(analysisRun)?.economicExposureIdentityObservations),
+  }).catch((error) => ({
+    status: "failed" as const,
+    observationCount: arrayValue(readRecord(analysisRun)?.economicExposureIdentityObservations).length,
+    savedCount: 0,
+    idempotentCount: 0,
+    rows: [],
+    error: error instanceof Error ? error.message : "Economic exposure persistence failed",
+  }));
+
   const calendarItems = await fetchSecFilingCalendarItemsForEvent(stringValue(persistedEvent.id));
   const alertDelivery = options.suppressAlerts
     ? {
@@ -265,6 +277,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     alertDelivery,
     genericMonitorChildren,
     validationRepairTrace,
+    economicExposurePersistence,
   };
 }
 
