@@ -628,12 +628,6 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       error: "SEC 424B result did not contain analysis_output and display_payload",
     };
   }
-  const materialEventWarnings = requires424b5MaterialEvents(parserOutput)
-    ? validateSecOfferingMaterialEvents(
-        analysisOutput,
-        get424bAnalysisSourceBlockIds(attach424bPromptMarketContext(parserOutput, input)),
-      )
-    : [];
   applyMinimalOfferingMonitorBoundary(analysisOutput);
   const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
   const scoreExplanation = normalizeScoreExplanation(
@@ -652,7 +646,6 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   );
   const displayPayloadError = validate424bDisplayPayload(normalizedDisplayPayload);
   const displayPayloadWarnings = [
-    ...materialEventWarnings.map((warning) => `SEC 424B5 ${warning}`),
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
     ...collect424bScoreConsistencyWarnings(alignedAnalysisOutput, normalizedDisplayPayload),

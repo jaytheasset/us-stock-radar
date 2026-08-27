@@ -578,9 +578,6 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
       error: "SEC S3 result did not contain analysis_output and display_payload",
     };
   }
-  const materialEventWarnings = requiresSecS3MaterialEvents(input)
-    ? validateSecOfferingMaterialEvents(analysisOutput, getSecS3OfferingSourceBlockIds(input))
-    : [];
   if (isS3MonitorInput(input)) applyMinimalOfferingMonitorBoundary(analysisOutput);
 
   const rawDisplayPayloadError = validate424bDisplayPayload(displayPayload, {
@@ -593,7 +590,6 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     downgradedDisplayPayloadWarnings.push(rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3"));
   }
   const displayPayloadWarnings = [
-    ...materialEventWarnings.map((warning) => `SEC S3 ${warning}`),
     ...downgradedDisplayPayloadWarnings,
     ...collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
       warning.replace(/^SEC 424B\b/, "SEC S3"),
