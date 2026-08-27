@@ -21,25 +21,33 @@ The implementation is structurally safe inside the existing main analysis invoca
 
 ## Bounded wire schema
 
-The optional root field is `economic_exposure_identity_observations`.
+The logical sidecar root field is `economic_exposure_identity_observations`. The Gemini compatibility wire uses the compact required provider key `eeio`; transport maps it directly to the logical sidecar and raw trace cleanup removes both names so identity observations remain memory-only.
 
 - Maximum observations: 4.
 - Maximum claims per observation: 6.
-- Distinct schema fields: 10 including the optional root field; observation has 3 fields, claim has 4, and evidence selection has 2.
-- Supported exposure types and claim kinds are imported from `economicExposureContracts.ts`; the sidecar defines no duplicate domain enum. To stay below the 8-K provider's finite-state schema limit, claim-kind and semantic-role enums are enforced by deterministic transport rather than repeated in the provider schema.
+- Distinct logical wire fields: 10 including the optional root field; observation has 3 fields, claim has 4, and evidence selection has 2. The provider returns the bounded observation array as one JSON string at the compact `eeio` field so the nested array/object graph and long canonical property name do not exceed Gemini's 8-K finite-state schema limit; transport decodes it before enforcing the full contract.
+- Supported exposure types and claim kinds are imported from `economicExposureContracts.ts`; the sidecar defines no duplicate domain enum. Exposure-type, observation-kind, claim-kind, and semantic-role enums are enforced by deterministic transport rather than expanded in the provider schema.
 - Observation fields: `exposure_type`, `observation_kind`, `identity_claims`.
 - Claim fields: `claim_kind`, `value`, `semantic_role`, `evidence`.
 - Evidence-selection fields: `source_block_index`, `exact_quote`.
-- Optional/null policy: the observation content is optional and uses an empty array when absent; current provider schemas require that bounded array so extraction cannot be silently skipped, while transport remains backward-compatible with an omitted root. `semantic_role` is null for non-date claims and an exact locked date role plus an exact ISO date for date claims. Observations and claims themselves use no null placeholders.
-- Serialized response-schema growth is 972 serialized bytes per targeted analyzer schema, plus the root property name and required-list entry (approximately 1.1 KB total). Runtime output growth is an empty array when absent and is bounded by 4 x 6 claims otherwise.
+- Optional/null policy: observation content is optional and uses an empty logical array when absent; current provider schemas require the compact string field and require the exact string `[]` for no observations, while transport remains backward-compatible with an omitted logical root or a legacy array value. `semantic_role` is null for non-date claims and an exact locked date role plus an exact ISO date for date claims. Observations and claims themselves use no null placeholders.
+- For the failing 8-K operating/legal/routine family, the exact Gemini-transformed schema is 8,874 bytes after compatibility encoding versus 8,842 bytes before the sidecar. Runtime logical output is an empty array when absent and is bounded by 4 x 6 claims otherwise.
 
 The provider does not calculate hashes. It selects one exact quote and its source-block index. Deterministic transport verifies membership and a unique exact range, then uses `buildDilutionEvidenceIdentity` to derive the locked field-level range, SHA-256, source reference, and `exact_source: true` identity. This derives provenance only; it does not calculate, correct, or supply an SEC analysis value.
+
+## Gemini structured-output compatibility evidence
+
+Cached NVDA accession `0001045810-24-000113` (`8-K`) reproduced the production Primary `operating_legal_routine` rejection on `gemini-2.5-flash-lite` at `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent`. The provider returned HTTP 400 / `INVALID_ARGUMENT` with this message:
+
+> The specified schema produces a constraint that has too many states for serving. Typical causes of this error are schemas with lots of text (for example, very long property or enum names), schemas with long array length limits (especially when nested), or schemas using complex value matchers (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)
+
+The provider body supplied no field-violation path. Static A/B and same-model confirmation isolated the rejected delta to `$.properties.economic_exposure_identity_observations`: the pre-sidecar-equivalent transformed schema was 8,842 bytes, SHA-256 `86d994935fad625ea08ae88d14c8e95d9f94e6196699b7016673e82d14769f26`, and returned HTTP 200; the nested sidecar schema was 9,953 bytes, SHA-256 `77f1d4858966689ead3a04bcbd0f63936c93b4b4d2aa11286e4984e43664eeeb`, and returned the 400 above. Removing only domain enums and then collapsing only the nested object shape did not clear the limit. The accepted required `eeio` string schema was 8,874 bytes, SHA-256 `9ac229dc1cc430549adf5ba5783b00d378c62da936fe6d9e5e131995df421823`, and the same cached NVDA Primary confirmation returned HTTP 200 / `STOP` with valid JSON and a sidecar string that decoded to an array.
 
 ## Fail-closed transport and memory boundary
 
 Transport enforces the locked exposure/claim compatibility map, exact object keys, count bounds, source-bundle membership, unique exact quote, semantic date role, and explicit pre-funded subtype evidence. A malformed claim is rejected without making another valid observation unusable; an observation with no remaining valid source-backed claim is omitted and reported in the in-memory rejection list.
 
-The production adapter exposes validated observations separately from `analysis`. `runSecFilingAnalysisIngest` returns them for diagnostics but does not pass them to `saveAnalyzedSecFilingEvent`, Offering Monitor persistence, or any database repository. The existing AI trace receives the provider output with the optional sidecar root removed, so the observation result is not retained indirectly in raw output text. The deterministic resolver remains the only owner of `CREATE_NEW`, `LINK_EXISTING`, `AMEND_EXISTING`, `UNRESOLVED`, and `CONFLICT`.
+The production adapter exposes validated observations separately from `analysis`. `runSecFilingAnalysisIngest` returns them for diagnostics but does not pass them to `saveAnalyzedSecFilingEvent`, Offering Monitor persistence, or any database repository. The existing AI trace receives the provider output with both the logical sidecar root and compact provider key removed, so the observation result is not retained indirectly in raw output text. The deterministic resolver remains the only owner of `CREATE_NEW`, `LINK_EXISTING`, `AMEND_EXISTING`, `UNRESOLVED`, and `CONFLICT`.
 
 No migration, table, registry, RLS/grant, terms state, potential-share calculation, dilution calculation, O/S change, UI route, scheduler, provider call, push, deployment, or server restart is part of V1.
 

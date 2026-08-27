@@ -16,9 +16,11 @@ import {
   type DilutionSourceDocument,
   type DilutionSourceObservation,
 } from "./economicExposureContracts.ts";
+import { parseJsonWithoutDuplicateKeys } from "../minimalOfferingMonitor.ts";
 
 export const ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD =
   "economic_exposure_identity_observations" as const;
+export const ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD = "eeio" as const;
 export const ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS = 4;
 export const ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_CLAIMS = 6;
 
@@ -45,45 +47,15 @@ const SIDE_CAR_CLAIM_ALLOWED_KEYS = new Set([
 const SIDE_CAR_EVIDENCE_ALLOWED_KEYS = new Set(["source_block_index", "exact_quote"]);
 
 export const economicExposureIdentitySidecarProviderSchema = {
-  type: "array",
-  maxItems: ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS,
-  items: {
-    type: "object",
-    additionalProperties: false,
-    required: ["exposure_type", "observation_kind", "identity_claims"],
-    properties: {
-      exposure_type: { type: "string", enum: DILUTION_EXPOSURE_TYPES },
-      observation_kind: { type: "string", enum: SIDECAR_OBSERVATION_KINDS },
-      identity_claims: {
-        type: "array",
-        maxItems: ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_CLAIMS,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["claim_kind", "value", "semantic_role", "evidence"],
-          properties: {
-            claim_kind: { type: "string", minLength: 1, maxLength: 60 },
-            value: { type: "string", minLength: 1, maxLength: 300 },
-            semantic_role: { type: ["string", "null"], maxLength: 60 },
-            evidence: {
-              type: "object",
-              additionalProperties: false,
-              required: ["source_block_index", "exact_quote"],
-              properties: {
-                source_block_index: { type: "integer" },
-                exact_quote: { type: "string", minLength: 1, maxLength: 800 },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+  // Gemini's 8-K schemas exceed its finite-state limit when this nested contract is expanded here.
+  // Transport decodes this string and validates the full bounded array/object contract below.
+  type: "string",
 } as const;
 
 export const ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT = [
   "Optional Economic Exposure Identity Observation Sidecar:",
-  `Return root ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD} as an array with at most ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS} observations and at most ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_CLAIMS} claims per observation; return [] when the source does not state a continuing exposure identity.`,
+  `Return provider root ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD} as one JSON string encoding the ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD} array with at most ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS} observations and at most ${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_CLAIMS} claims per observation; return the exact string "[]" when the source does not state a continuing exposure identity.`,
+  "Each encoded observation must contain exactly exposure_type, observation_kind, and identity_claims. Each identity_claims item must contain exactly claim_kind, value, semantic_role, and evidence; evidence must contain exactly source_block_index and exact_quote.",
   "Before returning, scan every cleaned_source_blocks item for explicitly named continuing instruments and agreements. When the supplied source explicitly names a supported exposure identity, returning [] is invalid; extract the source-stated claims even when the filing is mainly a registration, resale prospectus, ATM update, or wrapper transaction.",
   "Create separate observations for separately designated notes or warrant series. For a repeated ATM or equity-line discussion, extract the source-stated agreement title/date/agent or counterparty without deciding whether it matches a prior exposure.",
   "Extract only source-stated identity facts for convertible_note, warrant, prefunded_warrant, convertible_preferred, atm_program, or equity_line. Registered Direct, PIPE, plain common shares, and a registration statement are not exposures by themselves.",
@@ -102,10 +74,10 @@ export function withEconomicExposureIdentitySidecarSchema<TSchema extends {
 }>(schema: TSchema): TSchema {
   return {
     ...schema,
-    required: [...(schema.required || []), ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD],
+    required: [...(schema.required || []), ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD],
     properties: {
       ...schema.properties,
-      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD]: economicExposureIdentitySidecarProviderSchema,
+      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD]: economicExposureIdentitySidecarProviderSchema,
     },
   };
 }
@@ -120,8 +92,10 @@ export function transportEconomicExposureIdentitySidecar(input: {
   accepted_at?: unknown;
 }): EconomicExposureIdentitySidecarTransportResult {
   const root = record(input.provider_output);
-  const wire = root?.[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD];
-  if (wire === undefined || wire === null) return { observations: [], rejected: [] };
+  const providerWire = root?.[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD]
+    ?? root?.[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD];
+  if (providerWire === undefined || providerWire === null) return { observations: [], rejected: [] };
+  const wire = decodeProviderSidecar(providerWire);
   if (!Array.isArray(wire)) return { observations: [], rejected: ["sidecar must be an array"] };
   if (wire.length > ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS) {
     return { observations: [], rejected: ["sidecar observation bound exceeded"] };
@@ -321,6 +295,15 @@ function sourceRef(block: EconomicExposureIdentitySourceBlock, accession: string
 
 function exactKeys(value: Record<string, unknown>, allowed: Set<string>) {
   return Object.keys(value).every((key) => allowed.has(key));
+}
+
+function decodeProviderSidecar(value: unknown) {
+  if (typeof value !== "string") return value;
+  try {
+    return parseJsonWithoutDuplicateKeys(value);
+  } catch {
+    return null;
+  }
 }
 
 function isExposureType(value: unknown): value is DilutionExposureType {
