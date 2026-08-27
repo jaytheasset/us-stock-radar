@@ -462,10 +462,7 @@ export function buildSec8k6kValidationRepairPlan(input: {
 }): Sec8k6kValidationRepairPlan | null {
   const promptPayload = parsePromptUser(input.analysisPromptUser);
   const sourceBlocks = readRecordArray(promptPayload?.cleaned_source_blocks);
-  const issues = [
-    ...getSec8k6kValidationRepairIssues(input.analysisResult, promptPayload, sourceBlocks),
-    ...getSec8k6kSourceConsistencyRepairIssues(input.analysisResult, sourceBlocks),
-  ].filter((issue) => issue.code !== "key_evidence_word_limit_exceeded");
+  const issues = inspectSec8k6kValidationIssues(input);
   if (!issues.length) return null;
 
   const additionalSourceBlocks = input.additionalSourceBlocks?.() || [];
@@ -596,6 +593,18 @@ export function buildSec8k6kValidationRepairPlan(input: {
     allowedPatchPaths,
     sourceBlockIds,
   };
+}
+
+export function inspectSec8k6kValidationIssues(input: {
+  analysisResult: Record<string, unknown>;
+  analysisPromptUser: unknown;
+}): Sec8k6kValidationRepairIssue[] {
+  const promptPayload = parsePromptUser(input.analysisPromptUser);
+  const sourceBlocks = readRecordArray(promptPayload?.cleaned_source_blocks);
+  return [
+    ...getSec8k6kValidationRepairIssues(input.analysisResult, promptPayload, sourceBlocks),
+    ...getSec8k6kSourceConsistencyRepairIssues(input.analysisResult, sourceBlocks),
+  ].filter((issue) => issue.code !== "key_evidence_word_limit_exceeded");
 }
 
 export function applySec8k6kValidationRepairPatches(input: {

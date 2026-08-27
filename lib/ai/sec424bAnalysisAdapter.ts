@@ -141,11 +141,34 @@ export function buildSec424bValidationRepairPlan({
   analysisResult: Record<string, unknown>;
   input: SecFilingAnalysisInput;
 }): Sec424bValidationRepairPlan | null {
+  const dedupedIssues = inspectSec424bValidationIssues({ analysisResult, input });
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = select424bRepairSourceBlocks(build424bRepairSourceBlocks(input), dedupedIssues, analysisResult);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: build424bValidationRepairPrompt({ analysisResult, issues: issuesWithSources, allowedPatchPaths, sourceBlocks }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function inspectSec424bValidationIssues({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): Sec424bValidationRepairIssue[] {
   const root = readRecord(analysisResult);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = readRecord(root?.display_payload);
   const data = readRecord(displayPayload?.data);
-  if (!root || !analysisOutput || !displayPayload || !data) return null;
+  if (!root || !analysisOutput || !displayPayload || !data) return [];
 
   const issues: Sec424bValidationRepairIssue[] = [];
   const warnings = [validate424bDisplayPayload(displayPayload), ...collect424bDisplayPayloadWarnings(displayPayload)].filter(Boolean);
@@ -170,21 +193,22 @@ export function buildSec424bValidationRepairPlan({
       issues,
     );
   }
+  const parserOutput = read424bParserOutput(input);
+  if (parserOutput && requires424b5MaterialEvents(parserOutput)) {
+    const materialEventWarnings = validateSecOfferingMaterialEvents(
+      analysisOutput,
+      get424bAnalysisSourceBlockIds(attach424bPromptMarketContext(parserOutput, input)),
+    );
+    if (materialEventWarnings.length) {
+      issues.push(build424bRepairIssue(
+        "material_events_semantic_contract",
+        materialEventWarnings.join("; "),
+        ["/analysis_output/material_events"],
+      ));
+    }
+  }
 
-  const dedupedIssues = dedupe424bRepairIssues(issues);
-  if (!dedupedIssues.length) return null;
-  const sourceBlocks = select424bRepairSourceBlocks(build424bRepairSourceBlocks(input), dedupedIssues, analysisResult);
-  if (!sourceBlocks.length) return null;
-  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
-  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
-  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
-
-  return {
-    prompt: build424bValidationRepairPrompt({ analysisResult, issues: issuesWithSources, allowedPatchPaths, sourceBlocks }),
-    issues: issuesWithSources,
-    allowedPatchPaths,
-    sourceBlockIds,
-  };
+  return dedupe424bRepairIssues(issues);
 }
 
 export function applySec424bValidationRepairPatches({
@@ -604,18 +628,12 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
       error: "SEC 424B result did not contain analysis_output and display_payload",
     };
   }
-  if (requires424b5MaterialEvents(parserOutput)) {
-    const materialEventErrors = validateSecOfferingMaterialEvents(
-      analysisOutput,
-      get424bAnalysisSourceBlockIds(attach424bPromptMarketContext(parserOutput, input)),
-    );
-    if (materialEventErrors.length) {
-      return {
-        ok: false,
-        error: `SEC 424B5 analysis_output.material_events failed validation: ${materialEventErrors.join("; ")}`,
-      };
-    }
-  }
+  const materialEventWarnings = requires424b5MaterialEvents(parserOutput)
+    ? validateSecOfferingMaterialEvents(
+        analysisOutput,
+        get424bAnalysisSourceBlockIds(attach424bPromptMarketContext(parserOutput, input)),
+      )
+    : [];
   applyMinimalOfferingMonitorBoundary(analysisOutput);
   const normalizedAnalysisOutput = normalize424bAnalysisOutput(analysisOutput, input);
   const scoreExplanation = normalizeScoreExplanation(
@@ -634,6 +652,7 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   );
   const displayPayloadError = validate424bDisplayPayload(normalizedDisplayPayload);
   const displayPayloadWarnings = [
+    ...materialEventWarnings.map((warning) => `SEC 424B5 ${warning}`),
     ...(displayPayloadError ? [displayPayloadError] : []),
     ...collect424bDisplayPayloadWarnings(normalizedDisplayPayload),
     ...collect424bScoreConsistencyWarnings(alignedAnalysisOutput, normalizedDisplayPayload),

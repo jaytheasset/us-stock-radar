@@ -282,15 +282,44 @@ export function buildSecS1F1ValidationRepairPlan({
   analysisResult: Record<string, unknown>;
   input: SecFilingAnalysisInput;
 }): SecS1F1ValidationRepairPlan | null {
+  const dedupedIssues = inspectSecS1F1ValidationIssues({ analysisResult });
+  if (!dedupedIssues.length) return null;
+
+  const sourceBlocks = buildS1F1RepairSourceBlocks(input);
+  const selectedSourceBlocks = selectS1F1RepairSourceBlocks(sourceBlocks, dedupedIssues, analysisResult);
+  const sourceBlockIds = selectedSourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({
+    ...issue,
+    candidate_source_block_ids: sourceBlockIds,
+  }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildS1F1ValidationRepairPrompt({
+      analysisResult,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      selectedSourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function inspectSecS1F1ValidationIssues({
+  analysisResult,
+}: {
+  analysisResult: Record<string, unknown>;
+}): SecS1F1ValidationRepairIssue[] {
   const root = readRecord(analysisResult);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = readRecord(root?.display_payload);
   const data = readRecord(displayPayload?.data);
-  if (!root || !analysisOutput || !data) return null;
+  if (!root || !analysisOutput || !data) return [];
 
   const issues: SecS1F1ValidationRepairIssue[] = [];
   const shareOverhang = readRecord(data.share_overhang);
-  const sourceBlocks = buildS1F1RepairSourceBlocks(input);
 
   if (shareOverhang) {
     const ratioText = readS1F1ShareOverhangRatio(shareOverhang);
@@ -331,28 +360,7 @@ export function buildSecS1F1ValidationRepairPlan({
     }
   }
 
-  const dedupedIssues = dedupeS1F1RepairIssues(issues);
-  if (!dedupedIssues.length) return null;
-
-  const selectedSourceBlocks = selectS1F1RepairSourceBlocks(sourceBlocks, dedupedIssues, analysisResult);
-  const sourceBlockIds = selectedSourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
-  const issuesWithSources = dedupedIssues.map((issue) => ({
-    ...issue,
-    candidate_source_block_ids: sourceBlockIds,
-  }));
-  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
-
-  return {
-    prompt: buildS1F1ValidationRepairPrompt({
-      analysisResult,
-      issues: issuesWithSources,
-      allowedPatchPaths,
-      selectedSourceBlocks,
-    }),
-    issues: issuesWithSources,
-    allowedPatchPaths,
-    sourceBlockIds,
-  };
+  return dedupeS1F1RepairIssues(issues);
 }
 
 export function applySecS1F1ValidationRepairPatches({

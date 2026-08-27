@@ -8,6 +8,7 @@ import {
   adaptSec424bAnalysisPromptResultForAnalysis,
   buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
+  inspectSec424bValidationIssues,
   is424bFilingInput,
 } from "@/lib/ai/sec424bAnalysisAdapter";
 import {
@@ -27,6 +28,7 @@ import {
   buildSec8k6kPreviewDebug,
   buildSec8k6kRouterPromptForInput,
   buildSec8k6kValidationRepairPlan,
+  inspectSec8k6kValidationIssues,
   isSec8k6kAnalysisPromptKey,
   isSec8k6kFilingInput,
   normalizeSec8k6kRouterResult,
@@ -113,6 +115,7 @@ import {
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
   buildSecS3ValidationRepairPlan,
+  inspectSecS3ValidationIssues,
   isS3AmendmentInput,
   isS3FilingInput,
 } from "@/lib/ai/secS3AnalysisAdapter";
@@ -125,6 +128,7 @@ import {
   adaptSecS1F1AnalysisPromptResultForAnalysis,
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
+  inspectSecS1F1ValidationIssues,
   isS1F1FilingInput,
 } from "@/lib/ai/secS1F1AnalysisAdapter";
 import {
@@ -242,11 +246,13 @@ export {
   buildDeterministicS8ArchiveAnalysis,
   buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
+  inspectSec424bValidationIssues,
   buildSec8k6kAnalysisPromptForInput,
   buildSec8k6kArchiveAnalysis,
   buildSec8k6kPreviewDebug,
   buildSec8k6kRouterPromptForInput,
   buildSec8k6kValidationRepairPlan,
+  inspectSec8k6kValidationIssues,
   buildSec425AnalysisPromptForInput,
   buildSec425DeterministicAnalysisForInput,
   buildSec425RouterPromptForInput,
@@ -255,8 +261,10 @@ export {
   buildSecS3AnalysisPrompt,
   buildSecS3TriagePrompt,
   buildSecS3ValidationRepairPlan,
+  inspectSecS3ValidationIssues,
   buildSecS1F1AnalysisPromptForInput,
   buildSecS1F1ValidationRepairPlan,
+  inspectSecS1F1ValidationIssues,
   buildSecProxyValidationRepairPlan,
   buildSecPeriodicReportsAnalysisPromptForInput,
   buildSecNtAnalysisPromptForInput,

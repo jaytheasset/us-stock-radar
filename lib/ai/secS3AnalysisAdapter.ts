@@ -111,13 +111,41 @@ export function buildSecS3ValidationRepairPlan({
   analysisResult: Record<string, unknown>;
   input: SecFilingAnalysisInput;
 }): SecS3ValidationRepairPlan | null {
+  const dedupedIssues = inspectSecS3ValidationIssues({ analysisResult, input });
+  if (!dedupedIssues.length) return null;
+  const sourceBlocks = selectS3RepairSourceBlocks(buildS3RepairSourceBlocks(input), dedupedIssues, analysisResult);
+  if (!sourceBlocks.length) return null;
+  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
+  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
+  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
+
+  return {
+    prompt: buildS3ValidationRepairPrompt({
+      analysisResult,
+      issues: issuesWithSources,
+      allowedPatchPaths,
+      sourceBlocks,
+    }),
+    issues: issuesWithSources,
+    allowedPatchPaths,
+    sourceBlockIds,
+  };
+}
+
+export function inspectSecS3ValidationIssues({
+  analysisResult,
+  input,
+}: {
+  analysisResult: Record<string, unknown>;
+  input: SecFilingAnalysisInput;
+}): SecS3ValidationRepairIssue[] {
   const root = readRecord(analysisResult);
   const analysisOutput = readRecord(root?.analysis_output);
   const displayPayload = normalizeS3DisplayPayloadRowRoles(
     normalizeS3DisplayPayloadForParentContext(readRecord(root?.display_payload), input),
   );
   const data = readRecord(displayPayload?.data);
-  if (!root || !analysisOutput || !displayPayload || !data) return null;
+  if (!root || !analysisOutput || !displayPayload || !data) return [];
 
   const issues: SecS3ValidationRepairIssue[] = [];
   const warnings = [
@@ -141,26 +169,21 @@ export function buildSecS3ValidationRepairPlan({
   collectS3PlaceholderRepairIssues(analysisOutput, "/analysis_output", issues);
   collectS3PlaceholderRepairIssues(data, "/display_payload/data", issues);
   collectS3OverhangRepairIssues(analysisResult, analysisOutput, data, warnings, issues);
+  if (requiresSecS3MaterialEvents(input)) {
+    const materialEventWarnings = validateSecOfferingMaterialEvents(
+      analysisOutput,
+      getSecS3OfferingSourceBlockIds(input),
+    );
+    if (materialEventWarnings.length) {
+      issues.push(buildS3RepairIssue(
+        "material_events_semantic_contract",
+        materialEventWarnings.join("; "),
+        ["/analysis_output/material_events"],
+      ));
+    }
+  }
 
-  const dedupedIssues = dedupeS3RepairIssues(issues);
-  if (!dedupedIssues.length) return null;
-  const sourceBlocks = selectS3RepairSourceBlocks(buildS3RepairSourceBlocks(input), dedupedIssues, analysisResult);
-  if (!sourceBlocks.length) return null;
-  const sourceBlockIds = sourceBlocks.map((block) => stringValue(block.block_id)).filter(Boolean);
-  const issuesWithSources = dedupedIssues.map((issue) => ({ ...issue, candidate_source_block_ids: sourceBlockIds }));
-  const allowedPatchPaths = uniqueStrings(issuesWithSources.flatMap((issue) => issue.allowed_patch_paths));
-
-  return {
-    prompt: buildS3ValidationRepairPrompt({
-      analysisResult,
-      issues: issuesWithSources,
-      allowedPatchPaths,
-      sourceBlocks,
-    }),
-    issues: issuesWithSources,
-    allowedPatchPaths,
-    sourceBlockIds,
-  };
+  return dedupeS3RepairIssues(issues);
 }
 
 export function applySecS3ValidationRepairPatches({
@@ -555,18 +578,9 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
       error: "SEC S3 result did not contain analysis_output and display_payload",
     };
   }
-  if (requiresSecS3MaterialEvents(input)) {
-    const materialEventErrors = validateSecOfferingMaterialEvents(
-      analysisOutput,
-      getSecS3OfferingSourceBlockIds(input),
-    );
-    if (materialEventErrors.length) {
-      return {
-        ok: false,
-        error: `SEC S3 analysis_output.material_events failed validation: ${materialEventErrors.join("; ")}`,
-      };
-    }
-  }
+  const materialEventWarnings = requiresSecS3MaterialEvents(input)
+    ? validateSecOfferingMaterialEvents(analysisOutput, getSecS3OfferingSourceBlockIds(input))
+    : [];
   if (isS3MonitorInput(input)) applyMinimalOfferingMonitorBoundary(analysisOutput);
 
   const rawDisplayPayloadError = validate424bDisplayPayload(displayPayload, {
@@ -579,6 +593,7 @@ export function adaptSecS3AnalysisPromptResultForAnalysis(
     downgradedDisplayPayloadWarnings.push(rawDisplayPayloadError.replace(/^SEC 424B\b/, "SEC S3"));
   }
   const displayPayloadWarnings = [
+    ...materialEventWarnings.map((warning) => `SEC S3 ${warning}`),
     ...downgradedDisplayPayloadWarnings,
     ...collect424bDisplayPayloadWarnings(displayPayload).map((warning) =>
       warning.replace(/^SEC 424B\b/, "SEC S3"),

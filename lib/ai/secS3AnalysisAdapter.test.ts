@@ -6,6 +6,7 @@ import {
   adaptSecS3AnalysisPromptResultForAnalysis,
   applySecS3ValidationRepairPatches,
   buildSecS3ValidationRepairPlan,
+  inspectSecS3ValidationIssues,
 } from "@/lib/ai/secS3AnalysisAdapter";
 import {
   buildSecS3OfferingAnalysisPrompt,
@@ -50,7 +51,7 @@ describe("S-3 material events output contract", () => {
     assert.deepEqual(adapted.analysis.material_events, result.analysis_output.material_events);
   });
 
-  it("keeps a routine analyzed S-3 as one primary event and rejects duplicate primaries", () => {
+  it("keeps a routine analyzed S-3 and records duplicate primaries as semantic diagnostics", () => {
     const input = buildS3MaterialEventsInput("S-3");
     const sourceBlockIds = getSecS3OfferingSourceBlockIds(input);
     const primary = {
@@ -64,10 +65,16 @@ describe("S-3 material events output contract", () => {
     const duplicatePrimary = buildS3MaterialEventsResult(sourceBlockIds, [primary, { ...primary }], 25);
 
     assert.equal(adaptSecS3AnalysisPromptResultForAnalysis(routine, input).ok, true);
-    const rejected = adaptSecS3AnalysisPromptResultForAnalysis(duplicatePrimary, input);
-    assert.equal(rejected.ok, false);
-    if (rejected.ok) return;
-    assert.match(rejected.error, /exactly one primary/);
+    const accepted = adaptSecS3AnalysisPromptResultForAnalysis(duplicatePrimary, input);
+    assert.equal(accepted.ok, true);
+    if (!accepted.ok) return;
+    assert.ok(
+      (accepted.analysis.sec_s3_display_warnings as string[]).some((warning) =>
+        /exactly one primary/.test(warning),
+      ),
+    );
+    const issues = inspectSecS3ValidationIssues({ analysisResult: duplicatePrimary, input });
+    assert.ok(issues.some((issue) => issue.code === "material_events_semantic_contract"));
   });
 
   it("isolates malformed Monitor output without failing the existing S-3 analysis", () => {

@@ -8,6 +8,7 @@ import {
   buildSec424bAnalysisPromptForInput,
   buildSec424bValidationRepairPlan,
   collect424bDisplayPayloadWarnings,
+  inspectSec424bValidationIssues,
   normalize424bOfferingDisplayModel,
   synchronize424bAnalysisOverhangPercentages,
 } from "@/lib/ai/sec424bAnalysisAdapter";
@@ -36,7 +37,7 @@ describe("424B5 material events output contract", () => {
     assert.deepEqual(adapted.analysis.material_events, result.analysis_output.material_events);
   });
 
-  it("retains a primary event for a routine analyzed 424B5 and rejects uncited source IDs", () => {
+  it("retains a primary event and records uncited source IDs as semantic diagnostics", () => {
     const input = build424b5MaterialEventsInput("424B5");
     const parserOutput = ((input.filing_package as Record<string, unknown>).hard_parsers as Record<string, unknown>)["424b"] as Parameters<typeof get424bAnalysisSourceBlockIds>[0];
     const sourceBlockIds = get424bAnalysisSourceBlockIds(parserOutput);
@@ -45,10 +46,16 @@ describe("424B5 material events output contract", () => {
     invalid.analysis_output.material_events[0].source_block_ids = ["invented_source_block"];
 
     assert.equal(adaptSec424bAnalysisPromptResultForAnalysis(routine, input).ok, true);
-    const rejected = adaptSec424bAnalysisPromptResultForAnalysis(invalid, input);
-    assert.equal(rejected.ok, false);
-    if (rejected.ok) return;
-    assert.match(rejected.error, /analysis source bundle/);
+    const accepted = adaptSec424bAnalysisPromptResultForAnalysis(invalid, input);
+    assert.equal(accepted.ok, true);
+    if (!accepted.ok) return;
+    assert.ok(
+      (accepted.analysis.sec_424b_display_warnings as string[]).some((warning) =>
+        /analysis source bundle/.test(warning),
+      ),
+    );
+    const issues = inspectSec424bValidationIssues({ analysisResult: invalid, input });
+    assert.ok(issues.some((issue) => issue.code === "material_events_semantic_contract"));
   });
 
   it("isolates malformed Monitor output without failing the existing 424B analysis", () => {
