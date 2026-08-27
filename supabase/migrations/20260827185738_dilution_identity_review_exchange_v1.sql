@@ -426,11 +426,13 @@ begin
   end if;
   if pg_catalog.jsonb_typeof(p_decision) <> 'object'
     or not (p_decision ?& array[
-      'review_case_id', 'input_hash', 'decision', 'confidence', 'reason', 'evidence_refs'
+      'review_case_id', 'input_hash', 'decision', 'confidence', 'reason',
+      'evidence_refs', 'sources_checked'
     ])
     or (p_decision - array[
       'review_case_id', 'input_hash', 'decision', 'target_exposure_id',
-      'confidence', 'reason', 'evidence_refs'
+      'confidence', 'reason', 'evidence_refs', 'sources_checked',
+      'suggested_corrections'
     ]) <> '{}'::jsonb
   then
     raise exception using errcode = '22023', message = 'REVIEW_DECISION_SCHEMA_INVALID';
@@ -454,6 +456,51 @@ begin
       where pg_catalog.jsonb_typeof(evidence.value) <> 'string'
         or pg_catalog.length(evidence.value#>>'{}') not between 1 and 240
         or evidence.value#>>'{}' <> pg_catalog.btrim(evidence.value#>>'{}')
+    )
+    or (
+      select pg_catalog.count(*)
+      from pg_catalog.jsonb_array_elements_text(p_decision->'evidence_refs') as evidence(value)
+    ) <> (
+      select pg_catalog.count(distinct evidence.value)
+      from pg_catalog.jsonb_array_elements_text(p_decision->'evidence_refs') as evidence(value)
+    )
+    or pg_catalog.jsonb_typeof(p_decision->'sources_checked') <> 'array'
+    or pg_catalog.jsonb_array_length(p_decision->'sources_checked') not between 1 and 40
+    or exists (
+      select 1 from pg_catalog.jsonb_array_elements(p_decision->'sources_checked') as source(value)
+      where pg_catalog.jsonb_typeof(source.value) <> 'string'
+        or pg_catalog.length(source.value#>>'{}') not between 1 and 1000
+        or source.value#>>'{}' <> pg_catalog.btrim(source.value#>>'{}')
+    )
+    or (
+      select pg_catalog.count(*)
+      from pg_catalog.jsonb_array_elements_text(p_decision->'sources_checked') as source(value)
+    ) <> (
+      select pg_catalog.count(distinct source.value)
+      from pg_catalog.jsonb_array_elements_text(p_decision->'sources_checked') as source(value)
+    )
+    or (
+      p_decision ? 'suggested_corrections'
+      and (
+        pg_catalog.jsonb_typeof(p_decision->'suggested_corrections') <> 'array'
+        or pg_catalog.jsonb_array_length(p_decision->'suggested_corrections') > 20
+        or exists (
+          select 1
+          from pg_catalog.jsonb_array_elements(p_decision->'suggested_corrections') as correction(value)
+          where pg_catalog.jsonb_typeof(correction.value) <> 'object'
+            or not (correction.value ?& array['field', 'suggestion', 'reason'])
+            or (correction.value - array['field', 'suggestion', 'reason']) <> '{}'::jsonb
+            or pg_catalog.jsonb_typeof(correction.value->'field') <> 'string'
+            or pg_catalog.length(correction.value->>'field') not between 1 and 200
+            or correction.value->>'field' <> pg_catalog.btrim(correction.value->>'field')
+            or pg_catalog.jsonb_typeof(correction.value->'suggestion') <> 'string'
+            or pg_catalog.length(correction.value->>'suggestion') not between 1 and 4000
+            or correction.value->>'suggestion' <> pg_catalog.btrim(correction.value->>'suggestion')
+            or pg_catalog.jsonb_typeof(correction.value->'reason') <> 'string'
+            or pg_catalog.length(correction.value->>'reason') not between 1 and 4000
+            or correction.value->>'reason' <> pg_catalog.btrim(correction.value->>'reason')
+        )
+      )
     )
   then
     raise exception using errcode = '22023', message = 'REVIEW_DECISION_SCHEMA_INVALID';

@@ -95,7 +95,14 @@ returns jsonb language sql immutable as $$
     'target_exposure_id', p_target,
     'confidence', 'HIGH',
     'reason', 'Source-backed identity evidence supports this final human adjudication.',
-    'evidence_refs', pg_catalog.jsonb_build_array(p_context#>>'{allowed_evidence_refs,0}')
+    'evidence_refs', pg_catalog.jsonb_build_array(p_context#>>'{allowed_evidence_refs,0}'),
+    'sources_checked', pg_catalog.jsonb_build_array(
+      p_context#>>'{review_observation,accession}',
+      'https://www.sec.gov/Archives/edgar/data/' ||
+        pg_catalog.ltrim((p_context#>>'{issuer,cik}'), '0') || '/' ||
+        pg_catalog.replace((p_context#>>'{review_observation,accession}'), '-', '') || '/' ||
+        (p_context#>>'{review_observation,accession}') || '-index.html'
+    )
   ))
 $$;
 
@@ -207,6 +214,17 @@ set decision = pg_temp.review_decision(
   (select exposure_id from review_fixture where name = 'issuer_a_exposure')
 )
 where name = 'unresolved';
+update review_fixture
+set decision = decision || pg_catalog.jsonb_build_object(
+  'suggested_corrections', pg_catalog.jsonb_build_array(
+    pg_catalog.jsonb_build_object(
+      'field', 'current_stock_radar_analysis.source_backed_claims[0]',
+      'suggestion', 'Check the structured identity value against the cited SEC exhibit.',
+      'reason', 'Structured claim values are not represented as verbatim SEC quotes.'
+    )
+  )
+)
+where name = 'unresolved';
 
 select is(
   (select count(*)::integer from public.dilution_identity_adjudications_v1),
@@ -289,6 +307,16 @@ select throws_ok(
   'REVIEW_DECISION_SCHEMA_INVALID',
   'malformed decision payload is rejected'
 );
+select throws_ok(
+  $$select public.apply_dilution_identity_review_v1(
+    (select observation_key from review_fixture where name = 'unresolved'),
+    (select decision - 'sources_checked' from review_fixture where name = 'unresolved'),
+    '11111111-1111-4111-8111-111111111111'::uuid
+  )$$,
+  '22023',
+  'REVIEW_DECISION_SCHEMA_INVALID',
+  'sources_checked is required at the database Apply boundary'
+);
 
 update review_fixture
 set result = public.apply_dilution_identity_review_v1(
@@ -328,6 +356,20 @@ select is(
   )#>>'{original,decision}',
   'UNRESOLVED',
   'effective reader still returns the machine original separately'
+);
+select is(
+  (select pg_catalog.jsonb_array_length(gpt_supplied_payload->'sources_checked')::integer
+   from public.dilution_identity_adjudications_v1
+   where observation_key = (select observation_key from review_fixture where name = 'unresolved')),
+  2,
+  'sources checked are retained in the GPT supplied audit payload'
+);
+select is(
+  (select gpt_supplied_payload#>>'{suggested_corrections,0,field}'
+   from public.dilution_identity_adjudications_v1
+   where observation_key = (select observation_key from review_fixture where name = 'unresolved')),
+  'current_stock_radar_analysis.source_backed_claims[0]',
+  'suggested corrections are retained only inside the supplied audit payload'
 );
 
 -- I. Exact replay is idempotent and creates no duplicate row or exposure.

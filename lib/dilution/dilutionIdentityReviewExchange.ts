@@ -2,6 +2,7 @@ import {
   DILUTION_IDENTITY_DECISIONS,
   type DilutionIdentityDecisionKind,
 } from "./economicExposureContracts.ts";
+import { ECONOMIC_EXPOSURE_IDENTITY_RULES } from "./economicExposureIdentityRules.ts";
 
 export const DILUTION_IDENTITY_REVIEW_PACKET_VERSION =
   "dilution_identity_review_packet_v1" as const;
@@ -49,6 +50,14 @@ export type DilutionIdentityReviewDecision = Readonly<{
   confidence: DilutionIdentityReviewConfidence;
   reason: string;
   evidence_refs: readonly string[];
+  sources_checked: readonly string[];
+  suggested_corrections?: readonly DilutionIdentitySuggestedCorrection[];
+}>;
+
+export type DilutionIdentitySuggestedCorrection = Readonly<{
+  field: string;
+  suggestion: string;
+  reason: string;
 }>;
 
 export type DilutionIdentityReviewPacket = Readonly<{
@@ -56,14 +65,9 @@ export type DilutionIdentityReviewPacket = Readonly<{
   task_instructions: readonly string[];
   review_case_id: string;
   input_hash: string;
-  issuer: Record<string, unknown>;
-  new_observation: Record<string, unknown>;
-  resolver_original: Record<string, unknown>;
-  candidate_identity: unknown;
-  source_backed_claims: readonly Record<string, unknown>[];
-  evidence_refs: readonly Record<string, unknown>[];
-  relevant_existing_economic_exposures: readonly Record<string, unknown>[];
-  identity_observation_history: readonly Record<string, unknown>[];
+  current_stock_radar_analysis: Record<string, unknown>;
+  current_registered_exposures: readonly Record<string, unknown>[];
+  sec_source_locators: Record<string, unknown>;
   allowed_decisions: readonly DilutionIdentityDecisionKind[];
   allowed_target_exposure_ids: readonly string[];
   gpt_output_contract: Record<string, unknown>;
@@ -190,6 +194,8 @@ export function validateDilutionIdentityReviewDecision(input: {
     "confidence",
     "reason",
     "evidence_refs",
+    "sources_checked",
+    "suggested_corrections",
   ]);
   const unexpected = Object.keys(value).filter((key) => !allowedKeys.has(key));
   if (unexpected.length) {
@@ -243,7 +249,8 @@ export function validateDilutionIdentityReviewDecision(input: {
   }
 
   const allowedEvidenceRefs = new Set(
-    input.packet.evidence_refs.map((ref) => string(ref.ref)).filter(Boolean),
+    records(input.packet.current_stock_radar_analysis.evidence_refs)
+      .map((ref) => string(ref.ref)).filter(Boolean),
   );
   const evidenceRefs = Array.isArray(value.evidence_refs)
     ? value.evidence_refs.map(string)
@@ -263,6 +270,9 @@ export function validateDilutionIdentityReviewDecision(input: {
     });
   }
 
+  const sourcesChecked = parseSourcesChecked(value.sources_checked, errors);
+  const suggestedCorrections = parseSuggestedCorrections(value.suggested_corrections, errors);
+
   if (errors.length || !decision || !confidence || !reason) return { ok: false, errors };
 
   const normalized: DilutionIdentityReviewDecision = {
@@ -273,10 +283,12 @@ export function validateDilutionIdentityReviewDecision(input: {
     confidence,
     reason,
     evidence_refs: evidenceRefs,
+    sources_checked: sourcesChecked,
+    ...(suggestedCorrections ? { suggested_corrections: suggestedCorrections } : {}),
   };
-  const resolver = object(input.packet.resolver_original) || {};
+  const resolver = object(input.packet.current_stock_radar_analysis.resolver_original) || {};
   const targetExposure = target
-    ? input.packet.relevant_existing_economic_exposures.find(
+    ? input.packet.current_registered_exposures.find(
         (exposure) => string(exposure.exposure_id) === target,
       ) || null
     : null;
@@ -345,6 +357,7 @@ function parseDilutionIdentityReviewDecisionForApply(
   const allowedKeys = new Set([
     "review_case_id", "input_hash", "decision", "target_exposure_id",
     "confidence", "reason", "evidence_refs",
+    "sources_checked", "suggested_corrections",
   ]);
   if (!value || Object.keys(value).some((key) => !allowedKeys.has(key))) {
     throw new DilutionIdentityReviewError(
@@ -361,6 +374,9 @@ function parseDilutionIdentityReviewDecisionForApply(
   const evidenceRefs = Array.isArray(value.evidence_refs)
     ? value.evidence_refs.map(string)
     : [];
+  const schemaErrors: Array<{ code: string; message: string }> = [];
+  const sourcesChecked = parseSourcesChecked(value.sources_checked, schemaErrors);
+  const suggestedCorrections = parseSuggestedCorrections(value.suggested_corrections, schemaErrors);
   const targetInvalid = decision === "LINK_EXISTING" || decision === "AMEND_EXISTING"
     ? !target || !/^economic-exposure:v1:[0-9a-f]{64}$/.test(target)
     : Boolean(target);
@@ -370,7 +386,8 @@ function parseDilutionIdentityReviewDecisionForApply(
     || !reason || reason !== reason.trim() || reason.length > 4000
     || evidenceRefs.length < 1 || evidenceRefs.length > 40
     || new Set(evidenceRefs).size !== evidenceRefs.length
-    || evidenceRefs.some((ref) => !ref || ref !== ref.trim() || ref.length > 240)) {
+    || evidenceRefs.some((ref) => !ref || ref !== ref.trim() || ref.length > 240)
+    || schemaErrors.length > 0) {
     throw new DilutionIdentityReviewError(
       "REVIEW_DECISION_SCHEMA_INVALID",
       "The GPT decision does not match the required JSON schema.",
@@ -384,6 +401,8 @@ function parseDilutionIdentityReviewDecisionForApply(
     confidence,
     reason,
     evidence_refs: evidenceRefs,
+    sources_checked: sourcesChecked,
+    ...(suggestedCorrections ? { suggested_corrections: suggestedCorrections } : {}),
   };
 }
 
@@ -440,40 +459,88 @@ function buildReviewPacket(value: unknown): DilutionIdentityReviewPacket {
   }
 
   const newClaims = records(observation.identity_claims);
-  const sourceBackedClaims = newClaims.map((claim, index) => ({
-    claim_ref: `new-observation-claim:${index + 1}`,
-    claim_kind: claim.claim_kind,
-    value: claim.value,
-    semantic_role: claim.semantic_role ?? null,
-    source_excerpt: claim.value,
-    evidence_identity: claim.evidence_identity,
-  }));
+  const sourceBackedClaims = packetClaims(newClaims, "current-observation-claim");
   const evidenceDetails = collectEvidenceDetails([...newClaims, ...allClaims(exposures, history)]);
   const evidenceRefs = allowedEvidenceRefs.map((ref) => ({
     ref,
     ...(evidenceDetails.get(ref) || { source_ref: ref }),
   }));
-  const candidateIdentity = object(resolver.result)?.candidate_exposure_identity ?? null;
+  const resolverResult = object(resolver.result) || {};
+  const candidateIdentity = resolverResult.candidate_exposure_identity ?? null;
+  const currentLocator = secSourceLocator(reviewObservation, string(issuer.cik), "CURRENT_REVIEW_OBSERVATION");
+  const priorLocators = history
+    .filter((item) => string(item.observation_key) !== string(reviewObservation.observation_key))
+    .map((item) => secSourceLocator(item, string(issuer.cik), "PRIOR_OBSERVATION"));
+  const registeredExposures = exposures.map((exposure) => {
+    const exposureId = string(exposure.exposure_id);
+    const linkedHistory = history.filter((item) => historyTargetsExposure(item, exposure));
+    const canonicalClaims = records(exposure.canonical_identity_claims);
+    return {
+      exposure_id: exposureId,
+      issuer_cik: exposure.issuer_cik,
+      exposure_type: exposure.exposure_type,
+      canonical_identity: canonicalClaims,
+      canonical_strong_identity_fields: strongClaims(canonicalClaims, string(exposure.exposure_type)),
+      lineage: {
+        created_from_observation_key: exposure.created_from_observation_key,
+        first_accession: exposure.created_accession,
+        created_at: exposure.created_at,
+      },
+      prior_observations: linkedHistory.map((item) => observationComparison(item, string(issuer.cik))),
+      sec_source_locators: linkedHistory.map((item) =>
+        secSourceLocator(item, string(issuer.cik), "REGISTERED_EXPOSURE_PRIOR_OBSERVATION")),
+    };
+  });
 
   return {
     packet_version: DILUTION_IDENTITY_REVIEW_PACKET_VERSION,
     task_instructions: [
-      "Review whether the new source observation identifies a new or existing economic exposure.",
-      "Use only the source-backed claims, evidence references, canonical identities, and history in this packet.",
-      "Return exactly one JSON object matching gpt_output_contract; do not add Markdown or commentary.",
+      "Review Current Stock Radar Analysis, Current Registered Exposures, and every supplied SEC accession or link before deciding canonical economic-exposure identity.",
+      "When the supplied context is insufficient, use web search and inspect SEC primary filings, filing index pages, exhibits, and relevant prior filings directly.",
+      "Identify material Stock Radar analysis errors or omissions in suggested_corrections when useful; suggestions are reference-only and are never applied by this workflow.",
+      "Choose exactly one canonical decision: CREATE_NEW, LINK_EXISTING, AMEND_EXISTING, UNRESOLVED, or CONFLICT.",
       "Never invent an exposure ID. LINK_EXISTING and AMEND_EXISTING may use only allowed_target_exposure_ids.",
       "Omit target_exposure_id for CREATE_NEW, UNRESOLVED, and CONFLICT.",
+      "Return only the required JSON object matching gpt_output_contract, with no Markdown or commentary.",
     ],
     review_case_id: reviewCaseId,
     input_hash: inputHash,
-    issuer,
-    new_observation: reviewObservation,
-    resolver_original: resolver,
-    candidate_identity: candidateIdentity,
-    source_backed_claims: sourceBackedClaims,
-    evidence_refs: evidenceRefs,
-    relevant_existing_economic_exposures: exposures,
-    identity_observation_history: history,
+    current_stock_radar_analysis: {
+      issuer: {
+        cik: issuer.cik,
+        entity_name: issuer.entity_name,
+        tickers: issuer.tickers,
+      },
+      filing: {
+        accession: reviewObservation.accession,
+        form: reviewObservation.form,
+        filed_date: reviewObservation.filed_date,
+        accepted_at: reviewObservation.accepted_at,
+      },
+      exposure_type: reviewObservation.exposure_type,
+      observation_kind: reviewObservation.observation_kind,
+      candidate_identity: candidateIdentity,
+      source_backed_claims: sourceBackedClaims,
+      extracted_strong_identity_fields: strongClaims(newClaims, string(reviewObservation.exposure_type)),
+      resolver_original: {
+        decision: resolver.decision,
+        target_exposure_id: resolver.target_exposure_id,
+        reason_code: resolver.reason_code,
+        matched_strong_claims: resolverResult.matched_strong_claims ?? [],
+        conflicting_strong_claims: resolverResult.conflicting_strong_claims ?? [],
+        independent_strong_claims: resolverResult.independent_strong_claims ?? [],
+        identity_evidence: resolverResult.identity_evidence ?? [],
+        supporting_evidence_references: resolverResult.supporting_evidence_references ?? [],
+        supporting_registration_matches: resolverResult.supporting_registration_matches ?? [],
+      },
+      evidence_refs: evidenceRefs,
+      sec_source_locator: currentLocator,
+    },
+    current_registered_exposures: registeredExposures,
+    sec_source_locators: {
+      current: currentLocator,
+      prior: priorLocators,
+    },
     allowed_decisions: DILUTION_IDENTITY_DECISIONS,
     allowed_target_exposure_ids: allowedTargets,
     gpt_output_contract: {
@@ -487,6 +554,7 @@ function buildReviewPacket(value: unknown): DilutionIdentityReviewPacket {
           "confidence",
           "reason",
           "evidence_refs",
+          "sources_checked",
         ],
         properties: {
           review_case_id: { const: reviewCaseId },
@@ -501,6 +569,29 @@ function buildReviewPacket(value: unknown): DilutionIdentityReviewPacket {
             maxItems: 40,
             uniqueItems: true,
             items: { enum: allowedEvidenceRefs },
+          },
+          sources_checked: {
+            type: "array",
+            minItems: 1,
+            maxItems: 40,
+            uniqueItems: true,
+            items: { type: "string", minLength: 1, maxLength: 1000 },
+            description: "SEC URLs, accessions, exhibits, or other sources actually reviewed.",
+          },
+          suggested_corrections: {
+            type: "array",
+            maxItems: 20,
+            description: "Optional reference-only analysis corrections. Stock Radar does not apply these fields.",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["field", "suggestion", "reason"],
+              properties: {
+                field: { type: "string", minLength: 1, maxLength: 200 },
+                suggestion: { type: "string", minLength: 1, maxLength: 4000 },
+                reason: { type: "string", minLength: 1, maxLength: 4000 },
+              },
+            },
           },
         },
       },
@@ -523,7 +614,7 @@ function collectEvidenceDetails(claims: readonly Record<string, unknown>[]) {
     if (!sourceRef || details.has(sourceRef)) continue;
     details.set(sourceRef, {
       source_ref: sourceRef,
-      source_excerpt: string(claim.value),
+      structured_claim_value: claim.value,
       range_start: evidence?.range_start,
       range_end: evidence?.range_end,
       source_content_hash: evidence?.source_content_hash,
@@ -531,6 +622,143 @@ function collectEvidenceDetails(claims: readonly Record<string, unknown>[]) {
     });
   }
   return details;
+}
+
+function packetClaims(claims: readonly Record<string, unknown>[], prefix: string) {
+  return claims.map((claim, index) => ({
+    claim_ref: `${prefix}:${index + 1}`,
+    claim_kind: claim.claim_kind,
+    structured_value: claim.value,
+    semantic_role: claim.semantic_role ?? null,
+    ...(string(claim.exact_quote) ? { exact_quote: string(claim.exact_quote) } : {}),
+    evidence_identity: claim.evidence_identity,
+  }));
+}
+
+function strongClaims(claims: readonly Record<string, unknown>[], exposureType: string) {
+  const rules = (ECONOMIC_EXPOSURE_IDENTITY_RULES as Record<string, { strongKinds: readonly string[] }>)[exposureType];
+  if (!rules) return [];
+  const strongKinds = new Set(rules.strongKinds);
+  return packetClaims(
+    claims.filter((claim) => strongKinds.has(string(claim.claim_kind))),
+    "strong-identity-claim",
+  );
+}
+
+function observationComparison(item: Record<string, unknown>, issuerCik: string) {
+  const observation = object(item.observation) || {};
+  const resolver = object(item.resolver_original) || {};
+  const claims = records(observation.identity_claims);
+  return {
+    observation_key: item.observation_key,
+    accession: item.accession ?? observation.accession,
+    form: item.form ?? observation.form,
+    filed_date: item.filed_date ?? observation.filed_date,
+    accepted_at: item.accepted_at ?? observation.accepted_at,
+    exposure_type: item.exposure_type ?? observation.exposure_type,
+    observation_kind: item.observation_kind ?? observation.observation_kind,
+    source_backed_claims: packetClaims(claims, "prior-observation-claim"),
+    extracted_strong_identity_fields: strongClaims(claims, string(item.exposure_type ?? observation.exposure_type)),
+    resolver_original: resolver,
+    human_adjudication: item.human_adjudication ?? null,
+    sec_source_locator: secSourceLocator(item, issuerCik, "REGISTERED_EXPOSURE_PRIOR_OBSERVATION"),
+  };
+}
+
+function historyTargetsExposure(item: Record<string, unknown>, exposure: Record<string, unknown>) {
+  const exposureId = string(exposure.exposure_id);
+  const resolver = object(item.resolver_original);
+  const adjudication = object(item.human_adjudication);
+  return string(item.observation_key) === string(exposure.created_from_observation_key)
+    || string(resolver?.target_exposure_id) === exposureId
+    || string(adjudication?.target_exposure_id) === exposureId;
+}
+
+function secSourceLocator(
+  item: Record<string, unknown>,
+  issuerCik: string,
+  scope: string,
+) {
+  const observation = object(item.observation) || {};
+  const accession = string(item.accession ?? observation.accession);
+  const cik = string(observation.issuer_cik) || issuerCik;
+  const filingIndexUrl = safeSecFilingIndexUrl(cik, accession);
+  const evidenceRefs = records(observation.identity_claims)
+    .map((claim) => string(object(claim.evidence_identity)?.source_ref))
+    .filter(Boolean);
+  return {
+    scope,
+    observation_key: item.observation_key ?? null,
+    accession,
+    cik,
+    form: item.form ?? observation.form ?? null,
+    filed_date: item.filed_date ?? observation.filed_date ?? null,
+    accepted_at: item.accepted_at ?? observation.accepted_at ?? null,
+    filing_index_url: filingIndexUrl,
+    primary_document_url: null,
+    exhibit_urls: [],
+    evidence_refs: [...new Set(evidenceRefs)],
+    locator_note: filingIndexUrl
+      ? "Open the SEC filing index to inspect the primary document and relevant exhibits. Document filenames are not persisted in this V1 packet."
+      : "No URL was synthesized because the stored CIK/accession was not a safe canonical SEC locator; use the exact metadata above in SEC EDGAR search.",
+  };
+}
+
+function safeSecFilingIndexUrl(cik: string, accession: string) {
+  if (!/^\d{1,10}$/.test(cik) || !/^\d{10}-\d{2}-\d{6}$/.test(accession)) return null;
+  const normalizedCik = cik.replace(/^0+/, "") || "0";
+  const compactAccession = accession.replace(/-/g, "");
+  return `https://www.sec.gov/Archives/edgar/data/${normalizedCik}/${compactAccession}/${accession}-index.html`;
+}
+
+function parseSourcesChecked(
+  value: unknown,
+  errors: Array<{ code: string; message: string }>,
+) {
+  const sources = Array.isArray(value) ? value.map(string) : [];
+  if (sources.length < 1 || sources.length > 40
+    || sources.some((source) => !source || source !== source.trim() || source.length > 1000)
+    || new Set(sources).size !== sources.length) {
+    errors.push({
+      code: "REVIEW_SOURCES_CHECKED_INVALID",
+      message: "sources_checked must contain 1–40 unique, non-empty source URLs, accessions, exhibits, or descriptions.",
+    });
+  }
+  return sources;
+}
+
+function parseSuggestedCorrections(
+  value: unknown,
+  errors: Array<{ code: string; message: string }>,
+): readonly DilutionIdentitySuggestedCorrection[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 20) {
+    errors.push({
+      code: "REVIEW_SUGGESTED_CORRECTIONS_INVALID",
+      message: "suggested_corrections must be an array of at most 20 reference-only suggestions.",
+    });
+    return undefined;
+  }
+  const corrections: DilutionIdentitySuggestedCorrection[] = [];
+  for (const item of value) {
+    const correction = object(item);
+    const allowed = new Set(["field", "suggestion", "reason"]);
+    const field = string(correction?.field);
+    const suggestion = string(correction?.suggestion);
+    const reason = string(correction?.reason);
+    if (!correction || Object.keys(correction).some((key) => !allowed.has(key))
+      || !field || field !== field.trim() || field.length > 200
+      || !suggestion || suggestion !== suggestion.trim() || suggestion.length > 4000
+      || !reason || reason !== reason.trim() || reason.length > 4000) {
+      errors.push({
+        code: "REVIEW_SUGGESTED_CORRECTIONS_INVALID",
+        message: "Each suggested correction requires only trimmed field, suggestion, and reason strings.",
+      });
+      return undefined;
+    }
+    corrections.push({ field, suggestion, reason });
+  }
+  return corrections;
 }
 
 function allClaims(

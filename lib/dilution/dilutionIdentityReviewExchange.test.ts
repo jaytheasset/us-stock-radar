@@ -16,18 +16,51 @@ const exposureId = `economic-exposure:v1:${"d".repeat(64)}`;
 const adjudicationId = `dilution-adjudication:v1:${"e".repeat(64)}`;
 const evidenceRef = "sec:0000123456-26-000001:primary:series-a";
 
-test("packet carries immutable resolver context, strong evidence, registry candidates, history, and output contract", async () => {
+test("packet has complete analysis, exposure comparison, SEC locator, and output-contract blocks", async () => {
   const packet = await getDilutionIdentityReviewPacket({ observationKey, rpc: packetRpc() });
   assert.equal(packet.review_case_id, reviewCaseId);
   assert.equal(packet.input_hash, inputHash);
-  assert.equal(packet.resolver_original.decision, "UNRESOLVED");
-  assert.equal(packet.source_backed_claims[0]?.claim_kind, "series_or_designation");
-  assert.equal(packet.source_backed_claims[0]?.source_excerpt, "Series A Warrants");
-  assert.equal(packet.evidence_refs[0]?.ref, evidenceRef);
-  assert.equal(packet.relevant_existing_economic_exposures[0]?.exposure_id, exposureId);
-  assert.equal(packet.identity_observation_history.length, 1);
+  const analysis = packet.current_stock_radar_analysis;
+  assert.equal((analysis.resolver_original as Record<string, unknown>).decision, "UNRESOLVED");
+  assert.equal((analysis.filing as Record<string, unknown>).accession, "0000123456-26-000001");
+  assert.equal((analysis.source_backed_claims as Record<string, unknown>[])[0]?.claim_kind, "series_or_designation");
+  assert.equal((analysis.source_backed_claims as Record<string, unknown>[])[0]?.structured_value, "Series A Warrants");
+  assert.equal((analysis.evidence_refs as Record<string, unknown>[])[0]?.ref, evidenceRef);
+  assert.equal(packet.current_registered_exposures[0]?.exposure_id, exposureId);
+  assert.equal((packet.current_registered_exposures[0]?.prior_observations as unknown[]).length, 1);
   assert.deepEqual(packet.allowed_target_exposure_ids, [exposureId]);
+  const currentLocator = packet.sec_source_locators.current as Record<string, unknown>;
+  assert.equal(
+    currentLocator.filing_index_url,
+    "https://www.sec.gov/Archives/edgar/data/123456/000012345626000001/0000123456-26-000001-index.html",
+  );
   assert.match(formatDilutionIdentityReviewPacket(packet), /gpt_output_contract/);
+});
+
+test("packet never represents a structured claim value as a source quote", async () => {
+  const packet = await getDilutionIdentityReviewPacket({ observationKey, rpc: packetRpc() });
+  const text = formatDilutionIdentityReviewPacket(packet);
+  assert.doesNotMatch(text, /source_excerpt/);
+  assert.doesNotMatch(text, /exact_quote/);
+  assert.match(text, /structured_claim_value/);
+  assert.match(text, /structured_value/);
+});
+
+test("packet instructs primary-source research and exposes resolver comparisons and target allowlist", async () => {
+  const packet = await getDilutionIdentityReviewPacket({ observationKey, rpc: packetRpc() });
+  const instructions = packet.task_instructions.join(" ");
+  assert.match(instructions, /Current Stock Radar Analysis/);
+  assert.match(instructions, /Current Registered Exposures/);
+  assert.match(instructions, /web search/);
+  assert.match(instructions, /SEC primary filings/);
+  assert.match(instructions, /only allowed_target_exposure_ids/);
+  assert.match(instructions, /Never invent an exposure ID/);
+  const resolver = packet.current_stock_radar_analysis.resolver_original as Record<string, unknown>;
+  assert.ok(Array.isArray(resolver.matched_strong_claims));
+  assert.ok(Array.isArray(resolver.conflicting_strong_claims));
+  assert.ok(Array.isArray(resolver.independent_strong_claims));
+  const schema = (packet.gpt_output_contract.schema as Record<string, unknown>);
+  assert.ok((schema.required as string[]).includes("sources_checked"));
 });
 
 test("UNRESOLVED to LINK_EXISTING validates and previews without writing", async () => {
@@ -98,6 +131,35 @@ test("CREATE_NEW forbids a GPT-created target exposure id", async () => {
   if (!validation.ok) assert.equal(validation.errors[0]?.code, "REVIEW_TARGET_FORBIDDEN");
 });
 
+test("sources_checked is required and suggested corrections validate as non-decision metadata", async () => {
+  const packet = await getDilutionIdentityReviewPacket({ observationKey, rpc: packetRpc() });
+  const missingSources = validateDilutionIdentityReviewDecision({
+    packet,
+    pastedDecision: decisionJson({ sources_checked: undefined }),
+  });
+  assert.equal(missingSources.ok, false);
+  if (!missingSources.ok) {
+    assert.ok(missingSources.errors.some((error) => error.code === "REVIEW_SOURCES_CHECKED_INVALID"));
+  }
+
+  const withSuggestion = validateDilutionIdentityReviewDecision({
+    packet,
+    pastedDecision: decisionJson({
+      suggested_corrections: [{
+        field: "current_stock_radar_analysis.source_backed_claims[0]",
+        suggestion: "Review the series designation against Exhibit 4.1.",
+        reason: "The structured value is not itself a verbatim quote.",
+      }],
+    }),
+  });
+  assert.equal(withSuggestion.ok, true);
+  if (withSuggestion.ok) {
+    assert.equal(withSuggestion.decision.decision, "LINK_EXISTING");
+    assert.equal(withSuggestion.decision.target_exposure_id, exposureId);
+    assert.equal(withSuggestion.decision.suggested_corrections?.length, 1);
+  }
+});
+
 test("human Apply is the only path that invokes the adjudication RPC", async () => {
   const calls: string[] = [];
   const baseRpc = packetRpc();
@@ -148,6 +210,9 @@ function decisionJson(overrides: Record<string, unknown> = {}) {
     confidence: "HIGH",
     reason: "The series designation and exact source reference match the canonical warrant.",
     evidence_refs: [evidenceRef],
+    sources_checked: [
+      "https://www.sec.gov/Archives/edgar/data/123456/000012345626000001/0000123456-26-000001-index.html",
+    ],
     ...overrides,
   });
 }
@@ -193,6 +258,16 @@ function reviewContext() {
     semantic_role: null,
     evidence_identity: evidence,
   };
+  const priorEvidenceRef = "sec:0000123456-26-000000:exhibit-4-1:series-a";
+  const priorEvidence = {
+    ...evidence,
+    source_ref: priorEvidenceRef,
+    source_content_hash: "2".repeat(64),
+  };
+  const priorClaim = {
+    ...claim,
+    evidence_identity: priorEvidence,
+  };
   const resolver = {
     decision: "UNRESOLVED",
     reason_code: "INSUFFICIENT_SOURCE_BACKED_IDENTITY",
@@ -220,6 +295,31 @@ function reviewContext() {
     identity_claims: [claim],
     status: "VALIDATED",
   };
+  const priorObservation = {
+    ...observation,
+    accession: "0000123456-26-000000",
+    filed_date: "2026-08-26",
+    accepted_at: "2026-08-26T12:00:00Z",
+    identity_claims: [priorClaim],
+  };
+  const priorObservationKey = `economic-observation:v1:${"9".repeat(64)}`;
+  const priorResolver = {
+    decision: "CREATE_NEW",
+    reason_code: "SOURCE_BACKED_INDEPENDENT_STRONG_IDENTITY",
+    target_exposure_id: exposureId,
+    result: {
+      ...resolver.result,
+      decision: "CREATE_NEW",
+      reason_code: "SOURCE_BACKED_INDEPENDENT_STRONG_IDENTITY",
+      independent_strong_claims: [{
+        claim_kind: "series_or_designation",
+        value: "Series A Warrants",
+        evidence_identity: priorEvidence,
+      }],
+      identity_evidence: [priorEvidence],
+      supporting_evidence_references: [priorEvidence],
+    },
+  };
   return {
     state_version: "dilution_identity_review_state_v1",
     review_case_id: reviewCaseId,
@@ -241,12 +341,23 @@ function reviewContext() {
       exposure_id: exposureId,
       issuer_cik: "0000123456",
       exposure_type: "warrant",
-      canonical_identity_claims: [claim],
-      created_from_observation_key: `economic-observation:v1:${"9".repeat(64)}`,
+      canonical_identity_claims: [priorClaim],
+      created_from_observation_key: priorObservationKey,
       created_accession: "0000123456-26-000000",
       created_at: "2026-08-26T12:00:00Z",
     }],
     identity_observation_history: [{
+      observation_key: priorObservationKey,
+      accession: priorObservation.accession,
+      form: priorObservation.form,
+      filed_date: priorObservation.filed_date,
+      accepted_at: priorObservation.accepted_at,
+      exposure_type: priorObservation.exposure_type,
+      observation_kind: priorObservation.observation_kind,
+      resolver_original: priorResolver,
+      observation: priorObservation,
+      human_adjudication: null,
+    }, {
       observation_key: observationKey,
       accession: observation.accession,
       form: observation.form,
@@ -258,6 +369,6 @@ function reviewContext() {
       human_adjudication: null,
     }],
     allowed_target_exposure_ids: [exposureId],
-    allowed_evidence_refs: [evidenceRef],
+    allowed_evidence_refs: [evidenceRef, priorEvidenceRef],
   };
 }
