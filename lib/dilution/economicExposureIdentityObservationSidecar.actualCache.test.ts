@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { ACTUAL_CACHED_SEC_EXPOSURE_IDENTITY_FIXTURES } from "./economicExposureIdentityResolver.actualSecFixtures.ts";
 import {
-  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD,
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD,
   transportEconomicExposureIdentitySidecar,
 } from "./economicExposureIdentityObservationSidecar.ts";
 import { resolveExposureIdentity, type EconomicExposureIdentityCandidate } from "./economicExposureIdentityResolver.ts";
@@ -70,23 +70,24 @@ function transportFixture(fixture: (typeof ACTUAL_CACHED_SEC_EXPOSURE_IDENTITY_F
           fixture.raw_derived_strong_claims.filter((claim) => claim[0] === "agreement_reference" || claim[1] === "Common Warrant"),
         ]
       : [fixture.raw_derived_strong_claims];
+  const providerObservations = groupedClaims.map((claims, index) => ({
+    exposure_type: fixture.history_id === "empd_prefunded_and_common_warrants" && index === 1
+      ? "warrant"
+      : fixture.exposure_type,
+    observation_kind: "exposure_identity",
+    identity_claims: claims.map(([claimKind, value]) => ({
+      claim_kind: claimKind,
+      value,
+      semantic_role: semanticRole(claimKind),
+      evidence: {
+        source_block_index: 0,
+        exact_quote: quoteFor(fixture.excerpt, claimKind, value),
+      },
+    })),
+  }));
   const result = transportEconomicExposureIdentitySidecar({
     provider_output: {
-      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD]: groupedClaims.map((claims, index) => ({
-        exposure_type: fixture.history_id === "empd_prefunded_and_common_warrants" && index === 1
-          ? "warrant"
-          : fixture.exposure_type,
-        observation_kind: "exposure_identity",
-        identity_claims: claims.map(([claimKind, value]) => ({
-          claim_kind: claimKind,
-          value,
-          semantic_role: semanticRole(claimKind),
-          evidence: {
-            source_block_index: 0,
-            exact_quote: quoteFor(fixture.excerpt, claimKind, value),
-          },
-        })),
-      })),
+      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD]: JSON.stringify(providerObservations),
     },
     source_blocks: [{ block_id: fixture.history_id, block_type: "cleaned_source_block", text: fixture.excerpt }],
     issuer_cik: fixture.issuer_cik,

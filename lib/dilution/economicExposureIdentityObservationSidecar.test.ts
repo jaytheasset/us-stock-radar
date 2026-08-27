@@ -13,6 +13,7 @@ import {
   ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD,
   ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_CLAIMS,
   ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_MAX_OBSERVATIONS,
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD,
   economicExposureIdentitySidecarProviderSchema,
   transportEconomicExposureIdentitySidecar,
 } from "./economicExposureIdentityObservationSidecar.ts";
@@ -191,6 +192,88 @@ test("R. observation and claim bounds are enforced", () => {
   assert.match(transport(text, [observation("convertible_note", tooManyClaims)]).rejected.join(" "), /claim bound/);
 });
 
+test("S. provider exposure strings are locked by deterministic transport", () => {
+  const serializedSchema = JSON.stringify(economicExposureIdentitySidecarProviderSchema);
+  assert.equal(economicExposureIdentitySidecarProviderSchema.type, "string");
+  assert.doesNotMatch(serializedSchema, /"(?:exposure_type|observation_kind|identity_claims)"/);
+
+  const text = "The instrument is Promissory Note A-1.";
+  const result = transportEconomicExposureIdentitySidecar({
+    provider_output: {
+      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD]: [{
+        exposure_type: "unsupported_exposure",
+        observation_kind: "exposure_identity",
+        identity_claims: [claim("designation_or_tranche", "Promissory Note A-1", text)],
+      }],
+    },
+    source_blocks: [{ block_id: "source-1", block_type: "cleaned_source_block", text }],
+    issuer_cik: issuerCik,
+    accession,
+    form: "S-3",
+    filed_date: "2026-07-01",
+  });
+  assert.equal(result.observations.length, 0);
+  assert.match(result.rejected.join(" "), /contract is invalid/);
+
+  const unsupportedKind = transportEconomicExposureIdentitySidecar({
+    provider_output: {
+      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD]: [{
+        exposure_type: "convertible_note",
+        observation_kind: "unsupported_kind",
+        identity_claims: [claim("designation_or_tranche", "Promissory Note A-1", text)],
+      }],
+    },
+    source_blocks: [{ block_id: "source-1", block_type: "cleaned_source_block", text }],
+    issuer_cik: issuerCik,
+    accession,
+    form: "S-3",
+    filed_date: "2026-07-01",
+  });
+  assert.equal(unsupportedKind.observations.length, 0);
+  assert.match(unsupportedKind.rejected.join(" "), /contract is invalid/);
+});
+
+test("T. provider JSON sidecar strings decode into the locked contract", () => {
+  const text = "The instrument is Promissory Note A-1.";
+  const rawObservation = observation("convertible_note", [
+    claim("designation_or_tranche", "Promissory Note A-1", text),
+  ]);
+  const result = transportEconomicExposureIdentitySidecar({
+    provider_output: {
+      [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD]: JSON.stringify([rawObservation]),
+    },
+    source_blocks: [{ block_id: "source-1", block_type: "cleaned_source_block", text }],
+    issuer_cik: issuerCik,
+    accession,
+    form: "S-3",
+    filed_date: "2026-07-01",
+  });
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.observations.length, 1);
+  assert.equal(result.observations[0]?.exposure_type, "convertible_note");
+});
+
+test("U. malformed or duplicate-key provider JSON fails closed", () => {
+  const base = {
+    source_blocks: [{ block_id: "source-1", block_type: "cleaned_source_block", text: "source" }],
+    issuer_cik: issuerCik,
+    accession,
+    form: "S-3",
+    filed_date: "2026-07-01",
+  };
+  for (const wire of [
+    "[{",
+    '[{"exposure_type":"warrant","exposure_type":"atm_program"}]',
+  ]) {
+    const result = transportEconomicExposureIdentitySidecar({
+      ...base,
+      provider_output: { [ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD]: wire },
+    });
+    assert.equal(result.observations.length, 0);
+    assert.match(result.rejected.join(" "), /sidecar must be an array/);
+  }
+});
+
 test("provider architecture remains observation-only and adds no call implementation", () => {
   const source = readFileSync(new URL("./economicExposureIdentityObservationSidecar.ts", import.meta.url), "utf8");
   const ingest = readFileSync(new URL("../secFilingAnalysisIngest.ts", import.meta.url), "utf8");
@@ -206,6 +289,7 @@ test("provider architecture remains observation-only and adds no call implementa
   }
   assert.doesNotMatch(JSON.stringify(economicExposureIdentitySidecarProviderSchema), /"(?:exposure_id|canonical_id|same_as_previous|confidence)"/);
   assert.match(ingest, /outputText: withoutEconomicExposureIdentitySidecar\(analysisRun\.outputText\)/);
+  assert.match(ingest, /delete root\[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD\]/);
   assert.doesNotMatch(ingest, /analysis:.*economicExposureIdentityObservations/);
 });
 

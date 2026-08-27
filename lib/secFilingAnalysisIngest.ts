@@ -19,7 +19,10 @@ import {
   updateSecAnalysisAccession,
   withSecAnalysisSpan,
 } from "@/lib/ai/secAnalysisInstrumentation";
-import { ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD } from "@/lib/dilution/economicExposureIdentityObservationSidecar";
+import {
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD,
+  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD,
+} from "@/lib/dilution/economicExposureIdentityObservationSidecar";
 
 export {
   buildSecFilingGroupDedupe,
@@ -342,12 +345,17 @@ function arrayValue(value: unknown) {
 
 function withoutEconomicExposureIdentitySidecar(value: unknown) {
   const text = stringValue(value);
-  if (!text || !text.includes(`"${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD}"`)) return text;
+  if (
+    !text ||
+    (!text.includes(`"${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD}"`) &&
+      !text.includes(`"${ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD}"`))
+  ) return text;
   try {
     const parsed = JSON.parse(text);
     const root = readRecord(parsed);
     if (!root) return "";
     delete root[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_FIELD];
+    delete root[ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROVIDER_FIELD];
     return JSON.stringify(root);
   } catch {
     return "";
