@@ -2,9 +2,10 @@ import Link from "next/link";
 import { DilutionRegistryPreview } from "@/components/admin/DilutionRegistryPreview";
 import styles from "@/components/admin/AdminSection.module.css";
 import { requireAdminPermission } from "@/lib/admin/server";
+import { rolesHavePermission } from "@/lib/admin/policy";
 
 export default async function DilutionRegistryPreviewPage() {
-  await requireAdminPermission("data.read");
+  const access = await requireAdminPermission("data.read");
 
   return (
     <div className={styles.page}>
@@ -13,7 +14,7 @@ export default async function DilutionRegistryPreviewPage() {
           <span className={styles.eyebrow}>Admin Data</span>
           <h1>Dilution Registry Preview</h1>
           <p>
-            Paste one GPT Dilution Registry JSON, check its linked items, and review the result before any future save step.
+            Paste one GPT Dilution Registry JSON, check its linked items, and apply the exact reviewed result.
           </p>
         </div>
         <Link className={styles.button} href="/admin/data">
@@ -21,7 +22,9 @@ export default async function DilutionRegistryPreviewPage() {
         </Link>
       </header>
 
-      <DilutionRegistryPreview />
+      <DilutionRegistryPreview
+        canApply={rolesHavePermission(access.roles, "data.run")}
+      />
     </div>
   );
 }
