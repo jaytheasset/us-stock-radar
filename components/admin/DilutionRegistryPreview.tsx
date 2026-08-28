@@ -1,6 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import {
+  createDilutionRegistryApplyRequestBody,
+  DILUTION_REGISTRY_APPLY_MESSAGES,
+  isDilutionRegistryApplyEnabled,
+  readDilutionRegistryApplyResponse,
+  type DilutionRegistryApplyUiState,
+} from "@/lib/dilution-registry/applyClient";
 import {
   createDilutionRegistryPreviewModel,
   parseDilutionRegistryJson,
@@ -36,14 +43,36 @@ const STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
 };
 
-export function DilutionRegistryPreview() {
+export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   const [source, setSource] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [preview, setPreview] = useState<DilutionRegistryPreviewModel | null>(null);
+  const [previewedSource, setPreviewedSource] = useState<string | null>(null);
+  const [applyState, setApplyState] =
+    useState<DilutionRegistryApplyUiState>("idle");
+  const activeApplySource = useRef<string | null>(null);
+
+  const applyEnabled = isDilutionRegistryApplyEnabled({
+    canApply,
+    previewedSource,
+    source,
+    state: applyState,
+  });
+
+  function handleSourceChange(nextSource: string) {
+    activeApplySource.current = null;
+    setSource(nextSource);
+    setErrors([]);
+    setPreview(null);
+    setPreviewedSource(null);
+    setApplyState("idle");
+  }
 
   function handlePreview() {
     if (!source.trim()) {
       setPreview(null);
+      setPreviewedSource(null);
+      setApplyState("idle");
       setErrors(["먼저 JSON을 붙여넣어 주세요."]);
       return;
     }
@@ -51,18 +80,63 @@ export function DilutionRegistryPreview() {
     const result = parseDilutionRegistryJson(source);
     if (!result.ok) {
       setPreview(null);
+      setPreviewedSource(null);
+      setApplyState("idle");
       setErrors(result.errors);
       return;
     }
 
     setErrors([]);
     setPreview(createDilutionRegistryPreviewModel(result.payload));
+    setPreviewedSource(source);
+    setApplyState("idle");
   }
 
   function handleClear() {
-    setSource("");
-    setErrors([]);
-    setPreview(null);
+    handleSourceChange("");
+  }
+
+  async function handleApply() {
+    if (!applyEnabled) return;
+
+    let requestBody: string;
+    try {
+      requestBody = createDilutionRegistryApplyRequestBody({
+        previewedSource,
+        source,
+      });
+    } catch {
+      setApplyState("error");
+      return;
+    }
+
+    activeApplySource.current = requestBody;
+    setApplyState("saving");
+    try {
+      const response = await fetch(
+        "/api/admin/data/dilution-registry/apply",
+        {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          body: requestBody,
+        },
+      );
+      const body = await response.json().catch(() => null);
+      const status = response.ok
+        ? readDilutionRegistryApplyResponse(body)
+        : null;
+      if (activeApplySource.current !== requestBody) return;
+      setApplyState(status ?? "error");
+    } catch {
+      if (activeApplySource.current !== requestBody) return;
+      setApplyState("error");
+    } finally {
+      if (activeApplySource.current === requestBody) {
+        activeApplySource.current = null;
+      }
+    }
   }
 
   return (
@@ -73,7 +147,7 @@ export function DilutionRegistryPreview() {
             <span className={styles.kicker}>Paste · Check · Preview</span>
             <h2>Paste JSON</h2>
           </div>
-          <span className={styles.previewOnly}>Preview only</span>
+          <span className={styles.previewOnly}>Preview before Apply</span>
         </div>
 
         <label className={styles.inputLabel} htmlFor="dilution-registry-json">
@@ -83,14 +157,14 @@ export function DilutionRegistryPreview() {
           aria-describedby="dilution-registry-help"
           className={styles.textarea}
           id="dilution-registry-json"
-          onChange={(event) => setSource(event.target.value)}
+          onChange={(event) => handleSourceChange(event.target.value)}
           placeholder='Paste JSON with "instruments", "snapshots", "activities", and "totals".'
           spellCheck={false}
           value={source}
         />
         <div className={styles.inputFooter}>
           <p id="dilution-registry-help">
-            Nothing on this page is saved. Preview checks only the JSON shape and linked Instrument Keys.
+            Preview checks the JSON shape and linked Instrument Keys before Apply can save it.
           </p>
           <span>{source.length.toLocaleString("en-US")} characters</span>
         </div>
@@ -101,6 +175,27 @@ export function DilutionRegistryPreview() {
           <button className={styles.secondaryButton} onClick={handleClear} type="button">
             Clear
           </button>
+          <button
+            className={styles.applyButton}
+            disabled={!applyEnabled}
+            onClick={handleApply}
+            type="button"
+          >
+            Apply
+          </button>
+        </div>
+        <div className={styles.applyNotice}>
+          <p>이 내용을 Dilution Registry에 저장합니다.</p>
+          {applyState !== "idle" ? (
+            <strong
+              className={
+                applyState === "error" ? styles.applyError : styles.applyResult
+              }
+              role={applyState === "error" ? "alert" : "status"}
+            >
+              {DILUTION_REGISTRY_APPLY_MESSAGES[applyState]}
+            </strong>
+          ) : null}
         </div>
       </section>
 
@@ -137,7 +232,7 @@ function RegistryPreview({ model }: { model: DilutionRegistryPreviewModel }) {
         <div>
           <span className={styles.kicker}>Ready to review</span>
           <h2>{model.title}</h2>
-          <p>Review every section below before any future save step is added.</p>
+          <p>Review every section below before applying this exact Preview.</p>
         </div>
         <span className={styles.checked}>JSON checked</span>
       </header>

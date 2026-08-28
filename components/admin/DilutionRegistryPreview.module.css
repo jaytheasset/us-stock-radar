@@ -119,7 +119,8 @@
 }
 
 .primaryButton,
-.secondaryButton {
+.secondaryButton,
+.applyButton {
   min-height: 40px;
   padding: 0 18px;
   border: 1px solid var(--border);
@@ -141,9 +142,52 @@
   background: var(--surface);
 }
 
+.applyButton {
+  border-color: var(--accent);
+  color: var(--surface);
+  background: var(--accent);
+}
+
+.applyButton:disabled {
+  border-color: var(--border);
+  color: var(--muted);
+  background: var(--surface-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .primaryButton:hover,
-.secondaryButton:hover {
+.secondaryButton:hover,
+.applyButton:not(:disabled):hover {
   filter: brightness(0.96);
+}
+
+.applyNotice {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.applyNotice p {
+  margin: 0;
+}
+
+.applyResult,
+.applyError {
+  font-size: 11px;
+}
+
+.applyResult {
+  color: var(--positive);
+}
+
+.applyError {
+  color: var(--negative);
 }
 
 .error {
@@ -477,5 +521,14 @@
 
   .actions button {
     flex: 1;
+  }
+
+  .actions {
+    width: calc(100% - 94px);
+  }
+
+  .applyNotice {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
