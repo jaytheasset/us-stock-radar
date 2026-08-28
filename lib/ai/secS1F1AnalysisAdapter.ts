@@ -1,12 +1,4 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
-import {
-  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
-  economicExposureIdentityFilingMetadata,
-  transportEconomicExposureIdentitySidecar,
-  withEconomicExposureIdentitySidecarSchema,
-  type EconomicExposureIdentitySidecarTransportResult,
-} from "@/lib/dilution/economicExposureIdentityObservationSidecar";
-import { buildS1F1LlmSourceInput } from "@/lib/sources/sec/forms/s1-f1/sourceInput";
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import {
   buildS1F1AnalysisPrompt,
@@ -207,7 +199,7 @@ const S1_F1_OFFERING_DETAIL_LABELS_BY_MODE: Record<string, readonly string[]> = 
 };
 
 export type SecS1F1AnalysisAdapterResult =
-  | { ok: true; analysis: Record<string, unknown>; economicExposureIdentitySidecar: EconomicExposureIdentitySidecarTransportResult }
+  | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
 
 export type SecS1F1ValidationRepairIssue = {
@@ -262,7 +254,6 @@ export function buildSecS1F1AnalysisPromptForInput(
       "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
       ...(monitorEnabled ? [MINIMAL_OFFERING_MONITOR_PROMPT] : []),
-      ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
     ].join("\n"),
     user: buildS1F1AnalysisPrompt(parserOutput, undefined, undefined, { variant: promptVariant }),
     responseFormat: {
@@ -734,19 +725,8 @@ export function adaptSecS1F1AnalysisPromptResultForAnalysis(
     };
   }
 
-  const parserOutput = withRuntimeMarketContext(readS1F1ParserOutput(input), input);
-  const sourceInput = parserOutput ? buildS1F1LlmSourceInput(parserOutput) : {};
-  const economicExposureIdentitySidecar = transportEconomicExposureIdentitySidecar({
-    provider_output: root,
-    source_blocks: Array.isArray(sourceInput.cleaned_source_blocks)
-      ? sourceInput.cleaned_source_blocks as Array<Record<string, unknown>>
-      : [],
-    ...economicExposureIdentityFilingMetadata(filingPackage),
-  });
-
   return {
     ok: true,
-    economicExposureIdentitySidecar,
     analysis: adapterOutputToAnalysis(adapted.value, displayPayloadWarnings),
   };
 }
@@ -1921,7 +1901,7 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-export const secS1F1RequiredOutputSchema = withEconomicExposureIdentitySidecarSchema({
+export const secS1F1RequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
   required: ["display_payload", "analysis_output"],
@@ -2017,7 +1997,7 @@ export const secS1F1RequiredOutputSchema = withEconomicExposureIdentitySidecarSc
       },
     },
   },
-} as const);
+} as const;
 
 const {
   offering_monitor_payload: _s1OfferingMonitorSchema,

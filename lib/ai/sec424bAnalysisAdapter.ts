@@ -1,12 +1,5 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
 import {
-  ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
-  economicExposureIdentityFilingMetadata,
-  transportEconomicExposureIdentitySidecar,
-  withEconomicExposureIdentitySidecarSchema,
-  type EconomicExposureIdentitySidecarTransportResult,
-} from "@/lib/dilution/economicExposureIdentityObservationSidecar";
-import {
   applyMinimalOfferingMonitorBoundary,
   MINIMAL_OFFERING_MONITOR_PROMPT,
   minimalOfferingMonitorProviderSchema,
@@ -14,7 +7,6 @@ import {
 import { adaptSecFormRoomOutputForIngest, type SecFormRoomAdapterOutput } from "@/lib/sources/sec/forms/common/formRoomAdapter";
 import {
   build424bAnalysisPrompt,
-  get424bAnalysisSourceBlocks,
   get424bAnalysisSourceBlockIds,
   requires424b5MaterialEvents,
   type Sec424bAnalysisPromptVariant,
@@ -71,7 +63,7 @@ export const APPROVED_424B_SHARE_OVERHANG_CHART_TITLES = [
 ] as const;
 
 export type Sec424bAnalysisAdapterResult =
-  | { ok: true; analysis: Record<string, unknown>; economicExposureIdentitySidecar?: EconomicExposureIdentitySidecarTransportResult }
+  | { ok: true; analysis: Record<string, unknown> }
   | { ok: false; error: string };
 
 export type Sec424bValidationRepairIssue = {
@@ -121,7 +113,6 @@ export function buildSec424bAnalysisPromptForInput(
       "For analysis_output sector and industry_group, use natural taxonomy-style names. For theme_group, use an exact slug from the response schema. For sub_theme, use a concise theme name or slug. Use null when unsupported.",
       "Score means investor attention and urgency. Delivery is derived later from score only.",
       MINIMAL_OFFERING_MONITOR_PROMPT,
-      ECONOMIC_EXPOSURE_IDENTITY_SIDECAR_PROMPT,
     ].join("\n"),
     user: build424bAnalysisPrompt(parserOutputForPrompt, { variant: promptVariant }),
     responseFormat: {
@@ -653,20 +644,11 @@ export function adaptSec424bAnalysisPromptResultForAnalysis(
   ];
   append424bDisplayWarnings(normalizedDisplayPayload, displayPayloadWarnings);
 
-  const adapted = adapt424bRoomResultForAnalysis({
+  return adapt424bRoomResultForAnalysis({
     parser_output: parserOutput,
     analysis_output: alignedAnalysisOutput,
     display_payload: normalizedDisplayPayload,
   }, displayPayloadWarnings);
-  if (!adapted.ok) return adapted;
-  return {
-    ...adapted,
-    economicExposureIdentitySidecar: transportEconomicExposureIdentitySidecar({
-      provider_output: root,
-      source_blocks: get424bAnalysisSourceBlocks(attach424bPromptMarketContext(parserOutput, input)),
-      ...economicExposureIdentityFilingMetadata(readFilingPackage(input)),
-    }),
-  };
 }
 
 type Validate424bDisplayPayloadOptions = {
@@ -2188,7 +2170,7 @@ export function validateSecOfferingMaterialEvents(
 // Required-output schema for 424B and S3/F3 main offering flows.
 // Shared offering sub-schemas live in secOfferingOutputSchemas so S1/F1 can reuse
 // common UI blocks while keeping its IPO/listing-specific output schema separate.
-export const sec424bRequiredOutputSchema = withEconomicExposureIdentitySidecarSchema({
+export const sec424bRequiredOutputSchema = {
   type: "object",
   additionalProperties: true,
   required: ["display_payload", "analysis_output"],
@@ -2302,7 +2284,7 @@ export const sec424bRequiredOutputSchema = withEconomicExposureIdentitySidecarSc
       },
     },
   },
-});
+};
 
 const {
   offering_monitor_payload: _offeringMonitorSchema,

@@ -200,7 +200,7 @@ test("persistence RPC errors surface clearly without fallback or alternate targe
   }), /target does not exist/);
 });
 
-test("migration and ingest integration stay server-only, diagnostic-only, and outside the locked resolver", () => {
+test("migration stays server-only and Primary ingest does not supply Registry observations", () => {
   const migration = readFileSync(
     new URL("../../supabase/migrations/20260827165844_economic_exposure_registry_source_observation_persistence_v1_candidate.sql", import.meta.url),
     "utf8",
@@ -212,8 +212,8 @@ test("migration and ingest integration stay server-only, diagnostic-only, and ou
   assert.match(migration, /grant execute on function public\.persist_dilution_exposure_resolution_v1[\s\S]*to service_role/);
   assert.doesNotMatch(migration, /grant\s+(?:insert|update|delete)[\s\S]*to\s+(?:anon|authenticated)/i);
   assert.doesNotMatch(migration, /potential_shares|dilution_percent|current_conversion_price|current_balance|lifecycle_status|reviewer_id|approved_at/i);
-  assert.match(ingest, /persistEconomicExposureIdentityObservations\([\s\S]*economicExposureIdentityObservations/);
-  assert.match(ingest, /withoutEconomicExposureIdentitySidecar\(analysisRun\.outputText\)/);
+  assert.doesNotMatch(ingest, /persistEconomicExposureIdentityObservations/);
+  assert.doesNotMatch(ingest, /economicExposureIdentityObservations|economicExposureIdentitySidecar|\beeio\b/);
   assert.doesNotMatch(ingest, /analysis:\s*\{[\s\S]{0,200}economicExposurePersistence/);
   assert.match(resolver, /Pure comparison of source-backed claims/);
 });
