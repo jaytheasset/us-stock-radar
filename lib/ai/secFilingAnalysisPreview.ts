@@ -326,8 +326,6 @@ export type SecFilingAnalysisRunResult = {
   triage?: Record<string, unknown> | null;
   audit?: Record<string, unknown> | null;
   analysis?: Record<string, unknown> | null;
-  economicExposureIdentityObservations?: readonly unknown[];
-  economicExposureIdentityRejected?: readonly string[];
   triageOutputText?: string;
   auditOutputText?: string;
   repairOutputText?: string;
@@ -1514,8 +1512,6 @@ export async function runSecFilingAnalysisForRawRow(
       triage: routerResult,
       sec8k6kDebug,
       analysis: sec8k6kAnalysis.analysis,
-      economicExposureIdentityObservations: sec8k6kAnalysis.economicExposureIdentitySidecar?.observations ?? [],
-      economicExposureIdentityRejected: sec8k6kAnalysis.economicExposureIdentitySidecar?.rejected ?? [],
       triageOutputText: routerRun.outputText,
       outputText: analysisRun.outputText,
       triageUsage: routerRun.usage,
@@ -2091,8 +2087,6 @@ export async function runSecFilingAnalysisForRawRow(
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: sec424bAnalysis.analysis,
-      economicExposureIdentityObservations: sec424bAnalysis.economicExposureIdentitySidecar?.observations ?? [],
-      economicExposureIdentityRejected: sec424bAnalysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
       usage,
       costEstimate: estimateCost(llmConfig.model, usage),
@@ -2166,8 +2160,6 @@ export async function runSecFilingAnalysisForRawRow(
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS1F1Analysis.analysis,
-      economicExposureIdentityObservations: secS1F1Analysis.economicExposureIdentitySidecar?.observations ?? [],
-      economicExposureIdentityRejected: secS1F1Analysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
       usage,
       costEstimate: estimateCost(llmConfig.model, usage),
@@ -2242,8 +2234,6 @@ export async function runSecFilingAnalysisForRawRow(
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: secS3Analysis.analysis,
-      economicExposureIdentityObservations: secS3Analysis.economicExposureIdentitySidecar?.observations ?? [],
-      economicExposureIdentityRejected: secS3Analysis.economicExposureIdentitySidecar?.rejected ?? [],
       outputText: analysisRun.outputText,
       usage,
       costEstimate: estimateCost(llmConfig.model, usage),
