@@ -3,6 +3,11 @@ import styles from "@/components/admin/AdminSection.module.css";
 import { requireAdminPermission } from "@/lib/admin/server";
 
 const tools = [
+  [
+    "Dilution Registry",
+    "/admin/data/dilution-registry",
+    "Paste GPT registry JSON and review a preview without saving it.",
+  ],
   ["Database", "/admin/db", "Canonical schema and current Supabase reference counts."],
   ["Sources", "/admin/sources", "Source jobs and external collection routes."],
   ["News ingest", "/admin/news-ingest", "Run and inspect the current news ingestion flow."],
