@@ -691,7 +691,7 @@
 
 .dilutionSummary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
   border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
 }
@@ -765,6 +765,150 @@
   color: var(--sr-color-positive);
   font-size: var(--sr-font-size-xs);
   font-weight: var(--sr-font-weight-label);
+}
+
+.dilutionCounts {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sr-space-2);
+}
+
+.dilutionCounts span {
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-1) var(--sr-space-2);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-label);
+  white-space: nowrap;
+}
+
+.dilutionInstrumentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.dilutionInstrumentCard {
+  display: grid;
+  min-width: 0;
+  gap: var(--sr-space-3);
+  border: 0;
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  border-radius: 0;
+  padding: var(--sr-space-4) 0;
+  background: transparent;
+}
+
+.dilutionInstrumentCard header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
+.dilutionInstrumentCard header > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sr-space-1) var(--sr-space-3);
+}
+
+.dilutionInstrumentCard header strong {
+  color: var(--sr-color-text-strong);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.dilutionInstrumentCard header span,
+.dilutionInstrumentCard time,
+.dilutionInstrumentCard > small {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.dilutionInstrumentCard header span {
+  color: var(--sr-color-positive);
+  font-weight: var(--sr-font-weight-label);
+}
+
+.dilutionInstrumentCard time {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.dilutionInstrumentCard dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sr-space-2) var(--sr-space-3);
+  margin: 0;
+}
+
+.dilutionInstrumentFieldWide {
+  grid-column: span 2;
+}
+
+.dilutionInstrumentCard dl > div {
+  min-width: 0;
+}
+
+.dilutionInstrumentCard dt {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+}
+
+.dilutionInstrumentCard dd {
+  margin: var(--sr-space-1) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--sr-color-text-body);
+  font-size: var(--sr-font-size-sm);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  line-height: var(--sr-line-height-default);
+}
+
+.dilutionActivityList {
+  border-top: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.dilutionActivityList article {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--sr-space-3);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+  padding: var(--sr-space-3) 0;
+}
+
+.dilutionActivityList time {
+  color: var(--sr-color-text-muted);
+  font-size: var(--sr-font-size-xs);
+  font-variant-numeric: var(--sr-font-variant-numeric);
+  font-weight: var(--sr-font-weight-semibold);
+}
+
+.dilutionActivityList article > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sr-space-1) var(--sr-space-3);
+}
+
+.dilutionActivityList strong {
+  color: var(--sr-color-text-body);
+  font-size: var(--sr-font-size-sm);
+  line-height: var(--sr-line-height-default);
+}
+
+.dilutionActivityList span {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+  font-variant-numeric: var(--sr-font-variant-numeric);
 }
 
 .dilutionDisclosure {
@@ -871,6 +1015,10 @@
 
   .ownershipOverview {
     grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.55fr);
+  }
+
+  .dilutionSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1083,6 +1231,52 @@
     flex-direction: column;
   }
 
+  .dilutionCounts {
+    justify-content: flex-start;
+  }
+
+  .dilutionInstrumentGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sr-space-3);
+    border-top: 0;
+  }
+
+  .dilutionInstrumentCard {
+    gap: var(--sr-space-3);
+    border: var(--sr-border-width) solid var(--sr-color-border-control);
+    border-radius: var(--sr-radius-base);
+    padding: var(--sr-space-3);
+    background: var(--sr-color-surface-control-group);
+  }
+
+  .dilutionInstrumentCard header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dilutionInstrumentCard header > div {
+    display: grid;
+    align-items: initial;
+    gap: var(--sr-space-1);
+  }
+
+  .dilutionInstrumentCard time {
+    text-align: left;
+  }
+
+  .dilutionInstrumentCard dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dilutionInstrumentFieldWide {
+    grid-column: auto;
+  }
+
+  .dilutionActivityList article {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sr-space-1);
+  }
+
   .dilutionEventRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sr-space-2);
@@ -1155,6 +1349,7 @@
   .ownershipTableRow span::before,
   .dilutionSummary dt,
   .dilutionStatus > span,
+  .dilutionCounts span,
   .dilutionEventStatus,
   .dilutionEventRow,
   .dilutionEventRow time::before,
@@ -1177,6 +1372,8 @@
   .ownershipChangeList article strong,
   .ownershipTableRow,
   .dilutionStatus strong,
+  .dilutionInstrumentCard header strong,
+  .dilutionActivityList strong,
   .dilutionEventDetail strong {
     font-size: var(--sr-font-size-lg);
   }
