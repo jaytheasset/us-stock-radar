@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOptionalCurrentUserIdReadOnly } from "@/lib/currentUser";
+import {
+  DILUTION_PRIVATE_RESPONSE_HEADERS,
+  projectStockDilutionForPlan,
+} from "@/lib/dilution-registry/stockDilutionMembership";
 import { fetchStockDilution } from "@/lib/dilution-registry/stockDilutionServer";
+import {
+  comparePlanRank,
+  getEffectiveUserPlan,
+} from "@/lib/subscription/effectivePlan";
 import { normalizeStockTicker } from "@/lib/watchlist/stockOverview";
 
 export const dynamic = "force-dynamic";
@@ -7,27 +16,42 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const symbol = normalizeStockTicker(request.nextUrl.searchParams.get("symbol"));
   if (!symbol) {
-    return NextResponse.json(
+    return dilutionJson(
       { error: "A valid stock symbol is required.", ok: false },
-      { status: 400 },
+      400,
     );
   }
 
   try {
-    const data = await fetchStockDilution(symbol);
-    return NextResponse.json(
+    const [snapshot, plan] = await Promise.all([
+      fetchStockDilution(symbol),
+      getCurrentDilutionPlan(),
+    ]);
+    const data = snapshot
+      ? projectStockDilutionForPlan(snapshot, plan, comparePlanRank)
+      : null;
+    return dilutionJson(
       { data, ok: Boolean(data) },
-      {
-        headers: {
-          "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=900",
-        },
-        status: data ? 200 : 404,
-      },
+      data ? 200 : 404,
     );
   } catch {
-    return NextResponse.json(
+    return dilutionJson(
       { error: "Dilution data is temporarily unavailable.", ok: false },
-      { status: 503 },
+      503,
     );
   }
+}
+
+async function getCurrentDilutionPlan() {
+  const userId = await getOptionalCurrentUserIdReadOnly();
+  return userId
+    ? (await getEffectiveUserPlan(userId)).effectivePlan
+    : "free";
+}
+
+function dilutionJson(body: unknown, status: number) {
+  return NextResponse.json(body, {
+    headers: DILUTION_PRIVATE_RESPONSE_HEADERS,
+    status,
+  });
 }
