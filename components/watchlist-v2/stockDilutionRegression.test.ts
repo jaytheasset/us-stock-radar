@@ -46,3 +46,52 @@ test("stock detail dilution uses the own-data API and never passes the FMP snaps
   );
   assert.match(sections, /field\.label === "Conversion"/);
 });
+
+test("stock detail dilution renders the membership response without hidden paid values", async () => {
+  const client = await readFile(
+    new URL("./StockRadarWatchlistV2.tsx", import.meta.url),
+    "utf8",
+  );
+  const sections = await readFile(
+    new URL("./StockFundamentalsSections.tsx", import.meta.url),
+    "utf8",
+  );
+  const preview = sections.slice(
+    sections.indexOf("function DilutionInstrumentPreview("),
+    sections.indexOf("function getDilutionLockHref("),
+  );
+
+  assert.match(client, /StockDilutionMembershipResponse/);
+  assert.match(client, /!candidate\.access/);
+  assert.match(client, /!candidate\.counts/);
+  assert.match(sections, /count=\{data\.counts\.current\}/);
+  assert.match(sections, /<span>Current \{data\.counts\.current\}<\/span>/);
+  assert.match(sections, /showDetails=\{data\.access\.canViewCurrentDetails\}/);
+  assert.match(sections, /data\.access\.canViewActivity \?/);
+  assert.match(sections, /data\.access\.canViewHistory \?/);
+  assert.match(sections, /View all contracts with Pro/);
+  assert.match(sections, /View issuance and conversion activity with Advanced/);
+  assert.match(sections, /View dilution history with Advanced/);
+  assert.match(preview, /instrument\.name/);
+  assert.match(preview, /instrument\.type/);
+  assert.match(preview, /instrument\.status/);
+  assert.match(preview, /instrument\.asOf/);
+  assert.doesNotMatch(
+    preview,
+    /originalAmount|remainingAmount|remainingUnits|remainingPotentialShares|conversionPrice|exercisePrice|priceFormula|interestRate|sharesIssued/,
+  );
+});
+
+test("dilution locks reuse signup return URLs for guests and premium for members", async () => {
+  const sections = await readFile(
+    new URL("./StockFundamentalsSections.tsx", import.meta.url),
+    "utf8",
+  );
+  const hrefHelper = sections.slice(
+    sections.indexOf("function getDilutionLockHref("),
+    sections.indexOf("function instrumentTypeLabel("),
+  );
+
+  assert.match(hrefHelper, /if \(!isGuest\) return "\/premium"/);
+  assert.match(hrefHelper, /`\/signup\?next=\$\{encodeURIComponent\(`\/stocks\/\$\{symbol\}`\)\}`/);
+});

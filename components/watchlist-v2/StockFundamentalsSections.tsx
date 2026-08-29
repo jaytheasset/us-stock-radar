@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink, LockKeyhole } from "lucide-react";
 import {
   calculateMargin,
   calculatePercentChange,
@@ -13,8 +13,11 @@ import {
 import type {
   StockDilutionActivity,
   StockDilutionInstrument,
-  StockDilutionSnapshot,
 } from "@/lib/dilution-registry/stockDilution";
+import type {
+  StockDilutionCurrentPreview,
+  StockDilutionMembershipResponse,
+} from "@/lib/dilution-registry/stockDilutionMembership";
 import type { StockOverviewEvent } from "@/lib/watchlist/stockOverview";
 import watchlistStyles from "./StockRadarWatchlistV2.module.css";
 import styles from "./StockFundamentalsSections.module.css";
@@ -23,8 +26,9 @@ type FundamentalsLoadState = "idle" | "loading" | "ready" | "unavailable";
 
 type StockFundamentalsSectionsProps = {
   dilutionEvents: StockOverviewEvent[];
+  dilutionGuestMode: boolean;
   dilutionLoadState: FundamentalsLoadState;
-  dilutionSnapshot: StockDilutionSnapshot | null;
+  dilutionSnapshot: StockDilutionMembershipResponse | null;
   financialEvents: StockOverviewEvent[];
   loadState: FundamentalsLoadState;
   ownershipEvents: StockOverviewEvent[];
@@ -33,6 +37,7 @@ type StockFundamentalsSectionsProps = {
 
 export function StockFundamentalsSections({
   dilutionEvents,
+  dilutionGuestMode,
   dilutionLoadState,
   dilutionSnapshot,
   financialEvents,
@@ -55,6 +60,7 @@ export function StockFundamentalsSections({
       <DilutionSection
         data={dilutionSnapshot}
         events={dilutionEvents}
+        isGuest={dilutionGuestMode}
         loadState={dilutionLoadState}
       />
     </>
@@ -675,10 +681,12 @@ function OwnershipSection({
 function DilutionSection({
   data,
   events,
+  isGuest,
   loadState,
 }: {
-  data: StockDilutionSnapshot | null;
+  data: StockDilutionMembershipResponse | null;
   events: StockOverviewEvent[];
+  isGuest: boolean;
   loadState: FundamentalsLoadState;
 }) {
   if (!data) {
@@ -693,6 +701,7 @@ function DilutionSection({
   }
 
   const metrics = data.metrics;
+  const lockHref = getDilutionLockHref(isGuest, data.symbol);
   return (
     <section
       aria-labelledby="watchlist-dilution-title"
@@ -740,32 +749,62 @@ function DilutionSection({
           <strong>Current dilution instruments</strong>
         </div>
         <div className={styles.dilutionCounts}>
-          <span>Current {data.current.length}</span>
-          <span>Closed {data.closed.length}</span>
-          {data.old.length ? <span>Old {data.old.length}</span> : null}
+          <span>Current {data.counts.current}</span>
+          <span>Closed {data.counts.closed}</span>
+          {data.access.canViewHistory && data.old.length ? (
+            <span>Old {data.old.length}</span>
+          ) : null}
         </div>
       </div>
 
-      <InstrumentDisclosure instruments={data.current} title="Current Instruments" />
+      <CurrentInstrumentDisclosure
+        count={data.counts.current}
+        href={lockHref}
+        instruments={data.current}
+        showDetails={data.access.canViewCurrentDetails}
+      />
 
-      <details className={styles.dilutionDisclosure} open>
-        <DisclosureSummary
-          detail={`${data.activity.length} recent items`}
+      {data.access.canViewActivity ? (
+        <details className={styles.dilutionDisclosure} open>
+          <DisclosureSummary
+            detail={`${data.activity.length} recent items`}
+            title="Recent Activity"
+          />
+          <div className={styles.disclosureBody}>
+            <div className={styles.dilutionActivityList}>
+              {data.activity.map((activity) => (
+                <DilutionActivityRow activity={activity} key={activity.key} />
+              ))}
+            </div>
+          </div>
+        </details>
+      ) : (
+        <LockedDilutionDisclosure
+          href={lockHref}
+          label="View issuance and conversion activity with Advanced"
           title="Recent Activity"
         />
-        <div className={styles.disclosureBody}>
-          <div className={styles.dilutionActivityList}>
-            {data.activity.map((activity) => (
-              <DilutionActivityRow activity={activity} key={activity.key} />
-            ))}
-          </div>
-        </div>
-      </details>
+      )}
 
-      <InstrumentDisclosure instruments={data.closed} title="Closed / History" />
-      {data.old.length ? (
-        <InstrumentDisclosure instruments={data.old} title="Old" />
-      ) : null}
+      {data.access.canViewHistory ? (
+        <>
+          <InstrumentDisclosure
+            count={data.counts.closed}
+            instruments={data.closed}
+            title="Closed / History"
+          />
+          {data.old.length ? (
+            <InstrumentDisclosure instruments={data.old} title="Old" />
+          ) : null}
+        </>
+      ) : (
+        <LockedDilutionDisclosure
+          count={data.counts.closed}
+          href={lockHref}
+          label="View dilution history with Advanced"
+          title="Closed / History"
+        />
+      )}
 
       <RelatedFilings
         events={events}
@@ -776,16 +815,129 @@ function DilutionSection({
   );
 }
 
+function CurrentInstrumentDisclosure({
+  count,
+  href,
+  instruments,
+  showDetails,
+}: {
+  count: number;
+  href: string;
+  instruments: Array<StockDilutionCurrentPreview | StockDilutionInstrument>;
+  showDetails: boolean;
+}) {
+  return (
+    <details className={styles.dilutionDisclosure} open>
+      <DisclosureSummary detail={`${count} items`} title="Current Instruments" />
+      <div className={styles.disclosureBody}>
+        <div className={styles.dilutionInstrumentGrid}>
+          {instruments.map((instrument, index) =>
+            showDetails ? (
+              <DilutionInstrumentCard
+                instrument={instrument as StockDilutionInstrument}
+                key={`${instrument.name}-${instrument.asOf}-${index}`}
+              />
+            ) : (
+              <DilutionInstrumentPreview
+                instrument={instrument}
+                key={`${instrument.name}-${instrument.asOf}-${index}`}
+              />
+            ),
+          )}
+        </div>
+        {!showDetails ? (
+          <DilutionLockAction
+            href={href}
+            label="View all contracts with Pro"
+          />
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+function LockedDilutionDisclosure({
+  count,
+  href,
+  label,
+  title,
+}: {
+  count?: number;
+  href: string;
+  label: string;
+  title: string;
+}) {
+  return (
+    <details className={styles.dilutionDisclosure} open>
+      <DisclosureSummary
+        detail={count === undefined ? "Advanced access" : `${count} items`}
+        title={title}
+      />
+      <div className={styles.disclosureBody}>
+        <DilutionLockAction href={href} label={label} />
+      </div>
+    </details>
+  );
+}
+
+function DilutionLockAction({ href, label }: { href: string; label: string }) {
+  return (
+    <Link className={styles.dilutionLockAction} href={href}>
+      <LockKeyhole aria-hidden="true" size={14} strokeWidth={2} />
+      <span>{label}</span>
+      <ChevronRight aria-hidden="true" size={14} strokeWidth={2} />
+    </Link>
+  );
+}
+
+function DilutionInstrumentPreview({
+  instrument,
+}: {
+  instrument: StockDilutionCurrentPreview;
+}) {
+  return (
+    <article className={`${styles.dilutionInstrumentCard} ${styles.dilutionInstrumentPreview}`}>
+      <header>
+        <div>
+          <strong>{instrument.name}</strong>
+          <span>
+            {instrumentTypeLabel(instrument.type)} · {statusLabel(instrument.status)}
+          </span>
+        </div>
+        <time dateTime={instrument.asOf}>
+          As of {formatDilutionDate(instrument.asOf)}
+        </time>
+      </header>
+    </article>
+  );
+}
+
+function getDilutionLockHref(isGuest: boolean, symbol: string) {
+  if (!isGuest) return "/premium";
+  return `/signup?next=${encodeURIComponent(`/stocks/${symbol}`)}`;
+}
+
+function instrumentTypeLabel(type: StockDilutionInstrument["type"]) {
+  if (type === "convertible_note") return "Convertible note";
+  if (type === "convertible_preferred") return "Convertible preferred";
+  if (type === "prefunded_warrant") return "Pre-funded warrant";
+  if (type === "atm_program") return "ATM program";
+  if (type === "equity_line") return "Equity line";
+  return "Warrant";
+}
+
 function InstrumentDisclosure({
+  count,
   instruments,
   title,
 }: {
+  count?: number;
   instruments: StockDilutionInstrument[];
   title: string;
 }) {
   return (
     <details className={styles.dilutionDisclosure} open>
-      <DisclosureSummary detail={`${instruments.length} items`} title={title} />
+      <DisclosureSummary detail={`${count ?? instruments.length} items`} title={title} />
       <div className={styles.disclosureBody}>
         <div className={styles.dilutionInstrumentGrid}>
           {instruments.map((instrument) => (
@@ -804,7 +956,9 @@ function DilutionInstrumentCard({ instrument }: { instrument: StockDilutionInstr
       <header>
         <div>
           <strong>{instrument.name}</strong>
-          <span>{statusLabel(instrument.status)}</span>
+          <span>
+            {instrumentTypeLabel(instrument.type)} · {statusLabel(instrument.status)}
+          </span>
         </div>
         <time dateTime={instrument.asOf}>As of {formatDilutionDate(instrument.asOf)}</time>
       </header>

@@ -842,6 +842,11 @@
   text-align: right;
 }
 
+.dilutionInstrumentPreview {
+  min-height: 68px;
+  align-content: center;
+}
+
 .dilutionInstrumentCard dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -914,6 +919,39 @@
 .dilutionDisclosure {
   margin-top: 0;
   border-top: 0;
+}
+
+.dilutionLockAction {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: var(--sr-space-2);
+  margin: var(--sr-space-3) 0;
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  padding: var(--sr-space-2) var(--sr-space-3);
+  background: var(--sr-color-surface-control-group);
+  color: var(--sr-color-text-secondary);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-semibold);
+  line-height: var(--sr-line-height-control);
+  text-decoration: none;
+}
+
+.dilutionLockAction:hover {
+  border-color: var(--sr-color-accent);
+  color: var(--sr-color-accent);
+}
+
+.dilutionLockAction span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dilutionLockAction svg:last-child {
+  flex: 0 0 auto;
 }
 
 .dilutionEventTable {
@@ -1266,6 +1304,20 @@
 
   .dilutionInstrumentCard dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dilutionInstrumentPreview {
+    min-height: 0;
+  }
+
+  .dilutionLockAction {
+    width: 100%;
+    justify-content: flex-start;
+    font-size: var(--sr-font-size-md);
+  }
+
+  .dilutionLockAction svg:last-child {
+    margin-left: auto;
   }
 
   .dilutionInstrumentFieldWide {
