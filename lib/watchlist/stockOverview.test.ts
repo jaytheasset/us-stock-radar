@@ -445,7 +445,7 @@ test("watchlist page preserves auth/API contracts and uses the current product s
   );
   assert.match(
     componentSource,
-    /\}, \[fundamentalsState, selectedTicker\]\);/,
+    /\}, \[dilutionState, fundamentalsState, selectedTicker\]\);/,
   );
   assert.match(
     componentSource,

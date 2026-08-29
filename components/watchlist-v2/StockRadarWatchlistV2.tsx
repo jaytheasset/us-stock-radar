@@ -78,6 +78,7 @@ import {
   TICKER_SEARCH_SELECTION_STORAGE_KEY,
   type TickerSearchSelectionSnapshot,
 } from "@/lib/tickerSearchFlowObservation";
+import type { StockDilutionSnapshot } from "@/lib/dilution-registry/stockDilution";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type {
   WatchlistTickerItem,
@@ -160,6 +161,7 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
+  const [dilution, setDilution] = useState<StockDilutionSnapshot | null>(null);
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
     CompanyCalendarEvent[]
   >([]);
@@ -172,6 +174,7 @@ export function StockRadarWatchlistV2({
   );
   const [fundamentalsState, setFundamentalsState] =
     useState<LoadState>("idle");
+  const [dilutionState, setDilutionState] = useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
   const [eventFilter, setEventFilter] = useState<StockEventsFilter>("all");
   const [visibleEventCount, setVisibleEventCount] = useState(10);
@@ -404,6 +407,38 @@ export function StockRadarWatchlistV2({
 
   useEffect(() => {
     if (!selectedTicker) {
+      setDilution(null);
+      setDilutionState("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setDilution(null);
+    setDilutionState("loading");
+
+    void fetch(
+      `/api/market/dilution?symbol=${encodeURIComponent(selectedTicker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readJsonResponse)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        const nextDilution = readDilutionSnapshot(payload, selectedTicker);
+        setDilution(nextDilution);
+        setDilutionState(nextDilution ? "ready" : "unavailable");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setDilution(null);
+          setDilutionState("unavailable");
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
       setFundamentals(null);
       setFundamentalsState("idle");
       return;
@@ -578,7 +613,7 @@ export function StockRadarWatchlistV2({
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [fundamentalsState, selectedTicker]);
+  }, [dilutionState, fundamentalsState, selectedTicker]);
 
   useEffect(() => {
     if (!window.matchMedia("(max-width: 1120px)").matches) return;
@@ -1074,6 +1109,8 @@ export function StockRadarWatchlistV2({
 
                     <StockFundamentalsSections
                       dilutionEvents={dilutionEvents}
+                      dilutionLoadState={dilutionState}
+                      dilutionSnapshot={dilution}
                       financialEvents={financialEvents}
                       loadState={fundamentalsState}
                       ownershipEvents={ownershipEvents}
@@ -1879,4 +1916,27 @@ function readFundamentalsSnapshot(
     return null;
   }
   return candidate as StockFundamentalsSnapshot;
+}
+
+function readDilutionSnapshot(
+  payload: unknown,
+  expectedSymbol: string,
+): StockDilutionSnapshot | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const data = (payload as { data?: unknown }).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const candidate = data as Partial<StockDilutionSnapshot>;
+  if (
+    candidate.symbol !== expectedSymbol ||
+    !candidate.metrics ||
+    !Array.isArray(candidate.current) ||
+    !Array.isArray(candidate.activity) ||
+    !Array.isArray(candidate.closed) ||
+    !Array.isArray(candidate.old)
+  ) {
+    return null;
+  }
+  return candidate as StockDilutionSnapshot;
 }

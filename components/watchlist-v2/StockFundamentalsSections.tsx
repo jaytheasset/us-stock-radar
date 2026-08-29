@@ -3,15 +3,18 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import {
   calculateMargin,
   calculatePercentChange,
-  calculateTrailingEquityCashFlow,
   findPriorYearQuarter,
-  sumAvailable,
   type StockBeneficialOwnershipFiling,
   type StockFinancialQuarter,
   type StockFundamentalsSnapshot,
   type StockFundamentalsSourceKey,
   type StockInsiderTrade,
 } from "@/lib/watchlist/stockFundamentals";
+import type {
+  StockDilutionActivity,
+  StockDilutionInstrument,
+  StockDilutionSnapshot,
+} from "@/lib/dilution-registry/stockDilution";
 import type { StockOverviewEvent } from "@/lib/watchlist/stockOverview";
 import watchlistStyles from "./StockRadarWatchlistV2.module.css";
 import styles from "./StockFundamentalsSections.module.css";
@@ -20,6 +23,8 @@ type FundamentalsLoadState = "idle" | "loading" | "ready" | "unavailable";
 
 type StockFundamentalsSectionsProps = {
   dilutionEvents: StockOverviewEvent[];
+  dilutionLoadState: FundamentalsLoadState;
+  dilutionSnapshot: StockDilutionSnapshot | null;
   financialEvents: StockOverviewEvent[];
   loadState: FundamentalsLoadState;
   ownershipEvents: StockOverviewEvent[];
@@ -28,6 +33,8 @@ type StockFundamentalsSectionsProps = {
 
 export function StockFundamentalsSections({
   dilutionEvents,
+  dilutionLoadState,
+  dilutionSnapshot,
   financialEvents,
   loadState,
   ownershipEvents,
@@ -46,9 +53,9 @@ export function StockFundamentalsSections({
         snapshot={snapshot}
       />
       <DilutionSection
+        data={dilutionSnapshot}
         events={dilutionEvents}
-        loadState={loadState}
-        snapshot={snapshot}
+        loadState={dilutionLoadState}
       />
     </>
   );
@@ -666,23 +673,15 @@ function OwnershipSection({
 }
 
 function DilutionSection({
+  data,
   events,
   loadState,
-  snapshot,
-}: SectionProps) {
-  const quarters = snapshot?.financials.quarters ?? [];
-  const latest = quarters[0] ?? null;
-  const priorYear = findPriorYearQuarter(quarters, latest);
-  const float = snapshot?.sharesFloat ?? null;
-  const shareHistory = snapshot?.shareHistory ?? [];
-  const splits = snapshot?.splits ?? [];
-  const latestSharePoint = shareHistory[0] ?? null;
-  const oldestSharePoint = shareHistory.at(-1) ?? null;
-  const hasDilutionData = Boolean(
-    latest || float || shareHistory.length || splits.length || events.length,
-  );
-
-  if (!snapshot || (!hasDilutionData && loadState !== "ready")) {
+}: {
+  data: StockDilutionSnapshot | null;
+  events: StockOverviewEvent[];
+  loadState: FundamentalsLoadState;
+}) {
+  if (!data) {
     return (
       <SectionState
         id="watchlist-dilution"
@@ -693,248 +692,80 @@ function DilutionSection({
     );
   }
 
-  const trailing = calculateTrailingEquityCashFlow(quarters);
-  const trailingSbc = sumAvailable(
-    quarters.slice(0, 4).map((quarter) => quarter.stockBasedCompensation),
-  );
-  const dilutionUnavailable = getUnavailableSources(snapshot, [
-    "sharesFloat",
-    "sharesHistory",
-    "splits",
-    "incomeStatement",
-    "cashFlow",
-  ]);
-  const latestNetEquityCashFlow = calculateQuarterEquityCashFlow(latest);
-
+  const metrics = data.metrics;
   return (
     <section
       aria-labelledby="watchlist-dilution-title"
       className={`${watchlistStyles.section} ${styles.fundamentalsSection}`}
+      data-dilution-source="stock-radar"
       id="watchlist-dilution"
     >
       <DataSectionHeader
-        asOf={`Share snapshot ${formatDate(float?.asOf)} · financials ${formatQuarterLabel(latest)} · refreshed ${formatDate(snapshot?.fetchedAt)}`}
+        asOf={`Shares Outstanding as of ${formatDilutionDate(metrics.sharesOutstandingAsOf)} · Last Checked ${formatDilutionDate(data.lastChecked)}`}
         id="watchlist-dilution-title"
         number="04"
         title="Dilution"
       />
-      {dilutionUnavailable.length ? (
-        <SourceNotice sources={dilutionUnavailable} />
-      ) : null}
       <dl className={styles.dilutionSummary}>
         <Metric
-          label="Shares outstanding"
-          note="Latest float snapshot"
-          value={formatShares(float?.outstandingShares)}
+          label="Shares Outstanding"
+          note={`As of ${formatDilutionDate(metrics.sharesOutstandingAsOf)}`}
+          value={formatDilutionShares(metrics.sharesOutstanding)}
+        />
+        <Metric label="Float Shares" note="Stock Radar data" value="Unavailable" />
+        <Metric label="Free Float" note="Stock Radar data" value="Unavailable" />
+        <Metric
+          label="Total Warrant Shares"
+          value={formatDilutionShares(metrics.totalWarrantShares)}
         />
         <Metric
-          label="Float shares"
-          note="Latest float snapshot"
-          value={formatShares(float?.floatShares)}
+          label="Other Warrant Shares"
+          value={formatDilutionShares(metrics.otherWarrantShares)}
         />
         <Metric
-          label="Free float"
-          note="Latest float snapshot"
-          value={formatPercent(float?.freeFloat)}
+          label="Convertible Note Potential Shares"
+          value={formatDilutionShares(metrics.convertibleNotePotentialShares)}
         />
         <Metric
-          label="Diluted avg shares"
-          note={`${formatSignedPercent(
-            calculatePercentChange(
-              latest?.weightedAverageShsOutDil,
-              priorYear?.weightedAverageShsOutDil,
-            ),
-          )} YoY`}
-          value={formatShares(latest?.weightedAverageShsOutDil)}
+          label="Equity Line Remaining"
+          value={formatTopDilutionMoney(metrics.equityLineRemaining)}
         />
         <Metric
-          label="Reported shares trend"
-          note={`${formatSignedPercent(
-            calculatePercentChange(
-              latestSharePoint?.shares,
-              oldestSharePoint?.shares,
-            ),
-          )} since ${formatDateShort(oldestSharePoint?.date)}`}
-          value={formatShares(latestSharePoint?.shares)}
-        />
-        <Metric
-          label="SBC · trailing 4Q"
-          note="Non-cash expense"
-          value={formatUsd(trailingSbc)}
-        />
-        <Metric
-          label="Net equity cash flow · 4Q"
-          note="Issuance less repurchases"
-          value={formatUsd(trailing.net)}
+          label="ATM Amount"
+          value={formatTopDilutionMoney(metrics.atmAmount)}
         />
       </dl>
       <div className={styles.dilutionStatus}>
         <div>
-          <strong>Measured share-supply indicators</strong>
-          <p>
-            Latest-quarter net equity cash flow is{" "}
-            {formatUsd(latestNetEquityCashFlow)}. Filing coverage is shown
-            separately and is not a risk rating.
-          </p>
+          <strong>Current dilution instruments</strong>
         </div>
-        <span>{events.length} RELATED FILINGS</span>
+        <div className={styles.dilutionCounts}>
+          <span>Current {data.current.length}</span>
+          <span>Closed {data.closed.length}</span>
+          {data.old.length ? <span>Old {data.old.length}</span> : null}
+        </div>
       </div>
 
-      <details className={styles.dilutionDisclosure} open>
-        <DisclosureSummary
-          detail={`${quarters.length} reported quarters · issuance and repurchases normalized`}
-          title="Recent share supply activity"
-        />
-        <div className={styles.disclosureBody}>
-          <div
-            aria-label="Recent reported share supply activity"
-            className={styles.dilutionEventTable}
-            role="table"
-          >
-            <div className={styles.dilutionEventHeader} role="row">
-              <span role="columnheader">Filed</span>
-              <span role="columnheader">Quarter</span>
-              <span role="columnheader">Diluted average shares</span>
-              <span role="columnheader">QoQ / YoY</span>
-              <span role="columnheader">Equity cash flow</span>
-            </div>
-            {quarters.map((quarter, index) => {
-              const priorQuarter = quarters[index + 1];
-              const yearQuarter = findPriorYearQuarter(quarters, quarter);
-              return (
-                <div
-                  className={styles.dilutionEventRow}
-                  key={`${quarter.fiscalYear}-${quarter.period}`}
-                  role="row"
-                >
-                  <time
-                    data-label="Filed"
-                    dateTime={quarter.filingDate}
-                    role="cell"
-                  >
-                    {formatDateShort(quarter.filingDate)}
-                  </time>
-                  <span
-                    className={styles.dilutionForm}
-                    data-label="Quarter"
-                    role="cell"
-                  >
-                    {formatQuarterLabel(quarter)}
-                  </span>
-                  <div className={styles.dilutionEventDetail} role="cell">
-                    <strong>
-                      {formatShares(quarter.weightedAverageShsOutDil)}
-                    </strong>
-                    <small>Weighted-average diluted basis</small>
-                  </div>
-                  <span
-                    className={styles.dilutionEffect}
-                    data-label="QoQ / YoY"
-                    role="cell"
-                  >
-                    {formatSignedPercent(
-                      calculatePercentChange(
-                        quarter.weightedAverageShsOutDil,
-                        priorQuarter?.weightedAverageShsOutDil,
-                      ),
-                    )}{" "}
-                    /{" "}
-                    {formatSignedPercent(
-                      calculatePercentChange(
-                        quarter.weightedAverageShsOutDil,
-                        yearQuarter?.weightedAverageShsOutDil,
-                      ),
-                    )}
-                  </span>
-                  <span
-                    className={styles.dilutionEventStatus}
-                    data-label="Equity cash flow"
-                    role="cell"
-                  >
-                    {formatUsd(calculateQuarterEquityCashFlow(quarter))}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className={styles.methodNote}>
-            Common stock issuance and repurchase cash-flow fields are normalized
-            to positive magnitudes before netting. A negative net value means
-            repurchase cash outflow exceeded issuance proceeds; it is not a
-            direct count of shares retired.
-          </p>
-        </div>
-      </details>
+      <InstrumentDisclosure instruments={data.current} title="Current Instruments" />
 
       <details className={styles.dilutionDisclosure} open>
         <DisclosureSummary
-          detail={`${shareHistory.length} reported share-count periods · ${splits.length} split records`}
-          title="Shares outstanding and split history"
+          detail={`${data.activity.length} recent items`}
+          title="Recent Activity"
         />
         <div className={styles.disclosureBody}>
-          {shareHistory.length ? (
-            <div
-              aria-label="Reported shares outstanding history"
-              className={styles.ownershipTable}
-              role="table"
-            >
-              <div className={styles.ownershipTableHeader} role="row">
-                <span role="columnheader">Period</span>
-                <span role="columnheader">Reported shares</span>
-                <span role="columnheader">Change</span>
-                <span role="columnheader">Basis</span>
-              </div>
-              {shareHistory.map((point, index) => (
-                <div className={styles.ownershipTableRow} key={point.date} role="row">
-                  <strong role="cell">{formatDateShort(point.date)}</strong>
-                  <span data-label="Reported shares" role="cell">{formatShares(point.shares)}</span>
-                  <span data-label="Change" role="cell">
-                    {formatSignedPercent(
-                      calculatePercentChange(point.shares, shareHistory[index + 1]?.shares),
-                    )}
-                  </span>
-                  <span data-label="Basis" role="cell">FMP enterprise value period</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.methodNote}>
-              Historical shares outstanding are unavailable. This does not mean share count was unchanged.
-            </p>
-          )}
-          {splits.length ? (
-            <div
-              aria-label="Reported stock split history"
-              className={styles.ownershipTable}
-              role="table"
-            >
-              <div className={styles.ownershipTableHeader} role="row">
-                <span role="columnheader">Effective</span>
-                <span role="columnheader">Ratio</span>
-                <span role="columnheader">Type</span>
-                <span role="columnheader">Source</span>
-              </div>
-              {splits.map((split) => (
-                <div className={styles.ownershipTableRow} key={`${split.date}-${split.numerator}-${split.denominator}`} role="row">
-                  <strong role="cell">{formatDateShort(split.date)}</strong>
-                  <span data-label="Ratio" role="cell">{formatSplitRatio(split.numerator, split.denominator)}</span>
-                  <span data-label="Type" role="cell">
-                    {split.numerator < split.denominator ? "Reverse split" : "Forward split"}
-                  </span>
-                  <span data-label="Source" role="cell">FMP split record</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.methodNote}>
-              No split row was returned. This is a provider coverage state, not proof that no split occurred.
-            </p>
-          )}
-          <p className={styles.methodNote}>
-            Share-count changes are calculated only between reported positive values. They are not presented as an offering-specific dilution estimate.
-          </p>
+          <div className={styles.dilutionActivityList}>
+            {data.activity.map((activity) => (
+              <DilutionActivityRow activity={activity} key={activity.key} />
+            ))}
+          </div>
         </div>
       </details>
+
+      <InstrumentDisclosure instruments={data.closed} title="Closed / History" />
+      {data.old.length ? (
+        <InstrumentDisclosure instruments={data.old} title="Old" />
+      ) : null}
 
       <RelatedFilings
         events={events}
@@ -943,6 +774,121 @@ function DilutionSection({
       />
     </section>
   );
+}
+
+function InstrumentDisclosure({
+  instruments,
+  title,
+}: {
+  instruments: StockDilutionInstrument[];
+  title: string;
+}) {
+  return (
+    <details className={styles.dilutionDisclosure} open>
+      <DisclosureSummary detail={`${instruments.length} items`} title={title} />
+      <div className={styles.disclosureBody}>
+        <div className={styles.dilutionInstrumentGrid}>
+          {instruments.map((instrument) => (
+            <DilutionInstrumentCard instrument={instrument} key={instrument.key} />
+          ))}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function DilutionInstrumentCard({ instrument }: { instrument: StockDilutionInstrument }) {
+  const fields = instrumentFields(instrument);
+  return (
+    <article className={styles.dilutionInstrumentCard}>
+      <header>
+        <div>
+          <strong>{instrument.name}</strong>
+          <span>{statusLabel(instrument.status)}</span>
+        </div>
+        <time dateTime={instrument.asOf}>As of {formatDilutionDate(instrument.asOf)}</time>
+      </header>
+      <dl>
+        {fields.map((field) => (
+          <div
+            className={
+              field.label === "Conversion"
+                ? styles.dilutionInstrumentFieldWide
+                : undefined
+            }
+            key={field.label}
+          >
+            <dt>{field.label}</dt>
+            <dd>{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
+  );
+}
+
+function DilutionActivityRow({ activity }: { activity: StockDilutionActivity }) {
+  const sharesIssued = activity.sharesIssued === null
+    ? null
+    : formatWholeNumber(activity.sharesIssued);
+  return (
+    <article>
+      <time dateTime={activity.date}>{formatDilutionDate(activity.date)}</time>
+      <div>
+        <strong>{activity.title}</strong>
+        {sharesIssued && !activity.title.includes(sharesIssued) ? (
+          <span>Shares Issued {sharesIssued}</span>
+        ) : null}
+        {activity.unitsCancelled !== null ? (
+          <span>Units Cancelled {formatWholeNumber(activity.unitsCancelled)}</span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function instrumentFields(instrument: StockDilutionInstrument) {
+  const fields: Array<{ label: string; value: string }> = [];
+  const add = (label: string, value: string | null) => {
+    if (value) fields.push({ label, value });
+  };
+  if (instrument.type === "atm_program") {
+    add("Total Amount", instrument.originalCapacity === null ? null : formatDilutionMoney(instrument.originalCapacity));
+    add("Used Amount", instrument.usedAmount === null ? "Unknown" : formatDilutionMoney(instrument.usedAmount));
+    add("Remaining Amount", instrument.remainingAmount === null ? "Unknown" : formatDilutionMoney(instrument.remainingAmount));
+  } else if (instrument.type === "equity_line") {
+    add("Total Amount", instrument.originalCapacity === null ? null : formatDilutionMoney(instrument.originalCapacity));
+    add("Used Amount", instrument.usedAmount === null ? null : formatDilutionMoney(instrument.usedAmount));
+    add("Remaining Amount", instrument.remainingAmount === null ? null : formatDilutionMoney(instrument.remainingAmount));
+    add("Shares Issued", formatWholeNumberOrNull(instrument.sharesIssued));
+  } else {
+    add("Original Amount", formatInstrumentMoney(instrument.originalAmount));
+    add("Remaining Amount", formatInstrumentMoney(instrument.remainingAmount));
+    add("Remaining Units", instrument.remainingUnits === null ? null : formatDilutionShares(instrument.remainingUnits));
+    add("Potential Shares", instrument.remainingPotentialShares === null ? null : formatDilutionShares(instrument.remainingPotentialShares));
+  }
+  add("Interest", instrument.interestRate === null ? null : `${formatPlainNumber(instrument.interestRate)}%`);
+  add("Conversion Price", formatDilutionPrice(instrument.conversionPrice));
+  add("Exercise Price", formatDilutionPrice(instrument.exercisePrice));
+  add("Conversion", normalizePriceFormula(instrument.priceFormula));
+  add("Can Exercise From", instrument.availableDate ? formatDilutionDate(instrument.availableDate) : null);
+  add("Start Date", instrument.startDate ? formatDilutionDate(instrument.startDate) : null);
+  add("Expires", instrument.endDate ? formatDilutionDate(instrument.endDate) : null);
+  add("Shares Issued", instrument.type === "equity_line" ? null : formatWholeNumberOrNull(instrument.sharesIssued));
+  return fields;
+}
+
+function statusLabel(status: StockDilutionInstrument["status"]) {
+  if (status === "current") return "Current";
+  if (status === "old") return "Old";
+  return "Closed";
+}
+
+function normalizePriceFormula(value: string) {
+  if (!value) return null;
+  return value
+    .replace(/^Lesser of/i, "Lower of")
+    .replace(/90% of the lowest VWAP over the prior 10 trading days/i, "90% of lowest 10-day VWAP");
 }
 
 type SectionProps = {
@@ -1255,31 +1201,12 @@ function formatSourceName(source: StockFundamentalsSourceKey) {
   return names[source];
 }
 
-function calculateQuarterEquityCashFlow(
-  quarter: StockFinancialQuarter | null | undefined,
-) {
-  if (!quarter) return null;
-  const issued = quarter.commonStockIssued;
-  const repurchased = quarter.commonStockRepurchased;
-  return issued === null || repurchased === null
-    ? null
-    : issued - repurchased;
-}
-
 function formatInstitutionalPeriod(
   summary: StockFundamentalsSnapshot["ownership"]["institutionalSummary"],
 ) {
   if (!summary) return "period unavailable";
   if (summary.year && summary.quarter) return `Q${summary.quarter} ${summary.year}`;
   return formatDate(summary.asOf);
-}
-
-function formatSplitRatio(numerator: number, denominator: number) {
-  return `${formatRatioNumber(numerator)}:${formatRatioNumber(denominator)}`;
-}
-
-function formatRatioNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
 function formatQuarterLabel(
@@ -1300,6 +1227,87 @@ function formatUsd(value: number | null | undefined) {
     notation: "compact",
     style: "currency",
   }).format(value);
+}
+
+function formatDilutionMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Unavailable";
+  }
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    notation: "compact",
+    style: "currency",
+  }).format(value);
+}
+
+function formatTopDilutionMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Unavailable";
+  }
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    notation: "compact",
+    style: "currency",
+  }).format(value);
+}
+
+function formatInstrumentMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  if (Math.abs(value) >= 1_000_000) return formatDilutionMoney(value);
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value);
+}
+
+function formatDilutionShares(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Unavailable";
+  }
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+    notation: "compact",
+  }).format(value);
+}
+
+function formatWholeNumber(value: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatWholeNumberOrNull(value: number | null | undefined) {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? null
+    : formatWholeNumber(value);
+}
+
+function formatDilutionPrice(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 4,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
+
+function formatPlainNumber(value: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(value);
+}
+
+function formatDilutionDate(value: string | null | undefined) {
+  if (!value || !Number.isFinite(Date.parse(`${value.slice(0, 10)}T00:00:00.000Z`))) {
+    return "Unavailable";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
 }
 
 function formatShares(value: number | null | undefined) {
