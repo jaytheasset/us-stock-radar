@@ -78,7 +78,7 @@ import {
   TICKER_SEARCH_SELECTION_STORAGE_KEY,
   type TickerSearchSelectionSnapshot,
 } from "@/lib/tickerSearchFlowObservation";
-import type { StockDilutionSnapshot } from "@/lib/dilution-registry/stockDilution";
+import type { StockDilutionMembershipResponse } from "@/lib/dilution-registry/stockDilutionMembership";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type {
   WatchlistTickerItem,
@@ -161,7 +161,8 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
-  const [dilution, setDilution] = useState<StockDilutionSnapshot | null>(null);
+  const [dilution, setDilution] =
+    useState<StockDilutionMembershipResponse | null>(null);
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
     CompanyCalendarEvent[]
   >([]);
@@ -1109,6 +1110,7 @@ export function StockRadarWatchlistV2({
 
                     <StockFundamentalsSections
                       dilutionEvents={dilutionEvents}
+                      dilutionGuestMode={Boolean(watchlist.guestMode)}
                       dilutionLoadState={dilutionState}
                       dilutionSnapshot={dilution}
                       financialEvents={financialEvents}
@@ -1921,15 +1923,17 @@ function readFundamentalsSnapshot(
 function readDilutionSnapshot(
   payload: unknown,
   expectedSymbol: string,
-): StockDilutionSnapshot | null {
+): StockDilutionMembershipResponse | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
   }
   const data = (payload as { data?: unknown }).data;
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-  const candidate = data as Partial<StockDilutionSnapshot>;
+  const candidate = data as Partial<StockDilutionMembershipResponse>;
   if (
     candidate.symbol !== expectedSymbol ||
+    !candidate.access ||
+    !candidate.counts ||
     !candidate.metrics ||
     !Array.isArray(candidate.current) ||
     !Array.isArray(candidate.activity) ||
@@ -1938,5 +1942,5 @@ function readDilutionSnapshot(
   ) {
     return null;
   }
-  return candidate as StockDilutionSnapshot;
+  return candidate as StockDilutionMembershipResponse;
 }
