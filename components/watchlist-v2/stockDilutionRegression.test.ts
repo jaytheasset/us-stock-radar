@@ -28,8 +28,17 @@ test("stock detail dilution uses the own-data API and never passes the FMP snaps
   assert.match(client, /dilutionSnapshot=\{dilution\}/);
   assert.match(ownSection, /data-dilution-source="stock-radar"/);
   assert.match(ownSection, /Last Checked/);
-  assert.match(ownSection, /Float Shares/);
-  assert.match(ownSection, /Free Float/);
+  assert.doesNotMatch(ownSection, /Float Shares/);
+  assert.doesNotMatch(ownSection, /Free Float/);
+  assert.match(ownSection, /Shares Outstanding/);
+  assert.match(ownSection, /Total Warrant Shares/);
+  assert.match(ownSection, /Other Warrant Shares/);
+  assert.match(ownSection, /Convertible Note Potential Shares/);
+  assert.match(ownSection, /Equity Line Remaining/);
+  assert.match(ownSection, /ATM Amount/);
+  assert.match(ownSection, /Current dilution instruments/);
+  assert.match(ownSection, /Recent Activity/);
+  assert.match(ownSection, /Closed \/ History/);
   assert.doesNotMatch(ownSection, /weightedAverageShsOutDil|stockBasedCompensation|calculateTrailingEquityCashFlow/);
   assert.doesNotMatch(instrumentCard, /Last Checked/);
   assert.match(
