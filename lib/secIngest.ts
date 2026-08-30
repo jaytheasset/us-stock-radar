@@ -120,6 +120,8 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
             raw_item_id: existing.id,
             source_unique_id: rawItem.source_unique_id,
             title: existing.title || rawItem.title,
+            form_type: readNested(rawItem.raw_payload, "form_type"),
+            cik: readNested(rawItem.raw_payload, "cik"),
           });
           continue;
         }
@@ -132,6 +134,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
           source_unique_id: rawItem.source_unique_id,
           title: persisted.title,
           form_type: readNested(rawItem.raw_payload, "form_type"),
+          cik: readNested(rawItem.raw_payload, "cik"),
           ticker: readNested(rawItem.raw_payload, "ticker"),
           body_chars: stringValue(rawItem.body_text).length,
         });

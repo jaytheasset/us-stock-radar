@@ -26,6 +26,10 @@ import {
 } from "@/lib/newsIngest";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
 import {
+  extractPeriodicOsIssuerCiks,
+  runSecPeriodicOsTriggerBridge,
+} from "@/lib/secPeriodicOsTriggerBridge";
+import {
   buildOfferingMonitorJobIdentity,
   type OfferingMonitorJobIdentity,
 } from "@/lib/offeringMonitorJobFoundation";
@@ -68,6 +72,21 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
       `[secSourceIngestWorkflow] RAW_DONE groupId=${input.groupId} pendingAnalysis=${raw.rawItemIds.length}`,
     );
 
+    let osCollection;
+    if (raw.periodicOsIssuerCiks.length > 0) {
+      await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
+      osCollection = await runSecPeriodicOsCollectorStep(raw.periodicOsIssuerCiks);
+    } else {
+      osCollection = {
+        ok: true,
+        status: "skipped" as const,
+        mode: "incremental" as const,
+        requestedCiks: [],
+        issuerResults: [],
+        failures: [],
+      };
+    }
+
     const analyses = [];
     const monitorJobs = [];
     for (const rawItemId of raw.rawItemIds) {
@@ -89,6 +108,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
       triggerId: input.triggerId,
       groupId: input.groupId,
       raw,
+      osCollection,
       analyses,
       monitorJobs,
     };
@@ -337,6 +357,9 @@ async function runSecGroupRawIngestStep(groupId: string) {
     const candidateIds = uniqueStrings(
       readRecords(record?.items).map((item) => item.raw_item_id),
     );
+    const periodicOsIssuerCiks = extractPeriodicOsIssuerCiks(
+      readRecords(record?.items),
+    );
     const rawItemIds = await findPendingSecAnalysisIds(candidateIds);
     const summary = {
       ok: true,
@@ -345,6 +368,7 @@ async function runSecGroupRawIngestStep(groupId: string) {
       sourceRunId: nullableString(record?.runId),
       stats: numericStats(record?.stats),
       rawItemIds,
+      periodicOsIssuerCiks,
     };
     console.log(
       `[runSecGroupRawIngestStep] DONE stepId=${metadata.stepId} groupId=${groupId} pendingAnalysis=${rawItemIds.length} stats=${JSON.stringify(summary.stats)}`,
@@ -362,6 +386,21 @@ async function runSecGroupRawIngestStep(groupId: string) {
   }
 }
 runSecGroupRawIngestStep.maxRetries = 3;
+
+async function runSecPeriodicOsCollectorStep(ciks: string[]) {
+  "use step";
+
+  const metadata = getStepMetadata();
+  console.log(
+    `[runSecPeriodicOsCollectorStep] START stepId=${metadata.stepId} attempt=${metadata.attempt} issuers=${ciks.length}`,
+  );
+  const result = await runSecPeriodicOsTriggerBridge({ ciks });
+  console.log(
+    `[runSecPeriodicOsCollectorStep] DONE stepId=${metadata.stepId} status=${result.status} issuers=${result.issuerResults.length} failures=${result.failures.length}`,
+  );
+  return result;
+}
+runSecPeriodicOsCollectorStep.maxRetries = 3;
 
 async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
   "use step";
