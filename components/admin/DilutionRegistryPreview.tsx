@@ -10,11 +10,13 @@ import {
 } from "@/lib/dilution-registry/applyClient";
 import {
   createDilutionRegistryPreviewModel,
+  hasDilutionRegistryOsObservationRows,
   parseDilutionRegistryJson,
   type DilutionRegistryInstrumentRow,
   type DilutionRegistryPreviewModel,
   type DilutionRegistryRecord,
 } from "@/lib/dilution-registry/preview";
+import type { DilutionRegistryOsPreviewRow } from "@/lib/dilution-registry/osPreview";
 import styles from "./DilutionRegistryPreview.module.css";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", {
@@ -48,32 +50,41 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   const [errors, setErrors] = useState<string[]>([]);
   const [preview, setPreview] = useState<DilutionRegistryPreviewModel | null>(null);
   const [previewedSource, setPreviewedSource] = useState<string | null>(null);
+  const [osPreviewRows, setOsPreviewRows] = useState<DilutionRegistryOsPreviewRow[]>([]);
+  const [hasOsRows, setHasOsRows] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [applyState, setApplyState] =
     useState<DilutionRegistryApplyUiState>("idle");
   const activeApplySource = useRef<string | null>(null);
+  const activePreviewSource = useRef<string | null>(null);
 
   const applyEnabled = isDilutionRegistryApplyEnabled({
     canApply,
     previewedSource,
     source,
     state: applyState,
+    hasOsObservationRows: hasOsRows,
   });
 
   function handleSourceChange(nextSource: string) {
     activeApplySource.current = null;
+    activePreviewSource.current = null;
     setSource(nextSource);
     setErrors([]);
     setPreview(null);
     setPreviewedSource(null);
+    setOsPreviewRows([]);
+    setHasOsRows(false);
+    setIsPreviewing(false);
     setApplyState("idle");
   }
 
-  function handlePreview() {
+  async function handlePreview() {
     if (!source.trim()) {
       setPreview(null);
       setPreviewedSource(null);
       setApplyState("idle");
-      setErrors(["먼저 JSON을 붙여넣어 주세요."]);
+      setErrors(["Paste JSON first."]);
       return;
     }
 
@@ -86,10 +97,55 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       return;
     }
 
+    const nextHasOsRows = hasDilutionRegistryOsObservationRows(result.payload);
+    if (!nextHasOsRows) {
+      setErrors([]);
+      setOsPreviewRows([]);
+      setHasOsRows(false);
+      setPreview(createDilutionRegistryPreviewModel(result.payload));
+      setPreviewedSource(source);
+      setApplyState("idle");
+      return;
+    }
+
+    activePreviewSource.current = source;
     setErrors([]);
-    setPreview(createDilutionRegistryPreviewModel(result.payload));
-    setPreviewedSource(source);
+    setPreview(null);
+    setPreviewedSource(null);
+    setOsPreviewRows([]);
+    setHasOsRows(true);
+    setIsPreviewing(true);
     setApplyState("idle");
+    try {
+      const response = await fetch(
+        "/api/admin/data/dilution-registry/preview",
+        {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          body: source,
+        },
+      );
+      const body = await response.json().catch(() => null);
+      const rows = response.ok ? readOsPreviewRows(body) : null;
+      if (activePreviewSource.current !== source) return;
+      if (!rows) {
+        setErrors(["Shares Outstanding source Preview is unavailable."]);
+        return;
+      }
+      setOsPreviewRows(rows);
+      setPreview(createDilutionRegistryPreviewModel(result.payload));
+      setPreviewedSource(source);
+    } catch {
+      if (activePreviewSource.current !== source) return;
+      setErrors(["Shares Outstanding source Preview is unavailable."]);
+    } finally {
+      if (activePreviewSource.current === source) {
+        activePreviewSource.current = null;
+        setIsPreviewing(false);
+      }
+    }
   }
 
   function handleClear() {
@@ -168,9 +224,18 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
           </p>
           <span>{source.length.toLocaleString("en-US")} characters</span>
         </div>
-        <div className={styles.actions}>
-          <button className={styles.primaryButton} onClick={handlePreview} type="button">
-            Preview
+        <div
+          className={`${styles.actions} ${
+            hasOsRows ? styles.actionsPreviewOnly : ""
+          }`}
+        >
+          <button
+            className={styles.primaryButton}
+            disabled={isPreviewing}
+            onClick={handlePreview}
+            type="button"
+          >
+            {isPreviewing ? "Checking SEC source..." : "Preview"}
           </button>
           <button className={styles.secondaryButton} onClick={handleClear} type="button">
             Clear
@@ -181,11 +246,15 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
             onClick={handleApply}
             type="button"
           >
-            Apply
+            {hasOsRows ? "Preview-only · Apply disabled" : "Apply"}
           </button>
         </div>
         <div className={styles.applyNotice}>
-          <p>이 내용을 Dilution Registry에 저장합니다.</p>
+          <p>
+            {hasOsRows
+              ? "Shares Outstanding is preview-only. O/S is not saved and Registry Apply is disabled."
+              : "This will save the content to Dilution Registry."}
+          </p>
           {applyState !== "idle" ? (
             <strong
               className={
@@ -201,7 +270,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
 
       {errors.length ? (
         <div className={styles.error} role="alert">
-          <strong>Preview를 만들 수 없습니다.</strong>
+          <strong>Unable to create preview.</strong>
           <ul>
             {errors.map((error) => (
               <li key={error}>{error}</li>
@@ -210,12 +279,20 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
         </div>
       ) : null}
 
-      {preview ? <RegistryPreview model={preview} /> : null}
+      {preview ? (
+        <RegistryPreview model={preview} osPreviewRows={osPreviewRows} />
+      ) : null}
     </div>
   );
 }
 
-function RegistryPreview({ model }: { model: DilutionRegistryPreviewModel }) {
+function RegistryPreview({
+  model,
+  osPreviewRows,
+}: {
+  model: DilutionRegistryPreviewModel;
+  osPreviewRows: DilutionRegistryOsPreviewRow[];
+}) {
   const summary = [
     ["Instruments", model.summary.instruments],
     ["Snapshots", model.summary.snapshots],
@@ -245,6 +322,19 @@ function RegistryPreview({ model }: { model: DilutionRegistryPreviewModel }) {
           </article>
         ))}
       </div>
+
+      {osPreviewRows.length ? (
+        <PreviewSection
+          description="Source-bound O/S candidates only. These rows are never saved, summed, corrected, or used as an issuer total."
+          title="Shares Outstanding"
+        >
+          <div className={styles.osList}>
+            {osPreviewRows.map((row) => (
+              <SharesOutstandingCard key={row.index} row={row} />
+            ))}
+          </div>
+        </PreviewSection>
+      ) : null}
 
       <PreviewSection
         description="Current contracts and programs, with the newest dated entries first."
@@ -315,6 +405,46 @@ function RegistryPreview({ model }: { model: DilutionRegistryPreviewModel }) {
         </PreviewSection>
       </div>
     </section>
+  );
+}
+
+function SharesOutstandingCard({ row }: { row: DilutionRegistryOsPreviewRow }) {
+  return (
+    <article className={styles.osCard}>
+      <div className={styles.osHeading}>
+        <div>
+          <span>Candidate {row.index + 1}</span>
+          <strong>
+            {row.sharesOutstanding
+              ? formatExactIntegerString(row.sharesOutstanding)
+              : "Shares not supplied"}
+          </strong>
+        </div>
+        <span className={osStatusClass(row.status)}>{row.status}</span>
+      </div>
+      <dl className={styles.osFacts}>
+        <Fact label="As of" value={formatDate(row.asOf)} />
+        <Fact label="Class" value={row.securityClassTitle ?? "Not supplied"} />
+        <Fact label="Form" value={row.sourceForm ?? "Not supplied"} />
+        <Fact label="Accession" value={row.sourceAccession ?? "Not supplied"} />
+        <Fact label="Source Ref" value={row.sourceRef ?? "Not supplied"} />
+        <Fact label="Source Check" value={row.sourceCheck} />
+      </dl>
+      <div className={styles.osEvidence}>
+        <span>Contiguous evidence</span>
+        <blockquote>{row.evidence ?? "No evidence supplied."}</blockquote>
+      </div>
+      {row.reasons.length ? (
+        <ul className={styles.osReasons}>
+          {row.reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
+      <p className={styles.osPreviewWarning}>
+        Preview-only · Shares Outstanding was not saved.
+      </p>
+    </article>
   );
 }
 
@@ -581,6 +711,12 @@ function formatNumber(value: unknown) {
   return hasValue(value) ? String(value) : "Unknown";
 }
 
+function formatExactIntegerString(value: string) {
+  return /^[1-9][0-9]*$/.test(value)
+    ? value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    : value;
+}
+
 function formatDate(value: unknown) {
   if (typeof value !== "string" || !value) return "Not listed";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -612,4 +748,34 @@ function statusClass(status: string | null) {
   if (status === "closed") return `${styles.status} ${styles.statusClosed}`;
   if (status === "old") return `${styles.status} ${styles.statusOld}`;
   return `${styles.status} ${styles.statusCurrent}`;
+}
+
+function osStatusClass(status: DilutionRegistryOsPreviewRow["status"]) {
+  if (status === "Verified") return `${styles.status} ${styles.osVerified}`;
+  if (status === "Review") return `${styles.status} ${styles.osReview}`;
+  return `${styles.status} ${styles.osNotVerified}`;
+}
+
+function readOsPreviewRows(value: unknown): DilutionRegistryOsPreviewRow[] | null {
+  if (!isRecord(value) || value.ok !== true || !Array.isArray(value.rows)) return null;
+  const rows: DilutionRegistryOsPreviewRow[] = [];
+  for (const candidate of value.rows) {
+    if (!isRecord(candidate)) return null;
+    const status = candidate.status;
+    if (
+      !Number.isInteger(candidate.index) ||
+      (status !== "Verified" && status !== "Review" && status !== "Not Verified") ||
+      typeof candidate.sourceCheck !== "string" ||
+      !Array.isArray(candidate.reasons) ||
+      !candidate.reasons.every((reason) => typeof reason === "string")
+    ) {
+      return null;
+    }
+    rows.push(candidate as DilutionRegistryOsPreviewRow);
+  }
+  return rows;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

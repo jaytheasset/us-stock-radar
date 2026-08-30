@@ -6,6 +6,7 @@ export type DilutionRegistryPayload = {
   snapshots: DilutionRegistryRecord[];
   activities: DilutionRegistryRecord[];
   totals: DilutionRegistryRecord[];
+  os_observations?: unknown[];
 };
 
 export type DilutionRegistryInstrumentRow = {
@@ -67,12 +68,25 @@ export function parseDilutionRegistryJson(
     return { ok: false, errors: missingArrays };
   }
 
+  if (
+    Object.hasOwn(value, "os_observations") &&
+    !Array.isArray(value.os_observations)
+  ) {
+    return {
+      ok: false,
+      errors: ["Shares Outstanding observations must be a list when present."],
+    };
+  }
+
   const payload: DilutionRegistryPayload = {
     issuer: isRecord(value.issuer) ? value.issuer : undefined,
     instruments: records(value.instruments),
     snapshots: records(value.snapshots),
     activities: records(value.activities),
     totals: records(value.totals),
+    os_observations: Array.isArray(value.os_observations)
+      ? [...value.os_observations]
+      : undefined,
   };
 
   const errors: string[] = [];
@@ -135,6 +149,12 @@ export function parseDilutionRegistryJson(
   return errors.length
     ? { ok: false, errors: [...new Set(errors)] }
     : { ok: true, payload };
+}
+
+export function hasDilutionRegistryOsObservationRows(
+  payload: DilutionRegistryPayload,
+) {
+  return Array.isArray(payload.os_observations) && payload.os_observations.length > 0;
 }
 
 export function createDilutionRegistryPreviewModel(

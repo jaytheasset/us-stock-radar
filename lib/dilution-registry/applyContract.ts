@@ -1,5 +1,8 @@
 import { createDilutionRegistryPasteIdFromSource } from "./pasteIdentity.ts";
-import { parseDilutionRegistryJson } from "./preview.ts";
+import {
+  hasDilutionRegistryOsObservationRows,
+  parseDilutionRegistryJson,
+} from "./preview.ts";
 
 export const DILUTION_REGISTRY_APPLY_PERMISSION = "data.run" as const;
 
@@ -37,6 +40,12 @@ export async function applyDilutionRegistrySource(
     throw new DilutionRegistryApplyError(
       "invalid_source",
       "The Dilution Registry source did not pass Preview validation.",
+    );
+  }
+  if (hasDilutionRegistryOsObservationRows(parsed.payload)) {
+    throw new DilutionRegistryApplyError(
+      "invalid_source",
+      "Shares Outstanding observations are Preview-only and cannot be saved by the Dilution Registry RPC.",
     );
   }
 

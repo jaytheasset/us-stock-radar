@@ -85,6 +85,28 @@ test("a bad linked instrument key is rejected before any write", async () => {
   assert.equal(calls, 0);
 });
 
+test("O/S rows are Preview-only and block the Registry RPC before any write", async () => {
+  let calls = 0;
+  const source = JSON.stringify({
+    ...JSON.parse(sourceWithActivity()),
+    os_observations: [{ observation_type: "source_stated" }],
+  });
+  await assert.rejects(
+    () =>
+      applyDilutionRegistrySource(source, {
+        async rpc() {
+          calls += 1;
+          throw new Error("must not be reached");
+        },
+      }),
+    (error: unknown) =>
+      error instanceof DilutionRegistryApplyError &&
+      error.kind === "invalid_source" &&
+      /Preview-only/.test(error.message),
+  );
+  assert.equal(calls, 0);
+});
+
 test("an invalid RPC result fails closed", async () => {
   await assert.rejects(
     () =>

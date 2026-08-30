@@ -79,6 +79,27 @@ test("a successful Preview enables Apply only while the source is unchanged", ()
   );
 });
 
+test("any O/S row keeps Apply disabled and cannot create an Apply body", () => {
+  const source = JSON.stringify({
+    ...JSON.parse(validSource),
+    os_observations: [{ observation_type: "source_stated" }],
+  });
+  assert.equal(
+    isDilutionRegistryApplyEnabled({
+      canApply: true,
+      previewedSource: source,
+      source,
+      state: "idle",
+      hasOsObservationRows: true,
+    }),
+    false,
+  );
+  assert.throws(
+    () => createDilutionRegistryApplyRequestBody({ previewedSource: source, source }),
+    /Preview-only/,
+  );
+});
+
 test("the Apply request body is the exact text that produced Preview", () => {
   const exactSource = ` {\r\n  "instruments": [],\r\n  "snapshots": [],\r\n  "activities": [],\r\n  "totals": [],\r\n  "note": "한글"\r\n}`;
   assert.equal(parseDilutionRegistryJson(exactSource).ok, true);

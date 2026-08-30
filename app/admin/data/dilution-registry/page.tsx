@@ -14,7 +14,7 @@ export default async function DilutionRegistryPreviewPage() {
           <span className={styles.eyebrow}>Admin Data</span>
           <h1>Dilution Registry Preview</h1>
           <p>
-            Paste one GPT Dilution Registry JSON, check its linked items, and apply the exact reviewed result.
+            Paste one GPT Dilution Registry JSON and check its linked items. Optional Shares Outstanding rows are Preview-only and disable Apply.
           </p>
         </div>
         <Link className={styles.button} href="/admin/data">

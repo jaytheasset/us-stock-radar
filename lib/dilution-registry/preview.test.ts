@@ -39,6 +39,38 @@ test("preview accepts the four lists, nullable activity key, and related keys", 
   });
 });
 
+test("optional os_observations is preserved while absence keeps legacy payload behavior", () => {
+  const withoutOs = parseDilutionRegistryJson(validPayload);
+  assert.equal(withoutOs.ok, true);
+  if (!withoutOs.ok) return;
+  assert.equal(withoutOs.payload.os_observations, undefined);
+
+  const withOs = parseDilutionRegistryJson(
+    JSON.stringify({
+      ...JSON.parse(validPayload),
+      os_observations: [{ observation_type: "source_stated" }],
+    }),
+  );
+  assert.equal(withOs.ok, true);
+  if (!withOs.ok) return;
+  assert.deepEqual(withOs.payload.os_observations, [
+    { observation_type: "source_stated" },
+  ]);
+});
+
+test("os_observations must be an optional list", () => {
+  const result = parseDilutionRegistryJson(
+    JSON.stringify({
+      ...JSON.parse(validPayload),
+      os_observations: {},
+    }),
+  );
+  assert.deepEqual(result, {
+    ok: false,
+    errors: ["Shares Outstanding observations must be a list when present."],
+  });
+});
+
 test("preview reports malformed JSON and missing top-level lists in easy language", () => {
   assert.deepEqual(parseDilutionRegistryJson("{"), {
     ok: false,

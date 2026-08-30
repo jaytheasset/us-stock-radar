@@ -441,6 +441,117 @@
   margin: 0;
 }
 
+.osList {
+  display: grid;
+}
+
+.osCard {
+  min-width: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.osCard:last-child {
+  border-bottom: 0;
+}
+
+.osHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.osHeading div > span,
+.osEvidence > span {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.osHeading div > strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.osVerified {
+  border-color: var(--positive);
+  color: var(--positive);
+}
+
+.osReview {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.osNotVerified {
+  border-color: var(--negative);
+  color: var(--negative);
+}
+
+.osFacts {
+  display: grid;
+  grid-template-columns: 0.65fr 0.9fr 0.55fr 1.25fr 1fr 1.8fr;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.osFacts div {
+  min-width: 0;
+}
+
+.osFacts dt {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.osFacts dd {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.osEvidence {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+}
+
+.osEvidence blockquote {
+  margin: 7px 0 0;
+  font: 11px/1.55 var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  overflow-wrap: anywhere;
+}
+
+.osReasons {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.osPreviewWarning {
+  margin: 12px 0 0;
+  color: var(--negative);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .historyGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -460,6 +571,10 @@
   }
 
   .instrumentFacts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .osFacts {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -494,6 +609,7 @@
   }
 
   .instrumentFacts,
+  .osFacts,
   .totalGrid,
   .totalCard dl {
     grid-template-columns: 1fr;
@@ -525,6 +641,15 @@
 
   .actions {
     width: calc(100% - 94px);
+  }
+
+  .actionsPreviewOnly {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .actionsPreviewOnly .applyButton {
+    flex-basis: 100%;
   }
 
   .applyNotice {

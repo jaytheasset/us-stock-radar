@@ -1,4 +1,8 @@
 import type { DilutionRegistryApplyStatus } from "./applyContract.ts";
+import {
+  hasDilutionRegistryOsObservationRows,
+  parseDilutionRegistryJson,
+} from "./preview.ts";
 
 export type DilutionRegistryApplyUiState =
   | "idle"
@@ -21,14 +25,17 @@ export function isDilutionRegistryApplyEnabled({
   previewedSource,
   source,
   state,
+  hasOsObservationRows = false,
 }: {
   canApply: boolean;
   previewedSource: string | null;
   source: string;
   state: DilutionRegistryApplyUiState;
+  hasOsObservationRows?: boolean;
 }) {
   return (
     canApply &&
+    !hasOsObservationRows &&
     previewedSource !== null &&
     previewedSource === source &&
     state !== "saving"
@@ -44,6 +51,10 @@ export function createDilutionRegistryApplyRequestBody({
 }) {
   if (previewedSource === null || previewedSource !== source) {
     throw new Error("A fresh successful Preview is required before Apply.");
+  }
+  const parsed = parseDilutionRegistryJson(source);
+  if (!parsed.ok || hasDilutionRegistryOsObservationRows(parsed.payload)) {
+    throw new Error("Shares Outstanding observations are Preview-only.");
   }
   return previewedSource;
 }
