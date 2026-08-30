@@ -1031,6 +1031,12 @@
   font-size: var(--sr-font-size-xs);
 }
 
+@media (min-width: 1600px) {
+  .dilutionInstrumentCard dl {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1320px) {
   .financialOverviewGrid {
     grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.8fr);
