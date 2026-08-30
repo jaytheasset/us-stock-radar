@@ -631,7 +631,7 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
       [cik, filter.asOfFrom ?? null, filter.asOfTo ?? null,
         filter.securityClassCanonicalKey ?? null, filter.canonicalSecurityClassId ?? null],
     );
-    return result.rows.map(mapHistoryRow);
+    return result.rows.map(mapShareCountHistoryDatabaseRow);
   }
 }
 
@@ -1093,7 +1093,9 @@ function observationValues(row: ShareCountHistoryObservation) {
   ];
 }
 
-function mapHistoryRow(row: Record<string, unknown>): ShareCountHistoryObservation {
+export function mapShareCountHistoryDatabaseRow(
+  row: Record<string, unknown>,
+): ShareCountHistoryObservation {
   const mapped = {
     id: String(row.id), observationType: String(row.observation_type),
     issuerCik: String(row.issuer_cik), sharesOutstanding: String(row.shares_outstanding),

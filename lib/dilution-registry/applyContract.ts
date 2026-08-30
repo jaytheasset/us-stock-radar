@@ -1,8 +1,8 @@
-import { createDilutionRegistryPasteIdFromSource } from "./pasteIdentity.ts";
 import {
-  hasDilutionRegistryOsObservationRows,
-  parseDilutionRegistryJson,
-} from "./preview.ts";
+  createDilutionRegistryPasteIdFromSource,
+  createDilutionRegistrySourceFromCombinedSource,
+} from "./pasteIdentity.ts";
+import { parseDilutionRegistryJson } from "./preview.ts";
 
 export const DILUTION_REGISTRY_APPLY_PERMISSION = "data.run" as const;
 
@@ -42,19 +42,13 @@ export async function applyDilutionRegistrySource(
       "The Dilution Registry source did not pass Preview validation.",
     );
   }
-  if (hasDilutionRegistryOsObservationRows(parsed.payload)) {
-    throw new DilutionRegistryApplyError(
-      "invalid_source",
-      "Shares Outstanding observations are Preview-only and cannot be saved by the Dilution Registry RPC.",
-    );
-  }
-
-  const pasteId = createDilutionRegistryPasteIdFromSource(source);
-  const payload = JSON.parse(source) as Record<string, unknown>;
+  const registrySource = createDilutionRegistrySourceFromCombinedSource(source);
+  const pasteId = createDilutionRegistryPasteIdFromSource(registrySource);
+  const payload = JSON.parse(registrySource) as Record<string, unknown>;
   const response = await dependencies.rpc("apply_dilution_registry_v1", {
     p_payload: payload,
     p_paste_id: pasteId,
-    p_source: source,
+    p_source: registrySource,
   });
 
   if (!response.ok) {

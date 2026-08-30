@@ -6,9 +6,8 @@ import {
 import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
 import {
   DilutionRegistryApplyError,
-  runAuthorizedDilutionRegistryApply,
 } from "@/lib/dilution-registry/applyContract";
-import { applyDilutionRegistrySourceOnServer } from "@/lib/dilution-registry/applyServer";
+import { applyDilutionRegistryAndHumanVerifiedOsOnServer } from "@/lib/dilution-registry/applyServer";
 
 export const dynamic = "force-dynamic";
 
@@ -20,19 +19,25 @@ export async function POST(request: NextRequest) {
 
   try {
     assertSameOriginAuthRequest(request);
-    const authorized = await runAuthorizedDilutionRegistryApply({
-      authorize: async (permission) => {
-        resolution = await resolveAdminApiAccess(request, permission);
-        return resolution;
-      },
-      apply: async () =>
-        applyDilutionRegistrySourceOnServer(await request.text()),
+    resolution = await resolveAdminApiAccess(request, "data.run");
+    const approverUserId = resolution.auth.user?.id;
+    if (!approverUserId) {
+      throw Object.assign(new Error("ADMIN_AUTH_REQUIRED"), { status: 401 });
+    }
+    const result = await applyDilutionRegistryAndHumanVerifiedOsOnServer({
+      source: await request.text(),
+      approverUserId,
     });
     const response = NextResponse.json(
-      { ok: true, status: authorized.result.status },
+      {
+        ok:
+          result.registry.status !== "failed" &&
+          result.sharesOutstanding.status !== "failed",
+        ...result,
+      },
       { headers: HEADERS },
     );
-    applyAdminAuthCookies(response, authorized.access);
+    applyAdminAuthCookies(response, resolution);
     return response;
   } catch (error) {
     const status =
