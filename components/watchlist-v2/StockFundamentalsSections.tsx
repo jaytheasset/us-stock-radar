@@ -24,6 +24,8 @@ import styles from "./StockFundamentalsSections.module.css";
 
 type FundamentalsLoadState = "idle" | "loading" | "ready" | "unavailable";
 
+const DILUTION_WIDE_CONVERSION_MIN_CHARACTERS = 32;
+
 type StockFundamentalsSectionsProps = {
   dilutionEvents: StockOverviewEvent[];
   dilutionGuestMode: boolean;
@@ -966,7 +968,8 @@ function DilutionInstrumentCard({ instrument }: { instrument: StockDilutionInstr
         {fields.map((field) => (
           <div
             className={
-              field.label === "Conversion"
+              field.label === "Conversion" &&
+              field.value.length >= DILUTION_WIDE_CONVERSION_MIN_CHARACTERS
                 ? styles.dilutionInstrumentFieldWide
                 : undefined
             }
