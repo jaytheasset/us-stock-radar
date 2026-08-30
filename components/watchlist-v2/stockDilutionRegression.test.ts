@@ -44,7 +44,11 @@ test("stock detail dilution uses the own-data API and never passes the FMP snaps
     sectionCss,
     /@media \(max-width: 760px\) \{[\s\S]*?\.dilutionInstrumentCard \{[\s\S]*?border: var\(--sr-border-width\) solid var\(--sr-color-border-control\);/,
   );
-  assert.match(sections, /field\.label === "Conversion"/);
+  assert.match(sections, /const DILUTION_WIDE_CONVERSION_MIN_CHARACTERS = 32/);
+  assert.match(
+    instrumentCard,
+    /field\.label === "Conversion" &&[\s\S]*?field\.value\.length >= DILUTION_WIDE_CONVERSION_MIN_CHARACTERS/,
+  );
 });
 
 test("stock detail dilution renders the membership response without hidden paid values", async () => {
