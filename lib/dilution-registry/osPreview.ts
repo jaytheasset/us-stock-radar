@@ -45,6 +45,12 @@ export type DilutionRegistryOsSourceBundle = {
     primary_document: string;
   } | null;
   documents: DilutionRegistryOsStoredDocument[];
+  officialSecFallbackArtifact?: {
+    sourceUrl: string;
+    fetchedAt: string;
+    contentType: string | null;
+    rawContent: string;
+  };
   classUniverse: {
     issuer_cik: string;
     source_accession: string;
