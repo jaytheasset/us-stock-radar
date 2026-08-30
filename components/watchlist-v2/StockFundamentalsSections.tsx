@@ -723,8 +723,6 @@ function DilutionSection({
           note={`As of ${formatDilutionDate(metrics.sharesOutstandingAsOf)}`}
           value={formatDilutionShares(metrics.sharesOutstanding)}
         />
-        <Metric label="Float Shares" note="Stock Radar data" value="Unavailable" />
-        <Metric label="Free Float" note="Stock Radar data" value="Unavailable" />
         <Metric
           label="Total Warrant Shares"
           value={formatDilutionShares(metrics.totalWarrantShares)}
