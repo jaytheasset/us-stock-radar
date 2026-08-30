@@ -165,6 +165,7 @@ export async function readDilutionRegistryOsSourceBundle(
   return {
     ok: true,
     sourceMode: "official_sec_fallback",
+    officialSecFallbackArtifact: official.artifact,
     classUniverseMode: referenceUniverse ? "issuer_reference" : null,
     ledger,
     documents: [official.document],

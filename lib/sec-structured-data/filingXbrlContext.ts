@@ -1326,6 +1326,31 @@ export function createSecFilingXbrlFixtureArtifact(input: {
   });
 }
 
+export function createSecFilingDocumentArtifact(input: {
+  issuerCik: string;
+  accession: string;
+  documentName: string;
+  sourceUrl: string;
+  rawContent: string;
+  fetchedAt: string;
+  contentType: string | null;
+}): SecFilingXbrlRawArtifact {
+  const filing = {
+    accessionNumber: input.accession,
+    issuerCik: input.issuerCik,
+  } as SecFilingRow;
+  return createArtifact({
+    filing,
+    role: "primary_document",
+    documentName: input.documentName,
+    sourceUrl: input.sourceUrl,
+    fetchedAt: input.fetchedAt,
+    contentType: input.contentType,
+    rawContent: input.rawContent,
+    rawContentKind: "authoritative_http_body",
+  });
+}
+
 function createArtifact(input: {
   filing: Pick<SecFilingRow, "issuerCik" | "accessionNumber">;
   role: SecFilingXbrlArtifactRole;

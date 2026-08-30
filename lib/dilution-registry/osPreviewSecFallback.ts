@@ -16,6 +16,12 @@ export type OfficialSecFilingDocumentResult =
   | {
       ok: true;
       document: OsPreviewSecDocument;
+      artifact: {
+        sourceUrl: string;
+        fetchedAt: string;
+        contentType: string | null;
+        rawContent: string;
+      };
       filingForm: string;
       indexUrl: string;
     }
@@ -45,6 +51,7 @@ export async function fetchOfficialSecFilingDocument(input: {
   sourceForm: string;
   sourceRef: string;
   requestPolicy: OsPreviewSecRequestPolicy;
+  now?: () => Date;
 }): Promise<OfficialSecFilingDocumentResult> {
   if (!/^[0-9]{10}$/.test(input.issuerCik) || input.issuerCik === "0000000000") {
     return { ok: false, reason: "The issuer CIK is not canonical." };
@@ -98,6 +105,12 @@ export async function fetchOfficialSecFilingDocument(input: {
     });
     return {
       ok: true,
+      artifact: {
+        sourceUrl: filingDocument.finalUrl,
+        fetchedAt: (input.now ?? (() => new Date()))().toISOString(),
+        contentType: filingDocument.contentType,
+        rawContent: filingDocument.text,
+      },
       filingForm: liveForm,
       indexUrl: indexHtml.finalUrl,
       document: {
@@ -168,6 +181,7 @@ async function fetchBoundedOfficialSecText(input: {
       throw new Error("The official SEC source exceeded the response-size limit.");
     }
     return {
+      contentType,
       finalUrl: response.url || currentUrl,
       text: await readBoundedBody(response, input.maxBytes),
     };

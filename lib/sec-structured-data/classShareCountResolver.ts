@@ -142,9 +142,30 @@ function eligibleAt(
     return row.acceptedAtSource === "sec_filing_ledger"
       && row.acceptedAtProvenance.source === "sec_filing_ledger.accepted_at";
   }
+  if (row.sourceType === "sec_filing_text_human_verified") {
+    const approval = record(row.sourceProvenance.approval);
+    const artifact = record(row.sourceProvenance.secArtifact);
+    const verifier = record(row.sourceProvenance.verifier);
+    return row.acceptedAtSource === "sec_filing_ledger"
+      && row.acceptedAtProvenance.source === "sec_filing_ledger.accepted_at"
+      && UUID_PATTERN.test(row.filingLedgerRawSourceId)
+      && row.sourceProvenance.filingLedgerRawSourceId === row.filingLedgerRawSourceId
+      && UUID_PATTERN.test(String(approval?.approver_user_id ?? ""))
+      && validTimestamp(String(approval?.approved_at ?? ""))
+      && artifact?.artifactId === row.sourceArtifactId
+      && artifact?.sourceUrl === row.sourceDocumentUrl
+      && artifact?.contentHash === row.sourceContentHash
+      && verifier?.status === "Verified";
+  }
   return row.sourceType === "sec_filing_text_level2"
     && row.acceptedAtSource === "sec_raw_payload_acceptance"
     && row.acceptedAtProvenance.source === "raw_items.raw_payload.accepted_at";
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function unavailable(
@@ -208,3 +229,4 @@ const CANONICAL_SECURITY_CLASS_ID_PATTERN = /^sc:v1:[0-9]{10}:common_stock:(?:si
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const TIMESTAMP_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

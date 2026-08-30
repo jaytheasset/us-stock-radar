@@ -11,6 +11,8 @@ import {
 import type { IssuerCommonClassUniverseSnapshot } from "./issuerCommonClassUniverse.ts";
 
 export const SHARE_COUNT_HISTORY_SOURCE_TYPE = "sec_authoritative_os" as const;
+export const HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE =
+  "sec_filing_text_human_verified" as const;
 export const SHARE_COUNT_HISTORY_SHARE_BASIS = "shares_outstanding:xbrli_shares" as const;
 export const SHARE_COUNT_HISTORY_OBSERVATION_TYPE = "authoritative_xbrl" as const;
 export const COMPLETE_MULTI_CLASS_OS_DECISION_VERSION =
@@ -54,7 +56,10 @@ type ShareCountHistoryObservationCommon = {
   sourceContext: Record<string, unknown>;
   sourceDimensions: unknown[];
   sourceProvenance: Record<string, unknown>;
-  sourceType: typeof SHARE_COUNT_HISTORY_SOURCE_TYPE | "sec_filing_text_level2";
+  sourceType:
+    | typeof SHARE_COUNT_HISTORY_SOURCE_TYPE
+    | "sec_filing_text_level2"
+    | typeof HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE;
   authoritativeStatus: "ELIGIBLE" | null;
   authoritativeDecisionVersion:
     | "authoritative-os-extraction-v1"
@@ -118,9 +123,31 @@ export type Level2ShareCountHistoryObservation = ShareCountHistoryObservationCom
   acceptedAtSource: "sec_raw_payload_acceptance" | "unavailable";
 };
 
+export type HumanVerifiedShareCountHistoryObservation = ShareCountHistoryObservationCommon & {
+  observationType: "source_stated";
+  securityClassBasis: "SOURCE_STATED_SECURITY_CLASS";
+  shareBasisIdentity: "shares_outstanding:source_stated";
+  sourceConceptNamespaceUri: null;
+  sourceConceptLocalName: null;
+  filingLedgerRawSourceId: string;
+  sourceType: typeof HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE;
+  authoritativeStatus: null;
+  authoritativeDecisionVersion: null;
+  authoritativeDecisionReason: null;
+  authoritativeDecisionLineage: null;
+  sourceEvidence: string;
+  sourceAnalyzer: null;
+  canonicalSecurityClassId: string;
+  canonicalSecurityClassKind: "common_stock";
+  canonicalSecurityClassStatus: "mapped";
+  acceptedAt: string;
+  acceptedAtSource: "sec_filing_ledger";
+};
+
 export type ShareCountHistoryObservation =
   | AuthoritativeShareCountHistoryObservation
-  | Level2ShareCountHistoryObservation;
+  | Level2ShareCountHistoryObservation
+  | HumanVerifiedShareCountHistoryObservation;
 
 export type ShareCountHistoryWriteResult = { inserted: number; deduped: number };
 
@@ -796,6 +823,10 @@ function validateObservation(row: ShareCountHistoryObservation) {
     validateLevel2Observation(row);
     return;
   }
+  if (row.sourceType === HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE) {
+    validateHumanVerifiedObservation(row);
+    return;
+  }
   if (row.observationType !== SHARE_COUNT_HISTORY_OBSERVATION_TYPE) {
     throw new Error("authoritative observation type is invalid");
   }
@@ -900,6 +931,80 @@ function validateObservation(row: ShareCountHistoryObservation) {
     && lineageParent.reason === "AGGREGATE_AND_CLASS_SPECIFIC_FACTS_REQUIRE_SELECTION"
     && lineageParent.decisionVersion === "authoritative-os-extraction-v1";
   if (!v1 && !completeMulti) throw new Error("authoritative decision contract is unsupported");
+}
+
+function validateHumanVerifiedObservation(row: HumanVerifiedShareCountHistoryObservation) {
+  if (row.observationType !== "source_stated"
+    || row.securityClassBasis !== "SOURCE_STATED_SECURITY_CLASS"
+    || row.shareBasisIdentity !== "shares_outstanding:source_stated"
+    || row.sourceConceptNamespaceUri !== null
+    || row.sourceConceptLocalName !== null
+    || row.authoritativeStatus !== null
+    || row.authoritativeDecisionVersion !== null
+    || row.authoritativeDecisionReason !== null
+    || row.authoritativeDecisionLineage !== null
+    || row.acceptedAtSource !== "sec_filing_ledger"
+    || row.acceptedAt === null
+    || !row.filingLedgerRawSourceId
+    || !UUID_PATTERN.test(row.filingLedgerRawSourceId)
+    || row.sourceAnalyzer !== null) {
+    throw new Error("unsupported human-verified share-count source lineage");
+  }
+  const identity = row.securityClassIdentity.identity;
+  if (!isRecord(identity) || !compact(String(identity.title ?? ""))
+    || row.securityClassIdentity.canonicalKey !== `SOURCE_STATED_SECURITY_CLASS|${sha256(String(identity.title))}`) {
+    throw new Error("human-verified security-class identity is incomplete");
+  }
+  if (!isRecord(row.securityClassMetadata)
+    || row.securityClassMetadata.sourceRef !== row.sourceContextRef
+    || row.securityClassMetadata.evidence !== row.sourceEvidence
+    || row.securityClassMetadata.sourceDeclaredClassKind !== "common_stock"
+    || row.securityClassMetadata.canonicalSecurityClassId !== row.canonicalSecurityClassId
+    || row.sourceDimensions.length !== 0) {
+    throw new Error("human-verified security-class metadata lineage is incomplete");
+  }
+  if (row.shareBasisMetadata.measurement !== "shares_outstanding"
+    || !isRecord(row.shareBasisMetadata.unit)
+    || row.shareBasisMetadata.unit.kind !== "shares"
+    || row.shareBasisMetadata.unit.representation !== "positive_integer") {
+    throw new Error("human-verified share basis is unresolved");
+  }
+  if (row.sourceFactIdentity.factKey !== row.sourceFactKey
+    || row.sourceFactIdentity.sourceRef !== row.sourceContextRef
+    || row.sourceFactIdentity.accession !== row.accessionNumber
+    || row.sourceFactIdentity.documentName !== row.filingDocument
+    || row.sourceFactIdentity.artifactId !== row.sourceArtifactId
+    || row.sourceFactIdentity.observationType !== "source_stated"
+    || row.sourceContext.sourceRef !== row.sourceContextRef
+    || row.sourceContext.asOf !== row.asOf
+    || row.sourceContext.issuerCik !== row.issuerCik) {
+    throw new Error("human-verified fact/context lineage mismatch");
+  }
+  const approval = row.sourceProvenance.approval;
+  const artifact = row.sourceProvenance.secArtifact;
+  const verifier = row.sourceProvenance.verifier;
+  const classUniverse = row.sourceProvenance.classUniverse;
+  if (!compact(row.sourceEvidence) || row.sourceEvidence.length > 600
+    || !isRecord(approval)
+    || !UUID_PATTERN.test(String(approval.approver_user_id ?? ""))
+    || !TIMESTAMP_PATTERN.test(String(approval.approved_at ?? ""))
+    || Number.isNaN(new Date(String(approval.approved_at)).valueOf())
+    || row.sourceProvenance.filingLedgerRawSourceId !== row.filingLedgerRawSourceId
+    || !isRecord(artifact)
+    || artifact.artifactId !== row.sourceArtifactId
+    || artifact.documentName !== row.filingDocument
+    || artifact.sourceUrl !== row.sourceDocumentUrl
+    || artifact.contentHash !== row.sourceContentHash
+    || !isRecord(verifier)
+    || verifier.status !== "Verified"
+    || !compact(String(verifier.sourceCheck ?? ""))
+    || !isRecord(classUniverse)
+    || classUniverse.status !== "COMPLETE_SINGLE"
+    || classUniverse.reason !== "COMPLETE_SINGLE_COMMON_STOCK"
+    || classUniverse.canonicalSecurityClassId !== row.canonicalSecurityClassId
+    || String(classUniverse.universeAsOf ?? "") > row.asOf) {
+    throw new Error("human-verified source provenance is incomplete");
+  }
 }
 
 function validateLevel2Observation(row: Level2ShareCountHistoryObservation) {
