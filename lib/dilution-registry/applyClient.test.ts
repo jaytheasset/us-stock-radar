@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createDilutionRegistryApplyRequestBody,
   DILUTION_REGISTRY_APPLY_MESSAGES,
+  DILUTION_REGISTRY_RESULT_LABELS,
   isDilutionRegistryApplyEnabled,
   readDilutionRegistryApplyResponse,
 } from "./applyClient.ts";
@@ -79,7 +80,7 @@ test("a successful Preview enables Apply only while the source is unchanged", ()
   );
 });
 
-test("any O/S row keeps Apply disabled and cannot create an Apply body", () => {
+test("a successfully Previewed combined source enables the same one Apply", () => {
   const source = JSON.stringify({
     ...JSON.parse(validSource),
     os_observations: [{ observation_type: "source_stated" }],
@@ -90,13 +91,12 @@ test("any O/S row keeps Apply disabled and cannot create an Apply body", () => {
       previewedSource: source,
       source,
       state: "idle",
-      hasOsObservationRows: true,
     }),
-    false,
+    true,
   );
-  assert.throws(
-    () => createDilutionRegistryApplyRequestBody({ previewedSource: source, source }),
-    /Preview-only/,
+  assert.equal(
+    createDilutionRegistryApplyRequestBody({ previewedSource: source, source }),
+    source,
   );
 });
 
@@ -118,22 +118,30 @@ test("the Apply request body is the exact text that produced Preview", () => {
   );
 });
 
-test("saved, replay, saving, and error states use the required copy", () => {
+test("combined result states use separate required English labels", () => {
   assert.equal(DILUTION_REGISTRY_APPLY_MESSAGES.saving, "Saving...");
-  assert.equal(DILUTION_REGISTRY_APPLY_MESSAGES.saved, "Registry saved.");
-  assert.equal(
-    DILUTION_REGISTRY_APPLY_MESSAGES.already_saved,
-    "Already saved.",
-  );
+  assert.equal(DILUTION_REGISTRY_APPLY_MESSAGES.complete, "Apply complete.");
   assert.equal(
     DILUTION_REGISTRY_APPLY_MESSAGES.error,
     "Could not save the Registry.",
   );
-  assert.equal(readDilutionRegistryApplyResponse({ status: "saved" }), "saved");
-  assert.equal(
-    readDilutionRegistryApplyResponse({ status: "already_saved" }),
-    "already_saved",
-  );
+  assert.deepEqual(DILUTION_REGISTRY_RESULT_LABELS.registry, {
+    saved: "Saved", already_saved: "Already Saved", failed: "Failed",
+  });
+  assert.deepEqual(DILUTION_REGISTRY_RESULT_LABELS.sharesOutstanding, {
+    saved: "Saved", already_saved: "Already Saved", skipped: "Skipped", failed: "Failed",
+  });
+  assert.deepEqual(readDilutionRegistryApplyResponse({
+    registry: { status: "already_saved" },
+    sharesOutstanding: {
+      status: "saved", verifierStatus: "Verified", reasons: [],
+    },
+  }), {
+    registry: { status: "already_saved" },
+    sharesOutstanding: {
+      status: "saved", verifierStatus: "Verified", reasons: [],
+    },
+  });
   assert.equal(readDilutionRegistryApplyResponse({ status: "internal" }), null);
 });
 

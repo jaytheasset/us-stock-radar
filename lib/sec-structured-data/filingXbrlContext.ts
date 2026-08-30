@@ -367,7 +367,7 @@ export class PostgresSecFilingXbrlArtifactRepository implements SecFilingXbrlArt
        order by source_url, content_hash`,
       [issuerCik, accession],
     );
-    return result.rows.map(mapStoredArtifact).sort(compareArtifacts);
+    return result.rows.map(mapSecFilingArtifactDatabaseRow).sort(compareArtifacts);
   }
 }
 
@@ -1381,7 +1381,9 @@ function createArtifact(input: {
   return artifact;
 }
 
-function mapStoredArtifact(row: Record<string, unknown>): SecFilingXbrlRawArtifact {
+export function mapSecFilingArtifactDatabaseRow(
+  row: Record<string, unknown>,
+): SecFilingXbrlRawArtifact {
   const payload = asRecord(row.payload);
   const role = stringValue(payload?.role) as SecFilingXbrlArtifactRole;
   const artifact: SecFilingXbrlRawArtifact = {

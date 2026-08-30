@@ -1,13 +1,10 @@
-import type { DilutionRegistryApplyStatus } from "./applyContract.ts";
-import {
-  hasDilutionRegistryOsObservationRows,
-  parseDilutionRegistryJson,
-} from "./preview.ts";
+import type { DilutionRegistryCombinedApplyResult } from "./combinedApply.ts";
+import { parseDilutionRegistryJson } from "./preview.ts";
 
 export type DilutionRegistryApplyUiState =
   | "idle"
   | "saving"
-  | DilutionRegistryApplyStatus
+  | "complete"
   | "error";
 
 export const DILUTION_REGISTRY_APPLY_MESSAGES: Record<
@@ -15,27 +12,37 @@ export const DILUTION_REGISTRY_APPLY_MESSAGES: Record<
   string
 > = {
   saving: "Saving...",
-  saved: "Registry saved.",
-  already_saved: "Already saved.",
+  complete: "Apply complete.",
   error: "Could not save the Registry.",
 };
+
+export const DILUTION_REGISTRY_RESULT_LABELS = {
+  registry: {
+    saved: "Saved",
+    already_saved: "Already Saved",
+    failed: "Failed",
+  },
+  sharesOutstanding: {
+    saved: "Saved",
+    already_saved: "Already Saved",
+    skipped: "Skipped",
+    failed: "Failed",
+  },
+} as const;
 
 export function isDilutionRegistryApplyEnabled({
   canApply,
   previewedSource,
   source,
   state,
-  hasOsObservationRows = false,
 }: {
   canApply: boolean;
   previewedSource: string | null;
   source: string;
   state: DilutionRegistryApplyUiState;
-  hasOsObservationRows?: boolean;
 }) {
   return (
     canApply &&
-    !hasOsObservationRows &&
     previewedSource !== null &&
     previewedSource === source &&
     state !== "saving"
@@ -53,16 +60,36 @@ export function createDilutionRegistryApplyRequestBody({
     throw new Error("A fresh successful Preview is required before Apply.");
   }
   const parsed = parseDilutionRegistryJson(source);
-  if (!parsed.ok || hasDilutionRegistryOsObservationRows(parsed.payload)) {
-    throw new Error("Shares Outstanding observations are Preview-only.");
-  }
+  if (!parsed.ok) throw new Error("The exact Preview source is invalid.");
   return previewedSource;
 }
 
 export function readDilutionRegistryApplyResponse(
   value: unknown,
-): DilutionRegistryApplyStatus | null {
-  if (!value || typeof value !== "object" || !("status" in value)) return null;
-  const status = (value as { status?: unknown }).status;
-  return status === "saved" || status === "already_saved" ? status : null;
+): DilutionRegistryCombinedApplyResult | null {
+  if (!value || typeof value !== "object") return null;
+  const response = value as {
+    registry?: { status?: unknown };
+    sharesOutstanding?: {
+      status?: unknown;
+      verifierStatus?: unknown;
+      reasons?: unknown;
+    };
+  };
+  const registryStatus = response.registry?.status;
+  const osStatus = response.sharesOutstanding?.status;
+  const verifierStatus = response.sharesOutstanding?.verifierStatus;
+  if (!["saved", "already_saved", "failed"].includes(String(registryStatus))) return null;
+  if (!["saved", "already_saved", "skipped", "failed"].includes(String(osStatus))) return null;
+  if (verifierStatus !== null && !["Verified", "Review", "Not Verified"].includes(String(verifierStatus))) return null;
+  if (!Array.isArray(response.sharesOutstanding?.reasons)
+    || response.sharesOutstanding.reasons.some((reason) => typeof reason !== "string")) return null;
+  return {
+    registry: { status: registryStatus as DilutionRegistryCombinedApplyResult["registry"]["status"] },
+    sharesOutstanding: {
+      status: osStatus as DilutionRegistryCombinedApplyResult["sharesOutstanding"]["status"],
+      verifierStatus: verifierStatus as DilutionRegistryCombinedApplyResult["sharesOutstanding"]["verifierStatus"],
+      reasons: [...response.sharesOutstanding.reasons] as string[],
+    },
+  };
 }

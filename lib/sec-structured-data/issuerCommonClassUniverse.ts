@@ -437,7 +437,7 @@ implements IssuerCommonClassUniverseRepository {
        order by universe_as_of, accepted_at, source_accession, source_identity_hash`,
       [cik, filter.universeAsOfTo ?? null, filter.acceptedAtTo ?? null],
     );
-    return result.rows.map(mapSnapshotRow);
+    return result.rows.map(mapIssuerCommonClassUniverseDatabaseRow);
   }
 }
 
@@ -677,7 +677,9 @@ function snapshotValues(snapshot: IssuerCommonClassUniverseSnapshot): unknown[] 
   ];
 }
 
-function mapSnapshotRow(row: Record<string, unknown>): IssuerCommonClassUniverseSnapshot {
+export function mapIssuerCommonClassUniverseDatabaseRow(
+  row: Record<string, unknown>,
+): IssuerCommonClassUniverseSnapshot {
   const snapshot: IssuerCommonClassUniverseSnapshot = {
     id: String(row.id),
     snapshotVersion: String(row.snapshot_version) as IssuerCommonClassUniverseVersion,

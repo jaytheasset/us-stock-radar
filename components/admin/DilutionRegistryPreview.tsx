@@ -4,10 +4,12 @@ import { useRef, useState } from "react";
 import {
   createDilutionRegistryApplyRequestBody,
   DILUTION_REGISTRY_APPLY_MESSAGES,
+  DILUTION_REGISTRY_RESULT_LABELS,
   isDilutionRegistryApplyEnabled,
   readDilutionRegistryApplyResponse,
   type DilutionRegistryApplyUiState,
 } from "@/lib/dilution-registry/applyClient";
+import type { DilutionRegistryCombinedApplyResult } from "@/lib/dilution-registry/combinedApply";
 import {
   createDilutionRegistryPreviewModel,
   hasDilutionRegistryOsObservationRows,
@@ -55,6 +57,8 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [applyState, setApplyState] =
     useState<DilutionRegistryApplyUiState>("idle");
+  const [applyResult, setApplyResult] =
+    useState<DilutionRegistryCombinedApplyResult | null>(null);
   const activeApplySource = useRef<string | null>(null);
   const activePreviewSource = useRef<string | null>(null);
 
@@ -63,7 +67,6 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
     previewedSource,
     source,
     state: applyState,
-    hasOsObservationRows: hasOsRows,
   });
 
   function handleSourceChange(nextSource: string) {
@@ -77,6 +80,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
     setHasOsRows(false);
     setIsPreviewing(false);
     setApplyState("idle");
+    setApplyResult(null);
   }
 
   async function handlePreview() {
@@ -84,6 +88,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       setPreview(null);
       setPreviewedSource(null);
       setApplyState("idle");
+      setApplyResult(null);
       setErrors(["Paste JSON first."]);
       return;
     }
@@ -93,6 +98,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       setPreview(null);
       setPreviewedSource(null);
       setApplyState("idle");
+      setApplyResult(null);
       setErrors(result.errors);
       return;
     }
@@ -105,6 +111,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       setPreview(createDilutionRegistryPreviewModel(result.payload));
       setPreviewedSource(source);
       setApplyState("idle");
+      setApplyResult(null);
       return;
     }
 
@@ -116,6 +123,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
     setHasOsRows(true);
     setIsPreviewing(true);
     setApplyState("idle");
+    setApplyResult(null);
     try {
       const response = await fetch(
         "/api/admin/data/dilution-registry/preview",
@@ -168,6 +176,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
 
     activeApplySource.current = requestBody;
     setApplyState("saving");
+    setApplyResult(null);
     try {
       const response = await fetch(
         "/api/admin/data/dilution-registry/apply",
@@ -180,11 +189,10 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
         },
       );
       const body = await response.json().catch(() => null);
-      const status = response.ok
-        ? readDilutionRegistryApplyResponse(body)
-        : null;
+      const result = readDilutionRegistryApplyResponse(body);
       if (activeApplySource.current !== requestBody) return;
-      setApplyState(status ?? "error");
+      setApplyResult(result);
+      setApplyState(result ? "complete" : "error");
     } catch {
       if (activeApplySource.current !== requestBody) return;
       setApplyState("error");
@@ -224,11 +232,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
           </p>
           <span>{source.length.toLocaleString("en-US")} characters</span>
         </div>
-        <div
-          className={`${styles.actions} ${
-            hasOsRows ? styles.actionsPreviewOnly : ""
-          }`}
-        >
+        <div className={styles.actions}>
           <button
             className={styles.primaryButton}
             disabled={isPreviewing}
@@ -246,16 +250,16 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
             onClick={handleApply}
             type="button"
           >
-            {hasOsRows ? "Preview-only · Apply disabled" : "Apply"}
+            Apply
           </button>
         </div>
         <div className={styles.applyNotice}>
           <p>
             {hasOsRows
-              ? "Shares Outstanding is preview-only. O/S is not saved and Registry Apply is disabled."
+              ? "One Apply saves the Registry first, then server-reverifies and saves only Verified Shares Outstanding."
               : "This will save the content to Dilution Registry."}
           </p>
-          {applyState !== "idle" ? (
+          {applyState === "saving" || applyState === "error" ? (
             <strong
               className={
                 applyState === "error" ? styles.applyError : styles.applyResult
@@ -264,6 +268,22 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
             >
               {DILUTION_REGISTRY_APPLY_MESSAGES[applyState]}
             </strong>
+          ) : null}
+          {applyResult ? (
+            <div className={styles.applyResults} role="status">
+              <strong>
+                Registry: {DILUTION_REGISTRY_RESULT_LABELS.registry[applyResult.registry.status]}
+              </strong>
+              <strong>
+                Shares Outstanding: {DILUTION_REGISTRY_RESULT_LABELS.sharesOutstanding[applyResult.sharesOutstanding.status]}
+                {applyResult.sharesOutstanding.verifierStatus
+                  ? ` · ${applyResult.sharesOutstanding.verifierStatus}`
+                  : ""}
+              </strong>
+              {applyResult.sharesOutstanding.reasons.length ? (
+                <span>{applyResult.sharesOutstanding.reasons.join(" ")}</span>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </section>
@@ -442,7 +462,7 @@ function SharesOutstandingCard({ row }: { row: DilutionRegistryOsPreviewRow }) {
         </ul>
       ) : null}
       <p className={styles.osPreviewWarning}>
-        Preview-only · Shares Outstanding was not saved.
+        Preview only · Apply rechecks this exact SEC source before any O/S save.
       </p>
     </article>
   );

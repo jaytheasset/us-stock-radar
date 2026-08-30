@@ -190,6 +190,22 @@
   color: var(--negative);
 }
 
+.applyResults {
+  display: grid;
+  gap: 3px;
+  color: var(--text);
+  text-align: right;
+}
+
+.applyResults strong {
+  font-size: 11px;
+}
+
+.applyResults span {
+  max-width: 540px;
+  color: var(--muted);
+}
+
 .error {
   padding: 14px 16px;
   border: 1px solid var(--negative);
@@ -655,5 +671,9 @@
   .applyNotice {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .applyResults {
+    text-align: left;
   }
 }

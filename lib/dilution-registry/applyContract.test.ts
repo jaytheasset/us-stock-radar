@@ -85,26 +85,31 @@ test("a bad linked instrument key is rejected before any write", async () => {
   assert.equal(calls, 0);
 });
 
-test("O/S rows are Preview-only and block the Registry RPC before any write", async () => {
-  let calls = 0;
-  const source = JSON.stringify({
-    ...JSON.parse(sourceWithActivity()),
-    os_observations: [{ observation_type: "source_stated" }],
-  });
-  await assert.rejects(
-    () =>
-      applyDilutionRegistrySource(source, {
-        async rpc() {
-          calls += 1;
-          throw new Error("must not be reached");
-        },
-      }),
-    (error: unknown) =>
-      error instanceof DilutionRegistryApplyError &&
-      error.kind === "invalid_source" &&
-      /Preview-only/.test(error.message),
+test("O/S-only edits keep the same Registry RPC identity and payload", async () => {
+  const registrySource = sourceWithActivity();
+  const combined = registrySource.replace(
+    /}$/, ',"os_observations":[{"shares_outstanding":"10"}]}',
   );
-  assert.equal(calls, 0);
+  const calls: Array<Record<string, unknown>> = [];
+  for (const source of [combined, combined.replace('"10"', '"11"')]) {
+    await applyDilutionRegistrySource(source, {
+      async rpc(_name, payload) {
+        calls.push(payload);
+        return {
+          ok: true,
+          data: {
+            already_saved: true,
+            added: { instruments: 0, snapshots: 0, activities: 0, totals: 0 },
+          },
+        };
+      },
+    });
+  }
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.p_source, registrySource);
+  assert.equal(calls[1]?.p_source, registrySource);
+  assert.equal(calls[0]?.p_paste_id, calls[1]?.p_paste_id);
+  assert.deepEqual(calls[0]?.p_payload, JSON.parse(registrySource));
 });
 
 test("an invalid RPC result fails closed", async () => {

@@ -579,16 +579,16 @@ test("official fallback fails closed on source membership or exact-form mismatch
   assert.match(wrongForm.ok ? "" : wrongForm.reason, /does not exactly match source_form/i);
 });
 
-test("the O/S notice is exactly English and remains preview-only", () => {
+test("the O/S notice is exactly English and states server re-verification", () => {
   const component = readFileSync(
     "components/admin/DilutionRegistryPreview.tsx",
     "utf8",
   );
   assert.match(
     component,
-    /Shares Outstanding is preview-only\. O\/S is not saved and Registry Apply is disabled\./,
+    /One Apply saves the Registry first, then server-reverifies and saves only Verified Shares Outstanding\./,
   );
-  assert.doesNotMatch(component, /Shares Outstanding는 Preview-only/);
+  assert.match(component, /Apply rechecks this exact SEC source before any O\/S save\./);
   assert.doesNotMatch(component, /Shares Outstanding[^\r\n]*[가-힣]/);
   assert.doesNotMatch(component, /[가-힣]/);
 });
