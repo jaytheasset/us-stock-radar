@@ -19,6 +19,9 @@ type ExecutionState = {
   osBaselineRequired: boolean;
   rawCalls: number;
   rawFormTypes: string[];
+  rawSourceRuns: Array<Record<string, unknown>>;
+  stepAttempt: number;
+  workflowRunId: string;
   bridgeCalls: string[][];
   analysisCalls: string[];
   releaseCalls: number;
@@ -40,7 +43,18 @@ const mocks = new Map<string, string>([
       constructor(message, options) { super(message); this.options = options; }
     }
     export function getStepMetadata() {
-      return { stepId: "step_execution_test", attempt: 1 };
+      return {
+        stepId: "step_execution_test",
+        attempt: globalThis.__secWorkflowExecutionState?.stepAttempt ?? 1,
+      };
+    }
+    export function getWorkflowMetadata() {
+      return {
+        workflowRunId: globalThis.__secWorkflowExecutionState?.workflowRunId ?? "wrun_execution_test_123",
+        workflowName: "secSourceIngestWorkflow",
+        workflowStartedAt: new Date("2026-08-31T00:00:00.000Z"),
+        url: "https://example.test/workflow",
+      };
     }
   `)],
   ["server-only", dataModule("export {};\n")],
@@ -140,6 +154,7 @@ const mocks = new Map<string, string>([
       const state = globalThis.__secWorkflowExecutionState;
       state.rawCalls += 1;
       state.rawFormTypes = [...(options.formTypes || [])];
+      state.rawSourceRuns.push(structuredClone(options.sourceRun));
       state.order.push("raw");
       if (state.rawFailure) {
         return {
@@ -215,6 +230,29 @@ test("periodic VEEA 10-Q executes raw, normalized O/S bridge, then analysis", as
   assert.deepEqual(state.analysisCalls, ["raw-veea-q2"]);
   assert.deepEqual(state.order, ["raw", "os:0001840317", "analysis:raw-veea-q2"]);
   assert.equal(result.osCollection.status, "completed");
+});
+
+test("source-run identity is stable for a replayed step attempt and distinct for a retry", async () => {
+  const first = setup([]);
+  await secSourceIngestWorkflow(workflowInput());
+  const firstAttempt = first.rawSourceRuns[0];
+  await secSourceIngestWorkflow(workflowInput());
+  const replayedAttempt = first.rawSourceRuns[1];
+
+  const retry = setup([]);
+  retry.stepAttempt = 2;
+  await secSourceIngestWorkflow(workflowInput());
+  const secondAttempt = retry.rawSourceRuns[0];
+
+  assert.deepEqual(firstAttempt, replayedAttempt);
+  assert.notEqual(firstAttempt?.sourceRunId, secondAttempt?.sourceRunId);
+  assert.equal(firstAttempt?.workflowRunId, "wrun_execution_test_123");
+  assert.equal(firstAttempt?.workflowStepId, "step_execution_test");
+  assert.equal(firstAttempt?.workflowAttempt, 1);
+  assert.equal(firstAttempt?.triggerId, "trigger-execution-test");
+  assert.equal(firstAttempt?.lockKey, "lock-execution-test");
+  assert.equal(firstAttempt?.lockOwner, "owner-execution-test");
+  assert.equal(secondAttempt?.workflowAttempt, 2);
 });
 
 test("non-periodic-only raw batch executes analysis with zero O/S bridge calls", async () => {
@@ -330,6 +368,9 @@ function setup(
     osBaselineRequired: failures.osBaselineRequired ?? false,
     rawCalls: 0,
     rawFormTypes: [],
+    rawSourceRuns: [],
+    stepAttempt: 1,
+    workflowRunId: "wrun_execution_test_123",
     bridgeCalls: [],
     analysisCalls: [],
     releaseCalls: 0,

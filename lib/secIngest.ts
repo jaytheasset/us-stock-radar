@@ -11,6 +11,10 @@ import {
   finishSecSourceRun,
   saveSecRawItem,
 } from "@/lib/secStores/rawStore";
+import {
+  workflowSourceRunMetadata,
+  type WorkflowSourceRunAttempt,
+} from "@/lib/sourceRunState";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -22,13 +26,15 @@ type SecRawIngestOptions = {
   force?: boolean;
   includeDocuments?: boolean;
   attachmentLimit?: number;
+  sourceRun?: WorkflowSourceRunAttempt;
 };
 
 export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
-  const runId = randomUUID();
+  const runId = options.sourceRun?.sourceRunId || randomUUID();
   const startedAt = new Date().toISOString();
+  const sourceRunMetadata = workflowSourceRunMetadata(options.sourceRun);
   const items: Array<Record<string, unknown>> = [];
   const stats = {
     checked_count: 0,
@@ -43,7 +49,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
 
   if (!dryRun) {
     await ensureSecSource();
-    await createSecSourceRun({
+    const initialStatus = await createSecSourceRun({
       force,
       includeDocuments: options.includeDocuments ?? true,
       requestedFormTypes: options.formTypes,
@@ -51,7 +57,34 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
       requestedAccessionNumber: options.accessionNumber,
       runId,
       startedAt,
+      metadata: sourceRunMetadata,
     });
+    if (initialStatus === "cancelled") {
+      return {
+        ok: false,
+        cancelled: true,
+        stage: "cancelled",
+        status: 409,
+        runId,
+        stats,
+        error: "Workflow source run was cancelled before ingest started",
+        items,
+      };
+    }
+    if (initialStatus !== "running") {
+      return {
+        ok: initialStatus === "completed" || initialStatus === "skipped",
+        reused: true,
+        stage: initialStatus,
+        status: initialStatus === "failed" ? 500 : 200,
+        runId,
+        stats,
+        error: initialStatus === "failed"
+          ? "Workflow source attempt already failed"
+          : undefined,
+        items,
+      };
+    }
   }
 
   try {
@@ -69,6 +102,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
       if (!dryRun) {
         await finishSecSourceRun(runId, "failed", startedAt, stats, rawResult.error || "SEC raw fetch failed", {
           raw_diagnostics: rawResult.diagnostics,
+          ...sourceRunMetadata,
         });
       }
 
@@ -161,6 +195,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
         {
           raw_diagnostics: rawResult.diagnostics,
           partial,
+          ...sourceRunMetadata,
         },
       );
     }
@@ -182,6 +217,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
         startedAt,
         stats,
         error instanceof Error ? error.message : "Unknown SEC raw ingest error",
+        sourceRunMetadata,
       );
     }
 

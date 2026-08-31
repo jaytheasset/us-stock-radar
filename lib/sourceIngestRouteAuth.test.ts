@@ -181,6 +181,24 @@ test("source job proxy is protected and forwards ingest authorization", () => {
   assert.match(sourceJobs, /sourceIngestAuthorizationHeaders\(\)/);
 });
 
+test("source Workflow cancellation route enforces ingest authorization", () => {
+  const cancellationRoute = readFileSync(
+    path.resolve(
+      process.cwd(),
+      "app",
+      "api",
+      "cron",
+      "source-ingest",
+      "cancel",
+      "route.ts",
+    ),
+    "utf8",
+  );
+
+  assert.match(cancellationRoute, /sourceIngestAuthResponse\(request\)/);
+  assert.match(cancellationRoute, /cancelSourceIngestWorkflowRun\(workflowRunId\)/);
+});
+
 test("SEC analysis mutation route enforces the same authorization", () => {
   const analyzeRoute = readFileSync(
     path.resolve(

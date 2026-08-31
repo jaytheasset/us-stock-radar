@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { SecParsedRawItem } from "@/lib/sources/sec/parser";
 import { supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import {
+  registerWorkflowSourceRun,
+  transitionSourceRunToTerminal,
+} from "@/lib/sourceRunState";
 
 type PersistedRow = Record<string, unknown>;
 
@@ -82,23 +86,13 @@ export async function finishSecSourceRun(
   errorMessage?: string,
   metadata: Record<string, unknown> = {},
 ) {
-  const result = await supabaseUpsertSanitized(
-    "source_runs",
-    {
-      id: runId,
-      source_code: "sec_edgar",
-      source_group: "filings",
-      run_type: "raw_ingest",
-      status,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      stats,
-      error_message: errorMessage || null,
-      metadata,
-    },
-    { onConflict: "id" },
-  );
-  await assertMutation(result, "finish SEC source run");
+  await transitionSourceRunToTerminal({
+    runId,
+    status,
+    stats,
+    errorMessage,
+    metadata,
+  });
 }
 
 export async function createSecSourceRun({
@@ -109,6 +103,7 @@ export async function createSecSourceRun({
   requestedAccessionNumber,
   runId,
   startedAt,
+  metadata = {},
 }: {
   force: boolean;
   includeDocuments: boolean;
@@ -117,7 +112,32 @@ export async function createSecSourceRun({
   requestedAccessionNumber?: string;
   runId: string;
   startedAt: string;
+  metadata?: Record<string, unknown>;
 }) {
+  const workflowRunId = typeof metadata.workflow_run_id === "string"
+    ? metadata.workflow_run_id.trim()
+    : "";
+  if (workflowRunId) {
+    return registerWorkflowSourceRun({
+      runId,
+      sourceCode: "sec_edgar",
+      sourceGroup: "filings",
+      runType: "raw_ingest",
+      startedAt,
+      stats: {
+        requested_limit: requestedLimit || null,
+        requested_form_types: requestedFormTypes || null,
+        requested_accession_number: requestedAccessionNumber || null,
+      },
+      metadata: {
+        dry_run: false,
+        force,
+        include_documents: includeDocuments,
+        ...metadata,
+      },
+    });
+  }
+
   await assertMutation(
     supabaseUpsertSanitized(
       "source_runs",
@@ -137,12 +157,17 @@ export async function createSecSourceRun({
           dry_run: false,
           force,
           include_documents: includeDocuments,
+          ...metadata,
         },
       },
-      { onConflict: "id" },
+      {
+        onConflict: "id",
+        prefer: "resolution=ignore-duplicates,return=representation",
+      },
     ),
     "create SEC source run",
   );
+  return "running" as const;
 }
 
 async function assertMutation(

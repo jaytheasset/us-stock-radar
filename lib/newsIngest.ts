@@ -46,6 +46,12 @@ import { fetchNasdaqCorporateActionsRawItems } from "@/lib/sources/nasdaqtrader/
 import { canonicalizeAnalysisTickersWithCache } from "@/lib/tickerCanonicalizer";
 import { buildNewsTickerProxiesWithCache, type NewsTickerProxy } from "@/lib/newsTickerProxies";
 import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import {
+  registerWorkflowSourceRun,
+  transitionSourceRunToTerminal,
+  workflowSourceRunMetadata,
+  type WorkflowSourceRunAttempt,
+} from "@/lib/sourceRunState";
 import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import {
   buildGenericMonitorPrimaryExecutionContext,
@@ -76,6 +82,7 @@ type NewsIngestOptions = {
   sourceUniqueId?: string;
   haltDate?: string;
   resumptionDate?: string;
+  sourceRun?: WorkflowSourceRunAttempt;
 };
 
 type NewsRawItem = Omit<GlobeParsedRawItem, "source_code"> & {
@@ -400,8 +407,9 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
   const sourceUniqueId = nullableString(options.sourceUniqueId);
-  const runId = randomUUID();
+  const runId = options.sourceRun?.sourceRunId || randomUUID();
   const startedAt = new Date().toISOString();
+  const sourceRunMetadata = workflowSourceRunMetadata(options.sourceRun);
   const resultItems: Array<Record<string, unknown>> = [];
   const seenRunEventKeys = new Set<string>();
   const seenRunEvents: EventDedupe[] = [];
@@ -433,23 +441,56 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
 
   if (!dryRun) {
     await ensureSourceReference(config);
-    await assertMutation(
-      supabaseUpsert(
-        "source_runs",
-        {
-          id: runId,
-          source_code: config.sourceCode,
-          source_group: "news",
-          run_type: "manual_ingest",
-          status: "running",
-          started_at: startedAt,
-          stats: { requested_limit: limit },
-          metadata: { source: config.sourceName, dry_run: false, force },
-        },
-        { onConflict: "id" },
-      ),
-      "create source run",
-    );
+    const initialMetadata = {
+      source: config.sourceName,
+      dry_run: false,
+      force,
+      ...sourceRunMetadata,
+    };
+    const initialStats = { requested_limit: limit };
+    const initialStatus = options.sourceRun
+      ? await registerWorkflowSourceRun({
+          runId,
+          sourceCode: config.sourceCode,
+          sourceGroup: "news",
+          runType: "manual_ingest",
+          startedAt,
+          stats: initialStats,
+          metadata: initialMetadata,
+        })
+      : await createStandaloneSourceRun({
+          runId,
+          sourceCode: config.sourceCode,
+          startedAt,
+          stats: initialStats,
+          metadata: initialMetadata,
+        });
+    if (initialStatus === "cancelled") {
+      return {
+        ok: false,
+        cancelled: true,
+        stage: "cancelled",
+        status: 409,
+        runId,
+        stats,
+        error: "Workflow source run was cancelled before ingest started",
+        items: resultItems,
+      };
+    }
+    if (initialStatus !== "running") {
+      return {
+        ok: initialStatus === "completed" || initialStatus === "skipped",
+        reused: true,
+        stage: initialStatus,
+        status: initialStatus === "failed" ? 500 : 200,
+        runId,
+        stats,
+        error: initialStatus === "failed"
+          ? "Workflow source attempt already failed"
+          : undefined,
+        items: resultItems,
+      };
+    }
   }
 
   try {
@@ -464,8 +505,9 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
 
     if (!rawResult.ok) {
       if (!dryRun) {
-        await finishSourceRun(config, runId, "failed", startedAt, stats, rawResult.error || config.fetchErrorLabel, {
+        await finishSourceRun(runId, "failed", stats, rawResult.error || config.fetchErrorLabel, {
           raw_result: rawResult,
+          ...sourceRunMetadata,
         });
       }
 
@@ -996,10 +1038,8 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
     const partial = stats.failed_count > 0 && stats.event_upserted_count > 0;
     if (!dryRun) {
       await finishSourceRun(
-        config,
         runId,
         ok || partial ? "completed" : "failed",
-        startedAt,
         stats,
         ok ? undefined : `One or more ${config.sourceName} items failed`,
         {
@@ -1008,6 +1048,7 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
             ...hydrationDiagnostics,
           },
           partial,
+          ...sourceRunMetadata,
         },
       );
     }
@@ -1027,12 +1068,11 @@ async function runNewsIngestForSource(config: NewsSourceConfig, options: NewsIng
   } catch (error) {
     if (!dryRun) {
       await finishSourceRun(
-        config,
         runId,
         "failed",
-        startedAt,
         stats,
         error instanceof Error ? error.message : `Unknown ${config.ingestErrorLabel}`,
+        sourceRunMetadata,
       );
     }
 
@@ -1767,31 +1807,19 @@ async function persistAiTrace({
 }
 
 async function finishSourceRun(
-  config: NewsSourceConfig,
   runId: string,
   status: "completed" | "failed" | "skipped",
-  startedAt: string,
   stats: Record<string, unknown>,
   errorMessage?: string,
   metadata: Record<string, unknown> = {},
 ) {
-  const result = await supabaseUpsert(
-    "source_runs",
-    {
-      id: runId,
-      source_code: config.sourceCode,
-      source_group: "news",
-      run_type: "manual_ingest",
-      status,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      stats,
-      error_message: errorMessage || null,
-      metadata,
-    },
-    { onConflict: "id" },
-  );
-  await assertMutation(result, "finish source run");
+  await transitionSourceRunToTerminal({
+    runId,
+    status,
+    stats,
+    errorMessage,
+    metadata,
+  });
 }
 
 async function ensureSourceReference(config: NewsSourceConfig) {
@@ -1814,6 +1842,33 @@ async function ensureSourceReference(config: NewsSourceConfig) {
     ),
     "upsert source reference",
   );
+}
+
+async function createStandaloneSourceRun(input: {
+  runId: string;
+  sourceCode: string;
+  startedAt: string;
+  stats: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+}) {
+  await assertMutation(
+    supabaseUpsert(
+      "source_runs",
+      {
+        id: input.runId,
+        source_code: input.sourceCode,
+        source_group: "news",
+        run_type: "manual_ingest",
+        status: "running",
+        started_at: input.startedAt,
+        stats: input.stats,
+        metadata: input.metadata,
+      },
+      { onConflict: "id" },
+    ),
+    "create source run",
+  );
+  return "running" as const;
 }
 
 async function findExistingRawItem(rawItem: NewsRawItem) {
