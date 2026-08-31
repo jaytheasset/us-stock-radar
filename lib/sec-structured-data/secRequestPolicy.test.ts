@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SecStructuredHttpClient } from "./httpClient.ts";
-import { SecRequestError, SecRequestPolicy } from "./secRequestPolicy.ts";
+import {
+  SEC_STRUCTURED_REQUEST_TIMEOUT_MS,
+  SecRequestError,
+  SecRequestPolicy,
+} from "./secRequestPolicy.ts";
+
+test("structured SEC request timeout defaults to 30 seconds", () => {
+  assert.equal(SEC_STRUCTURED_REQUEST_TIMEOUT_MS, 30_000);
+});
 
 test("shared SEC request policy serializes aggregate cadence and retries only bounded transient statuses", async () => {
   let now = 0;
@@ -80,6 +88,88 @@ test("network retry cap remains explicit", async () => {
     (error: unknown) => error instanceof SecRequestError && error.code === "NETWORK_FAILURE",
   );
   assert.equal(calls, 3);
+});
+
+test("per-attempt timeout enters the existing retry flow and can recover", async () => {
+  let calls = 0;
+  const abortReasons: unknown[] = [];
+  const policy = new SecRequestPolicy("Stock Radar ops@example.com", {
+    minimumIntervalMs: 100,
+    requestTimeoutMs: 5,
+    baseBackoffMs: 0,
+    maximumBackoffMs: 0,
+    sleep: async () => undefined,
+    fetchImplementation: async (_input, init) => {
+      calls += 1;
+      if (calls > 1) return new Response("ok", { status: 200 });
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          abortReasons.push(init.signal?.reason);
+          reject(init.signal?.reason);
+        }, { once: true });
+      });
+    },
+  });
+
+  assert.equal((await policy.fetch("https://data.sec.gov/submissions/CIK0001840317.json")).status, 200);
+  assert.equal(calls, 2);
+  assert.equal(abortReasons.length, 1);
+  assert.equal(abortReasons[0] instanceof DOMException, true);
+  assert.equal((abortReasons[0] as DOMException).name, "TimeoutError");
+});
+
+test("per-attempt timeout fails through SecRequestError after the existing retry cap", async () => {
+  let calls = 0;
+  const policy = new SecRequestPolicy("Stock Radar ops@example.com", {
+    minimumIntervalMs: 100,
+    maximumAttempts: 2,
+    requestTimeoutMs: 5,
+    baseBackoffMs: 0,
+    maximumBackoffMs: 0,
+    sleep: async () => undefined,
+    fetchImplementation: async (_input, init) => {
+      calls += 1;
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      });
+    },
+  });
+
+  await assert.rejects(
+    () => policy.fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK0001840317.json"),
+    (error: unknown) => error instanceof SecRequestError
+      && error.code === "NETWORK_FAILURE"
+      && error.cause instanceof DOMException
+      && error.cause.name === "TimeoutError",
+  );
+  assert.equal(calls, 2);
+});
+
+test("caller abort signal remains connected to every attempt", async () => {
+  const controller = new AbortController();
+  const reason = new Error("caller cancelled");
+  let calls = 0;
+  const policy = new SecRequestPolicy("Stock Radar ops@example.com", {
+    minimumIntervalMs: 100,
+    maximumAttempts: 2,
+    requestTimeoutMs: 100,
+    baseBackoffMs: 0,
+    maximumBackoffMs: 0,
+    sleep: async () => undefined,
+    fetchImplementation: async (_input, init) => {
+      calls += 1;
+      assert.equal(init?.signal?.aborted, true);
+      assert.equal(init?.signal?.reason, reason);
+      throw init?.signal?.reason;
+    },
+  });
+  controller.abort(reason);
+
+  await assert.rejects(
+    () => policy.fetch("https://www.sec.gov/Archives/example", { signal: controller.signal }),
+    (error: unknown) => error instanceof SecRequestError && error.cause === reason,
+  );
+  assert.equal(calls, 2);
 });
 
 test("incremental Submissions skips historical files while bootstrap fetches only issuer-declared history", async () => {

@@ -3,10 +3,13 @@ export type SecRequestPolicyOptions = {
   maximumAttempts?: number;
   baseBackoffMs?: number;
   maximumBackoffMs?: number;
+  requestTimeoutMs?: number;
   fetchImplementation?: typeof fetch;
   nowMs?: () => number;
   sleep?: (milliseconds: number) => Promise<void>;
 };
+
+export const SEC_STRUCTURED_REQUEST_TIMEOUT_MS = 30_000;
 
 export class SecRequestError extends Error {
   readonly code = "NETWORK_FAILURE" as const;
@@ -25,6 +28,7 @@ export class SecRequestPolicy {
   private readonly maximumAttempts: number;
   private readonly baseBackoffMs: number;
   private readonly maximumBackoffMs: number;
+  private readonly requestTimeoutMs: number;
   private readonly fetchImplementation: typeof fetch;
   private readonly nowMs: () => number;
   private readonly sleep: (milliseconds: number) => Promise<void>;
@@ -39,12 +43,16 @@ export class SecRequestPolicy {
     this.maximumAttempts = options.maximumAttempts ?? 3;
     this.baseBackoffMs = options.baseBackoffMs ?? 500;
     this.maximumBackoffMs = options.maximumBackoffMs ?? 4_000;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? SEC_STRUCTURED_REQUEST_TIMEOUT_MS;
     if (this.minimumIntervalMs < 100) throw new Error("SEC request interval must be at least 100ms");
     if (!Number.isInteger(this.maximumAttempts) || this.maximumAttempts < 1 || this.maximumAttempts > 5) {
       throw new Error("SEC maximum attempts must be an integer from 1 to 5");
     }
     if (this.baseBackoffMs < 0 || this.maximumBackoffMs < this.baseBackoffMs) {
       throw new Error("SEC retry backoff is invalid");
+    }
+    if (!Number.isFinite(this.requestTimeoutMs) || this.requestTimeoutMs <= 0) {
+      throw new Error("SEC request timeout must be greater than zero");
     }
     this.userAgent = userAgent;
     this.fetchImplementation = options.fetchImplementation ?? fetch;
@@ -63,9 +71,11 @@ export class SecRequestPolicy {
     for (let attempt = 1; attempt <= this.maximumAttempts; attempt += 1) {
       await this.waitForRequestSlot();
       let response: Response;
+      const attemptSignal = createAttemptSignal(init.signal, this.requestTimeoutMs);
       try {
         response = await this.fetchImplementation(url, {
           ...init,
+          signal: attemptSignal.signal,
           headers: { ...headersRecord(init.headers), "User-Agent": this.userAgent },
         });
       } catch (error) {
@@ -73,6 +83,8 @@ export class SecRequestPolicy {
         if (attempt === this.maximumAttempts) break;
         await this.sleep(this.retryDelayMs(attempt, null));
         continue;
+      } finally {
+        attemptSignal.dispose();
       }
       if (!isRetryableStatus(response.status) || attempt === this.maximumAttempts) return response;
       await response.body?.cancel().catch(() => undefined);
@@ -92,6 +104,26 @@ export class SecRequestPolicy {
     if (retryAfterMs !== null) return Math.min(retryAfterMs, 30_000);
     return Math.min(this.baseBackoffMs * (2 ** (attempt - 1)), this.maximumBackoffMs);
   }
+}
+
+function createAttemptSignal(parentSignal: AbortSignal | null | undefined, timeoutMs: number) {
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort(parentSignal?.reason);
+  if (parentSignal?.aborted) abortFromParent();
+  else parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException(`SEC request timed out after ${timeoutMs}ms`, "TimeoutError")),
+    timeoutMs,
+  );
+
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timeout);
+      parentSignal?.removeEventListener("abort", abortFromParent);
+    },
+  };
 }
 
 function isRetryableStatus(status: number) {
