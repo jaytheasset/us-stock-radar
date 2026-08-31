@@ -14,11 +14,11 @@ class, DEI O/S fact lineage, and a periodic form (`10-Q`, `10-K`, `20-F`, or
 `40-F`, including amendments). Level 2 filing-text observations can corroborate
 or become intermediate points, but cannot become anchors.
 
-The currently locked authoritative extractor produces domestic `10-Q`/`10-K`
-anchors. It still fails closed on foreign/ADR basis ambiguity. The reconciliation
-gate recognizes a foreign periodic row only if a future authoritative extractor
-has already promoted it to the same `ELIGIBLE` history contract; reconciliation
-does not perform that promotion.
+The authoritative extractor produces domestic `10-Q`/`10-K` anchors and the
+narrow `20-F`/`40-F` direct-U.S.-listed common-share shape backed by exact DEI
+trading-security evidence. It still fails closed on foreign/ADR basis
+ambiguity. Reconciliation only consumes an already-`ELIGIBLE` history row and
+never performs that promotion itself.
 
 Multiple authoritative rows for the same class/date/value are preserved as
 supporting provenance. Different values for the same class and `as_of` are a

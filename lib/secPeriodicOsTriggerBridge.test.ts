@@ -21,20 +21,26 @@ const {
 type ServerPostgresClient = import("./serverPostgres.ts").ServerPostgresClient;
 type ServerPostgresPool = import("./serverPostgres.ts").ServerPostgresPool;
 
-test("periodic form filtering accepts only stored 10-Q/10-K filings and dedupes normalized CIKs", () => {
+test("periodic form filtering accepts stored 10-Q/10-K/20-F/40-F filings and dedupes normalized CIKs", () => {
   const items = [
     stored("10-Q", "1840317"),
     stored("10-Q/A", "0001840317"),
     stored("10-K", 1840317),
     stored("10-K/A", "320193"),
-    ...["20-F", "40-F", "8-K", "S-1", "S-3", "424B5"].map((form) =>
-      stored(form, "0000000001")),
+    stored("20-F", "0000000001"),
+    stored("20-F/A", "0000000001"),
+    stored("40-F", "0000000004"),
+    stored("40-F/A", "0000000004"),
+    ...["6-K", "F-10", "8-K", "S-1", "S-3", "424B5"].map((form) =>
+      stored(form, "0000000005")),
     { ...stored("10-Q", "0000000002"), ok: false },
     { ok: true, form_type: "10-Q", cik: "0000000003" },
     stored("10-Q", "bad-cik"),
   ];
 
   assert.deepEqual(extractPeriodicOsIssuerCiks(items), [
+    "0000000001",
+    "0000000004",
     "0000320193",
     "0001840317",
   ]);

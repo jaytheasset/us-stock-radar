@@ -23,16 +23,17 @@ the existing canonical security-class identity function.
 `deriveIssuerCommonClassUniverseSnapshot()` produces one of:
 
 - `COMPLETE_SINGLE`: one axis-free authoritative DEI O/S fact, an exact
-  `single` canonical common class, no separate class facts, and no foreign or
-  class ambiguity.
+  `single` canonical common class, no separate class facts, and no unresolved
+  class ambiguity. A `20-F`/`40-F` source must already carry the authoritative
+  extractor's exact U.S.-listed foreign trading-security evidence.
 - `COMPLETE_MULTI`: at least two same-date class-specific common O/S facts and
   every member maps to a source-backed canonical common-class identity. V2
   accepts either an existing `us-gaap:<member-local-name>` ID or an issuer
   extension `custom:<namespace-uri-sha256>:<member-local-name>` ID.
 - `INCOMPLETE`: the filing set, breakdown, provenance, member mapping, or
   aggregate corroboration cannot prove the complete set.
-- `AMBIGUOUS`: foreign/ADS basis or same-class fact conflicts prevent a safe
-  class set.
+- `AMBIGUOUS`: unresolved foreign/ADS basis or same-class fact conflicts
+  prevent a safe class set.
 
 For a multi-class snapshot, every class fact must use the same O/S instant. If
 an aggregate fact is present, it is corroboration only: its exact integer must

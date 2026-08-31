@@ -182,6 +182,45 @@ test("REQUIRES_FURTHER_CONTEXT and UNAVAILABLE decisions save zero rows", async 
   assert.equal((await readShareCountHistory(repository, sample.cik)).length, 0);
 });
 
+test("eligible U.S.-listed foreign O/S persists the exact trading-security evidence and replays idempotently", async () => {
+  const repository = new InMemoryShareCountHistoryRepository();
+  const sample = audit("AAPL");
+  const base = linked(sample);
+  const foreignCandidate = { ...base.candidate, form: "20-F" } as SecOsFilingContextCandidate;
+  const tradingSecurityFacts = [
+    tradingSecurityFact(base.matches[0]!, "Security12bTitle", "Ordinary shares"),
+    tradingSecurityFact(base.matches[0]!, "TradingSymbol", "TEST"),
+    tradingSecurityFact(base.matches[0]!, "SecurityExchangeName", "The Nasdaq Stock Market LLC"),
+  ];
+  const decision = resolveAuthoritativeOsFromFiling({
+    ...base,
+    candidate: foreignCandidate,
+    tradingSecurityFacts,
+  });
+  assert.equal(decision.status, "ELIGIBLE");
+  if (decision.status !== "ELIGIBLE") return;
+  assert.deepEqual(await writeAuthoritativeShareCountObservation({
+    repository,
+    decision,
+    ingestedAt: "2026-08-22T04:30:00Z",
+  }), { inserted: 1, deduped: 0 });
+  assert.deepEqual(await writeAuthoritativeShareCountObservation({
+    repository,
+    decision: structuredClone(decision),
+    ingestedAt: "2026-08-22T04:30:00Z",
+  }), { inserted: 0, deduped: 1 });
+  const [stored] = await readShareCountHistory(repository, sample.cik);
+  assert.equal(stored?.form, "20-F");
+  assert.equal(
+    (stored?.sourceProvenance.tradingSecurityEvidence as { evidenceVersion?: string })?.evidenceVersion,
+    "us-listed-foreign-os-evidence-v1",
+  );
+  assert.deepEqual(
+    stored?.sourceProvenance.tradingSecurityEvidence,
+    stored?.authoritativeDecisionLineage?.tradingSecurityEvidence,
+  );
+});
+
 test("full fact, context, dimensions, timestamps, and decision provenance round-trip", async () => {
   const repository = new InMemoryShareCountHistoryRepository();
   const decision = eligibleDecision(audit("AAPL"), classDimension("CommonClassAMember"));
@@ -285,7 +324,15 @@ function linked(sample: AuditSample, dimensions: SecXbrlDimension[] = []): Extra
     rejectionReason: "MISSING_COMPANYFACTS_SECURITY_CLASS_CONTEXT",
   };
   const fact = filingFact(sample, candidate, dimensions);
-  return { status: "AVAILABLE", candidate, matches: [fact], relevantRejections: [], sources: [fact.source] };
+  return {
+    status: "AVAILABLE",
+    candidate,
+    matches: [fact],
+    relevantRejections: [],
+    tradingSecurityFacts: [],
+    tradingSecurityRejections: [],
+    sources: [fact.source],
+  };
 }
 
 function filingFact(sample: AuditSample, candidate: SecOsFilingContextCandidate, dimensions: SecXbrlDimension[]): SecFilingXbrlFact {
@@ -321,6 +368,43 @@ function filingFact(sample: AuditSample, candidate: SecOsFilingContextCandidate,
       dimensions,
     },
     source,
+  };
+}
+
+function tradingSecurityFact(
+  osFact: SecFilingXbrlFact,
+  concept: "Security12bTitle" | "TradingSymbol" | "SecurityExchangeName",
+  value: string,
+): SecFilingXbrlFact {
+  const contextRef = "foreign-trading-security";
+  return {
+    ...structuredClone(osFact),
+    factKey: createHash("sha256").update(`${concept}|${value}`).digest("hex"),
+    concept: {
+      qname: `dei:${concept}`,
+      prefix: "dei",
+      localName: concept,
+      namespaceUri: "http://xbrl.sec.gov/dei/2025",
+    },
+    valueText: value,
+    valueTree: value,
+    contextRef,
+    unitRef: null,
+    unit: null,
+    decimals: null,
+    precision: null,
+    scale: null,
+    sign: null,
+    inlineFormat: null,
+    context: {
+      ...structuredClone(osFact.context),
+      id: contextRef,
+      period: {
+        kind: "duration",
+        startDate: `${osFact.context.period.kind === "instant" ? osFact.context.period.instant.slice(0, 4) : "2026"}-01-01`,
+        endDate: osFact.context.period.kind === "instant" ? osFact.context.period.instant : osFact.context.period.endDate,
+      },
+    },
   };
 }
 

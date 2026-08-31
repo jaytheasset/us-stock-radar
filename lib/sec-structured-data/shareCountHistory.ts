@@ -465,6 +465,7 @@ export function toShareCountHistoryObservation(
       companyFacts: structuredClone(value.companyFactsProvenance),
       filingLedgerRawSourceId: value.filingLedgerRawSourceId,
       filingFactSource: structuredClone(value.source),
+      tradingSecurityEvidence: structuredClone(value.tradingSecurityEvidence),
     },
     sourceType: SHARE_COUNT_HISTORY_SOURCE_TYPE,
     authoritativeStatus: "ELIGIBLE",
@@ -476,6 +477,8 @@ export function toShareCountHistoryObservation(
       reason: decision.reason,
       candidate: structuredClone(decision.candidate),
       filingFacts: structuredClone(decision.filingFacts),
+      tradingSecurityFacts: structuredClone(decision.tradingSecurityFacts),
+      tradingSecurityEvidence: structuredClone(value.tradingSecurityEvidence),
     },
     sourceDocumentUrl: value.source.sourceUrl,
     sourceContentHash: value.source.contentHash,
@@ -733,6 +736,11 @@ function validateEligibleDecision(decision: SecAuthoritativeOsEligibleDecision, 
   if (value.taxonomy !== "dei" || value.concept !== "EntityCommonStockSharesOutstanding"
     || value.conceptLocalName !== "EntityCommonStockSharesOutstanding"
     || !DEI_NAMESPACE_PATTERN.test(value.conceptNamespaceUri)) throw new Error("source concept identity is unresolved");
+  if (FOREIGN_PERIODIC_FORMS.has(value.form)) {
+    validateForeignTradingSecurityEvidence(decision);
+  } else if (value.tradingSecurityEvidence !== null) {
+    throw new Error("domestic authoritative O/S cannot carry foreign trading-security evidence");
+  }
   if (!HEX_64_PATTERN.test(value.factKey) || value.context.id !== value.contextRef
     || value.context.period.kind !== "instant" || value.context.period.instant !== value.asOf) {
     throw new Error("fact/context identity is incomplete");
@@ -763,6 +771,42 @@ function validateEligibleDecision(decision: SecAuthoritativeOsEligibleDecision, 
     || filingFact.unit.measure.namespaceUri !== "http://www.xbrl.org/2003/instance"
     || filingFact.unit.measure.localName !== "shares") throw new Error("selected filing fact lineage is incomplete");
   validateSecurityClass(value.securityClass, value.dimensions, value.factKey, value.contextRef);
+}
+
+function validateForeignTradingSecurityEvidence(decision: SecAuthoritativeOsEligibleDecision) {
+  const value = decision.authoritative;
+  const evidence = value.tradingSecurityEvidence;
+  if (!evidence || evidence.evidenceVersion !== "us-listed-foreign-os-evidence-v1"
+    || evidence.linkedOsFactKey !== value.factKey
+    || evidence.linkedOsContextRef !== value.contextRef
+    || decision.tradingSecurityFacts.length !== 3) {
+    throw new Error("foreign trading-security evidence is incomplete");
+  }
+  const expectedConcepts = new Map([
+    ["Security12bTitle", evidence.securityTitle],
+    ["TradingSymbol", evidence.tradingSymbol],
+    ["SecurityExchangeName", evidence.exchangeName],
+  ]);
+  const contextRefs = new Set<string>();
+  for (const [concept, fact] of expectedConcepts) {
+    const decisionFact = decision.tradingSecurityFacts.find((item) => item.factKey === fact.factKey);
+    if (!decisionFact || decisionFact.concept.localName !== concept
+      || stableJson(decisionFact) !== stableJson(fact)
+      || !HEX_64_PATTERN.test(fact.factKey)
+      || !fact.valueText || !compact(fact.valueText)
+      || fact.unitRef !== null || fact.isNil
+      || normalizeCik(fact.context.entityIdentifier) !== value.issuerCik
+      || !/^https?:\/\/www\.sec\.gov\/CIK$/i.test(fact.context.entityScheme)
+      || fact.source.issuerCik !== value.issuerCik
+      || fact.source.accession !== value.accession
+      || stableJson(fact.dimensions) !== stableJson(value.dimensions)
+      || fact.context.period.kind !== "duration"
+      || fact.context.period.endDate !== value.asOf) {
+      throw new Error("foreign trading-security fact lineage is incomplete");
+    }
+    contextRefs.add(`${fact.source.artifactId}|${fact.contextRef}`);
+  }
+  if (contextRefs.size !== 1) throw new Error("foreign trading-security class linkage is ambiguous");
 }
 
 function validateSecurityClass(
@@ -905,6 +949,19 @@ function validateObservation(row: ShareCountHistoryObservation) {
     || row.authoritativeDecisionLineage.candidate.filedDate !== row.filedDate
     || !Array.isArray(row.authoritativeDecisionLineage.filingFacts)
     || row.authoritativeDecisionLineage.filingFacts.length === 0) throw new Error("authoritative lineage is incomplete");
+  if (FOREIGN_PERIODIC_FORMS.has(row.form)) {
+    const sourceTrading = row.sourceProvenance.tradingSecurityEvidence;
+    const lineageTrading = row.authoritativeDecisionLineage.tradingSecurityEvidence;
+    const lineageTradingFacts = row.authoritativeDecisionLineage.tradingSecurityFacts;
+    if (!isRecord(sourceTrading)
+      || sourceTrading.evidenceVersion !== "us-listed-foreign-os-evidence-v1"
+      || !isRecord(lineageTrading)
+      || stableJson(sourceTrading) !== stableJson(lineageTrading)
+      || !Array.isArray(lineageTradingFacts)
+      || lineageTradingFacts.length !== 3) {
+      throw new Error("foreign trading-security lineage is incomplete");
+    }
+  }
   const v1 = row.authoritativeDecisionVersion === "authoritative-os-extraction-v1"
     && (row.authoritativeDecisionReason === "ELIGIBLE_CLASS_SPECIFIC_DEI_CONTEXT"
       || row.authoritativeDecisionReason === "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT")
@@ -1239,6 +1296,7 @@ function sha256(value: string) {
 const CIK_PATTERN = /^[0-9]{10}$/;
 const ACCESSION_PATTERN = /^[0-9]{10}-[0-9]{2}-[0-9]{6}$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
+const FOREIGN_PERIODIC_FORMS = new Set(["20-F", "20-F/A", "40-F", "40-F/A"]);
 const HEX_64_PATTERN = /^[0-9a-f]{64}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;

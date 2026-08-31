@@ -16,6 +16,7 @@ import {
   PostgresIssuerCommonClassUniverseRepository,
   deriveIssuerCommonClassUniverseSnapshot,
   readIssuerCommonClassUniverseAt,
+  readLatestUsablePeriodicOsBaseline,
   writeIssuerCommonClassUniverseSnapshot,
 } from "./issuerCommonClassUniverse.ts";
 import type {
@@ -191,6 +192,62 @@ test("foreign/ADR basis remains AMBIGUOUS without ADS ratio inference", () => {
   assert.equal(snapshot.status, "AMBIGUOUS");
   assert.equal(snapshot.reason, "ADS_OR_ORDINARY_AMBIGUOUS");
   assert.deepEqual(snapshot.requiredCanonicalSecurityClassIds, []);
+});
+
+test("eligible U.S.-listed 20-F and 40-F decisions produce complete single-class universes", () => {
+  for (const form of ["20-F", "40-F"]) {
+    const snapshot = deriveIssuerCommonClassUniverseSnapshot(decision({
+      facts: [fact({ value: "20000000" })],
+      status: "ELIGIBLE",
+      reason: "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT",
+      form,
+    }));
+    assert.equal(snapshot.status, "COMPLETE_SINGLE", form);
+    assert.equal(snapshot.sourceForm, form);
+    assert.deepEqual(snapshot.requiredCanonicalSecurityClassIds, [
+      `sc:v1:${CIK}:common_stock:single`,
+    ]);
+  }
+});
+
+test("an eligible 40-F history row is a usable incremental periodic baseline", async () => {
+  const repository = new InMemoryIssuerCommonClassUniverseRepository();
+  const foreignDecision = decision({
+    facts: [fact({ value: "20000000" })],
+    status: "ELIGIBLE",
+    reason: "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT",
+    form: "40-F",
+  });
+  const snapshot = deriveIssuerCommonClassUniverseSnapshot(foreignDecision);
+  await repository.insertSnapshot(snapshot);
+  const classId = snapshot.requiredCanonicalSecurityClassIds[0]!;
+  const history = [{
+    sourceType: "sec_authoritative_os",
+    observationType: "authoritative_xbrl",
+    authoritativeStatus: "ELIGIBLE",
+    canonicalSecurityClassStatus: "mapped",
+    canonicalSecurityClassKind: "common_stock",
+    canonicalSecurityClassId: classId,
+    shareBasisIdentity: "shares_outstanding:xbrli_shares",
+    acceptedAtSource: "sec_filing_ledger",
+    acceptedAt: ACCEPTED_AT,
+    asOf: AS_OF,
+    accessionNumber: "0000000099-26-000001",
+    form: "40-F",
+    sharesOutstanding: "20000000",
+    sourceFactKey: fact({ value: "20000000" }).factKey,
+  }] as unknown as ShareCountHistoryObservation[];
+  const baseline = await readLatestUsablePeriodicOsBaseline({
+    repository,
+    shareCountHistoryRepository: historyRepository(history),
+    cik: CIK,
+    targetAt: "2026-08-02T00:00:00.000Z",
+  });
+  assert.equal(baseline.status, "AVAILABLE");
+  if (baseline.status === "AVAILABLE") {
+    assert.equal(baseline.form, "40-F");
+    assert.deepEqual(baseline.requiredCanonicalSecurityClassIds, [classId]);
+  }
 });
 
 test("class-specific conflicts do not select a winner", () => {

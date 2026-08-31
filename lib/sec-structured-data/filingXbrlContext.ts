@@ -242,6 +242,8 @@ export type SecOsCandidateFilingContextResult =
       candidate: SecOsFilingContextCandidate;
       matches: SecFilingXbrlFact[];
       relevantRejections: SecFilingXbrlFactRejection[];
+      tradingSecurityFacts: SecFilingXbrlFact[];
+      tradingSecurityRejections: SecFilingXbrlFactRejection[];
       sources: SecFilingXbrlFact["source"][];
     }
   | {
@@ -899,6 +901,12 @@ export async function readOsCandidateFilingContexts(input: {
   const relevantRejections = parsed.rejections.filter((rejection) =>
     rejection.concept !== null && conceptMatchesCandidate(rejection.concept, candidate)
   );
+  const tradingSecurityRejections = parsed.rejections.filter((rejection) =>
+    rejection.concept !== null && isTradingSecurityConcept(rejection.concept)
+  );
+  const tradingSecurityFacts = parsed.facts
+    .filter((fact) => isTradingSecurityConcept(fact.concept))
+    .sort(compareFacts);
   const matches = parsed.facts.filter((fact) =>
     conceptMatchesCandidate(fact.concept, candidate)
     && fact.context.period.kind === "instant"
@@ -915,8 +923,15 @@ export async function readOsCandidateFilingContexts(input: {
     candidate,
     matches: unique,
     relevantRejections,
+    tradingSecurityFacts,
+    tradingSecurityRejections,
     sources: parsed.sources,
   };
+}
+
+function isTradingSecurityConcept(concept: SecXbrlQName) {
+  return Boolean(concept.namespaceUri && DEI_NAMESPACE_PATTERN.test(concept.namespaceUri))
+    && ["Security12bTitle", "TradingSymbol", "SecurityExchangeName"].includes(concept.localName);
 }
 
 export function filingMatchesOsCandidate(filing: SecFilingRow, candidate: SecOsFilingContextCandidate) {

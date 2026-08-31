@@ -18,6 +18,10 @@ export const SEC_PERIODIC_OS_TRIGGER_FORMS = [
   "10-Q/A",
   "10-K",
   "10-K/A",
+  "20-F",
+  "20-F/A",
+  "40-F",
+  "40-F/A",
 ] as const;
 
 const PERIODIC_FORM_SET = new Set<string>(SEC_PERIODIC_OS_TRIGGER_FORMS);
