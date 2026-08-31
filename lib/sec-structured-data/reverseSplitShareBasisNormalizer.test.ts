@@ -51,6 +51,23 @@ test("B. after-market-close execution is not applied on the effective day basis"
   assertNormalized(await normalize("2026-08-26T00:00:00Z", [split]), "10000000", "1", [split.executionId]);
 });
 
+test("an observation on an after-close effective date remains pre-split until the next day", async () => {
+  const split = execution({
+    effectiveDate: "2026-08-10",
+    oldShares: "10",
+    newShares: "1",
+    timing: {
+      availability: "available",
+      kind: "after_market_close",
+      timestamp: null,
+      source_ref: "same-day-split-timing",
+      evidence: { availability: "available", value: "after the close of trading" },
+    },
+  });
+  const result = await normalize("2026-08-12T00:00:00Z", [split]);
+  assertNormalized(result, "10000000", "1", [split.executionId]);
+});
+
 test("C. postponed execution applies only on the active replacement date", async () => {
   const replacement = execution({ effectiveDate: "2026-09-01", oldShares: "10", newShares: "1" });
   assertNormalized(await normalize("2026-08-31T12:00:00Z", [replacement]), "100000000", "1", []);
