@@ -125,6 +125,19 @@ rows and reports duplicates. New execution time is
 used only as history `ingested_at`; source timestamps and filing provenance are
 preserved unchanged.
 
+The existing periodic ingest request includes `20-F` and now also requests
+`40-F`/`40-F/A` for the O/S bridge. The 40-F raw items do not enter the separate
+periodic-report analysis parser. The bridge remains incremental and requires a
+previously persisted usable periodic baseline; a baseline-less issuer returns
+`BASELINE_REQUIRED` before any source or filing fetch. No catch-up, backfill,
+schema migration, or scheduled job is introduced by this contract.
+
+Foreign eligibility is based only on the complete filing's exact DEI O/S and
+U.S. `Security12bTitle`/`TradingSymbol`/`SecurityExchangeName` linkage. Country,
+issuer name, and an external ticker catalog are not authority. ADS/ordinary,
+multi-security, non-U.S.-exchange, or missing-linkage decisions persist no
+authoritative O/S history value.
+
 ## Local five-issuer acceptance
 
 `npm run verify:sec-os-production-collection:local` uses the existing audited

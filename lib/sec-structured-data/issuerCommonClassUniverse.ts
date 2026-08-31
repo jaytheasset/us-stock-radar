@@ -152,7 +152,7 @@ export type UsablePeriodicOsBaseline = {
   asOf: string;
   acceptedAt: string;
   accession: string;
-  form: "10-K" | "10-K/A" | "10-Q" | "10-Q/A";
+  form: "10-K" | "10-K/A" | "10-Q" | "10-Q/A" | "20-F" | "20-F/A" | "40-F" | "40-F/A";
   requiredCanonicalSecurityClassIds: string[];
   historyObservationCount: number;
 };
@@ -191,11 +191,10 @@ export function deriveIssuerCommonClassUniverseSnapshot(
     excludedEvidence: [] as IssuerCommonClassExcludedEvidence[],
   };
 
-  if (isForeignForm(decision.candidate.form)
-    || decision.reason === "ADS_OR_ORDINARY_BASIS_REQUIRES_STRUCTURED_RATIO") {
+  if (isForeignPeriodicForm(decision.candidate.form) && decision.status !== "ELIGIBLE") {
     return buildSnapshot(decision, base, "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS", [], []);
   }
-  if (!isDomesticPeriodicForm(decision.candidate.form)
+  if (!isSupportedPeriodicForm(decision.candidate.form)
     || !isSupportedUniverseCandidateConcept(decision)) {
     return buildSnapshot(decision, base, "INCOMPLETE", "AUTHORITATIVE_SOURCE_NOT_ELIGIBLE", [], []);
   }
@@ -419,7 +418,7 @@ export async function readLatestUsablePeriodicOsBaseline(input: {
   }
 
   const candidates = snapshots
-    .filter((snapshot) => isDomesticPeriodicForm(snapshot.sourceForm)
+    .filter((snapshot) => isSupportedPeriodicForm(snapshot.sourceForm)
       && (snapshot.status === "COMPLETE_SINGLE" || snapshot.status === "COMPLETE_MULTI")
       && snapshot.requiredCanonicalSecurityClassIds.length > 0)
     .sort(compareSnapshots)
@@ -1021,8 +1020,8 @@ function nonEmpty(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isDomesticPeriodicForm(form: string) {
-  return ["10-K", "10-K/A", "10-Q", "10-Q/A"].includes(form);
+function isSupportedPeriodicForm(form: string) {
+  return ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"].includes(form);
 }
 
 function isSupportedUniverseCandidateConcept(decision: SecAuthoritativeOsDecision) {
@@ -1032,8 +1031,8 @@ function isSupportedUniverseCandidateConcept(decision: SecAuthoritativeOsDecisio
       && decision.candidate.concept === "CommonStockSharesOutstanding");
 }
 
-function isForeignForm(form: string) {
-  return ["20-F", "20-F/A", "40-F", "40-F/A", "6-K", "6-K/A"].includes(form);
+function isForeignPeriodicForm(form: string) {
+  return ["20-F", "20-F/A", "40-F", "40-F/A"].includes(form);
 }
 
 function hasCompleteAuthoritativeClassCoverage(

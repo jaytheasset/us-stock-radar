@@ -26,6 +26,7 @@ import {
 } from "@/lib/newsIngest";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
 import {
+  SEC_PERIODIC_OS_TRIGGER_FORMS,
   extractPeriodicOsIssuerCiks,
   runSecPeriodicOsTriggerBridge,
 } from "@/lib/secPeriodicOsTriggerBridge";
@@ -328,10 +329,12 @@ async function runSecGroupRawIngestStep(groupId: string) {
   const rooms = new Map(SEC_FORM_ROOM_MANIFEST.map((room) => [room.slug, room]));
   const formTypes = [
     ...new Set(
-      group.rooms.flatMap((slug) => {
+      [...group.rooms.flatMap((slug) => {
         const room = rooms.get(slug);
         return room ? [...room.forms] : [];
-      }),
+      }), ...((group.rooms as readonly string[]).includes("periodic-reports")
+        ? SEC_PERIODIC_OS_TRIGGER_FORMS.filter((form) => form.startsWith("40-F"))
+        : [])],
     ),
   ];
 
@@ -354,11 +357,12 @@ async function runSecGroupRawIngestStep(groupId: string) {
       );
     }
 
-    const candidateIds = uniqueStrings(
-      readRecords(record?.items).map((item) => item.raw_item_id),
-    );
+    const ingestedItems = readRecords(record?.items);
+    const candidateIds = uniqueStrings(ingestedItems
+      .filter((item) => !stringValue(item.form_type).toUpperCase().startsWith("40-F"))
+      .map((item) => item.raw_item_id));
     const periodicOsIssuerCiks = extractPeriodicOsIssuerCiks(
-      readRecords(record?.items),
+      ingestedItems,
     );
     const rawItemIds = await findPendingSecAnalysisIds(candidateIds);
     const summary = {

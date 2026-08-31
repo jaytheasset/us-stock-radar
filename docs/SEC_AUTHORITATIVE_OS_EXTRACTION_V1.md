@@ -46,8 +46,11 @@ All of the following are required:
    the filing's namespace prefix is not identity. A
    `us-gaap:CommonStockSharesOutstanding` balance-sheet fact is preserved but
    is not promoted as a single authoritative observation by this contract.
-7. The form is a domestic periodic `10-K`, `10-K/A`, `10-Q`, or `10-Q/A`.
-   Form is only a gate; it is never authority by itself.
+7. The form is a periodic `10-K`, `10-K/A`, `10-Q`, `10-Q/A`, `20-F`,
+   `20-F/A`, `40-F`, or `40-F/A`. Form is only a gate; it is never authority
+   by itself. A foreign periodic form must also satisfy the U.S.-listed
+   trading-security contract below. `6-K`, `F-10`, and Canadian-only exchange
+   coverage are not eligible.
 8. Security identity is mechanically established by one of these shapes:
    - exactly one DEI fact at the candidate instant in the complete filing set,
      in the required context with zero dimensions (`SINGLE_COMMON_STOCK_CLASS`);
@@ -97,15 +100,30 @@ class. Multiple tickers under one CIK therefore do not create authority, and a
 non-traded common class remains eligible only when its filing QName/context
 evidence is part of the complete class breakdown.
 
-## Ordinary shares, ADSs, and ADRs
+## U.S.-listed foreign common shares, ADSs, and ADRs
 
-Foreign forms `20-F`, `20-F/A`, `40-F`, `40-F/A`, `6-K`, and `6-K/A` can
-provide structurally valid facts, but V1 returns
-`REQUIRES_FURTHER_CONTEXT`. The current filing-context foundation preserves
-title facts and raw documents but has no typed depositary ratio relation. Code
-does not parse a prose title to infer or calculate an ADS ratio. Wipro and Arm
-therefore remain fail-closed even when the filing text describes a one-to-one
-relationship.
+`20-F` and `40-F` (including amendments) can be eligible only when the complete
+filing set contains exactly one DEI O/S fact and exactly one complete DEI
+`Security12bTitle` / `TradingSymbol` / `SecurityExchangeName` tuple. The three
+trading facts must share one filing context and artifact, identify the same CIK
+and accession, end on the O/S instant, and have the exact same dimension tuple
+as the O/S fact. The security title must identify common, ordinary, or equity
+shares directly, and the exchange must be an exact recognized Nasdaq, NYSE, or
+NYSE American/AMEX name. That exact evidence is retained under
+`us-listed-foreign-os-evidence-v1` in the authoritative decision and history
+lineage.
+
+Country never participates in eligibility. A Canadian issuer's directly
+listed NYSE/Nasdaq common shares can qualify through the same filing evidence;
+a TSX/TSXV-only security cannot. Multiple trading securities, multiple O/S
+classes, missing or rejected cover facts, dimension mismatch, non-U.S.
+exchange, or an unrecognized title returns `REQUIRES_FURTHER_CONTEXT` with no
+authoritative history write.
+
+An ADS/ADR/depositary title always remains
+`ADS_OR_ORDINARY_BASIS_REQUIRES_STRUCTURED_RATIO`. Code does not parse or use a
+narrative ratio, does not calculate an ADS count, and does not treat a stated
+one-to-one relation as authority. Wipro and Arm therefore remain fail-closed.
 
 Preferred stock, mandatory convertible preferred stock, depositary shares for
 preferred stock, debt, issued/authorized shares, treasury shares, weighted
@@ -113,8 +131,9 @@ average shares, and custom/text substitutes are not eligible O/S concepts.
 
 ## Forms, amendments, and conflicts
 
-- `10-Q` and `10-K` can support eligibility only through the complete evidence
-  gates.
+- `10-Q`, `10-K`, `20-F`, and `40-F` can support eligibility only through the
+  complete evidence gates; foreign forms also require the exact U.S.-listed
+  trading-security tuple.
 - `/A` filings remain separate per-accession observations. An amendment does
   not automatically supersede an original, and this interface returns no
   chronological winner.
@@ -158,6 +177,11 @@ committing full filings.
 
 The fixture is audit data only. Production code contains no issuer, CIK,
 ticker, document, value, or member hardcode.
+
+The separate `foreign-listed-os-audit.json` fixture records real official SEC
+filing URLs and hashes for positive Wix `20-F` and Barrick `40-F` direct-listed
+common-share shapes plus negative Wipro and Arm ADS shapes. Full filing bodies
+are not committed.
 
 ## Mutation boundary
 

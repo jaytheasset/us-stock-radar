@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   SEC_AUTHORITATIVE_OS_DECISION_VERSION,
   SEC_AUTHORITATIVE_OS_STATUSES,
+  SEC_US_LISTED_FOREIGN_OS_EVIDENCE_VERSION,
   normalizeFilingInteger,
   readAuthoritativeOsCandidates,
   resolveAuthoritativeOsFromFiling,
@@ -38,6 +39,15 @@ type AuditSample = {
   context_ref: string;
   expected_status: string;
 };
+type ForeignAuditSample = AuditSample & {
+  form: "20-F" | "40-F";
+  filed_date: string;
+  accepted_at: string;
+  trading_context_ref: string;
+  security_title: string;
+  trading_symbol: string;
+  exchange_name: string;
+};
 
 const companyFixture = JSON.parse(await readFile(
   new URL("./fixtures/sec-os-five-issuer-audit.json", import.meta.url),
@@ -47,6 +57,10 @@ const auditFixture = JSON.parse(await readFile(
   new URL("./fixtures/authoritative-os-five-issuer-audit.json", import.meta.url),
   "utf8",
 )) as { issuers: AuditSample[] };
+const foreignAuditFixture = JSON.parse(await readFile(
+  new URL("./fixtures/foreign-listed-os-audit.json", import.meta.url),
+  "utf8",
+)) as { issuers: ForeignAuditSample[] };
 
 const NS = [
   'xmlns="http://www.w3.org/1999/xhtml"',
@@ -140,7 +154,60 @@ test("foreign ordinary/ADS observations fail closed even when filing title text 
   }
 });
 
-test("form is a gate rather than authority: domestic periodic forms can qualify while foreign and registration forms stay closed", async () => {
+test("real SEC-backed 20-F and 40-F direct-listed common securities are eligible through one exact trading-security tuple", async () => {
+  for (const ticker of ["WIX", "B"]) {
+    const audited = foreignAudit(ticker);
+    const candidate = foreignCompanyCandidates(audited)[0]!;
+    const decision = resolveAuthoritativeOsFromFiling(await linkForeign(audited, candidate));
+    assert.equal(decision.status, "ELIGIBLE", ticker);
+    if (decision.status !== "ELIGIBLE") continue;
+    const evidence = decision.authoritative.tradingSecurityEvidence;
+    assert.ok(evidence, ticker);
+    assert.equal(evidence.evidenceVersion, SEC_US_LISTED_FOREIGN_OS_EVIDENCE_VERSION, ticker);
+    assert.equal(evidence.securityTitle.valueText, audited.security_title, ticker);
+    assert.equal(evidence.tradingSymbol.valueText, audited.trading_symbol, ticker);
+    assert.equal(evidence.exchangeName.valueText, audited.exchange_name, ticker);
+    assert.equal(evidence.linkedOsFactKey, decision.authoritative.factKey, ticker);
+    assert.equal(evidence.linkedOsContextRef, audited.context_ref, ticker);
+    assert.equal(decision.tradingSecurityFacts.length, 3, ticker);
+    assert.match(audited.full_document_sha256, /^[0-9a-f]{64}$/, ticker);
+  }
+});
+
+test("foreign listing support rejects ADS titles, non-US exchanges, missing linkage, and multiple trading securities without writing a value", async () => {
+  const audited = foreignAudit("WIX");
+  const candidate = foreignCompanyCandidates(audited)[0]!;
+  const cases: Array<[string, string, string]> = [
+    [
+      "ADS ratio text",
+      foreignFilingBody(audited, { title: "American Depositary Shares, each representing one Ordinary Share" }),
+      "ADS_OR_ORDINARY_BASIS_REQUIRES_STRUCTURED_RATIO",
+    ],
+    [
+      "TSX-only",
+      foreignFilingBody(audited, { exchange: "Toronto Stock Exchange" }),
+      "FOREIGN_TRADING_SECURITY_NOT_US_EXCHANGE",
+    ],
+    [
+      "missing title",
+      foreignFilingBody(audited, { omitTitle: true }),
+      "FOREIGN_LISTING_OR_CLASS_LINKAGE_UNPROVEN",
+    ],
+    [
+      "multiple securities",
+      foreignFilingBody(audited, { extraSecurity: true }),
+      "FOREIGN_TRADING_SECURITY_AMBIGUOUS",
+    ],
+  ];
+  for (const [name, body, reason] of cases) {
+    const decision = resolveAuthoritativeOsFromFiling(await linkForeign(audited, candidate, body));
+    assert.equal(decision.status, "REQUIRES_FURTHER_CONTEXT", name);
+    assert.equal(decision.reason, reason, name);
+    assert.equal(decision.authoritative, null, name);
+  }
+});
+
+test("form is a gate rather than authority: foreign periodic forms still require trading-security linkage", async () => {
   const audited = audit("AAPL");
   const base = companyCandidates(audited.sample_kind)[0]!;
   for (const form of ["10-K", "10-K/A", "10-Q", "10-Q/A"]) {
@@ -152,9 +219,15 @@ test("form is a gate rather than authority: domestic periodic forms can qualify 
     const candidate = { ...base, form };
     const decision = resolveAuthoritativeOsFromFiling(await link(audited, candidate));
     assert.equal(decision.status, "REQUIRES_FURTHER_CONTEXT", form);
-    assert.equal(decision.reason, "ADS_OR_ORDINARY_BASIS_REQUIRES_STRUCTURED_RATIO", form);
+    assert.equal(
+      decision.reason,
+      form.startsWith("6-")
+        ? "ADS_OR_ORDINARY_BASIS_REQUIRES_STRUCTURED_RATIO"
+        : "FOREIGN_LISTING_OR_CLASS_LINKAGE_UNPROVEN",
+      form,
+    );
   }
-  for (const form of ["S-1", "F-1", "S-3", "F-3", "424B3", "424B5"]) {
+  for (const form of ["F-10", "S-1", "F-1", "S-3", "F-3", "424B3", "424B5"]) {
     const candidate = { ...base, form };
     const decision = resolveAuthoritativeOsFromFiling(await link(audited, candidate));
     assert.equal(decision.status, "UNAVAILABLE", form);
@@ -305,6 +378,12 @@ function audit(ticker: string) {
   return found;
 }
 
+function foreignAudit(ticker: string) {
+  const found = foreignAuditFixture.issuers.find((item) => item.ticker === ticker);
+  assert.ok(found, ticker);
+  return found;
+}
+
 function companySample(kind: string) {
   const found = companyFixture.issuers.find((item) => item.sampleKind === kind);
   assert.ok(found, kind);
@@ -314,6 +393,54 @@ function companySample(kind: string) {
 function companyCandidates(kind: string) {
   const sample = companySample(kind);
   return extractCompanyFactsOs({ cik: sample.cik, facts: sample.facts, filings: sample.filings }).candidates;
+}
+
+function foreignCompanyCandidates(audited: ForeignAuditSample) {
+  const filingRawId = audited.ticker === "B"
+    ? "66666666-6666-4666-8666-666666666666"
+    : "77777777-7777-4777-8777-777777777777";
+  const companyFactsRawId = audited.ticker === "B"
+    ? "88888888-8888-4888-8888-888888888888"
+    : "99999999-9999-4999-8999-999999999999";
+  const fact: SecCompanyFactRow = {
+    sourceFactKey: audited.full_document_sha256,
+    sourceFactPath: "facts.dei.EntityCommonStockSharesOutstanding.units.shares[0]",
+    issuerCik: audited.cik,
+    filingAccession: audited.accession,
+    form: audited.form,
+    filedDate: audited.filed_date,
+    sourceRawId: companyFactsRawId,
+    sourceKind: "companyfacts",
+    contextKind: "companyfacts_implicit",
+    taxonomy: "dei",
+    concept: "EntityCommonStockSharesOutstanding",
+    unit: "shares",
+    valueKind: "numeric",
+    valueNumeric: audited.companyfacts_value,
+    valueText: null,
+    instantDate: audited.as_of,
+    startDate: null,
+    endDate: null,
+    fiscalYear: Number(audited.as_of.slice(0, 4)),
+    fiscalPeriod: "FY",
+    frame: null,
+    ingestedAt: "2026-08-31T00:00:00.000Z",
+  };
+  const filing: SecFilingRow = {
+    accessionNumber: audited.accession,
+    issuerCik: audited.cik,
+    form: audited.form,
+    filedDate: audited.filed_date,
+    acceptedAt: audited.accepted_at,
+    reportDate: audited.as_of,
+    primaryDocument: audited.document,
+    isXbrl: true,
+    isInlineXbrl: true,
+    sourceRawId: filingRawId,
+    sourceKind: "submissions",
+    ingestedAt: "2026-08-31T00:00:00.000Z",
+  };
+  return extractCompanyFactsOs({ cik: audited.cik, facts: [fact], filings: [filing] }).candidates;
 }
 
 async function link(audited: AuditSample, candidate: SecOsFilingContextCandidate) {
@@ -331,6 +458,33 @@ async function linkBody(
   await repository.ingestArtifacts([
     ...inventoryArtifacts(audited, filing, role),
     artifact(audited, body, role),
+  ]);
+  return readOsCandidateFilingContexts({ candidate, filing, repository });
+}
+
+async function linkForeign(
+  audited: ForeignAuditSample,
+  candidate: SecOsFilingContextCandidate,
+  body = foreignFilingBody(audited),
+) {
+  const repository = new InMemorySecFilingXbrlArtifactRepository();
+  const filing: SecFilingRow = {
+    accessionNumber: candidate.accession,
+    issuerCik: candidate.issuerCik,
+    form: candidate.form,
+    filedDate: candidate.filedDate,
+    acceptedAt: candidate.acceptedAt,
+    reportDate: audited.as_of,
+    primaryDocument: audited.document,
+    isXbrl: true,
+    isInlineXbrl: true,
+    sourceRawId: candidate.filingLedgerRawSourceId,
+    sourceKind: "submissions",
+    ingestedAt: "2026-08-31T00:00:00.000Z",
+  };
+  await repository.ingestArtifacts([
+    ...inventoryArtifacts(audited, filing, "inline_xbrl"),
+    artifact(audited, body),
   ]);
   return readOsCandidateFilingContexts({ candidate, filing, repository });
 }
@@ -432,6 +586,37 @@ function filingBody(audited: AuditSample) {
   );
 }
 
+function foreignFilingBody(
+  audited: ForeignAuditSample,
+  options: {
+    title?: string;
+    exchange?: string;
+    omitTitle?: boolean;
+    extraSecurity?: boolean;
+  } = {},
+) {
+  const contexts = [
+    context(audited.context_ref, audited.cik, audited.as_of),
+    durationContext(audited.trading_context_ref, audited.cik, audited.as_of),
+    ...(options.extraSecurity ? [durationContext("second-security", audited.cik, audited.as_of)] : []),
+  ].join("");
+  const title = options.title ?? audited.security_title;
+  const securityFacts = [
+    ...(options.omitTitle ? [] : [securityFact("Security12bTitle", audited.trading_context_ref, title)]),
+    securityFact("TradingSymbol", audited.trading_context_ref, audited.trading_symbol),
+    securityFact("SecurityExchangeName", audited.trading_context_ref, options.exchange ?? audited.exchange_name),
+    ...(options.extraSecurity ? [
+      securityFact("Security12bTitle", "second-security", "7.00% Notes due 2030"),
+      securityFact("TradingSymbol", "second-security", "WIXN"),
+      securityFact("SecurityExchangeName", "second-security", "The Nasdaq Stock Market LLC"),
+    ] : []),
+  ].join("");
+  return inlineBody(
+    contexts,
+    `${securityFacts}${osFact("dei:EntityCommonStockSharesOutstanding", audited.context_ref, audited.filing_lexical_value)}`,
+  );
+}
+
 function inlineBody(resources: string, facts: string, extraNamespace = "") {
   return `<?xml version="1.0"?><html ${NS} ${extraNamespace}><body><ix:header><ix:resources>${unit("shares", "xbrli:shares")}${resources}</ix:resources></ix:header>${facts}</body></html>`;
 }
@@ -458,6 +643,10 @@ function explicit(axis: string, member: string) {
 
 function osFact(concept: string, contextRef: string, value: string, unitRef = "shares", scale = "0") {
   return `<ix:nonFraction name="${concept}" contextRef="${contextRef}" unitRef="${unitRef}" decimals="0" scale="${scale}" format="ixt:num-dot-decimal">${value}</ix:nonFraction>`;
+}
+
+function securityFact(concept: string, contextRef: string, value: string) {
+  return `<ix:nonNumeric name="dei:${concept}" contextRef="${contextRef}">${value}</ix:nonNumeric>`;
 }
 
 function parsedFacts(body: string): SecFilingXbrlFact[] {

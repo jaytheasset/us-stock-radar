@@ -18,6 +18,7 @@ type ExecutionState = {
   osFailure: boolean;
   osBaselineRequired: boolean;
   rawCalls: number;
+  rawFormTypes: string[];
   bridgeCalls: string[][];
   analysisCalls: string[];
   releaseCalls: number;
@@ -80,6 +81,7 @@ const mocks = new Map<string, string>([
     }
   `)],
   ["@/lib/secPeriodicOsTriggerBridge", dataModule(`
+    export const SEC_PERIODIC_OS_TRIGGER_FORMS = ["10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"];
     export { extractPeriodicOsIssuerCiks } from ${JSON.stringify(actualBridgeUrl)};
     export async function runSecPeriodicOsTriggerBridge({ ciks }) {
       const state = globalThis.__secWorkflowExecutionState;
@@ -134,9 +136,10 @@ const mocks = new Map<string, string>([
     export async function enqueueOfferingMonitorJob() { return null; }
   `)],
   ["@/lib/secIngest", dataModule(`
-    export async function runSecRawIngest() {
+    export async function runSecRawIngest(options) {
       const state = globalThis.__secWorkflowExecutionState;
       state.rawCalls += 1;
+      state.rawFormTypes = [...(options.formTypes || [])];
       state.order.push("raw");
       if (state.rawFailure) {
         return {
@@ -159,12 +162,12 @@ const mocks = new Map<string, string>([
   `)],
   ["@/lib/sources/sec/forms/common/forms", dataModule(`
     export const SEC_FORM_ROOM_MANIFEST = [{
-      slug: "execution-test-room",
+      slug: "periodic-reports",
       forms: ["10-Q", "10-Q/A", "8-K", "S-3", "424B5"],
     }];
     export const SEC_PRODUCTION_INGEST_SCHEDULE = [{
       id: "execution-test-group",
-      rooms: ["execution-test-room"],
+      rooms: ["periodic-reports"],
       countPerForm: 1,
       attachmentLimit: 1,
     }];
@@ -208,6 +211,7 @@ test("periodic VEEA 10-Q executes raw, normalized O/S bridge, then analysis", as
   const result = await secSourceIngestWorkflow(workflowInput());
 
   assert.deepEqual(state.bridgeCalls, [["0001840317"]]);
+  assert.deepEqual(state.rawFormTypes, ["10-Q", "10-Q/A", "8-K", "S-3", "424B5", "40-F", "40-F/A"]);
   assert.deepEqual(state.analysisCalls, ["raw-veea-q2"]);
   assert.deepEqual(state.order, ["raw", "os:0001840317", "analysis:raw-veea-q2"]);
   assert.equal(result.osCollection.status, "completed");
@@ -237,6 +241,17 @@ test("same-run VEEA 10-Q and 10-Q/A dedupe to one collector invocation", async (
 
   assert.deepEqual(state.bridgeCalls, [["0001840317"]]);
   assert.deepEqual(state.analysisCalls, ["raw-veea-10q", "raw-veea-10qa"]);
+});
+
+test("40-F raw items invoke only the O/S collector and do not enter the unsupported report-analysis parser", async () => {
+  const state = setup([stored("raw-barrick-40f", "40-F", "756894")]);
+
+  const result = await secSourceIngestWorkflow(workflowInput());
+
+  assert.deepEqual(state.bridgeCalls, [["0000756894"]]);
+  assert.deepEqual(state.analysisCalls, []);
+  assert.deepEqual(state.order, ["raw", "os:0000756894"]);
+  assert.equal(result.osCollection.status, "completed");
 });
 
 test("returned O/S collector failure is recorded and analysis still executes", async () => {
@@ -314,6 +329,7 @@ function setup(
     osFailure: failures.osFailure ?? false,
     osBaselineRequired: failures.osBaselineRequired ?? false,
     rawCalls: 0,
+    rawFormTypes: [],
     bridgeCalls: [],
     analysisCalls: [],
     releaseCalls: 0,
