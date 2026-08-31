@@ -51,6 +51,7 @@ import {
   buildPersistedStockSplitMaterializationDiagnostic,
   stockSplitMaterializationError,
 } from "./stockSplitMaterialization.ts";
+import { runDilutionCorporateActionAdjustmentForEvent } from "../dilution-registry/corporateActionAdjustmentRuntime.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -84,6 +85,7 @@ export async function processGenericMonitorChild(
       rawItem: Record<string, unknown>;
       candidate: Level2ShareCountValidatedCandidate;
     }) => Promise<{ inserted: number; deduped: number }>;
+    runDilutionCorporateActionAdjustment?: (input: { eventId: string }) => Promise<unknown>;
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
@@ -117,6 +119,10 @@ export async function processGenericMonitorChild(
         );
         return diagnostic ? stockSplitMaterializationError(diagnostic) : error;
       },
+      afterSuccessfulPersistence: ({ identity: childIdentity }) => (
+        dependencies.runDilutionCorporateActionAdjustment
+        || runDilutionCorporateActionAdjustmentForEvent
+      )({ eventId: childIdentity.eventId }),
       consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
         || consumeListingMonitorAlertsForEvent,
     });

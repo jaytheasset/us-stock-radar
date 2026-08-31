@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   applyDilutionRegistrySource,
@@ -7,6 +8,7 @@ import {
   runAuthorizedDilutionRegistryApply,
 } from "./applyContract.ts";
 import { createDilutionRegistryPasteIdFromSource } from "./pasteIdentity.ts";
+import { dilutionContractSourceRef } from "./corporateActionAdjustment.ts";
 
 function sourceWithActivity(instrumentKey = "issuer-note-a") {
   return JSON.stringify({
@@ -22,6 +24,39 @@ function sourceWithActivity(instrumentKey = "issuer-note-a") {
     activities: [{ instrument_key: instrumentKey, activity_type: "issued" }],
     totals: [],
   });
+}
+
+function sourceWithClauseBinding(
+  field = "remaining_units",
+  supersedesBindingId: string | null = null,
+) {
+  const value = JSON.parse(sourceWithActivity()) as Record<string, unknown>;
+  const rawItemId = "11111111-1111-4111-8111-111111111111";
+  const sourceDocumentUrl = "https://www.sec.gov/Archives/edgar/data/1/000000000124000001/contract.htm";
+  const sourceRef = dilutionContractSourceRef(rawItemId, sourceDocumentUrl);
+  value.corporate_action_clause_bindings = [{
+    instrument_key: "issuer-note-a",
+    execution_id: `fse:v1:${"a".repeat(64)}`,
+    canonical_security_class_id: "sc:v1:0000000001:common_stock:single",
+    contract_accession: "0000000001-24-000001",
+    contract_raw_item_id: rawItemId,
+    source_ref: sourceRef,
+    source_document_url: sourceDocumentUrl,
+    field_adjustments: [{
+      field,
+      operation: "multiply_by_split_ratio",
+      evidence_identity: {
+        version: "corporate_action_evidence_identity_v1",
+        source_ref: sourceRef,
+        range_start: 0,
+        range_end: 6,
+        source_content_hash: createHash("sha256").update("clause").digest("hex"),
+        exact_source: true,
+      },
+    }],
+    ...(supersedesBindingId ? { supersedes_binding_id: supersedesBindingId } : {}),
+  }];
+  return JSON.stringify(value);
 }
 
 test("the server verifies identity and invokes the existing RPC exactly once", async () => {
@@ -66,6 +101,116 @@ test("an exact replay is mapped without leaking the RPC response", async () => {
   });
   assert.deepEqual(result, { status: "already_saved" });
   assert.equal("paste_id" in result, false);
+});
+
+test("Registry Apply treats clause bindings as sidecars while persisting them and invoking the hook", async () => {
+  const calls: Array<{ name: string; payload: Record<string, unknown> }> = [];
+  const hooks: unknown[] = [];
+  const source = sourceWithClauseBinding();
+  const result = await applyDilutionRegistrySource(source, {
+    now: () => new Date("2024-06-26T20:00:00Z"),
+    async rpc(name, payload) {
+      calls.push({ name, payload });
+      if (name === "apply_dilution_registry_v1") {
+        return {
+          ok: true,
+          data: {
+            already_saved: true,
+            added: { instruments: 0, snapshots: 0, activities: 0, totals: 0 },
+          },
+        };
+      }
+      const binding = payload.p_binding as Record<string, unknown>;
+      return {
+        ok: true,
+        data: {
+          already_saved: false,
+          binding_id: binding.bindingId,
+          added: 1,
+        },
+      };
+    },
+    async runCorporateActionAdjustmentForIssuer(input) {
+      hooks.push(input);
+      return { status: "completed" };
+    },
+  });
+
+  assert.deepEqual(result, { status: "already_saved" });
+  assert.deepEqual(calls.map((call) => call.name), [
+    "apply_dilution_registry_v1",
+    "append_dilution_corporate_action_clause_binding_v1",
+  ]);
+  assert.match(
+    String((calls[1]?.payload.p_binding as Record<string, unknown>)?.bindingId),
+    /^dcab:v1:[0-9a-f]{64}$/,
+  );
+  assert.equal(calls[0]?.payload.p_source, sourceWithActivity());
+  assert.equal(
+    calls[0]?.payload.p_paste_id,
+    createDilutionRegistryPasteIdFromSource(sourceWithActivity()),
+  );
+  assert.deepEqual(calls[0]?.payload.p_payload, JSON.parse(sourceWithActivity()));
+  assert.equal(
+    Object.hasOwn(
+      calls[0]?.payload.p_payload as Record<string, unknown>,
+      "corporate_action_clause_bindings",
+    ),
+    false,
+  );
+  assert.deepEqual(hooks, [{
+    issuerCik: "0000000001",
+    targetAt: "2024-06-26T20:00:00.000Z",
+  }]);
+});
+
+test("binding-only add, superseding change, and replay add no Registry identity", async () => {
+  const calls: Array<{ name: string; payload: Record<string, unknown> }> = [];
+  const sources = [
+    sourceWithClauseBinding(),
+    sourceWithClauseBinding(
+      "remaining_potential_shares",
+      `dcab:v1:${"b".repeat(64)}`,
+    ),
+    sourceWithClauseBinding(),
+  ];
+  for (const [attempt, source] of sources.entries()) {
+    const result = await applyDilutionRegistrySource(source, {
+      async rpc(name, payload) {
+        calls.push({ name, payload });
+        if (name === "apply_dilution_registry_v1") {
+          return {
+            ok: true,
+            data: {
+              already_saved: true,
+              added: { instruments: 0, snapshots: 0, activities: 0, totals: 0 },
+            },
+          };
+        }
+        return {
+          ok: true,
+          data: {
+            already_saved: attempt === 2,
+            binding_id: String((payload.p_binding as Record<string, unknown>).bindingId),
+            added: attempt === 2 ? 0 : 1,
+          },
+        };
+      },
+      async runCorporateActionAdjustmentForIssuer() {
+        return { status: "completed" };
+      },
+    });
+    assert.deepEqual(result, { status: "already_saved" });
+  }
+
+  const registryCalls = calls.filter((call) => call.name === "apply_dilution_registry_v1");
+  assert.equal(registryCalls.length, 3);
+  assert.deepEqual(
+    registryCalls.map((call) => call.payload.p_source),
+    [sourceWithActivity(), sourceWithActivity(), sourceWithActivity()],
+  );
+  assert.equal(registryCalls[0]?.payload.p_paste_id, registryCalls[1]?.payload.p_paste_id);
+  assert.equal(registryCalls[1]?.payload.p_paste_id, registryCalls[2]?.payload.p_paste_id);
 });
 
 test("a bad linked instrument key is rejected before any write", async () => {

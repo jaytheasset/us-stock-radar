@@ -60,6 +60,89 @@ test("builds dilution UI data from stored totals, latest snapshots, and activity
   assert.equal(result.activity.filter((row) => row.title.includes("Warrant") && row.title.includes("cancelled")).length, 1);
 });
 
+test("projects one unsuperseded split adjustment over the current snapshot without changing history or dollar fields", () => {
+  const result = buildStockDilutionSnapshot({
+    adjustmentRows: [{
+      id: "1",
+      projection_id: `dca:v1:${"a".repeat(64)}`,
+      instrument_id: "1",
+      base_snapshot_id: "2",
+      status: "APPLIED",
+      review_reason: null,
+      effective_date: "2024-01-16",
+      execution_ids: [`rse:v1:${"b".repeat(64)}`],
+      supersedes_projection_id: null,
+      adjusted_fields: { remaining_units: "7500", exercise_price: "12.1" },
+    }],
+    activityRows: [],
+    fetchedAt: "2024-01-17T00:00:00Z",
+    instrumentRows: [instrument("1", "warrant", "Placement Agent Warrant", "warrant")],
+    outstanding: null,
+    snapshotRows: [
+      snapshot("1", "1", "old", "2023-11-30", {
+        remaining_units: "300000",
+        exercise_price: "0.3025",
+        remaining_amount: "90750",
+      }),
+      snapshot("2", "1", "current", "2023-12-04", {
+        remaining_units: "300000",
+        exercise_price: "0.3025",
+        remaining_amount: "90750",
+      }),
+    ],
+    symbol: "RNAZ",
+    totalRows: [],
+  });
+
+  assert.equal(result.current[0]?.remainingUnits, 7_500);
+  assert.equal(result.current[0]?.exercisePrice, 12.1);
+  assert.equal(result.current[0]?.remainingAmount, 90_750);
+  assert.equal(result.current[0]?.corporateActionAdjustment?.status, "APPLIED");
+  assert.equal(result.current[0]?.corporateActionAdjustment?.effectiveDate, "2024-01-16");
+});
+
+test("a deterministic Review replacement supersedes an older applied projection and fails closed", () => {
+  const appliedId = `dca:v1:${"c".repeat(64)}`;
+  const reviewId = `dca:v1:${"d".repeat(64)}`;
+  const result = buildStockDilutionSnapshot({
+    adjustmentRows: [
+      {
+        projection_id: appliedId,
+        instrument_id: "1",
+        base_snapshot_id: "1",
+        status: "APPLIED",
+        effective_date: "2024-01-16",
+        execution_ids: [`rse:v1:${"e".repeat(64)}`],
+        supersedes_projection_id: null,
+        adjusted_fields: { remaining_units: "7500" },
+      },
+      {
+        projection_id: reviewId,
+        instrument_id: "1",
+        base_snapshot_id: "1",
+        status: "REVIEW",
+        review_reason: "EXECUTION_CONFLICT",
+        effective_date: null,
+        execution_ids: [],
+        supersedes_projection_id: appliedId,
+        adjusted_fields: {},
+      },
+    ],
+    activityRows: [],
+    fetchedAt: "2024-01-17T00:00:00Z",
+    instrumentRows: [instrument("1", "warrant", "Placement Agent Warrant", "warrant")],
+    outstanding: null,
+    snapshotRows: [snapshot("1", "1", "current", "2023-12-04", { remaining_units: "300000" })],
+    symbol: "RNAZ",
+    totalRows: [],
+  });
+
+  assert.equal(result.current[0]?.remainingUnits, 300_000);
+  assert.equal(result.current[0]?.corporateActionAdjustment?.status, "REVIEW");
+  assert.equal(result.current[0]?.corporateActionAdjustment?.projectionId, reviewId);
+  assert.equal(result.current[0]?.corporateActionAdjustment?.reviewReason, "EXECUTION_CONFLICT");
+});
+
 function instrument(id: string, instrument_key: string, name: string, instrument_type: string) {
   return { id, instrument_key, instrument_type, name };
 }

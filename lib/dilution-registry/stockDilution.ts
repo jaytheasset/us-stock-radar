@@ -6,7 +6,10 @@ export type StockDilutionInstrumentType =
   | "warrant"
   | "prefunded_warrant"
   | "atm_program"
-  | "equity_line";
+  | "equity_line"
+  | "stock_option"
+  | "equity_award"
+  | "share_reserve";
 
 export type StockDilutionInstrument = {
   asOf: string;
@@ -29,6 +32,13 @@ export type StockDilutionInstrument = {
   type: StockDilutionInstrumentType;
   usedAmount: number | null;
   conversionPrice: number | null;
+  corporateActionAdjustment?: {
+    status: "APPLIED" | "REVIEW";
+    projectionId: string;
+    effectiveDate: string;
+    executionIds: string[];
+    reviewReason: string;
+  } | null;
 };
 
 export type StockDilutionActivity = {
@@ -62,6 +72,7 @@ export type StockDilutionSnapshot = {
 };
 
 export type StockDilutionBuildInput = {
+  adjustmentRows?: Record<string, unknown>[];
   activityRows: Record<string, unknown>[];
   fetchedAt: string;
   instrumentRows: Record<string, unknown>[];
@@ -84,7 +95,10 @@ export function buildStockDilutionSnapshot(
   );
   const instruments = [...latestSnapshots.values()]
     .map((snapshot) =>
-      normalizeInstrument(instrumentsById.get(readString(snapshot.instrument_id)), snapshot),
+      normalizeInstrument(
+        instrumentsById.get(readString(snapshot.instrument_id)),
+        projectCorporateActionAdjustment(snapshot, input.adjustmentRows ?? []),
+      ),
     )
     .filter((row): row is StockDilutionInstrument => row !== null)
     .sort(compareInstruments);
@@ -149,6 +163,7 @@ function normalizeInstrument(
     asOf: readDate(snapshot.as_of_date),
     availableDate: readDate(snapshot.available_date),
     conversionPrice: readNumber(snapshot.conversion_price),
+    corporateActionAdjustment: readCorporateActionAdjustment(snapshot),
     endDate: readDate(snapshot.end_date),
     exercisePrice: readNumber(snapshot.exercise_price),
     interestRate: readNumber(snapshot.interest_rate),
@@ -170,6 +185,114 @@ function normalizeInstrument(
     type,
     usedAmount: readNumber(snapshot.used_amount),
   };
+}
+
+const CORPORATE_ACTION_PROJECTABLE_FIELDS = new Set([
+  "original_units",
+  "remaining_units",
+  "converted_units",
+  "exercised_units",
+  "cancelled_units",
+  "expired_units",
+  "remaining_potential_shares",
+  "shares_issued",
+  "shares_sold",
+  "registered_resale_shares",
+  "option_shares",
+  "award_units",
+  "share_reserve",
+  "share_cap",
+  "conversion_price",
+  "exercise_price",
+  "floor_price",
+]);
+
+function projectCorporateActionAdjustment(
+  snapshot: Record<string, unknown>,
+  rows: Record<string, unknown>[],
+) {
+  if (snapshot.status !== "current") return snapshot;
+  const snapshotId = readString(snapshot.id);
+  const superseded = new Set(rows.map((row) => readString(row.supersedes_projection_id)).filter(Boolean));
+  const active = rows.filter((row) =>
+    readString(row.base_snapshot_id) === snapshotId
+    && !superseded.has(readString(row.projection_id)));
+  if (!active.length) return snapshot;
+  if (active.length !== 1) {
+    return {
+      ...snapshot,
+      _corporate_action_adjustment: {
+        status: "REVIEW",
+        projection_id: "",
+        effective_date: "",
+        execution_ids: [],
+        review_reason: "AMBIGUOUS_CURRENT_PROJECTION",
+      },
+    };
+  }
+  const adjustment = active[0]!;
+  const projectionId = readString(adjustment.projection_id);
+  const status = adjustment.status;
+  const executionIds = readStringArray(adjustment.execution_ids);
+  const adjustedFields = record(adjustment.adjusted_fields);
+  if (!/^dca:v1:[0-9a-f]{64}$/.test(projectionId)
+    || (status !== "APPLIED" && status !== "REVIEW")
+    || !adjustedFields
+    || (status === "APPLIED" && !Object.keys(adjustedFields).length)
+    || Object.entries(adjustedFields).some(([field, value]) =>
+      !CORPORATE_ACTION_PROJECTABLE_FIELDS.has(field) || decimalString(value) === null)) {
+    return {
+      ...snapshot,
+      _corporate_action_adjustment: {
+        status: "REVIEW",
+        projection_id: projectionId,
+        effective_date: "",
+        execution_ids: executionIds,
+        review_reason: "INVALID_CURRENT_PROJECTION",
+      },
+    };
+  }
+  const projected = status === "APPLIED"
+    ? { ...snapshot, ...adjustedFields }
+    : snapshot;
+  return {
+    ...projected,
+    _corporate_action_adjustment: {
+      status,
+      projection_id: projectionId,
+      effective_date: readDate(adjustment.effective_date),
+      execution_ids: executionIds,
+      review_reason: readString(adjustment.review_reason),
+    },
+  };
+}
+
+function readCorporateActionAdjustment(snapshot: Record<string, unknown>) {
+  const value = record(snapshot._corporate_action_adjustment);
+  if (!value || (value.status !== "APPLIED" && value.status !== "REVIEW")) return null;
+  const status: "APPLIED" | "REVIEW" = value.status;
+  return {
+    status,
+    projectionId: readString(value.projection_id),
+    effectiveDate: readDate(value.effective_date),
+    executionIds: readStringArray(value.execution_ids),
+    reviewReason: readString(value.review_reason),
+  };
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(readString).filter(Boolean) : [];
+}
+
+function decimalString(value: unknown) {
+  const text = readString(value);
+  return /^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(text) ? text : null;
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function normalizeActivity(
@@ -332,7 +455,10 @@ function readInstrumentType(value: unknown): StockDilutionInstrumentType | null 
     value === "warrant" ||
     value === "prefunded_warrant" ||
     value === "atm_program" ||
-    value === "equity_line"
+    value === "equity_line" ||
+    value === "stock_option" ||
+    value === "equity_award" ||
+    value === "share_reserve"
     ? value
     : null;
 }

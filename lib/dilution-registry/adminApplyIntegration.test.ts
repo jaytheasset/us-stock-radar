@@ -25,7 +25,18 @@ test("Admin Apply requires data.run and uses only the authenticated server user 
 });
 
 test("the server path reuses the existing human writer and independent Registry RPC", () => {
-  assert.match(applyServer, /registryDependencies: \{ rpc: supabaseRpc \}/);
+  assert.match(
+    applyServer,
+    /const approvedAt = \(input\.now \?\? \(\(\) => new Date\(\)\)\)\(\)\.toISOString\(\);/,
+  );
+  assert.match(
+    applyServer,
+    /approval:\s*\{\s*approverUserId: input\.approverUserId,\s*approvedAt,\s*\},\s*ingestedAt: approvedAt,/,
+  );
+  assert.match(
+    applyServer,
+    /registryDependencies:\s*\{\s*rpc: supabaseRpc,\s*now: \(\) => new Date\(approvedAt\),\s*runCorporateActionAdjustmentForIssuer: \(input\) =>\s*runDilutionCorporateActionAdjustmentForIssuer\(input\),\s*\}/,
+  );
   assert.match(applyServer, /writeSharesOutstanding: applyHumanVerifiedOsOnServer/);
   assert.match(server, /writeHumanVerifiedShareCountObservation\(input/);
   assert.match(server, /readSourceBundle: readDilutionRegistryOsSourceBundle/);

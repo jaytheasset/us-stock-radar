@@ -1,3 +1,5 @@
+import { createDilutionStoredSplitClauseBinding } from "./corporateActionAdjustment.ts";
+
 export type DilutionRegistryRecord = Record<string, unknown>;
 
 export type DilutionRegistryPayload = {
@@ -7,6 +9,7 @@ export type DilutionRegistryPayload = {
   activities: DilutionRegistryRecord[];
   totals: DilutionRegistryRecord[];
   os_observations?: unknown[];
+  corporate_action_clause_bindings?: DilutionRegistryRecord[];
 };
 
 export type DilutionRegistryInstrumentRow = {
@@ -77,6 +80,15 @@ export function parseDilutionRegistryJson(
       errors: ["Shares Outstanding observations must be a list when present."],
     };
   }
+  if (
+    Object.hasOwn(value, "corporate_action_clause_bindings")
+    && !Array.isArray(value.corporate_action_clause_bindings)
+  ) {
+    return {
+      ok: false,
+      errors: ["Corporate Action clause bindings must be a list when present."],
+    };
+  }
 
   const payload: DilutionRegistryPayload = {
     issuer: isRecord(value.issuer) ? value.issuer : undefined,
@@ -86,6 +98,9 @@ export function parseDilutionRegistryJson(
     totals: records(value.totals),
     os_observations: Array.isArray(value.os_observations)
       ? [...value.os_observations]
+      : undefined,
+    corporate_action_clause_bindings: Array.isArray(value.corporate_action_clause_bindings)
+      ? records(value.corporate_action_clause_bindings)
       : undefined,
   };
 
@@ -144,6 +159,23 @@ export function parseDilutionRegistryJson(
       "이 Total에 포함된 Instrument를 찾을 수 없습니다",
       errors,
     );
+  }
+
+  const issuerCik = readString(payload.issuer?.issuer_cik) || "";
+  if (Array.isArray(value.corporate_action_clause_bindings)
+    && value.corporate_action_clause_bindings.length
+      !== payload.corporate_action_clause_bindings?.length) {
+    errors.push("Corporate Action clause binding items must be objects.");
+  }
+  for (const binding of payload.corporate_action_clause_bindings ?? []) {
+    try {
+      const stored = createDilutionStoredSplitClauseBinding(issuerCik, binding);
+      if (!instrumentKeys.has(stored.instrumentKey)) {
+        errors.push(`Corporate Action clause binding references a missing Instrument: ${stored.instrumentKey}`);
+      }
+    } catch {
+      errors.push("A Corporate Action clause binding is invalid.");
+    }
   }
 
   return errors.length

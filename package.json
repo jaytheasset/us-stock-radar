@@ -37,6 +37,8 @@
     "verify:forward-stock-split-execution": "node --test --experimental-strip-types lib/monitor/stockSplitExecution.test.ts lib/monitor/reverseSplitExecution.test.ts lib/monitor/reverseSplitExecutionUpdate.test.ts",
     "verify:reverse-split-share-basis-normalization": "node --test --experimental-strip-types lib/sec-structured-data/reverseSplitShareBasisNormalizer.test.ts",
     "verify:stock-split-share-basis-normalization": "node --test --experimental-strip-types lib/sec-structured-data/stockSplitShareBasisNormalizer.test.ts lib/sec-structured-data/reverseSplitShareBasisNormalizer.test.ts",
+    "verify:dilution-corporate-action-adjustment": "node --test --experimental-strip-types lib/dilution-registry/corporateActionAdjustment.test.ts lib/dilution-registry/stockDilution.test.ts",
+    "verify:dilution-corporate-action-product-path:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-dilution-corporate-action-product-path-isolated.mjs",
     "verify:share-count-anchor-reconciliation": "node --test --experimental-strip-types lib/sec-structured-data/shareCountAnchorReconciliation.test.ts",
     "verify:issuer-common-class-universe": "node --test --experimental-strip-types lib/sec-structured-data/issuerCommonClassUniverse.test.ts",
     "verify:issuer-total-common-shares": "node --test --experimental-strip-types lib/sec-structured-data/issuerTotalCommonSharesAggregator.test.ts",

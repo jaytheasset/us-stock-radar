@@ -57,6 +57,11 @@ export async function processGenericMonitorChildWithDependencies<
       persistence: TPersistence,
     ): GenericMonitorChildTerminalState | null;
     persistenceFailureError?(result: TResult, error: unknown): unknown;
+    afterSuccessfulPersistence?(input: {
+      identity: GenericMonitorChildIdentity;
+      result: TResult;
+      persistence: TPersistence;
+    }): Promise<unknown>;
     consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
       Promise<ListingMonitorAlertConsumerResult>;
   },
@@ -139,6 +144,18 @@ export async function processGenericMonitorChildWithDependencies<
     return retryableFailure(identity, error);
   }
   await repository.recordTerminal(identity, terminalState);
+  let postPersistence: unknown;
+  if (terminalState === "succeeded_applicable" && dependencies.afterSuccessfulPersistence) {
+    try {
+      postPersistence = await dependencies.afterSuccessfulPersistence({
+        identity,
+        result: analyzerRun.result,
+        persistence,
+      });
+    } catch (error) {
+      postPersistence = { status: "failed", error: errorMessage(error) };
+    }
+  }
   let listingMonitorAlerts: ListingMonitorAlertHookResult | undefined;
   if (terminalState === "succeeded_applicable" && dependencies.consumeListingMonitorAlerts) {
     try {
@@ -156,6 +173,7 @@ export async function processGenericMonitorChildWithDependencies<
     jobId: identity.executionId,
     providerCalls: 1,
     persistence: persistence.status,
+    ...(postPersistence !== undefined ? { postPersistence } : {}),
     ...(shareCountPersistence ? { shareCountPersistence } : {}),
     ...(listingMonitorAlerts ? { listingMonitorAlerts } : {}),
   };
