@@ -39,6 +39,19 @@ const SNAPSHOT_SELECT = [
   "last_checked",
 ].join(",");
 
+const CORPORATE_ACTION_ADJUSTMENT_SELECT = [
+  "id",
+  "projection_id",
+  "instrument_id",
+  "base_snapshot_id",
+  "status",
+  "review_reason",
+  "effective_date",
+  "execution_ids",
+  "supersedes_projection_id",
+  "adjusted_fields",
+].join(",");
+
 const ACTIVITY_SELECT = [
   "id",
   "instrument_id",
@@ -153,12 +166,18 @@ export async function fetchStockDilution(
   const instrumentIds = instrumentRows.map((row) => String(row.id)).filter(Boolean);
   const now = options.now ?? new Date();
   const fetchedAt = now.toISOString();
-  const [snapshotRows, activityRows, totalRows, outstanding] = await Promise.all([
+  const [snapshotRows, adjustmentRows, activityRows, totalRows, outstanding] = await Promise.all([
     selectRows("dilution_instrument_snapshots", {
       instrument_id: `in.(${instrumentIds.join(",")})`,
       limit: "200",
       order: "as_of_date.desc,id.desc",
       select: SNAPSHOT_SELECT,
+    }),
+    selectRows("dilution_corporate_action_adjustments", {
+      instrument_id: `in.(${instrumentIds.join(",")})`,
+      limit: "500",
+      order: "as_of_date.desc,effective_date.desc.nullslast,id.desc",
+      select: CORPORATE_ACTION_ADJUSTMENT_SELECT,
     }),
     selectRows("dilution_instrument_activity", {
       issuer_cik: `eq.${issuerCik}`,
@@ -176,6 +195,7 @@ export async function fetchStockDilution(
   ]);
 
   return buildStockDilutionSnapshot({
+    adjustmentRows,
     activityRows,
     fetchedAt,
     instrumentRows,

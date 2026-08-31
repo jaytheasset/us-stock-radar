@@ -67,6 +67,10 @@ test("Corporate Action runtime reuses the common Alert consumer after canonical 
     runtime,
     /monitorAnalyzerKey === "corporate_action"[\s\S]*persistCorporateActionAnalyzerResult[\s\S]*consumeListingMonitorAlertsForEvent/,
   );
+  assert.match(
+    runtime,
+    /afterSuccessfulPersistence[\s\S]*runDilutionCorporateActionAdjustmentForEvent/,
+  );
 });
 
 test("same identity concurrent enqueue owns workflow start once and duplicate re-trigger starts zero providers", async () => {
@@ -163,6 +167,26 @@ test("applicable persists typed facts before terminal success and not-applicable
       `terminal:succeeded_${result.status}`,
     ]);
   }
+});
+
+test("an applicable canonical result runs post-persistence effects after terminal success", async () => {
+  const harness = processorHarness({
+    analyzerResult: { status: "applicable", facts: {} } as ListingRiskAnalyzerResult,
+  });
+  const processed = await processGenericMonitorChildWithDependencies(childIdentity(), {
+    ...harness.dependencies,
+    afterSuccessfulPersistence: async () => {
+      harness.order().push("post:persisted-split-effects");
+      return { status: "completed" };
+    },
+  });
+  assert.equal(processed.status, "succeeded_applicable");
+  assert.deepEqual(processed.postPersistence, { status: "completed" });
+  assert.deepEqual(harness.order(), [
+    "persist:applicable",
+    "terminal:succeeded_applicable",
+    "post:persisted-split-effects",
+  ]);
 });
 
 test("optional O/S persists after the unchanged domain result with one provider call; absence adds no persistence work", async () => {
