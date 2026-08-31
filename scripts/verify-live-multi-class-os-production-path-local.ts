@@ -91,7 +91,7 @@ try {
     now: () => new Date("2026-08-23T00:00:00.000Z"),
   });
 
-  const bootstrap = await collector.collectIssuer({ cik: CIK, mode: "incremental" });
+  const bootstrap = await collector.collectIssuer({ cik: CIK, mode: "bootstrap" });
   assert.equal(bootstrap.status, "COMPLETED");
   assert.equal(bootstrap.counts.osCandidatesFound, EXPECTED_CANDIDATES);
   assert.equal(bootstrap.counts.filingContextsRequired, EXPECTED_CANDIDATES / 2);
@@ -113,12 +113,14 @@ try {
 
   const replay = await collector.collectIssuer({ cik: CIK, mode: "incremental" });
   assert.equal(replay.status, "COMPLETED");
+  assert.equal(replay.counts.osCandidatesFound, 0);
   assert.equal(replay.counts.persistedObservations, 0);
-  assert.equal(replay.counts.duplicates, EXPECTED_CLASS_OBSERVATIONS);
+  assert.equal(replay.counts.duplicates, 0);
+  assert.equal(replay.counts.universeSnapshotsEvaluated, 0);
   assert.equal(replay.counts.universeSnapshotsInserted, 0);
-  assert.equal(replay.counts.universeSnapshotDuplicates, EXPECTED_CANDIDATES);
+  assert.equal(replay.counts.universeSnapshotDuplicates, 0);
   assert.equal(replay.counts.filingContextsFetched, 0);
-  assert.equal(replay.counts.filingContextCacheHits, EXPECTED_CANDIDATES / 2);
+  assert.equal(replay.counts.filingContextCacheHits, 0);
   assert.equal(secFilingRequests, 0);
 
   const timepoints = [];

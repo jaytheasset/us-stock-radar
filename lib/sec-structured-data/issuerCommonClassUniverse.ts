@@ -7,6 +7,7 @@ import {
 } from "./authoritativeOsExtraction.ts";
 import {
   readShareCountHistory,
+  type AuthoritativeShareCountHistoryObservation,
   type ShareCountHistoryObservation,
   type ShareCountHistoryRepository,
   type ShareCountHistorySqlClient,
@@ -144,6 +145,34 @@ export type IssuerCommonClassUniverseNotAvailable = {
 export type IssuerCommonClassUniverseAt =
   | IssuerCommonClassUniverseAvailable
   | IssuerCommonClassUniverseNotAvailable;
+
+export type UsablePeriodicOsBaseline = {
+  status: "AVAILABLE";
+  cik: string;
+  asOf: string;
+  acceptedAt: string;
+  accession: string;
+  form: "10-K" | "10-K/A" | "10-Q" | "10-Q/A";
+  requiredCanonicalSecurityClassIds: string[];
+  historyObservationCount: number;
+};
+
+export type PeriodicOsBaselineRequired = {
+  status: "BASELINE_REQUIRED";
+  cik: string;
+  reason: "NO_USABLE_PERIODIC_BASELINE";
+};
+
+export type PeriodicOsBaselineReadFailed = {
+  status: "READ_FAILED";
+  cik: string;
+  reason: "UNIVERSE_REPOSITORY_READ_FAILED" | "SHARE_COUNT_HISTORY_READ_FAILED";
+};
+
+export type PeriodicOsBaselineReadResult =
+  | UsablePeriodicOsBaseline
+  | PeriodicOsBaselineRequired
+  | PeriodicOsBaselineReadFailed;
 
 export function deriveIssuerCommonClassUniverseSnapshot(
   decision: SecAuthoritativeOsDecision,
@@ -362,6 +391,111 @@ export async function readIssuerCommonClassUniverseAt(input: {
     selectedSnapshot: structuredClone(selected),
     supportingSnapshots: structuredClone(frontier),
     laterClassEvidence: [],
+  };
+}
+
+export async function readLatestUsablePeriodicOsBaseline(input: {
+  repository: IssuerCommonClassUniverseRepository;
+  shareCountHistoryRepository: ShareCountHistoryRepository;
+  cik: string;
+  targetAt: string;
+}): Promise<PeriodicOsBaselineReadResult> {
+  validateCik(input.cik);
+  validateTimestamp(input.targetAt, "targetAt");
+  const targetAt = new Date(input.targetAt).toISOString();
+  const targetDate = targetAt.slice(0, 10);
+  let snapshots: IssuerCommonClassUniverseSnapshot[];
+  try {
+    snapshots = await input.repository.readSnapshots(input.cik, {
+      universeAsOfTo: targetDate,
+      acceptedAtTo: targetAt,
+    });
+  } catch {
+    return {
+      status: "READ_FAILED",
+      cik: input.cik,
+      reason: "UNIVERSE_REPOSITORY_READ_FAILED",
+    };
+  }
+
+  const candidates = snapshots
+    .filter((snapshot) => isDomesticPeriodicForm(snapshot.sourceForm)
+      && (snapshot.status === "COMPLETE_SINGLE" || snapshot.status === "COMPLETE_MULTI")
+      && snapshot.requiredCanonicalSecurityClassIds.length > 0)
+    .sort(compareSnapshots)
+    .reverse();
+
+  for (const candidate of candidates) {
+    const universe = await readIssuerCommonClassUniverseAt({
+      repository: input.repository,
+      shareCountHistoryRepository: input.shareCountHistoryRepository,
+      cik: input.cik,
+      targetAt: candidate.acceptedAt,
+    });
+    if (universe.reason === "UNIVERSE_REPOSITORY_READ_FAILED"
+      || universe.reason === "SHARE_COUNT_HISTORY_READ_FAILED") {
+      return {
+        status: "READ_FAILED",
+        cik: input.cik,
+        reason: universe.reason,
+      };
+    }
+    if (universe.status !== "AVAILABLE"
+      || universe.sourceAccession !== candidate.sourceAccession
+      || universe.universeAsOf !== candidate.universeAsOf
+      || universe.acceptedAt !== candidate.acceptedAt) {
+      continue;
+    }
+
+    let history: ShareCountHistoryObservation[];
+    try {
+      history = await readShareCountHistory(input.shareCountHistoryRepository, input.cik, {
+        asOfFrom: candidate.universeAsOf,
+        asOfTo: candidate.universeAsOf,
+      });
+    } catch {
+      return {
+        status: "READ_FAILED",
+        cik: input.cik,
+        reason: "SHARE_COUNT_HISTORY_READ_FAILED",
+      };
+    }
+    const authoritative = history.filter((row): row is AuthoritativeShareCountHistoryObservation =>
+      row.sourceType === "sec_authoritative_os"
+      && row.observationType === "authoritative_xbrl"
+      && row.authoritativeStatus === "ELIGIBLE"
+      && row.canonicalSecurityClassStatus === "mapped"
+      && row.canonicalSecurityClassKind === "common_stock"
+      && row.canonicalSecurityClassId !== null
+      && row.shareBasisIdentity === "shares_outstanding:xbrli_shares"
+      && row.acceptedAtSource === "sec_filing_ledger"
+      && row.acceptedAt === candidate.acceptedAt
+      && row.asOf === candidate.universeAsOf
+      && row.accessionNumber === candidate.sourceAccession
+      && row.form === candidate.sourceForm);
+    if (!hasCompleteAuthoritativeClassCoverage(
+      authoritative,
+      candidate.requiredCanonicalSecurityClassIds,
+    )) {
+      continue;
+    }
+
+    return {
+      status: "AVAILABLE",
+      cik: input.cik,
+      asOf: candidate.universeAsOf,
+      acceptedAt: candidate.acceptedAt,
+      accession: candidate.sourceAccession,
+      form: candidate.sourceForm as UsablePeriodicOsBaseline["form"],
+      requiredCanonicalSecurityClassIds: [...candidate.requiredCanonicalSecurityClassIds].sort(),
+      historyObservationCount: authoritative.length,
+    };
+  }
+
+  return {
+    status: "BASELINE_REQUIRED",
+    cik: input.cik,
+    reason: "NO_USABLE_PERIODIC_BASELINE",
   };
 }
 
@@ -900,6 +1034,23 @@ function isSupportedUniverseCandidateConcept(decision: SecAuthoritativeOsDecisio
 
 function isForeignForm(form: string) {
   return ["20-F", "20-F/A", "40-F", "40-F/A", "6-K", "6-K/A"].includes(form);
+}
+
+function hasCompleteAuthoritativeClassCoverage(
+  observations: readonly AuthoritativeShareCountHistoryObservation[],
+  requiredCanonicalSecurityClassIds: readonly string[],
+) {
+  const required = new Set(requiredCanonicalSecurityClassIds);
+  if (required.size !== requiredCanonicalSecurityClassIds.length) return false;
+  const byClass = new Map<string, Set<string>>();
+  for (const observation of observations) {
+    const classId = observation.canonicalSecurityClassId;
+    if (!required.has(classId)) continue;
+    const values = byClass.get(classId) ?? new Set<string>();
+    values.add(observation.sharesOutstanding);
+    byClass.set(classId, values);
+  }
+  return [...required].every((classId) => byClass.get(classId)?.size === 1);
 }
 
 const CIK_PATTERN = /^[0-9]{10}$/;

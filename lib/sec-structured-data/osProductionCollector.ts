@@ -20,8 +20,11 @@ import {
 import {
   deriveIssuerCommonClassUniverseSnapshot,
   PostgresIssuerCommonClassUniverseRepository,
+  readLatestUsablePeriodicOsBaseline,
   writeIssuerCommonClassUniverseSnapshot,
+  type PeriodicOsBaselineReadResult,
   type IssuerCommonClassUniverseRepository,
+  type UsablePeriodicOsBaseline,
 } from "./issuerCommonClassUniverse.ts";
 import { PostgresSecStructuredRepository, type SecStructuredSqlClient } from "./repository.ts";
 import { SecRequestError, SecRequestPolicy, type SecRequestPolicyOptions } from "./secRequestPolicy.ts";
@@ -73,7 +76,7 @@ export type SecOsCollectionCounts = {
 
 export type SecOsCollectionIssue = {
   reason: SecOsCollectionReason;
-  stage: "structured_data" | "candidate_discovery" | "filing_context" | "authoritative_extraction" | "universe_persistence" | "history_persistence";
+  stage: "baseline" | "structured_data" | "candidate_discovery" | "filing_context" | "authoritative_extraction" | "universe_persistence" | "history_persistence";
   accession: string | null;
   detail: string;
 };
@@ -118,8 +121,9 @@ export type SecOsFilingCollectionResult = {
 export type SecOsIssuerCollectionResult = {
   issuerCik: string;
   mode: SecRefreshMode;
-  status: "COMPLETED" | "PARTIAL" | "FAILED";
+  status: "COMPLETED" | "PARTIAL" | "FAILED" | "BASELINE_REQUIRED";
   executedAt: string;
+  incrementalBaseline?: PeriodicOsBaselineReadResult;
   counts: SecOsCollectionCounts;
   reasonCounts: Partial<Record<SecOsCollectionReason, number>>;
   structuredIngest: SecIssuerIngestResult | null;
@@ -135,6 +139,7 @@ export type SecOsBatchCollectionResult = {
   completedIssuers: number;
   partialIssuers: number;
   failedIssuers: number;
+  baselineRequiredIssuers?: number;
   issuers: SecOsIssuerCollectionResult[];
 };
 
@@ -145,6 +150,7 @@ type CollectorDependencies = {
   filingRepository: SecFilingXbrlArtifactRepository;
   historyRepository: ShareCountHistoryRepository;
   universeRepository: IssuerCommonClassUniverseRepository;
+  readIncrementalBaseline?: typeof readLatestUsablePeriodicOsBaseline;
   now?: () => Date;
 };
 
@@ -157,18 +163,65 @@ export class SecOsProductionCollector {
 
   async collectIssuer(input: { cik: string; mode: SecRefreshMode }): Promise<SecOsIssuerCollectionResult> {
     const executedAt = (this.dependencies.now ?? (() => new Date()))().toISOString();
+    const issuerCik = normalizeCikForReport(input.cik);
     const counts = emptyCounts();
     const issues: SecOsCollectionIssue[] = [];
     const companyFactsRejections: SecOsCompanyFactsRejection[] = [];
     const filings: SecOsFilingCollectionResult[] = [];
     const observations: SecOsCollectedObservation[] = [];
+    let incrementalBaseline: UsablePeriodicOsBaseline | undefined;
+    if (input.mode === "incremental") {
+      const baseline = await (this.dependencies.readIncrementalBaseline
+        ?? readLatestUsablePeriodicOsBaseline)({
+        repository: this.dependencies.universeRepository,
+        shareCountHistoryRepository: this.dependencies.historyRepository,
+        cik: issuerCik,
+        targetAt: executedAt,
+      });
+      if (baseline.status === "BASELINE_REQUIRED") {
+        return finishIssuer({
+          issuerCik,
+          mode: input.mode,
+          status: "BASELINE_REQUIRED",
+          executedAt,
+          incrementalBaseline: baseline,
+          counts,
+          structuredIngest: null,
+          companyFactsRejections,
+          filings,
+          observations,
+          issues,
+        });
+      }
+      if (baseline.status === "READ_FAILED") {
+        issues.push(issue("DB_READ_FAILURE", "baseline", null, baseline.reason));
+        return finishIssuer({
+          issuerCik,
+          mode: input.mode,
+          status: "PARTIAL",
+          executedAt,
+          incrementalBaseline: baseline,
+          counts,
+          structuredIngest: null,
+          companyFactsRejections,
+          filings,
+          observations,
+          issues,
+        });
+      }
+      incrementalBaseline = baseline;
+    }
     let structuredIngest: SecIssuerIngestResult;
     try {
-      structuredIngest = await this.dependencies.structuredService.ingestIssuer(input);
+      structuredIngest = await this.dependencies.structuredService.ingestIssuer({
+        cik: issuerCik,
+        mode: input.mode,
+      });
     } catch (error) {
       issues.push(classifyStructuredFailure(error));
       return finishIssuer({
-        issuerCik: normalizeCikForReport(input.cik), mode: input.mode, status: "FAILED", executedAt,
+        issuerCik, mode: input.mode, status: "FAILED", executedAt,
+        ...(incrementalBaseline ? { incrementalBaseline } : {}),
         counts, structuredIngest: null, companyFactsRejections, filings, observations, issues,
       });
     }
@@ -183,7 +236,11 @@ export class SecOsProductionCollector {
     let candidates: SecOsFilingContextCandidate[];
     let filingLedger: SecFilingRow[];
     try {
-      const discovery = await readOsCandidates(this.dependencies.structuredRepository, structuredIngest.cik);
+      const discovery = await readOsCandidates(
+        this.dependencies.structuredRepository,
+        structuredIngest.cik,
+        incrementalBaseline,
+      );
       candidates = [...discovery.candidates].sort(compareCandidates);
       companyFactsRejections.push(...discovery.rejected.map(toCompanyFactsRejection));
       for (const rejected of discovery.rejected) {
@@ -192,12 +249,19 @@ export class SecOsProductionCollector {
           rejected.rejectionReason,
         ));
       }
-      filingLedger = await this.dependencies.structuredRepository.readFilings(structuredIngest.cik, 1000);
+      filingLedger = incrementalBaseline
+        ? await this.dependencies.structuredRepository.readFilings(
+          structuredIngest.cik,
+          1000,
+          { acceptedAfter: incrementalBaseline.acceptedAt },
+        )
+        : await this.dependencies.structuredRepository.readFilings(structuredIngest.cik, 1000);
       counts.osCandidatesFound = candidates.length;
     } catch (error) {
       issues.push(issue("DB_READ_FAILURE", "candidate_discovery", null, stableErrorDetail(error)));
       return finishIssuer({
         issuerCik: structuredIngest.cik, mode: input.mode, status: "PARTIAL", executedAt,
+        ...(incrementalBaseline ? { incrementalBaseline } : {}),
         counts, structuredIngest, companyFactsRejections, filings, observations, issues,
       });
     }
@@ -319,6 +383,7 @@ export class SecOsProductionCollector {
       mode: input.mode,
       status: hasOperationalIssue(issues) ? "PARTIAL" : "COMPLETED",
       executedAt,
+      ...(incrementalBaseline ? { incrementalBaseline } : {}),
       counts,
       structuredIngest,
       companyFactsRejections,
@@ -333,12 +398,14 @@ export class SecOsProductionCollector {
     for (const cik of input.ciks) {
       issuers.push(await this.collectIssuer({ cik, mode: input.mode }));
     }
+    const baselineRequiredIssuers = issuers.filter((result) => result.status === "BASELINE_REQUIRED").length;
     return {
       mode: input.mode,
       requestedIssuers: input.ciks.length,
       completedIssuers: issuers.filter((result) => result.status === "COMPLETED").length,
       partialIssuers: issuers.filter((result) => result.status === "PARTIAL").length,
       failedIssuers: issuers.filter((result) => result.status === "FAILED").length,
+      ...(baselineRequiredIssuers > 0 ? { baselineRequiredIssuers } : {}),
       issuers,
     };
   }

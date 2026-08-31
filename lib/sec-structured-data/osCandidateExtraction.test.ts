@@ -257,6 +257,72 @@ test("official reader remains read-only and returns filing-context candidates, n
   ]);
 });
 
+test("VEEA incremental boundary excludes its 2026-05-13 periodic baseline and returns only the newer 2026-08-10 candidate", async () => {
+  const base = sample("ordinary_us_common_stock");
+  const templateFact = base.facts.find((fact) => fact.taxonomy === "dei")!;
+  const templateFiling = base.filings[0]!;
+  const oldFact: SecCompanyFactRow = {
+    ...templateFact,
+    issuerCik: "0001840317",
+    filingAccession: "0001213900-26-057059",
+    form: "10-Q",
+    filedDate: "2026-05-15",
+    instantDate: "2026-05-13",
+    sourceFactKey: "5151515151515151515151515151515151515151515151515151515151515151",
+    sourceRawId: "51515151-5151-4151-8151-515151515151",
+  };
+  const newFact: SecCompanyFactRow = {
+    ...oldFact,
+    filingAccession: "0001213900-26-087946",
+    filedDate: "2026-08-12",
+    instantDate: "2026-08-10",
+    valueNumeric: "62214156",
+    sourceFactKey: "8181818181818181818181818181818181818181818181818181818181818181",
+    sourceRawId: "81818181-8181-4181-8181-818181818181",
+  };
+  const oldFiling: SecFilingRow = {
+    ...templateFiling,
+    issuerCik: "0001840317",
+    accessionNumber: oldFact.filingAccession,
+    form: "10-Q",
+    filedDate: oldFact.filedDate,
+    acceptedAt: "2026-05-15T01:30:36.000Z",
+    sourceRawId: "50505050-5050-4050-8050-505050505050",
+  };
+  const newFiling: SecFilingRow = {
+    ...oldFiling,
+    accessionNumber: newFact.filingAccession,
+    filedDate: newFact.filedDate,
+    acceptedAt: "2026-08-12T00:30:19.000Z",
+    sourceRawId: "80808080-8080-4080-8080-808080808080",
+  };
+  const calls: Array<Record<string, unknown>> = [];
+  const repository = {
+    async readFacts(filter: Record<string, unknown>) {
+      calls.push(filter);
+      return filter.taxonomy === "dei" ? [oldFact, newFact] : [];
+    },
+    async readFilings(cik: string, limit?: number, filter?: Record<string, unknown>) {
+      calls.push({ cik, limit, filter, kind: "filings" });
+      return [oldFiling, newFiling];
+    },
+  };
+
+  const extracted = await readOsCandidates(repository, "0001840317", {
+    asOf: "2026-05-13",
+    acceptedAt: "2026-05-15T01:30:36.000Z",
+  });
+
+  assert.deepEqual(extracted.candidates.map((candidate) => candidate.accession), [
+    "0001213900-26-087946",
+  ]);
+  assert.equal(extracted.candidates.some((candidate) => candidate.asOf <= "2026-05-13"), false);
+  assert.equal(calls.filter((call) => call.instantDateAfter === "2026-05-13").length, 2);
+  assert.deepEqual(calls.at(-1)?.filter, {
+    acceptedAfter: "2026-05-15T01:30:36.000Z",
+  });
+});
+
 test("unsupported or absent facts are unavailable rather than estimated or substituted", () => {
   const base = sample("ordinary_us_common_stock");
   const unsupported = { ...base.facts[0]!, concept: "CommonStockSharesIssued" };

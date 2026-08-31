@@ -19,6 +19,7 @@ import {
   selectSourceBackedSecTickerRow,
   type SecTickerSelectionRow,
 } from "@/lib/sources/sec/sourceTickerSelection";
+import { secFetch } from "./secFetch";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -30,8 +31,6 @@ const MAX_DOCUMENT_TEXT_CHARS = 160_000;
 const MAX_COMBINED_TEXT_CHARS = 500_000;
 const MAX_OWNERSHIP_SOURCE_TEXT_CHARS = 500_000;
 const MAX_PRIMARY_DOCUMENT_HTML_CHARS = 2_000_000;
-const SEC_FETCH_MAX_ATTEMPTS = 3;
-const SEC_TRANSIENT_HTTP_STATUSES = new Set([403, 408, 425, 429, 500, 502, 503, 504]);
 
 type FetchOptions = {
   formTypes?: string[];
@@ -1588,53 +1587,6 @@ function tickerQualityScore(ticker: string) {
   if (value.includes(".")) score -= 5;
   score -= Math.max(0, value.length - 4) * 3;
   return score;
-}
-
-async function secFetch(input: string | URL) {
-  const env = getServerEnv();
-  const userAgent = env.secUserAgent || "US-Stock-Radar/0.1 contact@example.com";
-  let lastError: unknown = null;
-
-  for (let attempt = 0; attempt < SEC_FETCH_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      const response = await fetch(input, {
-        cache: "no-store",
-        headers: {
-          "User-Agent": userAgent,
-          Accept: "application/atom+xml, application/json, text/html, text/plain, */*",
-          "Accept-Encoding": "gzip, deflate, br",
-        },
-      });
-
-      const shouldRetry = SEC_TRANSIENT_HTTP_STATUSES.has(response.status) && attempt < SEC_FETCH_MAX_ATTEMPTS - 1;
-      if (!shouldRetry) return response;
-
-      await response.body?.cancel().catch(() => undefined);
-      await waitForSecRetry(secRetryDelayMs(response, attempt));
-    } catch (error) {
-      lastError = error;
-      if (attempt >= SEC_FETCH_MAX_ATTEMPTS - 1) throw error;
-      await waitForSecRetry(500 * (attempt + 1));
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("SEC request failed after retries.");
-}
-
-function secRetryDelayMs(response: Response, attempt: number) {
-  const retryAfter = response.headers.get("retry-after");
-  if (retryAfter) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1_000, 2_000);
-
-    const retryAt = Date.parse(retryAfter);
-    if (Number.isFinite(retryAt)) return Math.min(Math.max(retryAt - Date.now(), 0), 2_000);
-  }
-  return 500 * (attempt + 1);
-}
-
-function waitForSecRetry(delayMs: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 }
 
 function cleanDocumentText(input: string) {

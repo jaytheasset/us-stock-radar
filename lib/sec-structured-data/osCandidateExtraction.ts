@@ -106,23 +106,34 @@ export type SecOsExtractionResult = {
 export async function readOsCandidates(
   repository: Pick<SecStructuredRepository, "readFacts" | "readFilings">,
   cik: string,
+  boundary?: { asOf: string; acceptedAt: string },
 ): Promise<SecOsExtractionResult> {
   const [candidateFacts, balanceSheetFacts, filings] = await Promise.all([
     repository.readFacts({
       cik,
       taxonomy: SEC_OS_CANDIDATE_CONCEPT.taxonomy,
       concept: SEC_OS_CANDIDATE_CONCEPT.concept,
+      ...(boundary ? { instantDateAfter: boundary.asOf } : {}),
       limit: 1000,
     }),
     repository.readFacts({
       cik,
       taxonomy: SEC_OS_ESCALATION_CONCEPT.taxonomy,
       concept: SEC_OS_ESCALATION_CONCEPT.concept,
+      ...(boundary ? { instantDateAfter: boundary.asOf } : {}),
       limit: 1000,
     }),
-    repository.readFilings(cik, 1000),
+    boundary
+      ? repository.readFilings(cik, 1000, { acceptedAfter: boundary.acceptedAt })
+      : repository.readFilings(cik, 1000),
   ]);
-  return extractCompanyFactsOs({ cik, facts: [...candidateFacts, ...balanceSheetFacts], filings });
+  return extractCompanyFactsOs({
+    cik,
+    facts: [...candidateFacts, ...balanceSheetFacts].filter((fact) =>
+      !boundary || (fact.instantDate !== null && fact.instantDate > boundary.asOf)),
+    filings: filings.filter((filing) =>
+      !boundary || (filing.acceptedAt !== null && filing.acceptedAt > boundary.acceptedAt)),
+  });
 }
 
 export function extractCompanyFactsOs(input: {

@@ -95,34 +95,34 @@ try {
       where issuer_cik = $1 and accession_number = $2`,
     [CIK, ACCESSION],
   )).rows;
-  assert.equal(filing.length, 1);
-  assert.equal(filing[0]?.form, "10-Q");
-  assert.equal(filing[0]?.primary_document, "ea0301195-10q_veea.htm");
-
   const afterFirst = await counts(client);
   const resolverAfterFirst = await resolverSummary({
     historyRepository,
     universeRepository,
   });
-  assert.deepEqual(resolverAfterFirst, {
-    status: "RESOLVED",
-    totalCommonShares: EXPECTED_OS,
-    sourceAccession: ACCESSION,
-    universeAsOf: "2026-08-10",
-  });
-
   if (isolated) {
-    assert.ok(afterFirst.authoritativeHistory > baseline.authoritativeHistory);
-    assert.ok(afterFirst.classSnapshots > baseline.classSnapshots);
-    assert.ok((first.issuerResults[0]?.counts.persistedObservations ?? 0) > 0);
-    assert.ok((first.issuerResults[0]?.counts.universeSnapshotsInserted ?? 0) > 0);
-  } else {
+    assert.equal(first.issuerResults[0]?.status, "BASELINE_REQUIRED");
+    assert.equal(first.issuerResults[0]?.incrementalBaseline?.status, "BASELINE_REQUIRED");
     assert.deepEqual(afterFirst, baseline);
     assert.deepEqual(resolverAfterFirst, resolverBefore);
     assert.equal(first.issuerResults[0]?.counts.persistedObservations, 0);
     assert.equal(first.issuerResults[0]?.counts.universeSnapshotsInserted, 0);
-    assert.ok((first.issuerResults[0]?.counts.duplicates ?? 0) > 0);
-    assert.ok((first.issuerResults[0]?.counts.universeSnapshotDuplicates ?? 0) > 0);
+  } else {
+    assert.equal(filing.length, 1);
+    assert.equal(filing[0]?.form, "10-Q");
+    assert.equal(filing[0]?.primary_document, "ea0301195-10q_veea.htm");
+    assert.deepEqual(resolverAfterFirst, {
+      status: "RESOLVED",
+      totalCommonShares: EXPECTED_OS,
+      sourceAccession: ACCESSION,
+      universeAsOf: "2026-08-10",
+    });
+    assert.deepEqual(afterFirst, baseline);
+    assert.deepEqual(resolverAfterFirst, resolverBefore);
+    assert.equal(first.issuerResults[0]?.counts.persistedObservations, 0);
+    assert.equal(first.issuerResults[0]?.counts.universeSnapshotsInserted, 0);
+    assert.equal(first.issuerResults[0]?.counts.duplicates, 0);
+    assert.equal(first.issuerResults[0]?.counts.universeSnapshotDuplicates, 0);
   }
 
   const replay = isolated
@@ -143,8 +143,8 @@ try {
   assert.deepEqual(resolverFinal, resolverAfterFirst);
   assert.equal(replay.issuerResults[0]?.counts.persistedObservations, 0);
   assert.equal(replay.issuerResults[0]?.counts.universeSnapshotsInserted, 0);
-  assert.ok((replay.issuerResults[0]?.counts.duplicates ?? 0) > 0);
-  assert.ok((replay.issuerResults[0]?.counts.universeSnapshotDuplicates ?? 0) > 0);
+  assert.equal(replay.issuerResults[0]?.counts.duplicates, 0);
+  assert.equal(replay.issuerResults[0]?.counts.universeSnapshotDuplicates, 0);
 
   const nonAuthoritative = (await client.query(
     `select count(*)::integer as count
