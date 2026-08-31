@@ -1,6 +1,13 @@
-# Main Integration Workspace Rules
+# Stock Radar Workspace Rules
 
-This physical workspace is the permanent main integration workspace.
+These rules distinguish the permanent main integration workspace from Codex-managed candidate worktrees.
+
+## Workspace mode
+
+- `C:\Users\PC\Documents\Codex\US-Stock Radar` is the permanent main integration workspace.
+- `C:\Users\PC\.codex\worktrees\<id>\US-Stock Radar` is a candidate feature workspace.
+- Resolve the current repository root at the start of every task and apply the matching rules below.
+- A candidate worktree must not be rejected merely because its root or branch differs from the permanent main workspace.
 
 ## Required production workflow reference
 
@@ -9,14 +16,21 @@ This physical workspace is the permanent main integration workspace.
 - Every new Stock Radar task handoff must carry its required handoff checklist, including local `main`, GitHub `main`, and deployed Vercel commit status.
 - Do not report a push or deployment complete until the equality and post-deploy checks in that document pass.
 
-## Workspace lock
+## Permanent main workspace lock
 
-- The required repository root is `C:\Users\PC\Documents\Codex\US-Stock Radar`.
-- The required branch is `main`.
+- In the permanent main workspace, the required repository root is `C:\Users\PC\Documents\Codex\US-Stock Radar` and the required branch is `main`.
 - Never run `git switch` or `git checkout` in this workspace.
 - Never create, move, remove, or repoint a Git worktree from this workspace.
 - Never run repository commands with another worktree or repository as the working directory.
 - Do not implement isolated feature work directly in this workspace. Use a separate task, branch, and worktree for feature development.
+
+## Candidate worktree lock
+
+- In a Codex-managed candidate worktree, work only in that worktree and on its existing task branch or detached candidate HEAD.
+- Do not switch or checkout branches, repoint worktrees, or run repository commands against the permanent main workspace.
+- Candidate worktrees may implement and verify the assigned feature, but must not merge to `main`, push, deploy, or operate port `3110`.
+- Use port `3111` or higher for any candidate server.
+- Keep changes limited to the assigned task and report the base commit, branch or detached state, changed files, tests, and clean status.
 
 ## Local development server ownership
 
@@ -50,11 +64,13 @@ git branch --show-current
 git status --short
 ```
 
-- If the root or branch differs from the required values, stop and report it. Do not correct it by switching branches.
-- If the working tree is not clean before a new integration begins, stop and report the changed files.
+- In the permanent main workspace, stop if the root is not the permanent path or the branch is not `main`. Do not correct it by switching branches.
+- In a candidate worktree, stop if the root is not the task's assigned worktree or if the existing branch/HEAD differs from the task handoff. Do not correct it by switching branches.
+- If the working tree is unexpectedly dirty before a new task or integration begins, stop and report the changed files.
 
-## Integration only
+## Main integration only
 
+- This section applies only in the permanent main workspace.
 - Bring completed work into `main` without leaving `main`.
 - Use `git merge --no-ff <branch>` for a complete feature branch.
 - Use `git cherry-pick <commit>` only when selected commits are explicitly requested.
@@ -100,4 +116,6 @@ git branch --show-current
 git status --short
 ```
 
-The workspace must still be the required root on `main`. A non-clean status is acceptable only for changes intentionally made during the current task and clearly reported to the user.
+- In the permanent main workspace, the workspace must still be the permanent root on `main`.
+- In a candidate worktree, it must still be the assigned worktree on its original task branch or detached candidate HEAD.
+- A non-clean status is acceptable only for changes intentionally made during the current task and clearly reported to the user.
