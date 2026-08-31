@@ -16,6 +16,10 @@ Among eligible observations, the latest `as_of` group is selected. XBRL and Leve
 
 No arbitrary freshness cutoff exists in V1. `ageDays` is metadata for later policy. The read-only [Reverse Split Share-Basis Normalizer V1](reverse-split-share-basis-normalization-v1.md) consumes this result without transforming the stored history row. Class A, Class B, Class C, and the single-class identity are always resolved independently and never summed.
 
+`accepted_at` is an information-availability boundary, not an intraday O/S
+measurement timestamp. Same-effective-date share-basis ordering is decided only
+by the source-backed stock-split calculation activation contract.
+
 The resolver does not discover which classes must be resolved. That separate,
 filing-backed completeness contract is provided by [Issuer Common-Class
 Universe Snapshot V1](issuer-common-class-universe-snapshot-v1.md). The

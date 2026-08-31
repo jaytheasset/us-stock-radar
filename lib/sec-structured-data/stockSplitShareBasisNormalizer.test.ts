@@ -45,12 +45,58 @@ test("D. mixed forward and reverse executions apply in effective chronology", as
   assert.deepEqual(result.appliedExecutionIds, [earlierForward.executionId, laterReverse.executionId]);
 });
 
-test("E. an observation on or after the effective date does not reapply that split", async () => {
+test("E. an observation on an on-effective-date basis does not reapply that split", async () => {
   const result = await normalize("400000000", "2026-08-10", [
     execution("forward_split", "2026-08-10", "1", "4", 6),
   ]);
   assertNormalized(result, "400000000", "1");
   assert.deepEqual(result.appliedExecutions, []);
+});
+
+test("same-date after-close forward and reverse executions roll the observation to the next day basis", async () => {
+  for (const [kind, oldShares, newShares, expected, sequence] of [
+    ["forward_split", "1", "4", "400000000", 10],
+    ["reverse_split", "10", "1", "10000000", 11],
+  ] as const) {
+    const split = execution(kind, "2026-08-10", oldShares, newShares, sequence, {
+      availability: "available",
+      kind: "after_market_close",
+      timestamp: null,
+      source_ref: `same-day-${kind}`,
+      evidence: { availability: "available", value: "after the close of trading" },
+    });
+    const result = await normalize("100000000", "2026-08-10", [split]);
+    assertNormalized(result, expected, "1");
+    assert.deepEqual(result.appliedExecutionIds, [split.executionId]);
+  }
+});
+
+test("same-date mixed activations apply only the execution still ahead of the observation basis", async () => {
+  const alreadyReflected = execution("forward_split", "2026-08-10", "1", "4", 12);
+  const stillAhead = execution("reverse_split", "2026-08-10", "10", "1", 13, {
+    availability: "available",
+    kind: "after_market_close",
+    timestamp: null,
+    source_ref: "same-day-after-close",
+    evidence: { availability: "available", value: "after the close of trading" },
+  });
+  const result = await normalize("400000000", "2026-08-10", [stillAhead, alreadyReflected]);
+  assertNormalized(result, "40000000", "1");
+  assert.deepEqual(result.appliedExecutionIds, [stillAhead.executionId]);
+});
+
+test("an indeterminate same-date calculation boundary fails closed", async () => {
+  const split = execution("forward_split", "2026-08-10", "1", "4", 14);
+  split.calculationActivation = {
+    version: "stock_split_day_basis_activation_v1",
+    state: "INDETERMINATE",
+    source_meaning: "effective_date_unavailable",
+    evidence_identity: null,
+  };
+  const result = await normalize("100000000", "2026-08-10", [split]);
+  assert.equal(result.status, "NORMALIZATION_UNAVAILABLE");
+  assert.equal(result.reason, "EXECUTION_TIMING_INDETERMINATE");
+  assert.equal(result.normalizedExactShares, null);
 });
 
 test("F-G. inactive executions apply zero and a historical re-mention remains one execution", async () => {

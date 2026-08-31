@@ -133,7 +133,10 @@ export async function normalizeClassShareCountForStockSplitsAt(
       resolution.status === "CONFLICT" ? "SHARE_COUNT_CONFLICT" : "SHARE_COUNT_UNAVAILABLE");
   }
 
-  const firstExecutionDate = nextDate(resolution.asOf);
+  // Same-day executions are relevant when the source-backed calculation
+  // boundary is after market close.  In that case an O/S observation whose
+  // `as_of` is the effective date is still on the pre-split day basis.
+  const firstExecutionDate = resolution.asOf;
   if (firstExecutionDate > targetDate) {
     return normalized(resolution, targetDate, exactInteger(resolution.sharesOutstanding), []);
   }
@@ -182,13 +185,23 @@ export async function normalizeClassShareCountForStockSplitsAt(
   }))).filter(({ execution }) =>
     execution.issuerCik === input.cik
     && execution.canonicalSecurityClassId === input.securityClassId
-    && execution.effectiveDate > resolution.asOf)
+    && execution.effectiveDate >= resolution.asOf)
     .sort((left, right) => left.execution.effectiveDate.localeCompare(right.execution.effectiveDate)
       || left.execution.executionId.localeCompare(right.execution.executionId));
 
   let exactShares = exactInteger(resolution.sharesOutstanding);
   const applied: AppliedStockSplitExecution[] = [];
   for (const { kind, execution } of candidates) {
+    if (execution.effectiveDate === resolution.asOf) {
+      const observationBasis = stockSplitExecutionActivationDecision({
+        execution,
+        targetDate: resolution.asOf,
+      });
+      if (observationBasis.status === "INDETERMINATE") {
+        return unavailable(input, targetAt, targetDate, resolution, "EXECUTION_TIMING_INDETERMINATE");
+      }
+      if (observationBasis.status === "APPLIED") continue;
+    }
     const activation = stockSplitExecutionActivationDecision({ execution, targetDate, targetAt });
     if (activation.status === "NOT_APPLIED") continue;
     if (activation.status === "INDETERMINATE") {
@@ -354,12 +367,6 @@ function greatestCommonDivisor(leftValue: bigint, rightValue: bigint) {
   let right = rightValue;
   while (right !== BigInt(0)) [left, right] = [right, left % right];
   return left;
-}
-
-function nextDate(value: string) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
 }
 
 function validTimestamp(value: string) {
