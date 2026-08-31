@@ -13,6 +13,7 @@ import { InMemoryShareCountHistoryRepository } from "./shareCountHistory.ts";
 import {
   InMemoryIssuerCommonClassUniverseRepository,
   readIssuerCommonClassUniverseAt,
+  readLatestUsablePeriodicOsBaseline,
 } from "./issuerCommonClassUniverse.ts";
 import type {
   SecCompanyFactRow,
@@ -128,18 +129,26 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
   );
 
   const replay = await harness.collector.collectBatch({ ciks, mode: "incremental" });
+  assert.equal(replay.completedIssuers, 3);
+  assert.equal(replay.partialIssuers, 0);
+  assert.equal(replay.failedIssuers, 0);
+  assert.equal(replay.baselineRequiredIssuers, 2);
   assert.equal(sum(replay.issuers, "submissionsUpdated"), 0);
   assert.equal(sum(replay.issuers, "companyFactsUpdated"), 0);
-  assert.equal(sum(replay.issuers, "filingContextsFetched"), 1);
-  assert.equal(sum(replay.issuers, "filingContextCacheHits"), 4);
-  assert.equal(sum(replay.issuers, "eligibleObservations"), 5);
+  assert.equal(sum(replay.issuers, "filingContextsFetched"), 0);
+  assert.equal(sum(replay.issuers, "filingContextCacheHits"), 0);
+  assert.equal(sum(replay.issuers, "eligibleObservations"), 0);
   assert.equal(sum(replay.issuers, "persistedObservations"), 0);
-  assert.equal(sum(replay.issuers, "duplicates"), 5);
-  assert.equal(sum(replay.issuers, "universeSnapshotsEvaluated"), 6);
+  assert.equal(sum(replay.issuers, "duplicates"), 0);
+  assert.equal(sum(replay.issuers, "universeSnapshotsEvaluated"), 0);
   assert.equal(sum(replay.issuers, "universeSnapshotsInserted"), 0);
-  assert.equal(sum(replay.issuers, "universeSnapshotDuplicates"), 6);
+  assert.equal(sum(replay.issuers, "universeSnapshotDuplicates"), 0);
   assert.equal(sum(replay.issuers, "universeSnapshotsIncomplete"), 0);
-  assert.equal(sum(replay.issuers, "universeSnapshotsAmbiguous"), 3);
+  assert.equal(sum(replay.issuers, "universeSnapshotsAmbiguous"), 0);
+  assert.equal(issuer(replay.issuers, "WIT").status, "BASELINE_REQUIRED");
+  assert.equal(issuer(replay.issuers, "ARM").status, "BASELINE_REQUIRED");
+  assert.equal(issuer(replay.issuers, "WIT").structuredIngest, null);
+  assert.equal(issuer(replay.issuers, "ARM").structuredIngest, null);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("AAPL").cik)).length, 1);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("NEOM").cik)).length, 1);
   assert.equal((await harness.historyRepository.readHistory(acceptanceAudit("GOOG").cik)).length, 3);
@@ -148,10 +157,52 @@ test("five-issuer bootstrap, incremental replay, IXDS cache, authoritative extra
     "0001144204-13-044345": 1,
     "0001193125-26-253514": 1,
     "0001652044-26-000071": 1,
-    "0001973239-26-000097": 2,
+    "0001973239-26-000097": 1,
   });
   assert.equal(harness.sourceClient.modeCalls.filter((call) => call.mode === "bootstrap").length, 10);
-  assert.equal(harness.sourceClient.modeCalls.filter((call) => call.mode === "incremental").length, 10);
+  assert.equal(harness.sourceClient.modeCalls.filter((call) => call.mode === "incremental").length, 6);
+  const aaplBaseline = await readLatestUsablePeriodicOsBaseline({
+    repository: harness.universeRepository,
+    shareCountHistoryRepository: harness.historyRepository,
+    cik: acceptanceAudit("AAPL").cik,
+    targetAt: EXECUTED_AT,
+  });
+  assert.equal(aaplBaseline.status, "AVAILABLE");
+  if (aaplBaseline.status !== "AVAILABLE") throw new Error("AAPL baseline unavailable");
+  assert.deepEqual({
+    asOf: aaplBaseline.asOf,
+    accession: aaplBaseline.accession,
+    form: aaplBaseline.form,
+    historyObservationCount: aaplBaseline.historyObservationCount,
+  }, {
+    asOf: "2026-07-17",
+    accession: "0000320193-26-000020",
+    form: "10-Q",
+    historyObservationCount: 1,
+  });
+});
+
+test("GURE-shaped baseline-less incremental collection returns BASELINE_REQUIRED before any historical source or artifact fetch", async () => {
+  const harness = createHarness();
+  const result = await harness.collector.collectIssuer({
+    cik: "0000885462",
+    mode: "incremental",
+  });
+
+  assert.equal(result.status, "BASELINE_REQUIRED");
+  assert.deepEqual(result.incrementalBaseline, {
+    status: "BASELINE_REQUIRED",
+    cik: "0000885462",
+    reason: "NO_USABLE_PERIODIC_BASELINE",
+  });
+  assert.equal(result.structuredIngest, null);
+  assert.equal(result.counts.submissionsFetched, 0);
+  assert.equal(result.counts.companyFactsFetched, 0);
+  assert.equal(result.counts.filingContextsRequired, 0);
+  assert.equal(result.counts.filingContextsFetched, 0);
+  assert.deepEqual(result.filings, []);
+  assert.equal(harness.sourceClient.modeCalls.length, 0);
+  assert.deepEqual(harness.filingSource.callsByAccession(), {});
 });
 
 test("issuer and filing failures are isolated and classified without semantic fallback", async () => {

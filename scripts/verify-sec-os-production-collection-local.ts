@@ -54,9 +54,13 @@ try {
         row.filingAccession === audit.accession
         && row.instantDate === audit.as_of);
     },
-    async readFilings(cik: string, limit?: number) {
+    async readFilings(
+      cik: string,
+      limit?: number,
+      filter?: Parameters<typeof databaseStructuredRepository.readFilings>[2],
+    ) {
       const audit = audits.find((sample) => sample.cik === cik)!;
-      return (await databaseStructuredRepository.readFilings(cik, limit)).filter((row) =>
+      return (await databaseStructuredRepository.readFilings(cik, limit, filter)).filter((row) =>
         row.accessionNumber === audit.accession);
     },
   };
@@ -138,12 +142,18 @@ try {
     ["0001973239", "AMBIGUOUS", "ADS_OR_ORDINARY_AMBIGUOUS"],
   ]);
   const replay = await collector.collectBatch({ ciks, mode: "incremental" });
+  assert.equal(replay.completedIssuers, 3);
+  assert.equal(replay.partialIssuers, 0);
+  assert.equal(replay.failedIssuers, 0);
+  assert.equal(replay.baselineRequiredIssuers, 2);
   assert.equal(total(replay, "persistedObservations"), 0);
-  assert.equal(total(replay, "duplicates"), total(replay, "eligibleObservations"));
-  assert.equal(total(replay, "filingContextCacheHits"), 4);
-  assert.equal(total(replay, "filingContextsFetched"), 1);
+  assert.equal(total(replay, "eligibleObservations"), 0);
+  assert.equal(total(replay, "duplicates"), 0);
+  assert.equal(total(replay, "filingContextCacheHits"), 0);
+  assert.equal(total(replay, "filingContextsFetched"), 0);
   assert.equal(total(replay, "universeSnapshotsInserted"), 0);
-  assert.equal(total(replay, "universeSnapshotDuplicates"), total(replay, "universeSnapshotsEvaluated"));
+  assert.equal(total(replay, "universeSnapshotsEvaluated"), 0);
+  assert.equal(total(replay, "universeSnapshotDuplicates"), 0);
   const replayRows = (await client.query(
     `select issuer_cik, accession_number, as_of::text
        from public.share_count_history

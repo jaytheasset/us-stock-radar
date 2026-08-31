@@ -16,6 +16,7 @@ type ExecutionState = {
   rawFailure: boolean;
   analysisFailure: boolean;
   osFailure: boolean;
+  osBaselineRequired: boolean;
   rawCalls: number;
   bridgeCalls: string[][];
   analysisCalls: string[];
@@ -96,6 +97,24 @@ const mocks = new Map<string, string>([
             stage: "collector",
             error: "intentional O/S collector failure",
           }],
+        };
+      }
+      if (state.osBaselineRequired) {
+        return {
+          ok: true,
+          status: "completed",
+          mode: "incremental",
+          requestedCiks: [...ciks],
+          issuerResults: ciks.map((issuerCik) => ({
+            issuerCik,
+            status: "BASELINE_REQUIRED",
+            incrementalBaseline: {
+              status: "BASELINE_REQUIRED",
+              cik: issuerCik,
+              reason: "NO_USABLE_PERIODIC_BASELINE",
+            },
+          })),
+          failures: [],
         };
       }
       return {
@@ -238,6 +257,22 @@ test("returned O/S collector failure is recorded and analysis still executes", a
   }]);
 });
 
+test("actual exported workflow keeps analysis running when periodic O/S returns BASELINE_REQUIRED", async () => {
+  const state = setup(
+    [stored("raw-gure-periodic", "10-Q", "885462")],
+    { osBaselineRequired: true },
+  );
+
+  const result = await secSourceIngestWorkflow(workflowInput());
+
+  assert.deepEqual(state.bridgeCalls, [["0000885462"]]);
+  assert.deepEqual(state.analysisCalls, ["raw-gure-periodic"]);
+  assert.deepEqual(state.order, ["raw", "os:0000885462", "analysis:raw-gure-periodic"]);
+  assert.equal(result.osCollection.issuerResults[0]?.status, "BASELINE_REQUIRED");
+  assert.equal(result.osCollection.issuerResults[0]?.incrementalBaseline?.status, "BASELINE_REQUIRED");
+  assert.equal(result.analyses[0]?.stage, "completed");
+});
+
 test("raw ingest failure propagates and is not swallowed", async () => {
   const state = setup([], { rawFailure: true });
 
@@ -269,13 +304,15 @@ test("analysis failure propagates and is not swallowed", async () => {
 
 function setup(
   items: RawItem[],
-  failures: Partial<Pick<ExecutionState, "rawFailure" | "analysisFailure" | "osFailure">> = {},
+  failures: Partial<Pick<ExecutionState,
+    "rawFailure" | "analysisFailure" | "osFailure" | "osBaselineRequired">> = {},
 ) {
   const state: ExecutionState = {
     items,
     rawFailure: failures.rawFailure ?? false,
     analysisFailure: failures.analysisFailure ?? false,
     osFailure: failures.osFailure ?? false,
+    osBaselineRequired: failures.osBaselineRequired ?? false,
     rawCalls: 0,
     bridgeCalls: [],
     analysisCalls: [],

@@ -152,12 +152,17 @@ export type SecFactReadFilter = {
   concept?: string | null;
   unit?: string | null;
   form?: string | null;
+  instantDateAfter?: string | null;
   limit?: number;
+};
+
+export type SecFilingReadFilter = {
+  acceptedAfter?: string | null;
 };
 
 export interface SecStructuredRepository {
   ingestBatch(batch: SecNormalizedBatch): Promise<SecRepositoryWriteCounts>;
   readIssuerTickers(cik: string): Promise<SecTickerObservationRow[]>;
-  readFilings(cik: string, limit?: number): Promise<SecFilingRow[]>;
+  readFilings(cik: string, limit?: number, filter?: SecFilingReadFilter): Promise<SecFilingRow[]>;
   readFacts(filter: SecFactReadFilter): Promise<SecCompanyFactRow[]>;
 }

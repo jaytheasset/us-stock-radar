@@ -93,6 +93,37 @@ test("collector failure is isolated per CIK and the bridge resolves after releas
   assert.equal(fixture.releaseCount, 1);
 });
 
+test("BASELINE_REQUIRED is a serializable nonfatal issuer result and the bridge still releases its one client", async () => {
+  const fixture = createPoolFixture();
+  const result = await runSecPeriodicOsTriggerBridge({
+    ciks: ["0000885462"],
+    environment: { SEC_USER_AGENT: "Stock Radar test test@example.com" },
+    pool: fixture.pool,
+  }, {
+    createCollector: () => ({
+      async collectIssuer({ cik }) {
+        return {
+          ...completedResult(cik),
+          status: "BASELINE_REQUIRED" as const,
+          incrementalBaseline: {
+            status: "BASELINE_REQUIRED" as const,
+            cik,
+            reason: "NO_USABLE_PERIODIC_BASELINE" as const,
+          },
+        };
+      },
+    }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "completed");
+  assert.equal(result.issuerResults[0]?.status, "BASELINE_REQUIRED");
+  assert.equal(result.issuerResults[0]?.incrementalBaseline?.status, "BASELINE_REQUIRED");
+  assert.doesNotThrow(() => JSON.stringify(result));
+  assert.equal(fixture.connectCount, 1);
+  assert.equal(fixture.releaseCount, 1);
+});
+
 test("missing configuration and connection failure resolve as isolated bridge failures", async () => {
   const missing = await runSecPeriodicOsTriggerBridge({
     ciks: ["0001840317"],

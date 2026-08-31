@@ -1,6 +1,7 @@
 import type {
   SecCompanyFactRow,
   SecFactReadFilter,
+  SecFilingReadFilter,
   SecFilingRow,
   SecNormalizedBatch,
   SecRepositoryWriteCounts,
@@ -78,16 +79,21 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
     return result.rows.map(mapTicker);
   }
 
-  async readFilings(cik: string, limit = 200): Promise<SecFilingRow[]> {
+  async readFilings(
+    cik: string,
+    limit = 200,
+    filter: SecFilingReadFilter = {},
+  ): Promise<SecFilingRow[]> {
     const result = await this.client.query<Record<string, unknown>>(
       `select accession_number, issuer_cik, form, filed_date::text, accepted_at::text,
               report_date::text, primary_document, is_xbrl, is_inline_xbrl,
               source_raw_id, source_kind, ingested_at::text
        from public.sec_filing_ledger
        where issuer_cik = $1
+         and ($3::timestamptz is null or accepted_at > $3::timestamptz)
        order by filed_date desc, accession_number desc
        limit $2`,
-      [cik, boundedLimit(limit)],
+      [cik, boundedLimit(limit), filter.acceptedAfter ?? null],
     );
     return result.rows.map(mapFiling);
   }
@@ -105,9 +111,11 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
          and ($3::text is null or concept = $3)
          and ($4::text is null or unit = $4)
          and ($5::text is null or form = $5)
+         and ($6::date is null or instant_date > $6::date)
        order by coalesce(instant_date, end_date) desc, id desc
-       limit $6`,
-      [filter.cik, filter.taxonomy ?? null, filter.concept ?? null, filter.unit ?? null, filter.form ?? null, boundedLimit(filter.limit)],
+       limit $7`,
+      [filter.cik, filter.taxonomy ?? null, filter.concept ?? null, filter.unit ?? null,
+        filter.form ?? null, filter.instantDateAfter ?? null, boundedLimit(filter.limit)],
     );
     return result.rows.map(mapFact);
   }
