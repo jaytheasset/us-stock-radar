@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import {
   FatalError,
   RetryableError,
   getStepMetadata,
+  getWorkflowMetadata,
 } from "workflow";
 import {
   renewIngestWorkflowLock,
@@ -45,6 +47,7 @@ import {
   SOURCE_INGEST_WORKFLOW_SOURCES,
   type WorkflowNewsSource,
 } from "@/lib/sourceWorkflowConfig";
+import type { WorkflowSourceRunAttempt } from "@/lib/sourceRunState";
 import { supabaseSelect, supabaseUpdate } from "@/lib/supabase";
 
 export type WorkflowTrigger = IngestWorkflowLock & {
@@ -68,7 +71,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
 
   try {
     await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
-    const raw = await runSecGroupRawIngestStep(input.groupId);
+    const raw = await runSecGroupRawIngestStep(input);
     console.log(
       `[secSourceIngestWorkflow] RAW_DONE groupId=${input.groupId} pendingAnalysis=${raw.rawItemIds.length}`,
     );
@@ -136,7 +139,7 @@ export async function newsSourceIngestWorkflow(input: NewsIngestWorkflowInput) {
 
   try {
     await ensureWorkflowLockStep(input, config.lockTtlSeconds);
-    const result = await runNewsSourceIngestStep(input.source, config.limit);
+    const result = await runNewsSourceIngestStep(input, config.limit);
     console.log(JSON.stringify({
       event: "news_source_ingest_workflow",
       phase: "DONE",
@@ -222,12 +225,15 @@ async function releaseWorkflowLockStep(lock: IngestWorkflowLock) {
 releaseWorkflowLockStep.maxRetries = 3;
 
 async function runNewsSourceIngestStep(
-  source: WorkflowNewsSource,
+  input: NewsIngestWorkflowInput,
   limit: number,
 ) {
   "use step";
 
+  const source = input.source;
   const metadata = getStepMetadata();
+  const workflowMetadata = getWorkflowMetadata();
+  const sourceRun = buildWorkflowSourceRunAttempt(input, metadata, workflowMetadata.workflowRunId);
   const startedAtMs = Date.now();
   let runId: string | null = null;
   let stats: Record<string, number> = {};
@@ -254,6 +260,7 @@ async function runNewsSourceIngestStep(
       limit,
       dryRun: false,
       force: false,
+      sourceRun,
     });
     const record = readRecord(result);
     runId = nullableString(record?.runId);
@@ -314,10 +321,13 @@ async function runNewsSourceIngestStep(
 }
 runNewsSourceIngestStep.maxRetries = 3;
 
-async function runSecGroupRawIngestStep(groupId: string) {
+async function runSecGroupRawIngestStep(input: SecIngestWorkflowInput) {
   "use step";
 
+  const groupId = input.groupId;
   const metadata = getStepMetadata();
+  const workflowMetadata = getWorkflowMetadata();
+  const sourceRun = buildWorkflowSourceRunAttempt(input, metadata, workflowMetadata.workflowRunId);
   console.log(
     `[runSecGroupRawIngestStep] START stepId=${metadata.stepId} attempt=${metadata.attempt} groupId=${groupId}`,
   );
@@ -347,6 +357,7 @@ async function runSecGroupRawIngestStep(groupId: string) {
       includeDocuments: true,
       dryRun: false,
       force: false,
+      sourceRun,
     });
     const record = readRecord(result);
     if (!isSuccessfulIngestResult(record)) {
@@ -490,6 +501,7 @@ const NEWS_SOURCE_RUNNERS: Record<
     limit: number;
     dryRun: boolean;
     force: boolean;
+    sourceRun: WorkflowSourceRunAttempt;
   }) => Promise<unknown>
 > = {
   globe: runGlobeNewsIngest,
@@ -505,6 +517,35 @@ const NEWS_SOURCE_RUNNERS: Record<
   whitehouse: runWhiteHouseNewsIngest,
   fda: runFdaNewsIngestWithFallback,
 };
+
+function buildWorkflowSourceRunAttempt(
+  trigger: WorkflowTrigger,
+  step: ReturnType<typeof getStepMetadata>,
+  workflowRunId: string,
+): WorkflowSourceRunAttempt {
+  return {
+    sourceRunId: deterministicSourceRunId([
+      workflowRunId,
+      step.stepId,
+      String(step.attempt),
+    ]),
+    workflowRunId,
+    workflowStepId: step.stepId,
+    workflowAttempt: step.attempt,
+    triggerId: trigger.triggerId,
+    lockKey: trigger.lockKey,
+    lockOwner: trigger.lockOwner,
+  };
+}
+
+function deterministicSourceRunId(parts: readonly string[]) {
+  const digest = createHash("sha256").update(JSON.stringify(parts)).digest();
+  const bytes = Buffer.from(digest.subarray(0, 16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 async function findPendingSecAnalysisIds(rawItemIds: string[]) {
   if (!rawItemIds.length) return [];

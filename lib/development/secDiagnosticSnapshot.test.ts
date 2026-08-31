@@ -180,6 +180,24 @@ test("unrecorded workflow background metadata stays explicit without downgrading
   assert.equal(result?.sources.find((source) => source.name === "source_runs")?.status, "available");
 });
 
+test("cancelled source runs remain an explicit terminal diagnostic state", () => {
+  const snapshot = buildSecDiagnosticSnapshot({
+    room,
+    records: [{
+      ...record,
+      collection_diagnostics: {
+        ...record.collection_diagnostics,
+        source_run_status: "cancelled",
+      },
+    }],
+  });
+  const result = snapshot.results[0];
+
+  assert.equal(snapshot.summary.status, "available");
+  assert.equal(result?.background.source_run_status, "cancelled");
+  assert.equal(result?.sources.find((source) => source.name === "source_runs")?.status, "available");
+});
+
 test("secondary lineage read failures are partial and never historical record_missing", () => {
   const snapshot = buildSecDiagnosticSnapshot({
     room,

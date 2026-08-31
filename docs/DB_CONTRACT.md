@@ -79,7 +79,12 @@ Registered source catalog. Examples: `accesswire`, `fda`, `sec_edgar`,
 
 `source_runs`  
 One execution of a source job. Stores run status, counts, timestamps, errors,
-and run metadata.
+and run metadata. Terminal statuses are `completed`, `failed`, `skipped`, and
+`cancelled`; a cancellation is recorded only from an authoritative Workflow
+`cancelled` state, never inferred from elapsed time. Workflow cancellation
+tombstones live in `source_workflow_cancellations`; service-role-only RPCs use
+an advisory lock on the exact Workflow run ID so cancellation and late attempt
+registration cannot create a post-cancel `running` row.
 
 `raw_items`  
 Raw article, filing, press release, market item, or source item before

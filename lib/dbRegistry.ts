@@ -131,7 +131,7 @@ export const canonicalTables: CanonicalTable[] = [
       column("source_code", "text", "References sources.code", true),
       column("source_group", "text", "Copied from sources.source_group for filtering and audit", true),
       column("run_type", "text", "manual, cron, ingest, dry_run, etc.", true),
-      column("status", "text", "queued, running, completed, failed, skipped", true),
+      column("status", "text", "queued, running, completed, failed, skipped, cancelled", true),
       column("started_at", "timestamptz", "Run start time", true),
       column("finished_at", "timestamptz", "Run finish time"),
       column("stats", "jsonb", "Fetched counts, event counts, delivery counts"),

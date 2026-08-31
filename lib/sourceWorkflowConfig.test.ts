@@ -76,7 +76,9 @@ test("Workflow 4.x never races an in-flight step against a durable sleep", () =>
   assert.equal(workflowSource.includes("Promise.race"), false);
   assert.equal(workflowSource.includes("withStepTimeout"), false);
   assert.equal(workflowSource.includes("for (const source of config.sourceIds)"), false);
-  assert.equal(workflowSource.includes("runNewsSourceIngestStep(input.source"), true);
+  assert.equal(workflowSource.includes("runNewsSourceIngestStep(input, config.limit)"), true);
+  assert.equal(workflowSource.includes("getWorkflowMetadata()"), true);
+  assert.equal(workflowSource.includes("sourceRun"), true);
 });
 
 test("news workflow emits structured source duration and outcome logs", () => {

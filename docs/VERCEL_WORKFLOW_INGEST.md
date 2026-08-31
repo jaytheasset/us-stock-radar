@@ -91,6 +91,17 @@ retry 3회 모두 소진되고 backoff까지 더해져도 약 55분이므로 한
   않고 최대 2시간 뒤 만료된다. 이는 겹친 write보다 일시 중단을 택한 fail-safe다.
   실행 중 invocation이 없고 owner가 확인되지 않은 상태에서 lock row를 수동
   삭제하지 않는다.
+- Workflow source/SEC raw step은 `workflow_run_id`, step ID, attempt를
+  `source_runs.metadata`에 기록한다. 운영 취소 endpoint는 Workflow backend가
+  실제로 `cancelled`를 반환한 run의 `queued`/`running` source attempt만
+  `cancelled`로 바꾼다. 완료·실패 attempt와 다른 Workflow run은 유지한다.
+  `register_workflow_source_run`과 `cancel_workflow_source_runs` RPC는 같은
+  Workflow run ID advisory lock을 사용한다. 따라서 취소와 동시에 늦은 step이
+  source attempt를 등록해도 그 row는 처음부터 `cancelled`가 되며 새
+  `running` 상태가 취소 뒤에 나타날 수 없다.
+  이후 늦게 도착한 step 완료·실패 callback은 `running` 상태에서만 terminal
+  전이를 허용하므로 `cancelled`를 덮어쓰지 못한다. 실행 시간이나 row 나이로
+  취소를 추정하지 않는다.
 
 Workflow step 재시도는 기존 저장 계약을 그대로 쓴다.
 
@@ -198,8 +209,21 @@ Render 설정 자체는 삭제하지 않는다.
 
 1. Vercel에서 `SOURCE_INGEST_WORKFLOW_ENABLED_LANES`에서 문제 lane을
    제거하고 재배포한다. 긴급 시 Cron Jobs 전체를 disable한다.
-2. 진행 중 Workflow run을 Workflows 화면 또는
-   `npx workflow cancel <runId>`로 중단한다.
+2. 진행 중 source-ingest Workflow run은 아래 인증 endpoint로 중단한다. 이
+   경로가 Workflow backend 취소와 연결된 `source_runs` terminal 전이를 함께
+   수행하는 운영 기준 경로다.
+
+   ```bash
+   curl -X POST https://<production>/api/cron/source-ingest/cancel \
+     -H "Authorization: Bearer $CRON_SECRET" \
+     -H "Content-Type: application/json" \
+     -d '{"workflowRunId":"wrun_..."}'
+   ```
+
+   Workflows 화면이나 `npx workflow cancel <runId>`로 먼저 취소했다면 같은
+   endpoint를 이어서 호출해 source attempt를 reconcile한다. 호출은
+   idempotent하다. Workflow 4.x에서 이미 시작된 step invocation은 잠시 계속될
+   수 있지만 늦은 완료·실패 기록은 `cancelled`를 덮어쓰지 못한다.
 3. Render SEC cron이 suspend 상태라면 다시 resume한다.
 4. lock row는 TTL 뒤 자동 인수 가능하다. 즉시 복구가 필요해도 owner를
    확인하지 않은 수동 delete는 하지 않는다.
