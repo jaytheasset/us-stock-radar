@@ -17,12 +17,14 @@ type ExecutionState = {
   analysisFailure: boolean;
   osFailure: boolean;
   osBaselineRequired: boolean;
+  prospectusOsFailure: boolean;
   rawCalls: number;
   rawFormTypes: string[];
   rawSourceRuns: Array<Record<string, unknown>>;
   stepAttempt: number;
   workflowRunId: string;
   bridgeCalls: string[][];
+  prospectusBridgeCalls: string[][];
   analysisCalls: string[];
   releaseCalls: number;
   order: string[];
@@ -141,6 +143,23 @@ const mocks = new Map<string, string>([
         issuerResults: ciks.map((issuerCik) => ({ issuerCik, status: "COMPLETED" })),
         failures: [],
       };
+    }
+  `)],
+  ["@/lib/secProspectusOsTriggerBridge", dataModule(`
+    export function extractProspectusOsRawItemIds(items) {
+      return [...new Set(items.flatMap((item) =>
+        item.ok === true && String(item.form_type).toUpperCase() === "424B4"
+          && /^[0-9a-f-]{36}$/i.test(String(item.raw_item_id))
+          ? [String(item.raw_item_id)] : []
+      ))].sort();
+    }
+    export async function runSecProspectusOsTriggerBridge({ rawItemIds }) {
+      const state = globalThis.__secWorkflowExecutionState;
+      state.prospectusBridgeCalls.push([...rawItemIds]);
+      state.order.push("prospectus-os:" + rawItemIds.join(","));
+      return state.prospectusOsFailure
+        ? { ok: false, status: "failed", requestedRawItemIds: [...rawItemIds], results: rawItemIds.map((rawItemId) => ({ rawItemId, persistence: "FAILED" })) }
+        : { ok: true, status: "completed", requestedRawItemIds: [...rawItemIds], results: rawItemIds.map((rawItemId) => ({ rawItemId, persistence: "INSERTED" })) };
     }
   `)],
   ["@/lib/offeringMonitorJobFoundation", dataModule(`
@@ -310,6 +329,23 @@ test("returned O/S collector failure is recorded and analysis still executes", a
   }]);
 });
 
+test("final 424B4 verification failure is fail-closed and ordinary SEC analysis still executes", async () => {
+  const rawItemId = "11111111-1111-4111-8111-111111111111";
+  const state = setup(
+    [stored(rawItemId, "424B4", "2025942")],
+    { prospectusOsFailure: true },
+  );
+
+  const result = await secSourceIngestWorkflow(workflowInput());
+
+  assert.deepEqual(state.bridgeCalls, []);
+  assert.deepEqual(state.prospectusBridgeCalls, [[rawItemId]]);
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.deepEqual(state.order, ["raw", `prospectus-os:${rawItemId}`, `analysis:${rawItemId}`]);
+  assert.equal(result.prospectusOsCollection.status, "failed");
+  assert.equal(result.analyses[0]?.stage, "completed");
+});
+
 test("actual exported workflow keeps analysis running when periodic O/S returns BASELINE_REQUIRED", async () => {
   const state = setup(
     [stored("raw-gure-periodic", "10-Q", "885462")],
@@ -358,7 +394,7 @@ test("analysis failure propagates and is not swallowed", async () => {
 function setup(
   items: RawItem[],
   failures: Partial<Pick<ExecutionState,
-    "rawFailure" | "analysisFailure" | "osFailure" | "osBaselineRequired">> = {},
+    "rawFailure" | "analysisFailure" | "osFailure" | "osBaselineRequired" | "prospectusOsFailure">> = {},
 ) {
   const state: ExecutionState = {
     items,
@@ -366,12 +402,14 @@ function setup(
     analysisFailure: failures.analysisFailure ?? false,
     osFailure: failures.osFailure ?? false,
     osBaselineRequired: failures.osBaselineRequired ?? false,
+    prospectusOsFailure: failures.prospectusOsFailure ?? false,
     rawCalls: 0,
     rawFormTypes: [],
     rawSourceRuns: [],
     stepAttempt: 1,
     workflowRunId: "wrun_execution_test_123",
     bridgeCalls: [],
+    prospectusBridgeCalls: [],
     analysisCalls: [],
     releaseCalls: 0,
     order: [],

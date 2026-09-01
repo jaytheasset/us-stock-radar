@@ -16,6 +16,7 @@ import {
   PostgresIssuerCommonClassUniverseRepository,
   deriveIssuerCommonClassUniverseSnapshot,
   readIssuerCommonClassUniverseAt,
+  readLatestUsableOsIncrementalBoundary,
   readLatestUsablePeriodicOsBaseline,
   writeIssuerCommonClassUniverseSnapshot,
 } from "./issuerCommonClassUniverse.ts";
@@ -24,6 +25,7 @@ import type {
   ShareCountHistoryRepository,
   ShareCountHistorySqlClient,
 } from "./shareCountHistory.ts";
+import type { IssuerCommonClassUniverseSnapshot } from "./issuerCommonClassUniverse.ts";
 
 const CIK = "0000000099";
 const AS_OF = "2026-06-30";
@@ -35,6 +37,7 @@ test("universe status and version contracts are bounded", () => {
   assert.deepEqual(ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS, [
     "issuer-common-class-universe-snapshot-v1",
     "issuer-common-class-universe-snapshot-v2",
+    "issuer-common-class-universe-prospectus-text-v1",
   ]);
   assert.deepEqual(ISSUER_COMMON_CLASS_UNIVERSE_STATUSES, [
     "COMPLETE_SINGLE",
@@ -247,6 +250,90 @@ test("an eligible 40-F history row is a usable incremental periodic baseline", a
   if (baseline.status === "AVAILABLE") {
     assert.equal(baseline.form, "40-F");
     assert.deepEqual(baseline.requiredCanonicalSecurityClassIds, [classId]);
+  }
+});
+
+test("a dedicated 424B4 prospectus seed is an incremental discovery boundary but not a periodic baseline", async () => {
+  const repository = new InMemoryIssuerCommonClassUniverseRepository();
+  const classId = `sc:v1:${CIK}:common_stock:single`;
+  const factKey = "a".repeat(64);
+  const snapshot = {
+    id: null,
+    snapshotVersion: "issuer-common-class-universe-prospectus-text-v1",
+    issuerCik: CIK,
+    universeAsOf: AS_OF,
+    acceptedAt: ACCEPTED_AT,
+    sourceAccession: "0000000099-26-000001",
+    sourceForm: "424B4",
+    sourceFiledDate: "2026-08-01",
+    sourceDocuments: ["form424b4.htm"],
+    status: "COMPLETE_SINGLE",
+    reason: "COMPLETE_SINGLE_COMMON_STOCK",
+    requiredCanonicalSecurityClassIds: [classId],
+    classEvidence: [{
+      canonicalSecurityClassId: classId,
+      sharesOutstanding: "24000000",
+      sourceFacts: [{
+        factKey,
+        contextRef: "prospectus-current-os:aaaaaaaa",
+        sharesOutstanding: "24000000",
+        documentName: "form424b4.htm",
+        sourceUrl: "https://www.sec.gov/Archives/edgar/data/99/form424b4.htm",
+        contentHash: "b".repeat(64),
+        artifactId: "11111111-1111-4111-8111-111111111111",
+        dimensions: [],
+      }],
+    }],
+    aggregateEvidence: [],
+    excludedEvidence: [],
+    completenessProvenance: {
+      historicalClassUnionUsed: false,
+      sourceContract: "prospectus-text-os-baseline-v1",
+      sourceType: "sec_prospectus_text_authoritative_os",
+      evidenceBasis: "complete_primary_prospectus_text",
+      finalForm: "424B4",
+      automaticVerifierStatus: "AutomaticallyVerified",
+      listingBasis: { status: "FINALIZED_US_EXCHANGE_TICKER", exchange: "Nasdaq", ticker: "TEST" },
+      classBasisEvidence: { status: "COMPLETE_SINGLE", title: "Common Stock" },
+    },
+    sourceIdentityHash: "c".repeat(64),
+    createdAt: null,
+  } satisfies IssuerCommonClassUniverseSnapshot;
+  await repository.insertSnapshot(snapshot);
+  const history = [{
+    sourceType: "sec_prospectus_text_authoritative_os",
+    observationType: "source_stated",
+    authoritativeStatus: "ELIGIBLE",
+    canonicalSecurityClassStatus: "mapped",
+    canonicalSecurityClassKind: "common_stock",
+    canonicalSecurityClassId: classId,
+    acceptedAtSource: "sec_filing_ledger",
+    acceptedAt: ACCEPTED_AT,
+    asOf: AS_OF,
+    accessionNumber: snapshot.sourceAccession,
+    form: "424B4",
+    sharesOutstanding: "24000000",
+    sourceFactKey: factKey,
+  }] as unknown as ShareCountHistoryObservation[];
+  const historyRepo = historyRepository(history);
+  const periodic = await readLatestUsablePeriodicOsBaseline({
+    repository,
+    shareCountHistoryRepository: historyRepo,
+    cik: CIK,
+    targetAt: "2026-08-02T00:00:00.000Z",
+  });
+  assert.equal(periodic.status, "BASELINE_REQUIRED");
+  const boundary = await readLatestUsableOsIncrementalBoundary({
+    repository,
+    shareCountHistoryRepository: historyRepo,
+    cik: CIK,
+    targetAt: "2026-08-02T00:00:00.000Z",
+  });
+  assert.equal(boundary.status, "AVAILABLE");
+  if (boundary.status === "AVAILABLE") {
+    assert.equal(boundary.boundaryKind, "new_listing_prospectus");
+    assert.equal(boundary.form, "424B4");
+    assert.equal(boundary.acceptedAt, ACCEPTED_AT);
   }
 });
 

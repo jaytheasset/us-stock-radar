@@ -1,4 +1,6 @@
 import {
+  PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION,
+  PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE,
   readShareCountHistory,
   type ShareCountHistoryObservation,
   type ShareCountHistoryRepository,
@@ -156,6 +158,25 @@ function eligibleAt(
       && artifact?.sourceUrl === row.sourceDocumentUrl
       && artifact?.contentHash === row.sourceContentHash
       && verifier?.status === "Verified";
+  }
+  if (row.sourceType === PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE) {
+    const artifact = record(row.sourceProvenance.secArtifact);
+    const verifier = record(row.sourceProvenance.verifier);
+    const classUniverse = record(row.sourceProvenance.classUniverse);
+    const listingBasis = record(row.sourceProvenance.listingBasis);
+    return row.acceptedAtSource === "sec_filing_ledger"
+      && row.acceptedAtProvenance.source === "sec_filing_ledger.accepted_at"
+      && UUID_PATTERN.test(row.filingLedgerRawSourceId)
+      && row.sourceProvenance.filingLedgerRawSourceId === row.filingLedgerRawSourceId
+      && artifact?.artifactId === row.sourceArtifactId
+      && artifact?.sourceUrl === row.sourceDocumentUrl
+      && artifact?.contentHash === row.sourceContentHash
+      && verifier?.status === "AutomaticallyVerified"
+      && verifier?.version === PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION
+      && classUniverse?.snapshotVersion === "issuer-common-class-universe-prospectus-text-v1"
+      && classUniverse?.status === "COMPLETE_SINGLE"
+      && classUniverse?.canonicalSecurityClassId === row.canonicalSecurityClassId
+      && listingBasis?.status === "FINALIZED_US_EXCHANGE_TICKER";
   }
   return row.sourceType === "sec_filing_text_level2"
     && row.acceptedAtSource === "sec_raw_payload_acceptance"

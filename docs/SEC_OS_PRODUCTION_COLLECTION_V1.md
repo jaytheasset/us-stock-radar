@@ -127,10 +127,12 @@ preserved unchanged.
 
 The existing periodic ingest request includes `20-F` and now also requests
 `40-F`/`40-F/A` for the O/S bridge. The 40-F raw items do not enter the separate
-periodic-report analysis parser. The bridge remains incremental and requires a
-previously persisted usable periodic baseline; a baseline-less issuer returns
-`BASELINE_REQUIRED` before any source or filing fetch. No catch-up, backfill,
-schema migration, or scheduled job is introduced by this contract.
+periodic-report analysis parser. The bridge remains incremental and requires
+either a usable periodic baseline or the dedicated complete final-424B4
+new-listing discovery boundary. An issuer with neither returns
+`BASELINE_REQUIRED` before any source or filing fetch. A prospectus boundary
+changes discovery start time only; it is not exposed as a periodic baseline and
+does not alter periodic XBRL extraction or persistence.
 
 Foreign eligibility is based only on the complete filing's exact DEI O/S and
 U.S. `Security12bTitle`/`TradingSymbol`/`SecurityExchangeName` linkage. Country,

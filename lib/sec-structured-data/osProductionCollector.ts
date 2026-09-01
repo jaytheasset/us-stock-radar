@@ -20,11 +20,13 @@ import {
 import {
   deriveIssuerCommonClassUniverseSnapshot,
   PostgresIssuerCommonClassUniverseRepository,
+  readLatestUsableOsIncrementalBoundary,
   readLatestUsablePeriodicOsBaseline,
   writeIssuerCommonClassUniverseSnapshot,
+  type OsIncrementalDiscoveryBoundary,
+  type OsIncrementalDiscoveryBoundaryReadResult,
   type PeriodicOsBaselineReadResult,
   type IssuerCommonClassUniverseRepository,
-  type UsablePeriodicOsBaseline,
 } from "./issuerCommonClassUniverse.ts";
 import { PostgresSecStructuredRepository, type SecStructuredSqlClient } from "./repository.ts";
 import { SecRequestError, SecRequestPolicy, type SecRequestPolicyOptions } from "./secRequestPolicy.ts";
@@ -124,6 +126,7 @@ export type SecOsIssuerCollectionResult = {
   status: "COMPLETED" | "PARTIAL" | "FAILED" | "BASELINE_REQUIRED";
   executedAt: string;
   incrementalBaseline?: PeriodicOsBaselineReadResult;
+  incrementalBoundary?: OsIncrementalDiscoveryBoundaryReadResult;
   counts: SecOsCollectionCounts;
   reasonCounts: Partial<Record<SecOsCollectionReason, number>>;
   structuredIngest: SecIssuerIngestResult | null;
@@ -151,6 +154,7 @@ type CollectorDependencies = {
   historyRepository: ShareCountHistoryRepository;
   universeRepository: IssuerCommonClassUniverseRepository;
   readIncrementalBaseline?: typeof readLatestUsablePeriodicOsBaseline;
+  readIncrementalBoundary?: typeof readLatestUsableOsIncrementalBoundary;
   now?: () => Date;
 };
 
@@ -169,10 +173,11 @@ export class SecOsProductionCollector {
     const companyFactsRejections: SecOsCompanyFactsRejection[] = [];
     const filings: SecOsFilingCollectionResult[] = [];
     const observations: SecOsCollectedObservation[] = [];
-    let incrementalBaseline: UsablePeriodicOsBaseline | undefined;
+    let incrementalBoundary: OsIncrementalDiscoveryBoundary | undefined;
     if (input.mode === "incremental") {
-      const baseline = await (this.dependencies.readIncrementalBaseline
-        ?? readLatestUsablePeriodicOsBaseline)({
+      const baseline = await (this.dependencies.readIncrementalBoundary
+        ?? this.dependencies.readIncrementalBaseline
+        ?? readLatestUsableOsIncrementalBoundary)({
         repository: this.dependencies.universeRepository,
         shareCountHistoryRepository: this.dependencies.historyRepository,
         cik: issuerCik,
@@ -185,6 +190,7 @@ export class SecOsProductionCollector {
           status: "BASELINE_REQUIRED",
           executedAt,
           incrementalBaseline: baseline,
+          incrementalBoundary: baseline,
           counts,
           structuredIngest: null,
           companyFactsRejections,
@@ -201,6 +207,7 @@ export class SecOsProductionCollector {
           status: "PARTIAL",
           executedAt,
           incrementalBaseline: baseline,
+          incrementalBoundary: baseline,
           counts,
           structuredIngest: null,
           companyFactsRejections,
@@ -209,7 +216,9 @@ export class SecOsProductionCollector {
           issues,
         });
       }
-      incrementalBaseline = baseline;
+      incrementalBoundary = "boundaryKind" in baseline
+        ? baseline
+        : { ...baseline, boundaryKind: "periodic" };
     }
     let structuredIngest: SecIssuerIngestResult;
     try {
@@ -221,7 +230,12 @@ export class SecOsProductionCollector {
       issues.push(classifyStructuredFailure(error));
       return finishIssuer({
         issuerCik, mode: input.mode, status: "FAILED", executedAt,
-        ...(incrementalBaseline ? { incrementalBaseline } : {}),
+        ...(incrementalBoundary ? {
+          incrementalBoundary,
+          ...(incrementalBoundary.boundaryKind === "periodic"
+            ? { incrementalBaseline: incrementalBoundary }
+            : {}),
+        } : {}),
         counts, structuredIngest: null, companyFactsRejections, filings, observations, issues,
       });
     }
@@ -239,7 +253,7 @@ export class SecOsProductionCollector {
       const discovery = await readOsCandidates(
         this.dependencies.structuredRepository,
         structuredIngest.cik,
-        incrementalBaseline,
+        incrementalBoundary,
       );
       candidates = [...discovery.candidates].sort(compareCandidates);
       companyFactsRejections.push(...discovery.rejected.map(toCompanyFactsRejection));
@@ -249,11 +263,11 @@ export class SecOsProductionCollector {
           rejected.rejectionReason,
         ));
       }
-      filingLedger = incrementalBaseline
+      filingLedger = incrementalBoundary
         ? await this.dependencies.structuredRepository.readFilings(
           structuredIngest.cik,
           1000,
-          { acceptedAfter: incrementalBaseline.acceptedAt },
+          { acceptedAfter: incrementalBoundary.acceptedAt },
         )
         : await this.dependencies.structuredRepository.readFilings(structuredIngest.cik, 1000);
       counts.osCandidatesFound = candidates.length;
@@ -261,7 +275,12 @@ export class SecOsProductionCollector {
       issues.push(issue("DB_READ_FAILURE", "candidate_discovery", null, stableErrorDetail(error)));
       return finishIssuer({
         issuerCik: structuredIngest.cik, mode: input.mode, status: "PARTIAL", executedAt,
-        ...(incrementalBaseline ? { incrementalBaseline } : {}),
+        ...(incrementalBoundary ? {
+          incrementalBoundary,
+          ...(incrementalBoundary.boundaryKind === "periodic"
+            ? { incrementalBaseline: incrementalBoundary }
+            : {}),
+        } : {}),
         counts, structuredIngest, companyFactsRejections, filings, observations, issues,
       });
     }
@@ -383,7 +402,12 @@ export class SecOsProductionCollector {
       mode: input.mode,
       status: hasOperationalIssue(issues) ? "PARTIAL" : "COMPLETED",
       executedAt,
-      ...(incrementalBaseline ? { incrementalBaseline } : {}),
+      ...(incrementalBoundary ? {
+        incrementalBoundary,
+        ...(incrementalBoundary.boundaryKind === "periodic"
+          ? { incrementalBaseline: incrementalBoundary }
+          : {}),
+      } : {}),
       counts,
       structuredIngest,
       companyFactsRejections,
