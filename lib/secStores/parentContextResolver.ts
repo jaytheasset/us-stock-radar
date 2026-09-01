@@ -51,6 +51,7 @@ const PERIODIC_PARENT_CONTEXT_FAMILIES = new Set([
   "10-K",
   "10-Q",
   "20-F",
+  "40-F",
   "NT 10-K",
   "NT 10-Q",
   "NT 20-F",

@@ -195,7 +195,7 @@ test("CNTY-style 10-K/A previews use concise stored amended items as Key Changes
   assert.equal(liveFeedPreview.showKeyPoints, true);
 });
 
-test("periodic amendment Key Changes mapping stays 10-K/A-specific and hides empty changes", () => {
+test("periodic amendment Key Changes mapping covers domestic and foreign annual amendments and hides empty changes", () => {
   const empty10ka = resolveFilingPreviewFields({
     displayPayload: {
       display_type: "periodic_amendment",
@@ -204,7 +204,7 @@ test("periodic amendment Key Changes mapping stays 10-K/A-specific and hides emp
     formType: "10-K/A",
     keyEvidence: ["Raw amendment evidence must not be used."],
   });
-  const otherAmendment = resolveFilingPreviewFields({
+  const quarterlyAmendment = resolveFilingPreviewFields({
     displayPayload: {
       display_type: "periodic_amendment",
       data: { amended_items: ["10-Q/A amendment item"] },
@@ -224,8 +224,20 @@ test("periodic amendment Key Changes mapping stays 10-K/A-specific and hides emp
   assert.deepEqual(empty10ka.keyPoints, []);
   assert.equal(empty10ka.keyPointsLabel, "Key Changes");
   assert.equal(empty10ka.showKeyPoints, false);
-  assert.deepEqual(otherAmendment.keyPoints, ["Existing 10-Q/A evidence"]);
-  assert.equal(otherAmendment.keyPointsLabel, "Key Points");
+  assert.deepEqual(quarterlyAmendment.keyPoints, ["Existing 10-Q/A evidence"]);
+  assert.equal(quarterlyAmendment.keyPointsLabel, "Key Points");
+  for (const formType of ["20-F/A", "40-F/A"]) {
+    const foreignAnnualAmendment = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "periodic_amendment",
+        data: { amended_items: [`${formType} amendment item`] },
+      },
+      formType,
+      keyEvidence: ["Generic evidence must not replace structured amendment changes."],
+    });
+    assert.deepEqual(foreignAnnualAmendment.keyPoints, [`${formType} amendment item`]);
+    assert.equal(foreignAnnualAmendment.keyPointsLabel, "Key Changes");
+  }
   assert.deepEqual(unrelatedDisplay.keyPoints, ["Existing generic evidence"]);
   assert.equal(unrelatedDisplay.keyPointsLabel, "Key Points");
 });

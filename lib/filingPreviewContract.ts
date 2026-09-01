@@ -56,11 +56,11 @@ export function resolveFilingPreviewFields({
   });
   const isGovernanceEvent =
     display?.display_type === "governance_event" || governanceEvent;
-  const isPeriodic10kAmendment =
-    normalizedFormType === "10-K/A" &&
+  const isPeriodicAmendment =
+    ["10-K/A", "20-F/A", "40-F/A"].includes(normalizedFormType) &&
     display?.display_type === "periodic_amendment";
   const isPeriodicReport =
-    ["10-K", "10-Q", "20-F"].includes(normalizedFormType) &&
+    ["10-K", "10-Q", "20-F", "40-F"].includes(normalizedFormType) &&
     display?.display_type === "periodic_report";
   const isSec8k6kEarningsEvent =
     display?.display_type === "operating_event" &&
@@ -98,7 +98,7 @@ export function resolveFilingPreviewFields({
     : [];
   const keyPointCandidates = capitalSnapshotPreview
     ? capitalSnapshotPreview.keyPoints
-    : isPeriodic10kAmendment
+    : isPeriodicAmendment
       ? amendmentKeyChanges
       : usesPeriodicBusinessUpdates
         ? periodicBusinessUpdates
@@ -121,7 +121,7 @@ export function resolveFilingPreviewFields({
     keyPoints,
     keyPointsLabel:
       capitalSnapshotPreview?.keyPointsLabel ||
-      (isPeriodic10kAmendment
+      (isPeriodicAmendment
         ? "Key Changes"
         : usesPeriodicBusinessUpdates
           ? "Key Business Updates"
@@ -133,7 +133,7 @@ export function resolveFilingPreviewFields({
     showKeyPoints:
       capitalSnapshotPreview
         ? capitalSnapshotPreview.showKeyPoints
-        : isPeriodic10kAmendment ||
+        : isPeriodicAmendment ||
             isPeriodicReport ||
             isSec8k6kEarningsEvent ||
             isGovernanceEvent

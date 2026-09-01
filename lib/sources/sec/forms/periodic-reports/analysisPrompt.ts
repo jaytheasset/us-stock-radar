@@ -5,9 +5,9 @@ import {
 import { buildSecPeriodicReportsSourceBlockPromptInput, type SecPeriodicReportsPromptInput } from "./sourceBlockPromptInput.ts";
 
 export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_analysis";
-export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v12-resolved-market-cap";
+export const SEC_PERIODIC_REPORTS_ANALYSIS_PROMPT_VERSION = "v13-40f";
 export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_KEY = "sec_periodic_reports_amendment_analysis";
-export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v3-resolved-market-cap";
+export const SEC_PERIODIC_REPORTS_AMENDMENT_ANALYSIS_PROMPT_VERSION = "v4-40f";
 
 export type SecPeriodicReportsAnalysisPromptInput = SecPeriodicReportsPromptInput;
 
@@ -350,7 +350,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "Do not use parser-generated facts, route hints, deterministic classification, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
   "Choose event_type directly from the approved event types based on the dominant investor-relevant conclusion supported by the original source blocks.",
   "Periodic reports may contain several material subjects. Select one representative event_type for feed filtering, but preserve other material findings in the investor-facing analysis instead of discarding them.",
-  "For a substantive non-amendment 10-K or 20-F, annual operating performance is the primary analytical frame. Review current-year and immediately preceding-year revenue or sales, operating income or loss, GAAP/IFRS net income or loss, and operating cash flow before considering dividends, buybacks, or other capital-return items.",
+  "For a substantive non-amendment 10-K, 20-F, or 40-F, annual operating performance is the primary analytical frame. Review current-year and immediately preceding-year revenue or sales, operating income or loss, GAAP/IFRS net income or loss, and operating cash flow before considering dividends, buybacks, or other capital-return items.",
   "A routine dividend, buyback, or capital-allocation disclosure must not displace material annual operating performance as the representative event or as the focus of report_ui, quick_take, summary, and score_reason. Treat capital returns as secondary unless the filing is genuinely dominated by a new extraordinary capital-return event.",
   "Score measures investor attention and urgency, not bullishness or bearishness. Signal expresses direction. A large positive or negative surprise can both receive a high score.",
   "Complete report_ui performance comparisons and scoring_assessment before assigning score, signal, score_reason, quick_take, or summary.",
@@ -385,7 +385,7 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "current_numeric and comparison_numeric must be raw signed numbers in the displayed unit. A loss or negative cash flow must be negative. current_value and comparison_value must retain the filing currency and clearly show negative values with parentheses or a minus sign.",
   "Set change_tone from investor meaning, not arithmetic direction alone. Higher revenue or profit is usually improvement; higher losses, expenses, cash burn, or debt can be deterioration.",
   "Choose the three comparisons that best explain investor impact. Normally include revenue or sales and GAAP/IFRS net income or loss when available. Do not let adjusted metrics hide a material deterioration in GAAP/IFRS results.",
-  "For a substantive non-amendment 10-K or 20-F, performance_comparisons must normally include current-year versus immediately preceding-year revenue or sales and GAAP/IFRS net income or loss when both are disclosed. Use operating income or loss or operating cash flow as the third comparison when material. Do not use dividend comparisons in place of these core annual metrics.",
+  "For a substantive non-amendment 10-K, 20-F, or 40-F, performance_comparisons must normally include current-year versus immediately preceding-year revenue or sales and GAAP/IFRS net income or loss when both are disclosed. Use operating income or loss or operating cash flow as the third comparison when material. Do not use dividend comparisons in place of these core annual metrics.",
   "Put forward guidance in guidance_metrics, not in performance_comparisons. Link guidance to a performance metric only when it is the same measure and accounting basis. Use related_different_basis for adjusted guidance next to a GAAP/IFRS actual, and standalone when no matching comparison exists.",
   "Write at most three key_business_updates for material business drivers, segment trends, operating milestones, risks, or offsets not already obvious from the comparison graph. Do not repeat the summary or merely restate a graphed number.",
   "For a routine amendment that should archive, report_ui arrays may be empty and snapshot_intro may be brief. Do not reconstruct the entire parent report.",
@@ -394,13 +394,13 @@ export const secPeriodicReportsAnalysisSystemPrompt = [
   "For dividends and capital_return, include exact dividend, record/payable dates, buyback authorization, or repurchase activity only when source-backed.",
   "For ipo_listing, discuss only source-backed IPO/listing facts such as traditional IPO, SPAC IPO, direct listing, IPO pricing, first trading/listing date, or registration effectiveness tied to a new public listing.",
   "Do not treat ordinary resale registration, shelf offerings, ATM/offering dilution, already-listed issuer resale, post-closing business updates, SPAC redemption, liquidation, or de-SPAC updates as ipo_listing unless the IPO/listing itself is the dominant event.",
-  "For 10-K/A, 10-Q/A, and 20-F/A, analyze only the change from the parent filing. Routine exhibit-only, certification-only, signature-only, XBRL-only, or no-other-change amendments should archive as other.",
+  "For 10-K/A, 10-Q/A, 20-F/A, and 40-F/A, analyze only the change from the parent filing. Routine exhibit-only, certification-only, signature-only, XBRL-only, or no-other-change amendments should archive as other.",
   "For mechanically clear routine amendment source text, keep the copy brief and source-backed and do not escalate it into a richer investor event.",
   "Write only investor-facing analysis fields and structured report_ui facts. Do not choose or describe an internal UI template.",
 ].join("\n");
 
 export const secPeriodicReportsAmendmentAnalysisSystemPrompt = [
-  "Analyze one SEC periodic-report amendment: 10-K/A, 10-Q/A, or 20-F/A.",
+  "Analyze one SEC periodic-report amendment: 10-K/A, 10-Q/A, 20-F/A, or 40-F/A.",
   "Return only the strict investor-analysis JSON object matching the response schema.",
   "Use cleaned_source_blocks as evidence. The current amendment blocks are primary evidence; parent_filing_context is comparison context, not proof of a new change by itself.",
   "Populate resolved_market_cap by this absolute source priority: if current-filing original source blocks explicitly state the issuer's total market capitalization, return that exact numeric USD value with source filing and a short verbatim filing_evidence excerpt; otherwise return site-provided market_context.market_cap unchanged with source fmp and filing_evidence null; otherwise return value null, source unavailable, and filing_evidence null.",

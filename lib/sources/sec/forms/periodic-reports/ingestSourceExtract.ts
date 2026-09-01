@@ -23,7 +23,7 @@ export type PeriodicReportIngestEvidence = {
   sourceBlocks: PeriodicReportIngestSourceBlock[];
 };
 
-const PERIODIC_REPORT_FORMS = new Set(["10-K", "10-Q", "20-F", "10-K/A", "10-Q/A", "20-F/A"]);
+const PERIODIC_REPORT_FORMS = new Set(["10-K", "10-Q", "20-F", "40-F", "10-K/A", "10-Q/A", "20-F/A", "40-F/A"]);
 const DOCUMENT_CONCEPTS = new Set([
   "documenttype",
   "documentfiscalperiodfocus",
@@ -62,7 +62,7 @@ export function extractPeriodicReportIngestEvidence({
 
   return {
     xbrlFacts: extractCoreXbrlFacts(html, sourceDocument),
-    sourceBlocks: !isMachineReadableXbrl && /^(?:10-K|20-F)(?:\/A)?$/.test(normalizedFormType)
+    sourceBlocks: !isMachineReadableXbrl && /^(?:10-K|20-F|40-F)(?:\/A)?$/.test(normalizedFormType)
       ? extractCorePerformanceBlocks(cleanedText, sourceDocument)
       : [],
   };

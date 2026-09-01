@@ -197,7 +197,7 @@ const mocks = new Map<string, string>([
   ["@/lib/sources/sec/forms/common/forms", dataModule(`
     export const SEC_FORM_ROOM_MANIFEST = [{
       slug: "periodic-reports",
-      forms: ["10-Q", "10-Q/A", "8-K", "S-3", "424B5"],
+      forms: ["10-Q", "10-Q/A", "8-K", "S-3", "424B5", "40-F", "40-F/A"],
     }];
     export const SEC_PRODUCTION_INGEST_SCHEDULE = [{
       id: "execution-test-group",
@@ -300,14 +300,14 @@ test("same-run VEEA 10-Q and 10-Q/A dedupe to one collector invocation", async (
   assert.deepEqual(state.analysisCalls, ["raw-veea-10q", "raw-veea-10qa"]);
 });
 
-test("40-F raw items invoke only the O/S collector and do not enter the unsupported report-analysis parser", async () => {
+test("40-F raw items invoke the independent O/S collector and periodic report analysis", async () => {
   const state = setup([stored("raw-barrick-40f", "40-F", "756894")]);
 
   const result = await secSourceIngestWorkflow(workflowInput());
 
   assert.deepEqual(state.bridgeCalls, [["0000756894"]]);
-  assert.deepEqual(state.analysisCalls, []);
-  assert.deepEqual(state.order, ["raw", "os:0000756894"]);
+  assert.deepEqual(state.analysisCalls, ["raw-barrick-40f"]);
+  assert.deepEqual(state.order, ["raw", "os:0000756894", "analysis:raw-barrick-40f"]);
   assert.equal(result.osCollection.status, "completed");
 });
 
@@ -348,15 +348,15 @@ test("final 424B4 verification failure is fail-closed and ordinary SEC analysis 
 
 test("actual exported workflow keeps analysis running when periodic O/S returns BASELINE_REQUIRED", async () => {
   const state = setup(
-    [stored("raw-gure-periodic", "10-Q", "885462")],
+    [stored("raw-wit-ads-20f", "20-F", "1123799")],
     { osBaselineRequired: true },
   );
 
   const result = await secSourceIngestWorkflow(workflowInput());
 
-  assert.deepEqual(state.bridgeCalls, [["0000885462"]]);
-  assert.deepEqual(state.analysisCalls, ["raw-gure-periodic"]);
-  assert.deepEqual(state.order, ["raw", "os:0000885462", "analysis:raw-gure-periodic"]);
+  assert.deepEqual(state.bridgeCalls, [["0001123799"]]);
+  assert.deepEqual(state.analysisCalls, ["raw-wit-ads-20f"]);
+  assert.deepEqual(state.order, ["raw", "os:0001123799", "analysis:raw-wit-ads-20f"]);
   assert.equal(result.osCollection.issuerResults[0]?.status, "BASELINE_REQUIRED");
   assert.equal(result.osCollection.issuerResults[0]?.incrementalBaseline?.status, "BASELINE_REQUIRED");
   assert.equal(result.analyses[0]?.stage, "completed");

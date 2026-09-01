@@ -1570,6 +1570,34 @@ test("feed filing preview hides an empty 8-K/6-K earnings business-update sectio
   assert.equal(filing.showKeyPoints, false);
 });
 
+test("feed filing preview reads back 40-F reports and foreign annual amendments", () => {
+  const annual = resolveFilingPreviewFields({
+    displayPayload: {
+      display_type: "periodic_report",
+      data: {
+        event_type: "earnings",
+        key_business_updates: [{ title: "Annual operating performance" }],
+      },
+    },
+    formType: "40-F",
+  });
+  assert.deepEqual(annual.keyPoints, ["Annual operating performance"]);
+  assert.equal(annual.keyPointsLabel, "Key Business Updates");
+  assert.equal(annual.showKeyPoints, true);
+
+  for (const formType of ["20-F/A", "40-F/A"]) {
+    const amendment = resolveFilingPreviewFields({
+      displayPayload: {
+        display_type: "periodic_amendment",
+        data: { amended_items: ["Updated annual exhibit"] },
+      },
+      formType,
+    });
+    assert.deepEqual(amendment.keyPoints, ["Updated annual exhibit"], `${formType} reads back amendment changes`);
+    assert.equal(amendment.keyPointsLabel, "Key Changes", `${formType} uses amendment preview semantics`);
+  }
+});
+
 test("feed filing preview omits the complete Key Points section when points are empty", () => {
   const source = readSource("components/feed-v2/FeedFilingPreview.tsx");
 

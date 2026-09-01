@@ -7,6 +7,7 @@ export const secPeriodicReportsFetchPlan = {
   defaultAttachmentLimit: 8,
   notes: [
     "Periodic reports need primary HTML plus machine-readable XBRL/XML when available.",
+    "Form 40-F packages commonly carry the annual information form, MD&A, and financial statements in EX-99 exhibits; retain only source text identified as those annual-report materials.",
     "The parser should warn when XBRL or financial-statement attachments are missing from the fetched package.",
   ],
   rules: [

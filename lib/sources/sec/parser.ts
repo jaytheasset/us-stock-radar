@@ -826,6 +826,11 @@ async function fetchFilingDetail({
       const text = await documentResponse.text();
 
       const cleaned = cleanDocumentText(text);
+      const retainAnalysisText = shouldRetainSecDocumentAnalysisText(
+        document,
+        effectiveFormType,
+        cleaned,
+      );
       const truncated = cleaned.length > MAX_DOCUMENT_TEXT_CHARS;
       const primaryRawHtml = buildPrimaryDocumentHtmlSource(document, text);
       const periodicReportEvidence = extractPeriodicReportIngestEvidence({
@@ -833,7 +838,11 @@ async function fetchFilingDetail({
         formType: effectiveFormType,
         html: text,
         isPrimary: document.isPrimary,
-        isAnnualReportAttachment: isPeriodicAnnualReportAttachment(document, effectiveFormType),
+        isAnnualReportAttachment: isPeriodicAnnualReportAttachment(
+          document,
+          effectiveFormType,
+          cleaned,
+        ),
         isMachineReadableXbrl: isMachineReadableXbrlDocument(document),
         sourceDocument: document.document || document.url,
       });
@@ -845,7 +854,9 @@ async function fetchFilingDetail({
       documentsFetched += 1;
       documentsWithText.push({
         ...document,
-        text: truncated ? cleaned.slice(0, MAX_DOCUMENT_TEXT_CHARS) : cleaned,
+        text: retainAnalysisText
+          ? truncated ? cleaned.slice(0, MAX_DOCUMENT_TEXT_CHARS) : cleaned
+          : null,
         textCharCount: cleaned.length,
         textTruncated: truncated,
         rawText: rawOwnershipSource?.text || null,
@@ -858,7 +869,9 @@ async function fetchFilingDetail({
         periodicReportCoreXbrlFacts: periodicReportEvidence?.xbrlFacts || [],
         periodicReportCoreSourceBlocks: periodicReportEvidence?.sourceBlocks || [],
         fetchStatus: documentResponse.status,
-        textExtractionStatus: "text_extracted",
+        textExtractionStatus: retainAnalysisText
+          ? "text_extracted"
+          : "text_extracted_not_retained_unrelated_40f_exhibit",
       });
     } catch (error) {
       documentsFailed += 1;
@@ -1044,13 +1057,57 @@ function isSecTextDocumentResponse(document: SecDocument, contentType: string | 
   return !/^font\//.test(normalized);
 }
 
-function isPeriodicAnnualReportAttachment(document: SecDocument, formType: string | null) {
-  if (!/^20-F(?:\/A)?$/i.test(normalizeFormType(formType))) return false;
+function isPeriodicAnnualReportAttachment(
+  document: SecDocument,
+  formType: string | null,
+  cleanedText = "",
+) {
+  const normalizedFormType = normalizeFormType(formType);
   const type = stringValue(document.type).toUpperCase();
   const label = `${document.description || ""} ${document.document || ""}`;
+  if (/^40-F(?:\/A)?$/i.test(normalizedFormType)) {
+    if (!/^EX-99(?:\.|$)/i.test(type)) return false;
+    return isRelevant40FAnnualReportText(cleanedText) ||
+      /annual information form|management'?s discussion and analysis|annual financial statements/i.test(label);
+  }
+  if (!/^20-F(?:\/A)?$/i.test(normalizedFormType)) return false;
   return type === "EX-15.1" || (
     type.startsWith("EX-15") && /annual report|financial statements/i.test(label)
   );
+}
+
+function shouldRetainSecDocumentAnalysisText(
+  document: SecDocument,
+  formType: string | null,
+  cleanedText: string,
+) {
+  if (document.isPrimary || !/^40-F(?:\/A)?$/i.test(normalizeFormType(formType))) {
+    return true;
+  }
+  const type = stringValue(document.type).toUpperCase();
+  if (!/^EX-99(?:\.|$)/i.test(type)) return true;
+  return isPeriodicAnnualReportAttachment(document, formType, cleanedText);
+}
+
+function isRelevant40FAnnualReportText(text: string) {
+  const sample = text.slice(0, 1_000_000);
+  const lead = sample.slice(0, 5_000);
+  if (
+    /\bMANAGEMENT.{0,24}RESPONSIBILITY FOR FINANCIAL STATEMENTS\b/i.test(lead) ||
+    /\bTHE ACCOMPANYING CONSOLIDATED FINANCIAL STATEMENTS\b/i.test(lead)
+  ) {
+    return true;
+  }
+  if (
+    /\bCONSENT OF (?:AN?\s+)?(?:INDEPENDENT|EXPERT)\b/i.test(lead) ||
+    /\bCERTIFICATION (?:REQUIRED BY|PURSUANT TO)\b/i.test(lead) ||
+    /\bMANAGEMENT['’]?S REPORT ON INTERNAL CONTROL OVER FINANCIAL REPORTING\b/i.test(lead)
+  ) {
+    return false;
+  }
+  return /\bANNUAL INFORMATION FORM\b/i.test(sample) ||
+    /\bMANAGEMENT['’]?S DISCUSSION AND ANALYSIS OF (?:FINANCIAL CONDITION|FINANCIAL AND OPERATING RESULTS|OPERATIONS)\b/i.test(sample) ||
+    /\b(?:AUDITED\s+)?(?:CONSOLIDATED\s+)?FINANCIAL STATEMENTS\b/i.test(sample);
 }
 
 function isOfferingFeeTableForm(formType: string | null) {
@@ -1062,7 +1119,7 @@ function isOfferingFeeTableForm(formType: string | null) {
 }
 
 function isPeriodicReportForm(formType: string | null) {
-  return /^(?:10-K|10-K\/A|10-Q|10-Q\/A|20-F|20-F\/A)$/i.test(normalizeFormType(formType));
+  return /^(?:10-K|10-K\/A|10-Q|10-Q\/A|20-F|20-F\/A|40-F|40-F\/A)$/i.test(normalizeFormType(formType));
 }
 
 function isMachineReadableXbrlDocument(document: SecDocument) {

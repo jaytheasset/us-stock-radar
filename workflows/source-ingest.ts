@@ -387,9 +387,7 @@ async function runSecGroupRawIngestStep(input: SecIngestWorkflowInput) {
     }
 
     const ingestedItems = readRecords(record?.items);
-    const candidateIds = uniqueStrings(ingestedItems
-      .filter((item) => !stringValue(item.form_type).toUpperCase().startsWith("40-F"))
-      .map((item) => item.raw_item_id));
+    const candidateIds = uniqueStrings(ingestedItems.map((item) => item.raw_item_id));
     const periodicOsIssuerCiks = extractPeriodicOsIssuerCiks(
       ingestedItems,
     );

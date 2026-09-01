@@ -1,5 +1,5 @@
 export const SEC_CURRENT_REPORT_FORMS = ["8-K", "8-K/A", "6-K", "6-K/A"] as const;
-export const SEC_PERIODIC_REPORT_FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A"] as const;
+export const SEC_PERIODIC_REPORT_FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"] as const;
 export const SEC_NT_FORMS = ["NT 10-K", "NT 10-K/A", "NT 10-Q", "NT 10-Q/A", "NT 20-F", "NT 20-F/A"] as const;
 export const SEC_S1_F1_FORMS = ["S-1", "S-1/A", "F-1", "F-1/A", "S-1MEF", "F-1MEF", "POS AM"] as const;
 export const SEC_S3_F3_FORMS = ["S-3", "S-3/A", "S-3ASR", "S-3MEF", "F-3", "F-3/A", "F-3ASR", "F-3MEF"] as const;

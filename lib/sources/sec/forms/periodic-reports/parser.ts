@@ -19,7 +19,7 @@ import {
   type SupportedPeriodicReportForm,
 } from "./types.ts";
 
-export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v5";
+export const SEC_PERIODIC_REPORTS_PARSER_VERSION = "sec_periodic_reports_raw_parser_v6_40f";
 
 const CORE_DOCUMENT_PERIOD_XBRL_CONCEPTS = new Set([
   "documenttype",
@@ -332,7 +332,7 @@ function resolvePeriodicFiscalYear({
 }) {
   const xbrlFiscalYear = xbrlPeriodMetadata.fiscalYear;
   const reportingPeriodYear = normalizeFiscalYear(reportingPeriod);
-  const annualReport = formType === "10-K" || formType === "10-K/A" || formType === "20-F" || formType === "20-F/A";
+  const annualReport = formType === "10-K" || formType === "10-K/A" || formType === "20-F" || formType === "20-F/A" || formType === "40-F" || formType === "40-F/A";
   const xbrlContextYears = xbrlPeriodMetadata.documentFiscalYearFactPeriod
     ?.match(/\b(19\d{2}|20\d{2})-\d{2}-\d{2}\b/g)
     ?.map((value) => value.slice(0, 4)) || [];
@@ -514,7 +514,7 @@ function selectPrimaryFilingDocument(documents: SecDocumentPayload[], formType: 
     return { selected: null, confidence: "low", warnings: ["primary_document_selection_missing_inventory"] };
   }
 
-  const amendmentMode = Boolean((formType && /\/A$/i.test(formType)) || /\b(?:10-K|10-Q|20-F)\/A\b|Amendment\s+No\.?/i.test(stringValue(title)));
+  const amendmentMode = Boolean((formType && /\/A$/i.test(formType)) || /\b(?:10-K|10-Q|20-F|40-F)\/A\b|Amendment\s+No\.?/i.test(stringValue(title)));
   const candidates = documents
     .map((document, index) => scorePrimaryDocumentCandidate(document, index, formType, amendmentMode))
     .sort((left, right) => right.score - left.score);
@@ -688,11 +688,12 @@ function hasSubstantiveVisibleText(text: string, visibleChars: number) {
 }
 
 function hasCoverPageLikeText(text: string) {
-  return /\bUNITED STATES\s+SECURITIES AND EXCHANGE COMMISSION\b/i.test(text) || /\bFORM\s+(?:10-K\/A|10-Q\/A|20-F\/A|10-K|10-Q|20-F)\b/i.test(text) || /\bExact name of registrant\b/i.test(text);
+  return /\bUNITED STATES\s+SECURITIES AND EXCHANGE COMMISSION\b/i.test(text) || /\bFORM\s+(?:10-K\/A|10-Q\/A|20-F\/A|40-F\/A|10-K|10-Q|20-F|40-F)\b/i.test(text) || /\bExact name of registrant\b/i.test(text);
 }
 
 function hasExpectedFormHeadings(text: string, formType: SupportedPeriodicReportForm | null) {
   if (formType === "20-F" || formType === "20-F/A") return /\bITEM\s+3\.?D\b/i.test(text) || /\bITEM\s+4\b/i.test(text) || /\bITEM\s+5\b/i.test(text) || /\bITEM\s+8\b/i.test(text);
+  if (formType === "40-F" || formType === "40-F/A") return /\bANNUAL INFORMATION FORM\b/i.test(text) || /\bMANAGEMENT['’]?S DISCUSSION AND ANALYSIS\b/i.test(text) || /\b(?:AUDITED\s+)?(?:CONSOLIDATED\s+)?FINANCIAL STATEMENTS\b/i.test(text);
   if (formType === "10-Q" || formType === "10-Q/A") return /\bPART\s+I\b[\s\S]{0,1200}\bITEM\s+1\b/i.test(text) || /\bITEM\s+2\b[^.\n]{0,120}Management/i.test(text);
   if (formType === "10-K" || formType === "10-K/A") return /\bITEM\s+1\b/i.test(text) || /\bITEM\s+7\b/i.test(text) || /\bITEM\s+8\b/i.test(text);
   return /\bITEM\s+(?:1|2|3\.D|4|5|7|8)\b/i.test(text);
@@ -1157,7 +1158,7 @@ export function parseSecPeriodicReport(input: SecPeriodicReportParseInput): Peri
     fiscalQuarter,
     isAnnualReport: formType === "10-K" || formType === "10-K/A",
     isQuarterlyReport: formType === "10-Q" || formType === "10-Q/A",
-    isForeignIssuerAnnualReport: formType === "20-F" || formType === "20-F/A",
+    isForeignIssuerAnnualReport: formType === "20-F" || formType === "20-F/A" || formType === "40-F" || formType === "40-F/A",
     isAmendment: Boolean(formType && /\/A$/i.test(formType)),
     sourcePackage,
     coverPage,
@@ -1298,7 +1299,7 @@ function readFormFromDocuments(documents: SecDocumentPayload[]) {
 }
 
 function readFormFromText(text: string) {
-  return text.match(/\b(10-K\/A|10-Q\/A|20-F\/A|10-K|10-Q|20-F)\b/i)?.[1] || null;
+  return text.match(/\b(10-K\/A|10-Q\/A|20-F\/A|40-F\/A|10-K|10-Q|20-F|40-F)\b/i)?.[1] || null;
 }
 
 function canonicalPeriodicFormType(value: string | null): SupportedPeriodicReportForm | null {
@@ -1306,9 +1307,11 @@ function canonicalPeriodicFormType(value: string | null): SupportedPeriodicRepor
   if (form === "10-K/A" || form === "10-KA") return "10-K/A";
   if (form === "10-Q/A" || form === "10-QA") return "10-Q/A";
   if (form === "20-F/A" || form === "20-FA") return "20-F/A";
+  if (form === "40-F/A" || form === "40-FA") return "40-F/A";
   if (form === "10-K") return "10-K";
   if (form === "10-Q") return "10-Q";
   if (form === "20-F") return "20-F";
+  if (form === "40-F") return "40-F";
   return null;
 }
 
@@ -2014,7 +2017,7 @@ function buildCoverageChecks({
 }): PeriodicReportCoverageCheck[] {
   const amendmentScopePresent =
     !amendment.isAmendment || Boolean(amendment.explanatoryNote || amendment.routineIndicators.length || amendment.restatementIndicators.length || amendment.amendedItems.length);
-  const sectionBoundariesPresent = sections.length > 0 || (amendment.isAmendment && amendmentScopePresent);
+  const sectionBoundariesPresent = sections.length > 0 || (amendment.isAmendment && amendmentScopePresent) || (/^40-F/i.test(formType || "") && financialStatementLines.length > 0);
   const hasFinancialOrMda =
     (amendment.isAmendment && amendmentScopePresent) ||
     financialStatementLines.length > 0 ||
@@ -2038,7 +2041,7 @@ function buildCoverageChecks({
       true,
     ),
     coverage("filing_text", "SEC filing text available", sourceText.length > 0, "Parser needs raw filing text from body or attachments.", sourceText ? `source chars: ${sourceText.length}` : null, true),
-    coverage("form_type", "Periodic form type resolved", Boolean(formType && isSupported), "The room supports only 10-K, 10-Q, 20-F and amendments.", formType, true),
+    coverage("form_type", "Periodic form type resolved", Boolean(formType && isSupported), "The room supports only 10-K, 10-Q, 20-F, 40-F and amendments.", formType, true),
     coverage("accession_number", "Accession number available", Boolean(accessionNumber), "Accession is needed for source traceability.", accessionNumber, true),
     coverage("company_name", "Registrant/company name extracted", Boolean(companyName), "Company name anchors the filing package.", companyName, true),
     coverage("reporting_period", "Reporting period extracted", Boolean(reportingPeriod), "Periodic reports must preserve the fiscal period.", reportingPeriod, true),
@@ -2046,7 +2049,7 @@ function buildCoverageChecks({
       "cover_security_identifiers",
       "Ticker/exchange or securities table captured",
       securities.length > 0,
-      "Listed securities help later stages identify the impacted instrument; some 20-F filings may require human review.",
+      "Listed securities help later stages identify the impacted instrument; foreign annual filings may require human review.",
       securities[0]?.evidence || null,
       false,
       securities.length > 1 ? "ambiguous" : undefined,
@@ -2450,7 +2453,7 @@ function cleanHeadingTitle(title: string) {
 }
 
 function sectionKey(heading: SectionHeading, formType: SupportedPeriodicReportForm | null) {
-  const prefix = formType === "20-F" || formType === "20-F/A" ? "20f" : heading.part ? slug(heading.part) : "periodic";
+  const prefix = formType === "20-F" || formType === "20-F/A" ? "20f" : formType === "40-F" || formType === "40-F/A" ? "40f" : heading.part ? slug(heading.part) : "periodic";
   const titleSlug = heading.title ? slug(heading.title).slice(0, 60).replace(/_+$/g, "") : "";
   const title = titleSlug ? `_${titleSlug}` : "";
   return `${prefix}_item_${slug(heading.item)}${title}`;
@@ -3156,7 +3159,7 @@ function readNearbyTableCaption(blocks: VisibleDomBlock[], sourceStart: number) 
   for (const block of candidates) {
     const text = block.text;
     if (!text || text.length > 180) continue;
-    if (/\b(?:UNITED STATES SECURITIES|FORM\s+(?:10-K|10-Q|20-F)|Exact name of registrant|SIGNATURES?)\b/i.test(text)) continue;
+    if (/\b(?:UNITED STATES SECURITIES|FORM\s+(?:10-K|10-Q|20-F|40-F)|Exact name of registrant|SIGNATURES?)\b/i.test(text)) continue;
     if (
       block.kind === "heading" ||
       /^[A-Z0-9 ,()$%-]{8,}$/.test(text) ||
@@ -3256,7 +3259,7 @@ function classifyVisibleBlock(text: string, tag: string | null, tableLike: boole
   if (!text || isDecorativeText(text)) return "empty_decorative";
   if (/\bSIGNATURES?\b|\/s\//i.test(text)) return "signature";
   if (/\b(?:EXHIBIT INDEX|ITEM\s+15\.?\s+EXHIBITS|ITEM\s+19\.?\s+EXHIBITS)\b|(?:\bEX-\d{1,3}|\bExhibit\s+\d{1,3})/i.test(text)) return "exhibit_index";
-  if (/\bUNITED STATES\s+SECURITIES AND EXCHANGE COMMISSION\b|\bFORM\s+(?:10-K\/A|10-Q\/A|20-F\/A|10-K|10-Q|20-F)\b|\bExact name of registrant\b/i.test(text)) return "cover_page";
+  if (/\bUNITED STATES\s+SECURITIES AND EXCHANGE COMMISSION\b|\bFORM\s+(?:10-K\/A|10-Q\/A|20-F\/A|40-F\/A|10-K|10-Q|20-F|40-F)\b|\bExact name of registrant\b/i.test(text)) return "cover_page";
   if (/^h[1-6]$/i.test(tag || "") || /^(?:PART\s+[IVX]+|ITEM\s+\d+[A-Z]?(?:\.|\b)|ITEM\s+\d+\.[A-Z])\b/i.test(text)) return "heading";
   if (tag === "li" || /^(?:\(?[a-z0-9ivx]+\)|[-*])\s+/i.test(text)) return "list";
   if (tableLike && !layoutTableLike) return "table";
