@@ -179,6 +179,18 @@ const foreignAnnualReportAttachmentEvidence = extractPeriodicReportIngestEvidenc
 assert.ok(foreignAnnualReportAttachmentEvidence, "20-F annual report exhibits preserve financial evidence even when the primary filing is a wrapper");
 assert.equal(foreignAnnualReportAttachmentEvidence?.xbrlFacts.filter((fact) => /:Revenue$/i.test(fact.name)).length, 2, "annual report exhibit XBRL facts are preserved");
 
+const canadianAnnualReportAttachmentEvidence = extractPeriodicReportIngestEvidence({
+  cleanedText: "For the year ended December 31, 2025, revenue increased compared with 2024 while management discussed operating performance and liquidity.",
+  formType: "40-F",
+  html: fullAnnualHtml,
+  isPrimary: false,
+  isAnnualReportAttachment: true,
+  sourceDocument: "d833573dex993.htm",
+});
+assert.ok(canadianAnnualReportAttachmentEvidence, "40-F EX-99 annual materials preserve evidence before general source truncation");
+assert.equal(canadianAnnualReportAttachmentEvidence?.xbrlFacts.filter((fact) => /:Revenue$/i.test(fact.name)).length, 2, "40-F annual material XBRL facts are preserved");
+assert.match(canadianAnnualReportAttachmentEvidence?.sourceBlocks[0]?.text || "", /revenue increased compared with 2024/i, "40-F MD&A performance context is preserved");
+
 const segmentHeadingEvidence = extractPeriodicReportIngestEvidence({
   cleanedText: [
     "Results by business",

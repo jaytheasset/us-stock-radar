@@ -1164,7 +1164,7 @@ function isSubstantiveAnnualReport(
   if (!parserOutput || parserOutput.facts.isAmendment) return false;
   return (
     (parserOutput.facts.isAnnualReport || parserOutput.facts.isForeignIssuerAnnualReport) &&
-    /^(?:10-K|20-F)$/i.test(parserOutput.formType || "")
+    /^(?:10-K|20-F|40-F)$/i.test(parserOutput.formType || "")
   );
 }
 

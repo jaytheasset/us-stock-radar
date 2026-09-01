@@ -201,7 +201,7 @@ This is the only repair attempt. Return JSON only.`,
     "Periodic Reports validation repair",
     "sec_periodic_reports_validation_repair",
     "v6-quarterly-scope-and-quick-take",
-    "10-K / 10-Q / 20-F periodic reports",
+    "10-K / 10-Q / 20-F / 40-F periodic reports",
     `Repair one completed SEC periodic-report analysis in one bounded pass.
 Validator warnings identify possible scoring, earnings-quality, or reporting-period inconsistencies but are not evidence.
 Use only the selected original source blocks, site market context, and existing result as evidence.

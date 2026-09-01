@@ -164,7 +164,7 @@ export function classifySecFormFamily(formType: string | null) {
   if (form === "8-K" || form === "8-K/A") return "current_report";
   if (form === "6-K" || form === "6-K/A") return "foreign_current_report";
   if (form === "NT 10-K" || form === "NT 10-Q" || form === "NT 20-F") return "late_filing_notice";
-  if (form.startsWith("10-Q") || form.startsWith("10-K") || form.startsWith("20-F")) return "periodic_report";
+  if (form.startsWith("10-Q") || form.startsWith("10-K") || form.startsWith("20-F") || form.startsWith("40-F")) return "periodic_report";
   if (isTenderFormTypeForIntegration(form)) return "tender_offer";
   if (form === "425") return "transaction_communication";
   if (form === "EFFECT") return "registration_effectiveness";

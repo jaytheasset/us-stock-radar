@@ -330,12 +330,12 @@ async function loadFilingPreviewDisplayPayloads(
     const isOfferingPreview =
       isS3OfferingPreview || is424b5OfferingPreview;
     const isPeriodicEarningsPreview =
-      ["10-K", "10-Q", "20-F"].includes(formType || "") &&
+      ["10-K", "10-Q", "20-F", "40-F"].includes(formType || "") &&
       displayType === "periodic_report" &&
       eventType === "earnings" &&
       Array.isArray(row.key_business_updates);
-    const isPeriodic10kAmendmentPreview =
-      formType === "10-K/A" &&
+    const isPeriodicAmendmentPreview =
+      ["10-K/A", "20-F/A", "40-F/A"].includes(formType || "") &&
       displayType === "periodic_amendment" &&
       Array.isArray(row.amended_items);
     if (
@@ -344,7 +344,7 @@ async function loadFilingPreviewDisplayPayloads(
         !isCapitalFinancingPreview &&
         !isOfferingPreview &&
         !isPeriodicEarningsPreview &&
-        !isPeriodic10kAmendmentPreview)
+        !isPeriodicAmendmentPreview)
     ) {
       continue;
     }

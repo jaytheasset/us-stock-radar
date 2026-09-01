@@ -2777,12 +2777,12 @@ const SEC_ANALYSIS_PROMPT_DISPLAY_LABELS: Record<string, SecAnalysisPromptDispla
     role: "Analysis",
     status: "Current live flow",
   },
-  "periodic-reports:analysisPrompt.ts:Periodic report analysis (10-K / 10-Q / 20-F)": {
+  "periodic-reports:analysisPrompt.ts:Periodic report analysis (10-K / 10-Q / 20-F / 40-F)": {
     displayName: "Active analysis prompt — Periodic reports",
     role: "Primary analysis",
-    status: "Current for 10-K / 10-Q / 20-F",
+    status: "Current for 10-K / 10-Q / 20-F / 40-F",
   },
-  "periodic-reports:analysisPrompt.ts:Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A)": {
+  "periodic-reports:analysisPrompt.ts:Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A / 40-F/A)": {
     displayName: "Active analysis prompt — Amendments",
     role: "Amendment analysis",
     status: "Current for amendments",
@@ -2828,12 +2828,12 @@ async function buildPeriodicReportsPromptVariantPreviews(base: string) {
   const cases = [
     {
       file: "routine-10q-earnings.json",
-      name: "Periodic report analysis (10-K / 10-Q / 20-F)",
+      name: "Periodic report analysis (10-K / 10-Q / 20-F / 40-F)",
       amendment: false,
     },
     {
       file: "routine-amendment-10qa.json",
-      name: "Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A)",
+      name: "Periodic amendment analysis (10-K/A / 10-Q/A / 20-F/A / 40-F/A)",
       amendment: true,
     },
   ] as const;

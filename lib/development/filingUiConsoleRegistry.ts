@@ -46,7 +46,7 @@ function familyDescription(family: FilingUiFamilyId) {
     "governance-vote-leadership": "Auditor, board, executive, and shareholder vote layouts.",
     "operating-legal-routine": "Earnings, operating metrics, regulatory, and legal update layouts.",
     "offering-registration": "424B, S-1/F-1, S-3/F-3, and related offering layouts.",
-    "periodic-reports": "10-K, 10-Q, 20-F, and amendment layouts.",
+    "periodic-reports": "10-K, 10-Q, 20-F, 40-F, and amendment layouts.",
     "form-25": "Delisting lifecycle and security-removal layouts.",
     "form-425": "Transaction communication and procedural update layouts.",
     proxy: "Proxy vote, governance, and meeting layouts.",
