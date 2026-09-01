@@ -28,6 +28,10 @@ import {
 } from "@/lib/newsIngest";
 import { runSecFilingAnalysisIngest } from "@/lib/secFilingAnalysisIngest";
 import {
+  extractProspectusOsRawItemIds,
+  runSecProspectusOsTriggerBridge,
+} from "@/lib/secProspectusOsTriggerBridge";
+import {
   SEC_PERIODIC_OS_TRIGGER_FORMS,
   extractPeriodicOsIssuerCiks,
   runSecPeriodicOsTriggerBridge,
@@ -91,6 +95,19 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
       };
     }
 
+    let prospectusOsCollection;
+    if (raw.prospectusOsRawItemIds.length > 0) {
+      await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
+      prospectusOsCollection = await runSecProspectusOsCollectorStep(raw.prospectusOsRawItemIds);
+    } else {
+      prospectusOsCollection = {
+        ok: true,
+        status: "skipped" as const,
+        requestedRawItemIds: [],
+        results: [],
+      };
+    }
+
     const analyses = [];
     const monitorJobs = [];
     for (const rawItemId of raw.rawItemIds) {
@@ -113,6 +130,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
       groupId: input.groupId,
       raw,
       osCollection,
+      prospectusOsCollection,
       analyses,
       monitorJobs,
     };
@@ -375,6 +393,7 @@ async function runSecGroupRawIngestStep(input: SecIngestWorkflowInput) {
     const periodicOsIssuerCiks = extractPeriodicOsIssuerCiks(
       ingestedItems,
     );
+    const prospectusOsRawItemIds = extractProspectusOsRawItemIds(ingestedItems);
     const rawItemIds = await findPendingSecAnalysisIds(candidateIds);
     const summary = {
       ok: true,
@@ -384,6 +403,7 @@ async function runSecGroupRawIngestStep(input: SecIngestWorkflowInput) {
       stats: numericStats(record?.stats),
       rawItemIds,
       periodicOsIssuerCiks,
+      prospectusOsRawItemIds,
     };
     console.log(
       `[runSecGroupRawIngestStep] DONE stepId=${metadata.stepId} groupId=${groupId} pendingAnalysis=${rawItemIds.length} stats=${JSON.stringify(summary.stats)}`,
@@ -416,6 +436,21 @@ async function runSecPeriodicOsCollectorStep(ciks: string[]) {
   return result;
 }
 runSecPeriodicOsCollectorStep.maxRetries = 3;
+
+async function runSecProspectusOsCollectorStep(rawItemIds: string[]) {
+  "use step";
+
+  const metadata = getStepMetadata();
+  console.log(
+    `[runSecProspectusOsCollectorStep] START stepId=${metadata.stepId} attempt=${metadata.attempt} filings=${rawItemIds.length}`,
+  );
+  const result = await runSecProspectusOsTriggerBridge({ rawItemIds });
+  console.log(
+    `[runSecProspectusOsCollectorStep] DONE stepId=${metadata.stepId} status=${result.status} results=${result.results.length}`,
+  );
+  return result;
+}
+runSecProspectusOsCollectorStep.maxRetries = 3;
 
 async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
   "use step";

@@ -18,7 +18,9 @@ is known.
 This foundation stores append-only issuer/time share-count observations. It does
 not determine current O/S, select a winner, sum classes, apply corporate-action
 adjustments, or calculate dilution. It accepts authoritative XBRL observations
-and the separately validated Level 2 filing-text source.
+and separately validated filing-text sources. The automatic final-prospectus
+seed is defined in `new-listing-prospectus-os-baseline-v1.md`; it never shares
+the XBRL, Level 2, or human-approval provenance identity.
 
 ## Official flow
 
@@ -40,6 +42,11 @@ Existing Level 2 domain provider call
   -> deterministic provenance validation
   -> writeLevel2ShareCountObservation()
   -> public.share_count_history
+
+Stored final 424B4 primary document
+  -> deterministic complete-document/listing/class/current-O/S verifier
+  -> sec_prospectus_text_authoritative_os
+  -> atomic history + complete-single universe write
 ```
 
 `REQUIRES_FURTHER_CONTEXT` and `UNAVAILABLE` are rejected before repository
@@ -99,9 +106,11 @@ apply event-time rules without look-ahead.
 
 `readShareCountHistory(cik, ...)` returns ordered history rows only. It has no
 latest/current/winner behavior. `source_type` distinguishes
-`sec_authoritative_os` from `sec_filing_text_level2`; the unique source identity
-includes that field, so cross-source observations are preserved rather than
-replaced. See [Level 2 Share Count Observation V1](level2-share-count-observation.md).
+`sec_authoritative_os`, `sec_filing_text_level2`,
+`sec_filing_text_human_verified`, and
+`sec_prospectus_text_authoritative_os`; the unique source identity includes
+that field, so cross-source observations are preserved rather than replaced.
+See [Level 2 Share Count Observation V1](level2-share-count-observation.md).
 
 The public-schema table has RLS enabled. `public`, `anon`, and `authenticated`
 receive no table or sequence privileges. `service_role` receives only

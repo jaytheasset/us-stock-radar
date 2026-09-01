@@ -6,8 +6,10 @@ import {
   type SecAuthoritativeOsFilingFactEvidence,
 } from "./authoritativeOsExtraction.ts";
 import {
+  PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE,
   readShareCountHistory,
   type AuthoritativeShareCountHistoryObservation,
+  type ProspectusTextAuthoritativeShareCountHistoryObservation,
   type ShareCountHistoryObservation,
   type ShareCountHistoryRepository,
   type ShareCountHistorySqlClient,
@@ -21,6 +23,7 @@ import {
 export const ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS = [
   "issuer-common-class-universe-snapshot-v1",
   "issuer-common-class-universe-snapshot-v2",
+  "issuer-common-class-universe-prospectus-text-v1",
 ] as const;
 export type IssuerCommonClassUniverseVersion =
   (typeof ISSUER_COMMON_CLASS_UNIVERSE_VERSIONS)[number];
@@ -156,6 +159,31 @@ export type UsablePeriodicOsBaseline = {
   requiredCanonicalSecurityClassIds: string[];
   historyObservationCount: number;
 };
+
+export type UsableProspectusOsDiscoveryBoundary = {
+  status: "AVAILABLE";
+  boundaryKind: "new_listing_prospectus";
+  cik: string;
+  asOf: string;
+  acceptedAt: string;
+  accession: string;
+  form: "424B4";
+  requiredCanonicalSecurityClassIds: string[];
+  historyObservationCount: number;
+};
+
+export type UsablePeriodicOsDiscoveryBoundary = UsablePeriodicOsBaseline & {
+  boundaryKind: "periodic";
+};
+
+export type OsIncrementalDiscoveryBoundary =
+  | UsablePeriodicOsDiscoveryBoundary
+  | UsableProspectusOsDiscoveryBoundary;
+
+export type OsIncrementalDiscoveryBoundaryReadResult =
+  | OsIncrementalDiscoveryBoundary
+  | PeriodicOsBaselineRequired
+  | PeriodicOsBaselineReadFailed;
 
 export type PeriodicOsBaselineRequired = {
   status: "BASELINE_REQUIRED";
@@ -496,6 +524,82 @@ export async function readLatestUsablePeriodicOsBaseline(input: {
     cik: input.cik,
     reason: "NO_USABLE_PERIODIC_BASELINE",
   };
+}
+
+export async function readLatestUsableOsIncrementalBoundary(input: {
+  repository: IssuerCommonClassUniverseRepository;
+  shareCountHistoryRepository: ShareCountHistoryRepository;
+  cik: string;
+  targetAt: string;
+}): Promise<OsIncrementalDiscoveryBoundaryReadResult> {
+  const periodic = await readLatestUsablePeriodicOsBaseline(input);
+  if (periodic.status !== "BASELINE_REQUIRED") {
+    return periodic.status === "AVAILABLE"
+      ? { ...periodic, boundaryKind: "periodic" }
+      : periodic;
+  }
+
+  validateCik(input.cik);
+  validateTimestamp(input.targetAt, "targetAt");
+  const targetAt = new Date(input.targetAt).toISOString();
+  let snapshots: IssuerCommonClassUniverseSnapshot[];
+  try {
+    snapshots = await input.repository.readSnapshots(input.cik, {
+      universeAsOfTo: targetAt.slice(0, 10),
+      acceptedAtTo: targetAt,
+    });
+  } catch {
+    return { status: "READ_FAILED", cik: input.cik, reason: "UNIVERSE_REPOSITORY_READ_FAILED" };
+  }
+
+  const candidates = snapshots
+    .filter((snapshot) =>
+      snapshot.snapshotVersion === "issuer-common-class-universe-prospectus-text-v1"
+      && snapshot.sourceForm === "424B4"
+      && snapshot.status === "COMPLETE_SINGLE"
+      && snapshot.requiredCanonicalSecurityClassIds.length === 1)
+    .sort(compareSnapshots)
+    .reverse();
+
+  for (const candidate of candidates) {
+    let history: ShareCountHistoryObservation[];
+    try {
+      history = await readShareCountHistory(input.shareCountHistoryRepository, input.cik, {
+        asOfFrom: candidate.universeAsOf,
+        asOfTo: candidate.universeAsOf,
+      });
+    } catch {
+      return { status: "READ_FAILED", cik: input.cik, reason: "SHARE_COUNT_HISTORY_READ_FAILED" };
+    }
+    const authoritative = history.filter(
+      (row): row is ProspectusTextAuthoritativeShareCountHistoryObservation =>
+        row.sourceType === PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE
+        && row.observationType === "source_stated"
+        && row.authoritativeStatus === "ELIGIBLE"
+        && row.canonicalSecurityClassStatus === "mapped"
+        && row.canonicalSecurityClassKind === "common_stock"
+        && row.canonicalSecurityClassId === candidate.requiredCanonicalSecurityClassIds[0]
+        && row.acceptedAtSource === "sec_filing_ledger"
+        && row.acceptedAt === candidate.acceptedAt
+        && row.asOf === candidate.universeAsOf
+        && row.accessionNumber === candidate.sourceAccession
+        && row.form === "424B4",
+    );
+    if (authoritative.length !== 1) continue;
+    return {
+      status: "AVAILABLE",
+      boundaryKind: "new_listing_prospectus",
+      cik: input.cik,
+      asOf: candidate.universeAsOf,
+      acceptedAt: candidate.acceptedAt,
+      accession: candidate.sourceAccession,
+      form: "424B4",
+      requiredCanonicalSecurityClassIds: [...candidate.requiredCanonicalSecurityClassIds],
+      historyObservationCount: 1,
+    };
+  }
+
+  return periodic;
 }
 
 export class InMemoryIssuerCommonClassUniverseRepository
@@ -892,6 +996,29 @@ function validateSnapshot(snapshot: IssuerCommonClassUniverseSnapshot) {
     || snapshot.completenessProvenance.historicalClassUnionUsed !== false) {
     throw new Error("snapshot provenance is malformed");
   }
+  if (snapshot.snapshotVersion === "issuer-common-class-universe-prospectus-text-v1") {
+    const listingBasis = snapshot.completenessProvenance.listingBasis;
+    const classBasisEvidence = snapshot.completenessProvenance.classBasisEvidence;
+    if (snapshot.sourceForm !== "424B4"
+      || snapshot.status !== "COMPLETE_SINGLE"
+      || snapshot.reason !== "COMPLETE_SINGLE_COMMON_STOCK"
+      || snapshot.sourceDocuments.length !== 1
+      || snapshot.classEvidence.length !== 1
+      || snapshot.classEvidence[0]?.sourceFacts.length !== 1
+      || snapshot.aggregateEvidence.length !== 0
+      || snapshot.excludedEvidence.length !== 0
+      || snapshot.completenessProvenance.sourceContract !== "prospectus-text-os-baseline-v1"
+      || snapshot.completenessProvenance.sourceType !== PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE
+      || snapshot.completenessProvenance.evidenceBasis !== "complete_primary_prospectus_text"
+      || snapshot.completenessProvenance.finalForm !== "424B4"
+      || snapshot.completenessProvenance.automaticVerifierStatus !== "AutomaticallyVerified"
+      || !isRecord(listingBasis)
+      || listingBasis.status !== "FINALIZED_US_EXCHANGE_TICKER"
+      || !isRecord(classBasisEvidence)
+      || classBasisEvidence.status !== "COMPLETE_SINGLE") {
+      throw new Error("prospectus-text universe provenance is incomplete");
+    }
+  }
   if (snapshot.createdAt !== null) validateTimestamp(snapshot.createdAt, "createdAt");
 }
 
@@ -919,6 +1046,7 @@ function validStoredSourceFact(
     && UUID_PATTERN.test(fact.artifactId)
     && Array.isArray(fact.dimensions)
     && (snapshotVersion === "issuer-common-class-universe-snapshot-v1"
+      || snapshotVersion === "issuer-common-class-universe-prospectus-text-v1"
       || (fact.concept !== undefined && isSourceBackedCommonStockConcept(fact.concept)));
 }
 

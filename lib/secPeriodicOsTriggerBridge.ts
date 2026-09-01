@@ -5,7 +5,10 @@ import {
   type SecOsCollectionCounts,
   type SecOsCollectionReason,
 } from "./sec-structured-data/osProductionCollector.ts";
-import type { PeriodicOsBaselineReadResult } from "./sec-structured-data/issuerCommonClassUniverse.ts";
+import type {
+  OsIncrementalDiscoveryBoundaryReadResult,
+  PeriodicOsBaselineReadResult,
+} from "./sec-structured-data/issuerCommonClassUniverse.ts";
 import {
   withServerPostgresClient,
   type ServerPostgresClient,
@@ -32,6 +35,7 @@ type CollectorIssuerResult = {
   issuerCik: string;
   status: "COMPLETED" | "PARTIAL" | "FAILED" | "BASELINE_REQUIRED";
   incrementalBaseline?: PeriodicOsBaselineReadResult;
+  incrementalBoundary?: OsIncrementalDiscoveryBoundaryReadResult;
   counts: SecOsCollectionCounts;
   reasonCounts: Partial<Record<SecOsCollectionReason, number>>;
 };

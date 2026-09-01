@@ -13,6 +13,12 @@ import type { IssuerCommonClassUniverseSnapshot } from "./issuerCommonClassUnive
 export const SHARE_COUNT_HISTORY_SOURCE_TYPE = "sec_authoritative_os" as const;
 export const HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE =
   "sec_filing_text_human_verified" as const;
+export const PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE =
+  "sec_prospectus_text_authoritative_os" as const;
+export const PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION =
+  "prospectus-text-os-baseline-v1" as const;
+export const PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_REASON =
+  "ELIGIBLE_FINAL_424B4_CURRENT_OS_SINGLE_COMMON_US_LISTING" as const;
 export const SHARE_COUNT_HISTORY_SHARE_BASIS = "shares_outstanding:xbrli_shares" as const;
 export const SHARE_COUNT_HISTORY_OBSERVATION_TYPE = "authoritative_xbrl" as const;
 export const COMPLETE_MULTI_CLASS_OS_DECISION_VERSION =
@@ -59,16 +65,19 @@ type ShareCountHistoryObservationCommon = {
   sourceType:
     | typeof SHARE_COUNT_HISTORY_SOURCE_TYPE
     | "sec_filing_text_level2"
-    | typeof HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE;
+    | typeof HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE
+    | typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE;
   authoritativeStatus: "ELIGIBLE" | null;
   authoritativeDecisionVersion:
     | "authoritative-os-extraction-v1"
     | typeof COMPLETE_MULTI_CLASS_OS_DECISION_VERSION
+    | typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION
     | null;
   authoritativeDecisionReason:
     | "ELIGIBLE_CLASS_SPECIFIC_DEI_CONTEXT"
     | "ELIGIBLE_SINGLE_COMMON_STOCK_DEI_CONTEXT"
     | typeof COMPLETE_MULTI_CLASS_OS_DECISION_REASON
+    | typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_REASON
     | null;
   authoritativeDecisionLineage: Record<string, unknown> | null;
   sourceDocumentUrl: string;
@@ -144,10 +153,32 @@ export type HumanVerifiedShareCountHistoryObservation = ShareCountHistoryObserva
   acceptedAtSource: "sec_filing_ledger";
 };
 
+export type ProspectusTextAuthoritativeShareCountHistoryObservation = ShareCountHistoryObservationCommon & {
+  observationType: "source_stated";
+  securityClassBasis: "SOURCE_STATED_SECURITY_CLASS";
+  shareBasisIdentity: "shares_outstanding:source_stated";
+  sourceConceptNamespaceUri: null;
+  sourceConceptLocalName: null;
+  filingLedgerRawSourceId: string;
+  sourceType: typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE;
+  authoritativeStatus: "ELIGIBLE";
+  authoritativeDecisionVersion: typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION;
+  authoritativeDecisionReason: typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_REASON;
+  authoritativeDecisionLineage: Record<string, unknown>;
+  sourceEvidence: string;
+  sourceAnalyzer: null;
+  canonicalSecurityClassId: string;
+  canonicalSecurityClassKind: "common_stock";
+  canonicalSecurityClassStatus: "mapped";
+  acceptedAt: string;
+  acceptedAtSource: "sec_filing_ledger";
+};
+
 export type ShareCountHistoryObservation =
   | AuthoritativeShareCountHistoryObservation
   | Level2ShareCountHistoryObservation
-  | HumanVerifiedShareCountHistoryObservation;
+  | HumanVerifiedShareCountHistoryObservation
+  | ProspectusTextAuthoritativeShareCountHistoryObservation;
 
 export type ShareCountHistoryWriteResult = { inserted: number; deduped: number };
 
@@ -871,6 +902,10 @@ function validateObservation(row: ShareCountHistoryObservation) {
     validateHumanVerifiedObservation(row);
     return;
   }
+  if (row.sourceType === PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE) {
+    validateProspectusTextAuthoritativeObservation(row);
+    return;
+  }
   if (row.observationType !== SHARE_COUNT_HISTORY_OBSERVATION_TYPE) {
     throw new Error("authoritative observation type is invalid");
   }
@@ -1061,6 +1096,92 @@ function validateHumanVerifiedObservation(row: HumanVerifiedShareCountHistoryObs
     || classUniverse.canonicalSecurityClassId !== row.canonicalSecurityClassId
     || String(classUniverse.universeAsOf ?? "") > row.asOf) {
     throw new Error("human-verified source provenance is incomplete");
+  }
+}
+
+function validateProspectusTextAuthoritativeObservation(
+  row: ProspectusTextAuthoritativeShareCountHistoryObservation,
+) {
+  if (row.observationType !== "source_stated"
+    || row.securityClassBasis !== "SOURCE_STATED_SECURITY_CLASS"
+    || row.shareBasisIdentity !== "shares_outstanding:source_stated"
+    || row.sourceConceptNamespaceUri !== null
+    || row.sourceConceptLocalName !== null
+    || row.authoritativeStatus !== "ELIGIBLE"
+    || row.authoritativeDecisionVersion !== PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION
+    || row.authoritativeDecisionReason !== PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_REASON
+    || !isRecord(row.authoritativeDecisionLineage)
+    || row.acceptedAtSource !== "sec_filing_ledger"
+    || row.acceptedAt === null
+    || !UUID_PATTERN.test(row.filingLedgerRawSourceId)
+    || row.sourceAnalyzer !== null) {
+    throw new Error("unsupported automatic prospectus share-count source lineage");
+  }
+  const identity = row.securityClassIdentity.identity;
+  if (!isRecord(identity) || identity.title !== "Common Stock"
+    || row.securityClassIdentity.canonicalKey !== `SOURCE_STATED_SECURITY_CLASS|${sha256("Common Stock")}`) {
+    throw new Error("automatic prospectus security-class identity is incomplete");
+  }
+  if (!isRecord(row.securityClassMetadata)
+    || row.securityClassMetadata.sourceRef !== row.sourceContextRef
+    || row.securityClassMetadata.evidence !== row.sourceEvidence
+    || row.securityClassMetadata.sourceDeclaredClassKind !== "common_stock"
+    || row.securityClassMetadata.canonicalSecurityClassId !== row.canonicalSecurityClassId
+    || row.sourceDimensions.length !== 0) {
+    throw new Error("automatic prospectus security-class metadata lineage is incomplete");
+  }
+  if (row.shareBasisMetadata.measurement !== "shares_outstanding"
+    || !isRecord(row.shareBasisMetadata.unit)
+    || row.shareBasisMetadata.unit.kind !== "shares"
+    || row.shareBasisMetadata.unit.representation !== "positive_integer") {
+    throw new Error("automatic prospectus share basis is unresolved");
+  }
+  if (row.sourceFactIdentity.factKey !== row.sourceFactKey
+    || row.sourceFactIdentity.sourceRef !== row.sourceContextRef
+    || row.sourceFactIdentity.accession !== row.accessionNumber
+    || row.sourceFactIdentity.documentName !== row.filingDocument
+    || row.sourceFactIdentity.artifactId !== row.sourceArtifactId
+    || row.sourceFactIdentity.observationType !== "source_stated"
+    || row.sourceContext.sourceRef !== row.sourceContextRef
+    || row.sourceContext.asOf !== row.asOf
+    || row.sourceContext.issuerCik !== row.issuerCik) {
+    throw new Error("automatic prospectus fact/context lineage mismatch");
+  }
+  const artifact = row.sourceProvenance.secArtifact;
+  const verifier = row.sourceProvenance.verifier;
+  const classUniverse = row.sourceProvenance.classUniverse;
+  const listingBasis = row.sourceProvenance.listingBasis;
+  if (!compact(row.sourceEvidence) || row.sourceEvidence.length > 600
+    || row.sourceProvenance.filingLedgerRawSourceId !== row.filingLedgerRawSourceId
+    || !isRecord(artifact)
+    || artifact.artifactId !== row.sourceArtifactId
+    || artifact.documentName !== row.filingDocument
+    || artifact.sourceUrl !== row.sourceDocumentUrl
+    || artifact.contentHash !== row.sourceContentHash
+    || !isRecord(verifier)
+    || verifier.status !== "AutomaticallyVerified"
+    || verifier.version !== PROSPECTUS_TEXT_AUTHORITATIVE_OS_DECISION_VERSION
+    || !isRecord(classUniverse)
+    || classUniverse.snapshotVersion !== "issuer-common-class-universe-prospectus-text-v1"
+    || classUniverse.status !== "COMPLETE_SINGLE"
+    || classUniverse.reason !== "COMPLETE_SINGLE_COMMON_STOCK"
+    || classUniverse.canonicalSecurityClassId !== row.canonicalSecurityClassId
+    || classUniverse.universeAsOf !== row.asOf
+    || !isRecord(listingBasis)
+    || listingBasis.status !== "FINALIZED_US_EXCHANGE_TICKER"
+    || !compact(String(listingBasis.exchange ?? ""))
+    || !compact(String(listingBasis.ticker ?? ""))) {
+    throw new Error("automatic prospectus source provenance is incomplete");
+  }
+  if (row.authoritativeDecisionLineage.status !== "ELIGIBLE"
+    || row.authoritativeDecisionLineage.decisionVersion !== row.authoritativeDecisionVersion
+    || row.authoritativeDecisionLineage.reason !== row.authoritativeDecisionReason
+    || row.authoritativeDecisionLineage.issuerCik !== row.issuerCik
+    || row.authoritativeDecisionLineage.sharesOutstanding !== row.sharesOutstanding
+    || row.authoritativeDecisionLineage.asOf !== row.asOf
+    || row.authoritativeDecisionLineage.accession !== row.accessionNumber
+    || row.authoritativeDecisionLineage.form !== "424B4") {
+    throw new Error("automatic prospectus authoritative lineage is incomplete");
   }
 }
 

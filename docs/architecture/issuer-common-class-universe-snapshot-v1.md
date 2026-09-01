@@ -75,6 +75,12 @@ official reader keeps the highest supported version before testing the latest
 frontier for conflicts. This lets a V2 result supersede a prior V1 gap without
 rewriting append-only history.
 
+The separate `issuer-common-class-universe-prospectus-text-v1` version is not a
+V1/V2 XBRL upgrade. It is admitted only by the complete final-424B4 contract in
+`new-listing-prospectus-os-baseline-v1.md`, can represent only one canonical
+common-stock class, and retains its automatic-verifier/listing/text-artifact
+lineage. Periodic-only readers do not treat it as a periodic baseline.
+
 ## Official event-time reader
 
 `readIssuerCommonClassUniverseAt({ repository, shareCountHistoryRepository,
