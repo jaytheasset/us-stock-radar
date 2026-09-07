@@ -1,7 +1,7 @@
 # Prelaunch access gate
 
-The public-page gate is disabled by default. Production enables it with
-server-only environment variables:
+The site-wide gate fails closed by default on Vercel Production. Keep it
+explicitly enabled with server-only environment variables:
 
 ```text
 PRELAUNCH_MODE=1
@@ -13,17 +13,33 @@ Do not prefix either variable with `NEXT_PUBLIC_`. Changing
 
 ## Request behavior
 
-- Ordinary page requests redirect to `/coming-soon`.
-- `/api/**`, `/.well-known/workflow/**`, `/_next/**`, and static assets bypass
-  the page gate. Their existing authentication rules still apply.
+- Ordinary page requests redirect to `/coming-soon` and protected API requests
+  return a `401 PRELAUNCH_ACCESS_REQUIRED` response before product data is
+  generated.
+- Only the gate routes, `robots.txt`, the favicon, immutable Next.js build
+  assets, and authenticated operational endpoints needed by Cron, Workflow,
+  email unsubscribe, and signed webhooks bypass the product gate. Operational
+  endpoints keep their own secret or signature checks.
+- Same-deployment calls made by Cron and Workflow use a separate, 30-second,
+  one-time capability signed with `CRON_SECRET`. It is bound to one exact HTTP
+  method and URL, accepted only for the internal market-cache targets, consumed
+  atomically before the request continues, and stripped before the route runs.
+  It is never accepted as a visitor cookie or as access to ordinary pages,
+  product APIs, Auth, or Admin.
 - A correct developer password sets a 30-day, HttpOnly, SameSite=Lax access
-  cookie. The cookie contains an HMAC proof, not the password.
+  cookie. HTTPS responses also mark it Secure. The cookie contains a
+  server-validated expiry and HMAC proof, not the password.
+- Expired or modified proofs fail closed. A password rotation invalidates all
+  outstanding proofs.
 - `POST /api/prelaunch/logout` clears the access cookie.
 - Redirect targets are restricted to internal paths.
 - Prelaunch pages and authenticated preview responses send no-index signals.
   `robots.txt` disallows all crawling while the mode is enabled.
 
-Set `PRELAUNCH_MODE=0` or remove it to restore normal public-page behavior.
+Set `PRELAUNCH_MODE=0` to launch the public site. Removing the variable does
+not open Vercel Production; it keeps the gate enabled and fails closed when
+the password is unavailable. Development and preview environments remain off
+unless `PRELAUNCH_MODE=1` is explicitly configured.
 
 ## Scheduled ingestion during UI development
 

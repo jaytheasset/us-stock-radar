@@ -4,6 +4,7 @@ import {
   getDashboardMoverLifecycle,
   isDashboardMoverFinalizationEligible,
 } from "@/lib/dashboardV2MoverLifecycle";
+import { prelaunchInternalRequestHeaders } from "@/lib/prelaunchInternalAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,10 @@ async function runDashboardMoverFinalizer(request: NextRequest) {
       try {
         const response = await fetch(url, {
           cache: "no-store",
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+            ...prelaunchInternalRequestHeaders(url),
+          },
         });
         const body = await response.json().catch(() => null);
         return {

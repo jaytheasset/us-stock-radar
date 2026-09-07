@@ -13,6 +13,7 @@ import {
   type MarketCacheRefreshPlan,
 } from "@/lib/marketCacheSchedule";
 import { refreshMarketPulseCache } from "@/lib/marketPulseRefresh";
+import { prelaunchInternalRequestHeaders } from "@/lib/prelaunchInternalAccess";
 
 export type MarketCacheRefreshWorkflowInput = IngestWorkflowLock & {
   origin: string;
@@ -203,6 +204,7 @@ async function refreshSectorPerformanceStep(
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${cronSecret}`,
+        ...prelaunchInternalRequestHeaders(url),
       },
     });
     const body = await readJsonRecord(response);
@@ -280,6 +282,7 @@ async function refreshThemePerformanceStep(
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${cronSecret}`,
+        ...prelaunchInternalRequestHeaders(url),
       },
     });
     const body = await readJsonRecord(response);

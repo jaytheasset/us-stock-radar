@@ -4,6 +4,7 @@ import {
   PRELAUNCH_ACCESS_COOKIE,
   isPrelaunchMode,
   sanitizeInternalRedirect,
+  shouldUseSecurePrelaunchCookie,
 } from "../../../../lib/prelaunch.ts";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     maxAge: 0,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecurePrelaunchCookie(request),
   });
   response.headers.set(
     "Cache-Control",

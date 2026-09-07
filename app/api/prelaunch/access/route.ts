@@ -6,6 +6,7 @@ import {
   createPrelaunchAccessProof,
   isPrelaunchMode,
   sanitizeInternalRedirect,
+  shouldUseSecurePrelaunchCookie,
   verifyPrelaunchPassword,
 } from "../../../../lib/prelaunch.ts";
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     maxAge: PRELAUNCH_ACCESS_MAX_AGE_SECONDS,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecurePrelaunchCookie(request),
   });
   return response;
 }
