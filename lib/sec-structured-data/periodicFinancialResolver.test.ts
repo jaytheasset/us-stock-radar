@@ -119,8 +119,8 @@ test("official 20-F accepts the actual US-GAAP basis without assuming IFRS or AD
   }
 });
 
-test("official IFRS 40-F resolves supported metrics, preserves exact duplicate sources, and leaves operating income unavailable", () => {
-  const audited = sample("Toronto-Dominion Bank 2025 40-F IFRS");
+test("synthetic IFRS 40-F contract preserves exact duplicate sources and leaves operating income unavailable", () => {
+  const audited = sample("Synthetic IFRS 40-F contract");
   const result = resolveSample(audited);
   assert.deepEqual(resolved(result.decisions).map((row) => row.metric).sort(), [
     "CASH", "NET_INCOME_LOSS", "OPERATING_CASH_FLOW", "REVENUE",
@@ -133,7 +133,9 @@ test("official IFRS 40-F resolves supported metrics, preserves exact duplicate s
   assert.equal(cash.current.taxonomy, "ifrs-full");
   assert.equal(cash.current.filingFacts.length, 2);
   assert.equal(cash.priorYear?.filingFacts.length, 2);
-  assert.deepEqual(cash.current.filingFacts.map((fact) => fact.source.documentName).sort(), ["ex992.htm", "ex993.htm"]);
+  assert.deepEqual(cash.current.filingFacts.map((fact) => fact.source.documentName).sort(), [
+    "synthetic-40f-duplicate.htm", "synthetic-40f.htm",
+  ]);
   const ocf = onlyResolved(result.decisions, "OPERATING_CASH_FLOW");
   assert.equal(ocf.current.normalizedValue, "-69646000000");
   assert.equal(ocf.current.filingLexicalValues[0], "69,646");
@@ -297,7 +299,7 @@ test("amendment and duplicate filing currentness never silently overwrites an ac
 });
 
 test("issuer-extension names do not auto-map and invalid reviewed rules fail explicitly", () => {
-  const prepared = prepare(sample("Toronto-Dominion Bank 2025 40-F IFRS"));
+  const prepared = prepare(sample("Synthetic IFRS 40-F contract"));
   const extension = makeExtensionFact(prepared, "IssuerOperatingProfit", "123000000", "123");
   prepared.filingXbrl.facts.push(extension.fact);
   prepared.companyFacts.push(extension.companyFact);
@@ -312,12 +314,12 @@ test("issuer-extension names do not auto-map and invalid reviewed rules fail exp
     filingXbrl: prepared.filingXbrl,
     reviewedMappings: [{
       mappingVersion: "periodic-financial-reviewed-concept-v1",
-      reviewId: "td-operating-profit-review",
+      reviewId: "synthetic-operating-profit-review",
       reviewedAt: "2026-09-01T00:00:00.000Z",
-      issuerCik: "0000000001",
+      issuerCik: "0000000002",
       metric: "OPERATING_INCOME_LOSS",
       namespaceUri: "http://example.com/issuer/2025",
-      taxonomy: "td",
+      taxonomy: "synthetic",
       concept: "IssuerOperatingProfit",
       equivalentTo: "ifrs-full:ProfitLossFromOperatingActivities",
     }],
@@ -514,14 +516,14 @@ function makeExtensionFact(prepared: ReturnType<typeof prepare>, concept: string
     fact: {
       ...templateFact,
       factKey: `${templateFact.factKey}:extension`,
-      concept: { qname: `td:${concept}`, prefix: "td", localName: concept, namespaceUri: "http://example.com/issuer/2025" },
+      concept: { qname: `synthetic:${concept}`, prefix: "synthetic", localName: concept, namespaceUri: "http://example.com/issuer/2025" },
       valueText: lexical,
     },
     companyFact: {
       ...templateCompany,
       sourceFactKey: `${templateCompany.sourceFactKey}:extension`,
-      sourceFactPath: `facts.td.${concept}.units.CAD[0]`,
-      taxonomy: "td",
+      sourceFactPath: `facts.synthetic.${concept}.units.CAD[0]`,
+      taxonomy: "synthetic",
       concept,
       valueNumeric: numeric,
     },

@@ -94,8 +94,8 @@ test("official Wix 20-F uses resolver-proven US-GAAP and sign-aware income worse
   });
 });
 
-test("official TD 40-F keeps unsupported operating income unavailable and does not mask an OCF sign change", () => {
-  const analysis = analyze("Toronto-Dominion Bank 2025 40-F IFRS");
+test("synthetic IFRS 40-F monitor contract keeps unsupported operating income unavailable and preserves an OCF sign change", () => {
+  const analysis = analyze("Synthetic IFRS 40-F contract");
   assert.equal(analysis.resultStatus, "PARTIAL");
   assert.deepEqual(analysis.comparisons.map((row) => row.metric).sort(), [
     "CASH", "NET_INCOME_LOSS", "OPERATING_CASH_FLOW", "REVENUE",
@@ -112,7 +112,7 @@ test("official TD 40-F keeps unsupported operating income unavailable and does n
   const cash = onlyComparison(analysis, "CASH");
   assert.deepEqual(
     cash.current.filingFacts.map((fact) => fact.source.documentName).sort(),
-    ["ex992.htm", "ex993.htm"],
+    ["synthetic-40f-duplicate.htm", "synthetic-40f.htm"],
   );
 });
 
