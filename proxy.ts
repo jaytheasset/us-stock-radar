@@ -9,6 +9,10 @@ import {
   verifyPrelaunchAccessProof,
 } from "./lib/prelaunch.ts";
 import {
+  PRELAUNCH_INTERNAL_PROOF_HEADER,
+  authorizePrelaunchInternalRequest,
+} from "./lib/prelaunchInternalAccess.ts";
+import {
   AUTH_ACCESS_COOKIE,
   AUTH_REFRESH_COOKIE,
   clearAuthSessionCookies,
@@ -23,17 +27,42 @@ import {
   refreshProxyAuthSession,
 } from "./lib/auth/proxySession.ts";
 
+type PrelaunchProxyDependencies = {
+  authorizeInternalRequest?: (request: Request) => Promise<boolean>;
+};
+
 export async function proxy(request: NextRequest) {
+  return proxyWithDependencies(request);
+}
+
+export async function proxyWithDependencies(
+  request: NextRequest,
+  dependencies: PrelaunchProxyDependencies = {},
+) {
   const pathname = request.nextUrl.pathname;
+  const hasInternalProof = request.headers.has(
+    PRELAUNCH_INTERNAL_PROOF_HEADER,
+  );
 
   if (isComingSoonPath(pathname)) {
-    return privatePrelaunchResponse(NextResponse.next());
+    return privatePrelaunchResponse(
+      nextResponse(request, { stripInternalProof: hasInternalProof }),
+    );
   }
 
   if (isPrelaunchMode() && !isPrelaunchBypassPath(pathname)) {
+    const internalAuthorized = hasInternalProof
+      ? await (
+          dependencies.authorizeInternalRequest ??
+          authorizePrelaunchInternalRequest
+        )(request)
+      : false;
     const configuredPassword = process.env.PRELAUNCH_PASSWORD || "";
     const accessProof = request.cookies.get(PRELAUNCH_ACCESS_COOKIE)?.value;
-    if (!verifyPrelaunchAccessProof(accessProof, configuredPassword)) {
+    if (
+      !internalAuthorized &&
+      !verifyPrelaunchAccessProof(accessProof, configuredPassword)
+    ) {
       if (isPrelaunchApiPath(pathname)) {
         return prelaunchApiAccessRequired();
       }
@@ -50,7 +79,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return refreshAuthSessionForRequest(request);
+  return refreshAuthSessionForRequest(request, hasInternalProof);
 }
 
 export const config = {
@@ -82,10 +111,13 @@ function prelaunchApiAccessRequired() {
   );
 }
 
-async function refreshAuthSessionForRequest(request: NextRequest) {
+async function refreshAuthSessionForRequest(
+  request: NextRequest,
+  stripInternalProof = false,
+) {
   const pathname = request.nextUrl.pathname;
   if (shouldSkipAuthRefresh(pathname)) {
-    return NextResponse.next();
+    return nextResponse(request, { stripInternalProof });
   }
 
   const accessToken = request.cookies.get(AUTH_ACCESS_COOKIE)?.value || "";
@@ -96,7 +128,10 @@ async function refreshAuthSessionForRequest(request: NextRequest) {
     !hasAuthCookies ||
     !shouldRefreshAuthSession(accessToken)
   ) {
-    return withPrivateAuthHeaders(NextResponse.next(), hasAuthCookies);
+    return withPrivateAuthHeaders(
+      nextResponse(request, { stripInternalProof }),
+      hasAuthCookies,
+    );
   }
 
   try {
@@ -104,10 +139,9 @@ async function refreshAuthSessionForRequest(request: NextRequest) {
     request.cookies.set(AUTH_ACCESS_COOKIE, session.access_token || "");
     request.cookies.set(AUTH_REFRESH_COOKIE, session.refresh_token || "");
 
-    const response = NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
+    const response = nextResponse(request, {
+      forwardHeaders: true,
+      stripInternalProof,
     });
     setAuthSessionCookies(response, {
       accessToken: session.access_token || "",
@@ -116,7 +150,7 @@ async function refreshAuthSessionForRequest(request: NextRequest) {
     });
     return withPrivateAuthHeaders(response, true);
   } catch (error) {
-    const response = NextResponse.next();
+    const response = nextResponse(request, { stripInternalProof });
     if (
       error instanceof ProxyAuthRefreshError &&
       error.clearSession
@@ -144,4 +178,18 @@ function withPrivateAuthHeaders(response: NextResponse, authenticated: boolean) 
     }
   }
   return isPrelaunchMode() ? privatePrelaunchResponse(response) : response;
+}
+
+function nextResponse(
+  request: NextRequest,
+  options: { forwardHeaders?: boolean; stripInternalProof?: boolean },
+) {
+  if (!options.forwardHeaders && !options.stripInternalProof) {
+    return NextResponse.next();
+  }
+  const headers = new Headers(request.headers);
+  if (options.stripInternalProof) {
+    headers.delete(PRELAUNCH_INTERNAL_PROOF_HEADER);
+  }
+  return NextResponse.next({ request: { headers } });
 }

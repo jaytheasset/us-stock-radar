@@ -20,8 +20,12 @@ Do not prefix either variable with `NEXT_PUBLIC_`. Changing
   assets, and authenticated operational endpoints needed by Cron, Workflow,
   email unsubscribe, and signed webhooks bypass the product gate. Operational
   endpoints keep their own secret or signature checks.
-- Same-deployment calls made by Cron and Workflow attach a short-lived signed
-  gate proof, so their dependent product APIs remain private to outside clients.
+- Same-deployment calls made by Cron and Workflow use a separate, 30-second,
+  one-time capability signed with `CRON_SECRET`. It is bound to one exact HTTP
+  method and URL, accepted only for the internal market-cache targets, consumed
+  atomically before the request continues, and stripped before the route runs.
+  It is never accepted as a visitor cookie or as access to ordinary pages,
+  product APIs, Auth, or Admin.
 - A correct developer password sets a 30-day, HttpOnly, SameSite=Lax access
   cookie. HTTPS responses also mark it Secure. The cookie contains a
   server-validated expiry and HMAC proof, not the password.

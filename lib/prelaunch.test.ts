@@ -9,7 +9,7 @@ import { NextRequest } from "next/server.js";
 import { POST as access } from "../app/api/prelaunch/access/route.ts";
 import { POST as logout } from "../app/api/prelaunch/logout/route.ts";
 import { GET as comingSoon } from "../app/coming-soon/route.ts";
-import { config, proxy } from "../proxy.ts";
+import { config, proxy, proxyWithDependencies } from "../proxy.ts";
 import {
   AUTH_ACCESS_COOKIE,
   AUTH_REFRESH_COOKIE,
@@ -22,21 +22,29 @@ import {
   isPrelaunchApiPath,
   isPrelaunchBypassPath,
   isPrelaunchMode,
-  prelaunchInternalRequestHeaders,
   prelaunchRobotsMetadata,
   sanitizeInternalRedirect,
   verifyPrelaunchAccessProof,
   verifyPrelaunchPassword,
 } from "./prelaunch.ts";
+import {
+  PRELAUNCH_INTERNAL_PROOF_HEADER,
+  PRELAUNCH_INTERNAL_PROOF_MAX_AGE_SECONDS,
+  authorizePrelaunchInternalRequest,
+  createPrelaunchInternalProof,
+  prelaunchInternalRequestHeaders,
+} from "./prelaunchInternalAccess.ts";
 
 const originalMode = process.env.PRELAUNCH_MODE;
 const originalPassword = process.env.PRELAUNCH_PASSWORD;
 const originalVercelEnvironment = process.env.VERCEL_ENV;
+const originalCronSecret = process.env.CRON_SECRET;
 
 test.afterEach(() => {
   restoreEnv("PRELAUNCH_MODE", originalMode);
   restoreEnv("PRELAUNCH_PASSWORD", originalPassword);
   restoreEnv("VERCEL_ENV", originalVercelEnvironment);
+  restoreEnv("CRON_SECRET", originalCronSecret);
 });
 
 test("prelaunch mode fails closed on Vercel production and uses explicit overrides", () => {
@@ -110,6 +118,7 @@ test("bypass path contract is limited to gate, infrastructure, and immutable ass
     "/api/prelaunch/logout",
     "/api/cron/market-cache",
     "/api/cron/source-ingest/sec",
+    "/api/sources/sec/ingest",
     "/api/webhooks",
     "/api/webhooks/snaptrade",
     "/api/telegram/webhook",
@@ -131,6 +140,8 @@ test("bypass path contract is limited to gate, infrastructure, and immutable ass
     "/api/tickers/search.json",
     "/api/cron/unconfigured",
     "/api/cron/source-ingest/sec/extra",
+    "/api/sources/sec/raw-preview",
+    "/api/sources/sec/ingest/extra",
     "/auth/callback",
     "/news",
     "/images/radar.svg",
@@ -197,22 +208,210 @@ test("proxy is off by default and redirects ordinary pages when enabled", async 
   assert.match(response.headers.get("cache-control") || "", /no-store/);
 });
 
-test("internal same-origin requests receive access only while the gate is configured", () => {
-  assert.deepEqual(prelaunchInternalRequestHeaders({}), {});
+test("internal request credentials are separate, short-lived, and target-bound", () => {
+  const target = "https://radar.example/api/market/chart?symbol=AAPL&range=1D";
+  assert.deepEqual(prelaunchInternalRequestHeaders(target, "GET", {}), {});
   assert.deepEqual(
-    prelaunchInternalRequestHeaders({ PRELAUNCH_MODE: "1" }),
+    prelaunchInternalRequestHeaders(target, "GET", {
+      PRELAUNCH_MODE: "1",
+    }),
     {},
   );
 
-  const headers = prelaunchInternalRequestHeaders({
+  const headers = prelaunchInternalRequestHeaders(target, "GET", {
+    CRON_SECRET: "cron-secret",
     PRELAUNCH_MODE: "1",
-    PRELAUNCH_PASSWORD: "preview-secret",
+    PRELAUNCH_PASSWORD: "visitor-secret-must-not-be-used",
   });
   assert.match(
-    headers.Cookie || "",
-    new RegExp(`^${PRELAUNCH_ACCESS_COOKIE}=v2\\.`),
+    headers[PRELAUNCH_INTERNAL_PROOF_HEADER] || "",
+    /^v1\.\d{10}\.\d{10}\.[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{43}$/,
   );
-  assert.equal((headers.Cookie || "").includes("preview-secret"), false);
+  assert.equal("Cookie" in headers, false);
+  assert.equal(
+    (headers[PRELAUNCH_INTERNAL_PROOF_HEADER] || "").includes("cron-secret"),
+    false,
+  );
+  assert.throws(
+    () =>
+      createPrelaunchInternalProof({
+        requestUrl: "https://radar.example/api/tickers/search?q=AAPL",
+        secret: "cron-secret",
+      }),
+    /not an allowed prelaunch internal target/,
+  );
+});
+
+test("internal capability cannot become visitor, product, Auth, or Admin access", async () => {
+  process.env.PRELAUNCH_MODE = "1";
+  process.env.PRELAUNCH_PASSWORD = "visitor-secret";
+  process.env.CRON_SECRET = "cron-secret";
+  const now = Date.UTC(2026, 8, 7, 12, 0, 0);
+  const target = "https://radar.example/api/market/chart?symbol=AAPL&range=1D";
+  const proof = createPrelaunchInternalProof({
+    nonce: "abcdefghijklmnopqrstuvwx",
+    now,
+    requestUrl: target,
+    secret: "cron-secret",
+  });
+  const authorize = buildInternalAuthorizer(now);
+
+  for (const path of ["/news", "/admin", "/auth/callback"]) {
+    const response = await proxyWithDependencies(
+      internalRequest(`https://radar.example${path}`, proof),
+      { authorizeInternalRequest: authorize },
+    );
+    assert.match(getRedirectUrl(response) || "", /\/coming-soon/, path);
+  }
+
+  for (const path of [
+    "/api/tickers/search?q=AAPL",
+    "/api/admin/system/health",
+    "/api/auth/me",
+  ]) {
+    const response = await proxyWithDependencies(
+      internalRequest(`https://radar.example${path}`, proof),
+      { authorizeInternalRequest: authorize },
+    );
+    assert.equal(response.status, 401, path);
+    assert.match(await response.text(), /PRELAUNCH_ACCESS_REQUIRED/, path);
+  }
+
+  const cookieOnly = await proxyWithDependencies(
+    new NextRequest("https://radar.example/news", {
+      headers: { cookie: `${PRELAUNCH_ACCESS_COOKIE}=${proof}` },
+    }),
+    { authorizeInternalRequest: authorize },
+  );
+  assert.match(getRedirectUrl(cookieOnly) || "", /\/coming-soon/);
+});
+
+test("internal capability is exact-scope, one-time, and tamper/expiry safe", async () => {
+  process.env.PRELAUNCH_MODE = "1";
+  process.env.PRELAUNCH_PASSWORD = "visitor-secret";
+  process.env.CRON_SECRET = "cron-secret";
+  const now = Date.UTC(2026, 8, 7, 12, 0, 0);
+  const target = "https://radar.example/api/market/chart?symbol=AAPL&range=1D";
+  const proof = createPrelaunchInternalProof({
+    nonce: "abcdefghijklmnopqrstuvwx",
+    now,
+    requestUrl: target,
+    secret: "cron-secret",
+  });
+  const consumed = new Set<string>();
+  const authorize = buildInternalAuthorizer(now, consumed);
+
+  const accepted = await proxyWithDependencies(internalRequest(target, proof), {
+    authorizeInternalRequest: authorize,
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(getRedirectUrl(accepted), null);
+  assert.equal(
+    accepted.headers
+      .get("x-middleware-override-headers")
+      ?.includes(PRELAUNCH_INTERNAL_PROOF_HEADER) ?? false,
+    false,
+  );
+  assert.equal(
+    accepted.headers.get(
+      `x-middleware-request-${PRELAUNCH_INTERNAL_PROOF_HEADER}`,
+    ),
+    null,
+  );
+
+  const replayed = await proxyWithDependencies(internalRequest(target, proof), {
+    authorizeInternalRequest: authorize,
+  });
+  assert.equal(replayed.status, 401);
+
+  const changedQuery = await proxyWithDependencies(
+    internalRequest(
+      "https://radar.example/api/market/chart?symbol=TSLA&range=1D",
+      proof,
+    ),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(changedQuery.status, 401);
+
+  const changedOrigin = await proxyWithDependencies(
+    internalRequest(
+      "https://preview.example/api/market/chart?symbol=AAPL&range=1D",
+      proof,
+    ),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(changedOrigin.status, 401);
+
+  const changedMethod = await proxyWithDependencies(
+    new NextRequest(target, {
+      headers: { [PRELAUNCH_INTERNAL_PROOF_HEADER]: proof },
+      method: "POST",
+    }),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(changedMethod.status, 401);
+
+  const tampered = `${proof.slice(0, -1)}${proof.endsWith("A") ? "B" : "A"}`;
+  const tamperedResponse = await proxyWithDependencies(
+    internalRequest(target, tampered),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(tamperedResponse.status, 401);
+
+  const expiredProof = createPrelaunchInternalProof({
+    nonce: "zyxwvutsrqponmlkjihgfedc",
+    now: now - PRELAUNCH_INTERNAL_PROOF_MAX_AGE_SECONDS * 1000,
+    requestUrl: target,
+    secret: "cron-secret",
+  });
+  const expiredResponse = await proxyWithDependencies(
+    internalRequest(target, expiredProof),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(expiredResponse.status, 401);
+
+  const visitorProof = createPrelaunchAccessProof("visitor-secret", now);
+  const roleConfusion = await proxyWithDependencies(
+    internalRequest(target, visitorProof),
+    { authorizeInternalRequest: buildInternalAuthorizer(now) },
+  );
+  assert.equal(roleConfusion.status, 401);
+});
+
+test("Cron, Workflow, source ingest, and signed webhook paths keep gate bypass", async () => {
+  process.env.PRELAUNCH_MODE = "1";
+  process.env.PRELAUNCH_PASSWORD = "visitor-secret";
+
+  for (const path of [
+    "/api/cron/market-cache",
+    "/api/cron/dashboard-movers",
+    "/api/cron/source-ingest/sec",
+    "/api/sources/sec/ingest",
+    "/api/webhooks",
+    "/api/webhooks/snaptrade",
+    "/api/telegram/webhook",
+    "/.well-known/workflow/v1/run",
+  ]) {
+    const response = await proxy(
+      new NextRequest(`https://radar.example${path}`),
+    );
+    assert.equal(response.status, 200, path);
+    assert.equal(getRedirectUrl(response), null, path);
+  }
+});
+
+test("nonce consumer migration is atomic, bounded, and service-role only", () => {
+  const migration = readProjectFile(
+    "supabase/migrations/20260907080000_prelaunch_internal_access_nonce.sql",
+  );
+  assert.match(migration, /consume_prelaunch_internal_nonce/);
+  assert.match(migration, /on conflict \(lock_key\) do nothing/i);
+  assert.match(migration, /locked_until <= now\(\)/i);
+  assert.match(migration, /interval '60 seconds'/i);
+  assert.match(migration, /security definer/i);
+  assert.match(migration, /revoke all .* from anon/i);
+  assert.match(migration, /revoke all .* from authenticated/i);
+  assert.match(migration, /grant execute .* to service_role/i);
 });
 
 test("Vercel production fails closed when gate configuration is missing", async () => {
@@ -491,6 +690,28 @@ test("wiring keeps source schedules disabled and prelaunch routes server-only", 
   const robots = readProjectFile("app/robots.ts");
   assert.match(robots, /buildRobots\(isPrelaunchMode\(\)\)/);
 });
+
+function buildInternalAuthorizer(
+  now: number,
+  consumed = new Set<string>(),
+) {
+  return (request: Request) =>
+    authorizePrelaunchInternalRequest(request, {
+      now,
+      secret: "cron-secret",
+      consumeNonce: async ({ nonceDigest }) => {
+        if (consumed.has(nonceDigest)) return false;
+        consumed.add(nonceDigest);
+        return true;
+      },
+    });
+}
+
+function internalRequest(url: string, proof: string) {
+  return new NextRequest(url, {
+    headers: { [PRELAUNCH_INTERNAL_PROOF_HEADER]: proof },
+  });
+}
 
 async function accessRequest(password: string, next: string) {
   const form = new FormData();

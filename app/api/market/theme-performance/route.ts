@@ -10,7 +10,7 @@ import { authorizeMarketCacheRefresh } from "@/lib/marketCacheCronAuth";
 import type { PricePoint, PriceRange } from "@/lib/marketTypes";
 import { fetchFmpQuotes } from "@/lib/integrations";
 import { resolveSnapshotCache } from "@/lib/marketGroupCachePolicy";
-import { prelaunchInternalRequestHeaders } from "@/lib/prelaunch";
+import { prelaunchInternalRequestHeaders } from "@/lib/prelaunchInternalAccess";
 import { themeGroups, themeSubThemes } from "@/lib/taxonomyRegistry";
 
 export const dynamic = "force-dynamic";
@@ -275,7 +275,7 @@ async function loadSymbolSnapshot(symbol: string, range: ThemeRange, origin: str
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: prelaunchInternalRequestHeaders(),
+      headers: prelaunchInternalRequestHeaders(url),
     });
     const data = (await response.json().catch(() => null)) as ChartApiResponse | null;
     if (!response.ok || !data?.ok || !Array.isArray(data.points)) return null;

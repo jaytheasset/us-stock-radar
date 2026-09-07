@@ -83,6 +83,7 @@ export function isPrelaunchBypassPath(pathname: string) {
     prelaunchPublicPaths.has(pathname) ||
     prelaunchOperationalPaths.has(pathname) ||
     /^\/api\/cron\/source-ingest\/[^/]+$/.test(pathname) ||
+    /^\/api\/sources\/[^/]+\/ingest$/.test(pathname) ||
     matchesPathPrefix(pathname, "/.well-known/workflow") ||
     matchesPathPrefix(pathname, "/_next/static") ||
     matchesPathPrefix(pathname, "/_next/media")
@@ -102,15 +103,6 @@ export function shouldUseSecurePrelaunchCookie(request: Request) {
     process.env.NODE_ENV === "production" ||
     new URL(request.url).protocol === "https:"
   );
-}
-
-export function prelaunchInternalRequestHeaders(
-  env: Record<string, string | undefined> = process.env,
-): Record<string, string> {
-  if (!isPrelaunchMode(env) || !env.PRELAUNCH_PASSWORD) return {};
-  return {
-    Cookie: `${PRELAUNCH_ACCESS_COOKIE}=${createPrelaunchAccessProof(env.PRELAUNCH_PASSWORD)}`,
-  };
 }
 
 export function sanitizeInternalRedirect(
