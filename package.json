@@ -47,6 +47,8 @@
     "verify:sec-periodic-os-trigger-bridge:local": "node --experimental-strip-types scripts/verify-sec-periodic-os-trigger-bridge-local.ts",
     "verify:live-multi-class-os-production-path:local": "node --experimental-strip-types scripts/verify-live-multi-class-os-production-path-local.ts",
     "verify:filing-xbrl-context": "node --test --experimental-strip-types lib/sec-structured-data/filingXbrlContext.test.ts",
+    "verify:periodic-financial-history": "node --test --experimental-strip-types lib/sec-structured-data/periodicFinancialHistory.test.ts lib/sec-structured-data/periodicFinancialResolver.test.ts",
+    "verify:periodic-financial-history:td-official": "node --experimental-strip-types scripts/verify-td-40f-periodic-financial-history-official.ts",
     "verify:filing-xbrl-db-roundtrip": "node --experimental-strip-types scripts/verify-sec-filing-xbrl-roundtrip-local.ts",
     "verify:sec-structured-data:local": "node --experimental-strip-types scripts/verify-sec-structured-data-local.ts",
     "verify:adsense": "node --no-warnings --experimental-strip-types scripts/verify-adsense.mjs",

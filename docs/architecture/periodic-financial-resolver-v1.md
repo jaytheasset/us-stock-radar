@@ -14,6 +14,12 @@ FMP, run SEC ingest, write a database row, call an LLM, calculate a missing
 value, or add a schema. The implementation is
 `lib/sec-structured-data/periodicFinancialResolver.ts`.
 
+Cross-accession quarterly and annual history is a separate pure composition
+layer documented in
+[`periodic-financial-history-v1.md`](periodic-financial-history-v1.md). It calls
+this resolver for every explicit target accession and does not weaken this
+resolver's evidence or currentness gates.
+
 ## Generic Monitor integration
 
 After the existing periodic Primary analysis is persisted, published, and its
@@ -233,9 +239,12 @@ filing-statement/equivalence evidence contract, not a fallback calculation.
 
 ## Official acceptance audit
 
-The minimal committed fixture is
+The committed fixture is
 `lib/sec-structured-data/fixtures/periodic-financial-four-form-audit.json`.
-Full SEC bodies are not committed.
+It contains minimal official Apple and Wix observations plus an explicitly
+synthetic IFRS `40-F` contract sample. Full SEC bodies are not committed, and
+the synthetic sample is not evidence for Toronto-Dominion Bank or any other
+real issuer.
 
 ### Apple 2026 Q3 10-Q
 
@@ -278,6 +287,14 @@ Operating income remains unavailable because the supported standard concept is
 absent. Cash occurs identically in two IXDS documents; both document URLs and
 hashes are retained. No duplicate is overwritten.
 
+This case is not reconstructed from tuples in the committed fixture. Run
+`npm run verify:periodic-financial-history:td-official` to fetch the official
+SEC Submissions and CompanyFacts JSON plus the filing inventory and exact IXDS
+bodies. The production parser consumes the complete official IXDS
+(`40f20251031.htm`, `ex992.htm`, and `ex993.htm`) before the resolver and
+history layer run. `ex993.htm` alone is not a valid parser fixture because its
+facts depend on contexts and units supplied by the IXDS set.
+
 ### Coverage negatives
 
 The read-only audit also confirmed:
@@ -315,7 +332,8 @@ EPS and Equity require the identity split before implementation.
 
 Focused tests cover:
 
-- official 10-Q, 10-K, 20-F, and 40-F cases;
+- official 10-Q, 10-K, and 20-F fixture cases;
+- the live official TD 40-F parser-to-resolver-to-history case;
 - quarter/YTD/annual/instant isolation;
 - current/prior like-for-like matching;
 - dimensional rejection;
