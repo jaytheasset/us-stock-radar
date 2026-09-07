@@ -116,17 +116,20 @@ test("new Primary produces a new child and a new durable workflow start", async 
   assert.equal(harnessA.calls().start + harnessB.calls().start, 2);
 });
 
-test("SEC production integration guard allows exact 8-K/6-K only", () => {
+test("SEC production integration guard separates routed 8-K/6-K from deterministic periodic forms", () => {
   for (const form of ["8-K", "6-K", " 8-k "]) {
     assert.equal(secPrimary(form)?.sourceFamily, "sec_8k_6k");
   }
-  for (const form of ["8-K/A", "6-K/A", "25", "25-NSE", "10-K", "20-F", "S-3", ""] ) {
+  for (const form of ["8-K/A", "6-K/A", "25", "25-NSE", "S-3", ""] ) {
     assert.equal(secPrimary(form), null, `${form || "empty"} must stay outside production fan-out scope`);
+  }
+  for (const form of ["10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"]) {
+    assert.equal(periodicPrimary(form)?.sourceFamily, "sec_periodic_reports", form);
   }
 });
 
-test("amendments, Form 25, and other SEC forms stay reservation/workflow/provider zero even with listing route", async () => {
-  for (const form of ["8-K/A", "6-K/A", "25", "10-K"]) {
+test("non-periodic amendments, Form 25, and other SEC forms stay reservation/workflow/provider zero even with listing route", async () => {
+  for (const form of ["8-K/A", "6-K/A", "25", "S-3"]) {
     const harness = starterHarness();
     const result = await enqueueGenericMonitorChildrenAfterPrimary({
       primary: secPrimary(form),
@@ -136,6 +139,18 @@ test("amendments, Form 25, and other SEC forms stay reservation/workflow/provide
     assert.deepEqual(result, { status: "out_of_scope", childCount: 0 });
     assert.deepEqual(harness.calls(), { reserve: 0, claimStart: 0, start: 0, provider: 0 });
   }
+});
+
+test("periodic SEC Primary always starts one deterministic financial child without reading GPT routes", async () => {
+  const harness = starterHarness();
+  const result = await enqueueGenericMonitorChildrenAfterPrimary({
+    primary: periodicPrimary("10-K"),
+    primaryAnalysis: { narrative: "qualitative Primary remains unchanged", monitor_routes: [] },
+    dependencies: harness.dependencies,
+  });
+  assert.equal(result.status, "enqueued");
+  assert.equal(result.childCount, 1);
+  assert.deepEqual(harness.calls(), { reserve: 1, claimStart: 1, start: 1, provider: 0 });
 });
 
 test("stale preflight blocks provider and records stale", async () => {
@@ -315,6 +330,22 @@ function secPrimary(form: string) {
     parentPrimaryAiRunId: PARENT_ID,
     parentPromptKey: "sec_8k_6k_analysis_listing_financial_risk",
     parentPromptVersion: "v44-monitor-routing",
+    secFormType: form,
+  });
+}
+
+function periodicPrimary(form: string) {
+  return buildGenericMonitorPrimaryExecutionContext({
+    eventId: EVENT_ID,
+    rawItemId: RAW_ID,
+    sourceGroup: "filings",
+    sourceCode: "sec_edgar",
+    sourceIdentity: "0000320193-25-000079",
+    parentPrimaryAiRunId: PARENT_ID,
+    parentPromptKey: form.endsWith("/A")
+      ? "sec_periodic_reports_amendment_analysis"
+      : "sec_periodic_reports_analysis",
+    parentPromptVersion: "v13-40f",
     secFormType: form,
   });
 }

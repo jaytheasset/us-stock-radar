@@ -52,11 +52,20 @@ import {
   stockSplitMaterializationError,
 } from "./stockSplitMaterialization.ts";
 import { runDilutionCorporateActionAdjustmentForEvent } from "../dilution-registry/corporateActionAdjustmentRuntime.ts";
+import {
+  assertPeriodicFinancialMonitorAnalysisIdentity,
+  PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
+  readPeriodicFinancialRawFilingIdentity,
+  type PeriodicFinancialFilingIdentity,
+  type PeriodicFinancialMonitorAnalysis,
+} from "./periodicFinancialMonitor.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
   "claim" | "releaseForRetry" | "recordTerminal" | "loadExactParent"
 >;
+
+type PeriodicFinancialRuntimeRepository = RuntimeRepository;
 
 export async function processGenericMonitorChild(
   identity: GenericMonitorChildIdentity,
@@ -86,9 +95,19 @@ export async function processGenericMonitorChild(
       candidate: Level2ShareCountValidatedCandidate;
     }) => Promise<{ inserted: number; deduped: number }>;
     runDilutionCorporateActionAdjustment?: (input: { eventId: string }) => Promise<unknown>;
+    resolvePeriodicFinancialMonitor?: (
+      rawItem: Record<string, unknown>,
+      expectedIdentity: PeriodicFinancialFilingIdentity,
+    ) => Promise<PeriodicFinancialMonitorAnalysis>;
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
+  if (identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY) {
+    return processPeriodicFinancialMonitorChild(identity, {
+      repository,
+      resolveAnalysis: dependencies.resolvePeriodicFinancialMonitor,
+    });
+  }
   if (identity.monitorAnalyzerKey === "corporate_action") {
     const loadApplicabilityContext = dependencies.loadCorporateActionApplicabilityContext
       || readCorporateActionApplicabilityContext;
@@ -139,6 +158,80 @@ export async function processGenericMonitorChild(
     consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
       || consumeListingMonitorAlertsForEvent,
   });
+}
+
+export async function processPeriodicFinancialMonitorChild(
+  identity: GenericMonitorChildIdentity,
+  dependencies: {
+    repository: PeriodicFinancialRuntimeRepository;
+    resolveAnalysis?: (
+      rawItem: Record<string, unknown>,
+      expectedIdentity: PeriodicFinancialFilingIdentity,
+    ) => Promise<PeriodicFinancialMonitorAnalysis>;
+  },
+) {
+  if (
+    identity.monitorAnalyzerKey !== PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY
+    || identity.sourceFamily !== "sec_periodic_reports"
+  ) {
+    throw new Error("Invalid Periodic Financial Monitor child identity");
+  }
+  const claimed = await dependencies.repository.claim(identity);
+  if (!claimed) {
+    return { status: "duplicate" as const, jobId: identity.executionId, providerCalls: 0 };
+  }
+
+  let parent: Awaited<ReturnType<PeriodicFinancialRuntimeRepository["loadExactParent"]>>;
+  try {
+    parent = await dependencies.repository.loadExactParent(identity);
+  } catch (error) {
+    await dependencies.repository.recordTerminal(identity, "failed", { error });
+    return {
+      status: "failed" as const,
+      jobId: identity.executionId,
+      providerCalls: 0,
+      error: runtimeErrorMessage(error),
+    };
+  }
+
+  try {
+    const resolveAnalysis = dependencies.resolveAnalysis
+      || (await import("./periodicFinancialMonitorSource.ts"))
+        .resolvePeriodicFinancialMonitorFromStoredSec;
+    const rawIdentity = readPeriodicFinancialRawFilingIdentity(
+      parent.rawItem,
+      identity.sourceIdentity,
+    );
+    const analysis = await resolveAnalysis(parent.rawItem, rawIdentity);
+    assertPeriodicFinancialMonitorAnalysisIdentity(analysis, rawIdentity);
+    await dependencies.repository.recordTerminal(identity, "succeeded_applicable", {
+      outputPayload: analysis,
+    });
+    return {
+      status: "succeeded_applicable" as const,
+      jobId: identity.executionId,
+      providerCalls: 0,
+      calculationSource: analysis.calculationSource,
+      resultStatus: analysis.resultStatus,
+      comparisonCount: analysis.comparisons.length,
+    };
+  } catch (error) {
+    await dependencies.repository.releaseForRetry(identity, error);
+    return {
+      status: "retryable_failure" as const,
+      jobId: identity.executionId,
+      providerCalls: 0,
+      error: runtimeErrorMessage(error),
+    };
+  }
+}
+
+function runtimeErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : typeof error === "string"
+      ? error
+      : "Periodic Financial Monitor failed";
 }
 
 function persistGenericMonitorShareCountObservation(input: {

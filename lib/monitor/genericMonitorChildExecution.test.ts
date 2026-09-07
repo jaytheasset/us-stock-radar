@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildGenericMonitorChildIdentities,
+  buildPeriodicFinancialMonitorChildIdentity,
   reserveGenericMonitorChildren,
   type GenericMonitorChildIdentity,
   type GenericMonitorPrimaryExecutionContext,
@@ -226,6 +227,43 @@ test("running and terminal state contract records applicable/not-applicable succ
   assert.equal(metadata(store.table("ai_runs")[1]).execution_state, "succeeded_not_applicable");
 });
 
+test("periodic financial terminal analysis uses the existing output envelope and replays without a duplicate record", async () => {
+  const store = new MemoryStore();
+  const repository = createGenericMonitorChildRepository(store);
+  const child = buildPeriodicFinancialMonitorChildIdentity({
+    primary: periodicPrimary(),
+    now: "2026-09-01T00:00:00.000Z",
+  });
+  const analysis = {
+    schemaVersion: "periodic_financial_monitor_analysis_v1",
+    calculationSource: "periodic-financial-resolver-v1",
+    comparisons: [{ metric: "REVENUE", basis: "ANNUAL" }],
+  };
+  assert.equal((await repository.reserve(child)).reserved, true);
+  assert.equal(await repository.claim(child), true);
+  await repository.recordTerminal(child, "succeeded_applicable", { outputPayload: analysis });
+  await repository.recordTerminal(child, "succeeded_applicable", { outputPayload: analysis });
+  assert.equal(store.table("ai_runs").length, 1);
+  assert.equal(store.table("ai_outputs").length, 1);
+  const payload = store.table("ai_outputs")[0]!.payload as Record<string, unknown>;
+  assert.equal(payload.monitor_analyzer_key, "periodic_financial");
+  assert.deepEqual(payload.analysis, analysis);
+});
+
+test("periodic exact parent is lineage-checked without requiring a GPT monitor route", async () => {
+  const primary = periodicPrimary();
+  const store = parentStore(primary);
+  addParent(store, primary, PARENT_A, "2026-09-01T00:00:00.000Z", "periodic-parent");
+  const child = buildPeriodicFinancialMonitorChildIdentity({
+    primary,
+    now: "2026-09-01T00:00:01.000Z",
+  });
+  const loaded = await createGenericMonitorChildRepository(store).loadExactParent(child);
+  assert.equal(loaded.analysis.marker, "periodic-parent");
+  const outputCall = store.selectCalls.find((call) => call.table === "ai_outputs");
+  assert.equal(outputCall?.search.output_type, "eq.sec_periodic_reports_analysis");
+});
+
 test("successful terminal output failure leaves the run retryable instead of completed", async () => {
   const store = new MemoryStore();
   const repository = createGenericMonitorChildRepository(store);
@@ -396,6 +434,18 @@ function secPrimary(): GenericMonitorPrimaryExecutionContext {
   };
 }
 
+function periodicPrimary(): GenericMonitorPrimaryExecutionContext {
+  return {
+    ...newsPrimary(),
+    sourceFamily: "sec_periodic_reports",
+    sourceGroup: "filings",
+    sourceCode: "sec_edgar",
+    sourceIdentity: "0000320193-25-000079",
+    parentPromptKey: "sec_periodic_reports_analysis",
+    parentPromptVersion: "v13-40f",
+  };
+}
+
 function parentStore(primary = newsPrimary()) {
   const store = new MemoryStore();
   store.table("events").push({
@@ -438,13 +488,15 @@ function addParent(
     id: id.replace(/^./, id[0] === "5" ? "7" : "8"),
     ai_run_id: id,
     event_id: primary.eventId,
-    output_type: primary.sourceFamily === "sec_8k_6k"
+    output_type: primary.sourceFamily === "sec_8k_6k" || primary.sourceFamily === "sec_periodic_reports"
       ? primary.parentPromptKey
       : "news_event_analysis",
     payload: {
       analysis: {
         marker,
-        monitor_routes: [{ monitor_analyzer_key: "listing_risk" }],
+        ...(primary.sourceFamily === "sec_periodic_reports"
+          ? {}
+          : { monitor_routes: [{ monitor_analyzer_key: "listing_risk" }] }),
       },
       output_text: marker,
     },

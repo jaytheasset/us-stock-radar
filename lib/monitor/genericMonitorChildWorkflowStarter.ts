@@ -1,5 +1,6 @@
 import {
   buildGenericMonitorChildIdentities,
+  buildPeriodicFinancialMonitorChildIdentity,
   type GenericMonitorChildIdentity,
   type GenericMonitorPrimaryExecutionContext,
   type GenericMonitorSourceFamily,
@@ -7,6 +8,9 @@ import {
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
 
 const SEC_8K_6K_FORM_TYPES = new Set(["8-K", "6-K"]);
+const SEC_PERIODIC_FINANCIAL_FORM_TYPES = new Set([
+  "10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A",
+]);
 
 type WorkflowStart = (
   workflow: unknown,
@@ -76,15 +80,10 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
   };
 }): Promise<GenericMonitorChildEnqueueResult> {
   if (!input.primary) return { status: "out_of_scope", childCount: 0 };
-  const routing = readMonitorRoutingResultFromPrimaryOutput(input.primaryAnalysis);
-  if (!routing || routing.monitor_routes.length === 0) {
-    return { status: "not_routed", childCount: 0 };
-  }
-
-  const identities = buildGenericMonitorChildIdentities({
-    primary: input.primary,
-    monitorRouting: routing,
-  });
+  const identities = input.primary.sourceFamily === "sec_periodic_reports"
+    ? [buildPeriodicFinancialMonitorChildIdentity({ primary: input.primary })]
+    : buildRoutedIdentities(input.primary, input.primaryAnalysis);
+  if (identities.length === 0) return { status: "not_routed", childCount: 0 };
   const repository = input.dependencies?.repository || await defaultRepository();
   const startWorkflow = input.dependencies?.startWorkflow || defaultStartWorkflow;
   const children = await Promise.all(identities.map((identity) => enqueueOne({
@@ -184,9 +183,21 @@ function sourceFamilyForProductionSource(
     return sourceCode === "nasdaq_corporate_actions" ? "nasdaq_corporate_actions" : "news";
   }
   if (sourceCode !== "sec_edgar" || !SEC_8K_6K_FORM_TYPES.has(normalizeSecFormType(secFormType))) {
-    return null;
+    return sourceCode === "sec_edgar" && SEC_PERIODIC_FINANCIAL_FORM_TYPES.has(normalizeSecFormType(secFormType))
+      ? "sec_periodic_reports"
+      : null;
   }
   return "sec_8k_6k";
+}
+
+function buildRoutedIdentities(
+  primary: GenericMonitorPrimaryExecutionContext,
+  primaryAnalysis: unknown,
+) {
+  const routing = readMonitorRoutingResultFromPrimaryOutput(primaryAnalysis);
+  return !routing || routing.monitor_routes.length === 0
+    ? []
+    : buildGenericMonitorChildIdentities({ primary, monitorRouting: routing });
 }
 
 function normalizeSecFormType(value: string | null | undefined) {

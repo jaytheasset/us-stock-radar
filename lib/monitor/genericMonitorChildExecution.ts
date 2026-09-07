@@ -6,6 +6,10 @@ import {
 } from "./monitorRouting.ts";
 import { LISTING_RISK_ANALYZER_PROMPT_VERSION } from "./listingRiskAnalyzer.ts";
 import { CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION } from "./corporateActionCanonicalFacts.ts";
+import {
+  PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
+  PERIODIC_FINANCIAL_MONITOR_CONTRACT_VERSION,
+} from "./periodicFinancialMonitor.ts";
 
 export const GENERIC_MONITOR_CHILD_SCHEMA_VERSION = "generic_monitor_child_execution_v1";
 export const GENERIC_MONITOR_CHILD_PURPOSE = "domain_monitor_child";
@@ -17,7 +21,10 @@ export const GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
 export const GENERIC_MONITOR_ANALYZER_CONTRACTS = {
   listing_risk: LISTING_RISK_ANALYZER_PROMPT_VERSION,
   corporate_action: CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
-} as const satisfies Record<SupportedMonitorAnalyzerKey, string>;
+  [PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY]: PERIODIC_FINANCIAL_MONITOR_CONTRACT_VERSION,
+} as const;
+
+export type GenericMonitorAnalyzerKey = keyof typeof GENERIC_MONITOR_ANALYZER_CONTRACTS;
 
 export const GENERIC_MONITOR_PRIMARY_PROMPT_KEYS = {
   news: ["news_event_analysis"],
@@ -28,6 +35,10 @@ export const GENERIC_MONITOR_PRIMARY_PROMPT_KEYS = {
     "sec_8k_6k_analysis_strategic_transaction",
     "sec_8k_6k_analysis_governance_vote_leadership",
     "sec_8k_6k_analysis_operating_legal_routine",
+  ],
+  sec_periodic_reports: [
+    "sec_periodic_reports_analysis",
+    "sec_periodic_reports_amendment_analysis",
   ],
 } as const;
 
@@ -55,7 +66,7 @@ export type GenericMonitorChildIdentity = GenericMonitorPrimaryExecutionContext 
   jobId: string;
   logicalJobId: string;
   executionId: string;
-  monitorAnalyzerKey: SupportedMonitorAnalyzerKey;
+  monitorAnalyzerKey: GenericMonitorAnalyzerKey;
   analyzerContractVersion: string;
   attempt: GenericMonitorChildAttempt;
   reservedAt: string;
@@ -139,8 +150,48 @@ export async function reserveGenericMonitorChildren(input: {
   return Promise.all(identities.map((identity) => repository.reserve(identity)));
 }
 
+export function buildPeriodicFinancialMonitorChildIdentity(input: {
+  primary: GenericMonitorPrimaryExecutionContext;
+  now?: string;
+}): GenericMonitorChildIdentity {
+  const primary = normalizePrimaryContext(input.primary);
+  if (primary.sourceFamily !== "sec_periodic_reports" || !isAuthorizedGenericMonitorPrimary(primary)) {
+    throw new Error("Periodic Financial Monitor requires an authorized periodic SEC Primary");
+  }
+  const analyzerContractVersion = PERIODIC_FINANCIAL_MONITOR_CONTRACT_VERSION;
+  const logicalJobId = deterministicUuid([
+    GENERIC_MONITOR_CHILD_PURPOSE,
+    "logical",
+    primary.eventId,
+    primary.rawItemId,
+    primary.sourceFamily,
+    primary.sourceGroup,
+    primary.sourceCode,
+    primary.sourceIdentity,
+    PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
+    analyzerContractVersion,
+  ]);
+  const attempt = {
+    kind: "automatic",
+    key: GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY,
+  } as const;
+  const executionId = deterministicGenericMonitorExecutionId({ logicalJobId, attempt });
+  return {
+    schemaVersion: GENERIC_MONITOR_CHILD_SCHEMA_VERSION,
+    purpose: GENERIC_MONITOR_CHILD_PURPOSE,
+    jobId: executionId,
+    logicalJobId,
+    executionId,
+    ...primary,
+    monitorAnalyzerKey: PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
+    analyzerContractVersion,
+    attempt,
+    reservedAt: normalizeTimestamp(input.now),
+  };
+}
+
 export function deterministicGenericMonitorLogicalJobId(input: GenericMonitorPrimaryExecutionContext & {
-  monitorAnalyzerKey: SupportedMonitorAnalyzerKey;
+  monitorAnalyzerKey: GenericMonitorAnalyzerKey;
   analyzerContractVersion: string;
 }) {
   return deterministicUuid([
@@ -192,6 +243,9 @@ export function isAuthorizedGenericMonitorPrimary(primary: GenericMonitorPrimary
   }
   if (primary.sourceFamily === "nasdaq_corporate_actions") {
     return primary.sourceGroup === "news" && primary.sourceCode === "nasdaq_corporate_actions";
+  }
+  if (primary.sourceFamily === "sec_periodic_reports") {
+    return primary.sourceGroup === "filings" && primary.sourceCode === "sec_edgar";
   }
   return primary.sourceGroup === "filings" && primary.sourceCode === "sec_edgar";
 }
