@@ -237,7 +237,7 @@ test("normalizes issuance and repurchase magnitudes before net supply math", () 
   });
 });
 
-test("isolates FMP plan limits and never sends the key in request URLs", async () => {
+test("stock-detail FMP request is ownership-only and never requests financial statements", async () => {
   const requestedUrls: string[] = [];
   const seenApiKeys: string[] = [];
   const fetchImpl = async (
@@ -247,23 +247,6 @@ test("isolates FMP plan limits and never sends the key in request URLs", async (
     const url = String(input);
     requestedUrls.push(url);
     seenApiKeys.push(new Headers(init?.headers).get("apikey") ?? "");
-    if (url.includes("/income-statement?")) {
-      return Response.json([
-        {
-          date: "2026-03-28",
-          filingDate: "2026-05-06",
-          fiscalYear: "2026",
-          period: url.includes("period=annual") ? "FY" : "Q1",
-          revenue: 10_253,
-        },
-      ]);
-    }
-    if (url.includes("/balance-sheet-statement?")) {
-      return new Response("provider details", { status: 402 });
-    }
-    if (url.includes("/cash-flow-statement?")) {
-      return new Response("upstream details", { status: 500 });
-    }
     if (url.includes("/shares-float?")) {
       return Response.json([{ outstandingShares: 1_630_600_000 }]);
     }
@@ -285,14 +268,18 @@ test("isolates FMP plan limits and never sends the key in request URLs", async (
     now: new Date("2026-07-31T00:00:00.000Z"),
   });
 
-  assert.equal(snapshot.sources.incomeStatement.state, "ready");
-  assert.equal(snapshot.sources.balanceSheet.state, "plan_unavailable");
+  assert.equal(snapshot.sources.incomeStatement.state, "unavailable");
+  assert.equal(snapshot.sources.balanceSheet.state, "unavailable");
   assert.equal(snapshot.sources.cashFlow.state, "unavailable");
   assert.equal(snapshot.sources.beneficialOwnership.state, "empty");
   assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
   assert.equal(snapshot.sources.sharesHistory.state, "ready");
   assert.equal(snapshot.sources.splits.state, "ready");
-  assert.equal(snapshot.financials.quarters[0]?.revenue, 10_253);
+  assert.equal(snapshot.financials.quarters.length, 0);
+  assert.equal(snapshot.financials.annuals.length, 0);
+  assert.equal(requestedUrls.some((url) => url.includes("/income-statement?")), false);
+  assert.equal(requestedUrls.some((url) => url.includes("/balance-sheet-statement?")), false);
+  assert.equal(requestedUrls.some((url) => url.includes("/cash-flow-statement?")), false);
   assert.ok(requestedUrls.every((url) => !url.includes("apikey")));
   assert.ok(seenApiKeys.every((key) => key === "server-only-test-key"));
   const serialized = JSON.stringify(snapshot);

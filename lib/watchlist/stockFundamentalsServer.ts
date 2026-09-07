@@ -13,37 +13,13 @@ const FAILURE_CACHE_SECONDS = 10 * 60;
 const CACHE_TABLE = "stock_fundamentals_provider_cache";
 
 const staticSourceDefinitions = {
-  balanceAnnual: {
-    endpoint: "balance-sheet-statement",
-    params: { limit: "5", period: "annual" },
-  },
-  balanceQuarterly: {
-    endpoint: "balance-sheet-statement",
-    params: { limit: "5", period: "quarter" },
-  },
   beneficialOwnership: {
     endpoint: "acquisition-of-beneficial-ownership",
     params: {},
   },
-  cashAnnual: {
-    endpoint: "cash-flow-statement",
-    params: { limit: "5", period: "annual" },
-  },
-  cashQuarterly: {
-    endpoint: "cash-flow-statement",
-    params: { limit: "5", period: "quarter" },
-  },
   enterpriseValues: {
     endpoint: "enterprise-values",
     params: { limit: "8", period: "quarter" },
-  },
-  incomeAnnual: {
-    endpoint: "income-statement",
-    params: { limit: "5", period: "annual" },
-  },
-  incomeQuarterly: {
-    endpoint: "income-statement",
-    params: { limit: "5", period: "quarter" },
   },
   insiderStatistics: {
     endpoint: "insider-trading/statistics",
@@ -64,6 +40,15 @@ const staticSourceDefinitions = {
 } as const;
 
 type SourceKey = keyof StockFundamentalsProviderSources;
+type OwnershipSourceKey = Exclude<
+  SourceKey,
+  | "balanceAnnual"
+  | "balanceQuarterly"
+  | "cashAnnual"
+  | "cashQuarterly"
+  | "incomeAnnual"
+  | "incomeQuarterly"
+>;
 type SourceDefinition = {
   endpoint: string;
   params: Readonly<Record<string, string>>;
@@ -97,7 +82,7 @@ export async function fetchStockFundamentals(
   const now = options.now ?? new Date();
   const definitions = buildSourceDefinitions(now);
   const entries = Object.entries(definitions) as Array<
-    [SourceKey, SourceDefinition]
+    [OwnershipSourceKey, SourceDefinition]
   >;
   const usePersistentCache = options.cache ?? !options.fetchImpl;
   const cached = usePersistentCache
@@ -122,9 +107,10 @@ export async function fetchStockFundamentals(
     }),
   );
 
-  const providerSources = Object.fromEntries(
-    fetchedEntries,
-  ) as StockFundamentalsProviderSources;
+  const providerSources = {
+    ...emptyFinancialSources(now),
+    ...Object.fromEntries(fetchedEntries),
+  } as StockFundamentalsProviderSources;
 
   if (usePersistentCache) {
     const writes = fetchedEntries
@@ -140,7 +126,7 @@ export async function fetchStockFundamentals(
   );
 }
 
-function buildSourceDefinitions(now: Date): Record<SourceKey, SourceDefinition> {
+function buildSourceDefinitions(now: Date): Record<OwnershipSourceKey, SourceDefinition> {
   const { quarter, year } = latestCompletedQuarter(now);
   return {
     ...staticSourceDefinitions,
@@ -157,6 +143,17 @@ function buildSourceDefinitions(now: Date): Record<SourceKey, SourceDefinition> 
       endpoint: "institutional-ownership/symbol-positions-summary",
       params: { quarter: String(quarter), year: String(year) },
     },
+  };
+}
+
+function emptyFinancialSources(now: Date) {
+  return {
+    balanceAnnual: unavailableSource(now),
+    balanceQuarterly: unavailableSource(now),
+    cashAnnual: unavailableSource(now),
+    cashQuarterly: unavailableSource(now),
+    incomeAnnual: unavailableSource(now),
+    incomeQuarterly: unavailableSource(now),
   };
 }
 
