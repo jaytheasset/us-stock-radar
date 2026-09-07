@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env";
+import { prelaunchInternalRequestHeaders } from "@/lib/prelaunch";
 import type { SourceIngestCronLane } from "@/lib/sourceWorkflowConfig";
 import { sourceIngestAuthorizationHeaders } from "@/lib/sourceIngestRouteAuth";
 
@@ -348,6 +349,7 @@ export async function runSourceJob(
           Accept: "application/json",
           "Content-Type": "application/json",
           ...sourceIngestAuthorizationHeaders(),
+          ...prelaunchInternalRequestHeaders(),
         },
         body: JSON.stringify(safeBody),
       },

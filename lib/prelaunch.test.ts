@@ -19,8 +19,10 @@ import {
   PRELAUNCH_ACCESS_MAX_AGE_SECONDS,
   createPrelaunchAccessProof,
   isComingSoonPath,
+  isPrelaunchApiPath,
   isPrelaunchBypassPath,
   isPrelaunchMode,
+  prelaunchInternalRequestHeaders,
   prelaunchRobotsMetadata,
   sanitizeInternalRedirect,
   verifyPrelaunchAccessProof,
@@ -29,17 +31,25 @@ import {
 
 const originalMode = process.env.PRELAUNCH_MODE;
 const originalPassword = process.env.PRELAUNCH_PASSWORD;
+const originalVercelEnvironment = process.env.VERCEL_ENV;
 
 test.afterEach(() => {
   restoreEnv("PRELAUNCH_MODE", originalMode);
   restoreEnv("PRELAUNCH_PASSWORD", originalPassword);
+  restoreEnv("VERCEL_ENV", originalVercelEnvironment);
 });
 
-test("prelaunch mode is opt-in and only exact 1 enables it", () => {
+test("prelaunch mode fails closed on Vercel production and uses explicit overrides", () => {
   assert.equal(isPrelaunchMode({}), false);
   assert.equal(isPrelaunchMode({ PRELAUNCH_MODE: "0" }), false);
   assert.equal(isPrelaunchMode({ PRELAUNCH_MODE: "true" }), false);
   assert.equal(isPrelaunchMode({ PRELAUNCH_MODE: "1" }), true);
+  assert.equal(isPrelaunchMode({ VERCEL_ENV: "preview" }), false);
+  assert.equal(isPrelaunchMode({ VERCEL_ENV: "production" }), true);
+  assert.equal(
+    isPrelaunchMode({ VERCEL_ENV: "production", PRELAUNCH_MODE: "0" }),
+    false,
+  );
 });
 
 test("password comparison accepts only an exact configured password", () => {
@@ -49,15 +59,37 @@ test("password comparison accepts only an exact configured password", () => {
   assert.equal(verifyPrelaunchPassword("correct", ""), false);
 });
 
-test("access proof is opaque and a password change invalidates it", () => {
+test("access proof is opaque, expires server-side, and rejects tampering", () => {
   const password = "private password with spaces";
-  const proof = createPrelaunchAccessProof(password);
+  const now = Date.UTC(2026, 8, 7, 12, 0, 0);
+  const proof = createPrelaunchAccessProof(password, now);
 
-  assert.match(proof, /^v1\.[A-Za-z0-9_-]+$/);
+  assert.match(proof, /^v2\.\d{10}\.[A-Za-z0-9_-]{43}$/);
   assert.equal(proof.includes(password), false);
-  assert.equal(verifyPrelaunchAccessProof(proof, password), true);
-  assert.equal(verifyPrelaunchAccessProof(proof, `${password}!`), false);
-  assert.equal(verifyPrelaunchAccessProof(undefined, password), false);
+  assert.equal(verifyPrelaunchAccessProof(proof, password, now), true);
+  assert.equal(
+    verifyPrelaunchAccessProof(
+      proof,
+      password,
+      now + (PRELAUNCH_ACCESS_MAX_AGE_SECONDS - 1) * 1000,
+    ),
+    true,
+  );
+  assert.equal(
+    verifyPrelaunchAccessProof(
+      proof,
+      password,
+      now + PRELAUNCH_ACCESS_MAX_AGE_SECONDS * 1000,
+    ),
+    false,
+  );
+  assert.equal(verifyPrelaunchAccessProof(proof, `${password}!`, now), false);
+  const tamperedProof = `${proof.slice(0, -1)}${proof.endsWith("A") ? "B" : "A"}`;
+  assert.equal(
+    verifyPrelaunchAccessProof(tamperedProof, password, now),
+    false,
+  );
+  assert.equal(verifyPrelaunchAccessProof(undefined, password, now), false);
 });
 
 test("redirect sanitizer allows internal paths and rejects open redirects", () => {
@@ -72,26 +104,45 @@ test("redirect sanitizer allows internal paths and rejects open redirects", () =
   assert.equal(sanitizeInternalRedirect(null, "/dashboard"), "/dashboard");
 });
 
-test("bypass path contract keeps operational and asset requests outside the gate", () => {
+test("bypass path contract is limited to gate, infrastructure, and immutable assets", () => {
   for (const pathname of [
-    "/api",
+    "/api/prelaunch/access",
+    "/api/prelaunch/logout",
     "/api/cron/market-cache",
+    "/api/cron/source-ingest/sec",
+    "/api/webhooks",
+    "/api/webhooks/snaptrade",
+    "/api/telegram/webhook",
+    "/api/alerts/email/unsubscribe",
     "/.well-known/workflow",
     "/.well-known/workflow/v1/step",
-    "/_next/static/chunk.js",
-    "/auth/callback",
+    "/_next/static/chunks/app.js",
+    "/_next/media/font.woff2",
     "/coming-soon",
     "/favicon.ico",
-    "/images/radar.svg",
+    "/robots.txt",
   ]) {
     assert.equal(isPrelaunchBypassPath(pathname), true, pathname);
   }
 
-  assert.equal(isPrelaunchBypassPath("/news"), false);
-  assert.equal(isPrelaunchBypassPath("/auth/callback/extra"), false);
-  assert.equal(isPrelaunchBypassPath("/auth/callbacks"), false);
-  assert.equal(isPrelaunchBypassPath("/coming-soon/details"), false);
-  assert.equal(isPrelaunchBypassPath("/apiary"), false);
+  for (const pathname of [
+    "/api",
+    "/api/health",
+    "/api/tickers/search.json",
+    "/api/cron/unconfigured",
+    "/api/cron/source-ingest/sec/extra",
+    "/auth/callback",
+    "/news",
+    "/images/radar.svg",
+    "/sitemap.xml",
+    "/coming-soon/details",
+    "/apiary",
+  ]) {
+    assert.equal(isPrelaunchBypassPath(pathname), false, pathname);
+  }
+  assert.equal(isPrelaunchApiPath("/api"), true);
+  assert.equal(isPrelaunchApiPath("/api/health"), true);
+  assert.equal(isPrelaunchApiPath("/apiary"), false);
   assert.equal(isComingSoonPath("/coming-soon"), true);
   assert.equal(isComingSoonPath("/coming-soon/details"), false);
   assert.equal(isComingSoonPath("/coming-sooner"), false);
@@ -143,9 +194,48 @@ test("proxy is off by default and redirects ordinary pages when enabled", async 
     "https://radar.example/coming-soon?next=%2Fnews%3Frange%3D1D",
   );
   assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.match(response.headers.get("cache-control") || "", /no-store/);
 });
 
-test("proxy accepts a valid proof and bypasses API and Workflow requests", async () => {
+test("internal same-origin requests receive access only while the gate is configured", () => {
+  assert.deepEqual(prelaunchInternalRequestHeaders({}), {});
+  assert.deepEqual(
+    prelaunchInternalRequestHeaders({ PRELAUNCH_MODE: "1" }),
+    {},
+  );
+
+  const headers = prelaunchInternalRequestHeaders({
+    PRELAUNCH_MODE: "1",
+    PRELAUNCH_PASSWORD: "preview-secret",
+  });
+  assert.match(
+    headers.Cookie || "",
+    new RegExp(`^${PRELAUNCH_ACCESS_COOKIE}=v2\\.`),
+  );
+  assert.equal((headers.Cookie || "").includes("preview-secret"), false);
+});
+
+test("Vercel production fails closed when gate configuration is missing", async () => {
+  delete process.env.PRELAUNCH_MODE;
+  delete process.env.PRELAUNCH_PASSWORD;
+  process.env.VERCEL_ENV = "production";
+
+  const pageResponse = await proxy(
+    new NextRequest("https://radar.example/stocks/VEEA"),
+  );
+  assert.equal(
+    getRedirectUrl(pageResponse),
+    "https://radar.example/coming-soon?next=%2Fstocks%2FVEEA",
+  );
+
+  const apiResponse = await proxy(
+    new NextRequest("https://radar.example/api/tickers/search?q=AAPL"),
+  );
+  assert.equal(apiResponse.status, 401);
+  assert.match(await apiResponse.text(), /PRELAUNCH_ACCESS_REQUIRED/);
+});
+
+test("proxy accepts a valid proof while unauthenticated product APIs fail closed", async () => {
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
   const proof = createPrelaunchAccessProof("preview-secret");
@@ -161,9 +251,35 @@ test("proxy accepts a valid proof and bypasses API and Workflow requests", async
     authenticated.headers.get("x-robots-tag"),
     "noindex, nofollow",
   );
+  assert.match(authenticated.headers.get("cache-control") || "", /no-store/);
+
+  const protectedApi = await proxy(
+    new NextRequest("https://radar.example/api/tickers/search?q=AAPL"),
+  );
+  assert.equal(protectedApi.status, 401);
+  assert.deepEqual(await protectedApi.json(), {
+    ok: false,
+    error: {
+      code: "PRELAUNCH_ACCESS_REQUIRED",
+      message: "Private preview access is required.",
+      status: 401,
+    },
+  });
+  assert.match(protectedApi.headers.get("cache-control") || "", /no-store/);
+
+  const authenticatedApi = await proxy(
+    new NextRequest("https://radar.example/api/tickers/search?q=AAPL", {
+      headers: {
+        cookie: `${PRELAUNCH_ACCESS_COOKIE}=${proof}`,
+      },
+    }),
+  );
+  assert.equal(authenticatedApi.status, 200);
 
   for (const path of [
-    "/api/health",
+    "/api/prelaunch/access",
+    "/api/cron/market-cache",
+    "/api/webhooks",
     "/.well-known/workflow/v1/run",
     "/_next/static/chunk.js",
     "/favicon.ico",
@@ -175,7 +291,7 @@ test("proxy accepts a valid proof and bypasses API and Workflow requests", async
   }
 });
 
-test("email auth callback bypasses prelaunch gate without prefix overreach", async () => {
+test("email auth callback keeps its deep link but still requires gate access", async () => {
   process.env.PRELAUNCH_MODE = "1";
   process.env.PRELAUNCH_PASSWORD = "preview-secret";
 
@@ -184,7 +300,10 @@ test("email auth callback bypasses prelaunch gate without prefix overreach", asy
       "https://radar.example/auth/callback?type=signup&next=%2Faccount",
     ),
   );
-  assert.equal(getRedirectUrl(callbackResponse), null);
+  assert.equal(
+    getRedirectUrl(callbackResponse),
+    "https://radar.example/coming-soon?next=%2Fauth%2Fcallback%3Ftype%3Dsignup%26next%3D%252Faccount",
+  );
 
   const nestedResponse = await proxy(
     new NextRequest("https://radar.example/auth/callback/extra"),
@@ -280,10 +399,11 @@ test("access route sets an opaque hardened cookie after successful authenticatio
 
   assert.equal(response.status, 303);
   assert.equal(getRedirectUrl(response), "https://radar.example/news");
-  assert.match(cookie, new RegExp(`^${PRELAUNCH_ACCESS_COOKIE}=v1\\.`));
+  assert.match(cookie, new RegExp(`^${PRELAUNCH_ACCESS_COOKIE}=v2\\.`));
   assert.equal(cookie.includes("preview-secret"), false);
   assert.match(cookie, /HttpOnly/i);
   assert.match(cookie, /SameSite=Lax/i);
+  assert.match(cookie, /Secure/i);
   assert.match(
     cookie,
     new RegExp(`Max-Age=${PRELAUNCH_ACCESS_MAX_AGE_SECONDS}`),
@@ -318,6 +438,9 @@ test("access route rejects external return targets and logout clears the cookie"
     "https://radar.example/coming-soon",
   );
   assert.match(logoutResponse.headers.get("set-cookie") || "", /Max-Age=0/);
+  assert.match(logoutResponse.headers.get("set-cookie") || "", /HttpOnly/i);
+  assert.match(logoutResponse.headers.get("set-cookie") || "", /SameSite=Lax/i);
+  assert.match(logoutResponse.headers.get("set-cookie") || "", /Secure/i);
 });
 
 test("prelaunch cookie mutations reject cross-origin requests", async () => {

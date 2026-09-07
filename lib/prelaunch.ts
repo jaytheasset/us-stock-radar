@@ -8,15 +8,31 @@ import type { Metadata } from "next";
 export const PRELAUNCH_ACCESS_COOKIE = "sr_prelaunch_access";
 export const PRELAUNCH_ACCESS_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
-const accessProofVersion = "v1";
-const accessProofContext = "us-stock-radar:prelaunch-access:v1";
-const staticAssetPattern =
-  /\.(?:avif|css|eot|gif|ico|jpe?g|js|json|map|mjs|mp3|mp4|pdf|png|svg|txt|ttf|webmanifest|webp|woff2?|xml)$/i;
+const accessProofVersion = "v2";
+const accessProofContext = "us-stock-radar:prelaunch-access:v2";
+const prelaunchPublicPaths = new Set([
+  "/coming-soon",
+  "/api/prelaunch/access",
+  "/api/prelaunch/logout",
+  "/favicon.ico",
+  "/robots.txt",
+]);
+const prelaunchOperationalPaths = new Set([
+  "/api/alerts/email/unsubscribe",
+  "/api/cron/alert-delivery",
+  "/api/cron/dashboard-movers",
+  "/api/cron/market-cache",
+  "/api/telegram/webhook",
+  "/api/webhooks",
+  "/api/webhooks/snaptrade",
+]);
 
 export function isPrelaunchMode(
   env: Record<string, string | undefined> = process.env,
 ) {
-  return env.PRELAUNCH_MODE === "1";
+  if (env.PRELAUNCH_MODE === "1") return true;
+  if (env.PRELAUNCH_MODE === "0") return false;
+  return env.VERCEL_ENV === "production";
 }
 
 export function verifyPrelaunchPassword(
@@ -27,40 +43,74 @@ export function verifyPrelaunchPassword(
   return timingSafeStringEqual(candidate, configuredPassword);
 }
 
-export function createPrelaunchAccessProof(configuredPassword: string) {
+export function createPrelaunchAccessProof(
+  configuredPassword: string,
+  now = Date.now(),
+) {
   if (!configuredPassword) {
     throw new Error("PRELAUNCH_PASSWORD is required");
   }
+  const expiresAt =
+    Math.floor(now / 1000) + PRELAUNCH_ACCESS_MAX_AGE_SECONDS;
   const signature = createHmac("sha256", configuredPassword)
-    .update(accessProofContext)
+    .update(`${accessProofContext}:${expiresAt}`)
     .digest("base64url");
-  return `${accessProofVersion}.${signature}`;
+  return `${accessProofVersion}.${expiresAt}.${signature}`;
 }
 
 export function verifyPrelaunchAccessProof(
   candidateProof: string | undefined,
   configuredPassword: string,
+  now = Date.now(),
 ) {
   if (!candidateProof || !configuredPassword) return false;
-  return timingSafeStringEqual(
-    candidateProof,
-    createPrelaunchAccessProof(configuredPassword),
-  );
+  const match = candidateProof.match(/^v2\.(\d{10})\.([A-Za-z0-9_-]{43})$/);
+  if (!match) return false;
+
+  const expiresAt = Number(match[1]);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(now / 1000)) {
+    return false;
+  }
+
+  const expectedSignature = createHmac("sha256", configuredPassword)
+    .update(`${accessProofContext}:${expiresAt}`)
+    .digest("base64url");
+  return timingSafeStringEqual(match[2], expectedSignature);
 }
 
 export function isPrelaunchBypassPath(pathname: string) {
   return (
-    matchesPathPrefix(pathname, "/api") ||
+    prelaunchPublicPaths.has(pathname) ||
+    prelaunchOperationalPaths.has(pathname) ||
+    /^\/api\/cron\/source-ingest\/[^/]+$/.test(pathname) ||
     matchesPathPrefix(pathname, "/.well-known/workflow") ||
-    matchesPathPrefix(pathname, "/_next") ||
-    pathname === "/auth/callback" ||
-    isComingSoonPath(pathname) ||
-    staticAssetPattern.test(pathname)
+    matchesPathPrefix(pathname, "/_next/static") ||
+    matchesPathPrefix(pathname, "/_next/media")
   );
+}
+
+export function isPrelaunchApiPath(pathname: string) {
+  return matchesPathPrefix(pathname, "/api");
 }
 
 export function isComingSoonPath(pathname: string) {
   return pathname === "/coming-soon";
+}
+
+export function shouldUseSecurePrelaunchCookie(request: Request) {
+  return (
+    process.env.NODE_ENV === "production" ||
+    new URL(request.url).protocol === "https:"
+  );
+}
+
+export function prelaunchInternalRequestHeaders(
+  env: Record<string, string | undefined> = process.env,
+): Record<string, string> {
+  if (!isPrelaunchMode(env) || !env.PRELAUNCH_PASSWORD) return {};
+  return {
+    Cookie: `${PRELAUNCH_ACCESS_COOKIE}=${createPrelaunchAccessProof(env.PRELAUNCH_PASSWORD)}`,
+  };
 }
 
 export function sanitizeInternalRedirect(

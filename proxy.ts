@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server.js";
 import {
   PRELAUNCH_ACCESS_COOKIE,
   isComingSoonPath,
+  isPrelaunchApiPath,
   isPrelaunchBypassPath,
   isPrelaunchMode,
   sanitizeInternalRedirect,
@@ -26,13 +27,16 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (isComingSoonPath(pathname)) {
-    return noIndexResponse(NextResponse.next());
+    return privatePrelaunchResponse(NextResponse.next());
   }
 
   if (isPrelaunchMode() && !isPrelaunchBypassPath(pathname)) {
     const configuredPassword = process.env.PRELAUNCH_PASSWORD || "";
     const accessProof = request.cookies.get(PRELAUNCH_ACCESS_COOKIE)?.value;
     if (!verifyPrelaunchAccessProof(accessProof, configuredPassword)) {
+      if (isPrelaunchApiPath(pathname)) {
+        return prelaunchApiAccessRequired();
+      }
       const destination = request.nextUrl.clone();
       destination.pathname = "/coming-soon";
       destination.search = "";
@@ -42,7 +46,7 @@ export async function proxy(request: NextRequest) {
       if (requestedPath !== "/") {
         destination.searchParams.set("next", requestedPath);
       }
-      return noIndexResponse(NextResponse.redirect(destination));
+      return privatePrelaunchResponse(NextResponse.redirect(destination));
     }
   }
 
@@ -53,9 +57,29 @@ export const config = {
   matcher: "/:path*",
 };
 
-function noIndexResponse(response: NextResponse) {
+function privatePrelaunchResponse(response: NextResponse) {
+  response.headers.set(
+    "Cache-Control",
+    "private, no-store, no-cache, max-age=0, must-revalidate",
+  );
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return response;
+}
+
+function prelaunchApiAccessRequired() {
+  return privatePrelaunchResponse(
+    NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "PRELAUNCH_ACCESS_REQUIRED",
+          message: "Private preview access is required.",
+          status: 401,
+        },
+      },
+      { status: 401 },
+    ),
+  );
 }
 
 async function refreshAuthSessionForRequest(request: NextRequest) {
@@ -119,5 +143,5 @@ function withPrivateAuthHeaders(response: NextResponse, authenticated: boolean) 
       response.headers.set(name, value);
     }
   }
-  return isPrelaunchMode() ? noIndexResponse(response) : response;
+  return isPrelaunchMode() ? privatePrelaunchResponse(response) : response;
 }
