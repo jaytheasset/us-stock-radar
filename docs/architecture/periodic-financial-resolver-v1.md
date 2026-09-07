@@ -9,10 +9,45 @@ metrics:
 - Operating Cash Flow
 - Cash
 
-It does not integrate with Monitor or Stock Detail, replace FMP, run SEC
-ingest, write a database row, call an LLM, calculate a missing value, or add a
-schema. The implementation is
+The resolver itself does not integrate with Monitor or Stock Detail, replace
+FMP, run SEC ingest, write a database row, call an LLM, calculate a missing
+value, or add a schema. The implementation is
 `lib/sec-structured-data/periodicFinancialResolver.ts`.
+
+## Generic Monitor integration
+
+After the existing periodic Primary analysis is persisted, published, and its
+existing alert path completes, production enqueues one deterministic Generic
+Monitor child for `10-Q`, `10-K`, `20-F`, and `40-F` families (including their
+amendment forms). The child reads the already stored filing ledger,
+CompanyFacts, and filing-XBRL artifacts, invokes this resolver, and writes one
+structured `periodic_financial_monitor_analysis_v1` result in the existing
+Generic Monitor `ai_runs`/`ai_outputs` envelope. It adds no table or migration.
+
+The child identity is bound to the event, raw filing, accession source
+identity, analyzer key, and analyzer contract, but not to a particular Primary
+GPT run. Replaying the same filing therefore reuses the same job and output.
+The exact Primary run remains lineage evidence; its narrative is neither an
+input to financial normalization nor rewritten by it. A missing or rejected
+financial source produces unavailable metric decisions without changing the
+Primary event or its analysis.
+
+Before any stored SEC read, the child requires its deterministic source
+accession, the exact raw row `source_unique_id`, and
+`raw_payload.accession_number` to agree. The raw issuer CIK and periodic form
+then become the expected result identity. Immediately before terminal output
+persistence, the normalized analysis target and resolver filing must match
+that accession, CIK, and form. A mismatch releases the existing job for retry
+and writes no terminal output, so another filing cannot occupy the job's
+deterministic result identity.
+
+`lib/monitor/periodicFinancialMonitor.ts` derives only an exact decimal delta
+and deterministic direction from resolver-approved current/prior pairs.
+Income/loss directions are `IMPROVED`/`WORSENED`; Revenue, OCF, and Cash use
+`INCREASED`/`DECREASED`. It emits no percentage, estimate, quarter-from-YTD
+subtraction, or cross-accession fallback. Exact resolver evidence retains the
+currency, unit, accession, context, artifact, document URL/hash, CompanyFacts
+source key/path, and rejected dimensional fact keys.
 
 ## Existing foundations reused
 
@@ -293,5 +328,6 @@ Focused tests cover:
 - deterministic replay under reordered input;
 - no GPT dependency.
 
-No migration, table, route, UI, monitor, scheduler, source run, backfill, or
-database write is part of V1.
+No migration, table, route, UI, scheduler, source run, or backfill is part of
+the resolver. Its Generic Monitor consumer uses only the existing Generic
+Monitor execution/output persistence envelope.

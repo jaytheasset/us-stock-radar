@@ -12,6 +12,7 @@ import {
   type GenericMonitorParentCurrentness,
 } from "./genericMonitorChildExecution.ts";
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
+import { PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY } from "./periodicFinancialMonitor.ts";
 
 type StoreResult = {
   ok: boolean;
@@ -60,7 +61,7 @@ export function createGenericMonitorChildRepository(store: GenericMonitorChildSt
     recordTerminal: (
       identity: GenericMonitorChildIdentity,
       state: GenericMonitorChildTerminalState,
-      options?: { error?: unknown; finishedAt?: string },
+      options?: { error?: unknown; finishedAt?: string; outputPayload?: unknown },
     ) => recordGenericMonitorChildTerminalState(store, identity, state, options),
     loadExactParent: (identity: GenericMonitorChildIdentity) => loadGenericMonitorExactParent(store, identity),
   };
@@ -234,7 +235,7 @@ export async function recordGenericMonitorChildTerminalState(
   store: GenericMonitorChildStore,
   identity: GenericMonitorChildIdentity,
   state: GenericMonitorChildTerminalState,
-  options: { error?: unknown; finishedAt?: string } = {},
+  options: { error?: unknown; finishedAt?: string; outputPayload?: unknown } = {},
 ) {
   const finishedAt = options.finishedAt || new Date().toISOString();
   const succeeded = state === "succeeded_applicable" || state === "succeeded_not_applicable";
@@ -243,7 +244,7 @@ export async function recordGenericMonitorChildTerminalState(
     if (eligibility === "blocked") {
       return { recorded: false, jobId: identity.executionId, state };
     }
-    await writeGenericMonitorTerminalOutput(store, identity, state);
+    await writeGenericMonitorTerminalOutput(store, identity, state, options.outputPayload);
     if (eligibility === "already_recorded") {
       return { recorded: false, jobId: identity.executionId, state };
     }
@@ -308,7 +309,10 @@ export async function loadGenericMonitorExactParent(
   const analysis = record(record(aiOutput.payload)?.analysis);
   if (!analysis) throw new Error("Generic Monitor exact parent output is missing analysis");
   const routing = readMonitorRoutingResultFromPrimaryOutput(analysis);
-  if (!routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)) {
+  const isDeterministicPeriodicFinancial = identity.sourceFamily === "sec_periodic_reports"
+    && identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY;
+  if (!isDeterministicPeriodicFinancial
+    && !routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)) {
     throw new Error("Generic Monitor exact parent output does not contain the reserved analyzer route");
   }
 
@@ -375,7 +379,7 @@ export function genericMonitorChildMetadata(
 }
 
 export function expectedGenericMonitorPrimaryOutputType(identity: GenericMonitorChildIdentity) {
-  return identity.sourceFamily === "sec_8k_6k"
+  return identity.sourceFamily === "sec_8k_6k" || identity.sourceFamily === "sec_periodic_reports"
     ? identity.parentPromptKey
     : "news_event_analysis";
 }
@@ -384,6 +388,7 @@ async function writeGenericMonitorTerminalOutput(
   store: GenericMonitorChildStore,
   identity: GenericMonitorChildIdentity,
   state: "succeeded_applicable" | "succeeded_not_applicable",
+  outputPayload?: unknown,
 ) {
   const result = await store.upsert("ai_outputs", {
     id: deterministicGenericMonitorOutputId(identity.executionId),
@@ -398,6 +403,7 @@ async function writeGenericMonitorTerminalOutput(
       monitor_analyzer_key: identity.monitorAnalyzerKey,
       analyzer_contract_version: identity.analyzerContractVersion,
       result_classification: state,
+      ...(outputPayload === undefined ? {} : { analysis: outputPayload }),
     },
   }, {
     onConflict: "id",
