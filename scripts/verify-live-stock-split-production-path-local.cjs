@@ -5,13 +5,14 @@ require("tsconfig-paths/register");
 const { loadEnvConfig } = require("@next/env");
 const { createJiti } = require("jiti");
 const { Client } = require("pg");
+const { resolveSupabaseSecretKey } = require("./supabase-key-env.cjs");
 
 const repoRoot = path.resolve(__dirname, "..");
 const args = parseArgs(process.argv.slice(2));
 
 loadEnvConfig(path.resolve(args.envDir), true, { info() {}, error() {} });
 assertLocalSupabase(process.env.SUPABASE_URL || "");
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) fail("Local Supabase service-role configuration is unavailable");
+if (!resolveSupabaseSecretKey()) fail("Local Supabase privileged API key configuration is unavailable");
 if (!process.env.GEMINI_API_KEY) fail("Gemini provider configuration is unavailable");
 
 const client = new Client({

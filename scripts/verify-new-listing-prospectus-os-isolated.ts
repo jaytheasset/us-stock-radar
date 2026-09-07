@@ -11,11 +11,12 @@ import {
   runSecProspectusOsTriggerBridge,
 } from "../lib/secProspectusOsTriggerBridge.ts";
 import { fetchSecEdgarRawItems } from "../lib/sources/sec/parser.ts";
+import { resolveSupabaseSecretKey } from "../lib/supabaseKeys.ts";
 
 const dbUrl = process.env.NEW_LISTING_OS_ISOLATED_DB_URL;
 const expectedPort = process.env.NEW_LISTING_OS_ISOLATED_DB_PORT;
 const apiUrl = process.env.SUPABASE_URL;
-if (!dbUrl || !expectedPort || !apiUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!dbUrl || !expectedPort || !apiUrl || !resolveSupabaseSecretKey().key) {
   throw new Error("isolated database and Supabase API variables are required");
 }
 assertIsolatedTargets(new URL(dbUrl), expectedPort, new URL(apiUrl));

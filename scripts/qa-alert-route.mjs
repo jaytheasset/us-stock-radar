@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
+import { resolveSupabaseSecretKey, supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = new Map(
   process.argv
@@ -17,8 +17,7 @@ const args = new Map(
 const baseUrl = String(args.get("base") || process.env.APP_LOCAL_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey;
+const key = resolveSupabaseSecretKey(env);
 const qaId = randomUUID();
 const now = new Date().toISOString();
 const rawUniqueId = `qa-alert-route:${qaId}`;
@@ -33,7 +32,7 @@ const checks = [];
 
 try {
   requireEnv("SUPABASE_URL", supabaseUrl);
-  requireEnv("SUPABASE_SERVICE_ROLE_KEY", key);
+  requireEnv("SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY", key);
 
   const eventType = await pickEventType();
   const rawItem = await insertOne("raw_items", {

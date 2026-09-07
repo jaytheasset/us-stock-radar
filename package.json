@@ -91,6 +91,8 @@
     "verify:seo": "node --test --experimental-strip-types lib/seo.test.ts lib/prelaunch.test.ts",
     "verify:shell": "node --test --experimental-strip-types components/shell/appShellRegression.test.ts components/shell/marketActivityRailRegression.test.ts lib/marketActivity.test.ts",
     "verify:auth": "node --test --experimental-strip-types lib/auth/authPolicy.test.ts components/shell/desktopNavigationLayout.test.ts components/shell/headerNavigationRegression.test.ts",
+    "verify:supabase-keys": "node --test --experimental-strip-types lib/supabaseKeys.test.ts scripts/supabase-service-headers.test.mjs",
+    "verify:supabase-keys:local": "node scripts/verify-supabase-new-api-keys-local.mjs",
     "verify:admin": "node --test --experimental-strip-types lib/admin/adminFoundation.test.ts lib/admin/internalReadoutApi.test.ts lib/admin/telegramCampaignPolicy.test.ts lib/admin/telegramCampaignAiPolicy.test.ts lib/development/secRepairObservability.test.ts lib/development/secCorrectionPromptCatalog.test.ts",
     "verify:news-v2": "node --test --experimental-strip-types lib/newsV2Regression.test.ts lib/originalSourceContent.test.ts",
     "verify:saved": "node --test --experimental-strip-types lib/saved/savedContent.test.ts",

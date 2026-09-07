@@ -34,11 +34,13 @@ import {
 
 const originalSupabaseUrl = process.env.SUPABASE_URL;
 const originalSupabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const originalSupabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 const originalFetch = globalThis.fetch;
 
 test.afterEach(() => {
   restoreEnv("SUPABASE_URL", originalSupabaseUrl);
   restoreEnv("SUPABASE_ANON_KEY", originalSupabaseAnonKey);
+  restoreEnv("SUPABASE_PUBLISHABLE_KEY", originalSupabasePublishableKey);
   globalThis.fetch = originalFetch;
 });
 
@@ -229,6 +231,26 @@ test("proxy refresh grant returns and preserves rotated tokens without logging t
   assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
     refresh_token: "current-refresh",
   });
+});
+
+test("proxy refresh sends a new publishable key only as apikey", async () => {
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test";
+  delete process.env.SUPABASE_ANON_KEY;
+  let requestHeaders = new Headers();
+  globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    requestHeaders = new Headers(init?.headers);
+    return Response.json({
+      access_token: "rotated-access",
+      refresh_token: "rotated-refresh",
+      expires_in: 3600,
+      user: { id: "00000000-0000-4000-8000-000000000123" },
+    });
+  }) as typeof fetch;
+
+  await refreshProxyAuthSession("current-refresh");
+  assert.equal(requestHeaders.get("apikey"), "sb_publishable_test");
+  assert.equal(requestHeaders.get("authorization"), null);
 });
 
 test("proxy forwards rotated cookies to the same SSR request and persists them", async () => {

@@ -9,6 +9,10 @@ import { listActiveListingMonitorsForConsumer } from "../lib/monitor/listingMoni
 import {
   readCurrentListingRiskFacts,
 } from "../lib/monitor/listingRiskPersistence.ts";
+import {
+  resolveSupabaseSecretKey,
+  supabaseServiceHeaders,
+} from "./supabase-service-headers.mjs";
 
 const { Client } = pg;
 const ATPC_EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
@@ -408,11 +412,11 @@ function readLocalSupabaseCredentials() {
     return match ? [[match[1], match[2].replace(/"$/, "")]] : [];
   }));
   const apiUrl = values.API_URL || "";
-  const serviceRoleKey = values.SERVICE_ROLE_KEY || "";
+  const secretKey = resolveSupabaseSecretKey(values);
   const parsed = new URL(apiUrl);
   assert.ok(parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
-  assert.ok(serviceRoleKey);
-  return { apiUrl, serviceRoleKey };
+  assert.ok(secretKey);
+  return { apiUrl, secretKey };
 }
 
 async function createListingMonitorAlertViaLocalPostgrest(credentials, input) {
@@ -423,13 +427,11 @@ async function createListingMonitorAlertViaLocalPostgrest(credentials, input) {
   );
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      apikey: credentials.serviceRoleKey,
-      Authorization: `Bearer ${credentials.serviceRoleKey}`,
+    headers: supabaseServiceHeaders(credentials.secretKey, {
       Accept: "application/json",
       "Content-Type": "application/json",
       Prefer: "resolution=ignore-duplicates,return=representation",
-    },
+    }),
     body: JSON.stringify({
       user_id: input.userId,
       alert_event_id: input.eventId,

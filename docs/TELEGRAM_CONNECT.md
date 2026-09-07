@@ -16,6 +16,7 @@ ID are server-only values.
 Configure these values for the Vercel **Production** environment:
 
 - `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` (preferred)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`

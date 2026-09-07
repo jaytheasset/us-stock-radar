@@ -1,5 +1,12 @@
+import {
+  resolveSupabasePublishableKey,
+  resolveSupabaseSecretKey,
+} from "./supabaseKeys.ts";
+
 const serverKeys = [
   "SUPABASE_URL",
+  "SUPABASE_SECRET_KEY",
+  "SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_ANON_KEY",
   "APP_BASE_URL",
@@ -56,11 +63,19 @@ const serverKeys = [
   "KLIPY_API_KEY",
 ] as const;
 
-export function getServerEnv() {
+export function getServerEnv(
+  environment: Record<string, string | undefined> = process.env,
+) {
+  const publishableKey = resolveSupabasePublishableKey(environment);
+  const secretKey = resolveSupabaseSecretKey(environment);
   return {
-    supabaseUrl: process.env.SUPABASE_URL || "",
-    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+    supabaseUrl: environment.SUPABASE_URL || "",
+    supabaseSecretKey: secretKey.key,
+    supabaseSecretKeySource: secretKey.source,
+    supabaseSecretKeyError: secretKey.error,
+    supabasePublishableKey: publishableKey.key,
+    supabasePublishableKeySource: publishableKey.source,
+    supabasePublishableKeyError: publishableKey.error,
     appBaseUrl: process.env.APP_BASE_URL || "",
     secUserAgent: process.env.SEC_USER_AGENT || "",
     fmpApiKey: process.env.FMP_API_KEY || "",
@@ -140,8 +155,10 @@ export function envStatus() {
   const values = getServerEnv();
   const lookup: Record<(typeof serverKeys)[number], string> = {
     SUPABASE_URL: values.supabaseUrl,
-    SUPABASE_SERVICE_ROLE_KEY: values.supabaseServiceRoleKey,
-    SUPABASE_ANON_KEY: values.supabaseAnonKey,
+    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY || "",
+    SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY || "",
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "",
     APP_BASE_URL: values.appBaseUrl,
     SEC_USER_AGENT: values.secUserAgent,
     FMP_API_KEY: values.fmpApiKey,

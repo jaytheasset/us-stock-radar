@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env";
+import { supabaseApiKeyHeaders } from "@/lib/supabaseKeys";
 import {
   applyEventTickerRelationshipFilter,
   normalizeEventRows,
@@ -61,7 +62,8 @@ function getSupabaseAuth() {
 
   return {
     baseUrl: cleanSupabaseUrl(env.supabaseUrl),
-    key: env.supabaseServiceRoleKey,
+    key: env.supabaseSecretKey,
+    keyError: env.supabaseSecretKeyError,
   };
 }
 
@@ -354,7 +356,7 @@ async function resolveIssuerLinkedTickers(tickers: readonly string[]) {
 }
 
 async function supabaseRest(table: string, search: Record<string, string>) {
-  const { baseUrl, key } = getSupabaseAuth();
+  const { baseUrl, key, keyError } = getSupabaseAuth();
 
   if (!baseUrl) {
     return { ok: false, status: 0, data: null, count: null, error: "SUPABASE_URL is missing" };
@@ -366,7 +368,7 @@ async function supabaseRest(table: string, search: Record<string, string>) {
       status: 0,
       data: null,
       count: null,
-      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
+      error: supabaseSecretConfigurationError(keyError),
     };
   }
 
@@ -378,10 +380,12 @@ async function supabaseRest(table: string, search: Record<string, string>) {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: supabaseRequestHeaders(key, {
-        apikey: key,
-        Accept: "application/json",
-        Prefer: "count=exact",
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          Prefer: "count=exact",
+        },
       }),
     });
 
@@ -408,14 +412,6 @@ async function supabaseRest(table: string, search: Record<string, string>) {
   }
 }
 
-function supabaseRequestHeaders(key: string, headers: Record<string, string>) {
-  if (key.startsWith("sb_secret_") || key.startsWith("sb_publishable_")) {
-    return headers;
-  }
-
-  return { ...headers, Authorization: `Bearer ${key}` };
-}
-
 export async function supabaseSelect(table: string, search: Record<string, string>) {
   return supabaseRest(table, search);
 }
@@ -425,7 +421,7 @@ export async function supabaseUpsert(
   payload: Record<string, unknown> | Array<Record<string, unknown>>,
   options: SupabaseMutationOptions = {},
 ) {
-  const { baseUrl, key } = getSupabaseAuth();
+  const { baseUrl, key, keyError } = getSupabaseAuth();
 
   if (!baseUrl) {
     return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
@@ -436,7 +432,7 @@ export async function supabaseUpsert(
       ok: false,
       status: 0,
       data: null,
-      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
+      error: supabaseSecretConfigurationError(keyError),
     };
   }
 
@@ -449,11 +445,15 @@ export async function supabaseUpsert(
     const response = await fetch(url, {
       method: "POST",
       cache: "no-store",
-      headers: supabaseRequestHeaders(key, {
-        apikey: key,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Prefer: options.prefer || "resolution=merge-duplicates,return=representation",
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Prefer:
+            options.prefer ||
+            "resolution=merge-duplicates,return=representation",
+        },
       }),
       body: JSON.stringify(payload),
     });
@@ -483,7 +483,7 @@ export async function supabaseUpdate(
   payload: Record<string, unknown>,
   options: Pick<SupabaseMutationOptions, "prefer"> = {},
 ) {
-  const { baseUrl, key } = getSupabaseAuth();
+  const { baseUrl, key, keyError } = getSupabaseAuth();
 
   if (!baseUrl) {
     return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
@@ -494,7 +494,7 @@ export async function supabaseUpdate(
       ok: false,
       status: 0,
       data: null,
-      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
+      error: supabaseSecretConfigurationError(keyError),
     };
   }
 
@@ -507,11 +507,13 @@ export async function supabaseUpdate(
     const response = await fetch(url, {
       method: "PATCH",
       cache: "no-store",
-      headers: supabaseRequestHeaders(key, {
-        apikey: key,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Prefer: options.prefer || "return=representation",
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Prefer: options.prefer || "return=representation",
+        },
       }),
       body: JSON.stringify(payload),
     });
@@ -536,7 +538,7 @@ export async function supabaseUpdate(
 }
 
 export async function supabaseDelete(table: string, search: Record<string, string>) {
-  const { baseUrl, key } = getSupabaseAuth();
+  const { baseUrl, key, keyError } = getSupabaseAuth();
 
   if (!baseUrl) {
     return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
@@ -547,7 +549,7 @@ export async function supabaseDelete(table: string, search: Record<string, strin
       ok: false,
       status: 0,
       data: null,
-      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
+      error: supabaseSecretConfigurationError(keyError),
     };
   }
 
@@ -560,10 +562,12 @@ export async function supabaseDelete(table: string, search: Record<string, strin
     const response = await fetch(url, {
       method: "DELETE",
       cache: "no-store",
-      headers: supabaseRequestHeaders(key, {
-        apikey: key,
-        Accept: "application/json",
-        Prefer: "return=representation",
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          Prefer: "return=representation",
+        },
       }),
     });
 
@@ -587,7 +591,7 @@ export async function supabaseDelete(table: string, search: Record<string, strin
 }
 
 export async function supabaseRpc(functionName: string, payload: Record<string, unknown>) {
-  const { baseUrl, key } = getSupabaseAuth();
+  const { baseUrl, key, keyError } = getSupabaseAuth();
 
   if (!baseUrl) {
     return { ok: false, status: 0, data: null, error: "SUPABASE_URL is missing" };
@@ -598,7 +602,7 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
       ok: false,
       status: 0,
       data: null,
-      error: "SUPABASE_SERVICE_ROLE_KEY is missing",
+      error: supabaseSecretConfigurationError(keyError),
     };
   }
 
@@ -606,10 +610,12 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
     const response = await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`, {
       method: "POST",
       cache: "no-store",
-      headers: supabaseRequestHeaders(key, {
-        apikey: key,
-        Accept: "application/json",
-        "Content-Type": "application/json",
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       }),
       body: JSON.stringify(payload),
     });
@@ -631,6 +637,12 @@ export async function supabaseRpc(functionName: string, payload: Record<string, 
       error: readSupabaseFetchError(error),
     };
   }
+}
+
+function supabaseSecretConfigurationError(error: "wrong-role" | null) {
+  return error === "wrong-role"
+    ? "Supabase privileged API key has the wrong role"
+    : "SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY is missing";
 }
 
 function parseBody(body: string) {

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const next = sanitizeAuthRedirect(readNext(body), "/alerts");
     const env = getServerEnv();
 
-    if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    if (!env.supabaseUrl || !env.supabasePublishableKey) {
       throw new AuthError(
         "SUPABASE_AUTH_ENV_MISSING",
         "Authentication is not configured.",

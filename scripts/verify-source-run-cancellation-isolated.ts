@@ -9,6 +9,7 @@ import { createLocalWorld } from "@workflow/world-local";
 import { getQueueTopicPrefix } from "@workflow/world";
 import { start } from "workflow/api";
 import { setWorld } from "workflow/runtime";
+import { resolveSupabaseSecretKey } from "../lib/supabaseKeys.ts";
 
 const apiUrl = requireIsolatedSupabase();
 
@@ -215,8 +216,8 @@ function requireIsolatedSupabase() {
   if (process.env.SOURCE_RUN_CANCELLATION_ISOLATED_DB !== "1") {
     throw new Error("SOURCE_RUN_CANCELLATION_ISOLATED_DB=1 is required");
   }
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
+  if (!resolveSupabaseSecretKey().key) {
+    throw new Error("A privileged Supabase API key is required");
   }
   const url = new URL(process.env.SUPABASE_URL || "");
   if (!url.hostname.match(/^(127\.0\.0\.1|localhost)$/) ||

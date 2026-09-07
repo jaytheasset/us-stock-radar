@@ -2,7 +2,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
+import { resolveSupabaseSecretKey, supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 import {
   getPlanLimits,
   isDiscoveryCategoryAllowed,
@@ -30,14 +30,13 @@ const write = args.has("write");
 const dryRun = !write;
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey;
+const key = resolveSupabaseSecretKey(env);
 
 if (!eventId) {
   console.error("Usage: npm run deliver:event -- --event-id <event-id> [--write]");
   process.exitCode = 1;
 } else if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy fallback).");
   process.exitCode = 1;
 } else {
   let result;

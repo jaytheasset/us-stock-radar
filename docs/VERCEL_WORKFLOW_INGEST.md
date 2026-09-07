@@ -149,6 +149,7 @@ Production에 먼저 설정:
 - `SOURCE_INGEST_WORKFLOW_ENABLED_LANES`: 첫 배포에는 빈 값. 검증 후
   `news_fast`, `news_slow`, `sec`를 쉼표로 점진 추가한다.
 - `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` (preferred)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SEC_USER_AGENT`
 - `GEMINI_API_KEY`: 뉴스와 SEC Gemini 호출에 공통 사용

@@ -3,6 +3,10 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import {
+  resolveSupabaseSecretKey,
+  supabaseServiceHeaders,
+} from "./supabase-service-headers.mjs";
 
 const { Client } = pg;
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3110";
@@ -289,11 +293,9 @@ function zeroResidue() {
 }
 
 function adminHeaders() {
-  return {
-    apikey: credentials.serviceRoleKey,
-    Authorization: `Bearer ${credentials.serviceRoleKey}`,
+  return supabaseServiceHeaders(credentials.secretKey, {
     "Content-Type": "application/json",
-  };
+  });
 }
 
 function localDatabaseUrl() {
@@ -314,9 +316,9 @@ function readLocalSupabaseCredentials() {
     return match ? [[match[1], match[2].replace(/"$/, "")]] : [];
   }));
   const apiUrl = values.API_URL || "";
-  const serviceRoleKey = values.SERVICE_ROLE_KEY || "";
+  const secretKey = resolveSupabaseSecretKey(values);
   const parsed = new URL(apiUrl);
   assert.ok(parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
-  assert.ok(serviceRoleKey);
-  return { apiUrl: apiUrl.replace(/\/$/, ""), serviceRoleKey };
+  assert.ok(secretKey);
+  return { apiUrl: apiUrl.replace(/\/$/, ""), secretKey };
 }

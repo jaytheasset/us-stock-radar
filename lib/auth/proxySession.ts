@@ -1,4 +1,6 @@
 import { shouldClearAuthSessionForStatus } from "./authFailure.ts";
+import { getServerEnv } from "../env.ts";
+import { supabaseApiKeyHeaders } from "../supabaseKeys.ts";
 
 export type ProxyAuthSession = {
   access_token: string;
@@ -24,12 +26,13 @@ export class ProxyAuthRefreshError extends Error {
 export async function refreshProxyAuthSession(
   refreshToken: string,
 ): Promise<ProxyAuthSession> {
-  const baseUrl = (process.env.SUPABASE_URL || "")
+  const env = getServerEnv();
+  const baseUrl = env.supabaseUrl
     .replace(/\/rest\/v1\/?$/i, "")
     .replace(/\/$/, "");
-  const anonKey = process.env.SUPABASE_ANON_KEY || "";
+  const publishableKey = env.supabasePublishableKey;
 
-  if (!baseUrl || !anonKey) {
+  if (!baseUrl || !publishableKey) {
     throw new ProxyAuthRefreshError("Auth refresh is unavailable.");
   }
   if (!refreshToken) {
@@ -43,12 +46,13 @@ export async function refreshProxyAuthSession(
       {
         method: "POST",
         cache: "no-store",
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: supabaseApiKeyHeaders({
+          apiKey: publishableKey,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }),
         body: JSON.stringify({
           refresh_token: refreshToken,
         }),
