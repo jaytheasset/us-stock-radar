@@ -82,7 +82,11 @@ function normalizeLoginError(error: unknown) {
       };
     }
 
-    if (error.code === "SUPABASE_ANON_KEY_MISSING" || error.code === "SUPABASE_URL_MISSING") {
+    if (
+      error.code === "SUPABASE_PUBLISHABLE_KEY_MISSING" ||
+      error.code === "SUPABASE_PUBLISHABLE_KEY_INVALID" ||
+      error.code === "SUPABASE_URL_MISSING"
+    ) {
       return {
         status: 500,
         code: "AUTH_CONFIG_ERROR",

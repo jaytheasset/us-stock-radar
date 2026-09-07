@@ -2,6 +2,7 @@ import "server-only";
 
 import { getServerEnv } from "@/lib/env";
 import { supabaseUpsert } from "@/lib/supabase";
+import { supabaseApiKeyHeaders } from "@/lib/supabaseKeys";
 
 export type SupabaseAuthUser = {
   id: string;
@@ -243,13 +244,20 @@ function getAuthEnv() {
   if (!env.supabaseUrl) {
     throw new AuthError("SUPABASE_URL_MISSING", "SUPABASE_URL is required for authentication.", 500);
   }
-  if (!env.supabaseAnonKey) {
-    throw new AuthError("SUPABASE_ANON_KEY_MISSING", "SUPABASE_ANON_KEY is required for authentication.", 500);
+  if (!env.supabasePublishableKey) {
+    const code = env.supabasePublishableKeyError
+      ? "SUPABASE_PUBLISHABLE_KEY_INVALID"
+      : "SUPABASE_PUBLISHABLE_KEY_MISSING";
+    throw new AuthError(
+      code,
+      "SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY is required for authentication.",
+      500,
+    );
   }
 
   return {
     baseUrl: env.supabaseUrl.replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, ""),
-    anonKey: env.supabaseAnonKey,
+    publishableKey: env.supabasePublishableKey,
   };
 }
 
@@ -265,12 +273,14 @@ async function callSupabaseAuth<T>(
   const response = await fetch(`${env.baseUrl}${path}`, {
     method: options.method,
     cache: "no-store",
-    headers: {
-      apikey: env.anonKey,
-      Authorization: `Bearer ${options.accessToken || env.anonKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
+    headers: supabaseApiKeyHeaders({
+      apiKey: env.publishableKey,
+      accessToken: options.accessToken,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    }),
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 

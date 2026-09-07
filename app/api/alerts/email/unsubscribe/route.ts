@@ -1,4 +1,6 @@
 import { verifyEmailUnsubscribeToken } from "../../../../../lib/alerts/emailUnsubscribeToken.ts";
+import { getServerEnv } from "../../../../../lib/env.ts";
+import { supabaseApiKeyHeaders } from "../../../../../lib/supabaseKeys.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +53,11 @@ function verifyUnsubscribeRequest(request: Request) {
 }
 
 async function disableEmailChannel(userId: string) {
-  const baseUrl = (process.env.SUPABASE_URL || "")
+  const env = getServerEnv();
+  const baseUrl = env.supabaseUrl
     .replace(/\/rest\/v1\/?$/i, "")
     .replace(/\/$/, "");
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const key = env.supabaseSecretKey;
   if (!baseUrl || !key) return false;
 
   const url = new URL(`${baseUrl}/rest/v1/user_delivery_channels`);
@@ -65,26 +68,20 @@ async function disableEmailChannel(userId: string) {
     const response = await fetch(url, {
       method: "PATCH",
       cache: "no-store",
-      headers: supabaseHeaders(key),
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+      }),
       body: JSON.stringify({ enabled: false }),
     });
     return response.ok;
   } catch {
     return false;
   }
-}
-
-function supabaseHeaders(key: string) {
-  const headers: Record<string, string> = {
-    apikey: key,
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    Prefer: "return=minimal",
-  };
-  if (!key.startsWith("sb_secret_") && !key.startsWith("sb_publishable_")) {
-    headers.Authorization = `Bearer ${key}`;
-  }
-  return headers;
 }
 
 function invalidTokenResponse() {

@@ -87,6 +87,9 @@ from a fresh PowerShell session and put the local values in that process only:
 ```powershell
 $localSupabase = npx supabase status -o json | ConvertFrom-Json
 $env:SUPABASE_URL = $localSupabase.API_URL
+$env:SUPABASE_PUBLISHABLE_KEY = $localSupabase.PUBLISHABLE_KEY
+$env:SUPABASE_SECRET_KEY = $localSupabase.SECRET_KEY
+# Optional staged fallback while migration validation is in progress:
 $env:SUPABASE_ANON_KEY = $localSupabase.ANON_KEY
 $env:SUPABASE_SERVICE_ROLE_KEY = $localSupabase.SERVICE_ROLE_KEY
 $env:APP_BASE_URL = "http://127.0.0.1:3110"

@@ -56,8 +56,9 @@ The signal is an untrusted refresh hint, not message data:
 - a visibility-aware 45-second poll runs as a low-frequency backstop;
 - reconnecting and returning to a visible tab trigger immediate catch-up.
 
-The browser receives only `SUPABASE_URL` and the publishable/legacy anon key
-through a server component prop. `SUPABASE_SERVICE_ROLE_KEY` remains
+The browser receives only `SUPABASE_URL` and the preferred
+`SUPABASE_PUBLISHABLE_KEY` (or staged `SUPABASE_ANON_KEY` fallback) through a
+server component prop. `SUPABASE_SECRET_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain
 server-only.
 
 `@supabase/supabase-js` is pinned to `2.109.0`, the newest release compatible

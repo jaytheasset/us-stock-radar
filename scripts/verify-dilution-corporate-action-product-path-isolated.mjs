@@ -32,12 +32,13 @@ import {
 } from "../lib/secStores/rawStore.ts";
 import { fetchSecEdgarRawItems } from "../lib/sources/sec/parser.ts";
 import { supabaseRpc } from "../lib/supabase.ts";
+import { resolveSupabaseSecretKey } from "../lib/supabaseKeys.ts";
 
 const { Client } = pg;
 const dbUrl = process.env.DCA_ISOLATED_DB_URL;
 const expectedDbPort = process.env.DCA_ISOLATED_DB_PORT;
 const apiUrl = process.env.SUPABASE_URL;
-if (!dbUrl || !expectedDbPort || !apiUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!dbUrl || !expectedDbPort || !apiUrl || !resolveSupabaseSecretKey().key) {
   throw new Error("DCA isolated DB/API variables are required");
 }
 assertIsolatedTargets(new URL(dbUrl), expectedDbPort, new URL(apiUrl));

@@ -205,10 +205,13 @@ Required for the Next.js app and API routes:
 
 ```bash
 SUPABASE_URL=<value>
+SUPABASE_SECRET_KEY=<preferred value>
 SUPABASE_SERVICE_ROLE_KEY=<value>
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is server-side only. Do not expose it with a `NEXT_PUBLIC_` prefix and do not use it in client components.
+`SUPABASE_SECRET_KEY` is preferred and `SUPABASE_SERVICE_ROLE_KEY` is the staged
+legacy fallback. Both are server-side only. Do not expose either with a
+`NEXT_PUBLIC_` prefix or use either in client components.
 
 Required for Telegram connect flow and webhook verification:
 
@@ -660,7 +663,7 @@ channel post.
 ## Safety Rules
 
 - Never print `SUPABASE_DB_URL`.
-- Never print `SUPABASE_SERVICE_ROLE_KEY`.
+- Never print `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`.
 - Never print `ALERT_DELIVERY_CRON_SECRET` or `CRON_SECRET`.
 - Never print `TELEGRAM_BOT_TOKEN`.
 - Never print `TELEGRAM_WEBHOOK_SECRET`.

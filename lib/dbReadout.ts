@@ -6,6 +6,7 @@ import {
   taxonomyTickerFlow,
 } from "@/lib/dbRegistry";
 import { getServerEnv } from "@/lib/env";
+import { supabaseApiKeyHeaders } from "@/lib/supabaseKeys";
 
 type ReadoutQuery = {
   group: string;
@@ -72,7 +73,7 @@ export async function getDbReadout() {
 async function countTable(query: ReadoutQuery) {
   const env = getServerEnv();
 
-  if (!env.supabaseUrl || !env.supabaseServiceRoleKey) {
+  if (!env.supabaseUrl || !env.supabaseSecretKey) {
     return {
       ...query,
       ok: false,
@@ -93,12 +94,13 @@ async function countTable(query: ReadoutQuery) {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: {
-        apikey: env.supabaseServiceRoleKey,
-        Authorization: `Bearer ${env.supabaseServiceRoleKey}`,
-        Accept: "application/json",
-        Prefer: "count=exact",
-      },
+      headers: supabaseApiKeyHeaders({
+        apiKey: env.supabaseSecretKey,
+        headers: {
+          Accept: "application/json",
+          Prefer: "count=exact",
+        },
+      }),
     });
     const body = await response.text();
     const contentRange = response.headers.get("content-range") || "";

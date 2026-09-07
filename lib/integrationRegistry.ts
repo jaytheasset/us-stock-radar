@@ -5,7 +5,13 @@ export const integrationRegistry = [
     key: "supabase",
     label: "Supabase",
     category: "database",
-    envKeys: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY"],
+    envKeys: [
+      "SUPABASE_URL",
+      "SUPABASE_SECRET_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_ANON_KEY",
+    ],
   },
   {
     key: "render",

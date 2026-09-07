@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getServerEnv } from "@/lib/env";
+import { supabaseApiKeyHeaders } from "@/lib/supabaseKeys";
 import {
   getEffectivePlanFromSubscription,
   type EffectiveUserPlan,
@@ -483,18 +484,17 @@ async function getAuthUserById(userId: string) {
   const baseUrl = env.supabaseUrl
     .replace(/\/rest\/v1\/?$/i, "")
     .replace(/\/$/, "");
-  const key = env.supabaseServiceRoleKey;
+  const key = env.supabaseSecretKey;
   if (!baseUrl || !key) return null;
   try {
     const response = await fetch(`${baseUrl}/auth/v1/admin/users/${userId}`, {
       cache: "no-store",
-      headers: {
-        apikey: key,
-        Accept: "application/json",
-        ...(key.startsWith("sb_secret_")
-          ? {}
-          : { Authorization: `Bearer ${key}` }),
-      },
+      headers: supabaseApiKeyHeaders({
+        apiKey: key,
+        headers: {
+          Accept: "application/json",
+        },
+      }),
     });
     if (!response.ok) return null;
     return (await response.json()) as {

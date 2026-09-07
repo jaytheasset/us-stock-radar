@@ -1,14 +1,16 @@
 import "server-only";
 
 import type { LiveRoomRealtimeConfig } from "./apiRepository";
+import { getServerEnv } from "../env.ts";
 import {
   getDevelopmentAllowedOrigins,
   isAllowedDevelopmentOrigin,
 } from "../devAllowedOrigins.ts";
 
 export function getLiveRoomRealtimeConfig(): LiveRoomRealtimeConfig | null {
-  const publishableKey = (process.env.SUPABASE_ANON_KEY || "").trim();
-  const rawUrl = (process.env.SUPABASE_URL || "").trim();
+  const env = getServerEnv();
+  const publishableKey = env.supabasePublishableKey;
+  const rawUrl = env.supabaseUrl.trim();
   if (!publishableKey || !rawUrl) return null;
 
   try {

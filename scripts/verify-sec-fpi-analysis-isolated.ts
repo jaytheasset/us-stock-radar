@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 // @ts-expect-error The project intentionally uses pg without a separate declaration package.
 import pg from "pg";
+import { resolveSupabaseSecretKey } from "../lib/supabaseKeys.ts";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -18,11 +19,11 @@ registerHooks({
 const dbUrl = process.env.FPI_ANALYSIS_ISOLATED_DB_URL;
 const expectedDbPort = process.env.FPI_ANALYSIS_ISOLATED_DB_PORT;
 const apiUrl = process.env.SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const secretKey = resolveSupabaseSecretKey().key;
 const openAiKey = process.env.OPENAI_API_KEY;
-if (!dbUrl || !expectedDbPort || !apiUrl || !serviceRoleKey || !openAiKey) {
+if (!dbUrl || !expectedDbPort || !apiUrl || !secretKey || !openAiKey) {
   throw new Error(
-    "FPI_ANALYSIS_ISOLATED_DB_URL, FPI_ANALYSIS_ISOLATED_DB_PORT, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and OPENAI_API_KEY are required",
+    "FPI_ANALYSIS_ISOLATED_DB_URL, FPI_ANALYSIS_ISOLATED_DB_PORT, SUPABASE_URL, a privileged Supabase API key, and OPENAI_API_KEY are required",
   );
 }
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getServerEnv } from "@/lib/env";
+import { supabaseApiKeyHeaders } from "@/lib/supabaseKeys";
 
 export type ServerAuthUser = {
   id?: string;
@@ -12,18 +13,17 @@ export type ServerAuthUser = {
 export async function getAuthUserById(userId: string): Promise<ServerAuthUser | null> {
   const env = getServerEnv();
   const baseUrl = env.supabaseUrl.replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
-  if (!baseUrl || !env.supabaseServiceRoleKey || !userId) return null;
+  if (!baseUrl || !env.supabaseSecretKey || !userId) return null;
 
   try {
     const response = await fetch(`${baseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
       cache: "no-store",
-      headers: {
-        apikey: env.supabaseServiceRoleKey,
-        Accept: "application/json",
-        ...(env.supabaseServiceRoleKey.startsWith("sb_secret_")
-          ? {}
-          : { Authorization: `Bearer ${env.supabaseServiceRoleKey}` }),
-      },
+      headers: supabaseApiKeyHeaders({
+        apiKey: env.supabaseSecretKey,
+        headers: {
+          Accept: "application/json",
+        },
+      }),
     });
     if (!response.ok) return null;
     return (await response.json()) as ServerAuthUser;

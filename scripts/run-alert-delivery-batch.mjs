@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
+import { resolveSupabaseSecretKey, supabaseServiceHeaders } from "./supabase-service-headers.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const write = args.has("write");
@@ -13,11 +13,10 @@ const limit = normalizeLimit(args.get("limit"));
 const lookbackHours = normalizeLookbackHours(args.get("lookback-hours") || args.get("lookbackHours"));
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey;
+const key = resolveSupabaseSecretKey(env);
 
 if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy fallback).");
   process.exitCode = 1;
 } else {
   try {

@@ -2,7 +2,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { supabaseServiceHeaders } from "./supabase-service-headers.mjs";
+import {
+  resolveSupabaseSecretKey,
+  supabaseServiceHeaders,
+} from "./supabase-service-headers.mjs";
 import {
   getPlanLimits,
   isDiscoveryCategoryAllowed,
@@ -24,11 +27,10 @@ const dryRun = !write;
 const limit = normalizeLimit(args.get("limit"));
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-const key = serviceKey;
+const key = resolveSupabaseSecretKey(env);
 
 if (!supabaseUrl || !key) {
-  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  console.error("Supabase env is missing. Check SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy fallback).");
   process.exitCode = 1;
 } else {
   try {

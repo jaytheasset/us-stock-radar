@@ -66,15 +66,15 @@ export async function removeLiveRoomAvatarObject(path: string | null) {
 }
 
 function getStorageClient() {
-  const { supabaseServiceRoleKey, supabaseUrl } = getServerEnv();
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
+  const { supabaseSecretKey, supabaseUrl } = getServerEnv();
+  if (!supabaseUrl || !supabaseSecretKey) {
     throw avatarError(
       "LIVE_ROOM_AVATAR_UNAVAILABLE",
       "Profile photo storage is not configured.",
       503,
     );
   }
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createClient(supabaseUrl, supabaseSecretKey, {
     auth: {
       autoRefreshToken: false,
       detectSessionInUrl: false,
