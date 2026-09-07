@@ -6,6 +6,10 @@ import {
   type OwnershipReportingOwnerFact,
   type OwnershipValueQuality,
 } from "./ownershipAnalysisFacts.ts";
+import {
+  buildOwnershipParserFactRows,
+  OwnershipParserSourceError,
+} from "./ownershipParserFacts.ts";
 
 type Row = Record<string, unknown>;
 type MutationResult = { ok: boolean; status: number; data: unknown; error?: string };
@@ -28,10 +32,15 @@ export type PersistOptionalMonitorFoundationInput = {
   eventTime: string;
   primaryTicker?: EventSnapshotSubject | null;
   analysisMarketContext?: unknown;
+  ownershipRawItem?: unknown;
+  // Retained only so legacy analysis-shape callers receive an explicit
+  // fail-closed result. It is never a canonical typed-detail input.
   ownershipAnalysisOutput?: unknown;
-  // "known" means a successful Ownership Analysis result, including a
-  // successful empty result that must clear stale rows. Missing/failed/not-applicable input must
-  // not be promoted to known-empty because it must preserve prior valid facts.
+  // "known" means a verified canonical Ownership input is available. Product
+  // SEC persistence supplies the preserved raw XML and production parser path.
+  // The Analysis-shaped input remains only for legacy callers and regression
+  // coverage. Missing/failed/not-applicable input must not be promoted to
+  // known-empty because it must preserve prior valid facts.
   ownershipInputState?: "known" | "not_applicable";
 };
 
@@ -114,10 +123,16 @@ export async function persistOwnershipAnalysisFacts(
   if (input.ownershipInputState !== "known") {
     return { form4TransactionCount: 0, form144ProposedSaleCount: 0 };
   }
-  const rows = buildOwnershipFactRows({
+  if (!input.ownershipRawItem) {
+    throw new OwnershipParserSourceError(
+      "source_missing",
+      "Verified SEC Ownership XML raw item is required for canonical detail persistence",
+    );
+  }
+  const rows = buildOwnershipParserFactRows({
     eventId,
     symbol: input.primaryTicker?.symbol || null,
-    analysisOutput: input.ownershipAnalysisOutput,
+    rawItem: input.ownershipRawItem,
   });
 
   const persisted = await resolvedRepository.replaceOwnershipFacts(

@@ -5,8 +5,13 @@ import {
 import { runAlertDeliveryForEvent } from "@/lib/alerts/delivery/runAlertDeliveryForEvent";
 import { findSecRawItem, runSecFilingAnalysisForRawRow } from "@/lib/ai/secFilingAnalysisPreview";
 import {
+  SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY,
+  SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION,
+} from "@/lib/ai/secOwnershipAnalysisAdapter";
+import {
   fetchSecFilingCalendarItemsForEvent,
   saveAnalyzedSecFilingEvent,
+  saveOwnershipParserDetailsEvent,
   saveSecFilingAiTrace,
 } from "@/lib/secStores/eventStore";
 import {
@@ -67,10 +72,38 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   });
   if (!analysisRun.ok || !analysisRun.analysis) {
     const failedValidationRepair = readValidationRepair(analysisRun);
-    if (failedValidationRepair?.attempted === true) {
+    const ownershipFailure = hasOwnershipParserInput(analysisRun.input);
+    const failedPromptKey = analysisRun.prompt?.key || (
+      ownershipFailure ? SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY : SEC_FILING_ANALYSIS_PROMPT_KEY
+    );
+    const failedPromptVersion = analysisRun.prompt?.version || (
+      ownershipFailure ? SEC_OWNERSHIP_ANALYSIS_PROMPT_VERSION : SEC_FILING_ANALYSIS_PROMPT_VERSION
+    );
+    let parserDetailsEvent: Record<string, unknown> | null = null;
+    let parserDetailsPersistence: Record<string, unknown> | null = null;
+    if (ownershipFailure && !options.dryRun) {
+      try {
+        const saved = await saveOwnershipParserDetailsEvent({
+          rawRow: rawResult.rawItem,
+          promptKey: failedPromptKey,
+          promptVersion: failedPromptVersion,
+        });
+        parserDetailsEvent = saved.event;
+        parserDetailsPersistence = {
+          ok: true,
+          ...saved.persistence,
+        };
+      } catch (error) {
+        parserDetailsPersistence = {
+          ok: false,
+          error: error instanceof Error ? error.message : "Ownership parser details persistence failed",
+        };
+      }
+    }
+    if (failedValidationRepair?.attempted === true || (ownershipFailure && !options.dryRun)) {
       await saveSecFilingAiTrace({
         rawItemId: stringValue(rawResult.rawItem.id),
-        eventId: null,
+        eventId: stringValue(parserDetailsEvent?.id) || null,
         analysis: analysisRun.analysis || null,
         outputText: analysisRun.outputText || "",
         repairOutputText: analysisRun.repairOutputText,
@@ -80,11 +113,11 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         model: analysisRun.model || "",
         openAiResponseId: analysisRun.openAiResponseId || null,
         repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
-        promptKey: analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY,
-        promptVersion: analysisRun.prompt?.version || SEC_FILING_ANALYSIS_PROMPT_VERSION,
+        promptKey: failedPromptKey,
+        promptVersion: failedPromptVersion,
         prompt: readRecord(analysisRun.prompt),
         validationRepair: failedValidationRepair,
-        error: analysisRun.error || "SEC filing analysis failed after validation repair",
+        error: analysisRun.error || "SEC filing analysis failed",
       }).catch(() => null);
     }
     return {
@@ -93,6 +126,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       status: analysisRun.status,
       error: analysisRun.error || "SEC filing analysis failed",
       sourceItem: analysisRun.sourceItem,
+      event: parserDetailsEvent,
+      ownershipDetailsPersistence: parserDetailsPersistence,
       input: analysisRun.input,
       runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
       outputText: analysisRun.outputText,
@@ -258,6 +293,13 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     genericMonitorChildren,
     validationRepairTrace,
   };
+}
+
+function hasOwnershipParserInput(value: unknown) {
+  const input = readRecord(value);
+  const filingPackage = readRecord(input?.filing_package);
+  const hardParsers = readRecord(filingPackage?.hard_parsers);
+  return Boolean(readRecord(hardParsers?.ownership));
 }
 
 function readValidationRepair(analysisRun: unknown) {

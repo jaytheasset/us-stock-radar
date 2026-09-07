@@ -33,7 +33,7 @@ export const ownershipFormAdapter = {
   routerRequired: false,
   matches: (canonicalFormType: string) => ownershipSupportedForms.includes(canonicalFormType as (typeof ownershipSupportedForms)[number]),
   parse: (rawItem: Record<string, unknown>, formType: string | null) => {
-    const parserOutput = parseOwnershipFiling(buildRuntimeParserInput(rawItem, formType));
+    const parserOutput = parseOwnershipFiling(buildRuntimeOwnershipParserInput(rawItem, formType));
     return {
       worker: {
         key: ownershipAdapterKey,
@@ -60,7 +60,7 @@ export const ownershipFormAdapter = {
 
 export const ownershipAdapter = ownershipFormAdapter;
 
-function buildRuntimeParserInput(rawItem: Record<string, unknown>, formType: string | null): OwnershipFixtureInput {
+export function buildRuntimeOwnershipParserInput(rawItem: Record<string, unknown>, formType: string | null): OwnershipFixtureInput {
   const rawPayload = recordValue(rawItem.raw_payload);
   const metadata = recordValue(rawItem.metadata);
   const attachments = attachmentArray(rawPayload.attachment_texts);
