@@ -80,6 +80,7 @@ import {
 } from "@/lib/tickerSearchFlowObservation";
 import type { StockDilutionMembershipResponse } from "@/lib/dilution-registry/stockDilutionMembership";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
+import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
@@ -161,6 +162,8 @@ export function StockRadarWatchlistV2({
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
+  const [financials, setFinancials] =
+    useState<StockFinancialsSnapshot | null>(null);
   const [dilution, setDilution] =
     useState<StockDilutionMembershipResponse | null>(null);
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
@@ -174,6 +177,8 @@ export function StockRadarWatchlistV2({
     resolveStockEventsRequestSnapshot({ requestState: "idle" }),
   );
   const [fundamentalsState, setFundamentalsState] =
+    useState<LoadState>("idle");
+  const [financialsState, setFinancialsState] =
     useState<LoadState>("idle");
   const [dilutionState, setDilutionState] = useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
@@ -440,6 +445,38 @@ export function StockRadarWatchlistV2({
 
   useEffect(() => {
     if (!selectedTicker) {
+      setFinancials(null);
+      setFinancialsState("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setFinancials(null);
+    setFinancialsState("loading");
+
+    void fetch(
+      `/api/market/sec/financials?symbol=${encodeURIComponent(selectedTicker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readStockFinancialsResponse)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        const nextFinancials = readStockFinancialsSnapshot(payload, selectedTicker);
+        setFinancials(nextFinancials);
+        setFinancialsState(nextFinancials ? "ready" : "unavailable");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFinancials(null);
+          setFinancialsState("unavailable");
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
       setFundamentals(null);
       setFundamentalsState("idle");
       return;
@@ -614,7 +651,7 @@ export function StockRadarWatchlistV2({
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [dilutionState, fundamentalsState, selectedTicker]);
+  }, [dilutionState, financialsState, fundamentalsState, selectedTicker]);
 
   useEffect(() => {
     if (!window.matchMedia("(max-width: 1120px)").matches) return;
@@ -1114,6 +1151,8 @@ export function StockRadarWatchlistV2({
                       dilutionLoadState={dilutionState}
                       dilutionSnapshot={dilution}
                       financialEvents={financialEvents}
+                      financialLoadState={financialsState}
+                      financialSnapshot={financials}
                       loadState={fundamentalsState}
                       ownershipEvents={ownershipEvents}
                       snapshot={fundamentals}
@@ -1899,6 +1938,14 @@ async function readStockEventsResponse(response: Response) {
   };
 }
 
+async function readStockFinancialsResponse(response: Response) {
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error || "SEC Financials request failed.");
+  }
+  return payload;
+}
+
 function readFundamentalsSnapshot(
   payload: unknown,
   expectedSymbol: string,
@@ -1918,6 +1965,28 @@ function readFundamentalsSnapshot(
     return null;
   }
   return candidate as StockFundamentalsSnapshot;
+}
+
+function readStockFinancialsSnapshot(
+  payload: unknown,
+  expectedSymbol: string,
+): StockFinancialsSnapshot | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const data = (payload as { data?: unknown }).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const candidate = data as Partial<StockFinancialsSnapshot>;
+  if (
+    candidate.symbol !== expectedSymbol
+    || candidate.source !== "SEC_XBRL"
+    || candidate.gptDependency !== false
+    || !candidate.quarterly
+    || !candidate.annual
+  ) {
+    return null;
+  }
+  return candidate as StockFinancialsSnapshot;
 }
 
 function readDilutionSnapshot(

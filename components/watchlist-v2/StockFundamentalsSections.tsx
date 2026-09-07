@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { ChevronRight, ExternalLink, LockKeyhole } from "lucide-react";
 import {
-  calculateMargin,
-  calculatePercentChange,
-  findPriorYearQuarter,
   type StockBeneficialOwnershipFiling,
-  type StockFinancialQuarter,
   type StockFundamentalsSnapshot,
   type StockFundamentalsSourceKey,
   type StockInsiderTrade,
 } from "@/lib/watchlist/stockFundamentals";
+import type {
+  StockFinancialBasis,
+  StockFinancialCategorySnapshot,
+  StockFinancialDisplayRow,
+  StockFinancialMetricRow,
+  StockFinancialValue,
+  StockFinancialsSnapshot,
+} from "@/lib/watchlist/stockFinancials";
 import type {
   StockDilutionActivity,
   StockDilutionInstrument,
@@ -32,6 +36,8 @@ type StockFundamentalsSectionsProps = {
   dilutionLoadState: FundamentalsLoadState;
   dilutionSnapshot: StockDilutionMembershipResponse | null;
   financialEvents: StockOverviewEvent[];
+  financialLoadState: FundamentalsLoadState;
+  financialSnapshot: StockFinancialsSnapshot | null;
   loadState: FundamentalsLoadState;
   ownershipEvents: StockOverviewEvent[];
   snapshot: StockFundamentalsSnapshot | null;
@@ -43,6 +49,8 @@ export function StockFundamentalsSections({
   dilutionLoadState,
   dilutionSnapshot,
   financialEvents,
+  financialLoadState,
+  financialSnapshot,
   loadState,
   ownershipEvents,
   snapshot,
@@ -51,8 +59,8 @@ export function StockFundamentalsSections({
     <>
       <FinancialsSection
         events={financialEvents}
-        loadState={loadState}
-        snapshot={snapshot}
+        loadState={financialLoadState}
+        snapshot={financialSnapshot}
       />
       <OwnershipSection
         events={ownershipEvents}
@@ -73,19 +81,12 @@ function FinancialsSection({
   events,
   loadState,
   snapshot,
-}: SectionProps) {
-  const quarters = snapshot?.financials.quarters ?? [];
-  const annuals = snapshot?.financials.annuals ?? [];
-  const latest = quarters[0] ?? null;
-  const previous = quarters[1] ?? null;
-  const priorYear = findPriorYearQuarter(quarters, latest);
-  const unavailableSources = getUnavailableSources(snapshot, [
-    "incomeStatement",
-    "balanceSheet",
-    "cashFlow",
-  ]);
-
-  if (!latest) {
+}: {
+  events: StockOverviewEvent[];
+  loadState: FundamentalsLoadState;
+  snapshot: StockFinancialsSnapshot | null;
+}) {
+  if (!snapshot) {
     return (
       <SectionState
         id="watchlist-financials"
@@ -96,71 +97,11 @@ function FinancialsSection({
     );
   }
 
-  const grossMargin = calculateMargin(latest.grossProfit, latest.revenue);
-  const previousGrossMargin = calculateMargin(
-    previous?.grossProfit,
-    previous?.revenue,
-  );
-  const operatingMargin = calculateMargin(
-    latest.operatingIncome,
-    latest.revenue,
-  );
-  const quarterLabels = quarters.map(formatQuarterLabel);
-  const annualLabels = annuals.map(formatQuarterLabel);
-  const rows = [
-    {
-      label: "Revenue",
-      values: quarters.map((quarter) => formatUsd(quarter.revenue)),
-    },
-    {
-      label: "Gross margin",
-      values: quarters.map((quarter) =>
-        formatPercent(calculateMargin(quarter.grossProfit, quarter.revenue)),
-      ),
-    },
-    {
-      label: "Operating income",
-      values: quarters.map((quarter) => formatUsd(quarter.operatingIncome)),
-    },
-    {
-      label: "Net income",
-      values: quarters.map((quarter) => formatUsd(quarter.netIncome)),
-    },
-    {
-      label: "Diluted EPS",
-      values: quarters.map((quarter) => formatEps(quarter.epsDiluted)),
-    },
-    {
-      label: "Free cash flow",
-      values: quarters.map((quarter) => formatUsd(quarter.freeCashFlow)),
-    },
-  ];
-  const annualRows = [
-    {
-      label: "Revenue",
-      values: annuals.map((period) => formatUsd(period.revenue)),
-    },
-    {
-      label: "Operating income",
-      values: annuals.map((period) => formatUsd(period.operatingIncome)),
-    },
-    {
-      label: "Net income",
-      values: annuals.map((period) => formatUsd(period.netIncome)),
-    },
-    {
-      label: "Diluted EPS",
-      values: annuals.map((period) => formatEps(period.epsDiluted)),
-    },
-    {
-      label: "Operating cash flow",
-      values: annuals.map((period) => formatUsd(period.operatingCashFlow)),
-    },
-    {
-      label: "Free cash flow",
-      values: annuals.map((period) => formatUsd(period.freeCashFlow)),
-    },
-  ];
+  const availableCount = [
+    ...snapshot.quarterly.rows,
+    ...snapshot.quarterly.ytdRows,
+    ...snapshot.annual.rows,
+  ].filter((row) => row.status === "AVAILABLE").length;
 
   return (
     <section
@@ -169,240 +110,164 @@ function FinancialsSection({
       id="watchlist-financials"
     >
       <DataSectionHeader
-        asOf={`${latest.reportedCurrency || "Currency unavailable"} · ${formatQuarterLabel(latest)} actual · filed ${formatDate(latest.filingDate)} · refreshed ${formatDate(snapshot?.fetchedAt)}`}
+        asOf={`SEC XBRL · ${availableCount} resolved observations · refreshed ${formatDate(snapshot.fetchedAt)}`}
         id="watchlist-financials-title"
         number="02"
         title="Financials"
       />
-      {unavailableSources.length ? (
-        <SourceNotice sources={unavailableSources} />
-      ) : null}
-
-      <div className={styles.financialOverviewGrid}>
-        <article className={styles.latestEarnings}>
-          <div className={styles.financialCardHeading}>
-            <div>
-              <span>LATEST REPORTED QUARTER</span>
-              <h3>{formatQuarterLabel(latest)}</h3>
-            </div>
-            <time dateTime={latest.filingDate}>
-              Filed {formatDate(latest.filingDate)}
-            </time>
-          </div>
-          <div
-            aria-label="Latest reported quarter comparison"
-            className={styles.earningsComparison}
-            role="table"
-          >
-            <div className={styles.earningsComparisonHeader} role="row">
-              <span role="columnheader">Metric</span>
-              <span role="columnheader">Actual</span>
-              <span role="columnheader">QoQ</span>
-              <span role="columnheader">YoY</span>
-            </div>
-            <EarningsRow
-              actual={formatUsd(latest.revenue)}
-              metric="Revenue"
-              qoq={formatSignedPercent(
-                calculatePercentChange(latest.revenue, previous?.revenue),
-              )}
-              yoy={formatSignedPercent(
-                calculatePercentChange(latest.revenue, priorYear?.revenue),
-              )}
-            />
-            <EarningsRow
-              actual={formatEps(latest.epsDiluted)}
-              metric="Diluted EPS"
-              qoq={formatSignedPercent(
-                calculatePercentChange(latest.epsDiluted, previous?.epsDiluted),
-              )}
-              yoy={formatSignedPercent(
-                calculatePercentChange(latest.epsDiluted, priorYear?.epsDiluted),
-              )}
-            />
-          </div>
-          <div className={styles.earningsFooter}>
-            <Metric
-              label="GROSS MARGIN"
-              note="Reported"
-              value={formatPercent(grossMargin)}
-            />
-            <Metric
-              label="OPERATING MARGIN"
-              note="Reported"
-              value={formatPercent(operatingMargin)}
-            />
-            <Metric
-              label="FREE CASH FLOW"
-              note="Reported"
-              value={formatUsd(latest.freeCashFlow)}
-            />
-          </div>
-        </article>
-
-        <article className={styles.financialChanges}>
-          <div className={styles.financialCardHeading}>
-            <div>
-              <span>REPORTED MOVEMENT</span>
-              <h3>What Changed</h3>
-            </div>
-          </div>
-          <ul>
-            <FinancialChange
-              detail={`${formatQuarterLabel(latest)} vs. ${formatQuarterLabel(previous)}`}
-              label="Revenue"
-              value={formatSignedPercent(
-                calculatePercentChange(latest.revenue, previous?.revenue),
-              )}
-            />
-            <FinancialChange
-              detail={`${formatQuarterLabel(latest)} vs. prior-year quarter`}
-              label="Revenue"
-              value={formatSignedPercent(
-                calculatePercentChange(latest.revenue, priorYear?.revenue),
-              )}
-            />
-            <FinancialChange
-              detail="Quarter-over-quarter"
-              label="Gross margin"
-              value={formatBasisPointChange(grossMargin, previousGrossMargin)}
-            />
-          </ul>
-        </article>
+      <div className={styles.secBasisLegend} aria-label="Financial period basis guide">
+        <span><strong>Quarter</strong> exact three-month duration</span>
+        <span><strong>YTD</strong> cumulative duration; never converted into a quarter</span>
+        <span><strong>Annual</strong> fiscal-year duration</span>
+        <span><strong>Instant</strong> balance on one date</span>
       </div>
 
-      <div className={styles.keyFundamentals}>
-        <div className={styles.keyFundamentalsHeading}>
-          <strong>Key Fundamentals</strong>
-          <span>Reported values only · no consensus data</span>
-        </div>
-        <dl>
-          <Metric
-            label="Revenue"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.revenue)}
-          />
-          <Metric
-            label="Net income"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.netIncome)}
-          />
-          <Metric
-            label="Cash"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.cashAndShortTermInvestments)}
-          />
-          <Metric
-            label="Total debt"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.totalDebt)}
-          />
-          <Metric
-            label="Total equity"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.totalStockholdersEquity)}
-          />
-          <Metric
-            label="Operating cash flow"
-            note={formatQuarterLabel(latest)}
-            value={formatUsd(latest.operatingCashFlow)}
-          />
-        </dl>
-      </div>
+      <FinancialCategory category={snapshot.quarterly} title="Quarterly" />
+      <FinancialCategory category={snapshot.annual} title="Annual" />
 
-      <details className={styles.detailDisclosure}>
-        <DisclosureSummary
-          detail={`${quarters.length} reported quarters`}
-          title="Quarterly trends"
-        />
-        <div className={styles.disclosureBody}>
-          <div
-            aria-label="Reported quarterly financial trends"
-            className={styles.financialTable}
-            role="table"
-          >
-            <div className={styles.financialHeader} role="row">
-              <span role="columnheader">Metric</span>
-              {quarterLabels.map((quarter) => (
-                <span key={quarter} role="columnheader">
-                  {quarter}
-                  <small>Actual</small>
-                </span>
-              ))}
-            </div>
-            {rows.map((row) => (
-              <div className={styles.financialRow} key={row.label} role="row">
-                <strong role="rowheader">{row.label}</strong>
-                {row.values.map((value, index) => (
-                  <span
-                    data-label={quarterLabels[index]}
-                    key={`${row.label}-${quarterLabels[index]}`}
-                    role="cell"
-                  >
-                    {value}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-          <p className={styles.methodNote}>
-            YoY and QoQ are calculated from like-for-like reported fields only.
-            Baselines that are missing, zero, or negative are shown as unavailable.
-            {events.length
-              ? ` ${events.length} financial filing or event records are available in News & Events.`
-              : ""}
-          </p>
-        </div>
-      </details>
-
-      <details className={styles.detailDisclosure}>
-        <DisclosureSummary
-          detail={`${annuals.length} reported fiscal years`}
-          title="Annual trends"
-        />
-        <div className={styles.disclosureBody}>
-          {annuals.length ? (
-            <div
-              aria-label="Reported annual financial trends"
-              className={styles.financialTable}
-              role="table"
-            >
-              <div className={styles.financialHeader} role="row">
-                <span role="columnheader">Metric</span>
-                {annualLabels.map((period) => (
-                  <span key={period} role="columnheader">
-                    {period}
-                    <small>Actual</small>
-                  </span>
-                ))}
-              </div>
-              {annualRows.map((row) => (
-                <div className={styles.financialRow} key={row.label} role="row">
-                  <strong role="rowheader">{row.label}</strong>
-                  {row.values.map((value, index) => (
-                    <span
-                      data-label={annualLabels[index]}
-                      key={`${row.label}-${annualLabels[index]}`}
-                      role="cell"
-                    >
-                      {value}
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.methodNote}>
-              Annual statements are unavailable while quarterly actuals remain visible.
-            </p>
-          )}
-          <p className={styles.methodNote}>
-            Monetary values use the filing&apos;s reported currency and compact display units.
-            Annual and quarterly periods are kept separate.
-          </p>
-        </div>
-      </details>
+      <p className={styles.methodNote}>
+        Canonical source: stored SEC filing XBRL matched to SEC CompanyFacts by the
+        Financial Resolver, then admitted through exact Financial History series.
+        No FMP fallback, GPT numeric value, QoQ calculation, currency conversion,
+        or YTD-to-quarter conversion is used.
+        {events.length
+          ? ` ${events.length} related filing or financial event records are available in News & Events.`
+          : ""}
+      </p>
     </section>
+  );
+}
+
+function FinancialCategory({
+  category,
+  title,
+}: {
+  category: StockFinancialCategorySnapshot;
+  title: "Quarterly" | "Annual";
+}) {
+  return (
+    <section className={styles.secFinancialCategory} aria-label={`${title} SEC financials`}>
+      <header>
+        <div>
+          <span>{title.toUpperCase()}</span>
+          <h3>{title} reported values</h3>
+        </div>
+        <small>{formatFinancialFilingSummary(category.latestFiling)}</small>
+      </header>
+      <FinancialMetricTable rows={category.rows} title={title} />
+      {category.ytdRows.length ? (
+        <div className={styles.secYtdBlock}>
+          <h4>Exact YTD observations</h4>
+          <p>Cumulative values are shown separately and are not treated as quarterly values.</p>
+          <FinancialMetricTable rows={category.ytdRows} title="YTD" />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function FinancialMetricTable({
+  rows,
+  title,
+}: {
+  rows: StockFinancialDisplayRow[];
+  title: string;
+}) {
+  return (
+    <div className={styles.secFinancialTable} role="table" aria-label={`${title} SEC financial metrics`}>
+      <div className={styles.secFinancialHeader} role="row">
+        <span role="columnheader">Metric</span>
+        <span role="columnheader">Basis</span>
+        <span role="columnheader">Current</span>
+        <span role="columnheader">Prior year</span>
+        <span role="columnheader">Change</span>
+      </div>
+      {rows.map((row) => (
+        <FinancialMetricRow key={`${row.metric}-${row.basis ?? "unknown"}`} row={row} />
+      ))}
+    </div>
+  );
+}
+
+function FinancialMetricRow({ row }: { row: StockFinancialDisplayRow }) {
+  if (row.status === "UNAVAILABLE") {
+    return (
+      <div className={styles.secFinancialRowGroup} role="rowgroup">
+        <div className={styles.secFinancialRow} role="row">
+          <strong role="rowheader">{row.label}</strong>
+          <span data-label="Basis" role="cell">{basisLabel(row.basis)}</span>
+          <span className={styles.secUnavailableCell} data-label="Current" role="cell">
+            <b>Unavailable</b>
+            <small>{formatUnavailableReason(row.reason)}</small>
+          </span>
+          <span data-label="Prior year" role="cell">—</span>
+          <span data-label="Change" role="cell">—</span>
+        </div>
+        <p className={styles.secUnavailableDetail}>{row.detail}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.secFinancialRowGroup} role="rowgroup">
+      <div className={styles.secFinancialRow} role="row">
+        <strong role="rowheader">{row.label}</strong>
+        <span data-label="Basis" role="cell">{basisLabel(row.basis)}</span>
+        <FinancialValueCell dataLabel="Current" value={row.value} />
+        <FinancialValueCell dataLabel="Prior year" value={row.priorYear} />
+        <span
+          className={changeToneClass(row.delta ?? "")}
+          data-label="Change"
+          role="cell"
+        >
+          {formatFinancialDelta(row)}
+        </span>
+      </div>
+      <FinancialProvenance row={row} />
+    </div>
+  );
+}
+
+function FinancialValueCell({
+  dataLabel,
+  value,
+}: {
+  dataLabel: string;
+  value: StockFinancialValue | null;
+}) {
+  return (
+    <span data-label={dataLabel} role="cell">
+      <b>{value ? formatFinancialMoney(value.value, value.currency) : "—"}</b>
+      <small>{value ? formatSecPeriod(value.period) : "No like-for-like comparison"}</small>
+    </span>
+  );
+}
+
+function FinancialProvenance({ row }: { row: StockFinancialMetricRow }) {
+  return (
+    <details className={styles.secProvenance}>
+      <summary>SEC filing provenance</summary>
+      <dl>
+        <div><dt>Form</dt><dd>{row.provenance.form}</dd></div>
+        <div><dt>Report period</dt><dd>{row.provenance.reportDate}</dd></div>
+        <div><dt>Filed</dt><dd>{row.provenance.filedDate}</dd></div>
+        <div><dt>Currency</dt><dd>{row.value.currency}</dd></div>
+        <div><dt>Accession</dt><dd>{row.provenance.accession}</dd></div>
+        <div><dt>Concept</dt><dd>{row.provenance.concept}</dd></div>
+      </dl>
+      <p>{row.provenance.taxonomy}</p>
+      {row.provenance.sourceUrls[0] ? (
+        <a
+          className={styles.externalLink}
+          href={row.provenance.sourceUrls[0]}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Open SEC filing source
+          <ExternalLink aria-hidden="true" size={14} />
+        </a>
+      ) : null}
+    </details>
   );
 }
 
@@ -1110,53 +975,6 @@ function DataSectionHeader({
   );
 }
 
-function EarningsRow({
-  actual,
-  metric,
-  qoq,
-  yoy,
-}: {
-  actual: string;
-  metric: string;
-  qoq: string;
-  yoy: string;
-}) {
-  return (
-    <div className={styles.earningsComparisonRow} role="row">
-      <strong role="rowheader">{metric}</strong>
-      <span data-label="Actual" role="cell">
-        {actual}
-      </span>
-      <span className={changeToneClass(qoq)} data-label="QoQ" role="cell">
-        {qoq}
-      </span>
-      <span className={changeToneClass(yoy)} data-label="YoY" role="cell">
-        {yoy}
-      </span>
-    </div>
-  );
-}
-
-function FinancialChange({
-  detail,
-  label,
-  value,
-}: {
-  detail: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <li>
-      <div>
-        <strong>{label}</strong>
-        <span>{detail}</span>
-      </div>
-      <b className={changeToneClass(value)}>{value}</b>
-    </li>
-  );
-}
-
 function Metric({
   label,
   note,
@@ -1364,24 +1182,59 @@ function formatInstitutionalPeriod(
   return formatDate(summary.asOf);
 }
 
-function formatQuarterLabel(
-  quarter: StockFinancialQuarter | null | undefined,
+function formatFinancialFilingSummary(
+  filing: StockFinancialCategorySnapshot["latestFiling"],
 ) {
-  return quarter?.period && quarter.fiscalYear
-    ? `${quarter.period} ${quarter.fiscalYear}`
-    : "—";
+  return filing
+    ? `${filing.form} · report ${formatDate(filing.reportDate)} · filed ${formatDate(filing.filedDate)}`
+    : "No canonical filing available";
 }
 
-function formatUsd(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "—";
+function basisLabel(value: StockFinancialBasis | null) {
+  if (value === "QUARTER") return "Quarter";
+  if (value === "QUARTER_AND_YEAR_TO_DATE") return "Quarter + YTD";
+  if (value === "YEAR_TO_DATE") return "YTD";
+  if (value === "ANNUAL") return "Annual";
+  if (value === "INSTANT") return "Instant";
+  return "Unresolved";
+}
+
+function formatUnavailableReason(value: string) {
+  return value.toLowerCase().replaceAll("_", " ");
+}
+
+function formatFinancialMoney(value: string, currency: string) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "Unavailable";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      currency,
+      currencyDisplay: "code",
+      maximumFractionDigits: 2,
+      notation: "compact",
+      style: "currency",
+    }).format(numeric);
+  } catch {
+    return `${currency} ${new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 2,
+      notation: "compact",
+    }).format(numeric)}`;
   }
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    maximumFractionDigits: 1,
-    notation: "compact",
-    style: "currency",
-  }).format(value);
+}
+
+function formatFinancialDelta(row: StockFinancialMetricRow) {
+  if (row.delta === null) return "—";
+  const negative = row.delta.startsWith("-");
+  const unsigned = row.delta.replace(/^-/, "");
+  const formatted = formatFinancialMoney(unsigned, row.value.currency);
+  if (row.delta === "0") return formatted;
+  return `${negative ? "−" : "+"}${formatted}`;
+}
+
+function formatSecPeriod(value: StockFinancialValue["period"]) {
+  return value.kind === "instant"
+    ? `As of ${formatDate(value.instant)}`
+    : `${formatDate(value.startDate)} – ${formatDate(value.endDate)}`;
 }
 
 function formatDilutionMoney(value: number | null | undefined) {
@@ -1492,39 +1345,11 @@ function formatInteger(value: number | null | undefined) {
   }).format(value);
 }
 
-function formatEps(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-    style: "currency",
-  }).format(value);
-}
-
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "—";
   }
   return `${value.toFixed(1)}%`;
-}
-
-function formatSignedPercent(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "—";
-  }
-  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function formatBasisPointChange(
-  current: number | null,
-  baseline: number | null,
-) {
-  if (current === null || baseline === null) return "—";
-  const basisPoints = Math.round((current - baseline) * 100);
-  return `${basisPoints > 0 ? "+" : ""}${basisPoints} bps`;
 }
 
 function formatDate(value: string | null | undefined) {
