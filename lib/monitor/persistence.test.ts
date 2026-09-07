@@ -289,38 +289,35 @@ test("Form 144 percent decision schema requires explicit comparability and sourc
   assert.ok(validateOwnershipMonitorFacts(unconfirmedWithMultiplier).some((error) => /cannot select normalization/.test(error)));
 });
 
-test("ownership replace removes stale rows, is idempotent, clears known-empty, and preserves on failure", async () => {
+test("LLM-only Ownership output cannot enter canonical persistence or clear existing rows", async () => {
   const parsed = form4AnalysisFacts([
     form4Transaction({ direction: "sell", shares: numericFact(10), price: numericFact(5) }),
     form4Transaction({ direction: "buy", shares: numericFact(20), price: numericFact(6) }),
     form4Transaction({ direction: "other", shares: numericFact(30), price: numericFact(null) }),
   ]);
-  const replacing = mockRepository({ form4: [{ transaction_index: 0 }, { transaction_index: 1 }, { transaction_index: 2 }] });
-  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: parsed, ownershipInputState: "known" }, replacing.repository);
-  assert.equal(replacing.state.form4.length, 3);
-  const twoTransactions = structuredClone(parsed) as unknown as Row;
-  const form4 = twoTransactions.form4 as Row;
-  form4.transactions = (form4.transactions as Row[]).slice(0, 2);
-  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
-  assert.equal(replacing.state.form4.length, 2);
-  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: twoTransactions, ownershipInputState: "known" }, replacing.repository);
-  assert.equal(replacing.state.form4.length, 2);
-
-  await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipAnalysisOutput: emptyOwnershipAnalysisOutput(), ownershipInputState: "known" }, replacing.repository);
-  assert.deepEqual(replacing.state.form4, []);
-  assert.deepEqual(replacing.state.form144, []);
-
   const existing = [{ transaction_index: 0 }];
-  const failed = mockRepository({ form4: existing, failOwnershipReplace: true });
-  const failedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipAnalysisOutput: parsed, ownershipInputState: "known" }, failed.repository);
-  assert.equal(failedResult.ok, false);
-  assert.deepEqual(failed.state.form4, existing);
+  const llmOnly = mockRepository({ form4: existing });
+  await assert.rejects(
+    persistOwnershipAnalysisFacts({
+      eventId,
+      eventTime,
+      ownershipAnalysisOutput: parsed,
+      ownershipInputState: "known",
+    }, llmOnly.repository),
+    /Verified SEC Ownership XML raw item is required/,
+  );
+  assert.deepEqual(llmOnly.state.form4, existing);
+  assert.equal(llmOnly.state.ownershipReplaceCalls, 0);
 
-  const malformed = mockRepository({ form4: existing });
-  const malformedResult = await persistOptionalMonitorFoundation({ eventId, eventTime, ownershipAnalysisOutput: {}, ownershipInputState: "known" }, malformed.repository);
-  assert.equal(malformedResult.ok, false);
-  assert.deepEqual(malformed.state.form4, existing);
-  assert.equal(malformed.state.ownershipReplaceCalls, 0);
+  const optionalResult = await persistOptionalMonitorFoundation({
+    eventId,
+    eventTime,
+    ownershipAnalysisOutput: emptyOwnershipAnalysisOutput(),
+    ownershipInputState: "known",
+  }, llmOnly.repository);
+  assert.equal(optionalResult.ok, false);
+  assert.deepEqual(llmOnly.state.form4, existing);
+  assert.equal(llmOnly.state.ownershipReplaceCalls, 0);
 
   const notApplicable = mockRepository({ form4: existing });
   await persistOwnershipAnalysisFacts({ eventId, eventTime, ownershipInputState: "not_applicable" }, notApplicable.repository);
@@ -328,14 +325,28 @@ test("ownership replace removes stale rows, is idempotent, clears known-empty, a
   assert.equal(notApplicable.state.ownershipReplaceCalls, 0);
 });
 
-test("SEC and News paths use the shared helper with explicit ownership input states after canonical writes", () => {
+test("SEC uses parser-backed Ownership facts while News remains not applicable", () => {
   const secStore = readFileSync(join(here, "../secStores/eventStore.ts"), "utf8");
+  const secIngest = readFileSync(join(here, "../secFilingAnalysisIngest.ts"), "utf8");
   const newsStore = readFileSync(join(here, "../newsIngest.ts"), "utf8");
   assert.match(secStore, /await persistOptionalMonitorFoundation\(\{/);
-  assert.match(secStore, /ownershipAnalysisOutput/);
   assert.match(secStore, /promptKey === "sec_ownership_analysis"/);
-  assert.doesNotMatch(secStore, /ownershipParserOutput/);
-  assert.match(secStore, /ownershipInputState: ownershipAnalysisOutput \? "known" : "not_applicable"/);
+  assert.match(secStore, /ownershipRawItem/);
+  assert.match(secStore, /await persistOwnershipAnalysisFacts\(\{/);
+  assert.match(secStore, /ownershipInputState: "known"/);
+  assert.match(secStore, /ownershipInputState: "not_applicable"/);
+  assert.match(secStore, /saveOwnershipParserDetailsEvent/);
+  const analyzedSaveStart = secStore.indexOf("export async function saveAnalyzedSecFilingEvent");
+  const sourceValidationAt = secStore.indexOf("buildOwnershipParserFactRows({", analyzedSaveStart);
+  const eventUpsertAt = secStore.indexOf('supabaseUpsertSanitized("events", payload', sourceValidationAt);
+  const strictDetailWriteAt = secStore.indexOf("await persistOwnershipAnalysisFacts({", eventUpsertAt);
+  const analyzedChildrenAt = secStore.indexOf("await Promise.all([", strictDetailWriteAt);
+  assert.ok(analyzedSaveStart >= 0 && sourceValidationAt > analyzedSaveStart);
+  assert.ok(eventUpsertAt > sourceValidationAt, "required XML must validate before the analyzed event write");
+  assert.ok(strictDetailWriteAt > eventUpsertAt && analyzedChildrenAt > strictDetailWriteAt);
+  assert.match(secIngest, /ownershipDetailsPersistence/);
+  assert.match(secIngest, /eventId: stringValue\(parserDetailsEvent\?\.id\) \|\| null/);
+  assert.match(secIngest, /ok: false/);
   assert.match(newsStore, /await persistOptionalMonitorFoundation\(\{/);
   assert.match(newsStore, /ownershipInputState: "not_applicable"/);
   assert.match(secStore, /persistEventOfferingTerms\(\{/);
@@ -351,6 +362,19 @@ test("Ownership migration keeps analysis provenance and atomic scoped replace se
   assert.match(migration, /source:\s*"sec_ownership_analysis"|Ownership Analysis/);
   assert.match(migration, /Successful known-empty arrays clear stale rows/);
   assert.doesNotMatch(migration, /parser object.*fallback/i);
+});
+
+test("canonical XML migration documents the parser source without widening the schema", () => {
+  const migration = readFileSync(
+    join(here, "../../supabase/migrations/20260907161909_ownership_xml_canonical_persistence.sql"),
+    "utf8",
+  );
+  assert.match(migration, /verified SEC XML Form 4 transaction/);
+  assert.match(migration, /Form 144 proposed-sale notice/);
+  assert.match(migration, /LLM output is not the canonical numeric source/);
+  assert.match(migration, /Atomically replaces one event Ownership detail domain/);
+  assert.doesNotMatch(migration, /create\s+(?:or\s+replace\s+)?table/i);
+  assert.doesNotMatch(migration, /create\s+or\s+replace\s+function/i);
 });
 
 function emptyOwnershipAnalysisOutput() {

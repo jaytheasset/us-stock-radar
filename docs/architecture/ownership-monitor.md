@@ -12,20 +12,19 @@ SEC Form 4 / Form 144 filing package
 XML-first source preparation
         ↓
 Structured raw ownership evidence
-        ↓
-Primary Ownership Analysis LLM
-        ↓
-Validated ownership_monitor_facts_v1
-        ↓
-Typed event ownership persistence / downstream use
+        ├──→ verified production parser rows ──→ typed event ownership persistence
+        └──→ Primary Ownership Analysis LLM ──→ summary, score, narrative, and semantic analysis
 ```
 
-`XML-first` does not mean `XML-only`. A usable SEC Ownership XML document is the primary structured source; HTML or text is a lower-confidence fallback. The parser owns deterministic source selection and structural extraction. The Ownership Analysis LLM owns economic semantics. Validated Analysis facts, not parser semantic outputs, are the canonical input to typed Ownership persistence.
+`XML-first` does not mean `XML-only` for Analysis input. A usable SEC Ownership XML document is the primary structured source; HTML or text is a lower-confidence Analysis fallback. The parser owns deterministic source selection and structural extraction. The Ownership Analysis LLM owns economic semantics. Only verified XML/parser structural values are canonical for typed Ownership detail persistence; HTML/text fallback and Analysis output are not typed-detail inputs.
+
+For Ownership **detail persistence**, verified SEC XML and the production parser are canonical. Primary Analysis remains required for the normal analyzed event, summary, score, narrative, and semantic interpretation, but its numeric/date/row output is not a typed-detail storage input. A failed Primary Analysis remains failed; verified parser rows may still be stored against an archive-only event shell with a failed `ai_runs` record.
 
 Ownership currently has no Offering-style asynchronous Stage-2 Monitor Normalizer:
 
 ```text
-Ownership: XML source preparation → Primary Ownership Analysis → validated typed Monitor facts
+Ownership details: XML source preparation → source verification → production parser → typed rows
+Ownership summary: XML source preparation → Primary Ownership Analysis → analyzed event/summary
 Offering:  Primary Analysis → asynchronous Stage-2 Offering Monitor Normalizer → canonical state
 ```
 
@@ -41,7 +40,8 @@ Stage count is domain-specific. Do not add an Ownership Stage 2 solely to make t
 | Direct Ownership Analysis input and semantic contract | `lib/sources/sec/forms/ownership/analysisPrompt.ts` |
 | Runtime prompt, output schema, and validation | `lib/ai/secOwnershipAnalysisAdapter.ts` |
 | Typed Analysis fact contract | `lib/monitor/ownershipAnalysisFacts.ts` |
-| Typed row construction and persistence call | `lib/monitor/persistence.ts` |
+| XML/parser typed row construction | `lib/monitor/ownershipParserFacts.ts` |
+| Typed persistence call | `lib/monitor/persistence.ts` |
 | Production event/persistence caller | `lib/secStores/eventStore.ts` |
 | Condition capability registry | `lib/monitor/conditionRegistry.ts` |
 | Existing score-alert execution | `lib/secFilingAnalysisIngest.ts`, `lib/alerts/delivery/*` |
@@ -257,11 +257,11 @@ These values may still exist for compatibility, routing history, diagnostics, or
 - a fallback when Analysis is missing or invalid; or
 - a reason to bypass Ownership Analysis.
 
-The current canonical path already excludes the critical legacy semantics from the compact Analysis evidence and sets persistence provenance to `canonical_input: "analysis_output.ownership_monitor_facts"` and `parser_fallback: false`. Their continued presence therefore does not redefine V1 truth. Removing them is a separate architecture cleanup and is not required to document or operate the current boundary.
+The canonical detail path reads only structural source values from the production parser. It does not persist parser transaction categories, parser scores/signals, parser-calculated transaction value, or parser-calculated Form 144 percentage. Provenance records `canonical_input: "raw_items.raw_payload.ownership_source_text"` and `parser_fallback: false`. Removing legacy semantic fields from the parser itself remains a separate cleanup.
 
-## Ownership Analysis and typed fact contract
+## Ownership Analysis contract
 
-The Analysis adapter requires and validates `analysis_output.ownership_monitor_facts` with version `ownership_monitor_facts_v1`. Exactly one current form family is non-null; a successfully analyzed family with no supported rows uses an empty array rather than omitting the family object.
+The Primary Analysis adapter continues to require and validate `analysis_output.ownership_monitor_facts` with version `ownership_monitor_facts_v1`. The prompt and validation contract are preserved for analysis quality and regression compatibility, but this object no longer supplies production typed Ownership detail rows.
 
 ### Reporting owners
 
@@ -289,7 +289,7 @@ Each source transaction row becomes one Analysis fact with:
 - `evidence`; and
 - `confidence`.
 
-Rows remain in source order and are not netted, aggregated, or deduplicated. Analysis does not calculate transaction value. Persistence may derive `shares * price_per_share` from validated typed numeric facts.
+Rows remain in source order and are not netted, aggregated, or deduplicated. Production typed detail persistence independently rebuilds those rows from verified XML and does not derive transaction value.
 
 ### Form 144 proposed-sale facts
 
@@ -331,7 +331,9 @@ Parser mechanical division is legacy and non-authoritative because the numerator
 
 Normalization is valid only when `comparable_units=true`, the source explicitly supplies the relation, a target and multiplier are both present, and evidence is non-empty. Issuer identity, ticker, accession, market convention, or code may not supply an ADS ratio.
 
-Typed persistence deterministically calculates `proposed_sale_percent` only when:
+The Analysis contract may express a comparability decision, but production typed XML detail persistence leaves `proposed_sale_percent` unavailable. It does not promote the Analysis decision into the canonical detail row and does not perform blind division. Historical Analysis-shaped row builders may still exercise the prior calculation rules in isolated regression tests, but they are not product callers.
+
+The prior Analysis-shaped persistence calculation required:
 
 1. `comparable_units === true`;
 2. numerator and denominator are available;
@@ -339,15 +341,19 @@ Typed persistence deterministically calculates `proposed_sale_percent` only when
 4. both numeric qualities are comparison-eligible (`exact`, `derived`, or `estimated`); and
 5. any normalization decision has already passed the Analysis fact validator.
 
-Otherwise the percent is unavailable/null. The parser's `proposed_sale_percent_of_shares_outstanding` is never a fallback.
+Otherwise the historical Analysis-shaped percent is unavailable/null. The parser's `proposed_sale_percent_of_shares_outstanding` is never a canonical input.
 
-The PDD regression illustrates the boundary without creating a ticker rule: the proposed quantity is 1,533 ADS, the outstanding denominator is ordinary shares, and source text may describe one ADS as multiple ordinary shares. The parser preserves both raw bases and the relation text. Analysis decides whether the relation is sufficient and, if it is, supplies normalization. Persistence performs only the approved arithmetic.
+The PDD regression illustrates the boundary without creating a ticker rule: the proposed quantity is 1,533 ADS, the outstanding denominator is ordinary shares, and source text may describe one ADS as multiple ordinary shares. The parser preserves both raw bases and the relation text. Analysis may interpret that relation for narrative/semantic output, while canonical typed XML persistence keeps the two source numbers and leaves the percentage unavailable.
 
-## Typed persistence
+## Typed XML/parser persistence
 
-Production event persistence identifies Ownership output only when `promptKey === "sec_ownership_analysis"`, reads `analysis.ownership_monitor_facts`, and calls `persistOptionalMonitorFoundation()` with `ownershipInputState: "known"`. A missing, failed, or non-Ownership Analysis is not promoted to known-empty, so it does not erase prior valid facts.
+Production event persistence identifies the Ownership form when `promptKey === "sec_ownership_analysis"`, passes the persisted raw item to strict `persistOwnershipAnalysisFacts()`, and calls the production parser again from `raw_payload.ownership_source_text`. The typed write is allowed only when the source is untruncated `ownership_xml`, its accession matches the raw item, its official HTTPS SEC Archives URL contains that same accession's 18-digit directory, the expected complete XML root is present, and parser source-selection reports the preserved raw XML as a high-confidence structured source. The SEC Archives CIK directory is not required to equal the issuer CIK because an Ownership submission can be filed under a reporting owner's filer identity.
 
-`persistOwnershipAnalysisFacts()` validates the complete fact object, constructs typed rows, and calls:
+The analyzed Ownership event path validates that boundary before writing the event and uses strict typed persistence rather than the shared optional Monitor-fact wrapper. Missing or unverifiable required XML therefore fails the save instead of being logged as a successful analyzed event with absent details. The shared optional wrapper continues to handle unrelated market snapshots and non-Ownership callers.
+
+On Primary Analysis failure, `saveOwnershipParserDetailsEvent()` validates the same source before creating an archive-only event shell, writes parser rows, and links a failed `ai_runs`/`ai_outputs` trace. The ingest result remains `ok: false`; no `event_analysis`, summary, alert, Calendar, or Monitor-child success is fabricated. If a prior analyzed event already exists, a later failure never downgrades that event. A later successful Analysis reuses the same filing dedupe identity and replays the same parser rows.
+
+`persistOwnershipAnalysisFacts()` uses parser rows whenever `ownershipRawItem` is supplied, then calls:
 
 ```text
 replace_event_ownership_facts(
@@ -357,27 +363,30 @@ replace_event_ownership_facts(
 )
 ```
 
+`ownershipRawItem` is mandatory when `ownershipInputState` is `known`. Supplying only a valid `ownershipAnalysisOutput` fails closed before the replacement RPC; Analysis-shaped output cannot write or clear canonical detail rows. The pure historical Analysis row builder remains only for regression coverage and has no product persistence fallback.
+
 The RPC atomically replaces both event-scoped tables:
 
 - `public.event_form4_transactions`, keyed by `(event_id, transaction_index)`; and
 - `public.event_form144_proposed_sales`, keyed by `(event_id, proposed_sale_index)`.
 
-Important persisted Form 4 columns include owner arrays/roles, relationship flags, `is_10b5_1`, transaction kind/security/date, raw codes, `economic_direction`, shares/price/derived transaction value, post-transaction shares, direct/indirect ownership, nature, quality/availability fields, confidence, provenance, evidence, and calculation basis.
+Important persisted Form 4 columns include the filing-level owner set/roles, transaction kind/security/date, raw codes, shares/price, post-transaction shares, direct/indirect ownership, nature, quality/availability fields, provenance, row evidence, and source field status. Parser canonical rows store `economic_direction = "unknown"`, `is_10b5_1 = null`, and no derived transaction value because those are not raw row values. For multiple reporting owners, relationship flags remain null and provenance marks the owner set as filing-level and unattributed.
 
-Important persisted Form 144 columns include seller/owner names, security/exchange/date, proposed units, aggregate value, outstanding units, comparability-gated derived percent, quality/availability fields, confidence, provenance, evidence, and calculation basis. `calculation_basis` retains the LLM comparability decision and any source-backed normalization relation.
+Important persisted Form 144 columns include seller/owner names, security/exchange/date, proposed units, aggregate value, outstanding units, quality/availability fields, provenance, row evidence, and source field status. The separate table and `fact_kind: "form144_proposed_sale_notice"` preserve proposed-not-executed meaning. Percentage remains null/unavailable because unit comparability is not a raw structural fact.
 
 Persistence provenance is:
 
 ```json
 {
-  "source": "sec_ownership_analysis",
-  "schema_version": "ownership_monitor_facts_v1",
-  "canonical_input": "analysis_output.ownership_monitor_facts",
+  "source": "sec_ownership_xml_parser",
+  "parser_version": "ownership-parser-v1",
+  "canonical_input": "raw_items.raw_payload.ownership_source_text",
+  "source_verified": true,
   "parser_fallback": false
 }
 ```
 
-Typed Ownership persistence is production-wired through `saveAnalyzedSecFilingEvent()`. It is intentionally optional relative to event publication: failures are collected and logged by the Monitor foundation rather than rewriting or rolling back the already persisted Primary event.
+Typed Ownership persistence is production-wired through both `saveAnalyzedSecFilingEvent()` and the analysis-failure-only `saveOwnershipParserDetailsEvent()`. Event-scoped row replacement remains atomic. Invalid, missing, truncated, fallback, untrusted-host, or accession-mismatched source input performs no typed write and cannot erase prior valid rows.
 
 ## Matcher and production wiring status
 
@@ -387,22 +396,23 @@ What is implemented and tested is the condition capability registry. Current Own
 
 | Condition key | Registry status | Typed source |
 | --- | --- | --- |
-| `ownership.form4.direction` | `READY` | `event_form4_transactions.economic_direction` |
-| `ownership.form4.transaction_value` | `READY` | derived transaction value plus quality/availability |
+| `ownership.form4.direction` | `READY` | `event_form4_transactions.economic_direction` (parser rows use `unknown`) |
+| `ownership.form4.transaction_value` | `READY` | value plus quality/availability (parser rows leave it unavailable) |
 | `ownership.form4.reporting_owner_role` | `READY` | `reporting_owner_roles` |
 | `ownership.form4.is_10_percent_owner` | `READY` | relationship boolean |
 | `ownership.form144.proposed_sale_value` | `READY` | aggregate value plus quality/availability |
 | `ownership.form4.is_officer` | `PARTIAL` | typed row flag |
 | `ownership.form4.is_director` | `PARTIAL` | typed row flag |
 | `ownership.form4.officer_title` | `PARTIAL` | typed row title |
-| `ownership.form4.is_10b5_1` | `PARTIAL` | row-level Analysis fact |
+| `ownership.form4.is_10b5_1` | `PARTIAL` | parser rows leave row-level meaning null |
 
 `ownership.form144.proposed_sale_percent` is not a registered condition. `READY` means the registry declares a condition/fact capability; it does not mean an evaluator, user condition store, production caller, or delivery path exists.
 
 A repository-wide caller audit finds no Ownership Matcher and therefore no production caller. The V1 production boundary is:
 
 ```text
-Ownership Analysis → validated facts → typed persistence = WIRED
+Verified Ownership XML → production parser → typed detail persistence = WIRED
+Ownership Analysis → analyzed event/summary = WIRED
 
 User-created Ownership Monitor condition evaluation = NOT IMPLEMENTED
 Ownership Monitor match-triggered delivery = NOT IMPLEMENTED
@@ -428,12 +438,12 @@ Current Ownership provenance is layered and human/audit traceable:
 - source row excerpts in parser evidence;
 - row-level and field-level footnote links plus exact footnote text;
 - compact `selected_evidence` labels/values/source descriptions passed to Analysis;
-- Analysis `evidence: string[]` on owner and row facts; and
-- typed persistence provenance and calculation basis.
+- Analysis `evidence: string[]` on owner and row facts, retained separately from typed detail truth; and
+- typed persistence accession/source URL, parser version, row group/index, row evidence, and source field statuses.
 
-Current Ownership provenance is **human/audit traceable but not a stable field-level machine-verifiable citation contract**. The typed fact schema has no required `source_ref`, allowed-reference namespace, or validator that resolves a fact to `(accession, document, row, field path)`. The validation-repair helper's constant label `source_ref: "SEC ownership source excerpt"` is a bounded repair block label, not that contract.
+Current Ownership provenance is **human/audit traceable but not a stable field-level machine-verifiable citation contract**. Typed provenance resolves a row to accession, source URL, row group, and row index, but the schema has no required field-path namespace or independent XML-node resolver. The validation-repair helper's constant label `source_ref: "SEC ownership source excerpt"` is a bounded repair block label, not that contract.
 
-This gap is not a V1 blocker and must not be “fixed” by inventing references in parser or persistence. A future design may add accession + XML document identity + row index + field path, but only as an explicit versioned architecture change.
+This remaining field-level gap is not a V1 blocker. A future design may add XML-node identity and a field-path resolver, but only as an explicit versioned architecture change.
 
 ## Calendar boundary
 
@@ -471,10 +481,10 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 1. **HTML-first regression.** Do not select rendered HTML as primary structured evidence when usable Ownership XML exists.
 2. **Parser semantic truth.** Do not make parser categories, signals, scores, or size heuristics canonical Monitor facts.
 3. **Code-to-action hardcodes.** Do not map transaction codes or A/D markers directly to canonical buy/sell meaning.
-4. **Blind Form 144 percentage.** Do not divide numerator by denominator until Analysis establishes unit comparability and any conversion relation.
+4. **Blind Form 144 percentage.** Do not divide numerator by denominator in canonical parser persistence; Analysis comparability remains separate from typed XML rows.
 5. **Footnote flattening.** Do not discard row/field footnote links in favor of one undifferentiated text blob.
 6. **Multiple-owner collapse.** Do not retain only the first reporting owner or claim a row-level owner mapping that does not exist.
-7. **Row netting.** Do not merge derivative/non-derivative, acquisition/disposition, or multiple-security rows before Analysis.
+7. **Row netting.** Do not merge derivative/non-derivative, acquisition/disposition, or multiple-security rows before persistence or Analysis.
 8. **Missing-to-zero coercion.** Do not convert missing, blank, null, or footnote-only values to zero; do not convert explicit false to null.
 9. **Offering architecture copy.** Do not add an Ownership Stage-2 Normalizer or Offering canonical machinery without an Ownership-specific approved need.
 10. **Calendar semantics in parser.** Do not confuse raw date extraction with Calendar importance or event policy.
@@ -491,13 +501,15 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 6. Form 4 and Form 144 rows, securities, and footnote relationships remain distinct.
 7. Multiple reporting owners remain an array; no unsupported per-row owner mapping is invented.
 8. Missing, blank, zero, false, null, and footnote-only states remain distinct.
-9. Form 144 percentages require Analysis-owned unit comparability and source-backed normalization.
+9. Canonical Form 144 parser rows do not store a percentage; Analysis-owned unit comparability remains separate semantic output.
 10. Legacy parser semantic outputs are non-authoritative and never persistence fallback truth.
-11. `analysis_output.ownership_monitor_facts` is the only canonical input to typed Ownership fact persistence.
-12. Ownership does not inherit Offering's two-stage architecture by default.
-13. Raw structured dates may support Calendar, but Calendar semantics and persistence policy remain separate.
-14. Component capability, test coverage, production caller, and production wiring are documented separately.
-15. Existing score alerts and user-created Monitor condition alerts are separate systems.
+11. Verified `raw_items.raw_payload.ownership_source_text` processed by the production parser is the only canonical input to product typed Ownership detail persistence.
+12. The selected SEC Archives document directory must bind to the same accession as the raw item; SEC hostname validation alone is insufficient, while the Archives CIK directory is not treated as issuer identity.
+13. `ownershipInputState: "known"` without a verified raw Ownership item fails before the replace RPC even when Analysis output is valid.
+14. Ownership does not inherit Offering's two-stage architecture by default.
+15. Raw structured dates may support Calendar, but Calendar semantics and persistence policy remain separate.
+16. Component capability, test coverage, production caller, and production wiring are documented separately.
+17. Existing score alerts and user-created Monitor condition alerts are separate systems.
 
 ## Current completion boundary
 
@@ -508,16 +520,17 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 - HTML/text fallback statuses and warnings;
 - multi-row, multi-owner, field-footnote, exact-footnote, and null/zero/false preservation;
 - direct Primary Ownership Analysis with mandatory `ownership_monitor_facts_v1` validation;
-- Analysis-owned economic direction, row-level 10b5-1, and Form 144 comparability decisions;
-- deterministic typed row materialization and atomic event-domain replacement;
+- separate Analysis-owned economic direction, row-level 10b5-1, and Form 144 comparability decisions;
+- verified XML/parser typed row materialization and atomic event-domain replacement;
 - Ownership condition capability registry entries; and
 - limited parser Calendar candidates plus production Analysis-calendar policy path.
 
 ### Production-wired
 
 - SEC raw filing → Ownership adapter/parser → direct Ownership Analysis;
-- successful Ownership Analysis → event persistence;
-- successful Ownership Analysis facts → optional typed Ownership persistence;
+- successful Ownership Analysis → analyzed event persistence;
+- verified Ownership XML → typed Ownership persistence, independent of Analysis success;
+- failed Ownership Analysis + verified XML → archive-only event shell + failed AI trace + typed details;
 - event score ≥ 75 → existing score-based alert evaluation/delivery; and
 - `analysis.calendar_items` → Calendar policy → `event_calendar_items` when valid and eligible.
 

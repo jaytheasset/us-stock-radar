@@ -51,6 +51,7 @@
     "verify:periodic-financial-history:td-official": "node --experimental-strip-types scripts/verify-td-40f-periodic-financial-history-official.ts",
     "verify:filing-xbrl-db-roundtrip": "node --experimental-strip-types scripts/verify-sec-filing-xbrl-roundtrip-local.ts",
     "verify:sec-structured-data:local": "node --experimental-strip-types scripts/verify-sec-structured-data-local.ts",
+    "verify:ownership-xml-persistence:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-ownership-xml-persistence-isolated.ts",
     "verify:adsense": "node --no-warnings --experimental-strip-types scripts/verify-adsense.mjs",
     "verify:analysis-ads": "node --test --experimental-strip-types lib/advertisingPolicy.test.ts",
     "verify:subscription": "node --test --experimental-strip-types lib/subscriptionPolicy.test.ts",

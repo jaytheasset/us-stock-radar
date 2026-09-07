@@ -3,7 +3,11 @@ import { evaluateCalendarItemPolicy } from "@/lib/calendarPolicy";
 import { getCalendarEventGroup, normalizeCalendarEventType } from "@/lib/calendarEventRegistry";
 import { SEC_INTEGRATION_EVENT_TYPES } from "@/lib/sources/sec/forms/common/secIntegrationContract";
 import { SIGNAL_VALUES } from "@/lib/prompts/newsEventAnalysis";
-import { persistOptionalMonitorFoundation } from "@/lib/monitor/persistence";
+import {
+  persistOptionalMonitorFoundation,
+  persistOwnershipAnalysisFacts,
+} from "@/lib/monitor/persistence";
+import { buildOwnershipParserFactRows } from "@/lib/monitor/ownershipParserFacts";
 import {
   buildMinimalOfferingMarketSnapshot,
   prepareMinimalOfferingMonitorPersistence,
@@ -21,7 +25,7 @@ import {
   type SecIssuerSecurityEvidence,
   type SecIssuerSecurityLinkage,
 } from "@/lib/secIssuerEventLinkage";
-import { supabaseDelete, supabaseSelect, supabaseUpsert } from "@/lib/supabase";
+import { supabaseDelete, supabaseSelect, supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
 
 export {
   buildSecFilingGroupDedupe,
@@ -94,6 +98,17 @@ export async function saveAnalyzedSecFilingEvent({
   const groupDedupeKey = groupDedupe.groupDedupeKey;
   const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
   const id = stringValue(existing?.id) || randomUUID();
+  const ownershipRawItem = promptKey === "sec_ownership_analysis" ? rawRow : null;
+  if (ownershipRawItem) {
+    // Fail closed before the analyzed event is written. The parser is invoked
+    // again by the strict persistence call so validation and row construction
+    // remain one inseparable product boundary there as well.
+    buildOwnershipParserFactRows({
+      eventId: id,
+      rawItem: ownershipRawItem,
+      symbol: primaryTicker.ticker,
+    });
+  }
   const deliveryLevel = deliveryLevelFromScore(score);
   const displayPayload = toRecord(analysis.display_payload);
   const transactionFingerprint = toRecord(analysis.transaction_fingerprint);
@@ -189,6 +204,22 @@ export async function saveAnalyzedSecFilingEvent({
   await assertMutation(result, "upsert SEC filing event");
   const eventRow = firstRow(result.data) || payload;
 
+  if (ownershipRawItem) {
+    await persistOwnershipAnalysisFacts({
+      eventId: stringValue(eventRow.id),
+      eventTime: stringValue(eventRow.detected_at) || payload.detected_at,
+      primaryTicker: primaryTicker.ticker
+        ? {
+            symbol: primaryTicker.ticker,
+            exchange: primaryTicker.exchange,
+            securityKey: "primary",
+          }
+        : null,
+      ownershipRawItem,
+      ownershipInputState: "known",
+    });
+  }
+
   await Promise.all([
     persistEventAnalysis(eventRow, analysis, marketScope),
     persistEventOfferingTerms({
@@ -215,9 +246,6 @@ export async function saveAnalyzedSecFilingEvent({
       promptVersion,
     }),
   ]);
-  const ownershipAnalysisOutput = promptKey === "sec_ownership_analysis"
-    ? toRecord(analysis.ownership_monitor_facts)
-    : null;
   await persistOptionalMonitorFoundation({
     eventId: stringValue(eventRow.id),
     eventTime: stringValue(eventRow.detected_at) || payload.detected_at,
@@ -229,12 +257,123 @@ export async function saveAnalyzedSecFilingEvent({
         }
       : null,
     analysisMarketContext: marketContext,
-    ownershipAnalysisOutput,
-    ownershipInputState: ownershipAnalysisOutput ? "known" : "not_applicable",
+    ownershipInputState: "not_applicable",
   });
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
 
   return eventRow;
+}
+
+export async function saveOwnershipParserDetailsEvent({
+  rawRow,
+  promptKey,
+  promptVersion,
+}: {
+  rawRow: PersistedRow;
+  promptKey: string;
+  promptVersion: string;
+}) {
+  const rawPayload = toRecord(rawRow.raw_payload) || {};
+  const groupDedupe = buildSecFilingGroupDedupe(rawRow);
+  const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
+  const id = stringValue(existing?.id) || randomUUID();
+  const prepared = buildOwnershipParserFactRows({
+    eventId: id,
+    rawItem: rawRow,
+    symbol: nullableString(rawPayload.ticker),
+  });
+  const detectedAt = new Date().toISOString();
+  const detailsMetadata = {
+    issuer: nullableString(rawPayload.company_name),
+    source_type: "SEC Filing",
+    source_release_type: "Official Filing",
+    accession_number: prepared.accessionNumber,
+    form_type: prepared.formType,
+    cik: nullableString(rawPayload.cik),
+    primary_document_url: nullableString(rawPayload.primary_document_url),
+    prompt_key: promptKey,
+    prompt_version: promptVersion,
+    analysis_status: "failed",
+    summary_status: "failed",
+    analysis_runtime_source: "ownership_parser_details_only",
+    ownership_details_status: "pending",
+    ownership_details_canonical_source: "sec_ownership_xml_parser",
+    ownership_source_url: prepared.sourceUrl,
+    ownership_parser_version: prepared.parserOutput.parserVersion,
+  };
+  const payload = {
+    id,
+    raw_item_id: stringValue(rawRow.id),
+    source_code: "sec_edgar",
+    source_group: "filings" satisfies SourceGroup,
+    source_name: "SEC EDGAR",
+    source_url: stringValue(rawRow.source_url),
+    published_at: stringValue(rawRow.published_at) || null,
+    ticker: prepared.symbol,
+    market: nullableString(rawPayload.exchange),
+    event_type: "insider_ownership",
+    score: 0,
+    delivery_level: "archive" satisfies DeliveryLevel,
+    impact: "low" satisfies Impact,
+    signal: "neutral" satisfies Signal,
+    market_scope: "company" satisfies MarketScope,
+    sector: null,
+    industry_group: null,
+    theme_group: null,
+    sub_theme: null,
+    title: stringValue(rawRow.title) || `SEC Form ${prepared.formType} filing (analysis unavailable)`,
+    quick_take: null,
+    summary: null,
+    reason: null,
+    detected_at: detectedAt,
+    group_dedupe_key: groupDedupe.groupDedupeKey,
+    cross_group_event_key: buildCrossGroupEventKey(
+      prepared.symbol,
+      "insider_ownership",
+      `SEC Form ${prepared.formType} ${prepared.accessionNumber}`,
+    ),
+    metadata: detailsMetadata,
+  };
+
+  let eventRow = existing;
+  if (!eventRow) {
+    const result = await supabaseUpsertSanitized("events", payload, { onConflict: "id" });
+    await assertMutation(result, "upsert SEC Ownership parser details event");
+    eventRow = firstRow(result.data) || payload;
+  }
+
+  const persistence = await persistOwnershipAnalysisFacts({
+    eventId: stringValue(eventRow.id),
+    eventTime: stringValue(eventRow.detected_at) || detectedAt,
+    primaryTicker: prepared.symbol
+      ? {
+          symbol: prepared.symbol,
+          exchange: nullableString(eventRow.market),
+          securityKey: "primary",
+        }
+      : null,
+    ownershipRawItem: rawRow,
+    ownershipInputState: "known",
+  });
+
+  const existingMetadata = toRecord(eventRow.metadata) || {};
+  if (!existing || existingMetadata.analysis_runtime_source === "ownership_parser_details_only") {
+    const completedMetadata = {
+      ...existingMetadata,
+      ...detailsMetadata,
+      ownership_details_status: "available",
+    };
+    const result = await supabaseUpdate(
+      "events",
+      { id: `eq.${stringValue(eventRow.id)}` },
+      { metadata: sanitizeForPostgresJson(completedMetadata) as Record<string, unknown> },
+      { prefer: "return=representation" },
+    );
+    await assertMutation(result, "mark SEC Ownership parser details available");
+    eventRow = firstRow(result.data) || { ...eventRow, metadata: completedMetadata };
+  }
+
+  return { event: eventRow, persistence };
 }
 
 async function resolveFmpValidatedIssuerSecurityLinkage(
