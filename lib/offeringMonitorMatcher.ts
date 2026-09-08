@@ -1,13 +1,16 @@
 import {
   readOfferingMonitorCanonical,
-  type OfferingMonitorCanonicalReadResult,
 } from "./offeringMonitorCanonicalPersistence.ts";
 import {
   MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
   getReadyMonitorCondition,
   type MonitorConditionOperator,
 } from "./monitor/conditionRegistry.ts";
-import type { MinimalOfferingNumericFact } from "./minimalOfferingMonitor.ts";
+import type {
+  MinimalOfferingMaterialized,
+  MinimalOfferingMonitor,
+  MinimalOfferingNumericFact,
+} from "./minimalOfferingMonitor.ts";
 
 export const OFFERING_MONITOR_MATCHER_VERSION = "offering_monitor_matcher_v1" as const;
 
@@ -60,6 +63,19 @@ export type OfferingMonitorConditionSet = Readonly<{
   conditions: readonly OfferingMonitorCondition[];
 }>;
 
+/**
+ * The matcher consumes facts, not the persistence lineage that produced them.
+ * Both the Stage 2 canonical reader and exact-event Registry adapter implement
+ * this deliberately small boundary.
+ */
+export type OfferingMonitorFactReadResult =
+  | Readonly<{
+      status: "available";
+      canonical: MinimalOfferingMonitor;
+      materialized: MinimalOfferingMaterialized;
+    }>
+  | Readonly<{ status: "not_ready"; reason: string }>;
+
 export type OfferingMonitorEventMatchResult = Readonly<{
   version: typeof OFFERING_MONITOR_MATCHER_VERSION;
   eventId: string;
@@ -67,7 +83,7 @@ export type OfferingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type OfferingMonitorMatcherDependencies = Readonly<{
-  readCanonical(eventId: string): Promise<OfferingMonitorCanonicalReadResult>;
+  readCanonical(eventId: string): Promise<OfferingMonitorFactReadResult>;
 }>;
 
 const defaultDependencies: OfferingMonitorMatcherDependencies = {
@@ -118,7 +134,7 @@ const SIDE_VALUES = new Set(["primary", "resale", "mixed"]);
 
 /** Pure, deterministic AND evaluation over one already-read canonical result. */
 export function evaluateOfferingMonitorConditions(
-  canonical: OfferingMonitorCanonicalReadResult,
+  canonical: OfferingMonitorFactReadResult,
   conditions: readonly OfferingMonitorCondition[],
 ): OfferingMonitorMatchResult {
   if (canonical.status !== "available") {
@@ -148,7 +164,7 @@ export async function evaluateOfferingMonitorEvent(
   input: Readonly<{ eventId: string; conditionSets: readonly OfferingMonitorConditionSet[] }>,
   dependencies: OfferingMonitorMatcherDependencies = defaultDependencies,
 ): Promise<OfferingMonitorEventMatchResult> {
-  let canonical: OfferingMonitorCanonicalReadResult;
+  let canonical: OfferingMonitorFactReadResult;
   try {
     canonical = await dependencies.readCanonical(input.eventId);
   } catch {
@@ -165,7 +181,7 @@ export async function evaluateOfferingMonitorEvent(
 }
 
 function evaluateCondition(
-  canonical: Extract<OfferingMonitorCanonicalReadResult, { status: "available" }>,
+  canonical: Extract<OfferingMonitorFactReadResult, { status: "available" }>,
   input: OfferingMonitorCondition,
 ): OfferingMonitorConditionResult {
   if (!recordValue(input)) return conditionResult("", "ineligible", "condition_invalid");
