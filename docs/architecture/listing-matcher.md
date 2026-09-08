@@ -3,8 +3,9 @@
 ## Scope and canonical boundary
 
 The common Matcher is a deterministic, LLM-free evaluator over registered
-official fact readers. V1 supports `readCurrentListingRiskFacts()` and
-`readCurrentEventCorporateActionFacts()`. It does not create or persist
+official fact readers. V1 supports `readCurrentListingRiskFacts()`,
+`readCurrentEventCorporateActionFacts()`, and
+`readCurrentEventOwnershipFacts()`. It does not create or persist
 Monitors, send Alerts, infer condition meaning, or change analyzer facts. Each
 registered official reader is the only truth for its condition family.
 
@@ -40,6 +41,19 @@ canonical `unknown` stage remains reader-valid but is not monitorable. Ratio and
 effective date are not condition-addressable in Monitor V1. No parser, calendar,
 Primary output, raw analyzer output, or unrelated AI run is a fallback fact
 source.
+
+Ownership conditions read only the form-specific typed rows created from
+verified `raw_items.raw_payload.ownership_source_text` by the production XML
+parser. The reader validates parser provenance, accession-bound SEC source URL,
+exact XML-to-target issuer CIK provenance, canonical ticker consistency, form
+family, row identity, and value quality/availability before evaluation.
+Form 4 and Form 144 conditions are mutually ineligible across form families.
+All Ownership conditions in one Monitor must match the same transaction or
+proposed-sale row. Unavailable numeric values fail closed. A multi-owner Form 4
+filing exposes a filing-level unattributed owner set; owner-scoped and
+transaction-scoped conditions, or multiple owner-scoped conditions, cannot be
+combined unless the source has a single attributable owner. Primary or late LLM
+output and legacy parser semantic fields are never fallback Matcher facts.
 
 Text comparison is exact and case-sensitive. Boolean comparison preserves
 `false`. Fixed date operators remain unchanged and date-only:

@@ -530,6 +530,7 @@ function evaluateCorporate(
   return evaluateMonitorConditions({
     listing: { status: "not_ready", reason: "reader_not_requested" },
     corporateAction: current,
+    ownership: { status: "not_ready", reason: "reader_not_requested" },
   }, conditions, {
     evaluationDate: EVALUATION_DATE,
     evaluatedAt: "2026-08-14T12:00:00.000Z",
