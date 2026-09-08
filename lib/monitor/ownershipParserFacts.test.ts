@@ -20,7 +20,7 @@ const eventId = "22222222-2222-4222-8222-222222222222";
 const eventTime = "2026-09-08T00:00:00.000Z";
 
 test("verified Form 4 XML builds source-backed rows without LLM semantics or calculations", () => {
-  const rawItem = rawItemFromFixture("form4-insider-purchase.json", "OWNR");
+  const rawItem = rawItemFromFixture("form4-insider-purchase.json", "ATRB");
   const result = buildOwnershipParserFactRows({ eventId, rawItem });
 
   assert.equal(result.formType, "4");
@@ -43,13 +43,22 @@ test("verified Form 4 XML builds source-backed rows without LLM semantics or cal
   assert.equal((row.provenance as Row).source, "sec_ownership_xml_parser");
   assert.equal((row.provenance as Row).source_verified, true);
   assert.equal((row.provenance as Row).fact_kind, "reported_form4_transaction");
+  assert.deepEqual((row.provenance as Row).issuer_identity, {
+    source: "ownership_xml",
+    match_status: "exact_cik",
+    xml_cik: "0001999001",
+    target_cik: "0001999001",
+    xml_ticker: "ATRB",
+    target_ticker: "ATRB",
+    canonical_ticker: "ATRB",
+  });
   assert.equal((row.calculation_basis as Row).transaction_value_not_computed, true);
 });
 
 test("multiple Form 4 reporters remain a filing-level unattributed set", () => {
   const result = buildOwnershipParserFactRows({
     eventId,
-    rawItem: rawItemFromFixture("form4-multiple-owners-unknown-code.json", "MULTI"),
+    rawItem: rawItemFromFixture("form4-multiple-owners-unknown-code.json", "UNKN"),
   });
   const row = result.form4Transactions[0];
 
@@ -90,7 +99,7 @@ test("Form 144 XML remains a proposed-sale type and does not derive a blind perc
 test("product persistence ignores late or numerically wrong LLM detail output", async () => {
   const state = { form4: [] as Row[], form144: [] as Row[], calls: 0 };
   const repository = repositoryFor(state);
-  const rawItem = rawItemFromFixture("form4-insider-purchase.json", "OWNR");
+  const rawItem = rawItemFromFixture("form4-insider-purchase.json", "ATRB");
   const wrongLlmOutput = {
     version: "ownership_monitor_facts_v1",
     form4: {
@@ -103,7 +112,7 @@ test("product persistence ignores late or numerically wrong LLM detail output", 
   await persistOwnershipAnalysisFacts({
     eventId,
     eventTime,
-    primaryTicker: { symbol: "OWNR" },
+    primaryTicker: { symbol: "ATRB" },
     ownershipRawItem: rawItem,
     ownershipAnalysisOutput: wrongLlmOutput,
     ownershipInputState: "known",
@@ -112,7 +121,7 @@ test("product persistence ignores late or numerically wrong LLM detail output", 
   await persistOwnershipAnalysisFacts({
     eventId,
     eventTime,
-    primaryTicker: { symbol: "OWNR" },
+    primaryTicker: { symbol: "ATRB" },
     ownershipRawItem: rawItem,
     ownershipAnalysisOutput: { ...wrongLlmOutput, late: true },
     ownershipInputState: "known",
@@ -229,12 +238,62 @@ test("missing and unverifiable sources fail closed before any typed write", asyn
   assert.deepEqual(state.form4, [{ shares: 7 }]);
 });
 
+test("issuer CIK mismatch and caller ticker injection fail before any typed write", async () => {
+  const agig = rawItemFromFixture("source-agig-form4-purchase.json", "AGIG");
+  const wrongIssuer = structuredClone(agig);
+  Object.assign(wrongIssuer.raw_payload as Row, {
+    cik: "0001347858",
+    ownership_issuer_cik: "0001347858",
+    ticker: "XXII",
+    ownership_issuer_trading_symbol: "XXII",
+  });
+  assert.throws(
+    () => buildOwnershipParserFactRows({ eventId, rawItem: wrongIssuer, symbol: "XXII" }),
+    /issuer CIK does not match/,
+  );
+
+  assert.throws(
+    () => buildOwnershipParserFactRows({ eventId, rawItem: agig, symbol: "XXII" }),
+    /ticker does not match/,
+  );
+
+  const state = { form4: [{ shares: 7 }], form144: [] as Row[], calls: 0 };
+  await assert.rejects(
+    persistOwnershipAnalysisFacts({
+      eventId,
+      eventTime,
+      primaryTicker: { symbol: "XXII" },
+      ownershipRawItem: wrongIssuer,
+      ownershipInputState: "known",
+    }, repositoryFor(state)),
+    /issuer CIK does not match/,
+  );
+  assert.equal(state.calls, 0);
+  assert.deepEqual(state.form4, [{ shares: 7 }]);
+
+  await assert.rejects(
+    persistOwnershipAnalysisFacts({
+      eventId,
+      eventTime,
+      primaryTicker: { symbol: "XXII" },
+      ownershipRawItem: agig,
+      ownershipInputState: "known",
+    }, repositoryFor(state)),
+    /ticker does not match/,
+  );
+  assert.equal(state.calls, 0);
+  assert.deepEqual(state.form4, [{ shares: 7 }]);
+});
+
 function rawItemFromFixture(filename: string, ticker: string) {
   const fixture = JSON.parse(readFileSync(join(fixtureRoot, filename), "utf8")) as Row;
   const accession = String(fixture.accessionNumber);
   const formType = String(fixture.formType);
   const sourceUrl = `https://www.sec.gov/Archives/edgar/data/1000000/${accession.replace(/-/g, "")}/ownership.xml`;
   const sourceText = String(fixture.filingText ?? fixture.primaryDocumentText ?? "");
+  const issuerCik = xmlValue(sourceText, "issuerCik");
+  const issuerTicker = xmlValue(sourceText, "issuerTradingSymbol");
+  const canonicalTicker = issuerTicker ?? ticker;
   return {
     id: "33333333-3333-4333-8333-333333333333",
     source_code: "sec_edgar",
@@ -248,7 +307,10 @@ function rawItemFromFixture(filename: string, ticker: string) {
     raw_payload: {
       form_type: formType,
       accession_number: accession,
-      ticker,
+      ticker: canonicalTicker,
+      cik: issuerCik,
+      ownership_issuer_cik: issuerCik,
+      ...(issuerTicker ? { ownership_issuer_trading_symbol: issuerTicker } : {}),
       exchange: "NASDAQ",
       company_name: "Ownership Fixture Co.",
       ownership_source_text: sourceText,
@@ -257,6 +319,11 @@ function rawItemFromFixture(filename: string, ticker: string) {
       ownership_source_text_truncated: false,
     },
   } satisfies Row;
+}
+
+function xmlValue(sourceText: string, localName: string) {
+  const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
+  return sourceText.match(new RegExp(`<${tag}\\b[^>]*>\\s*([^<]*?)\\s*<\\/${tag}>`, "i"))?.[1]?.trim() ?? null;
 }
 
 function repositoryFor(state: { form4: Row[]; form144: Row[]; calls: number }): MonitorPersistenceRepository {

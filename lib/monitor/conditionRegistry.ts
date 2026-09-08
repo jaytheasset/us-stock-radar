@@ -95,6 +95,7 @@ export type MonitorConditionDefinition = Readonly<{
   monitorDomains?: readonly "listing"[];
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
+    minimum?: number;
   }>;
   family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership";
   domain: string;
@@ -106,12 +107,14 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_event_offering_monitor_canonical"
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
+      | "read_current_event_ownership_facts"
       | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
     availabilityColumn?: string;
     valueQualityJsonPath?: readonly string[];
     availabilityJsonPath?: readonly string[];
+    ownerScoped?: boolean;
   }>;
   qualityCapability: readonly MonitorConditionQuality[];
   eligibility?: Readonly<{
@@ -366,20 +369,114 @@ const registry = [
     },
   }),
 
-  condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"]),
-  condition("ownership.form4.transaction_value", "number", numericOperators, "ownership", "form4", "event_form4_transactions", "transaction_value", "ticker", ["derived", "unknown"], {
+  partialCondition(condition("ownership.form4.direction", "text", equality, "ownership", "form4", "event_form4_transactions", "economic_direction", "ticker", ["exact", "unknown"])),
+  partialCondition(condition("ownership.form4.transaction_value", "number", numericOperators, "ownership", "form4", "event_form4_transactions", "transaction_value", "ticker", ["derived", "unknown"], {
     valueQualityColumn: "transaction_value_value_quality",
     availabilityColumn: "transaction_value_availability",
+  })),
+  canonicalOwnershipCondition("ownership.form4.transaction_kind", "text", enumOperators, "form4", "event_form4_transactions", "transaction_kind", {
+    enumValues: ["non_derivative", "derivative"],
+    description: "Whether the reported Form 4 transaction row is non-derivative or derivative.",
+    enumValueDescriptions: {
+      non_derivative: "A reported transaction in a non-derivative security.",
+      derivative: "A reported transaction in a derivative security.",
+    },
+    display: {
+      label: "Form 4 transaction type",
+      enumValueLabels: { non_derivative: "Non-derivative", derivative: "Derivative" },
+    },
   }),
-  condition("ownership.form4.reporting_owner_role", "text", textOperators, "ownership", "form4", "event_form4_transactions", "reporting_owner_roles", "ticker", ["exact", "unknown"]),
-  partialCondition(condition("ownership.form4.is_officer", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_officer", "ticker", ["exact", "unknown"])),
-  partialCondition(condition("ownership.form4.is_director", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_director", "ticker", ["exact", "unknown"])),
-  partialCondition(condition("ownership.form4.officer_title", "text", textOperators, "ownership", "form4", "event_form4_transactions", "officer_title", "ticker", ["exact", "unknown"])),
-  condition("ownership.form4.is_10_percent_owner", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_10_percent_owner", "ticker", ["exact", "unknown"]),
+  canonicalOwnershipCondition("ownership.form4.transaction_code", "text", textOperators, "form4", "event_form4_transactions", "transaction_code", {
+    description: "The raw one-letter SEC transaction code on a reported Form 4 transaction row.",
+    display: { label: "Form 4 transaction code" },
+  }),
+  canonicalOwnershipCondition("ownership.form4.acquisition_disposition", "text", enumOperators, "form4", "event_form4_transactions", "acquired_disposed_code", {
+    enumValues: ["A", "D"],
+    description: "The raw SEC acquisition or disposition marker on a reported Form 4 transaction row.",
+    enumValueDescriptions: {
+      A: "The source row is marked as an acquisition.",
+      D: "The source row is marked as a disposition.",
+    },
+    display: {
+      label: "Form 4 acquisition/disposition",
+      enumValueLabels: { A: "Acquisition (A)", D: "Disposition (D)" },
+    },
+  }),
+  canonicalOwnershipCondition("ownership.form4.security_class", "text", textOperators, "form4", "event_form4_transactions", "security_title", {
+    description: "The security title reported on a Form 4 transaction row.",
+    display: { label: "Form 4 security class" },
+  }),
+  canonicalOwnershipCondition("ownership.form4.transaction_date", "date", dateOperators, "form4", "event_form4_transactions", "transaction_date", {
+    description: "The transaction date reported on a Form 4 transaction row.",
+    display: { label: "Form 4 transaction date" },
+  }),
+  canonicalOwnershipCondition("ownership.form4.shares", "number", numericOperators, "form4", "event_form4_transactions", "shares", {
+    qualityColumn: "shares_value_quality",
+    availabilityColumn: "shares_availability",
+    description: "The exact share or unit quantity reported on a Form 4 transaction row.",
+    display: { label: "Form 4 shares", numberFormat: { style: "decimal", maximumFractionDigits: 8 } },
+  }),
+  canonicalOwnershipCondition("ownership.form4.price_per_share", "number", numericOperators, "form4", "event_form4_transactions", "price_per_share", {
+    qualityColumn: "price_per_share_value_quality",
+    availabilityColumn: "price_per_share_availability",
+    description: "The exact per-share price reported on a Form 4 transaction row.",
+    display: { label: "Form 4 price per share", numberFormat: { style: "currency", currency: "USD", maximumFractionDigits: 8 } },
+  }),
+  canonicalOwnershipCondition("ownership.form4.post_transaction_shares", "number", numericOperators, "form4", "event_form4_transactions", "post_transaction_shares", {
+    qualityColumn: "post_transaction_shares_value_quality",
+    availabilityColumn: "post_transaction_shares_availability",
+    description: "The exact post-transaction holdings reported on a Form 4 transaction row.",
+    display: { label: "Form 4 post-transaction holdings", numberFormat: { style: "decimal", maximumFractionDigits: 8 } },
+  }),
+  canonicalOwnershipCondition("ownership.form4.reporting_owner_role", "text", textOperators, "form4", "event_form4_transactions", "reporting_owner_roles", {
+    description: "A reporting-owner role preserved for the Form 4 filing without inventing row attribution.",
+    display: { label: "Form 4 reporting-owner role" },
+    ownerScoped: true,
+  }),
+  canonicalOwnershipCondition("ownership.form4.is_officer", "boolean", equality, "form4", "event_form4_transactions", "is_officer", {
+    description: "Whether the sole reporting owner is identified as an officer in the Form 4 filing.",
+    display: { label: "Form 4 owner is officer", booleanValueLabels: { true: "Yes", false: "No" } },
+    ownerScoped: true,
+  }),
+  canonicalOwnershipCondition("ownership.form4.is_director", "boolean", equality, "form4", "event_form4_transactions", "is_director", {
+    description: "Whether the sole reporting owner is identified as a director in the Form 4 filing.",
+    display: { label: "Form 4 owner is director", booleanValueLabels: { true: "Yes", false: "No" } },
+    ownerScoped: true,
+  }),
+  canonicalOwnershipCondition("ownership.form4.officer_title", "text", textOperators, "form4", "event_form4_transactions", "officer_title", {
+    description: "The officer title of the sole reporting owner in the Form 4 filing.",
+    display: { label: "Form 4 officer title" },
+    ownerScoped: true,
+  }),
+  canonicalOwnershipCondition("ownership.form4.is_10_percent_owner", "boolean", equality, "form4", "event_form4_transactions", "is_10_percent_owner", {
+    description: "Whether the sole reporting owner is identified as a ten-percent owner in the Form 4 filing.",
+    display: { label: "Form 4 ten-percent owner", booleanValueLabels: { true: "Yes", false: "No" } },
+    ownerScoped: true,
+  }),
   partialCondition(condition("ownership.form4.is_10b5_1", "boolean", equality, "ownership", "form4", "event_form4_transactions", "is_10b5_1", "ticker", ["exact", "unknown"])),
-  condition("ownership.form144.proposed_sale_value", "number", numericOperators, "ownership", "form144", "event_form144_proposed_sales", "aggregate_market_value", "ticker", ["exact", "unknown"], {
-    valueQualityColumn: "aggregate_market_value_value_quality",
+  canonicalOwnershipCondition("ownership.form144.security_class", "text", textOperators, "form144", "event_form144_proposed_sales", "security_title", {
+    description: "The security class stated on a Form 144 proposed-sale notice row.",
+    display: { label: "Form 144 security class" },
+  }),
+  canonicalOwnershipCondition("ownership.form144.proposed_sale_shares", "number", numericOperators, "form144", "event_form144_proposed_sales", "securities_to_be_sold", {
+    qualityColumn: "securities_to_be_sold_value_quality",
+    availabilityColumn: "securities_to_be_sold_availability",
+    description: "The exact proposed share or unit quantity on a Form 144 notice row; it is not an executed sale.",
+    display: { label: "Form 144 proposed shares", numberFormat: { style: "decimal", maximumFractionDigits: 8 } },
+  }),
+  canonicalOwnershipCondition("ownership.form144.proposed_sale_value", "number", numericOperators, "form144", "event_form144_proposed_sales", "aggregate_market_value", {
+    qualityColumn: "aggregate_market_value_value_quality",
     availabilityColumn: "aggregate_market_value_availability",
+    description: "The exact aggregate market value on a Form 144 proposed-sale notice row; it is not sale proceeds.",
+    display: { label: "Form 144 proposed value", numberFormat: { style: "currency", currency: "USD", maximumFractionDigits: 2 } },
+  }),
+  canonicalOwnershipCondition("ownership.form144.proposed_sale_date", "date", dateOperators, "form144", "event_form144_proposed_sales", "approximate_sale_date", {
+    description: "The approximate sale date stated on a Form 144 proposed-sale notice row.",
+    display: { label: "Form 144 proposed sale date" },
+  }),
+  canonicalOwnershipCondition("ownership.form144.exchange", "text", textOperators, "form144", "event_form144_proposed_sales", "exchange", {
+    description: "The exchange stated on a Form 144 proposed-sale notice row.",
+    display: { label: "Form 144 exchange" },
   }),
 ] satisfies readonly MonitorConditionDefinition[];
 
@@ -659,6 +756,82 @@ function canonicalListingCondition<
   });
 }
 
+type OwnershipConditionOptions = Readonly<{
+  description: string;
+  enumValues?: readonly string[];
+  enumValueDescriptions?: Readonly<Record<string, string>>;
+  qualityColumn?: string;
+  availabilityColumn?: string;
+  ownerScoped?: boolean;
+  display: MonitorConditionDisplayMetadata;
+}>;
+
+function canonicalOwnershipCondition(
+  key: string,
+  valueType: "text" | "boolean" | "date" | "number",
+  allowedOperators: readonly MonitorConditionOperator[],
+  domain: "form4" | "form144",
+  table: "event_form4_transactions" | "event_form144_proposed_sales",
+  column: string,
+  options: OwnershipConditionOptions,
+): MonitorConditionDefinition {
+  const numeric = valueType === "number";
+  return Object.freeze({
+    key,
+    valueType,
+    allowedOperators: Object.freeze([...allowedOperators]),
+    ...(options.enumValues ? { enumValues: Object.freeze([...options.enumValues]) } : {}),
+    description: options.description,
+    ...(options.enumValueDescriptions ? {
+      enumValueDescriptions: Object.freeze({ ...options.enumValueDescriptions }),
+    } : {}),
+    display: Object.freeze({
+      ...options.display,
+      ...(options.display.enumValueLabels ? {
+        enumValueLabels: Object.freeze({ ...options.display.enumValueLabels }),
+      } : {}),
+      ...(options.display.booleanValueLabels ? {
+        booleanValueLabels: Object.freeze({ ...options.display.booleanValueLabels }),
+      } : {}),
+      ...(options.display.numberFormat ? {
+        numberFormat: Object.freeze({ ...options.display.numberFormat }),
+      } : {}),
+      ...(numeric ? {
+        operatorValueTemplates: Object.freeze({
+          eq: "Equals {value}",
+          neq: "Does not equal {value}",
+          gt: "Greater than {value}",
+          gte: "At least {value}",
+          lt: "Less than {value}",
+          lte: "At most {value}",
+        }),
+      } : {}),
+    }),
+    monitorDomains: Object.freeze(["listing"] as const),
+    ...(numeric ? { numberValidation: Object.freeze({ minimum: 0 }) } : {}),
+    family: "ownership" as const,
+    domain,
+    source: Object.freeze({
+      table,
+      column,
+      subject: "ticker" as const,
+      reader: "read_current_event_ownership_facts" as const,
+      ...(options.qualityColumn ? { valueQualityColumn: options.qualityColumn } : {}),
+      ...(options.availabilityColumn ? { availabilityColumn: options.availabilityColumn } : {}),
+      ...(options.ownerScoped ? { ownerScoped: true } : {}),
+    }),
+    qualityCapability: Object.freeze(numeric ? ["exact", "unknown"] as const : ["exact"] as const),
+    eligibility: Object.freeze({
+      requiredReaderStatus: "available" as const,
+      ...(numeric ? {
+        requiredAvailability: "available" as const,
+        requiredValueQualities: Object.freeze(["exact"] as const),
+      } : {}),
+    }),
+    status: "READY" as const,
+  });
+}
+
 function partialCondition(entry: MonitorConditionDefinition): MonitorConditionDefinition {
   return Object.freeze({ ...entry, status: "PARTIAL" as const });
 }
@@ -747,6 +920,18 @@ function validateRegistry(entries: readonly MonitorConditionDefinition[]) {
       throw new Error(`Invalid numeric monitor condition constraint: ${entry.key}`);
     }
     if (
+      entry.numberValidation?.minimum !== undefined
+      && (!Number.isFinite(entry.numberValidation.minimum) || entry.valueType !== "number")
+    ) {
+      throw new Error(`Invalid numeric monitor condition constraint: ${entry.key}`);
+    }
+    if (
+      entry.numberValidation?.minimum !== undefined
+      && entry.numberValidation.exclusiveMinimum !== undefined
+    ) {
+      throw new Error(`Ambiguous numeric monitor condition constraint: ${entry.key}`);
+    }
+    if (
       entry.eligibility?.maximumAgeSeconds !== undefined
       && (!Number.isFinite(entry.eligibility.maximumAgeSeconds) || entry.eligibility.maximumAgeSeconds <= 0)
     ) {
@@ -760,7 +945,9 @@ function validConditionScalar(definition: MonitorConditionDefinition, value: unk
   if (definition.valueType === "number") {
     if (typeof value !== "number" || !Number.isFinite(value)) return false;
     const exclusiveMinimum = definition.numberValidation?.exclusiveMinimum;
-    return exclusiveMinimum === undefined || value > exclusiveMinimum;
+    const minimum = definition.numberValidation?.minimum;
+    if (exclusiveMinimum !== undefined && value <= exclusiveMinimum) return false;
+    return minimum === undefined || value >= minimum;
   }
   if (definition.valueType === "boolean") return typeof value === "boolean";
   if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;

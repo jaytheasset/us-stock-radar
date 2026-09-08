@@ -44,6 +44,8 @@ Stage count is domain-specific. Do not add an Ownership Stage 2 solely to make t
 | Typed persistence call | `lib/monitor/persistence.ts` |
 | Production event/persistence caller | `lib/secStores/eventStore.ts` |
 | Condition capability registry | `lib/monitor/conditionRegistry.ts` |
+| Canonical Ownership fact reader | `lib/monitor/ownershipMonitorPersistence.ts` |
+| Common Matcher and alert consumer | `lib/listingMonitorMatcher.ts`, `lib/monitor/listingMonitorAlertConsumer.ts` |
 | Existing score-alert execution | `lib/secFilingAnalysisIngest.ts`, `lib/alerts/delivery/*` |
 
 ## SEC document inventory and raw XML preservation
@@ -347,7 +349,7 @@ The PDD regression illustrates the boundary without creating a ticker rule: the 
 
 ## Typed XML/parser persistence
 
-Production event persistence identifies the Ownership form when `promptKey === "sec_ownership_analysis"`, passes the persisted raw item to strict `persistOwnershipAnalysisFacts()`, and calls the production parser again from `raw_payload.ownership_source_text`. The typed write is allowed only when the source is untruncated `ownership_xml`, its accession matches the raw item, its official HTTPS SEC Archives URL contains that same accession's 18-digit directory, the expected complete XML root is present, and parser source-selection reports the preserved raw XML as a high-confidence structured source. The SEC Archives CIK directory is not required to equal the issuer CIK because an Ownership submission can be filed under a reporting owner's filer identity.
+Production event persistence identifies the Ownership form when `promptKey === "sec_ownership_analysis"`, passes the persisted raw item to strict `persistOwnershipAnalysisFacts()`, and calls the production parser again from `raw_payload.ownership_source_text`. The typed write is allowed only when the source is untruncated `ownership_xml`, its accession matches the raw item, its official HTTPS SEC Archives URL contains that same accession's 18-digit directory, the expected complete XML root is present, and parser source-selection reports the preserved raw XML as a high-confidence structured source. The XML `issuerCik` must also exactly match the raw item's target Ownership issuer CIK. When the XML supplies `issuerTradingSymbol`, it must agree with the target and caller-supplied ticker; when it does not (as in current Form 144 XML), the target ticker may come from the raw SEC issuer-resolution result but a caller-supplied ticker cannot replace it. The SEC Archives CIK directory is not required to equal the issuer CIK because an Ownership submission can be filed under a reporting owner's filer identity.
 
 The analyzed Ownership event path validates that boundary before writing the event and uses strict typed persistence rather than the shared optional Monitor-fact wrapper. Missing or unverifiable required XML therefore fails the save instead of being logged as a successful analyzed event with absent details. The shared optional wrapper continues to handle unrelated market snapshots and non-Ownership callers.
 
@@ -374,7 +376,7 @@ Important persisted Form 4 columns include the filing-level owner set/roles, tra
 
 Important persisted Form 144 columns include seller/owner names, security/exchange/date, proposed units, aggregate value, outstanding units, quality/availability fields, provenance, row evidence, and source field status. The separate table and `fact_kind: "form144_proposed_sale_notice"` preserve proposed-not-executed meaning. Percentage remains null/unavailable because unit comparability is not a raw structural fact.
 
-Persistence provenance is:
+Persistence provenance includes the accession/source binding plus the verified issuer binding:
 
 ```json
 {
@@ -382,41 +384,44 @@ Persistence provenance is:
   "parser_version": "ownership-parser-v1",
   "canonical_input": "raw_items.raw_payload.ownership_source_text",
   "source_verified": true,
-  "parser_fallback": false
+  "parser_fallback": false,
+  "issuer_identity": {
+    "source": "ownership_xml",
+    "match_status": "exact_cik",
+    "xml_cik": "0000000000",
+    "target_cik": "0000000000"
+  }
 }
 ```
 
-Typed Ownership persistence is production-wired through both `saveAnalyzedSecFilingEvent()` and the analysis-failure-only `saveOwnershipParserDetailsEvent()`. Event-scoped row replacement remains atomic. Invalid, missing, truncated, fallback, untrusted-host, or accession-mismatched source input performs no typed write and cannot erase prior valid rows.
+Typed Ownership persistence is production-wired through both `saveAnalyzedSecFilingEvent()` and the analysis-failure-only `saveOwnershipParserDetailsEvent()`. Event-scoped row replacement remains atomic. Invalid, missing, truncated, fallback, untrusted-host, accession-mismatched, issuer-mismatched, or ticker-injected source input performs no typed write and cannot erase prior valid rows.
 
 ## Matcher and production wiring status
 
-There is no implemented Ownership-specific Matcher evaluator in the current repository. In particular, there is no Ownership equivalent of `evaluateOfferingMonitorConditions()` or `evaluateOfferingMonitorEvent()`.
+The common Matcher evaluates Ownership conditions through `readCurrentEventOwnershipFacts()`. The reader accepts only complete, form-consistent rows produced from verified SEC XML by the production parser. It validates event/form identity, row indexes, accession-bound SEC source URLs, exact XML-to-target issuer CIK provenance, canonical ticker consistency, parser provenance, source role/format, numeric quality/availability, and the Form 144 proposed-not-executed marker. Any missing, mixed-form, malformed, issuer-mismatched, ticker-injected, or LLM-shaped row set fails closed as `not_ready`.
 
-What is implemented and tested is the condition capability registry. Current Ownership entries are:
+Current XML-backed `READY` conditions are:
 
-| Condition key | Registry status | Typed source |
-| --- | --- | --- |
-| `ownership.form4.direction` | `READY` | `event_form4_transactions.economic_direction` (parser rows use `unknown`) |
-| `ownership.form4.transaction_value` | `READY` | value plus quality/availability (parser rows leave it unavailable) |
-| `ownership.form4.reporting_owner_role` | `READY` | `reporting_owner_roles` |
-| `ownership.form4.is_10_percent_owner` | `READY` | relationship boolean |
-| `ownership.form144.proposed_sale_value` | `READY` | aggregate value plus quality/availability |
-| `ownership.form4.is_officer` | `PARTIAL` | typed row flag |
-| `ownership.form4.is_director` | `PARTIAL` | typed row flag |
-| `ownership.form4.officer_title` | `PARTIAL` | typed row title |
-| `ownership.form4.is_10b5_1` | `PARTIAL` | parser rows leave row-level meaning null |
+- Form 4: transaction kind, raw transaction code, raw acquisition/disposition marker, security class, transaction date, shares, price per share, post-transaction shares, filing-level reporting-owner role, officer/director/10-percent-owner flags, and officer title.
+- Form 144: security class, proposed-sale shares, proposed-sale aggregate value, proposed-sale date, and exchange.
 
-`ownership.form144.proposed_sale_percent` is not a registered condition. `READY` means the registry declares a condition/fact capability; it does not mean an evaluator, user condition store, production caller, or delivery path exists.
+Numeric conditions require `availability=available`, `value_quality=exact`, and a non-negative condition value. Form 4 and Form 144 conditions are never evaluated against the other form family. Conditions for one Monitor must be satisfied by the same typed source row; values from different transactions or proposed-sale rows are not joined to fabricate a match.
 
-A repository-wide caller audit finds no Ownership Matcher and therefore no production caller. The V1 production boundary is:
+For a single Form 4 reporting owner, owner attributes can be evaluated with transaction attributes on that row. For multiple reporting owners the parser exposes only a filing-level unattributed owner set. Combining an owner-scoped condition with a transaction-scoped condition, or combining multiple owner-scoped conditions that could belong to different owners, is therefore ineligible. One filing-level owner-role condition may still match the preserved owner set without claiming per-row attribution.
+
+Semantic fields that verified XML cannot prove remain unsupported: `ownership.form4.direction`, `ownership.form4.transaction_value`, and `ownership.form4.is_10b5_1` are `PARTIAL`; `ownership.form144.proposed_sale_percent` is not registered. The Matcher never substitutes parser legacy semantics or Primary/late LLM output for these fields.
+
+The production boundary is:
 
 ```text
 Verified Ownership XML → production parser → typed detail persistence = WIRED
 Ownership Analysis → analyzed event/summary = WIRED
 
-User-created Ownership Monitor condition evaluation = NOT IMPLEMENTED
-Ownership Monitor match-triggered delivery = NOT IMPLEMENTED
+Typed Ownership rows → common Matcher → deduplicated internal Monitor alert = WIRED
+External Monitor alert delivery = NOT IMPLEMENTED
 ```
+
+`runSecFilingAnalysisIngest()` invokes the LLM-free Monitor consumer after typed Ownership persistence in both the normal success path and the Primary Analysis failure path. The consumer reads Ownership rows once per event attempt and reuses the existing `(listing_monitor_id, alert_event_id)` uniqueness boundary, so replay and a later successful Analysis cannot duplicate the same Monitor output. A consumer failure is reported separately and does not relabel canonical persistence or a failed Primary Analysis as successful.
 
 ## Existing alert versus user-created Monitor alert
 
@@ -427,7 +432,7 @@ The existing Stock Radar alert path is event/score based:
 3. `runSecFilingAnalysisIngest()` invokes alert delivery only for persisted `delivery_level=alert` events.
 4. Existing delivery evaluates user watchlist tickers, discovery categories, plan access, market-cap filters, preferences, and channels.
 
-That is the existing event alert system. It does not evaluate the Ownership condition registry or user-created Monitor thresholds. Do not describe a score alert, watchlist alert, or discovery alert as a Monitor Matcher result.
+That existing event alert system remains separate from the newly wired internal Monitor alert path. Do not describe a score alert, watchlist alert, or discovery alert as a Monitor Matcher result. The Monitor consumer currently persists an internal alert only; existing external delivery workers deliberately exclude listing-monitor alerts.
 
 ## Provenance boundary
 
@@ -489,7 +494,7 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 9. **Offering architecture copy.** Do not add an Ownership Stage-2 Normalizer or Offering canonical machinery without an Ownership-specific approved need.
 10. **Calendar semantics in parser.** Do not confuse raw date extraction with Calendar importance or event policy.
 11. **Legacy semantic dependency.** Do not use legacy parser outputs as an Analysis fallback, Matcher fact, or delivery trigger.
-12. **Implemented-means-wired claims.** Do not equate condition registry entries or typed persistence with a production Ownership Matcher.
+12. **Internal-alert-means-delivered claims.** Do not equate the deduplicated internal Monitor alert with external channel delivery.
 
 ## Architecture invariants
 
@@ -505,11 +510,14 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 10. Legacy parser semantic outputs are non-authoritative and never persistence fallback truth.
 11. Verified `raw_items.raw_payload.ownership_source_text` processed by the production parser is the only canonical input to product typed Ownership detail persistence.
 12. The selected SEC Archives document directory must bind to the same accession as the raw item; SEC hostname validation alone is insufficient, while the Archives CIK directory is not treated as issuer identity.
-13. `ownershipInputState: "known"` without a verified raw Ownership item fails before the replace RPC even when Analysis output is valid.
-14. Ownership does not inherit Offering's two-stage architecture by default.
-15. Raw structured dates may support Calendar, but Calendar semantics and persistence policy remain separate.
-16. Component capability, test coverage, production caller, and production wiring are documented separately.
-17. Existing score alerts and user-created Monitor condition alerts are separate systems.
+13. The XML `issuerCik` must exactly match the target Ownership issuer CIK before any typed write. Caller-supplied ticker values are consistency checks only and can never replace XML/raw issuer identity.
+14. `ownershipInputState: "known"` without a verified raw Ownership item fails before the replace RPC even when Analysis output is valid.
+15. Ownership does not inherit Offering's two-stage architecture by default.
+16. Raw structured dates may support Calendar, but Calendar semantics and persistence policy remain separate.
+17. Component capability, test coverage, production caller, and production wiring are documented separately.
+18. Existing score alerts and user-created Monitor condition alerts are separate systems.
+19. Ownership Monitor matching uses only verified XML/parser typed rows and remains independent of Primary or late LLM values.
+20. All conditions in one Ownership Monitor match on one source row; multiple-owner filing-level sets never imply unsupported owner-to-transaction attribution.
 
 ## Current completion boundary
 
@@ -522,7 +530,7 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 - direct Primary Ownership Analysis with mandatory `ownership_monitor_facts_v1` validation;
 - separate Analysis-owned economic direction, row-level 10b5-1, and Form 144 comparability decisions;
 - verified XML/parser typed row materialization and atomic event-domain replacement;
-- Ownership condition capability registry entries; and
+- XML-backed Ownership condition registry entries, canonical reader, common Matcher evaluation, and replay-safe internal Monitor alerts; and
 - limited parser Calendar candidates plus production Analysis-calendar policy path.
 
 ### Production-wired
@@ -531,6 +539,7 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 - successful Ownership Analysis → analyzed event persistence;
 - verified Ownership XML → typed Ownership persistence, independent of Analysis success;
 - failed Ownership Analysis + verified XML → archive-only event shell + failed AI trace + typed details;
+- typed Ownership details → LLM-free condition evaluation → deduplicated internal Monitor alert, including the Primary failure path;
 - event score ≥ 75 → existing score-based alert evaluation/delivery; and
 - `analysis.calendar_items` → Calendar policy → `event_calendar_items` when valid and eligible.
 
@@ -547,8 +556,8 @@ Future SEC schema changes should be handled with captured fixtures, explicit mon
 - stable field-level machine-verifiable Ownership provenance;
 - legacy parser semantic cleanup;
 - additional Calendar date enrichment;
-- an Ownership-specific Matcher evaluator;
-- user-created Ownership Monitor condition persistence/orchestration; and
-- Monitor match-triggered alert delivery.
+- semantic Ownership conditions that XML cannot prove (`direction`, calculated transaction value, row-level 10b5-1, and Form 144 percentage);
+- stable owner-to-transaction attribution for multi-owner Form 4 filings; and
+- external Monitor match-triggered delivery.
 
 These deferred items do not authorize implicit implementation. Each requires its own acceptance criteria and architecture review.

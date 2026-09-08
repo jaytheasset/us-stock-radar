@@ -7,6 +7,10 @@ import {
   type CurrentCorporateActionReadResult,
 } from "./monitor/corporateActionPersistence.ts";
 import {
+  readCurrentOwnershipFacts,
+  type CurrentOwnershipReadResult,
+} from "./monitor/ownershipMonitorPersistence.ts";
+import {
   getReadyMonitorCondition,
   monitorDateOnlyUtcDay,
   validateMonitorConditionInput,
@@ -38,6 +42,9 @@ export type ListingMonitorMatchReasonCode =
   | "fact_value_invalid"
   | "fact_quality_unknown"
   | "fact_value_ineligible"
+  | "ownership_form_mismatch"
+  | "ownership_reporter_attribution_unavailable"
+  | "ownership_row_conjunction_not_met"
   | "market_price_unavailable"
   | "market_price_data_mode_ineligible"
   | "market_price_stale";
@@ -77,6 +84,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 export type ListingMonitorMatcherDependencies = Readonly<{
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
+  readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   now?(): Date;
@@ -85,11 +93,13 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 export type MonitorFactReaders = Readonly<{
   listing: CurrentListingRiskReadResult;
   corporateAction: CurrentCorporateActionReadResult;
+  ownership: CurrentOwnershipReadResult;
 }>;
 
 const defaultDependencies: ListingMonitorMatcherDependencies = {
   readFacts: readCurrentListingRiskFacts,
   readCorporateActionFacts: readCurrentCorporateActionFacts,
+  readOwnershipFacts: readCurrentOwnershipFacts,
   readEventTicker: readMonitorEventTicker,
   readCurrentPrice: async (symbol) => (
     await import("./market-data/currentPrice.ts")
@@ -110,6 +120,7 @@ export function evaluateListingMonitorConditions(
   return evaluateMonitorConditions({
     listing: current,
     corporateAction: { status: "not_ready", reason: "reader_not_requested" },
+    ownership: { status: "not_ready", reason: "reader_not_requested" },
   }, conditions, input);
 }
 
@@ -136,7 +147,16 @@ export function evaluateMonitorConditions(
     return result("ineligible", "evaluation_date_invalid", []);
   }
 
-  const evaluated = conditions.map((condition) => evaluateCondition(
+  const ownershipEntries = conditions
+    .map((condition, index) => ({ condition, index }))
+    .filter(({ condition }) => conditionUsesReader(condition, "read_current_event_ownership_facts"));
+  const ownershipEvaluation = evaluateOwnershipConditionGroup(
+    readers.ownership,
+    ownershipEntries,
+    evaluationDay,
+  );
+  const ownershipResults = new Map(ownershipEvaluation.results.map((item) => [item.index, item.result]));
+  const evaluated = conditions.map((condition, index) => ownershipResults.get(index) ?? evaluateCondition(
     readers,
     condition,
     evaluationDay,
@@ -144,9 +164,17 @@ export function evaluateMonitorConditions(
     input.currentPrice,
   ));
   const firstNoMatch = evaluated.find((item) => item.status === "no_match");
-  if (firstNoMatch) return result("no_match", firstNoMatch.reasonCode, evaluated);
+  if (firstNoMatch || ownershipEvaluation.status === "no_match") {
+    return result("no_match", ownershipEvaluation.status === "no_match"
+      ? ownershipEvaluation.reasonCode
+      : firstNoMatch!.reasonCode, evaluated);
+  }
   const firstIneligible = evaluated.find((item) => item.status === "ineligible");
-  if (firstIneligible) return result("ineligible", firstIneligible.reasonCode, evaluated);
+  if (firstIneligible || ownershipEvaluation.status === "ineligible") {
+    return result("ineligible", ownershipEvaluation.status === "ineligible"
+      ? ownershipEvaluation.reasonCode
+      : firstIneligible!.reasonCode, evaluated);
+  }
   return result("match", "all_conditions_match", evaluated);
 }
 
@@ -172,6 +200,10 @@ export async function evaluateListingMonitorEvent(
     condition,
     "read_current_event_corporate_action_facts",
   ));
+  const ownershipRequested = conditions.some((condition) => conditionUsesReader(
+    condition,
+    "read_current_event_ownership_facts",
+  ));
   const readers: MonitorFactReaders = {
     listing: listingRequested
       ? await safeReadFacts(
@@ -185,6 +217,12 @@ export async function evaluateListingMonitorEvent(
           dependencies.readCorporateActionFacts ?? defaultDependencies.readCorporateActionFacts!,
         )
       : { status: "not_ready", reason: "reader_not_requested" },
+    ownership: ownershipRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readOwnershipFacts ?? defaultDependencies.readOwnershipFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
   };
   const evaluatedAt = input.evaluatedAt
     ?? (dependencies.now ?? defaultDependencies.now!)().toISOString();
@@ -192,6 +230,7 @@ export async function evaluateListingMonitorEvent(
   let currentPrice: CurrentPrice | undefined;
   if (priceRequested) {
     const symbol = currentListingTicker(readers.listing)
+      || currentOwnershipTicker(readers.ownership)
       || await safeReadEventTicker(
         input.eventId,
         dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
@@ -289,6 +328,192 @@ function evaluateCondition(
     matched ? "match" : "no_match",
     matched ? "all_conditions_match" : "condition_not_met",
   );
+}
+
+function evaluateOwnershipConditionGroup(
+  current: CurrentOwnershipReadResult,
+  entries: readonly Readonly<{ condition: ListingMonitorCondition; index: number }>[],
+  evaluationDay: number,
+): Readonly<{
+  status: ListingMonitorMatchStatus | null;
+  reasonCode: ListingMonitorMatchReasonCode;
+  results: readonly Readonly<{ index: number; result: ListingMonitorConditionResult }>[];
+}> {
+  if (entries.length === 0) {
+    return { status: null, reasonCode: "all_conditions_match", results: [] };
+  }
+  const validationFailures = entries
+    .map((entry) => ({
+      entry,
+      reasonCode: recordValue(entry.condition)
+        ? validateMonitorConditionInput(entry.condition)[0]
+        : "condition_invalid",
+    }))
+    .filter((item) => item.reasonCode);
+  if (validationFailures.length > 0) {
+    const invalidIndexes = new Set(validationFailures.map(({ entry }) => entry.index));
+    const validEntries = entries.filter((entry) => !invalidIndexes.has(entry.index));
+    const validEvaluation = evaluateOwnershipConditionGroup(current, validEntries, evaluationDay);
+    const validResults = new Map(validEvaluation.results.map((item) => [item.index, item.result]));
+    const invalidResults = new Map(validationFailures.map(({ entry, reasonCode }) => [
+      entry.index,
+      conditionResult(String(entry.condition.key ?? ""), "ineligible", reasonCode!),
+    ]));
+    return {
+      status: validEvaluation.status === "no_match" ? "no_match" : "ineligible",
+      reasonCode: validEvaluation.status === "no_match"
+        ? validEvaluation.reasonCode
+        : validationFailures[0].reasonCode!,
+      results: entries.map((entry) => ({
+        index: entry.index,
+        result: invalidResults.get(entry.index) ?? validResults.get(entry.index)!,
+      })),
+    };
+  }
+  const definitions = entries.map(({ condition }) => (
+    recordValue(condition) && typeof condition.key === "string"
+      ? getReadyMonitorCondition(condition.key)
+      : null
+  ));
+  const invalidIndex = definitions.findIndex((definition) => (
+    !definition || definition.family !== "ownership"
+      || definition.source.reader !== "read_current_event_ownership_facts"
+  ));
+  if (invalidIndex >= 0) {
+    return ownershipGroupTerminal(entries, "ineligible", "condition_key_unknown");
+  }
+  if (current.status === "not_ready") {
+    const reasonCode = current.reason === "reader_unavailable" ? "reader_unavailable" : "reader_not_ready";
+    return ownershipGroupTerminal(entries, "ineligible", reasonCode);
+  }
+  if (current.status === "not_applicable") {
+    return ownershipGroupTerminal(entries, "ineligible", "reader_not_applicable");
+  }
+  const requiredForms = new Set(definitions.map((definition) => definition!.domain));
+  if (requiredForms.size !== 1 || !requiredForms.has(current.form)) {
+    return ownershipGroupTerminal(entries, "ineligible", "ownership_form_mismatch");
+  }
+
+  const ownerConditionCount = definitions.filter((definition) => definition!.source.ownerScoped === true).length;
+  const hasOwnerCondition = ownerConditionCount > 0;
+  const hasTransactionCondition = definitions.some((definition) => definition!.source.ownerScoped !== true);
+  const reporterAttributionRequired = current.form === "form4"
+    && hasOwnerCondition
+    && (hasTransactionCondition || ownerConditionCount > 1);
+  const rowEvaluations = current.rows.map((row) => entries.map(({ condition }, conditionIndex) => {
+    const definition = definitions[conditionIndex]!;
+    if (
+      reporterAttributionRequired
+      && recordValue(row.provenance)
+      && row.provenance.reporting_owner_scope === "filing_level_unattributed_owner_set"
+    ) {
+      return conditionResult(String(condition.key), "ineligible", "ownership_reporter_attribution_unavailable");
+    }
+    return evaluateOwnershipRowCondition(row, definition, condition, evaluationDay);
+  }));
+  const matchingRow = rowEvaluations.find((row) => row.every((item) => item.status === "match"));
+  if (matchingRow) {
+    return {
+      status: "match",
+      reasonCode: "all_conditions_match",
+      results: entries.map((entry) => ({
+        index: entry.index,
+        result: conditionResult(String(entry.condition.key), "match", "all_conditions_match"),
+      })),
+    };
+  }
+
+  const conditionResults = entries.map((entry, conditionIndex) => {
+    const perRow = rowEvaluations.map((row) => row[conditionIndex]);
+    if (perRow.some((item) => item.status === "match")) {
+      return { index: entry.index, result: conditionResult(String(entry.condition.key), "match", "all_conditions_match") };
+    }
+    const ineligible = perRow.find((item) => item.status === "ineligible");
+    return {
+      index: entry.index,
+      result: ineligible ?? conditionResult(String(entry.condition.key), "no_match", "condition_not_met"),
+    };
+  });
+  const everyRowDefinitelyNoMatch = rowEvaluations.every((row) => row.some((item) => item.status === "no_match"));
+  if (everyRowDefinitelyNoMatch) {
+    return {
+      status: "no_match",
+      reasonCode: entries.length > 1 ? "ownership_row_conjunction_not_met" : "condition_not_met",
+      results: conditionResults,
+    };
+  }
+  const firstIneligible = rowEvaluations.flat().find((item) => item.status === "ineligible");
+  return {
+    status: "ineligible",
+    reasonCode: firstIneligible?.reasonCode ?? "fact_unavailable",
+    results: conditionResults,
+  };
+}
+
+function evaluateOwnershipRowCondition(
+  row: Readonly<Record<string, unknown>>,
+  definition: MonitorConditionDefinition,
+  input: ListingMonitorCondition,
+  evaluationDay: number,
+) {
+  const key = String(input.key);
+  if (definition.eligibility?.requiredAvailability) {
+    const availabilityColumn = definition.source.availabilityColumn;
+    if (!availabilityColumn || row[availabilityColumn] !== definition.eligibility.requiredAvailability) {
+      return conditionResult(key, "ineligible", "fact_unavailable");
+    }
+  }
+  if (definition.eligibility?.requiredValueQualities) {
+    const qualityColumn = definition.source.valueQualityColumn;
+    const quality = qualityColumn ? row[qualityColumn] : null;
+    if (typeof quality !== "string" || !definition.eligibility.requiredValueQualities.includes(quality as never)) {
+      return conditionResult(key, "ineligible", "fact_quality_unknown");
+    }
+  }
+  const actual = definition.source.column ? row[definition.source.column] : undefined;
+  if (definition.enumValues) {
+    if (typeof actual !== "string" || !definition.enumValues.includes(actual)) {
+      return conditionResult(key, "ineligible", "fact_value_invalid");
+    }
+  }
+  const operator = input.operator as MonitorConditionOperator;
+  const matched = Array.isArray(actual) && definition.valueType === "text"
+    ? compareTextSet(actual, operator, input.value)
+    : compareCondition(definition, actual, operator, input.value, evaluationDay);
+  if (matched === null) return conditionResult(key, "ineligible", "fact_value_invalid");
+  return conditionResult(key, matched ? "match" : "no_match", matched ? "all_conditions_match" : "condition_not_met");
+}
+
+function compareTextSet(
+  actual: readonly unknown[],
+  operator: MonitorConditionOperator,
+  expected: unknown,
+): boolean | null {
+  if (!actual.every((value) => typeof value === "string" && value.length > 0)) return null;
+  if (operator === "eq") return typeof expected === "string" ? actual.includes(expected) : null;
+  if (operator === "neq") return typeof expected === "string" ? !actual.includes(expected) : null;
+  if (operator === "in") return Array.isArray(expected) && expected.every((value) => typeof value === "string")
+    ? expected.some((value) => actual.includes(value))
+    : null;
+  if (operator === "not_in") return Array.isArray(expected) && expected.every((value) => typeof value === "string")
+    ? expected.every((value) => !actual.includes(value))
+    : null;
+  return null;
+}
+
+function ownershipGroupTerminal(
+  entries: readonly Readonly<{ condition: ListingMonitorCondition; index: number }>[],
+  status: "no_match" | "ineligible",
+  reasonCode: ListingMonitorMatchReasonCode,
+) {
+  return {
+    status,
+    reasonCode,
+    results: entries.map((entry) => ({
+      index: entry.index,
+      result: conditionResult(String(entry.condition.key ?? ""), status, reasonCode),
+    })),
+  };
 }
 
 function evaluateCurrentPriceCondition(
@@ -442,6 +667,12 @@ export function currentListingTicker(current: CurrentListingRiskReadResult) {
   return availability === "available" && typeof ticker === "string"
     ? ticker.trim().toUpperCase()
     : "";
+}
+
+export function currentOwnershipTicker(current: CurrentOwnershipReadResult) {
+  if (current.status !== "available") return "";
+  const symbols = new Set(current.rows.map((row) => normalizeTicker(row.symbol)).filter(Boolean));
+  return symbols.size === 1 ? [...symbols][0] : "";
 }
 
 function normalizeTicker(value: unknown) {

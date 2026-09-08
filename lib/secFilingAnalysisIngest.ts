@@ -18,6 +18,7 @@ import {
   buildGenericMonitorPrimaryExecutionContext,
   enqueueGenericMonitorChildrenAfterPrimary,
 } from "@/lib/monitor/genericMonitorChildWorkflowStarter";
+import { consumeListingMonitorAlertsForEvent } from "@/lib/monitor/listingMonitorAlertConsumer";
 import {
   beginSecAnalysisSpan,
   traceSecAnalysis,
@@ -81,6 +82,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     );
     let parserDetailsEvent: Record<string, unknown> | null = null;
     let parserDetailsPersistence: Record<string, unknown> | null = null;
+    let ownershipMonitorConditionExecution: unknown = null;
     if (ownershipFailure && !options.dryRun) {
       try {
         const saved = await saveOwnershipParserDetailsEvent({
@@ -93,6 +95,9 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
           ok: true,
           ...saved.persistence,
         };
+        ownershipMonitorConditionExecution = await runOwnershipMonitorConditionExecution(
+          stringValue(saved.event.id),
+        );
       } catch (error) {
         parserDetailsPersistence = {
           ok: false,
@@ -128,6 +133,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       sourceItem: analysisRun.sourceItem,
       event: parserDetailsEvent,
       ownershipDetailsPersistence: parserDetailsPersistence,
+      ownershipMonitorConditionExecution,
       input: analysisRun.input,
       runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
       outputText: analysisRun.outputText,
@@ -274,6 +280,9 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
       };
     });
+  const ownershipMonitorConditionExecution = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
+    ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
+    : null;
 
   return {
     ok: true,
@@ -291,8 +300,22 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     calendarItems,
     alertDelivery,
     genericMonitorChildren,
+    ownershipMonitorConditionExecution,
     validationRepairTrace,
   };
+}
+
+async function runOwnershipMonitorConditionExecution(eventId: string) {
+  if (!eventId) return { status: "failed", error: "Ownership Monitor event id is unavailable" };
+  try {
+    return await consumeListingMonitorAlertsForEvent({ eventId });
+  } catch (error) {
+    return {
+      status: "failed",
+      eventId,
+      error: error instanceof Error ? error.message : "Ownership Monitor condition execution failed",
+    };
+  }
 }
 
 function hasOwnershipParserInput(value: unknown) {

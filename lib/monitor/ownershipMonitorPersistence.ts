@@ -1,0 +1,352 @@
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
+
+type RepositoryResult = Readonly<{
+  ok: boolean;
+  status?: number;
+  data: unknown;
+  error?: string;
+}>;
+
+export type OwnershipMonitorRepository = Readonly<{
+  select(table: string, query: Record<string, string>): Promise<RepositoryResult>;
+}>;
+
+export type CanonicalOwnershipForm4Row = Readonly<Record<string, unknown> & {
+  event_id: string;
+  transaction_index: number;
+}>;
+
+export type CanonicalOwnershipForm144Row = Readonly<Record<string, unknown> & {
+  event_id: string;
+  proposed_sale_index: number;
+}>;
+
+type OwnershipMonitorLineage = Readonly<{
+  eventId: string;
+  rawItemId: string;
+  sourceExecutionId: string;
+  accessionNumber: string;
+  parserVersion: string;
+  persistedAt: string;
+}>;
+
+export type CurrentOwnershipReadResult =
+  | (OwnershipMonitorLineage & Readonly<{
+      status: "available";
+      form: "form4";
+      rows: readonly CanonicalOwnershipForm4Row[];
+    }>)
+  | (OwnershipMonitorLineage & Readonly<{
+      status: "available";
+      form: "form144";
+      rows: readonly CanonicalOwnershipForm144Row[];
+    }>)
+  | Readonly<{ status: "not_applicable" }>
+  | Readonly<{ status: "not_ready"; reason: string }>;
+
+export async function readCurrentOwnershipFacts(
+  eventId: string,
+  repository?: OwnershipMonitorRepository,
+): Promise<CurrentOwnershipReadResult> {
+  if (!UUID_PATTERN.test(eventId)) return { status: "not_ready", reason: "invalid_event_id" };
+  const resolved = repository ?? await defaultRepository();
+  const eventResult = await resolved.select("events", {
+    select: "id,raw_item_id,source_code,source_group,event_type,metadata",
+    id: `eq.${eventId}`,
+    limit: "1",
+  });
+  assertRepositoryResult(eventResult, "event");
+  const event = rows(eventResult.data)[0];
+  if (!event) return { status: "not_ready", reason: "event_missing" };
+  if (
+    stringValue(event.source_code) !== "sec_edgar"
+    || stringValue(event.source_group) !== "filings"
+  ) {
+    return { status: "not_applicable" };
+  }
+
+  const metadata = record(event.metadata);
+  const formType = normalizedFormType(metadata.form_type);
+  if (!formType && stringValue(event.event_type) !== "insider_ownership") {
+    return { status: "not_applicable" };
+  }
+  if (!formType) return { status: "not_ready", reason: "ownership_form_unavailable" };
+
+  const [form4Result, form144Result] = await Promise.all([
+    resolved.select("event_form4_transactions", {
+      select: "*",
+      event_id: `eq.${eventId}`,
+      order: "transaction_index.asc",
+      limit: "1000",
+    }),
+    resolved.select("event_form144_proposed_sales", {
+      select: "*",
+      event_id: `eq.${eventId}`,
+      order: "proposed_sale_index.asc",
+      limit: "1000",
+    }),
+  ]);
+  assertRepositoryResult(form4Result, "Form 4 rows");
+  assertRepositoryResult(form144Result, "Form 144 rows");
+
+  const form4Rows = rows(form4Result.data);
+  const form144Rows = rows(form144Result.data);
+  if (form4Rows.length > 0 && form144Rows.length > 0) {
+    return { status: "not_ready", reason: "ownership_form_families_mixed" };
+  }
+  if (formType === "form4" && form144Rows.length > 0) {
+    return { status: "not_ready", reason: "ownership_form_mismatch" };
+  }
+  if (formType === "form144" && form4Rows.length > 0) {
+    return { status: "not_ready", reason: "ownership_form_mismatch" };
+  }
+  const selectedRows = formType === "form4" ? form4Rows : form144Rows;
+  if (selectedRows.length === 0) return { status: "not_ready", reason: "ownership_rows_missing" };
+
+  const rawItemId = stringValue(event.raw_item_id);
+  if (!UUID_PATTERN.test(rawItemId)) {
+    return { status: "not_ready", reason: "ownership_lineage_invalid" };
+  }
+  const validated = validateCanonicalRows({
+    eventId,
+    form: formType,
+    rows: selectedRows,
+    metadataAccession: stringValue(metadata.accession_number),
+  });
+  if (!validated.ok) return { status: "not_ready", reason: validated.reason };
+
+  return {
+    status: "available",
+    form: formType,
+    rows: Object.freeze(selectedRows.map((row) => Object.freeze({ ...row }))) as never,
+    eventId,
+    rawItemId,
+    // Ownership XML persistence has no secondary execution job. The stable
+    // event identity is therefore the canonical product execution identity.
+    sourceExecutionId: eventId,
+    accessionNumber: validated.accessionNumber,
+    parserVersion: validated.parserVersion,
+    persistedAt: validated.persistedAt,
+  };
+}
+
+function validateCanonicalRows(input: {
+  eventId: string;
+  form: "form4" | "form144";
+  rows: Record<string, unknown>[];
+  metadataAccession: string;
+}):
+  | { ok: true; accessionNumber: string; parserVersion: string; persistedAt: string }
+  | { ok: false; reason: string } {
+  const identityColumn = input.form === "form4" ? "transaction_index" : "proposed_sale_index";
+  const accessions = new Set<string>();
+  const parserVersions = new Set<string>();
+  const persistedTimes: number[] = [];
+
+  for (const [position, row] of input.rows.entries()) {
+    if (stringValue(row.event_id) !== input.eventId || row[identityColumn] !== position) {
+      return { ok: false, reason: "ownership_row_identity_invalid" };
+    }
+    const provenance = record(row.provenance);
+    const sourceRow = record(provenance.source_row);
+    const issuerIdentity = record(provenance.issuer_identity);
+    const accession = stringValue(provenance.accession_number);
+    const parserVersion = stringValue(provenance.parser_version);
+    const expectedFactKind = input.form === "form4"
+      ? "reported_form4_transaction"
+      : "form144_proposed_sale_notice";
+    const expectedGroups = input.form === "form4"
+      ? new Set(["non_derivative_transactions", "derivative_transactions"])
+      : new Set(["proposed_sale_rows"]);
+    if (
+      provenance.source !== "sec_ownership_xml_parser"
+      || provenance.canonical_input !== "raw_items.raw_payload.ownership_source_text"
+      || provenance.source_verified !== true
+      || provenance.parser_fallback !== false
+      || provenance.source_format !== "structured_xml"
+      || provenance.source_role !== "raw_payload.ownership_source_text"
+      || provenance.fact_kind !== expectedFactKind
+      || issuerIdentity.source !== "ownership_xml"
+      || issuerIdentity.match_status !== "exact_cik"
+      || !sameVerifiedIssuerIdentity(issuerIdentity, row.symbol)
+      || !ACCESSION_PATTERN.test(accession)
+      || !parserVersion
+      || sourceRow.index !== position
+      || !expectedGroups.has(stringValue(sourceRow.group))
+      || !officialSecSourceForAccession(provenance.source_url, accession)
+    ) {
+      return { ok: false, reason: "ownership_provenance_invalid" };
+    }
+    if (
+      input.form === "form144"
+      && provenance.execution_status !== "proposed_not_executed"
+    ) {
+      return { ok: false, reason: "ownership_proposed_sale_semantics_invalid" };
+    }
+    if (
+      input.form === "form4"
+      && provenance.reporting_owner_scope !== "single_filing_owner"
+      && provenance.reporting_owner_scope !== "filing_level_unattributed_owner_set"
+    ) {
+      return { ok: false, reason: "ownership_reporter_scope_invalid" };
+    }
+    if (!validCanonicalRow(input.form, row)) {
+      return { ok: false, reason: "ownership_row_values_invalid" };
+    }
+    const persistedAt = Date.parse(stringValue(row.updated_at));
+    if (!Number.isFinite(persistedAt)) {
+      return { ok: false, reason: "ownership_persisted_at_invalid" };
+    }
+    accessions.add(accession);
+    parserVersions.add(parserVersion);
+    persistedTimes.push(persistedAt);
+  }
+
+  if (accessions.size !== 1 || parserVersions.size !== 1) {
+    return { ok: false, reason: "ownership_row_lineage_mixed" };
+  }
+  const accessionNumber = [...accessions][0];
+  if (input.metadataAccession && input.metadataAccession !== accessionNumber) {
+    return { ok: false, reason: "ownership_accession_mismatch" };
+  }
+  return {
+    ok: true,
+    accessionNumber,
+    parserVersion: [...parserVersions][0],
+    persistedAt: new Date(Math.max(...persistedTimes)).toISOString(),
+  };
+}
+
+function sameVerifiedIssuerIdentity(identity: Record<string, unknown>, rowSymbol: unknown) {
+  const xmlCik = normalizeCik(identity.xml_cik);
+  const targetCik = normalizeCik(identity.target_cik);
+  if (!xmlCik || xmlCik !== targetCik) return false;
+  const xmlTicker = normalizeTicker(identity.xml_ticker);
+  const targetTicker = normalizeTicker(identity.target_ticker);
+  const canonicalTicker = normalizeTicker(identity.canonical_ticker);
+  const storedTicker = normalizeTicker(rowSymbol);
+  if (xmlTicker && targetTicker && xmlTicker !== targetTicker) return false;
+  return canonicalTicker === (xmlTicker || targetTicker)
+    && storedTicker === canonicalTicker;
+}
+
+function validCanonicalRow(form: "form4" | "form144", row: Record<string, unknown>) {
+  if (!stringArray(row.reporting_owner_names)) return false;
+  if (form === "form4") {
+    return stringArray(row.reporting_owner_roles)
+      && stringArray(row.officer_titles)
+      && nullableEnum(row.transaction_kind, ["non_derivative", "derivative"])
+      && nullableCode(row.transaction_code)
+      && nullableEnum(row.acquired_disposed_code, ["A", "D"])
+      && row.economic_direction === "unknown"
+      && row.transaction_value === null
+      && row.transaction_value_availability === "unavailable"
+      && row.transaction_value_value_quality === "unknown"
+      && row.is_10b5_1 === null
+      && nullableDate(row.transaction_date)
+      && numericFact(row, "shares", "shares_value_quality", "shares_availability")
+      && numericFact(row, "price_per_share", "price_per_share_value_quality", "price_per_share_availability")
+      && numericFact(row, "post_transaction_shares", "post_transaction_shares_value_quality", "post_transaction_shares_availability");
+  }
+  return nullableDate(row.approximate_sale_date)
+    && row.proposed_sale_percent === null
+    && row.proposed_sale_percent_availability === "unavailable"
+    && row.proposed_sale_percent_value_quality === "unknown"
+    && numericFact(row, "securities_to_be_sold", "securities_to_be_sold_value_quality", "securities_to_be_sold_availability")
+    && numericFact(row, "aggregate_market_value", "aggregate_market_value_value_quality", "aggregate_market_value_availability")
+    && numericFact(row, "shares_outstanding", "shares_outstanding_value_quality", "shares_outstanding_availability");
+}
+
+function numericFact(
+  row: Record<string, unknown>,
+  valueColumn: string,
+  qualityColumn: string,
+  availabilityColumn: string,
+) {
+  if (row[availabilityColumn] === "available") {
+    return nonNegativeFinite(row[valueColumn]) && row[qualityColumn] === "exact";
+  }
+  return row[availabilityColumn] === "unavailable"
+    && row[valueColumn] === null
+    && row[qualityColumn] === "unknown";
+}
+
+function officialSecSourceForAccession(value: unknown, accession: string) {
+  try {
+    const url = new URL(stringValue(value));
+    const archive = url.pathname.match(/^\/Archives\/edgar\/data\/\d+\/(\d{18})(?:\/|$)/i);
+    return url.protocol === "https:"
+      && (url.hostname.toLowerCase() === "sec.gov" || url.hostname.toLowerCase().endsWith(".sec.gov"))
+      && archive?.[1] === accession.replace(/-/g, "");
+  } catch {
+    return false;
+  }
+}
+
+async function defaultRepository(): Promise<OwnershipMonitorRepository> {
+  const supabase = await import("../supabase.ts");
+  return { select: supabase.supabaseSelect };
+}
+
+function assertRepositoryResult(result: RepositoryResult, label: string) {
+  if (!result.ok) {
+    throw new Error(`Ownership Monitor ${label} read failed: ${result.error || result.status || 0}`);
+  }
+}
+
+function normalizedFormType(value: unknown): "form4" | "form144" | null {
+  const form = stringValue(value).toUpperCase().replace(/^FORM\s+/, "");
+  if (form === "4" || form === "4/A") return "form4";
+  if (form === "144" || form === "144/A") return "form144";
+  return null;
+}
+
+function nullableDate(value: unknown) {
+  if (value === null) return true;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function nullableCode(value: unknown) {
+  return value === null || (typeof value === "string" && /^[A-Z]$/.test(value));
+}
+
+function nullableEnum(value: unknown, allowed: readonly string[]) {
+  return value === null || (typeof value === "string" && allowed.includes(value));
+}
+
+function nonNegativeFinite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function normalizeCik(value: unknown) {
+  const digits = stringValue(value).replace(/^0+/, "");
+  return digits && /^\d{1,10}$/.test(digits) ? digits.padStart(10, "0") : "";
+}
+
+function normalizeTicker(value: unknown) {
+  const ticker = stringValue(value).toUpperCase();
+  return ticker && /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(ticker) ? ticker : "";
+}
+
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim().length > 0);
+}
+
+function rows(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}

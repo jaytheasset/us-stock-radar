@@ -26,6 +26,8 @@ export type OwnershipParserFactRows = {
   formType: "4" | "4/A" | "144" | "144/A";
   accessionNumber: string;
   sourceUrl: string;
+  issuerCik: string;
+  issuerTicker: string | null;
   symbol: string | null;
   form4Transactions: Row[];
   form144ProposedSales: Row[];
@@ -76,8 +78,12 @@ export function buildOwnershipParserFactRows({
   validateParserOutput(parserOutput, { formType, accessionNumber, sourceUrl });
 
   const facts = record(parserOutput.facts);
-  const issuer = record(facts.issuer);
-  const normalizedSymbol = normalizeSymbol(symbol) ?? normalizeSymbol(issuer.trading_symbol ?? issuer.ticker);
+  const issuerIdentity = verifyOwnershipIssuerIdentity({
+    sourceText,
+    rawPayload,
+    requestedSymbol: symbol,
+  });
+  const normalizedSymbol = issuerIdentity.canonicalTicker;
   const reportingOwners = recordArray(facts.reporting_owners);
   const ownerFacts = buildFilingOwnerFacts(reportingOwners);
   const commonProvenance = {
@@ -90,6 +96,15 @@ export function buildOwnershipParserFactRows({
     source_role: "raw_payload.ownership_source_text",
     accession_number: accessionNumber,
     source_url: sourceUrl,
+    issuer_identity: {
+      source: "ownership_xml",
+      match_status: "exact_cik",
+      xml_cik: issuerIdentity.xmlCik,
+      target_cik: issuerIdentity.targetCik,
+      xml_ticker: issuerIdentity.xmlTicker,
+      target_ticker: issuerIdentity.targetTicker,
+      canonical_ticker: issuerIdentity.canonicalTicker,
+    },
   };
 
   const form4 = record(facts.form4);
@@ -229,10 +244,125 @@ export function buildOwnershipParserFactRows({
     formType,
     accessionNumber,
     sourceUrl,
+    issuerCik: issuerIdentity.xmlCik,
+    issuerTicker: issuerIdentity.xmlTicker,
     symbol: normalizedSymbol,
     form4Transactions,
     form144ProposedSales,
   };
+}
+
+function verifyOwnershipIssuerIdentity({
+  sourceText,
+  rawPayload,
+  requestedSymbol,
+}: {
+  sourceText: string;
+  rawPayload: Row;
+  requestedSymbol?: string | null;
+}) {
+  const xmlCik = normalizeCik(firstXmlElementText(sourceText, "issuerCik"));
+  if (!xmlCik) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership XML issuer CIK is unavailable",
+    );
+  }
+  const targetCik = targetIssuerCik(rawPayload);
+  if (!targetCik) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership target issuer CIK is unavailable",
+    );
+  }
+  if (targetCik !== xmlCik) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership XML issuer CIK does not match the target issuer CIK",
+    );
+  }
+
+  const xmlTicker = normalizeSymbol(firstXmlElementText(sourceText, "issuerTradingSymbol"));
+  const targetTicker = targetIssuerTicker(rawPayload);
+  const suppliedTicker = normalizeSymbol(requestedSymbol);
+  if (
+    (xmlTicker && targetTicker && xmlTicker !== targetTicker)
+    || (xmlTicker && suppliedTicker && xmlTicker !== suppliedTicker)
+    || (targetTicker && suppliedTicker && targetTicker !== suppliedTicker)
+    || (suppliedTicker && !xmlTicker && !targetTicker)
+  ) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership ticker does not match the verified issuer identity",
+    );
+  }
+
+  return {
+    xmlCik,
+    targetCik,
+    xmlTicker,
+    targetTicker,
+    // A caller-supplied symbol is only a consistency check. It is never the
+    // canonical source, which prevents cross-issuer ticker injection.
+    canonicalTicker: xmlTicker ?? targetTicker,
+  };
+}
+
+function targetIssuerCik(rawPayload: Row) {
+  const explicit = uniqueStrings([
+    normalizeCik(rawPayload.ownership_issuer_cik),
+    normalizeCik(rawPayload.issuer_cik),
+  ]);
+  if (explicit.length > 1) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership target issuer CIK fields conflict",
+    );
+  }
+  if (explicit.length === 1) return explicit[0];
+  const fallback = uniqueStrings([
+    normalizeCik(rawPayload.cik),
+    normalizeCik(rawPayload.cik_padded),
+  ]);
+  if (fallback.length > 1) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership target issuer CIK fields conflict",
+    );
+  }
+  return fallback[0] ?? null;
+}
+
+function targetIssuerTicker(rawPayload: Row) {
+  const tickers = uniqueStrings([
+    normalizeSymbol(rawPayload.ownership_issuer_trading_symbol),
+    normalizeSymbol(rawPayload.ticker),
+  ]);
+  if (tickers.length > 1) {
+    throw new OwnershipParserSourceError(
+      "source_verification_failed",
+      "Ownership target issuer ticker fields conflict",
+    );
+  }
+  return tickers[0] ?? null;
+}
+
+function firstXmlElementText(sourceText: string, localName: string) {
+  const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
+  const match = sourceText.match(new RegExp(`<${tag}\\b[^>]*>\\s*([^<]*?)\\s*<\\/${tag}>`, "i"));
+  return match?.[1]
+    ?.replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .trim() || null;
+}
+
+function normalizeCik(value: unknown) {
+  const digits = nullableString(value)?.replace(/^0+/, "") ?? "";
+  if (!digits || !/^\d{1,10}$/.test(digits)) return null;
+  return digits.padStart(10, "0");
 }
 
 function validateParserOutput(

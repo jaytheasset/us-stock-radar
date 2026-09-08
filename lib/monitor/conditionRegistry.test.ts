@@ -149,11 +149,22 @@ test("offering conditions point only to the fail-closed canonical reader", () =>
 
 test("registry separates value quality from availability and only exposes proven ownership facts", () => {
   assert.ok(MONITOR_CONDITION_REGISTRY.every((entry) => !entry.qualityCapability.includes("unavailable" as never)));
-  assert.deepEqual(getReadyMonitorCondition("ownership.form4.transaction_value")?.qualityCapability, ["derived", "unknown"]);
+  assert.equal(getReadyMonitorCondition("ownership.form4.transaction_value"), null);
+  assert.equal(getReadyMonitorCondition("ownership.form4.direction"), null);
+  assert.deepEqual(getReadyMonitorCondition("ownership.form4.shares")?.qualityCapability, ["exact", "unknown"]);
   assert.deepEqual(getReadyMonitorCondition("ownership.form144.proposed_sale_value")?.qualityCapability, ["exact", "unknown"]);
-  assert.equal(getReadyMonitorCondition("ownership.form4.direction")?.source.column, "economic_direction");
+  assert.equal(getReadyMonitorCondition("ownership.form4.shares")?.numberValidation?.minimum, 0);
+  assert.deepEqual(
+    validateMonitorConditionInput({ key: "ownership.form4.shares", operator: "gte", value: 0 }),
+    [],
+  );
+  assert.deepEqual(
+    validateMonitorConditionInput({ key: "ownership.form4.shares", operator: "gte", value: -0.5 }),
+    ["condition_value_invalid"],
+  );
   assert.equal(getReadyMonitorCondition("ownership.form144.proposed_sale_percent"), null);
-  assert.equal(getReadyMonitorCondition("ownership.form4.shares"), null);
+  assert.equal(MONITOR_CONDITION_REGISTRY.find((entry) => entry.key === "ownership.form4.direction")?.status, "PARTIAL");
+  assert.equal(MONITOR_CONDITION_REGISTRY.find((entry) => entry.key === "ownership.form4.transaction_value")?.status, "PARTIAL");
 });
 
 test("future comparisons exclude unknown quality even when its numeric value is available", () => {
@@ -167,20 +178,39 @@ test("common event scope fields and eligible ownership roles are READY canonical
   }
 });
 
-test("only DB-proven Ownership conditions are READY and 10b5-1 remains PARTIAL", () => {
+test("only verified XML/parser Ownership conditions are READY and semantic or derived values remain PARTIAL", () => {
   const readyOwnership = getReadyMonitorConditions()
     .filter((entry) => entry.family === "ownership")
     .map((entry) => entry.key)
     .sort();
   assert.deepEqual(readyOwnership, [
+    "ownership.form144.exchange",
+    "ownership.form144.proposed_sale_date",
+    "ownership.form144.proposed_sale_shares",
     "ownership.form144.proposed_sale_value",
-    "ownership.form4.direction",
+    "ownership.form144.security_class",
+    "ownership.form4.acquisition_disposition",
     "ownership.form4.is_10_percent_owner",
+    "ownership.form4.is_director",
+    "ownership.form4.is_officer",
+    "ownership.form4.officer_title",
+    "ownership.form4.post_transaction_shares",
+    "ownership.form4.price_per_share",
     "ownership.form4.reporting_owner_role",
-    "ownership.form4.transaction_value",
+    "ownership.form4.security_class",
+    "ownership.form4.shares",
+    "ownership.form4.transaction_code",
+    "ownership.form4.transaction_date",
+    "ownership.form4.transaction_kind",
   ]);
   assert.equal(MONITOR_CONDITION_REGISTRY.find((entry) => entry.key === "ownership.form4.is_10b5_1")?.status, "PARTIAL");
   assert.equal(getReadyMonitorCondition("ownership.form4.is_10b5_1"), null);
+  for (const condition of getReadyMonitorConditions().filter((entry) => entry.family === "ownership")) {
+    assert.equal(condition.source.reader, "read_current_event_ownership_facts");
+    assert.deepEqual(condition.monitorDomains, ["listing"]);
+    assert.match(condition.description ?? "", /^[\x20-\x7e]+$/);
+    assert.match(condition.display?.label ?? "", /^[\x20-\x7e]+$/);
+  }
 });
 
 test("Listing V1 conditions use exact official-reader Core fact paths and contracts", () => {

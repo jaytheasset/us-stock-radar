@@ -1,5 +1,6 @@
 import {
   currentListingTicker,
+  currentOwnershipTicker,
   evaluateMonitorConditions,
   readMonitorEventTicker,
   type ListingMonitorMatchReasonCode,
@@ -24,6 +25,10 @@ import {
   readCurrentCorporateActionFacts,
   type CurrentCorporateActionReadResult,
 } from "./corporateActionPersistence.ts";
+import {
+  readCurrentOwnershipFacts,
+  type CurrentOwnershipReadResult,
+} from "./ownershipMonitorPersistence.ts";
 
 export const LISTING_MONITOR_ALERT_CONSUMER_VERSION = "listing_monitor_alert_consumer_v1" as const;
 
@@ -40,6 +45,8 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
   readerReason?: string;
   corporateActionReaderStatus: CurrentCorporateActionReadResult["status"];
   corporateActionReaderReason?: string;
+  ownershipReaderStatus: CurrentOwnershipReadResult["status"];
+  ownershipReaderReason?: string;
   evaluationDate: string;
   monitorCount: number;
   diagnostics: readonly ListingMonitorDiagnostic[];
@@ -57,6 +64,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
+  readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
@@ -73,6 +81,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
 const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
   readFacts: readCurrentListingRiskFacts,
   readCorporateActionFacts: readCurrentCorporateActionFacts,
+  readOwnershipFacts: readCurrentOwnershipFacts,
   readEventTicker: readMonitorEventTicker,
   readCurrentPrice: async (symbol) => (
     await import("../market-data/currentPrice.ts")
@@ -100,6 +109,9 @@ export async function consumeListingMonitorAlertsForEvent(
   const corporateActionRequested = allConditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_corporate_action_facts"
   ));
+  const ownershipRequested = allConditions.some((condition) => (
+    getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_ownership_facts"
+  ));
   const readers: MonitorFactReaders = {
     listing: listingRequested
       ? await safeReadFacts(
@@ -111,6 +123,12 @@ export async function consumeListingMonitorAlertsForEvent(
       ? await safeReadFacts(
           input.eventId,
           dependencies.readCorporateActionFacts ?? defaultDependencies.readCorporateActionFacts!,
+        )
+      : { status: "not_ready", reason: "reader_not_requested" },
+    ownership: ownershipRequested
+      ? await safeReadFacts(
+          input.eventId,
+          dependencies.readOwnershipFacts ?? defaultDependencies.readOwnershipFacts!,
         )
       : { status: "not_ready", reason: "reader_not_requested" },
   };
@@ -128,6 +146,7 @@ export async function consumeListingMonitorAlertsForEvent(
   let currentPrice: CurrentPrice | undefined;
   if (priceRequested) {
     const symbol = currentListingTicker(readers.listing)
+      || currentOwnershipTicker(readers.ownership)
       || await safeReadTicker(
         input.eventId,
         dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
@@ -181,12 +200,16 @@ export async function consumeListingMonitorAlertsForEvent(
     version: LISTING_MONITOR_ALERT_CONSUMER_VERSION,
     status: failedCount > 0 ? "partial_failure" : "completed",
     eventId: input.eventId,
-    ...sourceExecutionSummary(readers, corporateActionRequested),
+    ...sourceExecutionSummary(readers, corporateActionRequested, ownershipRequested),
     readerStatus: readers.listing.status,
     ...(readers.listing.status === "not_ready" ? { readerReason: readers.listing.reason } : {}),
     corporateActionReaderStatus: readers.corporateAction.status,
     ...(readers.corporateAction.status === "not_ready"
       ? { corporateActionReaderReason: readers.corporateAction.reason }
+      : {}),
+    ownershipReaderStatus: readers.ownership.status,
+    ...(readers.ownership.status === "not_ready"
+      ? { ownershipReaderReason: readers.ownership.reason }
       : {}),
     evaluationDate,
     monitorCount: listingMonitors.monitors.length,
@@ -229,6 +252,12 @@ function matchingLineage(
   const usesCorporateAction = conditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_corporate_action_facts"
   ));
+  const usesOwnership = conditions.some((condition) => (
+    getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_ownership_facts"
+  ));
+  if (usesOwnership && readers.ownership.status === "available") {
+    return readers.ownership;
+  }
   if (usesCorporateAction && readers.corporateAction.status === "available") {
     return readers.corporateAction;
   }
@@ -237,14 +266,22 @@ function matchingLineage(
   return null;
 }
 
-function sourceExecutionSummary(readers: MonitorFactReaders, preferCorporateAction: boolean) {
-  const current = preferCorporateAction && readers.corporateAction.status !== "not_ready"
+function sourceExecutionSummary(
+  readers: MonitorFactReaders,
+  preferCorporateAction: boolean,
+  preferOwnership: boolean,
+) {
+  const current = preferOwnership && readers.ownership.status === "available"
+    ? readers.ownership
+    : preferCorporateAction && readers.corporateAction.status !== "not_ready"
     ? readers.corporateAction
     : readers.listing.status !== "not_ready"
       ? readers.listing
       : readers.corporateAction.status !== "not_ready"
-        ? readers.corporateAction
-        : null;
+      ? readers.corporateAction
+      : readers.ownership.status === "available"
+        ? readers.ownership
+      : null;
   return current ? { sourceExecutionId: current.sourceExecutionId } : {};
 }
 
