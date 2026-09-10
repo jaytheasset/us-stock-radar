@@ -21,7 +21,6 @@ import {
 import { buildS1F1LlmSourceInput } from "@/lib/sources/sec/forms/s1-f1/sourceInput";
 import type { S1F1ParserOutput } from "@/lib/sources/sec/forms/s1-f1/types";
 import { supabaseSelect, supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
-import { persistLevel2ShareCountObservationFromSecRawItem } from "@/lib/sec-structured-data/level2ShareCountPersistenceRuntime";
 
 export const offeringMonitorSecondStageRuntimeDependencies: OfferingMonitorSecondStageDependencies = {
   readParentAuthority: async (identity) => {
@@ -198,17 +197,6 @@ export async function saveOfferingMonitorDiagnosticCandidate(input: {
   artifacts: OfferingMonitorSecondStageArtifacts;
   candidate: OfferingMonitorDiagnosticCandidate;
 }) {
-  if (input.candidate.share_count_observation_candidate) {
-    await persistLevel2ShareCountObservationFromSecRawItem({
-      candidate: input.candidate.share_count_observation_candidate,
-      rawItem: input.artifacts.rawItem,
-      eventId: input.identity.eventId,
-      rawItemId: input.identity.rawItemId,
-      parentPrimaryAiRunId: input.identity.parentPrimaryAiRunId,
-      sourceExecutionId: input.identity.executionId,
-      analyzerKey: "offering_monitor",
-    });
-  }
   const output = await supabaseUpsert(
     "ai_outputs",
     {

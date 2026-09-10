@@ -5,25 +5,29 @@ is safe to do so. Cross-source mapping and verified SEC acceptance-time rules ar
 defined in `share-count-resolver-input-contract-v1.md`; title/synonym matching and
 published-time fallback are not permitted.
 
-This feature adds one optional source-stated shares-outstanding sidecar to the
-existing Level 2 domain analyzer calls. It does not add an analyzer, provider
-call, repair, fallback, resolver, source priority, split adjustment, dilution
-calculation, or current/latest selection.
+Generic 8-K/6-K domain analyzers may still return the optional source-stated
+sidecar described below. Offering no longer asks Gemini for this field. Its
+S-1/S-3/F-3/424B path is a separate deterministic processor over the complete
+stored SEC primary document. The Offering processor adds no provider call,
+repair, fallback, resolver priority, split adjustment, dilution calculation,
+or current/latest selection.
 
 ## Eligible execution paths
 
-- Offering Stage 2: `S-1`, `S-1/A`; the supported `S-3`/`F-3` family; and the
-  supported `424B` family under the existing exact prompt/form guards.
+- Offering deterministic processor: `S-1`, `S-1/A`; the supported `S-3`/`F-3`
+  family; and the supported `424B` family under exact form and raw-item guards.
 - Generic SEC Monitor children: exact `8-K` and `6-K` Primary results routed to
   `listing_risk` and/or `corporate_action`. Amendments and other SEC forms stay
   outside this generic child path.
 
-Offering has its own Stage 2 processor. Listing and Corporate Action share the
-generic child processor. Each existing child makes one provider call. A filing
-routed to both generic analyzers already creates two independent children; this
-feature neither adds nor combines those calls.
+Offering runs the deterministic processor as an independent workflow step
+before its unchanged Stage 2 normalizer. Failure or ineligibility in this step
+does not disable, replace, or alter Stage 2. Listing and Corporate Action share
+the generic child processor. Each existing child makes one provider call. A
+filing routed to both generic analyzers already creates two independent
+children; this feature neither adds nor combines those calls.
 
-## Provider and canonical boundaries
+## Generic provider boundary
 
 The optional root field is `share_count_observation`. It contains:
 
@@ -40,10 +44,32 @@ count, date, and stated class. It must omit the sidecar for weighted-average,
 authorized, issued-only, reserved, float, treasury, warrant/option exposure,
 offering-size, approximate, missing-date, and class-ambiguous values.
 
-Deterministic code removes the sidecar before the existing Offering, Listing,
-or Corporate Action canonicalizer runs. It validates types, integer/date
-shape, accession, SEC URL, source-ref membership, document identity, and exact
-evidence containment. Sidecar validation never changes the domain result.
+Deterministic code removes this field before the existing Listing or Corporate
+Action canonicalizer runs. It validates types, integer/date shape, accession,
+SEC URL, source-ref membership, document identity, and exact evidence
+containment. Sidecar validation never changes the domain result.
+
+## Offering deterministic boundary
+
+The Offering processor reads only the exact stored `raw_items` row named by the
+Offering job. It requires a complete, non-truncated `primary_document_html`, an
+exact matching SEC archive URL and primary-document inventory entry, the exact
+accession/form/CIK/filed date, and current parent-run authority both before
+extraction and immediately before persistence.
+
+Extraction accepts only a directly stated positive integer count for `common
+stock` or `common shares` with an explicit calendar as-of date no later than
+the filed date. It performs no arithmetic. Approximate, estimated,
+weighted-average, authorized-only, issued-only, float, non-affiliate, future,
+pro-forma, as-adjusted, offered, registered, issuable, reserved, ADS/ADR,
+ordinary-share, and named or multiple common-class cases fail closed. When
+multiple direct candidates exist, only the latest non-future date is eligible;
+different values on that date produce no row.
+
+The selected evidence is one contiguous normalized-primary-document clause and
+the content hash covers the complete stored primary HTML. The processor has no
+provider dependency, so it remains independently runnable when Offering Gemini
+Stage 2 is unavailable.
 
 ## Persistence
 

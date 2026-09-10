@@ -31,6 +31,8 @@
     "verify:authoritative-os-extraction": "node --test --experimental-strip-types lib/sec-structured-data/authoritativeOsExtraction.test.ts",
     "verify:share-count-history": "node --test --experimental-strip-types lib/sec-structured-data/shareCountHistory.test.ts",
     "verify:share-count-resolver-input-contract": "node --test --experimental-strip-types lib/sec-structured-data/shareCountResolverInputContract.test.ts lib/sec-structured-data/level2ShareCountObservation.test.ts lib/sec-structured-data/shareCountHistory.test.ts",
+    "verify:offering-os-sidecar": "node --test --experimental-strip-types lib/sec-structured-data/offeringShareCountSidecar.test.ts lib/offeringMonitorSecondStage.test.ts",
+    "verify:offering-os-sidecar:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-offering-os-sidecar-isolated.ts",
     "verify:class-share-count-resolver": "node --test --experimental-strip-types lib/sec-structured-data/classShareCountResolver.test.ts",
     "verify:reverse-split-applicability-history": "node --test --experimental-strip-types lib/monitor/reverseSplitApplicabilityHistory.test.ts lib/monitor/corporateActionCanonicalFacts.test.ts lib/monitor/corporateActionPersistence.test.ts lib/ai/corporateActionCanonicalAnalyzerPreview.test.ts",
     "verify:reverse-split-execution": "node --test --experimental-strip-types lib/monitor/reverseSplitExecution.test.ts lib/monitor/reverseSplitExecutionUpdate.test.ts",

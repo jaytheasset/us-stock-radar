@@ -269,7 +269,7 @@ test("valid direct object reuses canonical validation and code-only total", () =
   assert.equal(candidate.materialized_candidate?.total_potential_primary_share_exposure.value, 15_000_000);
 });
 
-test("Offering keeps the same domain candidate while validating an optional source-stated O/S sidecar", () => {
+test("Offering rejects the removed share-count sidecar as an unknown Stage 2 field", () => {
   const fixture = artifacts();
   const evidence = "As of August 18, 2026, 27,500,000 shares of common stock were outstanding.";
   fixture.sourceInput.blocks[0] = {
@@ -296,14 +296,11 @@ test("Offering keeps the same domain candidate while validating an optional sour
       },
     }),
   });
-  assert.equal(candidate.validation.status, "success");
-  assert.deepEqual(candidate.canonical_candidate, validateOfferingMonitorProviderOutput({
-    identity,
-    package: inputPackage,
-    run: providerRun({ parsed: domainPayload }),
-  }).canonical_candidate);
-  assert.equal(candidate.share_count_observation_candidate?.sharesOutstanding, "27500000");
-  assert.deepEqual(candidate.share_count_observation_validation, { present: true, errors: [] });
+  assert.equal(candidate.validation.status, "validation_failed");
+  assert.equal(candidate.canonical_candidate, null);
+  assert.match(candidate.validation.errors.join("\n"), /share_count_observation.*not allowed/i);
+  assert.equal("share_count_observation" in offeringMonitorSecondStageProviderSchema.properties, false);
+  assert.doesNotMatch(OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT, /SHARE COUNT SIDECAR|share_count_observation/);
 });
 
 test("allowed provenance membership is mechanical and exact source semantics do not block fact eligibility", () => {
@@ -636,6 +633,7 @@ test("diagnostic output and provider trace remain scoped to the execution ai_run
   assert.match(runtime, /validation_status/);
   assert.match(runtime, /diagnostic_candidate_only: true/);
   assert.match(runtime, /canonical_persistence_changed: false/);
+  assert.doesNotMatch(runtime, /persistLevel2ShareCountObservation|share_count_observation/);
 });
 
 function artifacts(): OfferingMonitorSecondStageArtifacts {

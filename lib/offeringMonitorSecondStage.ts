@@ -11,13 +11,6 @@ import type {
   OfferingMonitorParentAuthority,
 } from "./offeringMonitorJobFoundation.ts";
 import { OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION } from "./offeringMonitorJobFoundation.ts";
-import {
-  LEVEL2_SHARE_COUNT_OBSERVATION_FIELD,
-  LEVEL2_SHARE_COUNT_PROMPT_CONTRACT,
-  LEVEL2_SHARE_COUNT_PROVIDER_SCHEMA,
-  extractLevel2ShareCountSidecar,
-  type Level2ShareCountValidatedCandidate,
-} from "./sec-structured-data/level2ShareCountObservation.ts";
 
 export const OFFERING_MONITOR_SECOND_STAGE_PROMPT_KEY = "offering_monitor_normalization_job";
 export const OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION = OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION;
@@ -113,7 +106,6 @@ export const offeringMonitorSecondStageProviderSchema = {
       type: "array",
       items: { type: "string", enum: OFFERING_MONITOR_SECOND_STAGE_FACT_KEYS },
     },
-    [LEVEL2_SHARE_COUNT_OBSERVATION_FIELD]: LEVEL2_SHARE_COUNT_PROVIDER_SCHEMA,
   },
 } as const;
 
@@ -132,7 +124,6 @@ const OFFERING_MONITOR_SECOND_STAGE_CONTRACT = [
   "Available actual_primary_offering_amount uses unit currency and comparison_basis_type market_cap; offering_price uses currency_per_security and market_price; immediate_primary_share_exposure and additional_potential_primary_share_exposure use shares and shares_outstanding; resale_share_exposure uses shares and public_float. For primary side keep resale_share_exposure unavailable; for resale side keep actual_primary_offering_amount, immediate_primary_share_exposure, and additional_potential_primary_share_exposure unavailable.",
   "Use parent_primary_context only as context. It is not SEC provenance. Ground each available fact in supplied SEC evidence, and return only a source_ref listed in allowed_source_refs. block_id, parent_primary_context, row IDs, display labels, and document labels are not returnable fact sources.",
   "For source-backed non-equity not_applicable, put all five facts in unavailable_fact_keys and keep both available collections empty. Do not add components, groups, calculation inputs, row sets, evidence objects, confidence objects, or any field outside this contract.",
-  LEVEL2_SHARE_COUNT_PROMPT_CONTRACT,
 ].join("\n");
 
 export const OFFERING_MONITOR_SECOND_STAGE_SYSTEM_PROMPT = [
@@ -258,11 +249,6 @@ export type OfferingMonitorDiagnosticCandidate = {
   };
   canonical_candidate: MinimalOfferingMonitor | null;
   materialized_candidate: ReturnType<typeof materializeMinimalOfferingMonitor> | null;
-  share_count_observation_candidate?: Level2ShareCountValidatedCandidate | null;
-  share_count_observation_validation?: {
-    present: boolean;
-    errors: string[];
-  };
 };
 
 export type OfferingMonitorSecondStageResult =
@@ -462,20 +448,7 @@ export function validateOfferingMonitorProviderOutput(input: {
     }
   }
 
-  const sidecar = direct
-    ? extractLevel2ShareCountSidecar({
-        payload: direct,
-        accessionNumber: input.identity.sourceIdentity,
-        sourceDocumentUrl: readOfferingSourceDocumentUrl(input.package.payload),
-        sourceDocuments: input.package.sourceDocuments.map((block) => ({
-          source_ref: block.source_ref,
-          text: block.text,
-          document_name: block.document_name,
-          label: block.document_id || block.section_title,
-        })),
-      })
-    : { domainPayload: {}, candidate: null, errors: [], present: false };
-  const normalized = transportErrors.length ? null : normalizeDirectOfferingMonitor(sidecar.domainPayload);
+  const normalized = transportErrors.length || !direct ? null : normalizeDirectOfferingMonitor(direct);
   if (normalized && !normalized.ok) validationErrors.push(...normalized.errors);
   const canonical = normalized?.ok ? normalized.value : null;
   if (canonical) {
@@ -519,24 +492,7 @@ export function validateOfferingMonitorProviderOutput(input: {
     validation: { status: validationStatus, errors },
     canonical_candidate: canonical,
     materialized_candidate: materialized,
-    share_count_observation_candidate: sidecar.candidate,
-    share_count_observation_validation: {
-      present: sidecar.present,
-      errors: sidecar.errors,
-    },
   };
-}
-
-function readOfferingSourceDocumentUrl(payload: Record<string, unknown>) {
-  const sourcePackage = readRecord(payload.source_package);
-  const currentFiling = readRecord(sourcePackage?.current_filing);
-  return textValue(currentFiling?.primary_document_url)
-    || textValue(currentFiling?.source_url)
-    || null;
-}
-
-function textValue(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
 }
 
 export function assertOfferingMonitorNumericLiteralSafety(text: string) {

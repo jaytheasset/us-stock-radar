@@ -132,7 +132,9 @@ test("production source uses only existing promotion, official reader, and exist
   assert.match(source, /readOfferingMonitorCanonical/);
   assert.match(source, /evaluateOfferingMonitorEvent/);
   assert.doesNotMatch(source, /event_offering_terms|offering_monitor_payload|parser_output|Gemini|alert queue|Telegram|Email|notification/i);
+  assert.ok(workflow.indexOf("runOfferingShareCountSidecarStep") < workflow.indexOf("runOfferingMonitorSecondStageStep"));
   assert.ok(workflow.indexOf("runOfferingMonitorSecondStageStep") < workflow.indexOf("runOfferingMonitorProductionWiringStep"));
+  assert.match(workflow, /runOfferingShareCountSidecarStep\.maxRetries = 0/);
   assert.match(workflow, /runOfferingMonitorProductionWiringStep\.maxRetries = 0/);
   assert.match(workflow, /secondStage\.status !== "completed"/);
 });
