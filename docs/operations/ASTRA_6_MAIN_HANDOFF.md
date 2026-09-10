@@ -1,0 +1,258 @@
+# Stock Radar — Astra 6 Main Handoff
+
+> Snapshot: 2026-09-10 KST
+> Authority: the current permanent local `main` implementation and shared-local database state.
+> Companion rules: [Production Source of Truth](PRODUCTION_SOURCE_OF_TRUTH.md), repository-root `AGENTS.md`, and [SEC Diagnostics Index](../DIAGNOSTICS_INDEX.md).
+
+This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
+
+## 1. Start here
+
+- Permanent integration workspace: `C:\Users\PC\Documents\Codex\US-Stock Radar`
+- Required integration branch: `main`
+- Do not switch or checkout branches in the permanent workspace.
+- New feature work belongs in its own Codex task/worktree on port `3111` or higher. Port `3110` belongs to the persistent permanent-main review server.
+- Before changing anything, run the `AGENTS.md` start-of-task checks and independently recheck every state in this document.
+- Existing detached and named worktrees include historical task remnants. Their names or presence do not make them active or approved candidates. No unmerged commit is authorized by this handoff.
+
+## 2. Source-of-truth snapshot
+
+| Item | Verified state |
+| --- | --- |
+| Local main HEAD | `491e79d855343c625c45493a5975ef8ecd2f60bb` |
+| Branch / root | `main` at the permanent integration workspace |
+| Working tree before this handoff edit | Clean |
+| Working tree after this handoff edit | Only this uncommitted Markdown file is expected; no code/config change |
+| GitHub main | `9c13aee7ef41b38bac0637e53e579633745effda` |
+| Local vs GitHub | Local is 375 commits ahead and 0 behind; deliberately not pushed in this task |
+| Vercel production commit | `UNVERIFIED`; current CLI session has no Vercel credentials, so do not infer equality from a prior deployment report |
+| Push / deploy authorization | None for this handoff |
+
+The current local `main` therefore is the development baseline, but it is not code-equal to GitHub/Vercel. Any future push or deployment must first follow the complete source-alignment and post-deploy checks in `PRODUCTION_SOURCE_OF_TRUTH.md`.
+
+## 3. Shared-local database and scheduler state
+
+| Item | Verified state |
+| --- | --- |
+| Shared-local Supabase | Core local API and PostgreSQL are running at the repository-configured local ports |
+| Repository migrations | 86 SQL migrations |
+| Shared-local applied migrations | 86; exact version match with repository |
+| Latest migration | `20260908093924_registry_backed_offering_fact_adapter.sql` |
+| Pending shared-local migration | 0 |
+| Optional local services | imgproxy, Edge Runtime, analytics, vector, and pooler are stopped; this is not a migration mismatch |
+| Source-ingest automatic Cron | OFF: `SOURCE_INGEST_AUTOMATIC_CRONS_ENABLED = false` |
+| Other declared Vercel crons | `market-cache` and `alert-delivery` remain declared in `vercel.json`; do not confuse them with source-ingest scheduling |
+| DB changes in this handoff | 0 |
+
+Do not print or copy local keys. `SUPABASE_DB_URL` is the direct PostgreSQL path and is separate from the Supabase API-key migration. Current code supports new publishable/secret keys while retaining the approved legacy fallback; disabling legacy keys or changing production environment variables is a separate, explicitly authorized operation.
+
+## 4. Critical architecture boundary — do not merge these systems
+
+### Site-visible SEC filing analysis — complete and locked
+
+The existing site analysis pipeline remains:
+
+```text
+SEC source
+→ form router/source preparation
+→ site-visible Primary LLM analysis
+→ validator-triggered bounded LLM repair/failure recovery where defined
+→ Event + analysis/trace persistence
+→ existing score-based display/alert behavior
+```
+
+This path owns the filing title, summary, quick take, score, signal, display payload, and normal analysis persistence. It is a completed product area for this handoff. Do not remove, replace, or repurpose its Primary/failure-recovery LLM providers while implementing Monitor or dilution work.
+
+### Monitor/canonical data — separate system
+
+Monitor analysis is not “the second call” of site filing analysis. It uses domain-specific canonical inputs and deterministic condition evaluation. A site analysis result must not silently become canonical XML/XBRL/O/S/dilution truth.
+
+Use this rule:
+
+- If SEC XML/XBRL or another authoritative SEC structure proves the fields, use a deterministic parser/resolver and preserve provenance.
+- A different non-dilution Monitor may use an LLM API only when its bounded schema is demonstrably reliable and independently validated.
+- Dilution is the exception: product-runtime dilution analysis LLM API use is forbidden. It uses the GPT/Codex-managed Registry path below.
+- Missing, ambiguous, identity-mismatched, or incomparable canonical inputs fail closed; do not estimate or backfill from GPT narrative or FMP.
+
+## 5. Dilution golden path
+
+The accepted target/golden dilution path is:
+
+```text
+GPT/Codex direct filing review
+→ Dilution Registry JSON
+→ Admin Preview / Apply
+→ append-only Registry DB
+→ event/accession-scoped Registry-backed Offering facts
+→ deterministic user condition Matcher
+→ deduplicated internal Alert
+```
+
+Non-negotiable rules:
+
+- Product runtime performs zero dilution-analysis LLM API calls.
+- The Registry is the dilution source of truth; do not rebuild separate S-1, S-3, F-3, or 424B dilution analyzers.
+- Site-visible filing analysis remains separate and unchanged.
+- Registry reads used by Offering conditions must be bound to the exact issuer, event, accession, raw item, and Registry snapshot. Issuer-wide current state must not be substituted.
+- A Registry field maps to an Offering condition only when its economic meaning is identical. For example, ATM authorization capacity is not an executed offering amount and stays `Unavailable`.
+- Current adapter V1 is deliberately conservative: the VEEA ATM case is identity-valid but semantically unmappable, so `offering.amount` is unavailable and creates no Alert. This is a safety boundary, not a defect to bypass.
+- Current-main completion boundary is narrower than the full arrow diagram: the Registry adapter/condition/Matcher/internal-Alert functions exist, but there is no automatic product call site for `consumeOfferingMonitorAlertsForEvent()`, and adapter V1 currently produces no mapped fact for the audited ATM case. Do not report automatic Registry-backed Offering Alerts as live until an explicit trigger and economically exact mappings are independently approved and verified.
+
+Legacy Offering Gemini Stage 2 status:
+
+- Automatic Gemini Stage 2 provider execution: disabled.
+- Legacy `event_offering_monitor_canonical` promotion/read and empty-condition Matcher wiring: disabled in product runtime.
+- Historical source, schema, migrations, tests, and stored rows remain for audit; deletion is not authorized.
+- Offering enqueue/workflow remains active because it runs the deterministic O/S sidecar and records a terminal state.
+- Completed/failed/stale jobs do not return to pending through late workflow linkage.
+
+## 6. Completed functionality on current main
+
+### SEC ingest and site analysis
+
+- Raw SEC ingestion, routing, form-specific site analysis, Event/analysis persistence, and the bounded validation-repair paths are present.
+- Raw SEC requests and structured O/S SEC requests have a 30-second per-attempt timeout integrated with the existing retry/error policy; normal 200, 429, 5xx, Retry-After, rate limiting, and caller abort semantics are retained.
+- FPI 20-F/40-F analysis includes the required source/attachment selection and persists through the same Event/analysis/readback path without coupling general analysis success to O/S acceptance.
+- Cancelled source workflows can record `cancelled`; late callbacks cannot overwrite terminal states as running/completed.
+- Source-ingest automatic scheduling remains off; manual/product routes still exist.
+
+### O/S and share-count history
+
+- Periodic O/S is baseline-aware and incremental. An issuer with a baseline scans only after the baseline; one without a baseline returns `BASELINE_REQUIRED` rather than fetching history.
+- Periodic authoritative forms cover 10-Q/10-K and safely supported 20-F/40-F cases. ADS, multi-class, or basis ambiguity fails closed.
+- New-listing baseline V1 accepts only directly dated, positively proven single-common-class 424B4 current O/S. Future, pro-forma, post-offering, ADS, and unresolved multi-class values do not write.
+- Offering O/S sidecar supports eligible S-1/S-3/F-3/424B filings without the legacy Stage 2 provider. Raw CIK, metadata CIK, accession, and SEC Archive identity must agree.
+- Existing periodic, 424B4 baseline, 8-K/6-K, human-verified, resolver, and replay paths remain separate and preserved.
+- Forward/reverse split execution and O/S resolver continuity are implemented, including effective timing, same-day ordering, next-trading-day behavior, no double adjustment, and ambiguous-order fail-closed handling.
+- Share-count history, class snapshots, resolver, and replay remain append-oriented and provenance-bound.
+
+### Financial XBRL
+
+- Canonical SEC-only Financial Resolver V1 covers Revenue, Operating Income/Loss, Net Income/Loss, Operating Cash Flow, and Cash.
+- It separates quarter, YTD, annual, and instant values; preserves currency, unit, concept, period, accession, filing source, hash, artifact identity, and provenance; and rejects dimensional, amendment, source-identity, or comparability ambiguity.
+- Financial History/Series connects multiple 10-Q/10-K/20-F/40-F accessions while keeping Quarterly and Annual series separate and fail-closed.
+- Periodic Financial Monitor analysis derives current/prior comparable changes from the canonical resolver, not GPT output. Job/raw/result filing identity and retry/replay contracts are enforced.
+- Stock detail Financials now reads stored SEC XBRL through the resolver/history endpoint. It has no FMP Financials fallback, preserves per-metric `Unavailable`, and keeps FMP use outside Financials (for example existing Ownership/profile uses) untouched.
+
+### Ownership
+
+- Forms 4, 4/A, 144, and 144/A use verified SEC Ownership XML and the production parser for canonical typed detail rows.
+- Typed rows preserve transaction/proposed-sale distinctions, dates, securities, quantities/prices, row grouping, footnotes, source identity, accession, and issuer CIK without unsupported multi-owner attribution or row netting.
+- XML canonical persistence is independent of site-analysis LLM success. A failed site analysis remains failed while verified typed detail can still persist/read through the archive-only event shell.
+- LLM-only, fallback HTML/text, malformed/truncated/untrusted, wrong-accession, wrong-issuer, or ticker-injected inputs cannot write canonical Ownership details or overwrite valid rows.
+- Form 4/144 Ownership Monitor conditions read only verified typed rows, evaluate all predicates against one row, and produce replay-safe internal Monitor alerts. External email/Telegram delivery is not enabled by this path.
+
+### Monitor foundation and current domain wiring
+
+- Generic child execution has exact parent identity, terminal states, retry/replay handling, and canonical persistence for implemented domains.
+- Listing Risk and Split/Reverse Split paths remain wired for their supported source families.
+- Periodic Financial Monitor canonical analysis is wired, but user-authored financial condition → Matcher → Alert integration is not complete.
+- Ownership XML Monitor is wired through typed rows to deterministic conditions and internal alert persistence.
+- Registry-backed Offering adapter, Offering conditions, Matcher, dedupe, and internal-alert persistence exist as callable product code. Safe fact coverage remains intentionally narrow; unmappable Registry semantics return unavailable rather than match, and automatic consumer invocation is not yet wired.
+- Existing score-based filing alerts and user-created Monitor alerts are distinct systems.
+
+### Dilution Registry and corporate actions
+
+- GPT/Codex-managed Dilution Registry JSON, Admin Preview/Apply, provenance/identity validation, append-only snapshots, and product reads are present.
+- Corporate Action adjustment projects split/reverse-split changes onto a new current projection without rewriting historical contract snapshots.
+- Adjustment requires explicit SEC contract clauses, exact canonical split execution, class/timing compatibility, and field-specific operations. Dollar limits and unsupported/ambiguous terms are not adjusted.
+- Registry identity, clause-binding replay, projection replay, closed-instrument exclusion, and no-double-adjustment contracts are implemented.
+- Registry-backed Offering adapter uses exact event/accession-scoped Registry snapshots and never substitutes a whole-issuer aggregate.
+
+### Platform/security relevant to continuation
+
+- Supabase publishable/secret key support is merged with legacy fallback preserved. Browser/public and server-privileged key roles remain separate; `SUPABASE_DB_URL` was not converted.
+- Local main contains the pre-launch page/API access gate and internal short-lived capability/replay protections. The exact Vercel production source commit is currently unverified, so do not assume live production equals local main.
+
+## 7. Must not be changed as collateral work
+
+- Site-visible SEC Primary analysis and its bounded failure-recovery/validation-repair LLM path.
+- The separation between site filing analysis and Monitor/canonical data.
+- The dilution golden path or its product-runtime LLM API prohibition.
+- Periodic O/S, 424B4 new-listing baseline, 8-K/6-K O/S, Offering O/S sidecar, human-verified O/S, and Split/Reverse Split continuity.
+- Append-only/history/replay/provenance and fail-closed identity contracts.
+- Financial SEC-only policy: no FMP fallback and no SEC/FMP mixing.
+- Ownership XML typed rows as canonical details; LLM output cannot replace them.
+- Legacy Offering code/history must not be deleted merely because automatic execution is disabled.
+- Port `3110`, shared-local data, migrations, schedulers, or environment files unless the user explicitly authorizes the exact operation.
+
+## 8. Remaining development work
+
+### Known dilution follow-up — Registry-backed Offering activation
+
+Before describing the golden path as automatically live, define an explicit product trigger for the existing Registry-backed consumer and approve only economically identical Registry-to-condition mappings. The current VEEA ATM capacity must remain unavailable as `offering.amount`. This is a narrow completion task for the accepted Registry path, not permission to revive Gemini Stage 2 or build form-specific dilution analyzers.
+
+### Priority 1 — Financial Monitor user conditions and Alerts
+
+Connect the already-canonical Periodic Financial Monitor output to stored user conditions, the deterministic Matcher, internal Alert persistence, readback, and replay dedupe. Preserve quarter/YTD/annual/instant and currency comparability; unavailable metrics must not become zero/false. This is the cleanest next task because the canonical resolver, series, job identity, and Monitor analysis already exist.
+
+### Priority 2 — Amendment lineage, then 8-K/A and 6-K/A Monitor fan-out
+
+Current main does not contain an approved common amendment-current-state foundation. First establish deterministic original/amendment lineage and safe `NOOP` / `SUPPLEMENT` / `REPLACE` / `CANCEL` semantics with history preserved. Only then enable 8-K/A and 6-K/A Monitor fan-out; do not treat an amendment as a fresh independent fact or blindly duplicate the original Alert.
+
+### Priority 3 — SC 13D/G canonical ownership state and Monitor
+
+The site analysis/parser area exists, but a deterministic current beneficial-ownership state, amendment lineage, canonical persistence, user conditions, and product-path Monitor E2E are not complete. Keep holder, group, class, date, numerator/denominator, and amendment semantics separate; do not combine incompatible holdings.
+
+### Priority 4 — Form 3/5 Ownership extension
+
+Extend the proven Ownership XML/persistence/Monitor contracts only where Form 3/5 source schemas support them. Do not infer transactions from initial/annual holdings, and do not weaken Form 4/144 issuer/accession/provenance or multi-owner safety.
+
+### Priority 5 — 13F institutional holdings
+
+Build deterministic structured holdings ingestion, amendment handling, manager/issuer/security identity, typed persistence, conditions, internal Alert/readback, and real SEC E2E. Do not mix 13F reporting-date holdings with insider transactions or current beneficial-ownership percentages.
+
+### Later Monitor families
+
+- Form 25 / 25-NSE
+- NT 10-K / NT 10-Q / NT 20-F
+- S-8 / S-8/A
+- Proxy
+- Merger / S-4 / F-4 / 425
+- Tender / SC TO / SC 13E-3
+
+Some of these already have collection, parser, prompts, or site analysis. That does not mean canonical persistence, deterministic conditions, internal Alert/readback, or product-path E2E is complete. Audit each family from source to saved user result before calling it implemented.
+
+### Legacy Offering cleanup — later, not a feature prerequisite
+
+Automatic legacy Stage 2 is disabled, but its source, schema, migrations, canonical table, historical rows, and tests are retained. Decide cleanup only after an explicit history/rollback/data-retention audit. Do not delete migrations or historical data. The current conservative Registry-backed adapter also needs separately reviewed semantic mappings before additional Offering conditions can become available; never revive Gemini Stage 2 as a shortcut.
+
+## 9. Operating rules for the next room
+
+1. Finish and independently verify one feature at a time before starting the next dependent feature.
+2. Parallelize only truly independent worktrees; each candidate must be audited against current `main` before merge.
+3. Do not run baseline backfill, catch-up, or bulk/shared-local historical replay until the user explicitly orders it. Isolated replay/idempotency regression tests remain required and are not backfill. “Prepare,” “review,” or “continue development” is not backfill authorization.
+4. Do not enable source-ingest Cron/Scheduler without explicit instruction.
+5. Do not push, deploy, or modify production/remote DB or environment variables without explicit instruction.
+6. Shared-local is shared across worktrees. Use isolated Supabase for write/E2E candidate tests unless the user specifically authorizes shared-local activation.
+7. Diagnose first and stop on scope-expanding blockers. Never weaken assertions or provenance to make a candidate pass.
+8. Preserve actual missing/ambiguous states as `Unavailable`/review/fail-closed; do not manufacture canonical values.
+9. Before any merge, push, deployment, rollback, or new handoff, reread `PRODUCTION_SOURCE_OF_TRUTH.md` and report exact local/GitHub/Vercel alignment.
+
+## 10. Last verified regression baseline
+
+After merging `491e79d8` into current main, the relevant integration run recorded:
+
+- 253 tests passed across Offering foundation/sidecar, Registry-backed Offering, O/S/resolver/new-listing, Split/Dilution, site Primary/fallback analysis, and periodic-report coverage.
+- Workflow strict validation passed.
+- Typecheck still had four pre-existing errors limited to `scripts/verify-dilution-registry-phase-5c1-isolated.ts`; no new candidate-specific type error was introduced by the final Offering change.
+
+These results are handoff evidence, not permission to skip task-specific regression or real product-path validation for the next candidate.
+
+## 11. Handoff checklist
+
+```text
+Local main: 491e79d855343c625c45493a5975ef8ecd2f60bb
+GitHub main: 9c13aee7ef41b38bac0637e53e579633745effda
+Local/GitHub equality: NO — local ahead 375, behind 0
+Vercel production commit/status: UNVERIFIED — CLI authentication unavailable
+Uncommitted files: docs/operations/ASTRA_6_MAIN_HANDOFF.md only (this requested handoff)
+Shared-local DB migrations: 86/86, pending 0
+Latest shared-local migration: 20260908093924_registry_backed_offering_fact_adapter.sql
+Remote/production DB migrations: not checked or changed
+Source-ingest automatic Cron: OFF
+Backfill: not run; not authorized
+Environment/secret changes: 0
+Push/deploy/tag: 0; not authorized
+Next task: Financial Monitor stored user conditions → Matcher → internal Alert/readback
+```
