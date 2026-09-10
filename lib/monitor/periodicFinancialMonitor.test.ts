@@ -344,17 +344,15 @@ test("raw filing identity captures exact source/payload accession, CIK, and form
     form: expected.form,
   });
   (rawItem.raw_payload as Record<string, unknown>).cik = "0001628280";
-  const wrongCik = readPeriodicFinancialRawFilingIdentity(rawItem, expected.accession);
   assert.throws(
-    () => assertPeriodicFinancialMonitorAnalysisIdentity(analyze("AAPL 2025 10-K"), wrongCik),
-    /analysis filing identity mismatch/,
+    () => readPeriodicFinancialRawFilingIdentity(rawItem, expected.accession),
+    /exact CIK\/form identity/,
   );
   (rawItem.raw_payload as Record<string, unknown>).cik = expected.cik;
   (rawItem.raw_payload as Record<string, unknown>).form_type = "10-Q";
-  const wrongForm = readPeriodicFinancialRawFilingIdentity(rawItem, expected.accession);
   assert.throws(
-    () => assertPeriodicFinancialMonitorAnalysisIdentity(analyze("AAPL 2025 10-K"), wrongForm),
-    /analysis filing identity mismatch/,
+    () => readPeriodicFinancialRawFilingIdentity(rawItem, expected.accession),
+    /exact CIK\/form identity/,
   );
 });
 

@@ -12,7 +12,7 @@ import {
 
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
-export type MonitorConditionValueType = "number" | "text" | "boolean" | "date" | "timestamp";
+export type MonitorConditionValueType = "number" | "decimal" | "text" | "boolean" | "date" | "timestamp";
 export type MonitorConditionOperator =
   | "eq"
   | "neq"
@@ -92,12 +92,12 @@ export type MonitorConditionDefinition = Readonly<{
     omitLabel: string;
     enumValueLabels?: Readonly<Record<string, string>>;
   }>;
-  monitorDomains?: readonly "listing"[];
+  monitorDomains?: readonly ("listing" | "financial")[];
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -108,6 +108,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
       | "read_current_event_ownership_facts"
+      | "read_current_event_periodic_financial"
       | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
@@ -192,6 +193,8 @@ const registry = [
     },
     numberValidation: { exclusiveMinimum: 0 },
   }),
+
+  ...periodicFinancialConditions(),
 
   canonicalCorporateActionCondition(
     "corporate_action.event_kind",
@@ -563,6 +566,56 @@ function canonicalOfferingCondition(
     qualityCapability: Object.freeze(["exact", "derived", "estimated", "unknown"] as const),
     status: "READY" as const,
   });
+}
+
+function periodicFinancialConditions(): readonly MonitorConditionDefinition[] {
+  const metrics = [
+    ["revenue", "REVENUE", "Revenue"],
+    ["operating_income_loss", "OPERATING_INCOME_LOSS", "Operating income/loss"],
+    ["net_income_loss", "NET_INCOME_LOSS", "Net income/loss"],
+    ["operating_cash_flow", "OPERATING_CASH_FLOW", "Operating cash flow"],
+    ["cash", "CASH", "Cash and cash equivalents"],
+  ] as const;
+  const bases = [
+    ["quarter", "QUARTER", "quarter"],
+    ["year_to_date", "YEAR_TO_DATE", "year to date"],
+    ["annual", "ANNUAL", "annual"],
+    ["instant", "INSTANT", "period end"],
+  ] as const;
+  return metrics.flatMap(([metricKey, metric, metricLabel]) => bases.flatMap(([basisKey, basis, basisLabel]) => {
+    if ((metric === "CASH") !== (basis === "INSTANT")) return [];
+    if (metric !== "CASH" && basis === "INSTANT") return [];
+    if (metric === "OPERATING_CASH_FLOW" && basis === "QUARTER") return [];
+    const common = {
+      valueType: "decimal" as const,
+      allowedOperators: Object.freeze([...numericOperators]),
+      monitorDomains: Object.freeze(["financial"] as const),
+      family: "financial" as const,
+      domain: "periodic_sec" as const,
+      source: Object.freeze({
+        subject: "event" as const,
+        reader: "read_current_event_periodic_financial" as const,
+        jsonPath: Object.freeze([metric, basis] as const),
+      }),
+      qualityCapability: Object.freeze(["exact"] as const),
+      eligibility: Object.freeze({ requiredReaderStatus: "available" as const }),
+      status: "READY" as const,
+    };
+    return [
+      Object.freeze({
+        ...common,
+        key: `financial.${metricKey}.${basisKey}.current`,
+        description: `Canonical ${basisLabel} ${metricLabel.toLowerCase()} for the exact SEC filing.`,
+        display: Object.freeze({ label: `${metricLabel} (${basisLabel})` }),
+      }),
+      Object.freeze({
+        ...common,
+        key: `financial.${metricKey}.${basisKey}.yoy_change`,
+        description: `Exact year-over-year change in canonical ${basisLabel} ${metricLabel.toLowerCase()}.`,
+        display: Object.freeze({ label: `${metricLabel} YoY change (${basisLabel})` }),
+      }),
+    ];
+  }));
 }
 
 function currentMarketCondition(
@@ -948,6 +1001,9 @@ function validConditionScalar(definition: MonitorConditionDefinition, value: unk
     const minimum = definition.numberValidation?.minimum;
     if (exclusiveMinimum !== undefined && value <= exclusiveMinimum) return false;
     return minimum === undefined || value >= minimum;
+  }
+  if (definition.valueType === "decimal") {
+    return typeof value === "string" && /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value);
   }
   if (definition.valueType === "boolean") return typeof value === "boolean";
   if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;
