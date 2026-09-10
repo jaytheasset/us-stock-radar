@@ -33,7 +33,7 @@ export const SEC_8K_6K_ANALYSIS_PROMPT_KEYS = {
 } as const;
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_KEY = SEC_8K_6K_ANALYSIS_PROMPT_KEYS.operatingLegalRoutine;
-export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v49-live-stock-split-effective-date";
+export const SEC_8K_6K_ANALYSIS_PROMPT_VERSION = "v50-risk-status-dual-monitor-routing";
 
 export const SEC_8K_6K_ANALYSIS_PROMPT_FAMILY_VALUES = [
   "risk_status",
@@ -1143,6 +1143,8 @@ export const sec8k6kListingFinancialRiskPrompt = [
   "Use this room for exchange listing deficiencies, compliance notices, delisting determinations, trading suspensions, appeal or hearing updates, Form 25-NSE references, bankruptcy, going-concern warnings, liquidity crises, covenant breaches, defaults, debt acceleration, forbearance, restructuring, receivership, or similar financial stress.",
   "SECTION: Choose the primary event.",
   "Classify the main new fact in the current filing, not the most alarming background fact. If this filing newly reports an exchange notice, suspension, delisting determination, appeal result, or compliance change, listing_risk is usually primary even when bankruptcy or weak finances caused it.",
+  "Monitor routing remains independent of that primary-event choice. When the complete original source blocks currently announce, approve, schedule, make effective, or complete an explicit reverse or forward stock split, keep listing_risk as primary when appropriate and also include exactly one corporate_action route.",
+  "A listing-compliance purpose does not collapse the two analyzer routes: a current explicit stock split used to cure a listing issue requires both listing_risk and corporate_action, while historical split background alone does not.",
   "If this filing newly reports a bankruptcy filing, covenant breach, payment default, acceleration, forbearance, going-concern warning, liquidity shortfall, restructuring, or receivership, financial_risk is usually primary; any expected delisting is secondary context unless the filing also reports a new exchange action.",
   "Separate cause from consequence in the analysis. State which disclosed condition caused the event and what changed for common shareholders as a result.",
   "Do not add separate score premiums for the same underlying problem. Bankruptcy causing an exchange suspension is one connected risk sequence, not two independent alerts.",

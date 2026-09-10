@@ -73,6 +73,23 @@ test("not-applicable and reader-unavailable results remain literal INELIGIBLE ou
   assert.equal(unavailable.writes.length, 0);
 });
 
+test("SEC amendment identity validation failures never fall back to existing facts or write Alerts", async () => {
+  for (const reason of ["original_url_missing", "issuer_cik_mismatch"]) {
+    const harness = consumerHarness();
+    const result = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, {
+      ...harness.dependencies,
+      readSecAmendmentCurrentState: async () => ({ status: "blocked", reason }),
+    });
+
+    assert.equal(harness.reads(), 0, reason);
+    assert.equal(harness.alertCount(), 0, reason);
+    assert.equal(result.createdCount, 0, reason);
+    assert.equal(result.existingCount, 0, reason);
+    assert.equal(result.writes.length, 0, reason);
+    assert.ok(result.evaluations.every((item) => item.status === "ineligible"), reason);
+  }
+});
+
 test("one Alert insert failure is reported and does not block another matching monitor", async () => {
   const harness = consumerHarness({ secondMatch: true, failFirstWrite: true });
   const result = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, harness.dependencies);

@@ -312,7 +312,8 @@ export async function loadGenericMonitorExactParent(
   const isDeterministicPeriodicFinancial = identity.sourceFamily === "sec_periodic_reports"
     && identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY;
   if (!isDeterministicPeriodicFinancial
-    && !routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)) {
+    && !routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)
+    && !isSourceProvenSecAmendmentAuthorization(identity, analysis)) {
     throw new Error("Generic Monitor exact parent output does not contain the reserved analyzer route");
   }
 
@@ -372,10 +373,43 @@ export function genericMonitorChildMetadata(
     reserved_at: identity.reservedAt,
     execution_state: state,
     phase: state === "reserved" ? "reserved_for_future_execution" : state,
+    ...(identity.secAmendmentLineage
+      ? {
+          alert_event_id: identity.alertEventId,
+          sec_amendment_observation_key: identity.secAmendmentLineage.observation.observationKey,
+          sec_amendment_operation: identity.secAmendmentLineage.operation,
+          sec_amendment_root_raw_item_id: identity.secAmendmentLineage.root.rawItemId,
+          sec_amendment_root_accession: identity.secAmendmentLineage.root.accessionNumber,
+          sec_amendment_amendment_accession: identity.secAmendmentLineage.observation.amendment.accessionNumber,
+          sec_amendment_issuer_cik: identity.secAmendmentLineage.root.issuerCik,
+          sec_amendment_affected_fact_keys: [...identity.secAmendmentLineage.observation.affectedFactKeys],
+        }
+      : {}),
     ...(workflow.workflowStartState ? { workflow_start_state: workflow.workflowStartState } : {}),
     ...(workflow.workflowRunId ? { workflow_run_id: workflow.workflowRunId } : {}),
     ...(workflow.workflowStartError ? { workflow_start_error: workflow.workflowStartError } : {}),
   };
+}
+
+function isSourceProvenSecAmendmentAuthorization(
+  identity: GenericMonitorChildIdentity,
+  analysis: Record<string, unknown>,
+) {
+  const context = identity.secAmendmentLineage;
+  const delta = record(analysis.sec_8k_6k_amendment_delta)
+    || record(analysis.amendment_delta);
+  return Boolean(
+    context
+    && identity.sourceFamily === "sec_8k_6k"
+    && identity.sourceCode === "sec_edgar"
+    && delta?.is_amendment === true
+    && context.observation.status === "linked"
+    && context.observation.amendment.rawItemId === identity.rawItemId
+    && context.observation.amendment.accessionNumber === identity.sourceIdentity
+    && context.observation.prior.rawItemId === context.root.rawItemId
+    && context.observation.prior.accessionNumber === context.root.accessionNumber
+    && context.observation.affectedFactKeys.includes(`monitor.${identity.monitorAnalyzerKey}`)
+  );
 }
 
 export function expectedGenericMonitorPrimaryOutputType(identity: GenericMonitorChildIdentity) {

@@ -26,6 +26,7 @@ import {
   updateSecAnalysisAccession,
   withSecAnalysisSpan,
 } from "@/lib/ai/secAnalysisInstrumentation";
+import { prepareSecAmendmentMonitorFanout } from "@/lib/sec-amendments/secAmendmentMonitorBridge";
 
 export {
   buildSecFilingGroupDedupe,
@@ -235,13 +236,26 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     },
   );
   const validationRepairTrace = aiTrace.repairTrace;
+  const amendmentMonitorLineage = await prepareSecAmendmentMonitorFanout({
+    rawItem: rawResult.rawItem,
+    filingInput: analysisRun.input,
+    primaryAnalysis: analysisRun.analysis,
+  }).catch((error) => ({
+    status: "blocked" as const,
+    suppressPrimaryAlert: true as const,
+    reason: error instanceof Error ? error.message : "SEC amendment lineage preparation failed",
+    observation: null,
+    providerCalls: 0 as const,
+  }));
 
   const calendarItems = await fetchSecFilingCalendarItemsForEvent(stringValue(persistedEvent.id));
-  const alertDelivery = options.suppressAlerts
+  const alertDelivery = options.suppressAlerts || amendmentMonitorLineage.suppressPrimaryAlert
     ? {
         ok: true,
         suppressed: true,
-        reason: "alert delivery suppressed by controlled SEC development persist",
+        reason: amendmentMonitorLineage.suppressPrimaryAlert
+          ? "SEC amendment alerts are evaluated only through verified Monitor current state"
+          : "alert delivery suppressed by controlled SEC development persist",
       }
     : await runSecFilingAlertDelivery(persistedEvent);
   const primaryPromptKey = analysisRun.prompt?.key || SEC_FILING_ANALYSIS_PROMPT_KEY;
@@ -260,9 +274,17 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         parentPrimaryAiRunId: aiTrace.aiRunId,
         parentPromptKey: primaryPromptKey,
         parentPromptVersion: primaryPromptVersion,
-        secFormType: stringValue(readRecord(readRecord(analysisRun.input)?.filing_package)?.form_type),
-      }),
-      primaryAnalysis: analysisRun.analysis,
+         secFormType: stringValue(readRecord(readRecord(analysisRun.input)?.filing_package)?.form_type),
+         secAmendmentAlertEventId: amendmentMonitorLineage.status === "authorized"
+           ? amendmentMonitorLineage.alertEventId
+           : null,
+         secAmendmentLineage: amendmentMonitorLineage.status === "authorized"
+           ? amendmentMonitorLineage.executionContext
+           : undefined,
+       }),
+      primaryAnalysis: amendmentMonitorLineage.status === "authorized"
+        ? amendmentMonitorLineage.primaryAnalysis
+        : analysisRun.analysis,
     }).then((result) => {
       endListingFanout("listing_fanout_end", {
         status: "success",
@@ -306,6 +328,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     calendarItems,
     alertDelivery,
     genericMonitorChildren,
+    amendmentMonitorLineage,
     ownershipMonitorConditionExecution,
     offeringMonitorRegistryExecution,
     validationRepairTrace,

@@ -64,6 +64,9 @@ export async function processGenericMonitorChildWithDependencies<
     }): Promise<unknown>;
     consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
       Promise<ListingMonitorAlertConsumerResult>;
+    authorizeBeforeProvider?(identity: GenericMonitorChildIdentity): Promise<
+      { authorized: true } | { authorized: false; reason: string }
+    >;
   },
 ) {
   const repository = dependencies.repository;
@@ -80,6 +83,15 @@ export async function processGenericMonitorChildWithDependencies<
   if (parent.currentness.status !== "current") {
     await repository.recordTerminal(identity, "stale");
     return { status: "stale" as const, jobId: identity.executionId, providerCalls: 0 };
+  }
+  if (dependencies.authorizeBeforeProvider) {
+    try {
+      const authorization = await dependencies.authorizeBeforeProvider(identity);
+      if (!authorization.authorized) throw new Error(authorization.reason);
+    } catch (error) {
+      await repository.recordTerminal(identity, "failed", { error });
+      return { status: "failed" as const, jobId: identity.executionId, providerCalls: 0, error: errorMessage(error) };
+    }
   }
 
   let analyzerInput: TInput;

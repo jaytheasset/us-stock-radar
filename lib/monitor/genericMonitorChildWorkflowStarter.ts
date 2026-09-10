@@ -8,6 +8,7 @@ import {
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
 
 const SEC_8K_6K_FORM_TYPES = new Set(["8-K", "6-K"]);
+const SEC_8K_6K_AMENDMENT_FORM_TYPES = new Set(["8-K/A", "6-K/A"]);
 const SEC_PERIODIC_FINANCIAL_FORM_TYPES = new Set([
   "10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A",
 ]);
@@ -55,11 +56,20 @@ export function buildGenericMonitorPrimaryExecutionContext(input: {
   parentPromptKey: string;
   parentPromptVersion: string;
   secFormType?: string | null;
+  /** Present only after the SEC amendment bridge has persisted an exact linked REPLACE/SUPPLEMENT decision. */
+  secAmendmentAlertEventId?: string | null;
+  secAmendmentLineage?: GenericMonitorPrimaryExecutionContext["secAmendmentLineage"];
 }): GenericMonitorPrimaryExecutionContext | null {
-  const sourceFamily = sourceFamilyForProductionSource(input.sourceGroup, input.sourceCode, input.secFormType);
+  const sourceFamily = sourceFamilyForProductionSource(
+    input.sourceGroup,
+    input.sourceCode,
+    input.secFormType,
+    Boolean(input.secAmendmentAlertEventId),
+  );
   if (!sourceFamily) return null;
   return {
     eventId: input.eventId,
+    alertEventId: input.secAmendmentAlertEventId || input.eventId,
     rawItemId: input.rawItemId,
     sourceFamily,
     sourceGroup: input.sourceGroup,
@@ -68,6 +78,9 @@ export function buildGenericMonitorPrimaryExecutionContext(input: {
     parentPrimaryAiRunId: input.parentPrimaryAiRunId,
     parentPromptKey: input.parentPromptKey,
     parentPromptVersion: input.parentPromptVersion,
+    ...(input.secAmendmentLineage
+      ? { secAmendmentLineage: input.secAmendmentLineage }
+      : {}),
   };
 }
 
@@ -178,11 +191,15 @@ function sourceFamilyForProductionSource(
   sourceGroup: "news" | "filings",
   sourceCode: string,
   secFormType: string | null | undefined,
+  amendmentAuthorized: boolean,
 ): GenericMonitorSourceFamily | null {
   if (sourceGroup === "news") {
     return sourceCode === "nasdaq_corporate_actions" ? "nasdaq_corporate_actions" : "news";
   }
-  if (sourceCode !== "sec_edgar" || !SEC_8K_6K_FORM_TYPES.has(normalizeSecFormType(secFormType))) {
+  const normalizedForm = normalizeSecFormType(secFormType);
+  const currentReportAllowed = SEC_8K_6K_FORM_TYPES.has(normalizedForm)
+    || (amendmentAuthorized && SEC_8K_6K_AMENDMENT_FORM_TYPES.has(normalizedForm));
+  if (sourceCode !== "sec_edgar" || !currentReportAllowed) {
     return sourceCode === "sec_edgar" && SEC_PERIODIC_FINANCIAL_FORM_TYPES.has(normalizeSecFormType(secFormType))
       ? "sec_periodic_reports"
       : null;

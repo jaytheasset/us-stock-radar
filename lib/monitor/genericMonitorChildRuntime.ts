@@ -63,6 +63,7 @@ import {
   type PeriodicFinancialFilingIdentity,
   type PeriodicFinancialMonitorAnalysis,
 } from "./periodicFinancialMonitor.ts";
+import { persistSecAmendmentMonitorReplacement, verifySecAmendmentExecutionAuthorization } from "../sec-amendments/secAmendmentMonitorBridge.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -133,7 +134,22 @@ export async function processGenericMonitorChild(
             : unavailableCorporateActionApplicabilityContext("non_sec_source"),
         ),
       runAnalyzer: dependencies.runCorporateActionAnalyzer || runCorporateActionCanonicalAnalyzerPreview,
-      persist: dependencies.persistCorporateAction || persistCorporateActionAnalyzerResult,
+      persist: async (persistenceInput) => {
+        const persisted = await (dependencies.persistCorporateAction || persistCorporateActionAnalyzerResult)(persistenceInput);
+        if (
+          persistenceInput.identity.secAmendmentLineage
+          && (persisted.status === "saved" || persisted.status === "idempotent")
+        ) {
+          const lineage = await persistSecAmendmentMonitorReplacement({
+            identity: persistenceInput.identity,
+            result: persistenceInput.result as unknown as Record<string, unknown>,
+          });
+          if (lineage.status !== "saved" && lineage.status !== "idempotent") {
+            throw new Error(`SEC amendment Corporate Action projection failed: ${"reason" in lineage ? lineage.reason : lineage.status}`);
+          }
+        }
+        return persisted;
+      },
       persistShareCountObservation: dependencies.persistShareCountObservation
         || persistGenericMonitorShareCountObservation,
       terminalStateAfterPersistence: corporateActionTerminalStateAfterPersistence,
@@ -150,20 +166,47 @@ export async function processGenericMonitorChild(
         || runDilutionCorporateActionAdjustmentForEvent
       )({ eventId: childIdentity.eventId }),
       consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
-        || consumeListingMonitorAlertsForEvent,
+        || ((input) => consumeListingMonitorAlertsForEvent({
+          ...input,
+          alertEventId: identity.alertEventId,
+        })),
+      ...(identity.secAmendmentLineage
+        ? { authorizeBeforeProvider: verifySecAmendmentExecutionAuthorization }
+        : {}),
     });
   }
   return processGenericMonitorChildWithDependencies(identity, {
     repository,
     buildAnalyzerInput,
     runAnalyzer: dependencies.runListingRiskAnalyzer || runListingRiskDomainAnalyzerPreview,
-    persist: dependencies.persistListingRisk
-      || ((input) => persistListingRiskAnalyzerResult(input)),
+    persist: async (persistenceInput) => {
+      const persisted = await (dependencies.persistListingRisk
+        || ((value) => persistListingRiskAnalyzerResult(value)))(persistenceInput);
+      if (
+        persistenceInput.identity.secAmendmentLineage
+        && (persisted.status === "saved" || persisted.status === "idempotent")
+      ) {
+        const lineage = await persistSecAmendmentMonitorReplacement({
+          identity: persistenceInput.identity,
+          result: persistenceInput.result as unknown as Record<string, unknown>,
+        });
+        if (lineage.status !== "saved" && lineage.status !== "idempotent") {
+          throw new Error(`SEC amendment Listing projection failed: ${"reason" in lineage ? lineage.reason : lineage.status}`);
+        }
+      }
+      return persisted;
+    },
     persistShareCountObservation: dependencies.persistShareCountObservation
       || persistGenericMonitorShareCountObservation,
     terminalStateAfterPersistence: listingRiskTerminalStateAfterPersistence,
     consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
-      || consumeListingMonitorAlertsForEvent,
+      || ((input) => consumeListingMonitorAlertsForEvent({
+        ...input,
+        alertEventId: identity.alertEventId,
+      })),
+    ...(identity.secAmendmentLineage
+      ? { authorizeBeforeProvider: verifySecAmendmentExecutionAuthorization }
+      : {}),
   });
 }
 
