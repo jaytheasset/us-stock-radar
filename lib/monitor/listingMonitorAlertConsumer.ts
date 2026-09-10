@@ -29,6 +29,10 @@ import {
   readCurrentOwnershipFacts,
   type CurrentOwnershipReadResult,
 } from "./ownershipMonitorPersistence.ts";
+import {
+  readSecAmendmentMonitorCurrentState,
+  type SecAmendmentMonitorCurrentState,
+} from "../sec-amendments/secAmendmentMonitorBridge.ts";
 
 export const LISTING_MONITOR_ALERT_CONSUMER_VERSION = "listing_monitor_alert_consumer_v1" as const;
 
@@ -65,6 +69,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
   readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
+  readSecAmendmentCurrentState?(eventId: string): Promise<SecAmendmentMonitorCurrentState>;
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
@@ -82,6 +87,7 @@ const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
   readFacts: readCurrentListingRiskFacts,
   readCorporateActionFacts: readCurrentCorporateActionFacts,
   readOwnershipFacts: readCurrentOwnershipFacts,
+  readSecAmendmentCurrentState: readSecAmendmentMonitorCurrentState,
   readEventTicker: readMonitorEventTicker,
   readCurrentPrice: async (symbol) => (
     await import("../market-data/currentPrice.ts")
@@ -98,10 +104,14 @@ const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
  * diagnostic and never prevent valid monitors from running.
  */
 export async function consumeListingMonitorAlertsForEvent(
-  input: Readonly<{ eventId: string }>,
+  input: Readonly<{ eventId: string; alertEventId?: string }>,
   dependencies: ListingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<ListingMonitorAlertConsumerResult> {
   const listingMonitors = await dependencies.listActiveMonitors();
+  const currentEventId = input.alertEventId || input.eventId;
+  const amendmentState = dependencies.readSecAmendmentCurrentState
+    ? await safeReadSecAmendmentCurrentState(currentEventId, dependencies.readSecAmendmentCurrentState)
+    : { status: "not_applicable" as const };
   const allConditions = listingMonitors.monitors.flatMap((monitor) => monitor.conditions);
   const listingRequested = allConditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_listing_risk_facts"
@@ -112,22 +122,36 @@ export async function consumeListingMonitorAlertsForEvent(
   const ownershipRequested = allConditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_ownership_facts"
   ));
+  const amendmentBlocked = amendmentState.status === "blocked";
+  const amendmentBlockReason = amendmentBlocked
+    ? `sec_amendment_current_state_${amendmentState.reason}`
+    : "";
   const readers: MonitorFactReaders = {
-    listing: listingRequested
+    listing: amendmentBlocked
+      ? { status: "not_ready", reason: amendmentBlockReason }
+      : amendmentState.status === "available" && amendmentState.listing
+      ? amendmentState.listing
+      : listingRequested
       ? await safeReadFacts(
-          input.eventId,
+          currentEventId,
           dependencies.readFacts ?? defaultDependencies.readFacts!,
         )
       : { status: "not_ready", reason: "reader_not_requested" },
-    corporateAction: corporateActionRequested
+    corporateAction: amendmentBlocked
+      ? { status: "not_ready", reason: amendmentBlockReason }
+      : amendmentState.status === "available" && amendmentState.corporateAction
+      ? amendmentState.corporateAction
+      : corporateActionRequested
       ? await safeReadFacts(
-          input.eventId,
+          currentEventId,
           dependencies.readCorporateActionFacts ?? defaultDependencies.readCorporateActionFacts!,
         )
       : { status: "not_ready", reason: "reader_not_requested" },
-    ownership: ownershipRequested
+    ownership: amendmentBlocked
+      ? { status: "not_ready", reason: amendmentBlockReason }
+      : ownershipRequested
       ? await safeReadFacts(
-          input.eventId,
+          currentEventId,
           dependencies.readOwnershipFacts ?? defaultDependencies.readOwnershipFacts!,
         )
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -148,7 +172,7 @@ export async function consumeListingMonitorAlertsForEvent(
     const symbol = currentListingTicker(readers.listing)
       || currentOwnershipTicker(readers.ownership)
       || await safeReadTicker(
-        input.eventId,
+        currentEventId,
         dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
       );
     if (!symbol) {
@@ -178,7 +202,7 @@ export async function consumeListingMonitorAlertsForEvent(
     if (!lineage) continue;
     try {
       writes.push(await dependencies.createAlert({
-        eventId: lineage.eventId,
+        eventId: input.alertEventId || lineage.eventId,
         sourceExecutionId: lineage.sourceExecutionId,
         monitorId: evaluation.monitor.id,
         userId: evaluation.monitor.userId,
@@ -231,6 +255,17 @@ async function safeReadFacts<T>(eventId: string, reader: (eventId: string) => Pr
     return await reader(eventId);
   } catch {
     return { status: "not_ready", reason: "reader_unavailable" } as T;
+  }
+}
+
+async function safeReadSecAmendmentCurrentState(
+  eventId: string,
+  reader: (eventId: string) => Promise<SecAmendmentMonitorCurrentState>,
+): Promise<SecAmendmentMonitorCurrentState> {
+  try {
+    return await reader(eventId);
+  } catch {
+    return { status: "blocked", reason: "lineage_reader_unavailable" };
   }
 }
 

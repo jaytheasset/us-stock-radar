@@ -12,6 +12,7 @@ import {
   createGenericMonitorChildRepository,
   type GenericMonitorChildStore,
 } from "./genericMonitorChildRepository.ts";
+import { processGenericMonitorChildWithDependencies } from "./genericMonitorChildProcessor.ts";
 
 const EVENT_ID = "69606800-ee16-4a75-9bbf-3b64bdc56d69";
 const RAW_ID = "efea3384-9eef-4e6b-9e63-60dc1cd3090e";
@@ -200,6 +201,25 @@ test("exact loader rejects mismatched output, event, raw, source, and analyzer r
       /Generic Monitor/,
     );
   }
+});
+
+test("failed persisted authorization stops before analyzer provider work", async () => {
+  const store = parentStore();
+  addParent(store, newsPrimary(), PARENT_A, "2026-08-13T00:00:00.000Z", "parent-A");
+  const repository = createGenericMonitorChildRepository(store);
+  const child = identity(newsPrimary());
+  await repository.reserve(child);
+  let providerCalls = 0;
+  const result = await processGenericMonitorChildWithDependencies(child, {
+    repository,
+    authorizeBeforeProvider: async () => ({ authorized: false, reason: "persisted_lineage_mismatch" }),
+    buildAnalyzerInput: async () => ({}),
+    runAnalyzer: async () => { providerCalls += 1; return { stage: "complete", result: { status: "applicable" } }; },
+    persist: async () => ({ status: "saved", resultStatus: "applicable" }),
+  });
+  assert.equal(result.status, "failed");
+  assert.equal(result.providerCalls, 0);
+  assert.equal(providerCalls, 0);
 });
 
 test("running and terminal state contract records applicable/not-applicable success without duplicate output", async () => {

@@ -10,6 +10,10 @@ import {
   PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
   PERIODIC_FINANCIAL_MONITOR_CONTRACT_VERSION,
 } from "./periodicFinancialMonitor.ts";
+import type {
+  SecAmendmentLineageResolution,
+  SecFilingIdentity,
+} from "../sec-amendments/secAmendmentLineage.ts";
 
 export const GENERIC_MONITOR_CHILD_SCHEMA_VERSION = "generic_monitor_child_execution_v1";
 export const GENERIC_MONITOR_CHILD_PURPOSE = "domain_monitor_child";
@@ -46,6 +50,7 @@ export type GenericMonitorSourceFamily = keyof typeof GENERIC_MONITOR_PRIMARY_PR
 
 export type GenericMonitorPrimaryExecutionContext = {
   eventId: string;
+  alertEventId?: string;
   rawItemId: string;
   sourceFamily: GenericMonitorSourceFamily;
   sourceGroup: "news" | "filings";
@@ -54,13 +59,19 @@ export type GenericMonitorPrimaryExecutionContext = {
   parentPrimaryAiRunId: string;
   parentPromptKey: string;
   parentPromptVersion: string;
+  secAmendmentLineage?: {
+    operation: "REPLACE" | "SUPPLEMENT";
+    observation: Extract<SecAmendmentLineageResolution, { status: "linked" }>;
+    root: SecFilingIdentity;
+  };
 };
 
 export type GenericMonitorChildAttempt =
   | { kind: "automatic"; key: typeof GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY }
   | { kind: "retry"; key: string };
 
-export type GenericMonitorChildIdentity = GenericMonitorPrimaryExecutionContext & {
+export type GenericMonitorChildIdentity = Omit<GenericMonitorPrimaryExecutionContext, "alertEventId"> & {
+  alertEventId: string;
   schemaVersion: typeof GENERIC_MONITOR_CHILD_SCHEMA_VERSION;
   purpose: typeof GENERIC_MONITOR_CHILD_PURPOSE;
   jobId: string;
@@ -194,10 +205,14 @@ export function deterministicGenericMonitorLogicalJobId(input: GenericMonitorPri
   monitorAnalyzerKey: GenericMonitorAnalyzerKey;
   analyzerContractVersion: string;
 }) {
+  const amendmentIdentity = input.secAmendmentLineage
+    ? [input.alertEventId || input.eventId, input.secAmendmentLineage.observation.observationKey]
+    : [];
   return deterministicUuid([
     GENERIC_MONITOR_CHILD_PURPOSE,
     "logical",
     input.eventId,
+    ...amendmentIdentity,
     input.rawItemId,
     input.sourceFamily,
     input.sourceGroup,
@@ -260,17 +275,36 @@ export function databaseStatusForGenericMonitorState(state: GenericMonitorChildE
 
 function normalizePrimaryContext(
   primary: GenericMonitorPrimaryExecutionContext,
-): GenericMonitorPrimaryExecutionContext {
+): Omit<GenericMonitorPrimaryExecutionContext, "alertEventId"> & { alertEventId: string } {
   return {
     ...primary,
     eventId: normalizeUuid(primary.eventId, "event id"),
+    alertEventId: normalizeUuid(primary.alertEventId || primary.eventId, "alert event id"),
     rawItemId: normalizeUuid(primary.rawItemId, "raw item id"),
     sourceCode: normalizeIdentityText(primary.sourceCode, "source code"),
     sourceIdentity: normalizeIdentityText(primary.sourceIdentity, "source identity"),
     parentPrimaryAiRunId: normalizeUuid(primary.parentPrimaryAiRunId, "parent Primary ai run id"),
     parentPromptKey: normalizeIdentityText(primary.parentPromptKey, "parent prompt key"),
     parentPromptVersion: normalizeIdentityText(primary.parentPromptVersion, "parent prompt version"),
+    ...(primary.secAmendmentLineage
+      ? { secAmendmentLineage: normalizeAmendmentLineage(primary) }
+      : {}),
   };
+}
+
+function normalizeAmendmentLineage(primary: GenericMonitorPrimaryExecutionContext) {
+  const context = primary.secAmendmentLineage!;
+  if (
+    !["REPLACE", "SUPPLEMENT"].includes(context.operation)
+    || context.observation.status !== "linked"
+    || context.observation.operation !== context.operation
+    || context.observation.amendment.rawItemId !== primary.rawItemId
+    || context.root.rawItemId !== context.observation.prior.rawItemId
+    || primary.alertEventId === primary.eventId
+  ) {
+    throw new Error("Generic Monitor SEC amendment lineage is invalid");
+  }
+  return structuredClone(context);
 }
 
 function normalizeAttempt(value: GenericMonitorChildAttempt | undefined): GenericMonitorChildAttempt {

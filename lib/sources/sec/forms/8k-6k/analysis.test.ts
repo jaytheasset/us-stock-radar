@@ -125,9 +125,12 @@ const analysisUserPayload = JSON.parse(prompt.user) as Record<string, any>;
 
 assert.equal(prompt.key, SEC_8K_6K_ANALYSIS_PROMPT_KEY);
 assert.equal(prompt.version, SEC_8K_6K_ANALYSIS_PROMPT_VERSION);
-assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v49-live-stock-split-effective-date");
+assert.equal(SEC_8K_6K_ANALYSIS_PROMPT_VERSION, "v50-risk-status-dual-monitor-routing");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "listing_risk" }), "risk_status");
 assert.equal(resolveSec8k6kAnalysisPromptFamily({ event_type: "financial_risk" }), "risk_status");
+assert.match(sec8k6kListingFinancialRiskPrompt, /keep listing_risk as primary when appropriate and also include exactly one corporate_action route/i);
+assert.match(sec8k6kListingFinancialRiskPrompt, /current explicit stock split used to cure a listing issue requires both listing_risk and corporate_action/i);
+assert.match(sec8k6kListingFinancialRiskPrompt, /historical split background alone does not/i);
 assert.equal(
   resolveSec8k6kAnalysisPromptFamily({
     route_case: "debt_or_credit_financing",
