@@ -4,9 +4,9 @@
 >
 > If this document and the implementation disagree, audit the current code, migrations, and tests before deciding which is correct. When an architecture change is approved, update the code and this document in the same change.
 
-## Intended component architecture
+## Current product runtime
 
-The intended external mental model is:
+The active automatic flow is:
 
 ```text
 SEC Filing
@@ -15,59 +15,70 @@ Stage 1 — Primary Analysis (+ optional bounded Repair)
    ↓
 Publish Analysis / Existing Score Alert
    ↓
-Async Stage 2 — Offering Monitor Normalizer
+Enqueue durable Offering child
    ↓
-Validated Monitor Facts
+Deterministic Offering O/S sidecar
    ↓
-Canonical Offering Monitor State
-   ↓
-Offering Matcher
+Terminal Offering execution row
 ```
 
-This is the intended, implemented, and production-wired V1 component architecture. The asynchronous Offering child remains isolated from Primary publication and existing alert delivery.
+The legacy Gemini Stage 2 normalizer, `event_offering_monitor_canonical`
+promotion/read, and its empty-condition Matcher caller are retained for source,
+schema, migration, test, history, and historical-data inspection, but are not
+invoked by product runtime. The separate Registry-backed Offering
+facts/conditions/Matcher/internal Alert path is unchanged and does not depend on
+legacy Stage 2 canonical state.
 
 ## Production Execution Status
 
 ```text
-Analysis → Second-stage candidate = WIRED
+Analysis → durable Offering enqueue = WIRED
 
-Candidate → Canonical promotion = WIRED
+Offering child → deterministic O/S sidecar = WIRED
 
-Canonical → Matcher = WIRED
+Gemini Stage 2 provider execution = DISABLED
+
+Legacy candidate → canonical promotion/read = DISABLED
+
+Legacy canonical → empty-condition Matcher = DISABLED
 ```
 
 ### Automatically wired
 
-`workflows/source-ingest.ts` and the SEC analyze route enqueue `offeringMonitorNormalizationWorkflow` after a completed Primary. That workflow runs `processOfferingMonitorSecondStageJob()` and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`. A second single-attempt durable step then runs `processOfferingMonitorProductionWiring()` for successfully validated applicable candidates only.
+`workflows/source-ingest.ts` and the SEC analyze route still enqueue
+`offeringMonitorNormalizationWorkflow` after a completed eligible Primary. The
+workflow runs only the deterministic Offering O/S sidecar and then records a
+terminal execution state. Eligible and safely ineligible sidecar results finish
+`completed`; sidecar exceptions finish `failed`; stale exact-Primary lineage
+finishes `stale`. Terminal metadata records zero provider attempts and the
+disabled legacy wiring state.
 
-Before Stage 2, the same workflow independently runs the deterministic Offering
-O/S processor for eligible S-1/S-3/F-3/424B forms. It reads the complete exact
+The deterministic Offering O/S processor runs for eligible S-1/S-3/F-3/424B
+forms. It reads the complete exact
 stored primary SEC document and may append one source-stated observation to
 `share_count_history`. It makes no LLM call. Its failure or ineligibility is
-reported separately and never disables or changes Stage 2.
+reported explicitly and never fabricates an O/S value.
 
 ```text
 Primary Analysis
    ↓
-Async Stage 2 Offering Monitor execution
+Durable Offering execution
    ↓
-Validated Second-stage candidate
+Deterministic O/S sidecar
    ↓
-Atomic canonical promotion
-   ↓
-Official canonical reader
-   ↓
-Existing deterministic Offering Matcher
+completed / failed / stale
 ```
 
-`processOfferingMonitorProductionWiring()` reuses `promoteOfferingMonitorCanonical()`, then requires an `available` official `readOfferingMonitorCanonical()` result with the same event, raw item, exact Primary parent, and source execution before calling `evaluateOfferingMonitorEvent()`. It passes that one official read into the Matcher dependency, so the Matcher does not perform a second fact read. Invalid, not-applicable, stale, unavailable, or lineage-mismatched results never invoke the Matcher.
+`processOfferingMonitorSecondStageJob()` and
+`processOfferingMonitorProductionWiring()` remain inspectable legacy source,
+but `workflows/offering-monitor-normalization.ts` imports or calls neither. The
+product workflow therefore makes zero Stage 2 provider calls and zero legacy
+canonical promotion, canonical read, or empty-condition Matcher calls.
 
-The current automatic runtime is:
+The disabled legacy continuation was:
 
 ```text
-Stage 1 publish / score alert
-   ↓
-Async Stage 2 validated candidate
+Stage 2 validated candidate
    ↓
 Canonical Promotion
    ↓
@@ -76,7 +87,10 @@ Official canonical read
 Offering Matcher
 ```
 
-The candidate remains immutable execution evidence in `ai_outputs`; successful wiring updates the execution metadata so `diagnostic_candidate_only` and `canonical_persistence_changed` describe the real result. Durable workflow replay reuses cached step results, and same-execution re-entry recognizes already completed exact canonical lineage so it does not create a second Matcher execution. The canonical and Matcher boundaries remain the only approved continuation of the pipeline and must not be bypassed with a legacy fallback.
+Historical candidates remain immutable execution evidence in `ai_outputs`, and
+historical canonical rows remain available for inspection. New automatic
+Offering executions use the `offering_sidecar_only_v1` contract and create no
+Stage 2 candidate or canonical replacement.
 
 ## Stage responsibilities and timing
 
@@ -86,19 +100,31 @@ Primary Analysis plus its optional validation Repair is one stage. Repair is not
 
 The Repair call is validator-triggered, restricted to selected source blocks and enumerated patch paths, and run with `maxAttempts: 1` and fallback disabled. The S-1, S-3, and 424B repair planners and patch appliers remain form-specific.
 
-`runSecFilingAnalysisIngest()` persists the event and Primary AI trace, then runs the existing score-based alert delivery, and only then returns `primaryAiRunId`. The source-ingest workflow and analyze route enqueue Offering normalization after that completed result. Enqueue starts a durable child and does not await the child result. Stage 2 therefore never delays Stage 1 publication or the existing score alert. Enqueue or Stage 2 failure changes only the Monitor execution record; it does not rewrite or roll back the event, Primary analysis, score, signal, or alert.
+`runSecFilingAnalysisIngest()` persists the event and Primary AI trace, then runs
+the existing score-based alert delivery, and only then returns `primaryAiRunId`.
+The source-ingest workflow and analyze route enqueue Offering processing after
+that completed result. Enqueue starts a durable child and does not await the
+child result. Sidecar execution therefore never delays Stage 1 publication or
+the existing score alert, and its result does not rewrite or roll back the
+event, Primary analysis, score, signal, or alert.
 
-### Stage 2: Offering Monitor Normalizer
+### Legacy Stage 2: Offering Monitor Normalizer (runtime disabled)
 
-Stage 2 is a Monitor-specific semantic normalizer, not a second whole-filing analyst. It owns the small fact contract required by canonical persistence and deterministic Matcher evaluation. It does not produce or revise title, summary, quick take, score, signal, bullish/bearish narrative, or any other user-facing Primary field.
+The retained Stage 2 source describes a Monitor-specific semantic normalizer,
+not a second whole-filing analyst. It is no longer reachable from the product
+workflow and does not produce new automatic candidates or canonical state.
 
-Offering uses two stages because financing amount, primary/resale economics, immediate versus additional exposure, security relationships, and comparison compatibility form an interdependent semantic contract. Isolating that contract protects Primary latency and existing alerts while allowing Monitor validation to fail independently. This is an Offering-specific decision, not a universal Monitor rule. A simpler stable domain, including Ownership where its contract permits it, may remain one-stage.
+The retained two-stage design isolated financing semantics from Primary
+latency. That design remains documented for historical interpretation only; it
+does not describe the active automatic runtime.
 
-## Supported form families and independent Primary paths
+## Supported automatic enqueue and sidecar families
 
-Stage 2 eligibility requires a completed Primary result, an exact supported prompt key, a supported form, and an exact persisted `primaryAiRunId`.
+Automatic child eligibility requires a completed Primary result, an exact
+supported prompt key, a supported form, and an exact persisted
+`primaryAiRunId`.
 
-| Stage 2 family | Eligible forms in the identity guard | Required Primary prompt key | Primary preparation boundary |
+| Job family | Eligible forms in the identity guard | Required Primary prompt key | Primary preparation boundary |
 | --- | --- | --- | --- |
 | `s1` | `S-1`, `S-1/A` | `sec_s1_f1_analysis` | `secS1F1AnalysisAdapter.ts` and `s1-f1/sourceInput.ts` |
 | `s3` | `S-3`, `S-3/A`, `S-3ASR`, `S-3MEF`, `F-3`, `F-3/A`, `F-3ASR`, `F-3MEF` | `sec_s3_offering_analysis` | `secS3AnalysisAdapter.ts` and `prompts/secS3OfferingAnalysis.ts` |
@@ -106,9 +132,12 @@ Stage 2 eligibility requires a completed Primary result, an exact supported prom
 
 The SEC room registry explicitly enumerates `424B`, `424B1`, `424B2`, `424B3`, `424B4`, `424B5`, `424B7`, and `424B8`; the Monitor identity guard uses `^424B\d*(?:/A)?$` together with the exact prompt key.
 
-`F-1`, `F-1/A`, `S-1MEF`, `F-1MEF`, and `POS AM` share the broader S-1/F-1 Primary room but are not Stage 2 `s1` eligibility. `S-4`/`F-4`, `S-8`, 8-K/6-K financing analysis, and other forms are also excluded. The tests explicitly reject F-1, S-4, 8-K, near-match `S-3D`/`F-3D`, wrong-prompt, dry-run, and failed Primary results.
+`F-1`, `F-1/A`, `S-1MEF`, `F-1MEF`, and `POS AM` share the broader S-1/F-1 Primary room but are not automatic `s1` child eligibility. `S-4`/`F-4`, `S-8`, 8-K/6-K financing analysis, and other forms are also excluded. The tests explicitly reject F-1, S-4, 8-K, near-match `S-3D`/`F-3D`, wrong-prompt, dry-run, and failed Primary results.
 
-The common Monitor output contract does not merge the Primary paths. Each family keeps its own source preparation, prompt, validation, repair, and display semantics. In particular, F-3 uses the S-3/F-3 Primary path and can start Stage 2 even though the transitional one-pass Monitor payload is enabled only for S-3 forms.
+The common job identity does not merge the Primary paths. Each family keeps its
+own source preparation, prompt, validation, repair, and display semantics. F-3
+continues to use the S-3/F-3 Primary path and remains eligible for the
+deterministic sidecar.
 
 ## Parser and semantic ownership boundary
 
@@ -116,7 +145,7 @@ Parsers and source-preparation code prepare structure and evidence: current fili
 
 Parser output is not Offering semantic truth. The LLM owns primary/resale/mixed classification, transaction-amount meaning, immediate/additional exposure, security/right relationships, alternative versus simultaneous exposure, comparison meaning, quality, and bound. Parser labels, security names, form names, or sample accessions must not be deterministic substitutes for those judgments.
 
-## Stage 2 input and direct provider transport
+## Retained legacy Stage 2 input and direct provider transport
 
 `buildOfferingMonitorSecondStagePackage()` constructs `offering_monitor_second_stage_input_v1` from:
 
@@ -130,7 +159,10 @@ Primary context is semantic context only. It is scrubbed of Primary `offering_mo
 
 The selected package is bounded to 28 blocks and 100,000 source-text characters and must use less than 90% of the Primary source-text budget. The workflow fails before Gemini when the package is not meaningfully reduced.
 
-Stage 2 calls Gemini once through `runStructuredGeminiJson()` with the direct `offeringMonitorSecondStageProviderSchema`. It no longer transports `offering_monitor_payload: "JSON string inside JSON"`. The response is one direct object with these root fields:
+When invoked only by isolated legacy tests or explicit tooling, the retained
+Stage 2 implementation calls Gemini through `runStructuredGeminiJson()` with
+the direct `offeringMonitorSecondStageProviderSchema`. Product runtime does not
+invoke this code. The retained response contract has these root fields:
 
 - required: `version`, `applicability`, `financing_stage`, `primary_or_resale`, `security_nature`, `available_monetary_facts`, `available_share_facts`, `unavailable_fact_keys`;
 - optional when known: `has_warrant`, `has_prefunded_warrant`, `has_convertible`.
@@ -202,7 +234,14 @@ Fact validity and exact citation quality are distinct. A fact with a valid value
 
 ## Execution identity, history, and exact lineage
 
-Logical Monitor work means normalization for one exact `(event_id, raw_item_id, parent_primary_ai_run_id)` tuple. `deterministicLogicalJobId()` hashes that identity. An execution is one attempt of that logical work under a specific execution contract and attempt key. `deterministicExecutionId()` adds `execution_contract_version` and `execution_attempt_key`; the current automatic contract is `second_stage_direct_v8` and the default attempt key is `automatic`.
+Logical Offering child work is scoped to one exact
+`(event_id, raw_item_id, parent_primary_ai_run_id)` tuple.
+`deterministicLogicalJobId()` hashes that identity. An execution is one attempt
+of that logical work under a specific execution contract and attempt key.
+`deterministicExecutionId()` adds `execution_contract_version` and
+`execution_attempt_key`; the current automatic contract is
+`offering_sidecar_only_v1` and the default attempt key is `automatic`. Legacy
+Stage 2 executions retain their older contract versions in history.
 
 Changing the approved attempt key or contract version creates a new execution ID while retaining the same logical ID and exact Primary parent. A failed execution and a later approved execution therefore have independent lifecycle records rather than overwriting each other.
 
@@ -273,7 +312,10 @@ These are historical execution/audit stores. A Matcher must never scan them to i
 
 ## Offering Matcher V1
 
-`evaluateOfferingMonitorEvent()` reads canonical state exactly once per event and evaluates any number of condition sets. `evaluateOfferingMonitorConditions()` is pure, deterministic, and side-effect free. It produces `match`, `no_match`, or `ineligible`.
+`evaluateOfferingMonitorEvent()` is the retained legacy canonical reader caller
+and is not product-wired. `evaluateOfferingMonitorConditions()` remains the
+pure, deterministic, side-effect-free evaluator used by the Registry-backed
+Offering path. It produces `match`, `no_match`, or `ineligible`.
 
 | Condition key | Type | Operators | Canonical source |
 | --- | --- | --- | --- |
@@ -299,9 +341,16 @@ Percentage conditions such as dilution percent and float overhang percent are in
 
 ## Alerts and product boundary
 
-The existing alert is the Stock Radar score alert: event `delivery_level` is derived from Primary score (`75+` is `alert`) and delivery is attempted before Stage 2 enqueue. A future Monitor alert would be triggered by user condition matches. Both could legitimately occur for the same event and user; current architecture provides no automatic deduplication rule between them.
+The existing Stock Radar score alert remains derived from Primary score (`75+`
+is `alert`) and delivery is attempted before Offering child enqueue. Separately,
+the Registry-backed Offering consumer can evaluate stored user conditions and
+create an internal queued Alert with exact Registry lineage.
 
-Monitor alert delivery, natural-language Monitor creation, and Monitor creation UI are not implemented. Production invokes the existing Offering Matcher after a successful official canonical read. The current production condition-set collection is empty because Offering Monitor persistence/UI is intentionally still absent, so this wiring creates no alerts or per-user work.
+The Registry-backed consumer calls `evaluateOfferingMonitorConditions()`
+directly with exact-event Registry facts. It does not call
+`readOfferingMonitorCanonical()`, scan historical `ai_outputs`, or use the
+legacy empty condition collection. External email/Telegram delivery remains a
+separate boundary.
 
 ## Current Completion Boundary
 
@@ -310,7 +359,8 @@ Monitor alert delivery, natural-language Monitor creation, and Monitor creation 
 - form-specific Stage 1 analysis, optional bounded Repair, persistence, and existing score alert;
 - independent deterministic Offering O/S extraction with exact raw-document
   lineage and zero provider calls;
-- durable asynchronous Stage 2 identity, exact lineage checks, source reduction, direct Gemini object, and strict diagnostic candidate validation;
+- retained legacy Stage 2 source, tests, execution history, canonical table,
+  RPCs, and migrations for inspection without product-runtime invocation;
 - execution history and logical-work/execution identity separation;
 - five-fact canonical contract and deterministic total materialization;
 - canonical table, atomic promotion helper/RPC, fail-closed reader, RLS/function security, stale protection, idempotency, and completed real multi-session concurrency acceptance;
@@ -319,22 +369,29 @@ Monitor alert delivery, natural-language Monitor creation, and Monitor creation 
 ### Production-wired flow
 
 ```text
-Analysis → Second-stage candidate → Canonical promotion → Official reader → Offering Matcher
+Analysis → Offering enqueue → deterministic O/S sidecar → terminal execution row
 ```
 
 ### Not yet implemented or connected
 
-- Monitor alert delivery and any score-alert/Monitor-alert deduplication policy;
 - natural-language Monitor creation and Monitor creation UI;
 - removal of the transitional Primary one-pass Monitor contract;
 - separately validated exact semantic citation and any provenance UI;
 - percentage Matcher conditions without the required market denominator/as-of contract.
 
+The legacy Gemini Stage 2 candidate, canonical promotion/read, and
+empty-condition Matcher continuation are intentionally disabled rather than
+listed as future product wiring. The Registry-backed Offering adapter and
+internal Alert consumer are a separate current path.
+
 The permanent repository-tracked multi-session concurrency regression harness is also not preserved, although the disposable independent-session acceptance itself completed successfully.
 
-## Next Production Integration
+## Future changes
 
-Only after separate approval, add Offering Monitor persistence/UI and connect Monitor Alert delivery. This document does not authorize bypassing the canonical reader, adding fallbacks, or coupling Monitor Alert delivery directly to diagnostic candidates.
+Any re-enablement of legacy Stage 2 or its canonical/Matcher continuation
+requires separate approval. Future Offering Monitor work must preserve the
+Registry-backed fact authority and must not treat historical legacy canonical
+rows as current product truth.
 
 ## Do Not Reintroduce
 
@@ -352,7 +409,8 @@ Only after separate approval, add Offering Monitor persistence/UI and connect Mo
 
 1. Stage 2 never delays Stage 1 publication or the existing score alert.
 2. Stage 2 never rewrites Primary user-facing analysis, score, or signal.
-3. The canonical reader is the Matcher’s only Offering truth.
+3. The legacy canonical reader is not product Offering truth; the current
+   Offering product path is Registry-backed.
 4. Exact `parent_primary_ai_run_id` lineage is mandatory; latest Primary lookup is only a stale guard.
 5. Old-parent canonical facts are not Matcher eligible.
 6. Parser/source preparation never owns Offering semantics.
@@ -361,7 +419,7 @@ Only after separate approval, add Offering Monitor persistence/UI and connect Mo
 9. Allowed-source membership is strict, while exact citation quality remains separate from fact usability.
 10. Offering’s two-stage design does not require other Monitor domains to be two-stage.
 11. Execution history and canonical current state remain separate.
-12. Only a successfully promoted, still-current official canonical read can reach the production Matcher caller.
+12. Product runtime does not call the legacy canonical Matcher caller.
 13. Matcher invocation alone does not imply Alert, UI, Preset, or Monitor-persistence functionality.
 
 ## Implementation cross-check anchors
@@ -371,7 +429,18 @@ The architecture above was cross-checked against these current entry points rath
 - Stage 1 and timing: `lib/ai/secFilingAnalysisPreview.ts`, `lib/secFilingAnalysisIngest.ts`, `workflows/source-ingest.ts`.
 - Form boundaries: `lib/ai/secS1F1AnalysisAdapter.ts`, `lib/ai/secS3AnalysisAdapter.ts`, `lib/ai/sec424bAnalysisAdapter.ts`, `lib/sources/sec/forms/common/forms.ts`.
 - deterministic Offering O/S: `lib/sec-structured-data/offeringShareCountSidecar.ts`, `lib/sec-structured-data/offeringShareCountSidecarRuntime.ts`.
-- Stage 2 and production wiring: `lib/offeringMonitorJobFoundation.ts`, `lib/offeringMonitorJobRepository.ts`, `lib/offeringMonitorSecondStage.ts`, `lib/offeringMonitorSecondStageRuntime.ts`, `lib/offeringMonitorProductionWiring.ts`, `workflows/offering-monitor-normalization.ts`.
+- Sidecar-only product workflow and terminal state:
+  `lib/offeringMonitorJobFoundation.ts`, `lib/offeringMonitorJobRepository.ts`,
+  `workflows/offering-monitor-normalization.ts`.
+- Retained legacy Stage 2 and production wiring source:
+  `lib/offeringMonitorSecondStage.ts`,
+  `lib/offeringMonitorSecondStageRuntime.ts`,
+  `lib/offeringMonitorProductionWiring.ts`.
+- Registry-backed Offering facts, conditions, Matcher, and internal Alert:
+  `lib/monitor/registryBackedOfferingFacts.ts`,
+  `lib/monitor/offeringMonitorPersistence.ts`,
+  `lib/offeringMonitorMatcher.ts`, and
+  `lib/monitor/offeringMonitorAlertConsumer.ts`.
 - Facts and materialization: `lib/minimalOfferingMonitor.ts`.
 - Canonical boundary: `lib/offeringMonitorCanonicalPersistence.ts`, `supabase/migrations/20260812111402_offering_monitor_canonical_persistence.sql`.
 - Matcher and Registry: `lib/offeringMonitorMatcher.ts`, `lib/monitor/conditionRegistry.ts`.

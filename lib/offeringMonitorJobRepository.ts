@@ -3,6 +3,7 @@ import {
   OFFERING_MONITOR_JOB_VERSION,
   type OfferingMonitorJobIdentity,
   type OfferingMonitorParentAuthority,
+  type OfferingMonitorSidecarOutcome,
 } from "@/lib/offeringMonitorJobFoundation";
 import { supabaseSelect, supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
 
@@ -41,7 +42,11 @@ export async function attachOfferingMonitorWorkflowRun(
 ) {
   const result = await supabaseUpdate(
     "ai_runs",
-    { id: `eq.${identity.jobId}`, prompt_key: `eq.${OFFERING_MONITOR_JOB_PROMPT_KEY}` },
+    {
+      id: `eq.${identity.jobId}`,
+      prompt_key: `eq.${OFFERING_MONITOR_JOB_PROMPT_KEY}`,
+      status: "in.(pending,running)",
+    },
     { metadata: jobMetadata(identity, workflowRunId) },
   );
   if (!result.ok) throw new Error(`Offering Monitor workflow run linkage failed: ${result.error || result.status}`);
@@ -109,6 +114,27 @@ export async function markOfferingMonitorJobStale(jobId: string) {
   await updateTerminalStatus(jobId, "stale");
 }
 
+export async function completeOfferingMonitorJobAfterSidecar(
+  identity: OfferingMonitorJobIdentity,
+  sidecar: OfferingMonitorSidecarOutcome,
+) {
+  await updateSidecarOnlyTerminalStatus(identity, sidecar, "completed");
+}
+
+export async function failOfferingMonitorJobAfterSidecar(
+  identity: OfferingMonitorJobIdentity,
+  sidecar: OfferingMonitorSidecarOutcome,
+) {
+  await updateSidecarOnlyTerminalStatus(identity, sidecar, "failed");
+}
+
+export async function markOfferingMonitorJobStaleAfterSidecar(
+  identity: OfferingMonitorJobIdentity,
+  sidecar: OfferingMonitorSidecarOutcome,
+) {
+  await updateSidecarOnlyTerminalStatus(identity, sidecar, "stale");
+}
+
 async function updateTerminalStatus(jobId: string, status: "completed" | "stale") {
   const result = await supabaseUpdate(
     "ai_runs",
@@ -120,6 +146,67 @@ async function updateTerminalStatus(jobId: string, status: "completed" | "stale"
     },
   );
   if (!result.ok) throw new Error(`Offering Monitor ${status} status update failed: ${result.error || result.status}`);
+}
+
+async function updateSidecarOnlyTerminalStatus(
+  identity: OfferingMonitorJobIdentity,
+  sidecar: OfferingMonitorSidecarOutcome,
+  status: "completed" | "failed" | "stale",
+) {
+  const existing = await supabaseSelect("ai_runs", {
+    select: "id,metadata",
+    id: `eq.${identity.jobId}`,
+    prompt_key: `eq.${OFFERING_MONITOR_JOB_PROMPT_KEY}`,
+    limit: "1",
+  });
+  if (!existing.ok) {
+    throw new Error(`Offering sidecar terminal metadata read failed: ${existing.error || existing.status}`);
+  }
+  const rows = Array.isArray(existing.data) ? existing.data : [];
+  const row = readRecord(rows[0]);
+  if (!row || stringValue(row.id) !== identity.jobId) {
+    throw new Error("Offering sidecar terminal job is missing");
+  }
+  const metadata = readRecord(row.metadata) || {};
+  const error = status === "failed"
+    ? stringValue(sidecar.error) || "Offering deterministic O/S sidecar failed"
+    : null;
+  const result = await supabaseUpdate(
+    "ai_runs",
+    { id: `eq.${identity.jobId}`, prompt_key: `eq.${OFFERING_MONITOR_JOB_PROMPT_KEY}` },
+    {
+      prompt_version: identity.executionContractVersion,
+      model: "not_used",
+      status,
+      finished_at: new Date().toISOString(),
+      usage: {},
+      error_message: error,
+      metadata: {
+        ...metadata,
+        phase: status === "completed"
+          ? "sidecar_only_completed"
+          : status === "failed"
+            ? "sidecar_only_failed"
+            : "sidecar_only_stale",
+        sidecar_status: sidecar.status,
+        sidecar_reason: sidecar.reason || null,
+        sidecar_inserted: sidecar.inserted ?? null,
+        sidecar_deduped: sidecar.deduped ?? null,
+        stage_2_provider_enabled: false,
+        provider_attempts: 0,
+        legacy_canonical_wiring_enabled: false,
+        legacy_empty_condition_matcher_enabled: false,
+        diagnostic_candidate_saved: false,
+        canonical_persistence_changed: false,
+      },
+    },
+  );
+  if (!result.ok) {
+    throw new Error(`Offering sidecar ${status} status update failed: ${result.error || result.status}`);
+  }
+  if (!Array.isArray(result.data) || !result.data.length) {
+    throw new Error("Offering sidecar terminal status update lost job authority");
+  }
 }
 
 function jobMetadata(identity: OfferingMonitorJobIdentity, workflowRunId: string | null) {
@@ -138,7 +225,7 @@ function jobMetadata(identity: OfferingMonitorJobIdentity, workflowRunId: string
     form_family: identity.family,
     enqueued_at: identity.enqueuedAt,
     workflow_run_id: workflowRunId,
-    phase: "second_stage_pending",
+    phase: "sidecar_only_pending",
   };
 }
 

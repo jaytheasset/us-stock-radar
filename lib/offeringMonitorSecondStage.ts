@@ -10,10 +10,9 @@ import type {
   OfferingMonitorJobIdentity,
   OfferingMonitorParentAuthority,
 } from "./offeringMonitorJobFoundation.ts";
-import { OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION } from "./offeringMonitorJobFoundation.ts";
 
 export const OFFERING_MONITOR_SECOND_STAGE_PROMPT_KEY = "offering_monitor_normalization_job";
-export const OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION = OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION;
+export const OFFERING_MONITOR_SECOND_STAGE_PROMPT_VERSION = "second_stage_direct_v8";
 export const OFFERING_MONITOR_SECOND_STAGE_OUTPUT_TYPE = "offering_monitor_normalization_candidate";
 
 const MAX_EVIDENCE_BLOCKS = 28;

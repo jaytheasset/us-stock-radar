@@ -3,7 +3,7 @@ import { SEC_S3_F3_FORMS } from "./sources/sec/forms/common/forms.ts";
 
 export const OFFERING_MONITOR_JOB_PURPOSE = "offering_monitor_normalization";
 export const OFFERING_MONITOR_JOB_PROMPT_KEY = "offering_monitor_normalization_job";
-export const OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION = "second_stage_direct_v8";
+export const OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION = "offering_sidecar_only_v1";
 export const OFFERING_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
 export const OFFERING_MONITOR_JOB_VERSION = OFFERING_MONITOR_EXECUTION_CONTRACT_VERSION;
 
@@ -52,6 +52,43 @@ export type OfferingMonitorFoundationResult = {
   jobId: string;
   parentPrimaryAiRunId: string;
   latestPrimaryAiRunId: string | null;
+};
+
+export type OfferingMonitorSidecarOutcome = {
+  status: "completed" | "ineligible" | "stale" | "failed";
+  providerCalled: false;
+  error?: string;
+  reason?: string;
+  latestPrimaryAiRunId?: string | null;
+  sharesOutstanding?: string;
+  asOf?: string;
+  inserted?: number;
+  deduped?: number;
+};
+
+export type OfferingMonitorSidecarTerminalRepository = {
+  readParentAuthority(identity: OfferingMonitorJobIdentity): Promise<OfferingMonitorParentAuthority>;
+  completeAfterSidecar(
+    identity: OfferingMonitorJobIdentity,
+    sidecar: OfferingMonitorSidecarOutcome,
+  ): Promise<void>;
+  failAfterSidecar(
+    identity: OfferingMonitorJobIdentity,
+    sidecar: OfferingMonitorSidecarOutcome,
+  ): Promise<void>;
+  markStaleAfterSidecar(
+    identity: OfferingMonitorJobIdentity,
+    sidecar: OfferingMonitorSidecarOutcome,
+  ): Promise<void>;
+};
+
+export type OfferingMonitorSidecarTerminalResult = {
+  status: "completed" | "failed" | "stale";
+  jobId: string;
+  parentPrimaryAiRunId: string;
+  latestPrimaryAiRunId: string | null;
+  sidecarStatus: OfferingMonitorSidecarOutcome["status"];
+  providerCalled: false;
 };
 
 export type OfferingMonitorEnqueueResult =
@@ -216,6 +253,47 @@ export async function processOfferingMonitorFoundationJob(
     jobId: identity.jobId,
     parentPrimaryAiRunId: identity.parentPrimaryAiRunId,
     latestPrimaryAiRunId: authority.latestPrimaryAiRunId,
+  };
+}
+
+export async function finalizeOfferingMonitorSidecarOnlyJob(
+  identity: OfferingMonitorJobIdentity,
+  sidecar: OfferingMonitorSidecarOutcome,
+  repository: OfferingMonitorSidecarTerminalRepository,
+): Promise<OfferingMonitorSidecarTerminalResult> {
+  if (sidecar.status === "failed") {
+    await repository.failAfterSidecar(identity, sidecar);
+    return {
+      status: "failed",
+      jobId: identity.jobId,
+      parentPrimaryAiRunId: identity.parentPrimaryAiRunId,
+      latestPrimaryAiRunId: null,
+      sidecarStatus: sidecar.status,
+      providerCalled: false,
+    };
+  }
+
+  const authority = await repository.readParentAuthority(identity);
+  if (authority.status !== "current" || sidecar.status === "stale") {
+    await repository.markStaleAfterSidecar(identity, sidecar);
+    return {
+      status: "stale",
+      jobId: identity.jobId,
+      parentPrimaryAiRunId: identity.parentPrimaryAiRunId,
+      latestPrimaryAiRunId: authority.latestPrimaryAiRunId,
+      sidecarStatus: sidecar.status,
+      providerCalled: false,
+    };
+  }
+
+  await repository.completeAfterSidecar(identity, sidecar);
+  return {
+    status: "completed",
+    jobId: identity.jobId,
+    parentPrimaryAiRunId: identity.parentPrimaryAiRunId,
+    latestPrimaryAiRunId: authority.latestPrimaryAiRunId,
+    sidecarStatus: sidecar.status,
+    providerCalled: false,
   };
 }
 

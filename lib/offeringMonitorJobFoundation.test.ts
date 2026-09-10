@@ -8,6 +8,7 @@ import {
   deterministicExecutionId,
   deterministicJobId,
   enqueueOfferingMonitorJobWithDependencies,
+  finalizeOfferingMonitorSidecarOnlyJob,
   processOfferingMonitorFoundationJob,
   type OfferingMonitorJobIdentity,
   type OfferingMonitorParentAuthority,
@@ -230,6 +231,85 @@ test("current parent is eligible and completes only the Monitor foundation row",
   assert.deepEqual(calls, ["authority", "claim", "complete"]);
 });
 
+test("sidecar-only completion terminates the execution without any provider or legacy wiring dependency", async () => {
+  const identity = requiredIdentity(RUN_A);
+  const calls: string[] = [];
+  const result = await finalizeOfferingMonitorSidecarOnlyJob(identity, {
+    status: "completed",
+    sharesOutstanding: "1234567",
+    asOf: "2026-08-11",
+    inserted: 1,
+    deduped: 0,
+    providerCalled: false,
+  }, sidecarTerminalRepository({
+    authority: { status: "current", latestPrimaryAiRunId: RUN_A },
+    calls,
+  }));
+  assert.deepEqual(calls, ["authority", "complete:completed"]);
+  assert.deepEqual(result, {
+    status: "completed",
+    jobId: identity.jobId,
+    parentPrimaryAiRunId: RUN_A,
+    latestPrimaryAiRunId: RUN_A,
+    sidecarStatus: "completed",
+    providerCalled: false,
+  });
+});
+
+test("sidecar ineligibility is a clear completed terminal result and fabricates no value", async () => {
+  const identity = requiredIdentity(RUN_A);
+  const calls: string[] = [];
+  const sidecar = {
+    status: "ineligible" as const,
+    reason: "CURRENT_OS_NOT_EXPLICIT",
+    providerCalled: false as const,
+  };
+  const result = await finalizeOfferingMonitorSidecarOnlyJob(identity, sidecar, sidecarTerminalRepository({
+    authority: { status: "current", latestPrimaryAiRunId: RUN_A },
+    calls,
+  }));
+  assert.equal(result.status, "completed");
+  assert.equal(result.sidecarStatus, "ineligible");
+  assert.equal("sharesOutstanding" in sidecar, false);
+  assert.deepEqual(calls, ["authority", "complete:ineligible"]);
+});
+
+test("sidecar failure stays explicit and terminates the execution as failed", async () => {
+  const identity = requiredIdentity(RUN_A);
+  const calls: string[] = [];
+  const result = await finalizeOfferingMonitorSidecarOnlyJob(identity, {
+    status: "failed",
+    error: "exact raw item unavailable",
+    providerCalled: false,
+  }, sidecarTerminalRepository({
+    authority: { status: "current", latestPrimaryAiRunId: RUN_A },
+    calls,
+  }));
+  assert.equal(result.status, "failed");
+  assert.equal(result.providerCalled, false);
+  assert.equal(result.latestPrimaryAiRunId, null);
+  assert.deepEqual(calls, ["fail:exact raw item unavailable"]);
+});
+
+test("stale authority wins after sidecar processing and terminates the execution as stale", async () => {
+  const identity = requiredIdentity(RUN_A);
+  const calls: string[] = [];
+  const result = await finalizeOfferingMonitorSidecarOnlyJob(identity, {
+    status: "completed",
+    sharesOutstanding: "1234567",
+    asOf: "2026-08-11",
+    inserted: 1,
+    deduped: 0,
+    providerCalled: false,
+  }, sidecarTerminalRepository({
+    authority: { status: "stale", latestPrimaryAiRunId: RUN_B },
+    calls,
+  }));
+  assert.equal(result.status, "stale");
+  assert.equal(result.latestPrimaryAiRunId, RUN_B);
+  assert.deepEqual(calls, ["authority", "stale:completed"]);
+});
+
 test("Primary B makes queued Monitor A stale before processing", async () => {
   const identity = requiredIdentity(RUN_A);
   const calls: string[] = [];
@@ -311,7 +391,7 @@ test("source ordering keeps persistence and score alert ahead of both async hook
   assert.ok(route.indexOf("await runSecFilingAnalysisIngest") < route.indexOf("await enqueueOfferingMonitorAfterPrimary"));
 });
 
-test("foundation uses a durable single-attempt child and does not await child returnValue or touch delivery prerequisites", () => {
+test("foundation keeps the durable child but product runtime is sidecar-only with no Stage 2 or legacy canonical Matcher wiring", () => {
   const starter = source("lib/offeringMonitorJobStarter.ts");
   const child = source("workflows/offering-monitor-normalization.ts");
   const repositorySource = source("lib/offeringMonitorJobRepository.ts");
@@ -319,8 +399,14 @@ test("foundation uses a durable single-attempt child and does not await child re
   assert.match(starter, /startWorkflow\(\s*offeringMonitorNormalizationWorkflow/);
   assert.doesNotMatch(starter, /returnValue/);
   assert.match(child, /"use workflow"/);
-  assert.match(child, /runOfferingMonitorSecondStageStep\.maxRetries = 0/);
-  assert.match(child, /processOfferingMonitorSecondStageJob/);
+  assert.match(child, /processOfferingShareCountSidecar/);
+  assert.match(child, /finalizeOfferingMonitorSidecarOnlyJob/);
+  assert.doesNotMatch(child, /processOfferingMonitorSecondStageJob/);
+  assert.doesNotMatch(child, /offeringMonitorSecondStageRuntimeDependencies/);
+  assert.doesNotMatch(child, /processOfferingMonitorProductionWiring/);
+  assert.doesNotMatch(child, /promoteOfferingMonitorCanonical/);
+  assert.doesNotMatch(child, /readOfferingMonitorCanonical/);
+  assert.doesNotMatch(child, /evaluateOfferingMonitorEvent/);
   assert.match(repositorySource, /resolution=ignore-duplicates/);
   assert.match(repositorySource, /parent_primary_ai_run_id/);
   assert.match(repositorySource, /logical_job_id/);
@@ -330,7 +416,11 @@ test("foundation uses a durable single-attempt child and does not await child re
   assert.match(repositorySource, /prompt_version: identity\.executionContractVersion/);
   assert.match(repositorySource, /workflow_run_id: workflowRunId/);
   assert.match(repositorySource, /metadata->>phase/);
-  assert.doesNotMatch(repositorySource, /status: "in\.\(pending,running\)"/);
+  assert.match(repositorySource, /stage_2_provider_enabled: false/);
+  assert.match(repositorySource, /provider_attempts: 0/);
+  assert.match(repositorySource, /legacy_canonical_wiring_enabled: false/);
+  assert.match(repositorySource, /legacy_empty_condition_matcher_enabled: false/);
+  assert.match(repositorySource, /status: "in\.\(pending,running\)"/);
   assert.doesNotMatch(child, /getStepMetadata|stepId/);
   assert.doesNotMatch(delivery, /offeringMonitor|monitorFoundation|parent_primary_ai_run_id/);
 });
@@ -386,6 +476,27 @@ function repository(options: {
     },
     markStale: async () => {
       options.calls.push("stale");
+    },
+  };
+}
+
+function sidecarTerminalRepository(options: {
+  authority: OfferingMonitorParentAuthority;
+  calls: string[];
+}) {
+  return {
+    readParentAuthority: async () => {
+      options.calls.push("authority");
+      return options.authority;
+    },
+    completeAfterSidecar: async (_identity: OfferingMonitorJobIdentity, sidecar: { status: string }) => {
+      options.calls.push(`complete:${sidecar.status}`);
+    },
+    failAfterSidecar: async (_identity: OfferingMonitorJobIdentity, sidecar: { error?: string }) => {
+      options.calls.push(`fail:${sidecar.error || ""}`);
+    },
+    markStaleAfterSidecar: async (_identity: OfferingMonitorJobIdentity, sidecar: { status: string }) => {
+      options.calls.push(`stale:${sidecar.status}`);
     },
   };
 }
