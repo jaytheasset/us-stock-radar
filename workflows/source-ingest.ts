@@ -41,6 +41,12 @@ import {
   type OfferingMonitorJobIdentity,
 } from "@/lib/offeringMonitorJobFoundation";
 import { enqueueOfferingMonitorJob } from "@/lib/offeringMonitorJobStarter";
+import {
+  readOfferingMonitorRegistryRetryCandidate,
+  recordOfferingMonitorRegistryExecution,
+  type OfferingMonitorRegistryExecutionValue,
+} from "@/lib/offeringMonitorJobRepository";
+import { runOfferingMonitorSiteAnalysisExecution } from "@/lib/monitor/offeringMonitorSiteAnalysisIsolation";
 import { runSecRawIngest } from "@/lib/secIngest";
 import {
   SEC_FORM_ROOM_MANIFEST,
@@ -112,11 +118,24 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
     const monitorJobs = [];
     for (const rawItemId of raw.rawItemIds) {
       await ensureWorkflowLockStep(input, SEC_WORKFLOW_CONFIG.lockTtlSeconds);
-      const analysis = await runSecRawAnalysisStep(input.groupId, rawItemId);
+      const analysisResult = await runSecRawAnalysisStep(input.groupId, rawItemId);
+      const analysis = analysisResult.reused === true
+        && analysisResult.stage === "completed"
+        && analysisResult.eventId
+        ? {
+            ...analysisResult,
+            offeringMonitorRegistryRetry: await retryOfferingMonitorRegistryExecutionStep(
+              analysisResult.eventId,
+              rawItemId,
+            ),
+          }
+        : analysisResult;
       analyses.push(analysis);
       if (analysis.monitorJobIdentity) {
-        monitorJobs.push(
-          await enqueueOfferingMonitorJobStep(analysis.monitorJobIdentity),
+        monitorJobs.push(await enqueueOfferingMonitorJobStep(analysis.monitorJobIdentity));
+        await recordOfferingMonitorRegistryExecutionStep(
+          analysis.monitorJobIdentity.jobId,
+          analysis.offeringMonitorRegistryExecution,
         );
       }
     }
@@ -472,6 +491,8 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
         stage: existing.status,
         reused: true,
         monitorJobIdentity: null,
+        offeringMonitorRegistryExecution: null,
+        offeringMonitorRegistryRetry: null,
       };
     }
 
@@ -494,6 +515,9 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
       : "completed";
     const eventId = nullableString(readRecord(record.event)?.id);
     const monitorJobIdentity = buildOfferingMonitorJobIdentity(record);
+    const offeringMonitorRegistryExecution = readOfferingMonitorRegistryExecution(
+      record.offeringMonitorRegistryExecution,
+    );
     await markSecAnalysisDisposition(rawItemId, status, eventId);
 
     console.log(
@@ -507,6 +531,8 @@ async function runSecRawAnalysisStep(groupId: string, rawItemId: string) {
       stage: status,
       reused: false,
       monitorJobIdentity,
+      offeringMonitorRegistryExecution,
+      offeringMonitorRegistryRetry: null,
     };
   } catch (error) {
     console.error(
@@ -527,6 +553,55 @@ async function enqueueOfferingMonitorJobStep(identity: OfferingMonitorJobIdentit
   return enqueueOfferingMonitorJob(identity);
 }
 enqueueOfferingMonitorJobStep.maxRetries = 3;
+
+async function recordOfferingMonitorRegistryExecutionStep(
+  jobId: string,
+  execution: OfferingMonitorRegistryExecutionValue | null,
+) {
+  "use step";
+
+  if (!execution) return { status: "not_applicable" as const, jobId };
+  try {
+    return await recordOfferingMonitorRegistryExecution(jobId, execution);
+  } catch (error) {
+    console.error(
+      `[recordOfferingMonitorRegistryExecutionStep] FAIL jobId=${jobId} error=${error instanceof Error ? error.message : String(error)}`,
+    );
+    return {
+      status: "state_write_failed" as const,
+      jobId,
+      error: error instanceof Error ? error.message : "Offering Monitor Registry state write failed",
+    };
+  }
+}
+recordOfferingMonitorRegistryExecutionStep.maxRetries = 0;
+
+async function retryOfferingMonitorRegistryExecutionStep(eventId: string, rawItemId: string) {
+  "use step";
+
+  try {
+    const candidate = await readOfferingMonitorRegistryRetryCandidate({ eventId, rawItemId });
+    if (!candidate) return { status: "not_needed" as const };
+    const execution = await runOfferingMonitorSiteAnalysisExecution({ eventId });
+    const state = await recordOfferingMonitorRegistryExecution(candidate.jobId, execution);
+    return {
+      status: "retried" as const,
+      jobId: candidate.jobId,
+      priorState: candidate.state,
+      execution,
+      state,
+    };
+  } catch (error) {
+    console.error(
+      `[retryOfferingMonitorRegistryExecutionStep] FAIL eventId=${eventId} rawItemId=${rawItemId} error=${error instanceof Error ? error.message : String(error)}`,
+    );
+    return {
+      status: "retry_failed" as const,
+      error: error instanceof Error ? error.message : "Offering Monitor Registry retry failed",
+    };
+  }
+}
+retryOfferingMonitorRegistryExecutionStep.maxRetries = 0;
 
 const NEWS_SOURCE_RUNNERS: Record<
   WorkflowNewsSource,
@@ -601,17 +676,37 @@ async function findPendingSecAnalysisIds(rawItemIds: string[]) {
     throw new Error(`Could not read SEC event state: ${eventResult.error || `HTTP ${eventResult.status}`}`);
   }
 
-  const completedIds = new Set(
-    readRecords(eventResult.data).map((row) => stringValue(row.raw_item_id)).filter(Boolean),
+  const completedEvents = new Map(
+    readRecords(eventResult.data)
+      .map((row) => [stringValue(row.raw_item_id), stringValue(row.id)] as const)
+      .filter(([rawItemId, eventId]) => Boolean(rawItemId && eventId)),
   );
-  return readRecords(rawResult.data)
-    .filter((row) => {
-      const rawItemId = stringValue(row.id);
-      if (!rawItemId || completedIds.has(rawItemId)) return false;
-      const status = stringValue(readRecord(row.metadata)?.workflow_analysis_status);
-      return status !== "completed" && status !== "skipped";
-    })
-    .map((row) => stringValue(row.id));
+  const pendingIds: string[] = [];
+  for (const row of readRecords(rawResult.data)) {
+    const rawItemId = stringValue(row.id);
+    if (!rawItemId) continue;
+    const eventId = completedEvents.get(rawItemId);
+    if (eventId) {
+      if (await needsOfferingMonitorRegistryRetry(eventId, rawItemId)) {
+        pendingIds.push(rawItemId);
+      }
+      continue;
+    }
+    const status = stringValue(readRecord(row.metadata)?.workflow_analysis_status);
+    if (status !== "completed" && status !== "skipped") pendingIds.push(rawItemId);
+  }
+  return pendingIds;
+}
+
+async function needsOfferingMonitorRegistryRetry(eventId: string, rawItemId: string) {
+  try {
+    return Boolean(await readOfferingMonitorRegistryRetryCandidate({ eventId, rawItemId }));
+  } catch (error) {
+    console.error(
+      `[needsOfferingMonitorRegistryRetry] FAIL eventId=${eventId} rawItemId=${rawItemId} error=${error instanceof Error ? error.message : String(error)}`,
+    );
+    return true;
+  }
 }
 
 async function readSecAnalysisDisposition(rawItemId: string) {
@@ -739,6 +834,24 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function readOfferingMonitorRegistryExecution(
+  value: unknown,
+): OfferingMonitorRegistryExecutionValue | null {
+  const record = readRecord(value);
+  const status = stringValue(record?.status);
+  if (status !== "completed" && status !== "deferred" && status !== "failed") {
+    return null;
+  }
+
+  return {
+    status,
+    ...(typeof record?.error === "string" ? { error: record.error } : {}),
+    ...(typeof record?.readerReason === "string"
+      ? { readerReason: record.readerReason }
+      : {}),
+  };
 }
 
 function stringValue(value: unknown) {

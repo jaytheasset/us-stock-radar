@@ -114,6 +114,27 @@ test("identity mismatch produces no Matcher evaluation match or Alert write", as
   assert.equal(writes, 0);
 });
 
+test("conflicting raw unpadded and padded issuer CIK values fail closed", async () => {
+  const repository = exactRegistryRepository();
+  repository.readRawItem = async () => ({ ok: true, data: [{
+    id: rawItemId,
+    source_code: "sec_edgar",
+    source_group: "filings",
+    source_unique_id: accession,
+    raw_payload: {
+      accession_number: accession,
+      cik: "1840317",
+      cik_padded: "0000000001",
+    },
+  }] });
+  const facts = await readRegistryBackedOfferingFacts(eventId, repository);
+  assert.deepEqual(facts, {
+    status: "not_ready",
+    version: "registry_backed_offering_fact_adapter_v1",
+    reason: "raw_item_identity_mismatch",
+  });
+});
+
 test("Offering persistence rejects non-Offering and non-canonical condition shapes", () => {
   for (const value of [
     [],
@@ -170,15 +191,20 @@ function exactRegistryRepository() {
       raw_item_id: rawItemId,
       source_code: "sec_edgar",
       source_group: "filings",
+      event_type: "offering",
       ticker: "VEEA",
-      metadata: { accession_number: accession, cik: "0001840317" },
+      metadata: { accession_number: accession, cik: "1840317" },
     }] }),
     readRawItem: async () => ({ ok: true, data: [{
       id: rawItemId,
       source_code: "sec_edgar",
       source_group: "filings",
       source_unique_id: accession,
-      raw_payload: { accession_number: accession, cik: "0001840317" },
+      raw_payload: {
+        accession_number: accession,
+        cik: "1840317",
+        cik_padded: "0001840317",
+      },
     }] }),
     readSnapshotsByAccession: async () => ({ ok: true, data: [{
       id: "41",

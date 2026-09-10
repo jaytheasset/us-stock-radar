@@ -69,6 +69,7 @@ export function readDilutionRegistryApplyResponse(
 ): DilutionRegistryCombinedApplyResult | null {
   if (!value || typeof value !== "object") return null;
   const response = value as {
+    ok?: unknown;
     registry?: { status?: unknown };
     sharesOutstanding?: {
       status?: unknown;
@@ -76,6 +77,7 @@ export function readDilutionRegistryApplyResponse(
       reasons?: unknown;
     };
   };
+  if (response.ok === false) return null;
   const registryStatus = response.registry?.status;
   const osStatus = response.sharesOutstanding?.status;
   const verifierStatus = response.sharesOutstanding?.verifierStatus;

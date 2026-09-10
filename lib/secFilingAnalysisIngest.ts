@@ -19,6 +19,7 @@ import {
   enqueueGenericMonitorChildrenAfterPrimary,
 } from "@/lib/monitor/genericMonitorChildWorkflowStarter";
 import { consumeListingMonitorAlertsForEvent } from "@/lib/monitor/listingMonitorAlertConsumer";
+import { runOfferingMonitorSiteAnalysisExecution } from "@/lib/monitor/offeringMonitorSiteAnalysisIsolation";
 import {
   beginSecAnalysisSpan,
   traceSecAnalysis,
@@ -283,6 +284,11 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   const ownershipMonitorConditionExecution = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
     : null;
+  const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
+    ? await runOfferingMonitorSiteAnalysisExecution({
+        eventId: stringValue(persistedEvent.id),
+      })
+    : null;
 
   return {
     ok: true,
@@ -301,6 +307,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     alertDelivery,
     genericMonitorChildren,
     ownershipMonitorConditionExecution,
+    offeringMonitorRegistryExecution,
     validationRepairTrace,
   };
 }

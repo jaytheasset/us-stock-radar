@@ -10,7 +10,14 @@ import {
   listActiveOfferingMonitorsForConsumer,
 } from "../lib/monitor/offeringMonitorPersistence.ts";
 import { readRegistryBackedOfferingFacts } from "../lib/monitor/registryBackedOfferingFacts.ts";
-import type { MinimalOfferingNumericFact } from "../lib/minimalOfferingMonitor.ts";
+import {
+  materializeMinimalOfferingMonitor,
+  type MinimalOfferingNumericFact,
+} from "../lib/minimalOfferingMonitor.ts";
+import {
+  runOfferingMonitorAutomaticTriggerForEvent,
+  runOfferingMonitorAutomaticTriggerForRegistryPayload,
+} from "../lib/monitor/offeringMonitorAutomaticTrigger.ts";
 
 const OWNER_ID = "97000000-0000-4000-8000-000000000001";
 const EVENT_ID = "97100000-0000-4000-8000-000000000011";
@@ -95,6 +102,23 @@ try {
   assert.deepEqual([replay.createdCount, replay.existingCount], [0, 0]);
   assert.equal(await alertCount(client, EVENT_ID), 0);
 
+  const automaticProductionAdapter = await runOfferingMonitorAutomaticTriggerForRegistryPayload({
+    payload: {
+      issuer: { issuer_cik: CIK, ticker: "VEEA" },
+      instruments: [{ instrument_key: "veea-roth-atm-20260813", instrument_type: "atm_program" }],
+      snapshots: [{
+        instrument_key: "veea-roth-atm-20260813",
+        source_accession: OFFERING_ACCESSION,
+      }],
+      activities: [],
+      totals: [],
+    },
+  }, automaticRegistryDependencies(client));
+  assert.deepEqual(automaticProductionAdapter.eventIds, [EVENT_ID]);
+  assert.equal(automaticProductionAdapter.executions[0]?.status, "completed");
+  assert.equal(automaticProductionAdapter.executions[0]?.consumer?.createdCount, 0);
+  assert.equal(await alertCount(client, EVENT_ID), 0);
+
   const mismatch = await consumeOfferingMonitorAlertsForEvent(
     { eventId: MISMATCH_EVENT_ID },
     dependencies,
@@ -121,6 +145,61 @@ try {
   );
   assert.equal(unmappable.evaluations.every((value) => value.status === "ineligible"), true);
   assert.equal(await alertCount(client, UNMAPPABLE_EVENT_ID), 0);
+
+  const snapshot = await client.query(
+    `select id from public.dilution_instrument_snapshots where source_accession=$1 order by id limit 1`,
+    [OFFERING_ACCESSION],
+  );
+  const mockMappedFacts = mappedPositiveFacts(facts, String(snapshot.rows[0].id));
+  let injectedFailures = 1;
+  await assert.rejects(
+    () => runOfferingMonitorAutomaticTriggerForEvent({ eventId: EVENT_ID }, {
+      readFacts: async () => mockMappedFacts,
+      consume: (input) => consumeOfferingMonitorAlertsForEvent(input, {
+        ...dependencies,
+        createAlert: async (write) => {
+          if (injectedFailures-- > 0) {
+            return { status: "failed", monitorId: write.monitorId, error: "injected transient failure" };
+          }
+          return dependencies.createAlert(write);
+        },
+      }),
+    }),
+    /persistence failed/,
+  );
+  assert.equal(await alertCount(client, EVENT_ID), 0);
+  const concurrentMockMapped = await Promise.all([
+    runOfferingMonitorAutomaticTriggerForEvent(
+      { eventId: EVENT_ID },
+      automaticEventDependencies(client, mockMappedFacts),
+    ),
+    runOfferingMonitorAutomaticTriggerForEvent(
+      { eventId: EVENT_ID },
+      automaticEventDependencies(client, mockMappedFacts),
+    ),
+  ]);
+  assert.deepEqual(
+    concurrentMockMapped.map((value) => value.consumer?.createdCount).sort(),
+    [0, 1],
+  );
+  assert.deepEqual(
+    concurrentMockMapped.map((value) => value.consumer?.existingCount).sort(),
+    [0, 1],
+  );
+  assert.equal(await alertCount(client, EVENT_ID), 1);
+  const mockReadback = await listOfferingMonitorAlertsForOwner(
+    { ownerId: OWNER_ID, monitorId: MONITOR_ID },
+    alertReadRepository(client),
+  );
+  assert.deepEqual(mockReadback.map((row) => ({
+    eventId: row.eventId,
+    accession: row.registryAccession,
+    snapshotId: row.registrySnapshotId,
+  })), [{
+    eventId: EVENT_ID,
+    accession: OFFERING_ACCESSION,
+    snapshotId: String(snapshot.rows[0].id),
+  }]);
 
   const factWrites = await client.query(
     `select count(*)::integer as count
@@ -152,8 +231,19 @@ try {
       mappedToOfferingAmount: false,
       mappedFacts: [],
     },
-    firstRun: { created: first.createdCount, readback: readback.length },
-    replay: { additionalAlerts: await alertCount(client, EVENT_ID) },
+    productionAdapterAutomaticTrigger: {
+      eventIds: automaticProductionAdapter.eventIds,
+      created: automaticProductionAdapter.executions[0]?.consumer?.createdCount || 0,
+      alertsBeforeMock: readback.length,
+    },
+    replayBeforeMock: { additionalAlerts: 0 },
+    mockMappedPositive: {
+      artificialMappingOnly: true,
+      retryAfterInjectedFailure: "passed",
+      concurrentCreatedCounts: concurrentMockMapped.map((value) => value.consumer?.createdCount),
+      finalDedupedAlerts: await alertCount(client, EVENT_ID),
+      readback: mockReadback.length,
+    },
     mismatch: { factWrites: 0, matchWrites: 0, alertWrites: await alertCount(client, MISMATCH_EVENT_ID) },
     unmappable: { alertWrites: await alertCount(client, UNMAPPABLE_EVENT_ID), allFactsUnavailable: true },
     externalDelivery: { emailCalls, telegramCalls, queuedForDelivery: deliveryWrites.rows[0].count },
@@ -309,12 +399,17 @@ async function seedUnmappableEvent(client: any) {
 }
 
 async function seedEvent(client: any, eventId: string, rawId: string, accession: string, cik: string) {
+  const unpaddedCik = cik.replace(/^0+/, "");
   await client.query(
     `insert into public.raw_items (
        id, source_code, source_group, source_unique_id, source_url, title, raw_payload, dedupe_key
      ) values ($1, 'sec_edgar', 'filings', $2, 'https://www.sec.gov/', 'Veea filing',
-       jsonb_build_object('accession_number', $2::text, 'cik', $3::text), $2)`,
-    [rawId, accession, cik],
+       jsonb_build_object(
+         'accession_number', $2::text,
+         'cik', $3::text,
+         'cik_padded', $4::text
+       ), $2)`,
+    [rawId, accession, unpaddedCik, cik],
   );
   await client.query(
     `insert into public.events (
@@ -324,14 +419,14 @@ async function seedEvent(client: any, eventId: string, rawId: string, accession:
      ) values ($1, $2, 'sec_edgar', 'filings', 'SEC EDGAR', 'https://www.sec.gov/',
        'VEEA', 'offering', 50, 'archive', 'low', 'neutral', 'Veea offering filing',
        $3, jsonb_build_object('accession_number', $3::text, 'cik', $4::text))`,
-    [eventId, rawId, accession, cik],
+    [eventId, rawId, accession, unpaddedCik],
   );
 }
 
 function registryRepository(client: any) {
   return {
     readEvent: async (eventId: string) => okRows(await client.query(
-      `select id,raw_item_id,source_code,source_group,ticker,metadata from public.events where id=$1`,
+      `select id,raw_item_id,source_code,source_group,event_type,ticker,metadata from public.events where id=$1`,
       [eventId],
     )),
     readRawItem: async (rawId: string) => okRows(await client.query(
@@ -405,6 +500,77 @@ function consumerDependencies(client: any) {
   };
 }
 
+function automaticRegistryDependencies(client: any) {
+  return {
+    listEventsByAccession: async (accession: string) => okRows(await client.query(
+      `select id,source_code,source_group,event_type,metadata
+       from public.events
+       where source_code='sec_edgar'
+         and source_group='filings'
+         and event_type='offering'
+         and metadata->>'accession_number'=$1
+       order by id`,
+      [accession],
+    )),
+    runEvent: ({ eventId }: { eventId: string }) => runOfferingMonitorAutomaticTriggerForEvent(
+      { eventId },
+      automaticEventDependencies(client),
+    ),
+  };
+}
+
+function automaticEventDependencies(client: any, facts?: any) {
+  const dependencies = consumerDependencies(client);
+  return {
+    readFacts: (eventId: string) => facts
+      ? Promise.resolve(facts)
+      : readRegistryBackedOfferingFacts(eventId, registryRepository(client)),
+    consume: (input: any) => consumeOfferingMonitorAlertsForEvent(input, dependencies),
+  };
+}
+
+function mappedPositiveFacts(
+  facts: Extract<Awaited<ReturnType<typeof readRegistryBackedOfferingFacts>>, { status: "available" }>,
+  snapshotId: string,
+) {
+  const canonical = structuredClone(facts.canonical);
+  canonical.financing_stage = "active_offering";
+  canonical.primary_or_resale = "primary";
+  canonical.security_nature = "equity";
+  canonical.facts.actual_primary_offering_amount = {
+    value: 4_353_000,
+    availability: "available",
+    value_quality: "exact",
+    bound: "exact",
+    unit: "currency",
+    currency: "USD",
+    security_basis: "common_stock",
+    comparison_basis_type: "market_cap",
+    comparable_to_event_market_basis: true,
+    source_ref: "mock:mapped-positive",
+  };
+  return {
+    ...facts,
+    mappingStatus: "mapped" as const,
+    reason: undefined,
+    registrySnapshotId: snapshotId,
+    registrySourceIdentity: `mock:${OFFERING_ACCESSION}:${snapshotId}`,
+    canonical,
+    materialized: materializeMinimalOfferingMonitor(canonical, {
+      price: null,
+      market_cap: null,
+      shares_outstanding: null,
+      public_float: null,
+      currency: null,
+      security_basis: null,
+      price_unit: null,
+      market_cap_unit: null,
+      share_unit: null,
+      as_of: null,
+    }),
+  };
+}
+
 function alertReadRepository(client: any) {
   return {
     list: async ({ ownerId, monitorId }: { ownerId: string; monitorId?: string }) => okRows(await client.query(
@@ -447,6 +613,7 @@ function assertRuntimeIsDeterministic() {
   const source = [
     readFileSync(new URL("../lib/monitor/registryBackedOfferingFacts.ts", import.meta.url), "utf8"),
     readFileSync(new URL("../lib/monitor/offeringMonitorAlertConsumer.ts", import.meta.url), "utf8"),
+    readFileSync(new URL("../lib/monitor/offeringMonitorAutomaticTrigger.ts", import.meta.url), "utf8"),
   ].join("\n");
   assert.doesNotMatch(source, /gemini|openai|anthropic|generateContent|sendEmail|telegram/i);
 }

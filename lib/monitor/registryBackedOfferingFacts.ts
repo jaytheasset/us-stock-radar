@@ -94,6 +94,7 @@ export async function readRegistryBackedOfferingFacts(
       || !UUID_PATTERN.test(rawItemId)
       || stringValue(event.source_code) !== "sec_edgar"
       || stringValue(event.source_group) !== "filings"
+      || stringValue(event.event_type) !== "offering"
       || !accession
       || !issuerCik
     ) return notReady("event_identity_mismatch");
@@ -105,13 +106,14 @@ export async function readRegistryBackedOfferingFacts(
     if (rawRows.length !== 1) return notReady("raw_item_ambiguous");
     const raw = rawRows[0];
     const rawPayload = record(raw.raw_payload) ? raw.raw_payload : {};
+    const rawIssuerCik = agreeingCik(rawPayload.cik, rawPayload.cik_padded);
     if (
       stringValue(raw.id) !== rawItemId
       || stringValue(raw.source_code) !== "sec_edgar"
       || stringValue(raw.source_group) !== "filings"
       || exactAccession(raw.source_unique_id) !== accession
       || exactAccession(rawPayload.accession_number) !== accession
-      || exactCik(rawPayload.cik) !== issuerCik
+      || rawIssuerCik !== issuerCik
     ) return notReady("raw_item_identity_mismatch");
 
     const snapshotResult = await resolved.readSnapshotsByAccession(accession);
@@ -233,7 +235,7 @@ async function resolveRepository(): Promise<RegistryBackedOfferingFactRepository
   const supabase = await import("../supabase.ts");
   return {
     readEvent: (eventId) => supabase.supabaseSelect("events", {
-      select: "id,raw_item_id,source_code,source_group,ticker,metadata",
+      select: "id,raw_item_id,source_code,source_group,event_type,ticker,metadata",
       id: `eq.${eventId}`,
       limit: "2",
     }),
@@ -279,7 +281,16 @@ function exactAccession(value: unknown) {
 
 function exactCik(value: unknown) {
   const candidate = stringValue(value);
-  return CIK_PATTERN.test(candidate) && candidate !== "0000000000" ? candidate : "";
+  if (!/^\d{1,10}$/.test(candidate)) return "";
+  const canonical = candidate.replace(/^0+/, "").padStart(10, "0");
+  return CIK_PATTERN.test(canonical) && canonical !== "0000000000" ? canonical : "";
+}
+
+function agreeingCik(...values: unknown[]) {
+  const supplied = values.filter((value) => stringValue(value) !== "");
+  if (supplied.length === 0) return "";
+  const canonical = supplied.map(exactCik);
+  return canonical.every(Boolean) && new Set(canonical).size === 1 ? canonical[0]! : "";
 }
 
 function integerId(value: unknown) {

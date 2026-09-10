@@ -26,6 +26,13 @@ type ExecutionState = {
   bridgeCalls: string[][];
   prospectusBridgeCalls: string[][];
   analysisCalls: string[];
+  completedEvents: Record<string, string>;
+  monitorIdentityEnabled: boolean;
+  monitorRegistryState: "none" | "pending" | "failed" | "completed";
+  monitorRegistryRetryCalls: string[];
+  monitorRegistryStateWrites: Array<{ jobId: string; status: string }>;
+  monitorRegistryStateWriteFailure: boolean;
+  sidecarEnqueueCalls: number;
   releaseCalls: number;
   order: string[];
 };
@@ -93,7 +100,20 @@ const mocks = new Map<string, string>([
       if (state.analysisFailure) {
         return { ok: false, stage: "analysis", status: 500, error: "intentional analysis failure" };
       }
-      return { ok: true, stage: "complete", event: { id: "event:" + rawItemId } };
+      const eventId = "event:" + rawItemId;
+      state.completedEvents[rawItemId] = eventId;
+      return {
+        ok: true,
+        stage: "complete",
+        event: { id: eventId },
+        sourceItem: { id: rawItemId, accessionNumber: "accession:" + rawItemId, formType: "S-3" },
+        input: { contentSha256: "sha256:" + rawItemId },
+        prompt: { key: "sec_s3_offering_analysis", version: "test" },
+        primaryAiRunId: "primary:" + rawItemId,
+        offeringMonitorRegistryExecution: state.monitorIdentityEnabled
+          ? { status: "failed", error: "intentional Registry Monitor failure" }
+          : null,
+      };
     }
   `)],
   ["@/lib/secPeriodicOsTriggerBridge", dataModule(`
@@ -163,10 +183,48 @@ const mocks = new Map<string, string>([
     }
   `)],
   ["@/lib/offeringMonitorJobFoundation", dataModule(`
-    export function buildOfferingMonitorJobIdentity() { return null; }
+    export function buildOfferingMonitorJobIdentity(result) {
+      const state = globalThis.__secWorkflowExecutionState;
+      if (!state.monitorIdentityEnabled) return null;
+      const rawItemId = result.sourceItem.id;
+      return {
+        jobId: "job:" + rawItemId,
+        eventId: result.event.id,
+        rawItemId,
+      };
+    }
   `)],
   ["@/lib/offeringMonitorJobStarter", dataModule(`
-    export async function enqueueOfferingMonitorJob() { return null; }
+    export async function enqueueOfferingMonitorJob(identity) {
+      const state = globalThis.__secWorkflowExecutionState;
+      state.sidecarEnqueueCalls += 1;
+      if (state.monitorRegistryState === "none") state.monitorRegistryState = "pending";
+      return { status: "enqueued", jobId: identity.jobId };
+    }
+  `)],
+  ["@/lib/offeringMonitorJobRepository", dataModule(`
+    export async function readOfferingMonitorRegistryRetryCandidate({ rawItemId }) {
+      const state = globalThis.__secWorkflowExecutionState;
+      return state.monitorRegistryState === "failed" || state.monitorRegistryState === "pending"
+        ? { jobId: "job:" + rawItemId, state: state.monitorRegistryState }
+        : null;
+    }
+    export async function recordOfferingMonitorRegistryExecution(jobId, execution) {
+      const state = globalThis.__secWorkflowExecutionState;
+      if (state.monitorRegistryStateWriteFailure) throw new Error("intentional Monitor state write failure");
+      state.monitorRegistryState = execution.status === "completed"
+        ? "completed"
+        : execution.status === "failed" ? "failed" : "pending";
+      state.monitorRegistryStateWrites.push({ jobId, status: state.monitorRegistryState });
+      return { jobId, status: state.monitorRegistryState };
+    }
+  `)],
+  ["@/lib/monitor/offeringMonitorSiteAnalysisIsolation", dataModule(`
+    export async function runOfferingMonitorSiteAnalysisExecution({ eventId }) {
+      const state = globalThis.__secWorkflowExecutionState;
+      state.monitorRegistryRetryCalls.push(eventId);
+      return { status: "completed" };
+    }
   `)],
   ["@/lib/secIngest", dataModule(`
     export async function runSecRawIngest(options) {
@@ -213,7 +271,18 @@ const mocks = new Map<string, string>([
   ["@/lib/supabase", dataModule(`
     export async function supabaseSelect(table, filters) {
       const state = globalThis.__secWorkflowExecutionState;
-      if (table === "events") return { ok: true, status: 200, data: [] };
+      if (table === "events") {
+        const requested = String(filters.raw_item_id ?? "");
+        const requestedIds = requested.startsWith("eq.")
+          ? [requested.slice(3)]
+          : requested.startsWith("in.(")
+            ? requested.slice(4, -1).split(",")
+            : [];
+        const rows = Object.entries(state.completedEvents)
+          .filter(([rawItemId]) => requestedIds.includes(rawItemId))
+          .map(([rawItemId, eventId]) => ({ id: eventId, raw_item_id: rawItemId }));
+        return { ok: true, status: 200, data: rows };
+      }
       if (table === "raw_items") {
         const requested = String(filters.id ?? "");
         const rows = state.items
@@ -391,6 +460,67 @@ test("analysis failure propagates and is not swallowed", async () => {
   assert.equal(state.releaseCalls, 1);
 });
 
+test("failed Offering Monitor replays only the Monitor and completes without replaying site analysis or O/S sidecar", async () => {
+  const rawItemId = "raw-offering-monitor-retry";
+  const state = setup([stored(rawItemId, "S-3", "1840317")]);
+  state.monitorIdentityEnabled = true;
+
+  const initial = await secSourceIngestWorkflow(workflowInput());
+
+  assert.equal(initial.analyses[0]?.stage, "completed");
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.equal(state.monitorRegistryState, "failed");
+  assert.deepEqual(state.monitorRegistryStateWrites, [{
+    jobId: `job:${rawItemId}`,
+    status: "failed",
+  }]);
+  assert.equal(state.sidecarEnqueueCalls, 1);
+
+  const replay = await secSourceIngestWorkflow(workflowInput());
+
+  assert.equal(replay.analyses[0]?.stage, "completed");
+  assert.equal(replay.analyses[0]?.reused, true);
+  assert.equal(replay.analyses[0]?.offeringMonitorRegistryRetry?.status, "retried");
+  assert.equal(replay.analyses[0]?.offeringMonitorRegistryRetry?.execution?.status, "completed");
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.deepEqual(state.monitorRegistryRetryCalls, [`event:${rawItemId}`]);
+  assert.equal(state.monitorRegistryState, "completed");
+  assert.deepEqual(state.monitorRegistryStateWrites, [
+    { jobId: `job:${rawItemId}`, status: "failed" },
+    { jobId: `job:${rawItemId}`, status: "completed" },
+  ]);
+  assert.equal(state.sidecarEnqueueCalls, 1);
+
+  const noOpReplay = await secSourceIngestWorkflow(workflowInput());
+  assert.equal(noOpReplay.analyses.length, 0);
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.deepEqual(state.monitorRegistryRetryCalls, [`event:${rawItemId}`]);
+  assert.equal(state.sidecarEnqueueCalls, 1);
+});
+
+test("failed Monitor state write leaves reservation pending so replay can still complete only Monitor", async () => {
+  const rawItemId = "raw-offering-monitor-state-write-retry";
+  const state = setup([stored(rawItemId, "S-3", "1840317")]);
+  state.monitorIdentityEnabled = true;
+  state.monitorRegistryStateWriteFailure = true;
+
+  const initial = await secSourceIngestWorkflow(workflowInput());
+
+  assert.equal(initial.analyses[0]?.stage, "completed");
+  assert.equal(state.monitorRegistryState, "pending");
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.equal(state.sidecarEnqueueCalls, 1);
+
+  state.monitorRegistryStateWriteFailure = false;
+  const replay = await secSourceIngestWorkflow(workflowInput());
+
+  assert.equal(replay.analyses[0]?.offeringMonitorRegistryRetry?.execution?.status, "completed");
+  assert.equal(state.monitorRegistryState, "completed");
+  assert.deepEqual(state.analysisCalls, [rawItemId]);
+  assert.deepEqual(state.monitorRegistryRetryCalls, [`event:${rawItemId}`]);
+  assert.equal(state.sidecarEnqueueCalls, 1);
+});
+
 function setup(
   items: RawItem[],
   failures: Partial<Pick<ExecutionState,
@@ -411,6 +541,13 @@ function setup(
     bridgeCalls: [],
     prospectusBridgeCalls: [],
     analysisCalls: [],
+    completedEvents: {},
+    monitorIdentityEnabled: false,
+    monitorRegistryState: "none",
+    monitorRegistryRetryCalls: [],
+    monitorRegistryStateWrites: [],
+    monitorRegistryStateWriteFailure: false,
+    sidecarEnqueueCalls: 0,
     releaseCalls: 0,
     order: [],
   };

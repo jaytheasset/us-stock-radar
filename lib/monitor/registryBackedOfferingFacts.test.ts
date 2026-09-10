@@ -38,6 +38,7 @@ test("keeps VEEA ATM capacity and every Offering amount fact unavailable", async
 
 test("exact identity disagreement fails closed before exposing any fact object", async () => {
   for (const mutate of [
+    (repo: MutableRepository) => { repo.events[0].event_type = "earnings"; },
     (repo: MutableRepository) => { repo.raw[0].raw_payload = { accession_number: accession, cik: "0000000001" }; },
     (repo: MutableRepository) => { repo.instruments[0].issuer_cik = "0000000001"; },
     (repo: MutableRepository) => { repo.snapshots[0].source_accession = "0001213900-26-088713"; },
@@ -88,6 +89,7 @@ function repository(): MutableRepository {
     raw_item_id: rawItemId,
     source_code: "sec_edgar",
     source_group: "filings",
+    event_type: "offering",
     ticker: "VEEA",
     metadata: { accession_number: accession, cik },
   }];
