@@ -10,6 +10,8 @@ import {
 import { applyDilutionRegistryAndHumanVerifiedOs } from "./combinedApply.ts";
 import { applyHumanVerifiedOsOnServer } from "./humanVerifiedOsServer.ts";
 import { runDilutionCorporateActionAdjustmentForIssuer } from "./corporateActionAdjustmentRuntime.ts";
+import { parseDilutionRegistryJson } from "./preview.ts";
+import { runOfferingMonitorAutomaticTriggerForRegistryPayload } from "../monitor/offeringMonitorAutomaticTrigger.ts";
 
 export function applyDilutionRegistrySourceOnServer(source: string) {
   return applyDilutionRegistrySource(source, {
@@ -25,13 +27,13 @@ export function appendDilutionCorporateActionProjectionOnServer(
   return appendDilutionCorporateActionProjection(projection, { rpc: supabaseRpc });
 }
 
-export function applyDilutionRegistryAndHumanVerifiedOsOnServer(input: {
+export async function applyDilutionRegistryAndHumanVerifiedOsOnServer(input: {
   source: string;
   approverUserId: string;
   now?: () => Date;
 }) {
   const approvedAt = (input.now ?? (() => new Date()))().toISOString();
-  return applyDilutionRegistryAndHumanVerifiedOs({
+  const result = await applyDilutionRegistryAndHumanVerifiedOs({
     source: input.source,
     approval: {
       approverUserId: input.approverUserId,
@@ -46,4 +48,46 @@ export function applyDilutionRegistryAndHumanVerifiedOsOnServer(input: {
     },
     writeSharesOutstanding: applyHumanVerifiedOsOnServer,
   });
+  if (result.registry.status === "failed") {
+    return {
+      ...result,
+      offeringMonitorAlerts: {
+        status: "skipped" as const,
+        reason: "Registry Apply failed before Offering Monitor evaluation.",
+      },
+    };
+  }
+
+  const parsed = parseDilutionRegistryJson(input.source);
+  if (!parsed.ok) {
+    return {
+      ...result,
+      offeringMonitorAlerts: {
+        status: "failed" as const,
+        error: "The saved Registry source could not be prepared for Offering Monitor evaluation.",
+      },
+    };
+  }
+  try {
+    const trigger = await runOfferingMonitorAutomaticTriggerForRegistryPayload({
+      payload: parsed.payload,
+    });
+    return {
+      ...result,
+      offeringMonitorAlerts: {
+        status: "completed" as const,
+        trigger,
+      },
+    };
+  } catch (error) {
+    return {
+      ...result,
+      offeringMonitorAlerts: {
+        status: "failed" as const,
+        error: error instanceof Error
+          ? error.message
+          : "Offering Monitor evaluation failed after Registry Apply.",
+      },
+    };
+  }
 }

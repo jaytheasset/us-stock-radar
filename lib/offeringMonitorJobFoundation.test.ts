@@ -415,12 +415,15 @@ test("foundation keeps the durable child but product runtime is sidecar-only wit
   assert.match(repositorySource, /execution_attempt_key/);
   assert.match(repositorySource, /prompt_version: identity\.executionContractVersion/);
   assert.match(repositorySource, /workflow_run_id: workflowRunId/);
+  assert.match(repositorySource, /registry_alert_status: "pending"/);
   assert.match(repositorySource, /metadata->>phase/);
   assert.match(repositorySource, /stage_2_provider_enabled: false/);
   assert.match(repositorySource, /provider_attempts: 0/);
   assert.match(repositorySource, /legacy_canonical_wiring_enabled: false/);
   assert.match(repositorySource, /legacy_empty_condition_matcher_enabled: false/);
-  assert.match(repositorySource, /status: "in\.\(pending,running\)"/);
+  assert.match(repositorySource, /attach_offering_monitor_workflow_run/);
+  assert.match(repositorySource, /finish_offering_monitor_sidecar_job/);
+  assert.match(repositorySource, /set_offering_monitor_registry_alert_state/);
   assert.doesNotMatch(child, /getStepMetadata|stepId/);
   assert.doesNotMatch(delivery, /offeringMonitor|monitorFoundation|parent_primary_ai_run_id/);
 });

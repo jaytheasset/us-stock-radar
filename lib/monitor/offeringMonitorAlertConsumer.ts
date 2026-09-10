@@ -34,6 +34,11 @@ export type OfferingMonitorAlertConsumerDependencies = Readonly<{
   now(): Date;
 }>;
 
+export type OfferingMonitorAlertConsumerInput = Readonly<{
+  eventId: string;
+  preloadedFacts?: RegistryBackedOfferingFactReadResult;
+}>;
+
 export type OfferingMonitorAlertConsumerResult = Readonly<{
   version: typeof OFFERING_MONITOR_ALERT_CONSUMER_VERSION;
   status: "completed" | "partial_failure";
@@ -62,18 +67,29 @@ const defaultDependencies: OfferingMonitorAlertConsumerDependencies = {
 
 /** Exact-event Registry facts -> stored Offering conditions -> existing Matcher -> internal Alert. */
 export async function consumeOfferingMonitorAlertsForEvent(
-  input: Readonly<{ eventId: string }>,
+  input: OfferingMonitorAlertConsumerInput,
   dependencies: OfferingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<OfferingMonitorAlertConsumerResult> {
   const monitors = await dependencies.listActiveMonitors();
   let facts: RegistryBackedOfferingFactReadResult;
-  try {
-    facts = await dependencies.readFacts(input.eventId);
-  } catch {
+  if (input.preloadedFacts) {
+    facts = input.preloadedFacts;
+  } else {
+    try {
+      facts = await dependencies.readFacts(input.eventId);
+    } catch {
+      facts = {
+        status: "not_ready",
+        version: "registry_backed_offering_fact_adapter_v1",
+        reason: "reader_unavailable",
+      };
+    }
+  }
+  if (facts.status === "available" && facts.eventId !== input.eventId) {
     facts = {
       status: "not_ready",
       version: "registry_backed_offering_fact_adapter_v1",
-      reason: "reader_unavailable",
+      reason: "event_identity_mismatch",
     };
   }
   const evaluations = monitors.monitors.map((monitor) => ({

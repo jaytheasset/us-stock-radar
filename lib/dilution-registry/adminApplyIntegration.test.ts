@@ -14,6 +14,10 @@ const applyServer = readFileSync(
   "lib/dilution-registry/applyServer.ts",
   "utf8",
 );
+const applyClient = readFileSync(
+  "lib/dilution-registry/applyClient.ts",
+  "utf8",
+);
 
 test("Admin Apply requires data.run and uses only the authenticated server user UUID", () => {
   assert.match(route, /assertSameOriginAuthRequest\(request\)/);
@@ -38,11 +42,19 @@ test("the server path reuses the existing human writer and independent Registry 
     /registryDependencies:\s*\{\s*rpc: supabaseRpc,\s*now: \(\) => new Date\(approvedAt\),\s*runCorporateActionAdjustmentForIssuer: \(input\) =>\s*runDilutionCorporateActionAdjustmentForIssuer\(input\),\s*\}/,
   );
   assert.match(applyServer, /writeSharesOutstanding: applyHumanVerifiedOsOnServer/);
+  assert.match(applyServer, /runOfferingMonitorAutomaticTriggerForRegistryPayload/);
   assert.match(server, /writeHumanVerifiedShareCountObservation\(input/);
   assert.match(server, /readSourceBundle: readDilutionRegistryOsSourceBundle/);
   assert.match(server, /toShareCountHistoryDatabaseRow\(observation\)/);
   assert.match(server, /resolution=ignore-duplicates,return=representation/);
   assert.match(server, /source_kind,source_identity,content_hash/);
+});
+
+test("Admin Apply reports Registry-backed Offering trigger failures without claiming success", () => {
+  assert.match(route, /result\.offeringMonitorAlerts\.status !== "failed"/);
+  assert.match(applyClient, /if \(response\.ok === false\) return null/);
+  assert.match(applyServer, /result\.registry\.status === "failed"/);
+  assert.match(applyServer, /offeringMonitorAlerts:[\s\S]*status: "failed"/);
 });
 
 test("Admin O/S persistence creates no fallback run, event, analyzer, or permission identities", () => {

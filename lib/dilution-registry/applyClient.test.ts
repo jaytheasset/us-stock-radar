@@ -132,6 +132,7 @@ test("combined result states use separate required English labels", () => {
     saved: "Saved", already_saved: "Already Saved", skipped: "Skipped", failed: "Failed",
   });
   assert.deepEqual(readDilutionRegistryApplyResponse({
+    ok: true,
     registry: { status: "already_saved" },
     sharesOutstanding: {
       status: "saved", verifierStatus: "Verified", reasons: [],
@@ -142,6 +143,14 @@ test("combined result states use separate required English labels", () => {
       status: "saved", verifierStatus: "Verified", reasons: [],
     },
   });
+  assert.equal(readDilutionRegistryApplyResponse({
+    ok: false,
+    registry: { status: "saved" },
+    sharesOutstanding: {
+      status: "skipped", verifierStatus: null, reasons: [],
+    },
+    offeringMonitorAlerts: { status: "failed" },
+  }), null);
   assert.equal(readDilutionRegistryApplyResponse({ status: "internal" }), null);
 });
 

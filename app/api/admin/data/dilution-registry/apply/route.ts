@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
       {
         ok:
           result.registry.status !== "failed" &&
-          result.sharesOutstanding.status !== "failed",
+          result.sharesOutstanding.status !== "failed" &&
+          result.offeringMonitorAlerts.status !== "failed",
         ...result,
       },
       { headers: HEADERS },
