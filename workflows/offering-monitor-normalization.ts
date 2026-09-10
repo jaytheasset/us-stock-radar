@@ -7,19 +7,32 @@ import { processOfferingMonitorProductionWiring } from "@/lib/offeringMonitorPro
 import {
   markOfferingMonitorJobFailed,
 } from "@/lib/offeringMonitorJobRepository";
+import { processOfferingShareCountSidecar } from "@/lib/sec-structured-data/offeringShareCountSidecar";
+import { offeringShareCountSidecarRuntimeDependencies } from "@/lib/sec-structured-data/offeringShareCountSidecarRuntime";
 
 export async function offeringMonitorNormalizationWorkflow(identity: OfferingMonitorJobIdentity) {
   "use workflow";
 
   try {
+    let shareCountSidecar;
+    try {
+      shareCountSidecar = await runOfferingShareCountSidecarStep(identity);
+    } catch (error) {
+      shareCountSidecar = {
+        status: "failed" as const,
+        error: errorMessage(error),
+        providerCalled: false as const,
+      };
+    }
     const secondStage = await runOfferingMonitorSecondStageStep(identity);
-    if (secondStage.status !== "completed") return secondStage;
+    if (secondStage.status !== "completed") return { ...secondStage, shareCountSidecar };
     try {
       const productionWiring = await runOfferingMonitorProductionWiringStep(identity, secondStage);
-      return { ...secondStage, productionWiring };
+      return { ...secondStage, shareCountSidecar, productionWiring };
     } catch (error) {
       return {
         ...secondStage,
+        shareCountSidecar,
         productionWiring: {
           status: "failed" as const,
           error: errorMessage(error),
@@ -31,6 +44,12 @@ export async function offeringMonitorNormalizationWorkflow(identity: OfferingMon
     return markOfferingMonitorFoundationFailedStep(identity, errorMessage(error));
   }
 }
+
+async function runOfferingShareCountSidecarStep(identity: OfferingMonitorJobIdentity) {
+  "use step";
+  return processOfferingShareCountSidecar(identity, offeringShareCountSidecarRuntimeDependencies);
+}
+runOfferingShareCountSidecarStep.maxRetries = 0;
 
 async function runOfferingMonitorSecondStageStep(identity: OfferingMonitorJobIdentity) {
   "use step";

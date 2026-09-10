@@ -40,6 +40,12 @@ Canonical → Matcher = WIRED
 
 `workflows/source-ingest.ts` and the SEC analyze route enqueue `offeringMonitorNormalizationWorkflow` after a completed Primary. That workflow runs `processOfferingMonitorSecondStageJob()` and stores a validated `offering_monitor_normalization_candidate` in `ai_outputs`. A second single-attempt durable step then runs `processOfferingMonitorProductionWiring()` for successfully validated applicable candidates only.
 
+Before Stage 2, the same workflow independently runs the deterministic Offering
+O/S processor for eligible S-1/S-3/F-3/424B forms. It reads the complete exact
+stored primary SEC document and may append one source-stated observation to
+`share_count_history`. It makes no LLM call. Its failure or ineligibility is
+reported separately and never disables or changes Stage 2.
+
 ```text
 Primary Analysis
    ↓
@@ -128,9 +134,11 @@ Stage 2 calls Gemini once through `runStructuredGeminiJson()` with the direct `o
 
 - required: `version`, `applicability`, `financing_stage`, `primary_or_resale`, `security_nature`, `available_monetary_facts`, `available_share_facts`, `unavailable_fact_keys`;
 - optional when known: `has_warrant`, `has_prefunded_warrant`, `has_convertible`.
-- optional independent observation: `share_count_observation`, validated and
-  removed before Offering canonicalization as documented in
-  [Level 2 Share Count Observation V1](level2-share-count-observation.md).
+
+`share_count_observation` is not part of the Offering provider schema, prompt,
+validated candidate, or diagnostic save path. The independent deterministic
+processor is documented in
+[Level 2 Share Count Observation V1](level2-share-count-observation.md).
 
 ### Available/unavailable split
 
@@ -300,6 +308,8 @@ Monitor alert delivery, natural-language Monitor creation, and Monitor creation 
 ### Implemented and validated components
 
 - form-specific Stage 1 analysis, optional bounded Repair, persistence, and existing score alert;
+- independent deterministic Offering O/S extraction with exact raw-document
+  lineage and zero provider calls;
 - durable asynchronous Stage 2 identity, exact lineage checks, source reduction, direct Gemini object, and strict diagnostic candidate validation;
 - execution history and logical-work/execution identity separation;
 - five-fact canonical contract and deterministic total materialization;
@@ -360,6 +370,7 @@ The architecture above was cross-checked against these current entry points rath
 
 - Stage 1 and timing: `lib/ai/secFilingAnalysisPreview.ts`, `lib/secFilingAnalysisIngest.ts`, `workflows/source-ingest.ts`.
 - Form boundaries: `lib/ai/secS1F1AnalysisAdapter.ts`, `lib/ai/secS3AnalysisAdapter.ts`, `lib/ai/sec424bAnalysisAdapter.ts`, `lib/sources/sec/forms/common/forms.ts`.
+- deterministic Offering O/S: `lib/sec-structured-data/offeringShareCountSidecar.ts`, `lib/sec-structured-data/offeringShareCountSidecarRuntime.ts`.
 - Stage 2 and production wiring: `lib/offeringMonitorJobFoundation.ts`, `lib/offeringMonitorJobRepository.ts`, `lib/offeringMonitorSecondStage.ts`, `lib/offeringMonitorSecondStageRuntime.ts`, `lib/offeringMonitorProductionWiring.ts`, `workflows/offering-monitor-normalization.ts`.
 - Facts and materialization: `lib/minimalOfferingMonitor.ts`.
 - Canonical boundary: `lib/offeringMonitorCanonicalPersistence.ts`, `supabase/migrations/20260812111402_offering_monitor_canonical_persistence.sql`.
