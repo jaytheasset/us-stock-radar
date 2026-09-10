@@ -45,6 +45,10 @@ import {
   consumeListingMonitorAlertsForEvent,
   type ListingMonitorAlertConsumerResult,
 } from "./listingMonitorAlertConsumer.ts";
+import {
+  consumeFinancialMonitorAlertsForEvent,
+  type FinancialMonitorAlertConsumerResult,
+} from "./financialMonitorAlertConsumer.ts";
 import { persistLevel2ShareCountObservationFromSecRawItem } from "../sec-structured-data/level2ShareCountPersistenceRuntime.ts";
 import type { Level2ShareCountValidatedCandidate } from "../sec-structured-data/level2ShareCountObservation.ts";
 import {
@@ -99,6 +103,8 @@ export async function processGenericMonitorChild(
       rawItem: Record<string, unknown>,
       expectedIdentity: PeriodicFinancialFilingIdentity,
     ) => Promise<PeriodicFinancialMonitorAnalysis>;
+    consumeFinancialMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
+      Promise<FinancialMonitorAlertConsumerResult>;
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
@@ -106,6 +112,7 @@ export async function processGenericMonitorChild(
     return processPeriodicFinancialMonitorChild(identity, {
       repository,
       resolveAnalysis: dependencies.resolvePeriodicFinancialMonitor,
+      consumeFinancialMonitorAlerts: dependencies.consumeFinancialMonitorAlerts,
     });
   }
   if (identity.monitorAnalyzerKey === "corporate_action") {
@@ -168,6 +175,8 @@ export async function processPeriodicFinancialMonitorChild(
       rawItem: Record<string, unknown>,
       expectedIdentity: PeriodicFinancialFilingIdentity,
     ) => Promise<PeriodicFinancialMonitorAnalysis>;
+    consumeFinancialMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
+      Promise<FinancialMonitorAlertConsumerResult>;
   },
 ) {
   if (
@@ -178,7 +187,16 @@ export async function processPeriodicFinancialMonitorChild(
   }
   const claimed = await dependencies.repository.claim(identity);
   if (!claimed) {
-    return { status: "duplicate" as const, jobId: identity.executionId, providerCalls: 0 };
+    const financialMonitorAlerts = await safeConsumeFinancialAlerts(
+      identity.eventId,
+      dependencies.consumeFinancialMonitorAlerts,
+    );
+    return {
+      status: "duplicate" as const,
+      jobId: identity.executionId,
+      providerCalls: 0,
+      financialMonitorAlerts,
+    };
   }
 
   let parent: Awaited<ReturnType<PeriodicFinancialRuntimeRepository["loadExactParent"]>>;
@@ -207,6 +225,10 @@ export async function processPeriodicFinancialMonitorChild(
     await dependencies.repository.recordTerminal(identity, "succeeded_applicable", {
       outputPayload: analysis,
     });
+    const financialMonitorAlerts = await safeConsumeFinancialAlerts(
+      identity.eventId,
+      dependencies.consumeFinancialMonitorAlerts,
+    );
     return {
       status: "succeeded_applicable" as const,
       jobId: identity.executionId,
@@ -214,6 +236,7 @@ export async function processPeriodicFinancialMonitorChild(
       calculationSource: analysis.calculationSource,
       resultStatus: analysis.resultStatus,
       comparisonCount: analysis.comparisons.length,
+      financialMonitorAlerts,
     };
   } catch (error) {
     await dependencies.repository.releaseForRetry(identity, error);
@@ -223,6 +246,17 @@ export async function processPeriodicFinancialMonitorChild(
       providerCalls: 0,
       error: runtimeErrorMessage(error),
     };
+  }
+}
+
+async function safeConsumeFinancialAlerts(
+  eventId: string,
+  consumer?: (input: Readonly<{ eventId: string }>) => Promise<FinancialMonitorAlertConsumerResult>,
+): Promise<FinancialMonitorAlertConsumerResult | Readonly<{ status: "failed"; error: string }>> {
+  try {
+    return await (consumer || consumeFinancialMonitorAlertsForEvent)({ eventId });
+  } catch (error) {
+    return { status: "failed", error: runtimeErrorMessage(error) };
   }
 }
 

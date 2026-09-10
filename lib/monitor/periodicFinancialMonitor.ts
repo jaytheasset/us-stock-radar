@@ -98,11 +98,15 @@ export function readPeriodicFinancialRawFilingIdentity(
     throw new Error("Periodic Financial Monitor filing accession identity mismatch");
   }
 
-  const rawCik = text(rawPayload?.cik) || text(rawPayload?.issuer_cik) || text(metadata?.cik);
-  const issuerCik = /^\d{1,10}$/.test(rawCik) ? rawCik.padStart(10, "0") : "";
-  const form = normalizePeriodicFinancialForm(
-    rawPayload?.form_type ?? rawPayload?.form ?? metadata?.formType ?? metadata?.form_type,
-  );
+  const cikCandidates = [rawPayload?.cik, rawPayload?.issuer_cik, metadata?.cik]
+    .map(text)
+    .filter(Boolean)
+    .map((candidate) => /^\d{1,10}$/.test(candidate) ? candidate.padStart(10, "0") : "");
+  const formCandidates = [rawPayload?.form_type, rawPayload?.form, metadata?.formType, metadata?.form_type]
+    .map(normalizePeriodicFinancialForm)
+    .filter((candidate): candidate is PeriodicFinancialFilingIdentity["form"] => Boolean(candidate));
+  const issuerCik = cikCandidates.length > 0 && new Set(cikCandidates).size === 1 ? cikCandidates[0]! : "";
+  const form = formCandidates.length > 0 && new Set(formCandidates).size === 1 ? formCandidates[0]! : null;
   if (!PERIODIC_FINANCIAL_CIK_PATTERN.test(issuerCik) || !form) {
     throw new Error("Stored periodic SEC source lacks an exact CIK/form identity");
   }
@@ -294,6 +298,11 @@ export function subtractExactDecimals(left: string, right: string) {
   const leftInteger = leftParts.integer * BigInt(10) ** BigInt(scale - leftParts.scale);
   const rightInteger = rightParts.integer * BigInt(10) ** BigInt(scale - rightParts.scale);
   return formatExactDecimal(leftInteger - rightInteger, scale);
+}
+
+export function compareExactDecimals(left: string, right: string) {
+  const difference = subtractExactDecimals(left, right);
+  return decimalSign(difference);
 }
 
 function parseExactDecimal(value: string) {
