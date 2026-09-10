@@ -1,11 +1,13 @@
 import {
+  finalizeOfferingMonitorSidecarOnlyJob,
   type OfferingMonitorJobIdentity,
 } from "@/lib/offeringMonitorJobFoundation";
-import { processOfferingMonitorSecondStageJob } from "@/lib/offeringMonitorSecondStage";
-import { offeringMonitorSecondStageRuntimeDependencies } from "@/lib/offeringMonitorSecondStageRuntime";
-import { processOfferingMonitorProductionWiring } from "@/lib/offeringMonitorProductionWiring";
 import {
+  completeOfferingMonitorJobAfterSidecar,
+  failOfferingMonitorJobAfterSidecar,
   markOfferingMonitorJobFailed,
+  markOfferingMonitorJobStaleAfterSidecar,
+  readOfferingMonitorParentAuthority,
 } from "@/lib/offeringMonitorJobRepository";
 import { processOfferingShareCountSidecar } from "@/lib/sec-structured-data/offeringShareCountSidecar";
 import { offeringShareCountSidecarRuntimeDependencies } from "@/lib/sec-structured-data/offeringShareCountSidecarRuntime";
@@ -24,22 +26,8 @@ export async function offeringMonitorNormalizationWorkflow(identity: OfferingMon
         providerCalled: false as const,
       };
     }
-    const secondStage = await runOfferingMonitorSecondStageStep(identity);
-    if (secondStage.status !== "completed") return { ...secondStage, shareCountSidecar };
-    try {
-      const productionWiring = await runOfferingMonitorProductionWiringStep(identity, secondStage);
-      return { ...secondStage, shareCountSidecar, productionWiring };
-    } catch (error) {
-      return {
-        ...secondStage,
-        shareCountSidecar,
-        productionWiring: {
-          status: "failed" as const,
-          error: errorMessage(error),
-          matcherInvoked: false as const,
-        },
-      };
-    }
+    const terminal = await finalizeOfferingMonitorSidecarOnlyStep(identity, shareCountSidecar);
+    return { ...terminal, shareCountSidecar };
   } catch (error) {
     return markOfferingMonitorFoundationFailedStep(identity, errorMessage(error));
   }
@@ -51,20 +39,23 @@ async function runOfferingShareCountSidecarStep(identity: OfferingMonitorJobIden
 }
 runOfferingShareCountSidecarStep.maxRetries = 0;
 
-async function runOfferingMonitorSecondStageStep(identity: OfferingMonitorJobIdentity) {
-  "use step";
-  return processOfferingMonitorSecondStageJob(identity, offeringMonitorSecondStageRuntimeDependencies);
-}
-runOfferingMonitorSecondStageStep.maxRetries = 0;
-
-async function runOfferingMonitorProductionWiringStep(
+async function finalizeOfferingMonitorSidecarOnlyStep(
   identity: OfferingMonitorJobIdentity,
-  secondStage: Awaited<ReturnType<typeof runOfferingMonitorSecondStageStep>>,
+  sidecar: Awaited<ReturnType<typeof runOfferingShareCountSidecarStep>> | {
+    status: "failed";
+    error: string;
+    providerCalled: false;
+  },
 ) {
   "use step";
-  return processOfferingMonitorProductionWiring(identity, secondStage);
+  return finalizeOfferingMonitorSidecarOnlyJob(identity, sidecar, {
+    readParentAuthority: readOfferingMonitorParentAuthority,
+    completeAfterSidecar: completeOfferingMonitorJobAfterSidecar,
+    failAfterSidecar: failOfferingMonitorJobAfterSidecar,
+    markStaleAfterSidecar: markOfferingMonitorJobStaleAfterSidecar,
+  });
 }
-runOfferingMonitorProductionWiringStep.maxRetries = 0;
+finalizeOfferingMonitorSidecarOnlyStep.maxRetries = 3;
 
 async function markOfferingMonitorFoundationFailedStep(
   identity: OfferingMonitorJobIdentity,

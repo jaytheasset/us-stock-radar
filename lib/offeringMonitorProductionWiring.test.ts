@@ -125,18 +125,20 @@ test("official reader not-ready after safe promotion blocks Matcher and records 
   assert.equal(harness.metadata().offering_matcher_invoked, false);
 });
 
-test("production source uses only existing promotion, official reader, and existing Matcher in a second durable step", () => {
+test("legacy production wiring remains inspectable but is unreachable from the product workflow", () => {
   const source = readFileSync(new URL("./offeringMonitorProductionWiring.ts", import.meta.url), "utf8");
   const workflow = readFileSync(new URL("../workflows/offering-monitor-normalization.ts", import.meta.url), "utf8");
   assert.match(source, /promoteOfferingMonitorCanonical/);
   assert.match(source, /readOfferingMonitorCanonical/);
   assert.match(source, /evaluateOfferingMonitorEvent/);
   assert.doesNotMatch(source, /event_offering_terms|offering_monitor_payload|parser_output|Gemini|alert queue|Telegram|Email|notification/i);
-  assert.ok(workflow.indexOf("runOfferingShareCountSidecarStep") < workflow.indexOf("runOfferingMonitorSecondStageStep"));
-  assert.ok(workflow.indexOf("runOfferingMonitorSecondStageStep") < workflow.indexOf("runOfferingMonitorProductionWiringStep"));
   assert.match(workflow, /runOfferingShareCountSidecarStep\.maxRetries = 0/);
-  assert.match(workflow, /runOfferingMonitorProductionWiringStep\.maxRetries = 0/);
-  assert.match(workflow, /secondStage\.status !== "completed"/);
+  assert.match(workflow, /finalizeOfferingMonitorSidecarOnlyJob/);
+  assert.doesNotMatch(workflow, /processOfferingMonitorSecondStageJob/);
+  assert.doesNotMatch(workflow, /processOfferingMonitorProductionWiring/);
+  assert.doesNotMatch(workflow, /promoteOfferingMonitorCanonical/);
+  assert.doesNotMatch(workflow, /readOfferingMonitorCanonical/);
+  assert.doesNotMatch(workflow, /evaluateOfferingMonitorEvent/);
 });
 
 function wiringHarness(options: {

@@ -20,10 +20,13 @@ or current/latest selection.
   `listing_risk` and/or `corporate_action`. Amendments and other SEC forms stay
   outside this generic child path.
 
-Offering runs the deterministic processor as an independent workflow step
-before its unchanged Stage 2 normalizer. Failure or ineligibility in this step
-does not disable, replace, or alter Stage 2. Listing and Corporate Action share
-the generic child processor. Each existing child makes one provider call. A
+Offering runs the deterministic processor as the only active processing step in
+its durable child workflow. The legacy Offering Gemini Stage 2 normalizer and
+its canonical/Matcher continuation remain in source and history but are not
+called by product runtime. The job reaches `completed` after an eligible or
+ineligible sidecar result, `failed` after a sidecar exception, and `stale` when
+the exact Primary parent is no longer current. Listing and Corporate Action
+share the generic child processor. Each existing child makes one provider call. A
 filing routed to both generic analyzers already creates two independent
 children; this feature neither adds nor combines those calls.
 
