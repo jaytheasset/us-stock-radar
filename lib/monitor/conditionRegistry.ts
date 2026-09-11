@@ -92,23 +92,24 @@ export type MonitorConditionDefinition = Readonly<{
     omitLabel: string;
     enumValueLabels?: Readonly<Record<string, string>>;
   }>;
-  monitorDomains?: readonly ("listing" | "financial")[];
+  monitorDomains?: readonly ("listing" | "financial" | "sc13")[];
   numberValidation?: Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
     column?: string;
-    subject: "event" | "ticker";
+    subject: "event" | "ticker" | "issuer";
     reader?:
       | "read_event_offering_monitor_canonical"
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
       | "read_current_event_ownership_facts"
       | "read_current_event_periodic_financial"
+      | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
     valueQualityColumn?: string;
@@ -195,6 +196,7 @@ const registry = [
   }),
 
   ...periodicFinancialConditions(),
+  ...sc13CurrentConditions(),
 
   canonicalCorporateActionCondition(
     "corporate_action.event_kind",
@@ -615,6 +617,35 @@ function periodicFinancialConditions(): readonly MonitorConditionDefinition[] {
         display: Object.freeze({ label: `${metricLabel} YoY change (${basisLabel})` }),
       }),
     ];
+  }));
+}
+
+function sc13CurrentConditions(): readonly MonitorConditionDefinition[] {
+  const fields = [
+    ["aggregate_owned", "aggregateAmountOwnedRaw", "Aggregate amount beneficially owned"],
+    ["percent_of_class", "percentOfClassRaw", "Percent of class beneficially owned"],
+    ["sole_voting", "soleVotingPowerRaw", "Sole voting power"],
+    ["shared_voting", "sharedVotingPowerRaw", "Shared voting power"],
+    ["sole_dispositive", "soleDispositivePowerRaw", "Sole dispositive power"],
+    ["shared_dispositive", "sharedDispositivePowerRaw", "Shared dispositive power"],
+  ] as const;
+  return fields.map(([key, field, label]) => Object.freeze({
+    key: `sc13.${key}`,
+    valueType: "decimal" as const,
+    allowedOperators: Object.freeze([...numericOperators]),
+    description: `${label} in the latest saved Schedule 13 filing for one exact issuer, reporter, security class, and CUSIP position; this is not a real-time ownership value.`,
+    display: Object.freeze({ label: `${label} (latest saved filing)` }),
+    monitorDomains: Object.freeze(["sc13"] as const),
+    family: "sc13" as const,
+    domain: "stored_filing_current_state",
+    source: Object.freeze({
+      subject: "issuer" as const,
+      reader: "read_sc13_issuer_current_state" as const,
+      jsonPath: Object.freeze([field] as const),
+    }),
+    qualityCapability: Object.freeze(["exact"] as const),
+    eligibility: Object.freeze({ requiredReaderStatus: "available" as const }),
+    status: "READY" as const,
   }));
 }
 
