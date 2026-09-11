@@ -142,6 +142,13 @@ Legacy Offering Gemini Stage 2 status:
 - LLM-only, fallback HTML/text, malformed/truncated/untrusted, wrong-accession, wrong-issuer, or ticker-injected inputs cannot write canonical Ownership details or overwrite valid rows.
 - Form 4/144 Ownership Monitor conditions read only verified typed rows, evaluate all predicates against one row, and produce replay-safe internal Monitor alerts. External email/Telegram delivery is not enabled by this path.
 
+### SC 13D/G merged-main product display verification — 2026-09-12
+
+- Local-main merge `a68365c4186a9988fb6cde612385d145fc2cd7a6` was verified against the unchanged isolated 58821/58822 saved six-filing dataset through the real `/api/market/sec/ownership` route and `/stocks/{ticker}#watchlist-ownership` UI for LODE, MTCH, MSFT, AAPL, and BRVE at 1440×900 and 390×844. The existing Insider, Institutional, Financials, and Dilution surfaces remained present.
+- LODE showed its three reporters separately at 5,763,729.00 / 8.1%; BRVE used amendment `0000947871-26-000860` and showed 13.5%, 13.2%, and 0.3% separately. MTCH retained 20 source reporters as unconfirmed history, MSFT retained 555,988,240 / 7.48% as unconfirmed, and AAPL retained explicit 0 / 0% as unconfirmed.
+- Reporter CIK, security class/CUSIP, event date, accession, and SEC source link matched the saved reader/source evidence. No reporter totals, LLM values, or FMP numeric fallback were introduced; zero, missing CIK, and unconfirmed state remained distinct.
+- Evidence: `%TEMP%\sc13-ownership-ui-main-a68365c4-3115-api-audit.json`, `%TEMP%\sc13-ownership-ui-main-a68365c4-3115-dom-audit.json`, and `%TEMP%\stockradar-sc13-main-a68365c4-3115-screenshots\`. “Latest” means the latest confirmed reported value within the stored filing history only, not all SEC filings or real-time ownership. Missing identity or unresolved amendment lineage remains unconfirmed and is not promoted to a current holding.
+
 ### Monitor foundation and current domain wiring
 
 - Generic child execution has exact parent identity, terminal states, retry/replay handling, and canonical persistence for implemented domains.
