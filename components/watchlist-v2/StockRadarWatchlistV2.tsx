@@ -81,6 +81,7 @@ import {
 import type { StockDilutionMembershipResponse } from "@/lib/dilution-registry/stockDilutionMembership";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
+import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
@@ -164,6 +165,8 @@ export function StockRadarWatchlistV2({
     useState<StockFundamentalsSnapshot | null>(null);
   const [financials, setFinancials] =
     useState<StockFinancialsSnapshot | null>(null);
+  const [sc13Ownership, setSc13Ownership] =
+    useState<StockSc13OwnershipSnapshot | null>(null);
   const [dilution, setDilution] =
     useState<StockDilutionMembershipResponse | null>(null);
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
@@ -179,6 +182,8 @@ export function StockRadarWatchlistV2({
   const [fundamentalsState, setFundamentalsState] =
     useState<LoadState>("idle");
   const [financialsState, setFinancialsState] =
+    useState<LoadState>("idle");
+  const [sc13OwnershipState, setSc13OwnershipState] =
     useState<LoadState>("idle");
   const [dilutionState, setDilutionState] = useState<LoadState>("idle");
   const [chartRange, setChartRange] = useState<ChartRange>("1D");
@@ -504,6 +509,41 @@ export function StockRadarWatchlistV2({
         if (!controller.signal.aborted) {
           setFundamentals(null);
           setFundamentalsState("unavailable");
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    if (!selectedTicker) {
+      setSc13Ownership(null);
+      setSc13OwnershipState("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setSc13Ownership(null);
+    setSc13OwnershipState("loading");
+
+    void fetch(
+      `/api/market/sec/ownership?symbol=${encodeURIComponent(selectedTicker)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(readStockSc13OwnershipResponse)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        const nextOwnership = readStockSc13OwnershipSnapshot(
+          payload,
+          selectedTicker,
+        );
+        setSc13Ownership(nextOwnership);
+        setSc13OwnershipState(nextOwnership ? "ready" : "unavailable");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setSc13Ownership(null);
+          setSc13OwnershipState("unavailable");
         }
       });
 
@@ -1155,6 +1195,8 @@ export function StockRadarWatchlistV2({
                       financialSnapshot={financials}
                       loadState={fundamentalsState}
                       ownershipEvents={ownershipEvents}
+                      sc13LoadState={sc13OwnershipState}
+                      sc13Snapshot={sc13Ownership}
                       snapshot={fundamentals}
                     />
                     </div>
@@ -1946,6 +1988,14 @@ async function readStockFinancialsResponse(response: Response) {
   return payload;
 }
 
+async function readStockSc13OwnershipResponse(response: Response) {
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error || "SEC ownership request failed.");
+  }
+  return payload;
+}
+
 function readFundamentalsSnapshot(
   payload: unknown,
   expectedSymbol: string,
@@ -1987,6 +2037,31 @@ function readStockFinancialsSnapshot(
     return null;
   }
   return candidate as StockFinancialsSnapshot;
+}
+
+function readStockSc13OwnershipSnapshot(
+  payload: unknown,
+  expectedSymbol: string,
+): StockSc13OwnershipSnapshot | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const data = (payload as { data?: unknown }).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const candidate = data as Partial<StockSc13OwnershipSnapshot>;
+  if (
+    candidate.symbol !== expectedSymbol
+    || candidate.source !== "SEC_SC13_STORED"
+    || candidate.scope !== "complete_stored_history_not_sec_global"
+    || candidate.gptDependency !== false
+    || !Array.isArray(candidate.positions)
+    || (candidate.status !== "available"
+      && candidate.status !== "empty"
+      && candidate.status !== "unavailable")
+  ) {
+    return null;
+  }
+  return candidate as StockSc13OwnershipSnapshot;
 }
 
 function readDilutionSnapshot(
