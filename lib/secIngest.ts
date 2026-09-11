@@ -15,6 +15,11 @@ import {
   workflowSourceRunMetadata,
   type WorkflowSourceRunAttempt,
 } from "@/lib/sourceRunState";
+import {
+  persistSc13CanonicalXmlForRawItem,
+  recordSc13CanonicalPersistenceState,
+  sc13PersistenceFailureState,
+} from "@/lib/sec-sc13-xml/persistence";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -29,7 +34,14 @@ type SecRawIngestOptions = {
   sourceRun?: WorkflowSourceRunAttempt;
 };
 
-export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
+type SecRawIngestDependencies = {
+  fetchRawItems?: typeof fetchSecEdgarRawItems;
+};
+
+export async function runSecRawIngest(
+  options: SecRawIngestOptions = {},
+  dependencies: SecRawIngestDependencies = {},
+) {
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
   const runId = options.sourceRun?.sourceRunId || randomUUID();
@@ -45,6 +57,10 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
     documents_requested: 0,
     documents_fetched: 0,
     documents_failed: 0,
+    sc13_xml_available_count: 0,
+    sc13_xml_replayed_count: 0,
+    sc13_xml_failed_count: 0,
+    sc13_xml_state_recording_failed_count: 0,
   };
 
   if (!dryRun) {
@@ -88,7 +104,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
   }
 
   try {
-    const rawResult = await fetchSecEdgarRawItems({
+    const rawResult = await (dependencies.fetchRawItems ?? fetchSecEdgarRawItems)({
       formTypes: options.formTypes,
       accessionNumber: options.accessionNumber,
       cik: options.cik,
@@ -146,6 +162,11 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
 
         const existing = await findExistingSecRawItem(rawItem);
         if (existing && !force) {
+          const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
+            rawItem,
+            rawItemId: stringValue(existing.id),
+            stats,
+          });
           stats.skipped_count += 1;
           items.push({
             ok: true,
@@ -156,11 +177,17 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
             title: existing.title || rawItem.title,
             form_type: readNested(rawItem.raw_payload, "form_type"),
             cik: readNested(rawItem.raw_payload, "cik"),
+            sc13_xml_persistence: sc13XmlPersistence,
           });
           continue;
         }
 
         const persisted = await saveSecRawItem(rawItem, runId, existing);
+        const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
+          rawItem,
+          rawItemId: stringValue(persisted.id),
+          stats,
+        });
         stats.raw_upserted_count += 1;
         items.push({
           ok: true,
@@ -171,6 +198,7 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
           cik: readNested(rawItem.raw_payload, "cik"),
           ticker: readNested(rawItem.raw_payload, "ticker"),
           body_chars: stringValue(rawItem.body_text).length,
+          sc13_xml_persistence: sc13XmlPersistence,
         });
       } catch (error) {
         stats.failed_count += 1;
@@ -229,6 +257,50 @@ export async function runSecRawIngest(options: SecRawIngestOptions = {}) {
       error: error instanceof Error ? error.message : "Unknown SEC raw ingest error",
       items,
     };
+  }
+}
+
+async function persistSc13XmlAfterRawSave(input: {
+  rawItem: SecParsedRawItem;
+  rawItemId: string;
+  stats: {
+    sc13_xml_available_count: number;
+    sc13_xml_replayed_count: number;
+    sc13_xml_failed_count: number;
+    sc13_xml_state_recording_failed_count: number;
+  };
+}) {
+  try {
+    const result = await persistSc13CanonicalXmlForRawItem({
+      rawItemId: input.rawItemId,
+      rawItem: input.rawItem,
+    });
+    if (result.status === "not_applicable") return result;
+    input.stats.sc13_xml_available_count += 1;
+    if (result.writeStatus === "replayed") input.stats.sc13_xml_replayed_count += 1;
+    try {
+      await recordSc13CanonicalPersistenceState({
+        rawItemId: input.rawItemId,
+        state: result,
+      });
+      return { ...result, stateRecorded: true };
+    } catch {
+      input.stats.sc13_xml_state_recording_failed_count += 1;
+      return { ...result, stateRecorded: false };
+    }
+  } catch (error) {
+    input.stats.sc13_xml_failed_count += 1;
+    const failureState = sc13PersistenceFailureState(error);
+    try {
+      await recordSc13CanonicalPersistenceState({
+        rawItemId: input.rawItemId,
+        state: failureState,
+      });
+      return { ...failureState, stateRecorded: true };
+    } catch {
+      input.stats.sc13_xml_state_recording_failed_count += 1;
+      return { ...failureState, stateRecorded: false };
+    }
   }
 }
 
