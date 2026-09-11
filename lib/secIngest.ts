@@ -20,6 +20,10 @@ import {
   recordSc13CanonicalPersistenceState,
   sc13PersistenceFailureState,
 } from "@/lib/sec-sc13-xml/persistence";
+import {
+  SC13_MONITOR_AUTOMATIC_TRIGGER_VERSION,
+  runSc13MonitorAutomaticTrigger,
+} from "@/lib/monitor/sc13MonitorAutomaticTrigger";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -61,6 +65,9 @@ export async function runSecRawIngest(
     sc13_xml_replayed_count: 0,
     sc13_xml_failed_count: 0,
     sc13_xml_state_recording_failed_count: 0,
+    sc13_monitor_completed_count: 0,
+    sc13_monitor_failed_count: 0,
+    sc13_monitor_state_recording_failed_count: 0,
   };
 
   if (!dryRun) {
@@ -268,6 +275,9 @@ async function persistSc13XmlAfterRawSave(input: {
     sc13_xml_replayed_count: number;
     sc13_xml_failed_count: number;
     sc13_xml_state_recording_failed_count: number;
+    sc13_monitor_completed_count: number;
+    sc13_monitor_failed_count: number;
+    sc13_monitor_state_recording_failed_count: number;
   };
 }) {
   try {
@@ -278,16 +288,42 @@ async function persistSc13XmlAfterRawSave(input: {
     if (result.status === "not_applicable") return result;
     input.stats.sc13_xml_available_count += 1;
     if (result.writeStatus === "replayed") input.stats.sc13_xml_replayed_count += 1;
+    let stateRecorded = true;
     try {
       await recordSc13CanonicalPersistenceState({
         rawItemId: input.rawItemId,
         state: result,
       });
-      return { ...result, stateRecorded: true };
     } catch {
       input.stats.sc13_xml_state_recording_failed_count += 1;
-      return { ...result, stateRecorded: false };
+      stateRecorded = false;
     }
+    let monitor;
+    try {
+      monitor = await runSc13MonitorAutomaticTrigger({
+        rawItemId: input.rawItemId,
+        issuerCik: result.issuerCik,
+        sourceSha256: result.sourceSha256,
+      });
+    } catch (error) {
+      monitor = {
+        version: SC13_MONITOR_AUTOMATIC_TRIGGER_VERSION,
+        status: "failed" as const,
+        rawItemId: input.rawItemId,
+        issuerCik: result.issuerCik,
+        stateRecorded: false,
+        error: error instanceof Error ? error.message : "Unexpected SC13 Monitor trigger failure",
+      };
+      try {
+        console.error("[sc13-monitor] unexpected ingest trigger failure", monitor);
+      } catch {
+        // Console/reporting failures never cross the canonical XML boundary.
+      }
+    }
+    if (monitor.status === "completed") input.stats.sc13_monitor_completed_count += 1;
+    else input.stats.sc13_monitor_failed_count += 1;
+    if (!monitor.stateRecorded) input.stats.sc13_monitor_state_recording_failed_count += 1;
+    return { ...result, stateRecorded, monitor };
   } catch (error) {
     input.stats.sc13_xml_failed_count += 1;
     const failureState = sc13PersistenceFailureState(error);

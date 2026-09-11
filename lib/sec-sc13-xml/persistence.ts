@@ -53,6 +53,7 @@ export async function persistSc13CanonicalXmlForRawItem(input: {
     status: "available" as const,
     writeStatus: status,
     accessionNumber: payload.filing.accession_number as string,
+    issuerCik: payload.filing.issuer_cik as string,
     reporterCount: payload.reporters.length,
     sourceSha256: payload.filing.source_sha256 as string,
   };
@@ -61,7 +62,7 @@ export async function persistSc13CanonicalXmlForRawItem(input: {
 export async function recordSc13CanonicalPersistenceState(input: {
   rawItemId: string;
   state:
-    | { status: "available"; accessionNumber: string; reporterCount: number; sourceSha256: string; writeStatus: unknown }
+    | { status: "available"; accessionNumber: string; issuerCik?: string; reporterCount: number; sourceSha256: string; writeStatus: unknown }
     | { status: "failed"; errorCode: string; issueCodes: string[] };
   repository?: Sc13CanonicalRepository;
 }) {
