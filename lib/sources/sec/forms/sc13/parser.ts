@@ -15,6 +15,7 @@ import {
   type Sc13SourceFlavor,
   type ScheduleType,
 } from "./types";
+import { parseSc13StructuralXml, type Sc13StructuralParseResult } from "./structuralParser";
 
 const SUPPORTED_FORMS = new Set([
   "SC 13D",
@@ -303,6 +304,7 @@ export function parseSc13Filing(
   filing: Sc13FilingInput,
   context: Sc13ParseContext = {},
 ): Sc13ParserOutput {
+  const structuralSource = parseStructuralSourceFromIngestPayload(filing);
   const preparedSource = prepareSc13Source(filing.text ?? "", filing.attachments);
   const text = normalizeSecFilingText(preparedSource.primaryText);
   const formType = normalizeFormType(filing.formType);
@@ -442,6 +444,7 @@ export function parseSc13Filing(
       ? [{ date: facts.eventDate, label: "SC 13 reportable event date", source: "Date of Event" }]
       : [],
     warnings,
+    ...(structuralSource ? { structuralSource } : {}),
     raw: {
       sourceLength: text.length,
       sourceFlavor: preparedSource.flavor,
@@ -452,6 +455,47 @@ export function parseSc13Filing(
       },
     },
   };
+}
+
+function parseStructuralSourceFromIngestPayload(filing: Sc13FilingInput): Sc13StructuralParseResult | null {
+  if (!filing.rawPayload || typeof filing.rawPayload !== "object" || Array.isArray(filing.rawPayload)) return null;
+  const rawPayload = filing.rawPayload as Record<string, unknown>;
+  const hasStructuralSourceFields = [
+    "sc13_source_url",
+    "sc13_source_format",
+    "sc13_source_text",
+    "sc13_source_text_char_count",
+    "sc13_source_text_truncated",
+  ].some((key) => Object.prototype.hasOwnProperty.call(rawPayload, key));
+  if (!hasStructuralSourceFields) return null;
+
+  return parseSc13StructuralXml({
+    rawXml: typeof rawPayload.sc13_source_text === "string" ? rawPayload.sc13_source_text : null,
+    sourceFormat: typeof rawPayload.sc13_source_format === "string" ? rawPayload.sc13_source_format : null,
+    sourceUrl:
+      typeof rawPayload.sc13_source_url === "string"
+        ? rawPayload.sc13_source_url
+        : filing.sourceUrl,
+    expectedAccessionNumber: filing.accessionNumber,
+    expectedFormType: filing.formType,
+    sourceTextCharCount:
+      typeof rawPayload.sc13_source_text_char_count === "number"
+        ? rawPayload.sc13_source_text_char_count
+        : null,
+    sourceTextTruncated: rawPayload.sc13_source_text_truncated === true,
+    indexSubjectCik: typeof rawPayload.sc13_index_subject_cik === "string" ? rawPayload.sc13_index_subject_cik : null,
+    indexSubjectCikCount:
+      typeof rawPayload.sc13_index_subject_cik_count === "number"
+        ? rawPayload.sc13_index_subject_cik_count
+        : null,
+    indexFiledByCiks: Array.isArray(rawPayload.sc13_index_filed_by_ciks)
+      ? rawPayload.sc13_index_filed_by_ciks.filter((value): value is string => typeof value === "string")
+      : [],
+    indexCanonicalXmlUrl:
+      typeof rawPayload.sc13_index_canonical_xml_url === "string"
+        ? rawPayload.sc13_index_canonical_xml_url
+        : null,
+  });
 }
 
 export function normalizeFormType(formType: string): string {

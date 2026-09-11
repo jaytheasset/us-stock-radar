@@ -30,6 +30,7 @@ const DEFAULT_FORM_TYPES = ["8-K", "6-K"];
 const MAX_DOCUMENT_TEXT_CHARS = 160_000;
 const MAX_COMBINED_TEXT_CHARS = 500_000;
 const MAX_OWNERSHIP_SOURCE_TEXT_CHARS = 500_000;
+const MAX_SC13_SOURCE_TEXT_CHARS = 500_000;
 const MAX_PRIMARY_DOCUMENT_HTML_CHARS = 2_000_000;
 
 type FetchOptions = {
@@ -59,6 +60,12 @@ export type SecDocument = {
   rawTextCharCount?: number;
   rawTextTruncated?: boolean;
   rawSourceFormat?: string | null;
+  sc13RawText?: string | null;
+  sc13RawTextCharCount?: number;
+  sc13RawTextTruncated?: boolean;
+  sc13RawSourceFormat?: string | null;
+  sc13RawCaptureStatus?: "preserved" | "truncated" | "empty" | "invalid_format" | "fetch_failed" | "unsupported_response";
+  sc13RawCaptureError?: string | null;
   rawHtml?: string | null;
   rawHtmlCharCount?: number;
   rawHtmlTruncated?: boolean;
@@ -248,6 +255,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             registrationNumber: null,
             secAct: null,
             filmNumber: null,
+            sc13IndexProvenance: null,
           };
 
       diagnostics.documentsRequested += detail.documentsRequested;
@@ -276,6 +284,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
         detail.documents.find((document) => document.rawSourceFormat === "ownership_xml") ||
         detail.documents.find((document) => document.rawText) ||
         null;
+      const sc13Source = detail.documents.find((document) => document.sc13RawCaptureStatus) || null;
       const ownershipIssuer =
         (ownershipSource?.rawText ? readOwnershipIssuerIdentity(ownershipSource.rawText) : null) ||
         (isSchedule13FormType(formType) ? readSchedule13IssuerIdentity(primary, bodyText) : null);
@@ -359,6 +368,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           ownership_source_text: ownershipSource?.rawText || null,
           ownership_source_text_char_count: ownershipSource?.rawTextCharCount || 0,
           ownership_source_text_truncated: Boolean(ownershipSource?.rawTextTruncated),
+          sc13_source_url: sc13Source?.url || null,
+          sc13_source_format: sc13Source?.sc13RawSourceFormat || null,
+          sc13_source_text: sc13Source ? sc13Source.sc13RawText ?? null : null,
+          sc13_source_text_char_count: sc13Source?.sc13RawTextCharCount || 0,
+          sc13_source_text_truncated: Boolean(sc13Source?.sc13RawTextTruncated),
+          sc13_source_capture_status: sc13Source?.sc13RawCaptureStatus || null,
+          sc13_source_capture_error: sc13Source?.sc13RawCaptureError || null,
+          sc13_index_subject_cik: detail.sc13IndexProvenance?.subjectCik || null,
+          sc13_index_subject_cik_count: detail.sc13IndexProvenance?.subjectCikCount || 0,
+          sc13_index_filed_by_ciks: detail.sc13IndexProvenance?.filedByCiks || [],
+          sc13_index_canonical_xml_url: detail.sc13IndexProvenance?.canonicalXmlUrl || null,
           documents: detail.documents.map((document) => ({
             sequence: document.sequence,
             description: document.description,
@@ -376,6 +396,12 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             rawHtmlTruncated: Boolean(document.rawHtmlTruncated),
             rawHtmlPreserved: Boolean(document.rawHtml),
             rawSourceFormat: document.rawSourceFormat || null,
+            sc13RawTextCharCount: document.sc13RawTextCharCount || 0,
+            sc13RawTextTruncated: Boolean(document.sc13RawTextTruncated),
+            sc13RawTextPreserved: Boolean(document.sc13RawText),
+            sc13RawSourceFormat: document.sc13RawSourceFormat || null,
+            sc13RawCaptureStatus: document.sc13RawCaptureStatus || null,
+            sc13RawCaptureError: document.sc13RawCaptureError || null,
             fetchStatus: document.fetchStatus || null,
             fetchError: document.fetchError || null,
             textExtractionStatus: document.textExtractionStatus || null,
@@ -775,6 +801,7 @@ async function fetchFilingDetail({
       registrationNumber: null,
       secAct: null,
       filmNumber: null,
+      sc13IndexProvenance: null,
     };
   }
 
@@ -784,6 +811,7 @@ async function fetchFilingDetail({
   const filingIndexMetadata = readFilingIndexMetadataFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
+  const sc13IndexProvenance = readSc13IndexProvenanceFromDetailHtml(html, documents, effectiveFormType);
   const selectedDocuments = selectDocumentsForText(documents, attachmentLimit, effectiveFormType);
   let documentsFetched = 0;
   let documentsFailed = 0;
@@ -801,6 +829,7 @@ async function fetchFilingDetail({
       continue;
     }
 
+    const sc13CanonicalCandidate = isSc13CanonicalXmlDocumentCandidate(document, effectiveFormType);
     try {
       const documentResponse = await secFetch(document.url);
       if (!documentResponse.ok) {
@@ -809,6 +838,10 @@ async function fetchFilingDetail({
           ...document,
           fetchStatus: documentResponse.status,
           fetchError: documentResponse.statusText || `HTTP ${documentResponse.status}`,
+          sc13RawCaptureStatus: sc13CanonicalCandidate ? "fetch_failed" : undefined,
+          sc13RawCaptureError: sc13CanonicalCandidate
+            ? documentResponse.statusText || `HTTP ${documentResponse.status}`
+            : null,
         });
         continue;
       }
@@ -819,6 +852,10 @@ async function fetchFilingDetail({
           ...document,
           fetchStatus: documentResponse.status,
           textExtractionStatus: "not_extracted_binary_or_graphic",
+          sc13RawCaptureStatus: sc13CanonicalCandidate ? "unsupported_response" : undefined,
+          sc13RawCaptureError: sc13CanonicalCandidate
+            ? `Unsupported content type: ${contentType || "unknown"}`
+            : null,
         });
         continue;
       }
@@ -851,10 +888,16 @@ async function fetchFilingDetail({
         formType: effectiveFormType,
         text,
       });
+      const rawSc13Source = buildSc13RawSource({
+        document,
+        formType: effectiveFormType,
+        text,
+      });
+      const retainDocumentAnalysisText = retainAnalysisText && !(sc13CanonicalCandidate && !document.isPrimary);
       documentsFetched += 1;
       documentsWithText.push({
         ...document,
-        text: retainAnalysisText
+        text: retainDocumentAnalysisText
           ? truncated ? cleaned.slice(0, MAX_DOCUMENT_TEXT_CHARS) : cleaned
           : null,
         textCharCount: cleaned.length,
@@ -863,21 +906,33 @@ async function fetchFilingDetail({
         rawTextCharCount: rawOwnershipSource?.charCount || 0,
         rawTextTruncated: Boolean(rawOwnershipSource?.truncated),
         rawSourceFormat: rawOwnershipSource?.format || null,
+        sc13RawText: rawSc13Source ? rawSc13Source.text : null,
+        sc13RawTextCharCount: rawSc13Source?.charCount || 0,
+        sc13RawTextTruncated: Boolean(rawSc13Source?.truncated),
+        sc13RawSourceFormat: rawSc13Source?.format || null,
+        sc13RawCaptureStatus: rawSc13Source?.captureStatus,
+        sc13RawCaptureError: rawSc13Source?.captureError || null,
         rawHtml: primaryRawHtml?.html || null,
         rawHtmlCharCount: primaryRawHtml?.charCount || 0,
         rawHtmlTruncated: Boolean(primaryRawHtml?.truncated),
         periodicReportCoreXbrlFacts: periodicReportEvidence?.xbrlFacts || [],
         periodicReportCoreSourceBlocks: periodicReportEvidence?.sourceBlocks || [],
         fetchStatus: documentResponse.status,
-        textExtractionStatus: retainAnalysisText
-          ? "text_extracted"
-          : "text_extracted_not_retained_unrelated_40f_exhibit",
+        textExtractionStatus: sc13CanonicalCandidate && !document.isPrimary
+          ? "canonical_sc13_xml_preserved_not_added_to_analysis_text"
+          : retainAnalysisText
+            ? "text_extracted"
+            : "text_extracted_not_retained_unrelated_40f_exhibit",
       });
     } catch (error) {
       documentsFailed += 1;
       documentsWithText.push({
         ...document,
         fetchError: error instanceof Error ? error.message : "Document fetch failed",
+        sc13RawCaptureStatus: sc13CanonicalCandidate ? "fetch_failed" : undefined,
+        sc13RawCaptureError: sc13CanonicalCandidate
+          ? error instanceof Error ? error.message : "Document fetch failed"
+          : null,
       });
     }
   }
@@ -894,6 +949,31 @@ async function fetchFilingDetail({
     registrationNumber: filingIndexMetadata.registrationNumber,
     secAct: filingIndexMetadata.secAct,
     filmNumber: filingIndexMetadata.filmNumber,
+    sc13IndexProvenance,
+  };
+}
+
+function readSc13IndexProvenanceFromDetailHtml(
+  html: string,
+  documents: SecDocument[],
+  formType: string | null,
+) {
+  if (!isSchedule13FormType(formType)) return null;
+  const subjectCiks: string[] = [];
+  const filedByCiks: string[] = [];
+  for (const match of html.matchAll(/<span[^>]+class=["'][^"']*companyName[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
+    const block = match[1] || "";
+    const cik = extractFirst(block, /[?&]CIK=(\d{1,10})\b/i);
+    if (!cik) continue;
+    if (/\(Subject\)/i.test(block)) subjectCiks.push(cik);
+    if (/\(Filed by\)/i.test(block)) filedByCiks.push(cik);
+  }
+  const canonicalXmlUrl = documents.find((document) => isSc13CanonicalXmlDocumentCandidate(document, formType))?.url || null;
+  return {
+    subjectCik: subjectCiks.length === 1 ? subjectCiks[0]! : null,
+    subjectCikCount: subjectCiks.length,
+    filedByCiks: Array.from(new Set(filedByCiks)),
+    canonicalXmlUrl,
   };
 }
 
@@ -966,6 +1046,13 @@ function selectDocumentsForText(documents: SecDocument[], attachmentLimit: numbe
     for (const document of documents) {
       if (!document.url || selected.has(document.url)) continue;
       if (isOwnershipXmlDocumentCandidate(document)) selected.add(document.url);
+    }
+  }
+
+  if (isSchedule13FormType(effectiveFormType)) {
+    for (const document of documents) {
+      if (!document.url || selected.has(document.url)) continue;
+      if (isSc13CanonicalXmlDocumentCandidate(document, effectiveFormType)) selected.add(document.url);
     }
   }
 
@@ -1153,6 +1240,54 @@ function buildOwnershipRawSource({
     truncated,
     format,
   };
+}
+
+function buildSc13RawSource({
+  document,
+  formType,
+  text,
+}: {
+  document: SecDocument;
+  formType: string | null;
+  text: string;
+}) {
+  if (!isSchedule13FormType(formType) || !isSc13CanonicalXmlDocumentCandidate(document, formType)) return null;
+  const truncated = text.length > MAX_SC13_SOURCE_TEXT_CHARS;
+  const hasSubmissionRoot = /<(?:[A-Za-z_][\w.-]*:)?edgarSubmission\b/i.test(text);
+  const hasSupportedNamespace = /xmlns(?::[A-Za-z_][\w.-]*)?\s*=\s*["']http:\/\/www\.sec\.gov\/edgar\/schedule13(?:D|g)["']/i.test(text);
+  const isRecognizedFormat = hasSubmissionRoot && hasSupportedNamespace;
+  const captureStatus: NonNullable<SecDocument["sc13RawCaptureStatus"]> = !text.trim()
+    ? "empty"
+    : !isRecognizedFormat
+      ? "invalid_format"
+      : truncated
+        ? "truncated"
+        : "preserved";
+  const captureError = captureStatus === "empty"
+    ? "Canonical Schedule 13 response body was empty."
+    : captureStatus === "invalid_format"
+      ? "Canonical Schedule 13 response did not contain a supported edgarSubmission namespace."
+      : captureStatus === "truncated"
+        ? `Canonical Schedule 13 response exceeded ${MAX_SC13_SOURCE_TEXT_CHARS} characters.`
+        : null;
+  return {
+    text: truncated ? text.slice(0, MAX_SC13_SOURCE_TEXT_CHARS) : text,
+    charCount: text.length,
+    truncated,
+    format: isRecognizedFormat ? "sec_schedule_13_xml" : null,
+    captureStatus,
+    captureError,
+  };
+}
+
+function isSc13CanonicalXmlDocumentCandidate(document: SecDocument, formType: string | null) {
+  if (!isSchedule13FormType(formType)) return false;
+  const documentName = stringValue(document.document);
+  const url = stringValue(document.url);
+  if (!/(?:^|\/)primary_doc\.xml(?:$|[?#])/i.test(documentName || url)) return false;
+  const documentType = canonicalSecFormTypeForCompare(document.type);
+  const expectedType = canonicalSecFormTypeForCompare(formType);
+  return !documentType || documentType === expectedType;
 }
 
 function detectOwnershipRawSourceFormat(document: SecDocument, text: string) {
