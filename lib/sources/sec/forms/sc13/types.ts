@@ -1,3 +1,5 @@
+import type { Sc13StructuralParseResult } from "./structuralParser";
+
 export const SC13_PARSER_VERSION = "sc13-v1";
 export const SC13_PARSER_GROUP = "sc13";
 export const SC13_ROOM_FORM_TYPE = "SC 13D / SC 13D/A, SC 13G / SC 13G/A";
@@ -92,6 +94,8 @@ export interface Sc13FilingInput {
   filedAt?: string | null;
   text: string;
   attachments?: Array<Record<string, unknown>>;
+  sourceUrl?: string | null;
+  rawPayload?: unknown;
 }
 
 export interface Sc13ParseContext {
@@ -249,6 +253,7 @@ export interface Sc13ParserOutput {
   signals: ParserSignal[];
   calendarItems: CalendarItem[];
   warnings: string[];
+  structuralSource?: Sc13StructuralParseResult;
   raw: {
     sourceLength: number;
     sourceFlavor?: Sc13SourceFlavor;
