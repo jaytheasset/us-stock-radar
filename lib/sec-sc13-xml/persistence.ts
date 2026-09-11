@@ -8,7 +8,7 @@ import {
 import type { Sc13StructuralParseResult } from "@/lib/sources/sec/forms/sc13";
 
 type Row = Record<string, unknown>;
-type RepositoryResult = Readonly<{ ok: boolean; status: number; data: unknown; error?: string }>;
+type RepositoryResult = Readonly<{ ok: boolean; status: number; data: unknown; count?: number | null; error?: string }>;
 
 export type Sc13CanonicalRepository = Readonly<{
   rpc(functionName: string, payload: Row): Promise<RepositoryResult>;
