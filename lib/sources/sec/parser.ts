@@ -15,6 +15,7 @@ import {
   type PeriodicReportIngestSourceBlock,
   type PeriodicReportIngestXbrlFact,
 } from "@/lib/sources/sec/forms/periodic-reports/ingestSourceExtract";
+import { parseSc13StructuralXml } from "@/lib/sources/sec/forms/sc13/structuralParser";
 import {
   selectSourceBackedSecTickerRow,
   type SecTickerSelectionRow,
@@ -288,18 +289,27 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
       const ownershipIssuer =
         (ownershipSource?.rawText ? readOwnershipIssuerIdentity(ownershipSource.rawText) : null) ||
         (isSchedule13FormType(formType) ? readSchedule13IssuerIdentity(primary, bodyText) : null);
-      const tickerIssuer = ownershipIssuer;
+      const tickerIssuer = isSchedule13FormType(formType)
+        ? readVerifiedSchedule13TickerIssuer({
+            source: sc13Source,
+            formType,
+            accessionNumber: identity.accessionNumber,
+            indexProvenance: detail.sc13IndexProvenance,
+          })
+        : ownershipIssuer;
       const issuerCusips = extractIssuerCusips([ownershipSource?.rawText, primary?.rawHtml, primary?.rawText, primary?.text, bodyText]);
-      const tickerResolution = await resolveTrustedTickerRows({
-        lookup: tickerLookup,
-        formType,
-        filerCik: identity.cik,
-        issuer: tickerIssuer,
-        cusips: issuerCusips,
-      });
+      const tickerResolution = isSchedule13FormType(formType)
+        ? resolveVerifiedSchedule13TickerRows(tickerLookup, tickerIssuer)
+        : await resolveTrustedTickerRows({
+            lookup: tickerLookup,
+            formType,
+            filerCik: identity.cik,
+            issuer: tickerIssuer,
+            cusips: issuerCusips,
+          });
       const tickerRows = tickerResolution.rows;
       const tickerRow = tickerResolution.primary;
-      const companyName = tickerIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
+      const companyName = ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
       const accessionNumber = identity.accessionNumber;
       const sourceUniqueId = accessionNumber || detailUrl;
 
@@ -323,8 +333,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           parser_version: PARSER_VERSION,
           text_version: TEXT_VERSION,
           form_type: formType,
-          cik: tickerIssuer?.cik || identity.cik,
-          cik_padded: (tickerIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
+          cik: ownershipIssuer?.cik || identity.cik,
+          cik_padded: (ownershipIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
           filer_cik: identity.cik,
           filer_cik_padded: identity.cikPadded,
           ownership_issuer_cik: ownershipIssuer?.cik || null,
@@ -1403,6 +1413,47 @@ function readSchedule13IssuerIdentity(primary: SecDocument | null, bodyText: str
   return cik || ticker || name ? { cik, ticker, name } : null;
 }
 
+function readVerifiedSchedule13TickerIssuer({
+  source,
+  formType,
+  accessionNumber,
+  indexProvenance,
+}: {
+  source: SecDocument | null;
+  formType: string | null;
+  accessionNumber: string | null;
+  indexProvenance: {
+    subjectCik: string | null;
+    subjectCikCount: number;
+    filedByCiks: string[];
+    canonicalXmlUrl: string | null;
+  } | null;
+}) {
+  if (!source || source.sc13RawCaptureStatus !== "preserved" || !indexProvenance) return null;
+
+  const structural = parseSc13StructuralXml({
+    rawXml: source.sc13RawText,
+    sourceFormat: source.sc13RawSourceFormat,
+    sourceUrl: source.url,
+    expectedAccessionNumber: accessionNumber,
+    expectedFormType: formType,
+    sourceTextCharCount: source.sc13RawTextCharCount,
+    sourceTextTruncated: source.sc13RawTextTruncated,
+    indexSubjectCik: indexProvenance.subjectCik,
+    indexSubjectCikCount: indexProvenance.subjectCikCount,
+    indexFiledByCiks: indexProvenance.filedByCiks,
+    indexCanonicalXmlUrl: indexProvenance.canonicalXmlUrl,
+  });
+  if (structural.status !== "parsed" || !structural.filing || structural.provenance.indexStatus !== "verified") {
+    return null;
+  }
+
+  const cik = normalizeCik(structural.filing.issuer.issuerCikRaw);
+  return cik
+    ? { cik, ticker: null, name: structural.filing.issuer.issuerNameRaw }
+    : null;
+}
+
 function readSchedule13IssuerName(text: string) {
   const htmlName =
     extractFirst(
@@ -1452,6 +1503,34 @@ function cleanSchedule13IssuerName(value: string | null | undefined) {
   }
   if (cleaned.length < 3 || cleaned.length > 160) return null;
   return cleaned;
+}
+
+function resolveVerifiedSchedule13TickerRows(
+  lookup: Map<string, TickerRow[]>,
+  issuer: { cik: string | null; ticker: string | null; name: string | null } | null,
+): TickerResolution {
+  const issuerRows = issuer?.cik ? lookup.get(issuer.cik) || [] : [];
+  if (issuerRows.length) {
+    return {
+      rows: issuerRows,
+      primary: selectPrimaryTickerRow(issuerRows),
+      source: "issuer_cik_sec",
+      confidence: "high",
+      reason: "Verified canonical Schedule 13 XML issuer CIK matched SEC company ticker table.",
+      cusip: null,
+    };
+  }
+
+  return {
+    rows: [],
+    primary: null,
+    source: "unresolved",
+    confidence: "none",
+    reason: issuer?.cik
+      ? "Verified canonical Schedule 13 XML issuer CIK did not match SEC company ticker table."
+      : "Canonical Schedule 13 XML issuer provenance could not be verified; no alternate ticker identity was used.",
+    cusip: null,
+  };
 }
 
 async function resolveTrustedTickerRows({
