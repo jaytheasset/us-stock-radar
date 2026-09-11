@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { ChevronRight, ExternalLink, LockKeyhole } from "lucide-react";
 import {
-  type StockBeneficialOwnershipFiling,
   type StockFundamentalsSnapshot,
   type StockFundamentalsSourceKey,
   type StockInsiderTrade,
 } from "@/lib/watchlist/stockFundamentals";
+import type {
+  StockSc13FilingEvidence,
+  StockSc13OwnershipSnapshot,
+  StockSc13Position,
+  StockSc13ReportedField,
+} from "@/lib/watchlist/stockSc13Ownership";
 import type {
   StockFinancialBasis,
   StockFinancialCategorySnapshot,
@@ -40,6 +45,8 @@ type StockFundamentalsSectionsProps = {
   financialSnapshot: StockFinancialsSnapshot | null;
   loadState: FundamentalsLoadState;
   ownershipEvents: StockOverviewEvent[];
+  sc13LoadState: FundamentalsLoadState;
+  sc13Snapshot: StockSc13OwnershipSnapshot | null;
   snapshot: StockFundamentalsSnapshot | null;
 };
 
@@ -53,6 +60,8 @@ export function StockFundamentalsSections({
   financialSnapshot,
   loadState,
   ownershipEvents,
+  sc13LoadState,
+  sc13Snapshot,
   snapshot,
 }: StockFundamentalsSectionsProps) {
   return (
@@ -65,6 +74,8 @@ export function StockFundamentalsSections({
       <OwnershipSection
         events={ownershipEvents}
         loadState={loadState}
+        sc13LoadState={sc13LoadState}
+        sc13Snapshot={sc13Snapshot}
         snapshot={snapshot}
       />
       <DilutionSection
@@ -274,24 +285,28 @@ function FinancialProvenance({ row }: { row: StockFinancialMetricRow }) {
 function OwnershipSection({
   events,
   loadState,
+  sc13LoadState,
+  sc13Snapshot,
   snapshot,
-}: SectionProps) {
+}: SectionProps & {
+  sc13LoadState: FundamentalsLoadState;
+  sc13Snapshot: StockSc13OwnershipSnapshot | null;
+}) {
   const statistic = snapshot?.ownership.statistics[0] ?? null;
   const trades = snapshot?.ownership.trades ?? [];
-  const beneficialOwners =
-    snapshot?.ownership.reportedBeneficialOwners ?? [];
-  const beneficialFilings = snapshot?.ownership.beneficialFilings ?? [];
   const institutionalSummary = snapshot?.ownership.institutionalSummary ?? null;
   const institutionalHolders = snapshot?.ownership.institutionalHolders ?? [];
   const hasOwnershipData =
     Boolean(statistic) ||
     Boolean(institutionalSummary) ||
     trades.length > 0 ||
-    beneficialFilings.length > 0 ||
     institutionalHolders.length > 0 ||
-    events.length > 0;
+    events.length > 0 ||
+    Boolean(sc13Snapshot);
+  const sc13Pending = !sc13Snapshot
+    && (sc13LoadState === "idle" || sc13LoadState === "loading");
 
-  if (!snapshot || (!hasOwnershipData && loadState !== "ready")) {
+  if ((!snapshot && sc13Pending) || (!hasOwnershipData && loadState !== "ready" && sc13Pending)) {
     return (
       <SectionState
         id="watchlist-ownership"
@@ -308,12 +323,13 @@ function OwnershipSection({
     totalAcquired === null || totalDisposed === null
       ? null
       : totalAcquired - totalDisposed;
-  const ownershipUnavailable = getUnavailableSources(snapshot, [
-    "insiderStatistics",
-    "insiderTrades",
-    "beneficialOwnership",
-    "institutionalOwnership",
-  ]);
+  const ownershipUnavailable = snapshot
+    ? getUnavailableSources(snapshot, [
+        "insiderStatistics",
+        "insiderTrades",
+        "institutionalOwnership",
+      ])
+    : [];
 
   return (
     <section
@@ -325,7 +341,7 @@ function OwnershipSection({
         asOf={
           statistic
             ? `Insider statistics · Q${statistic.quarter} ${statistic.year}`
-            : `Ownership filings · ${formatDate(beneficialFilings[0]?.filingDate)}`
+            : "Provider and stored SEC filings"
         }
         id="watchlist-ownership-title"
         number="03"
@@ -495,46 +511,10 @@ function OwnershipSection({
         </details>
       ) : null}
 
-      <details className={styles.ownershipDisclosure} open>
-        <DisclosureSummary
-          detail={`${beneficialOwners.length} latest non-zero owner reports · ${beneficialFilings.length} filing rows`}
-          title="5%+ beneficial ownership filings"
-        />
-        <div className={styles.ownershipDisclosureBody}>
-          {beneficialOwners.length ? (
-            <div
-              aria-label="Reported beneficial owners"
-              className={styles.ownershipTable}
-              role="table"
-            >
-              <div className={styles.ownershipTableHeader} role="row">
-                <span role="columnheader">Reporting person</span>
-                <span role="columnheader">Shares</span>
-                <span role="columnheader">Class</span>
-                <span role="columnheader">Filed</span>
-              </div>
-              {beneficialOwners.slice(0, 6).map((filing) => (
-                <BeneficialOwnerRow
-                  filing={filing}
-                  key={`${filing.nameOfReportingPerson}-${filing.filingDate}`}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className={styles.methodNote}>
-              No non-zero beneficial-owner report was returned.
-            </p>
-          )}
-          <p className={styles.methodNote}>
-            This is a filing-based list, not aggregate institutional ownership
-            or a Top 13F ranking. A reporting person&apos;s latest zero-share or
-            zero-percent row is retained in filing history but excluded from
-            the reported-owner list. Older non-zero filings are historical
-            reports and are not presented as proof of current ownership. The
-            table shows the six most recent latest reports by reporting name.
-          </p>
-        </div>
-      </details>
+      <Sc13OwnershipDisclosure
+        loadState={sc13LoadState}
+        snapshot={sc13Snapshot}
+      />
 
       <RelatedFilings
         events={events}
@@ -542,6 +522,237 @@ function OwnershipSection({
         type="ownership"
       />
     </section>
+  );
+}
+
+function Sc13OwnershipDisclosure({
+  loadState,
+  snapshot,
+}: {
+  loadState: FundamentalsLoadState;
+  snapshot: StockSc13OwnershipSnapshot | null;
+}) {
+  const confirmedCount = snapshot?.status === "available"
+    ? snapshot.positions.reduce((count, position) => count + position.currentReporters.length, 0)
+    : 0;
+  const unresolvedCount = snapshot?.status === "available"
+    ? snapshot.positions.filter((position) => position.status === "unresolved").length
+    : 0;
+  const detail = !snapshot
+    ? loadState === "loading" || loadState === "idle"
+      ? "Loading stored Schedule 13 history"
+      : "Stored Schedule 13 read unavailable"
+    : snapshot.status === "available"
+      ? `${confirmedCount} confirmed reporter${confirmedCount === 1 ? "" : "s"} · ${unresolvedCount} unconfirmed position${unresolvedCount === 1 ? "" : "s"}`
+      : snapshot.status === "empty"
+        ? "No stored Schedule 13 history"
+        : "Stored Schedule 13 read unavailable";
+
+  return (
+    <details className={styles.ownershipDisclosure} open>
+      <DisclosureSummary
+        detail={detail}
+        title="Reported beneficial owners (Schedule 13)"
+      />
+      <div className={styles.ownershipDisclosureBody}>
+        {!snapshot ? (
+          <Sc13DataState loading={loadState === "loading" || loadState === "idle"} />
+        ) : snapshot.status === "empty" ? (
+          <div className={styles.sc13DataState}>
+            <strong>No stored Schedule 13 filings</strong>
+            <span>No verified Schedule 13 history is stored for this SEC issuer.</span>
+          </div>
+        ) : snapshot.status === "unavailable" ? (
+          <div className={styles.sc13DataState}>
+            <strong>Schedule 13 status unavailable</strong>
+            <span>{sc13UnavailableMessage(snapshot.reason)}</span>
+          </div>
+        ) : (
+          <div className={styles.sc13Positions}>
+            {snapshot.positions.map((position) => (
+              <Sc13PositionCard key={position.positionKey} position={position} />
+            ))}
+          </div>
+        )}
+        <p className={styles.sc13ScopeNote}>
+          “Latest” is limited to the latest value confirmed within the stored
+          filing history. It may not include every SEC filing and is not a
+          real-time holding. Each reporting person is shown separately;
+          joint-reporting amounts are not totaled.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+function Sc13DataState({ loading }: { loading: boolean }) {
+  return (
+    <div className={styles.sc13DataState}>
+      <strong>{loading ? "Loading stored Schedule 13 history…" : "Schedule 13 status unavailable"}</strong>
+      <span>
+        {loading
+          ? "Schedule 13 history loads independently from the other ownership data."
+          : "The stored filing history could not return a complete result."}
+      </span>
+    </div>
+  );
+}
+
+function Sc13PositionCard({ position }: { position: StockSc13Position }) {
+  return (
+    <article className={styles.sc13Position}>
+      <header className={styles.sc13PositionHeader}>
+        <div>
+          <strong>{position.formFamily} · {position.securityClass}</strong>
+          <span>CUSIP {position.cusips.join(", ")}</span>
+        </div>
+        <span className={position.status === "available_stored_history" ? styles.sc13Confirmed : styles.sc13Unresolved}>
+          {position.status === "available_stored_history"
+            ? "Latest in stored history"
+            : "Latest unconfirmed"}
+        </span>
+      </header>
+
+      {position.status === "available_stored_history" ? (
+        <Sc13CurrentReporterTable position={position} />
+      ) : (
+        <Sc13UnresolvedHistory position={position} />
+      )}
+    </article>
+  );
+}
+
+function Sc13CurrentReporterTable({ position }: { position: StockSc13Position }) {
+  return (
+    <div aria-label="Confirmed Schedule 13 reporting persons" className={styles.sc13Table} role="table">
+      <div className={styles.sc13TableHeader} role="row">
+        <span role="columnheader">Reporting person</span>
+        <span role="columnheader">Reported shares</span>
+        <span role="columnheader">Reported % of class</span>
+        <span role="columnheader">SEC evidence</span>
+      </div>
+      {position.currentReporters.map((reporter) => (
+        <div className={styles.sc13TableRow} key={reporter.reportingPersonCik} role="row">
+          <div className={styles.sc13Reporter} role="cell">
+            <strong>{reporter.reportingPersonName}</strong>
+            <span>CIK {reporter.reportingPersonCik}</span>
+          </div>
+          <Sc13FieldCell field={reporter.aggregateAmountOwned} label="Reported shares" suffix="" />
+          <Sc13FieldCell field={reporter.percentOfClass} label="Reported % of class" suffix="%" />
+          <div className={styles.sc13Evidence} role="cell">
+            {uniqueSc13Evidence([reporter.aggregateAmountOwned, reporter.percentOfClass]).map((evidence) => (
+              <Sc13EvidenceLink evidence={evidence} key={evidence.accessionNumber} showDates />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Sc13FieldCell({
+  field,
+  label,
+  suffix,
+}: {
+  field: StockSc13ReportedField;
+  label: string;
+  suffix: string;
+}) {
+  if (field.status === "available") {
+    return (
+      <span className={styles.sc13Value} data-label={label} role="cell">
+        {formatSc13Raw(field.valueRaw)}{suffix}
+      </span>
+    );
+  }
+  return (
+    <span className={styles.sc13Missing} data-label={label} role="cell">
+      Not reported in current filing
+      {field.lastReported ? (
+        <small>
+          Historical only: {formatSc13Raw(field.lastReported.valueRaw)}{suffix}
+        </small>
+      ) : null}
+    </span>
+  );
+}
+
+function Sc13UnresolvedHistory({ position }: { position: StockSc13Position }) {
+  return (
+    <div className={styles.sc13UnresolvedBody}>
+      <div className={styles.sc13IssueNotice}>
+        <strong>Latest value is not established by the stored filing history.</strong>
+        <span>{position.issueCodes.map(sc13IssueMessage).join(" · ")}</span>
+      </div>
+      {position.history.map((filing) => (
+        <div className={styles.sc13HistoricalFiling} key={filing.accessionNumber}>
+          <div className={styles.sc13HistoricalHeader}>
+            <div>
+              <strong>Stored filing evidence — not a confirmed latest position</strong>
+              <span>
+                Event date {formatDate(filing.eventDate)} · Filed {formatDate(filing.filedAt)}
+              </span>
+            </div>
+            <Sc13EvidenceLink evidence={filing} />
+          </div>
+          <div aria-label="Unconfirmed Schedule 13 filing evidence" className={styles.sc13Table} role="table">
+            <div className={styles.sc13TableHeader} role="row">
+              <span role="columnheader">Reporting person</span>
+              <span role="columnheader">Reported shares</span>
+              <span role="columnheader">Reported % of class</span>
+              <span role="columnheader">Status</span>
+            </div>
+            {filing.reporters.map((reporter) => (
+              <div className={styles.sc13TableRow} key={`${filing.accessionNumber}-${reporter.reportingPersonIndex}`} role="row">
+                <div className={styles.sc13Reporter} role="cell">
+                  <strong>{reporter.reportingPersonName}</strong>
+                  <span>{reporter.reportingPersonCik ? `CIK ${reporter.reportingPersonCik}` : "Reporter CIK not provided"}</span>
+                </div>
+                <span className={styles.sc13Value} data-label="Reported shares" role="cell">
+                  {formatSc13HistoricalRaw(reporter.aggregateAmountOwnedRaw)}
+                </span>
+                <span className={styles.sc13Value} data-label="Reported % of class" role="cell">
+                  {reporter.percentOfClassRaw === null
+                    ? "Not reported"
+                    : `${formatSc13Raw(reporter.percentOfClassRaw)}%`}
+                </span>
+                <span className={styles.sc13HistoryStatus} data-label="Status" role="cell">
+                  Historical filing value; latest unconfirmed
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Sc13EvidenceLink({
+  evidence,
+  showDates = false,
+}: {
+  evidence: StockSc13FilingEvidence;
+  showDates?: boolean;
+}) {
+  return (
+    <div className={styles.sc13EvidenceReference}>
+      {showDates ? (
+        <span>
+          Event date {formatDate(evidence.eventDate)} · Filed {formatDate(evidence.filedAt)}
+        </span>
+      ) : null}
+      <a
+        className={styles.externalLink}
+        href={evidence.sourceUrl}
+        rel="noreferrer"
+        target="_blank"
+      >
+        SEC source · {evidence.accessionNumber}
+        <ExternalLink aria-hidden="true" size={12} />
+      </a>
+    </div>
   );
 }
 
@@ -1015,41 +1226,6 @@ function InsiderActivity({ trade }: { trade: StockInsiderTrade }) {
   );
 }
 
-function BeneficialOwnerRow({
-  filing,
-}: {
-  filing: StockBeneficialOwnershipFiling;
-}) {
-  return (
-    <div className={styles.ownershipTableRow} role="row">
-      <strong role="cell">
-        {filing.url ? (
-          <a
-            className={styles.externalLink}
-            href={filing.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {filing.nameOfReportingPerson}
-            <ExternalLink aria-hidden="true" size={12} />
-          </a>
-        ) : (
-          filing.nameOfReportingPerson
-        )}
-      </strong>
-      <span data-label="Shares" role="cell">
-        {formatShares(filing.amountBeneficiallyOwned)}
-      </span>
-      <span data-label="Class" role="cell">
-        {formatPercent(filing.percentOfClass)}
-      </span>
-      <span data-label="Filed" role="cell">
-        {formatDateShort(filing.filingDate)}
-      </span>
-    </div>
-  );
-}
-
 function RelatedFilings({
   events,
   title,
@@ -1326,6 +1502,48 @@ function formatShares(value: number | null | undefined) {
     maximumFractionDigits: 1,
     notation: "compact",
   }).format(value);
+}
+
+function formatSc13Raw(value: string) {
+  const match = /^(\d+)(\.\d+)?$/.exec(value);
+  if (!match) return value;
+  const integer = match[1]!.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${integer}${match[2] ?? ""}`;
+}
+
+function formatSc13HistoricalRaw(value: string | null) {
+  return value === null ? "Not reported" : formatSc13Raw(value);
+}
+
+function uniqueSc13Evidence(fields: readonly StockSc13ReportedField[]) {
+  const evidence = new Map<string, StockSc13FilingEvidence>();
+  for (const field of fields) {
+    if (field.status === "available") {
+      evidence.set(field.evidence.accessionNumber, field.evidence);
+    } else if (field.lastReported) {
+      evidence.set(field.lastReported.evidence.accessionNumber, field.lastReported.evidence);
+    }
+  }
+  return [...evidence.values()];
+}
+
+function sc13IssueMessage(issue: string) {
+  if (issue.includes("previous_accession_missing")) return "Predecessor accession was not reported";
+  if (issue.includes("missing_predecessor")) return "Referenced predecessor is not in stored history";
+  if (issue.includes("reporter_identity_unverified")) return "A reporting-person CIK is missing";
+  if (issue === "root_missing") return "The root filing is not in stored history";
+  if (issue === "missing_amendment_sequence") return "The stored amendment sequence is incomplete";
+  if (issue.includes("identity_mismatch")) return "Stored filing identities do not match";
+  if (issue.includes("filing_order")) return "Filing order could not be verified";
+  return "Stored filing lineage could not be verified";
+}
+
+function sc13UnavailableMessage(reason: string) {
+  if (reason === "issuer_identity_unavailable") return "No stored SEC issuer identity is available for this ticker.";
+  if (reason === "issuer_identity_ambiguous") return "This ticker maps to more than one stored SEC issuer identity.";
+  if (reason.startsWith("issuer_identity_")) return "The stored SEC issuer identity could not be read completely.";
+  if (reason === "reader_projection_invalid") return "Stored filing evidence could not be shown without losing its source context.";
+  return "The stored filing history could not return a complete result.";
 }
 
 function formatSignedShares(value: number | null | undefined) {
