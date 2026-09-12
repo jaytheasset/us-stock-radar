@@ -1,0 +1,202 @@
+<ownershipDocument>
+    <schemaVersion>X0508</schemaVersion>
+    <documentType>5/A</documentType>
+    <periodOfReport>2024-12-31</periodOfReport>
+    <dateOfOriginalSubmission>2025-02-14</dateOfOriginalSubmission>
+    <form3HoldingsReported>0</form3HoldingsReported>
+    <form4TransactionsReported>1</form4TransactionsReported>
+    <issuer>
+        <issuerCik>0000094049</issuerCik>
+        <issuerName>STEPAN CO</issuerName>
+        <issuerTradingSymbol>SCL</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001229289</rptOwnerCik>
+            <rptOwnerName>STEPAN F QUINN JR</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerStreet1>1101 SKOKIE BOULEVARD, SUITE 500</rptOwnerStreet1>
+            <rptOwnerStreet2></rptOwnerStreet2>
+            <rptOwnerCity>NORTHBROOK</rptOwnerCity>
+            <rptOwnerState>IL</rptOwnerState>
+            <rptOwnerZipCode>60062</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <aff10b5One>0</aff10b5One>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2016-09-15</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>A</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionTimeliness><value>L</value></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares><value>315.467</value></transactionShares>
+                <transactionPricePerShare><value>70.32</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>156090.869</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2020-08-20</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>5</transactionFormType>
+                <transactionCode>G</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionTimeliness></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares><value>2400</value></transactionShares>
+                <transactionPricePerShare><value>0</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>0</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Family Trust III</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2016-09-15</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>A</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionTimeliness><value>L</value></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares><value>28.936</value></transactionShares>
+                <transactionPricePerShare><value>70.32</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>0.002</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Esop II Trust</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2022-05-01</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>5</transactionFormType>
+                <transactionCode>G</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionTimeliness></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares><value>17464</value></transactionShares>
+                <transactionPricePerShare><value>0</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>0</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Family Trust III</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>121820</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value><footnoteId id="F1"/></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>160000</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Family LLC</value><footnoteId id="F2"/></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>0</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Family Trust</value><footnoteId id="F2"/></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>87500</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Family Trust IV</value><footnoteId id="F2"/></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>1017</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Spouse</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>0</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>Member Of Plan Committee Of Stepan Company</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>67214</value><footnoteId id="F3"/></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Father's ESOP</value><footnoteId id="F4"/></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+    </nonDerivativeTable>
+    <derivativeTable>
+        <derivativeTransaction>
+            <securityTitle><value>Share Units</value><footnoteId id="F5"/></securityTitle>
+            <conversionOrExercisePrice><footnoteId id="F6"/></conversionOrExercisePrice>
+            <transactionDate><value>2016-09-15</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>A</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionTimeliness><value>L</value></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares><value>262.832</value></transactionShares>
+                <transactionPricePerShare><value>70.32</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <exerciseDate><footnoteId id="F7"/></exerciseDate>
+            <expirationDate><footnoteId id="F7"/></expirationDate>
+            <underlyingSecurity>
+                <underlyingSecurityTitle><value>Common Stock</value></underlyingSecurityTitle>
+                <underlyingSecurityShares><value>262.832</value></underlyingSecurityShares>
+            </underlyingSecurity>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>78397.5</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </derivativeTransaction>
+    </derivativeTable>
+    <footnotes>
+        <footnote id="F1">Joint Tenancy with Spouse.</footnote>
+        <footnote id="F2">The reporting person disclaims beneficial ownership of these securities, except to extent of any pecuniary interest in the shares.</footnote>
+        <footnote id="F3">The Reporting Person's Form 5 filed on February 14, 2025, contained an incorrect balance of &quot;67.214&quot; due to clerical error. The balance has been corrected herein.</footnote>
+        <footnote id="F4">Shares held by an estate of which the reporting person serves as executor.</footnote>
+        <footnote id="F5">Share Units are acquired under the Management Incentive Plan (As Amended and Restated Effective January 1, 2015) (&quot;MIP&quot;), a nonqualified deferred compensation plan which allows MIP participants to elect to defer all or a portion of their deferred compensation into accounts pursuant to MIP provisions.</footnote>
+        <footnote id="F6">Share Units convert on a one-for-one basis into Common Stock.</footnote>
+        <footnote id="F7">Share Units are generally payable at end of employment, unless otherwise elected.</footnote>
+    </footnotes>
+    <ownerSignature>
+        <signatureName>/s/ James A. Hart, attorney-in-Fact for F. Quinn Stepan, Jr.</signatureName>
+        <signatureDate>2026-02-19</signatureDate>
+    </ownerSignature>
+</ownershipDocument>

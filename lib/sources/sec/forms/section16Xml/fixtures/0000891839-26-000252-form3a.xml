@@ -1,0 +1,84 @@
+<ownershipDocument>
+    <schemaVersion>X0607</schemaVersion>
+    <documentType>3/A</documentType>
+    <periodOfReport>2026-06-01</periodOfReport>
+    <dateOfOriginalSubmission>2026-06-05</dateOfOriginalSubmission>
+    <noSecuritiesOwned>0</noSecuritiesOwned>
+    <issuer>
+        <issuerCik>0001854445</issuerCik>
+        <issuerName>Glimpse Group, Inc.</issuerName>
+        <issuerTradingSymbol>GGRP</issuerTradingSymbol>
+        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002131539</rptOwnerCik>
+            <rptOwnerName>Swift Scott Harbison</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>15 WEST 38TH ST</rptOwnerStreet1>
+            <rptOwnerStreet2>12TH FLOOR</rptOwnerStreet2>
+            <rptOwnerCity>NEW YORK</rptOwnerCity>
+            <rptOwnerState>NY</rptOwnerState>
+            <rptOwnerZipCode>10018</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <nonDerivativeTable>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Stock</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>20000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+    </nonDerivativeTable>
+    <derivativeTable>
+        <derivativeHolding>
+            <securityTitle>
+                <value>Warrant (Right to Buy)</value>
+            </securityTitle>
+            <conversionOrExercisePrice>
+                <value>0.55</value>
+            </conversionOrExercisePrice>
+            <exerciseDate>
+                <value>2026-11-18</value>
+            </exerciseDate>
+            <expirationDate>
+                <value>2033-11-18</value>
+            </expirationDate>
+            <underlyingSecurity>
+                <underlyingSecurityTitle>
+                    <value>Common Stock</value>
+                </underlyingSecurityTitle>
+                <underlyingSecurityShares>
+                    <value>25000</value>
+                </underlyingSecurityShares>
+            </underlyingSecurity>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </derivativeHolding>
+    </derivativeTable>
+    <ownerSignature>
+        <signatureName>/s/ William J. Keneally, Attorney-in-Fact for Scott H. Swift</signatureName>
+        <signatureDate>2026-06-18</signatureDate>
+    </ownerSignature>
+</ownershipDocument>
