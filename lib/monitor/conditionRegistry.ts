@@ -518,6 +518,118 @@ export function validateMonitorConditionInput(value: unknown): readonly MonitorC
   return [];
 }
 
+export type Section16MonitorRowFamily = "holding" | "transaction";
+
+export type Section16MonitorConditionDefinition = Readonly<{
+  key: string;
+  rowFamily: Section16MonitorRowFamily;
+  field:
+    | "rowKind"
+    | "securityTitle"
+    | "transactionCode"
+    | "transactionDate"
+    | "shares"
+    | "pricePerShare"
+    | "acquiredDisposedCode"
+    | "postTransactionShares"
+    | "amountOwned"
+    | "directOrIndirectOwnership"
+    | "conversionOrExercisePrice"
+    | "exerciseDate"
+    | "expirationDate"
+    | "underlyingSecurityTitle"
+    | "underlyingSecurityShares";
+  valueType: "decimal" | "text" | "date";
+  allowedOperators: readonly MonitorConditionOperator[];
+  enumValues?: readonly string[];
+  requiresExactSourceField: true;
+}>;
+
+/**
+ * Internal/manual Section 16 condition catalog. It is deliberately separate
+ * from MONITOR_CONDITION_REGISTRY so the Listing editor, natural-language
+ * compiler prompt, public API validator, and Alert consumer cannot expose or
+ * execute these conditions before a separately authorized product rollout.
+ */
+export const SECTION16_MONITOR_CONDITION_REGISTRY = Object.freeze([
+  section16Condition("ownership.section16.holding.row_kind", "holding", "rowKind", "text", enumOperators, ["non_derivative", "derivative"]),
+  section16Condition("ownership.section16.holding.security_title", "holding", "securityTitle", "text", textOperators),
+  section16Condition("ownership.section16.holding.amount_owned", "holding", "amountOwned", "decimal", numericOperators),
+  section16Condition("ownership.section16.holding.direct_or_indirect", "holding", "directOrIndirectOwnership", "text", enumOperators, ["D", "I"]),
+  section16Condition("ownership.section16.holding.conversion_or_exercise_price", "holding", "conversionOrExercisePrice", "decimal", numericOperators),
+  section16Condition("ownership.section16.holding.exercise_date", "holding", "exerciseDate", "date", temporalOperators),
+  section16Condition("ownership.section16.holding.expiration_date", "holding", "expirationDate", "date", temporalOperators),
+  section16Condition("ownership.section16.holding.underlying_security_title", "holding", "underlyingSecurityTitle", "text", textOperators),
+  section16Condition("ownership.section16.holding.underlying_security_shares", "holding", "underlyingSecurityShares", "decimal", numericOperators),
+  section16Condition("ownership.section16.transaction.row_kind", "transaction", "rowKind", "text", enumOperators, ["non_derivative", "derivative"]),
+  section16Condition("ownership.section16.transaction.security_title", "transaction", "securityTitle", "text", textOperators),
+  section16Condition("ownership.section16.transaction.transaction_code", "transaction", "transactionCode", "text", textOperators),
+  section16Condition("ownership.section16.transaction.transaction_date", "transaction", "transactionDate", "date", temporalOperators),
+  section16Condition("ownership.section16.transaction.shares", "transaction", "shares", "decimal", numericOperators),
+  section16Condition("ownership.section16.transaction.price_per_share", "transaction", "pricePerShare", "decimal", numericOperators),
+  section16Condition("ownership.section16.transaction.acquisition_disposition", "transaction", "acquiredDisposedCode", "text", enumOperators, ["A", "D"]),
+  section16Condition("ownership.section16.transaction.post_transaction_shares", "transaction", "postTransactionShares", "decimal", numericOperators),
+  section16Condition("ownership.section16.transaction.direct_or_indirect", "transaction", "directOrIndirectOwnership", "text", enumOperators, ["D", "I"]),
+  section16Condition("ownership.section16.transaction.conversion_or_exercise_price", "transaction", "conversionOrExercisePrice", "decimal", numericOperators),
+  section16Condition("ownership.section16.transaction.exercise_date", "transaction", "exerciseDate", "date", temporalOperators),
+  section16Condition("ownership.section16.transaction.expiration_date", "transaction", "expirationDate", "date", temporalOperators),
+  section16Condition("ownership.section16.transaction.underlying_security_title", "transaction", "underlyingSecurityTitle", "text", textOperators),
+  section16Condition("ownership.section16.transaction.underlying_security_shares", "transaction", "underlyingSecurityShares", "decimal", numericOperators),
+] satisfies readonly Section16MonitorConditionDefinition[]);
+
+export function getSection16MonitorCondition(key: string) {
+  return SECTION16_MONITOR_CONDITION_REGISTRY.find((entry) => entry.key === key) ?? null;
+}
+
+export function validateSection16MonitorConditionInput(
+  value: unknown,
+): readonly MonitorConditionInputValidationError[] {
+  if (!record(value)) return ["condition_invalid"];
+  const key = typeof value.key === "string" ? value.key : "";
+  const operator = typeof value.operator === "string" ? value.operator : "";
+  const definition = getSection16MonitorCondition(key);
+  if (!definition) return ["condition_key_unknown"];
+  if (!definition.allowedOperators.includes(operator as MonitorConditionOperator)) {
+    return ["condition_operator_unknown"];
+  }
+  const values = operator === "in" || operator === "not_in" ? value.value : [value.value];
+  if (!Array.isArray(values) || values.length === 0 || values.some((entry) => !validSection16ConditionScalar(definition, entry))) {
+    return ["condition_value_invalid"];
+  }
+  return [];
+}
+
+function section16Condition(
+  key: string,
+  rowFamily: Section16MonitorRowFamily,
+  field: Section16MonitorConditionDefinition["field"],
+  valueType: Section16MonitorConditionDefinition["valueType"],
+  allowedOperators: readonly MonitorConditionOperator[],
+  enumValues?: readonly string[],
+): Section16MonitorConditionDefinition {
+  return Object.freeze({
+    key,
+    rowFamily,
+    field,
+    valueType,
+    allowedOperators: Object.freeze([...allowedOperators]),
+    ...(enumValues ? { enumValues: Object.freeze([...enumValues]) } : {}),
+    requiresExactSourceField: true as const,
+  });
+}
+
+function validSection16ConditionScalar(
+  definition: Section16MonitorConditionDefinition,
+  value: unknown,
+) {
+  if (definition.valueType === "decimal") {
+    return typeof value === "string" && /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value);
+  }
+  if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;
+  if (typeof value !== "string" || value.length === 0) return false;
+  return !definition.enumValues || definition.enumValues.includes(value);
+}
+
 function condition(
   key: string,
   valueType: MonitorConditionValueType,

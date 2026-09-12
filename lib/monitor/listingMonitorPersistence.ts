@@ -195,6 +195,13 @@ export async function updateListingMonitor(
     patch.is_active = input.isActive;
   }
   const resolved = await resolveRepository(repository);
+  const stored = await readStoredListingMonitorForMutation(resolved, ownerId, monitorId);
+  if (!stored) {
+    throw new ListingMonitorPersistenceError(
+      "listing_monitor_not_found",
+      "Listing monitor was not found for this owner",
+    );
+  }
   const result = await resolved.update(ownerId, monitorId, patch);
   return requireMutationMonitor(result, ownerId, "update");
 }
@@ -223,6 +230,8 @@ export async function deleteListingMonitor(
   const ownerId = requireUuid(ownerIdValue, "ownerId");
   const monitorId = requireUuid(monitorIdValue, "monitorId");
   const resolved = await resolveRepository(repository);
+  const stored = await readStoredListingMonitorForMutation(resolved, ownerId, monitorId);
+  if (!stored) return false;
   const result = await resolved.delete(ownerId, monitorId);
   assertRepositoryResult(result, "listing monitor delete", "listing_monitor_write_failed");
   return readRows(result.data).some((row) => row.user_id === ownerId && row.id === monitorId);
@@ -373,6 +382,33 @@ function requireMutationMonitor(
     );
   }
   return parsed.monitor;
+}
+
+async function readStoredListingMonitorForMutation(
+  repository: ListingMonitorRepository,
+  ownerId: string,
+  monitorId: string,
+): Promise<StoredListingMonitorRow | null> {
+  const result = await repository.read(ownerId, monitorId);
+  assertRepositoryResult(result, "listing monitor mutation preflight", "listing_monitor_read_failed");
+  const row = readRows(result.data).find((candidate) => candidate.user_id === ownerId);
+  if (!row) return null;
+  if (containsPrivateSection16Condition(row.conditions)) {
+    throw new ListingMonitorPersistenceError(
+      "listing_monitor_invalid",
+      "Private manual Section 16 conditions cannot be changed through the Listing monitor mutation path",
+      ["private_section16_monitor_mutation_forbidden"],
+    );
+  }
+  return row;
+}
+
+function containsPrivateSection16Condition(value: unknown) {
+  return Array.isArray(value) && value.some((condition) => (
+    record(condition)
+    && typeof condition.key === "string"
+    && condition.key.startsWith("ownership.section16.")
+  ));
 }
 
 function assertRepositoryResult(

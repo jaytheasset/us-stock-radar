@@ -67,6 +67,15 @@ export type Section16HoldingCorrection = Readonly<{
   evidence: Readonly<{ source: "footnote"; footnoteId: string; text: string }>;
 }>;
 
+export type Section16HoldingAddition = Readonly<{
+  accessionNumber: string;
+  rowOrdinal: number;
+  relativeTo: Readonly<{ accessionNumber: string }>;
+  status: "added_disclosed_holding";
+  meaning: "disclosure_added_not_acquisition_or_purchase";
+  row: Section16XmlHolding;
+}>;
+
 export type Section16StoredLineageProjection = Readonly<{
   version: typeof SECTION16_LINEAGE_VERSION;
   scope: typeof SECTION16_LINEAGE_SCOPE;
@@ -74,6 +83,7 @@ export type Section16StoredLineageProjection = Readonly<{
   links: readonly Section16LineageLink[];
   transactions: readonly Section16TransactionDecision[];
   holdings: readonly Section16HoldingSnapshot[];
+  holdingAdditions: readonly Section16HoldingAddition[];
   holdingCorrections: readonly Section16HoldingCorrection[];
   issues: readonly string[];
 }>;
@@ -91,6 +101,7 @@ export function resolveSection16StoredLineage(
     .map((link) => `lineage_unresolved:${link.accessionNumber}:${link.reason ?? "unknown"}`);
   const transactions: Section16TransactionDecision[] = [];
   const holdings: Section16HoldingSnapshot[] = [];
+  const holdingAdditions: Section16HoldingAddition[] = [];
   const holdingCorrections: Section16HoldingCorrection[] = [];
 
   for (const filing of ordered) {
@@ -103,6 +114,22 @@ export function resolveSection16StoredLineage(
       ? filingByAccession.get(link.referencedAccessionNumber)
       : null;
     if (original) {
+      if (
+        original.parsed.holdings.length === 0
+        && original.parsed.filing.noSecuritiesOwned.status === "exact"
+        && original.parsed.filing.noSecuritiesOwned.value === true
+      ) {
+        filing.parsed.holdings.forEach((row, rowOrdinal) => {
+          holdingAdditions.push({
+            accessionNumber: filing.accessionNumber,
+            rowOrdinal,
+            relativeTo: { accessionNumber: original.accessionNumber },
+            status: "added_disclosed_holding",
+            meaning: "disclosure_added_not_acquisition_or_purchase",
+            row,
+          });
+        });
+      }
       holdingCorrections.push(...resolveHoldingCorrections(filing, original));
     }
 
@@ -183,6 +210,7 @@ export function resolveSection16StoredLineage(
     links,
     transactions,
     holdings,
+    holdingAdditions,
     holdingCorrections,
     issues: [...new Set(issues)].sort(),
   };
@@ -234,14 +262,10 @@ function resolveLink(
       accessionNumber: amendment.accessionNumber,
       referencedAccessionNumber: match.candidate.accessionNumber,
       status: "linked",
-      reason: null,
-      evidence: {
-        source: "date_of_original_submission",
-        originalSubmissionDateRaw: originalDate,
-        issuerIdentity: "confirmed",
-        reporterIdentity: "confirmed",
-        securityIdentity: "confirmed",
-      },
+      // A security mismatch is retained as a row-reconciliation diagnostic,
+      // but it does not decide the filing-level original/amendment link.
+      reason: match.securityReason,
+      evidence: match.evidence,
     };
   }
   if (datedCandidates.length > 1) return unresolved("multiple_unverified_original_candidates");
@@ -269,15 +293,16 @@ function evaluateCandidate(amendment: Section16LineageFiling, original: Section1
     reporterIdentity: reporterMatches ? "confirmed" as const : "unresolved" as const,
     securityIdentity: securityMatches ? "confirmed" as const : "unresolved" as const,
   };
+  const securityReason = securityVerified && !securityMatches
+    ? "security_identity_mismatch"
+    : null;
   let reason: string | null = null;
   if (!issuerVerified) reason = "issuer_identity_unverified";
   else if (!issuerMatches) reason = "issuer_identity_mismatch";
   else if (!reporterVerified) reason = "reporter_identity_unverified";
   else if (!reporterMatches) reason = "reporter_identity_mismatch";
-  else if (!securityVerified) reason = "security_identity_unverified";
-  else if (!securityMatches) reason = "security_identity_mismatch";
   else if (!isStrictlyEarlier(original, amendment)) reason = "filing_order_reversed_or_unverified";
-  return { candidate: original, evidence, reason };
+  return { candidate: original, evidence, reason, securityReason };
 }
 
 function resolveHoldingCorrections(
