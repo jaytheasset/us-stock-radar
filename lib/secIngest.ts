@@ -24,6 +24,11 @@ import {
   SC13_MONITOR_AUTOMATIC_TRIGGER_VERSION,
   runSc13MonitorAutomaticTrigger,
 } from "@/lib/monitor/sc13MonitorAutomaticTrigger";
+import {
+  persistSecCoverObservationsForRawItem,
+  recordSecCoverObservationPersistenceState,
+  secCoverObservationFailureState,
+} from "@/lib/sec-cover-observations/persistence";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -40,12 +45,28 @@ type SecRawIngestOptions = {
 
 type SecRawIngestDependencies = {
   fetchRawItems?: typeof fetchSecEdgarRawItems;
+  ensureSource?: typeof ensureSecSource;
+  createSourceRun?: typeof createSecSourceRun;
+  findExistingRawItem?: typeof findExistingSecRawItem;
+  saveRawItem?: typeof saveSecRawItem;
+  finishSourceRun?: typeof finishSecSourceRun;
+  persistCoverObservations?: typeof persistSecCoverObservationsForRawItem;
+  recordCoverState?: typeof recordSecCoverObservationPersistenceState;
 };
 
 export async function runSecRawIngest(
   options: SecRawIngestOptions = {},
   dependencies: SecRawIngestDependencies = {},
 ) {
+  const runtime = {
+    ensureSource: dependencies.ensureSource ?? ensureSecSource,
+    createSourceRun: dependencies.createSourceRun ?? createSecSourceRun,
+    findExistingRawItem: dependencies.findExistingRawItem ?? findExistingSecRawItem,
+    saveRawItem: dependencies.saveRawItem ?? saveSecRawItem,
+    finishSourceRun: dependencies.finishSourceRun ?? finishSecSourceRun,
+    persistCoverObservations: dependencies.persistCoverObservations ?? persistSecCoverObservationsForRawItem,
+    recordCoverState: dependencies.recordCoverState ?? recordSecCoverObservationPersistenceState,
+  };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
   const runId = options.sourceRun?.sourceRunId || randomUUID();
@@ -69,14 +90,18 @@ export async function runSecRawIngest(
     section16_xml_replayed_count: 0,
     section16_xml_failed_count: 0,
     section16_xml_state_recording_failed_count: 0,
+    sec_cover_observation_available_count: 0,
+    sec_cover_observation_replayed_count: 0,
+    sec_cover_observation_failed_count: 0,
+    sec_cover_observation_state_recording_failed_count: 0,
     sc13_monitor_completed_count: 0,
     sc13_monitor_failed_count: 0,
     sc13_monitor_state_recording_failed_count: 0,
   };
 
   if (!dryRun) {
-    await ensureSecSource();
-    const initialStatus = await createSecSourceRun({
+    await runtime.ensureSource();
+    const initialStatus = await runtime.createSourceRun({
       force,
       includeDocuments: options.includeDocuments ?? true,
       requestedFormTypes: options.formTypes,
@@ -127,7 +152,7 @@ export async function runSecRawIngest(
 
     if (!rawResult.ok) {
       if (!dryRun) {
-        await finishSecSourceRun(runId, "failed", startedAt, stats, rawResult.error || "SEC raw fetch failed", {
+        await runtime.finishSourceRun(runId, "failed", startedAt, stats, rawResult.error || "SEC raw fetch failed", {
           raw_diagnostics: rawResult.diagnostics,
           ...sourceRunMetadata,
         });
@@ -171,7 +196,7 @@ export async function runSecRawIngest(
           continue;
         }
 
-        const existing = await findExistingSecRawItem(rawItem);
+        const existing = await runtime.findExistingRawItem(rawItem);
         if (existing && !force) {
           const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
             rawItem,
@@ -182,6 +207,13 @@ export async function runSecRawIngest(
             rawItem,
             rawItemId: stringValue(existing.id),
             stats,
+          });
+          const secCoverObservationPersistence = await persistSecCoverObservationsAfterRawSave({
+            rawItem,
+            rawItemId: stringValue(existing.id),
+            stats,
+            persistCoverObservations: runtime.persistCoverObservations,
+            recordCoverState: runtime.recordCoverState,
           });
           stats.skipped_count += 1;
           items.push({
@@ -195,11 +227,12 @@ export async function runSecRawIngest(
             cik: readNested(rawItem.raw_payload, "cik"),
             sc13_xml_persistence: sc13XmlPersistence,
             section16_xml_persistence: section16XmlPersistence,
+            sec_cover_observation_persistence: secCoverObservationPersistence,
           });
           continue;
         }
 
-        const persisted = await saveSecRawItem(rawItem, runId, existing);
+        const persisted = await runtime.saveRawItem(rawItem, runId, existing);
         const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
           rawItem,
           rawItemId: stringValue(persisted.id),
@@ -209,6 +242,13 @@ export async function runSecRawIngest(
           rawItem,
           rawItemId: stringValue(persisted.id),
           stats,
+        });
+        const secCoverObservationPersistence = await persistSecCoverObservationsAfterRawSave({
+          rawItem,
+          rawItemId: stringValue(persisted.id),
+          stats,
+          persistCoverObservations: runtime.persistCoverObservations,
+          recordCoverState: runtime.recordCoverState,
         });
         stats.raw_upserted_count += 1;
         items.push({
@@ -222,6 +262,7 @@ export async function runSecRawIngest(
           body_chars: stringValue(rawItem.body_text).length,
           sc13_xml_persistence: sc13XmlPersistence,
           section16_xml_persistence: section16XmlPersistence,
+          sec_cover_observation_persistence: secCoverObservationPersistence,
         });
       } catch (error) {
         stats.failed_count += 1;
@@ -237,7 +278,7 @@ export async function runSecRawIngest(
     const ok = stats.failed_count === 0;
     const partial = stats.failed_count > 0 && stats.raw_upserted_count > 0;
     if (!dryRun) {
-      await finishSecSourceRun(
+      await runtime.finishSourceRun(
         runId,
         ok || partial ? "completed" : "failed",
         startedAt,
@@ -262,7 +303,7 @@ export async function runSecRawIngest(
     };
   } catch (error) {
     if (!dryRun) {
-      await finishSecSourceRun(
+      await runtime.finishSourceRun(
         runId,
         "failed",
         startedAt,
@@ -280,6 +321,46 @@ export async function runSecRawIngest(
       error: error instanceof Error ? error.message : "Unknown SEC raw ingest error",
       items,
     };
+  }
+}
+
+async function persistSecCoverObservationsAfterRawSave(input: {
+  rawItem: SecParsedRawItem;
+  rawItemId: string;
+  stats: {
+    sec_cover_observation_available_count: number;
+    sec_cover_observation_replayed_count: number;
+    sec_cover_observation_failed_count: number;
+    sec_cover_observation_state_recording_failed_count: number;
+  };
+  persistCoverObservations: typeof persistSecCoverObservationsForRawItem;
+  recordCoverState: typeof recordSecCoverObservationPersistenceState;
+}) {
+  try {
+    const result = await input.persistCoverObservations({
+      rawItemId: input.rawItemId,
+      rawItem: input.rawItem,
+    });
+    if (result.status === "not_applicable") return result;
+    input.stats.sec_cover_observation_available_count += 1;
+    if (result.writeStatus === "replayed") input.stats.sec_cover_observation_replayed_count += 1;
+    try {
+      await input.recordCoverState({ rawItemId: input.rawItemId, state: result });
+      return { ...result, stateRecorded: true };
+    } catch {
+      input.stats.sec_cover_observation_state_recording_failed_count += 1;
+      return { ...result, stateRecorded: false };
+    }
+  } catch (error) {
+    input.stats.sec_cover_observation_failed_count += 1;
+    const failureState = secCoverObservationFailureState(error);
+    try {
+      await input.recordCoverState({ rawItemId: input.rawItemId, state: failureState });
+      return { ...failureState, stateRecorded: true };
+    } catch {
+      input.stats.sec_cover_observation_state_recording_failed_count += 1;
+      return { ...failureState, stateRecorded: false };
+    }
   }
 }
 
