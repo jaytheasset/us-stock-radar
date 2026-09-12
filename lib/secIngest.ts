@@ -65,6 +65,10 @@ export async function runSecRawIngest(
     sc13_xml_replayed_count: 0,
     sc13_xml_failed_count: 0,
     sc13_xml_state_recording_failed_count: 0,
+    section16_xml_available_count: 0,
+    section16_xml_replayed_count: 0,
+    section16_xml_failed_count: 0,
+    section16_xml_state_recording_failed_count: 0,
     sc13_monitor_completed_count: 0,
     sc13_monitor_failed_count: 0,
     sc13_monitor_state_recording_failed_count: 0,
@@ -174,6 +178,11 @@ export async function runSecRawIngest(
             rawItemId: stringValue(existing.id),
             stats,
           });
+          const section16XmlPersistence = await persistSection16XmlAfterRawSave({
+            rawItem,
+            rawItemId: stringValue(existing.id),
+            stats,
+          });
           stats.skipped_count += 1;
           items.push({
             ok: true,
@@ -185,12 +194,18 @@ export async function runSecRawIngest(
             form_type: readNested(rawItem.raw_payload, "form_type"),
             cik: readNested(rawItem.raw_payload, "cik"),
             sc13_xml_persistence: sc13XmlPersistence,
+            section16_xml_persistence: section16XmlPersistence,
           });
           continue;
         }
 
         const persisted = await saveSecRawItem(rawItem, runId, existing);
         const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
+          rawItem,
+          rawItemId: stringValue(persisted.id),
+          stats,
+        });
+        const section16XmlPersistence = await persistSection16XmlAfterRawSave({
           rawItem,
           rawItemId: stringValue(persisted.id),
           stats,
@@ -206,6 +221,7 @@ export async function runSecRawIngest(
           ticker: readNested(rawItem.raw_payload, "ticker"),
           body_chars: stringValue(rawItem.body_text).length,
           sc13_xml_persistence: sc13XmlPersistence,
+          section16_xml_persistence: section16XmlPersistence,
         });
       } catch (error) {
         stats.failed_count += 1;
@@ -264,6 +280,57 @@ export async function runSecRawIngest(
       error: error instanceof Error ? error.message : "Unknown SEC raw ingest error",
       items,
     };
+  }
+}
+
+async function persistSection16XmlAfterRawSave(input: {
+  rawItem: SecParsedRawItem;
+  rawItemId: string;
+  stats: {
+    section16_xml_available_count: number;
+    section16_xml_replayed_count: number;
+    section16_xml_failed_count: number;
+    section16_xml_state_recording_failed_count: number;
+  };
+}) {
+  const formType = stringValue(toRecord(input.rawItem.raw_payload)?.form_type)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (!["3", "3/A", "5", "5/A"].includes(formType)) {
+    return { status: "not_applicable" as const };
+  }
+  let persistence: typeof import("@/lib/sec-section16-xml/persistence") | null = null;
+  try {
+    persistence = await import("@/lib/sec-section16-xml/persistence");
+    const result = await persistence.persistSection16CanonicalXmlForRawItem({
+      rawItemId: input.rawItemId,
+      rawItem: input.rawItem,
+    });
+    if (result.status === "not_applicable") return result;
+    input.stats.section16_xml_available_count += 1;
+    if (result.writeStatus === "replayed") input.stats.section16_xml_replayed_count += 1;
+    try {
+      await persistence.recordSection16CanonicalPersistenceState({ rawItemId: input.rawItemId, state: result });
+      return { ...result, stateRecorded: true };
+    } catch {
+      input.stats.section16_xml_state_recording_failed_count += 1;
+      return { ...result, stateRecorded: false };
+    }
+  } catch (error) {
+    input.stats.section16_xml_failed_count += 1;
+    const failureState = persistence?.section16PersistenceFailureState(error)
+      ?? { status: "failed" as const, errorCode: "module_unavailable" };
+    if (!persistence) {
+      input.stats.section16_xml_state_recording_failed_count += 1;
+      return { ...failureState, stateRecorded: false };
+    }
+    try {
+      await persistence.recordSection16CanonicalPersistenceState({ rawItemId: input.rawItemId, state: failureState });
+      return { ...failureState, stateRecorded: true };
+    } catch {
+      input.stats.section16_xml_state_recording_failed_count += 1;
+      return { ...failureState, stateRecorded: false };
+    }
   }
 }
 

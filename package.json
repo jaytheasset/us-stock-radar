@@ -60,6 +60,8 @@
     "verify:sc13-issuer-ticker-link:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-sc13-issuer-ticker-link-isolated.ts",
     "verify:sc13-monitor": "node --no-warnings --test --experimental-strip-types lib/monitor/sc13MonitorAlertConsumer.test.ts",
     "verify:sc13-monitor:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-sc13-monitor-alert-e2e-isolated.ts",
+    "verify:section16-xml-persistence": "node --no-warnings --test --experimental-strip-types lib/sec-section16-xml/canonical.test.ts",
+    "verify:section16-xml-persistence:isolated": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/verify-section16-xml-persistence-isolated.ts",
     "verify:adsense": "node --no-warnings --experimental-strip-types scripts/verify-adsense.mjs",
     "verify:analysis-ads": "node --test --experimental-strip-types lib/advertisingPolicy.test.ts",
     "verify:subscription": "node --test --experimental-strip-types lib/subscriptionPolicy.test.ts",
