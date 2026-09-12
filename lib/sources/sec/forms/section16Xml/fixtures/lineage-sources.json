@@ -1,0 +1,36 @@
+{
+  "fixturePolicy": {
+    "kind": "exact_bytes_from_official_sec_archive",
+    "discovery": "official_sec_submissions_json",
+    "hashAlgorithm": "sha256_download_bytes",
+    "scope": "counterpart_originals_for_existing_real_amendment_fixtures"
+  },
+  "fixtures": [
+    {
+      "file": "0000891839-26-000231-form3.xml",
+      "formType": "3",
+      "accessionNumber": "0000891839-26-000231",
+      "issuerCik": "0001854445",
+      "filingDate": "2026-06-05",
+      "acceptedAt": "2026-06-05T20:16:58.000Z",
+      "reportDate": "2026-06-01",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1854445/000089183926000231/form3.xml",
+      "completeSubmissionUrl": "https://www.sec.gov/Archives/edgar/data/1854445/000089183926000231/0000891839-26-000231.txt",
+      "submissionsUrl": "https://data.sec.gov/submissions/CIK0002131539.json",
+      "sha256": "4e09a9c512e8fb6d00d2281d3abebf0a19d8dde27e876e7e679786399c4ffb69"
+    },
+    {
+      "file": "0001127602-25-004959-form5.xml",
+      "formType": "5",
+      "accessionNumber": "0001127602-25-004959",
+      "issuerCik": "0000094049",
+      "filingDate": "2025-02-14",
+      "acceptedAt": "2025-02-14T22:50:36.000Z",
+      "reportDate": "2024-12-31",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/94049/000112760225004959/form5.xml",
+      "completeSubmissionUrl": "https://www.sec.gov/Archives/edgar/data/94049/000112760225004959/0001127602-25-004959.txt",
+      "submissionsUrl": "https://data.sec.gov/submissions/CIK0001229289.json",
+      "sha256": "d45ed53b2f534e48768825f5a9d34817f3a6532535354ae5e522e64dc0a1d5fa"
+    }
+  ]
+}
