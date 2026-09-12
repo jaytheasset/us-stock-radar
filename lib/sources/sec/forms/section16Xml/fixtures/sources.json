@@ -1,0 +1,43 @@
+{
+  "fixturePolicy": {
+    "kind": "canonical_xml_transcribed_from_official_sec_complete_submission",
+    "liveByteIdentity": "unverified_sec_downloads_returned_403_or_browser_blocked",
+    "hashAlgorithm": "sha256_utf8_fixture_bytes",
+    "acceptedAtPolicy": "sec_index_source_local_text_without_inferred_timezone"
+  },
+  "fixtures": [
+    {
+      "file": "0000891839-26-000252-form3a.xml",
+      "formType": "3/A",
+      "accessionNumber": "0000891839-26-000252",
+      "issuerCik": "0001854445",
+      "filingDate": "2026-06-18",
+      "acceptedAt": "2026-06-18 16:18:13",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1854445/000089183926000252/form3a.xml",
+      "completeSubmissionUrl": "https://www.sec.gov/Archives/edgar/data/1854445/000089183926000252/0000891839-26-000252.txt",
+      "sha256": "1ffab53b3539ab8a370830df95e3df1dc2192553fa9b000d94153322d8683f11"
+    },
+    {
+      "file": "0000036146-26-000004-form5.xml",
+      "formType": "5",
+      "accessionNumber": "0000036146-26-000004",
+      "issuerCik": "0000036146",
+      "filingDate": "2026-02-13",
+      "acceptedAt": "2026-02-13 16:29:10",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/36146/000003614626000004/form5.xml",
+      "completeSubmissionUrl": "https://www.sec.gov/Archives/edgar/data/36146/000003614626000004/0000036146-26-000004.txt",
+      "sha256": "d756c578185772b0ebaa6d28374811b4071241f89b54308f8d8cd6b52f356c7b"
+    },
+    {
+      "file": "0000094049-26-000015-form5a.xml",
+      "formType": "5/A",
+      "accessionNumber": "0000094049-26-000015",
+      "issuerCik": "0000094049",
+      "filingDate": "2026-02-19",
+      "acceptedAt": "2026-02-19 19:18:38",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/94049/000009404926000015/form5a.xml",
+      "completeSubmissionUrl": "https://www.sec.gov/Archives/edgar/data/94049/000009404926000015/0000094049-26-000015.txt",
+      "sha256": "2c2047acd81773159213f837309c98a9c3838580fc47105f9931c12ce00b0918"
+    }
+  ]
+}

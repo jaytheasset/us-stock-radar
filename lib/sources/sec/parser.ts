@@ -252,6 +252,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             companyName: null,
             filingDate: null,
             acceptedAt: null,
+            acceptedAtSource: null,
             fileNumber: null,
             registrationNumber: null,
             secAct: null,
@@ -343,7 +344,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           accession_number: accessionNumber,
           accession_no_dashes: identity.accessionNoDashes,
           filing_date: detail.filingDate,
-          accepted_at: detail.acceptedAt,
+          accepted_at: isSection16XmlParserForm(formType) ? detail.acceptedAtSource : detail.acceptedAt,
           file_number: detail.fileNumber,
           registration_number: detail.registrationNumber,
           sec_act: detail.secAct,
@@ -807,6 +808,7 @@ async function fetchFilingDetail({
       companyName: null,
       filingDate: null,
       acceptedAt: null,
+      acceptedAtSource: null,
       fileNumber: null,
       registrationNumber: null,
       secAct: null,
@@ -818,6 +820,7 @@ async function fetchFilingDetail({
   const companyName = readCompanyNameFromDetailHtml(html);
   const filingDate = readFilingDateFromDetailHtml(html);
   const acceptedAt = readAcceptedDateTimeFromDetailHtml(html);
+  const acceptedAtSource = readAcceptedDateTimeSourceFromDetailHtml(html);
   const filingIndexMetadata = readFilingIndexMetadataFromDetailHtml(html);
   const documents = parseFilingDocuments(html, detailUrl, formType);
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
@@ -955,6 +958,7 @@ async function fetchFilingDetail({
     companyName,
     filingDate,
     acceptedAt,
+    acceptedAtSource,
     fileNumber: filingIndexMetadata.fileNumber,
     registrationNumber: filingIndexMetadata.registrationNumber,
     secAct: filingIndexMetadata.secAct,
@@ -1052,7 +1056,7 @@ function selectDocumentsForText(documents: SecDocument[], attachmentLimit: numbe
   const effectiveFormType = formType || inferPrimaryFormTypeFromDocuments(documents);
   const fetchPlan = getSecFormFetchPlan(effectiveFormType);
 
-  if (isOwnershipIntegrationForm(effectiveFormType)) {
+  if (isOwnershipXmlCaptureForm(effectiveFormType)) {
     for (const document of documents) {
       if (!document.url || selected.has(document.url)) continue;
       if (isOwnershipXmlDocumentCandidate(document)) selected.add(document.url);
@@ -1229,6 +1233,23 @@ function isOwnershipIntegrationForm(formType: string | null) {
   return form === "4" || form === "4/A" || form === "144" || form === "144/A";
 }
 
+function isOwnershipXmlCaptureForm(formType: string | null) {
+  const form = normalizeFormType(formType);
+  return form === "3"
+    || form === "3/A"
+    || form === "4"
+    || form === "4/A"
+    || form === "5"
+    || form === "5/A"
+    || form === "144"
+    || form === "144/A";
+}
+
+function isSection16XmlParserForm(formType: string | null) {
+  const form = normalizeFormType(formType);
+  return form === "3" || form === "3/A" || form === "5" || form === "5/A";
+}
+
 function buildOwnershipRawSource({
   document,
   formType,
@@ -1238,7 +1259,7 @@ function buildOwnershipRawSource({
   formType: string | null;
   text: string;
 }) {
-  if (!isOwnershipIntegrationForm(formType)) return null;
+  if (!isOwnershipXmlCaptureForm(formType)) return null;
 
   const format = detectOwnershipRawSourceFormat(document, text);
   if (!format) return null;
@@ -1901,10 +1922,17 @@ function readFilingDateFromDetailHtml(html: string) {
 }
 
 function readAcceptedDateTimeFromDetailHtml(html: string) {
+  const sourceValue = readAcceptedDateTimeSourceFromDetailHtml(html);
+  if (!sourceValue) return null;
+  const [datePart, timePart] = sourceValue.split(" ");
+  return parseSecEasternDateTime(datePart, timePart);
+}
+
+function readAcceptedDateTimeSourceFromDetailHtml(html: string) {
   const match = html.match(
     /<div[^>]+class=["']infoHead["'][^>]*>\s*Accepted\s*<\/div>\s*<div[^>]+class=["']info["'][^>]*>\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s+([0-9]{2}:[0-9]{2}:[0-9]{2})\s*<\/div>/i,
   );
-  return parseSecEasternDateTime(match?.[1], match?.[2]);
+  return match?.[1] && match?.[2] ? `${match[1]} ${match[2]}` : null;
 }
 
 function parseSecEasternDateTime(datePart: unknown, timePart: unknown) {

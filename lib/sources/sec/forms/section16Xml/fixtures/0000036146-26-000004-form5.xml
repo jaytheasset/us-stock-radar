@@ -1,0 +1,149 @@
+<ownershipDocument>
+    <schemaVersion>X0508</schemaVersion>
+    <documentType>5</documentType>
+    <periodOfReport>2025-12-31</periodOfReport>
+    <form3HoldingsReported>0</form3HoldingsReported>
+    <form4TransactionsReported>1</form4TransactionsReported>
+    <issuer>
+        <issuerCik>0000036146</issuerCik>
+        <issuerName>TRUSTMARK CORP</issuerName>
+        <issuerTradingSymbol>TRMK</issuerTradingSymbol>
+    </issuer>
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001036241</rptOwnerCik>
+            <rptOwnerName>BAKER ADOLPHUS B</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerStreet1>P. O. BOX 2960</rptOwnerStreet1>
+            <rptOwnerStreet2></rptOwnerStreet2>
+            <rptOwnerCity>JACKSON</rptOwnerCity>
+            <rptOwnerState>MS</rptOwnerState>
+            <rptOwnerZipCode>39207</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>1</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+    <aff10b5One>0</aff10b5One>
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-04-29</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>P</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>10</value></transactionShares>
+                <transactionPricePerShare><value>34.09</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>57535</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-07-08</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>P</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>5</value></transactionShares>
+                <transactionPricePerShare><value>38.56</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>57540</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-08-11</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>S</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+                <footnoteId id="F1"/>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>5</value></transactionShares>
+                <transactionPricePerShare><value>36.83</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>57535</value><footnoteId id="F2"/></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-04-29</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>P</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>30</value></transactionShares>
+                <transactionPricePerShare><value>33.60</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>30</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Spouse</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-07-11</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>P</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>30</value></transactionShares>
+                <transactionPricePerShare><value>38.58</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>60</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Spouse</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeTransaction>
+            <securityTitle><value>Common Stock</value></securityTitle>
+            <transactionDate><value>2025-07-29</value></transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>P</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares><value>30</value></transactionShares>
+                <transactionPricePerShare><value>38.14</value></transactionPricePerShare>
+                <transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts><sharesOwnedFollowingTransaction><value>90</value></sharesOwnedFollowingTransaction></postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership><value>I</value></directOrIndirectOwnership>
+                <natureOfOwnership><value>By Spouse</value></natureOfOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+    </nonDerivativeTable>
+    <footnotes>
+        <footnote id="F1">The reporting person's sale of Trustmark Corporation common stock reported herein was matchable under Section 16(b) of the Securities Exchange Act of 1934, to the extent of 5 shares, with the reporting person's purchase of 5 shares of Trustmark Corporation common stock at a price of $33.60 per share on April 29, 2025. The reporting person has paid, pursuant to an agreement, Trustmark Corporation $16.15, representing the full amount of the profit realized in connection with the short-swing transaction, less transaction costs.</footnote>
+        <footnote id="F2">Includes 953 shares acquired through TRMK Employee and Director Stock Purchase Plan as of December 31, 2025.</footnote>
+    </footnotes>
+    <ownerSignature>
+        <signatureName>Adolphus B. Baker by Granville Tate, Jr., POA</signatureName>
+        <signatureDate>2026-02-13</signatureDate>
+    </ownerSignature>
+</ownershipDocument>
