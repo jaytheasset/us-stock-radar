@@ -1366,6 +1366,32 @@ export function createSecFilingDocumentArtifact(input: {
   });
 }
 
+export function createSecFilingXbrlArtifactFromStoredHttpBody(input: {
+  issuerCik: string;
+  accession: string;
+  documentName: string;
+  sourceUrl: string;
+  role: "inline_xbrl" | "instance_xml";
+  rawContent: string;
+  fetchedAt: string;
+  contentType: string | null;
+}): SecFilingXbrlRawArtifact {
+  const filing = {
+    accessionNumber: input.accession,
+    issuerCik: input.issuerCik,
+  } as SecFilingRow;
+  return createArtifact({
+    filing,
+    role: input.role,
+    documentName: input.documentName,
+    sourceUrl: input.sourceUrl,
+    fetchedAt: input.fetchedAt,
+    contentType: input.contentType,
+    rawContent: input.rawContent,
+    rawContentKind: "authoritative_http_body",
+  });
+}
+
 function createArtifact(input: {
   filing: Pick<SecFilingRow, "issuerCik" | "accessionNumber">;
   role: SecFilingXbrlArtifactRole;
