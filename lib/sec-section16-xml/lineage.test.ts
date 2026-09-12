@@ -37,7 +37,7 @@ test("lineage counterpart fixtures retain exact officially downloaded bytes", ()
   }
 });
 
-test("real Form 3/A stays unresolved when its no-securities original cannot confirm security identity", () => {
+test("real Form 3/A links to its no-securities original while security identity remains unresolved", () => {
   const projection = resolveSection16StoredLineage([
     parseFixture(requiredOriginal("3")),
     parseFixture(requiredExisting("3/A")),
@@ -46,8 +46,8 @@ test("real Form 3/A stays unresolved when its no-securities original cannot conf
   assert.deepEqual(projection.links[0], {
     accessionNumber: "0000891839-26-000252",
     referencedAccessionNumber: "0000891839-26-000231",
-    status: "unresolved",
-    reason: "security_identity_unverified",
+    status: "linked",
+    reason: null,
     evidence: {
       source: "date_of_original_submission",
       originalSubmissionDateRaw: "2026-06-05",
@@ -59,6 +59,20 @@ test("real Form 3/A stays unresolved when its no-securities original cannot conf
   assert.equal(projection.transactions.length, 0, "Form 3 holdings never enter transaction dedupe");
   assert.equal(projection.holdings.length, 2);
   assert.ok(projection.holdings.every((row) => row.preservationStatus === "preserved_filing_snapshot"));
+  assert.deepEqual(projection.holdingAdditions.map((item) => ({
+    accessionNumber: item.accessionNumber,
+    rowOrdinal: item.rowOrdinal,
+    relativeTo: item.relativeTo,
+    status: item.status,
+    meaning: item.meaning,
+  })), [0, 1].map((rowOrdinal) => ({
+    accessionNumber: "0000891839-26-000252",
+    rowOrdinal,
+    relativeTo: { accessionNumber: "0000891839-26-000231" },
+    status: "added_disclosed_holding",
+    meaning: "disclosure_added_not_acquisition_or_purchase",
+  })));
+  assert.deepEqual(projection.issues, []);
 });
 
 test("real Form 5/A links only on verified identities and preserves new transactions plus the explicit holding correction", () => {
@@ -71,6 +85,7 @@ test("real Form 5/A links only on verified identities and preserves new transact
   assert.equal(projection.transactions.length, 5);
   assert.ok(projection.transactions.every((row) => row.aggregationStatus === "included" && row.reason === "distinct_transaction"));
   assert.equal(projection.holdings.length, 16, "both filing snapshots remain present, including zero-valued rows");
+  assert.equal(projection.holdingAdditions.length, 0);
   assert.deepEqual(projection.holdingCorrections.map((item) => ({
     accessionNumber: item.accessionNumber,
     rowOrdinal: item.rowOrdinal,
@@ -151,7 +166,7 @@ test("negation, duplicate amendment rows, and quantity changes all fail closed w
   assert.equal(projection.transactions.filter((row) => row.accessionNumber === original.accessionNumber).length, 6, "original rows are not deleted");
 });
 
-test("same-date multiple candidates and reporter, security, and ordering mismatches remain unresolved", () => {
+test("candidate/reporter/order ambiguity stays unresolved while security mismatch remains a linked row diagnostic", () => {
   const original = parseFixture(requiredExisting("5"));
   const amendment = amendmentFrom(original, { accessionNumber: "0000036146-26-900005", remarks: "" });
   const secondRoot = structuredClone(original);
@@ -180,7 +195,10 @@ test("same-date multiple candidates and reporter, security, and ordering mismatc
   const securityMismatch = amendmentFrom(original, { accessionNumber: "0000036146-26-900008", remarks: "" });
   securityMismatch.parsed.transactions[0]!.securityTitle.value = "Preferred Stock";
   securityMismatch.parsed.transactions[0]!.securityTitle.rawValue = "Preferred Stock";
-  assert.equal(resolveSection16StoredLineage([original, securityMismatch]).links[0]?.reason, "security_identity_mismatch");
+  const securityMismatchLink = resolveSection16StoredLineage([original, securityMismatch]).links[0];
+  assert.equal(securityMismatchLink?.status, "linked");
+  assert.equal(securityMismatchLink?.reason, "security_identity_mismatch");
+  assert.equal(securityMismatchLink?.evidence.securityIdentity, "unresolved");
 
   const mixedClock = amendmentFrom(original, { accessionNumber: "0000036146-26-900009", remarks: "" });
   mixedClock.parsed.filing.filingDate.value = original.parsed.filing.filingDate.value;
@@ -194,10 +212,10 @@ test("same-date multiple candidates and reporter, security, and ordering mismatc
   const derivativeRow = derivativeMismatch.parsed.transactions.find((row: { rowKind: string }) => row.rowKind === "derivative");
   assert.ok(derivativeRow);
   derivativeRow.expirationDate = exactField("2030-01-01", derivativeRow.expirationDate.xmlPath);
-  assert.equal(
-    resolveSection16StoredLineage([stepanOriginal, derivativeMismatch]).links[0]?.reason,
-    "security_identity_mismatch",
-  );
+  const derivativeMismatchLink = resolveSection16StoredLineage([stepanOriginal, derivativeMismatch]).links[0];
+  assert.equal(derivativeMismatchLink?.status, "linked");
+  assert.equal(derivativeMismatchLink?.reason, "security_identity_mismatch");
+  assert.equal(derivativeMismatchLink?.evidence.securityIdentity, "unresolved");
 });
 
 function amendmentFrom(

@@ -283,9 +283,15 @@ try {
   const ggrp = await currentState.readSection16IssuerCurrentState("1854445");
   assert.equal(ggrp.status, "available");
   if (ggrp.status !== "available") throw new Error("GGRP lineage unavailable");
-  assert.equal(ggrp.lineage.links[0]?.reason, "security_identity_unverified");
+  assert.equal(ggrp.lineage.links[0]?.status, "linked");
+  assert.equal(ggrp.lineage.links[0]?.reason, null);
+  assert.equal(ggrp.lineage.links[0]?.evidence.securityIdentity, "unresolved");
   assert.equal(ggrp.lineage.transactions.length, 0);
   assert.equal(ggrp.lineage.holdings.length, 2);
+  assert.equal(ggrp.lineage.holdingAdditions.length, 2);
+  assert.ok(ggrp.lineage.holdingAdditions.every((item) => (
+    item.meaning === "disclosure_added_not_acquisition_or_purchase"
+  )));
 
   const stepan = await currentState.readSection16IssuerCurrentState("94049");
   assert.equal(stepan.status, "available");
@@ -314,7 +320,15 @@ try {
   output.ok = true;
   output.databaseEvidence = target.rows[0];
   output.actual = {
-    ggrp: { linkStatus: ggrp.lineage.links[0]?.status, reason: ggrp.lineage.links[0]?.reason, transactions: 0, holdings: 2 },
+    ggrp: {
+      linkStatus: ggrp.lineage.links[0]?.status,
+      reason: ggrp.lineage.links[0]?.reason,
+      securityIdentity: ggrp.lineage.links[0]?.evidence.securityIdentity,
+      transactions: 0,
+      holdings: 2,
+      holdingAdditions: ggrp.lineage.holdingAdditions.length,
+      acquisitionMeaning: "two_added_disclosed_holdings_cause_and_date_unresolved",
+    },
     stepan: {
       linkStatus: stepan.lineage.links[0]?.status,
       includedTransactions: stepan.lineage.transactions.length,
