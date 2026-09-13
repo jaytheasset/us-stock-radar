@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import styles from "@/components/admin/AdminSection.module.css";
+import { TickerResolutionHumanReview } from "@/components/admin/TickerResolutionHumanReview";
+import { rolesHavePermission } from "@/lib/admin/policy";
 import { requireAdminPermission } from "@/lib/admin/server";
 import {
+  readEffectiveSecTickerResolutionByDecisionId,
+  type SecTickerEffectiveReadResult,
+} from "@/lib/sec-ticker-resolution/humanReview";
+import {
   listSecTickerResolutions,
-  readSecTickerResolutionByDecisionId,
-  type SecTickerResolutionReadResult,
 } from "@/lib/sec-ticker-resolution/persistence";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +21,6 @@ type PageSearchParams = Promise<{
   state?: string;
 }>;
 
-type AvailableResolution = Extract<SecTickerResolutionReadResult, { status: "available" }>;
 type Row = Record<string, unknown>;
 
 export default async function AdminTickerResolutionPage({
@@ -25,7 +28,8 @@ export default async function AdminTickerResolutionPage({
 }: {
   searchParams: PageSearchParams;
 }) {
-  await requireAdminPermission("system.read");
+  const access = await requireAdminPermission("system.read");
+  const canWriteHumanReview = rolesHavePermission(access.roles, "data.run");
   const params = await searchParams;
   const state = normalizeState(params.state);
   const query = (params.q || "").trim().slice(0, 120);
@@ -33,8 +37,8 @@ export default async function AdminTickerResolutionPage({
   const [listing, selected] = await Promise.all([
     listSecTickerResolutions({ state: state || undefined, query }),
     decisionId
-      ? readSecTickerResolutionByDecisionId({ decisionId })
-      : Promise.resolve<SecTickerResolutionReadResult | null>(null),
+      ? readEffectiveSecTickerResolutionByDecisionId({ decisionId })
+      : Promise.resolve<SecTickerEffectiveReadResult | null>(null),
   ]);
 
   return (
@@ -45,10 +49,11 @@ export default async function AdminTickerResolutionPage({
           <h1>Ticker resolution</h1>
           <p>
             Validated, append-only relationships from retained SEC cover observations and
-            exact filing evidence. This surface cannot approve, reject, override, or edit a decision.
+            exact filing evidence. Human actions are separate append-only events; automatic
+            observations and decisions are never edited.
           </p>
         </div>
-        <span className={styles.badge}>Read only</span>
+        <span className={styles.badge}>Controlled review</span>
       </header>
 
       {listing.status === "unavailable" ? (
@@ -165,26 +170,62 @@ export default async function AdminTickerResolutionPage({
         </>
       )}
 
-      {selected ? <SelectedResolution result={selected} /> : null}
+      {selected ? (
+        <SelectedResolution
+          canWriteHumanReview={canWriteHumanReview}
+          result={selected}
+        />
+      ) : null}
     </div>
   );
 }
 
-function SelectedResolution({ result }: { result: SecTickerResolutionReadResult }) {
+function SelectedResolution({
+  canWriteHumanReview,
+  result,
+}: {
+  canWriteHumanReview: boolean;
+  result: SecTickerEffectiveReadResult;
+}) {
   if (result.status === "not_found") {
     return <div className={styles.notice} role="status">No saved decision matches this exact decision ID.</div>;
   }
   if (result.status === "unavailable") {
     return (
       <div className={styles.error} role="alert">
-        The selected decision could not be validated. It is not shown as a confirmed relationship.
+        The automatic decision or human history could not be validated. No relationship is effective.
       </div>
     );
   }
 
-  const decision = result.decision;
-  const evidence = result.evidence;
-  const identity = result.identity;
+  if (result.automatic.status === "unavailable") {
+    return (
+      <section aria-labelledby="selected-resolution-heading" className={styles.stack}>
+        <div className={styles.sectionHeading}>
+          <div>
+            <h2 id="selected-resolution-heading">Selected filing pair</h2>
+            <p className={styles.mono}>{result.currentAutomaticDecisionId}</p>
+          </div>
+          <span className={`${styles.pill} ${styles.pillNegative}`}>{result.effective.disposition}</span>
+        </div>
+        <div className={styles.error} role="alert">
+          Automatic validation is unavailable ({result.automatic.reason}). Human history remains
+          visible, but no automatic relationship or new action is enabled.
+        </div>
+        <HumanReviewSection
+          automaticSha256=""
+          automaticState="Unavailable"
+          canWriteHumanReview={canWriteHumanReview}
+          result={result}
+        />
+      </section>
+    );
+  }
+
+  const automaticResult = result.automatic.result;
+  const decision = automaticResult.decision;
+  const evidence = automaticResult.evidence;
+  const identity = automaticResult.identity;
   const relationship = record(record(decision.decision_payload).relationship);
   const itemState = stringValue(decision.resolution_state);
   const consoleHref = `/development/sec?room=periodic-reports&tab=resolution&resolutionId=${encodeURIComponent(stringValue(decision.id))}`;
@@ -195,6 +236,12 @@ function SelectedResolution({ result }: { result: SecTickerResolutionReadResult 
         <div>
           <h2 id="selected-resolution-heading">Selected exact decision</h2>
           <p className={styles.mono}>{stringValue(decision.id)}</p>
+          {result.selectedAutomaticDecisionId !== result.currentAutomaticDecisionId ? (
+            <p className={styles.muted}>
+              Requested older decision {result.selectedAutomaticDecisionId}; showing the current
+              automatic revision for this filing pair.
+            </p>
+          ) : null}
         </div>
         <span className={statePillClass(itemState)}>{itemState}</span>
       </div>
@@ -217,8 +264,8 @@ function SelectedResolution({ result }: { result: SecTickerResolutionReadResult 
         <article className={styles.detailCard}>
           <h3>Security identity</h3>
           <DefinitionList values={[
-            ["Type", humanize(stringValue(identity?.security_type) || result.evaluation.summary.securityType || "unresolved")],
-            ["Class", stringValue(identity?.security_class) || result.evaluation.summary.securityClass || "Not recorded"],
+            ["Type", humanize(stringValue(identity?.security_type) || automaticResult.evaluation.summary.securityType || "unresolved")],
+            ["Class", stringValue(identity?.security_class) || automaticResult.evaluation.summary.securityClass || "Not recorded"],
             ["Before title", stringValue(identity?.before_security_title) || "Not resolved"],
             ["After title", stringValue(identity?.after_security_title) || "Not resolved"],
           ]} />
@@ -226,11 +273,11 @@ function SelectedResolution({ result }: { result: SecTickerResolutionReadResult 
         <article className={styles.detailCard}>
           <h3>Effective basis</h3>
           <DefinitionList values={[
-            ["Effective date", stringValue(evidence?.effective_date) || result.evaluation.summary.effectiveDate || "Unresolved"],
+            ["Effective date", stringValue(evidence?.effective_date) || automaticResult.evaluation.summary.effectiveDate || "Unresolved"],
             ["Effective at", stringValue(evidence?.effective_at) || "No exact timestamp claimed"],
-            ["Precision", humanize(stringValue(evidence?.effective_precision) || result.evaluation.summary.effectivePrecision || "unknown")],
+            ["Precision", humanize(stringValue(evidence?.effective_precision) || automaticResult.evaluation.summary.effectivePrecision || "unknown")],
             ["Source wording", stringValue(evidence?.effective_text) || "Not extracted"],
-            ["Continuity", humanize(stringValue(evidence?.continuity_basis) || result.evaluation.summary.continuityBasis || "unresolved")],
+            ["Continuity", humanize(stringValue(evidence?.continuity_basis) || automaticResult.evaluation.summary.continuityBasis || "unresolved")],
           ]} />
         </article>
       </div>
@@ -269,7 +316,41 @@ function SelectedResolution({ result }: { result: SecTickerResolutionReadResult 
       ) : (
         <div className={styles.notice}>No relationship evidence row was persisted for this non-AUTO decision.</div>
       )}
+
+      <HumanReviewSection
+        automaticSha256={stringValue(decision.decision_sha256)}
+        automaticState={itemState}
+        canWriteHumanReview={canWriteHumanReview}
+        result={result}
+      />
     </section>
+  );
+}
+
+function HumanReviewSection({
+  automaticSha256,
+  automaticState,
+  canWriteHumanReview,
+  result,
+}: {
+  automaticSha256: string;
+  automaticState: string;
+  canWriteHumanReview: boolean;
+  result: Extract<SecTickerEffectiveReadResult, { status: "available" }>;
+}) {
+  return (
+    <TickerResolutionHumanReview
+      canWrite={canWriteHumanReview}
+      approvalBlockedReason={result.approvalBlockedReason}
+      automaticDecisionId={result.currentAutomaticDecisionId}
+      automaticDecisionSha256={automaticSha256}
+      automaticState={automaticState}
+      availableActions={result.availableActions}
+      effectiveDisposition={result.effective.disposition}
+      expectedRevision={result.latestHumanDecision?.revision ?? 0}
+      history={result.history}
+      reconsiderationRequired={result.effective.reconsiderationRequired}
+    />
   );
 }
 
