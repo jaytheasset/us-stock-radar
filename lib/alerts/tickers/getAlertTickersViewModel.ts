@@ -232,6 +232,12 @@ function mergeTickerResults(results: Array<TickerSearchResult | null>) {
       companyName: current.companyName || result.companyName,
       exchange: current.exchange || result.exchange,
       assetType: current.assetType || result.assetType,
+      ...(current.isHistoricalTicker || result.isHistoricalTicker
+        ? {
+            historicalTicker: current.historicalTicker || result.historicalTicker,
+            isHistoricalTicker: true,
+          }
+        : {}),
       marketCap: current.marketCap ?? result.marketCap,
     });
   }

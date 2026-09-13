@@ -79,6 +79,14 @@ import {
   type TickerSearchSelectionSnapshot,
 } from "@/lib/tickerSearchFlowObservation";
 import type { StockDilutionMembershipResponse } from "@/lib/dilution-registry/stockDilutionMembership";
+import {
+  parseSecTickerSourceFilingsPayload,
+  type SecTickerSourceFiling,
+} from "@/lib/sec-ticker-resolution/productProjectionTypes";
+import {
+  resolveStockDetailRenderState,
+  shouldLoadSecTickerSourceFilings,
+} from "@/lib/sec-ticker-resolution/productProjectionClient";
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
 import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
@@ -161,6 +169,8 @@ export function StockRadarWatchlistV2({
   const [quote, setQuote] = useState(emptyQuote);
   const [chartPoints, setChartPoints] = useState<StockOverviewChartPoint[]>([]);
   const [events, setEvents] = useState<StockOverviewEvent[]>([]);
+  const [secSourceFilings, setSecSourceFilings] = useState<SecTickerSourceFiling[]>([]);
+  const [secSourceFilingsState, setSecSourceFilingsState] = useState<LoadState>("idle");
   const [fundamentals, setFundamentals] =
     useState<StockFundamentalsSnapshot | null>(null);
   const [financials, setFinancials] =
@@ -172,7 +182,7 @@ export function StockRadarWatchlistV2({
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
     CompanyCalendarEvent[]
   >([]);
-  const [overviewState, setOverviewState] = useState<LoadState>("idle");
+  const [overviewDataState, setOverviewState] = useState<LoadState>("idle");
   const [tickerSearchSelection, setTickerSearchSelection] =
     useState<TickerSearchSelectionSnapshot | null>(null);
   const [chartState, setChartState] = useState<LoadState>("idle");
@@ -240,6 +250,13 @@ export function StockRadarWatchlistV2({
       }),
     [eventFilter, events, eventsRequest, selectedTicker, visibleEventCount],
   );
+  const overviewState = resolveStockDetailRenderState({
+    overviewState: overviewDataState,
+    selectionMode,
+    sourceFilingsCount: secSourceFilings.length,
+    sourceFilingsState: secSourceFilingsState,
+  });
+  const stockDetailUnavailable = overviewState === "unavailable";
   const tickerSearchFlowReadout = useMemo(() => {
     const routeHref = selectedTicker
       ? getStockRouteHref(selectedTicker) ?? ""
@@ -257,7 +274,6 @@ export function StockRadarWatchlistV2({
   const financialEvents = selectStockOverviewEvents(events, "financials");
   const ownershipEvents = selectStockOverviewEvents(events, "ownership");
   const dilutionEvents = selectStockOverviewEvents(events, "dilution");
-
   useEffect(() => {
     if (selectionMode !== "stock" || !selectedTicker) return;
     const selectionHref = getStockRouteHref(selectedTicker);
@@ -361,6 +377,35 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [selectedTicker, selectedWatchlistItem?.companyName]);
+
+  useEffect(() => {
+    if (!shouldLoadSecTickerSourceFilings({ selectionMode, ticker: selectedTicker })) {
+      setSecSourceFilings([]);
+      setSecSourceFilingsState("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    setSecSourceFilings([]);
+    setSecSourceFilingsState("loading");
+    void fetch(`/api/stocks/${encodeURIComponent(selectedTicker!)}/sec-source-filings`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(readSecSourceFilingsResponse)
+      .then((filings) => {
+        if (controller.signal.aborted) return;
+        setSecSourceFilings(filings);
+        setSecSourceFilingsState("ready");
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSecSourceFilings([]);
+        setSecSourceFilingsState("unavailable");
+      });
+
+    return () => controller.abort();
+  }, [selectedTicker, selectionMode]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -981,7 +1026,7 @@ export function StockRadarWatchlistV2({
           <>
             <StockHeader
               companyName={
-                overviewState === "unavailable"
+                stockDetailUnavailable
                   ? "Ticker unavailable"
                   : profile.companyName ||
                     selectedWatchlistItem?.companyName ||
@@ -991,7 +1036,7 @@ export function StockRadarWatchlistV2({
               }
               exchange={profile.exchange}
               isSaved={Boolean(selectedWatchlistItem)}
-              isUnavailable={overviewState === "unavailable"}
+              isUnavailable={stockDetailUnavailable}
               isQuoteUnavailable={
                 !Object.values(quote).some((value) => value !== null)
               }
@@ -1179,6 +1224,9 @@ export function StockRadarWatchlistV2({
                         }}
                         onSelect={selectEvent}
                         selectedEventId={selectedEvent?.id ?? null}
+                        sourceFilings={secSourceFilings}
+                        sourceFilingsState={secSourceFilingsState}
+                        showSourceFilings={selectionMode === "stock"}
                         onViewMore={() =>
                           setVisibleEventCount((count) => count + 10)
                         }
@@ -1645,12 +1693,18 @@ function EventList({
   onSelect,
   onViewMore,
   selectedEventId,
+  sourceFilings,
+  sourceFilingsState,
+  showSourceFilings,
 }: {
   observation: StockEventsObservation;
   onFilterChange: (filter: StockEventsFilter) => void;
   onSelect: (event: StockOverviewEvent, opener: HTMLElement) => void;
   onViewMore: () => void;
   selectedEventId: string | null;
+  sourceFilings: readonly SecTickerSourceFiling[];
+  sourceFilingsState: LoadState;
+  showSourceFilings: boolean;
 }) {
   const { message, remainingResultCount, resultLabel, ticker, title } =
     observation;
@@ -1743,7 +1797,51 @@ function EventList({
           <span>{message}</span>
         </div>
       )}
+      {showSourceFilings && observation.filter !== "news" ? (
+        <SecSourceFilings filings={sourceFilings} state={sourceFilingsState} />
+      ) : null}
     </div>
+  );
+}
+
+function SecSourceFilings({
+  filings,
+  state,
+}: {
+  filings: readonly SecTickerSourceFiling[];
+  state: LoadState;
+}) {
+  if (state === "idle") return null;
+  return (
+    <section aria-labelledby="sec-source-filings-title" className={styles.sourceFilings}>
+      <div className={styles.sourceFilingsHeading}>
+        <div>
+          <span>VERIFIED SEC SOURCES</span>
+          <h3 id="sec-source-filings-title">Historical ticker filing evidence</h3>
+        </div>
+        <small>Separate from event analysis</small>
+      </div>
+      {state === "loading" ? (
+        <p role="status">Loading verified filing sources…</p>
+      ) : state === "unavailable" ? (
+        <p role="status">Verified filing sources are temporarily unavailable.</p>
+      ) : filings.length ? (
+        <div className={styles.sourceFilingList}>
+          {filings.map((filing) => (
+            <Link href={filing.detailHref} key={`${filing.accessionNumber}:${filing.historicalTicker}`}>
+              <time dateTime={filing.acceptedAt}>{filing.filedDate}</time>
+              <span>
+                <strong>{filing.historicalTicker}</strong>
+                <small>{filing.formType} · {filing.accessionNumber}</small>
+              </span>
+              <b>Source</b>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p>No effective historical ticker filing sources are available.</p>
+      )}
+    </section>
   );
 }
 
@@ -1978,6 +2076,14 @@ async function readStockEventsResponse(response: Response) {
       requestState: "received",
     }),
   };
+}
+
+async function readSecSourceFilingsResponse(response: Response) {
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.ok !== true) {
+    throw new Error("Verified SEC source filings request failed.");
+  }
+  return parseSecTickerSourceFilingsPayload(payload);
 }
 
 async function readStockFinancialsResponse(response: Response) {
