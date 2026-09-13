@@ -84,7 +84,7 @@ export default async function AdminTickerResolutionPage({
             ) : null}
           </section>
 
-          <form className={styles.toolbar} method="get">
+          <form className={styles.toolbar} key={filterHref({ query, state })} method="get">
             <label className={`${styles.field} ${styles.fieldGrow}`}>
               <span>Issuer, ticker, accession, or decision ID</span>
               <input className={styles.input} defaultValue={query} maxLength={120} name="q" placeholder="GGRP or 0001854445" />
