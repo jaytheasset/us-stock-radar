@@ -73,6 +73,11 @@ export async function normalizeAlertEvent(eventId: string): Promise<
       marketScope: canonical.marketScope,
       publishedAt,
       metadata: {
+        cik: readString(eventMetadata.cik),
+        accession_number: readString(eventMetadata.accession_number),
+        raw_item_id: readString(row.raw_item_id),
+        source_url: readString(row.source_url),
+        primary_document_url: readString(eventMetadata.primary_document_url),
         source_group: canonical.sourceGroup,
         source_code: readString(row.source_code),
         form_type:

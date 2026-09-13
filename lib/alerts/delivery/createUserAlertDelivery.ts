@@ -11,6 +11,7 @@ export async function createUserAlertDelivery(input: CreateAlertDeliveryInput): 
   const deliveredAt = input.sentAt || new Date().toISOString();
 
   const result = await supabaseUpsert("user_alert_deliveries", {
+    ...(input.tickerMatch ? { ticker_match: input.tickerMatch } : {}),
     user_id: input.userId,
     alert_event_id: input.event.id,
     ticker: input.event.primaryTicker || input.event.tickers[0] || null,

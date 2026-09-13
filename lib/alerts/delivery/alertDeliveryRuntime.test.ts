@@ -350,8 +350,10 @@ test("CLI and scheduler helper paths use the same policy and alert-enabled ticke
   assert.match(eventCli, /isTickerAlertCategoryAllowed\(context\.plan, event\.category\)/);
   assert.match(eventCli, /fetchRows\("user_alert_tickers"/);
   assert.doesNotMatch(eventCli, /fetchRows\("watchlist_tickers"/);
-  assert.match(queuedCli, /isDiscoveryCategoryAllowed\(plan, category\)/);
-  assert.match(queuedCli, /new Set\(getPlanLimits\(plan\)\.channels\)/);
+  assert.match(queuedCli, /await runtime\.processQueuedDeliveries/);
+  assert.match(queuedCli, /loadAlertDeliveryRuntime/);
+  assert.match(queuedDelivery, /isDiscoveryCategoryAllowed\(plan, row\.category\)/);
+  assert.match(queuedDelivery, /new Set\(getPlanLimits\(plan\)\.channels\)/);
 });
 
 test("header notifications use real unread counts and read mutations", () => {

@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeSecTickerProjectionExchange as normalizeExchange } from "./exchangeIdentity.ts";
 
 import {
   readEffectiveSecTickerResolutionByDecisionId,
@@ -484,14 +485,6 @@ function normalizeTicker(value: unknown) {
 
 function normalizeSecurityText(value: unknown) {
   return stringValue(value).toLowerCase().replace(/\s+/g, " ");
-}
-
-function normalizeExchange(value: unknown) {
-  const normalized = stringValue(value).toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (normalized.includes("nasdaq")) return "nasdaq";
-  if (normalized.includes("newyorkstockexchange") || normalized === "nyse") return "nyse";
-  if (normalized.includes("nyseamerican") || normalized.includes("americanstockexchange")) return "nyse-american";
-  return normalized;
 }
 
 function record(value: unknown): Row {

@@ -52,6 +52,7 @@ export async function runAlertDeliveryForEvent(options: RunAlertDeliveryOptions)
     writes.push(
       await createUserAlertDelivery({
         userId: candidate.userId,
+        tickerMatch: candidate.tickerMatch,
         event: normalized.event,
         alertLane: candidate.alertLane,
         deliveryStatus: "queued",

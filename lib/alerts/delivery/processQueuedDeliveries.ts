@@ -5,6 +5,7 @@ import {
   finishAlertDeliveryChannelAttempt,
 } from "@/lib/alerts/delivery/channelAttempts";
 import { normalizeAlertEvent } from "@/lib/alerts/delivery/normalizeAlertEvent";
+import { revalidateTickerDelivery } from "./revalidateTickerDelivery.ts";
 import { getServerEnv } from "@/lib/env";
 import { buildTelegramAlertPresentation } from "@/lib/telegram/telegramAlertMessage";
 import { sendTelegramMessage } from "@/lib/telegram/sendTelegramMessage";
@@ -97,7 +98,7 @@ export async function processQueuedDeliveries(
 async function fetchDueQueuedDeliveries(limit: number) {
   const result = await supabaseSelect("user_alert_deliveries", {
     select:
-      "id,user_id,alert_event_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at",
+      "id,user_id,alert_event_id,ticker,title,category,source_type,source_label,alert_lane,severity,delivered_channels,scheduled_for,delivery_status,created_at,ticker_match",
     delivery_status: "eq.queued",
     scheduled_for: `lte.${new Date().toISOString()}`,
     order: "scheduled_for.asc,created_at.asc",
@@ -111,6 +112,16 @@ async function fetchDueQueuedDeliveries(limit: number) {
   return (Array.isArray(result.data) ? result.data : [])
     .map(readQueuedRow)
     .filter(Boolean) as QueuedAlertDeliveryRow[];
+}
+
+export async function processQueuedDeliveryById(id: string, options: { dryRun: boolean; write: boolean }) {
+  const read = await supabaseSelect("user_alert_deliveries", {
+    select: "*", id: `eq.${id}`, delivery_status: "eq.queued",
+    scheduled_for: `lte.${new Date().toISOString()}`, limit: "1",
+  });
+  if (!read.ok) throw new Error(read.error || "Failed to read queued delivery.");
+  const row = readQueuedRow(Array.isArray(read.data) ? read.data[0] : null);
+  return row ? processQueuedDeliveryRow(row, options) : null;
 }
 
 async function processQueuedDeliveryRow(
@@ -295,7 +306,9 @@ async function processRequestedChannels(
     }
     const channelRow = channelRows.get(channel);
     if (dryRun || !write) {
-      if (isChannelReady(channel, channelRow)) {
+      const validation = await revalidateTickerDelivery(row);
+      if (!validation.ok) result.errors.push(validation.error!);
+      else if (isChannelReady(channel, channelRow)) {
         result.sentChannels.push(channel);
       } else {
         result.errors.push(channelUnavailableReason(channel, channelRow));
@@ -355,6 +368,7 @@ async function processRequestedChannels(
     }
 
     if (channel === "web") {
+      if (!await authorizeClaim(row, channel, claim.attemptToken, result)) continue;
       const finished = await finishAlertDeliveryChannelAttempt({
         deliveryId: row.id,
         channel,
@@ -371,7 +385,14 @@ async function processRequestedChannels(
     }
 
     if (channel === "telegram") {
-      const presentation = await buildQueuedTelegramPresentation(row);
+      const event = await buildQueuedNormalizedEvent(row);
+      const validation = await authorizeClaim(row, channel, claim.attemptToken, result);
+      if (!validation) continue;
+      const env = getServerEnv();
+      const presentation = buildTelegramAlertPresentation(event, {
+        baseUrl: env.appBaseUrl, callbackSecret: env.telegramWebhookSecret,
+        callbackSubject: row.user_id, muteTickers: validation.savedTickers,
+      });
       const sent = await sendTelegramMessage(
         readString(channelRow?.destination),
         presentation.text,
@@ -429,12 +450,15 @@ async function processRequestedChannels(
         if (!finished.ok) result.inProgress = true;
         continue;
       }
+      const event = await buildQueuedNormalizedEvent(row);
       const sent = await sendAlertEmail({
         deliveryId: row.id,
         userId: row.user_id,
         destination: authEmail.email,
-        event: await buildQueuedNormalizedEvent(row),
+        event,
+        beforeSend: async () => Boolean(await authorizeClaim(row, channel, claim.attemptToken, result)),
       });
+      if (!sent.ok && sent.outcome === "suppressed") continue;
       const status = sent.ok ? "sent" : sent.outcome === "uncertain" ? "uncertain" : "failed";
       const error = sent.ok ? undefined : sanitizeError(sent.error || "Email send failed.");
       const finished = await finishAlertDeliveryChannelAttempt({
@@ -478,6 +502,18 @@ async function processRequestedChannels(
   }
 
   return result;
+}
+
+async function authorizeClaim(row: QueuedAlertDeliveryRow, channel: AlertChannel, attemptToken: string, result: ChannelProcessingResult) {
+  const validation = await revalidateTickerDelivery(row);
+  if (validation.ok) return validation;
+  const finished = await finishAlertDeliveryChannelAttempt({
+    deliveryId: row.id, channel, attemptToken, status: "suppressed", error: validation.error,
+  });
+  result.suppressedCount += 1;
+  result.errors.push(`${channel}: ${validation.error}`);
+  if (!finished.ok) result.inProgress = true;
+  return null;
 }
 
 function getQueuedDeliveryPolicyError(row: QueuedAlertDeliveryRow, plan: Plan) {
@@ -631,16 +667,6 @@ async function markDeliveryFailed(
   };
 }
 
-async function buildQueuedTelegramPresentation(row: QueuedAlertDeliveryRow) {
-  const event = await buildQueuedNormalizedEvent(row);
-  const env = getServerEnv();
-  return buildTelegramAlertPresentation(event, {
-    baseUrl: env.appBaseUrl,
-    callbackSecret: env.telegramWebhookSecret,
-    callbackSubject: row.user_id,
-  });
-}
-
 async function buildQueuedNormalizedEvent(row: QueuedAlertDeliveryRow) {
   const normalized = row.alert_event_id ? await normalizeAlertEvent(row.alert_event_id) : null;
   return normalized?.ok ? normalized.event : {
@@ -670,6 +696,7 @@ function readQueuedRow(value: unknown): QueuedAlertDeliveryRow | null {
 
   return {
     id,
+    ticker_match: row.ticker_match,
     user_id: userId,
     alert_event_id: readString(row.alert_event_id) || null,
     ticker: readString(row.ticker) || null,
