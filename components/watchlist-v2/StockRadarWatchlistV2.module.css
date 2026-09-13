@@ -392,6 +392,12 @@
   font-size: var(--sr-font-size-xs);
 }
 
+.watchlistSelect .projectionNote {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .watchlistRemove {
   position: absolute;
   top: 50%;

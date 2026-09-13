@@ -56,7 +56,7 @@ import {
   mapStockOverviewEvents,
   mapStockOverviewProfile,
   mapStockOverviewQuote,
-  resolveStockOverviewTicker,
+  normalizeStockTicker,
   selectStockOverviewEvents,
   type StockOverviewChartPoint,
   type StockOverviewEvent,
@@ -94,6 +94,7 @@ import type {
   WatchlistTickerItem,
   WatchlistViewModel,
 } from "@/lib/watchlist/types";
+import { displayedWatchlistTicker, selectWatchlistItem, watchlistItemMatchesTicker } from "@/lib/watchlist/tickerProjectionModel";
 import {
   publishUserContentChange,
   subscribeToUserContentChanges,
@@ -165,6 +166,8 @@ export function StockRadarWatchlistV2({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [watchlist, setWatchlist] = useState(initialWatchlist);
+  const [watchlistReadFailed, setWatchlistReadFailed] = useState(false);
+  const [watchlistRevision, setWatchlistRevision] = useState(0);
   const [profile, setProfile] = useState(emptyProfile);
   const [quote, setQuote] = useState(emptyQuote);
   const [chartPoints, setChartPoints] = useState<StockOverviewChartPoint[]>([]);
@@ -220,13 +223,14 @@ export function StockRadarWatchlistV2({
     selectionMode === "watchlist"
       ? searchParams.get("ticker") ?? initialSelectedTicker
       : initialSelectedTicker;
-  const selectedTicker = resolveStockOverviewTicker(
-    requestedTicker,
-    watchlist.items.map((item) => item.ticker),
-    selectionMode,
-  );
-  const selectedWatchlistItem =
-    watchlist.items.find((item) => item.ticker === selectedTicker) ?? null;
+  const normalizedRequestedTicker = normalizeStockTicker(requestedTicker);
+  const selectedWatchlistItem = selectWatchlistItem(watchlist.items, normalizedRequestedTicker) ??
+    (selectionMode === "watchlist" ? watchlist.items[0] ?? null : null);
+  const selectedTicker = selectionMode === "watchlist"
+    ? selectedWatchlistItem ? displayedWatchlistTicker(selectedWatchlistItem) : null
+    : watchlist.selection?.requestedTicker === normalizedRequestedTicker
+      ? watchlist.selection.currentTicker : normalizedRequestedTicker;
+  const sourceSelectionMode = selectedWatchlistItem?.projection?.historicalTickers.length ? "stock" : selectionMode;
   const memberSummary = `${watchlist.usage} on Watchlist · Unlimited on ${watchlist.planLabel}`;
   const hasStandaloneStatus = watchlist.guestMode || Boolean(statusMessage);
   const allowAds = watchlist.plan === "free";
@@ -235,7 +239,7 @@ export function StockRadarWatchlistV2({
   const sortedWatchlist = useMemo(
     () =>
       sortMode === "symbol"
-        ? [...watchlist.items].sort((a, b) => a.ticker.localeCompare(b.ticker))
+        ? [...watchlist.items].sort((a, b) => displayedWatchlistTicker(a).localeCompare(displayedWatchlistTicker(b)))
         : watchlist.items,
     [sortMode, watchlist.items],
   );
@@ -252,7 +256,7 @@ export function StockRadarWatchlistV2({
   );
   const overviewState = resolveStockDetailRenderState({
     overviewState: overviewDataState,
-    selectionMode,
+    selectionMode: sourceSelectionMode,
     sourceFilingsCount: secSourceFilings.length,
     sourceFilingsState: secSourceFilingsState,
   });
@@ -379,7 +383,7 @@ export function StockRadarWatchlistV2({
   }, [selectedTicker, selectedWatchlistItem?.companyName]);
 
   useEffect(() => {
-    if (!shouldLoadSecTickerSourceFilings({ selectionMode, ticker: selectedTicker })) {
+    if (!selectedTicker || (!shouldLoadSecTickerSourceFilings({ selectionMode, ticker: selectedTicker }) && sourceSelectionMode !== "stock")) {
       setSecSourceFilings([]);
       setSecSourceFilingsState("idle");
       return;
@@ -405,7 +409,7 @@ export function StockRadarWatchlistV2({
       });
 
     return () => controller.abort();
-  }, [selectedTicker, selectionMode]);
+  }, [selectedTicker, sourceSelectionMode, watchlist]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -756,19 +760,40 @@ export function StockRadarWatchlistV2({
     }
   }, [activeSectionId]);
 
-  useEffect(
-    () =>
-      subscribeToUserContentChanges((change) => {
-        if (change.kind !== "watchlist") return;
-        void fetch("/api/watchlist", { cache: "no-store" })
-          .then((response) => response.json())
-          .then((payload) => {
-            if (payload?.ok && payload.data) setWatchlist(payload.data);
-          })
-          .catch(() => undefined);
-      }),
-    [],
-  );
+  useEffect(() => { setWatchlist(initialWatchlist); setWatchlistReadFailed(false); }, [initialWatchlist]);
+
+  useEffect(() => {
+    const refresh = () => setWatchlistRevision((value) => value + 1);
+    const unsubscribe = subscribeToUserContentChanges((change) => { if (change.kind === "watchlist") refresh(); });
+    window.addEventListener("focus", refresh);
+    return () => { unsubscribe(); window.removeEventListener("focus", refresh); };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(`/api/watchlist?projection=1${normalizedRequestedTicker ? `&ticker=${encodeURIComponent(normalizedRequestedTicker)}` : ""}`, {
+      cache: "no-store", signal: controller.signal,
+    }).then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok || !payload.ok || !payload.data) throw new Error("Watchlist verification is unavailable. Refresh to try again.");
+      if (controller.signal.aborted) return;
+      setWatchlist(payload.data);
+      setWatchlistReadFailed(false);
+    }).catch(() => {
+      if (controller.signal.aborted) return;
+      setWatchlistReadFailed(true);
+      setWatchlist((current) => ({
+        ...current,
+        selection: undefined,
+        projectionUnavailable: true,
+        projectionUnavailableReason: "request_failed",
+        items: current.items.map(({ projection: _projection, projectionConflict: _conflict, ...item }) => item),
+      }));
+      setStatusTone("error");
+      setStatusMessage("Watchlist verification is unavailable. Refresh to try again.");
+    });
+    return () => controller.abort();
+  }, [normalizedRequestedTicker, watchlistRevision, initialWatchlist]);
 
   function navigateToTicker(ticker: string, replace = false) {
     const href =
@@ -781,44 +806,35 @@ export function StockRadarWatchlistV2({
   }
 
   async function addTicker(result: TickerSearchResult) {
+    if (watchlistReadFailed || watchlist.projectionUnavailable) return;
+    const existingItem = selectWatchlistItem(watchlist.items, result.ticker);
     if (
       mutationTicker ||
       limitReached ||
-      watchlist.items.some((item) => item.ticker === result.ticker)
+      existingItem
     ) {
-      if (watchlist.items.some((item) => item.ticker === result.ticker)) {
-        navigateToTicker(result.ticker);
+      if (existingItem) {
+        navigateToTicker(existingItem.ticker);
         setIsTickerSheetOpen(false);
       }
       return;
     }
 
     const previous = watchlist;
-    const optimisticItem: WatchlistTickerItem = {
-      companyName: result.companyName,
-      createdAt: new Date().toISOString(),
-      id: `optimistic-${result.ticker}`,
-      ticker: result.ticker,
-      updatedAt: new Date().toISOString(),
-    };
+    const savedTicker = result.isHistoricalTicker ? result.historicalTicker || result.ticker : result.ticker;
     setMutationTicker(result.ticker);
     setStatusTone("neutral");
     setStatusMessage(`Adding ${result.ticker}…`);
-    setWatchlist({
-      ...watchlist,
-      items: [...watchlist.items, optimisticItem],
-      usage: watchlist.usage + 1,
-    });
-    navigateToTicker(result.ticker);
 
     try {
-      const response = await fetch("/api/watchlist", {
-        body: JSON.stringify({ ticker: result.ticker }),
+      const response = await fetch("/api/watchlist?projection=1", {
+        body: JSON.stringify({ ticker: savedTicker, expectedCurrentTicker: result.ticker }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
+        setWatchlistRevision((value) => value + 1);
         throw new Error(payload.message || "Failed to add ticker.");
       }
       if (payload.persisted === false || payload.guestMode) {
@@ -830,13 +846,14 @@ export function StockRadarWatchlistV2({
         return;
       }
       setWatchlist(payload.data);
+      navigateToTicker(savedTicker);
       publishUserContentChange({
         kind: "watchlist",
-        ticker: result.ticker,
+        ticker: savedTicker,
         value: true,
       });
       setTickerQuery("");
-      setStatusMessage(`${result.ticker} added to your watchlist.`);
+      setStatusMessage(`${savedTicker} added to your watchlist.`);
       setIsTickerSheetOpen(false);
     } catch (error) {
       setWatchlist(previous);
@@ -852,7 +869,7 @@ export function StockRadarWatchlistV2({
   }
 
   async function removeTicker(ticker: string) {
-    if (mutationTicker) return;
+    if (mutationTicker || watchlistReadFailed) return;
     const previous = watchlist;
     const nextItems = watchlist.items.filter((item) => item.ticker !== ticker);
     setMutationTicker(ticker);
@@ -865,7 +882,7 @@ export function StockRadarWatchlistV2({
     });
     if (
       selectionMode === "watchlist" &&
-      selectedTicker === ticker &&
+      selectedWatchlistItem?.ticker === ticker &&
       nextItems[0]
     ) {
       navigateToTicker(nextItems[0].ticker, true);
@@ -873,7 +890,7 @@ export function StockRadarWatchlistV2({
 
     try {
       const response = await fetch(
-        `/api/watchlist/${encodeURIComponent(ticker)}`,
+        `/api/watchlist/${encodeURIComponent(ticker)}?projection=1${normalizedRequestedTicker ? `&ticker=${encodeURIComponent(normalizedRequestedTicker)}` : ""}`,
         { method: "DELETE" },
       );
       const payload = await response.json();
@@ -955,7 +972,7 @@ export function StockRadarWatchlistV2({
       onSortKeyDown={handleSortMenuKeyDown}
       onToggleSort={() => setIsSortOpen((value) => !value)}
       query={tickerQuery}
-      selectedTicker={selectedTicker}
+      selectedTicker={selectedWatchlistItem?.ticker ?? null}
       sortMenuRef={sortMenuRef}
       sortMode={sortMode}
       sortTriggerRef={sortTriggerRef}
@@ -1024,6 +1041,11 @@ export function StockRadarWatchlistV2({
         {selectedTicker &&
         (selectionMode === "stock" || selectedWatchlistItem) ? (
           <>
+            {watchlist.projectionUnavailable ? <p className={styles.statusMessage} role="alert">
+              {watchlist.projectionUnavailableReason === "projection_current_issuer_not_confirmed"
+                ? "Current listing could not be confirmed."
+                : "Security verification is unavailable."} Showing saved tickers only; adding is paused.
+            </p> : null}
             <StockHeader
               companyName={
                 stockDetailUnavailable
@@ -1036,11 +1058,16 @@ export function StockRadarWatchlistV2({
               }
               exchange={profile.exchange}
               isSaved={Boolean(selectedWatchlistItem)}
+              watchlistActionLabel={selectedWatchlistItem
+                ? selectionMode === "stock" && selectedWatchlistItem.projectionConflict?.length
+                  ? "Choose saved row to remove"
+                  : `Remove saved ${selectedWatchlistItem.ticker} from Watchlist`
+                : undefined}
               isUnavailable={stockDetailUnavailable}
               isQuoteUnavailable={
                 !Object.values(quote).some((value) => value !== null)
               }
-              limitReached={limitReached}
+              limitReached={limitReached || watchlist.projectionUnavailable === true}
               mutationTicker={mutationTicker}
               onToggleWatchlist={() => {
                 if (watchlist.guestMode) {
@@ -1052,7 +1079,12 @@ export function StockRadarWatchlistV2({
                   return;
                 }
                 if (selectedWatchlistItem) {
-                  void removeTicker(selectedTicker);
+                  if (selectionMode === "stock" && selectedWatchlistItem.projectionConflict?.length) {
+                    setStatusMessage("Multiple saved rows track this security. Choose the original row to remove in Watchlist.");
+                    setIsTickerSheetOpen(true);
+                    return;
+                  }
+                  void removeTicker(selectedWatchlistItem.ticker);
                   return;
                 }
                 void addTicker({
@@ -1061,11 +1093,20 @@ export function StockRadarWatchlistV2({
                   exchange: profile.exchange || null,
                   marketCap: profile.marketCap,
                   ticker: selectedTicker,
+                  ...(normalizedRequestedTicker && normalizedRequestedTicker !== selectedTicker ? {
+                    historicalTicker: normalizedRequestedTicker,
+                    isHistoricalTicker: true,
+                  } : {}),
                 });
               }}
               quote={quote}
               ticker={selectedTicker}
             />
+            {selectedWatchlistItem?.projection?.historicalTickers.length ? (
+              <p className={styles.statusMessage}>
+                Saved as {selectedWatchlistItem.ticker} · Current {selectedTicker} · Historical {selectedWatchlistItem.projection.historicalTickers.join(", ")}
+              </p>
+            ) : null}
             <div className={styles.overviewLayout}>
               <aside className={styles.desktopLeftRail}>{watchlistRail}</aside>
 
@@ -1231,6 +1272,9 @@ export function StockRadarWatchlistV2({
                           setVisibleEventCount((count) => count + 10)
                         }
                       />
+                      {selectionMode === "watchlist" && sourceSelectionMode === "stock" && eventFilter !== "news" ? (
+                        <SecSourceFilings filings={secSourceFilings} state={secSourceFilingsState} />
+                      ) : null}
                     </section>
 
                     <StockFundamentalsSections
@@ -1419,19 +1463,20 @@ function WatchlistRail({
       </div>
 
       <TickerCompanyAutocomplete
+        searchSurface="stock-research"
+        disabled={watchlist.projectionUnavailable}
         className={styles.tickerSearch}
         emptyMessage="No matching active ticker."
         getOptionAction={(result) =>
-          watchlist.items.some((item) => item.ticker === result.ticker) ? (
+          watchlist.items.some((item) => watchlistItemMatchesTicker(item, result.ticker)) ? (
             "Open"
           ) : (
             <Plus aria-hidden="true" size={14} />
           )
         }
-        id="watchlist-ticker-search"
         isOptionDisabled={(result) =>
           Boolean(mutationTicker) ||
-          (limitReached && !watchlist.items.some((item) => item.ticker === result.ticker))
+          (limitReached && !watchlist.items.some((item) => watchlistItemMatchesTicker(item, result.ticker)))
         }
         label="Search stocks to add"
         onSelect={onAdd}
@@ -1450,7 +1495,9 @@ function WatchlistRail({
               type="button"
             >
               <span>
-                <strong>{item.ticker}</strong>
+                <strong>{displayedWatchlistTicker(item)}</strong>
+                {item.projection?.historicalTickers.length ? <small className={styles.projectionNote}>Saved as {item.ticker} · Previously {item.projection.historicalTickers.join(", ")}</small> : null}
+                {item.projectionConflict?.length ? <small className={styles.projectionNote} role="status">Also saved as {item.projectionConflict.join(", ")}. Separate saved rows.</small> : null}
                 <small>{item.companyName || "Company profile loads on selection"}</small>
               </span>
               <span>View</span>
@@ -1496,6 +1543,7 @@ function StockHeader({
   companyName,
   exchange,
   isSaved,
+  watchlistActionLabel,
   isQuoteUnavailable,
   isUnavailable,
   limitReached,
@@ -1507,6 +1555,7 @@ function StockHeader({
   companyName: string;
   exchange: string;
   isSaved: boolean;
+  watchlistActionLabel?: string;
   isQuoteUnavailable: boolean;
   isUnavailable: boolean;
   limitReached: boolean;
@@ -1566,9 +1615,9 @@ function StockHeader({
       <div className={styles.stockActions}>
         <button
           aria-label={
-            isSaved
+            watchlistActionLabel || (isSaved
               ? `Remove ${ticker} from Watchlist`
-              : `Add ${ticker} to Watchlist`
+              : `Add ${ticker} to Watchlist`)
           }
           aria-pressed={isSaved}
           data-active={isSaved}
@@ -1577,9 +1626,9 @@ function StockHeader({
           }
           onClick={onToggleWatchlist}
           title={
-            isSaved
+            watchlistActionLabel || (isSaved
               ? `Remove ${ticker} from Watchlist`
-              : `Add ${ticker} to Watchlist`
+              : `Add ${ticker} to Watchlist`)
           }
           type="button"
         >

@@ -31,6 +31,7 @@ type TickerCompanyAutocompleteProps = {
   onValueChange: (value: string) => void;
   placeholder: string;
   selectedTicker?: string | null;
+  searchSurface?: "stock-research";
   value: string;
 };
 
@@ -50,6 +51,7 @@ export function TickerCompanyAutocomplete({
   onValueChange,
   placeholder,
   selectedTicker,
+  searchSurface,
   value,
 }: TickerCompanyAutocompleteProps) {
   const generatedId = useId().replace(/:/g, "");
@@ -82,6 +84,7 @@ export function TickerCompanyAutocomplete({
       setIsOpen(true);
       void fetch(`/api/tickers/search?q=${encodeURIComponent(normalizedValue)}`, {
         cache: "no-store",
+        headers: searchSurface ? { "x-stock-radar-search-surface": searchSurface } : undefined,
         signal: controller.signal,
       })
         .then(readTickerSearchResponse)
@@ -114,7 +117,7 @@ export function TickerCompanyAutocomplete({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [autoSelectExact, normalizedValue, selectionMatches]);
+  }, [autoSelectExact, normalizedValue, selectionMatches, searchSurface]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -236,7 +239,10 @@ export function TickerCompanyAutocomplete({
                     <strong>{result.ticker}</strong>
                     <small>{result.exchange || result.assetType || "US listed"}</small>
                   </span>
-                  <span className={styles.company}>{result.companyName}</span>
+                  <span className={styles.company}>
+                    {result.companyName}
+                    {result.isHistoricalTicker ? <small> · Previously {result.historicalTicker}</small> : null}
+                  </span>
                   {getOptionAction ? (
                     <span className={styles.action}>{getOptionAction(result)}</span>
                   ) : null}
