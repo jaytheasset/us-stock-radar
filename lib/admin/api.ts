@@ -9,19 +9,11 @@ import {
 } from "@/lib/auth/authCookies";
 import { resolveAuthSession } from "@/lib/auth/sessionResolution";
 import { AuthError } from "@/lib/auth/supabaseAuth";
+import { AdminApiError } from "./errors";
 import { rolesHavePermission, type AdminPermission } from "./policy";
 import { getAdminAccessForUser } from "./server";
 
-export class AdminApiError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status = 400,
-  ) {
-    super(message);
-    this.name = "AdminApiError";
-  }
-}
+export { AdminApiError } from "./errors";
 
 export const ADMIN_PRIVATE_RESPONSE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
