@@ -14,7 +14,7 @@ import {
   ALERT_MARKET_CAP_FILTERS,
 } from "@/lib/alerts/alertValidation";
 import { matchesAlertMarketCapFilters } from "@/lib/alerts/marketCapFilter";
-import { matchWatchedEventTickers } from "@/lib/alerts/delivery/eventDeliveryDedupe";
+import { createAlertTickerMatcher, type AlertTickerSubscription } from "./tickerSubscriptionMatch.ts";
 import type {
   AlertDeliveryCandidate,
   AlertDeliveryEvaluation,
@@ -37,6 +37,7 @@ type PreferenceRow = {
 };
 
 type WatchlistRow = {
+  id?: unknown;
   ticker?: unknown;
 };
 
@@ -73,6 +74,7 @@ export type AlertDeliveryEvaluationDependencies = {
   fetchUsers: typeof fetchUsers;
   fetchUserContext: typeof fetchUserContext;
   now: () => Date;
+  matchTickers?: ReturnType<typeof createAlertTickerMatcher>;
 };
 
 const DEFAULT_EVALUATION_DEPENDENCIES: AlertDeliveryEvaluationDependencies = {
@@ -97,13 +99,13 @@ export async function evaluateAlertDeliveryForEvent(
   const candidates: AlertDeliveryCandidate[] = [];
   const skipped: AlertDeliverySkip[] = [];
   const now = dependencies.now();
+  const matchTickers = dependencies.matchTickers ?? createAlertTickerMatcher();
 
   for (const userId of users) {
     const context = await dependencies.fetchUserContext(userId);
-    const matchedTickers = matchWatchedEventTickers(
-      event.tickers,
-      context.watchlistTickers,
-    );
+    const match = await matchTickers(event, context.alertSubscriptions ??
+      [...context.watchlistTickers].map((ticker) => ({ id: "", ticker })));
+    const { matchedTickers } = match;
     const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
 
     if (!eligibleChannels.length) {
@@ -135,7 +137,9 @@ export async function evaluateAlertDeliveryForEvent(
         continue;
       }
 
-      candidates.push(buildCandidate({ userId, plan: context.plan, alertLane: "watchlist", matchedTickers, eligibleChannels, now }));
+      const candidate = buildCandidate({ userId, plan: context.plan, alertLane: "watchlist", matchedTickers, eligibleChannels, now });
+      if (match.provenance.bindings.length) candidate.tickerMatch = match.provenance;
+      candidates.push(candidate);
       continue;
     }
 
@@ -183,7 +187,10 @@ async function fetchUsers() {
   return (result.data as UserRow[]).map((row) => readString(row.id)).filter(Boolean);
 }
 
-async function fetchUserContext(userId: string) {
+async function fetchUserContext(userId: string): Promise<{
+  plan: Plan; preferences: UserAlertPreferences; watchlistTickers: Set<string>;
+  alertSubscriptions?: AlertTickerSubscription[]; discoveryCategories: Set<AlertCategory>; channels: DeliveryChannelRow[];
+}> {
   const [planResult, preferencesResult, alertTickersResult, categoriesResult, channelsResult] = await Promise.all([
     supabaseSelect("user_plan_subscriptions", {
       select: "*",
@@ -197,7 +204,7 @@ async function fetchUserContext(userId: string) {
       limit: "1",
     }),
     supabaseSelect("user_alert_tickers", {
-      select: "ticker",
+      select: "id,ticker",
       user_id: `eq.${userId}`,
       enabled: "eq.true",
       limit: "1000",
@@ -216,6 +223,8 @@ async function fetchUserContext(userId: string) {
   ]);
 
   return {
+    alertSubscriptions: (Array.isArray(alertTickersResult.data) ? alertTickersResult.data as WatchlistRow[] : [])
+      .map((row) => ({ id: readString(row.id), ticker: readTicker(row.ticker) })).filter((row) => row.ticker),
     plan: readPlan(Array.isArray(planResult.data) ? (planResult.data[0] as UserPlanSubscriptionRow | undefined) : undefined),
     preferences: readPreferences(Array.isArray(preferencesResult.data) ? (preferencesResult.data[0] as PreferenceRow | undefined) : undefined),
     watchlistTickers: new Set(

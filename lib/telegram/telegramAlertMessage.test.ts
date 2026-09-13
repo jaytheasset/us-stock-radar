@@ -170,7 +170,8 @@ test("webhook and delivery wiring keep callbacks server-owned and Telegram sends
   assert.match(sender, /"HTML" \| "MarkdownV2"/);
   assert.doesNotMatch(sender, /console\./);
   assert.match(queued, /ALERT_DELIVERY_SEND_TELEGRAM !== "true"/);
-  assert.match(eventCli, /ALERT_DELIVERY_SEND_TELEGRAM !== "true"/);
+  assert.match(eventCli, /runtime\.processQueuedDeliveryById/);
+  assert.doesNotMatch(eventCli, /api\.telegram\.org|async function sendTelegramMessage/);
   assert.match(livePage, /createCompanyLiveRoomEntryPath\(\{[\s\S]*eventId: query\.event,[\s\S]*source: query\.src/);
   assert.match(livePage, /loginReturnPath=\{loginReturnPath\}/);
   assert.match(liveClient, /createLiveRoomMemberLoginHref\(\s*`\/live\/\$\{ticker\}`,\s*loginReturnPath/);

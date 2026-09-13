@@ -9,7 +9,8 @@ import {
   isTickerAlertCategoryAllowed,
   isValidAlertCategory,
 } from "../lib/subscriptionPolicy.ts";
-import { buildTelegramAlertPresentation } from "../lib/telegram/telegramAlertMessage.ts";
+import { loadAlertDeliveryRuntime } from "./alert-delivery-runtime.mjs";
+import { buildDeliveryDedupeKey } from "../lib/alerts/delivery/eventDeliveryDedupe.ts";
 import { readStoredEventMarketCap } from "../lib/marketCapBands.ts";
 import {
   allAlertMarketCapFilterIds,
@@ -31,6 +32,7 @@ const dryRun = !write;
 const env = readLocalEnv();
 const supabaseUrl = cleanSupabaseUrl(env.SUPABASE_URL || "");
 const key = resolveSupabaseSecretKey(env);
+let runtime;
 
 if (!eventId) {
   console.error("Usage: npm run deliver:event -- --event-id <event-id> [--write]");
@@ -41,6 +43,7 @@ if (!eventId) {
 } else {
   let result;
   try {
+    runtime = await loadAlertDeliveryRuntime(env);
     result = await runDelivery(eventId, { dryRun, write });
   } catch (error) {
     result = {
@@ -94,31 +97,16 @@ async function runDelivery(id, options) {
 
   if (options.write && !options.dryRun) {
     for (const candidate of evaluation.candidates) {
-      const deliveryResult =
-        candidate.deliveryStatus === "sent"
-          ? await processImmediateChannels(normalized.event, candidate)
-          : { channels: [], errors: [] };
-      const deliveredChannels = deliveryResult.channels;
-
-      if (candidate.deliveryStatus === "sent" && !deliveredChannels.length) {
-        writes.push({ ok: true, skipped: true, reason: deliveryResult.errors[0] || "NO_CHANNELS_DELIVERED" });
-        continue;
+      const inserted = await insertDelivery({ userId: candidate.userId, event: normalized.event, candidate });
+      writes.push(inserted);
+      if (inserted.ok && !inserted.skipped && inserted.row?.id && candidate.deliveryStatus === "sent") {
+        inserted.processing = await runtime.processQueuedDeliveryById(inserted.row.id, options);
       }
-
-      writes.push(
-        await insertDelivery({
-          userId: candidate.userId,
-          event: normalized.event,
-          candidate,
-          deliveredChannels,
-          lastError: deliveryResult.errors.join("; ") || undefined,
-        }),
-      );
     }
   }
 
   return {
-    ok: true,
+    ok: writes.every((item) => item.ok && !["failed", "in_progress"].includes(item.processing?.action)),
     event: normalized.event,
     candidates: evaluation.candidates,
     skipped: evaluation.skipped,
@@ -173,6 +161,9 @@ async function normalizeEvent(id) {
       deliveryLevel,
       publishedAt: readString(event.published_at) || readString(event.detected_at) || null,
       marketCap: readStoredEventMarketCap(metadata),
+      metadata: { source_code: readString(event.source_code), cik: readString(metadata.cik),
+        accession_number: readString(metadata.accession_number), raw_item_id: readString(event.raw_item_id),
+        source_url: readString(event.source_url), primary_document_url: readString(metadata.primary_document_url) },
     },
   };
 }
@@ -189,10 +180,12 @@ async function evaluate(event) {
   const candidates = [];
   const skipped = [];
   const now = new Date();
+  const matchTickers = runtime.createAlertTickerMatcher();
 
   for (const userId of users) {
     const context = await fetchUserContext(userId);
-    const matchedTickers = event.tickers.filter((ticker) => context.alertTickers.has(ticker));
+    const match = await matchTickers(event, context.alertSubscriptions);
+    const { matchedTickers } = match;
     const eligibleChannels = resolveEligibleChannels(context.plan, context.channels);
 
     if (!eligibleChannels.length) {
@@ -215,7 +208,7 @@ async function evaluate(event) {
         skipped.push({ userId, reason });
         continue;
       }
-      candidates.push(buildCandidate({ userId, plan: context.plan, alertLane: "watchlist", matchedTickers, eligibleChannels, now }));
+      candidates.push({ ...buildCandidate({ userId, plan: context.plan, alertLane: "watchlist", matchedTickers, eligibleChannels, now }), tickerMatch: match.provenance });
       continue;
     }
 
@@ -248,7 +241,7 @@ async function fetchUserContext(userId) {
   const [planRow, preferencesRow, watchlistRows, categoryRows, channelRows] = await Promise.all([
     fetchOne("user_plan_subscriptions", { user_id: `eq.${userId}` }),
     fetchOne("alert_preferences", { user_id: `eq.${userId}` }),
-    fetchRows("user_alert_tickers", { select: "ticker", user_id: `eq.${userId}`, enabled: "eq.true", limit: "1000" }),
+    fetchRows("user_alert_tickers", { select: "id,ticker", user_id: `eq.${userId}`, enabled: "eq.true", limit: "1000" }),
     fetchRows("user_discovery_categories", { select: "category", user_id: `eq.${userId}`, enabled: "eq.true", limit: "100" }),
     fetchRows("user_delivery_channels", { select: "channel,enabled,destination,verified_at", user_id: `eq.${userId}`, limit: "20" }),
   ]);
@@ -262,7 +255,7 @@ async function fetchUserContext(userId) {
       discoveryEnabled: readBoolean(preferencesRow?.discovery_enabled, true),
       marketCapFilters: readStringArray(preferencesRow?.market_cap_filters, allAlertMarketCapFilterIds),
     },
-    alertTickers: new Set(watchlistRows.map((row) => normalizeTicker(row.ticker)).filter(Boolean)),
+    alertSubscriptions: watchlistRows.map((row) => ({ id: readString(row.id), ticker: normalizeTicker(row.ticker) })).filter((row) => row.ticker),
     discoveryCategories: new Set(categoryRows.map((row) => readString(row.category)).filter(Boolean)),
     channels: channelRows,
   };
@@ -305,68 +298,7 @@ function resolveEligibleChannels(plan, rows) {
     .filter((row) => available.has(row.channel) && row.connected);
 }
 
-async function processImmediateChannels(event, candidate) {
-  const channels = [];
-  const errors = [];
-
-  for (const channel of candidate.eligibleChannels) {
-    if (channel.channel === "web") {
-      channels.push("web");
-      continue;
-    }
-
-    if (channel.channel === "telegram") {
-      if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") continue;
-      const presentation = buildTelegramAlertPresentation(event, {
-        baseUrl: env.APP_BASE_URL || "",
-        callbackSecret: env.TELEGRAM_WEBHOOK_SECRET || "",
-        callbackSubject: candidate.userId,
-      });
-      const sent = await sendTelegramMessage(channel.destination || "", presentation.text, presentation);
-      if (sent.ok) channels.push("telegram");
-      else errors.push(`telegram: ${sanitizeError(sent.error || "Telegram send failed")}`);
-      continue;
-    }
-
-    errors.push(`${channel.channel}: delivery adapter is not implemented yet.`);
-  }
-
-  return { channels, errors };
-}
-
-async function sendTelegramMessage(chatId, text, options = {}) {
-  if (env.ALERT_DELIVERY_SEND_TELEGRAM !== "true") {
-    return { ok: false, error: "Telegram sending is disabled." };
-  }
-
-  const token = env.TELEGRAM_BOT_TOKEN || "";
-  if (!token || !chatId) {
-    return { ok: false, error: "Telegram is not configured." };
-  }
-
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
-        ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
-        link_preview_options: { is_disabled: true },
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    if (response.ok && data?.ok) return { ok: true };
-    return { ok: false, error: readError(data, response.statusText) };
-  } catch (error) {
-    return { ok: false, error: "Telegram request failed." };
-  }
-}
-
-async function insertDelivery({ userId, event, candidate, deliveredChannels, lastError }) {
+async function insertDelivery({ userId, event, candidate }) {
   const now = new Date().toISOString();
   const payload = {
     user_id: userId,
@@ -378,14 +310,15 @@ async function insertDelivery({ userId, event, candidate, deliveredChannels, las
     source_label: event.sourceLabel,
     alert_lane: candidate.alertLane,
     severity: event.severity,
-    delivered_channels: deliveredChannels,
-    delivery_status: candidate.deliveryStatus,
+    delivered_channels: candidate.eligibleChannels.map((channel) => channel.channel),
+    delivery_status: "queued",
+    ...(candidate.tickerMatch ? { ticker_match: candidate.tickerMatch } : {}),
     delivered_at: now,
     scheduled_for: candidate.scheduledFor,
-    sent_at: candidate.deliveryStatus === "sent" ? now : null,
-    attempted_at: candidate.deliveryStatus === "sent" ? now : null,
-    last_error: lastError || null,
-    dedupe_key: `event:${event.id}`,
+    sent_at: null,
+    attempted_at: null,
+    last_error: null,
+    dedupe_key: buildDeliveryDedupeKey(event.id),
   };
 
   const result = await supabasePost("user_alert_deliveries", payload);

@@ -1,4 +1,5 @@
 import type { AlertCategory, AlertChannel, Plan } from "@/lib/subscriptionPolicy";
+import type { AlertTickerMatch } from "./tickerSubscriptionMatch.ts";
 
 export type AlertLane = "watchlist" | "market_discovery";
 export type NormalizedAlertSourceType = "news" | "filing" | "calendar" | "other";
@@ -30,6 +31,7 @@ export type DeliveryCandidateChannel = {
 };
 
 export type AlertDeliveryCandidate = {
+  tickerMatch?: AlertTickerMatch;
   userId: string;
   plan: Plan;
   alertLane: AlertLane;
@@ -53,6 +55,7 @@ export type AlertDeliveryEvaluation = {
 };
 
 export type CreateAlertDeliveryInput = {
+  tickerMatch?: AlertTickerMatch;
   userId: string;
   event: NormalizedAlertEvent;
   alertLane: AlertLane;
@@ -106,6 +109,7 @@ export type RunAlertDeliveryResult = {
 };
 
 export type QueuedAlertDeliveryRow = {
+  ticker_match?: unknown;
   id: string;
   user_id: string;
   alert_event_id: string | null;

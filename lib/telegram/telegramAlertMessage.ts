@@ -11,7 +11,7 @@ export type TelegramAlertPresentation = {
 
 export function buildTelegramAlertPresentation(
   event: NormalizedAlertEvent,
-  options: { baseUrl: string; callbackSecret: string; callbackSubject: string },
+  options: { baseUrl: string; callbackSecret: string; callbackSubject: string; muteTickers?: readonly string[] },
 ): TelegramAlertPresentation {
   const ticker = normalizeTicker(event.primaryTicker || event.tickers[0] || "");
   const category = getCategoryLabel(event.category);
@@ -40,7 +40,7 @@ export function buildTelegramAlertPresentation(
 
 export function buildTelegramAlertKeyboard(
   event: NormalizedAlertEvent,
-  options: { baseUrl: string; callbackSecret: string; callbackSubject: string },
+  options: { baseUrl: string; callbackSecret: string; callbackSubject: string; muteTickers?: readonly string[] },
 ): TelegramInlineKeyboardMarkup | undefined {
   const ticker = normalizeTicker(event.primaryTicker || event.tickers[0] || "");
   const baseUrl = normalizeBaseUrl(options.baseUrl);
@@ -65,13 +65,17 @@ export function buildTelegramAlertKeyboard(
   rows.push(secondary);
 
   if (isCompanyTickerEvent) {
-    const callbackData = buildTelegramMuteCallbackData(
-      ticker,
-      "prompt",
-      options.callbackSecret,
-      options.callbackSubject,
-    );
-    if (callbackData) rows.push([{ text: `Mute ${ticker}`, callback_data: callbackData }]);
+    for (const savedTicker of new Set(options.muteTickers ?? [ticker])) {
+      const muteTicker = normalizeTicker(savedTicker);
+      if (!muteTicker) continue;
+      const callbackData = buildTelegramMuteCallbackData(
+        muteTicker,
+        "prompt",
+        options.callbackSecret,
+        options.callbackSubject,
+      );
+      if (callbackData) rows.push([{ text: `Mute ${muteTicker}`, callback_data: callbackData }]);
+    }
   }
 
   return { inline_keyboard: rows };
