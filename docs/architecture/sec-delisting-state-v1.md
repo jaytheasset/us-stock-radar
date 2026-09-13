@@ -4,6 +4,45 @@ This is a read-only, derived evidence reader. It does not change the security
 catalog or any filing, analysis, Monitor, Watchlist, or Alert row. No migration,
 automatic collection, state persistence, API route, or UI is added.
 
+## Form 25 ingest connection (2026-09-14)
+
+The reader and its phase-1 rules below remain unchanged. `runSecRawIngest` now
+invokes `runForm25DelistingAutomaticTrigger` after a new raw save and on an
+existing-raw replay for the existing Form 25 supported-form list. The adapter
+loads the exact stored raw ID/accession, uses the existing Form 25 parser's XML
+issuer/security/exchange fields to prepare the scope, and calls the existing
+reader with that single raw ID and the ingest run's UTC as-of date. Exchange
+filer CIK and ticker/catalog metadata cannot substitute for XML issuer identity.
+
+The outcome is recorded in existing `source_runs.metadata.form25_delisting`
+and returned in the ingest item's `form25_delisting` field. This is a per-run
+evidence evaluation record, not a current security-state table. It retains
+scope, selected raw/event IDs, accession, as-of, states, reasons, parser/reader
+versions and source URLs/hashes; original document bodies and AI payloads are
+not copied into run metadata. Raw metadata and site analysis remain untouched.
+No migration is needed. Replays make another execution record but do not create
+duplicate delisting-state rows or rewrite prior failure records.
+
+Reader/query exceptions are recorded as `failed`; missing XML scope is
+`unavailable`. A successful reader's unresolved or pending evidence is preserved
+as its result, not treated as an ingest failure. Failed evaluations do not change
+raw ingest success or invoke site analysis, and an ordinary source replay retries
+them. The existing source-run terminal writer persists outcomes; if that writer
+itself fails, its existing error behavior is retained and durable recording is
+not claimed. There is no new retry worker, scheduled as-of refresh, combined
+all-filings state, UI, Alert, Watchlist, administrator, or catalog integration.
+
+Official TTOO/FTCH source bytes were replayed through the product raw-ingest,
+raw-store, existing parser/reader and source-run terminal persistence in the
+dedicated `127.0.0.1:59822` database. TTOO remained confirmed/suspended; FTCH
+remained removal-pending/trading-unresolved. Repeated and simultaneous replay
+kept one raw row per accession. Injected event-query failure and helper exception
+were recorded separately while the run stayed completed; replay recovered and
+the prior failure record remained. Raw/source strings and pre-existing partial
+archival analysis stayed unchanged. The transaction was rolled back, pre/post
+counts matched, and external HTTP/LLM/notification calls were zero. These checks
+do not constitute a new site-analysis execution or user-screen E2E.
+
 ## Scope and states
 
 `readStoredDelistingState` requires explicit stored raw-item IDs (maximum 100),
