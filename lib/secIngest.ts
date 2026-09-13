@@ -30,6 +30,8 @@ import {
   secCoverObservationFailureState,
 } from "@/lib/sec-cover-observations/persistence";
 import { runSecTickerResolutionAutomaticTrigger } from "@/lib/sec-ticker-resolution/automaticTrigger";
+import { form25DelistingFailure, runForm25DelistingAutomaticTrigger, type Form25DelistingRunRecord } from "@/lib/sec-delisting-state/automaticTrigger";
+import { SEC_FORM25_FORMS } from "@/lib/sources/sec/forms/common/forms";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -54,6 +56,7 @@ type SecRawIngestDependencies = {
   persistCoverObservations?: typeof persistSecCoverObservationsForRawItem;
   recordCoverState?: typeof recordSecCoverObservationPersistenceState;
   resolveCoverTickerChange?: typeof runSecTickerResolutionAutomaticTrigger;
+  evaluateForm25Delisting?: typeof runForm25DelistingAutomaticTrigger;
 };
 
 export async function runSecRawIngest(
@@ -69,12 +72,14 @@ export async function runSecRawIngest(
     persistCoverObservations: dependencies.persistCoverObservations ?? persistSecCoverObservationsForRawItem,
     recordCoverState: dependencies.recordCoverState ?? recordSecCoverObservationPersistenceState,
     resolveCoverTickerChange: dependencies.resolveCoverTickerChange ?? runSecTickerResolutionAutomaticTrigger,
+    evaluateForm25Delisting: dependencies.evaluateForm25Delisting ?? runForm25DelistingAutomaticTrigger,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
   const runId = options.sourceRun?.sourceRunId || randomUUID();
   const startedAt = new Date().toISOString();
   const sourceRunMetadata = workflowSourceRunMetadata(options.sourceRun);
+  const form25DelistingRecords: Form25DelistingRunRecord[] = [];
   const items: Array<Record<string, unknown>> = [];
   const stats = {
     checked_count: 0,
@@ -100,7 +105,30 @@ export async function runSecRawIngest(
     sc13_monitor_completed_count: 0,
     sc13_monitor_failed_count: 0,
     sc13_monitor_state_recording_failed_count: 0,
+    form25_delisting_completed_count: 0,
+    form25_delisting_unavailable_count: 0,
+    form25_delisting_failed_count: 0,
   };
+
+  async function evaluateForm25AfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    const formType = stringValue(readNested(rawItem.raw_payload, "form_type")).toUpperCase().replace(/\s+/g, "");
+    if (!(SEC_FORM25_FORMS as readonly string[]).includes(formType)) return { status: "not_applicable" as const };
+    const request = { rawItemId, accession: stringValue(rawItem.source_unique_id), asOf: startedAt.slice(0, 10) };
+    let outcome: Form25DelistingRunRecord;
+    try { outcome = await runtime.evaluateForm25Delisting(request); }
+    catch { outcome = form25DelistingFailure(request, "delisting_trigger_exception"); }
+    // Separate run metadata avoids stale raw-item metadata overwriting analysis
+    // or another sidecar. Reader failure never changes raw/site ingest success.
+    form25DelistingRecords.push(outcome);
+    if (outcome.status === "failed") stats.form25_delisting_failed_count += 1;
+    else if (outcome.status === "unavailable") stats.form25_delisting_unavailable_count += 1;
+    else stats.form25_delisting_completed_count += 1;
+    return outcome;
+  }
+
+  const completedRunMetadata = () => ({ ...sourceRunMetadata,
+    ...(form25DelistingRecords.length ? { form25_delisting: form25DelistingRecords } : {}),
+  });
 
   if (!dryRun) {
     await runtime.ensureSource();
@@ -201,6 +229,7 @@ export async function runSecRawIngest(
 
         const existing = await runtime.findExistingRawItem(rawItem);
         if (existing && !force) {
+          const form25Delisting = await evaluateForm25AfterRawSave(rawItem, stringValue(existing.id));
           const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
             rawItem,
             rawItemId: stringValue(existing.id),
@@ -232,11 +261,13 @@ export async function runSecRawIngest(
             sc13_xml_persistence: sc13XmlPersistence,
             section16_xml_persistence: section16XmlPersistence,
             sec_cover_observation_persistence: secCoverObservationPersistence,
+            form25_delisting: form25Delisting,
           });
           continue;
         }
 
         const persisted = await runtime.saveRawItem(rawItem, runId, existing);
+        const form25Delisting = await evaluateForm25AfterRawSave(rawItem, stringValue(persisted.id));
         const sc13XmlPersistence = await persistSc13XmlAfterRawSave({
           rawItem,
           rawItemId: stringValue(persisted.id),
@@ -268,6 +299,7 @@ export async function runSecRawIngest(
           sc13_xml_persistence: sc13XmlPersistence,
           section16_xml_persistence: section16XmlPersistence,
           sec_cover_observation_persistence: secCoverObservationPersistence,
+          form25_delisting: form25Delisting,
         });
       } catch (error) {
         stats.failed_count += 1;
@@ -292,7 +324,7 @@ export async function runSecRawIngest(
         {
           raw_diagnostics: rawResult.diagnostics,
           partial,
-          ...sourceRunMetadata,
+          ...completedRunMetadata(),
         },
       );
     }
@@ -314,7 +346,7 @@ export async function runSecRawIngest(
         startedAt,
         stats,
         error instanceof Error ? error.message : "Unknown SEC raw ingest error",
-        sourceRunMetadata,
+        completedRunMetadata(),
       );
     }
 
