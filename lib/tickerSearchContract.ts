@@ -2,6 +2,8 @@ export type TickerSearchResult = {
   assetType: string | null;
   companyName: string;
   exchange: string | null;
+  historicalTicker?: string | null;
+  isHistoricalTicker?: boolean;
   marketCap: number | null;
   ticker: string;
 };
@@ -41,6 +43,9 @@ export function mapTickerSearchResults(payload: unknown): TickerSearchResult[] {
     seen.add(ticker);
 
     const rawMarketCap = row?.marketCap;
+    const historicalTicker = normalizeTickerSymbol(row?.historicalTicker);
+    const isHistoricalTicker = row?.isHistoricalTicker === true &&
+      Boolean(historicalTicker) && historicalTicker !== ticker;
     const marketCap =
       rawMarketCap === null || rawMarketCap === undefined || rawMarketCap === ""
         ? Number.NaN
@@ -49,6 +54,7 @@ export function mapTickerSearchResults(payload: unknown): TickerSearchResult[] {
       assetType: readString(row, "assetType") || null,
       companyName,
       exchange: readString(row, "exchange") || null,
+      ...(isHistoricalTicker ? { historicalTicker, isHistoricalTicker: true } : {}),
       marketCap: Number.isFinite(marketCap) ? marketCap : null,
       ticker,
     }];

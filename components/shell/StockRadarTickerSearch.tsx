@@ -122,7 +122,11 @@ export function StockRadarTickerSearch({
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       setRequest(resolveTickerSearchRequestSnapshot({ requestState: "loading" }));
-      void fetch(requestHref, { cache: "no-store", signal: controller.signal })
+      void fetch(requestHref, {
+        cache: "no-store",
+        headers: { "X-Stock-Radar-Search-Surface": "stock-research" },
+        signal: controller.signal,
+      })
         .then(async (response) => {
           const payload = await response.json().catch(() => null);
           return {
@@ -310,15 +314,19 @@ export function StockRadarTickerSearch({
                   aria-selected={activeIndex === index}
                   className={styles.globalSearchResult}
                   id={`${searchListboxId}-option-${index}`}
-                  key={result.ticker}
+                  key={`${result.ticker}:${result.historicalTicker || "current"}`}
                   onClick={() => navigateToResult(result)}
                   onMouseEnter={() => setActiveIndex(index)}
                   role="option"
                   type="button"
                 >
                   <span>
-                    <strong>{result.ticker}</strong>
-                    <small>{result.exchange || "Exchange unavailable"}</small>
+                    <strong>{result.historicalTicker || result.ticker}</strong>
+                    <small>
+                      {result.isHistoricalTicker && result.historicalTicker
+                        ? `Historical ticker · now ${result.ticker}`
+                        : result.exchange || "Exchange unavailable"}
+                    </small>
                   </span>
                   <span>{result.companyName}</span>
                 </button>
