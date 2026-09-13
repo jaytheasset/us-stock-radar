@@ -39,8 +39,28 @@ export type SecTickerResolutionReadResult =
       identity: Row | null;
       evidence: Row | null;
       evaluation: SecTickerResolutionEvaluation;
+      sourceObservations: Readonly<{
+        before: readonly VerifiedSecCoverObservation[];
+        after: readonly VerifiedSecCoverObservation[];
+      }>;
     }>
   | Readonly<{ status: "not_found" }>
+  | Readonly<{ status: "unavailable"; reason: string }>;
+
+export const SEC_TICKER_RESOLUTION_LIST_LIMIT = 100;
+
+export type SecTickerResolutionListResult =
+  | Readonly<{
+      status: "available";
+      scope: Readonly<{
+        scanned: number;
+        limit: number;
+        truncated: boolean;
+      }>;
+      counts: Readonly<Record<"AUTO" | "REVIEW" | "UNRESOLVED" | "unavailable", number>>;
+      relationships: readonly Extract<SecTickerResolutionReadResult, { status: "available" }>[];
+      unavailable: readonly Readonly<{ decisionId: string; reason: string }>[];
+    }>
   | Readonly<{ status: "unavailable"; reason: string }>;
 
 export async function resolveAndPersistSecTickerChange(input: SecTickerResolutionRequest & {
@@ -94,6 +114,100 @@ export async function readCurrentSecTickerResolution(input: {
   if (!decisionRead.ok) return { status: "unavailable", reason: "decision_read_failed" };
   const decision = rows(decisionRead.data)[0];
   if (!decision) return { status: "not_found" };
+  return readAndValidateDecision(decision, repository);
+}
+
+export async function readSecTickerResolutionByDecisionId(input: {
+  decisionId: string;
+  repository?: SecTickerResolutionRepository;
+}): Promise<SecTickerResolutionReadResult> {
+  if (!isUuid(input.decisionId)) return { status: "unavailable", reason: "invalid_decision_id" };
+  const repository = input.repository ?? await defaultRepository();
+  const decisionRead = await repository.select("sec_ticker_resolution_decisions", {
+    select: "*",
+    id: `eq.${input.decisionId}`,
+    limit: "1",
+  });
+  if (!decisionRead.ok) return { status: "unavailable", reason: "decision_read_failed" };
+  const decision = rows(decisionRead.data)[0];
+  if (!decision) return { status: "not_found" };
+  if (stringValue(decision.id) !== input.decisionId) {
+    return { status: "unavailable", reason: "decision_id_mismatch" };
+  }
+  return readAndValidateDecision(decision, repository);
+}
+
+export async function listSecTickerResolutions(input: {
+  state?: string;
+  query?: string;
+  limit?: number;
+  repository?: SecTickerResolutionRepository;
+} = {}): Promise<SecTickerResolutionListResult> {
+  const state = normalizeResolutionState(input.state);
+  if (input.state && !state) return { status: "unavailable", reason: "invalid_resolution_state" };
+  const query = (input.query || "").trim().toUpperCase();
+  if (query.length > 120) return { status: "unavailable", reason: "invalid_resolution_query" };
+  const repository = input.repository ?? await defaultRepository();
+  const limit = Math.max(1, Math.min(input.limit ?? SEC_TICKER_RESOLUTION_LIST_LIMIT, SEC_TICKER_RESOLUTION_LIST_LIMIT));
+  const decisionRead = await repository.select("sec_ticker_resolution_decisions", {
+    select: "*",
+    method_version: `eq.${SEC_TICKER_RESOLUTION_VERSION}`,
+    order: "created_at.desc,id.desc",
+    limit: String(limit),
+  });
+  if (!decisionRead.ok) return { status: "unavailable", reason: "decision_list_read_failed" };
+  const decisions = rows(decisionRead.data);
+  const validated: Array<Extract<SecTickerResolutionReadResult, { status: "available" }>> = [];
+  const unavailable: Array<{ decisionId: string; reason: string }> = [];
+
+  for (let offset = 0; offset < decisions.length; offset += 5) {
+    const batch = decisions.slice(offset, offset + 5);
+    const results = await Promise.all(batch.map((decision) => readAndValidateDecision(decision, repository)));
+    results.forEach((result, index) => {
+      if (result.status === "available") {
+        validated.push(result);
+      } else {
+        unavailable.push({
+          decisionId: stringValue(batch[index]?.id),
+          reason: result.status === "unavailable" ? result.reason : "decision_not_found",
+        });
+      }
+    });
+  }
+
+  const counts = {
+    AUTO: validated.filter((item) => stringValue(item.decision.resolution_state) === "AUTO").length,
+    REVIEW: validated.filter((item) => stringValue(item.decision.resolution_state) === "REVIEW").length,
+    UNRESOLVED: validated.filter((item) => stringValue(item.decision.resolution_state) === "UNRESOLVED").length,
+    unavailable: unavailable.length,
+  };
+  const relationships = validated.filter((item) => {
+    if (state && stringValue(item.decision.resolution_state) !== state) return false;
+    if (!query) return true;
+    const relationship = record(record(item.decision.decision_payload).relationship);
+    return [
+      item.decision.id,
+      item.decision.issuer_cik,
+      item.decision.evidence_accession_number,
+      item.decision.before_accession_number,
+      item.decision.after_accession_number,
+      relationship.oldTicker,
+      relationship.newTicker,
+    ].some((value) => stringValue(value).toUpperCase().includes(query));
+  });
+  return {
+    status: "available",
+    scope: { scanned: decisions.length, limit, truncated: decisions.length === limit },
+    counts,
+    relationships,
+    unavailable,
+  };
+}
+
+async function readAndValidateDecision(
+  decision: Row,
+  repository: SecTickerResolutionRepository,
+): Promise<SecTickerResolutionReadResult> {
   const payload = record(decision.decision_payload);
   const savedInput = record(payload.input);
   const request: SecTickerResolutionRequest = {
@@ -131,7 +245,17 @@ export async function readCurrentSecTickerResolution(input: {
     storedEvidence: evidence,
   });
   if (!validation.ok) return { status: "unavailable", reason: validation.reason };
-  return { status: "available", decision, identity, evidence, evaluation };
+  return {
+    status: "available",
+    decision,
+    identity,
+    evidence,
+    evaluation,
+    sourceObservations: {
+      before: loaded.input.beforeObservations,
+      after: loaded.input.afterObservations,
+    },
+  };
 }
 
 async function loadEvaluation(
@@ -276,4 +400,15 @@ function stringValue(value: unknown) {
 
 function stringValuePreserve(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function normalizeResolutionState(value: unknown) {
+  const normalized = stringValue(value).toUpperCase();
+  return new Set(["AUTO", "REVIEW", "UNRESOLVED"]).has(normalized)
+    ? normalized as "AUTO" | "REVIEW" | "UNRESOLVED"
+    : null;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

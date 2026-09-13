@@ -2249,6 +2249,225 @@
   cursor: pointer;
 }
 
+.resolutionWorkspace {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.resolutionHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.resolutionHero span,
+.resolutionSection header span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.resolutionHero h3,
+.resolutionSection h4 {
+  margin: 4px 0 0;
+}
+
+.resolutionHero p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.resolutionHero > strong {
+  flex: none;
+  padding: 5px 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.resolutionHero > strong[data-state="AUTO"] {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.resolutionHero > strong[data-state="REVIEW"] {
+  border-color: #d97706;
+  color: #b45309;
+}
+
+.resolutionHero > strong[data-state="UNRESOLVED"] {
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+
+.resolutionNotice {
+  padding: 11px 13px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  color: #1e40af;
+  background: #eff6ff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.resolutionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.resolutionCard,
+.resolutionSection {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.resolutionCard h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.resolutionCard dl,
+.resolutionFacts,
+.resolutionObservationList dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.resolutionCard dl div,
+.resolutionFacts div,
+.resolutionObservationList dl div {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.62fr) minmax(0, 1.38fr);
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.resolutionCard dl div:last-child,
+.resolutionFacts div:last-child,
+.resolutionObservationList dl div:last-child {
+  border-bottom: 0;
+}
+
+.resolutionCard dt,
+.resolutionFacts dt,
+.resolutionObservationList dt {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.resolutionCard dd,
+.resolutionFacts dd,
+.resolutionObservationList dd {
+  min-width: 0;
+  margin: 0;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.resolutionSection header {
+  margin-bottom: 12px;
+}
+
+.resolutionSection h4 {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.resolutionObservationColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.resolutionObservationList {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.resolutionObservationList h5 {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.resolutionObservationList dl + dl {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid #cbd5e1;
+}
+
+.resolutionObservationList > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.resolutionReasonList {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resolutionReasonList li {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  color: #334155;
+  background: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.resolutionEvidenceText {
+  max-width: 100%;
+  margin: 12px 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #1e293b;
+  background: #f8fafc;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.resolutionSourceLink {
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.resolutionMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
 .reviewEmptyState,
 .analysisDetailEmpty {
   padding: 24px 18px;
@@ -2278,6 +2497,42 @@
 :global(html[data-theme="dark"]) .analysisRawDetails summary {
   border-color: #334155;
   background: #111827;
+}
+
+:global(html[data-theme="dark"]) .resolutionHero,
+:global(html[data-theme="dark"]) .resolutionCard,
+:global(html[data-theme="dark"]) .resolutionSection {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+:global(html[data-theme="dark"]) .resolutionNotice {
+  border-color: #1e3a8a;
+  color: #bfdbfe;
+  background: #172554;
+}
+
+:global(html[data-theme="dark"]) .resolutionObservationList,
+:global(html[data-theme="dark"]) .resolutionReasonList li,
+:global(html[data-theme="dark"]) .resolutionEvidenceText {
+  border-color: #334155;
+  color: #cbd5e1;
+  background: #111827;
+}
+
+:global(html[data-theme="dark"]) .resolutionCard dl div,
+:global(html[data-theme="dark"]) .resolutionFacts div,
+:global(html[data-theme="dark"]) .resolutionObservationList dl div {
+  border-color: #334155;
+}
+
+:global(html[data-theme="dark"]) .resolutionHero h3,
+:global(html[data-theme="dark"]) .resolutionCard h4,
+:global(html[data-theme="dark"]) .resolutionCard dd,
+:global(html[data-theme="dark"]) .resolutionFacts dd,
+:global(html[data-theme="dark"]) .resolutionObservationList dd,
+:global(html[data-theme="dark"]) .resolutionSection h4 {
+  color: #f8fafc;
 }
 
 :global(html[data-theme="dark"]) .sidebar,
@@ -2491,7 +2746,8 @@
   }
 
   .analysisReviewWorkspace,
-  .analysisComparisonGrid {
+  .analysisComparisonGrid,
+  .resolutionGrid {
     grid-template-columns: 1fr;
   }
 
@@ -2517,6 +2773,25 @@
 }
 
 @media (max-width: 760px) {
+  .resolutionWorkspace {
+    padding: 12px;
+  }
+
+  .resolutionHero {
+    flex-direction: column;
+  }
+
+  .resolutionObservationColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .resolutionCard dl div,
+  .resolutionFacts div,
+  .resolutionObservationList dl div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
   .analysisReviewSearch {
     align-items: stretch;
     flex-direction: column;
