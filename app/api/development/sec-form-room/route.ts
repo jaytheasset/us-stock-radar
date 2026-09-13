@@ -5,10 +5,11 @@ import {
 } from "@/lib/development/secFormDevDashboard";
 import { parseSecDiagnosticFilters } from "@/lib/development/secDiagnosticSnapshot";
 import { respondWithAdminReadAccess } from "@/lib/admin/api";
+import { readSecTickerResolutionByDecisionId } from "@/lib/sec-ticker-resolution/persistence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-const DIAGNOSTIC_QUERY_KEYS = new Set(["room", "view", "eventId", "ticker", "accession"]);
+const DIAGNOSTIC_QUERY_KEYS = new Set(["room", "view", "eventId", "ticker", "accession", "resolutionId"]);
 
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
@@ -18,12 +19,12 @@ export async function GET(request: NextRequest) {
   return respondWithAdminReadAccess(request, "system.read", async () => {
     const room = request.nextUrl.searchParams.get("room") || "";
     const view = request.nextUrl.searchParams.get("view") || "detail";
-    if (view !== "detail" && view !== "diagnostics") {
+    if (view !== "detail" && view !== "diagnostics" && view !== "resolution") {
       return {
         ok: false,
         error: {
           code: "INVALID_DIAGNOSTIC_VIEW",
-          message: "view must be detail or diagnostics.",
+          message: "view must be detail, diagnostics, or resolution.",
         },
       };
     }
@@ -40,6 +41,50 @@ export async function GET(request: NextRequest) {
         },
       };
     }
+
+    if (view === "resolution") {
+      const resolutionId = request.nextUrl.searchParams.get("resolutionId") || "";
+      const hasUnrelatedFilter = ["eventId", "ticker", "accession"]
+        .some((key) => request.nextUrl.searchParams.has(key));
+      if (!resolutionId || hasUnrelatedFilter) {
+        return {
+          ok: false,
+          error: {
+            code: "INVALID_RESOLUTION_FILTER",
+            message: "Resolution view requires only one resolutionId.",
+          },
+        };
+      }
+      const resolution = await readSecTickerResolutionByDecisionId({ decisionId: resolutionId });
+      if (resolution.status === "available") return { ok: true, resolution };
+      if (resolution.status === "not_found") {
+        return {
+          ok: false,
+          error: {
+            code: "RESOLUTION_NOT_FOUND",
+            message: "No saved ticker resolution matches that decision ID.",
+          },
+        };
+      }
+      if (resolution.reason === "invalid_decision_id") {
+        return {
+          ok: false,
+          error: {
+            code: "INVALID_RESOLUTION_ID",
+            message: "resolutionId must be a valid UUID.",
+          },
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "RESOLUTION_READ_UNAVAILABLE",
+          message: "The saved ticker resolution could not be validated.",
+          reason: resolution.reason,
+        },
+      };
+    }
+
     const parsedFilters = parseSecDiagnosticFilters({
       eventId: request.nextUrl.searchParams.get("eventId"),
       ticker: request.nextUrl.searchParams.get("ticker"),
@@ -66,5 +111,6 @@ function diagnosticResponseStatus(data: { ok: boolean; error?: unknown }) {
   const error = data.error && typeof data.error === "object" && !Array.isArray(data.error)
     ? data.error as Record<string, unknown>
     : null;
-  return typeof error?.code === "string" && error.code.startsWith("INVALID_DIAGNOSTIC_") ? 400 : 404;
+  if (error?.code === "RESOLUTION_READ_UNAVAILABLE") return 503;
+  return typeof error?.code === "string" && error.code.startsWith("INVALID_") ? 400 : 404;
 }

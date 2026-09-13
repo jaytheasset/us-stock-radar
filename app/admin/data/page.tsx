@@ -4,6 +4,11 @@ import { requireAdminPermission } from "@/lib/admin/server";
 
 const tools = [
   [
+    "SEC ticker resolution",
+    "/admin/data/ticker-resolution",
+    "Inspect validated read-only ticker relationships, review targets, and SEC evidence.",
+  ],
+  [
     "Dilution Registry",
     "/admin/data/dilution-registry",
     "Paste GPT registry JSON and review a preview without saving it.",

@@ -6,6 +6,7 @@ import { FilingUiConsoleClient, type FilingUiConsoleEntry } from "@/app/developm
 import { filingUiConsoleFamilies } from "@/lib/development/filingUiConsoleRegistry";
 import styles from "./sec-development.module.css";
 import type { SecDevRoomDetail, SecDevRoomSnapshot } from "@/lib/development/secFormDevDashboard";
+import { TickerResolutionEvidence } from "./TickerResolutionEvidence";
 import {
   getSecExactPersistedRecordStatus,
   type SecDiagnosticResult,
@@ -20,7 +21,7 @@ import {
   type SecDevIssue,
 } from "./secDevelopmentIssues";
 
-type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "issues" | "excluded" | "filing-ui";
+type TabKey = "overview" | "parser" | "prompt" | "outputs" | "results" | "tests" | "live" | "issues" | "excluded" | "filing-ui" | "resolution";
 
 export function SecDevelopmentClient({
   initialFilingUiEntries,
@@ -33,6 +34,7 @@ export function SecDevelopmentClient({
   const requestedRoom = searchParams?.get("room") || "";
   const requestedTab = searchParams?.get("tab") || "";
   const requestedFilingUiFamily = searchParams?.get("family") || "";
+  const requestedResolutionId = searchParams?.get("resolutionId") || "";
   const initialRoom = initialRooms.some((room) => room.key === requestedRoom) ? requestedRoom : initialRooms[0]?.key || "";
   const initialTab = isTabKey(requestedTab) ? requestedTab : "overview";
   const [rooms, setRooms] = useState(initialRooms);
@@ -374,7 +376,16 @@ export function SecDevelopmentClient({
       </aside>
 
       <section className={styles.mainPanel}>
-        {tab !== "filing-ui" ? <header className={styles.panelHeader}>
+        {tab === "resolution" ? (
+          <header className={styles.panelHeader}>
+            <div>
+              <p className={styles.kicker}>Read-only SEC lineage</p>
+              <h2>Ticker resolution evidence</h2>
+              <p>Validated resolution records are separate from the filing AI analysis workflow.</p>
+            </div>
+            <span className={styles.executionBadge}>Read only</span>
+          </header>
+        ) : tab !== "filing-ui" ? <header className={styles.panelHeader}>
           <div>
             <p className={styles.kicker}>Development Console</p>
             <h2>{selectedSnapshot?.label || "SEC Form Room"}</h2>
@@ -394,7 +405,7 @@ export function SecDevelopmentClient({
           </div>
         </header> : null}
 
-        {tab !== "filing-ui" ? <details className={styles.executionControls}>
+        {tab !== "filing-ui" && tab !== "resolution" ? <details className={styles.executionControls}>
           <summary className={styles.executionControlsHeader}>
             <div>
               <span>Execution workspace</span>
@@ -575,6 +586,7 @@ export function SecDevelopmentClient({
             ["results", "Fixtures / Results"],
             ["tests", "Tests"],
             ["live", "Analysis Review"],
+            ["resolution", "Ticker Resolution"],
             ["issues", "Issues"],
             ["excluded", "Excluded"],
             ["filing-ui", "Filing UI"],
@@ -585,7 +597,9 @@ export function SecDevelopmentClient({
           ))}
         </nav>
 
-        {tab === "filing-ui" ? (
+        {tab === "resolution" ? (
+          <TickerResolutionEvidence resolutionId={requestedResolutionId} room={selectedRoom} />
+        ) : tab === "filing-ui" ? (
           <FilingUiConsoleClient
             entries={initialFilingUiEntries}
             families={filingUiConsoleFamilies}
@@ -4276,7 +4290,19 @@ function roomFromDetail(detail: SecDevRoomDetail): SecDevRoomSnapshot {
 }
 
 function isTabKey(value: string): value is TabKey {
-  return ["overview", "parser", "prompt", "outputs", "results", "tests", "live", "issues", "excluded", "filing-ui"].includes(value);
+  return [
+    "overview",
+    "parser",
+    "prompt",
+    "outputs",
+    "results",
+    "tests",
+    "live",
+    "issues",
+    "excluded",
+    "filing-ui",
+    "resolution",
+  ].includes(value);
 }
 
 function formatAnalysisStatus(value: unknown) {
