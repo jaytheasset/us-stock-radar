@@ -1,19 +1,36 @@
 # Stock Radar — Astra 6 Main Handoff
 
-> Snapshot: 2026-09-10 KST
-> Authority: the current permanent local `main` implementation and shared-local database state.
+> Original snapshot: 2026-09-10 KST; dated completion updates follow below.
+> Development authority: current permanent local `main`. Database statements are dated observations, not a live status check.
 > Companion rules: [Production Source of Truth](PRODUCTION_SOURCE_OF_TRUTH.md), repository-root `AGENTS.md`, and [SEC Diagnostics Index](../DIAGNOSTICS_INDEX.md).
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
+## Ticker-change completion — 2026-09-14 KST
+
+This addendum is the current ticker-change baseline and supersedes earlier ticker/runtime status below. Earlier sections remain historical records, not a current development backlog; recheck unrelated areas before resuming them.
+
+- Local `main`: `e4435b405a40a58634532290cde067e44c69248b`, clean before this documentation-only edit. The audited six-file automatic-trigger commit `2f3fc49173c8158f01a426b9a89c48695923d785` is merged; do not merge or reimplement it again.
+- SEC ingest and replay now connect saved cover observations to the existing `resolveAndPersistSecTickerChange()` engine through the automatic trigger. Resolution failure remains separate from raw/observation/site-analysis success; existing idempotency and retry-on-replay are reused. This does not enable source-ingest scheduling: `SOURCE_INGEST_AUTOMATIC_CRONS_ENABLED` remains `false`.
+- Search, stock detail, and historical filing reads use effective same-security ticker projection. A current BTLN page can retrieve verified GGRP/VRAR filing evidence without rewriting the historical symbols.
+- Watchlist follows effective ticker projection, displays the current ticker and saved-as ticker, and preserves original row identity/ticker/time. Existing old/new rows are retained; deletion targets only the selected original row.
+- `user_alert_tickers` subscriptions match effective same-security current-ticker events across server/batch/CLI paths. Original subscriptions and historical Alerts remain intact; user/event dedupe and pre-send effective-relation revalidation protect against duplicate sends and a queued projection invalidated by Human reject.
+- Current-price conditions in Listing/Split and the shared Form 4/144 `market.price` path use the verified current ticker only at quote lookup. Historical event tickers and price/market-cap snapshots remain unchanged; missing/stale-price policy and existing Form XML issuer/security identification remain intact. This is not a change to every Monitor.
+- The administrator resolution screen exposes AUTO / REVIEW / UNRESOLVED and separate append-only Human decisions, including reject and withdrawal. SEC debug remains the evidence viewer. Consumers use the effective reader: unapproved REVIEW/UNRESOLVED, rejected, or reconsideration-required relations do not authorize projection. Withdrawal restores projection only when the resulting effective relation permits it.
+- Historical SEC observations, filings, and Alerts retain their original ticker. Matching issuer CIK alone does not establish the same security; common stock, warrant, and other classes remain separated by the verified relationship rules.
+- Still separate scope: general Monitor-wide succession, delisting/new-listing lifecycle, merger/reverse-merger/successor-predecessor and CIK-change generalization. Do not treat ticker-change completion as authorization for these features or destructive ticker/history rewrites.
+- Last merge verification: 74 PASS / one existing `sourceWorkflowConfig.test.ts` Cron-count expectation failure (also reproduced at the pre-merge HEAD) / zero new failures; four existing type errors in `scripts/verify-dilution-registry-phase-5c1-isolated.ts`, zero new errors. Existing 3110 NVDA/AAPL search/detail/refresh, Filings list/detail, administrator, and SEC console smoke passed without a server restart. Evidence: `%TEMP%\stockradar-ticker-auto-main-merge-20260914`. No tests or browser checks were rerun for this documentation edit.
+- Environment carry-forward: normal 3110/shared-local API `127.0.0.1:56321` and DB `127.0.0.1:56322`; last reported migration state 98 matching / pending zero, not re-queried here. No code, DB, schema, env, scheduler, or external-service changes; no backfill, LLM call, or Alert delivery in this documentation task.
+- GitHub `main`: cached remote-tracking ref `9c13aee7ef41b38bac0637e53e579633745effda`, not freshly checked; Vercel production commit/status and remote DB state remain unverified. Local/GitHub/deployed equality is not claimed. Push/deploy are not authorized. Only this Markdown edit is pending; candidate/parallel-work status is not re-audited by this completion note.
+
 ## Reboot checkpoint — 2026-09-13 KST
 
-This addendum supersedes the older runtime/version snapshot below for resuming this session. It records shutdown preparation only; it does not authorize further development, database replay, push, or deployment.
+Historical shutdown preparation only, superseded by the dated completion update above. The runtime and restart notes describe that checkpoint, not the current service state or an instruction to restart services now.
 
 - Local application baseline: `main` at `6af84ec85c8eb9d413e642c70ca1b6e1faa50967`, clean before this documentation-only checkpoint. The audited nine-file ticker resolution read-only UI commit `644d59b0ed769ed054af6a154d451bb5891e820a` is already merged; do not merge it again.
 - GitHub `main`: cached local remote-tracking ref `9c13aee7ef41b38bac0637e53e579633745effda`; no fresh remote check or push during reboot preparation. Vercel commit/status and remote DB migrations remain unverified. Local/remote/deployed equality is not claimed.
 - Last completed main regression: 256 PASS, one existing `beginSecAnalysisSpan is not defined` failure in `lib/ai/secOwnershipLlmRouting.test.ts`; four existing type errors in `scripts/verify-dilution-registry-phase-5c1-isolated.ts`, no new test/type failures. No tests were rerun for this checkpoint. Logs: `%TEMP%\stockradar-ticker-resolution-ui-main-merge-6af84ec-20260913`.
-- Last completed browser checks: administrator login/existing menus, SEC console stored filing, NVDA/AAPL search/detail/refresh, and Filings list/detail passed. One unfixed UI defect remains: navigate from resolution `state=REVIEW` through AUTO then UNRESOLVED cards; URL changes while the filter select retains REVIEW until reload. Evidence: `%TEMP%\stockradar-main-login-20260913\admin-filter-stale-selection.json` and corresponding PNG. Do not report all UI checks as passing or silently fix this during restart.
+- Browser checks at the checkpoint: administrator login/existing menus, SEC console stored filing, NVDA/AAPL search/detail/refresh, and Filings list/detail passed. One UI defect was then unfixed: navigating from resolution `state=REVIEW` through AUTO then UNRESOLVED cards changed the URL while the select retained REVIEW until reload. Evidence: `%TEMP%\stockradar-main-login-20260913\admin-filter-stale-selection.json` and corresponding PNG. Later resolved by `7d8e5eb833f08642fed96af94889bfab6fbf46e6`, merged as `42d6b9704c6cf3f3d73e7595690dec1191fd72d7`; current code keys the filter form by query/state. The original failure record is retained.
 - Last verified shared-local state: API `127.0.0.1:56321`, DB `127.0.0.1:56322`, 95 matching migrations, pending zero, latest `20260913005601`; resolution rows zero is expected. No migration, DB write, backfill, or reprocessing was performed for reboot preparation. Docker Desktop/backend and `docker-desktop` WSL were already stopped when checked; they were not restarted.
 - Reboot shutdown: permanent-main 3110 and completed candidate 3113 were stopped after verifying their ownership. No active Stock Radar test/build/migration was found. Previously retired isolated test containers and their data volumes remain preserved; do not start every historical test stack. Cleanup inventory: `%TEMP%\stockradar-container-cleanup-20260913`.
 - Candidate `feea` is the already-merged detached `644d59b0ed769ed054af6a154d451bb5891e820a` workspace. Its frozen evidence remains in `%TEMP%\stockradar-ticker-resolution-ui-feea-20260913`; independent audit is `%TEMP%\stockradar-ticker-resolution-ui-main-audit-20260913\AUDIT_RESULT.md`. No new feature work or evidence files are included in this checkpoint.
@@ -30,7 +47,9 @@ This addendum supersedes the older runtime/version snapshot below for resuming t
 - Before changing anything, run the `AGENTS.md` start-of-task checks and independently recheck every state in this document.
 - Existing detached and named worktrees include historical task remnants. Their names or presence do not make them active or approved candidates. No unmerged commit is authorized by this handoff.
 
-## 2. Source-of-truth snapshot
+## 2. Historical source-of-truth snapshot — 2026-09-10 KST
+
+These values belong to the original snapshot. Use the dated completion update above for the latest recorded local baseline; this table is not a current remote/deployment check.
 
 | Item | Verified state |
 | --- | --- |
@@ -43,9 +62,11 @@ This addendum supersedes the older runtime/version snapshot below for resuming t
 | Vercel production commit | `UNVERIFIED`; current CLI session has no Vercel credentials, so do not infer equality from a prior deployment report |
 | Push / deploy authorization | None for this handoff |
 
-The current local `main` therefore is the development baseline, but it is not code-equal to GitHub/Vercel. Any future push or deployment must first follow the complete source-alignment and post-deploy checks in `PRODUCTION_SOURCE_OF_TRUTH.md`.
+At that snapshot, local `main` differed from GitHub and Vercel equality was unverified. Any future push or deployment must first follow the complete source-alignment and post-deploy checks in `PRODUCTION_SOURCE_OF_TRUTH.md`.
 
-## 3. Shared-local database and scheduler state
+## 3. Historical shared-local database and scheduler snapshot — 2026-09-10 KST
+
+The counts, migration version, and service states below are historical. Shared-local migrations were not re-queried for the 2026-09-14 document review; do not use this table as current DB verification.
 
 | Item | Verified state |
 | --- | --- |
@@ -111,7 +132,7 @@ Non-negotiable rules:
 - Registry reads used by Offering conditions must be bound to the exact issuer, event, accession, raw item, and Registry snapshot. Issuer-wide current state must not be substituted.
 - A Registry field maps to an Offering condition only when its economic meaning is identical. For example, ATM authorization capacity is not an executed offering amount and stays `Unavailable`.
 - Current adapter V1 is deliberately conservative: the VEEA ATM case is identity-valid but semantically unmappable, so `offering.amount` is unavailable and creates no Alert. This is a safety boundary, not a defect to bypass.
-- Current-main completion boundary is narrower than the full arrow diagram: the Registry adapter/condition/Matcher/internal-Alert functions exist, but there is no automatic product call site for `consumeOfferingMonitorAlertsForEvent()`, and adapter V1 currently produces no mapped fact for the audited ATM case. Do not report automatic Registry-backed Offering Alerts as live until an explicit trigger and economically exact mappings are independently approved and verified.
+- Main code checked on 2026-09-14 connects Registry Apply and SEC Offering event persistence to the automatic trigger and `consumeOfferingMonitorAlertsForEvent()`. The previous missing-trigger limitation is resolved. This does not broaden fact mappings: the audited VEEA ATM capacity remains unavailable as `offering.amount`.
 
 Legacy Offering Gemini Stage 2 status:
 
@@ -168,9 +189,9 @@ Legacy Offering Gemini Stage 2 status:
 
 - Generic child execution has exact parent identity, terminal states, retry/replay handling, and canonical persistence for implemented domains.
 - Listing Risk and Split/Reverse Split paths remain wired for their supported source families.
-- Periodic Financial Monitor canonical analysis is wired, but user-authored financial condition → Matcher → Alert integration is not complete.
+- Periodic Financial Monitor connects supported stored user conditions to the Matcher and internal Alert consumer; the canonical child runtime invokes the consumer on completion and replay. Period/currency comparability and unavailable-value restrictions remain.
 - Ownership XML Monitor is wired through typed rows to deterministic conditions and internal alert persistence.
-- Registry-backed Offering adapter, Offering conditions, Matcher, dedupe, and internal-alert persistence exist as callable product code. Safe fact coverage remains intentionally narrow; unmappable Registry semantics return unavailable rather than match, and automatic consumer invocation is not yet wired.
+- Registry-backed Offering adapter, conditions, Matcher, dedupe, and internal-alert persistence are connected through Registry Apply and SEC event automatic triggers. Safe fact coverage remains intentionally narrow; unmappable Registry semantics return unavailable rather than match.
 - Existing score-based filing alerts and user-created Monitor alerts are distinct systems.
 
 ### Dilution Registry and corporate actions
@@ -198,27 +219,29 @@ Legacy Offering Gemini Stage 2 status:
 - Legacy Offering code/history must not be deleted merely because automatic execution is disabled.
 - Port `3110`, shared-local data, migrations, schedulers, or environment files unless the user explicitly authorizes the exact operation.
 
-## 8. Remaining development work
+## 8. Historical priorities — 2026-09-10; verified scope updates — 2026-09-14
 
-### Known dilution follow-up — Registry-backed Offering activation
+The priority numbers preserve the original plan, not a current next-task order. The following completion corrections reflect code at `e4435b405a40a58634532290cde067e44c69248b`; they do not claim a new DB or E2E run. Other historical proposals below were not re-audited and require a fresh scope check before development.
 
-Before describing the golden path as automatically live, define an explicit product trigger for the existing Registry-backed consumer and approve only economically identical Registry-to-condition mappings. The current VEEA ATM capacity must remain unavailable as `offering.amount`. This is a narrow completion task for the accepted Registry path, not permission to revive Gemini Stage 2 or build form-specific dilution analyzers.
+### Original dilution follow-up — Registry-backed Offering activation (connected)
+
+Registry Apply and SEC event persistence now call the existing automatic Offering consumer path. Do not rebuild the trigger. Additional economic mappings remain a separate scope; VEEA ATM capacity must remain unavailable as `offering.amount`. Gemini Stage 2 and new form-specific dilution analyzers are not authorized.
 
 ### Priority 1 — Financial Monitor user conditions and Alerts
 
-Connect the already-canonical Periodic Financial Monitor output to stored user conditions, the deterministic Matcher, internal Alert persistence, readback, and replay dedupe. Preserve quarter/YTD/annual/instant and currency comparability; unavailable metrics must not become zero/false. This is the cleanest next task because the canonical resolver, series, job identity, and Monitor analysis already exist.
+Connected on current main: condition save/read APIs, canonical facts reader, deterministic Matcher, internal Alert persistence/readback, and runtime consumer invocation including replay. This is no longer a first implementation task. Preserve quarter/YTD/annual/instant and currency comparability; unavailable metrics must not become zero/false.
 
 ### Priority 2 — Amendment lineage, then 8-K/A and 6-K/A Monitor fan-out
 
-Current main does not contain an approved common amendment-current-state foundation. First establish deterministic original/amendment lineage and safe `NOOP` / `SUPPLEMENT` / `REPLACE` / `CANCEL` semantics with history preserved. Only then enable 8-K/A and 6-K/A Monitor fan-out; do not treat an amendment as a fresh independent fact or blindly duplicate the original Alert.
+Implemented on current main: amendment lineage/current-state persistence and the SEC analysis → amendment bridge → authorized 8-K/A and 6-K/A Monitor fan-out. Reuse this foundation and its `NOOP` / `SUPPLEMENT` / `REPLACE` / `CANCEL` semantics; uncertain lineage remains fail-closed. Do not rebuild it or treat every amendment as a fresh independent Alert.
 
 ### Priority 3 — SC 13D/G canonical ownership state and Monitor
 
-The site analysis/parser area exists, but a deterministic current beneficial-ownership state, amendment lineage, canonical persistence, user conditions, and product-path Monitor E2E are not complete. Keep holder, group, class, date, numerator/denominator, and amendment semantics separate; do not combine incompatible holdings.
+Implemented on current main: canonical XML persistence, amendment lineage and latest-value reader within stored filing history, saved conditions, Matcher/internal Alert, XML-save/replay automatic execution, and the Ownership read surface. These are not first implementation tasks. Latest saved reported values are not real-time holdings or complete SEC history; keep reporter, class, date, and unresolved relationships separate.
 
 ### Priority 4 — Form 3/5 Ownership extension
 
-Extend the proven Ownership XML/persistence/Monitor contracts only where Form 3/5 source schemas support them. Do not infer transactions from initial/annual holdings, and do not weaken Form 4/144 issuer/accession/provenance or multi-owner safety.
+Implemented on current main: Form 3/3A/5/5A XML collection/parsing, persistence/readback, original/amendment and row/duplicate judgments, plus saved direct-value conditions and manual Matcher evaluation. The manual condition contract is `manual_only_no_alerts`; Form 3/5 condition UI, automatic evaluation, and Alert connection are not completed by this path. Initial holdings are not purchases, omitted amendment rows are not zero/deletions, and only confirmed duplicate trades are excluded. Scope is stored history; actual multi-reporter and actual duplicate-positive cases remain unverified.
 
 ### Priority 5 — 13F institutional holdings
 
@@ -251,9 +274,9 @@ Automatic legacy Stage 2 is disabled, but its source, schema, migrations, canoni
 8. Preserve actual missing/ambiguous states as `Unavailable`/review/fail-closed; do not manufacture canonical values.
 9. Before any merge, push, deployment, rollback, or new handoff, reread `PRODUCTION_SOURCE_OF_TRUTH.md` and report exact local/GitHub/Vercel alignment.
 
-## 10. Last verified regression baseline
+## 10. Historical regression baseline — 2026-09-10 KST
 
-After merging `491e79d8` into current main, the relevant integration run recorded:
+The integration run at `491e79d8` recorded the results below. They are retained historical evidence, not the latest main regression; see the dated completion update above.
 
 - 253 tests passed across Offering foundation/sidecar, Registry-backed Offering, O/S/resolver/new-listing, Split/Dilution, site Primary/fallback analysis, and periodic-report coverage.
 - Workflow strict validation passed.
@@ -261,7 +284,9 @@ After merging `491e79d8` into current main, the relevant integration run recorde
 
 These results are handoff evidence, not permission to skip task-specific regression or real product-path validation for the next candidate.
 
-## 11. Handoff checklist
+## 11. Historical handoff checklist — 2026-09-10 KST
+
+Retained verbatim as the original checklist. Its HEAD, migration counts, and `Next task` are not current instructions or verification; the Financial connection has since been implemented as recorded above. Shared-local DB status was not re-queried for this document review.
 
 ```text
 Local main: 491e79d855343c625c45493a5975ef8ecd2f60bb
