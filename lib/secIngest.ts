@@ -29,6 +29,7 @@ import {
   recordSecCoverObservationPersistenceState,
   secCoverObservationFailureState,
 } from "@/lib/sec-cover-observations/persistence";
+import { runSecTickerResolutionAutomaticTrigger } from "@/lib/sec-ticker-resolution/automaticTrigger";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -52,6 +53,7 @@ type SecRawIngestDependencies = {
   finishSourceRun?: typeof finishSecSourceRun;
   persistCoverObservations?: typeof persistSecCoverObservationsForRawItem;
   recordCoverState?: typeof recordSecCoverObservationPersistenceState;
+  resolveCoverTickerChange?: typeof runSecTickerResolutionAutomaticTrigger;
 };
 
 export async function runSecRawIngest(
@@ -66,6 +68,7 @@ export async function runSecRawIngest(
     finishSourceRun: dependencies.finishSourceRun ?? finishSecSourceRun,
     persistCoverObservations: dependencies.persistCoverObservations ?? persistSecCoverObservationsForRawItem,
     recordCoverState: dependencies.recordCoverState ?? recordSecCoverObservationPersistenceState,
+    resolveCoverTickerChange: dependencies.resolveCoverTickerChange ?? runSecTickerResolutionAutomaticTrigger,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -214,6 +217,7 @@ export async function runSecRawIngest(
             stats,
             persistCoverObservations: runtime.persistCoverObservations,
             recordCoverState: runtime.recordCoverState,
+            resolveCoverTickerChange: runtime.resolveCoverTickerChange,
           });
           stats.skipped_count += 1;
           items.push({
@@ -249,6 +253,7 @@ export async function runSecRawIngest(
           stats,
           persistCoverObservations: runtime.persistCoverObservations,
           recordCoverState: runtime.recordCoverState,
+          resolveCoverTickerChange: runtime.resolveCoverTickerChange,
         });
         stats.raw_upserted_count += 1;
         items.push({
@@ -335,6 +340,7 @@ async function persistSecCoverObservationsAfterRawSave(input: {
   };
   persistCoverObservations: typeof persistSecCoverObservationsForRawItem;
   recordCoverState: typeof recordSecCoverObservationPersistenceState;
+  resolveCoverTickerChange: typeof runSecTickerResolutionAutomaticTrigger;
 }) {
   try {
     const result = await input.persistCoverObservations({
@@ -344,12 +350,23 @@ async function persistSecCoverObservationsAfterRawSave(input: {
     if (result.status === "not_applicable") return result;
     input.stats.sec_cover_observation_available_count += 1;
     if (result.writeStatus === "replayed") input.stats.sec_cover_observation_replayed_count += 1;
+    // This sidecar must never turn a saved observation (or raw/site analysis) into a failure.
+    let tickerResolution: Awaited<ReturnType<typeof runSecTickerResolutionAutomaticTrigger>>;
     try {
-      await input.recordCoverState({ rawItemId: input.rawItemId, state: result });
-      return { ...result, stateRecorded: true };
+      tickerResolution = await input.resolveCoverTickerChange(result);
+    } catch {
+      tickerResolution = {
+        version: "sec-ticker-resolution-ingest-v1", status: "failed",
+        reasons: ["automatic_resolution_exception"], decisions: [],
+      };
+    }
+    const state = { ...result, tickerResolution };
+    try {
+      await input.recordCoverState({ rawItemId: input.rawItemId, state });
+      return { ...state, stateRecorded: true };
     } catch {
       input.stats.sec_cover_observation_state_recording_failed_count += 1;
-      return { ...result, stateRecorded: false };
+      return { ...state, stateRecorded: false };
     }
   } catch (error) {
     input.stats.sec_cover_observation_failed_count += 1;

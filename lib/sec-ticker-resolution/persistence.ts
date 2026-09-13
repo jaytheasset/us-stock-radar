@@ -65,11 +65,15 @@ export type SecTickerResolutionListResult =
 
 export async function resolveAndPersistSecTickerChange(input: SecTickerResolutionRequest & {
   repository?: SecTickerResolutionRepository;
-}) {
+}): Promise<
+  | { status: "unavailable"; reason: string; writeStatus?: undefined; decisionId?: undefined; resolutionState?: undefined; evaluation?: undefined }
+  | { status: "available"; writeStatus: "inserted" | "replayed"; decisionId: string;
+      resolutionState: SecTickerResolutionEvaluation["resolutionState"]; evaluation: SecTickerResolutionEvaluation; reason?: undefined }
+> {
   const repository = input.repository ?? await defaultRepository();
-  const loaded = await loadEvaluation(input, repository);
-  if (!loaded.ok) return { status: "unavailable" as const, reason: loaded.reason };
-  const evaluation = evaluateSecTickerResolution(loaded.input);
+  const preview = await previewSecTickerChange({ ...input, repository });
+  if (preview.status !== "available") return preview;
+  const { evaluation } = preview;
   const write = await repository.rpc("persist_sec_ticker_resolution", {
     p_identity: evaluation.identity,
     p_evidence: evaluation.evidence,
@@ -91,6 +95,17 @@ export async function resolveAndPersistSecTickerChange(input: SecTickerResolutio
     resolutionState: evaluation.resolutionState,
     evaluation,
   };
+}
+
+/** The same validated, deterministic evaluation as persistence, without a write. */
+export async function previewSecTickerChange(input: SecTickerResolutionRequest & {
+  repository?: SecTickerResolutionRepository;
+}) {
+  const repository = input.repository ?? await defaultRepository();
+  const loaded = await loadEvaluation(input, repository);
+  if (!loaded.ok) return { status: "unavailable" as const, reason: loaded.reason };
+  const evaluation = evaluateSecTickerResolution(loaded.input);
+  return { status: "available" as const, evaluation };
 }
 
 export async function readCurrentSecTickerResolution(input: {

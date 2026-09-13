@@ -147,6 +147,7 @@ export async function recordSecCoverObservationPersistenceState(input: {
         extractionStatus: string;
         observationCount: number;
         writeStatus: string;
+        tickerResolution?: Record<string, unknown>;
       }
     | { status: "failed"; errorCode: string };
   repository?: SecCoverObservationRepository;
@@ -164,6 +165,7 @@ export async function recordSecCoverObservationPersistenceState(input: {
         write_status: input.state.writeStatus,
         storage_version: "sec_cover_security_observation_v1",
         recorded_at: new Date().toISOString(),
+        ...(input.state.tickerResolution ? { ticker_resolution: input.state.tickerResolution } : {}),
       }
     : {
         status: "failed",
