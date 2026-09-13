@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { StockRadarWatchlistV2 } from "@/components/watchlist-v2/StockRadarWatchlistV2";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
-import {
-  getGuestWatchlistViewModel,
-  getWatchlistViewModel,
-} from "@/lib/watchlist/getWatchlistViewModel";
+import { getProjectedWatchlistViewModel } from "@/lib/watchlist/tickerProjection";
 import {
   getStockRouteHref,
   normalizeStockTicker,
@@ -47,9 +44,7 @@ export default async function StockPage({ params }: StockPageProps) {
   }
 
   const userId = await getOptionalCurrentUserId();
-  const initialWatchlist = userId
-    ? await getWatchlistViewModel(userId)
-    : getGuestWatchlistViewModel();
+  const initialWatchlist = await getProjectedWatchlistViewModel(userId, ticker);
 
   return (
     <StockRadarWatchlistV2

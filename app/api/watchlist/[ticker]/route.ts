@@ -3,6 +3,7 @@ import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { supabaseDelete } from "@/lib/supabase";
 import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
+import { getProjectedWatchlistViewModel } from "@/lib/watchlist/tickerProjection";
 import { WatchlistValidationError, normalizeTicker } from "@/lib/watchlist/watchlistValidation";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ tick
       );
     }
 
-    const data = await getWatchlistViewModel(userId);
+    const url = new URL(request.url);
+    const requestedTicker = url.searchParams.get("ticker");
+    const data = url.searchParams.get("projection") === "1"
+      ? await getProjectedWatchlistViewModel(userId, requestedTicker ? normalizeTicker(requestedTicker) : null)
+      : await getWatchlistViewModel(userId);
     return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     if (error instanceof WatchlistValidationError) {
