@@ -8,11 +8,16 @@ export type IngestWorkflowLock = {
   lockOwner: string;
 };
 
+type LockRepository = {
+  rpc(name: string, payload: Record<string, unknown>): Promise<{ ok: boolean; data: unknown; error?: string }>;
+};
+
 export async function acquireIngestWorkflowLock(
   lock: IngestWorkflowLock,
   ttlSeconds: number,
+  repository?: LockRepository,
 ) {
-  const result = await supabaseRpc("acquire_ingest_workflow_lock", {
+  const result = await (repository?.rpc ?? supabaseRpc)("acquire_ingest_workflow_lock", {
     p_lock_key: lock.lockKey,
     p_lock_owner: lock.lockOwner,
     p_ttl_seconds: normalizeTtl(ttlSeconds),
@@ -28,8 +33,9 @@ export async function acquireIngestWorkflowLock(
 export async function renewIngestWorkflowLock(
   lock: IngestWorkflowLock,
   ttlSeconds: number,
+  repository?: LockRepository,
 ) {
-  const result = await supabaseRpc("renew_ingest_workflow_lock", {
+  const result = await (repository?.rpc ?? supabaseRpc)("renew_ingest_workflow_lock", {
     p_lock_key: lock.lockKey,
     p_lock_owner: lock.lockOwner,
     p_ttl_seconds: normalizeTtl(ttlSeconds),
@@ -42,8 +48,8 @@ export async function renewIngestWorkflowLock(
   };
 }
 
-export async function releaseIngestWorkflowLock(lock: IngestWorkflowLock) {
-  const result = await supabaseRpc("release_ingest_workflow_lock", {
+export async function releaseIngestWorkflowLock(lock: IngestWorkflowLock, repository?: LockRepository) {
+  const result = await (repository?.rpc ?? supabaseRpc)("release_ingest_workflow_lock", {
     p_lock_key: lock.lockKey,
     p_lock_owner: lock.lockOwner,
   });
