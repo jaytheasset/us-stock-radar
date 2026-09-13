@@ -1,3 +1,4 @@
+import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./currentPrice.ts";
 import {
   currentListingTicker,
   currentOwnershipTicker,
@@ -8,7 +9,6 @@ import {
   type MonitorFactReaders,
 } from "../listingMonitorMatcher.ts";
 import {
-  unavailableCurrentPrice,
   type CurrentPrice,
 } from "../market-data/marketDataProvider.ts";
 import { getReadyMonitorCondition } from "./conditionRegistry.ts";
@@ -72,6 +72,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
   readSecAmendmentCurrentState?(eventId: string): Promise<SecAmendmentMonitorCurrentState>;
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
+  currentPriceProjectionReaders?: MonitorCurrentPriceProjectionReaders;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
   createAlert(input: Readonly<{
     eventId: string;
@@ -175,16 +176,12 @@ export async function consumeListingMonitorAlertsForEvent(
         currentEventId,
         dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
       );
-    if (!symbol) {
-      currentPrice = unavailableCurrentPrice(symbol);
-    } else {
-      try {
-        currentPrice = await (dependencies.readCurrentPrice
-          ?? defaultDependencies.readCurrentPrice!)(symbol);
-      } catch {
-        currentPrice = unavailableCurrentPrice(symbol);
-      }
-    }
+    currentPrice = await readMonitorCurrentPrice({
+      eventId: currentEventId, historicalTicker: symbol, ownership: readers.ownership,
+    }, {
+      readCurrentPrice: dependencies.readCurrentPrice ?? defaultDependencies.readCurrentPrice!,
+      projectionReaders: dependencies.currentPriceProjectionReaders,
+    });
   }
   const evaluations = listingMonitors.monitors.map((monitor) => ({
     monitor,

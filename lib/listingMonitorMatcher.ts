@@ -1,3 +1,4 @@
+import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import {
   readCurrentListingRiskFacts,
   type CurrentListingRiskReadResult,
@@ -18,7 +19,6 @@ import {
   type MonitorConditionOperator,
 } from "./monitor/conditionRegistry.ts";
 import {
-  unavailableCurrentPrice,
   type CurrentPrice,
 } from "./market-data/marketDataProvider.ts";
 
@@ -87,6 +87,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
   readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
+  currentPriceProjectionReaders?: MonitorCurrentPriceProjectionReaders;
   now?(): Date;
 }>;
 
@@ -235,16 +236,12 @@ export async function evaluateListingMonitorEvent(
         input.eventId,
         dependencies.readEventTicker ?? defaultDependencies.readEventTicker!,
       );
-    if (!symbol) {
-      currentPrice = unavailableCurrentPrice(symbol);
-    } else {
-      try {
-        currentPrice = await (dependencies.readCurrentPrice
-          ?? defaultDependencies.readCurrentPrice!)(symbol);
-      } catch {
-        currentPrice = unavailableCurrentPrice(symbol);
-      }
-    }
+    currentPrice = await readMonitorCurrentPrice({
+      eventId: input.eventId, historicalTicker: symbol, ownership: readers.ownership,
+    }, {
+      readCurrentPrice: dependencies.readCurrentPrice ?? defaultDependencies.readCurrentPrice!,
+      projectionReaders: dependencies.currentPriceProjectionReaders,
+    });
   }
   return {
     version: LISTING_MONITOR_MATCHER_VERSION,
