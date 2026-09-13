@@ -16,6 +16,7 @@ test("admin resolution page uses system.read and the official validated reader",
   assert.match(adminPage, /listSecTickerResolutions/);
   assert.match(adminPage, /readSecTickerResolutionByDecisionId/);
   assert.match(adminPage, /Read only/);
+  assert.match(adminPage, /<form[^>]+key=\{filterHref\(\{ query, state \}\)\}/);
   assert.doesNotMatch(adminPage, /export async function (POST|PUT|PATCH|DELETE)/);
 });
 
