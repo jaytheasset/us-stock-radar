@@ -78,7 +78,22 @@ export type AdminNavigationItem = {
   label: string;
   permission: AdminPermission;
   status?: "coming-next";
+  children?: readonly AdminNavigationItem[];
 };
+
+export const ADMIN_DATA_NAVIGATION: readonly AdminNavigationItem[] = [
+  { href: "/admin/data", label: "Data overview", permission: "data.read" },
+  { href: "/admin/data/form25-identity", label: "Form 25 Identity Review", permission: "system.read" },
+  { href: "/admin/data/form25-analysis", label: "Form 25 Analysis Review", permission: "system.read" },
+  { href: "/admin/data/ticker-resolution", label: "SEC ticker resolution", permission: "system.read" },
+  { href: "/admin/data/dilution-registry", label: "Dilution Registry", permission: "data.read" },
+  { href: "/admin/db", label: "Database", permission: "data.read" },
+  { href: "/admin/sources", label: "Sources", permission: "data.read" },
+  { href: "/admin/news-ingest", label: "News ingest", permission: "data.read" },
+  { href: "/admin/prompts", label: "Prompts", permission: "data.read" },
+  { href: "/admin/event-types", label: "Event types", permission: "data.read" },
+  { href: "/admin/taxonomy", label: "Taxonomy", permission: "data.read" },
+];
 
 export const ADMIN_NAVIGATION: readonly AdminNavigationItem[] = [
   { href: "/admin", label: "Overview", permission: "overview.read" },
@@ -107,7 +122,7 @@ export const ADMIN_NAVIGATION: readonly AdminNavigationItem[] = [
     label: "Verifications",
     permission: "verifications.read",
   },
-  { href: "/admin/data", label: "Data Operations", permission: "data.read" },
+  { href: "/admin/data", label: "Data Operations", permission: "data.read", children: ADMIN_DATA_NAVIGATION },
   {
     href: "/admin/alerts",
     label: "Alerts",
@@ -150,7 +165,16 @@ export function rolesHavePermission(
 export function visibleAdminNavigation(roles: readonly AdminRole[]) {
   return ADMIN_NAVIGATION.filter((item) =>
     rolesHavePermission(roles, item.permission),
-  );
+  ).map((item) => item.children ? {
+    ...item,
+    children: item.children.filter((child) => rolesHavePermission(roles, child.permission)),
+  } : item);
+}
+
+export function isAdminNavigationActive(pathname: string, href: string) {
+  return href === "/admin" || href === "/admin/data"
+    ? pathname === href
+    : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function adminRoleLabel(role: AdminRole) {

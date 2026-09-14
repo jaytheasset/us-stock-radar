@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  ADMIN_DATA_NAVIGATION,
+  ADMIN_ROLES,
+  isAdminNavigationActive,
   rolesHavePermission,
   visibleAdminNavigation,
 } from "./policy.ts";
@@ -84,6 +87,51 @@ const legacyAdminPages = [
   "app/admin/sources/page.tsx",
   "app/admin/taxonomy/page.tsx",
 ].map(read);
+
+test("data submenu retains existing direct routes and both Form 25 review tools", () => {
+  assert.deepEqual(ADMIN_DATA_NAVIGATION.map((item) => item.href), [
+    "/admin/data",
+    "/admin/data/form25-identity",
+    "/admin/data/form25-analysis",
+    "/admin/data/ticker-resolution",
+    "/admin/data/dilution-registry",
+    "/admin/db",
+    "/admin/sources",
+    "/admin/news-ingest",
+    "/admin/prompts",
+    "/admin/event-types",
+    "/admin/taxonomy",
+  ]);
+  for (const item of ADMIN_DATA_NAVIGATION) {
+    assert.ok(read(`app${item.href}/page.tsx`));
+  }
+});
+
+test("data submenu is available only to existing operations and super admin roles", () => {
+  for (const role of ADMIN_ROLES) {
+    const submenu = visibleAdminNavigation([role]).find((item) => item.href === "/admin/data");
+    if (role === "operations" || role === "super_admin") {
+      assert.deepEqual(submenu?.children, ADMIN_DATA_NAVIGATION);
+      for (const child of submenu?.children ?? []) {
+        assert.equal(rolesHavePermission([role], child.permission), true);
+      }
+    } else {
+      assert.equal(submenu, undefined);
+    }
+  }
+  assert.deepEqual(visibleAdminNavigation([]), []);
+});
+
+test("data overview is exact while nested tool routes preserve their active parent", () => {
+  assert.equal(isAdminNavigationActive("/admin/data", "/admin/data"), true);
+  assert.equal(isAdminNavigationActive("/admin/data/form25-analysis", "/admin/data"), false);
+  assert.equal(isAdminNavigationActive("/admin/data/form25-analysis", "/admin/data/form25-analysis"), true);
+  assert.equal(isAdminNavigationActive("/admin/data/form25-analysis", "/admin/data/form25-identity"), false);
+  assert.equal(isAdminNavigationActive("/admin/prompts/news-event-test", "/admin/prompts"), true);
+  assert.equal(isAdminNavigationActive("/admin/database", "/admin/data"), false);
+  assert.equal(isAdminNavigationActive("/admin/users", "/admin"), false);
+  assert.equal(isAdminNavigationActive("/admin/users/user-id", "/admin/users"), true);
+});
 const v2AdminPages = [
   "app/admin/alerts/page.tsx",
   "app/admin/audit/page.tsx",

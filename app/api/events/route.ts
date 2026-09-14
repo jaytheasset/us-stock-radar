@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchEvents } from "@/lib/supabase";
+import { readForm25StockEventView, type Form25StockEventFilters } from "@/lib/sec-form25-identity/stockEvents";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   const signal = normalizeSignal(searchParams.get("signal"));
   const includeArchive = searchParams.get("include_archive") === "true";
 
-  const result = await fetchEvents({
+  const filters: Form25StockEventFilters = {
     limit,
     ticker,
     impact,
@@ -25,7 +26,14 @@ export async function GET(request: NextRequest) {
     deliveryLevel,
     excludeDeliveryLevel: deliveryLevel || includeArchive ? undefined : "archive",
     signal,
-  });
+  };
+  const result = await fetchEvents(filters);
+  if (ticker && result.ok) {
+    const view = await readForm25StockEventView(filters, result.data);
+    if (view.status === "unavailable") return NextResponse.json({ ...result, ok: false, data: [], count: 0, total: null, error: view.reason }, { status: 503 });
+    const unchanged = view.data.length === result.data.length && view.data.every((row, index) => row === result.data[index]);
+    return NextResponse.json({ ...result, data: view.data, count: view.data.length, total: unchanged ? result.total : null });
+  }
 
   return NextResponse.json(result, {
     status: result.ok ? 200 : result.status || 502,

@@ -1,5 +1,6 @@
 import "server-only";
 import { readSecForm25EventIdentity } from "@/lib/sec-form25-identity/consumption";
+import { readForm25AnalysisReviewForConsumer, form25AnalysisAllowsPrimaryAlert } from "@/lib/sec-form25-analysis-review/consumer";
 
 import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
 import { fetchEventById, fetchEventTickers } from "@/lib/supabase";
@@ -41,6 +42,10 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   const row = eventResult.data as DbRow;
   const identity = await readSecForm25EventIdentity(row);
   if (identity.status === "blocked") return { ok: false, error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
+  if (identity.status === "available") {
+    const review = await readForm25AnalysisReviewForConsumer(normalizedEventId);
+    if (!form25AnalysisAllowsPrimaryAlert(review)) return { ok: false, error: "FORM25_ANALYSIS_REVIEW_BLOCKED" };
+  }
   const eventMetadata = readRecord(row.metadata);
   const canonical = resolveCanonicalEventFields(row);
   const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];

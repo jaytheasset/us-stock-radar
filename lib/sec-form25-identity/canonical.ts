@@ -4,7 +4,7 @@ import { classifySecurity } from "../sec-ticker-resolution/canonical.ts";
 
 export const FORM25_IDENTITY_VERSION = "sec_form25_subject_identity_v1";
 export const SEC_TICKER_CATALOG = "https://www.sec.gov/files/company_tickers_exchange.json";
-export type IdentityCandidate = { ticker: string; exchange: string | null; cik: string; source: string; accession?: string; security?: string; context?: string; sourceSha256?: string };
+export type IdentityCandidate = { ticker: string; exchange: string | null; cik: string; source: string; accession?: string; security?: string; context?: string; sourceSha256?: string; sourceRawItemId?: string; extractionMethod?: string };
 export type Form25IdentityEvidence = {
   version: string; accession: string | null; subjectCik: string | null; issuerName: string | null;
   filedByCik: string | null; security: string | null; exchange: string | null; sourceUrl: string | null;

@@ -10,6 +10,8 @@ import {
 import { getDirectionalScoreTone } from "@/lib/directionalScore";
 import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import { getLiveEventDetail, type LiveFeedItem } from "@/lib/liveFeed";
+import { form25AnalysisReviewNotice, readForm25AnalysisReviewForConsumer, type Form25AnalysisReviewRead } from "@/lib/sec-form25-analysis-review/consumer";
+import { REVIEW_FIELDS, REVIEW_FIELD_LABELS } from "@/lib/sec-form25-analysis-review/contract";
 import { readStoredFilingSourceContent } from "@/lib/originalSourceContent";
 import { selectRelatedFilingRows } from "@/lib/relatedFilings";
 import { fetchEventAnalysis, fetchEventById, fetchEventTickers, fetchEventsByTicker, supabaseSelect } from "@/lib/supabase";
@@ -177,6 +179,7 @@ type FilingEvent = {
   originalHtml: string;
   listingFinancialRiskSnapshot?: ListingFinancialRiskSnapshotData | null;
   form25ListingStatus?: Form25ListingStatusData | null;
+  form25AnalysisReview?: Form25AnalysisReviewRead | null;
   strategicTransactionSnapshot?: StrategicTransactionSnapshotData | null;
   form425TransactionSnapshot?: StrategicTransactionSnapshotData | null;
   governanceEvent?: GovernanceEventData | null;
@@ -4257,6 +4260,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   const dilutionModel = filing.eventType === "dilution_risk" ? buildDilutionOfferingModel(filing) : null;
   const listingFinancialRiskSnapshot = buildListingFinancialRiskSnapshot(filing);
   const form25ListingStatus = filing.form25ListingStatus || null;
+  const form25Review = filing.form25AnalysisReview;
+  const form25ReviewNotice = form25AnalysisReviewNotice(form25Review);
   const strategicTransactionSnapshot = filing.strategicTransactionSnapshot || null;
   const form425TransactionSnapshot = filing.form425TransactionSnapshot || null;
   const governanceEvent = filing.governanceEvent || null;
@@ -4337,6 +4342,27 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
         activeNavigationItem="filings"
         themeMode="user-selectable"
       >
+        {form25ReviewNotice && form25Review ? (
+          <div className="mb-5 space-y-3">
+              <section className="min-w-0 space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4" aria-label="Form 25 reviewed facts">
+                <h3 className="font-semibold">Form 25 human review: {form25Review.reviewState}</h3>
+                <p className="text-sm">{form25ReviewNotice}</p>
+                <p className="break-words text-xs">Revision {form25Review.revision ?? 0}{form25Review.decisionTime ? ` · ${form25Review.decisionTime}` : ""}</p>
+                <dl className="space-y-3 text-sm">
+                  {REVIEW_FIELDS.map(field => {
+                    const correction = form25Review.corrections?.[field];
+                    const source = form25Review.sourceEvidence?.find(entry => entry.id === correction?.sourceRef);
+                    return <div className="min-w-0 break-words" key={field}><dt className="font-medium">{REVIEW_FIELD_LABELS[field]}</dt>
+                      <dd>{correction?.availability === "available" ? correction.value : correction ? "Unavailable" : form25Review.reviewState === "HUMAN_CORRECTED" && !form25Review.baseAnalysisRequiresReview ? "No human correction; original value retained" : "Unavailable pending review"}{correction?.dateStatus ? ` (${correction.dateStatus})` : ""}</dd>
+                      {source ? <dd className="text-xs">{source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="underline">SEC evidence: {source.label}</a> : `Evidence: ${source.label}`}</dd> : null}
+                    </div>;
+                  })}
+                </dl>
+              </section>
+
+            <p className="text-sm font-semibold">Original AI article below: retained, not rewritten by Human review</p>
+          </div>
+        ) : null}
         <GenericFilingAnalysis
           allowAds={allowAds}
           bodyRenderer={
@@ -4379,7 +4405,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             ) : filing.financingDilution ? (
               <FinancingDilutionSnapshot data={filing.financingDilution} />
             ) : form25ListingStatus ? (
-              <ListingFinancialRiskSnapshot snapshot={form25ListingStatus.snapshot} />
+              form25ReviewNotice ? <details className="rounded-lg border p-3"><summary>Original AI snapshot (retained)</summary><ListingFinancialRiskSnapshot snapshot={form25ListingStatus.snapshot} /></details>
+                : <ListingFinancialRiskSnapshot snapshot={form25ListingStatus.snapshot} />
             ) : listingFinancialRiskSnapshot ? (
               <ListingFinancialRiskSnapshot snapshot={listingFinancialRiskSnapshot} />
             ) : strategicTransactionSnapshot ? (
@@ -4671,6 +4698,7 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
   const eventRow = toRecord(eventResult.data);
   const { readSecForm25EventIdentity } = await import("@/lib/sec-form25-identity/consumption");
   const form25Identity = await readSecForm25EventIdentity(eventRow || item.id);
+  const form25AnalysisReview = form25Identity.status === "not_applicable" ? null : await readForm25AnalysisReviewForConsumer(item.id);
   const tickerLinkRows = form25Identity.status === "not_applicable"
     ? toRows(tickerLinksResult.data) : [];
   const primaryTickerLink = tickerLinkRows.find((row) => readRowString(row, "role") === "primary") || tickerLinkRows[0];
@@ -4862,6 +4890,7 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     originalHtml,
     listingFinancialRiskSnapshot,
     form25ListingStatus,
+    form25AnalysisReview,
     form425TransactionSnapshot,
     governanceEvent,
     operatingEvent,
