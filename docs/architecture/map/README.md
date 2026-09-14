@@ -52,6 +52,10 @@ Architecture Map은 합의한 서비스 모델과 앞으로 확인할 실제 구
 - [01b Primary Analysis — News](01b-news-primary.md) — `VERIFIED AS-IS`: 3단계-B의 VERIFIED CODE. 뉴스 저장 표본·production 활성화·E2E는 UNKNOWN.
 - [01c Primary Analysis — Overview](01c-primary-overview.md) — SEC·News 상위 지도: 별도 처리 경로와 확인된 공유 계층, 검증 범위 구분.
 - [02 Structured Data — Domain Inventory](02-structured-data-overview.md) — 코드에서 확인한 도메인 목록과 감사 경계. 전체 production 연결·DB/E2E는 UNKNOWN.
+- [03 Ownership — Form 4/144](03-ownership-form4-144.md) — `VERIFIED AS-IS`: CODE/WIRED + DB 구조 확인. 실제 저장 표본·제품 경로·E2E는 UNKNOWN.
+- [03b Ownership — Form 3/5](03b-ownership-form3-5.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. accession 이력·lineage와 수동 Matcher; 실제 저장·제품 E2E는 UNKNOWN.
+- [03c Ownership — SC13](03c-ownership-sc13.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. 신고인별 저장·current projection·종목 상세·내부 Monitor Alert; 실제 저장·제품 E2E는 UNKNOWN.
+- [03d Ownership — Overview](03d-ownership-overview.md) — 세 family의 독립 저장·reader·consumer 상위 지도. 개념적 공통점과 CODE/WIRED·NOT WIRED·UNKNOWN 구분.
 
 향후 조사 placeholder는 **목록만** 예약한다. 아래 파일은 아직 생성하지 않았으며 내용과 실제 연결은 모두 `UNKNOWN / TO AUDIT`이다. 번호는 인덱스 순서이며 구현·의존 순서가 아니다.
 
