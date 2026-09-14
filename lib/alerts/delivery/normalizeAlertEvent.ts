@@ -1,4 +1,5 @@
 import "server-only";
+import { readSecForm25EventIdentity } from "@/lib/sec-form25-identity/consumption";
 
 import { resolveCanonicalEventFields } from "@/lib/eventFieldMapping";
 import { fetchEventById, fetchEventTickers } from "@/lib/supabase";
@@ -38,12 +39,14 @@ export async function normalizeAlertEvent(eventId: string): Promise<
   }
 
   const row = eventResult.data as DbRow;
+  const identity = await readSecForm25EventIdentity(row);
+  if (identity.status === "blocked") return { ok: false, error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
   const eventMetadata = readRecord(row.metadata);
   const canonical = resolveCanonicalEventFields(row);
   const tickerRows = Array.isArray(tickersResult.data) ? (tickersResult.data as EventTickerRow[]) : [];
   const { primaryTicker, tickers } = normalizeStoredAlertTickers(
-    row.ticker,
-    tickerRows,
+    identity.status === "available" ? identity.ticker : row.ticker,
+    identity.status === "available" ? [] : tickerRows,
   );
   const category = normalizeCategory(readString(row.event_type));
   const sourceType = normalizeSourceType(canonical.sourceGroup);

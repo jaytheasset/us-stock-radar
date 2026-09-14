@@ -3,12 +3,17 @@ import { supabaseSelect } from "../../supabase.ts";
 import { normalizeAlertEvent } from "./normalizeAlertEvent.ts";
 import { createAlertTickerMatcher, parseAlertTickerMatch, survivingAlertTickerBindings } from "./tickerSubscriptionMatch.ts";
 import type { QueuedAlertDeliveryRow } from "./types.ts";
+import { readSecForm25EventIdentity } from "../../sec-form25-identity/consumption.ts";
 
 // Called after owning a channel and immediately before its irreversible send/visibility step.
 // This is a fresh read boundary, not a transaction with Human decisions or the provider.
 export async function revalidateTickerDelivery(row: QueuedAlertDeliveryRow): Promise<{
   ok: boolean; savedTickers?: string[]; error?: string;
 }> {
+  if (row.alert_event_id) {
+    const identity = await readSecForm25EventIdentity(row.alert_event_id);
+    if (identity.status === "blocked") return { ok: false, savedTickers: [], error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
+  }
   if (row.alert_lane !== "watchlist" || row.ticker_match == null) return { ok: true, savedTickers: undefined };
   const provenance = parseAlertTickerMatch(row.ticker_match);
   const blocked = { ok: false, savedTickers: [] as string[], error: "TICKER_SUBSCRIPTION_MATCH_INVALIDATED" };

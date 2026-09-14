@@ -457,7 +457,7 @@ function usableCoverObservations(rows: readonly VerifiedSecCoverObservation[]) {
     && Boolean(row.exchange?.trim()));
 }
 
-function classifySecurity(title: string): ClassifiedSecurity | null {
+export function classifySecurity(title: string): ClassifiedSecurity | null {
   const normalizedTitle = normalizeSecurityTitle(title);
   if (/\bwarrants?\b/.test(normalizedTitle) || /\bpreferred\b/.test(normalizedTitle)) return null;
   const classMatch = normalizedTitle.match(/\bclass\s+([a-z0-9-]+)\b/);

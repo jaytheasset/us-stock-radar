@@ -123,14 +123,18 @@ async function runDelivery(id, options) {
 async function normalizeEvent(id) {
   const event = await fetchOne("events", { id: `eq.${id}` });
   if (!event) return { ok: false, error: `Event not found: ${id}` };
+  const identity = await runtime.readSecForm25EventIdentity(event);
+  if (identity.status === "blocked") return { ok: false, error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
 
   const tickerRows = await fetchRows("event_tickers", {
     event_id: `eq.${id}`,
     order: "sort_order.asc",
     limit: "50",
   });
-  const tickers = uniqueTickers([...tickerRows.map((row) => row.symbol), event.ticker]);
+  const tickers = identity.status === "available" ? [identity.ticker]
+    : uniqueTickers([...tickerRows.map((row) => row.symbol), event.ticker]);
   const primaryTicker =
+    identity.ticker ||
     uniqueTickers(tickerRows.filter((row) => row.role === "primary").map((row) => row.symbol))[0] ||
     normalizeTicker(event.ticker) ||
     tickers[0];

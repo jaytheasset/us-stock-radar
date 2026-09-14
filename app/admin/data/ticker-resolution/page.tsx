@@ -47,6 +47,7 @@ export default async function AdminTickerResolutionPage({
         <div>
           <span className={styles.eyebrow}>SEC data integrity</span>
           <h1>Ticker resolution</h1>
+          <Link href="/admin/data/form25-identity">Form 25 ticker identity review</Link>
           <p>
             Validated, append-only relationships from retained SEC cover observations and
             exact filing evidence. Human actions are separate append-only events; automatic

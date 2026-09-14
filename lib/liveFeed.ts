@@ -25,6 +25,9 @@ import { resolveLiveFeedSource } from "@/lib/liveFeedSource";
 import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
+import { readStoredSecForm25EventIdentity } from "@/lib/sec-form25-identity/consumption";
+
+const form25IdentityViews = new WeakSet<object>();
 
 export type FeedTone = "bullish" | "bearish" | "volatile" | "neutral";
 export type SourceGroup = "news" | "filings" | "market";
@@ -176,7 +179,8 @@ export async function getLiveFeedViewModel(params: LiveFeedViewModelParams) {
 
   const promise = buildLiveFeedViewModel(params)
     .then((data) => {
-      liveFeedViewModelCache.set(cacheKey, {
+      if (form25IdentityViews.has(data)) liveFeedViewModelCache.delete(cacheKey);
+      else liveFeedViewModelCache.set(cacheKey, {
         data,
         expiresAt: Date.now() + liveFeedViewModelTtlMs,
       });
@@ -216,14 +220,15 @@ async function buildLiveFeedViewModel({
     includeSharedData ? fetchSharedFeedData() : Promise.resolve(emptySharedFeedData()),
   ]);
 
-  const feedRows = toRows(feedResult.data);
+  const feedRows = await readForm25IdentityRows(toRows(feedResult.data));
   const {
-    alertFilingRows,
+    alertFilingRows: storedAlertFilingRows,
     highImpactNewsRows,
     marketMovingRows,
     marketPulseItems,
     situationCards,
   } = sharedFeedData;
+  const alertFilingRows = await readForm25IdentityRows(storedAlertFilingRows);
   const rankedRows = [...highImpactNewsRows, ...alertFilingRows];
   const [charts, groupSnapshots, previewContext] = await Promise.all([
     includeCharts === false ? Promise.resolve(new Map<string, ChartResult>()) : fetchChartMap(feedRows),
@@ -241,7 +246,7 @@ async function buildLiveFeedViewModel({
   const highImpactNewsItems = highImpactNewsRows.map((row) => mapEventRow(row, quotes));
   const alertFilingItems = alertFilingRows.map((row) => mapEventRow(row, quotes));
 
-  return {
+  const view = {
     ok: feedResult.ok,
     error: feedResult.error,
     page,
@@ -259,6 +264,10 @@ async function buildLiveFeedViewModel({
     marketPulseItems,
     situationCards,
   };
+  if ([...feedRows, ...alertFilingRows].some(row => readStoredSecForm25EventIdentity(row).status !== "not_applicable")) {
+    form25IdentityViews.add(view);
+  }
+  return view;
 }
 
 function emptySharedFeedData(): SharedFeedData {
@@ -315,7 +324,7 @@ async function fetchSharedFeedData(): Promise<SharedFeedData> {
 
 export async function getRankingViewModel(sourceGroup: "news" | "filings") {
   const result = await fetchEvents({ page: 1, limit: 100, excludeDeliveryLevel: "archive" });
-  const rows = toRows(result.data);
+  const rows = await readForm25IdentityRows(toRows(result.data));
   const quotes = await fetchQuoteMap(rows);
   const items = rows
     .map((row) => mapEventRow(row, quotes))
@@ -337,7 +346,8 @@ export async function getRankingViewModel(sourceGroup: "news" | "filings") {
 
 export async function getLiveEventDetail(id: string) {
   const result = await fetchEventById(id);
-  const row = result.data && typeof result.data === "object" ? (result.data as DbEventRow) : null;
+  const storedRow = result.data && typeof result.data === "object" ? (result.data as DbEventRow) : null;
+  const row = storedRow ? (await readForm25IdentityRows([storedRow]))[0] : null;
 
   if (!row) {
     return {
@@ -356,6 +366,19 @@ export async function getLiveEventDetail(id: string) {
   };
 }
 
+// Read-time projection only: neither legacy event identity nor analysis is rewritten.
+async function readForm25IdentityRows(rows: DbEventRow[]): Promise<DbEventRow[]> {
+  return Promise.all(rows.map(async row => {
+    if (readStoredSecForm25EventIdentity(row).status === "not_applicable") return row;
+    const rawItemId = readString(row, ["raw_item_id"]);
+    const identity = rawItemId
+      ? await (await import("@/lib/sec-form25-identity/persistence")).readEffectiveSecForm25Identity({ rawItemId })
+        .catch(() => ({ status: "unavailable", ticker: null, exchange: null, reason: "identity_reader_unavailable" }))
+      : { status: "unavailable", ticker: null, exchange: null, reason: "raw_identity_unavailable" };
+    return { ...row, metadata: { ...(readMetadataRecord(row) || {}), form25_ticker_identity: identity } };
+  }));
+}
+
 function mapEventRow(
   row: DbEventRow,
   quotes: Map<string, QuoteRow>,
@@ -367,8 +390,11 @@ function mapEventRow(
   const rawItemId = readString(row, ["raw_item_id"]);
   const analysis = previewContext?.analyses.get(id);
   const rawItem = previewContext?.rawItems.get(rawItemId);
-  const ticker = readString(row, ["ticker", "symbol"]) || "N/A";
-  const relatedTickers = previewContext?.relatedTickers.get(id) || [];
+  const form25Identity = readStoredSecForm25EventIdentity(row);
+  const ticker = (form25Identity.status === "not_applicable"
+    ? readString(row, ["ticker", "symbol"]) : form25Identity.ticker) || "N/A";
+  const relatedTickers = form25Identity.status === "not_applicable"
+    ? previewContext?.relatedTickers.get(id) || [] : [];
   const quoteSymbol = resolveEventQuoteSymbol(row, relatedTickers);
   const quote = quotes.get(quoteSymbol);
   const chart = charts.get(ticker.toUpperCase());
@@ -921,6 +947,8 @@ async function fetchChartMap(rows: DbEventRow[]) {
         .map((row) => {
           const canonical = resolveCanonicalEventFields(row);
           if (canonical.marketScope !== "company") return "";
+          const identity = readStoredSecForm25EventIdentity(row);
+          if (identity.status !== "not_applicable") return identity.ticker || "";
           return readString(row, ["ticker", "symbol"]).toUpperCase();
         })
         .filter((ticker) => ticker && ticker !== "N/A")
@@ -972,6 +1000,8 @@ function resolveEventQuoteSymbol(
   row: DbEventRow,
   relatedTickers: LiveFeedItem["relatedTickers"] = [],
 ) {
+  const form25Identity = readStoredSecForm25EventIdentity(row);
+  if (form25Identity.status !== "not_applicable") return form25Identity.ticker || "";
   const candidates = [
     readString(row, ["ticker", "symbol"]),
     ...relatedTickers.map((item) => item.ticker),

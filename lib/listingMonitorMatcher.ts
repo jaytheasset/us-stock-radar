@@ -1,4 +1,5 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
+import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import {
   readCurrentListingRiskFacts,
   type CurrentListingRiskReadResult,
@@ -82,6 +83,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
   readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
@@ -98,6 +100,7 @@ export type MonitorFactReaders = Readonly<{
 }>;
 
 const defaultDependencies: ListingMonitorMatcherDependencies = {
+  readEventIdentity: readSecForm25EventIdentity,
   readFacts: readCurrentListingRiskFacts,
   readCorporateActionFacts: readCurrentCorporateActionFacts,
   readOwnershipFacts: readCurrentOwnershipFacts,
@@ -192,6 +195,17 @@ export async function evaluateListingMonitorEvent(
   }>,
   dependencies: ListingMonitorMatcherDependencies = defaultDependencies,
 ): Promise<ListingMonitorEventMatchResult> {
+  const identity = dependencies.readEventIdentity
+    ? await safeReadMonitorEventIdentity(input.eventId, dependencies.readEventIdentity)
+    : null;
+  if (identity?.status === "blocked") return {
+    version: LISTING_MONITOR_MATCHER_VERSION, eventId: input.eventId,
+    evaluationDate: input.evaluationDate,
+    evaluations: input.conditionSets.map((set) => ({ id: set.id, result: {
+      version: LISTING_MONITOR_MATCHER_VERSION, status: "ineligible", reasonCode: "reader_not_ready",
+      readerReason: identity.reason, conditions: [],
+    } })),
+  };
   const conditions = input.conditionSets.flatMap((set) => set.conditions);
   const listingRequested = conditions.some((condition) => conditionUsesReader(
     condition,
@@ -230,7 +244,7 @@ export async function evaluateListingMonitorEvent(
   const priceRequested = conditions.some(isCurrentPriceCondition);
   let currentPrice: CurrentPrice | undefined;
   if (priceRequested) {
-    const symbol = currentListingTicker(readers.listing)
+    const symbol = identity?.ticker || currentListingTicker(readers.listing)
       || currentOwnershipTicker(readers.ownership)
       || await safeReadEventTicker(
         input.eventId,
@@ -256,6 +270,14 @@ export async function evaluateListingMonitorEvent(
       }),
     })),
   };
+}
+
+export async function safeReadMonitorEventIdentity(
+  eventId: string, reader: (eventId: string) => Promise<Form25IdentityGate>,
+): Promise<Form25IdentityGate> {
+  try { return await reader(eventId); } catch {
+    return { status: "blocked", ticker: null, exchange: null, reason: "form25_identity_reader_unavailable" };
+  }
 }
 
 function evaluateCondition(

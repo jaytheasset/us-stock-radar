@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ensureSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
 import {
   evaluateSecInvestableUniverse,
   type SecInvestableUniverseGateResult,
@@ -57,6 +58,7 @@ type SecRawIngestDependencies = {
   recordCoverState?: typeof recordSecCoverObservationPersistenceState;
   resolveCoverTickerChange?: typeof runSecTickerResolutionAutomaticTrigger;
   evaluateForm25Delisting?: typeof runForm25DelistingAutomaticTrigger;
+  evaluateForm25Identity?: typeof ensureSecForm25Identity;
 };
 
 export async function runSecRawIngest(
@@ -73,6 +75,7 @@ export async function runSecRawIngest(
     recordCoverState: dependencies.recordCoverState ?? recordSecCoverObservationPersistenceState,
     resolveCoverTickerChange: dependencies.resolveCoverTickerChange ?? runSecTickerResolutionAutomaticTrigger,
     evaluateForm25Delisting: dependencies.evaluateForm25Delisting ?? runForm25DelistingAutomaticTrigger,
+    evaluateForm25Identity: dependencies.evaluateForm25Identity ?? ensureSecForm25Identity,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -80,6 +83,7 @@ export async function runSecRawIngest(
   const startedAt = new Date().toISOString();
   const sourceRunMetadata = workflowSourceRunMetadata(options.sourceRun);
   const form25DelistingRecords: Form25DelistingRunRecord[] = [];
+  const form25IdentityRecords: Array<Record<string, unknown>> = [];
   const items: Array<Record<string, unknown>> = [];
   const stats = {
     checked_count: 0,
@@ -113,6 +117,13 @@ export async function runSecRawIngest(
   async function evaluateForm25AfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     const formType = stringValue(readNested(rawItem.raw_payload, "form_type")).toUpperCase().replace(/\s+/g, "");
     if (!(SEC_FORM25_FORMS as readonly string[]).includes(formType)) return { status: "not_applicable" as const };
+    // Identity review is independent of the delisting reader and first analysis.
+    try {
+      const identity = await runtime.evaluateForm25Identity({ rawItemId });
+      form25IdentityRecords.push({ rawItemId, ...identity });
+    } catch {
+      form25IdentityRecords.push({ rawItemId, status: "unavailable", reason: "identity_trigger_failed" });
+    }
     const request = { rawItemId, accession: stringValue(rawItem.source_unique_id), asOf: startedAt.slice(0, 10) };
     let outcome: Form25DelistingRunRecord;
     try { outcome = await runtime.evaluateForm25Delisting(request); }
@@ -128,6 +139,7 @@ export async function runSecRawIngest(
 
   const completedRunMetadata = () => ({ ...sourceRunMetadata,
     ...(form25DelistingRecords.length ? { form25_delisting: form25DelistingRecords } : {}),
+    ...(form25IdentityRecords.length ? { form25_ticker_identity: form25IdentityRecords } : {}),
   });
 
   if (!dryRun) {
