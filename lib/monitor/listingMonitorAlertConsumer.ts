@@ -1,9 +1,11 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./currentPrice.ts";
+import { readSecForm25EventIdentity, type Form25IdentityGate } from "../sec-form25-identity/consumption.ts";
 import {
   currentListingTicker,
   currentOwnershipTicker,
   evaluateMonitorConditions,
   readMonitorEventTicker,
+  safeReadMonitorEventIdentity,
   type ListingMonitorMatchReasonCode,
   type ListingMonitorMatchStatus,
   type MonitorFactReaders,
@@ -66,6 +68,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
+  readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
   readOwnershipFacts?(eventId: string): Promise<CurrentOwnershipReadResult>;
@@ -85,6 +88,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
 }>;
 
 const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
+  readEventIdentity: readSecForm25EventIdentity,
   readFacts: readCurrentListingRiskFacts,
   readCorporateActionFacts: readCurrentCorporateActionFacts,
   readOwnershipFacts: readCurrentOwnershipFacts,
@@ -110,6 +114,9 @@ export async function consumeListingMonitorAlertsForEvent(
 ): Promise<ListingMonitorAlertConsumerResult> {
   const listingMonitors = await dependencies.listActiveMonitors();
   const currentEventId = input.alertEventId || input.eventId;
+  const identity = dependencies.readEventIdentity
+    ? await safeReadMonitorEventIdentity(currentEventId, dependencies.readEventIdentity)
+    : null;
   const amendmentState = dependencies.readSecAmendmentCurrentState
     ? await safeReadSecAmendmentCurrentState(currentEventId, dependencies.readSecAmendmentCurrentState)
     : { status: "not_applicable" as const };
@@ -123,8 +130,8 @@ export async function consumeListingMonitorAlertsForEvent(
   const ownershipRequested = allConditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_ownership_facts"
   ));
-  const amendmentBlocked = amendmentState.status === "blocked";
-  const amendmentBlockReason = amendmentBlocked
+  const amendmentBlocked = identity?.status === "blocked" || amendmentState.status === "blocked";
+  const amendmentBlockReason = identity?.status === "blocked" ? identity.reason : amendmentState.status === "blocked"
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
@@ -169,8 +176,8 @@ export async function consumeListingMonitorAlertsForEvent(
     ))
   ));
   let currentPrice: CurrentPrice | undefined;
-  if (priceRequested) {
-    const symbol = currentListingTicker(readers.listing)
+  if (priceRequested && identity?.status !== "blocked") {
+    const symbol = identity?.ticker || currentListingTicker(readers.listing)
       || currentOwnershipTicker(readers.ownership)
       || await safeReadTicker(
         currentEventId,

@@ -21,6 +21,7 @@ import {
   type SecTickerSelectionRow,
 } from "@/lib/sources/sec/sourceTickerSelection";
 import { secFetch } from "./secFetch";
+import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form25-identity/canonical";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -299,7 +300,22 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           })
         : ownershipIssuer;
       const issuerCusips = extractIssuerCusips([ownershipSource?.rawText, primary?.rawHtml, primary?.rawText, primary?.text, bodyText]);
-      const tickerResolution = isSchedule13FormType(formType)
+      const form25Identity = /^25(?:-NSE)?(?:\/A)?$/i.test(formType || "")
+        ? buildForm25IdentityEvidence({ source_unique_id: identity.accessionNumber, source_url: detailUrl,
+            title: entry.title, body_text: bodyText, analysis_text: bodyText,
+            raw_payload: { form_type: formType, cik: identity.cik, company_name: detail.companyName,
+              form25_index_subject_cik: detail.sc13IndexProvenance?.subjectCik,
+              form25_index_subject_cik_count: detail.sc13IndexProvenance?.subjectCikCount,
+              attachment_texts: detail.documents.filter(document => !document.isPrimary && document.text)
+                .map(document => ({ type: document.type, text: document.text })) } },
+            { rows: Array.from(tickerLookup.values()).flat().map(row => ({ ...row, source: SEC_TICKER_CATALOG })), available: tickerLookup.size > 0 })
+        : null;
+      const tickerResolution: TickerResolution = form25Identity
+        ? { rows: form25Identity.status === "AUTO" ? form25Identity.candidates.map(row => ({ ...row, name: form25Identity.issuerName })) : [],
+            primary: form25Identity.status === "AUTO" ? { ...form25Identity.candidates[0]!, name: form25Identity.issuerName } : null,
+            source: form25Identity.status === "AUTO" ? "issuer_cik_sec" : "unresolved", confidence: form25Identity.status === "AUTO" ? "high" : "none",
+            reason: form25Identity.reason, cusip: null }
+        : isSchedule13FormType(formType)
         ? resolveVerifiedSchedule13TickerRows(tickerLookup, tickerIssuer)
         : await resolveTrustedTickerRows({
             lookup: tickerLookup,
@@ -310,7 +326,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           });
       const tickerRows = tickerResolution.rows;
       const tickerRow = tickerResolution.primary;
-      const companyName = ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
+      const companyName = form25Identity?.issuerName || ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
       const accessionNumber = identity.accessionNumber;
       const sourceUniqueId = accessionNumber || detailUrl;
 
@@ -334,8 +350,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           parser_version: PARSER_VERSION,
           text_version: TEXT_VERSION,
           form_type: formType,
-          cik: ownershipIssuer?.cik || identity.cik,
-          cik_padded: (ownershipIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
+          cik: form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik,
+          cik_padded: (form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
           filer_cik: identity.cik,
           filer_cik_padded: identity.cikPadded,
           ownership_issuer_cik: ownershipIssuer?.cik || null,
@@ -358,6 +374,10 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             reason: tickerResolution.reason,
             cusip: tickerResolution.cusip,
           },
+          ...(form25Identity ? { form25_ticker_identity: form25Identity,
+            form25_exchange: form25Identity.exchange,
+            form25_index_subject_cik: detail.sc13IndexProvenance?.subjectCik || null,
+            form25_index_subject_cik_count: detail.sc13IndexProvenance?.subjectCikCount || 0 } : {}),
           issuer_cusips: issuerCusips,
           tickers: tickerRows.map((row) => ({
             ticker: row.ticker,
@@ -972,7 +992,7 @@ function readSc13IndexProvenanceFromDetailHtml(
   documents: SecDocument[],
   formType: string | null,
 ) {
-  if (!isSchedule13FormType(formType)) return null;
+  if (!isSchedule13FormType(formType) && !/^25(?:-NSE)?(?:\/A)?$/i.test(formType || "")) return null;
   const subjectCiks: string[] = [];
   const filedByCiks: string[] = [];
   for (const match of html.matchAll(/<span[^>]+class=["'][^"']*companyName[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
@@ -1826,7 +1846,8 @@ function firstXmlValue(text: string, tagName: string) {
   return match?.[1] ? cleanInlineText(match[1]) : null;
 }
 
-async function fetchTickerLookup(): Promise<Map<string, TickerRow[]>> {
+export async function fetchTickerLookup(fresh = false): Promise<Map<string, TickerRow[]>> {
+  if (fresh) return fetchTickerLookupInner();
   if (!tickerLookupPromise) {
     tickerLookupPromise = fetchTickerLookupInner().catch(() => new Map<string, TickerRow[]>());
   }
@@ -1836,6 +1857,7 @@ async function fetchTickerLookup(): Promise<Map<string, TickerRow[]>> {
 
 async function fetchTickerLookupInner() {
   const response = await secFetch(SEC_COMPANY_TICKERS_EXCHANGE_URL);
+  if (!response.ok) throw new Error(`SEC ticker catalog HTTP ${response.status}`);
   const data = await response.json().catch(() => null);
   const fields = Array.isArray(data?.fields) ? data.fields.map((field: unknown) => stringValue(field)) : [];
   const rows = Array.isArray(data?.data) ? data.data : [];
@@ -1843,6 +1865,7 @@ async function fetchTickerLookupInner() {
   const nameIndex = fields.indexOf("name");
   const tickerIndex = fields.indexOf("ticker");
   const exchangeIndex = fields.indexOf("exchange");
+  if (cikIndex < 0 || tickerIndex < 0 || !rows.length) throw new Error("SEC ticker catalog unavailable");
   const lookup = new Map<string, TickerRow[]>();
 
   for (const row of rows) {

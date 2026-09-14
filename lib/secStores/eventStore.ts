@@ -26,6 +26,8 @@ import {
   type SecIssuerSecurityLinkage,
 } from "@/lib/secIssuerEventLinkage";
 import { supabaseDelete, supabaseSelect, supabaseUpdate, supabaseUpsert } from "@/lib/supabase";
+import { isSecForm25IdentityForm, readStoredSecForm25EventIdentity } from "@/lib/sec-form25-identity/consumption";
+import { ensureSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
 
 export {
   buildSecFilingGroupDedupe,
@@ -83,7 +85,16 @@ export async function saveAnalyzedSecFilingEvent({
   const eventType = normalizeEventType(stringValue(analysis.event_type));
   const signal = normalizeSignal(stringValue(analysis.signal));
   const marketScope = normalizeMarketScope(stringValue(analysis.market_scope));
-  const issuerSecurityEvidence = resolveSecIssuerSecurityEvidence(rawPayload);
+  const isForm25 = isSecForm25IdentityForm(rawPayload.form_type);
+  const form25Identity = isForm25
+    ? await ensureSecForm25Identity({ rawItemId: stringValue(rawRow.id) }).catch(() => ({
+        status: "unavailable", ticker: null, exchange: null, reason: "form25_identity_persistence_unavailable",
+      }))
+    : null;
+  const form25Gate = readStoredSecForm25EventIdentity({ metadata: {
+    form_type: rawPayload.form_type, form25_ticker_identity: form25Identity,
+  } });
+  const issuerSecurityEvidence = isForm25 ? null : resolveSecIssuerSecurityEvidence(rawPayload);
   const issuerSecurityLinkage = await resolveFmpValidatedIssuerSecurityLinkage(
     rawPayload,
     issuerSecurityEvidence,
@@ -93,7 +104,9 @@ export async function saveAnalyzedSecFilingEvent({
     fallback: readPrimaryTicker(analysis, rawPayload, filingPackage),
     linkage: issuerSecurityLinkage,
   });
-  const primaryTicker = tickerState.primarySecurity;
+  const primaryTicker = isForm25
+    ? { ticker: form25Gate.ticker, exchange: form25Gate.exchange }
+    : tickerState.primarySecurity;
   const groupDedupe = buildSecFilingGroupDedupe(rawRow);
   const groupDedupeKey = groupDedupe.groupDedupeKey;
   const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
@@ -154,6 +167,7 @@ export async function saveAnalyzedSecFilingEvent({
       source_release_type: "Official Filing",
       accession_number: nullableString(rawPayload.accession_number) || nullableString(rawRow.source_unique_id),
       form_type: nullableString(rawPayload.form_type),
+      ...(isForm25 ? { form25_ticker_identity: form25Identity } : {}),
       cik: nullableString(rawPayload.cik),
       issuer_security_linkage: issuerSecurityLinkage
         ? buildSecIssuerSecurityLinkageMetadata(issuerSecurityLinkage)
@@ -236,6 +250,7 @@ export async function saveAnalyzedSecFilingEvent({
       analysis,
       primaryTicker,
       issuerSecurityLinkage,
+      isForm25,
     ),
     replaceEventCalendarItems({
       eventRow,
@@ -256,7 +271,7 @@ export async function saveAnalyzedSecFilingEvent({
           securityKey: "primary",
         }
       : null,
-    analysisMarketContext: marketContext,
+    analysisMarketContext: isForm25 ? null : marketContext,
     ownershipInputState: "not_applicable",
   });
   await enqueueSecFilingAlertCandidate(buildSecFilingAlertCandidate(eventRow, analysis));
@@ -770,6 +785,7 @@ async function replaceEventTickers(
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
   issuerSecurityLinkage: SecIssuerSecurityLinkage | null,
+  identityOnly = false,
 ) {
   await assertMutation(supabaseDelete("event_tickers", { event_id: `eq.${eventId}` }), "delete event tickers");
   const rows = buildTickerRows(
@@ -777,6 +793,7 @@ async function replaceEventTickers(
     analysis,
     primaryTicker,
     issuerSecurityLinkage,
+    identityOnly,
   );
   if (!rows.length) return;
 
@@ -819,6 +836,7 @@ function buildTickerRows(
   analysis: Record<string, unknown>,
   primaryTicker: { ticker: string | null; exchange: string | null },
   issuerSecurityLinkage: SecIssuerSecurityLinkage | null,
+  identityOnly = false,
 ) {
   const rows: Array<Record<string, unknown>> = [];
   const seen = new Set<string>();
@@ -875,7 +893,7 @@ function buildTickerRows(
     });
   }
 
-  for (const item of readSecAnalysisContextTickers(analysis)) {
+  for (const item of identityOnly ? [] : readSecAnalysisContextTickers(analysis)) {
     push({
       symbol: item.ticker,
       exchange: item.exchange,

@@ -4669,14 +4669,19 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
     fetchEventTickers(item.id),
   ]);
   const eventRow = toRecord(eventResult.data);
-  const tickerLinkRows = toRows(tickerLinksResult.data);
+  const { readSecForm25EventIdentity } = await import("@/lib/sec-form25-identity/consumption");
+  const form25Identity = await readSecForm25EventIdentity(eventRow || item.id);
+  const tickerLinkRows = form25Identity.status === "not_applicable"
+    ? toRows(tickerLinksResult.data) : [];
   const primaryTickerLink = tickerLinkRows.find((row) => readRowString(row, "role") === "primary") || tickerLinkRows[0];
   const normalizedTicker = firstStoredValue([
     item.ticker,
     readRowString(eventRow, "ticker"),
     readRowString(primaryTickerLink, "symbol"),
   ]).toUpperCase();
-  const ticker = isRealTicker(normalizedTicker) ? normalizedTicker : "";
+  const ticker = form25Identity.status === "not_applicable"
+    ? isRealTicker(normalizedTicker) ? normalizedTicker : ""
+    : form25Identity.ticker || "";
   const canLoadTickerContext = isRealTicker(ticker);
   const [rawItem, relatedNewsResult] = await Promise.all([
     loadRawItem(readRowString(eventRow, "raw_item_id")),
@@ -4770,7 +4775,8 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
   });
   const baseMarketContext = buildDbMarketContext(item, eventRow);
   const [marketContext, marketData] = await Promise.all([
-    resolveAnalysisMarketContext({
+    form25Identity.status === "blocked"
+      ? Promise.resolve(emptySectorThemeContext(item.score, item.signal)) : resolveAnalysisMarketContext({
       baseContext: baseMarketContext,
       companyName: company,
       eventTickerRows: tickerLinkRows,
@@ -4801,7 +4807,7 @@ async function buildDbFilingEvent(item: LiveFeedItem): Promise<FilingEvent> {
   const genericAvailability: GenericFilingAvailability = {
     bearishPoints: bearishPoints.length > 0,
     bullishPoints: bullishPoints.length > 0,
-    context: Boolean(marketContext),
+    context: form25Identity.status !== "blocked" && Boolean(marketContext),
     filingBrief: Boolean(filingBrief),
     keyEvidence: keyEvidence.length > 0,
     originalHtml: Boolean(cleanDisclosureValue(stripHtml(originalHtml))),

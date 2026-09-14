@@ -32,6 +32,7 @@ export async function loadAlertDeliveryRuntime(env) {
     });
   }
   return {
+    ...await import("../lib/sec-form25-identity/consumption.ts"),
     ...await import("../lib/alerts/delivery/tickerSubscriptionMatch.ts"),
     ...await import("../lib/alerts/delivery/processQueuedDeliveries.ts"),
   };
