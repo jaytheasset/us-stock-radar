@@ -13,6 +13,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow-y: auto;
   padding: 18px 14px;
   border-right: 1px solid var(--border);
   background: var(--surface);
@@ -96,6 +97,48 @@
   color: var(--accent);
 }
 
+.navigationToggle {
+  width: 100%;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chevronExpanded {
+  transform: rotate(180deg);
+}
+
+.subnavigation:not([hidden]) {
+  display: grid;
+  gap: 2px;
+  margin: 5px 0 7px 19px;
+  padding-left: 9px;
+  border-left: 1px solid var(--border);
+}
+
+.subnavigationItem {
+  padding: 8px 7px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.subnavigationItem:hover,
+.subnavigationItem.active {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.navigationItem:focus-visible,
+.subnavigationItem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .comingNext {
   padding: 2px 5px;
   border: 1px solid var(--border);
@@ -152,7 +195,8 @@
 }
 
 .mobileHeader,
-.mobileNavigation {
+.mobileNavigation,
+.mobileSubnavigation {
   display: none;
 }
 
@@ -214,7 +258,9 @@
     scrollbar-width: none;
   }
 
-  .mobileNavigation a {
+  .mobileNavigation a,
+  .mobileNavigation button,
+  .mobileSubnavigation a {
     flex: none;
     padding: 7px 9px;
     border: 1px solid transparent;
@@ -225,10 +271,37 @@
     text-decoration: none;
   }
 
-  .mobileNavigation a.mobileActive {
+  .mobileNavigation button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .mobileSubnavigation:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .mobileNavigation .mobileActive,
+  .mobileSubnavigation .mobileActive {
     border-color: var(--border);
     color: var(--text);
     background: var(--surface-muted);
+  }
+
+  .mobileNavigation a:focus-visible,
+  .mobileNavigation button:focus-visible,
+  .mobileSubnavigation a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 
   .content {

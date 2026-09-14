@@ -26,6 +26,8 @@ import { resolveNewsCompanyName } from "@/lib/newsCompanyIdentity";
 import { resolveCanonicalMarketGroup } from "@/lib/taxonomyRegistry";
 import { resolveFilingPreviewFields } from "@/lib/filingPreviewContract";
 import { readStoredSecForm25EventIdentity } from "@/lib/sec-form25-identity/consumption";
+import { form25AnalysisReviewNotice, projectForm25AnalysisEvent, readForm25AnalysisReviewForConsumer,
+  type Form25AnalysisReviewRead } from "@/lib/sec-form25-analysis-review/consumer";
 
 const form25IdentityViews = new WeakSet<object>();
 
@@ -375,7 +377,9 @@ async function readForm25IdentityRows(rows: DbEventRow[]): Promise<DbEventRow[]>
       ? await (await import("@/lib/sec-form25-identity/persistence")).readEffectiveSecForm25Identity({ rawItemId })
         .catch(() => ({ status: "unavailable", ticker: null, exchange: null, reason: "identity_reader_unavailable" }))
       : { status: "unavailable", ticker: null, exchange: null, reason: "raw_identity_unavailable" };
-    return { ...row, metadata: { ...(readMetadataRecord(row) || {}), form25_ticker_identity: identity } };
+    const review = await readForm25AnalysisReviewForConsumer(readString(row, ["id"]));
+    return projectForm25AnalysisEvent({ ...row,
+      metadata: { ...(readMetadataRecord(row) || {}), form25_ticker_identity: identity } }, review);
   }));
 }
 
@@ -391,6 +395,7 @@ function mapEventRow(
   const analysis = previewContext?.analyses.get(id);
   const rawItem = previewContext?.rawItems.get(rawItemId);
   const form25Identity = readStoredSecForm25EventIdentity(row);
+  const reviewNotice = form25AnalysisReviewNotice(readMetadataRecord(row)?.form25_analysis_review as Form25AnalysisReviewRead | undefined);
   const ticker = (form25Identity.status === "not_applicable"
     ? readString(row, ["ticker", "symbol"]) : form25Identity.ticker) || "N/A";
   const relatedTickers = form25Identity.status === "not_applicable"
@@ -480,7 +485,7 @@ function mapEventRow(
     sourceUrl: readString(row, ["source_url", "source_link", "url"]) || readMetadataString(row, ["source_url"]),
     formType,
     eventType: readString(row, ["event_type"]) || "event",
-    filingBrief: filingPreviewFields.filingBrief,
+    filingBrief: reviewNotice ? `${reviewNotice} Original AI: ${filingPreviewFields.filingBrief}` : filingPreviewFields.filingBrief,
     filingKeyPoints: filingPreviewFields.keyPoints,
     filingKeyPointsLabel: filingPreviewFields.keyPointsLabel,
     title: readString(row, ["title"]) || "Untitled event",

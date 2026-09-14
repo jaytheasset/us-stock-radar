@@ -12,6 +12,7 @@ import type {
   GenericMonitorChildIdentity,
   GenericMonitorChildTerminalState,
 } from "./genericMonitorChildExecution.ts";
+import { readForm25AnalysisReviewForConsumer, type Form25AnalysisReviewRead } from "../sec-form25-analysis-review/consumer.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -34,12 +35,14 @@ type CurrentListingRiskLineage = {
   persistedAt: string;
 };
 
-export type CurrentListingRiskReadResult =
+export type CurrentListingRiskReadResult = (
   | ({ status: "available"; factSchemaVersion: string; facts: ListingRiskEventFacts } & CurrentListingRiskLineage)
   | ({ status: "not_applicable" } & CurrentListingRiskLineage)
-  | { status: "not_ready"; reason: string };
+  | { status: "not_ready"; reason: string }
+) & { form25HumanReview?: Form25AnalysisReviewRead };
 
 export type ListingRiskPersistenceDependencies = {
+  readForm25Review?(eventId: string): Promise<Form25AnalysisReviewRead>;
   rpc(functionName: string, payload: Record<string, unknown>): Promise<{
     ok: boolean;
     status: number;
@@ -49,6 +52,7 @@ export type ListingRiskPersistenceDependencies = {
 };
 
 const defaultDependencies: ListingRiskPersistenceDependencies = {
+  readForm25Review: readForm25AnalysisReviewForConsumer,
   rpc: async (functionName, payload) => {
     const repository = await import("../supabase.ts");
     return repository.supabaseRpc(functionName, payload);
@@ -106,9 +110,9 @@ export function listingRiskTerminalStateAfterPersistence(
 }
 
 /**
- * Official downstream reader. It calls only the Listing persistence RPC and
- * never inspects event summary/type, display snapshots, parser/news text, or
- * historical facts directly.
+ * Official downstream reader. Original typed facts retain their RPC lineage.
+ * Form25 Human corrections are a separate source/version-bound overlay, never
+ * inferred from event summaries or inserted as analyzer facts.
  */
 export async function readCurrentListingRiskFacts(
   eventId: string,
@@ -119,10 +123,16 @@ export async function readCurrentListingRiskFacts(
     p_event_id: eventId,
     p_analyzer_contract_version: LISTING_RISK_ANALYZER_PROMPT_VERSION,
   });
+  const humanReview = dependencies.readForm25Review ? await dependencies.readForm25Review(eventId) : null;
   if (!response.ok) {
+    if (humanReview && humanReview.status !== "not_applicable") return {
+      status: "not_ready", reason: "listing_risk_reader_unavailable", form25HumanReview: humanReview,
+    };
     throw new Error(`Listing Risk current reader failed: ${response.error || response.status}`);
   }
-  return validateCurrentListingRiskReadResult(response.data);
+  const original = validateCurrentListingRiskReadResult(response.data);
+  return humanReview && humanReview.status !== "not_applicable"
+    ? { ...original, form25HumanReview: humanReview } : original;
 }
 
 export function validateCurrentListingRiskReadResult(value: unknown): CurrentListingRiskReadResult {

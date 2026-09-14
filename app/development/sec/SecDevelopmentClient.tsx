@@ -996,6 +996,8 @@ function AnalysisReviewDetail({
       <div className={styles.analysisDetailActions}>
         {accession ? <button onClick={() => onUseAccession(accession)} type="button">Use accession</button> : null}
         {clientString(item.detail_url) ? <a href={clientString(item.detail_url)}>Open filing detail</a> : null}
+        {/^(?:FORM\s+)?25(?:-NSE)?(?:\/A)?$/i.test(clientString(item.form_type)) && clientString(item.event_id)
+          ? <a href={`/admin/data/form25-analysis?eventId=${encodeURIComponent(clientString(item.event_id))}`}>Human Analysis Review</a> : null}
       </div>
 
       <section className={styles.analysisReviewCard}>

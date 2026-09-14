@@ -1,5 +1,6 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
+import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
 import {
   readCurrentListingRiskFacts,
   type CurrentListingRiskReadResult,
@@ -317,6 +318,22 @@ function evaluateCondition(
   const current = definition.family === "corporate_action"
     ? readers.corporateAction
     : readers.listing;
+  const humanField = definition.family === "listing"
+    ? form25HumanMonitorField(readers.listing.form25HumanReview, key) : null;
+  if (humanField) {
+    if (humanField.availability !== "available" || humanField.value === null) {
+      return conditionResult(key, "ineligible", "fact_unavailable");
+    }
+    if (definition.enumValues && !definition.enumValues.includes(humanField.value)) {
+      return conditionResult(key, "ineligible", "fact_value_invalid");
+    }
+    if (definition.eligibility?.ineligibleValues?.includes(humanField.value)) {
+      return conditionResult(key, "ineligible", "fact_value_ineligible");
+    }
+    const matched = compareCondition(definition, humanField.value, operator, input.value, evaluationDay);
+    return conditionResult(key, matched === null ? "ineligible" : matched ? "match" : "no_match",
+      matched === null ? "fact_value_invalid" : matched ? "all_conditions_match" : "condition_not_met");
+  }
   if (current.status === "not_ready") {
     const reasonCode = current.reason === "reader_unavailable"
       ? "reader_unavailable"

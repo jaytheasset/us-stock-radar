@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest,NextResponse } from "next/server";
 import { applyAdminAuthCookies,normalizeAdminError,resolveAdminApiAccess } from "@/lib/admin/api";
 import { assertSameOriginAuthRequest } from "@/lib/auth/authRequest";
-import { applySecForm25IdentityDecision,ensureSecForm25Identity,readEffectiveSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
+import { applySecForm25ForcedOverride,applySecForm25IdentityDecision,registerSecForm25IdentityCandidate,ensureSecForm25Identity,readEffectiveSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
 import { AdminApiError } from "@/lib/admin/errors";
 export const dynamic="force-dynamic";
 export async function POST(request:NextRequest,context:{params:Promise<{rawItemId:string}>}) {
@@ -10,7 +10,11 @@ export async function POST(request:NextRequest,context:{params:Promise<{rawItemI
   try {
     assertSameOriginAuthRequest(request);access=await resolveAdminApiAccess(request,"data.run");
     const {rawItemId}=await context.params;const body=await request.json();
-    if(body.action==="historical_evidence") {
+    if(body.action==="forced_approved"||body.action==="forced_withdrawn") {
+      await applySecForm25ForcedOverride({rawItemId,actorUserId:access.access.userId,action:body.action,ticker:body.ticker,reference:body.reference,reason:body.reason,expectedEvidenceSha256:body.expectedEvidenceSha256,expectedRevision:body.expectedRevision,requestId:request.headers.get("x-request-id")?.trim().slice(0,240)||randomUUID()});
+    } else if(body.action==="register_candidate") {
+      await registerSecForm25IdentityCandidate({rawItemId,actorUserId:access.access.userId,ticker:body.ticker,historicalAccessionNumber:body.historicalAccessionNumber,expectedEvidenceSha256:body.expectedEvidenceSha256,expectedRevision:body.expectedRevision,reason:body.reason,requestId:request.headers.get("x-request-id")?.trim().slice(0,240)||randomUUID()});
+    } else if(body.action==="historical_evidence") {
       const current=await readEffectiveSecForm25Identity({rawItemId});
       if(current.status!=="available"||current.evidenceSha256!==body.expectedEvidenceSha256||current.revision!==body.expectedRevision)throw new AdminApiError("FORM25_IDENTITY_STALE","Refresh the identity evidence.",409);
       const loaded=await ensureSecForm25Identity({rawItemId,historicalAccessionNumber:String(body.historicalAccessionNumber||"")});

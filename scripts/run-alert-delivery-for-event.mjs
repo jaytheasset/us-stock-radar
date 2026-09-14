@@ -125,6 +125,9 @@ async function normalizeEvent(id) {
   if (!event) return { ok: false, error: `Event not found: ${id}` };
   const identity = await runtime.readSecForm25EventIdentity(event);
   if (identity.status === "blocked") return { ok: false, error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
+  if (identity.status === "available" && !runtime.form25AnalysisAllowsPrimaryAlert(await runtime.readForm25AnalysisReviewForConsumer(id))) {
+    return { ok: false, error: "FORM25_ANALYSIS_REVIEW_BLOCKED" };
+  }
 
   const tickerRows = await fetchRows("event_tickers", {
     event_id: `eq.${id}`,

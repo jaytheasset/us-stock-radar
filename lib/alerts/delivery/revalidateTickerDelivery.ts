@@ -4,6 +4,7 @@ import { normalizeAlertEvent } from "./normalizeAlertEvent.ts";
 import { createAlertTickerMatcher, parseAlertTickerMatch, survivingAlertTickerBindings } from "./tickerSubscriptionMatch.ts";
 import type { QueuedAlertDeliveryRow } from "./types.ts";
 import { readSecForm25EventIdentity } from "../../sec-form25-identity/consumption.ts";
+import { readForm25AnalysisReviewForConsumer, form25AnalysisAllowsPrimaryAlert } from "../../sec-form25-analysis-review/consumer.ts";
 
 // Called after owning a channel and immediately before its irreversible send/visibility step.
 // This is a fresh read boundary, not a transaction with Human decisions or the provider.
@@ -13,6 +14,9 @@ export async function revalidateTickerDelivery(row: QueuedAlertDeliveryRow): Pro
   if (row.alert_event_id) {
     const identity = await readSecForm25EventIdentity(row.alert_event_id);
     if (identity.status === "blocked") return { ok: false, savedTickers: [], error: `FORM25_IDENTITY_BLOCKED: ${identity.reason}` };
+    if (identity.status === "available" && !form25AnalysisAllowsPrimaryAlert(await readForm25AnalysisReviewForConsumer(row.alert_event_id))) {
+      return { ok: false, savedTickers: [], error: "FORM25_ANALYSIS_REVIEW_BLOCKED" };
+    }
   }
   if (row.alert_lane !== "watchlist" || row.ticker_match == null) return { ok: true, savedTickers: undefined };
   const provenance = parseAlertTickerMatch(row.ticker_match);
