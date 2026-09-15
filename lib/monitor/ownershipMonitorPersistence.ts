@@ -163,6 +163,7 @@ export async function readCurrentOwnershipFacts(
     directRows,
     sourceXml: snapshot ? stringValue(snapshot.ownership_source_text) : null,
     fingerprintResult: snapshot ? record(snapshot.context_fingerprint) : null,
+    semanticVerifierRefsValid: snapshot?.context_semantic_verifier_refs_valid === true,
   });
 
   return {
@@ -190,6 +191,7 @@ async function readOwnershipContextProjection(input: {
   directRows: Record<string, unknown>[];
   sourceXml: string | null;
   fingerprintResult: Record<string, unknown> | null;
+  semanticVerifierRefsValid: boolean;
 }): Promise<{ context: CurrentOwnershipContextResult; eligibility: OwnershipContextEligibility }> {
   if (!input.fingerprintResult) return {
     context: { status: "unavailable", reason: "ownership_context_fingerprint_reader_unavailable" },
@@ -221,6 +223,10 @@ async function readOwnershipContextProjection(input: {
     .map((row, index) => ({ value: row.context_facts, reference: inventory.rows[index] }))
     .filter((item) => item.value !== null && item.value !== undefined);
   if (contexts.length === 0) return { context: { status: "absent" }, eligibility };
+  if (!input.semanticVerifierRefsValid) return {
+    context: { status: "unavailable", reason: "ownership_context_semantic_verification_unavailable" },
+    eligibility,
+  };
   if (fingerprintResult.context_ai_refs_valid === false) return {
     context: { status: "malformed", reason: "ownership_context_ai_refs_invalid" },
     eligibility,

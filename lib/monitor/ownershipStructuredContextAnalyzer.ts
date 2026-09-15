@@ -31,6 +31,13 @@ import {
   type OwnershipSemanticPromptRoute,
   type RoutedOwnershipSemanticPrompt,
 } from "./ownershipSemanticPrompts/router.ts";
+import {
+  OWNERSHIP_SEMANTIC_VERIFIER_PURPOSE,
+  OWNERSHIP_SEMANTIC_VERIFIER_VERSION,
+  verifyOwnershipSemanticAssertions,
+  type OwnershipSemanticVerificationRecord,
+  type OwnershipSemanticVerifier,
+} from "./ownershipSemanticVerifier.ts";
 
 type Row = Record<string, unknown>;
 export const OWNERSHIP_CONTEXT_LLM_VERSION = "ownership_context_llm_v1" as const;
@@ -81,6 +88,21 @@ export type OwnershipContextAiTraceInput = Readonly<{
 
 export type OwnershipStructuredContextAnalyzerRepository = OwnershipContextPersistenceRepository & Readonly<{
   persistAiTrace(input: OwnershipContextAiTraceInput): Promise<void>;
+  persistSemanticVerifierTrace(input: OwnershipSemanticVerifierTraceInput): Promise<void>;
+}>;
+
+export type OwnershipSemanticVerifierTraceInput = Readonly<{
+  runId: string;
+  outputId: string;
+  eventId: string;
+  rawItemId: string;
+  verifierName: string;
+  startedAt: string;
+  finishedAt: string;
+  sourceAnalysisRefs: Readonly<{ run_id: string; output_id: string }>;
+  originalStructuredCandidate: ValidatedOwnershipContextBundle;
+  effectiveStructuredCandidate: ValidatedOwnershipContextBundle;
+  records: readonly OwnershipSemanticVerificationRecord[];
 }>;
 
 export type OwnershipStructuredContextAnalysisResult =
@@ -92,10 +114,11 @@ export type OwnershipStructuredContextAnalysisResult =
       model: string;
       updatedRowCount: number;
       validated: ValidatedOwnershipContextBundle;
+      semanticVerification: Readonly<{ targetCount: number; eligibleCount: number; ineligibleCount: number }>;
     }>
   | Readonly<{
       status: "unavailable";
-      stage: "direct_facts" | "source" | "configuration" | "provider" | "trace" | "validation" | "persistence";
+      stage: "direct_facts" | "source" | "configuration" | "provider" | "trace" | "validation" | "semantic_verifier" | "persistence";
       reason: string;
       eventId: string;
       runId?: string;
@@ -158,6 +181,7 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
   maxOutputTokens?: number;
   timeoutMs?: number;
   runPrompt?: typeof runStructuredGeminiJson;
+  semanticVerifier?: OwnershipSemanticVerifier;
   fetchImpl?: typeof fetch;
   now?: () => string;
   idFactory?: () => string;
@@ -290,11 +314,49 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
       runId, outputId, model, validationErrors: validation.errors,
     });
   }
+  const verifierRunId = idFactory();
+  const verifierOutputId = idFactory();
+  const verifierStartedAt = now();
+  let semanticVerification: Awaited<ReturnType<typeof verifyOwnershipSemanticAssertions>>;
+  try {
+    semanticVerification = await verifyOwnershipSemanticAssertions({
+      candidate: validation.value,
+      inventory,
+      sourceXml: source.xml,
+      ...(options.semanticVerifier ? { verifier: options.semanticVerifier } : {}),
+    });
+  } catch (error) {
+    return unavailable(input.eventId, "semantic_verifier", errorMessage(error, "ownership_semantic_verifier_failed"), {
+      runId, outputId, model,
+    });
+  }
+  const verifierFinishedAt = now();
+  try {
+    await repository.persistSemanticVerifierTrace({
+      runId: verifierRunId,
+      outputId: verifierOutputId,
+      eventId: input.eventId,
+      rawItemId: current.rawItemId,
+      verifierName: semanticVerification.targetCount === 0
+        ? "not-required"
+        : options.semanticVerifier?.name.trim() || "not-configured",
+      startedAt: verifierStartedAt,
+      finishedAt: verifierFinishedAt,
+      sourceAnalysisRefs: { run_id: runId, output_id: outputId },
+      originalStructuredCandidate: validation.value,
+      effectiveStructuredCandidate: semanticVerification.effectiveCandidate,
+      records: semanticVerification.records,
+    });
+  } catch (error) {
+    return unavailable(input.eventId, "trace", errorMessage(error, "ownership_semantic_verifier_trace_failed"), {
+      runId, outputId, model,
+    });
+  }
   try {
     const persisted = await persistOwnershipStructuredContext({
       eventId: input.eventId,
-      candidate: mapping.value,
-      aiRefs: { run_id: runId, output_id: outputId },
+      candidate: semanticVerification.effectiveCandidate,
+      aiRefs: { run_id: verifierRunId, output_id: verifierOutputId },
     }, repository);
     return {
       status: persisted.status,
@@ -304,6 +366,11 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
       model,
       updatedRowCount: persisted.updatedRowCount,
       validated: persisted.validated,
+      semanticVerification: {
+        targetCount: semanticVerification.targetCount,
+        eligibleCount: semanticVerification.eligibleCount,
+        ineligibleCount: semanticVerification.ineligibleCount,
+      },
     };
   } catch (error) {
     return unavailable(input.eventId, "persistence", errorMessage(error, "ownership_context_persistence_failed"), {
@@ -534,7 +601,7 @@ function llmFactSchema(
   return {
     type: "object",
     additionalProperties: false,
-    required: ["status", "evidence_ids", ...requiredSubjectIds],
+    required: ["status", ...requiredSubjectIds],
     properties: {
       status: { type: "string", enum: [...OWNERSHIP_CONTEXT_STATUSES] },
       [attribute]: attributeSchema,
@@ -548,7 +615,7 @@ function llmFactSchema(
           properties: { status: { const: "supported" } },
         },
         then: {
-          required: [attribute],
+          required: [attribute, "evidence_ids"],
           properties: { evidence_ids: { minItems: 1 } },
         },
         else: { not: { required: [attribute] } },
@@ -697,11 +764,17 @@ function mapLlmFact(
     ? fact.status as OwnershipContextStatus
     : null;
   if (!status) errors.push(`${path}.status is invalid`);
-  const evidenceIds = Array.isArray(fact.evidence_ids)
-    && fact.evidence_ids.every((item) => typeof item === "string" && item.length > 0 && item.trim() === item)
-    ? fact.evidence_ids as string[]
-    : null;
+  const hasEvidenceIds = Object.hasOwn(fact, "evidence_ids");
+  const evidenceIds = !hasEvidenceIds && status !== "supported"
+    ? []
+    : Array.isArray(fact.evidence_ids)
+        && fact.evidence_ids.every((item) => typeof item === "string" && item.length > 0 && item.trim() === item)
+      ? fact.evidence_ids as string[]
+      : null;
   if (!evidenceIds) errors.push(`${path}.evidence_ids must contain only non-empty opaque ID strings`);
+  if (status === "supported" && (!evidenceIds || evidenceIds.length === 0)) {
+    errors.push(`${path}.evidence_ids must contain at least one opaque ID when supported`);
+  }
   const hasAttribute = Object.hasOwn(fact, definition.attribute);
   if (status === "supported" && !hasAttribute) errors.push(`${path}.${definition.attribute} is required when supported`);
   if (status && status !== "supported" && hasAttribute) errors.push(`${path}.${definition.attribute} must be omitted unless supported`);
@@ -857,6 +930,49 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
           provider_response_schema: null,
           max_output_tokens: input.maxOutputTokens,
         },
+      },
+    },
+  } as const;
+}
+
+export function buildOwnershipSemanticVerifierTraceRows(input: OwnershipSemanticVerifierTraceInput) {
+  const effectiveContexts = input.effectiveStructuredCandidate.rows
+    .filter((row) => row.assertions.length > 0)
+    .map((row) => ({ row_ref: row.row_ref, assertions: row.assertions }));
+  return {
+    run: {
+      id: input.runId,
+      event_id: input.eventId,
+      raw_item_id: input.rawItemId,
+      prompt_key: OWNERSHIP_SEMANTIC_VERIFIER_PURPOSE,
+      prompt_version: OWNERSHIP_SEMANTIC_VERIFIER_VERSION,
+      model: input.verifierName,
+      status: "completed",
+      started_at: input.startedAt,
+      finished_at: input.finishedAt,
+      usage: {},
+      error_message: null,
+      metadata: {
+        purpose: OWNERSHIP_SEMANTIC_VERIFIER_PURPOSE,
+        contract_version: OWNERSHIP_SEMANTIC_VERIFIER_VERSION,
+        source_analysis_refs: input.sourceAnalysisRefs,
+        target_count: input.records.length,
+        eligible_count: input.records.filter((record) => record.eligibility === "eligible").length,
+        ineligible_count: input.records.filter((record) => record.eligibility === "ineligible").length,
+      },
+    },
+    output: {
+      id: input.outputId,
+      ai_run_id: input.runId,
+      event_id: input.eventId,
+      output_type: OWNERSHIP_CONTEXT_VERSION,
+      payload: {
+        purpose: OWNERSHIP_SEMANTIC_VERIFIER_PURPOSE,
+        contract_version: OWNERSHIP_SEMANTIC_VERIFIER_VERSION,
+        source_analysis_refs: input.sourceAnalysisRefs,
+        original_structured_candidate: input.originalStructuredCandidate,
+        verifications: input.records,
+        effective_contexts: effectiveContexts,
       },
     },
   } as const;
@@ -1074,6 +1190,13 @@ async function defaultRepository(): Promise<OwnershipStructuredContextAnalyzerRe
       assertRepositoryWrite(runResult, "ownership context ai run");
       const outputResult = await supabase.supabaseUpsert("ai_outputs", trace.output, { onConflict: "id" });
       assertRepositoryWrite(outputResult, "ownership context ai output");
+    },
+    async persistSemanticVerifierTrace(input) {
+      const trace = buildOwnershipSemanticVerifierTraceRows(input);
+      const runResult = await supabase.supabaseUpsert("ai_runs", trace.run, { onConflict: "id" });
+      assertRepositoryWrite(runResult, "ownership semantic verifier ai run");
+      const outputResult = await supabase.supabaseUpsert("ai_outputs", trace.output, { onConflict: "id" });
+      assertRepositoryWrite(outputResult, "ownership semantic verifier ai output");
     },
   };
 }

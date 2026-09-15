@@ -20,6 +20,7 @@ import {
   OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION,
   buildOwnershipStructuredContextResponseSchema,
   buildOwnershipContextAiTraceRows,
+  buildOwnershipSemanticVerifierTraceRows,
   buildOwnershipStructuredContextPrompt,
   mapOwnershipContextLlmDto,
   runOwnershipStructuredContextAnalysis,
@@ -34,6 +35,8 @@ const eventId = "22222222-2222-4222-8222-222222222222";
 const rawItemId = "33333333-3333-4333-8333-333333333333";
 const runId = "44444444-4444-4444-8444-444444444444";
 const outputId = "55555555-5555-4555-8555-555555555555";
+const verifierRunId = "66666666-6666-4666-8666-666666666666";
+const verifierOutputId = "77777777-7777-4777-8777-777777777777";
 const fingerprint = `ownership-context-v1:${"a".repeat(64)}`;
 
 test("prompt contains only original XML, source identity, neutral refs, and the v1 output contract", () => {
@@ -134,14 +137,25 @@ test("supported context saves trace before sanitized context without changing ca
       calls.push("provider");
       return providerRun(candidate);
     },
+    semanticVerifier: {
+      name: "offline-supported-stub",
+      async verify(request) {
+        return {
+          verdict: "supported",
+          evidence_refs: request.input.evidence.map((item) => item.evidence_ref),
+          short_reason: "The cited SEC XML supports the unchanged candidate assertion.",
+        };
+      },
+    },
     idFactory: idSequence(runId, outputId),
     now: timeSequence("2026-09-15T01:00:00.000Z", "2026-09-15T01:00:01.000Z"),
   });
   assert.equal(result.status, "stored", JSON.stringify(result));
-  assert.deepEqual(calls, ["provider", "ai_trace", "context"]);
+  assert.deepEqual(calls, ["provider", "ai_trace", "semantic_trace", "context"]);
   assert.deepEqual(state.form4, before, "the context sidecar cannot mutate direct parser rows");
   assert.equal(repository.state.aiTraces[0]?.runId, runId);
   assert.equal(repository.state.aiTraces[0]?.outputId, outputId);
+  assert.equal(repository.state.semanticTraces.length, 1);
   assert.equal(record(repository.state.aiTraces[0]?.prompt).user, buildOwnershipStructuredContextPrompt({
     source: sourceFor(state), inventory,
   }).user);
@@ -185,7 +199,13 @@ test("supported context saves trace before sanitized context without changing ca
   assert.deepEqual(traceRows.output.payload.parsed_output, candidate);
   assert.equal(record(traceRows.output.payload.mapped_canonical_output).version, "ownership_context_v1");
   assert.deepEqual(traceRows.output.payload.mapping_errors, []);
-  assert.equal(record(repository.state.contextWrites[0]?.aiRefs).run_id, runId);
+  assert.equal(record(repository.state.contextWrites[0]?.aiRefs).run_id, verifierRunId);
+  const verifierTrace = buildOwnershipSemanticVerifierTraceRows(repository.state.semanticTraces[0] as never);
+  assert.equal(verifierTrace.run.prompt_key, "ownership_semantic_verifier");
+  assert.equal(verifierTrace.run.prompt_version, "ownership_semantic_verifier_v1");
+  assert.equal(verifierTrace.output.payload.purpose, "ownership_semantic_verifier");
+  assert.deepEqual(verifierTrace.output.payload.original_structured_candidate, result.validated);
+  assert.deepEqual(verifierTrace.output.payload.effective_contexts, record(repository.state.contextWrites[0]).contexts);
   assert.equal(JSON.stringify(repository.state.contextWrites[0]).includes("shares"), false);
   assert.equal(JSON.stringify(repository.state.contextWrites[0]).includes("transaction_code"), false);
 });
@@ -234,11 +254,12 @@ test("all four retained fixture kinds traverse the final prompt builder and trac
       idFactory: idSequence(runId, outputId),
     });
     assert.equal(result.status, "stored", `${filename}: ${JSON.stringify(result)}`);
-    assert.ok(capturedPrompt);
-    assert.match(String(capturedPrompt.system), semanticRule, filename);
-    const promptUser = JSON.parse(String(capturedPrompt.user)) as Row;
+    const assertedPrompt = capturedPrompt as unknown as Row | null;
+    assert.ok(assertedPrompt);
+    assert.match(String(assertedPrompt.system), semanticRule, filename);
+    const promptUser = JSON.parse(String(assertedPrompt.user)) as Row;
     assert.equal(promptUser.original_sec_ownership_xml, state.rawItem.raw_payload.ownership_source_text, filename);
-    const schemaText = JSON.stringify(record(capturedPrompt.responseFormat).json_schema);
+    const schemaText = JSON.stringify(record(assertedPrompt.responseFormat).json_schema);
     assert.equal(schemaText.includes('"economic_direction"'), false, filename);
     assert.equal(schemaText.includes('"amendment_effect"'), route.endsWith("A"), filename);
     assert.equal(repository.state.aiTraces[0]?.semanticPromptRoute, route, filename);
@@ -444,6 +465,32 @@ test("the five checkpoint provider outputs remain byte-exact immutable regressio
   }
 });
 
+test("latest UWMC candidate maps unresolved facts without evidence but canonical wrong relations stop before verifier", async () => {
+  const rawOutput = readFileSync(
+    join(here, "fixtures/ownership-context-actual-provider-7fb5a99e-uwmc.txt"),
+    "utf8",
+  ).trimEnd();
+  assert.equal(sha256(rawOutput), "94b788d6709c717f14962e69e297b790056a5e1ad40abad647817a4b0543f75f");
+  const state = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const repository = repositoryFor(state, []);
+  let verifierCalls = 0;
+  const result = await runOwnershipStructuredContextAnalysis({ eventId, rawItem: state.rawItem }, {
+    repository,
+    apiKey: "offline-regression-only",
+    runPrompt: async () => providerRun(null, { ok: true, outputText: rawOutput }),
+    semanticVerifier: {
+      name: "must-not-run-before-canonical-validation",
+      async verify() { verifierCalls += 1; return {}; },
+    },
+    idFactory: idSequence(runId, outputId),
+  });
+  assert.equal(result.status, "unavailable");
+  if (result.status === "unavailable") assert.equal(result.stage, "validation");
+  assert.equal(verifierCalls, 0);
+  assert.equal(repository.state.semanticTraces.length, 0);
+  assert.equal(repository.state.contextWrites.length, 0);
+});
+
 test("ambiguous, conflict, and unresolved statuses persist without values", async () => {
   const state = canonicalState("source-venu-form4-section16-derivative-gift.json");
   const inventory = inventoryFor(state);
@@ -627,12 +674,17 @@ test("partial applicable DTO facts map, while wire errors, nonapplicable facts, 
     version: "ownership_context_llm_v1",
     rows: [{
       row_id: row.rowRef,
-      owner_attribution: { status: "unresolved", evidence_ids: [] },
+      owner_attribution: { status: "unresolved" },
     }],
   };
   const partialMapping = mapOwnershipContextLlmDto({ candidate: partial, source: sourceFor(state), inventory });
   assert.equal(partialMapping.ok, true, JSON.stringify(partialMapping));
-  if (partialMapping.ok) assert.equal(validateOwnershipContextCandidate(partialMapping.value, inventory).ok, true);
+  if (partialMapping.ok) {
+    assert.equal(validateOwnershipContextCandidate(partialMapping.value, inventory).ok, true);
+    assert.deepEqual(record((partialMapping.value.rows as Row[])[0]).assertions, [{
+      fact: "owner_attribution", status: "unresolved", evidence_refs: [],
+    }]);
+  }
 
   const missingSupportedOwner = {
     version: "ownership_context_llm_v1",
@@ -863,13 +915,13 @@ function inventoryFor(state: ReturnType<typeof canonicalState>) {
 function repositoryFor(
   state: ReturnType<typeof canonicalState>,
   calls: string[],
-  options: { fingerprintAfterFirstRead?: string } = {},
+  options: { fingerprintAfterFirstRead?: string; semanticVerifierRefsValid?: boolean } = {},
 ) {
   let snapshotReads = 0;
   const repository: OwnershipStructuredContextAnalyzerRepository & {
-    state: { aiTraces: Row[]; contextWrites: Row[] };
+    state: { aiTraces: Row[]; semanticTraces: Row[]; contextWrites: Row[] };
   } = {
-    state: { aiTraces: [], contextWrites: [] },
+    state: { aiTraces: [], semanticTraces: [], contextWrites: [] },
     async readContextSnapshot() {
       snapshotReads += 1;
       return {
@@ -888,6 +940,7 @@ function repositoryFor(
               : fingerprint,
             context_ai_refs_valid: true,
           },
+          context_semantic_verifier_refs_valid: options.semanticVerifierRefsValid ?? true,
         },
       };
     },
@@ -897,6 +950,10 @@ function repositoryFor(
     async persistAiTrace(input) {
       calls.push("ai_trace");
       repository.state.aiTraces.push(structuredClone(input) as unknown as Row);
+    },
+    async persistSemanticVerifierTrace(input) {
+      calls.push("semantic_trace");
+      repository.state.semanticTraces.push(structuredClone(input) as unknown as Row);
     },
     async persistContext(input) {
       calls.push("context");
@@ -1009,7 +1066,11 @@ function providerRun(parsed: Row | null, overrides: Partial<GeminiStructuredJson
 
 function idSequence(...values: string[]) {
   let index = 0;
-  return () => values[index++] ?? outputId;
+  const fallback = [verifierRunId, verifierOutputId];
+  return () => {
+    const current = index++;
+    return values[current] ?? fallback[current - values.length] ?? verifierOutputId;
+  };
 }
 
 function timeSequence(...values: string[]) {

@@ -314,6 +314,19 @@ test("official reader strips raw context_facts and isolates stale or malformed c
   assert.equal(available.rows[2].price_per_share, 0, "exact XML zero survives context projection");
   assert.equal(available.rows[2].transaction_value, null, "unavailable direct null survives context projection");
 
+  const legacy = await readCurrentOwnershipFacts(eventId, snapshotRepository(state, {
+    semanticVerifierRefsValid: false,
+  }));
+  assert.equal(legacy.status, "available");
+  if (legacy.status === "available") {
+    assert.equal(legacy.context?.status, "unavailable", "legacy context is not promoted without verifier lineage");
+    assert.equal(
+      legacy.context?.status === "unavailable" ? legacy.context.reason : null,
+      "ownership_context_semantic_verification_unavailable",
+    );
+    assert.equal(legacy.rows[2].price_per_share, 0, "legacy verifier failure cannot hide direct XML facts");
+  }
+
   const staleState = structuredClone(state);
   record(staleState.form4[2].context_facts).source_fingerprint = `ownership-context-v1:${"b".repeat(64)}`;
   const stale = await readCurrentOwnershipFacts(eventId, snapshotRepository(staleState));
@@ -549,7 +562,7 @@ function mutateAssertion(candidate: ReturnType<typeof contextCandidate>, patch: 
 
 function snapshotRepository(
   state: ReturnType<typeof canonicalState>,
-  options: { snapshotFails?: boolean; contextFingerprint?: Row } = {},
+  options: { snapshotFails?: boolean; contextFingerprint?: Row; semanticVerifierRefsValid?: boolean } = {},
 ) {
   return {
     async readContextSnapshot() {
@@ -563,6 +576,7 @@ function snapshotRepository(
             status: "available", form: state.form4.length ? "form4" : "form144",
             source_fingerprint: fingerprint, context_ai_refs_valid: true,
           },
+          context_semantic_verifier_refs_valid: options.semanticVerifierRefsValid ?? true,
         },
       };
     },

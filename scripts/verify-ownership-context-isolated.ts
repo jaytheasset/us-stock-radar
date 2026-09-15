@@ -23,6 +23,7 @@ const migrations = [
   "20260915014346_ownership_structured_context_v1.sql",
   "20260915065614_harden_ownership_context_semantic_refs.sql",
   "20260915082336_ownership_context_sole_reporting_person_scope.sql",
+  "20260915091248_ownership_context_semantic_verifier_lineage.sql",
 ].map((filename) => readFileSync(join(here, "../supabase/migrations", filename), "utf8"));
 const fixture = JSON.parse(readFileSync(
   join(here, "../lib/sources/sec/forms/ownership/fixtures/source-uwmc-form4-multi-owner-10b5-1-conversion.json"),
@@ -37,6 +38,8 @@ const eventId = "a1111111-1111-4111-8111-111111111111";
 const rawItemId = "a2222222-2222-4222-8222-222222222222";
 const aiRunId = "a3333333-3333-4333-8333-333333333333";
 const aiOutputId = "a4444444-4444-4444-8444-444444444444";
+const verifierRunId = "a6666666-6666-4666-8666-666666666666";
+const verifierOutputId = "a7777777-7777-4777-8777-777777777777";
 
 try {
   await pool.query(baselineSql());
@@ -223,14 +226,84 @@ try {
   await replaceRows(built.form4Transactions);
   const restoredFingerprint = await currentFingerprint();
   const restoredContext = validContext(restoredFingerprint);
+  const originalCandidate = {
+    version: "ownership_context_v1",
+    event_ref: `event:${eventId}`,
+    form: "form4",
+    source_fingerprint: restoredFingerprint,
+    rows: restoredContext,
+  };
   await pool.query(`insert into public.ai_runs(
     id, event_id, raw_item_id, prompt_key, prompt_version, model, status
-  ) values ($1, $2, $3, 'ownership_structured_context', 'ownership_context_v1.0', 'isolated-fixture', 'completed')`, [
+  ) values ($1, $2, $3, 'ownership_structured_context', 'ownership_context_llm_v1.3-required-supported-values', 'isolated-fixture', 'completed')`, [
     aiRunId, eventId, rawItemId,
   ]);
   await pool.query(`insert into public.ai_outputs(id, ai_run_id, event_id, output_type, payload)
-    values ($1, $2, $3, 'ownership_context_v1', '{}'::jsonb)`, [aiOutputId, aiRunId, eventId]);
+    values ($1, $2, $3, 'ownership_context_v1', $4::jsonb)`, [
+    aiOutputId, aiRunId, eventId, JSON.stringify({
+      purpose: "ownership_structured_context",
+      mapped_canonical_output: originalCandidate,
+    }),
+  ]);
   assert.equal((await persistContext(restoredFingerprint, restoredContext, aiRunId, aiOutputId)).status, "stored");
+  assert.equal(await semanticVerifierRefsValid(), false, "legacy analysis refs are not semantic-verifier eligibility");
+  await pool.query(`insert into public.ai_runs(
+    id, event_id, raw_item_id, prompt_key, prompt_version, model, status, metadata
+  ) values ($1, $2, $3, 'ownership_semantic_verifier', 'ownership_semantic_verifier_v1',
+    'isolated-verifier-stub', 'completed', $4::jsonb)`, [
+    verifierRunId, eventId, rawItemId, JSON.stringify({ purpose: "ownership_semantic_verifier" }),
+  ]);
+  const verifierPayload = {
+    purpose: "ownership_semantic_verifier",
+    contract_version: "ownership_semantic_verifier_v1",
+    source_analysis_refs: { run_id: aiRunId, output_id: aiOutputId },
+    original_structured_candidate: originalCandidate,
+    verifications: [],
+    effective_contexts: restoredContext,
+  };
+  await pool.query(`insert into public.ai_outputs(id, ai_run_id, event_id, output_type, payload)
+    values ($1, $2, $3, 'ownership_context_v1', $4::jsonb)`, [
+    verifierOutputId, verifierRunId, eventId, JSON.stringify(verifierPayload),
+  ]);
+  assert.equal((await persistContext(
+    restoredFingerprint, restoredContext, verifierRunId, verifierOutputId,
+  )).status, "stored");
+  assert.equal(await semanticVerifierRefsValid(), true);
+  const verifiedSnapshot = await pool.query(
+    "select public.read_event_ownership_context_snapshot($1) as result", [eventId],
+  );
+  assert.equal(verifiedSnapshot.rows[0].result.context_semantic_verifier_refs_valid, true);
+
+  const mismatchedEffective = structuredClone(verifierPayload);
+  mismatchedEffective.effective_contexts[0].assertions[0].value = "buy";
+  await updateVerifierPayload(mismatchedEffective);
+  assert.equal(await semanticVerifierRefsValid(), false, "partial containment cannot replace exact assertion equality");
+  await updateVerifierPayload(verifierPayload);
+
+  const differentCandidate = structuredClone(verifierPayload);
+  differentCandidate.original_structured_candidate = {
+    ...differentCandidate.original_structured_candidate,
+    source_fingerprint: `ownership-context-v1:${"b".repeat(64)}`,
+  };
+  await updateVerifierPayload(differentCandidate);
+  assert.equal(await semanticVerifierRefsValid(), false, "a verifier trace for another candidate is rejected");
+  await updateVerifierPayload(verifierPayload);
+
+  const staleClient = await pool.connect();
+  try {
+    await staleClient.query("begin");
+    await staleClient.query(`update public.raw_items set raw_payload = pg_catalog.jsonb_set(
+      raw_payload, '{ownership_source_text}', pg_catalog.to_jsonb((raw_payload->>'ownership_source_text') || ' ')
+    ) where id = $1`, [rawItemId]);
+    const staleTrace = await staleClient.query(
+      "select public.ownership_context_semantic_verifier_refs_valid($1) as valid", [eventId],
+    );
+    assert.equal(staleTrace.rows[0].valid, false, "a verifier trace cannot survive source fingerprint drift");
+  } finally {
+    await staleClient.query("rollback");
+    staleClient.release();
+  }
+  assert.equal(await semanticVerifierRefsValid(), true);
   assert.equal((await persistContext(
     restoredFingerprint, restoredContext,
     "a5555555-5555-4555-8555-555555555555", aiOutputId,
@@ -467,6 +540,9 @@ try {
       changedInputInvalidated: true,
       staleFingerprintRejected: true,
       aiReferenceForgeryRejected: true,
+      legacyContextVerifierLineageRejected: true,
+      semanticVerifierTraceBoundToCandidateAndExactEffectiveAssertions: true,
+      staleSemanticVerifierTraceRejected: true,
       contextThenReplacementRaceSafe: true,
       replacementThenContextRaceSafe: true,
       rawUpdateRaceSafe: true,
@@ -527,6 +603,19 @@ async function storedContext() {
   const result = await pool.query(`select context_facts from public.event_form4_transactions
     where event_id = $1 and transaction_index = 0`, [eventId]);
   return result.rows[0].context_facts as Record<string, any> | null;
+}
+
+async function semanticVerifierRefsValid() {
+  const result = await pool.query(
+    "select public.ownership_context_semantic_verifier_refs_valid($1) as valid", [eventId],
+  );
+  return result.rows[0].valid as boolean;
+}
+
+async function updateVerifierPayload(payload: unknown) {
+  await pool.query("update public.ai_outputs set payload = $2::jsonb where id = $1", [
+    verifierOutputId, JSON.stringify(payload),
+  ]);
 }
 
 function validContext(sourceFingerprint: string) {
@@ -593,7 +682,8 @@ create table public.events (
 );
 create table public.ai_runs (
   id uuid primary key, event_id uuid references public.events(id), raw_item_id uuid references public.raw_items(id),
-  prompt_key text not null, prompt_version text not null, model text not null, status text not null
+  prompt_key text not null, prompt_version text not null, model text not null, status text not null,
+  metadata jsonb not null default '{}'::jsonb
 );
 create table public.ai_outputs (
   id uuid primary key, ai_run_id uuid not null references public.ai_runs(id), event_id uuid references public.events(id),

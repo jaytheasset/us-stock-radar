@@ -41,15 +41,17 @@ test("each route carries its own form semantics and response fields", () => {
     assert.equal(result.ok, true);
     return [item.id, result.ok ? result.route : null];
   }));
-  assert.match(routed.form4.systemRules.join(" "), /Table I non-derivative securities and Table II derivative securities/);
-  assert.match(routed.form4A.systemRules.join(" "), /Do not assume full replacement/);
-  assert.match(routed.form144.systemRules.join(" "), /proposed-sale notice, not proof that a sale was executed/);
-  assert.match(routed.form144A.systemRules.join(" "), /Never describe a Form 144\/A amendment as an executed sale/);
-  assert.equal(routed.form4.outputFactFields.includes("derivative_underlying_relation"), true);
-  assert.equal(routed.form144.outputFactFields.includes("derivative_underlying_relation"), false);
-  assert.equal(routed.form4.outputFactFields.includes("owner_relations"), true);
-  assert.equal(routed.form144.outputFactFields.includes("owner_relations"), false);
-  assert.equal(routed.form144.outputFactFields.includes("rule_10b5_1"), false);
+  const { form4, form4A, form144, form144A } = routed;
+  if (!form4 || !form4A || !form144 || !form144A) assert.fail("all retained routes must resolve");
+  assert.match(form4.systemRules.join(" "), /Table I non-derivative securities and Table II derivative securities/);
+  assert.match(form4A.systemRules.join(" "), /Do not assume full replacement/);
+  assert.match(form144.systemRules.join(" "), /proposed-sale notice, not proof that a sale was executed/);
+  assert.match(form144A.systemRules.join(" "), /Never describe a Form 144\/A amendment as an executed sale/);
+  assert.equal(form4.outputFactFields.includes("derivative_underlying_relation"), true);
+  assert.equal(form144.outputFactFields.includes("derivative_underlying_relation"), false);
+  assert.equal(form4.outputFactFields.includes("owner_relations"), true);
+  assert.equal(form144.outputFactFields.includes("owner_relations"), false);
+  assert.equal(form144.outputFactFields.includes("rule_10b5_1"), false);
 
   for (const item of cases) {
     const schema = buildOwnershipStructuredContextResponseSchema(inventory(item.canonicalForm, item.amendment));
@@ -85,6 +87,7 @@ function inventory(form: CanonicalForm, isAmendment: boolean): OwnershipContextR
     isAmendment,
     sourceFingerprint: `ownership-context-v1:${"a".repeat(64)}`,
     filingRule10b51: form === "form4" ? false : null,
+    sourceReportingOwnerNames: form === "form4" ? ["Owner"] : [],
     footnotes: [],
     rows: [{
       rowRef: `row:${form}:0`,
