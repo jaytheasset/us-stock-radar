@@ -47,6 +47,9 @@ test("each route carries its own form semantics and response fields", () => {
   assert.match(routed.form144A.systemRules.join(" "), /Never describe a Form 144\/A amendment as an executed sale/);
   assert.equal(routed.form4.outputFactFields.includes("derivative_underlying_relation"), true);
   assert.equal(routed.form144.outputFactFields.includes("derivative_underlying_relation"), false);
+  assert.equal(routed.form4.outputFactFields.includes("owner_relations"), true);
+  assert.equal(routed.form144.outputFactFields.includes("owner_relations"), false);
+  assert.equal(routed.form144.outputFactFields.includes("rule_10b5_1"), false);
 
   for (const item of cases) {
     const schema = buildOwnershipStructuredContextResponseSchema(inventory(item.canonicalForm, item.amendment));
@@ -54,6 +57,8 @@ test("each route carries its own form semantics and response fields", () => {
     assert.equal(Object.hasOwn(properties, "economic_direction"), false, item.id);
     assert.equal(Object.hasOwn(properties, "amendment_effect"), item.amendment, item.id);
     assert.equal(Object.hasOwn(properties, "derivative_underlying_relation"), item.canonicalForm === "form4", item.id);
+    assert.equal(Object.hasOwn(properties, "owner_relations"), item.canonicalForm === "form4", item.id);
+    assert.equal(Object.hasOwn(properties, "rule_10b5_1"), item.canonicalForm === "form4", item.id);
   }
 });
 
@@ -79,17 +84,23 @@ function inventory(form: CanonicalForm, isAmendment: boolean): OwnershipContextR
     form,
     isAmendment,
     sourceFingerprint: `ownership-context-v1:${"a".repeat(64)}`,
+    filingRule10b51: form === "form4" ? false : null,
+    footnotes: [],
     rows: [{
       rowRef: `row:${form}:0`,
+      ownerNames: ["Owner"],
       ownerRefs: [`owner:${form}:0:0`],
+      securityTitle: "Common",
       securityRef: `security:${form}:0`,
+      underlyingSecurityRefs: form === "form4" ? ["security:form4:underlying:0"] : [],
       evidenceRefs: [`evidence:${form}:0:0`],
+      linkedFootnoteRefs: [],
       direct: {
-        transactionKind: null,
+        transactionKind: form === "form4" ? "derivative" : null,
         acquiredDisposedCode: null,
         directOrIndirectOwnership: null,
         is10b51: null,
-        allowedUnderlyingSecurityRefs: [],
+        allowedUnderlyingSecurityRefs: form === "form4" ? ["security:form4:underlying:0"] : [],
       },
     }],
   };

@@ -169,13 +169,18 @@ test("all four retained fixture kinds traverse the final prompt builder and trac
           rows: referenceRows.map((referenceRow) => {
             const output: Row = { row_id: referenceRow.row_id };
             for (const field of referenceRow.allowed_fact_fields as string[]) {
-              output[field] = {
+              const unresolvedFact = {
                 status: "unresolved",
                 evidence_ids: [],
                 ...(field === "derivative_underlying_relation"
                   ? { source_security_id: referenceRow.security_id }
                   : {}),
               };
+              output[field] = field === "owner_relations"
+                ? [{ ...unresolvedFact, owner_id: (referenceRow.owner_ids as string[])[0] }]
+                : field === "footnote_scopes"
+                  ? [{ ...unresolvedFact, footnote_ref: (referenceRow.linked_footnote_refs as string[])[0] }]
+                  : unresolvedFact;
             }
             return output;
           }),
@@ -218,6 +223,48 @@ test("real SEC fixture provenance covers simple buy, multi-owner conversion/10b5
       idFactory: idSequence(runId, outputId),
     });
     assert.equal(result.status, "stored", `${filename}: ${JSON.stringify(result)}`);
+  }
+});
+
+test("the five checkpoint provider outputs remain byte-exact immutable regressions and still fail closed", async () => {
+  const regressionPath = join(here, "fixtures/ownership-context-actual-provider-103b5b05.json");
+  const regression = JSON.parse(readFileSync(regressionPath, "utf8")) as Row & {
+    calls: Array<{
+      fixture: string;
+      accession: string;
+      route: string;
+      raw_output_sha256: string;
+      raw_output_text: string;
+    }>;
+  };
+  assert.equal(regression.checkpoint, "103b5b05ac5973339951dcd9e5d0533475e225e6");
+  assert.equal(regression.source_ledger_sha256, "c76462d3f89b43d377807c912ccf470fe22fd094548f58da0d1d4cec0540c3a4");
+  assert.equal(regression.calls.length, 5);
+  const expectedStages = new Map<string, string>([
+    ["source-agig-form4-purchase.json", "validation"],
+    ["source-venu-form4-section16-derivative-gift.json", "provider"],
+    ["source-uwmc-form4-multi-owner-10b5-1-conversion.json", "validation"],
+    ["source-amcor-form144-no-prior-sales.json", "validation"],
+    ["source-walmart-form144-namespaced.json", "validation"],
+  ]);
+
+  for (const actual of regression.calls) {
+    assert.equal(sha256(actual.raw_output_text), actual.raw_output_sha256, `${actual.fixture}: raw output drift`);
+    const state = canonicalState(actual.fixture);
+    const repository = repositoryFor(state, []);
+    const result = await runOwnershipStructuredContextAnalysis({ eventId, rawItem: state.rawItem }, {
+      repository,
+      apiKey: "offline-regression-only",
+      runPrompt: async () => providerRun(null, {
+        ok: true,
+        outputText: actual.raw_output_text,
+      }),
+      idFactory: idSequence(runId, outputId),
+    });
+    assert.equal(result.status, "unavailable", `${actual.fixture}: checkpoint output must not become PASS`);
+    assert.equal(result.stage, expectedStages.get(actual.fixture), `${actual.fixture}: fail-closed stage drift`);
+    assert.equal(repository.state.contextWrites.length, 0, `${actual.fixture}: rejected output cannot persist context`);
+    assert.equal(repository.state.aiTraces.length, 1, `${actual.fixture}: rejected output remains auditable`);
   }
 });
 
@@ -341,11 +388,15 @@ test("LLM DTO schema uses fixed typed fact fields without generic polymorphic va
   const inventory = inventoryFor(state);
   const schema = buildOwnershipStructuredContextResponseSchema(inventory);
   const rows = record(record(schema.properties).rows);
-  assert.equal(rows.minItems, 1);
+  assert.equal(rows.minItems, 0);
   assert.equal(rows.maxItems, inventory.rows.length);
   const rowProperties = record(record(rows.items).properties);
   assert.equal(Object.hasOwn(rowProperties, "assertions"), false);
   assert.equal(Object.hasOwn(rowProperties, "owner_attribution"), true);
+  assert.equal(Object.hasOwn(rowProperties, "owner_relations"), true);
+  assert.equal(Object.hasOwn(rowProperties, "footnote_scopes"), true);
+  assert.equal(Object.hasOwn(rowProperties, "ownership_relation"), false);
+  assert.equal(Object.hasOwn(rowProperties, "footnote_scope"), false);
   assert.equal(Object.hasOwn(rowProperties, "rule_10b5_1"), true);
   assert.equal(Object.hasOwn(rowProperties, "economic_direction"), false);
   assert.equal(Object.hasOwn(rowProperties, "amendment_effect"), false);
@@ -362,9 +413,13 @@ test("LLM DTO mapper performs only trusted envelope binding, key moves, and type
     rows: [{
       row_id: row.rowRef,
       owner_attribution: { status: "supported", owner_id: row.ownerRefs[0], evidence_ids: [row.evidenceRefs[0]] },
-      ownership_relation: { status: "supported", relation: "direct", evidence_ids: [row.evidenceRefs[0]] },
+      owner_relations: [{
+        status: "supported", relation: "direct", owner_id: row.ownerRefs[0], evidence_ids: [row.evidenceRefs[0]],
+      }],
       rule_10b5_1: { status: "supported", applies: false, evidence_ids: [row.evidenceRefs[0]] },
-      footnote_scope: { status: "supported", scope: "row", evidence_ids: [row.evidenceRefs[0]] },
+      footnote_scopes: [{
+        status: "supported", scope: "row", footnote_ref: row.linkedFootnoteRefs[0], evidence_ids: [row.evidenceRefs[0]],
+      }],
     }],
   };
   const mapping = mapOwnershipContextLlmDto({ candidate: dto, source: sourceFor(state), inventory });
@@ -403,7 +458,10 @@ test("partial applicable DTO facts map, while wire errors, nonapplicable facts, 
   const invalidWire = structuredClone(partial) as Row;
   const invalidRow = (invalidWire.rows as Row[])[0];
   invalidRow.economic_direction = { status: "supported", direction: "buy", evidence_ids: [row.evidenceRefs[0]] };
-  invalidRow.ownership_relation = { status: "supported", relation: "owned", evidence_ids: [{ evidence_id: row.evidenceRefs[0] }] };
+  invalidRow.owner_relations = [{
+    status: "supported", relation: "owned", owner_id: row.ownerRefs[0],
+    evidence_ids: [{ evidence_id: row.evidenceRefs[0] }],
+  }];
   invalidRow.derivative_underlying_relation = {
     status: "unresolved", source_security_id: row.securityRef, evidence_ids: [],
   };
@@ -429,7 +487,9 @@ test("partial applicable DTO facts map, while wire errors, nonapplicable facts, 
     version: "ownership_context_llm_v1",
     rows: [{
       row_id: row.rowRef,
-      ownership_relation: { status: "supported", relation: "indirect", evidence_ids: [row.evidenceRefs[0]] },
+      owner_relations: [{
+        status: "supported", relation: "indirect", owner_id: row.ownerRefs[0], evidence_ids: [row.evidenceRefs[0]],
+      }],
     }],
   };
   const conflictMapping = mapOwnershipContextLlmDto({ candidate: conflict, source: sourceFor(state), inventory });
@@ -601,6 +661,7 @@ function inventoryFor(state: ReturnType<typeof canonicalState>) {
     isAmendment: state.formType.endsWith("/A"),
     sourceFingerprint: fingerprint,
     rows: form === "form4" ? state.form4 : state.form144,
+    sourceXml: state.rawItem.raw_payload.ownership_source_text,
   });
 }
 
@@ -623,6 +684,7 @@ function repositoryFor(
           event: state.event,
           form4_rows: state.form4,
           form144_rows: state.form144,
+          ownership_source_text: state.rawItem.raw_payload.ownership_source_text,
           context_fingerprint: {
             status: "available",
             form: state.form4.length ? "form4" : "form144",
@@ -674,18 +736,20 @@ function llmFactsForTest(
   for (const assertion of assertions) {
     const fact = String(assertion.fact);
     if (fact === "derivative_underlying_relation" && row.direct.transactionKind !== "derivative") continue;
-    if (fact === "rule_10b5_1_applicability" && row.direct.is10b51 === null) continue;
+    if (fact === "rule_10b5_1_applicability"
+      && row.direct.is10b51 === null
+      && inventory.filingRule10b51 === null) continue;
     if (fact === "footnote_scope" && assertion.status !== "supported") continue;
     if (fact === "amendment_effect" && !inventory.isAmendment) continue;
     const base: Row = { status: assertion.status, evidence_ids: assertion.evidence_refs };
+    if (assertion.footnote_ref) base.footnote_ref = assertion.footnote_ref;
     if (fact === "owner_attribution") {
       if (Object.hasOwn(assertion, "value")) base.owner_id = assertion.value;
       output.owner_attribution = base;
     } else if (fact === "ownership_relation") {
       if (Object.hasOwn(assertion, "value")) base.relation = assertion.value;
-      if (assertion.owner_ref) base.owner_id = assertion.owner_ref;
-      if (assertion.security_ref) base.security_id = assertion.security_ref;
-      output.ownership_relation = base;
+      base.owner_id = assertion.owner_ref ?? row.ownerRefs[0];
+      output.owner_relations = [...(Array.isArray(output.owner_relations) ? output.owner_relations : []), base];
     } else if (fact === "economic_direction") {
       if (Object.hasOwn(assertion, "value")) base.direction = assertion.value;
       if (assertion.security_ref) base.security_id = assertion.security_ref;
@@ -701,9 +765,10 @@ function llmFactsForTest(
       output.rule_10b5_1 = base;
     } else if (fact === "footnote_scope") {
       if (Object.hasOwn(assertion, "value")) base.scope = assertion.value;
+      base.footnote_ref = assertion.footnote_ref ?? row.linkedFootnoteRefs[0];
       if (assertion.owner_ref) base.owner_id = assertion.owner_ref;
       if (assertion.security_ref) base.security_id = assertion.security_ref;
-      output.footnote_scope = base;
+      output.footnote_scopes = [...(Array.isArray(output.footnote_scopes) ? output.footnote_scopes : []), base];
     } else if (fact === "amendment_effect") {
       if (Object.hasOwn(assertion, "value")) base.effect = assertion.value;
       output.amendment_effect = base;
@@ -713,11 +778,9 @@ function llmFactsForTest(
 }
 
 function allUnresolved(inventory: OwnershipContextReferenceInventory, rowIndex: number) {
-  return [
-    unresolved("owner_attribution"), unresolved("ownership_relation"),
-    unresolved("derivative_underlying_relation", inventory.rows[rowIndex].securityRef), unresolved("rule_10b5_1_applicability"),
-    unresolved("footnote_scope"), unresolved("amendment_effect"),
-  ];
+  void inventory;
+  void rowIndex;
+  return [unresolved("owner_attribution")];
 }
 
 function unresolved(fact: string, securityRef: string | null = null): Row {

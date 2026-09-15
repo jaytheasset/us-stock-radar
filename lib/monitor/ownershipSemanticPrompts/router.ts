@@ -10,6 +10,10 @@ import { buildForm144ASemanticRules } from "./form144A.ts";
 export type OwnershipSemanticPromptRoute = "form4" | "form4A" | "form144" | "form144A";
 
 type CanonicalOwnershipForm = "form4" | "form144";
+type OwnershipSemanticWireFactField = Exclude<
+  OwnershipSemanticOutputFactField,
+  "ownership_relation" | "footnote_scope"
+> | "owner_relations" | "footnote_scopes";
 
 export type RoutedOwnershipSemanticPrompt = Readonly<{
   id: OwnershipSemanticPromptRoute;
@@ -17,23 +21,21 @@ export type RoutedOwnershipSemanticPrompt = Readonly<{
   canonicalForm: CanonicalOwnershipForm;
   isAmendment: boolean;
   systemRules: readonly string[];
-  outputFactFields: readonly OwnershipSemanticOutputFactField[];
+  outputFactFields: readonly OwnershipSemanticWireFactField[];
 }>;
 
 const FORM4_OUTPUT_FACTS = Object.freeze([
   "owner_attribution",
-  "ownership_relation",
+  "owner_relations",
   "derivative_underlying_relation",
   "rule_10b5_1",
-  "footnote_scope",
-] satisfies OwnershipSemanticOutputFactField[]);
+  "footnote_scopes",
+] satisfies OwnershipSemanticWireFactField[]);
 
 const FORM144_OUTPUT_FACTS = Object.freeze([
   "owner_attribution",
-  "ownership_relation",
-  "rule_10b5_1",
-  "footnote_scope",
-] satisfies OwnershipSemanticOutputFactField[]);
+  "footnote_scopes",
+] satisfies OwnershipSemanticWireFactField[]);
 
 export function routeOwnershipSemanticPrompt(input: Readonly<{
   rawForm: string;
@@ -96,7 +98,7 @@ function route(
   canonicalForm: CanonicalOwnershipForm,
   isAmendment: boolean,
   systemRules: readonly string[],
-  outputFactFields: readonly OwnershipSemanticOutputFactField[],
+  outputFactFields: readonly OwnershipSemanticWireFactField[],
 ): RoutedOwnershipSemanticPrompt {
   return Object.freeze({
     id,

@@ -66,10 +66,12 @@ export async function persistOwnershipStructuredContext(input: Readonly<{
     eventId: input.eventId,
     form: validation.value.form,
     sourceFingerprint: validation.value.source_fingerprint,
-    contexts: validation.value.rows.map((row) => ({
-      row_ref: row.row_ref,
-      assertions: row.assertions as readonly Record<string, unknown>[],
-    })),
+    contexts: validation.value.rows
+      .filter((row) => row.assertions.length > 0)
+      .map((row) => ({
+        row_ref: row.row_ref,
+        assertions: row.assertions as readonly Record<string, unknown>[],
+      })),
     ...(aiRefs ? { aiRefs } : {}),
   });
   if (!result.ok) throw new Error(`Could not persist Ownership context: ${result.error || result.status || 0}`);

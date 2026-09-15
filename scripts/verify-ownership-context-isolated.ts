@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-// @ts-expect-error The repository runtime dependency intentionally has no local declaration package.
-import pg from "pg";
 import { buildOwnershipParserFactRows } from "../lib/monitor/ownershipParserFacts.ts";
 
+const require = createRequire(import.meta.url);
+// @ts-expect-error The repository runtime dependency intentionally has no local declaration package.
+const pg = require("pg") as typeof import("pg");
 const { Pool } = pg;
 const connectionString = process.env.OWNERSHIP_CONTEXT_ISOLATED_DB_URL;
 const expectedPort = process.env.OWNERSHIP_CONTEXT_ISOLATED_DB_PORT;
@@ -17,9 +19,12 @@ assertIsolatedDatabase(databaseUrl, expectedPort);
 
 const pool = new Pool({ connectionString, max: 8 });
 const here = dirname(fileURLToPath(import.meta.url));
-const migration = readFileSync(join(here, "../supabase/migrations/20260915014346_ownership_structured_context_v1.sql"), "utf8");
+const migrations = [
+  "20260915014346_ownership_structured_context_v1.sql",
+  "20260915065614_harden_ownership_context_semantic_refs.sql",
+].map((filename) => readFileSync(join(here, "../supabase/migrations", filename), "utf8"));
 const fixture = JSON.parse(readFileSync(
-  join(here, "../lib/sources/sec/forms/ownership/fixtures/form4-multi-owner-10b5-1-conversion.json"),
+  join(here, "../lib/sources/sec/forms/ownership/fixtures/source-uwmc-form4-multi-owner-10b5-1-conversion.json"),
   "utf8",
 )) as Record<string, unknown>;
 
@@ -30,7 +35,7 @@ const aiOutputId = "a4444444-4444-4444-8444-444444444444";
 
 try {
   await pool.query(baselineSql());
-  await pool.query(migration);
+  for (const migration of migrations) await pool.query(migration);
   const anonClient = await pool.connect();
   try {
     await anonClient.query("begin");
@@ -66,7 +71,7 @@ try {
     },
   };
   const built = buildOwnershipParserFactRows({ eventId, rawItem, symbol: ticker });
-  assert.equal(built.form4Transactions.length, 3);
+  assert.equal(built.form4Transactions.length, 5);
   await pool.query("insert into public.raw_items(id, source_unique_id, raw_payload) values ($1, $2, $3::jsonb)", [
     rawItemId, accession, JSON.stringify(rawItem.raw_payload),
   ]);
@@ -102,6 +107,93 @@ try {
   assert.deepEqual(await persistContext(firstFingerprint, context), {
     status: "stored", updated_row_count: 1, source_fingerprint: firstFingerprint,
   });
+  assert.deepEqual(await persistContext(firstFingerprint, []), {
+    status: "stored", updated_row_count: 1, source_fingerprint: firstFingerprint,
+  });
+  assert.equal(await storedContext(), null, "an explicit empty result clears old sidecar state");
+  assert.deepEqual(await persistContext(firstFingerprint, []), {
+    status: "replayed", updated_row_count: 0, source_fingerprint: firstFingerprint,
+  });
+  assert.equal((await persistContext(firstFingerprint, context)).status, "stored");
+  const malformedEvidenceRef = [{ row_ref: "row:form4:0", assertions: [{
+    fact: "economic_direction", status: "supported", value: "sell", evidence_refs: ["evidence:form4:nope:0"],
+  }] }];
+  assert.equal((await persistContext(firstFingerprint, malformedEvidenceRef)).reason, "evidence_ref_invalid");
+  const malformedOwnerRef = [{ row_ref: "row:form4:0", assertions: [{
+    fact: "owner_attribution", status: "supported", value: "owner:form4:0:0",
+    owner_ref: "owner:form4:nope:0", evidence_refs: ["evidence:form4:0:0"],
+  }] }];
+  assert.equal((await persistContext(firstFingerprint, malformedOwnerRef)).reason, "owner_ref_invalid");
+  const bothOwnerRelations = [{ row_ref: "row:form4:0", assertions: [
+    {
+      fact: "ownership_relation", status: "supported", value: "indirect",
+      owner_ref: "owner:form4:0:0", footnote_ref: "footnote:F3", evidence_refs: ["evidence:form4:0:0"],
+    },
+    {
+      fact: "ownership_relation", status: "supported", value: "direct",
+      owner_ref: "owner:form4:0:1", footnote_ref: "footnote:F3", evidence_refs: ["evidence:form4:0:0"],
+    },
+  ] }];
+  const bothOwnerRelationsResult = await persistContext(firstFingerprint, bothOwnerRelations);
+  assert.equal(bothOwnerRelationsResult.status, "stored", JSON.stringify(bothOwnerRelationsResult));
+  const wrongSfsRelation = structuredClone(bothOwnerRelations);
+  wrongSfsRelation[0].assertions[1].value = "indirect";
+  assert.equal((await persistContext(firstFingerprint, wrongSfsRelation)).reason, "ownership_relation_owner_evidence_invalid");
+  const ownerScopeAndPlan = [{ row_ref: "row:form4:0", assertions: [
+    {
+      fact: "footnote_scope", status: "supported", value: "owner",
+      owner_ref: "owner:form4:0:1", footnote_ref: "footnote:F1", evidence_refs: ["evidence:form4:0:0"],
+    },
+    {
+      fact: "rule_10b5_1_applicability", status: "supported", value: true,
+      owner_ref: "owner:form4:0:1", footnote_ref: "footnote:F1", evidence_refs: ["evidence:form4:0:0"],
+    },
+  ] }];
+  const ownerScopeAndPlanResult = await persistContext(firstFingerprint, ownerScopeAndPlan);
+  assert.equal(ownerScopeAndPlanResult.status, "stored", JSON.stringify(ownerScopeAndPlanResult));
+  const wrongPlanOwner = structuredClone(ownerScopeAndPlan);
+  wrongPlanOwner[0].assertions[1].owner_ref = "owner:form4:0:0";
+  assert.equal((await persistContext(firstFingerprint, wrongPlanOwner)).reason, "rule_10b5_1_owner_evidence_invalid");
+  const derivativeRelation = [{ row_ref: "row:form4:4", assertions: [{
+    fact: "derivative_underlying_relation", status: "supported",
+    value: "security:form4:underlying:4", security_ref: "security:form4:4",
+    evidence_refs: ["evidence:form4:4:0"],
+  }] }];
+  const derivativeRelationResult = await persistContext(firstFingerprint, derivativeRelation);
+  assert.equal(derivativeRelationResult.status, "stored", JSON.stringify(derivativeRelationResult));
+  const selfLinkedDerivative = structuredClone(derivativeRelation);
+  selfLinkedDerivative[0].assertions[0].value = "security:form4:4";
+  assert.equal((await persistContext(firstFingerprint, selfLinkedDerivative)).reason, "underlying_security_ref_invalid");
+  await pool.query(`update public.event_form4_transactions
+    set calculation_basis = calculation_basis || '{"underlying_security_title":"Forged Common"}'::jsonb
+    where event_id = $1 and transaction_index = 4`, [eventId]);
+  const forgedUnderlyingFingerprint = await currentFingerprint();
+  assert.equal(
+    (await persistContext(forgedUnderlyingFingerprint, derivativeRelation)).reason,
+    "underlying_security_ref_invalid",
+    "calculation metadata cannot mint an underlying ref absent from the same XML row",
+  );
+  await replaceRows(built.form4Transactions);
+  assert.equal(await currentFingerprint(), firstFingerprint);
+  await pool.query(`update public.event_form4_transactions
+    set calculation_basis = pg_catalog.jsonb_set(
+      calculation_basis,
+      '{footnote_ids}',
+      (calculation_basis->'footnote_ids') || '["F2"]'::jsonb
+    ) where event_id = $1 and transaction_index = 1`, [eventId]);
+  const forgedFootnoteFingerprint = await currentFingerprint();
+  const forgedFootnoteScope = [{ row_ref: "row:form4:1", assertions: [{
+    fact: "footnote_scope", status: "supported", value: "row",
+    footnote_ref: "footnote:F2", evidence_refs: ["evidence:form4:1:0"],
+  }] }];
+  assert.equal(
+    (await persistContext(forgedFootnoteFingerprint, forgedFootnoteScope)).reason,
+    "footnote_row_link_invalid",
+    "calculation metadata cannot link a footnote absent from the same XML row",
+  );
+  await replaceRows(built.form4Transactions);
+  assert.equal(await currentFingerprint(), firstFingerprint);
+  assert.equal((await persistContext(firstFingerprint, context)).status, "stored");
   await assert.rejects(
     pool.query(`update public.event_form4_transactions
       set context_facts = context_facts || '{"raw_model":{"shares":999}}'::jsonb
@@ -180,15 +272,91 @@ try {
   );
   assert.equal(unavailable.rows[0].result.status, "not_ready", "raw XML drift cannot mint a mixed old-row/new-raw fingerprint");
 
+  const form144Fixture = JSON.parse(readFileSync(
+    join(here, "../lib/sources/sec/forms/ownership/fixtures/source-amcor-form144-no-prior-sales.json"),
+    "utf8",
+  )) as Record<string, unknown>;
+  const form144EventId = "b1111111-1111-4111-8111-111111111111";
+  const form144RawItemId = "b2222222-2222-4222-8222-222222222222";
+  const form144SourceText = String(form144Fixture.filingText);
+  const form144Accession = String(form144Fixture.accessionNumber);
+  const form144RawItem = {
+    id: form144RawItemId,
+    source_unique_id: form144Accession,
+    raw_payload: {
+      form_type: form144Fixture.formType,
+      accession_number: form144Accession,
+      cik: xmlValue(form144SourceText, "issuerCik"),
+      ownership_issuer_cik: xmlValue(form144SourceText, "issuerCik"),
+      ticker: "AMCR",
+      ownership_issuer_trading_symbol: "AMCR",
+      ownership_source_text: form144SourceText,
+      ownership_source_url: (form144Fixture.source as Record<string, unknown>).url,
+      ownership_source_format: "ownership_xml",
+      ownership_source_text_truncated: false,
+    },
+  };
+  const built144 = buildOwnershipParserFactRows({ eventId: form144EventId, rawItem: form144RawItem, symbol: "AMCR" });
+  assert.equal(built144.form144ProposedSales.length, 1);
+  await pool.query("insert into public.raw_items(id, source_unique_id, raw_payload) values ($1, $2, $3::jsonb)", [
+    form144RawItemId, form144Accession, JSON.stringify(form144RawItem.raw_payload),
+  ]);
+  await pool.query(`insert into public.events(
+    id, raw_item_id, source_code, source_group, event_type, metadata
+  ) values ($1, $2, 'sec_edgar', 'filings', 'insider_ownership', $3::jsonb)`, [
+    form144EventId, form144RawItemId,
+    JSON.stringify({ form_type: form144Fixture.formType, accession_number: form144Accession }),
+  ]);
+  await pool.query("select public.replace_event_ownership_facts($1, '[]'::jsonb, $2::jsonb)", [
+    form144EventId, JSON.stringify(built144.form144ProposedSales),
+  ]);
+  const form144FingerprintResult = await pool.query(
+    "select public.ownership_context_source_fingerprint($1) as fingerprint", [form144EventId],
+  );
+  const form144Fingerprint = String(form144FingerprintResult.rows[0].fingerprint);
+  const form144OwnerContext = [{ row_ref: "row:form144:0", assertions: [{
+    fact: "owner_attribution", status: "supported", value: "owner:form144:0:0",
+    evidence_refs: ["evidence:form144:0:0"],
+  }] }];
+  assert.equal((await persistContextFor(form144EventId, "form144", form144Fingerprint, form144OwnerContext)).status, "stored");
+  const form144Relation = [{ row_ref: "row:form144:0", assertions: [{
+    fact: "ownership_relation", status: "unresolved", evidence_refs: [],
+  }] }];
+  assert.equal(
+    (await persistContextFor(form144EventId, "form144", form144Fingerprint, form144Relation)).reason,
+    "ownership_relation_not_applicable",
+  );
+  const form144Plan = [{ row_ref: "row:form144:0", assertions: [{
+    fact: "rule_10b5_1_applicability", status: "unresolved", evidence_refs: [],
+  }] }];
+  assert.equal(
+    (await persistContextFor(form144EventId, "form144", form144Fingerprint, form144Plan)).reason,
+    "rule_10b5_1_not_applicable",
+  );
+  const form144Scope = [{ row_ref: "row:form144:0", assertions: [{
+    fact: "footnote_scope", status: "unresolved", evidence_refs: [],
+  }] }];
+  assert.equal(
+    (await persistContextFor(form144EventId, "form144", form144Fingerprint, form144Scope)).reason,
+    "footnote_scope_invalid",
+  );
+
   process.stdout.write(`${JSON.stringify({
     ok: true,
     isolatedDatabase: { host: databaseUrl.hostname, port: databaseUrl.port, database: databaseUrl.pathname.slice(1) },
     assertions: {
-      migrationApplied: true,
+      migrationsApplied: migrations.length,
       anonymousRpcExecutionRevoked: true,
       sqlNullAndJsonNullRejected: true,
       rawModelEnvelopeRejectedByConstraint: true,
       directColumnsUnchangedByContextWrite: true,
+      explicitEmptyResultClearsPriorSidecars: true,
+      malformedOpaqueRefsRejectWithoutException: true,
+      multiOwnerRelationsRequireOwnerBoundFootnoteClauses: true,
+      ownerScopedPlanRequiresMatchingFootnoteSubject: true,
+      derivativeTargetUsesIndependentSourceBoundRef: true,
+      calculationMetadataCannotForgeXmlBindings: true,
+      form144AllowsAttributionButRejectsRelationPlanAndUnlinkedScope: true,
       sameInputReplayPreserved: true,
       changedInputInvalidated: true,
       staleFingerprintRejected: true,
@@ -219,6 +387,19 @@ async function persistContext(
   const result = await pool.query(
     "select public.persist_event_ownership_context($1, 'form4', $2, $3::jsonb, $4, $5) as result",
     [eventId, sourceFingerprint, JSON.stringify(contexts), runId, outputId],
+  );
+  return result.rows[0].result as Record<string, any>;
+}
+
+async function persistContextFor(
+  targetEventId: string,
+  form: "form4" | "form144",
+  sourceFingerprint: string,
+  contexts: readonly Record<string, unknown>[],
+) {
+  const result = await pool.query(
+    "select public.persist_event_ownership_context($1, $2, $3, $4::jsonb, null, null) as result",
+    [targetEventId, form, sourceFingerprint, JSON.stringify(contexts)],
   );
   return result.rows[0].result as Record<string, any>;
 }

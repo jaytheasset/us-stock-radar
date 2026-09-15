@@ -18,6 +18,7 @@ import {
   OWNERSHIP_CONTEXT_AI_PROMPT_KEY,
   OWNERSHIP_CONTEXT_AI_PROMPT_VERSION,
   OWNERSHIP_CONTEXT_AI_PURPOSE,
+  buildOwnershipContextReferenceInventory,
   validateOwnershipContextCandidate,
   type OwnershipContextFact,
   type OwnershipContextReferenceInventory,
@@ -36,11 +37,11 @@ export const OWNERSHIP_CONTEXT_LLM_VERSION = "ownership_context_llm_v1" as const
 
 const OWNERSHIP_CONTEXT_LLM_FACT_FIELDS = [
   "owner_attribution",
-  "ownership_relation",
+  "owner_relations",
   "economic_direction",
   "derivative_underlying_relation",
   "rule_10b5_1",
-  "footnote_scope",
+  "footnote_scopes",
   "amendment_effect",
 ] as const;
 
@@ -122,6 +123,12 @@ type NeutralOwnershipContextPromptInput = Readonly<{
         xml_name: string;
       }>[];
       security_id: string | null;
+      linked_footnote_refs: readonly string[];
+      security_xml_bindings: readonly Readonly<{
+        security_id: string;
+        role: "row_security" | "underlying_security";
+        xml_locator: Readonly<{ element: string; ordinal: number }>;
+      }>[];
       evidence_ids: readonly string[];
       evidence_xml_bindings: readonly Readonly<{
         evidence_id: string;
@@ -174,10 +181,19 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
   });
   if (!source.ok) return unavailable(input.eventId, "source", source.reason);
 
+  const inventory = buildOwnershipContextReferenceInventory({
+    eventId: input.eventId,
+    form: current.form,
+    isAmendment: current.contextEligibility.inventory.isAmendment,
+    sourceFingerprint: current.contextEligibility.inventory.sourceFingerprint,
+    rows: current.rows as readonly Record<string, unknown>[],
+    sourceXml: source.xml,
+  });
+
   const semanticPromptRoute = routeOwnershipSemanticPrompt({
     rawForm: source.form,
     canonicalForm: current.form,
-    isAmendment: current.contextEligibility.inventory.isAmendment,
+    isAmendment: inventory.isAmendment,
   });
   if (!semanticPromptRoute.ok) return unavailable(input.eventId, "source", semanticPromptRoute.reason);
 
@@ -197,7 +213,7 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
   try {
     prompt = buildOwnershipStructuredContextPrompt({
       source,
-      inventory: current.contextEligibility.inventory,
+      inventory,
       semanticPromptRoute: semanticPromptRoute.route,
     });
   } catch (error) {
@@ -222,7 +238,7 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
     ? mapOwnershipContextLlmDto({
         candidate: parsedOutput,
         source,
-        inventory: current.contextEligibility.inventory,
+        inventory,
       })
     : null;
   const runId = idFactory();
@@ -261,7 +277,7 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
       runId, outputId, model, validationErrors: mapping?.errors ?? ["ownership_context_llm output is unavailable"],
     });
   }
-  const validation = validateOwnershipContextCandidate(mapping.value, current.contextEligibility.inventory);
+  const validation = validateOwnershipContextCandidate(mapping.value, inventory);
   if (!validation.ok) {
     return unavailable(input.eventId, "validation", "ownership_context_candidate_invalid", {
       runId, outputId, model, validationErrors: validation.errors,
@@ -338,6 +354,19 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
           xml_name: input.source.reportingOwners[ownerIndex].name,
         })),
         security_id: row.securityRef,
+        linked_footnote_refs: row.linkedFootnoteRefs,
+        security_xml_bindings: [
+          ...(row.securityRef ? [{
+            security_id: row.securityRef,
+            role: "row_security" as const,
+            xml_locator: { element: `${rowLocators[rowIndex].element}.securityTitle`, ordinal: 0 },
+          }] : []),
+          ...row.underlyingSecurityRefs.map((securityId, underlyingIndex) => ({
+            security_id: securityId,
+            role: "underlying_security" as const,
+            xml_locator: { element: `${rowLocators[rowIndex].element}.underlyingSecurity`, ordinal: underlyingIndex },
+          })),
+        ],
         evidence_ids: row.evidenceRefs,
         evidence_xml_bindings: row.evidenceRefs.map((evidenceRef, evidenceIndex) => ({
           evidence_id: evidenceRef,
@@ -345,9 +374,9 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
           xml_locator: rowLocators[rowIndex],
         })),
       })),
-      footnotes: readXmlFootnoteIds(input.source.xml).map((xmlId) => ({
-        footnote_ref: `footnote:${xmlId}`,
-        xml_id: xmlId,
+      footnotes: input.inventory.footnotes.map((footnote) => ({
+        footnote_ref: footnote.footnoteRef,
+        xml_id: footnote.xmlId,
       })),
     },
     output_contract: outputContract,
@@ -360,7 +389,11 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
           owner_id: "<allowed owner_id string>",
           evidence_ids: ["<allowed evidence_id string>"],
         },
-        ownership_relation: { status: "unresolved", evidence_ids: [] },
+        owner_relations: [{
+          status: "unresolved",
+          owner_id: "<allowed owner_id string>",
+          evidence_ids: [],
+        }],
       },
     },
   };
@@ -390,10 +423,35 @@ export function buildOwnershipStructuredContextResponseSchema(inventory: Ownersh
   const semanticRoute = routeOwnershipSemanticPromptFromInventory(inventory);
   const factSchemas: Record<Exclude<OwnershipContextLlmFactField, "economic_direction">, Record<string, unknown>> = {
     owner_attribution: llmFactSchema("owner_id", { type: "string" }),
-    ownership_relation: llmFactSchema("relation", { type: "string", enum: ["direct", "indirect"] }, ["owner_id", "security_id"]),
-    derivative_underlying_relation: llmFactSchema("target_security_id", { type: "string" }, ["source_security_id"]),
-    rule_10b5_1: llmFactSchema("applies", { type: "boolean" }, ["owner_id", "security_id"]),
-    footnote_scope: llmFactSchema("scope", { type: "string", enum: ["row", "owner", "security", "filing"] }, ["owner_id", "security_id"]),
+    owner_relations: {
+      type: "array",
+      minItems: 1,
+      maxItems: 16,
+      items: llmFactSchema(
+        "relation",
+        { type: "string", enum: ["direct", "indirect"] },
+        ["owner_id", "footnote_ref"],
+        ["owner_id"],
+      ),
+    },
+    derivative_underlying_relation: llmFactSchema(
+      "target_security_id",
+      { type: "string" },
+      ["source_security_id", "footnote_ref"],
+      ["source_security_id"],
+    ),
+    rule_10b5_1: llmFactSchema("applies", { type: "boolean" }, ["owner_id", "security_id", "footnote_ref"]),
+    footnote_scopes: {
+      type: "array",
+      minItems: 1,
+      maxItems: 32,
+      items: llmFactSchema(
+        "scope",
+        { type: "string", enum: ["row", "owner", "security", "filing"] },
+        ["owner_id", "security_id", "footnote_ref"],
+        ["footnote_ref"],
+      ),
+    },
     amendment_effect: llmFactSchema("effect", { type: "string", enum: ["adds", "modifies", "removes", "restates", "no_change"] }),
   };
   return {
@@ -404,7 +462,7 @@ export function buildOwnershipStructuredContextResponseSchema(inventory: Ownersh
       version: { type: "string", enum: [OWNERSHIP_CONTEXT_LLM_VERSION] },
       rows: {
         type: "array",
-        minItems: 1,
+        minItems: 0,
         maxItems: inventory.rows.length,
         items: {
           type: "object",
@@ -424,11 +482,12 @@ function llmFactSchema(
   attribute: string,
   attributeSchema: Record<string, unknown>,
   subjectIds: readonly string[] = [],
+  requiredSubjectIds: readonly string[] = [],
 ) {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["status", "evidence_ids"],
+    required: ["status", "evidence_ids", ...requiredSubjectIds],
     properties: {
       status: { type: "string", enum: [...OWNERSHIP_CONTEXT_STATUSES] },
       [attribute]: attributeSchema,
@@ -462,8 +521,8 @@ export function mapOwnershipContextLlmDto(input: Readonly<{
   };
   if (!root) return { ok: false, mappedCanonicalOutput, errors: Object.freeze(errors) };
   if (root.version !== OWNERSHIP_CONTEXT_LLM_VERSION) errors.push("ownership_context_llm.version is invalid");
-  if (!Array.isArray(root.rows) || root.rows.length === 0 || root.rows.length > contracts.length) {
-    errors.push("ownership_context_llm.rows must contain between one and the current row count");
+  if (!Array.isArray(root.rows) || root.rows.length > contracts.length) {
+    errors.push("ownership_context_llm.rows must contain between zero and the current row count");
   }
   const contractById = new Map(contracts.map((contract) => [contract.rowId, contract]));
   const seenRows = new Set<string>();
@@ -481,14 +540,26 @@ export function mapOwnershipContextLlmDto(input: Readonly<{
     seenRows.add(rowId);
     const allowed = new Set(contract.allowedFactFields);
     const presentFields = OWNERSHIP_CONTEXT_LLM_FACT_FIELDS.filter((field) => Object.hasOwn(row, field));
-    if (presentFields.length === 0) errors.push(`${path} must contain at least one applicable fact field`);
     for (const field of OWNERSHIP_CONTEXT_LLM_FACT_FIELDS) {
       if (Object.hasOwn(row, field) && !allowed.has(field)) errors.push(`${path}.${field} is not applicable to this XML row`);
     }
     const assertions: Row[] = [];
     for (const field of contract.allowedFactFields) {
       if (!Object.hasOwn(row, field)) continue;
-      const assertion = mapLlmFact(field, row[field], `${path}.${field}`, errors);
+      const fieldValue = row[field];
+      if (field === "owner_relations" || field === "footnote_scopes") {
+        const maximum = field === "owner_relations" ? 16 : 32;
+        if (!Array.isArray(fieldValue) || fieldValue.length === 0 || fieldValue.length > maximum) {
+          errors.push(`${path}.${field} must contain between one and ${maximum} items`);
+          continue;
+        }
+        fieldValue.forEach((item, itemIndex) => {
+          const assertion = mapLlmFact(field, item, `${path}.${field}[${itemIndex}]`, errors);
+          if (assertion) assertions.push(assertion);
+        });
+        continue;
+      }
+      const assertion = mapLlmFact(field, fieldValue, `${path}.${field}`, errors);
       if (assertion) assertions.push(assertion);
     }
     mappedRows.push({ row_ref: rowId, assertions });
@@ -526,16 +597,19 @@ function buildOwnershipContextLlmRowContracts(
     const rowBlock = rowBlocks[rowIndex];
     const allowed: OwnershipContextLlmFactField[] = [];
     if (row.ownerRefs.length > 0) allowed.push("owner_attribution");
-    if (inventory.form === "form144" || /<(?:[A-Za-z_][\w.-]*:)?directOrIndirectOwnership\b/i.test(rowBlock)) {
-      allowed.push("ownership_relation");
+    if (inventory.form === "form4"
+      && row.ownerRefs.length > 0
+      && /<(?:[A-Za-z_][\w.-]*:)?directOrIndirectOwnership\b/i.test(rowBlock)) {
+      allowed.push("owner_relations");
     }
     if (rowLocators[rowIndex].element.toLowerCase() === "derivativetransaction") {
       allowed.push("derivative_underlying_relation");
     }
-    if (/<(?:[A-Za-z_][\w.-]*:)?aff10b5One\b/i.test(source.xml) || /10b5-?1/i.test(rowBlock)) {
+    if (inventory.form === "form4"
+      && (/<(?:[A-Za-z_][\w.-]*:)?aff10b5One\b/i.test(source.xml) || /10b5-?1/i.test(rowBlock))) {
       allowed.push("rule_10b5_1");
     }
-    if (/<(?:[A-Za-z_][\w.-]*:)?footnoteId\b/i.test(rowBlock)) allowed.push("footnote_scope");
+    if (row.linkedFootnoteRefs.length > 0) allowed.push("footnote_scopes");
     if (isAmendment) allowed.push("amendment_effect");
     return Object.freeze({
       rowId: row.rowRef,
@@ -552,7 +626,9 @@ function mapLlmFact(
   errors: string[],
 ): Row | null {
   const definition = llmFactDefinition(field);
-  const fact = llmStrictRecord(value, path, ["status", definition.attribute, ...definition.subjects, "evidence_ids"], errors);
+  const fact = llmStrictRecord(value, path, [
+    "status", definition.attribute, ...definition.subjects, "footnote_ref", "evidence_ids",
+  ], errors);
   if (!fact) return null;
   const status = typeof fact.status === "string" && OWNERSHIP_CONTEXT_STATUSES.includes(fact.status as OwnershipContextStatus)
     ? fact.status as OwnershipContextStatus
@@ -577,6 +653,16 @@ function mapLlmFact(
   if (field === "derivative_underlying_relation" && !Object.hasOwn(fact, "source_security_id")) {
     errors.push(`${path}.source_security_id is required`);
   }
+  if (field === "owner_relations" && !Object.hasOwn(fact, "owner_id")) {
+    errors.push(`${path}.owner_id is required`);
+  }
+  if (field === "footnote_scopes" && !Object.hasOwn(fact, "footnote_ref")) {
+    errors.push(`${path}.footnote_ref is required`);
+  }
+  const footnoteRef = Object.hasOwn(fact, "footnote_ref") ? strictId(fact.footnote_ref) : null;
+  if (Object.hasOwn(fact, "footnote_ref") && !footnoteRef) {
+    errors.push(`${path}.footnote_ref must be a non-empty opaque ID string`);
+  }
   if (!status || !evidenceIds) return null;
   return {
     fact: definition.canonicalFact,
@@ -585,6 +671,7 @@ function mapLlmFact(
     ...(subjects.owner_id ? { owner_ref: subjects.owner_id } : {}),
     ...(subjects.security_id ? { security_ref: subjects.security_id } : {}),
     ...(subjects.source_security_id ? { security_ref: subjects.source_security_id } : {}),
+    ...(footnoteRef ? { footnote_ref: footnoteRef } : {}),
     evidence_refs: [...evidenceIds],
   };
 }
@@ -598,8 +685,8 @@ function llmFactDefinition(field: OwnershipContextLlmFactField): Readonly<{
   if (field === "owner_attribution") return {
     canonicalFact: "owner_attribution", attribute: "owner_id", subjects: [], accepts: (value) => Boolean(strictId(value)),
   };
-  if (field === "ownership_relation") return {
-    canonicalFact: "ownership_relation", attribute: "relation", subjects: ["owner_id", "security_id"],
+  if (field === "owner_relations") return {
+    canonicalFact: "ownership_relation", attribute: "relation", subjects: ["owner_id"],
     accepts: (value) => value === "direct" || value === "indirect",
   };
   if (field === "economic_direction") return {
@@ -614,7 +701,7 @@ function llmFactDefinition(field: OwnershipContextLlmFactField): Readonly<{
     canonicalFact: "rule_10b5_1_applicability", attribute: "applies", subjects: ["owner_id", "security_id"],
     accepts: (value) => typeof value === "boolean",
   };
-  if (field === "footnote_scope") return {
+  if (field === "footnote_scopes") return {
     canonicalFact: "footnote_scope", attribute: "scope", subjects: ["owner_id", "security_id"],
     accepts: (value) => typeof value === "string" && ["row", "owner", "security", "filing"].includes(value),
   };
@@ -773,13 +860,6 @@ function readXmlValue(xml: string, localName: string) {
   const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
   const value = xml.match(new RegExp(`<${tag}\\b[^>]*>\\s*(?:<(?:[A-Za-z_][\\w.-]*:)?value\\b[^>]*>)?\\s*([^<]*?)\\s*(?:<\\/(?:[A-Za-z_][\\w.-]*:)?value>)?\\s*<\\/${tag}>`, "i"))?.[1];
   return value ? decodeXml(value.trim()) || null : null;
-}
-
-function readXmlFootnoteIds(xml: string) {
-  const ids = Array.from(xml.matchAll(/<(?:[A-Za-z_][\w.-]*:)?footnote\b[^>]*\bid=["']([^"']+)["']/gi))
-    .map((match) => match[1]?.trim())
-    .filter((value): value is string => Boolean(value));
-  return [...new Set(ids)].sort();
 }
 
 function readXmlReportingOwners(xml: string, form: "form4" | "form144") {

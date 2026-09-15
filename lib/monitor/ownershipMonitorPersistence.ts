@@ -161,6 +161,7 @@ export async function readCurrentOwnershipFacts(
     isAmendment: isAmendmentForm(metadata.form_type),
     storedRows: selectedRows,
     directRows,
+    sourceXml: snapshot ? stringValue(snapshot.ownership_source_text) : null,
     fingerprintResult: snapshot ? record(snapshot.context_fingerprint) : null,
   });
 
@@ -187,6 +188,7 @@ async function readOwnershipContextProjection(input: {
   isAmendment: boolean;
   storedRows: Record<string, unknown>[];
   directRows: Record<string, unknown>[];
+  sourceXml: string | null;
   fingerprintResult: Record<string, unknown> | null;
 }): Promise<{ context: CurrentOwnershipContextResult; eligibility: OwnershipContextEligibility }> {
   if (!input.fingerprintResult) return {
@@ -212,6 +214,7 @@ async function readOwnershipContextProjection(input: {
     isAmendment: input.isAmendment,
     sourceFingerprint: fingerprint,
     rows: input.directRows,
+    ...(input.sourceXml ? { sourceXml: input.sourceXml } : {}),
   });
   const eligibility: OwnershipContextEligibility = { status: "eligible", inventory };
   const contexts = input.storedRows
