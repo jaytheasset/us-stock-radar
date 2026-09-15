@@ -205,6 +205,42 @@ test("footnote scope identity is per linked footnote and Rule 10b5-1 true stays 
   }]), negated).ok, false);
 });
 
+test("singular Reporting Person establishes only the sole matching Form 4 owner scope", () => {
+  const planText = "This transaction was made pursuant to a Rule 10b5-1 trading plan adopted by the Reporting Person.";
+  const inventory = soleOwnerScopeInventory(planText);
+  const row = inventory.rows[0];
+  const ownerScope = {
+    ...supported("footnote_scope", "owner", row.evidenceRefs[0]),
+    owner_ref: row.ownerRefs[0],
+    footnote_ref: "footnote:F1",
+  };
+  assert.equal(
+    validateOwnershipContextCandidate(contextCandidate(inventory, 0, [ownerScope]), inventory).ok,
+    true,
+    "exact singular self-reference binds to the sole XML reporting owner",
+  );
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 0, [{
+    ...supported("rule_10b5_1_applicability", true, row.evidenceRefs[0]),
+    owner_ref: row.ownerRefs[0],
+    footnote_ref: "footnote:F1",
+  }]), inventory).ok, false, "the scope-only exception must not widen Rule 10b5-1 owner attribution");
+
+  for (const [label, guarded] of [
+    ["plural", soleOwnerScopeInventory("The Reporting Persons approved the transaction.")],
+    ["other", soleOwnerScopeInventory("The other Reporting Person approved the transaction.")],
+    ["another", soleOwnerScopeInventory("Another Reporting Person approved the transaction.")],
+    ["foreign XML owner", soleOwnerScopeInventory(planText, ["Jane Doe"])],
+    ["multiple XML owners", soleOwnerScopeInventory(planText, ["Molly O'Neil", "Jane Doe"])],
+  ] as const) {
+    const guardedRow = guarded.rows[0];
+    assert.equal(validateOwnershipContextCandidate(contextCandidate(guarded, 0, [{
+      ...supported("footnote_scope", "owner", guardedRow.evidenceRefs[0]),
+      owner_ref: guardedRow.ownerRefs[0],
+      footnote_ref: "footnote:F1",
+    }]), guarded).ok, false, label);
+  }
+});
+
 test("Form 144 blocks unsupported D/I and unlinked footnote scope while keeping account attribution", () => {
   const state = canonicalState("source-amcor-form144-no-prior-sales.json");
   const inventory = inventoryFor(state);
@@ -465,6 +501,31 @@ function relationInventory(footnoteText: string, filingRule10b51 = false) {
       transaction_kind: "non_derivative",
       acquired_disposed_code: "A",
       is_10b5_1: null,
+      calculation_basis: { footnote_ids: ["F1"], underlying_security_title: null },
+    }],
+  });
+}
+
+function soleOwnerScopeInventory(footnoteText: string, sourceOwnerNames: readonly string[] = ["Molly O'Neil"]) {
+  const sourceOwnersXml = sourceOwnerNames
+    .map((name) => `<reportingOwner><rptOwnerName>${name}</rptOwnerName></reportingOwner>`)
+    .join("");
+  const sourceXml = `<ownershipDocument><aff10b5One>1</aff10b5One>${sourceOwnersXml}<footnotes><footnote id="F1">${footnoteText}</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><ownershipNature><directOrIndirectOwnership><value>D</value><footnoteId id="F1"/></directOrIndirectOwnership></ownershipNature></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>`;
+  return buildOwnershipContextReferenceInventory({
+    eventId,
+    form: "form4",
+    isAmendment: false,
+    sourceFingerprint: fingerprint,
+    sourceXml,
+    rows: [{
+      transaction_index: 0,
+      security_title: "Common Stock",
+      reporting_owner_names: ["Molly O'Neil"],
+      evidence: ["<nonDerivativeTransaction>...</nonDerivativeTransaction>"],
+      direct_or_indirect_ownership: "D",
+      transaction_kind: "non_derivative",
+      acquired_disposed_code: "A",
+      is_10b5_1: true,
       calculation_basis: { footnote_ids: ["F1"], underlying_security_title: null },
     }],
   });

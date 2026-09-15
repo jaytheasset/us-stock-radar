@@ -22,9 +22,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const migrations = [
   "20260915014346_ownership_structured_context_v1.sql",
   "20260915065614_harden_ownership_context_semantic_refs.sql",
+  "20260915082336_ownership_context_sole_reporting_person_scope.sql",
 ].map((filename) => readFileSync(join(here, "../supabase/migrations", filename), "utf8"));
 const fixture = JSON.parse(readFileSync(
   join(here, "../lib/sources/sec/forms/ownership/fixtures/source-uwmc-form4-multi-owner-10b5-1-conversion.json"),
+  "utf8",
+)) as Record<string, unknown>;
+const venuFixture = JSON.parse(readFileSync(
+  join(here, "../lib/sources/sec/forms/ownership/fixtures/source-venu-form4-section16-derivative-gift.json"),
   "utf8",
 )) as Record<string, unknown>;
 
@@ -272,6 +277,104 @@ try {
   );
   assert.equal(unavailable.rows[0].result.status, "not_ready", "raw XML drift cannot mint a mixed old-row/new-raw fingerprint");
 
+  const venuEventId = "c1111111-1111-4111-8111-111111111111";
+  const venuRawItemId = "c2222222-2222-4222-8222-222222222222";
+  const venuSourceText = String(venuFixture.filingText);
+  const venuAccession = String(venuFixture.accessionNumber);
+  const venuRawItem = {
+    id: venuRawItemId,
+    source_unique_id: venuAccession,
+    raw_payload: {
+      form_type: venuFixture.formType,
+      accession_number: venuAccession,
+      cik: xmlValue(venuSourceText, "issuerCik"),
+      ownership_issuer_cik: xmlValue(venuSourceText, "issuerCik"),
+      ticker: xmlValue(venuSourceText, "issuerTradingSymbol"),
+      ownership_issuer_trading_symbol: xmlValue(venuSourceText, "issuerTradingSymbol"),
+      ownership_source_text: venuSourceText,
+      ownership_source_url: (venuFixture.source as Record<string, unknown>).url,
+      ownership_source_format: "ownership_xml",
+      ownership_source_text_truncated: false,
+    },
+  };
+  const builtVenu = buildOwnershipParserFactRows({
+    eventId: venuEventId,
+    rawItem: venuRawItem,
+    symbol: xmlValue(venuSourceText, "issuerTradingSymbol"),
+  });
+  assert.equal(builtVenu.form4Transactions.length, 1);
+  await pool.query("insert into public.raw_items(id, source_unique_id, raw_payload) values ($1, $2, $3::jsonb)", [
+    venuRawItemId, venuAccession, JSON.stringify(venuRawItem.raw_payload),
+  ]);
+  await pool.query(`insert into public.events(
+    id, raw_item_id, source_code, source_group, event_type, metadata
+  ) values ($1, $2, 'sec_edgar', 'filings', 'insider_ownership', $3::jsonb)`, [
+    venuEventId, venuRawItemId,
+    JSON.stringify({ form_type: venuFixture.formType, accession_number: venuAccession }),
+  ]);
+  await pool.query("select public.replace_event_ownership_facts($1, $2::jsonb, '[]'::jsonb)", [
+    venuEventId, JSON.stringify(builtVenu.form4Transactions),
+  ]);
+  const venuFingerprint = String((await pool.query(
+    "select public.ownership_context_source_fingerprint($1) as fingerprint", [venuEventId],
+  )).rows[0].fingerprint);
+  const venuActualContext = [{ row_ref: "row:form4:0", assertions: [
+    {
+      fact: "owner_attribution", status: "supported", value: "owner:form4:0:0",
+      evidence_refs: ["evidence:form4:0:0"],
+    },
+    {
+      fact: "ownership_relation", status: "supported", value: "direct", owner_ref: "owner:form4:0:0",
+      evidence_refs: ["evidence:form4:0:0"],
+    },
+    {
+      fact: "derivative_underlying_relation", status: "supported", value: "security:form4:underlying:0",
+      security_ref: "security:form4:0", evidence_refs: ["evidence:form4:0:0"],
+    },
+    { fact: "rule_10b5_1_applicability", status: "unresolved", evidence_refs: [] },
+    {
+      fact: "footnote_scope", status: "supported", value: "row", footnote_ref: "footnote:F1",
+      evidence_refs: ["evidence:form4:0:0"],
+    },
+    {
+      fact: "footnote_scope", status: "supported", value: "owner", owner_ref: "owner:form4:0:0",
+      footnote_ref: "footnote:F1", evidence_refs: ["evidence:form4:0:0"],
+    },
+  ] }];
+  assert.equal(
+    (await persistContextFor(venuEventId, "form4", venuFingerprint, venuActualContext)).status,
+    "stored",
+  );
+  const venuSelfLink = structuredClone(venuActualContext);
+  venuSelfLink[0].assertions[2].value = "security:form4:0";
+  assert.equal(
+    (await persistContextFor(venuEventId, "form4", venuFingerprint, venuSelfLink)).reason,
+    "underlying_security_ref_invalid",
+  );
+  const soleSelfReference = await pool.query(`select
+    public.ownership_context_footnote_establishes_owner_scope($1, 'F1', 'Solo Owner') as scope_ok,
+    public.ownership_context_footnote_mentions_owner($1, 'F1', 'Solo Owner') as plan_owner_ok`, [
+    `<ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Solo Owner</rptOwnerName></reportingOwnerId></reportingOwner><footnotes><footnote id="F1">Under a Rule 10b5-1 plan, the Reporting Person acted.</footnote></footnotes></ownershipDocument>`,
+  ]);
+  assert.equal(soleSelfReference.rows[0].scope_ok, true);
+  assert.equal(soleSelfReference.rows[0].plan_owner_ok, false, "Rule 10b5-1 owner checks retain explicit-name policy");
+  for (const unsafeText of [
+    "The Reporting Persons acted.",
+    "The other Reporting Person acted.",
+    "Another Reporting Person acted.",
+  ]) {
+    const unsafe = await pool.query(
+      "select public.ownership_context_footnote_establishes_owner_scope($1, 'F1', 'Solo Owner') as result",
+      [`<ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Solo Owner</rptOwnerName></reportingOwnerId></reportingOwner><footnotes><footnote id="F1">${unsafeText}</footnote></footnotes></ownershipDocument>`],
+    );
+    assert.equal(unsafe.rows[0].result, false, unsafeText);
+  }
+  const multiOwnerSelfReference = await pool.query(
+    "select public.ownership_context_footnote_establishes_owner_scope($1, 'F1', 'Alpha Owner') as result",
+    [`<ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Alpha Owner</rptOwnerName></reportingOwnerId></reportingOwner><reportingOwner><reportingOwnerId><rptOwnerName>Beta Owner</rptOwnerName></reportingOwnerId></reportingOwner><footnotes><footnote id="F1">The Reporting Person acted.</footnote></footnotes></ownershipDocument>`],
+  );
+  assert.equal(multiOwnerSelfReference.rows[0].result, false);
+
   const form144Fixture = JSON.parse(readFileSync(
     join(here, "../lib/sources/sec/forms/ownership/fixtures/source-amcor-form144-no-prior-sales.json"),
     "utf8",
@@ -357,6 +460,9 @@ try {
       derivativeTargetUsesIndependentSourceBoundRef: true,
       calculationMetadataCannotForgeXmlBindings: true,
       form144AllowsAttributionButRejectsRelationPlanAndUnlinkedScope: true,
+      venuActualCanonicalContextPersists: true,
+      soleReportingPersonScopeIsNarrowAndSqlParityVerified: true,
+      rule10b51OwnerPolicyUnchanged: true,
       sameInputReplayPreserved: true,
       changedInputInvalidated: true,
       staleFingerprintRejected: true,

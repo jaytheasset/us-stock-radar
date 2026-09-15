@@ -1,6 +1,6 @@
 export const OWNERSHIP_CONTEXT_VERSION = "ownership_context_v1" as const;
 export const OWNERSHIP_CONTEXT_AI_PROMPT_KEY = "ownership_structured_context" as const;
-export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_llm_v1.2-contract-aligned" as const;
+export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_llm_v1.3-required-supported-values" as const;
 export const OWNERSHIP_CONTEXT_AI_PURPOSE = "ownership_structured_context" as const;
 
 export const OWNERSHIP_CONTEXT_FACTS = [
@@ -93,6 +93,7 @@ export type OwnershipContextReferenceInventory = Readonly<{
   isAmendment: boolean;
   sourceFingerprint: string;
   filingRule10b51: boolean | null;
+  sourceReportingOwnerNames: readonly string[];
   footnotes: readonly OwnershipContextFootnoteReference[];
   rows: readonly OwnershipContextReferenceRow[];
 }>;
@@ -124,6 +125,7 @@ export function buildOwnershipContextReferenceInventory(input: Readonly<{
   const securityTitles = input.rows.map((row) => nonEmptyString(row.security_title));
   const securityRefs = securityTitles.map((title, position) => title ? `security:${input.form}:${position}` : null);
   const footnotes = readSourceFootnotes(input.sourceXml ?? "");
+  const sourceReportingOwnerNames = readSourceReportingOwners(input.sourceXml ?? "", input.form);
   const sourceFootnoteRefs = new Set(footnotes.map((footnote) => footnote.footnoteRef));
   const sourceRowBlocks = input.sourceXml ? readSourceRowBlocks(input.sourceXml, input.form) : [];
   return Object.freeze({
@@ -133,6 +135,7 @@ export function buildOwnershipContextReferenceInventory(input: Readonly<{
     isAmendment: input.isAmendment,
     sourceFingerprint: input.sourceFingerprint,
     filingRule10b51: readFilingRule10b51(input.sourceXml ?? ""),
+    sourceReportingOwnerNames,
     footnotes,
     rows: Object.freeze(input.rows.map((row, position) => {
       const index = row[indexColumn];
@@ -469,7 +472,7 @@ function validateAssertionMeaning(input: {
     if (supported && value === "owner" && !ownerRef) errors.push(`${path}.owner scope requires owner_ref`);
     if (supported && value === "security" && !securityRef) errors.push(`${path}.security scope requires security_ref`);
     if (supported && value === "owner" && ownerRef && footnoteRef
-      && !footnoteMentionsOwner(footnoteRef, ownerRef, referenceRow, inventory)) {
+      && !footnoteEstablishesOwnerScope(footnoteRef, ownerRef, referenceRow, inventory)) {
       errors.push(`${path}.owner scope is not established for that owner by the linked footnote`);
     }
     if (supported && value === "security" && footnoteRef
@@ -571,6 +574,27 @@ function footnoteMentionsOwner(
     .some((alias) => containsWholeNormalizedPhrase(footnoteText, alias));
 }
 
+function footnoteEstablishesOwnerScope(
+  footnoteRef: string,
+  ownerRef: string,
+  referenceRow: OwnershipContextReferenceRow,
+  inventory: OwnershipContextReferenceInventory,
+) {
+  if (footnoteMentionsOwner(footnoteRef, ownerRef, referenceRow, inventory)) return true;
+  if (referenceRow.ownerRefs.length !== 1 || referenceRow.ownerRefs[0] !== ownerRef) return false;
+  const ownerIndex = referenceRow.ownerRefs.indexOf(ownerRef);
+  const ownerName = referenceRow.ownerNames[ownerIndex];
+  if (inventory.form !== "form4"
+    || inventory.sourceReportingOwnerNames.length !== 1
+    || !ownerName
+    || normalizeWords(inventory.sourceReportingOwnerNames[0]) !== normalizeWords(ownerName)) return false;
+  const footnoteText = inventory.footnotes.find((item) => item.footnoteRef === footnoteRef)?.text ?? "";
+  const normalized = normalizeWords(footnoteText);
+  if (!normalized || /\breporting persons\b/i.test(normalized)) return false;
+  if (/\b(?:a|another|any|each|other) reporting person\b/i.test(normalized)) return false;
+  return /(?:^|\s)the reporting person(?:\s|$)/i.test(normalized);
+}
+
 function footnoteMentionsSecurity(
   footnoteRef: string,
   referenceRow: OwnershipContextReferenceRow,
@@ -629,6 +653,15 @@ function readSourceFootnotes(xml: string): readonly OwnershipContextFootnoteRefe
     footnotes.push(Object.freeze({ footnoteRef, xmlId, text }));
   }
   return Object.freeze(footnotes);
+}
+
+function readSourceReportingOwners(xml: string, form: OwnershipContextForm): readonly string[] {
+  if (form !== "form4") return Object.freeze([]);
+  const ownerTag = "(?:[A-Za-z_][\\w.-]*:)?reportingOwner";
+  const names = Array.from(xml.matchAll(new RegExp(`<${ownerTag}\\b[^>]*>([\\s\\S]*?)<\\/${ownerTag}>`, "gi")))
+    .map((match) => firstXmlElementText(match[1] || "", "rptOwnerName"))
+    .filter((name): name is string => Boolean(name));
+  return Object.freeze(names);
 }
 
 function normalizeWords(value: string) {

@@ -15,7 +15,9 @@ import {
   OWNERSHIP_CONTEXT_AI_PROMPT_KEY,
   OWNERSHIP_CONTEXT_AI_PROMPT_VERSION,
   OWNERSHIP_CONTEXT_LLM_VERSION,
+  OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION,
   OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
+  OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION,
   buildOwnershipStructuredContextResponseSchema,
   buildOwnershipContextAiTraceRows,
   buildOwnershipStructuredContextPrompt,
@@ -50,9 +52,15 @@ test("prompt contains only original XML, source identity, neutral refs, and the 
     };
     row.semantic_warnings = ["PARSER_WARNING_MUST_NOT_LEAK"];
     row.signals = ["PRIMARY_SIGNAL_MUST_NOT_LEAK"];
+    row.linkedFootnoteRefs = [];
   }
+  const corruptedSource = sourceFor(state);
+  corruptedSource.reportingOwners = corruptedSource.reportingOwners.map((_owner, index) => ({
+    cik: `PARSER_OWNER_CIK_MUST_NOT_LEAK_${index}`,
+    name: `PARSER_OWNER_NAME_MUST_NOT_LEAK_${index}`,
+  }));
   const afterCorruption = buildOwnershipStructuredContextPrompt({
-    source: sourceFor(state),
+    source: corruptedSource,
     inventory: corrupted as unknown as OwnershipContextReferenceInventory,
   });
   assert.deepEqual(afterCorruption, baseline, "parser semantic corruption cannot influence the LLM request");
@@ -67,8 +75,10 @@ test("prompt contains only original XML, source identity, neutral refs, and the 
     "PARSER_KIND_MUST_NOT_LEAK", "PARSER_AD_MUST_NOT_LEAK", "PARSER_RELATION_MUST_NOT_LEAK",
     "PARSER_10B5_MUST_NOT_LEAK", "PARSER_UNDERLYING_MUST_NOT_LEAK",
     "PARSER_WARNING_MUST_NOT_LEAK", "PRIMARY_SIGNAL_MUST_NOT_LEAK",
+    "PARSER_OWNER_CIK_MUST_NOT_LEAK", "PARSER_OWNER_NAME_MUST_NOT_LEAK",
   ]) assert.equal(serialized.includes(forbidden), false, forbidden);
   assert.match(baseline.system, /output_contract; that contract is authoritative/);
+  assert.match(baseline.system, /Every supported fact must include its contract-required typed value and at least one evidence_id/);
   assert.match(baseline.system, /Use only opaque references supplied for that row or its mechanically linked footnotes/);
   assert.match(baseline.system, /never copy locator or binding objects into output/);
   assert.match(baseline.system, /never return null/);
@@ -85,6 +95,7 @@ test("prompt contains only original XML, source identity, neutral refs, and the 
     rows: [],
   });
   const referenceRows = record(user.reference_inventory).rows;
+  assert.equal(record(user.reference_inventory).version, OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION);
   assert.ok(Array.isArray(referenceRows));
   assert.ok(Array.isArray(record((referenceRows as Row[])[0]).owner_ids));
   assert.ok(Array.isArray(record((referenceRows as Row[])[0]).evidence_ids));
@@ -138,7 +149,7 @@ test("supported context saves trace before sanitized context without changing ca
     repository.state.aiTraces[0] as unknown as Parameters<typeof buildOwnershipContextAiTraceRows>[0],
   );
   assert.equal(traceRows.run.prompt_key, "ownership_structured_context");
-  assert.equal(traceRows.run.prompt_version, "ownership_context_llm_v1.2-contract-aligned");
+  assert.equal(traceRows.run.prompt_version, "ownership_context_llm_v1.3-required-supported-values");
   assert.equal(traceRows.run.metadata.semantic_prompt_route, "form4");
   assert.equal(traceRows.run.metadata.semantic_prompt_version, OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION);
   assert.equal(traceRows.run.metadata.purpose, "ownership_structured_context");
@@ -160,11 +171,14 @@ test("supported context saves trace before sanitized context without changing ca
   const tracedUser = JSON.parse(tracedPrompt.user) as Row;
   const semanticRules = repository.state.aiTraces[0]?.semanticPromptRules;
   assert.equal(traceRows.run.metadata.semantic_prompt_sha256, sha256Json(semanticRules));
-  assert.equal(traceRows.run.metadata.wire_contract_version, "ownership_context_llm_v1");
+  assert.equal(traceRows.run.metadata.wire_contract_version, OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION);
+  assert.equal(traceRows.run.metadata.neutral_inventory_version, OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION);
   assert.equal(traceRows.run.metadata.wire_contract_sha256, sha256Json(tracedPrompt.responseFormat.json_schema));
   assert.equal(traceRows.run.metadata.neutral_inventory_sha256, sha256Json(tracedUser.reference_inventory));
   assert.equal(traceRows.run.metadata.final_prompt_sha256, sha256Json(tracedPrompt));
   assert.equal(traceRows.output.payload.request.semantic_prompt_sha256, traceRows.run.metadata.semantic_prompt_sha256);
+  assert.equal(traceRows.output.payload.request.wire_contract_version, OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION);
+  assert.equal(traceRows.output.payload.request.neutral_inventory_version, OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION);
   assert.equal(traceRows.output.payload.request.wire_contract_sha256, traceRows.run.metadata.wire_contract_sha256);
   assert.equal(traceRows.output.payload.request.neutral_inventory_sha256, traceRows.run.metadata.neutral_inventory_sha256);
   assert.equal(traceRows.output.payload.request.final_prompt_sha256, traceRows.run.metadata.final_prompt_sha256);
@@ -320,8 +334,72 @@ test("five-fixture offline prompt gate keeps semantic rules frozen and makes the
       assert.equal(Object.hasOwn(rowProperties, "owner_relations"), false, filename);
       assert.equal(Object.hasOwn(rowProperties, "derivative_underlying_relation"), false, filename);
       assert.equal(Object.hasOwn(rowProperties, "rule_10b5_1"), false, filename);
+      assert.equal(Object.hasOwn(rowProperties, "footnote_scopes"), false, filename);
     }
   }
+});
+
+test("neutral map exposes only exact XML bindings for UWMC owners, row footnotes, and securities", () => {
+  const state = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const prompt = buildOwnershipStructuredContextPrompt({ source: sourceFor(state), inventory: inventoryFor(state) });
+  const user = JSON.parse(prompt.user) as Row;
+  const neutral = record(user.reference_inventory);
+  const rows = neutral.rows as Row[];
+  const footnotes = neutral.footnotes as Row[];
+  const f3 = footnotes.find((footnote) => footnote.footnote_ref === "footnote:F3");
+  const exactF3 = state.rawItem.raw_payload.ownership_source_text.match(/<footnote id="F3">([\s\S]*?)<\/footnote>/)?.[1];
+  assert.equal(f3?.xml_text_raw, exactF3);
+  const f5 = footnotes.find((footnote) => footnote.footnote_ref === "footnote:F5");
+  assert.match(String(f5?.xml_text_raw), /&quot;UWM LLC&quot;/, "raw entity spelling is preserved, not normalized");
+  assert.deepEqual((rows[0].owner_xml_bindings as Row[]).map((binding) => [binding.xml_name, binding.xml_cik]), [
+    ["Mat Ishbia", "0001841794"],
+    ["SFS HOLDING CORP", "0001842002"],
+  ]);
+  assert.deepEqual(rows[0].linked_footnote_refs, ["footnote:F1", "footnote:F2", "footnote:F3"]);
+  const derivativeBindings = rows[4].security_xml_bindings as Row[];
+  assert.deepEqual(derivativeBindings.map((binding) => [binding.role, binding.xml_title_text_raw]), [
+    ["row_security", "UWM Paired Interests"],
+    ["underlying_security", "Class A Common Stock"],
+  ]);
+  assert.equal(JSON.stringify(neutral).includes("PARSER_KIND_MUST_NOT_LEAK"), false);
+});
+
+test("the unchanged VENU 8f1939b5 raw output maps and validates, while a self-link still fails", async () => {
+  const rawOutput = readFileSync(
+    join(here, "fixtures/ownership-context-actual-provider-8f1939b5-venu.txt"),
+    "utf8",
+  ).trimEnd();
+  assert.equal(sha256(rawOutput), "3b6ed803ebf1079162225fbd2ef8b8a5ed7f55da187b115c4dfd4f410beb6223");
+  const state = canonicalState("source-venu-form4-section16-derivative-gift.json");
+  const inventory = inventoryFor(state);
+  const mapping = mapOwnershipContextLlmDto({
+    candidate: JSON.parse(rawOutput), source: sourceFor(state), inventory,
+  });
+  assert.equal(mapping.ok, true, JSON.stringify(mapping));
+  if (!mapping.ok) return;
+  assert.equal(validateOwnershipContextCandidate(mapping.value, inventory).ok, true);
+  const assertions = record((mapping.value.rows as Row[])[0]).assertions as Row[];
+  const underlying = assertions.find((assertion) => assertion.fact === "derivative_underlying_relation");
+  assert.deepEqual(underlying, {
+    fact: "derivative_underlying_relation",
+    status: "supported",
+    value: "security:form4:underlying:0",
+    security_ref: "security:form4:0",
+    evidence_refs: ["evidence:form4:0:0"],
+  });
+  const selfLinked = structuredClone(mapping.value) as unknown as Row;
+  const selfAssertions = record((selfLinked.rows as Row[])[0]).assertions as Row[];
+  record(selfAssertions.find((assertion) => assertion.fact === "derivative_underlying_relation")).value = "security:form4:0";
+  assert.equal(validateOwnershipContextCandidate(selfLinked, inventory).ok, false);
+
+  const repository = repositoryFor(state, []);
+  const result = await runOwnershipStructuredContextAnalysis({ eventId, rawItem: state.rawItem }, {
+    repository,
+    apiKey: "offline-regression-only",
+    runPrompt: async () => providerRun(null, { ok: true, outputText: rawOutput }),
+    idFactory: idSequence(runId, outputId),
+  });
+  assert.equal(result.status, "stored", JSON.stringify(result));
 });
 
 test("the five checkpoint provider outputs remain byte-exact immutable regressions and still fail closed", async () => {
@@ -499,6 +577,9 @@ test("LLM DTO schema uses fixed typed fact fields without generic polymorphic va
   assert.equal(Object.hasOwn(rowProperties, "economic_direction"), false);
   assert.equal(Object.hasOwn(rowProperties, "amendment_effect"), false);
   assert.equal(JSON.stringify(schema).includes('"value"'), false);
+  const ownerAttribution = record(rowProperties.owner_attribution);
+  assert.match(JSON.stringify(ownerAttribution.allOf), /"required":\["owner_id"\]/);
+  assert.match(JSON.stringify(ownerAttribution.allOf), /"minItems":1/);
   assert.deepEqual(record(schema.properties).version, { type: "string", enum: ["ownership_context_llm_v1"] });
 });
 
@@ -552,6 +633,19 @@ test("partial applicable DTO facts map, while wire errors, nonapplicable facts, 
   const partialMapping = mapOwnershipContextLlmDto({ candidate: partial, source: sourceFor(state), inventory });
   assert.equal(partialMapping.ok, true, JSON.stringify(partialMapping));
   if (partialMapping.ok) assert.equal(validateOwnershipContextCandidate(partialMapping.value, inventory).ok, true);
+
+  const missingSupportedOwner = {
+    version: "ownership_context_llm_v1",
+    rows: [{
+      row_id: row.rowRef,
+      owner_attribution: { status: "supported", evidence_ids: [row.evidenceRefs[0]] },
+    }],
+  };
+  const missingSupportedOwnerMapping = mapOwnershipContextLlmDto({
+    candidate: missingSupportedOwner, source: sourceFor(state), inventory,
+  });
+  assert.equal(missingSupportedOwnerMapping.ok, false);
+  assert.match(missingSupportedOwnerMapping.errors.join("\n"), /owner_id is required when supported/);
 
   const invalidWire = structuredClone(partial) as Row;
   const invalidRow = (invalidWire.rows as Row[])[0];
@@ -674,8 +768,10 @@ test("raw amendment mismatch stops before the provider", async () => {
 
 test("AI trace namespace is separate from Primary and output lineage is ownership_context_v1", () => {
   assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_KEY, "ownership_structured_context");
-  assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_VERSION, "ownership_context_llm_v1.2-contract-aligned");
+  assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_VERSION, "ownership_context_llm_v1.3-required-supported-values");
   assert.equal(OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION, "ownership_context_semantic_v1.1-form-routing");
+  assert.equal(OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION, "ownership_context_llm_wire_v1.1-required-supported-values");
+  assert.equal(OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION, "ownership_context_neutral_inventory_v1.1-xml-bindings");
   assert.equal(OWNERSHIP_CONTEXT_LLM_VERSION, "ownership_context_llm_v1");
   assert.notEqual(OWNERSHIP_CONTEXT_AI_PROMPT_KEY, "sec_ownership_analysis");
 });

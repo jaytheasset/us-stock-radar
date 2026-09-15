@@ -35,6 +35,8 @@ import {
 type Row = Record<string, unknown>;
 export const OWNERSHIP_CONTEXT_LLM_VERSION = "ownership_context_llm_v1" as const;
 export const OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION = "ownership_context_semantic_v1.1-form-routing" as const;
+export const OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION = "ownership_context_llm_wire_v1.1-required-supported-values" as const;
+export const OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION = "ownership_context_neutral_inventory_v1.1-xml-bindings" as const;
 
 const OWNERSHIP_CONTEXT_LLM_FACT_FIELDS = [
   "owner_attribution",
@@ -112,6 +114,7 @@ type NeutralOwnershipContextPromptInput = Readonly<{
     name: string | null;
   }>;
   reference_inventory: Readonly<{
+    version: typeof OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION;
     rows: readonly Readonly<{
       row_id: string;
       xml_row_ordinal: number;
@@ -130,6 +133,7 @@ type NeutralOwnershipContextPromptInput = Readonly<{
         security_id: string;
         role: "row_security" | "underlying_security";
         xml_locator: Readonly<{ element: string; ordinal: number }>;
+        xml_title_text_raw: string;
       }>[];
       evidence_ids: readonly string[];
       evidence_xml_bindings: readonly Readonly<{
@@ -138,7 +142,7 @@ type NeutralOwnershipContextPromptInput = Readonly<{
         xml_locator: Readonly<{ element: string; ordinal: number }>;
       }>[];
     }>[];
-    footnotes: readonly Readonly<{ footnote_ref: string; xml_id: string }>[];
+    footnotes: readonly Readonly<{ footnote_ref: string; xml_id: string; xml_text_raw: string }>[];
   }>;
   output_contract: Record<string, unknown>;
   output_example: Record<string, unknown>;
@@ -331,9 +335,23 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
   });
   if (!("id" in routed) && !routed.ok) throw new Error(routed.reason);
   const semanticRoute = "id" in routed ? routed : routed.route;
-  const outputContract = buildOwnershipStructuredContextResponseSchema(input.inventory);
   const rowContracts = buildOwnershipContextLlmRowContracts(input.source, input.inventory);
+  const applicableFactFields = Object.freeze([
+    ...new Set(rowContracts.flatMap((contract) => contract.allowedFactFields)),
+  ]);
+  const outputContract = buildOwnershipStructuredContextResponseSchema(input.inventory, applicableFactFields);
   const rowLocators = readNeutralXmlRowLocators(input.source.xml, input.inventory.form);
+  const rowBlocks = readNeutralXmlRowBlocks(input.source.xml, input.inventory.form);
+  const footnoteBindings = readNeutralXmlFootnoteBindings(input.source.xml);
+  const ownerBindings = readNeutralXmlReportingOwners(input.source.xml, input.inventory.form);
+  const linkedFootnoteRefsByRow = rowBlocks.map((rowBlock) => readNeutralXmlRowFootnoteRefs(rowBlock, footnoteBindings));
+  if (footnoteBindings.length !== input.inventory.footnotes.length
+    || footnoteBindings.some((binding, index) => binding.footnote_ref !== input.inventory.footnotes[index]?.footnoteRef)) {
+    throw new Error("ownership_context_neutral_footnote_inventory_mismatch");
+  }
+  if (input.inventory.rows.some((row) => row.ownerRefs.length !== ownerBindings.length)) {
+    throw new Error("ownership_context_neutral_owner_inventory_mismatch");
+  }
   const neutralInput: NeutralOwnershipContextPromptInput = {
     original_sec_ownership_xml: input.source.xml,
     form: input.source.form,
@@ -344,6 +362,7 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
       name: input.source.issuerName,
     },
     reference_inventory: {
+      version: OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION,
       rows: input.inventory.rows.map((row, rowIndex) => ({
         row_id: row.rowRef,
         xml_row_ordinal: rowIndex,
@@ -353,21 +372,23 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
         owner_xml_bindings: row.ownerRefs.map((ownerRef, ownerIndex) => ({
           owner_id: ownerRef,
           xml_reporting_owner_ordinal: ownerIndex,
-          xml_cik: input.source.reportingOwners[ownerIndex].cik,
-          xml_name: input.source.reportingOwners[ownerIndex].name,
+          xml_cik: ownerBindings[ownerIndex].cik,
+          xml_name: ownerBindings[ownerIndex].name,
         })),
         security_id: row.securityRef,
-        linked_footnote_refs: row.linkedFootnoteRefs,
+        linked_footnote_refs: linkedFootnoteRefsByRow[rowIndex],
         security_xml_bindings: [
           ...(row.securityRef ? [{
             security_id: row.securityRef,
             role: "row_security" as const,
             xml_locator: { element: `${rowLocators[rowIndex].element}.securityTitle`, ordinal: 0 },
+            xml_title_text_raw: readNeutralXmlTitleTextRaw(rowBlocks[rowIndex], input.inventory.form, "row_security"),
           }] : []),
           ...row.underlyingSecurityRefs.map((securityId, underlyingIndex) => ({
             security_id: securityId,
             role: "underlying_security" as const,
             xml_locator: { element: `${rowLocators[rowIndex].element}.underlyingSecurity`, ordinal: underlyingIndex },
+            xml_title_text_raw: readNeutralXmlTitleTextRaw(rowBlocks[rowIndex], input.inventory.form, "underlying_security"),
           })),
         ],
         evidence_ids: row.evidenceRefs,
@@ -377,10 +398,7 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
           xml_locator: rowLocators[rowIndex],
         })),
       })),
-      footnotes: input.inventory.footnotes.map((footnote) => ({
-        footnote_ref: footnote.footnoteRef,
-        xml_id: footnote.xmlId,
-      })),
+      footnotes: footnoteBindings,
     },
     output_contract: outputContract,
     output_example: {
@@ -395,6 +413,7 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
       ...semanticRoute.systemRules,
       "Read only the supplied original SEC ownership XML and neutral opaque reference inventory.",
       "Return JSON that conforms exactly to the supplied output_contract; that contract is authoritative for field names, array shapes, required members, statuses, reference fields, and empty or partial results.",
+      "Every supported fact must include its contract-required typed value and at least one evidence_id. If uncertain, omit the fact or use a non-supported status without a typed value.",
       "Do not use any field absent from output_contract or from the selected row's allowed_fact_fields. The server binds event, canonical form, and source fingerprint after parsing.",
       "Use only opaque references supplied for that row or its mechanically linked footnotes; never copy locator or binding objects into output.",
       "Use supported only when the original XML directly supports the typed attribute and at least one supplied evidence_id. Use ambiguous, conflict, or unresolved without that typed attribute when support is insufficient; never return null.",
@@ -406,9 +425,20 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
   };
 }
 
-export function buildOwnershipStructuredContextResponseSchema(inventory: OwnershipContextReferenceInventory) {
+export function buildOwnershipStructuredContextResponseSchema(
+  inventory: OwnershipContextReferenceInventory,
+  applicableFactFields?: readonly OwnershipContextLlmFactField[],
+) {
   const rowRefs = inventory.rows.map((row) => row.rowRef);
   const semanticRoute = routeOwnershipSemanticPromptFromInventory(inventory);
+  const applicable = applicableFactFields ? new Set(applicableFactFields) : null;
+  const outputFactFields = semanticRoute.outputFactFields.filter((field) => {
+    if (applicable) return applicable.has(field);
+    if (field === "owner_attribution") return inventory.rows.some((row) => row.ownerRefs.length > 0);
+    if (field === "footnote_scopes") return inventory.rows.some((row) => row.linkedFootnoteRefs.length > 0);
+    if (field === "amendment_effect") return inventory.isAmendment;
+    return true;
+  });
   const factSchemas: Record<Exclude<OwnershipContextLlmFactField, "economic_direction">, Record<string, unknown>> = {
     owner_attribution: llmFactSchema("owner_id", { type: "string" }),
     owner_relations: {
@@ -428,7 +458,19 @@ export function buildOwnershipStructuredContextResponseSchema(inventory: Ownersh
       ["source_security_id", "footnote_ref"],
       ["source_security_id"],
     ),
-    rule_10b5_1: llmFactSchema("applies", { type: "boolean" }, ["owner_id", "security_id", "footnote_ref"]),
+    rule_10b5_1: llmFactSchema(
+      "applies",
+      { type: "boolean" },
+      ["owner_id", "security_id", "footnote_ref"],
+      [],
+      [{
+        if: {
+          required: ["status", "applies"],
+          properties: { status: { const: "supported" }, applies: { const: true } },
+        },
+        then: { required: ["footnote_ref"] },
+      }],
+    ),
     footnote_scopes: {
       type: "array",
       minItems: 1,
@@ -438,6 +480,22 @@ export function buildOwnershipStructuredContextResponseSchema(inventory: Ownersh
         { type: "string", enum: ["row", "owner", "security", "filing"] },
         ["owner_id", "security_id", "footnote_ref"],
         ["footnote_ref"],
+        [
+          {
+            if: {
+              required: ["status", "scope"],
+              properties: { status: { const: "supported" }, scope: { const: "owner" } },
+            },
+            then: { required: ["owner_id"] },
+          },
+          {
+            if: {
+              required: ["status", "scope"],
+              properties: { status: { const: "supported" }, scope: { const: "security" } },
+            },
+            then: { required: ["security_id"] },
+          },
+        ],
       ),
     },
     amendment_effect: llmFactSchema("effect", { type: "string", enum: ["adds", "modifies", "removes", "restates", "no_change"] }),
@@ -458,7 +516,7 @@ export function buildOwnershipStructuredContextResponseSchema(inventory: Ownersh
           required: ["row_id"],
           properties: {
             row_id: { type: "string", enum: rowRefs },
-            ...Object.fromEntries(semanticRoute.outputFactFields.map((field) => [field, factSchemas[field]])),
+            ...Object.fromEntries(outputFactFields.map((field) => [field, factSchemas[field]])),
           },
         },
       },
@@ -471,6 +529,7 @@ function llmFactSchema(
   attributeSchema: Record<string, unknown>,
   subjectIds: readonly string[] = [],
   requiredSubjectIds: readonly string[] = [],
+  additionalConditions: readonly Record<string, unknown>[] = [],
 ) {
   return {
     type: "object",
@@ -482,6 +541,20 @@ function llmFactSchema(
       ...Object.fromEntries(subjectIds.map((key) => [key, { type: "string" }])),
       evidence_ids: { type: "array", items: { type: "string" } },
     },
+    allOf: [
+      {
+        if: {
+          required: ["status"],
+          properties: { status: { const: "supported" } },
+        },
+        then: {
+          required: [attribute],
+          properties: { evidence_ids: { minItems: 1 } },
+        },
+        else: { not: { required: [attribute] } },
+      },
+      ...additionalConditions,
+    ],
   };
 }
 
@@ -570,9 +643,11 @@ function buildOwnershipContextLlmRowContracts(
   const rowBlocks = readNeutralXmlRowBlocks(source.xml, inventory.form);
   if (rowLocators.length !== inventory.rows.length) throw new Error("ownership_context_neutral_row_inventory_mismatch");
   if (rowBlocks.length !== inventory.rows.length) throw new Error("ownership_context_neutral_row_block_mismatch");
-  if (inventory.rows.some((row) => row.ownerRefs.length !== source.reportingOwners.length)) {
+  const ownerBindings = readNeutralXmlReportingOwners(source.xml, inventory.form);
+  if (inventory.rows.some((row) => row.ownerRefs.length !== ownerBindings.length)) {
     throw new Error("ownership_context_neutral_owner_inventory_mismatch");
   }
+  const footnoteBindings = readNeutralXmlFootnoteBindings(source.xml);
   const semanticPromptRoute = routeOwnershipSemanticPrompt({
     rawForm: source.form,
     canonicalForm: inventory.form,
@@ -597,7 +672,7 @@ function buildOwnershipContextLlmRowContracts(
       && (/<(?:[A-Za-z_][\w.-]*:)?aff10b5One\b/i.test(source.xml) || /10b5-?1/i.test(rowBlock))) {
       allowed.push("rule_10b5_1");
     }
-    if (row.linkedFootnoteRefs.length > 0) allowed.push("footnote_scopes");
+    if (readNeutralXmlRowFootnoteRefs(rowBlock, footnoteBindings).length > 0) allowed.push("footnote_scopes");
     if (isAmendment) allowed.push("amendment_effect");
     return Object.freeze({
       rowId: row.rowRef,
@@ -742,8 +817,9 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
         semantic_prompt_route: input.semanticPromptRoute,
         semantic_prompt_version: OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
         semantic_prompt_sha256: semanticPromptSha256,
-        wire_contract_version: OWNERSHIP_CONTEXT_LLM_VERSION,
+        wire_contract_version: OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION,
         wire_contract_sha256: wireContractSha256,
+        neutral_inventory_version: OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION,
         neutral_inventory_sha256: neutralInventorySha256,
         final_prompt_sha256: finalPromptSha256,
         provider_response_id: input.run.responseId,
@@ -769,8 +845,9 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
           semantic_prompt_route: input.semanticPromptRoute,
           semantic_prompt_version: OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
           semantic_prompt_sha256: semanticPromptSha256,
-          wire_contract_version: OWNERSHIP_CONTEXT_LLM_VERSION,
+          wire_contract_version: OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION,
           wire_contract_sha256: wireContractSha256,
+          neutral_inventory_version: OWNERSHIP_CONTEXT_NEUTRAL_INVENTORY_VERSION,
           neutral_inventory_sha256: neutralInventorySha256,
           final_prompt_sha256: finalPromptSha256,
           system: input.prompt.system,
@@ -1053,6 +1130,61 @@ function readNeutralXmlRowBlocks(xml: string, form: "form4" | "form144") {
   return form === "form144"
     ? blocks("securitiesInformation")
     : [...blocks("nonDerivativeTransaction"), ...blocks("derivativeTransaction")];
+}
+
+function readNeutralXmlFootnoteBindings(xml: string) {
+  return Array.from(xml.matchAll(
+    /<(?:[A-Za-z_][\w.-]*:)?footnote\b[^>]*\bid=["']([^"']+)["'][^>]*>([\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?footnote>/gi,
+  )).map((match) => ({
+    footnote_ref: `footnote:${decodeXml(match[1] || "")}`,
+    xml_id: decodeXml(match[1] || ""),
+    xml_text_raw: match[2] || "",
+  }));
+}
+
+function readNeutralXmlRowFootnoteRefs(
+  rowBlock: string,
+  footnotes: readonly Readonly<{ footnote_ref: string; xml_id: string }>[],
+) {
+  const availableIds = new Set(footnotes.map((footnote) => footnote.xml_id));
+  return [...new Set(Array.from(rowBlock.matchAll(
+    /<(?:[A-Za-z_][\w.-]*:)?footnoteId\b[^>]*\bid=["']([^"']+)["']/gi,
+  )).map((match) => decodeXml(match[1] || "")).filter((xmlId) => availableIds.has(xmlId)))]
+    .map((xmlId) => `footnote:${xmlId}`);
+}
+
+function readNeutralXmlReportingOwners(xml: string, form: "form4" | "form144") {
+  if (form === "form144") {
+    const name = readNeutralXmlLeafText(xml, "nameOfPersonForWhoseAccountTheSecuritiesAreToBeSold");
+    return name ? [{ cik: null, name }] : [];
+  }
+  const ownerTag = "(?:[A-Za-z_][\\w.-]*:)?reportingOwner";
+  return Array.from(xml.matchAll(new RegExp(`<${ownerTag}\\b[^>]*>([\\s\\S]*?)<\\/${ownerTag}>`, "gi")))
+    .map((match) => ({
+      cik: readNeutralXmlLeafText(match[1] || "", "rptOwnerCik"),
+      name: readNeutralXmlLeafText(match[1] || "", "rptOwnerName") || "",
+    }))
+    .filter((owner) => Boolean(owner.name));
+}
+
+function readNeutralXmlLeafText(xml: string, localName: string) {
+  const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
+  const text = xml.match(new RegExp(`<${tag}\\b[^>]*>\\s*([^<]*?)\\s*<\\/${tag}>`, "i"))?.[1];
+  return text === undefined ? null : decodeXml(text);
+}
+
+function readNeutralXmlTitleTextRaw(
+  rowBlock: string,
+  form: "form4" | "form144",
+  role: "row_security" | "underlying_security",
+) {
+  const localName = role === "underlying_security"
+    ? "underlyingSecurityTitle"
+    : form === "form144" ? "securitiesClassTitle" : "securityTitle";
+  const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
+  const outer = rowBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1] ?? "";
+  const valueTag = "(?:[A-Za-z_][\\w.-]*:)?value";
+  return outer.match(new RegExp(`<${valueTag}\\b[^>]*>([\\s\\S]*?)<\\/${valueTag}>`, "i"))?.[1] ?? outer;
 }
 
 function record(value: unknown): Row {
