@@ -27,6 +27,7 @@ import {
   withSecAnalysisSpan,
 } from "@/lib/ai/secAnalysisInstrumentation";
 import { prepareSecAmendmentMonitorFanout } from "@/lib/sec-amendments/secAmendmentMonitorBridge";
+import { runOwnershipStructuredContextAnalysis } from "@/lib/monitor/ownershipStructuredContextAnalyzer";
 
 export {
   buildSecFilingGroupDedupe,
@@ -84,6 +85,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     );
     let parserDetailsEvent: Record<string, unknown> | null = null;
     let parserDetailsPersistence: Record<string, unknown> | null = null;
+    let ownershipStructuredContext: unknown = null;
     let ownershipMonitorConditionExecution: unknown = null;
     if (ownershipFailure && !options.dryRun) {
       try {
@@ -97,6 +99,10 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
           ok: true,
           ...saved.persistence,
         };
+        ownershipStructuredContext = await runOwnershipStructuredContextSidecar({
+          eventId: stringValue(saved.event.id),
+          rawItem: rawResult.rawItem,
+        });
         ownershipMonitorConditionExecution = await runOwnershipMonitorConditionExecution(
           stringValue(saved.event.id),
         );
@@ -135,6 +141,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       sourceItem: analysisRun.sourceItem,
       event: parserDetailsEvent,
       ownershipDetailsPersistence: parserDetailsPersistence,
+      ownershipStructuredContext,
       ownershipMonitorConditionExecution,
       input: analysisRun.input,
       runtime: summarizeSecAnalysisRuntime(analysisRun.input, analysisRun.prompt),
@@ -303,6 +310,12 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
       };
     });
+  const ownershipStructuredContext = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
+    ? await runOwnershipStructuredContextSidecar({
+        eventId: stringValue(persistedEvent.id),
+        rawItem: rawResult.rawItem,
+      })
+    : null;
   const ownershipMonitorConditionExecution = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
     : null;
@@ -329,6 +342,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     alertDelivery,
     genericMonitorChildren,
     amendmentMonitorLineage,
+    ownershipStructuredContext,
     ownershipMonitorConditionExecution,
     offeringMonitorRegistryExecution,
     validationRepairTrace,
@@ -344,6 +358,21 @@ async function runOwnershipMonitorConditionExecution(eventId: string) {
       status: "failed",
       eventId,
       error: error instanceof Error ? error.message : "Ownership Monitor condition execution failed",
+    };
+  }
+}
+
+async function runOwnershipStructuredContextSidecar(input: Readonly<{ eventId: string; rawItem: unknown }>) {
+  if (!input.eventId) {
+    return { status: "unavailable", stage: "direct_facts", reason: "ownership_context_event_id_unavailable" };
+  }
+  try {
+    return await runOwnershipStructuredContextAnalysis(input);
+  } catch (error) {
+    return {
+      status: "unavailable",
+      stage: "persistence",
+      reason: error instanceof Error ? error.message : "ownership_context_analysis_failed",
     };
   }
 }

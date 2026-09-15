@@ -128,7 +128,7 @@ try {
   const restoredContext = validContext(restoredFingerprint);
   await pool.query(`insert into public.ai_runs(
     id, event_id, raw_item_id, prompt_key, prompt_version, model, status
-  ) values ($1, $2, $3, 'sec_ownership_context', 'ownership_context_v1', 'isolated-fixture', 'completed')`, [
+  ) values ($1, $2, $3, 'ownership_structured_context', 'ownership_context_v1.0', 'isolated-fixture', 'completed')`, [
     aiRunId, eventId, rawItemId,
   ]);
   await pool.query(`insert into public.ai_outputs(id, ai_run_id, event_id, output_type, payload)
