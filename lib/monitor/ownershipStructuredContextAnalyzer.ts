@@ -34,6 +34,7 @@ import {
 
 type Row = Record<string, unknown>;
 export const OWNERSHIP_CONTEXT_LLM_VERSION = "ownership_context_llm_v1" as const;
+export const OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION = "ownership_context_semantic_v1.1-form-routing" as const;
 
 const OWNERSHIP_CONTEXT_LLM_FACT_FIELDS = [
   "owner_attribution",
@@ -73,6 +74,7 @@ export type OwnershipContextAiTraceInput = Readonly<{
   prompt: StructuredJsonPrompt;
   maxOutputTokens: number;
   semanticPromptRoute: OwnershipSemanticPromptRoute;
+  semanticPromptRules: readonly string[];
 }>;
 
 export type OwnershipStructuredContextAnalyzerRepository = OwnershipContextPersistenceRepository & Readonly<{
@@ -260,6 +262,7 @@ export async function runOwnershipStructuredContextAnalysis(input: Readonly<{
       prompt,
       maxOutputTokens,
       semanticPromptRoute: semanticPromptRoute.route.id,
+      semanticPromptRules: semanticPromptRoute.route.systemRules,
     });
   } catch (error) {
     return unavailable(input.eventId, "trace", errorMessage(error, "ownership_context_ai_trace_failed"), {
@@ -381,20 +384,9 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
     },
     output_contract: outputContract,
     output_example: {
-      note: "Shape example only. Replace placeholders with allowed ID strings and omit inapplicable fact fields.",
-      row: {
-        row_id: "<allowed row_id string>",
-        owner_attribution: {
-          status: "supported",
-          owner_id: "<allowed owner_id string>",
-          evidence_ids: ["<allowed evidence_id string>"],
-        },
-        owner_relations: [{
-          status: "unresolved",
-          owner_id: "<allowed owner_id string>",
-          evidence_ids: [],
-        }],
-      },
+      note: "Empty-result shape only. The supplied output_contract and each row's allowed_fact_fields are authoritative for every non-empty result.",
+      version: OWNERSHIP_CONTEXT_LLM_VERSION,
+      rows: [],
     },
   };
 
@@ -402,15 +394,11 @@ export function buildOwnershipStructuredContextPrompt(input: Readonly<{
     system: [
       ...semanticRoute.systemRules,
       "Read only the supplied original SEC ownership XML and neutral opaque reference inventory.",
-      "Return exactly ownership_context_llm_v1 JSON using only version and rows at the root. The server binds event, canonical form, and source fingerprint after parsing.",
-      "For each returned row_id, return one or more fields from allowed_fact_fields and omit every inapplicable field. Partial applicable facts are allowed; never invent a value for an omitted field.",
-      "Each evidence_ids value must be an array containing only allowed opaque evidence_id strings; never copy locator or binding objects into output.",
+      "Return JSON that conforms exactly to the supplied output_contract; that contract is authoritative for field names, array shapes, required members, statuses, reference fields, and empty or partial results.",
+      "Do not use any field absent from output_contract or from the selected row's allowed_fact_fields. The server binds event, canonical form, and source fingerprint after parsing.",
+      "Use only opaque references supplied for that row or its mechanically linked footnotes; never copy locator or binding objects into output.",
       "Use supported only when the original XML directly supports the typed attribute and at least one supplied evidence_id. Use ambiguous, conflict, or unresolved without that typed attribute when support is insufficient; never return null.",
       "Do not return shares, prices, numeric or monetary amounts, dates, tickers, transaction codes, A/D codes, scores, or narrative analysis.",
-      "owner_attribution uses owner_id. ownership_relation uses relation=direct|indirect and may use owner_id or security_id subjects.",
-      "derivative_underlying_relation uses target_security_id plus source_security_id.",
-      "rule_10b5_1 uses applies=true|false and may use owner_id or security_id. footnote_scope uses scope=row|owner|security|filing; owner scope requires owner_id and security scope requires security_id.",
-      "amendment_effect uses effect=adds|modifies|removes|restates|no_change. Never include it when absent from allowed_fact_fields.",
       "Never invent or transform any row, owner, security, evidence, or footnote ID.",
     ].join(" "),
     user: JSON.stringify(neutralInput),
@@ -728,6 +716,11 @@ function strictId(value: unknown) {
 }
 
 export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceInput) {
+  const userPayload = JSON.parse(input.prompt.user) as NeutralOwnershipContextPromptInput;
+  const semanticPromptSha256 = sha256Json(input.semanticPromptRules);
+  const wireContractSha256 = sha256Json(input.prompt.responseFormat.json_schema);
+  const neutralInventorySha256 = sha256Json(userPayload.reference_inventory);
+  const finalPromptSha256 = sha256Json(input.prompt);
   return {
     run: {
       id: input.runId,
@@ -747,6 +740,12 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
         provider_contract_version: OWNERSHIP_CONTEXT_LLM_VERSION,
         canonical_contract_version: OWNERSHIP_CONTEXT_VERSION,
         semantic_prompt_route: input.semanticPromptRoute,
+        semantic_prompt_version: OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
+        semantic_prompt_sha256: semanticPromptSha256,
+        wire_contract_version: OWNERSHIP_CONTEXT_LLM_VERSION,
+        wire_contract_sha256: wireContractSha256,
+        neutral_inventory_sha256: neutralInventorySha256,
+        final_prompt_sha256: finalPromptSha256,
         provider_response_id: input.run.responseId,
         provider_http_status: input.run.status,
       },
@@ -768,6 +767,12 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
         usage: input.run.usage,
         request: {
           semantic_prompt_route: input.semanticPromptRoute,
+          semantic_prompt_version: OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
+          semantic_prompt_sha256: semanticPromptSha256,
+          wire_contract_version: OWNERSHIP_CONTEXT_LLM_VERSION,
+          wire_contract_sha256: wireContractSha256,
+          neutral_inventory_sha256: neutralInventorySha256,
+          final_prompt_sha256: finalPromptSha256,
           system: input.prompt.system,
           user: input.prompt.user,
           response_mode: "application/json",
@@ -778,6 +783,10 @@ export function buildOwnershipContextAiTraceRows(input: OwnershipContextAiTraceI
       },
     },
   } as const;
+}
+
+function sha256Json(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
 }
 
 function verifyOriginalOwnershipSource(input: Readonly<{

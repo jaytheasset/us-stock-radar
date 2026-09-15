@@ -1,6 +1,6 @@
 export const OWNERSHIP_CONTEXT_VERSION = "ownership_context_v1" as const;
 export const OWNERSHIP_CONTEXT_AI_PROMPT_KEY = "ownership_structured_context" as const;
-export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_llm_v1.1-form-semantic-routing" as const;
+export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_llm_v1.2-contract-aligned" as const;
 export const OWNERSHIP_CONTEXT_AI_PURPOSE = "ownership_structured_context" as const;
 
 export const OWNERSHIP_CONTEXT_FACTS = [

@@ -15,6 +15,7 @@ import {
   OWNERSHIP_CONTEXT_AI_PROMPT_KEY,
   OWNERSHIP_CONTEXT_AI_PROMPT_VERSION,
   OWNERSHIP_CONTEXT_LLM_VERSION,
+  OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
   buildOwnershipStructuredContextResponseSchema,
   buildOwnershipContextAiTraceRows,
   buildOwnershipStructuredContextPrompt,
@@ -22,6 +23,7 @@ import {
   runOwnershipStructuredContextAnalysis,
   type OwnershipStructuredContextAnalyzerRepository,
 } from "./ownershipStructuredContextAnalyzer.ts";
+import { routeOwnershipSemanticPrompt } from "./ownershipSemanticPrompts/router.ts";
 
 type Row = Record<string, unknown>;
 const here = dirname(fileURLToPath(import.meta.url));
@@ -66,11 +68,22 @@ test("prompt contains only original XML, source identity, neutral refs, and the 
     "PARSER_10B5_MUST_NOT_LEAK", "PARSER_UNDERLYING_MUST_NOT_LEAK",
     "PARSER_WARNING_MUST_NOT_LEAK", "PRIMARY_SIGNAL_MUST_NOT_LEAK",
   ]) assert.equal(serialized.includes(forbidden), false, forbidden);
-  assert.match(baseline.system, /Return exactly ownership_context_llm_v1 JSON/);
-  assert.match(baseline.system, /evidence_ids value must be an array containing only allowed opaque evidence_id strings/);
+  assert.match(baseline.system, /output_contract; that contract is authoritative/);
+  assert.match(baseline.system, /Use only opaque references supplied for that row or its mechanically linked footnotes/);
   assert.match(baseline.system, /never copy locator or binding objects into output/);
   assert.match(baseline.system, /never return null/);
+  assert.doesNotMatch(baseline.system, /Return exactly ownership_context_llm_v1 JSON/);
+  assert.doesNotMatch(baseline.system, /owner_attribution uses owner_id/);
+  assert.doesNotMatch(baseline.system, /derivative_underlying_relation uses target_security_id/);
+  assert.doesNotMatch(baseline.system, /rule_10b5_1 uses applies/);
+  assert.doesNotMatch(baseline.system, /amendment_effect uses effect/);
   assert.doesNotMatch(baseline.system, /every returned row, emit each of the seven/);
+  assert.deepEqual(user.output_contract, baseline.responseFormat.json_schema);
+  assert.deepEqual(user.output_example, {
+    note: "Empty-result shape only. The supplied output_contract and each row's allowed_fact_fields are authoritative for every non-empty result.",
+    version: "ownership_context_llm_v1",
+    rows: [],
+  });
   const referenceRows = record(user.reference_inventory).rows;
   assert.ok(Array.isArray(referenceRows));
   assert.ok(Array.isArray(record((referenceRows as Row[])[0]).owner_ids));
@@ -125,11 +138,13 @@ test("supported context saves trace before sanitized context without changing ca
     repository.state.aiTraces[0] as unknown as Parameters<typeof buildOwnershipContextAiTraceRows>[0],
   );
   assert.equal(traceRows.run.prompt_key, "ownership_structured_context");
-  assert.equal(traceRows.run.prompt_version, "ownership_context_llm_v1.1-form-semantic-routing");
+  assert.equal(traceRows.run.prompt_version, "ownership_context_llm_v1.2-contract-aligned");
   assert.equal(traceRows.run.metadata.semantic_prompt_route, "form4");
+  assert.equal(traceRows.run.metadata.semantic_prompt_version, OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION);
   assert.equal(traceRows.run.metadata.purpose, "ownership_structured_context");
   assert.equal(traceRows.run.metadata.provider_contract_version, "ownership_context_llm_v1");
   assert.equal(traceRows.run.metadata.canonical_contract_version, "ownership_context_v1");
+  assert.equal(traceRows.run.model, "fixture-model");
   assert.equal(traceRows.output.output_type, "ownership_context_v1");
   assert.equal(
     JSON.parse(traceRows.output.payload.request.user).original_sec_ownership_xml,
@@ -137,6 +152,22 @@ test("supported context saves trace before sanitized context without changing ca
   );
   assert.equal(traceRows.output.payload.output_text, JSON.stringify(candidate));
   assert.equal(traceRows.output.payload.request.semantic_prompt_route, "form4");
+  const tracedPrompt = repository.state.aiTraces[0]?.prompt as unknown as {
+    system: string;
+    user: string;
+    responseFormat: { json_schema: Row };
+  };
+  const tracedUser = JSON.parse(tracedPrompt.user) as Row;
+  const semanticRules = repository.state.aiTraces[0]?.semanticPromptRules;
+  assert.equal(traceRows.run.metadata.semantic_prompt_sha256, sha256Json(semanticRules));
+  assert.equal(traceRows.run.metadata.wire_contract_version, "ownership_context_llm_v1");
+  assert.equal(traceRows.run.metadata.wire_contract_sha256, sha256Json(tracedPrompt.responseFormat.json_schema));
+  assert.equal(traceRows.run.metadata.neutral_inventory_sha256, sha256Json(tracedUser.reference_inventory));
+  assert.equal(traceRows.run.metadata.final_prompt_sha256, sha256Json(tracedPrompt));
+  assert.equal(traceRows.output.payload.request.semantic_prompt_sha256, traceRows.run.metadata.semantic_prompt_sha256);
+  assert.equal(traceRows.output.payload.request.wire_contract_sha256, traceRows.run.metadata.wire_contract_sha256);
+  assert.equal(traceRows.output.payload.request.neutral_inventory_sha256, traceRows.run.metadata.neutral_inventory_sha256);
+  assert.equal(traceRows.output.payload.request.final_prompt_sha256, traceRows.run.metadata.final_prompt_sha256);
   assert.deepEqual(traceRows.output.payload.parsed_output, candidate);
   assert.equal(record(traceRows.output.payload.mapped_canonical_output).version, "ownership_context_v1");
   assert.deepEqual(traceRows.output.payload.mapping_errors, []);
@@ -223,6 +254,73 @@ test("real SEC fixture provenance covers simple buy, multi-owner conversion/10b5
       idFactory: idSequence(runId, outputId),
     });
     assert.equal(result.status, "stored", `${filename}: ${JSON.stringify(result)}`);
+  }
+});
+
+test("five-fixture offline prompt gate keeps semantic rules frozen and makes the DTO contract authoritative", () => {
+  const cases = [
+    ["source-agig-form4-purchase.json", "form4"],
+    ["source-venu-form4-section16-derivative-gift.json", "form4"],
+    ["source-uwmc-form4-multi-owner-10b5-1-conversion.json", "form4"],
+    ["source-amcor-form144-no-prior-sales.json", "form144"],
+    ["source-walmart-form144-namespaced.json", "form144"],
+  ] as const;
+  const expectedSemanticHashes = {
+    form4: "d9bee1450bc802ce060daf0c035a1eb117966863b21cd145875cfe48f3ad8b4e",
+    form144: "74d7fa2d592e837274bfb9d12481011603ff3894287fdae38af1b088ee467ef3",
+  } as const;
+
+  for (const [filename, expectedRoute] of cases) {
+    const state = canonicalState(filename);
+    const inventory = inventoryFor(state);
+    const routed = routeOwnershipSemanticPrompt({
+      rawForm: state.formType,
+      canonicalForm: inventory.form,
+      isAmendment: inventory.isAmendment,
+    });
+    assert.equal(routed.ok, true, filename);
+    if (!routed.ok) continue;
+    assert.equal(routed.route.id, expectedRoute, filename);
+    assert.equal(sha256Json(routed.route.systemRules), expectedSemanticHashes[expectedRoute], filename);
+
+    const prompt = buildOwnershipStructuredContextPrompt({
+      source: sourceFor(state),
+      inventory,
+      semanticPromptRoute: routed.route,
+    });
+    const user = JSON.parse(prompt.user) as Row;
+    assert.deepEqual(user.output_contract, prompt.responseFormat.json_schema, filename);
+    assert.deepEqual(record(user.output_example).rows, [], filename);
+    assert.equal(JSON.stringify(user.output_example).includes("owner_relations"), false, filename);
+    assert.doesNotMatch(prompt.system, /Return exactly ownership_context_llm_v1 JSON/, filename);
+    assert.doesNotMatch(prompt.system, /owner_attribution uses owner_id/, filename);
+    assert.doesNotMatch(prompt.system, /derivative_underlying_relation uses target_security_id/, filename);
+    assert.doesNotMatch(prompt.system, /rule_10b5_1 uses applies/, filename);
+    assert.doesNotMatch(prompt.system, /amendment_effect uses effect/, filename);
+
+    const schemaProperties = record(prompt.responseFormat.json_schema.properties);
+    const rowSchema = record(record(schemaProperties.rows).items);
+    const rowProperties = record(rowSchema.properties);
+    const referenceRows = record(user.reference_inventory).rows as Row[];
+    for (const row of referenceRows) {
+      for (const field of row.allowed_fact_fields as string[]) {
+        assert.equal(Object.hasOwn(rowProperties, field), true, `${filename}: ${field}`);
+      }
+      const bindings = row.security_xml_bindings as Row[];
+      const rowSecurity = bindings.find((binding) => binding.role === "row_security");
+      for (const underlying of bindings.filter((binding) => binding.role === "underlying_security")) {
+        assert.notEqual(underlying.security_id, rowSecurity?.security_id, `${filename}: underlying ref must be distinct`);
+      }
+      for (const linkedRef of row.linked_footnote_refs as string[]) {
+        const footnotes = record(user.reference_inventory).footnotes as Row[];
+        assert.equal(footnotes.some((footnote) => footnote.footnote_ref === linkedRef), true, `${filename}: ${linkedRef}`);
+      }
+    }
+    if (expectedRoute === "form144") {
+      assert.equal(Object.hasOwn(rowProperties, "owner_relations"), false, filename);
+      assert.equal(Object.hasOwn(rowProperties, "derivative_underlying_relation"), false, filename);
+      assert.equal(Object.hasOwn(rowProperties, "rule_10b5_1"), false, filename);
+    }
   }
 });
 
@@ -576,7 +674,8 @@ test("raw amendment mismatch stops before the provider", async () => {
 
 test("AI trace namespace is separate from Primary and output lineage is ownership_context_v1", () => {
   assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_KEY, "ownership_structured_context");
-  assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_VERSION, "ownership_context_llm_v1.1-form-semantic-routing");
+  assert.equal(OWNERSHIP_CONTEXT_AI_PROMPT_VERSION, "ownership_context_llm_v1.2-contract-aligned");
+  assert.equal(OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION, "ownership_context_semantic_v1.1-form-routing");
   assert.equal(OWNERSHIP_CONTEXT_LLM_VERSION, "ownership_context_llm_v1");
   assert.notEqual(OWNERSHIP_CONTEXT_AI_PROMPT_KEY, "sec_ownership_analysis");
 });
@@ -842,6 +941,10 @@ function xmlOwners(sourceText: string, form: "form4" | "form144") {
 
 function sha256(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function sha256Json(value: unknown) {
+  return sha256(JSON.stringify(value));
 }
 
 function record(value: unknown): Row {
