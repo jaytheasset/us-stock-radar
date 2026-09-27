@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -10,7 +9,10 @@ import {
   validateOwnershipContextCandidate,
   type OwnershipContextAssertion,
 } from "./ownershipStructuredContext.ts";
-import { mapOwnershipContextLlmDto } from "./ownershipStructuredContextAnalyzer.ts";
+import {
+  OWNERSHIP_CONTEXT_LLM_VERSION,
+  mapOwnershipContextLlmDto,
+} from "./ownershipStructuredContextAnalyzer.ts";
 import {
   buildOwnershipSemanticVerifierInput,
   validateOwnershipSemanticVerifierOutput,
@@ -24,15 +26,21 @@ const eventId = "22222222-2222-4222-8222-222222222222";
 const rawItemId = "33333333-3333-4333-8333-333333333333";
 const fingerprint = `ownership-context-v1:${"a".repeat(64)}`;
 
-test("latest UWMC candidate builds exact neutral verifier inputs but remains canonically rejected before pipeline verification", () => {
-  const rawOutput = readFileSync(
-    join(here, "fixtures/ownership-context-actual-provider-7fb5a99e-uwmc.txt"),
-    "utf8",
-  ).trimEnd();
-  assert.equal(sha256(rawOutput), "94b788d6709c717f14962e69e297b790056a5e1ad40abad647817a4b0543f75f");
+test("current UWMC selection candidate builds exact neutral verifier inputs but remains canonically rejected before pipeline verification", () => {
   const state = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const rows = ["R1", "R2", "R3", "R4", "R5"].map((row) => ({
+    row,
+    owner_relations: [
+      { owner: "O1", relation: "indirect", evidence: ["F3"] },
+      { owner: "O2", relation: "indirect", evidence: ["F3"] },
+    ],
+  })) as Row[];
+  for (const index of [0, 1, 3]) {
+    rows[index].rule_10b5_1 = { applies: true, owner: "O2", evidence: ["F1"] };
+  }
+  rows[4].derivative_underlying_relation = { underlying: "S6", evidence: ["F5"] };
   const mapping = mapOwnershipContextLlmDto({
-    candidate: JSON.parse(rawOutput),
+    candidate: { version: OWNERSHIP_CONTEXT_LLM_VERSION, rows },
     source: sourceFor(state),
     inventory: state.inventory,
   });
@@ -41,8 +49,8 @@ test("latest UWMC candidate builds exact neutral verifier inputs but remains can
   const canonical = validateOwnershipContextCandidate(mapping.value, state.inventory);
   assert.equal(canonical.ok, false, "wrong SFS indirect relations stop before the semantic verifier pipeline");
 
-  const rows = mapping.value.rows as Row[];
-  const firstAssertions = rows[0].assertions as OwnershipContextAssertion[];
+  const mappedRows = mapping.value.rows as Row[];
+  const firstAssertions = mappedRows[0].assertions as OwnershipContextAssertion[];
   const matIndirect = firstAssertions.find((assertion) => assertion.fact === "ownership_relation"
     && assertion.owner_ref === "owner:form4:0:0")!;
   const sfsIndirect = firstAssertions.find((assertion) => assertion.fact === "ownership_relation"
@@ -59,7 +67,7 @@ test("latest UWMC candidate builds exact neutral verifier inputs but remains can
   assert.equal(saleInput.subject_refs.footnote_ref, "footnote:F1");
   assert.match(saleInput.evidence[0].exact_sec_evidence.footnote_xml || "", /10b5-1/i);
 
-  const conversionAssertions = (rows[2].assertions as OwnershipContextAssertion[]);
+  const conversionAssertions = (mappedRows[2].assertions as OwnershipContextAssertion[]);
   assert.equal(conversionAssertions.some((assertion) => assertion.fact === "rule_10b5_1_applicability"
     && assertion.status === "supported"), false, "F1 cannot spread from sale rows into a conversion row");
   const forgedConversion10b51: OwnershipContextAssertion = {
@@ -73,7 +81,7 @@ test("latest UWMC candidate builds exact neutral verifier inputs but remains can
   };
   assert.throws(() => verifierInput(state, 2, forgedConversion10b51), /footnote_reference_invalid/);
 
-  const derivative = (rows[4].assertions as OwnershipContextAssertion[])
+  const derivative = (mappedRows[4].assertions as OwnershipContextAssertion[])
     .find((assertion) => assertion.fact === "derivative_underlying_relation")!;
   const derivativeInput = verifierInput(state, 4, derivative);
   assert.equal(derivativeInput.neutral_bindings.row_security?.xml_title, "UWM Paired Interests");
@@ -104,9 +112,16 @@ test("verifier output contract cannot emit corrections, replacement owners, or i
 
 test("only verifier-supported target assertions remain eligible and original assertions are never rewritten", async () => {
   const state = canonicalState("source-venu-form4-section16-derivative-gift.json");
-  const rawOutput = readFileSync(join(here, "fixtures/ownership-context-actual-provider-8f1939b5-venu.txt"), "utf8").trimEnd();
   const mapping = mapOwnershipContextLlmDto({
-    candidate: JSON.parse(rawOutput), source: sourceFor(state), inventory: state.inventory,
+    candidate: {
+      version: OWNERSHIP_CONTEXT_LLM_VERSION,
+      rows: [{
+        row: "R1",
+        owner_relations: [{ owner: "O1", relation: "direct", evidence: ["R1"] }],
+        derivative_underlying_relation: { underlying: "S2", evidence: ["R1"] },
+      }],
+    },
+    source: sourceFor(state), inventory: state.inventory,
   });
   assert.equal(mapping.ok, true, JSON.stringify(mapping));
   if (!mapping.ok) return;
@@ -135,15 +150,15 @@ test("only verifier-supported target assertions remain eligible and original ass
     },
   });
   assert.deepEqual(validated.value, original, "verdict processing cannot mutate the original candidate");
-  assert.equal(result.targetCount, 4);
+  assert.equal(result.targetCount, 2);
   assert.equal(result.eligibleCount, 1);
-  assert.equal(result.ineligibleCount, 3);
+  assert.equal(result.ineligibleCount, 1);
   const effective = result.effectiveCandidate.rows[0].assertions;
   assert.equal(effective.some((assertion) => assertion.fact === "ownership_relation"), true);
   assert.equal(effective.some((assertion) => assertion.fact === "derivative_underlying_relation"), false);
   assert.equal(effective.some((assertion) => assertion.fact === "footnote_scope"), false);
-  assert.equal(effective.some((assertion) => assertion.fact === "owner_attribution"), true);
-  assert.equal(effective.some((assertion) => assertion.status === "unresolved"), true);
+  assert.equal(effective.some((assertion) => assertion.fact === "owner_attribution"), false);
+  assert.equal(effective.some((assertion) => assertion.status === "unresolved"), false);
 });
 
 test("unconfigured, failed, and invalid verifier outcomes fail closed per assertion while simple Form 144 attribution is not verified", async () => {
@@ -264,8 +279,4 @@ function sourceFor(state: ReturnType<typeof canonicalState>) {
 function xmlValue(sourceText: string, localName: string) {
   const tag = `(?:[A-Za-z_][\\w.-]*:)?${localName}`;
   return sourceText.match(new RegExp(`<${tag}\\b[^>]*>\\s*(?:<(?:[A-Za-z_][\\w.-]*:)?value\\b[^>]*>)?\\s*([^<]*?)\\s*(?:<\\/(?:[A-Za-z_][\\w.-]*:)?value>)?\\s*<\\/${tag}>`, "i"))?.[1]?.trim() ?? null;
-}
-
-function sha256(value: string) {
-  return createHash("sha256").update(value, "utf8").digest("hex");
 }

@@ -9,6 +9,7 @@ import {
   validateListingMonitorCandidate,
   type ListingMonitorAlertRepository,
 } from "./listingMonitorApi.ts";
+import { buildForm4InsiderPurchaseConditions } from "./form4InsiderPurchaseMonitor.ts";
 
 const OWNER_ID = "10000000-0000-4000-8000-000000000001";
 const MONITOR_ID = "20000000-0000-4000-8000-000000000002";
@@ -49,6 +50,34 @@ test("create and preview accept only Registry-valid canonical Listing conditions
   const forward = parseListingMonitorCreateRequest({ conditions: FORWARD_SPLIT_CONDITIONS });
   assert.equal(forward.ok, true);
   if (forward.ok) assert.deepEqual(forward.value.conditions, FORWARD_SPLIT_CONDITIONS);
+});
+
+test("typed Form 4 purchase create and update requests derive canonical conditions and reject mixed shapes", () => {
+  const form4Purchase = {
+    target: { scope: "ticker", ticker: "agig" }, role: "director", minimumShares: 8000,
+  };
+  const created = parseListingMonitorCreateRequest({ form4Purchase });
+  assert.equal(created.ok, true);
+  if (created.ok) {
+    assert.equal(created.value.kind, "form4_insider_purchase");
+    assert.deepEqual(created.value.form4PurchaseSettings, {
+      ...form4Purchase, target: { scope: "ticker", ticker: "AGIG" },
+    });
+    assert.deepEqual(created.value.conditions, buildForm4InsiderPurchaseConditions(created.value.form4PurchaseSettings!));
+  }
+
+  const updated = parseListingMonitorUpdateRequest({
+    form4Purchase: { target: { scope: "watchlist" }, role: "officer_or_director", minimumShares: null },
+    isActive: false,
+  });
+  assert.equal(updated.ok, true);
+  assert.equal(parseListingMonitorCreateRequest({ conditions: CONDITIONS, form4Purchase }).ok, false);
+  assert.equal(parseListingMonitorCreateRequest({
+    form4Purchase: { ...form4Purchase, minimumShares: 2.5 },
+  }).ok, false);
+  assert.equal(parseListingMonitorCreateRequest({
+    form4Purchase: { target: { scope: "watchlist", ticker: "AGIG" }, role: "director", minimumShares: null },
+  }).ok, false);
 });
 
 test("invalid, unsupported, and malformed monitor requests fail closed", () => {
@@ -140,7 +169,13 @@ test("alert reads are owner-scoped, filterable, paginated, and expose a minimal 
   }, repository);
   assert.deepEqual(calls, [{ ownerId: OWNER_ID, monitorId: MONITOR_ID, limit: 5, offset: 10 }]);
   assert.deepEqual(result, {
-    alerts: [{ id: ALERT_ID, monitorId: MONITOR_ID, eventId: EVENT_ID, createdAt: "2026-08-14T01:02:03.000Z" }],
+    alerts: [{
+      id: ALERT_ID,
+      monitorId: MONITOR_ID,
+      eventId: EVENT_ID,
+      createdAt: "2026-08-14T01:02:03.000Z",
+      matchEvidence: null,
+    }],
     total: 1,
     limit: 5,
     offset: 10,

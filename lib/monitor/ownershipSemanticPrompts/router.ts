@@ -12,7 +12,7 @@ export type OwnershipSemanticPromptRoute = "form4" | "form4A" | "form144" | "for
 type CanonicalOwnershipForm = "form4" | "form144";
 type OwnershipSemanticWireFactField = Exclude<
   OwnershipSemanticOutputFactField,
-  "ownership_relation" | "footnote_scope"
+  "owner_attribution" | "ownership_relation" | "footnote_scope"
 > | "owner_relations" | "footnote_scopes";
 
 export type RoutedOwnershipSemanticPrompt = Readonly<{
@@ -25,15 +25,22 @@ export type RoutedOwnershipSemanticPrompt = Readonly<{
 }>;
 
 const FORM4_OUTPUT_FACTS = Object.freeze([
-  "owner_attribution",
   "owner_relations",
   "derivative_underlying_relation",
   "rule_10b5_1",
-  "footnote_scopes",
 ] satisfies OwnershipSemanticWireFactField[]);
 
+const FORM4_AMENDMENT_OUTPUT_FACTS = Object.freeze([
+  ...FORM4_OUTPUT_FACTS,
+  "footnote_scopes",
+  "amendment_effect",
+] satisfies OwnershipSemanticWireFactField[]);
+
+const FORM4_SELECTION_OUTPUT_RULES = Object.freeze([
+  "For this Form 4 selection output, do not emit footnote_scopes; use linked F references only as evidence for owner_relations, derivative_underlying_relation, or row-local rule_10b5_1.",
+]);
+
 const FORM144_OUTPUT_FACTS = Object.freeze([
-  "owner_attribution",
   "footnote_scopes",
 ] satisfies OwnershipSemanticWireFactField[]);
 
@@ -57,11 +64,12 @@ export function routeOwnershipSemanticPrompt(input: Readonly<{
   const common = buildOwnershipCommonSemanticRules();
   if (rawForm === "4") return {
     ok: true,
-    route: route("form4", rawForm, "form4", false, [...common, ...buildForm4SemanticRules()], FORM4_OUTPUT_FACTS),
+    route: route("form4", rawForm, "form4", false,
+      [...common, ...buildForm4SemanticRules(), ...FORM4_SELECTION_OUTPUT_RULES], FORM4_OUTPUT_FACTS),
   };
   if (rawForm === "4/A") return {
     ok: true,
-    route: route("form4A", rawForm, "form4", true, [...common, ...buildForm4ASemanticRules()], [...FORM4_OUTPUT_FACTS, "amendment_effect"]),
+    route: route("form4A", rawForm, "form4", true, [...common, ...buildForm4ASemanticRules()], FORM4_AMENDMENT_OUTPUT_FACTS),
   };
   if (rawForm === "144") return {
     ok: true,

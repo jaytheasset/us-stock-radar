@@ -162,6 +162,143 @@ test("multi-owner relations require one explicit, non-negated, non-conflicting o
       owner_ref: guardedRow.ownerRefs[0], footnote_ref: "footnote:F1",
     }]), guarded).ok, false, text);
   }
+
+  const foreignSubject = relationInventory(
+    "Alpha Owner discussed the filing and Beta Owner may be deemed to beneficially own the shares held by Gamma Fund.",
+  );
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(foreignSubject, 0, [{
+    ...supported("ownership_relation", "indirect", foreignSubject.rows[0].evidenceRefs[0]),
+    owner_ref: foreignSubject.rows[0].ownerRefs[0], footnote_ref: "footnote:F1",
+  }]), foreignSubject).ok, false, "another owner's beneficial clause cannot be transferred to Alpha Owner");
+});
+
+test("beneficial-ownership chains bind named owners while preserving non-conflicting same-row supplemental evidence", () => {
+  const inventory = ontfBeneficialRelationInventory();
+  const row = inventory.rows[0];
+  const relation = (ownerIndex: number, footnoteRefs: readonly string[] = ["footnote:F1"]) => ({
+    ...supported("ownership_relation", "indirect", row.evidenceRefs[0]),
+    owner_ref: row.ownerRefs[ownerIndex],
+    ...(footnoteRefs.length === 1 ? { footnote_ref: footnoteRefs[0] } : { footnote_refs: footnoteRefs }),
+  });
+  for (const ownerIndex of [0, 1, 2]) {
+    const accepted = validateOwnershipContextCandidate(contextCandidate(inventory, 0, [relation(ownerIndex)]), inventory);
+    assert.equal(accepted.ok, true, `owner ${ownerIndex}: ${accepted.ok ? "" : accepted.errors.join("; ")}`);
+  }
+  const directHolderTransfer = validateOwnershipContextCandidate(contextCandidate(inventory, 0, [{
+    ...relation(0),
+    value: "direct",
+  }]), inventory);
+  assert.equal(directHolderTransfer.ok, false, "the non-reporting master fund's direct holding cannot move to Lynrock Lake LP");
+
+  const priceEvidence = validateOwnershipContextCandidate(contextCandidate(inventory, 0, [
+    relation(2, ["footnote:F2", "footnote:F1"]),
+  ]), inventory);
+  assert.equal(priceEvidence.ok, true, "F1 establishes the relation while linked F2 remains supplemental evidence");
+  const priceOnly = validateOwnershipContextCandidate(contextCandidate(inventory, 0, [
+    relation(2, ["footnote:F2"]),
+  ]), inventory);
+  assert.equal(priceOnly.ok, false, "price-only F2 cannot establish the relation by itself");
+});
+
+test("beneficial-ownership aliases fail closed when the owner binding is simple, grouped-out, or ambiguous", () => {
+  const supportsIndirect = (
+    footnoteText: string,
+    ownerIndex: number,
+    ownerNames: readonly string[] = ["Alpha Owner", "Beta Owner"],
+  ) => {
+    const inventory = relationInventory(footnoteText, false, ownerNames);
+    const row = inventory.rows[0];
+    return validateOwnershipContextCandidate(contextCandidate(inventory, 0, [{
+      ...supported("ownership_relation", "indirect", row.evidenceRefs[0]),
+      owner_ref: row.ownerRefs[ownerIndex],
+      footnote_ref: "footnote:F1",
+    }]), inventory).ok;
+  };
+
+  assert.equal(supportsIndirect(
+    "Alpha Owner may be deemed to beneficially own the shares held by Gamma Fund.",
+    0,
+  ), false, "a bare name before the legal qualifier is not a structural owner binding");
+
+  const groupedText = "Alpha Owner advises the fund while its investment manager and general partner are Beta Owner and Gamma Owner, respectively, and each may be deemed to beneficially own the shares held by Delta Fund.";
+  assert.equal(supportsIndirect(groupedText, 0), false, "an owner mentioned outside the respectively-bound list cannot inherit the relation");
+  assert.equal(supportsIndirect(groupedText, 1), true, "an owner explicitly named in the respectively-bound list remains supported");
+
+  const sharedHonorific = "Mr. Smith, as trustee, may be deemed to beneficially own the shares held by Delta Fund.";
+  assert.equal(supportsIndirect(sharedHonorific, 0, ["SMITH JOHN", "SMITH JANE"]), false);
+  assert.equal(supportsIndirect(sharedHonorific, 1, ["SMITH JOHN", "SMITH JANE"]), false);
+
+  const sharedQuotedAlias = "Alpha Holdings LLC (\"Manager\") and Beta Holdings LLC (\"Manager\") are reporting persons; Manager, as adviser, may be deemed to beneficially own the shares held by Delta Fund.";
+  assert.equal(supportsIndirect(sharedQuotedAlias, 0, ["Alpha Holdings LLC", "Beta Holdings LLC"]), false);
+  assert.equal(supportsIndirect(sharedQuotedAlias, 1, ["Alpha Holdings LLC", "Beta Holdings LLC"]), false);
+
+  const reverseCollision = "Cynthia Paul is the adviser and may be deemed to beneficially own the shares held by Delta Fund.";
+  assert.equal(supportsIndirect(reverseCollision, 0, ["Paul Cynthia", "Cynthia Paul"]), false);
+  assert.equal(supportsIndirect(reverseCollision, 1, ["Paul Cynthia", "Cynthia Paul"]), false);
+});
+
+test("SEAS beneficial-owner chain keeps direct fund owners distinct from indirect reporting owners", () => {
+  const inventory = seasBeneficialRelationInventory();
+  const row = inventory.rows[0];
+  const relation = (ownerIndex: number) => ({
+    ...supported("ownership_relation", "indirect", row.evidenceRefs[0]),
+    owner_ref: row.ownerRefs[ownerIndex],
+    footnote_refs: ["footnote:F1", "footnote:F4"],
+  });
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 0, [relation(0)]), inventory).ok, false,
+    "Hill Path Capital is the direct holder, not an indirect owner");
+  for (const ownerIndex of [1, 2, 3, 4]) {
+    const accepted = validateOwnershipContextCandidate(contextCandidate(inventory, 0, [relation(ownerIndex)]), inventory);
+    assert.equal(accepted.ok, true, `owner ${ownerIndex}: ${accepted.ok ? "" : accepted.errors.join("; ")}`);
+  }
+});
+
+test("multiple footnote refs preserve supplemental evidence while rejecting forged, wrong-row, and conflicting selections", () => {
+  const state = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const inventory = inventoryFor(state);
+  const row = inventory.rows[4];
+  const relation = {
+    ...supported("ownership_relation", "direct", row.evidenceRefs[0]),
+    owner_ref: row.ownerRefs[1],
+    footnote_refs: ["footnote:F3", "footnote:F5", "footnote:F8"],
+  };
+  const accepted = validateOwnershipContextCandidate(contextCandidate(inventory, 4, [relation]), inventory);
+  assert.equal(accepted.ok, true, accepted.ok ? "" : accepted.errors.join("; "));
+  if (accepted.ok) {
+    assert.deepEqual(accepted.value.rows[0].assertions[0].footnote_refs,
+      ["footnote:F3", "footnote:F5", "footnote:F8"]);
+    assert.equal(Object.hasOwn(accepted.value.rows[0].assertions[0], "footnote_ref"), false);
+  }
+
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 4, [{
+    ...relation, footnote_ref: "footnote:F3",
+  }]), inventory).ok, false, "singular and plural forms cannot coexist");
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 4, [{
+    ...relation, footnote_refs: ["footnote:F3", "footnote:F3"],
+  }]), inventory).ok, false, "duplicate plural refs are rejected");
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 4, [{
+    ...relation, footnote_refs: ["footnote:F3", "footnote:F99"],
+  }]), inventory).ok, false, "forged plural refs are rejected");
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(inventory, 2, [{
+    ...relation,
+    owner_ref: inventory.rows[2].ownerRefs[1],
+    evidence_refs: [inventory.rows[2].evidenceRefs[0]],
+    footnote_refs: ["footnote:F3", "footnote:F8"],
+  }]), inventory).ok, false, "each plural ref must be linked to the selected row");
+
+  const opposite = structuredClone(inventory);
+  const oppositeF8 = opposite.footnotes.find((footnote) => footnote.footnoteRef === "footnote:F8");
+  assert.ok(oppositeF8);
+  (oppositeF8 as unknown as Row).text = "These securities are held indirectly by SFS Corp.";
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(opposite, 4, [relation]), opposite).ok, false,
+    "an explicit opposite relation in supplemental evidence blocks the assertion");
+
+  const noInterest = structuredClone(inventory);
+  const noInterestF8 = noInterest.footnotes.find((footnote) => footnote.footnoteRef === "footnote:F8");
+  assert.ok(noInterestF8);
+  (noInterestF8 as unknown as Row).text = "SFS Corp. has no interests in these shares.";
+  assert.equal(validateOwnershipContextCandidate(contextCandidate(noInterest, 4, [relation]), noInterest).ok, false,
+    "an explicit no-interest statement in supplemental evidence blocks the assertion");
 });
 
 test("footnote scope identity is per linked footnote and Rule 10b5-1 true stays row-local", () => {
@@ -310,6 +447,9 @@ test("official reader strips raw context_facts and isolates stale or malformed c
   assert.equal(available.status, "available");
   if (available.status !== "available") return;
   assert.equal(available.context?.status, "available");
+  if (available.context?.status === "available") {
+    assert.deepEqual(available.context.semanticVerification, { mode: "experimental", verified: true });
+  }
   assert.equal(Object.hasOwn(available.rows[2], "context_facts"), false);
   assert.equal(available.rows[2].price_per_share, 0, "exact XML zero survives context projection");
   assert.equal(available.rows[2].transaction_value, null, "unavailable direct null survives context projection");
@@ -319,12 +459,12 @@ test("official reader strips raw context_facts and isolates stale or malformed c
   }));
   assert.equal(legacy.status, "available");
   if (legacy.status === "available") {
-    assert.equal(legacy.context?.status, "unavailable", "legacy context is not promoted without verifier lineage");
-    assert.equal(
-      legacy.context?.status === "unavailable" ? legacy.context.reason : null,
-      "ownership_context_semantic_verification_unavailable",
-    );
-    assert.equal(legacy.rows[2].price_per_share, 0, "legacy verifier failure cannot hide direct XML facts");
+    assert.equal(legacy.context?.status, "available", "canonical context remains eligible without experimental verifier");
+    if (legacy.context?.status === "available") {
+      assert.deepEqual(legacy.context.semanticVerification, { mode: "not_used", verified: false });
+    }
+    assert.equal(legacy.rows[2].price_per_share, 0, "verifier absence cannot hide direct XML facts");
+    assert.equal(legacy.rows[2].transaction_value, null, "direct XML null remains distinct from zero");
   }
 
   const staleState = structuredClone(state);
@@ -343,6 +483,42 @@ test("official reader strips raw context_facts and isolates stale or malformed c
   if (malformed.status === "available") {
     assert.equal(malformed.context?.status, "malformed");
     assert.equal(Object.hasOwn(malformed.rows[2], "context_facts"), false);
+  }
+});
+
+test("official reader preserves plural refs and remains backward-compatible with legacy footnote_ref", async () => {
+  const pluralState = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const pluralInventory = inventoryFor(pluralState);
+  const pluralRow = pluralInventory.rows[4];
+  pluralState.form4[4].context_facts = envelope(pluralInventory, 4, [{
+    ...supported("ownership_relation", "direct", pluralRow.evidenceRefs[0]),
+    owner_ref: pluralRow.ownerRefs[1],
+    footnote_refs: ["footnote:F3", "footnote:F5", "footnote:F8"],
+  }]);
+  const plural = await readCurrentOwnershipFacts(eventId, snapshotRepository(pluralState));
+  assert.equal(plural.status, "available");
+  if (plural.status === "available" && plural.context?.status === "available") {
+    assert.deepEqual(plural.context.rows[0].context.assertions[0].footnote_refs,
+      ["footnote:F3", "footnote:F5", "footnote:F8"]);
+  } else {
+    assert.fail("plural ownership context should be available");
+  }
+
+  const legacyState = canonicalState("source-uwmc-form4-multi-owner-10b5-1-conversion.json");
+  const legacyInventory = inventoryFor(legacyState);
+  const legacyRow = legacyInventory.rows[0];
+  legacyState.form4[0].context_facts = envelope(legacyInventory, 0, [{
+    ...supported("ownership_relation", "direct", legacyRow.evidenceRefs[0]),
+    owner_ref: legacyRow.ownerRefs[1],
+    footnote_ref: "footnote:F3",
+  }]);
+  const legacy = await readCurrentOwnershipFacts(eventId, snapshotRepository(legacyState));
+  assert.equal(legacy.status, "available");
+  if (legacy.status === "available" && legacy.context?.status === "available") {
+    assert.equal(legacy.context.rows[0].context.assertions[0].footnote_ref, "footnote:F3");
+    assert.equal(Object.hasOwn(legacy.context.rows[0].context.assertions[0], "footnote_refs"), false);
+  } else {
+    assert.fail("legacy singular ownership context should remain available");
   }
 });
 
@@ -497,8 +673,15 @@ function supported(fact: string, value: unknown, evidenceRef: string): Row {
   return { fact, status: "supported", value, evidence_refs: [evidenceRef] };
 }
 
-function relationInventory(footnoteText: string, filingRule10b51 = false) {
-  const sourceXml = `<ownershipDocument><aff10b5One>${filingRule10b51 ? "1" : "0"}</aff10b5One><reportingOwner><rptOwnerName>Alpha Owner</rptOwnerName></reportingOwner><reportingOwner><rptOwnerName>Beta Owner</rptOwnerName></reportingOwner><footnotes><footnote id="F1">${footnoteText}</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common</value></securityTitle><ownershipNature><directOrIndirectOwnership><value>D</value><footnoteId id="F1"/></directOrIndirectOwnership></ownershipNature></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>`;
+function relationInventory(
+  footnoteText: string,
+  filingRule10b51 = false,
+  ownerNames: readonly string[] = ["Alpha Owner", "Beta Owner"],
+) {
+  const reportingOwners = ownerNames
+    .map((name) => `<reportingOwner><rptOwnerName>${name}</rptOwnerName></reportingOwner>`)
+    .join("");
+  const sourceXml = `<ownershipDocument><aff10b5One>${filingRule10b51 ? "1" : "0"}</aff10b5One>${reportingOwners}<footnotes><footnote id="F1">${footnoteText}</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common</value></securityTitle><ownershipNature><directOrIndirectOwnership><value>D</value><footnoteId id="F1"/></directOrIndirectOwnership></ownershipNature></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>`;
   return buildOwnershipContextReferenceInventory({
     eventId,
     form: "form4",
@@ -508,13 +691,47 @@ function relationInventory(footnoteText: string, filingRule10b51 = false) {
     rows: [{
       transaction_index: 0,
       security_title: "Common",
-      reporting_owner_names: ["Alpha Owner", "Beta Owner"],
+      reporting_owner_names: [...ownerNames],
       evidence: ["<nonDerivativeTransaction>...</nonDerivativeTransaction>"],
       direct_or_indirect_ownership: "D",
       transaction_kind: "non_derivative",
       acquired_disposed_code: "A",
       is_10b5_1: null,
       calculation_basis: { footnote_ids: ["F1"], underlying_security_title: null },
+    }],
+  });
+}
+
+function ontfBeneficialRelationInventory() {
+  const ownerNames = ["Lynrock Lake LP", "LYNROCK LAKE PARTNERS LLC", "Paul Cynthia"];
+  const sourceXml = `<ownershipDocument>${ownerNames.map((name) => `<reportingOwner><rptOwnerName>${name}</rptOwnerName></reportingOwner>`).join("")}<footnotes><footnote id="F1">Shares are held directly by Lynrock Lake Master Fund LP (&quot;Lynrock Fund&quot;). The investment manager and general partner of Lynrock Fund are Lynrock Lake LP (&quot;Lynrock&quot;) and Lynrock Lake Partners LLC (&quot;Lynrock GP&quot;), respectively, and each may be deemed to beneficially own the shares held by Lynrock Fund. Cynthia Paul is the Chief Investment Officer of Lynrock and Sole Member of Lynrock GP and may be deemed to beneficially own the shares held by Lynrock Fund. Each of Lynrock, Lynrock GP and Ms. Paul disclaims beneficial ownership in these shares except to the extent of its or her respective pecuniary interest therein.</footnote><footnote id="F2">The price reported in Column 4 is a weighted average price. These securities were purchased in multiple transactions at prices ranging from $5.48 to $5.56 inclusive.</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionAmounts><transactionPricePerShare><value>5.56</value><footnoteId id="F2"/></transactionPricePerShare></transactionAmounts><ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership><natureOfOwnership><value>By Fund</value><footnoteId id="F1"/></natureOfOwnership></ownershipNature></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>`;
+  return buildOwnershipContextReferenceInventory({
+    eventId, form: "form4", isAmendment: false, sourceFingerprint: fingerprint, sourceXml,
+    rows: [{
+      transaction_index: 0, security_title: "Common Stock", reporting_owner_names: ownerNames,
+      evidence: ["<nonDerivativeTransaction>...</nonDerivativeTransaction>"], direct_or_indirect_ownership: "I",
+      transaction_kind: "non_derivative", acquired_disposed_code: "A", is_10b5_1: false,
+      calculation_basis: { footnote_ids: ["F1", "F2"], underlying_security_title: null },
+    }],
+  });
+}
+
+function seasBeneficialRelationInventory() {
+  const ownerNames = [
+    "Hill Path Capital Partners LP",
+    "Hill Path Capital Partners GP LLC",
+    "Hill Path Investment Holdings LLC",
+    "Hill Path Capital LP",
+    "ROSS SCOTT I",
+  ];
+  const sourceXml = `<ownershipDocument>${ownerNames.map((name) => `<reportingOwner><rptOwnerName>${name}</rptOwnerName></reportingOwner>`).join("")}<footnotes><footnote id="F1">This Form 4 is filed jointly by Hill Path Capital Partners LP (&quot;Hill Path Capital&quot;), Hill Path Capital Partners GP LLC (&quot;Hill Path GP&quot;), Hill Path Investment Holdings LLC (&quot;Hill Path Investment Holdings&quot;), Hill Path Capital LP (&quot;Hill Path&quot;) and Scott I. Ross (collectively, the &quot;Reporting Persons&quot;).</footnote><footnote id="F4">Shares of Common Stock owned directly by Hill Path Capital. Hill Path GP, as the general partner of Hill Path Capital, may be deemed to beneficially own the shares of Common Stock owned directly by Hill Path Capital. Hill Path Investment Holdings, as the managing member of Hill Path GP, may be deemed to beneficially own the shares of Common Stock owned directly by Hill Path Capital. Hill Path, as the investment manager of Hill Path Capital, may be deemed to beneficially own the shares of Common Stock owned directly by Hill Path Capital. Mr. Ross, as the managing partner of each of Hill Path Investment Holdings and Hill Path, may be deemed to beneficially own the shares of Common Stock owned directly by Hill Path Capital.</footnote></footnotes><nonDerivativeTable><nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership><natureOfOwnership><value>By Hill Path Capital Partners LP</value><footnoteId id="F1"/><footnoteId id="F4"/></natureOfOwnership></ownershipNature></nonDerivativeTransaction></nonDerivativeTable></ownershipDocument>`;
+  return buildOwnershipContextReferenceInventory({
+    eventId, form: "form4", isAmendment: false, sourceFingerprint: fingerprint, sourceXml,
+    rows: [{
+      transaction_index: 0, security_title: "Common Stock", reporting_owner_names: ownerNames,
+      evidence: ["<nonDerivativeTransaction>...</nonDerivativeTransaction>"], direct_or_indirect_ownership: "I",
+      transaction_kind: "non_derivative", acquired_disposed_code: "A", is_10b5_1: null,
+      calculation_basis: { footnote_ids: ["F1", "F4"], underlying_security_title: null },
     }],
   });
 }

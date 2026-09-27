@@ -1,6 +1,6 @@
 export const OWNERSHIP_CONTEXT_VERSION = "ownership_context_v1" as const;
 export const OWNERSHIP_CONTEXT_AI_PROMPT_KEY = "ownership_structured_context" as const;
-export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_llm_v1.3-required-supported-values" as const;
+export const OWNERSHIP_CONTEXT_AI_PROMPT_VERSION = "ownership_context_selection_v1.5-form4-no-footnote-scopes" as const;
 export const OWNERSHIP_CONTEXT_AI_PURPOSE = "ownership_structured_context" as const;
 
 export const OWNERSHIP_CONTEXT_FACTS = [
@@ -32,6 +32,7 @@ export type OwnershipContextAssertion = Readonly<{
   owner_ref?: string;
   security_ref?: string;
   footnote_ref?: string;
+  footnote_refs?: readonly string[];
   evidence_refs: readonly string[];
 }>;
 
@@ -105,9 +106,10 @@ export type OwnershipContextValidationResult =
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SOURCE_FINGERPRINT_PATTERN = /^ownership-context-v1:[0-9a-f]{64}$/;
 const ASSERTION_KEYS = new Set([
-  "fact", "status", "value", "owner_ref", "security_ref", "footnote_ref", "evidence_refs",
+  "fact", "status", "value", "owner_ref", "security_ref", "footnote_ref", "footnote_refs", "evidence_refs",
 ]);
 const MAX_ASSERTIONS_PER_ROW = 32;
+const MAX_FOOTNOTE_REFS_PER_ASSERTION = 64;
 
 export function buildOwnershipContextReferenceInventory(input: Readonly<{
   eventId: string;
@@ -248,13 +250,29 @@ export function validateOwnershipContextCandidate(
       const ownerRef = optionalString(assertion.owner_ref);
       const securityRef = optionalString(assertion.security_ref);
       const footnoteRef = optionalString(assertion.footnote_ref);
+      const pluralFootnoteRefs = strictStringArray(assertion.footnote_refs);
       if (Object.hasOwn(assertion, "owner_ref") && !ownerRef) errors.push(`${assertionPath}.owner_ref must be a non-empty reference string`);
       if (Object.hasOwn(assertion, "security_ref") && !securityRef) errors.push(`${assertionPath}.security_ref must be a non-empty reference string`);
       if (Object.hasOwn(assertion, "footnote_ref") && !footnoteRef) errors.push(`${assertionPath}.footnote_ref must be a non-empty reference string`);
+      if (Object.hasOwn(assertion, "footnote_refs") && (
+        !Array.isArray(assertion.footnote_refs)
+        || pluralFootnoteRefs.length === 0
+        || pluralFootnoteRefs.length !== assertion.footnote_refs.length
+        || pluralFootnoteRefs.length > MAX_FOOTNOTE_REFS_PER_ASSERTION
+        || new Set(pluralFootnoteRefs).size !== pluralFootnoteRefs.length
+      )) {
+        errors.push(`${assertionPath}.footnote_refs must contain unique non-empty reference strings`);
+      }
+      if (footnoteRef && Object.hasOwn(assertion, "footnote_refs")) {
+        errors.push(`${assertionPath}.footnote_ref and footnote_refs are mutually exclusive`);
+      }
+      const footnoteRefs = pluralFootnoteRefs.length > 0
+        ? pluralFootnoteRefs
+        : footnoteRef ? [footnoteRef] : [];
       if (ownerRef && !allOwnerRefs.has(ownerRef)) errors.push(`${assertionPath}.owner_ref is forged or missing`);
       if (securityRef && !allSecurityRefs.has(securityRef)) errors.push(`${assertionPath}.security_ref is forged or missing`);
-      if (footnoteRef && !inventory.footnotes.some((footnote) => footnote.footnoteRef === footnoteRef)) {
-        errors.push(`${assertionPath}.footnote_ref is forged or missing`);
+      if (footnoteRefs.some((ref) => !inventory.footnotes.some((footnote) => footnote.footnoteRef === ref))) {
+        errors.push(`${assertionPath}.${pluralFootnoteRefs.length > 0 ? "footnote_refs contains a" : "footnote_ref is"} forged or missing reference`);
       }
       const assertionIdentity = fact === "ownership_relation"
         ? `${fact}:${ownerRef ?? ""}`
@@ -267,7 +285,7 @@ export function validateOwnershipContextCandidate(
         errors.push(`${assertionPath}.value is allowed only for supported assertions`);
       }
       validateAssertionMeaning({
-        assertion, fact, status, ownerRef, securityRef, footnoteRef, referenceRow, inventory,
+        assertion, fact, status, ownerRef, securityRef, footnoteRef, footnoteRefs, referenceRow, inventory,
         allOwnerRefs, allSecurityRefs, path: assertionPath, errors,
       });
       assertions.push(Object.freeze({
@@ -277,6 +295,7 @@ export function validateOwnershipContextCandidate(
         ...(ownerRef ? { owner_ref: ownerRef } : {}),
         ...(securityRef ? { security_ref: securityRef } : {}),
         ...(footnoteRef ? { footnote_ref: footnoteRef } : {}),
+        ...(pluralFootnoteRefs.length > 0 ? { footnote_refs: Object.freeze([...pluralFootnoteRefs]) } : {}),
         evidence_refs: Object.freeze([...evidenceRefs]),
       }));
     });
@@ -353,6 +372,7 @@ function validateAssertionMeaning(input: {
   ownerRef: string | null;
   securityRef: string | null;
   footnoteRef: string | null;
+  footnoteRefs: readonly string[];
   referenceRow: OwnershipContextReferenceRow;
   inventory: OwnershipContextReferenceInventory;
   allOwnerRefs: Set<string>;
@@ -360,13 +380,13 @@ function validateAssertionMeaning(input: {
   path: string;
   errors: string[];
 }) {
-  const { assertion, fact, status, ownerRef, securityRef, footnoteRef, referenceRow, inventory, path, errors } = input;
+  const { assertion, fact, status, ownerRef, securityRef, footnoteRef, footnoteRefs, referenceRow, inventory, path, errors } = input;
   const value = assertion.value;
   const supported = status === "supported";
   if (supported && !Object.hasOwn(assertion, "value")) errors.push(`${path}.value is required for supported ${fact}`);
 
   if (fact === "owner_attribution") {
-    disallowSubjectRefs(ownerRef, securityRef, footnoteRef, path, errors);
+    disallowSubjectRefs(ownerRef, securityRef, footnoteRefs, path, errors);
     if (supported && (typeof value !== "string" || !referenceRow.ownerRefs.includes(value))) {
       errors.push(`${path}.value must reference an owner on the same row`);
     }
@@ -374,8 +394,8 @@ function validateAssertionMeaning(input: {
   }
   if (fact === "ownership_relation") {
     if (inventory.form !== "form4") errors.push(`${path} is not applicable to Form 144`);
-    if (footnoteRef && !referenceRow.linkedFootnoteRefs.includes(footnoteRef)) {
-      errors.push(`${path}.footnote_ref must be linked to the same row`);
+    if (footnoteRefs.some((ref) => !referenceRow.linkedFootnoteRefs.includes(ref))) {
+      errors.push(`${path}.footnote reference must be linked to the same row`);
     }
     if (ownerRef && !referenceRow.ownerRefs.includes(ownerRef)) errors.push(`${path}.owner_ref must belong to the same row`);
     if (securityRef && securityRef !== referenceRow.securityRef) errors.push(`${path}.security_ref must belong to the same row`);
@@ -393,22 +413,42 @@ function validateAssertionMeaning(input: {
       }
     }
     if (supported && ownerRef && referenceRow.ownerRefs.length > 1) {
-      if (!footnoteRef) {
-        errors.push(`${path}.footnote_ref is required for a multi-owner relation`);
-      } else if (!ownerRelationSupportedByFootnote({
+      const relationSupported = footnoteRefs.some((selectedFootnoteRef) => ownerRelationSupportedByFootnote({
         ownerRef,
         relation: value,
-        footnoteRef,
+        footnoteRef: selectedFootnoteRef,
         referenceRow,
         inventory,
-      })) {
-        errors.push(`${path}.value is not established for that owner by the linked footnote`);
+      }));
+      const relationContradicted = footnoteRefs.some((selectedFootnoteRef) => ownerRelationContradictedByFootnote({
+        ownerRef,
+        relation: value,
+        footnoteRef: selectedFootnoteRef,
+        referenceRow,
+        inventory,
+      }));
+      if (footnoteRefs.length === 0) {
+        errors.push(`${path}.footnote_ref or footnote_refs is required for a multi-owner relation`);
+      } else if (relationContradicted) {
+        errors.push(`${path}.value conflicts with selected linked footnote evidence`);
+      } else if (!relationSupported) {
+        errors.push(`${path}.value is not established for that owner by the selected linked footnotes`);
       }
+    }
+    if (supported && ownerRef && referenceRow.ownerRefs.length <= 1
+      && footnoteRefs.some((selectedFootnoteRef) => ownerRelationContradictedByFootnote({
+      ownerRef,
+      relation: value,
+      footnoteRef: selectedFootnoteRef,
+      referenceRow,
+      inventory,
+    }))) {
+      errors.push(`${path}.value conflicts with selected linked footnote evidence`);
     }
     return;
   }
   if (fact === "economic_direction") {
-    if (footnoteRef) errors.push(`${path}.footnote_ref is not allowed for economic_direction`);
+    if (footnoteRefs.length > 0) errors.push(`${path}.footnote references are not allowed for economic_direction`);
     if (ownerRef) errors.push(`${path}.owner_ref is not allowed for economic_direction`);
     if (securityRef && securityRef !== referenceRow.securityRef) errors.push(`${path}.security_ref must belong to the same row`);
     if (supported && (typeof value !== "string" || !["buy", "sell", "other"].includes(value))) errors.push(`${path}.value is invalid`);
@@ -421,8 +461,8 @@ function validateAssertionMeaning(input: {
     return;
   }
   if (fact === "derivative_underlying_relation") {
-    if (footnoteRef && !referenceRow.linkedFootnoteRefs.includes(footnoteRef)) {
-      errors.push(`${path}.footnote_ref must be linked to the same row`);
+    if (footnoteRefs.some((ref) => !referenceRow.linkedFootnoteRefs.includes(ref))) {
+      errors.push(`${path}.footnote reference must be linked to the same row`);
     }
     if (ownerRef) errors.push(`${path}.owner_ref is not allowed for derivative_underlying_relation`);
     if (!securityRef || securityRef !== referenceRow.securityRef) errors.push(`${path}.security_ref must reference the row security`);
@@ -437,8 +477,8 @@ function validateAssertionMeaning(input: {
   }
   if (fact === "rule_10b5_1_applicability") {
     if (inventory.form !== "form4") errors.push(`${path} is not applicable to Form 144`);
-    if (footnoteRef && !referenceRow.linkedFootnoteRefs.includes(footnoteRef)) {
-      errors.push(`${path}.footnote_ref must be linked to the same row`);
+    if (footnoteRefs.some((ref) => !referenceRow.linkedFootnoteRefs.includes(ref))) {
+      errors.push(`${path}.footnote reference must be linked to the same row`);
     }
     if (ownerRef && !referenceRow.ownerRefs.includes(ownerRef)) errors.push(`${path}.owner_ref must belong to the same row`);
     if (securityRef && securityRef !== referenceRow.securityRef) errors.push(`${path}.security_ref must belong to the same row`);
@@ -452,17 +492,19 @@ function validateAssertionMeaning(input: {
     if (supported && value === false && referenceRow.direct.is10b51 === null && inventory.filingRule10b51 !== false) {
       errors.push(`${path}.false lacks an explicit XML value`);
     }
-    if (supported && value === true && (!footnoteRef || !footnoteMentions10b51(footnoteRef, inventory))) {
+    if (supported && value === true && !footnoteRefs.some((ref) => footnoteMentions10b51(ref, inventory))) {
       errors.push(`${path}.true requires a linked footnote that explicitly mentions Rule 10b5-1`);
     }
-    if (supported && value === true && footnoteRef && ownerRef
-      && !footnoteMentionsOwner(footnoteRef, ownerRef, referenceRow, inventory)) {
+    if (supported && value === true && ownerRef
+      && !footnoteRefs.some((ref) => footnoteMentions10b51(ref, inventory)
+        && footnoteMentionsOwner(ref, ownerRef, referenceRow, inventory))) {
       errors.push(`${path}.owner_ref is not established by the linked Rule 10b5-1 footnote`);
     }
     return;
   }
   if (fact === "footnote_scope") {
     if (!footnoteRef) errors.push(`${path}.footnote_ref is required for footnote_scope`);
+    if (Object.hasOwn(assertion, "footnote_refs")) errors.push(`${path}.footnote_refs is not allowed for footnote_scope`);
     if (footnoteRef && !referenceRow.linkedFootnoteRefs.includes(footnoteRef)) {
       errors.push(`${path}.footnote_ref must be linked to the same row`);
     }
@@ -481,7 +523,7 @@ function validateAssertionMeaning(input: {
     }
     return;
   }
-  if (ownerRef || securityRef || footnoteRef) errors.push(`${path} does not allow subject or footnote references`);
+  if (ownerRef || securityRef || footnoteRefs.length > 0) errors.push(`${path} does not allow subject or footnote references`);
   if (supported && (typeof value !== "string" || !["adds", "modifies", "removes", "restates", "no_change"].includes(value))) {
     errors.push(`${path}.value is invalid`);
   }
@@ -491,11 +533,11 @@ function validateAssertionMeaning(input: {
 function disallowSubjectRefs(
   ownerRef: string | null,
   securityRef: string | null,
-  footnoteRef: string | null,
+  footnoteRefs: readonly string[],
   path: string,
   errors: string[],
 ) {
-  if (ownerRef || securityRef || footnoteRef) errors.push(`${path} does not allow subject or footnote references`);
+  if (ownerRef || securityRef || footnoteRefs.length > 0) errors.push(`${path} does not allow subject or footnote references`);
 }
 
 function ownerRelationSupportedByFootnote(input: Readonly<{
@@ -510,12 +552,74 @@ function ownerRelationSupportedByFootnote(input: Readonly<{
   const ownerName = input.referenceRow.ownerNames[ownerIndex];
   const footnote = input.inventory.footnotes.find((item) => item.footnoteRef === input.footnoteRef);
   if (!ownerName || !footnote) return false;
-  const aliases = explicitOwnerAliases(ownerName, input.inventory.footnotes.map((item) => item.text));
-  return aliases.some((alias) => relationClauseMatchesOwner(footnote.text, alias, input.relation as "direct" | "indirect"));
+  const aliases = explicitOwnerAliases(
+    ownerName,
+    input.inventory.footnotes.map((item) => item.text),
+    input.referenceRow.ownerNames,
+  );
+  return aliases.some((alias) => relationClauseMatchesOwner(footnote.text, alias, input.relation as "direct" | "indirect")
+    || (input.relation === "indirect" && beneficialOwnershipClauseMatchesOwner(footnote.text, alias)));
 }
 
-function explicitOwnerAliases(ownerName: string, sourceTexts: readonly string[]) {
+function ownerRelationContradictedByFootnote(input: Readonly<{
+  ownerRef: string;
+  relation: unknown;
+  footnoteRef: string;
+  referenceRow: OwnershipContextReferenceRow;
+  inventory: OwnershipContextReferenceInventory;
+}>) {
+  if (input.relation !== "direct" && input.relation !== "indirect") return false;
+  const ownerIndex = input.referenceRow.ownerRefs.indexOf(input.ownerRef);
+  const ownerName = input.referenceRow.ownerNames[ownerIndex];
+  const footnote = input.inventory.footnotes.find((item) => item.footnoteRef === input.footnoteRef);
+  if (!ownerName || !footnote) return false;
+  const opposite = input.relation === "direct" ? "indirect" : "direct";
+  return explicitOwnerAliases(
+    ownerName,
+    input.inventory.footnotes.map((item) => item.text),
+    input.referenceRow.ownerNames,
+  ).some((alias) => {
+    if (relationClauseMatchesOwner(footnote.text, alias, opposite)) return true;
+    const normalizedText = normalizeWords(footnote.text);
+    const aliasPattern = escapeRegExp(normalizeWords(alias)).replace(/\\ /g, "\\s+");
+    return Boolean(aliasPattern) && new RegExp(
+      `(?:^|\\s)${aliasPattern}\\s+(?:has|have|holds?|owns?)\\s+no\\s+(?:direct\\s+|indirect\\s+|beneficial\\s+|pecuniary\\s+)*(?:interest|interests|ownership)(?:\\s|$)`,
+      "i",
+    ).test(normalizedText);
+  });
+}
+
+function explicitOwnerAliases(
+  ownerName: string,
+  sourceTexts: readonly string[],
+  reportingOwnerNames: readonly string[],
+) {
+  const candidates = ownerAliasCandidates(ownerName, sourceTexts);
+  const owners = [...new Map(reportingOwnerNames.map((name) => [normalizeWords(name), name])).values()];
+  return candidates.filter((candidate) => {
+    const normalizedCandidate = normalizeWords(candidate);
+    return normalizedCandidate.length > 0 && owners.filter((name) => (
+      ownerAliasCandidates(name, sourceTexts).some((alias) => normalizeWords(alias) === normalizedCandidate)
+    )).length === 1;
+  });
+}
+
+function ownerAliasCandidates(ownerName: string, sourceTexts: readonly string[]) {
   const aliases = new Set([ownerName]);
+  const ownerTokens = ownerName.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const entitySuffixes = new Set(["co", "corp", "corporation", "fund", "holdings", "inc", "llc", "lp", "ltd", "partners", "plc", "trust"]);
+  if (ownerTokens.length >= 2 && ownerTokens.length <= 4
+    && !entitySuffixes.has(ownerTokens[ownerTokens.length - 1].toLocaleLowerCase("en-US"))) {
+    const reversed = [...ownerTokens.slice(1), ownerTokens[0]].join(" ");
+    if (sourceTexts.some((text) => containsWholeNormalizedPhrase(text, reversed))) aliases.add(reversed);
+    const familyCandidates = new Set([ownerTokens[0], ownerTokens[ownerTokens.length - 1]]);
+    for (const text of sourceTexts) {
+      for (const familyName of familyCandidates) {
+        const honorific = text.match(new RegExp(`\\b(?:Mr|Ms|Mrs|Dr)\\.?\\s+${escapeRegExp(familyName)}\\b`, "iu"))?.[0];
+        if (honorific) aliases.add(honorific);
+      }
+    }
+  }
   const ownerPattern = ownerName
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
@@ -533,14 +637,19 @@ function explicitOwnerAliases(ownerName: string, sourceTexts: readonly string[])
 }
 
 function relationClauseMatchesOwner(text: string, ownerAlias: string, relation: "direct" | "indirect") {
-  const normalizedOwner = normalizeWords(ownerAlias);
-  if (!normalizedOwner) return false;
-  const ownerPattern = escapeRegExp(normalizedOwner).replace(/\\ /g, "\\s+");
-  const relationPattern = new RegExp(`(?:^|\\s)(?:held\\s+)?${relation}ly\\s+by\\s+${ownerPattern}(?:\\s|$)`, "i");
+  const ownerPattern = exactPhrasePattern(ownerAlias);
+  if (!ownerPattern) return false;
+  const relationPattern = new RegExp(
+    `(?:^|\\s)(?:(?:held|owned)\\s+)?${relation}ly\\s+by\\s+${ownerPattern}(?=$|[.,;)]+|\\s+(?:a|an|as|the|which|who)\\b)`,
+    "i",
+  );
   const opposite = relation === "direct" ? "indirect" : "direct";
-  const oppositePattern = new RegExp(`(?:^|\\s)(?:held\\s+)?${opposite}ly\\s+by\\s+${ownerPattern}(?:\\s|$)`, "i");
-  for (const clauseText of text.split(/[.;](?=\s|$)/)) {
-    const clause = normalizeWords(clauseText);
+  const oppositePattern = new RegExp(
+    `(?:^|\\s)(?:(?:held|owned)\\s+)?${opposite}ly\\s+by\\s+${ownerPattern}(?=$|[.,;)]+|\\s+(?:a|an|as|the|which|who)\\b)`,
+    "i",
+  );
+  for (const clauseText of ownershipRelationClauses(text)) {
+    const clause = clauseText.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
     if (!clause || !relationPattern.test(clause)) continue;
     relationPattern.lastIndex = 0;
     if (oppositePattern.test(clause)) return false;
@@ -549,6 +658,48 @@ function relationClauseMatchesOwner(text: string, ownerAlias: string, relation: 
     return true;
   }
   return false;
+}
+
+function beneficialOwnershipClauseMatchesOwner(text: string, ownerAlias: string) {
+  const ownerPattern = exactPhrasePattern(ownerAlias);
+  if (!ownerPattern) return false;
+  const ownerMention = new RegExp(
+    `(?:^|\\s)${ownerPattern}(?=$|[.,;()]+|\\s+\\(|\\s+(?:and|as|is|may|or|was|which|who)\\b)`,
+    "i",
+  );
+  const individualOwnerBinding = new RegExp(
+    `^(?:the\\s+)?${ownerPattern}(?:\\s*,\\s*as\\b[\\s\\S]*|\\s+as\\b[\\s\\S]*|\\s+is\\b[\\s\\S]*\\s+and\\s*)$`,
+    "i",
+  );
+  for (const clauseText of ownershipRelationClauses(text)) {
+    const clause = clauseText.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim();
+    const marker = clause.match(/\bmay be deemed to beneficially own\b/i);
+    if (!marker || marker.index === undefined) continue;
+    const before = clause.slice(0, marker.index);
+    const after = clause.slice(marker.index + marker[0].length);
+    if (!ownerMention.test(before)) continue;
+    ownerMention.lastIndex = 0;
+    if (!/\b(?:shares|securities)\b/i.test(after)
+      || !/\b(?:held|owned)(?:\s+directly)?\s+by\b/i.test(after)) continue;
+    const respectivelyIndex = before.search(/\brespectively\b/i);
+    const groupListStart = respectivelyIndex >= 0 ? before.lastIndexOf(" are ", respectivelyIndex) : -1;
+    const grouped = respectivelyIndex >= 0
+      && groupListStart >= 0
+      && /\band\s+each\s+$/i.test(before)
+      && ownerMention.test(before.slice(groupListStart + " are ".length, respectivelyIndex));
+    ownerMention.lastIndex = 0;
+    if (grouped || individualOwnerBinding.test(before)) return true;
+  }
+  return false;
+}
+
+function exactPhrasePattern(value: string) {
+  const tokens = value.normalize("NFKC").toLocaleLowerCase("en-US").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return tokens.length > 0 ? tokens.map(escapeRegExp).join("[\\s.,'-]+") : "";
+}
+
+function ownershipRelationClauses(text: string) {
+  return text.replace(/\b(Mr|Ms|Mrs|Dr)\./giu, "$1").split(/[.;](?=\s|$)/);
 }
 
 function footnoteMentions10b51(footnoteRef: string, inventory: OwnershipContextReferenceInventory) {
@@ -570,7 +721,7 @@ function footnoteMentionsOwner(
   const ownerName = referenceRow.ownerNames[ownerIndex];
   const footnoteText = inventory.footnotes.find((item) => item.footnoteRef === footnoteRef)?.text;
   if (!ownerName || !footnoteText) return false;
-  return explicitOwnerAliases(ownerName, inventory.footnotes.map((item) => item.text))
+  return explicitOwnerAliases(ownerName, inventory.footnotes.map((item) => item.text), referenceRow.ownerNames)
     .some((alias) => containsWholeNormalizedPhrase(footnoteText, alias));
 }
 

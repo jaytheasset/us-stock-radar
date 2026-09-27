@@ -175,6 +175,7 @@ export function buildOwnershipParserFactRows({
         reporting_owner_scope: ownerFacts.rowAttributionSafe
           ? "single_filing_owner"
           : "filing_level_unattributed_owner_set",
+        reporting_owner_profiles: ownerFacts.profiles,
       },
       evidence: stringArray(transaction.evidence),
       calculation_basis: {
@@ -414,6 +415,17 @@ function buildFilingOwnerFacts(owners: Row[]) {
     names,
     roles,
     officerTitles,
+    profiles: owners.map((owner) => ({
+      cik: nullableString(owner.cik),
+      name: nullableString(owner.name),
+      roles: stringArray(owner.roles),
+      officer_title: nullableString(owner.title),
+      is_officer: typeof owner.is_officer === "boolean" ? owner.is_officer : null,
+      is_director: typeof owner.is_director === "boolean" ? owner.is_director : null,
+      is_ten_percent_owner: typeof owner.is_ten_percent_owner === "boolean"
+        ? owner.is_ten_percent_owner
+        : null,
+    })),
     rowAttributionSafe: owners.length === 1,
     isOfficer: triStateAny(owners, "is_officer"),
     isDirector: triStateAny(owners, "is_director"),

@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
-import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import {
+  secFilingAnalysisResponseSchema,
+  type SecFilingAnalysisInput,
+} from "@/lib/prompts/secFilingAnalysis";
 import {
   adaptOwnershipPromptResultForAnalysis,
   applySecOwnershipValidationRepairPatches,
@@ -104,6 +111,67 @@ describe("Ownership validation repair", () => {
     if (!result.ok) assert.match(result.error, /ownership monitor facts failed validation/i);
   });
 
+  it("removes exclusiveMinimum only from every Ownership Primary provider schema", () => {
+    const {
+      previewSource,
+      readGeminiResponseSchema,
+      toGeminiResponseSchema,
+    } = compileGeminiResponseSchemaConverters();
+    assert.ok(previewSource.includes("responseSchema: readGeminiResponseSchema(prompt)"));
+
+    const formTypes = ["4", "4/A", "144", "144/A"] as const;
+    for (const formType of formTypes) {
+      const input = structuredClone(buildOwnershipRepairInput()) as any;
+      input.filing_package.form_type = formType;
+      input.filing_package.hard_parsers.ownership.formType = `Form ${formType}`;
+
+      const prompt = buildSecOwnershipAnalysisPrompt(input);
+      const originalSchema = (prompt.responseFormat.json_schema as any).schema;
+      const originalSnapshot = structuredClone(originalSchema);
+      const originalMultiplier = readNormalizationMultiplierSchema(originalSchema);
+      assert.equal(originalMultiplier.exclusiveMinimum, 0, formType);
+      assert.deepEqual(originalMultiplier.type, ["number", "null"], formType);
+
+      const requestBody = {
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: readGeminiResponseSchema(prompt),
+        },
+      };
+      const providerSchema = requestBody.generationConfig.responseSchema as any;
+      const providerMultiplier = readNormalizationMultiplierSchema(providerSchema);
+      assert.equal(hasNestedKey(providerSchema, "exclusiveMinimum"), false, formType);
+      assert.equal(providerMultiplier.type, "number", formType);
+      assert.equal(providerMultiplier.nullable, true, formType);
+      assert.deepEqual(providerSchema.required, originalSchema.required, formType);
+      assert.deepEqual(
+        providerSchema.properties.analysis_output.required,
+        originalSchema.properties.analysis_output.required,
+        formType,
+      );
+      assert.deepEqual(
+        providerSchema.properties.analysis_output.properties.event_type.enum,
+        originalSchema.properties.analysis_output.properties.event_type.enum,
+        formType,
+      );
+      assert.deepEqual(originalSchema, originalSnapshot, formType);
+    }
+
+    const genericSnapshot = structuredClone(secFilingAnalysisResponseSchema);
+    const genericProviderSchema = toGeminiResponseSchema(secFilingAnalysisResponseSchema) as any;
+    assert.deepEqual(secFilingAnalysisResponseSchema, genericSnapshot);
+    assert.equal(genericProviderSchema.type, "object");
+    assert.deepEqual(genericProviderSchema.required, secFilingAnalysisResponseSchema.required);
+    assert.deepEqual(
+      genericProviderSchema.properties.event_type.enum,
+      secFilingAnalysisResponseSchema.properties.event_type.enum,
+    );
+    assert.equal(genericProviderSchema.properties.primary_ticker.type, "object");
+    assert.equal(genericProviderSchema.properties.primary_ticker.nullable, undefined);
+    assert.equal(genericProviderSchema.properties.primary_ticker.properties.ticker.type, "string");
+    assert.equal(genericProviderSchema.properties.primary_ticker.properties.ticker.nullable, true);
+  });
+
   it("keeps an unconfirmed Form 144 unit comparison out of PDD investor copy", () => {
     const input = buildOwnershipRepairInput();
     const analysis = buildUnconfirmedPddAnalysis();
@@ -156,6 +224,47 @@ function buildOwnershipRepairInput() {
       },
     },
   } as unknown as SecFilingAnalysisInput;
+}
+
+function compileGeminiResponseSchemaConverters() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
+  const start = previewSource.indexOf("function readGeminiResponseSchema(");
+  const end = previewSource.indexOf("\nfunction buildGeminiGenerateContentUrl(", start);
+  assert.ok(start >= 0 && end > start);
+  const executableSource = stripTypeScriptTypes(previewSource.slice(start, end), { mode: "transform" });
+  const factory = new Function(
+    "mocks",
+    `const { readRecord, stringValue, numberValue, finiteNumber } = mocks;
+    ${executableSource}
+    return { readGeminiResponseSchema, toGeminiResponseSchema };`,
+  );
+
+  const converters = factory({
+    readRecord: (value: unknown) => value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null,
+    stringValue: (value: unknown) => typeof value === "string" ? value.trim() : "",
+    numberValue: (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null,
+    finiteNumber: (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : 0,
+  }) as {
+    readGeminiResponseSchema: (prompt: unknown) => unknown;
+    toGeminiResponseSchema: (schema: unknown) => unknown;
+  };
+  return { previewSource, ...converters };
+}
+
+function readNormalizationMultiplierSchema(schema: any) {
+  return schema.properties.analysis_output.properties.ownership_monitor_facts.properties.form144
+    .properties.proposed_sales.items.properties.percent_calculation.properties.normalization_multiplier;
+}
+
+function hasNestedKey(value: unknown, targetKey: string): boolean {
+  if (Array.isArray(value)) return value.some((item) => hasNestedKey(item, targetKey));
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return Object.prototype.hasOwnProperty.call(record, targetKey)
+    || Object.values(record).some((child) => hasNestedKey(child, targetKey));
 }
 
 function buildOwnershipRepairAnalysis(): Record<string, unknown> {

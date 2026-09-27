@@ -24,6 +24,9 @@ const migrations = [
   "20260915065614_harden_ownership_context_semantic_refs.sql",
   "20260915082336_ownership_context_sole_reporting_person_scope.sql",
   "20260915091248_ownership_context_semantic_verifier_lineage.sql",
+  "20260926185541_ownership_context_multiple_footnote_refs.sql",
+  "20260927091759_ownership_context_beneficial_relation_aliases.sql",
+  "20260927135804_ownership_context_unambiguous_alias_bindings.sql",
 ].map((filename) => readFileSync(join(here, "../supabase/migrations", filename), "utf8"));
 const fixture = JSON.parse(readFileSync(
   join(here, "../lib/sources/sec/forms/ownership/fixtures/source-uwmc-form4-multi-owner-10b5-1-conversion.json"),
@@ -144,6 +147,131 @@ try {
   ] }];
   const bothOwnerRelationsResult = await persistContext(firstFingerprint, bothOwnerRelations);
   assert.equal(bothOwnerRelationsResult.status, "stored", JSON.stringify(bothOwnerRelationsResult));
+  const multipleFootnoteRelation = [{ row_ref: "row:form4:4", assertions: [{
+    fact: "ownership_relation", status: "supported", value: "direct",
+    owner_ref: "owner:form4:4:1", footnote_refs: ["footnote:F3", "footnote:F5", "footnote:F8"],
+    evidence_refs: ["evidence:form4:4:0"],
+  }] }];
+  assert.equal((await persistContext(firstFingerprint, multipleFootnoteRelation)).status, "stored");
+  assert.deepEqual(
+    (await storedContextAt(4))?.assertions?.[0]?.footnote_refs,
+    ["footnote:F3", "footnote:F5", "footnote:F8"],
+    "all selected footnotes persist in their original order",
+  );
+  const conflictingMultipleFootnotes = structuredClone(multipleFootnoteRelation);
+  conflictingMultipleFootnotes[0].assertions[0].footnote_refs = ["footnote:F3", "footnote:F7"];
+  assert.equal(
+    (await persistContext(firstFingerprint, conflictingMultipleFootnotes)).reason,
+    "footnote_row_link_invalid",
+    "a conflicting footnote from a different row is rejected before semantic use",
+  );
+  const conflictHelper = await pool.query(`select public.ownership_context_owner_relation_conflicted(
+    $1, 'F7', 'SFS HOLDING CORP', 'direct'
+  ) as conflicted`, [preservedSourceText]);
+  assert.equal(conflictHelper.rows[0].conflicted, true, "explicit no-interest evidence conflicts with direct ownership");
+  const beneficialOwnershipXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>Lynrock Lake LP</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>LYNROCK LAKE PARTNERS LLC</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>Paul Cynthia</rptOwnerName></reportingOwner>
+    <footnotes>
+      <footnote id="F1">Shares are held directly by Lynrock Lake Master Fund LP (&quot;Lynrock Fund&quot;). The investment manager and general partner of Lynrock Fund are Lynrock Lake LP (&quot;Lynrock&quot;) and Lynrock Lake Partners LLC (&quot;Lynrock GP&quot;), respectively, and each may be deemed to beneficially own the shares held by Lynrock Fund. Cynthia Paul is the Chief Investment Officer of Lynrock and Sole Member of Lynrock GP and may be deemed to beneficially own the shares held by Lynrock Fund. Each of Lynrock, Lynrock GP and Ms. Paul disclaims beneficial ownership in these shares except to the extent of its or her respective pecuniary interest therein.</footnote>
+      <footnote id="F2">The price reported in Column 4 is a weighted average price.</footnote>
+    </footnotes>
+  </ownershipDocument>`;
+  for (const ownerName of ["Lynrock Lake LP", "LYNROCK LAKE PARTNERS LLC", "Paul Cynthia"]) {
+    const relation = await pool.query(`select
+      public.ownership_context_owner_relation_supported($1, 'F1', $2, 'indirect') as supported,
+      public.ownership_context_owner_relation_supported($1, 'F2', $2, 'indirect') as supplemental_supported,
+      public.ownership_context_owner_relation_conflicted($1, 'F2', $2, 'indirect') as supplemental_conflicted`,
+    [beneficialOwnershipXml, ownerName]);
+    assert.equal(relation.rows[0].supported, true, `${ownerName} beneficial-ownership chain should be accepted`);
+    assert.equal(relation.rows[0].supplemental_supported, false, "price-only supplemental evidence is not relation support");
+    assert.equal(relation.rows[0].supplemental_conflicted, false, "price-only supplemental evidence is neutral");
+  }
+  const exactAliasBoundary = await pool.query(`select
+    public.ownership_context_owner_relation_supported($1, 'F1', 'Lynrock Lake LP', 'direct') as owner_direct,
+    public.ownership_context_owner_relation_supported($1, 'F1', 'Lynrock Lake Master Fund LP', 'direct') as holder_direct,
+    public.ownership_context_owner_relation_conflicted($1, 'F1', 'Lynrock Lake Master Fund LP', 'indirect') as holder_indirect_conflict`,
+  [beneficialOwnershipXml]);
+  assert.equal(exactAliasBoundary.rows[0].owner_direct, false, "a shorter owner alias cannot prefix-match the direct holder");
+  assert.equal(exactAliasBoundary.rows[0].holder_direct, true, "the actual direct holder remains source-supported");
+  assert.equal(exactAliasBoundary.rows[0].holder_indirect_conflict, true, "the direct-holder clause conflicts with an indirect claim");
+  const simpleBeneficialXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>Alpha Owner</rptOwnerName></reportingOwner>
+    <footnotes><footnote id="F1">Alpha Owner may be deemed to beneficially own the shares held by Gamma Fund.</footnote></footnotes>
+  </ownershipDocument>`;
+  assert.equal((await pool.query(`select public.ownership_context_owner_relation_supported(
+    $1, 'F1', 'Alpha Owner', 'indirect'
+  ) as supported`, [simpleBeneficialXml])).rows[0].supported, false,
+  "a bare name before the legal qualifier is not a structural owner binding");
+
+  const groupedBeneficialXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>Alpha Owner</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>Beta Owner</rptOwnerName></reportingOwner>
+    <footnotes><footnote id="F1">Alpha Owner advises the fund while its investment manager and general partner are Beta Owner and Gamma Owner, respectively, and each may be deemed to beneficially own the shares held by Delta Fund.</footnote></footnotes>
+  </ownershipDocument>`;
+  const groupedRelations = await pool.query(`select
+    public.ownership_context_owner_relation_supported($1, 'F1', 'Alpha Owner', 'indirect') as outsider_supported,
+    public.ownership_context_owner_relation_supported($1, 'F1', 'Beta Owner', 'indirect') as member_supported`,
+  [groupedBeneficialXml]);
+  assert.equal(groupedRelations.rows[0].outsider_supported, false,
+    "an owner mentioned outside the respectively-bound list cannot inherit the relation");
+  assert.equal(groupedRelations.rows[0].member_supported, true,
+    "an owner explicitly named in the respectively-bound list remains supported");
+
+  const sharedHonorificXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>SMITH JOHN</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>SMITH JANE</rptOwnerName></reportingOwner>
+    <footnotes><footnote id="F1">Mr. Smith, as trustee, may be deemed to beneficially own the shares held by Delta Fund.</footnote></footnotes>
+  </ownershipDocument>`;
+  for (const ownerName of ["SMITH JOHN", "SMITH JANE"]) {
+    assert.equal((await pool.query(`select public.ownership_context_owner_relation_supported(
+      $1, 'F1', $2, 'indirect'
+    ) as supported`, [sharedHonorificXml, ownerName])).rows[0].supported, false,
+    `shared honorific alias must be rejected for ${ownerName}`);
+  }
+
+  const sharedQuotedAliasXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>Alpha Holdings LLC</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>Beta Holdings LLC</rptOwnerName></reportingOwner>
+    <footnotes><footnote id="F1">Alpha Holdings LLC (&quot;Manager&quot;) and Beta Holdings LLC (&quot;Manager&quot;) are reporting persons; Manager, as adviser, may be deemed to beneficially own the shares held by Delta Fund.</footnote></footnotes>
+  </ownershipDocument>`;
+  for (const ownerName of ["Alpha Holdings LLC", "Beta Holdings LLC"]) {
+    assert.equal((await pool.query(`select public.ownership_context_owner_relation_supported(
+      $1, 'F1', $2, 'indirect'
+    ) as supported`, [sharedQuotedAliasXml, ownerName])).rows[0].supported, false,
+    `shared declared alias must be rejected for ${ownerName}`);
+  }
+
+  const reverseCollisionXml = `<ownershipDocument>
+    <reportingOwner><rptOwnerName>Paul Cynthia</rptOwnerName></reportingOwner>
+    <reportingOwner><rptOwnerName>Cynthia Paul</rptOwnerName></reportingOwner>
+    <footnotes><footnote id="F1">Cynthia Paul is the adviser and may be deemed to beneficially own the shares held by Delta Fund.</footnote></footnotes>
+  </ownershipDocument>`;
+  for (const ownerName of ["Paul Cynthia", "Cynthia Paul"]) {
+    assert.equal((await pool.query(`select public.ownership_context_owner_relation_supported(
+      $1, 'F1', $2, 'indirect'
+    ) as supported`, [reverseCollisionXml, ownerName])).rows[0].supported, false,
+    `reverse-name collision must be rejected for ${ownerName}`);
+  }
+  const forgedMultipleFootnotes = structuredClone(multipleFootnoteRelation);
+  forgedMultipleFootnotes[0].assertions[0].footnote_refs = ["footnote:F3", "footnote:F99"];
+  assert.equal((await persistContext(firstFingerprint, forgedMultipleFootnotes)).reason, "footnote_row_link_invalid");
+  const wrongRowMultipleFootnotes = structuredClone(multipleFootnoteRelation);
+  wrongRowMultipleFootnotes[0].row_ref = "row:form4:2";
+  wrongRowMultipleFootnotes[0].assertions[0].owner_ref = "owner:form4:2:1";
+  wrongRowMultipleFootnotes[0].assertions[0].evidence_refs = ["evidence:form4:2:0"];
+  wrongRowMultipleFootnotes[0].assertions[0].footnote_refs = ["footnote:F3", "footnote:F8"];
+  assert.equal((await persistContext(firstFingerprint, wrongRowMultipleFootnotes)).reason, "footnote_row_link_invalid");
+  const ambiguousSingularAndPlural = structuredClone(multipleFootnoteRelation);
+  (ambiguousSingularAndPlural[0].assertions[0] as Record<string, unknown>).footnote_ref = "footnote:F3";
+  assert.equal((await persistContext(firstFingerprint, ambiguousSingularAndPlural)).reason, "assertion_shape_invalid");
+  const malformedPluralType = structuredClone(multipleFootnoteRelation) as unknown as Record<string, any>[];
+  malformedPluralType[0].assertions[0].footnote_refs = "footnote:F3";
+  assert.equal((await persistContext(firstFingerprint, malformedPluralType)).reason, "assertion_shape_invalid");
+  const duplicatePluralRefs = structuredClone(multipleFootnoteRelation);
+  duplicatePluralRefs[0].assertions[0].footnote_refs = ["footnote:F3", "footnote:F3"];
+  assert.equal((await persistContext(firstFingerprint, duplicatePluralRefs)).reason, "assertion_shape_invalid");
   const wrongSfsRelation = structuredClone(bothOwnerRelations);
   wrongSfsRelation[0].assertions[1].value = "indirect";
   assert.equal((await persistContext(firstFingerprint, wrongSfsRelation)).reason, "ownership_relation_owner_evidence_invalid");
@@ -528,6 +656,11 @@ try {
       directColumnsUnchangedByContextWrite: true,
       explicitEmptyResultClearsPriorSidecars: true,
       malformedOpaqueRefsRejectWithoutException: true,
+      multipleFootnoteRefsPreservedInOrder: true,
+      malformedDuplicateForgedAndWrongRowFootnoteRefsRejected: true,
+      conflictingOwnerEvidenceRejected: true,
+      explicitBeneficialOwnershipAliasesAndNeutralSupplementalEvidenceVerified: true,
+      ambiguousAliasesAndGroupedBindingsFailClosed: true,
       multiOwnerRelationsRequireOwnerBoundFootnoteClauses: true,
       ownerScopedPlanRequiresMatchingFootnoteSubject: true,
       derivativeTargetUsesIndependentSourceBoundRef: true,
@@ -600,8 +733,12 @@ async function directRows() {
 }
 
 async function storedContext() {
+  return storedContextAt(0);
+}
+
+async function storedContextAt(transactionIndex: number) {
   const result = await pool.query(`select context_facts from public.event_form4_transactions
-    where event_id = $1 and transaction_index = 0`, [eventId]);
+    where event_id = $1 and transaction_index = $2`, [eventId, transactionIndex]);
   return result.rows[0].context_facts as Record<string, any> | null;
 }
 

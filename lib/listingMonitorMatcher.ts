@@ -21,6 +21,12 @@ import {
   type MonitorConditionOperator,
 } from "./monitor/conditionRegistry.ts";
 import {
+  evaluateForm4InsiderPurchase,
+  type Form4InsiderPurchaseSettings,
+  type Form4PurchaseEvaluationTrace,
+  type Form4PurchaseMatchEvidence,
+} from "./monitor/form4InsiderPurchaseMonitor.ts";
+import {
   type CurrentPrice,
 } from "./market-data/marketDataProvider.ts";
 
@@ -47,6 +53,13 @@ export type ListingMonitorMatchReasonCode =
   | "ownership_form_mismatch"
   | "ownership_reporter_attribution_unavailable"
   | "ownership_row_conjunction_not_met"
+  | "ownership_form4_purchase_unavailable"
+  | "minimum_shares_not_met"
+  | "reporting_owner_role_not_met"
+  | "nonpurchase_transaction"
+  | "monitor_activation_not_met"
+  | "monitor_target_not_met"
+  | "monitor_target_unavailable"
   | "market_price_unavailable"
   | "market_price_data_mode_ineligible"
   | "market_price_stale";
@@ -69,6 +82,8 @@ export type ListingMonitorMatchResult = Readonly<{
   reasonCode: ListingMonitorMatchReasonCode;
   readerReason?: string;
   conditions: readonly ListingMonitorConditionResult[];
+  form4PurchaseEvidence?: Form4PurchaseMatchEvidence;
+  form4PurchaseTrace?: Form4PurchaseEvaluationTrace;
 }>;
 
 export type ListingMonitorConditionSet = Readonly<{
@@ -181,6 +196,39 @@ export function evaluateMonitorConditions(
       : firstIneligible!.reasonCode, evaluated);
   }
   return result("match", "all_conditions_match", evaluated);
+}
+
+export function evaluateForm4InsiderPurchaseMonitor(
+  current: CurrentOwnershipReadResult,
+  conditions: readonly ListingMonitorCondition[],
+  settings: Form4InsiderPurchaseSettings,
+  targetStatus: "eligible" | "no_match" | "unavailable",
+): ListingMonitorMatchResult {
+  const specialized = evaluateForm4InsiderPurchase(current, settings);
+  const evaluatedConditions = conditions.map((condition) => conditionResult(
+    String(condition.key),
+    specialized.status,
+    specialized.status === "match" ? "all_conditions_match" : specialized.reasonCode,
+  ));
+  if (targetStatus === "no_match") return {
+    ...result("no_match", "monitor_target_not_met", evaluatedConditions),
+    form4PurchaseTrace: specialized.trace,
+  };
+  if (targetStatus === "unavailable") return {
+    ...result("ineligible", "monitor_target_unavailable", evaluatedConditions),
+    form4PurchaseTrace: specialized.trace,
+  };
+  if (specialized.status !== "match") {
+    return {
+      ...result(specialized.status, specialized.reasonCode, evaluatedConditions),
+      form4PurchaseTrace: specialized.trace,
+    };
+  }
+  return {
+    ...result("match", "all_conditions_match", evaluatedConditions),
+    form4PurchaseEvidence: specialized.evidence,
+    form4PurchaseTrace: specialized.trace,
+  };
 }
 
 /**

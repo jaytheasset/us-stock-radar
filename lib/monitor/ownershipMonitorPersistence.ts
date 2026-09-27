@@ -38,6 +38,8 @@ type OwnershipMonitorLineage = Readonly<{
   accessionNumber: string;
   parserVersion: string;
   persistedAt: string;
+  filingForm?: "4" | "4/A" | "144" | "144/A";
+  filedAt?: string;
 }>;
 
 export type CurrentOwnershipContextResult =
@@ -45,6 +47,9 @@ export type CurrentOwnershipContextResult =
       status: "available";
       sourceFingerprint: string;
       rows: readonly Readonly<{ rowRef: string; context: StoredOwnershipContextEnvelope }>[];
+      semanticVerification:
+        | Readonly<{ mode: "experimental"; verified: true }>
+        | Readonly<{ mode: "not_used"; verified: false }>;
     }>
   | Readonly<{ status: "absent" }>
   | Readonly<{ status: "stale" | "malformed" | "unavailable"; reason: string }>;
@@ -93,7 +98,7 @@ export async function readCurrentOwnershipFacts(
       ? snapshotCandidate
       : null;
   const eventResult = snapshot ? null : await resolved.select("events", {
-      select: "id,raw_item_id,source_code,source_group,event_type,metadata",
+      select: "id,raw_item_id,source_code,source_group,event_type,published_at,metadata",
       id: `eq.${eventId}`,
       limit: "1",
     });
@@ -110,11 +115,14 @@ export async function readCurrentOwnershipFacts(
   }
 
   const metadata = record(event.metadata);
+  const filingForm = exactOwnershipFormType(metadata.form_type);
   const formType = normalizedFormType(metadata.form_type);
   if (!formType && stringValue(event.event_type) !== "insider_ownership") {
     return { status: "not_applicable" };
   }
   if (!formType) return { status: "not_ready", reason: "ownership_form_unavailable" };
+  if (!filingForm) return { status: "not_ready", reason: "ownership_form_unavailable" };
+  const filedAt = stringValue(event.published_at);
 
   const directResults = snapshot ? null : await Promise.all([
       resolved.select("event_form4_transactions", {
@@ -180,6 +188,8 @@ export async function readCurrentOwnershipFacts(
     accessionNumber: validated.accessionNumber,
     parserVersion: validated.parserVersion,
     persistedAt: validated.persistedAt,
+    filingForm,
+    filedAt: Number.isFinite(Date.parse(filedAt)) ? filedAt : "",
   };
 }
 
@@ -223,10 +233,6 @@ async function readOwnershipContextProjection(input: {
     .map((row, index) => ({ value: row.context_facts, reference: inventory.rows[index] }))
     .filter((item) => item.value !== null && item.value !== undefined);
   if (contexts.length === 0) return { context: { status: "absent" }, eligibility };
-  if (!input.semanticVerifierRefsValid) return {
-    context: { status: "unavailable", reason: "ownership_context_semantic_verification_unavailable" },
-    eligibility,
-  };
   if (fingerprintResult.context_ai_refs_valid === false) return {
     context: { status: "malformed", reason: "ownership_context_ai_refs_invalid" },
     eligibility,
@@ -256,6 +262,9 @@ async function readOwnershipContextProjection(input: {
       status: "available",
       sourceFingerprint: fingerprint,
       rows: Object.freeze(validatedRows.map((item) => Object.freeze(item))),
+      semanticVerification: input.semanticVerifierRefsValid
+        ? { mode: "experimental", verified: true }
+        : { mode: "not_used", verified: false },
     },
     eligibility,
   };
@@ -437,6 +446,11 @@ function normalizedFormType(value: unknown): "form4" | "form144" | null {
   if (form === "4" || form === "4/A") return "form4";
   if (form === "144" || form === "144/A") return "form144";
   return null;
+}
+
+function exactOwnershipFormType(value: unknown): "4" | "4/A" | "144" | "144/A" | null {
+  const form = stringValue(value).toUpperCase().replace(/^FORM\s+/, "");
+  return form === "4" || form === "4/A" || form === "144" || form === "144/A" ? form : null;
 }
 
 function isAmendmentForm(value: unknown) {

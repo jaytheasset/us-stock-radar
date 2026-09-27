@@ -26,6 +26,11 @@ import {
   getMonitorPresetCatalog,
   getMonitorPresetConditionSummary,
 } from "@/lib/monitor/monitorPresets";
+import {
+  Form4InsiderPurchaseBuilder,
+  Form4PurchaseAlertDetails,
+  Form4PurchaseMonitorSummary,
+} from "./Form4InsiderPurchaseMonitor";
 import styles from "./ListingMonitorDraftBuilder.module.css";
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
@@ -234,6 +239,8 @@ export function ListingMonitorDraftBuilder() {
         </div>
       ) : null}
 
+      <Form4InsiderPurchaseBuilder authRequired={authChecking || authRequired} />
+
       <form className={styles.promptForm} onSubmit={compileDraft}>
         <label htmlFor="monitor-natural-language">What should Stock Radar watch?</label>
         <textarea
@@ -417,6 +424,7 @@ export function ListingMonitorManagement() {
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [actionId, setActionId] = useState("");
+  const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -473,6 +481,7 @@ export function ListingMonitorManagement() {
         throw apiError(response, payload, "Could not delete this monitor.");
       }
       setMonitors((current) => current.filter((item) => item.id !== monitor.id));
+      setEditingId((current) => current === monitor.id ? "" : current);
       setMessage("Monitor deleted.");
     } catch {
       setMessage("We couldn’t delete this monitor. Try again.");
@@ -507,14 +516,29 @@ export function ListingMonitorManagement() {
         {monitors.map((monitor) => (
           <article key={monitor.id}>
             <div className={styles.monitorStatus}>
-              <strong>AI Monitor</strong>
+              <strong>{monitor.kind === "form4_insider_purchase" ? "임원·이사 매수 알림" : "AI Monitor"}</strong>
               <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
             </div>
-            <ul>
-              {monitor.conditions.map((condition, index) => (
-                <li key={`${monitor.id}-${index}`}>{formatListingMonitorConditionPreview(condition).text}</li>
-              ))}
-            </ul>
+            {monitor.kind === "form4_insider_purchase" ? (
+              <Form4PurchaseMonitorSummary
+                busy={actionId === monitor.id}
+                editing={editingId === monitor.id}
+                monitor={monitor}
+                onCancel={() => setEditingId("")}
+                onEdit={() => setEditingId(monitor.id)}
+                onSaved={(updated) => {
+                  setMonitors((current) => current.map((item) => item.id === updated.id ? updated : item));
+                  setEditingId("");
+                  setMessage("임원·이사 매수 알림이 업데이트되었습니다.");
+                }}
+              />
+            ) : (
+              <ul>
+                {monitor.conditions.map((condition, index) => (
+                  <li key={`${monitor.id}-${index}`}>{formatListingMonitorConditionPreview(condition).text}</li>
+                ))}
+              </ul>
+            )}
             <div className={styles.monitorActions}>
               <span>Created {formatMonitorDate(monitor.createdAt)}</span>
               <button
@@ -549,9 +573,15 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li key={alert.id}>
-                  <strong>Alert delivered</strong>
-                  <span>{formatMonitorDate(alert.createdAt)}</span>
+                <li id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                  {alert.matchEvidence ? (
+                    <Form4PurchaseAlertDetails alert={alert} />
+                  ) : (
+                    <>
+                      <strong>Alert delivered</strong>
+                      <span>{formatMonitorDate(alert.createdAt)}</span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

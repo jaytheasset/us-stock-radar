@@ -32,6 +32,14 @@ export default async function AdminAlertsPage() {
         <span className={styles.badge}>Read only</span>
       </header>
 
+      <section className={styles.card}>
+        <strong>Form 4 monitor evaluations</strong>
+        <p>Inspect persisted actual matcher decisions, reviewed owners and rows, evidence, and separate alert/dedupe outcomes.</p>
+        <div className={styles.actions}>
+          <Link className={styles.button} href="/admin/alerts/form4-monitor-evaluations">Open evaluation history</Link>
+        </div>
+      </section>
+
       <SectionHeading
         description="UTC schedule; browser-local timestamps are shown below."
         title="Recent cron runs"

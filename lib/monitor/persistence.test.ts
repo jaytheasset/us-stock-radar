@@ -279,6 +279,17 @@ test("Form 144 percent decision schema requires explicit comparability and sourc
   ]);
   assert.deepEqual(validateOwnershipMonitorFacts(valid), []);
 
+  for (const multiplier of [0, -1]) {
+    const invalidMultiplier = structuredClone(valid) as unknown as Row;
+    const invalidDecision = ((((invalidMultiplier.form144 as Row).proposed_sales as Row[])[0]).percent_calculation as Row);
+    invalidDecision.normalization_multiplier = multiplier;
+    assert.ok(
+      validateOwnershipMonitorFacts(invalidMultiplier)
+        .some((error) => /normalization_multiplier is invalid/.test(error)),
+      `normalization_multiplier ${multiplier} must remain invalid`,
+    );
+  }
+
   const missing = structuredClone(valid) as unknown as Row;
   delete (((missing.form144 as Row).proposed_sales as Row[])[0]).percent_calculation;
   assert.ok(validateOwnershipMonitorFacts(missing).some((error) => /percent_calculation must be an object/.test(error)));
