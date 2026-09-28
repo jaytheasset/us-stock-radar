@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import Ajv from "ajv";
-import { buildModularOneCallPrompt } from "./ownership-one-call-prompt-modules.mjs";
+import { buildUnifiedOneCallPrompt } from "./ownership-one-call-prompt.mjs";
 import { buildInputFromSecRawRow } from "../../lib/ai/secFilingAnalysisPreview.ts";
 import {
   adaptOwnershipPromptResultForAnalysis,
@@ -106,16 +106,13 @@ const envelopeSchema = {
   required: ["primary", "structured"],
   properties: { primary: modelPrimarySchema, structured: structuredSchema },
 };
-const modularPrompt = buildModularOneCallPrompt({
+const unifiedPrompt = buildUnifiedOneCallPrompt({
   primaryPrompt,
   contextPrompt,
-  filingInput,
-  source,
-  inventory,
   modelPrimarySchema,
   envelopeSchema,
 });
-const combined = modularPrompt.prompt;
+const combined = unifiedPrompt.prompt;
 
 const prefix = join(artifactRoot, caseName);
 const inputEvidence = {
@@ -126,13 +123,13 @@ const inputEvidence = {
   primaryPromptSha256: sha256(primaryPrompt.system + primaryPrompt.user),
   contextPromptSha256: sha256(contextPrompt.system + contextPrompt.user),
   combinedPromptSha256: sha256(combined.system + combined.user),
-  integratedPromptVersion: "ownership_one_call_common_dedup_v3",
+  integratedPromptVersion: "ownership_one_call_unified_v4",
+  instructionFile: unifiedPrompt.instructionFile,
+  instructionSha256: unifiedPrompt.instructionSha256,
   primaryPromptChars: primaryPrompt.system.length + primaryPrompt.user.length,
   contextPromptChars: contextPrompt.system.length + contextPrompt.user.length,
   combinedPromptChars: combined.system.length + combined.user.length,
-  legacyCombinedPromptChars: modularPrompt.legacyPromptChars,
-  activePromptModules: modularPrompt.activeModules,
-  availablePromptContext: modularPrompt.context,
+  includedInstructionForms: ["4", "4/A", "144", "144/A"],
   primaryContractChars: JSON.stringify(modelPrimarySchema).length,
   primarySchemaChars: JSON.stringify(primarySchema).length,
   primaryOutputKeys: modelPrimarySchema.required,
