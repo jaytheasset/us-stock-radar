@@ -4,9 +4,12 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  buildForm4PurchaseAlertCopy,
   evaluateForm4InsiderPurchase,
   parseStoredForm4PurchaseMatchEvidence,
   type Form4InsiderPurchaseSettings,
+  type Form4PurchaseMatchEvidence,
+  type Form4PurchaseMatchRow,
 } from "./form4InsiderPurchaseMonitor.ts";
 import type { CurrentOwnershipReadResult } from "./ownershipMonitorPersistence.ts";
 import { buildOwnershipParserFactRows } from "./ownershipParserFacts.ts";
@@ -38,7 +41,7 @@ test("AGIG real SEC XML matches both direct P-code common-stock purchases withou
   ))));
   assert.equal(
     result.evidence.reason,
-    "매수 신고: SEC Form 4의 P 코드 비파생 보통주 취득 2건이 설정 조건을 충족했습니다. 대상: 직접 선택 종목 AGIG. 신고인 직책: 이사. 최소 수량 조건 없음. 소유 관계는 해당 신고인을 매수 주문자 또는 유일한 주체로 식별하지 않습니다.",
+    "A Form 4 reported two purchases that matched this alert.",
   );
   assert.deepEqual(result.evidence.matches.map((row) => ({
     owner: row.ownerName,
@@ -70,7 +73,7 @@ test("AGIG role and minimum-share matrix is literal and row scoped", () => {
   const eightThousand = evaluateForm4InsiderPurchase(current, settings("director", 8000));
   assert.equal(eightThousand.status, "match");
   assert.deepEqual(eightThousand.evidence?.matches.map((row) => row.sharesRaw), ["8950"]);
-  assert.match(eightThousand.evidence?.reason ?? "", /각 거래 행이 최소 8000주 조건 충족/);
+  assert.match(eightThousand.evidence?.reason ?? "", /The purchase met the 8,000-share minimum/);
   assert.equal(evaluateForm4InsiderPurchase(current, settings("director", 9000)).status, "no_match");
   assert.equal(
     evaluateForm4InsiderPurchase(current, settings("director", 9000)).reasonCode,
@@ -82,7 +85,7 @@ test("AGIG role and minimum-share matrix is literal and row scoped", () => {
   );
 });
 
-test("match reason identifies watchlist scope and combined reporting-owner role", () => {
+test("match reason states the threshold without exposing internal targeting language", () => {
   const result = evaluateForm4InsiderPurchase(currentFromFixture("source-agig-form4-purchase.json"), {
     target: { scope: "watchlist" },
     role: "officer_or_director",
@@ -90,9 +93,64 @@ test("match reason identifies watchlist scope and combined reporting-owner role"
   });
 
   assert.equal(result.status, "match");
-  assert.match(result.evidence?.reason ?? "", /대상: 관심종목/);
-  assert.match(result.evidence?.reason ?? "", /신고인 직책: 임원 또는 이사/);
-  assert.match(result.evidence?.reason ?? "", /각 거래 행이 최소 8000주 조건 충족/);
+  assert.match(result.evidence?.reason ?? "", /a purchase that matched this alert/);
+  assert.match(result.evidence?.reason ?? "", /8,000-share minimum/);
+  assert.doesNotMatch(result.evidence?.reason ?? "", /P code|non-derivative|same-row|sole buyer|monitor|watchlist/i);
+});
+
+test("single-purchase alert copy is concise and states a configured threshold naturally", () => {
+  const evidence = matchEvidence("ONTF", [matchRow({
+    ownerName: "Paul Cynthia",
+    ownerRoles: ["director"],
+    securityTitle: "Common Stock",
+    shares: 33407,
+    sharesRaw: "33407",
+    pricePerShare: 5.56,
+    pricePerShareRaw: "5.56",
+    transactionDate: "2025-06-12",
+    ownershipRelation: "indirect",
+  })]);
+  const copy = buildForm4PurchaseAlertCopy(evidence, {
+    target: { scope: "ticker", ticker: "ONTF" },
+    role: "director",
+    minimumShares: 1000,
+  });
+
+  assert.equal(copy.title, "ONTF Form 4 purchase");
+  assert.equal(
+    copy.summary,
+    "An ONTF Form 4 reported a 33,407-share common stock purchase. Director Paul Cynthia is listed with indirect ownership. The purchase meets your 1,000-share minimum.",
+  );
+  assert.doesNotMatch(copy.summary, /P code|non-derivative|same-row|sole buyer|open-market|personal funds|row|monitor|directly selected/i);
+});
+
+test("multi-purchase alert copy keeps transaction details out of its concise summary", () => {
+  const evaluation = evaluateForm4InsiderPurchase(currentFromFixture("source-agig-form4-purchase.json"), settings("director"));
+  assert.ok(evaluation.evidence);
+  const copy = buildForm4PurchaseAlertCopy(evaluation.evidence, settings("director"));
+
+  assert.equal(
+    copy.summary,
+    "An AGIG Form 4 reported two common stock purchases. Director Bailey Robert J. is listed with direct ownership. Both transactions match your alert.",
+  );
+  assert.doesNotMatch(copy.summary, /1,050|8,950|\$1\.195|\$1\.1999|May 12, 2026/);
+  assert.doesNotMatch(copy.summary, /row|monitor|minimum-share threshold/i);
+  assert.doesNotMatch(copy.summary, /10,000|total(?:ed|ing)?/i);
+});
+
+test("multi-owner alert copy remains natural while price omissions stay in details", () => {
+  const evidence = matchEvidence("TEST", [
+    matchRow({ ownerName: "Alex One", ownerRoles: ["officer"], officerTitle: "Chief Financial Officer", pricePerShare: null, pricePerShareRaw: null }),
+    matchRow({ transactionIndex: 1, ownerName: "Jordan Two", ownerRoles: ["director"], shares: 2500, sharesRaw: "2500", pricePerShare: 7.25, pricePerShareRaw: "7.25", ownershipRelation: "indirect" }),
+  ]);
+  const copy = buildForm4PurchaseAlertCopy(evidence, {
+    target: { scope: "watchlist" }, role: "officer_or_director", minimumShares: 500,
+  });
+
+  assert.match(copy.summary, /Alex One \(Officer · Chief Financial Officer\) is listed with direct ownership/);
+  assert.match(copy.summary, /Director Jordan Two is listed with indirect ownership/);
+  assert.match(copy.summary, /Both purchases meet your 500-share minimum/);
+  assert.doesNotMatch(copy.summary, /price|row|monitor|watchlist/i);
 });
 
 test("VENU derivative gift and every UWMC sale/conversion row stay negative", () => {
@@ -136,6 +194,37 @@ function settings(
   minimumShares: number | null = null,
 ): Form4InsiderPurchaseSettings {
   return { target: { scope: "ticker", ticker: "AGIG" }, role, minimumShares };
+}
+
+function matchEvidence(ticker: string, matches: readonly Form4PurchaseMatchRow[]): Form4PurchaseMatchEvidence {
+  return {
+    version: "form4_insider_purchase_match_v1",
+    kind: "form4_insider_purchase",
+    ticker,
+    accessionNumber: "0001415889-25-017308",
+    filedAt: "2025-06-14T08:22:00.000Z",
+    sourceUrl: "https://www.sec.gov/Archives/edgar/data/1110611/000141588925017308/form4-06132025_110621.xml",
+    reason: "Legacy stored reason",
+    matches,
+  };
+}
+
+function matchRow(overrides: Partial<Form4PurchaseMatchRow> = {}): Form4PurchaseMatchRow {
+  return {
+    transactionIndex: 0,
+    ownerName: "Alex One",
+    ownerRoles: ["officer"],
+    officerTitle: null,
+    securityTitle: "Common Stock",
+    shares: 1000,
+    sharesRaw: "1000",
+    pricePerShare: 4.5,
+    pricePerShareRaw: "4.5",
+    transactionDate: "2025-06-12",
+    ownershipRelation: "direct",
+    relationEvidence: [{ kind: "footnote", ref: "F1", text: "Source-backed ownership detail." }],
+    ...overrides,
+  };
 }
 
 function currentFromFixture(filename: string): Extract<CurrentOwnershipReadResult, { status: "available"; form: "form4" }> {

@@ -426,6 +426,10 @@ export function ListingMonitorManagement() {
   const [actionId, setActionId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
+  const monitorById = useMemo(
+    () => new Map(monitors.map((monitor) => [monitor.id, monitor])),
+    [monitors],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -516,7 +520,7 @@ export function ListingMonitorManagement() {
         {monitors.map((monitor) => (
           <article key={monitor.id}>
             <div className={styles.monitorStatus}>
-              <strong>{monitor.kind === "form4_insider_purchase" ? "임원·이사 매수 알림" : "AI Monitor"}</strong>
+              <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "AI Monitor"}</strong>
               <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
             </div>
             {monitor.kind === "form4_insider_purchase" ? (
@@ -529,7 +533,7 @@ export function ListingMonitorManagement() {
                 onSaved={(updated) => {
                   setMonitors((current) => current.map((item) => item.id === updated.id ? updated : item));
                   setEditingId("");
-                  setMessage("임원·이사 매수 알림이 업데이트되었습니다.");
+                  setMessage("Form 4 purchase alert updated.");
                 }}
               />
             ) : (
@@ -575,7 +579,10 @@ export function ListingMonitorManagement() {
               {alerts.map((alert) => (
                 <li id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.matchEvidence ? (
-                    <Form4PurchaseAlertDetails alert={alert} />
+                    <Form4PurchaseAlertDetails
+                      alert={alert}
+                      settings={alert.monitorId ? monitorById.get(alert.monitorId)?.form4PurchaseSettings ?? null : null}
+                    />
                   ) : (
                     <>
                       <strong>Alert delivered</strong>

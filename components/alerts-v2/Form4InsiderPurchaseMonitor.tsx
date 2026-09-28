@@ -3,9 +3,10 @@
 import { useState } from "react";
 import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
-import type {
-  Form4InsiderPurchaseSettings,
-  Form4InsiderRole,
+import {
+  buildForm4PurchaseAlertCopy,
+  type Form4InsiderPurchaseSettings,
+  type Form4InsiderRole,
 } from "@/lib/monitor/form4InsiderPurchaseMonitor";
 import styles from "./Form4InsiderPurchaseMonitor.module.css";
 
@@ -52,7 +53,7 @@ export function Form4InsiderPurchaseBuilder({
         throw new Error(payload?.message || "Could not create this monitor.");
       }
       setCreated(payload.data.monitor);
-      setMessage("임원·이사 매수 알림이 생성되었습니다.");
+      setMessage("Form 4 purchase alert created.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create this monitor.");
     } finally {
@@ -65,7 +66,7 @@ export function Form4InsiderPurchaseBuilder({
       <header>
         <div>
           <span>Form 4</span>
-          <h2 id="form4-purchase-monitor-title">임원·이사 매수 알림</h2>
+          <h2 id="form4-purchase-monitor-title">Form 4 purchase alert</h2>
         </div>
         <strong>Internal alert</strong>
       </header>
@@ -170,19 +171,26 @@ export function Form4PurchaseMonitorSummary({
   );
 }
 
-export function Form4PurchaseAlertDetails({ alert }: Readonly<{ alert: ListingMonitorAlertItem }>) {
+export function Form4PurchaseAlertDetails({
+  alert,
+  settings,
+}: Readonly<{
+  alert: ListingMonitorAlertItem;
+  settings?: Form4InsiderPurchaseSettings | null;
+}>) {
   const evidence = alert.matchEvidence;
   if (!evidence) return null;
+  const copy = buildForm4PurchaseAlertCopy(evidence, settings);
   return (
     <article className={styles.alertDetails}>
       <header>
         <div>
-          <strong>{evidence.ticker} · 매수 신고</strong>
+          <strong>{copy.title}</strong>
           <span>Filed {formatTimestamp(evidence.filedAt)}</span>
         </div>
         <a href={evidence.sourceUrl} rel="noreferrer" target="_blank">SEC original</a>
       </header>
-      <p>{evidence.reason}</p>
+      <p>{copy.summary}</p>
       <div className={styles.matchRows}>
         {evidence.matches.map((match) => (
           <section key={`${match.transactionIndex}-${match.ownerName}`}>
@@ -191,13 +199,13 @@ export function Form4PurchaseAlertDetails({ alert }: Readonly<{ alert: ListingMo
               <span>{formatOwnerRole(match.ownerRoles, match.officerTitle)}</span>
             </div>
             <dl>
-              <div><dt>Quantity</dt><dd>{match.sharesRaw}</dd></div>
-              <div><dt>Disclosed price</dt><dd>{match.pricePerShareRaw ?? "Not disclosed"}</dd></div>
+              <div><dt>Shares</dt><dd>{formatShares(match.shares)}</dd></div>
+              <div><dt>Price per share</dt><dd>{match.pricePerShare === null ? "Not disclosed in the row" : formatPrice(match.pricePerShare)}</dd></div>
               <div><dt>Ownership</dt><dd>{match.ownershipRelation === "direct" ? "Direct" : "Indirect"}</dd></div>
-              <div><dt>Transaction date</dt><dd>{match.transactionDate}</dd></div>
+              <div><dt>Transaction date</dt><dd>{formatTransactionDate(match.transactionDate)}</dd></div>
             </dl>
             <details>
-              <summary>Relation evidence</summary>
+              <summary>Ownership source details</summary>
               {match.relationEvidence.map((item) => (
                 <p key={`${item.kind}-${item.ref}`}><strong>{item.ref}</strong> {item.text}</p>
               ))}
@@ -313,5 +321,25 @@ function formatTimestamp(value: string) {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime())
     ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(parsed)
+    : value;
+}
+
+function formatShares(value: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(value);
+}
+
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+  }).format(value);
+}
+
+function formatTransactionDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(parsed)
     : value;
 }

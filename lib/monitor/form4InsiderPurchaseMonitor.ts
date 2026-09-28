@@ -52,6 +52,11 @@ export type Form4PurchaseMatchEvidence = Readonly<{
   matches: readonly Form4PurchaseMatchRow[];
 }>;
 
+export type Form4PurchaseAlertCopy = Readonly<{
+  title: string;
+  summary: string;
+}>;
+
 export const FORM4_PURCHASE_EVALUATION_TRACE_VERSION = "form4_purchase_evaluation_trace_v1" as const;
 
 export type Form4PurchaseEvaluationReasonCode =
@@ -282,18 +287,89 @@ function form4PurchaseMatchReason(
   settings: Form4InsiderPurchaseSettings,
   matchCount: number,
 ) {
-  const target = settings.target.scope === "watchlist"
-    ? "관심종목"
-    : `직접 선택 종목 ${settings.target.ticker}`;
-  const role = settings.role === "officer"
-    ? "임원"
-    : settings.role === "director"
-      ? "이사"
-      : "임원 또는 이사";
+  const purchases = matchCount === 1 ? "a purchase" : `${formatCount(matchCount)} purchases`;
   const minimum = settings.minimumShares === null
-    ? "최소 수량 조건 없음"
-    : `각 거래 행이 최소 ${settings.minimumShares}주 조건 충족`;
-  return `매수 신고: SEC Form 4의 P 코드 비파생 보통주 취득 ${matchCount}건이 설정 조건을 충족했습니다. 대상: ${target}. 신고인 직책: ${role}. ${minimum}. 소유 관계는 해당 신고인을 매수 주문자 또는 유일한 주체로 식별하지 않습니다.`;
+    ? ""
+    : matchCount === 1
+      ? ` The purchase met the ${formatShareCount(settings.minimumShares)}-share minimum.`
+      : ` Each purchase met the ${formatShareCount(settings.minimumShares)}-share minimum.`;
+  return `A Form 4 reported ${purchases} that matched this alert.${minimum}`;
+}
+
+export function buildForm4PurchaseAlertCopy(
+  evidence: Form4PurchaseMatchEvidence,
+  settings?: Form4InsiderPurchaseSettings | null,
+): Form4PurchaseAlertCopy {
+  const ticker = evidence.ticker;
+  const matches = evidence.matches;
+  const purchaseSummary = formatPurchaseSummary(ticker, matches);
+  const ownerSummary = formatOwnerSummary(matches);
+  const alertSummary = formatAlertMatchSummary(settings, matches.length);
+  return Object.freeze({
+    title: `${ticker} Form 4 purchase`,
+    summary: [purchaseSummary, ownerSummary, alertSummary].filter(Boolean).join(" "),
+  });
+}
+
+function formatPurchaseSummary(ticker: string, matches: readonly Form4PurchaseMatchRow[]) {
+  if (matches.length === 1) {
+    const match = matches[0];
+    return `An ${ticker} Form 4 reported a ${formatShareCount(match.shares)}-share ${formatSecurityLabel(match.securityTitle)} purchase.`;
+  }
+  const securityLabels = Array.from(new Set(matches.map((match) => formatSecurityLabel(match.securityTitle))));
+  const subject = securityLabels.length === 1
+    ? `${securityLabels[0]} purchases`
+    : "purchases involving multiple securities";
+  return `An ${ticker} Form 4 reported ${formatCount(matches.length)} ${subject}.`;
+}
+
+function formatSecurityLabel(value: string) {
+  const trimmed = value.trim();
+  return /^(common|ordinary|preferred) stock$/i.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+}
+
+function formatOwnerSummary(matches: readonly Form4PurchaseMatchRow[]) {
+  const owners = [...new Map(matches.map((match) => {
+    const role = formatOwnerRoleLabel(match.ownerRoles, match.officerTitle);
+    const description = Object.freeze({ name: match.ownerName, role, relation: match.ownershipRelation });
+    return [`${match.ownerName}\u0000${role}\u0000${match.ownershipRelation}`, description] as const;
+  })).values()];
+  return owners.map((owner) => {
+    const subject = owner.role === "Director" || owner.role === "Officer"
+      ? `${owner.role} ${owner.name}`
+      : `${owner.name}${owner.role ? ` (${owner.role})` : ""}`;
+    return `${subject} is listed with ${owner.relation} ownership.`;
+  }).join(" ");
+}
+
+function formatOwnerRoleLabel(roles: readonly string[], officerTitle: string | null) {
+  const labels = roles.flatMap((role) => role === "officer" ? ["Officer"] : role === "director" ? ["Director"] : []);
+  const distinct = Array.from(new Set(labels));
+  if (officerTitle) distinct.push(officerTitle);
+  return distinct.join(" · ");
+}
+
+function formatAlertMatchSummary(
+  settings: Form4InsiderPurchaseSettings | null | undefined,
+  matchCount: number,
+) {
+  if (settings?.minimumShares !== null && settings?.minimumShares !== undefined) {
+    if (matchCount === 1) {
+      return `The purchase meets your ${formatShareCount(settings.minimumShares)}-share minimum.`;
+    }
+    return `${matchCount === 2 ? "Both" : `All ${formatCount(matchCount)}`} purchases meet your ${formatShareCount(settings.minimumShares)}-share minimum.`;
+  }
+  if (matchCount === 1) return "The transaction matches your alert.";
+  return `${matchCount === 2 ? "Both" : `All ${formatCount(matchCount)}`} transactions match your alert.`;
+}
+
+function formatCount(value: number) {
+  const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  return words[value] ?? formatShareCount(value);
+}
+
+function formatShareCount(value: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(value);
 }
 
 export function parseStoredForm4PurchaseMatchEvidence(value: unknown): Form4PurchaseMatchEvidence | null {

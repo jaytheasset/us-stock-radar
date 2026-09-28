@@ -107,6 +107,11 @@
   font-weight: var(--sr-font-weight-heavy);
 }
 
+.alertDetails > header > div {
+  display: grid;
+  gap: var(--sr-space-0-5);
+}
+
 .matchRows {
   display: grid;
   gap: var(--sr-space-2-5);

@@ -434,7 +434,7 @@ export async function createListingMonitorAlert(input: Readonly<{
     user_id: input.userId,
     alert_event_id: input.eventId,
     ticker: input.matchEvidence?.ticker ?? null,
-    title: input.matchEvidence ? "Form 4 insider purchase reported" : "Listing monitor matched",
+    title: input.matchEvidence ? `${input.matchEvidence.ticker} Form 4 purchase` : "Listing monitor matched",
     category: input.matchEvidence ? "insider_ownership" : "listing_risk",
     source_type: "other",
     source_label: input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
