@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import nextEnv from "@next/env";
-// @ts-expect-error The project uses pg without a separate declaration package.
 import pg from "pg";
 import {
   PostgresIssuerCommonClassUniverseRepository,

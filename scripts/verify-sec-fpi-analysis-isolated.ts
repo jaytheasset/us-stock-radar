@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
-// @ts-expect-error The project intentionally uses pg without a separate declaration package.
 import pg from "pg";
 import { resolveSupabaseSecretKey } from "../lib/supabaseKeys.ts";
 

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-// @ts-expect-error The project uses pg from JavaScript scripts without bundled declarations.
 import { Client } from "pg";
 import { PostgresSecStructuredRepository } from "../lib/sec-structured-data/repository.ts";
 import { SecStructuredDataService } from "../lib/sec-structured-data/service.ts";

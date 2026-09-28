@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import nextEnv from "@next/env";
-// @ts-expect-error The project uses pg from JavaScript scripts without bundled declarations.
 import { Client } from "pg";
 
 import type { DilutionRegistryOsSourceBundle } from "../lib/dilution-registry/osPreview.ts";

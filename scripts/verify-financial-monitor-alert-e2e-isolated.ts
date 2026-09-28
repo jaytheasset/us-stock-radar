@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-// @ts-expect-error pg declarations are intentionally absent from this repository.
 import pg from "pg";
 import { resolvePeriodicFinancials } from "../lib/sec-structured-data/periodicFinancialResolver.ts";
 import { buildPeriodicFinancialMonitorAnalysis } from "../lib/monitor/periodicFinancialMonitor.ts";

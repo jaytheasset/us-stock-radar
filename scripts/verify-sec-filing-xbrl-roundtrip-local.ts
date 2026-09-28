@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-// @ts-expect-error The project uses pg from JavaScript scripts without bundled declarations.
 import { Client } from "pg";
 import { resolveAuthoritativeOsFromFiling } from "../lib/sec-structured-data/authoritativeOsExtraction.ts";
 import {

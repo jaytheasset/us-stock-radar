@@ -1,6 +1,5 @@
 import "server-only";
 
-// @ts-expect-error The project uses pg without a separate declaration package.
 import pg from "pg";
 
 export const SERVER_POSTGRES_URL_ENV = "SUPABASE_DB_URL" as const;

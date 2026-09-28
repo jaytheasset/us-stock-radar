@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { buildOwnershipParserFactRows } from "../lib/monitor/ownershipParserFacts.ts";
 
 const require = createRequire(import.meta.url);
-// @ts-expect-error The repository runtime dependency intentionally has no local declaration package.
 const pg = require("pg") as typeof import("pg");
 const { Pool } = pg;
 const connectionString = process.env.OWNERSHIP_CONTEXT_ISOLATED_DB_URL;
