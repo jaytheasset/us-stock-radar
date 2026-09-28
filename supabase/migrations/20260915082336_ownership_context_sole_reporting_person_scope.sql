@@ -363,4 +363,3 @@ $function$;
 
 revoke all on function public.ownership_context_footnote_establishes_owner_scope(text, text, text) from public, anon, authenticated;
 grant execute on function public.ownership_context_footnote_establishes_owner_scope(text, text, text) to service_role;
-
