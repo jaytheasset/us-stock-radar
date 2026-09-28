@@ -1,5 +1,6 @@
 import type { SecDiagnosticSelect } from "./secPersistedDiagnosticRead.ts";
 import { OFFERING_MONITOR_JOB_PROMPT_KEY } from "../offeringMonitorJobFoundation.ts";
+import { OWNERSHIP_CONTEXT_AI_PROMPT_KEY } from "../monitor/ownershipStructuredContext.ts";
 
 export type SecLineageReadStatus = "ok" | "read_failed";
 
@@ -116,7 +117,7 @@ export async function readSecRepairTraceMap(
     const runResponse = await select("ai_runs", {
       select: "*",
       event_id: `in.(${eventIds.join(",")})`,
-      prompt_key: `neq.${OFFERING_MONITOR_JOB_PROMPT_KEY}`,
+      prompt_key: `not.in.(${OFFERING_MONITOR_JOB_PROMPT_KEY},${OWNERSHIP_CONTEXT_AI_PROMPT_KEY})`,
       order: "finished_at.desc",
       limit: String(Math.max(eventIds.length * 3, 30)),
     });
@@ -125,7 +126,10 @@ export async function readSecRepairTraceMap(
     }
     const latestRunByEventId = new Map<string, Record<string, unknown>>();
     for (const run of runResponse.data.filter(isRecord)) {
-      if (stringValue(run.prompt_key) === OFFERING_MONITOR_JOB_PROMPT_KEY) continue;
+      if (
+        stringValue(run.prompt_key) === OFFERING_MONITOR_JOB_PROMPT_KEY
+        || stringValue(run.prompt_key) === OWNERSHIP_CONTEXT_AI_PROMPT_KEY
+      ) continue;
       const eventId = stringValue(run.event_id);
       if (eventId && !latestRunByEventId.has(eventId)) latestRunByEventId.set(eventId, run);
     }

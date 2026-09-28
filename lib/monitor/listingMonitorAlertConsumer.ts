@@ -3,6 +3,7 @@ import { readSecForm25EventIdentity, type Form25IdentityGate } from "../sec-form
 import {
   currentListingTicker,
   currentOwnershipTicker,
+  evaluateForm4InsiderPurchaseMonitor,
   evaluateMonitorConditions,
   readMonitorEventTicker,
   safeReadMonitorEventIdentity,
@@ -14,6 +15,16 @@ import {
   type CurrentPrice,
 } from "../market-data/marketDataProvider.ts";
 import { getReadyMonitorCondition } from "./conditionRegistry.ts";
+import {
+  FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+  type Form4PurchaseMatchEvidence,
+} from "./form4InsiderPurchaseMonitor.ts";
+import {
+  recordForm4MonitorEvaluation,
+  type Form4MonitorEvaluationRecordInput,
+  type Form4MonitorEvaluationRecordWriteResult,
+  type Form4NotificationOutcome,
+} from "./form4MonitorEvaluationHistory.ts";
 import {
   listActiveListingMonitorsForConsumer,
   type ListingMonitorDiagnostic,
@@ -62,6 +73,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
     reasonCode: ListingMonitorMatchReasonCode;
   }>[];
   writes: readonly ListingMonitorAlertWriteResult[];
+  evaluationHistoryWrites: readonly Form4MonitorEvaluationRecordWriteResult[];
   createdCount: number;
   existingCount: number;
   failedCount: number;
@@ -76,6 +88,10 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
   readEventTicker?(eventId: string): Promise<string>;
   readCurrentPrice?(symbol: string): Promise<CurrentPrice>;
   currentPriceProjectionReaders?: MonitorCurrentPriceProjectionReaders;
+  readWatchlistTickers?(userId: string): Promise<readonly string[]>;
+  recordForm4Evaluation?(
+    input: Form4MonitorEvaluationRecordInput,
+  ): Promise<Form4MonitorEvaluationRecordWriteResult>;
   listActiveMonitors(): Promise<ListingMonitorListResult>;
   createAlert(input: Readonly<{
     eventId: string;
@@ -83,6 +99,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     monitorId: string;
     userId: string;
     createdAt: string;
+    matchEvidence?: Form4PurchaseMatchEvidence;
   }>): Promise<ListingMonitorAlertWriteResult>;
   now(): Date;
 }>;
@@ -97,6 +114,8 @@ const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
   readCurrentPrice: async (symbol) => (
     await import("../market-data/currentPrice.ts")
   ).getCurrentPrice(symbol),
+  readWatchlistTickers: readOwnerWatchlistTickers,
+  recordForm4Evaluation: recordForm4MonitorEvaluation,
   listActiveMonitors: listActiveListingMonitorsForConsumer,
   createAlert: createListingMonitorAlert,
   now: () => new Date(),
@@ -113,6 +132,7 @@ export async function consumeListingMonitorAlertsForEvent(
   dependencies: ListingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<ListingMonitorAlertConsumerResult> {
   const listingMonitors = await dependencies.listActiveMonitors();
+  const processingAttemptId = crypto.randomUUID();
   const currentEventId = input.alertEventId || input.eventId;
   const identity = dependencies.readEventIdentity
     ? await safeReadMonitorEventIdentity(currentEventId, dependencies.readEventIdentity)
@@ -190,34 +210,110 @@ export async function consumeListingMonitorAlertsForEvent(
       projectionReaders: dependencies.currentPriceProjectionReaders,
     });
   }
-  const evaluations = listingMonitors.monitors.map((monitor) => ({
-    monitor,
-    result: evaluateMonitorConditions(readers, monitor.conditions, {
-      evaluationDate,
-      evaluatedAt: evaluationTime.toISOString(),
-      ...(currentPrice ? { currentPrice } : {}),
-    }),
+  const watchlistReads = new Map<string, Promise<readonly string[] | null>>();
+  const evaluations = await Promise.all(listingMonitors.monitors.map(async (monitor) => {
+    if (monitor.kind === FORM4_INSIDER_PURCHASE_MONITOR_KIND && monitor.form4PurchaseSettings) {
+      const activeAtFiling = form4MonitorWasActiveAtFiling(monitor.createdAt, readers.ownership);
+      const targetStatus = await resolveForm4PurchaseTargetStatus({
+        userId: monitor.userId,
+        ticker: currentOwnershipTicker(readers.ownership),
+        settings: monitor.form4PurchaseSettings,
+        readWatchlistTickers: dependencies.readWatchlistTickers ?? defaultDependencies.readWatchlistTickers!,
+        watchlistReads,
+      });
+      const evaluated = evaluateForm4InsiderPurchaseMonitor(
+        readers.ownership,
+        monitor.conditions,
+        monitor.form4PurchaseSettings,
+        targetStatus,
+      );
+      return {
+        monitor,
+        result: activeAtFiling ? evaluated : {
+          ...evaluated,
+          status: "no_match" as const,
+          reasonCode: "monitor_activation_not_met" as const,
+          form4PurchaseEvidence: undefined,
+          conditions: monitor.conditions.map((condition) => ({
+            key: String(condition.key),
+            status: "no_match" as const,
+            reasonCode: "monitor_activation_not_met" as const,
+          })),
+        },
+      };
+    }
+    return {
+      monitor,
+      result: evaluateMonitorConditions(readers, monitor.conditions, {
+        evaluationDate,
+        evaluatedAt: evaluationTime.toISOString(),
+        ...(currentPrice ? { currentPrice } : {}),
+      }),
+    };
   }));
   const writes: ListingMonitorAlertWriteResult[] = [];
+  const evaluationHistoryWrites: Form4MonitorEvaluationRecordWriteResult[] = [];
 
   for (const evaluation of evaluations) {
-    if (evaluation.result.status !== "match") continue;
+    if (evaluation.monitor.kind !== FORM4_INSIDER_PURCHASE_MONITOR_KIND) {
+      if (evaluation.result.status !== "match") continue;
+      const lineage = matchingLineage(readers, evaluation.monitor.conditions);
+      if (!lineage) continue;
+      try {
+        writes.push(await dependencies.createAlert({
+          eventId: input.alertEventId || lineage.eventId,
+          sourceExecutionId: lineage.sourceExecutionId,
+          monitorId: evaluation.monitor.id,
+          userId: evaluation.monitor.userId,
+          createdAt: lineage.persistedAt,
+        }));
+      } catch (error) {
+        writes.push({ status: "failed", monitorId: evaluation.monitor.id, error: errorMessage(error) });
+      }
+      continue;
+    }
+
     const lineage = matchingLineage(readers, evaluation.monitor.conditions);
-    if (!lineage) continue;
-    try {
-      writes.push(await dependencies.createAlert({
-        eventId: input.alertEventId || lineage.eventId,
-        sourceExecutionId: lineage.sourceExecutionId,
-        monitorId: evaluation.monitor.id,
-        userId: evaluation.monitor.userId,
-        createdAt: lineage.persistedAt,
-      }));
-    } catch (error) {
-      writes.push({
-        status: "failed",
-        monitorId: evaluation.monitor.id,
-        error: errorMessage(error),
-      });
+    let notification: Form4NotificationOutcome;
+    if (evaluation.result.status !== "match") {
+      notification = { status: "not_created", reasonCode: "evaluation_not_match" };
+    } else if (!lineage) {
+      notification = { status: "not_created", reasonCode: "matching_lineage_unavailable" };
+    } else {
+      let write: ListingMonitorAlertWriteResult;
+      try {
+        write = await dependencies.createAlert({
+          eventId: input.alertEventId || lineage.eventId,
+          sourceExecutionId: lineage.sourceExecutionId,
+          monitorId: evaluation.monitor.id,
+          userId: evaluation.monitor.userId,
+          createdAt: lineage.persistedAt,
+          ...(evaluation.result.form4PurchaseEvidence
+            ? { matchEvidence: evaluation.result.form4PurchaseEvidence }
+            : {}),
+        });
+      } catch (error) {
+        write = { status: "failed", monitorId: evaluation.monitor.id, error: errorMessage(error) };
+      }
+      writes.push(write);
+      if (write.status === "created") {
+        notification = { status: "created", reasonCode: "alert_created", ...(write.alertId ? { alertId: write.alertId } : {}) };
+      } else if (write.status === "existing") {
+        notification = { status: "existing", reasonCode: "duplicate_alert_existing", ...(write.alertId ? { alertId: write.alertId } : {}) };
+      } else {
+        notification = { status: "failed", reasonCode: "alert_write_failed", error: "error" in write ? write.error : "Alert write failed" };
+      }
+    }
+    if (dependencies.recordForm4Evaluation) {
+      evaluationHistoryWrites.push(await dependencies.recordForm4Evaluation({
+        processingAttemptId,
+        eventId: input.alertEventId || lineage?.eventId || currentEventId,
+        ...(lineage?.sourceExecutionId ? { sourceExecutionId: lineage.sourceExecutionId } : {}),
+        evaluatedAt: evaluationTime.toISOString(),
+        monitor: evaluation.monitor,
+        result: evaluation.result,
+        notification,
+      }).catch((error) => ({ status: "failed" as const, error: errorMessage(error) })));
     }
   }
 
@@ -248,6 +344,7 @@ export async function consumeListingMonitorAlertsForEvent(
       reasonCode: result.reasonCode,
     })),
     writes,
+    evaluationHistoryWrites,
     createdCount,
     existingCount,
     failedCount,
@@ -330,16 +427,17 @@ export async function createListingMonitorAlert(input: Readonly<{
   monitorId: string;
   userId: string;
   createdAt: string;
+  matchEvidence?: Form4PurchaseMatchEvidence;
 }>): Promise<ListingMonitorAlertWriteResult> {
   const repository = await import("../supabase.ts");
   const result = await repository.supabaseUpsert("user_alert_deliveries", {
     user_id: input.userId,
     alert_event_id: input.eventId,
-    ticker: null,
-    title: "Listing monitor matched",
-    category: "listing_risk",
+    ticker: input.matchEvidence?.ticker ?? null,
+    title: input.matchEvidence ? `${input.matchEvidence.ticker} Form 4 purchase` : "Listing monitor matched",
+    category: input.matchEvidence ? "insider_ownership" : "listing_risk",
     source_type: "other",
-    source_label: "Listing Monitor",
+    source_label: input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
     alert_lane: "listing_monitor",
     severity: null,
     delivered_channels: [],
@@ -353,6 +451,7 @@ export async function createListingMonitorAlert(input: Readonly<{
     listing_monitor_id: input.monitorId,
     alert_domain: "listing",
     listing_source_execution_id: input.sourceExecutionId,
+    listing_match_evidence: input.matchEvidence ?? null,
   }, {
     onConflict: "listing_monitor_id,alert_event_id",
     prefer: "resolution=ignore-duplicates,return=representation",
@@ -366,17 +465,83 @@ export async function createListingMonitorAlert(input: Readonly<{
     };
   }
   const row = Array.isArray(result.data) ? result.data[0] as Record<string, unknown> | undefined : undefined;
-  return row
-    ? {
+  if (row) return {
         status: "created",
         monitorId: input.monitorId,
         alertId: typeof row.id === "string" ? row.id : undefined,
-      }
-    : { status: "existing", monitorId: input.monitorId };
+      };
+  const existing = await repository.supabaseSelect("user_alert_deliveries", {
+    select: "id",
+    listing_monitor_id: `eq.${input.monitorId}`,
+    alert_event_id: `eq.${input.eventId}`,
+    limit: "1",
+  });
+  const existingRow = existing.ok && Array.isArray(existing.data)
+    ? existing.data[0] as Record<string, unknown> | undefined
+    : undefined;
+  return {
+    status: "existing",
+    monitorId: input.monitorId,
+    ...(typeof existingRow?.id === "string" ? { alertId: existingRow.id } : {}),
+  };
 }
 
 function dateOnly(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function form4MonitorWasActiveAtFiling(
+  monitorCreatedAt: string,
+  current: CurrentOwnershipReadResult,
+) {
+  if (current.status !== "available" || current.form !== "form4") return true;
+  const createdAt = Date.parse(monitorCreatedAt);
+  const filedAt = Date.parse(current.filedAt ?? "");
+  return Number.isFinite(createdAt) && Number.isFinite(filedAt) && createdAt <= filedAt;
+}
+
+async function resolveForm4PurchaseTargetStatus(input: Readonly<{
+  userId: string;
+  ticker: string;
+  settings: NonNullable<import("./listingMonitorPersistence.ts").ListingMonitor["form4PurchaseSettings"]>;
+  readWatchlistTickers(userId: string): Promise<readonly string[]>;
+  watchlistReads: Map<string, Promise<readonly string[] | null>>;
+}>): Promise<"eligible" | "no_match" | "unavailable"> {
+  if (!input.ticker) return "unavailable";
+  if (input.settings.target.scope === "ticker") {
+    return input.settings.target.ticker === input.ticker ? "eligible" : "no_match";
+  }
+  let read = input.watchlistReads.get(input.userId);
+  if (!read) {
+    read = input.readWatchlistTickers(input.userId)
+      .then((tickers) => tickers)
+      .catch(() => null);
+    input.watchlistReads.set(input.userId, read);
+  }
+  const tickers = await read;
+  return tickers === null
+    ? "unavailable"
+    : tickers.includes(input.ticker) ? "eligible" : "no_match";
+}
+
+async function readOwnerWatchlistTickers(userId: string) {
+  const repository = await import("../supabase.ts");
+  const result = await repository.supabaseSelect("watchlist_tickers", {
+    select: "ticker",
+    user_id: `eq.${userId}`,
+    order: "ticker.asc",
+    limit: "500",
+  });
+  if (!result.ok || !Array.isArray(result.data)) {
+    throw new Error(result.error || "Watchlist target read failed");
+  }
+  return result.data.flatMap((row) => {
+    const ticker = row && typeof row === "object" && !Array.isArray(row)
+      && typeof (row as Record<string, unknown>).ticker === "string"
+      ? String((row as Record<string, unknown>).ticker).trim().toUpperCase()
+      : "";
+    return /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(ticker) ? [ticker] : [];
+  });
 }
 
 function errorMessage(error: unknown) {

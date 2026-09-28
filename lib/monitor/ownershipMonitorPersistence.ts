@@ -1,3 +1,11 @@
+import {
+  buildOwnershipContextReferenceInventory,
+  isOwnershipContextSourceFingerprint,
+  validateStoredOwnershipContextEnvelope,
+  type OwnershipContextReferenceInventory,
+  type StoredOwnershipContextEnvelope,
+} from "./ownershipStructuredContext.ts";
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
 
@@ -10,6 +18,7 @@ type RepositoryResult = Readonly<{
 
 export type OwnershipMonitorRepository = Readonly<{
   select(table: string, query: Record<string, string>): Promise<RepositoryResult>;
+  readContextSnapshot?(eventId: string): Promise<RepositoryResult>;
 }>;
 
 export type CanonicalOwnershipForm4Row = Readonly<Record<string, unknown> & {
@@ -29,18 +38,40 @@ type OwnershipMonitorLineage = Readonly<{
   accessionNumber: string;
   parserVersion: string;
   persistedAt: string;
+  filingForm?: "4" | "4/A" | "144" | "144/A";
+  filedAt?: string;
 }>;
+
+export type CurrentOwnershipContextResult =
+  | Readonly<{
+      status: "available";
+      sourceFingerprint: string;
+      rows: readonly Readonly<{ rowRef: string; context: StoredOwnershipContextEnvelope }>[];
+      semanticVerification:
+        | Readonly<{ mode: "experimental"; verified: true }>
+        | Readonly<{ mode: "not_used"; verified: false }>;
+    }>
+  | Readonly<{ status: "absent" }>
+  | Readonly<{ status: "stale" | "malformed" | "unavailable"; reason: string }>;
+
+export type OwnershipContextEligibility =
+  | Readonly<{ status: "eligible"; inventory: OwnershipContextReferenceInventory }>
+  | Readonly<{ status: "ineligible"; reason: string }>;
 
 export type CurrentOwnershipReadResult =
   | (OwnershipMonitorLineage & Readonly<{
       status: "available";
       form: "form4";
       rows: readonly CanonicalOwnershipForm4Row[];
+      context?: CurrentOwnershipContextResult;
+      contextEligibility?: OwnershipContextEligibility;
     }>)
   | (OwnershipMonitorLineage & Readonly<{
       status: "available";
       form: "form144";
       rows: readonly CanonicalOwnershipForm144Row[];
+      context?: CurrentOwnershipContextResult;
+      contextEligibility?: OwnershipContextEligibility;
     }>)
   | Readonly<{ status: "not_applicable" }>
   | Readonly<{ status: "not_ready"; reason: string }>;
@@ -51,13 +82,30 @@ export async function readCurrentOwnershipFacts(
 ): Promise<CurrentOwnershipReadResult> {
   if (!UUID_PATTERN.test(eventId)) return { status: "not_ready", reason: "invalid_event_id" };
   const resolved = repository ?? await defaultRepository();
-  const eventResult = await resolved.select("events", {
-    select: "id,raw_item_id,source_code,source_group,event_type,metadata",
-    id: `eq.${eventId}`,
-    limit: "1",
-  });
-  assertRepositoryResult(eventResult, "event");
-  const event = rows(eventResult.data)[0];
+  let snapshotResult: RepositoryResult | null = null;
+  try {
+    snapshotResult = resolved.readContextSnapshot
+      ? await resolved.readContextSnapshot(eventId)
+      : null;
+  } catch {
+    snapshotResult = null;
+  }
+  const snapshotCandidate = snapshotResult?.ok ? rpcObject(snapshotResult.data) : null;
+  const snapshot = snapshotCandidate
+    && isRecord(snapshotCandidate.event)
+    && Array.isArray(snapshotCandidate.form4_rows)
+    && Array.isArray(snapshotCandidate.form144_rows)
+      ? snapshotCandidate
+      : null;
+  const eventResult = snapshot ? null : await resolved.select("events", {
+      select: "id,raw_item_id,source_code,source_group,event_type,published_at,metadata",
+      id: `eq.${eventId}`,
+      limit: "1",
+    });
+  if (eventResult) assertRepositoryResult(eventResult, "event");
+  const event = snapshot
+    ? (isRecord(snapshot.event) ? snapshot.event : undefined)
+    : rows(eventResult!.data)[0];
   if (!event) return { status: "not_ready", reason: "event_missing" };
   if (
     stringValue(event.source_code) !== "sec_edgar"
@@ -67,31 +115,29 @@ export async function readCurrentOwnershipFacts(
   }
 
   const metadata = record(event.metadata);
+  const filingForm = exactOwnershipFormType(metadata.form_type);
   const formType = normalizedFormType(metadata.form_type);
   if (!formType && stringValue(event.event_type) !== "insider_ownership") {
     return { status: "not_applicable" };
   }
   if (!formType) return { status: "not_ready", reason: "ownership_form_unavailable" };
+  if (!filingForm) return { status: "not_ready", reason: "ownership_form_unavailable" };
+  const filedAt = stringValue(event.published_at);
 
-  const [form4Result, form144Result] = await Promise.all([
-    resolved.select("event_form4_transactions", {
-      select: "*",
-      event_id: `eq.${eventId}`,
-      order: "transaction_index.asc",
-      limit: "1000",
-    }),
-    resolved.select("event_form144_proposed_sales", {
-      select: "*",
-      event_id: `eq.${eventId}`,
-      order: "proposed_sale_index.asc",
-      limit: "1000",
-    }),
-  ]);
-  assertRepositoryResult(form4Result, "Form 4 rows");
-  assertRepositoryResult(form144Result, "Form 144 rows");
-
-  const form4Rows = rows(form4Result.data);
-  const form144Rows = rows(form144Result.data);
+  const directResults = snapshot ? null : await Promise.all([
+      resolved.select("event_form4_transactions", {
+        select: "*", event_id: `eq.${eventId}`, order: "transaction_index.asc", limit: "1000",
+      }),
+      resolved.select("event_form144_proposed_sales", {
+        select: "*", event_id: `eq.${eventId}`, order: "proposed_sale_index.asc", limit: "1000",
+      }),
+    ]);
+  if (directResults) {
+    assertRepositoryResult(directResults[0], "Form 4 rows");
+    assertRepositoryResult(directResults[1], "Form 144 rows");
+  }
+  const form4Rows = snapshot ? rows(snapshot.form4_rows) : rows(directResults![0].data);
+  const form144Rows = snapshot ? rows(snapshot.form144_rows) : rows(directResults![1].data);
   if (form4Rows.length > 0 && form144Rows.length > 0) {
     return { status: "not_ready", reason: "ownership_form_families_mixed" };
   }
@@ -116,10 +162,24 @@ export async function readCurrentOwnershipFacts(
   });
   if (!validated.ok) return { status: "not_ready", reason: validated.reason };
 
+  const directRows = selectedRows.map(withoutContextFacts);
+  const contextProjection = await readOwnershipContextProjection({
+    eventId,
+    form: formType,
+    isAmendment: isAmendmentForm(metadata.form_type),
+    storedRows: selectedRows,
+    directRows,
+    sourceXml: snapshot ? stringValue(snapshot.ownership_source_text) : null,
+    fingerprintResult: snapshot ? record(snapshot.context_fingerprint) : null,
+    semanticVerifierRefsValid: snapshot?.context_semantic_verifier_refs_valid === true,
+  });
+
   return {
     status: "available",
     form: formType,
-    rows: Object.freeze(selectedRows.map((row) => Object.freeze({ ...row }))) as never,
+    rows: Object.freeze(directRows.map((row) => Object.freeze({ ...row }))) as never,
+    context: contextProjection.context,
+    contextEligibility: contextProjection.eligibility,
     eventId,
     rawItemId,
     // Ownership XML persistence has no secondary execution job. The stable
@@ -128,6 +188,85 @@ export async function readCurrentOwnershipFacts(
     accessionNumber: validated.accessionNumber,
     parserVersion: validated.parserVersion,
     persistedAt: validated.persistedAt,
+    filingForm,
+    filedAt: Number.isFinite(Date.parse(filedAt)) ? filedAt : "",
+  };
+}
+
+async function readOwnershipContextProjection(input: {
+  eventId: string;
+  form: "form4" | "form144";
+  isAmendment: boolean;
+  storedRows: Record<string, unknown>[];
+  directRows: Record<string, unknown>[];
+  sourceXml: string | null;
+  fingerprintResult: Record<string, unknown> | null;
+  semanticVerifierRefsValid: boolean;
+}): Promise<{ context: CurrentOwnershipContextResult; eligibility: OwnershipContextEligibility }> {
+  if (!input.fingerprintResult) return {
+    context: { status: "unavailable", reason: "ownership_context_fingerprint_reader_unavailable" },
+    eligibility: { status: "ineligible", reason: "ownership_context_fingerprint_reader_unavailable" },
+  };
+  const fingerprintResult = input.fingerprintResult;
+  const fingerprint = fingerprintResult.source_fingerprint;
+  if (
+    fingerprintResult.status !== "available"
+    || fingerprintResult.form !== input.form
+    || !isOwnershipContextSourceFingerprint(fingerprint)
+  ) {
+    const reason = stringValue(fingerprintResult.reason) || "ownership_context_fingerprint_unavailable";
+    return {
+      context: { status: "unavailable", reason },
+      eligibility: { status: "ineligible", reason },
+    };
+  }
+  const inventory = buildOwnershipContextReferenceInventory({
+    eventId: input.eventId,
+    form: input.form,
+    isAmendment: input.isAmendment,
+    sourceFingerprint: fingerprint,
+    rows: input.directRows,
+    ...(input.sourceXml ? { sourceXml: input.sourceXml } : {}),
+  });
+  const eligibility: OwnershipContextEligibility = { status: "eligible", inventory };
+  const contexts = input.storedRows
+    .map((row, index) => ({ value: row.context_facts, reference: inventory.rows[index] }))
+    .filter((item) => item.value !== null && item.value !== undefined);
+  if (contexts.length === 0) return { context: { status: "absent" }, eligibility };
+  if (fingerprintResult.context_ai_refs_valid === false) return {
+    context: { status: "malformed", reason: "ownership_context_ai_refs_invalid" },
+    eligibility,
+  };
+
+  const validatedRows: Array<{ rowRef: string; context: StoredOwnershipContextEnvelope }> = [];
+  for (const item of contexts) {
+    if (!item.reference) {
+      return { context: { status: "malformed", reason: "ownership_context_row_reference_missing" }, eligibility };
+    }
+    const validated = validateStoredOwnershipContextEnvelope({
+      value: item.value,
+      rowRef: item.reference.rowRef,
+      inventory,
+    });
+    if (!validated.ok) return {
+      context: {
+        status: validated.stale ? "stale" : "malformed",
+        reason: validated.stale ? "ownership_context_fingerprint_stale" : "ownership_context_invalid",
+      },
+      eligibility,
+    };
+    validatedRows.push({ rowRef: item.reference.rowRef, context: validated.value });
+  }
+  return {
+    context: {
+      status: "available",
+      sourceFingerprint: fingerprint,
+      rows: Object.freeze(validatedRows.map((item) => Object.freeze(item))),
+      semanticVerification: input.semanticVerifierRefsValid
+        ? { mode: "experimental", verified: true }
+        : { mode: "not_used", verified: false },
+    },
+    eligibility,
   };
 }
 
@@ -166,6 +305,7 @@ function validateCanonicalRows(input: {
       || provenance.parser_fallback !== false
       || provenance.source_format !== "structured_xml"
       || provenance.source_role !== "raw_payload.ownership_source_text"
+      || !/^[0-9a-f]{64}$/.test(stringValue(provenance.source_xml_sha256))
       || provenance.fact_kind !== expectedFactKind
       || issuerIdentity.source !== "ownership_xml"
       || issuerIdentity.match_status !== "exact_cik"
@@ -286,7 +426,13 @@ function officialSecSourceForAccession(value: unknown, accession: string) {
 
 async function defaultRepository(): Promise<OwnershipMonitorRepository> {
   const supabase = await import("../supabase.ts");
-  return { select: supabase.supabaseSelect };
+  return {
+    select: supabase.supabaseSelect,
+    readContextSnapshot: (eventId) => supabase.supabaseRpc(
+      "read_event_ownership_context_snapshot",
+      { p_event_id: eventId },
+    ),
+  };
 }
 
 function assertRepositoryResult(result: RepositoryResult, label: string) {
@@ -300,6 +446,27 @@ function normalizedFormType(value: unknown): "form4" | "form144" | null {
   if (form === "4" || form === "4/A") return "form4";
   if (form === "144" || form === "144/A") return "form144";
   return null;
+}
+
+function exactOwnershipFormType(value: unknown): "4" | "4/A" | "144" | "144/A" | null {
+  const form = stringValue(value).toUpperCase().replace(/^FORM\s+/, "");
+  return form === "4" || form === "4/A" || form === "144" || form === "144/A" ? form : null;
+}
+
+function isAmendmentForm(value: unknown) {
+  const form = stringValue(value).toUpperCase().replace(/^FORM\s+/, "");
+  return form === "4/A" || form === "144/A";
+}
+
+function withoutContextFacts(row: Record<string, unknown>) {
+  const { context_facts: _contextFacts, ...direct } = row;
+  return direct;
+}
+
+function rpcObject(value: unknown) {
+  if (isRecord(value)) return value;
+  if (Array.isArray(value) && value.length === 1 && isRecord(value[0])) return value[0];
+  return {};
 }
 
 function nullableDate(value: unknown) {

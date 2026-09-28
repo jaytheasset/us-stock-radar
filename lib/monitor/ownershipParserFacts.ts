@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   buildRuntimeOwnershipParserInput,
   parseOwnershipForm,
@@ -45,7 +46,10 @@ export function buildOwnershipParserFactRows({
   requiredUuidLike(eventId, "eventId");
   const rawRow = requiredRecord(rawItem, "rawItem");
   const rawPayload = record(rawRow.raw_payload);
-  const sourceText = nullableString(rawPayload.ownership_source_text);
+  const rawSourceText = typeof rawPayload.ownership_source_text === "string"
+    ? rawPayload.ownership_source_text
+    : null;
+  const sourceText = nullableString(rawSourceText);
   if (!sourceText) {
     throw new OwnershipParserSourceError("source_missing", "Ownership raw XML source is absent");
   }
@@ -84,6 +88,9 @@ export function buildOwnershipParserFactRows({
     requestedSymbol: symbol,
   });
   const normalizedSymbol = issuerIdentity.canonicalTicker;
+  // Hash the preserved raw payload byte-for-byte. Parsing may ignore harmless
+  // outer whitespace, but DB staleness checks intentionally do not.
+  const sourceXmlSha256 = createHash("sha256").update(rawSourceText!, "utf8").digest("hex");
   const reportingOwners = recordArray(facts.reporting_owners);
   const ownerFacts = buildFilingOwnerFacts(reportingOwners);
   const commonProvenance = {
@@ -96,6 +103,7 @@ export function buildOwnershipParserFactRows({
     source_role: "raw_payload.ownership_source_text",
     accession_number: accessionNumber,
     source_url: sourceUrl,
+    source_xml_sha256: sourceXmlSha256,
     issuer_identity: {
       source: "ownership_xml",
       match_status: "exact_cik",
@@ -167,6 +175,7 @@ export function buildOwnershipParserFactRows({
         reporting_owner_scope: ownerFacts.rowAttributionSafe
           ? "single_filing_owner"
           : "filing_level_unattributed_owner_set",
+        reporting_owner_profiles: ownerFacts.profiles,
       },
       evidence: stringArray(transaction.evidence),
       calculation_basis: {
@@ -178,6 +187,7 @@ export function buildOwnershipParserFactRows({
         post_transaction_shares: sourceFieldAudit(transaction, "shares_owned_following"),
         footnote_ids: stringArray(transaction.footnote_ids),
         field_footnote_ids: record(transaction.field_footnote_ids),
+        underlying_security_title: nullableString(transaction.underlying_security_title),
       },
       updated_at: new Date().toISOString(),
     });
@@ -405,6 +415,17 @@ function buildFilingOwnerFacts(owners: Row[]) {
     names,
     roles,
     officerTitles,
+    profiles: owners.map((owner) => ({
+      cik: nullableString(owner.cik),
+      name: nullableString(owner.name),
+      roles: stringArray(owner.roles),
+      officer_title: nullableString(owner.title),
+      is_officer: typeof owner.is_officer === "boolean" ? owner.is_officer : null,
+      is_director: typeof owner.is_director === "boolean" ? owner.is_director : null,
+      is_ten_percent_owner: typeof owner.is_ten_percent_owner === "boolean"
+        ? owner.is_ten_percent_owner
+        : null,
+    })),
     rowAttributionSafe: owners.length === 1,
     isOfficer: triStateAny(owners, "is_officer"),
     isDirector: triStateAny(owners, "is_director"),

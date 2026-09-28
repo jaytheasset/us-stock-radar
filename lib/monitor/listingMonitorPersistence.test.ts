@@ -14,6 +14,11 @@ import {
   validateCanonicalListingConditions,
   type ListingMonitorRepository,
 } from "./listingMonitorPersistence.ts";
+import {
+  buildForm4InsiderPurchaseConditions,
+  FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+  type Form4InsiderPurchaseSettings,
+} from "./form4InsiderPurchaseMonitor.ts";
 
 const ownerA = "a1000000-0000-4000-8000-000000000001";
 const ownerB = "b1000000-0000-4000-8000-000000000002";
@@ -109,6 +114,38 @@ test("forward split round-trips exact canonical JSON through existing persistenc
   const read = await readListingMonitorForOwner(ownerA, created.id, repository);
   assert.equal(read.status, "available");
   if (read.status === "available") assert.deepEqual(read.monitor.conditions, forwardSplitConditions);
+});
+
+test("typed Form 4 purchase settings round-trip and regenerate immutable canonical conditions on edit", async () => {
+  const repository = new MemoryListingMonitorRepository();
+  const initial: Form4InsiderPurchaseSettings = {
+    target: { scope: "watchlist" }, role: "officer_or_director", minimumShares: null,
+  };
+  const created = await createListingMonitor({
+    ownerId: ownerA,
+    kind: FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+    form4PurchaseSettings: initial,
+    conditions: buildForm4InsiderPurchaseConditions(initial),
+  }, repository);
+
+  assert.equal(created.kind, FORM4_INSIDER_PURCHASE_MONITOR_KIND);
+  assert.deepEqual(created.form4PurchaseSettings, initial);
+  assert.deepEqual(created.conditions, buildForm4InsiderPurchaseConditions(initial));
+
+  const updatedSettings: Form4InsiderPurchaseSettings = {
+    target: { scope: "ticker", ticker: "AGIG" }, role: "director", minimumShares: 8000,
+  };
+  const updated = await updateListingMonitor({
+    ownerId: ownerA, monitorId: created.id, form4PurchaseSettings: updatedSettings,
+  }, repository);
+  assert.deepEqual(updated.form4PurchaseSettings, updatedSettings);
+  assert.deepEqual(updated.conditions, buildForm4InsiderPurchaseConditions(updatedSettings));
+
+  await assert.rejects(
+    updateListingMonitor({ ownerId: ownerA, monitorId: created.id, conditions: atpcConditions }, repository),
+    (error: unknown) => error instanceof ListingMonitorPersistenceError
+      && error.details.includes("form4_purchase_conditions_immutable"),
+  );
 });
 
 test("create and update reject malformed, unsupported, non-Listing, and non-canonical conditions before writing", async () => {

@@ -78,10 +78,17 @@ test("Monitor foundation ledger rows cannot replace the latest persisted Primary
   const traceId = "295b80ef-1f3e-48b5-b31d-1aabf3bbb456";
   const select: SecDiagnosticSelect = async (table, search) => {
     if (table === "ai_runs") {
-      assert.equal(search.prompt_key, "neq.offering_monitor_normalization_job");
+      assert.equal(search.prompt_key, "not.in.(offering_monitor_normalization_job,ownership_structured_context)");
       return {
         ok: true,
         data: [
+          {
+            id: "495b80ef-1f3e-48b5-b31d-1aabf3bbb459",
+            event_id: eventId,
+            prompt_key: "ownership_structured_context",
+            status: "completed",
+            finished_at: "2026-08-11T23:30:16.211Z",
+          },
           {
             id: monitorExecutionBId,
             event_id: eventId,
@@ -146,7 +153,7 @@ test("non-Monitor prompt runs retain historical record_missing semantics", async
   const otherRunId = "395b80ef-1f3e-48b5-b31d-1aabf3bbb457";
   const select: SecDiagnosticSelect = async (table, search) => {
     if (table === "ai_runs") {
-      assert.equal(search.prompt_key, "neq.offering_monitor_normalization_job");
+      assert.equal(search.prompt_key, "not.in.(offering_monitor_normalization_job,ownership_structured_context)");
       return {
         ok: true,
         data: [{

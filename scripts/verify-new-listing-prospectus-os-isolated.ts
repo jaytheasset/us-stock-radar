@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-// @ts-expect-error The project intentionally does not install a separate pg declaration package.
 import pg from "pg";
 import { resolveClassShareCountAt } from "../lib/sec-structured-data/classShareCountResolver.ts";
 import { PostgresShareCountHistoryRepository } from "../lib/sec-structured-data/shareCountHistory.ts";

@@ -2,6 +2,14 @@ import {
   validateCanonicalListingConditions,
   type CanonicalListingMonitorCondition,
 } from "./listingMonitorPersistence.ts";
+import {
+  buildForm4InsiderPurchaseConditions,
+  FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+  parseForm4InsiderPurchaseSettings,
+  parseStoredForm4PurchaseMatchEvidence,
+  type Form4InsiderPurchaseSettings,
+  type Form4PurchaseMatchEvidence,
+} from "./form4InsiderPurchaseMonitor.ts";
 
 export const LISTING_MONITOR_API_VERSION = "listing_monitor_api_v1" as const;
 
@@ -18,10 +26,13 @@ export type ListingMonitorApiRequestError = Readonly<{
 
 export type ListingMonitorCreateInput = Readonly<{
   conditions: readonly CanonicalListingMonitorCondition[];
+  kind?: typeof FORM4_INSIDER_PURCHASE_MONITOR_KIND;
+  form4PurchaseSettings?: Form4InsiderPurchaseSettings;
 }>;
 
 export type ListingMonitorUpdateInput = Readonly<{
   conditions?: readonly CanonicalListingMonitorCondition[];
+  form4PurchaseSettings?: Form4InsiderPurchaseSettings;
   isActive?: boolean;
 }>;
 
@@ -30,6 +41,7 @@ export type ListingMonitorAlertItem = Readonly<{
   monitorId: string | null;
   eventId: string | null;
   createdAt: string;
+  matchEvidence: Form4PurchaseMatchEvidence | null;
 }>;
 
 type RepositoryResult = Readonly<{
@@ -52,8 +64,25 @@ export type ListingMonitorAlertRepository = Readonly<{
 export function parseListingMonitorCreateRequest(
   value: unknown,
 ): Readonly<{ ok: true; value: ListingMonitorCreateInput }> | ListingMonitorApiRequestError {
-  const body = strictBody(value, ["conditions"]);
+  const body = strictBody(value, ["conditions", "form4Purchase"]);
   if (!body.ok) return body;
+  if ("form4Purchase" in body.value) {
+    if ("conditions" in body.value) {
+      return invalidRequest("Choose either canonical conditions or Form 4 purchase settings.", ["monitor_definition_conflict"]);
+    }
+    const settings = parseForm4InsiderPurchaseSettings(body.value.form4Purchase);
+    if (!settings.ok) return invalidRequest("Form 4 purchase settings are invalid.", settings.errors);
+    const validation = validateCanonicalListingConditions(buildForm4InsiderPurchaseConditions(settings.value));
+    if (!validation.ok) return invalidConditions(validation.errors);
+    return {
+      ok: true,
+      value: {
+        conditions: validation.conditions,
+        kind: FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+        form4PurchaseSettings: settings.value,
+      },
+    };
+  }
   const validation = validateCanonicalListingConditions(body.value.conditions);
   if (!validation.ok) return invalidConditions(validation.errors);
   return { ok: true, value: { conditions: validation.conditions } };
@@ -62,17 +91,29 @@ export function parseListingMonitorCreateRequest(
 export function parseListingMonitorUpdateRequest(
   value: unknown,
 ): Readonly<{ ok: true; value: ListingMonitorUpdateInput }> | ListingMonitorApiRequestError {
-  const body = strictBody(value, ["conditions", "isActive"]);
+  const body = strictBody(value, ["conditions", "form4Purchase", "isActive"]);
   if (!body.ok) return body;
-  if (!("conditions" in body.value) && !("isActive" in body.value)) {
+  if (!("conditions" in body.value) && !("form4Purchase" in body.value) && !("isActive" in body.value)) {
     return invalidRequest("A monitor update must include conditions or isActive.", ["update_empty"]);
   }
+  if ("conditions" in body.value && "form4Purchase" in body.value) {
+    return invalidRequest("Choose either canonical conditions or Form 4 purchase settings.", ["monitor_definition_conflict"]);
+  }
 
-  const result: { conditions?: readonly CanonicalListingMonitorCondition[]; isActive?: boolean } = {};
+  const result: {
+    conditions?: readonly CanonicalListingMonitorCondition[];
+    form4PurchaseSettings?: Form4InsiderPurchaseSettings;
+    isActive?: boolean;
+  } = {};
   if ("conditions" in body.value) {
     const validation = validateCanonicalListingConditions(body.value.conditions);
     if (!validation.ok) return invalidConditions(validation.errors);
     result.conditions = validation.conditions;
+  }
+  if ("form4Purchase" in body.value) {
+    const settings = parseForm4InsiderPurchaseSettings(body.value.form4Purchase);
+    if (!settings.ok) return invalidRequest("Form 4 purchase settings are invalid.", settings.errors);
+    result.form4PurchaseSettings = settings.value;
   }
   if ("isActive" in body.value) {
     if (typeof body.value.isActive !== "boolean") {
@@ -172,7 +213,7 @@ async function resolveAlertRepository(): Promise<ListingMonitorAlertRepository> 
     list: ({ ownerId, monitorId, limit, offset }) => supabase.supabaseSelect(
       "user_alert_deliveries",
       {
-        select: "id,alert_event_id,listing_monitor_id,created_at",
+        select: "id,alert_event_id,listing_monitor_id,created_at,listing_match_evidence",
         user_id: `eq.${ownerId}`,
         alert_domain: "eq.listing",
         alert_lane: "eq.listing_monitor",
@@ -244,6 +285,7 @@ function mapAlertRow(row: Record<string, unknown>): ListingMonitorAlertItem[] {
     monitorId: typeof row.listing_monitor_id === "string" ? row.listing_monitor_id : null,
     eventId: typeof row.alert_event_id === "string" ? row.alert_event_id : null,
     createdAt: row.created_at,
+    matchEvidence: parseStoredForm4PurchaseMatchEvidence(row.listing_match_evidence),
   }];
 }
 

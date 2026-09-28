@@ -17,6 +17,13 @@ import {
   applyNaturalLanguageMonitorConfirmation,
   parseNaturalLanguageMonitorConfirmationRequest,
 } from "./naturalLanguageMonitorConfirmation.ts";
+import {
+  buildForm4InsiderPurchaseConditions,
+  FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+  type Form4InsiderPurchaseSettings,
+  type Form4PurchaseMatchEvidence,
+} from "./form4InsiderPurchaseMonitor.ts";
+import type { CurrentOwnershipReadResult } from "./ownershipMonitorPersistence.ts";
 
 const EVENT_ID = "29f5fe0d-8171-458c-bfb0-baacb6495e13";
 const SOURCE_EXECUTION_ID = "5323aa52-5944-5877-99b0-c9f74ba6d98c";
@@ -50,6 +57,110 @@ test("same monitor and canonical event dedupes across different source execution
   assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
   assert.deepEqual([reanalysis.createdCount, reanalysis.existingCount], [0, 1]);
   assert.equal(harness.alertCount(), 1);
+});
+
+test("Form 4 purchase consumer stores every matching row in one replay-safe internal alert", async () => {
+  const settings: Form4InsiderPurchaseSettings = {
+    target: { scope: "watchlist" }, role: "director", minimumShares: null,
+  };
+  const specialMonitor: ListingMonitor = {
+    id: "a2000000-0000-4000-8000-000000000041",
+    userId: OWNER_ID,
+    domain: "listing",
+    kind: FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+    conditions: buildForm4InsiderPurchaseConditions(settings),
+    form4PurchaseSettings: settings,
+    isActive: true,
+    createdAt: "2026-05-01T00:00:00.000Z",
+    updatedAt: "2026-05-01T00:00:00.000Z",
+  };
+  const keys = new Set<string>();
+  const evidence: Form4PurchaseMatchEvidence[] = [];
+  const history: Parameters<NonNullable<ListingMonitorAlertConsumerDependencies["recordForm4Evaluation"]>>[0][] = [];
+  let watchlistReads = 0;
+  const dependencies: ListingMonitorAlertConsumerDependencies = {
+    readOwnershipFacts: async () => availableForm4Purchase(),
+    readWatchlistTickers: async (userId) => {
+      watchlistReads += 1;
+      assert.equal(userId, OWNER_ID);
+      return ["AGIG"];
+    },
+    listActiveMonitors: async () => ({ monitors: [specialMonitor], diagnostics: [] }),
+    recordForm4Evaluation: async (input) => {
+      history.push(input);
+      return { status: "recorded", recordId: input.processingAttemptId };
+    },
+    createAlert: async (input) => {
+      assert.deepEqual(input.matchEvidence?.matches.map((row) => row.sharesRaw), ["1050", "8950"]);
+      if (input.matchEvidence) evidence.push(input.matchEvidence);
+      const key = `${input.monitorId}:${input.eventId}`;
+      if (keys.has(key)) return { status: "existing", monitorId: input.monitorId };
+      keys.add(key);
+      return { status: "created", monitorId: input.monitorId, alertId: input.monitorId };
+    },
+    now: () => new Date("2026-05-23T15:00:00.000Z"),
+  };
+
+  const first = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+  const replay = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, dependencies);
+
+  assert.deepEqual(first.evaluations.map((item) => [item.status, item.reasonCode]), [["match", "all_conditions_match"]]);
+  assert.deepEqual([first.createdCount, first.existingCount], [1, 0]);
+  assert.deepEqual([replay.createdCount, replay.existingCount], [0, 1]);
+  assert.equal(keys.size, 1);
+  assert.equal(evidence.length, 2, "replay reaches the same unique upsert with the full evidence envelope");
+  assert.equal(watchlistReads, 2, "watchlist is read once per complete processing attempt");
+  assert.deepEqual(history.map((item) => [item.result.status, item.notification.status, item.notification.reasonCode]), [
+    ["match", "created", "alert_created"],
+    ["match", "existing", "duplicate_alert_existing"],
+  ]);
+  assert.equal(history[0]?.result.form4PurchaseTrace?.rows.length, 2);
+  assert.notEqual(history[0]?.processingAttemptId, history[1]?.processingAttemptId);
+  assert.deepEqual(first.evaluationHistoryWrites.map((write) => write.status), ["recorded"]);
+});
+
+test("Form 4 purchase consumer does not backfill a filing from before monitor activation", async () => {
+  const settings: Form4InsiderPurchaseSettings = {
+    target: { scope: "ticker", ticker: "AGIG" }, role: "director", minimumShares: null,
+  };
+  const monitor: ListingMonitor = {
+    id: "a2000000-0000-4000-8000-000000000042",
+    userId: OWNER_ID,
+    domain: "listing",
+    kind: FORM4_INSIDER_PURCHASE_MONITOR_KIND,
+    conditions: buildForm4InsiderPurchaseConditions(settings),
+    form4PurchaseSettings: settings,
+    isActive: true,
+    createdAt: "2026-05-24T00:00:00.000Z",
+    updatedAt: "2026-05-24T00:00:00.000Z",
+  };
+  let writes = 0;
+  const history: Parameters<NonNullable<ListingMonitorAlertConsumerDependencies["recordForm4Evaluation"]>>[0][] = [];
+  const result = await consumeListingMonitorAlertsForEvent({ eventId: EVENT_ID }, {
+    readOwnershipFacts: async () => availableForm4Purchase(),
+    listActiveMonitors: async () => ({ monitors: [monitor], diagnostics: [] }),
+    recordForm4Evaluation: async (input) => {
+      history.push(input);
+      return { status: "recorded" };
+    },
+    createAlert: async () => {
+      writes += 1;
+      return { status: "created", monitorId: monitor.id };
+    },
+    now: () => new Date("2026-05-24T00:01:00.000Z"),
+  });
+
+  assert.deepEqual(result.evaluations, [{
+    monitorId: monitor.id,
+    status: "no_match",
+    reasonCode: "monitor_activation_not_met",
+  }]);
+  assert.equal(writes, 0);
+  assert.equal(result.createdCount, 0);
+  assert.deepEqual(history.map((item) => [item.result.reasonCode, item.notification.status]), [
+    ["monitor_activation_not_met", "not_created"],
+  ]);
+  assert.equal(history[0]?.result.form4PurchaseTrace?.status, "match", "raw literal matcher result remains inspectable behind the effective activation gate");
 });
 
 test("not-applicable and reader-unavailable results remain literal INELIGIBLE outcomes", async () => {
@@ -287,7 +398,7 @@ test("Marketstack-style EOD price is INELIGIBLE and creates no Alert", async () 
   assert.equal(result.writes.length, 0);
 });
 
-test("consumer boundary has no provider, parser, Primary, provenance, legacy, or delivery execution dependency", () => {
+test("consumer boundary has no provider, parser, Primary, legacy, or external delivery execution dependency", () => {
   const source = readFileSync(new URL("./listingMonitorAlertConsumer.ts", import.meta.url), "utf8");
   for (const forbidden of [
     "Gemini",
@@ -295,8 +406,6 @@ test("consumer boundary has no provider, parser, Primary, provenance, legacy, or
     "parser",
     "primary_analysis",
     "ai_runs",
-    "fact_provenance",
-    "evidence",
     "Telegram",
     "Email",
     "Web push",
@@ -379,10 +488,59 @@ function monitor(id: string, conditions: ListingMonitor["conditions"]): ListingM
     id,
     userId: OWNER_ID,
     domain: "listing",
+    kind: "condition_set",
     conditions,
     isActive: true,
     createdAt: "2026-08-13T00:00:00.000Z",
     updatedAt: "2026-08-13T00:00:00.000Z",
+  };
+}
+
+function availableForm4Purchase(): Extract<CurrentOwnershipReadResult, { status: "available"; form: "form4" }> {
+  const sourceUrl = "https://www.sec.gov/Archives/edgar/data/1685251/000149315226023264/ownership.xml";
+  const base = {
+    event_id: EVENT_ID,
+    transaction_kind: "non_derivative",
+    transaction_code: "P",
+    acquired_disposed_code: "A",
+    security_title: "Common Stock",
+    shares_availability: "available",
+    shares_value_quality: "exact",
+    price_per_share_availability: "available",
+    price_per_share_value_quality: "exact",
+    transaction_date: "2026-05-12",
+    direct_or_indirect_ownership: "D",
+    symbol: "AGIG",
+    provenance: {
+      source_url: sourceUrl,
+      reporting_owner_scope: "single_filing_owner",
+      reporting_owner_profiles: [{
+        name: "Bailey Robert J.", roles: ["director"], officer_title: null,
+        is_officer: false, is_director: true,
+      }],
+    },
+  };
+  return {
+    status: "available",
+    form: "form4",
+    filingForm: "4",
+    filedAt: "2026-05-23T15:00:00.000Z",
+    rows: [
+      {
+        ...base, transaction_index: 0, shares: 1050, price_per_share: 1.195,
+        calculation_basis: { shares: { text: "1050" }, price_per_share: { text: "1.195" } },
+      },
+      {
+        ...base, transaction_index: 1, shares: 8950, price_per_share: 1.1999,
+        calculation_basis: { shares: { text: "8950" }, price_per_share: { text: "1.1999" } },
+      },
+    ],
+    eventId: EVENT_ID,
+    rawItemId: "11111111-1111-4111-8111-111111111111",
+    sourceExecutionId: EVENT_ID,
+    accessionNumber: "0001493152-26-023264",
+    parserVersion: "ownership_parser_v1",
+    persistedAt: "2026-05-23T15:00:00.000Z",
   };
 }
 

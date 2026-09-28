@@ -1,0 +1,186 @@
+.panel {
+  display: grid;
+  gap: var(--sr-space-4);
+  margin-bottom: var(--sr-space-5);
+  padding: var(--sr-space-5);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-lg);
+  background: var(--sr-color-surface-panel);
+}
+
+.panel > header,
+.alertDetails > header,
+.summary,
+.saved {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sr-space-3);
+}
+
+.panel h2,
+.panel p,
+.alertDetails p {
+  margin: 0;
+}
+
+.panel header span,
+.panel label span,
+.alertDetails span,
+.summary span,
+.saved span {
+  color: var(--sr-color-text-meta);
+}
+
+.panel form,
+.inlineEditor {
+  display: grid;
+  gap: var(--sr-space-3);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sr-space-3);
+}
+
+.fields label {
+  display: grid;
+  gap: var(--sr-space-1-5);
+  font-size: var(--sr-font-size-sm);
+  font-weight: var(--sr-font-weight-strong);
+}
+
+.fields input,
+.fields select {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border-control);
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-control);
+  color: var(--sr-color-text-primary);
+}
+
+.panel button,
+.inlineEditor button,
+.summary button {
+  min-height: 40px;
+  padding: 0 var(--sr-space-3);
+  border: 0;
+  border-radius: var(--sr-radius-control);
+  background: var(--sr-color-surface-primary-action);
+  color: var(--sr-color-text-primary-action);
+  font-weight: var(--sr-font-weight-heavy);
+  cursor: pointer;
+}
+
+.panel button:disabled,
+.inlineEditor button:disabled,
+.summary button:disabled {
+  cursor: not-allowed;
+  opacity: var(--sr-opacity-disabled);
+}
+
+.saved,
+.summary,
+.inlineEditor {
+  padding: var(--sr-space-3);
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-accent-selected);
+}
+
+.inlineEditor > div:last-of-type {
+  display: flex;
+  gap: var(--sr-space-2);
+}
+
+.alertDetails {
+  display: grid;
+  gap: var(--sr-space-3);
+  width: 100%;
+}
+
+.alertDetails a {
+  color: var(--sr-color-accent-text);
+  font-weight: var(--sr-font-weight-heavy);
+}
+
+.alertDetails > header > div {
+  display: grid;
+  gap: var(--sr-space-0-5);
+}
+
+.matchRows {
+  display: grid;
+  gap: var(--sr-space-2-5);
+}
+
+.matchRows > section {
+  display: grid;
+  gap: var(--sr-space-2-5);
+  padding: var(--sr-space-3);
+  border: var(--sr-border-width) solid var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+}
+
+.matchRows > section > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sr-space-2-5);
+}
+
+.matchRows dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sr-space-2);
+  margin: 0;
+}
+
+.matchRows dl div {
+  display: grid;
+  gap: var(--sr-space-0-5);
+}
+
+.matchRows dt {
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.matchRows dd {
+  margin: 0;
+  font-weight: var(--sr-font-weight-heavy);
+  overflow-wrap: anywhere;
+}
+
+.matchRows details p {
+  margin-top: var(--sr-space-2);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .panel {
+    padding: var(--sr-space-4);
+  }
+
+  .panel > header,
+  .alertDetails > header,
+  .summary,
+  .saved,
+  .matchRows > section > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fields,
+  .matchRows dl {
+    grid-template-columns: 1fr;
+  }
+
+  .panel button,
+  .summary button,
+  .inlineEditor button {
+    width: 100%;
+  }
+}

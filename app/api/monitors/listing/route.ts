@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     const monitor = await createListingMonitor({
       ownerId: userId,
-      conditions: parsed.value.conditions,
+      ...parsed.value,
     });
     return NextResponse.json(
       { ok: true, data: { monitor } },

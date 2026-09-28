@@ -5,15 +5,16 @@ import pg from "pg";
 import { createDilutionRegistryPasteIdFromSource } from "../lib/dilution-registry/pasteIdentity.ts";
 
 const { Client } = pg;
-const fixturePath = process.env.DILUTION_REGISTRY_REFERENCE_FIXTURE;
+const fixturePathFromEnv = process.env.DILUTION_REGISTRY_REFERENCE_FIXTURE;
 
 const connectionString = process.env.DILUTION_REGISTRY_ISOLATED_DB_URL;
 const expectedPort = process.env.DILUTION_REGISTRY_ISOLATED_DB_PORT;
-if (!connectionString || !expectedPort || !fixturePath) {
+if (!connectionString || !expectedPort || !fixturePathFromEnv) {
   throw new Error(
     "DILUTION_REGISTRY_ISOLATED_DB_URL, DILUTION_REGISTRY_ISOLATED_DB_PORT, and DILUTION_REGISTRY_REFERENCE_FIXTURE are required.",
   );
 }
+const fixturePath = fixturePathFromEnv;
 
 const databaseUrl = new URL(connectionString);
 assertIsolatedDatabaseTarget(databaseUrl, expectedPort);

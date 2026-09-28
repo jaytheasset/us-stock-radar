@@ -4902,6 +4902,7 @@ function toGeminiResponseSchema(value: unknown): unknown {
   const output: Record<string, unknown> = {};
   for (const [key, childValue] of Object.entries(record)) {
     if (key === "additionalProperties") continue;
+    if (key === "exclusiveMinimum") continue;
     if (key === "maxLength") continue;
     if (key === "maxItems") {
       // Gemini rejects deeply nested schemas when every internal array carries a

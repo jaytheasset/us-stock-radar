@@ -173,6 +173,12 @@ function compileRuntimeFunction({
     "mocks",
     `const {
       buildInputFromSecRawRowWithParentContext,
+      beginSecAnalysisSpan,
+      traceSecAnalysis,
+      stringValue,
+      readRecord,
+      readStringArray,
+      secAnalysisErrorClass,
       attachSecMarketContext,
       attachOwnershipFilingContext,
       buildDeterministicEffectAnalysis,
@@ -197,6 +203,16 @@ function compileRuntimeFunction({
 
   return factory({
     buildInputFromSecRawRowWithParentContext: async (rawItem: { input: unknown }) => rawItem.input,
+    beginSecAnalysisSpan: () => () => undefined,
+    traceSecAnalysis: () => undefined,
+    stringValue: (value: unknown) => typeof value === "string" ? value.trim() : "",
+    readRecord: (value: unknown) => value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null,
+    readStringArray: (value: unknown) => Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [],
+    secAnalysisErrorClass: (error: unknown) => error instanceof Error ? error.name : "UnknownError",
     attachSecMarketContext: async () => undefined,
     attachOwnershipFilingContext: async () => undefined,
     buildDeterministicEffectAnalysis: () => null,
