@@ -21,14 +21,6 @@ const staticSourceDefinitions = {
     endpoint: "enterprise-values",
     params: { limit: "8", period: "quarter" },
   },
-  insiderStatistics: {
-    endpoint: "insider-trading/statistics",
-    params: {},
-  },
-  insiderTrades: {
-    endpoint: "insider-trading/search",
-    params: { limit: "20", page: "0" },
-  },
   sharesFloat: {
     endpoint: "shares-float",
     params: {},

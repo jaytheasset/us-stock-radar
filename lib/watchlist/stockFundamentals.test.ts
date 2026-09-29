@@ -33,8 +33,6 @@ function sources(
     enterpriseValues: ready([]),
     incomeAnnual: ready([]),
     incomeQuarterly: ready([]),
-    insiderStatistics: ready([]),
-    insiderTrades: ready([]),
     institutionalHolders: unavailable(),
     institutionalSummary: unavailable(),
     sharesFloat: ready([]),
@@ -237,7 +235,7 @@ test("normalizes issuance and repurchase magnitudes before net supply math", () 
   });
 });
 
-test("stock-detail FMP request is ownership-only and never requests financial statements", async () => {
+test("stock-detail FMP request omits financial statements and insider transactions", async () => {
   const requestedUrls: string[] = [];
   const seenApiKeys: string[] = [];
   const fetchImpl = async (
@@ -273,6 +271,8 @@ test("stock-detail FMP request is ownership-only and never requests financial st
   assert.equal(snapshot.sources.cashFlow.state, "unavailable");
   assert.equal(snapshot.sources.beneficialOwnership.state, "empty");
   assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
+  assert.equal("trades" in snapshot.ownership, false);
+  assert.equal("statistics" in snapshot.ownership, false);
   assert.equal(snapshot.sources.sharesHistory.state, "ready");
   assert.equal(snapshot.sources.splits.state, "ready");
   assert.equal(snapshot.financials.quarters.length, 0);
@@ -280,6 +280,7 @@ test("stock-detail FMP request is ownership-only and never requests financial st
   assert.equal(requestedUrls.some((url) => url.includes("/income-statement?")), false);
   assert.equal(requestedUrls.some((url) => url.includes("/balance-sheet-statement?")), false);
   assert.equal(requestedUrls.some((url) => url.includes("/cash-flow-statement?")), false);
+  assert.equal(requestedUrls.some((url) => url.includes("/insider-trading/")), false);
   assert.ok(requestedUrls.every((url) => !url.includes("apikey")));
   assert.ok(seenApiKeys.every((key) => key === "server-only-test-key"));
   const serialized = JSON.stringify(snapshot);

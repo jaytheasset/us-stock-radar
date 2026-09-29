@@ -28,12 +28,9 @@ const SAFE_FIELDS = new Set([
   "ownershipPercent",
   "percentOfClass",
   "period",
-  "reportingName",
   "revenue",
-  "securitiesTransacted",
   "symbol",
   "totalDebt",
-  "transactionType",
 ]);
 
 const args = new Map();
@@ -74,8 +71,6 @@ const definitions = [
   ["sharesFloat", "shares-float", {}],
   ["splits", "splits", {}],
   ["enterpriseValues", "enterprise-values", { period: "quarter", limit: "8" }],
-  ["insiderStatistics", "insider-trading/statistics", {}],
-  ["insiderTrades", "insider-trading/search", { page: "0", limit: "5" }],
   ["beneficialOwnership", "acquisition-of-beneficial-ownership", {}],
   [
     "institutionalSummary",

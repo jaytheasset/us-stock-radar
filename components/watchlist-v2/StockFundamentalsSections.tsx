@@ -3,7 +3,6 @@ import { ChevronRight, ExternalLink, LockKeyhole } from "lucide-react";
 import {
   type StockFundamentalsSnapshot,
   type StockFundamentalsSourceKey,
-  type StockInsiderTrade,
 } from "@/lib/watchlist/stockFundamentals";
 import type {
   StockSc13FilingEvidence,
@@ -303,14 +302,10 @@ function OwnershipSection({
   secForm4LoadState: FundamentalsLoadState;
   secForm4Transactions: StockForm4Transaction[];
 }) {
-  const statistic = snapshot?.ownership.statistics[0] ?? null;
-  const trades = snapshot?.ownership.trades ?? [];
   const institutionalSummary = snapshot?.ownership.institutionalSummary ?? null;
   const institutionalHolders = snapshot?.ownership.institutionalHolders ?? [];
   const hasOwnershipData =
-    Boolean(statistic) ||
     Boolean(institutionalSummary) ||
-    trades.length > 0 ||
     institutionalHolders.length > 0 ||
     secForm4Transactions.length > 0 ||
     events.length > 0 ||
@@ -329,18 +324,8 @@ function OwnershipSection({
     );
   }
 
-  const totalAcquired = statistic?.totalAcquired ?? null;
-  const totalDisposed = statistic?.totalDisposed ?? null;
-  const netInsiderShares =
-    totalAcquired === null || totalDisposed === null
-      ? null
-      : totalAcquired - totalDisposed;
   const ownershipUnavailable = snapshot
-    ? getUnavailableSources(snapshot, [
-        "insiderStatistics",
-        "insiderTrades",
-        "institutionalOwnership",
-      ])
+    ? getUnavailableSources(snapshot, ["institutionalOwnership"])
     : [];
 
   return (
@@ -350,11 +335,7 @@ function OwnershipSection({
       id="watchlist-ownership"
     >
       <DataSectionHeader
-        asOf={
-          statistic
-            ? `Insider statistics · Q${statistic.quarter} ${statistic.year}`
-            : "Provider and stored SEC filings"
-        }
+        asOf="Stored SEC filings and provider institutional data"
         id="watchlist-ownership-title"
         number="03"
         title="Ownership"
@@ -362,29 +343,6 @@ function OwnershipSection({
       {ownershipUnavailable.length ? (
         <SourceNotice sources={ownershipUnavailable} />
       ) : null}
-      <dl className={styles.ownershipSummaryStrip}>
-        <Metric
-          label="Insider acquired"
-          value={formatShares(totalAcquired)}
-        />
-        <Metric
-          label="Insider disposed"
-          value={formatShares(totalDisposed)}
-        />
-        <Metric
-          label="Insider net"
-          value={formatSignedShares(netInsiderShares)}
-        />
-        <Metric
-          label="Purchase transactions"
-          value={formatInteger(statistic?.totalPurchases)}
-        />
-        <Metric
-          label="Sale transactions"
-          value={formatInteger(statistic?.totalSales)}
-        />
-      </dl>
-
       <div className={styles.ownershipOverview}>
         <section
           aria-labelledby="watchlist-ownership-changes"
@@ -392,20 +350,24 @@ function OwnershipSection({
         >
           <div className={styles.ownershipSubheader}>
             <h3 id="watchlist-ownership-changes">
-              Recent insider activity
+              SEC Form 4 insider transactions
             </h3>
-            <p>Reported transactions, not an estimate of total ownership</p>
+            <p>Recent stored transactions, not an estimate of total ownership</p>
           </div>
           <div className={styles.ownershipChangeList}>
-            {trades.slice(0, 3).map((trade, index) => (
-              <InsiderActivity
-                key={`${insiderTradeKey(trade)}-${index}`}
-                trade={trade}
+            {secForm4Transactions.slice(0, 3).map((transaction) => (
+              <Form4InsiderActivity
+                key={`${transaction.eventId}:${transaction.transactionIndex}`}
+                transaction={transaction}
               />
             ))}
-            {!trades.length ? (
+            {!secForm4Transactions.length ? (
               <p className={styles.methodNote}>
-                No insider transaction rows were returned.
+                {secForm4LoadState === "loading" || secForm4LoadState === "idle"
+                  ? "Loading stored SEC Form 4 transactions."
+                  : secForm4LoadState === "unavailable"
+                    ? "Stored SEC Form 4 transactions are temporarily unavailable."
+                    : "No stored SEC Form 4 transactions are available."}
               </p>
             ) : null}
           </div>
@@ -431,103 +393,24 @@ function OwnershipSection({
         )}
       </div>
 
-      {(secForm4Transactions.length > 0 || secForm4LoadState === "unavailable") ? (
-        <details className={styles.ownershipDisclosure} open={secForm4Transactions.length > 0}>
+      {secForm4Transactions.length > 3 ? (
+        <details className={styles.ownershipDisclosure}>
           <DisclosureSummary
             detail={`${secForm4Transactions.length} recent stored transaction${secForm4Transactions.length === 1 ? "" : "s"}`}
-            title="SEC Form 4 insider transactions"
+            title="All recent SEC Form 4 transactions"
           />
           <div className={styles.ownershipDisclosureBody}>
-            {secForm4LoadState === "unavailable" ? (
-              <p className={styles.methodNote}>Stored SEC Form 4 transactions are temporarily unavailable.</p>
-            ) : (
-              <div className={styles.ownershipChangeList}>
-                {secForm4Transactions.map((transaction) => (
-                  <article key={`${transaction.eventId}:${transaction.transactionIndex}`}>
-                    <time className={styles.ownershipFilingDate} dateTime={transaction.transactionDate ?? transaction.filedAt}>
-                      <span>{formatDateShort(transaction.transactionDate ?? transaction.filedAt)}</span>
-                      <small>Form {transaction.filingForm}</small>
-                    </time>
-                    <span className={styles.ownershipFilingBadge}>{transaction.transactionCode ?? "TRADE"}</span>
-                    <div>
-                      <strong>{transaction.securityTitle ?? "Security not specified"} · {formatInteger(transaction.shares)}</strong>
-                      <p>{formatPrice(transaction.pricePerShare)} per share · Transaction {formatDate(transaction.transactionDate)} · Filed {formatDate(transaction.filedAt)}</p>
-                      <p>
-                        Reporting owners: {transaction.reportingOwners.map((owner, index) => (
-                          <span key={`${owner.name}:${index}`}>
-                            {index > 0 ? "; " : ""}{owner.name}
-                            {owner.relation ? ` · ${owner.relation === "direct" ? "Direct" : "Indirect"}` : ""}
-                            {owner.relation && owner.footnoteIds.length ? ` (${owner.footnoteIds.join(", ")})` : ""}
-                          </span>
-                        ))}
-                      </p>
-                      <p><Link href={`/filings/${transaction.eventId}`}>View filing and source</Link></p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+            <div className={styles.ownershipChangeList}>
+              {secForm4Transactions.map((transaction) => (
+                <Form4InsiderActivity
+                  key={`${transaction.eventId}:${transaction.transactionIndex}`}
+                  transaction={transaction}
+                />
+              ))}
+            </div>
           </div>
         </details>
       ) : null}
-
-      <details className={styles.ownershipDisclosure}>
-        <DisclosureSummary
-          detail={`${trades.length} recent reported transactions`}
-          title="Provider insider transaction history"
-        />
-        <div className={styles.ownershipDisclosureBody}>
-          <div
-            aria-label="Recent reported insider transactions"
-            className={styles.dilutionEventTable}
-            role="table"
-          >
-            <div className={styles.dilutionEventHeader} role="row">
-              <span role="columnheader">Filed</span>
-              <span role="columnheader">Form</span>
-              <span role="columnheader">Insider / transaction</span>
-              <span role="columnheader">Shares</span>
-              <span role="columnheader">Price</span>
-            </div>
-            {trades.map((trade, index) => (
-              <div
-                className={styles.dilutionEventRow}
-                key={`${insiderTradeKey(trade)}-${index}`}
-                role="row"
-              >
-                <time data-label="Filed" dateTime={trade.filingDate} role="cell">
-                  {formatDateShort(trade.filingDate)}
-                </time>
-                <span
-                  className={styles.dilutionForm}
-                  data-label="Form"
-                  role="cell"
-                >
-                  {trade.formType || "—"}
-                </span>
-                <div className={styles.dilutionEventDetail} role="cell">
-                  <strong>{trade.reportingName}</strong>
-                  <small>{formatTransactionType(trade.transactionType)}</small>
-                </div>
-                <span
-                  className={styles.dilutionEffect}
-                  data-label="Shares"
-                  role="cell"
-                >
-                  {formatShares(trade.securitiesTransacted)}
-                </span>
-                <span
-                  className={styles.dilutionEventStatus}
-                  data-label="Price"
-                  role="cell"
-                >
-                  {formatPrice(trade.price)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </details>
 
       {institutionalHolders.length ? (
         <details className={styles.ownershipDisclosure}>
@@ -1256,23 +1139,27 @@ function Metric({
   );
 }
 
-function InsiderActivity({ trade }: { trade: StockInsiderTrade }) {
+function Form4InsiderActivity({ transaction }: { transaction: StockForm4Transaction }) {
   return (
     <article>
-      <time className={styles.ownershipFilingDate} dateTime={trade.filingDate}>
-        <span>{formatDateShort(trade.filingDate)}</span>
-        <small>{trade.formType || "Filing"}</small>
+      <time className={styles.ownershipFilingDate} dateTime={transaction.transactionDate ?? transaction.filedAt}>
+        <span>{formatDateShort(transaction.transactionDate ?? transaction.filedAt)}</span>
+        <small>Form {transaction.filingForm}</small>
       </time>
-      <span className={styles.ownershipFilingBadge}>
-        {trade.transactionType || "TRADE"}
-      </span>
+      <span className={styles.ownershipFilingBadge}>{transaction.transactionCode ?? "TRADE"}</span>
       <div>
-        <strong>{trade.reportingName}</strong>
+        <strong>{transaction.securityTitle ?? "Security not specified"} · {formatInteger(transaction.shares)}</strong>
+        <p>{formatPrice(transaction.pricePerShare)} per share · Transaction {formatDate(transaction.transactionDate)} · Filed {formatDate(transaction.filedAt)}</p>
         <p>
-          {formatShares(trade.securitiesTransacted)} ·{" "}
-          {formatTransactionType(trade.transactionType)} ·{" "}
-          {formatPrice(trade.price)}
+          Reporting owners: {transaction.reportingOwners.map((owner, index) => (
+            <span key={`${owner.name}:${index}`}>
+              {index > 0 ? "; " : ""}{owner.name}
+              {owner.relation ? ` · ${owner.relation === "direct" ? "Direct" : "Indirect"}` : ""}
+              {owner.relation && owner.footnoteIds.length ? ` (${owner.footnoteIds.join(", ")})` : ""}
+            </span>
+          ))}
         </p>
+        <p><Link href={`/filings/${transaction.eventId}`}>View filing and source</Link></p>
       </div>
     </article>
   );
@@ -1392,8 +1279,6 @@ function formatSourceName(source: StockFundamentalsSourceKey) {
     beneficialOwnership: "beneficial ownership",
     cashFlow: "cash flow",
     incomeStatement: "income statement",
-    insiderStatistics: "insider statistics",
-    insiderTrades: "insider trades",
     institutionalOwnership: "institutional ownership",
     sharesFloat: "share float",
     sharesHistory: "shares outstanding history",
@@ -1669,21 +1554,8 @@ function formatPrice(value: number | null | undefined) {
   }).format(value);
 }
 
-function formatTransactionType(value: string) {
-  return value ? value.replace(/[-_]+/g, " ") : "Transaction type unavailable";
-}
-
 function changeToneClass(value: string) {
   if (value.startsWith("+")) return styles.positive;
   if (value.startsWith("-") || value.startsWith("−")) return styles.negative;
   return undefined;
-}
-
-function insiderTradeKey(trade: StockInsiderTrade) {
-  return [
-    trade.filingDate,
-    trade.reportingName,
-    trade.transactionType,
-    trade.securitiesTransacted,
-  ].join("-");
 }

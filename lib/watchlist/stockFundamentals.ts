@@ -17,8 +17,6 @@ export type StockFundamentalsSourceKey =
   | "sharesFloat"
   | "sharesHistory"
   | "splits"
-  | "insiderStatistics"
-  | "insiderTrades"
   | "beneficialOwnership"
   | "institutionalOwnership";
 
@@ -47,30 +45,6 @@ export type StockFinancialPeriod = {
 };
 
 export type StockFinancialQuarter = StockFinancialPeriod;
-
-export type StockInsiderStatistic = {
-  acquiredTransactions: number | null;
-  disposedTransactions: number | null;
-  quarter: number;
-  totalAcquired: number | null;
-  totalDisposed: number | null;
-  totalPurchases: number | null;
-  totalSales: number | null;
-  year: number;
-};
-
-export type StockInsiderTrade = {
-  filingDate: string;
-  formType: string;
-  link: string;
-  price: number | null;
-  reportingName: string;
-  securitiesOwned: number | null;
-  securitiesTransacted: number | null;
-  transactionDate: string;
-  transactionType: string;
-  typeOfOwner: string;
-};
 
 export type StockSharesFloat = {
   asOf: string;
@@ -134,8 +108,6 @@ export type StockFundamentalsSnapshot = {
     institutionalHolders: StockInstitutionalHolder[];
     institutionalSummary: StockInstitutionalSummary | null;
     reportedBeneficialOwners: StockBeneficialOwnershipFiling[];
-    statistics: StockInsiderStatistic[];
-    trades: StockInsiderTrade[];
   };
   shareHistory: StockShareHistoryPoint[];
   sharesFloat: StockSharesFloat | null;
@@ -160,8 +132,6 @@ export type StockFundamentalsProviderSources = {
   enterpriseValues: StockFundamentalsProviderResult;
   incomeAnnual: StockFundamentalsProviderResult;
   incomeQuarterly: StockFundamentalsProviderResult;
-  insiderStatistics: StockFundamentalsProviderResult;
-  insiderTrades: StockFundamentalsProviderResult;
   institutionalHolders: StockFundamentalsProviderResult;
   institutionalSummary: StockFundamentalsProviderResult;
   sharesFloat: StockFundamentalsProviderResult;
@@ -183,8 +153,6 @@ export function normalizeStockFundamentals(
   const enterpriseRows = readRows(providerSources.enterpriseValues.data);
   const sharesFloatRows = readRows(providerSources.sharesFloat.data);
   const splitRows = readRows(providerSources.splits.data);
-  const statisticRows = readRows(providerSources.insiderStatistics.data);
-  const tradeRows = readRows(providerSources.insiderTrades.data);
   const institutionalSummaryRows = readRows(providerSources.institutionalSummary.data);
   const institutionalHolderRows = readRows(providerSources.institutionalHolders.data);
 
@@ -200,53 +168,6 @@ export function normalizeStockFundamentals(
     cashAnnualRows,
     5,
   );
-
-  const statistics = statisticRows
-    .map((row) => {
-      const year = readInteger(row, "year");
-      const quarter = readInteger(row, "quarter");
-      if (year === null || quarter === null || quarter < 1 || quarter > 4) {
-        return null;
-      }
-      return {
-        acquiredTransactions: readNumber(row, "acquiredTransactions"),
-        disposedTransactions: readNumber(row, "disposedTransactions"),
-        quarter,
-        totalAcquired: readNumber(row, "totalAcquired"),
-        totalDisposed: readNumber(row, "totalDisposed"),
-        totalPurchases: readNumber(row, "totalPurchases"),
-        totalSales: readNumber(row, "totalSales"),
-        year,
-      } satisfies StockInsiderStatistic;
-    })
-    .filter((row): row is StockInsiderStatistic => Boolean(row))
-    .sort(
-      (left, right) =>
-        right.year * 10 + right.quarter - (left.year * 10 + left.quarter),
-    )
-    .slice(0, 8);
-
-  const trades = tradeRows
-    .map((row) => {
-      const filingDate = readString(row, "filingDate");
-      const reportingName = readString(row, "reportingName");
-      if (!filingDate || !reportingName) return null;
-      return {
-        filingDate,
-        formType: readString(row, "formType"),
-        link: safeHttpUrl(readString(row, "link")),
-        price: readNumber(row, "price"),
-        reportingName,
-        securitiesOwned: readNumber(row, "securitiesOwned"),
-        securitiesTransacted: readNumber(row, "securitiesTransacted"),
-        transactionDate: readString(row, "transactionDate"),
-        transactionType: readString(row, "transactionType"),
-        typeOfOwner: readString(row, "typeOfOwner"),
-      } satisfies StockInsiderTrade;
-    })
-    .filter((row): row is StockInsiderTrade => Boolean(row))
-    .sort((left, right) => right.filingDate.localeCompare(left.filingDate))
-    .slice(0, 20);
 
   const beneficialFilings = beneficialRows
     .map((row) => {
@@ -345,8 +266,6 @@ export function normalizeStockFundamentals(
       institutionalHolders,
       institutionalSummary,
       reportedBeneficialOwners,
-      statistics,
-      trades,
     },
     shareHistory,
     sharesFloat,
@@ -366,14 +285,6 @@ export function normalizeStockFundamentals(
       incomeStatement: combinedSourceStatus(
         [providerSources.incomeQuarterly, providerSources.incomeAnnual],
         incomeQuarterlyRows.length + incomeAnnualRows.length,
-      ),
-      insiderStatistics: sourceStatus(
-        providerSources.insiderStatistics.state,
-        statistics.length,
-      ),
-      insiderTrades: sourceStatus(
-        providerSources.insiderTrades.state,
-        trades.length,
       ),
       institutionalOwnership: combinedSourceStatus(
         [providerSources.institutionalSummary, providerSources.institutionalHolders],

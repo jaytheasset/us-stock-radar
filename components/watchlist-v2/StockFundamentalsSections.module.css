@@ -473,37 +473,6 @@
   line-height: var(--sr-line-height-default);
 }
 
-.ownershipSummaryStrip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 0;
-  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-}
-
-.ownershipSummaryStrip > div {
-  display: grid;
-  min-width: 0;
-  gap: var(--sr-space-1);
-  padding: var(--sr-space-3) var(--sr-space-4);
-}
-
-.ownershipSummaryStrip dt {
-  color: var(--sr-color-text-muted);
-  font-size: var(--sr-font-size-xs);
-  font-weight: var(--sr-font-weight-semibold);
-}
-
-.ownershipSummaryStrip dd {
-  overflow: hidden;
-  margin: 0;
-  color: var(--sr-color-text-strong);
-  font-size: var(--sr-font-size-md);
-  font-variant-numeric: var(--sr-font-variant-numeric);
-  font-weight: var(--sr-font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .ownershipOverview {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.55fr);
@@ -1614,19 +1583,6 @@
     font-size: var(--sr-font-size-xs);
   }
 
-  .ownershipSummaryStrip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ownershipSummaryStrip > div {
-    border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
-    padding: var(--sr-space-3) 0;
-  }
-
-  .ownershipSummaryStrip > div:nth-child(2n) {
-    padding-left: var(--sr-space-3);
-  }
-
   .ownershipOverview {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sr-space-4);
@@ -1867,7 +1823,6 @@
   .keyFundamentalsHeading span,
   .earningsComparisonRow > span::before,
   .financialRow span::before,
-  .ownershipSummaryStrip dt,
   .ownershipFilingBadge,
   .ownershipTableRow span::before,
   .dilutionSummary dt,
@@ -1902,7 +1857,6 @@
   }
 
   .keyFundamentals dd,
-  .ownershipSummaryStrip dd,
   .dilutionSummary dd {
     font-size: var(--sr-font-size-lg-plus);
   }
