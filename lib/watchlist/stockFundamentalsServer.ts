@@ -12,25 +12,6 @@ const PLAN_CACHE_SECONDS = 24 * 60 * 60;
 const FAILURE_CACHE_SECONDS = 10 * 60;
 const CACHE_TABLE = "stock_fundamentals_provider_cache";
 
-const staticSourceDefinitions = {
-  beneficialOwnership: {
-    endpoint: "acquisition-of-beneficial-ownership",
-    params: {},
-  },
-  enterpriseValues: {
-    endpoint: "enterprise-values",
-    params: { limit: "8", period: "quarter" },
-  },
-  sharesFloat: {
-    endpoint: "shares-float",
-    params: {},
-  },
-  splits: {
-    endpoint: "splits",
-    params: {},
-  },
-} as const;
-
 type SourceKey = keyof StockFundamentalsProviderSources;
 type OwnershipSourceKey = Exclude<
   SourceKey,
@@ -121,7 +102,6 @@ export async function fetchStockFundamentals(
 function buildSourceDefinitions(now: Date): Record<OwnershipSourceKey, SourceDefinition> {
   const { quarter, year } = latestCompletedQuarter(now);
   return {
-    ...staticSourceDefinitions,
     institutionalHolders: {
       endpoint: "institutional-ownership/extract-analytics/holder",
       params: {

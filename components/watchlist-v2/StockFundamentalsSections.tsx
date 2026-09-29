@@ -1276,13 +1276,9 @@ function getUnavailableSources(
 function formatSourceName(source: StockFundamentalsSourceKey) {
   const names: Record<StockFundamentalsSourceKey, string> = {
     balanceSheet: "balance sheet",
-    beneficialOwnership: "beneficial ownership",
     cashFlow: "cash flow",
     incomeStatement: "income statement",
     institutionalOwnership: "institutional ownership",
-    sharesFloat: "share float",
-    sharesHistory: "shares outstanding history",
-    splits: "stock splits",
   };
   return names[source];
 }

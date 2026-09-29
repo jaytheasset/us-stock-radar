@@ -14,10 +14,6 @@ export type StockFundamentalsSourceKey =
   | "incomeStatement"
   | "balanceSheet"
   | "cashFlow"
-  | "sharesFloat"
-  | "sharesHistory"
-  | "splits"
-  | "beneficialOwnership"
   | "institutionalOwnership";
 
 export type StockFinancialPeriod = {
@@ -45,34 +41,6 @@ export type StockFinancialPeriod = {
 };
 
 export type StockFinancialQuarter = StockFinancialPeriod;
-
-export type StockSharesFloat = {
-  asOf: string;
-  floatShares: number | null;
-  freeFloat: number | null;
-  outstandingShares: number | null;
-};
-
-export type StockShareHistoryPoint = {
-  date: string;
-  shares: number;
-};
-
-export type StockSplit = {
-  date: string;
-  denominator: number;
-  numerator: number;
-};
-
-export type StockBeneficialOwnershipFiling = {
-  acceptedDate: string;
-  amountBeneficiallyOwned: number | null;
-  filingDate: string;
-  nameOfReportingPerson: string;
-  percentOfClass: number | null;
-  typeOfReportingPerson: string;
-  url: string;
-};
 
 export type StockInstitutionalSummary = {
   asOf: string;
@@ -104,15 +72,10 @@ export type StockFundamentalsSnapshot = {
     quarters: StockFinancialQuarter[];
   };
   ownership: {
-    beneficialFilings: StockBeneficialOwnershipFiling[];
     institutionalHolders: StockInstitutionalHolder[];
     institutionalSummary: StockInstitutionalSummary | null;
-    reportedBeneficialOwners: StockBeneficialOwnershipFiling[];
   };
-  shareHistory: StockShareHistoryPoint[];
-  sharesFloat: StockSharesFloat | null;
   sources: Record<StockFundamentalsSourceKey, StockFundamentalsSourceStatus>;
-  splits: StockSplit[];
   symbol: string;
 };
 
@@ -126,16 +89,12 @@ export type StockFundamentalsProviderResult = {
 export type StockFundamentalsProviderSources = {
   balanceAnnual: StockFundamentalsProviderResult;
   balanceQuarterly: StockFundamentalsProviderResult;
-  beneficialOwnership: StockFundamentalsProviderResult;
   cashAnnual: StockFundamentalsProviderResult;
   cashQuarterly: StockFundamentalsProviderResult;
-  enterpriseValues: StockFundamentalsProviderResult;
   incomeAnnual: StockFundamentalsProviderResult;
   incomeQuarterly: StockFundamentalsProviderResult;
   institutionalHolders: StockFundamentalsProviderResult;
   institutionalSummary: StockFundamentalsProviderResult;
-  sharesFloat: StockFundamentalsProviderResult;
-  splits: StockFundamentalsProviderResult;
 };
 
 export function normalizeStockFundamentals(
@@ -149,10 +108,6 @@ export function normalizeStockFundamentals(
   const incomeAnnualRows = readRows(providerSources.incomeAnnual.data);
   const balanceAnnualRows = readRows(providerSources.balanceAnnual.data);
   const cashAnnualRows = readRows(providerSources.cashAnnual.data);
-  const beneficialRows = readRows(providerSources.beneficialOwnership.data);
-  const enterpriseRows = readRows(providerSources.enterpriseValues.data);
-  const sharesFloatRows = readRows(providerSources.sharesFloat.data);
-  const splitRows = readRows(providerSources.splits.data);
   const institutionalSummaryRows = readRows(providerSources.institutionalSummary.data);
   const institutionalHolderRows = readRows(providerSources.institutionalHolders.data);
 
@@ -169,87 +124,6 @@ export function normalizeStockFundamentals(
     5,
   );
 
-  const beneficialFilings = beneficialRows
-    .map((row) => {
-      const filingDate = readString(row, "filingDate");
-      const nameOfReportingPerson = readString(row, "nameOfReportingPerson");
-      if (!filingDate || !nameOfReportingPerson) return null;
-      return {
-        acceptedDate: readString(row, "acceptedDate"),
-        amountBeneficiallyOwned: readNumber(row, "amountBeneficiallyOwned"),
-        filingDate,
-        nameOfReportingPerson,
-        percentOfClass: readNumber(row, "percentOfClass"),
-        typeOfReportingPerson: readString(row, "typeOfReportingPerson"),
-        url: safeHttpUrl(readString(row, "url")),
-      } satisfies StockBeneficialOwnershipFiling;
-    })
-    .filter((row): row is StockBeneficialOwnershipFiling => Boolean(row))
-    .sort(
-      (left, right) =>
-        (right.acceptedDate || right.filingDate).localeCompare(
-          left.acceptedDate || left.filingDate,
-        ),
-    )
-    .slice(0, 50);
-
-  const latestBeneficialFilingByOwner = new Map<
-    string,
-    StockBeneficialOwnershipFiling
-  >();
-  for (const filing of beneficialFilings) {
-    const ownerKey = normalizeOwnerName(filing.nameOfReportingPerson);
-    if (ownerKey && !latestBeneficialFilingByOwner.has(ownerKey)) {
-      latestBeneficialFilingByOwner.set(ownerKey, filing);
-    }
-  }
-  const reportedBeneficialOwners = [...latestBeneficialFilingByOwner.values()]
-    .filter(
-      (filing) =>
-        (filing.amountBeneficiallyOwned ?? 0) > 0 &&
-        (filing.percentOfClass ?? 0) > 0,
-    )
-    .sort(
-      (left, right) =>
-        (right.acceptedDate || right.filingDate).localeCompare(
-          left.acceptedDate || left.filingDate,
-        ),
-    );
-
-  const sharesFloatRow = sharesFloatRows[0] ?? null;
-  const sharesFloat = sharesFloatRow
-    ? {
-        asOf: readString(sharesFloatRow, "date"),
-        floatShares: readNumber(sharesFloatRow, "floatShares"),
-        freeFloat: readNumber(sharesFloatRow, "freeFloat"),
-        outstandingShares: readNumber(sharesFloatRow, "outstandingShares"),
-      }
-    : null;
-
-  const shareHistory = enterpriseRows
-    .map((row) => {
-      const date = readString(row, "date");
-      const shares = readNumber(row, "numberOfShares");
-      return date && shares !== null && shares > 0 ? { date, shares } : null;
-    })
-    .filter((row): row is StockShareHistoryPoint => Boolean(row))
-    .sort((left, right) => right.date.localeCompare(left.date))
-    .slice(0, 8);
-
-  const splits = splitRows
-    .map((row) => {
-      const date = readString(row, "date");
-      const numerator = readNumber(row, "numerator");
-      const denominator = readNumber(row, "denominator");
-      if (!date || numerator === null || denominator === null || numerator <= 0 || denominator <= 0) {
-        return null;
-      }
-      return { date, denominator, numerator } satisfies StockSplit;
-    })
-    .filter((row): row is StockSplit => Boolean(row))
-    .sort((left, right) => right.date.localeCompare(left.date))
-    .slice(0, 12);
-
   const institutionalSummary = normalizeInstitutionalSummary(
     institutionalSummaryRows[0] ?? null,
   );
@@ -262,21 +136,13 @@ export function normalizeStockFundamentals(
     fetchedAt,
     financials: { annuals, quarters },
     ownership: {
-      beneficialFilings,
       institutionalHolders,
       institutionalSummary,
-      reportedBeneficialOwners,
     },
-    shareHistory,
-    sharesFloat,
     sources: {
       balanceSheet: combinedSourceStatus(
         [providerSources.balanceQuarterly, providerSources.balanceAnnual],
         balanceQuarterlyRows.length + balanceAnnualRows.length,
-      ),
-      beneficialOwnership: sourceStatus(
-        providerSources.beneficialOwnership.state,
-        beneficialFilings.length,
       ),
       cashFlow: combinedSourceStatus(
         [providerSources.cashQuarterly, providerSources.cashAnnual],
@@ -290,17 +156,7 @@ export function normalizeStockFundamentals(
         [providerSources.institutionalSummary, providerSources.institutionalHolders],
         (institutionalSummary ? 1 : 0) + institutionalHolders.length,
       ),
-      sharesFloat: sourceStatus(
-        providerSources.sharesFloat.state,
-        sharesFloat ? 1 : 0,
-      ),
-      sharesHistory: sourceStatus(
-        providerSources.enterpriseValues.state,
-        shareHistory.length,
-      ),
-      splits: sourceStatus(providerSources.splits.state, splits.length),
     },
-    splits,
     symbol: normalizeSymbol(symbol),
   };
 }
@@ -609,20 +465,6 @@ function readIntegerAny(row: Record<string, unknown>, keys: readonly string[]) {
   return null;
 }
 
-function safeHttpUrl(value: string) {
-  if (!value) return "";
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
-  } catch {
-    return "";
-  }
-}
-
 function normalizeSymbol(value: string) {
   return value.trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 12);
-}
-
-function normalizeOwnerName(value: string) {
-  return value.trim().toLocaleUpperCase("en-US").replace(/\s+/g, " ");
 }

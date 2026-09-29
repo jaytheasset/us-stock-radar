@@ -27,21 +27,17 @@ function sources(
   return {
     balanceAnnual: ready([]),
     balanceQuarterly: ready([]),
-    beneficialOwnership: ready([]),
     cashAnnual: ready([]),
     cashQuarterly: ready([]),
-    enterpriseValues: ready([]),
     incomeAnnual: ready([]),
     incomeQuarterly: ready([]),
     institutionalHolders: unavailable(),
     institutionalSummary: unavailable(),
-    sharesFloat: ready([]),
-    splits: ready([]),
     ...overrides,
   };
 }
 
-test("normalizes quarterly and annual statements plus verified share structure", () => {
+test("normalizes quarterly and annual statements while retaining institutional ownership status", () => {
   const snapshot = normalizeStockFundamentals(
     "amd",
     sources({
@@ -67,33 +63,6 @@ test("normalizes quarterly and annual statements plus verified share structure",
           totalStockholdersEquity: 64_462,
         },
       ]),
-      beneficialOwnership: ready([
-        {
-          acceptedDate: "2026-04-29 12:00:00",
-          amountBeneficiallyOwned: 122_092_206,
-          filingDate: "2026-04-29",
-          nameOfReportingPerson: "Vanguard Capital Management",
-          percentOfClass: 7.48,
-          typeOfReportingPerson: "IA",
-          url: "https://www.sec.gov/Archives/example.xml",
-        },
-        {
-          acceptedDate: "2026-05-01 12:00:00",
-          amountBeneficiallyOwned: 0,
-          filingDate: "2026-05-01",
-          nameOfReportingPerson: "Exited Holder",
-          percentOfClass: 0,
-          url: "javascript:alert(1)",
-        },
-        {
-          acceptedDate: "2026-04-01 12:00:00",
-          amountBeneficiallyOwned: 8_000_000,
-          filingDate: "2026-04-01",
-          nameOfReportingPerson: "Exited Holder",
-          percentOfClass: 5.1,
-          url: "https://www.sec.gov/Archives/older.xml",
-        },
-      ]),
       cashAnnual: ready([
         {
           date: "2025-12-27",
@@ -113,10 +82,6 @@ test("normalizes quarterly and annual statements plus verified share structure",
           period: "Q1",
           stockBasedCompensation: 487,
         },
-      ]),
-      enterpriseValues: ready([
-        { date: "2026-03-28", numberOfShares: 1_650_000_000 },
-        { date: "2025-12-27", numberOfShares: 1_625_000_000 },
       ]),
       incomeAnnual: ready([
         {
@@ -154,16 +119,20 @@ test("normalizes quarterly and annual statements plus verified share structure",
           weightedAverageShsOutDil: 1_626,
         },
       ]),
-      sharesFloat: ready([
+      institutionalHolders: ready([
         {
-          date: "2026-07-29 10:56:42",
-          floatShares: 1_621_991_068,
-          freeFloat: 99.472039,
-          outstandingShares: 1_630_600_000,
+          date: "2026-03-31",
+          holder: "Reported Manager",
+          sharesNumber: 125_000,
         },
       ]),
-      splits: ready([
-        { date: "2000-08-22", denominator: 1, numerator: 2 },
+      institutionalSummary: ready([
+        {
+          investorsHolding: 42,
+          ownershipPercent: 12.5,
+          quarter: 1,
+          year: 2026,
+        },
       ]),
     }),
     "2026-07-31T00:00:00.000Z",
@@ -174,22 +143,9 @@ test("normalizes quarterly and annual statements plus verified share structure",
   assert.equal(snapshot.financials.quarters[0]?.commonStockRepurchased, 221);
   assert.equal(snapshot.financials.annuals[0]?.operatingCashFlow, 6_000);
   assert.equal(snapshot.financials.annuals[0]?.reportedCurrency, "USD");
-  assert.equal(snapshot.sharesFloat?.outstandingShares, 1_630_600_000);
-  assert.equal(snapshot.shareHistory[0]?.shares, 1_650_000_000);
-  assert.deepEqual(snapshot.splits[0], {
-    date: "2000-08-22",
-    denominator: 1,
-    numerator: 2,
-  });
-  assert.equal(snapshot.ownership.beneficialFilings.length, 3);
-  assert.equal(snapshot.ownership.beneficialFilings[0]?.url, "");
-  assert.deepEqual(
-    snapshot.ownership.reportedBeneficialOwners.map(
-      (owner) => owner.nameOfReportingPerson,
-    ),
-    ["Vanguard Capital Management"],
-  );
-  assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
+  assert.equal(snapshot.sources.institutionalOwnership.state, "ready");
+  assert.equal(snapshot.ownership.institutionalSummary?.ownershipPercent, 12.5);
+  assert.equal(snapshot.ownership.institutionalHolders[0]?.shares, 125_000);
   assert.equal(
     findPriorYearQuarter(
       snapshot.financials.quarters,
@@ -235,7 +191,7 @@ test("normalizes issuance and repurchase magnitudes before net supply math", () 
   });
 });
 
-test("stock-detail FMP request omits financial statements and insider transactions", async () => {
+test("stock-detail FMP request fetches only displayed institutional ownership", async () => {
   const requestedUrls: string[] = [];
   const seenApiKeys: string[] = [];
   const fetchImpl = async (
@@ -245,15 +201,6 @@ test("stock-detail FMP request omits financial statements and insider transactio
     const url = String(input);
     requestedUrls.push(url);
     seenApiKeys.push(new Headers(init?.headers).get("apikey") ?? "");
-    if (url.includes("/shares-float?")) {
-      return Response.json([{ outstandingShares: 1_630_600_000 }]);
-    }
-    if (url.includes("/enterprise-values?")) {
-      return Response.json([{ date: "2026-03-28", numberOfShares: 1_650_000_000 }]);
-    }
-    if (url.includes("/splits?")) {
-      return Response.json([{ date: "2000-08-22", denominator: 1, numerator: 2 }]);
-    }
     if (url.includes("/institutional-ownership/")) {
       return new Response("plan details", { status: 403 });
     }
@@ -269,18 +216,22 @@ test("stock-detail FMP request omits financial statements and insider transactio
   assert.equal(snapshot.sources.incomeStatement.state, "unavailable");
   assert.equal(snapshot.sources.balanceSheet.state, "unavailable");
   assert.equal(snapshot.sources.cashFlow.state, "unavailable");
-  assert.equal(snapshot.sources.beneficialOwnership.state, "empty");
   assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
   assert.equal("trades" in snapshot.ownership, false);
   assert.equal("statistics" in snapshot.ownership, false);
-  assert.equal(snapshot.sources.sharesHistory.state, "ready");
-  assert.equal(snapshot.sources.splits.state, "ready");
   assert.equal(snapshot.financials.quarters.length, 0);
   assert.equal(snapshot.financials.annuals.length, 0);
   assert.equal(requestedUrls.some((url) => url.includes("/income-statement?")), false);
   assert.equal(requestedUrls.some((url) => url.includes("/balance-sheet-statement?")), false);
   assert.equal(requestedUrls.some((url) => url.includes("/cash-flow-statement?")), false);
   assert.equal(requestedUrls.some((url) => url.includes("/insider-trading/")), false);
+  assert.deepEqual(
+    requestedUrls.map((url) => new URL(url).pathname).sort(),
+    [
+      "/stable/institutional-ownership/extract-analytics/holder",
+      "/stable/institutional-ownership/symbol-positions-summary",
+    ],
+  );
   assert.ok(requestedUrls.every((url) => !url.includes("apikey")));
   assert.ok(seenApiKeys.every((key) => key === "server-only-test-key"));
   const serialized = JSON.stringify(snapshot);
