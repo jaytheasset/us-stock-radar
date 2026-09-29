@@ -24,14 +24,14 @@ const cases = [
   { formType: "144/A", fixture: "form144a-material-increase.json" },
 ] as const;
 
-test("every Ownership form reaches the common LLM branch with parser routing and display input preserved", async () => {
+test("every Ownership form reaches one Gemini call with parser routing and display input preserved", async () => {
   const previewSource = readFileSync(join(here, "secFilingAnalysisPreview.ts"), "utf8");
   const runtimeSource = extractRuntimeFunction(previewSource);
 
   assert.equal(runtimeSource.includes("buildDeterministicOwnershipAnalysis(input)"), false);
   assert.ok(runtimeSource.includes("if (isOwnershipFilingInput(input))"));
-  assert.ok(runtimeSource.includes("buildSecOwnershipAnalysisPrompt(input)"));
-  assert.ok(runtimeSource.includes("runOpenAiJsonPrompt(env, prompt, llmConfig)"));
+  assert.ok(runtimeSource.includes("buildOwnershipOneCallPrompt(input, rawItem)"));
+  assert.ok(runtimeSource.includes("runStructuredGeminiJson({"));
 
   const providerCalls: Array<{ formType: string; prompt: string }> = [];
   const runSecFilingAnalysisForRawRow = compileRuntimeFunction({
@@ -61,7 +61,8 @@ test("every Ownership form reaches the common LLM branch with parser routing and
 
     assert.equal(result.ok, true, item.formType);
     assert.equal(result.openAiResponseId, `mock-llm-${item.formType}`, item.formType);
-    assert.equal(result.prompt.key, "sec_ownership_analysis", item.formType);
+    assert.equal(result.prompt.key, "sec_ownership_one_call", item.formType);
+    assert.deepEqual(result.ownershipStructuredCandidate, { version: "ownership_context_selection_v1", rows: [] });
     assert.equal(result.analysis.event_title, `LLM title for ${item.formType}`, item.formType);
     assert.equal(result.analysis.summary, `LLM summary for ${item.formType}`, item.formType);
     assert.equal(result.analysis.score, 61, item.formType);
@@ -82,8 +83,7 @@ test("every Ownership form reaches the common LLM branch with parser routing and
     cases.map((item) => item.formType),
   );
   for (const call of providerCalls) {
-    assert.ok(call.prompt.includes("You are the final SEC Ownership filing analysis LLM"));
-    assert.ok(call.prompt.includes("preserve each transaction's actual source-backed"));
+    assert.ok(call.prompt.startsWith("form_type:"));
   }
 });
 
@@ -189,10 +189,12 @@ function compileRuntimeFunction({
       resolveSecLlmConfig,
       isS3AmendmentInput,
       isOwnershipFilingInput,
-      buildSecOwnershipAnalysisPrompt,
-      runOpenAiJsonPrompt,
-      buildSecOwnershipValidationRepairPlan,
-      combineUsage,
+      buildOwnershipOneCallPrompt,
+      runStructuredGeminiJson,
+      validateOwnershipOneCallOutput,
+      OWNERSHIP_ONE_CALL_MODEL,
+      OWNERSHIP_ONE_CALL_PROMPT_KEY,
+      OWNERSHIP_ONE_CALL_PROMPT_VERSION,
       adaptOwnershipPromptResultForAnalysis,
       estimateCost,
       summarizeRawRow
@@ -219,7 +221,7 @@ function compileRuntimeFunction({
     evaluateSecInvestableUniverse: () => null,
     buildDeterministicSc13Analysis: () => null,
     buildDeterministicS8ArchiveAnalysis: () => null,
-    getServerEnv: () => ({ openAiModel: "mock-model" }),
+    getServerEnv: () => ({ openAiModel: "mock-model", geminiApiKey: "mock-key" }),
     resolveSecLlmConfig: () => ({
       provider: "openai",
       model: "mock-model",
@@ -228,44 +230,45 @@ function compileRuntimeFunction({
     }),
     isS3AmendmentInput: () => false,
     isOwnershipFilingInput: () => true,
-    buildSecOwnershipAnalysisPrompt: (input: Record<string, any>) => {
-      const parserOutput = input.filing_package.hard_parsers.ownership;
+    buildOwnershipOneCallPrompt: (_input: Record<string, any>, rawItem: { formType: string }) => {
+      const formType = rawItem.formType;
       return {
-        key: "sec_ownership_analysis",
-        version: "v1",
-        system: "mock system",
-        user: buildOwnershipAnalysisPrompt(parserOutput),
-        responseFormat: { json_schema: {} },
+        prompt: { system: "mock system", user: `form_type:${formType}`, responseFormat: { json_schema: {} } },
+        contextPromptSha256: "mock-context-hash",
       };
     },
-    runOpenAiJsonPrompt: async (
-      _env: unknown,
-      prompt: { user: string },
-      _config: unknown,
-    ) => {
-      const formType = cases.find((item) => prompt.user.includes(`\"form_type\": \"${item.formType}\"`))?.formType;
+    runStructuredGeminiJson: async ({ model, prompt, maxOutputTokens }: { model: string; prompt: { user: string }; maxOutputTokens: number }) => {
+      assert.equal(model, "gemini-3.5-flash");
+      assert.equal(maxOutputTokens, 12_000);
+      const formType = prompt.user.replace("form_type:", "");
       assert.ok(formType);
       providerCalls.push({ formType, prompt: prompt.user });
       return {
         ok: true,
+        responseOk: true,
         status: 200,
-        openAiResponseId: `mock-llm-${formType}`,
+        responseId: `mock-llm-${formType}`,
         parsed: {
-          analysis_output: {
+          primary: { analysis_output: {
             event_title: `LLM title for ${formType}`,
             summary: `LLM summary for ${formType}`,
             key_evidence: [`LLM evidence for ${formType}`],
             score: 61,
             signal: "neutral",
-          },
+          } },
+          structured: { version: "ownership_context_selection_v1", rows: [] },
         },
         outputText: "mocked ownership JSON",
         usage: null,
-        rawOpenAIResponse: null,
+        body: null,
       };
     },
-    buildSecOwnershipValidationRepairPlan: () => null,
-    combineUsage: () => null,
+    validateOwnershipOneCallOutput: (value: Record<string, any>) => ({
+      primary: value.primary, structured: value.structured, errors: [],
+    }),
+    OWNERSHIP_ONE_CALL_MODEL: "gemini-3.5-flash",
+    OWNERSHIP_ONE_CALL_PROMPT_KEY: "sec_ownership_one_call",
+    OWNERSHIP_ONE_CALL_PROMPT_VERSION: "ownership_one_call_reliability_date_v1",
     adaptOwnershipPromptResultForAnalysis: (value: Record<string, any>) => ({
       ok: true,
       analysis: value.analysis_output,

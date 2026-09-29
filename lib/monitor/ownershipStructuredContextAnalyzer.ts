@@ -12,6 +12,7 @@ import {
   type OwnershipContextPersistenceRepository,
 } from "./ownershipContextPersistence.ts";
 import { readCurrentOwnershipFacts } from "./ownershipMonitorPersistence.ts";
+import { buildOwnershipParserFactRows } from "./ownershipParserFacts.ts";
 import {
   OWNERSHIP_CONTEXT_VERSION,
   OWNERSHIP_CONTEXT_AI_PROMPT_KEY,
@@ -45,6 +46,8 @@ import {
 } from "./ownershipNeutralSourceBlocks.ts";
 
 type Row = Record<string, unknown>;
+const ONE_CALL_PROMPT_EVENT_ID = "11111111-1111-4111-8111-111111111111";
+const ONE_CALL_PROMPT_FINGERPRINT = `ownership-context-v1:${"a".repeat(64)}`;
 export const OWNERSHIP_CONTEXT_LLM_VERSION = "ownership_context_selection_v1" as const;
 export const OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION = "ownership_context_semantic_v1.2-form4-no-footnote-scopes" as const;
 export const OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION = "ownership_context_selection_wire_v4-form4-no-footnote-scopes" as const;
@@ -144,6 +147,92 @@ export type OwnershipStructuredContextAnalysisResult =
       model?: string;
       validationErrors?: readonly string[];
     }>;
+
+/** Build the same neutral choices before an event exists; no provisional ID is shown to the model. */
+export function buildOwnershipOneCallContextPrompt(rawItem: unknown) {
+  const direct = buildOwnershipParserFactRows({ eventId: ONE_CALL_PROMPT_EVENT_ID, rawItem });
+  const form = direct.formType.startsWith("144") ? "form144" : "form4";
+  const rows = form === "form4" ? direct.form4Transactions : direct.form144ProposedSales;
+  const raw = record(rawItem);
+  const source = verifyOriginalOwnershipSource({
+    rawItem,
+    expectedRawItemId: exactString(raw.id),
+    expectedAccession: direct.accessionNumber,
+    expectedForm: form,
+    rows,
+  });
+  if (!source.ok) throw new Error(source.reason);
+  const inventory = buildOwnershipContextReferenceInventory({
+    eventId: ONE_CALL_PROMPT_EVENT_ID,
+    form,
+    isAmendment: direct.formType.endsWith("/A"),
+    sourceFingerprint: ONE_CALL_PROMPT_FINGERPRINT,
+    rows,
+    sourceXml: source.xml,
+  });
+  const prompt = buildOwnershipStructuredContextPrompt({ source, inventory });
+  return { prompt, promptSha256: sha256Json(prompt) };
+}
+
+/** Bind the one-call selection output only after official rows and fingerprint exist. */
+export async function persistOwnershipOneCallContext(input: Readonly<{
+  eventId: string;
+  rawItem: unknown;
+  candidate: unknown;
+  promptSha256: string;
+  aiRefs: Readonly<{ run_id: string; output_id: string }>;
+  model: string;
+}>, repository?: OwnershipStructuredContextAnalyzerRepository): Promise<OwnershipStructuredContextAnalysisResult> {
+  const resolved = repository ?? await defaultRepository();
+  const current = await readCurrentOwnershipFacts(input.eventId, resolved);
+  if (current.status !== "available" || current.contextEligibility?.status !== "eligible") {
+    const reason = current.status === "not_ready" ? current.reason
+      : current.status === "available" && current.contextEligibility?.status === "ineligible"
+        ? current.contextEligibility.reason : current.status === "available"
+          ? "ownership_context_ineligible" : current.status;
+    return unavailable(input.eventId, "direct_facts", reason);
+  }
+  const source = verifyOriginalOwnershipSource({
+    rawItem: input.rawItem,
+    expectedRawItemId: current.rawItemId,
+    expectedAccession: current.accessionNumber,
+    expectedForm: current.form,
+    rows: current.rows,
+  });
+  if (!source.ok) return unavailable(input.eventId, "source", source.reason);
+  const inventory = current.contextEligibility.inventory;
+  const prompt = buildOwnershipStructuredContextPrompt({ source, inventory });
+  if (sha256Json(prompt) !== input.promptSha256) {
+    return unavailable(input.eventId, "source", "ownership_context_one_call_prompt_inventory_changed");
+  }
+  const mapping = mapOwnershipContextLlmDto({ candidate: input.candidate, source, inventory });
+  if (!mapping.ok) return unavailable(input.eventId, "validation", "ownership_context_llm_dto_invalid", {
+    runId: input.aiRefs.run_id, outputId: input.aiRefs.output_id, model: input.model,
+    validationErrors: mapping.errors,
+  });
+  const validation = validateOwnershipContextCandidate(mapping.value, inventory);
+  if (!validation.ok) return unavailable(input.eventId, "validation", "ownership_context_candidate_invalid", {
+    runId: input.aiRefs.run_id, outputId: input.aiRefs.output_id, model: input.model,
+    validationErrors: validation.errors,
+  });
+  try {
+    const persisted = await persistOwnershipStructuredContext({
+      eventId: input.eventId, candidate: validation.value, aiRefs: input.aiRefs,
+    }, resolved);
+    return {
+      status: persisted.status, eventId: input.eventId,
+      runId: input.aiRefs.run_id, outputId: input.aiRefs.output_id,
+      model: input.model, updatedRowCount: persisted.updatedRowCount,
+      validated: persisted.validated,
+      semanticVerification: { mode: "disabled", verified: false },
+    };
+  } catch (error) {
+    return unavailable(input.eventId, "persistence", errorMessage(error, "ownership_context_persistence_failed"), {
+      runId: input.aiRefs.run_id, outputId: input.aiRefs.output_id, model: input.model,
+      ...(error instanceof OwnershipContextValidationError ? { validationErrors: error.errors } : {}),
+    });
+  }
+}
 
 type NeutralOwnershipContextPromptInput = Readonly<{
   neutral_source_blocks: OwnershipNeutralSourcePromptPackage;
