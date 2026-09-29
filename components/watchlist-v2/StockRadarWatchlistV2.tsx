@@ -90,6 +90,7 @@ import {
 import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamentals";
 import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
 import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
+import type { StockForm4Transaction } from "@/lib/watchlist/stockForm4Transactions";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
@@ -180,6 +181,8 @@ export function StockRadarWatchlistV2({
     useState<StockFinancialsSnapshot | null>(null);
   const [sc13Ownership, setSc13Ownership] =
     useState<StockSc13OwnershipSnapshot | null>(null);
+  const [secForm4Transactions, setSecForm4Transactions] = useState<StockForm4Transaction[]>([]);
+  const [secForm4State, setSecForm4State] = useState<LoadState>("idle");
   const [dilution, setDilution] =
     useState<StockDilutionMembershipResponse | null>(null);
   const [stockCalendarEvents, setStockCalendarEvents] = useState<
@@ -598,6 +601,34 @@ export function StockRadarWatchlistV2({
 
     return () => controller.abort();
   }, [selectedTicker]);
+
+  useEffect(() => {
+    if (selectionMode !== "stock" || !selectedTicker) {
+      setSecForm4Transactions([]);
+      setSecForm4State("idle");
+      return;
+    }
+    const controller = new AbortController();
+    setSecForm4Transactions([]);
+    setSecForm4State("loading");
+    void fetch(`/api/stocks/${encodeURIComponent(selectedTicker)}/form4-insider-transactions`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(readJsonResponse)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setSecForm4Transactions(Array.isArray(payload?.data) ? payload.data as StockForm4Transaction[] : []);
+        setSecForm4State("ready");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setSecForm4Transactions([]);
+          setSecForm4State("unavailable");
+        }
+      });
+    return () => controller.abort();
+  }, [selectedTicker, selectionMode]);
 
   useEffect(() => {
     if (!selectedTicker) {
@@ -1289,6 +1320,8 @@ export function StockRadarWatchlistV2({
                       ownershipEvents={ownershipEvents}
                       sc13LoadState={sc13OwnershipState}
                       sc13Snapshot={sc13Ownership}
+                      secForm4LoadState={secForm4State}
+                      secForm4Transactions={secForm4Transactions}
                       snapshot={fundamentals}
                     />
                     </div>

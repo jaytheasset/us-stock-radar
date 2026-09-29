@@ -28,6 +28,7 @@ import type {
   StockDilutionMembershipResponse,
 } from "@/lib/dilution-registry/stockDilutionMembership";
 import type { StockOverviewEvent } from "@/lib/watchlist/stockOverview";
+import type { StockForm4Transaction } from "@/lib/watchlist/stockForm4Transactions";
 import watchlistStyles from "./StockRadarWatchlistV2.module.css";
 import styles from "./StockFundamentalsSections.module.css";
 
@@ -47,6 +48,8 @@ type StockFundamentalsSectionsProps = {
   ownershipEvents: StockOverviewEvent[];
   sc13LoadState: FundamentalsLoadState;
   sc13Snapshot: StockSc13OwnershipSnapshot | null;
+  secForm4LoadState: FundamentalsLoadState;
+  secForm4Transactions: StockForm4Transaction[];
   snapshot: StockFundamentalsSnapshot | null;
 };
 
@@ -62,6 +65,8 @@ export function StockFundamentalsSections({
   ownershipEvents,
   sc13LoadState,
   sc13Snapshot,
+  secForm4LoadState,
+  secForm4Transactions,
   snapshot,
 }: StockFundamentalsSectionsProps) {
   return (
@@ -76,6 +81,8 @@ export function StockFundamentalsSections({
         loadState={loadState}
         sc13LoadState={sc13LoadState}
         sc13Snapshot={sc13Snapshot}
+        secForm4LoadState={secForm4LoadState}
+        secForm4Transactions={secForm4Transactions}
         snapshot={snapshot}
       />
       <DilutionSection
@@ -287,10 +294,14 @@ function OwnershipSection({
   loadState,
   sc13LoadState,
   sc13Snapshot,
+  secForm4LoadState,
+  secForm4Transactions,
   snapshot,
 }: SectionProps & {
   sc13LoadState: FundamentalsLoadState;
   sc13Snapshot: StockSc13OwnershipSnapshot | null;
+  secForm4LoadState: FundamentalsLoadState;
+  secForm4Transactions: StockForm4Transaction[];
 }) {
   const statistic = snapshot?.ownership.statistics[0] ?? null;
   const trades = snapshot?.ownership.trades ?? [];
@@ -301,6 +312,7 @@ function OwnershipSection({
     Boolean(institutionalSummary) ||
     trades.length > 0 ||
     institutionalHolders.length > 0 ||
+    secForm4Transactions.length > 0 ||
     events.length > 0 ||
     Boolean(sc13Snapshot);
   const sc13Pending = !sc13Snapshot
@@ -419,10 +431,50 @@ function OwnershipSection({
         )}
       </div>
 
+      {(secForm4Transactions.length > 0 || secForm4LoadState === "unavailable") ? (
+        <details className={styles.ownershipDisclosure} open={secForm4Transactions.length > 0}>
+          <DisclosureSummary
+            detail={`${secForm4Transactions.length} recent stored transaction${secForm4Transactions.length === 1 ? "" : "s"}`}
+            title="SEC Form 4 insider transactions"
+          />
+          <div className={styles.ownershipDisclosureBody}>
+            {secForm4LoadState === "unavailable" ? (
+              <p className={styles.methodNote}>Stored SEC Form 4 transactions are temporarily unavailable.</p>
+            ) : (
+              <div className={styles.ownershipChangeList}>
+                {secForm4Transactions.map((transaction) => (
+                  <article key={`${transaction.eventId}:${transaction.transactionIndex}`}>
+                    <time className={styles.ownershipFilingDate} dateTime={transaction.transactionDate ?? transaction.filedAt}>
+                      <span>{formatDateShort(transaction.transactionDate ?? transaction.filedAt)}</span>
+                      <small>Form {transaction.filingForm}</small>
+                    </time>
+                    <span className={styles.ownershipFilingBadge}>{transaction.transactionCode ?? "TRADE"}</span>
+                    <div>
+                      <strong>{transaction.securityTitle ?? "Security not specified"} · {formatInteger(transaction.shares)}</strong>
+                      <p>{formatPrice(transaction.pricePerShare)} per share · Transaction {formatDate(transaction.transactionDate)} · Filed {formatDate(transaction.filedAt)}</p>
+                      <p>
+                        Reporting owners: {transaction.reportingOwners.map((owner, index) => (
+                          <span key={`${owner.name}:${index}`}>
+                            {index > 0 ? "; " : ""}{owner.name}
+                            {owner.relation ? ` · ${owner.relation === "direct" ? "Direct" : "Indirect"}` : ""}
+                            {owner.relation && owner.footnoteIds.length ? ` (${owner.footnoteIds.join(", ")})` : ""}
+                          </span>
+                        ))}
+                      </p>
+                      <p><Link href={`/filings/${transaction.eventId}`}>View filing and source</Link></p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      ) : null}
+
       <details className={styles.ownershipDisclosure}>
         <DisclosureSummary
           detail={`${trades.length} recent reported transactions`}
-          title="Insider transaction history"
+          title="Provider insider transaction history"
         />
         <div className={styles.ownershipDisclosureBody}>
           <div
