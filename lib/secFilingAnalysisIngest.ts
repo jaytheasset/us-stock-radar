@@ -27,7 +27,8 @@ import {
   withSecAnalysisSpan,
 } from "@/lib/ai/secAnalysisInstrumentation";
 import { prepareSecAmendmentMonitorFanout } from "@/lib/sec-amendments/secAmendmentMonitorBridge";
-import { runOwnershipStructuredContextAnalysis } from "@/lib/monitor/ownershipStructuredContextAnalyzer";
+import { persistOwnershipOneCallContext } from "@/lib/monitor/ownershipStructuredContextAnalyzer";
+import { OWNERSHIP_ONE_CALL_PROMPT_KEY } from "@/lib/ai/ownershipOneCall";
 
 export {
   buildSecFilingGroupDedupe,
@@ -99,10 +100,11 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
           ok: true,
           ...saved.persistence,
         };
-        ownershipStructuredContext = await runOwnershipStructuredContextSidecar({
-          eventId: stringValue(saved.event.id),
-          rawItem: rawResult.rawItem,
-        });
+        ownershipStructuredContext = {
+          status: "unavailable",
+          stage: "validation",
+          reason: "ownership_one_call_primary_failed_context_not_persisted",
+        };
         ownershipMonitorConditionExecution = await runOwnershipMonitorConditionExecution(
           stringValue(saved.event.id),
         );
@@ -233,6 +235,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
           repairUsage: analysisRun.repairUsage || null,
           repairOpenAiResponseId: analysisRun.repairOpenAiResponseId || null,
           validationRepair: readValidationRepair(analysisRun),
+          ownershipContextCandidate: analysisRun.ownershipStructuredCandidate,
+          ownershipContextPromptSha256: analysisRun.ownershipContextPromptSha256,
         }),
       );
       return { persistedEvent, aiTrace };
@@ -310,13 +314,31 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
         error: error instanceof Error ? error.message : "Generic Monitor enqueue failed",
       };
     });
-  const ownershipStructuredContext = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
-    ? await runOwnershipStructuredContextSidecar({
-        eventId: stringValue(persistedEvent.id),
-        rawItem: rawResult.rawItem,
-      })
+  const ownershipStructuredContext = primaryPromptKey === OWNERSHIP_ONE_CALL_PROMPT_KEY
+    ? analysisRun.ownershipStructuredCandidate
+      && analysisRun.ownershipContextPromptSha256
+      && aiTrace.ownershipContextOutputId
+        ? await persistOwnershipOneCallContext({
+            eventId: stringValue(persistedEvent.id),
+            rawItem: rawResult.rawItem,
+            candidate: analysisRun.ownershipStructuredCandidate,
+            promptSha256: analysisRun.ownershipContextPromptSha256,
+            aiRefs: { run_id: aiTrace.aiRunId, output_id: aiTrace.ownershipContextOutputId },
+            model: analysisRun.model || "",
+          }).catch((error) => ({
+            status: "unavailable",
+            stage: "persistence",
+            reason: error instanceof Error ? error.message : "ownership_one_call_context_failed",
+          }))
+        : {
+            status: "unavailable",
+            stage: aiTrace.ownershipContextTraceError ? "trace" : "validation",
+            reason: aiTrace.ownershipContextTraceError
+              || analysisRun.ownershipStructuredError
+              || "ownership_one_call_context_unavailable",
+          }
     : null;
-  const ownershipMonitorConditionExecution = primaryPromptKey === SEC_OWNERSHIP_ANALYSIS_PROMPT_KEY
+  const ownershipMonitorConditionExecution = primaryPromptKey === OWNERSHIP_ONE_CALL_PROMPT_KEY
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
     : null;
   const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
@@ -358,21 +380,6 @@ async function runOwnershipMonitorConditionExecution(eventId: string) {
       status: "failed",
       eventId,
       error: error instanceof Error ? error.message : "Ownership Monitor condition execution failed",
-    };
-  }
-}
-
-async function runOwnershipStructuredContextSidecar(input: Readonly<{ eventId: string; rawItem: unknown }>) {
-  if (!input.eventId) {
-    return { status: "unavailable", stage: "direct_facts", reason: "ownership_context_event_id_unavailable" };
-  }
-  try {
-    return await runOwnershipStructuredContextAnalysis(input);
-  } catch (error) {
-    return {
-      status: "unavailable",
-      stage: "persistence",
-      reason: error instanceof Error ? error.message : "ownership_context_analysis_failed",
     };
   }
 }

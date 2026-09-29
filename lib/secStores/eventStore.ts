@@ -111,7 +111,8 @@ export async function saveAnalyzedSecFilingEvent({
   const groupDedupeKey = groupDedupe.groupDedupeKey;
   const existing = await findExistingEventByDedupeKeys(groupDedupe.lookupGroupDedupeKeys);
   const id = stringValue(existing?.id) || randomUUID();
-  const ownershipRawItem = promptKey === "sec_ownership_analysis" ? rawRow : null;
+  const ownershipRawItem = promptKey === "sec_ownership_analysis"
+    || promptKey === "sec_ownership_one_call" ? rawRow : null;
   if (ownershipRawItem) {
     // Fail closed before the analyzed event is written. The parser is invoked
     // again by the strict persistence call so validation and row construction
@@ -1019,6 +1020,8 @@ export async function saveSecFilingAiTrace({
   repairOpenAiResponseId,
   validationRepair,
   error,
+  ownershipContextCandidate,
+  ownershipContextPromptSha256,
 }: {
   rawItemId: string;
   eventId: string | null;
@@ -1036,8 +1039,11 @@ export async function saveSecFilingAiTrace({
   repairOpenAiResponseId?: string | null;
   validationRepair: Record<string, unknown> | null;
   error?: string | null;
+  ownershipContextCandidate?: Record<string, unknown> | null;
+  ownershipContextPromptSha256?: string;
 }) {
   const aiRunId = randomUUID();
+  const aiOutputId = randomUUID();
   const now = new Date().toISOString();
   const repairTrace = buildSecValidationRepairTrace({
     analysis,
@@ -1093,7 +1099,7 @@ export async function saveSecFilingAiTrace({
     supabaseUpsertSanitized(
       "ai_outputs",
       {
-        id: randomUUID(),
+        id: aiOutputId,
         ai_run_id: aiRunId,
         event_id: eventId,
         output_type: promptKey,
@@ -1110,8 +1116,48 @@ export async function saveSecFilingAiTrace({
     "insert SEC filing ai output",
   );
 
+  // A single provider response has two product outputs. Keep the Structured
+  // selection as a distinct output of this same AI run for the existing RPC's
+  // strict output_type/event/raw lineage check; no second model run occurs.
+  let ownershipContextOutputId: string | null = null;
+  let ownershipContextTraceError: string | null = null;
+  if (ownershipContextCandidate && !error) {
+    const outputId = randomUUID();
+    try {
+      await assertMutation(
+        supabaseUpsertSanitized("ai_outputs", {
+          id: outputId,
+          ai_run_id: aiRunId,
+          event_id: eventId,
+          output_type: "ownership_context_v1",
+          payload: {
+            purpose: "ownership_structured_context_one_call",
+            parsed_output: ownershipContextCandidate,
+            original_output_id: aiOutputId,
+            prompt_sha256: ownershipContextPromptSha256 || null,
+            request: {
+              prompt,
+              model,
+              response_mode: "application/json",
+              provider_response_schema: null,
+              max_output_tokens: 12_000,
+            },
+          },
+        }, { onConflict: "id" }),
+        "insert Ownership one-call context output",
+      );
+      ownershipContextOutputId = outputId;
+    } catch (traceError) {
+      ownershipContextTraceError = traceError instanceof Error
+        ? traceError.message : "Ownership one-call context trace failed";
+    }
+  }
+
   return {
     aiRunId,
+    aiOutputId,
+    ownershipContextOutputId,
+    ownershipContextTraceError,
     repairTrace,
   };
 }

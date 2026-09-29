@@ -19,8 +19,10 @@ import {
   OWNERSHIP_CONTEXT_SEMANTIC_PROMPT_VERSION,
   OWNERSHIP_CONTEXT_WIRE_CONTRACT_VERSION,
   buildOwnershipContextAiTraceRows,
+  buildOwnershipOneCallContextPrompt,
   buildOwnershipStructuredContextPrompt,
   mapOwnershipContextLlmDto,
+  persistOwnershipOneCallContext,
   runOwnershipStructuredContextAnalysis,
   type OwnershipStructuredContextAnalyzerRepository,
 } from "./ownershipStructuredContextAnalyzer.ts";
@@ -322,6 +324,36 @@ test("default analysis persists mapped context without verifier and preserves di
   const tracedUser = JSON.parse(String(trace.output.payload.request.user)) as Row;
   assert.equal(trace.run.metadata.neutral_inventory_sha256, sha256Json(tracedUser.choices));
   assert.equal(trace.run.metadata.neutral_source_blocks_sha256, sha256Json(tracedUser.neutral_source_blocks));
+});
+
+test("one-call selection binds to official rows and saves without another provider run", async () => {
+  for (const [fixture, selection] of [
+    ["source-agig-form4-purchase.json", agigSelection],
+    ["source-uwmc-form4-multi-owner-10b5-1-conversion.json", uwmcSelection],
+    ["source-amcor-form144-no-prior-sales.json", () => ({ version: OWNERSHIP_CONTEXT_LLM_VERSION, rows: [] })],
+  ] as const) {
+    const state = canonicalState(fixture);
+    const before = structuredClone({ form4: state.form4, form144: state.form144 });
+    const calls: string[] = [];
+    const repository = repositoryFor(state, calls);
+    const prepared = buildOwnershipOneCallContextPrompt(state.rawItem);
+    const result = await persistOwnershipOneCallContext({
+      eventId, rawItem: state.rawItem, candidate: selection(),
+      promptSha256: prepared.promptSha256,
+      aiRefs: { run_id: runId, output_id: outputId }, model: "gemini-3.5-flash",
+    }, repository);
+    assert.equal(result.status, "stored", `${fixture}: ${JSON.stringify(result)}`);
+    assert.deepEqual(calls, ["context"], "one-call persistence must not invoke a provider or create another AI run");
+    assert.deepEqual({ form4: state.form4, form144: state.form144 }, before);
+    assert.equal(record(repository.state.contextWrites[0].aiRefs).run_id, runId);
+    const stale = await persistOwnershipOneCallContext({
+      eventId, rawItem: state.rawItem, candidate: selection(),
+      promptSha256: "0".repeat(64),
+      aiRefs: { run_id: runId, output_id: outputId }, model: "gemini-3.5-flash",
+    }, repository);
+    assert.equal(stale.status, "unavailable");
+    assert.deepEqual(calls, ["context"]);
+  }
 });
 
 test("provider and source failures remain trace-only or pre-provider failures", async () => {

@@ -1,4 +1,12 @@
 import { getServerEnv } from "@/lib/env";
+import { runStructuredGeminiJson } from "@/lib/ai/geminiStructuredJson";
+import {
+  buildOwnershipOneCallPrompt,
+  validateOwnershipOneCallOutput,
+  OWNERSHIP_ONE_CALL_MODEL,
+  OWNERSHIP_ONE_CALL_PROMPT_KEY,
+  OWNERSHIP_ONE_CALL_PROMPT_VERSION,
+} from "@/lib/ai/ownershipOneCall";
 import {
   SEC_424B_ANALYSIS_PROMPT_KEY,
   SEC_424B_ANALYSIS_PROMPT_VERSION,
@@ -326,6 +334,9 @@ export type SecFilingAnalysisRunResult = {
   triage?: Record<string, unknown> | null;
   audit?: Record<string, unknown> | null;
   analysis?: Record<string, unknown> | null;
+  ownershipStructuredCandidate?: Record<string, unknown> | null;
+  ownershipStructuredError?: string | null;
+  ownershipContextPromptSha256?: string;
   triageOutputText?: string;
   auditOutputText?: string;
   repairOutputText?: string;
@@ -341,6 +352,7 @@ export type SecFilingAnalysisRunResult = {
     provider?: SecLlmProvider;
     model?: string;
     system?: string;
+    user?: string;
     responseFormat?: unknown;
     triage?: {
       key: string;
@@ -864,7 +876,7 @@ export async function runSecFilingAnalysisForRawRow(
   const env = getServerEnv();
   const llmConfig = resolveSecLlmConfig(env, options, input);
 
-  if (!llmConfig.apiKey) {
+  if (!llmConfig.apiKey && !isOwnershipFilingInput(input)) {
     return {
       ok: false,
       stage: "openai",
@@ -955,129 +967,76 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   if (isOwnershipFilingInput(input)) {
-    const prompt = buildSecOwnershipAnalysisPrompt(input);
-    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
-    if (!analysisRun.ok || !analysisRun.parsed) {
+    if (!env.geminiApiKey) {
       return {
-        ok: false,
-        stage: "openai",
-        status: analysisRun.status,
-        error: `SEC ownership analysis failed after ${analysisRun.attempts} attempt(s): ${analysisRun.error || "no parseable JSON"}`,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-        outputText: analysisRun.outputText,
-        usage: analysisRun.usage,
-        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        prompt: {
-          key: prompt.key,
-          version: prompt.version,
-        },
+        ok: false, stage: "openai", status: 0,
+        error: "GEMINI_API_KEY is missing",
+        sourceItem: summarizeRawRow(rawItem), input,
       };
     }
-
-    const repairPlan = buildSecOwnershipValidationRepairPlan({
-      analysisResult: analysisRun.parsed,
-      input,
+    let oneCall: ReturnType<typeof buildOwnershipOneCallPrompt>;
+    try {
+      oneCall = buildOwnershipOneCallPrompt(input, rawItem);
+    } catch (error) {
+      return {
+        ok: false, stage: "openai", status: 0,
+        error: error instanceof Error ? error.message : "Ownership one-call request preparation failed",
+        sourceItem: summarizeRawRow(rawItem), input,
+      };
+    }
+    // The tested candidate uses Gemini JSON mode, without a provider responseSchema.
+    // One provider request yields two independently checked branches; there is no repair call.
+    const run = await runStructuredGeminiJson({
+      apiKey: env.geminiApiKey,
+      model: OWNERSHIP_ONE_CALL_MODEL,
+      prompt: oneCall.prompt,
+      maxOutputTokens: 12_000,
     });
-    let repairedValue = analysisRun.parsed;
-    let repairRun: OpenAiPromptRun | null = null;
-    let repairAppliedPaths: string[] = [];
-    let repairIgnoredPaths: string[] = [];
-    let repairUnresolved: unknown[] = [];
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repairApplication = applySecOwnershipValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        repairedValue = repairApplication.value;
-        repairAppliedPaths = repairApplication.appliedPaths;
-        repairIgnoredPaths = repairApplication.ignoredPaths;
-        repairUnresolved = repairApplication.unresolved;
-      }
-    }
-    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
-    const validationRepair = repairPlan
-      ? {
-          attempted: true,
-          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-          issue_codes: repairPlan.issues.map((issue) => issue.code),
-          source_block_ids: repairPlan.sourceBlockIds,
-          allowed_patch_paths: repairPlan.allowedPatchPaths,
-          applied_patch_paths: repairAppliedPaths,
-          ignored_patch_paths: repairIgnoredPaths,
-          unresolved: repairUnresolved,
-          error: repairRun?.error || null,
-        }
-      : { attempted: false };
-    const ownershipAnalysis = adaptOwnershipPromptResultForAnalysis(repairedValue, input);
-    if (!ownershipAnalysis.ok) {
-      return {
-        ok: false,
-        stage: "openai",
-        status: analysisRun.status,
-        error: ownershipAnalysis.error,
-        sourceItem: summarizeRawRow(rawItem),
-        input,
-        outputText: analysisRun.outputText,
-        repairOutputText: repairRun?.outputText,
-        usage,
-        repairUsage: repairRun?.usage,
-        rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        validationRepair,
-        prompt: {
-          key: prompt.key,
-          version: prompt.version,
-          repair: repairPlan
-            ? {
-                key: repairPlan.prompt.key,
-                version: repairPlan.prompt.version,
-                system: repairPlan.prompt.system,
-                user: repairPlan.prompt.user,
-                responseFormat: repairPlan.prompt.responseFormat,
-              }
-            : undefined,
-        },
-      };
-    }
-
-    return {
-      ok: true,
-      stage: "complete",
-      status: analysisRun.status,
-      model: llmConfig.model,
-      openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
+    const separated = run.parsed
+      ? validateOwnershipOneCallOutput(run.parsed, oneCall)
+      : { primary: null, structured: null, errors: [run.error || "Ownership one-call JSON unavailable"] };
+    const primary = separated.primary
+      ? adaptOwnershipPromptResultForAnalysis(separated.primary, input)
+      : null;
+    const usage = run.usage as OpenAIUsage | null;
+    const common = {
+      status: run.status,
+      model: OWNERSHIP_ONE_CALL_MODEL,
+      openAiResponseId: run.responseId,
       sourceItem: summarizeRawRow(rawItem),
       input,
-      analysis: ownershipAnalysis.analysis,
-      outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
+      outputText: run.outputText,
       usage,
-      repairUsage: repairRun?.usage,
-      costEstimate: estimateCost(llmConfig.model, usage),
-      validationRepair,
+      costEstimate: estimateCost(OWNERSHIP_ONE_CALL_MODEL, usage),
+      rawOpenAIResponse: run.body,
+      ownershipStructuredCandidate: separated.structured,
+      ownershipStructuredError: separated.structured ? null : separated.errors.join("; "),
+      ownershipContextPromptSha256: oneCall.contextPromptSha256,
       prompt: {
-        key: prompt.key,
-        version: prompt.version,
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
+        key: OWNERSHIP_ONE_CALL_PROMPT_KEY,
+        version: OWNERSHIP_ONE_CALL_PROMPT_VERSION,
+        system: oneCall.prompt.system,
+        user: oneCall.prompt.user,
+        responseFormat: oneCall.prompt.responseFormat,
       },
     };
+    if (!run.ok || !separated.primary || !primary?.ok) {
+      return {
+        ...common,
+        ok: false,
+        stage: "openai",
+        error: !run.ok ? run.error || "Ownership one-call provider failed"
+          : !separated.primary ? `Ownership one-call Primary schema invalid: ${separated.errors.join("; ")}`
+            : primary && !primary.ok ? primary.error : "Ownership one-call Primary invalid",
+      };
+    }
+    return {
+      ...common,
+      ok: true,
+      stage: "complete",
+      analysis: primary.analysis,
+    };
   }
-
   if (isSec425FilingInput(input)) {
     const routerPrompt = buildSec425RouterPromptForInput(input);
     const routerLlmConfig = resolveSec425RouterLlmConfig(llmConfig, options);
