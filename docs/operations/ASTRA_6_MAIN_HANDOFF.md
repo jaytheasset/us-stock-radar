@@ -6,6 +6,12 @@
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
+## Ownership one-call main runtime check — 2026-09-30 KST
+
+- Local `main` checked at `19c93a6cb336deb5f93ed4e870fe0843ce86fbd8` on the existing 3110 server. One fresh Gemini 3.5 Flash call for historical ONTF Form 4 produced both Primary and Structured outputs; persistence, official readback, Monitor evaluation, and authenticated user/admin screens worked. The 33,407-share row matched the ONTF/director/minimum-1,000 condition; no alert was created because the 2025 filing predates monitor activation.
+- Factual acceptance is **blocked**: the raw Primary output and filing page say Lynrock Lake Master Fund LP holds shares *indirectly*, while SEC footnote F1 says that fund holds them *directly*. No prompt, code, or model-output repair was attempted. The `ownership-one-call` candidate worktree and its 3111 review server were **not retired**.
+- Evidence and screen captures: `C:\Users\PC\.codex\visualizations\2026\09\28\stock-radar-main-ownership-merge\ontf-main3110-validation\one-call-final-check\main-runtime-check.md`. The only pre-existing local main change at the start was generated `next-env.d.ts`; this handoff update is documentation only. Cached `origin/main` ref is `9c13aee7ef41b38bac0637e53e579633745effda` (not freshly fetched); deployed Vercel commit/status is unverified. Local/GitHub/deployed equality is not claimed; no push or deployment occurred.
+
 ## Ticker-change completion — 2026-09-14 KST
 
 This addendum is the current ticker-change baseline and supersedes earlier ticker/runtime status below. Earlier sections remain historical records, not a current development backlog; recheck unrelated areas before resuming them.
