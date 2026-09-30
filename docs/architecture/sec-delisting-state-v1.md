@@ -4,6 +4,90 @@ This is a read-only, derived evidence reader. It does not change the security
 catalog or any filing, analysis, Monitor, Watchlist, or Alert row. No migration,
 automatic collection, state persistence, API route, or UI is added.
 
+## HTML scope and cover-sidecar investigation (2026-09-30)
+
+Candidate follow-up to `5b9b8956`, limited to source integrity. The PLTR HTML
+limitation described in the previous section below is now partly resolved.
+No Primary parser/prompt, Listing Risk classification rule, Monitor routing,
+SQL/schema or source record is changed.
+
+`htmlScope.ts` recognizes only the standard labelled issuer/exchange and class
+fields, with a retained complete SEC submission proving the same accession,
+form, primary filename and textual content. Its single FILER name/CIK must
+match the primary's labelled issuer and SEC archive directory. The primary must
+explicitly check the issuer-filed Rule 12d2-2(c) provision; this is the evidence
+that FILER is the subject issuer, not an assumption that all filers are issuers.
+The existing parser's issuer/class/rule facts must agree. Missing, duplicated,
+conflicting or differently formatted proof stays unavailable. No company-name
+catalog lookup or synthetic XML is used. The existing source/evidence model
+retains the header and HTML field provenance, and `isXml` stays false.
+
+This narrow scope proof feeds the existing deterministic state reader through
+`readStoredForm25Source`; reader/ingest-adapter versions are now v3. The existing
+date/status rules still apply. PLTR's filing/index effectiveness date is **not**
+an exchange-removal date. Its scope now reads back as issuer 1321655, Class A
+common stock, par value $0.001 per share, New York Stock Exchange, rule (c), but
+listing/trading remain unresolved with `removal_effective_evidence_unavailable`
+and `suspension_evidence_unavailable`, rather than `xml_scope_unavailable`.
+Other HTML templates and exchange-filed HTML lacking direct subject proof are
+not newly supported.
+
+### Separate cover persistence failure: confirmed cause, intentionally unchanged
+
+The actual stored records were read through the normal REST reader and passed
+to `buildSecCoverObservationPayload`. The existing DB persistence function was
+then exercised in transactions that were always rolled back:
+
+1. TTOO/FTCH are exchange-filed: their archive CIKs are 1354457/876661 while
+   the subject issuers are 1492674/1740915.
+2. `createSecFilingDocumentArtifact` validates an issuer-CIK archive path and
+   rejects these with `artifact accession URL mismatch`. No XBRL artifact or
+   cover observation is produced (`identity_mismatch`, zero observations).
+3. The cover payload still marks its source `available`, but has no artifact.
+   `persist_sec_cover_observation_result` rejects that null-source/available
+   combination with SQLSTATE `22023`, `SEC cover absent source state is invalid`.
+   The ingest sidecar records its generic `persistence_failed` code.
+4. PLTR's cover record instead replays with `parse_failed` / zero observations:
+   the plain HTML/SGML primary is not well-formed XML/XHTML for the XBRL parser.
+
+This is a real cover-sidecar mismatch, **not** lost Form25 original evidence.
+The Form25 path reads `raw_items.raw_payload.form25_source`, not cover results.
+Its XML issuer/security/exchange scope and notices remain available even while
+cover persistence reports failed. The state reader's cover dependency applies
+to its separate 8-K/6-K branch. Optional historical ticker review may use cover
+evidence from another filing, but these Form25 sources contain no usable DEI
+cover observations to restore. Expanding the common XBRL URL contract or
+weakening the SQL check is unnecessary for this task and was not done.
+
+### Verification and resume point
+
+Existing real TTOO/FTCH/PLTR raw records in the authorized isolated DB at
+`127.0.0.1:57322` were read through the official state reader and current ingest
+adapter. All three now have verified source scope. TTOO remains confirmed /
+suspended; FTCH remains intended removal pending / trading unresolved; PLTR
+remains date/status unresolved for the source-based reasons above. Repeated
+reads are equal. Original fixture/source hashes and all 11 checked table
+counts/hashes remain unchanged. No new ingestion, LLM, Monitor or notification
+execution was needed in this follow-up.
+
+Source-integrity/collector/Form25/state/identity/review/cover regression suite:
+**114 passed**. Full `tsc --noEmit --incremental false`: passed. Synthetic
+negative tests separately cover absent/wrong header, accession/form/CIK/name
+conflicts, mismatched primary class, missing labels and ambiguous checked rules.
+No extra real filing or new schema was needed.
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/09/30/form25-integrity-followup/`:
+`cover-rest-investigation.json`, `*-cover-rest-input.json`,
+`readback-result.json`, `*-source-reader.json`, `*-state-readback.json`,
+`*-adapter-result.json`, `regression.log` and `typecheck.log`.
+
+There is no remaining source-loss blocker for these three retained cases.
+Unsupported HTML structures and absent effective-date evidence must remain
+explicitly unresolved. Listing Risk/automatic Monitor integration, its existing
+typed-contract/form eligibility, amendment lineage and user-facing behavior
+remain a separate next step; this source check does not establish readiness of
+an unimplemented Monitor route or complete current listing state.
+
 ## Original-source connection correction (2026-09-30)
 
 This section supersedes the older source-selection description below; state

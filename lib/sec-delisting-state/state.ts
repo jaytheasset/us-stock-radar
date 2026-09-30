@@ -4,7 +4,7 @@ import { officialForm25Source, readStoredForm25Source } from "../sources/sec/for
 import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersistence.ts";
 import { buildSecCoverObservationPayload } from "../sec-cover-observations/canonical.ts";
 
-export const SEC_DELISTING_STATE_VERSION = "sec_delisting_state_v2";
+export const SEC_DELISTING_STATE_VERSION = "sec_delisting_state_v3";
 export type DelistingScope = { issuerCik: string; securityTitle: string; exchange: string };
 export type DelistingState = "confirmed_exchange_delisting" | "removal_pending" | "unresolved";
 export type TradingState = "suspended" | "suspension_scheduled" | "unresolved";
@@ -56,19 +56,16 @@ export function evaluateStoredForm25(input: {
     || row.rawTextTruncated === true || Boolean(row.fetchError) || typeof row.fetchStatus === "number" && row.fetchStatus >= 400)) return fail("document_inventory_incomplete_or_truncated");
   if (payload.text_truncated === true || attachments.some((row) => row.truncated === true)) return fail("source_truncated");
   if (attachments.some((row) => !(source.original ? officialForm25Source : officialSource)(string(row.url), accession) || !string(row.text))) return fail("unverified_attachment_source");
-  // Reuse the existing parser twice: authoritative XML identities independently
-  // of legacy catalog metadata, then the same parser with the stored notices.
+  // Verified direct source identity, independent of ticker/catalog metadata.
   const base = { rawItemId: result.rawItemId, sourceUniqueId: accession, sourceUrl: primaryUrl,
     publishedAt: string(raw.published_at), bodyText: xml, rawPayload: { form_type: payload.form_type } };
   const identity = source.identity;
-  if (!source.isXml || !identity.isSupported || !identity.facts.subject_company_cik?.source.endsWith(".xml.issuer.cik")
-    || !identity.facts.removed_security?.source.endsWith(".xml.description_class_security")
-    || !identity.facts.exchange?.source.endsWith(".xml.exchange.entity_name")) return fail("xml_identity_unavailable");
+  if (!source.scopeVerified || !identity.isSupported) return fail(source.isXml ? "xml_identity_unavailable" : "html_identity_unavailable");
   const parsed = source.parser;
   result.parser = parsed; result.parserVersion = parsed.parserVersion;
-  result.issuerCik = cik(identity.facts.subject_company_cik.value);
-  result.securityTitle = identity.facts.removed_security.value;
-  result.exchange = identity.facts.exchange.value;
+  result.issuerCik = cik(identity.facts.subject_company_cik!.value);
+  result.securityTitle = identity.facts.removed_security!.value;
+  result.exchange = identity.facts.exchange!.value;
   result.filedByCik = identity.facts.filed_by_cik?.value || null;
   if (result.issuerCik !== cik(scope.issuerCik) || exact(result.securityTitle) !== exact(scope.securityTitle)
     || exact(result.exchange) !== exact(scope.exchange)) return fail("issuer_security_or_exchange_mismatch");

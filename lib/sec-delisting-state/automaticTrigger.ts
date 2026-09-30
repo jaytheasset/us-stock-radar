@@ -2,7 +2,7 @@ import { readStoredForm25Source } from "../sources/sec/forms/form25/storedSource
 import { readStoredDelistingState, type DelistingRepository, type StoredDelistingState } from "./reader.ts";
 import { record, validScope } from "./state.ts";
 
-export const FORM25_DELISTING_TRIGGER_VERSION = "form25_delisting_ingest_v2";
+export const FORM25_DELISTING_TRIGGER_VERSION = "form25_delisting_ingest_v3";
 export type Form25DelistingRunRecord = {
   version: typeof FORM25_DELISTING_TRIGGER_VERSION;
   rawItemId: string; accession: string; asOf: string;
@@ -23,7 +23,7 @@ export function form25DelistingFailure(input: { rawItemId: string; accession: st
   return { version: FORM25_DELISTING_TRIGGER_VERSION, ...input, status: "failed", reasons: [reason] };
 }
 
-/** Only prepares the XML scope and invokes the existing selected-evidence reader.
+/** Only prepares the source-backed scope and invokes the existing selected-evidence reader.
  * The ingest owner records this compact outcome in its existing source-run record.
  * No raw metadata, current catalog, analysis, or downstream state is written. */
 export async function runForm25DelistingAutomaticTrigger(input: {
@@ -51,11 +51,8 @@ export async function runForm25DelistingAutomaticTrigger(input: {
       issuerCik: facts.subject_company_cik?.value ?? "",
       securityTitle: facts.removed_security?.value ?? "", exchange: facts.exchange?.value ?? "",
     };
-    if (!identity.isSupported || !validScope(scope)
-      || !facts.subject_company_cik?.source.endsWith(".xml.issuer.cik")
-      || !facts.removed_security?.source.endsWith(".xml.description_class_security")
-      || !facts.exchange?.source.endsWith(".xml.exchange.entity_name")) {
-      return { ...base, status: "unavailable", reasons: ["xml_scope_unavailable"] };
+    if (!identity.isSupported || !validScope(scope) || !source.scopeVerified) {
+      return { ...base, status: "unavailable", reasons: [source.isXml ? "xml_scope_unavailable" : "html_scope_unavailable"] };
     }
     const result = await readStoredDelistingState({ scope, rawItemIds: [input.rawItemId], asOf: input.asOf, repository });
     const readFailed = result.reasons.some(reason => ["raw_source_missing_or_read_failed", "raw_identity_mismatch",

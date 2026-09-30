@@ -49,7 +49,8 @@ for (const fixture of fixtures) test(`${fixture.name}: real SEC acquisition reta
   assert.equal(facts.filing_date?.value,ground.filed);
   assert.equal(facts.delisting_or_removal_date?.value??null,ground.removalDate);
   assert.equal(facts.trading_suspension_date?.value??null,ground.suspensionDate);
-  assert.equal(facts.exchange?.value??null,ground.xmlScope?ground.exchange:null);
+  assert.equal(facts.exchange?.value??null,ground.exchange);
+  assert.equal(source.scopeVerified,true);
   const scope={issuerCik:ground.issuerCik,securityTitle:ground.security,exchange:ground.exchange};
   const state=evaluateStoredForm25({raw,scope,asOf:"2026-09-30"});
   assert.equal(state.listing,ground.listing);assert.equal(state.trading,ground.trading);
@@ -57,9 +58,14 @@ for (const fixture of fixtures) test(`${fixture.name}: real SEC acquisition reta
   if(fixture.name==="TTOO")assert.equal(evaluateStoredForm25({raw,scope,asOf:"2025-07-20"}).listing,"removal_pending");
   const repository:DelistingRepository={select:async table=>({ok:true,status:200,data:table==="raw_items"?[raw]:[]}),rpc:async()=>{throw Error("No semantic RPC without event");}};
   const result=await runForm25DelistingAutomaticTrigger({rawItemId:raw.id,accession:fixture.accession,asOf:"2026-09-30",repository});
-  assert.equal(result.status,ground.xmlScope?"completed":"unavailable");
-  if(!ground.xmlScope)assert.deepEqual(result.reasons,["xml_scope_unavailable"]);
-  else assert.equal(result.result?.listing,ground.listing);
+  assert.equal(result.status,"completed");
+  assert.equal(result.result?.listing,ground.listing);
+  if(!ground.xmlScope){
+    assert.equal(source.isXml,false,"HTML scope must not pretend to be XML");
+    assert.ok(result.reasons.includes("removal_effective_evidence_unavailable"));
+    assert.equal(state.removalDate,null,"SEC index effectiveness is not removal");
+    assert.ok(source.documents.some(doc=>doc.text.includes(facts.subject_company_cik!.evidence)));
+  }
   const rerun=await collect(fixture);
   assert.deepEqual(rerun.raw_payload.form25_source,raw.raw_payload.form25_source);
   assert.deepEqual(raw,before,"Readers must never mutate raw records or Primary input");
@@ -95,4 +101,34 @@ test("new source path preserves withdrawal and conflicting-notice fail-closed ru
 
 test("Form25-only capture does not add original-source fields to other filing families",()=>{
   for(const form of ["3","5","4","144","SC 13G","8-K"])assert.equal(captureForm25Document(form,{url:"https://www.sec.gov/source",type:form,description:null,isPrimary:true},"source"),undefined);
+});
+
+test("HTML scope requires matching submission identity, exact primary and unique labelled fields", async () => {
+  const original = await collect(fixtures.find(f => f.name === "PLTR")!);
+  const checks: Array<[string, (docs: Form25OriginalDocument[]) => void]> = [
+    ["missing SEC header", docs => { docs[1].text = docs[1].text.replace(/<SEC-HEADER>[\s\S]*?<\/SEC-HEADER>/, ""); }],
+    ["wrong accession header", docs => { docs[1].text = docs[1].text.replace(/ACCESSION NUMBER:[^\r\n]+/, "ACCESSION NUMBER: 0001321655-24-000999"); }],
+    ["wrong form header", docs => { docs[1].text = docs[1].text.replace(/CONFORMED SUBMISSION TYPE:[^\r\n]+/, "CONFORMED SUBMISSION TYPE: 8-K"); }],
+    ["wrong issuer header", docs => { docs[1].text = docs[1].text.replace(/COMPANY CONFORMED NAME:[^\r\n]+/, "COMPANY CONFORMED NAME: Other Issuer"); }],
+    ["header CIK differs from source directory", docs => { docs[1].text = docs[1].text.replace(/CENTRAL INDEX KEY:[^\r\n]+/, "CENTRAL INDEX KEY: 0001234567"); }],
+    ["different primary security", docs => { docs[0].text = docs[0].text.replace("Class A common stock", "Class B common stock"); }],
+    ["unlabelled venue", docs => { for (const doc of docs) doc.text = doc.text.replace("Exact name of Issuer as specified in its charter, and name of Exchange", "Unlabelled information"); }],
+    ["multiple checked rules", docs => { for (const doc of docs) doc.text = doc.text.replace("&#9744;", "&#9746;"); }],
+    ["no checked issuer-filed rule", docs => { for (const doc of docs) doc.text = doc.text.replaceAll("&#9746;", "&#9744;"); }],
+    ["conflicting labelled exchange", docs => { docs.push({...docs[1], url:docs[1].url.replace(/[^/]+$/, "venue-notice.txt"), text:"Exchange: Different Exchange", isPrimary:false}); }],
+  ];
+  for (const [name, change] of checks) {
+    const raw = structuredClone(original);
+    const docs = (raw.raw_payload.form25_source as Bundle).documents;
+    change(docs);
+    // Synthetic source-integrity boundary cases, not additional real filings.
+    for (const doc of docs) { doc.sha256 = sha(doc.text); doc.charCount = doc.text.length; }
+    raw.raw_payload.primary_document_html = docs.find(doc => doc.isPrimary)!.text;
+    const source = readStoredForm25Source(raw);
+    assert.equal(source.status, "available", name);
+    if (source.status === "available") assert.equal(source.scopeVerified, false, name);
+    const result = evaluateStoredForm25({raw,scope:{issuerCik:"0001321655",securityTitle:"Class A common stock, par value $0.001 per share",exchange:"New York Stock Exchange"},asOf:"2026-09-30"});
+    assert.equal(result.listing, "unresolved", name);
+    assert.ok(result.reasons.includes("html_identity_unavailable"), name);
+  }
 });

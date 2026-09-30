@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { decodeSecHtmlEntities } from "../../htmlEntities.ts";
 import { parseSecForm25Filing } from "./parser.ts";
+import { readForm25HtmlScope } from "./htmlScope.ts";
 
 export const FORM25_SOURCE_VERSION = "sec_form25_original_sources_v1";
 const MAX_SOURCE_CHARS = 2_000_000;
@@ -77,9 +78,20 @@ export function readStoredForm25Source(raw: Row) {
   const base = { rawItemId: text(raw.id), sourceUniqueId: accession, sourceUrl: primary.url,
     publishedAt: text(raw.published_at), bodyText: primaryText,
     rawPayload: { form_type: payload.form_type, filing_date: payload.filing_date } };
-  const identity = parseSecForm25Filing(base);
-  const parser = parseSecForm25Filing({ ...base, rawPayload: { ...base.rawPayload, attachment_texts: attachments } });
-  return { status: "available" as const, original, isXml, primary, primaryText, attachments, documents, identity, parser };
+  let identity = parseSecForm25Filing(base);
+  let parser = parseSecForm25Filing({ ...base, rawPayload: { ...base.rawPayload, attachment_texts: attachments } });
+  const htmlScope = !isXml && original ? readForm25HtmlScope({ accession, form: text(payload.form_type),
+    primary, documents, parsed: parser, project: form25DocumentText }) : null;
+  if (htmlScope) {
+    parser = { ...parser, facts: { ...parser.facts, ...htmlScope,
+      extracted_field_count: parser.facts.extracted_field_count + (parser.facts.exchange ? 0 : 1) } };
+    identity = parser;
+  }
+  const scopeVerified = Boolean(htmlScope) || isXml
+    && Boolean(identity.facts.subject_company_cik?.source.endsWith(".xml.issuer.cik")
+      && identity.facts.removed_security?.source.endsWith(".xml.description_class_security")
+      && identity.facts.exchange?.source.endsWith(".xml.exchange.entity_name"));
+  return { status: "available" as const, original, isXml, scopeVerified, primary, primaryText, attachments, documents, identity, parser };
 }
 
 /** Text projection only; the original markup remains independently retained. */
