@@ -117,6 +117,22 @@ process가 중단돼도 다음 retry/cron이 미완료 raw만 다시 분석한�
 
 ## 로그와 관측
 
+### Local Workflow import fails before child execution
+
+With Next.js Webpack, `workflow/api` also imports the Vercel world and its
+CLI-config dependency, even when the selected world is local. `xdg-app-paths`
+initializes at import time and calls `path.parse(require.main.filename)`.
+Webpack supplies an entry module without `filename`, causing
+`The "path" argument must be of type string. Received undefined` before `start()`.
+Keep `xdg-app-paths` in `next.config.ts`'s `serverExternalPackages` so Node loads
+it with native CommonJS module metadata. Do not substitute a filing path or
+change child identity/state to work around this import failure.
+
+Verify through the compiled route and normal automatic scheduling, not only a
+native Node import or an injected workflow starter. The local Form 25 check on
+2026-10-01 reached a completed Workflow, saved Listing Risk facts, and official
+readback; TTOO remained safely alert-ineligible due to unresolved identity.
+
 Vercel Project의 Workflows 화면에서 run과 step 진행, retry 수, 입·출력,
 시간을 확인한다. Logs에서는 다음 prefix로 검색한다.
 
