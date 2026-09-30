@@ -530,3 +530,101 @@ commit/status were not queried; equality is not claimed. No merge/push/deploy.
 The Scorpius canonical transition blockers are resolved. Broad automatic 8-K/6-K
 persistence, unsupported ordinary-share/warrant identities, and legacy event
 linking remain outside this task.
+
+## Automatic 8-K/6-K Listing Risk history consumer (2026-10-01)
+
+Base: detached `89abe46a86477cac5350999b2f4769727717872e`, same candidate.
+`processGenericMonitorChild` now invokes `persistListingRiskStatusAutomatically`
+after applicable Listing Risk typed persistence and terminal recording, before
+the unchanged alert consumer. Only `sec_8k_6k` / `listing_risk` is connected.
+The official current-facts reader must return the exact raw, parent and child
+execution. A stale/unavailable result does not authorize a history write.
+Completed-child replay retries only this idempotent sidecar, with no analyzer
+call or change to the existing Monitor outcome. Sidecar failure is reported in
+`postPersistence`; it does not fail or change a successful Monitor evaluation.
+
+The adapter reuses the existing source-event contracts and their validators:
+source-stated, exact subject/venue/issue/date excerpts must belong to the retained
+SEC document. Complete containing paragraphs are retained as evidence, including
+qualifications. No date is inferred from filing time; filing time is only the
+as-of knowledge boundary. A validated unique earlier event is required for
+withdrawal/resumption. Equal immutable versions of that event are treated as one
+link candidate; distinct candidates are ambiguous. An already validated opening
+event excerpt containing all current fact spans is reused to avoid duplicating
+the same event because of an adjacent sentence. Source-only observations retain
+source identity across Monitor executions; hook results carry execution lineage.
+
+Supported existing outcomes include removal decisions, suspension evidence,
+explicit withdrawal and explicit resumption when the existing contract can
+supply the exact operative date and prior-event reference. Other applicable
+facts use the existing typed-facts observation writer and remain unresolved
+where its source/identity checks cannot establish a supported state. No ACTIVE,
+relisting, appeal/compliance-based restoration, or expected resumption is added.
+No state/schema, migration, prompt, Primary, Form 25, identity, Monitor policy or
+UI change is part of this step.
+
+### Isolated integration evidence and precise limits
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/10/01/listing-risk-auto-history/`.
+DB: API 127.0.0.1:57321, PostgreSQL 127.0.0.1:57322, system ID
+7689949482832261158. No migration applied. No external/provider request made.
+
+The database had no retained 8-K/6-K Primary/analyzer runs. Its earlier manual
+Scorpius raw records preserve complete original HTML, but lack the normal
+analyzer's body/source-block material: `buildAnalyzerInput` yields metadata-only
+blocks (`preflight.json`). Therefore this is **fixture-driven child-runtime and
+real persistence verification**, not fresh Primary/LLM/full ingestion E2E.
+`fixtures/listingRiskReplay.ts` explicitly labels source-grounded analyzer-shaped
+fixtures; they are not represented as original provider outputs. Test Primary
+records are likewise marked fixture/no-provider. Original raw records were not
+supplemented or changed. The existing enqueue/reservation, exact-parent loading,
+child runtime, typed writer/official reader, automatic hook, canonical writer and
+as-of reader ran normally; the scheduler and analyzer were injected fixtures.
+Alert delivery was stubbed; no alert claim is made in this step.
+
+`v2-results.json`, `v2-history-before.json`, `v2-history-after.json`,
+`v2-projections.json` and the per-accession stage files show:
+
+- June 17 Scorpius accession `0001079973-24-000891`: typed facts saved, automatic
+  history hook replayed attached pending observation
+  `9cdafdb8-462d-4964-bb7d-09894092e685`.
+- July 30 accession `0001079973-24-001121`: hook inserted attached withdrawal
+  `315902e6-e426-457f-be02-b496d9a87d87`, linked to the validated earlier event
+  version `8d7077c7-f69a-46d2-8f3e-5e225302e349`.
+- Exact canonical security remains `9a45f886-e49d-5972-a63f-6ca17ce0bd02`.
+  July 29 projection: removal_pending / trading unresolved. July 30:
+  removal_decision_withdrawn / trading unresolved. Only the linked removal closes.
+- Both child replays were duplicate with zero further analyzer invocations;
+  history returned the same IDs as replayed, typed RPC replay was idempotent,
+  one typed result/facts row per child remained. Original raw hashes and all
+  earlier observations stayed unchanged, including the invalid historical row.
+- Initial test setup used an incorrect Primary output type and then collided on
+  its fixture dedupe key. The failed fixture record/evidence was retained; v2
+  corrected only test setup. No product validator or policy was relaxed.
+
+`aplm-existing-readback.json` rechecks the existing real 6-K suspension/resumption
+history. Its Class A Ordinary Shares / Nasdaq attachment remains unresolved
+(`no_exact_canonical_security_exchange`), and projection remains unresolved.
+There is also no dedicated resumption-date slot in the current Listing Risk
+contract: the adapter does not manufacture one from as_of or a notice date that
+does not match the explicit resumption clause. A new positive automatic 6-K
+resumption run is not claimed. No identity expansion or new collection was done.
+
+Remaining verification: a normal, fully collected 8-K/6-K with an actual saved
+analyzer response through the live workflow scheduler. The current hook's real
+DB write/readback and replay are verified; provider/source-input completeness
+and live scheduler execution were not established by these old manual records.
+No browser/UI change was made or browser verification claimed.
+
+Final checks: 133/133 focused regressions PASS; full
+`tsc --noEmit --incremental false` PASS; `git diff --check` PASS.
+New checks cover the actual child-runtime hook order, stale/non-applicable/news
+exclusion, duplicate-sidecar replay, sidecar failure isolation, exact source
+spans, unique prior-event selection and scheduled/appeal/compliance safeguards.
+Logs are `regression.txt` and `typecheck.txt` in the evidence directory.
+
+Handoff: candidate only; local main ref `0b75ffcf573b64fcf030fde432d594bfa9f487ae`,
+cached origin/main `9c13aee7ef41b38bac0637e53e579633745effda`. Live GitHub main and
+Vercel deployed commit/status unverified, equality not claimed. Main, shared-local,
+other projects/services, prior evidence, and frozen work remain unchanged.
+No merge, push or deployment.
