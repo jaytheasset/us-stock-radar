@@ -1,9 +1,10 @@
 import { readSecTickerResolutionByDecisionId, type SecTickerResolutionRepository,
   type SecTickerResolutionReadResult } from "../sec-ticker-resolution/persistence.ts";
-import type { DelistingScope } from "../sec-delisting-state/state.ts";
+import { validDate, type DelistingScope } from "../sec-delisting-state/state.ts";
 import { exact, hash, unattached, type Attachment } from "./observation.ts";
 import { readStoredStableIdentity } from "../sec-ticker-resolution/stableIdentity.ts";
 import { readExactCover, coverObservations, selectedSourceHasNoConflictingRevision } from "../sec-ticker-resolution/persistence.ts";
+import { selectExactStableCoverRow } from "../sec-ticker-resolution/canonical.ts";
 
 /** Reuse an existing validated SEC security-continuity identity. No new identity
  * registry, CIK-only match, ticker-catalog fallback, or human override is created. */
@@ -68,9 +69,18 @@ async function resolveStableAttachment(scope: DelistingScope, repository: SecTic
       issuer_cik: `eq.${scope.issuerCik}`, order: "accepted_at.asc,id.asc", limit: "1001" });
     if (!scan.ok || !Array.isArray(scan.data) || scan.data.length > 1000) return unattached("identity_scan_incomplete");
     for (const result of scan.data) {
-      if (!result.accepted_at) return unattached("identity_observation_time_missing");
-      if (Date.parse(result.accepted_at) < Date.parse(read.before.acceptedAt!)
-        || String(result.accepted_at).slice(0, 10) > filingDate) continue;
+      // A preserved filing date can bound a cover scan without inventing an
+      // acceptance timestamp. Identity endpoints still require acceptedAt.
+      let day = String(result.accepted_at ?? result.filing_date_raw ?? "").slice(0,10);
+      if (!day && result.raw_item_id) {
+        const original = await repository.select("raw_items",{select:"*",id:`eq.${result.raw_item_id}`,limit:"2"});
+        if (!original.ok || !Array.isArray(original.data)) throw Error("identity_source_date_read_failed");
+        if (original.data.length === 1 && original.data[0].source_code === "sec_edgar"
+          && original.data[0].source_unique_id === result.accession_number)
+          day = String(original.data[0].published_at ?? "").slice(0,10);
+      }
+      if (!validDate(day)) return unattached("identity_observation_time_missing");
+      if (day < read.before.acceptedAt!.slice(0,10) || day > filingDate) continue;
       const cover = await readExactCover(result.accession_number, result.source_sha256, repository);
       if (!cover.ok) return unattached("identity_evidence_unavailable");
       if (!await selectedSourceHasNoConflictingRevision(cover.value, repository))
@@ -79,7 +89,9 @@ async function resolveStableAttachment(scope: DelistingScope, repository: SecTic
       // Form 25's separate scope reader is authoritative for that filing. An
       // HTML Form 25 without an XBRL cover is not a competing cover identity.
       if (!rows.length && /^(25|25-NSE)(\/A)?$/.test(String(result.form_type_raw))) continue;
-      if (rows.length !== 1 || rows.some(o => o.issuerCik !== scope.issuerCik
+      const candidates = rows.filter(o => exact(o.securityTitle) === exact(scope.securityTitle));
+      const selected = candidates.length === 1 ? selectExactStableCoverRow(rows,candidates[0].observationKey) : [];
+      if (selected.length !== 1 || selected.some(o => o.issuerCik !== scope.issuerCik
         || !["observed", "duplicate_equal"].includes(o.securityTitleStatus)
         || !["observed", "duplicate_equal"].includes(o.exchangeStatus)
         || !["observed", "duplicate_equal"].includes(o.tradingSymbolStatus)

@@ -430,3 +430,103 @@ Final focused regression suite: 63/63 PASS (listing-status, delisting-state,
 stable identity, Form 25 source connection). Full TypeScript:
 `tsc --noEmit --incremental false` PASS. `git diff --check` PASS.
 Tests and typecheck logs are in the evidence directory above. No model calls.
+
+## Exact cover selection and audited invalid-summary exclusion (2026-10-01)
+
+This validation supersedes the earlier Scorpius identity/projection blocker above;
+the earlier records and reports have not been rewritten.
+
+- Stable identity accepts explicit before/after observation keys from the existing
+  source-validating cover reader. Both selected rows must retain the same CIK,
+  exact title/class, ticker, venue and dimensions. A competing row for the selected
+  title/ticker or an incomplete competing security blocks selection. Rights and
+  warrants are retained as sibling evidence, not accepted as common stock.
+- An explicit 8-K/6-K source event binds to one unique row in its own original
+  filing cover. A short subject may omit only the cover's terminal par-value
+  description; a venue may omit its terminal LLC designation. An explicitly
+  different par value, class, ticker or venue does not match. The selected row key,
+  result ID, document hash, full title, ticker and venue are returned/persisted in
+  `attachment.coverRow`. No issuer-name/CIK-only shortcut or external alias source.
+- Stable evidence endpoints still require actual receipt timestamps. An intervening
+  cover with no receipt timestamp can use its preserved filing date (or the
+  original raw filing date) to bound the evidence scan. This creates neither an
+  acceptance timestamp nor an effective status date. Unknown dates still block.
+- Official history revalidates the unchanged source and source-event/link. Only
+  an explicit source-event summary that differs from the current deterministic
+  result receives `revalidationFailure` with the source hash, stored summary and
+  revalidated summary. Projection reports it in `excludedObservations`; the
+  original row, source, ID and reason remain in official history. This is a
+  read-time failure result, not deletion or a mutable administrative override.
+  Missing/stale source, read errors, invalid links, identity conflicts and valid
+  unresolved observations are NOT ignored. Form 25 projection policy is unchanged.
+- Immutable attachment versions of the **exact same** raw/source-hash/scope/event/
+  reported-facts combination are the same underlying event. A validated follow-up
+  closes those repeated versions, listing each ID and its explicit target/follow-up
+  in `closedObservations`. Different evidence or an independent issue stays open.
+
+### Real persisted Scorpius result
+
+Identity evidence (both SEC covers retain common stock and purchase-right rows):
+
+- [May 2 8-K, 0001079973-24-000635](https://www.sec.gov/Archives/edgar/data/1476963/000107997324000635/scpx_8k.htm),
+  accepted 2024-05-02T12:00:11Z.
+- [May 16 8-K, 0001079973-24-000767](https://www.sec.gov/Archives/edgar/data/1476963/000107997324000767/scpx_8k.htm),
+  accepted 2024-05-16T20:48:38Z.
+- Receipts come from the retained SEC submissions response, not guessed dates.
+  Exact security: CIK 0001476963 / Common Stock, $0.0002 par value per share /
+  SCPX / NYSE American LLC. Canonical ID:
+  `9a45f886-e49d-5972-a63f-6ca17ce0bd02`. No earlier ticker transition is bridged.
+
+The original June 17 / July 30 SEC filings and excerpts remain unchanged.
+Attached removal observation `9cdafdb8-462d-4964-bb7d-09894092e685` is linked by
+withdrawal `aa797de3-c916-40d1-9a64-2e947cec330e`. Official as-of results:
+
+| Knowledge date | Listing | Trading | Meaning |
+|---|---|---|---|
+| 2024-07-29 | removal_pending | unresolved | The July 29 notice is not yet in the July 30 filing record. |
+| 2024-07-30 | removal_decision_withdrawn | unresolved | Only the Section 1003(f)(v) removal decision is closed; notice date July 29. |
+
+No ACTIVE, relisting, effective removal date, or confirmed trading resumption is
+created. The valid suspension notice remains independent; its effective date is
+not explicit, so trading projection remains unresolved. Invalid old observation
+`91bd7e0e-4cd3-45c5-b62d-55dfcf9ca89a` remains queryable with its incorrect stored
+June 14 suspension date and the revalidation comparison showing null.
+All pre-existing business/source/history rows were compared unchanged. An initial
+validation attempt retained an additional unresolved attachment version; it was
+not deleted. Final reruns replay the same cover, identity and observation IDs.
+SQL rejects wrong class, exchange, row key and ticker; ticker-change persistence
+and policy remain unchanged.
+
+Evidence and reproducible isolated runner (outside Git, no credentials):
+`C:/Users/PC/.codex/visualizations/2026/10/01/listing-exact-cover-transition/`.
+Final run: `2026-09-30T21-17-48-036Z/` (`official-history.json`,
+`projections.json`, `sql-negative-checks.json`, `result.json`, API ledger).
+Earlier failed attempts, full SEC sources and receipt metadata are retained.
+Focused regressions: 81/81 PASS; full `tsc --noEmit --incremental false` PASS.
+Includes source-backed ticker-change contract regressions, ambiguity, wrong
+class/venue, appeal-only, compliance-only, scheduled resumption, independent risks,
+source failure and immutable invalid-summary audit checks. No provider calls.
+
+### Migration and handoff
+
+`20260930210543_sec_listing_exact_cover_attachment.sql` replaces the stable-row
+guard and extends the existing observation writer with an exact cover-binding
+guard. No table, column, status, permission scope or automatic ingestion hook was
+added. Invoker functions retain service-role-only execution. Applied only on
+127.0.0.1:57322, system identifier 7689949482832261158. The new uncommitted migration
+was refined once during isolated validation; its own stored SQL was updated to
+the final file. Older migration files/history were untouched. This is not a clean
+DB rebuild test or a main/shared-local migration application.
+
+Candidate base: detached `068d34f5d0fdc9aa4bc498d3d98d61fec13f7ed9` in
+`C:/Users/PC/.codex/worktrees/listing-status-audit/US-Stock Radar`.
+Changes: cover-row selection/binding, official history/projection audit metadata,
+focused tests, the one migration, this diagnostic note. No UI/browser change is
+needed or claimed. Existing Monitor, Primary, Form 25 source/state, other filing
+families, runtime configuration, credentials and services remain unchanged.
+Local main ref: `0b75ffcf573b64fcf030fde432d594bfa9f487ae`; cached origin/main:
+`9c13aee7ef41b38bac0637e53e579633745effda`. Live GitHub main and deployed Vercel
+commit/status were not queried; equality is not claimed. No merge/push/deploy.
+The Scorpius canonical transition blockers are resolved. Broad automatic 8-K/6-K
+persistence, unsupported ordinary-share/warrant identities, and legacy event
+linking remain outside this task.

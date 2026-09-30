@@ -349,10 +349,13 @@ function extractTickerChanges(text: string, coverOldTicker: string | null): Extr
  * uninterrupted trading. Never bridges a changed symbol, class or exchange. */
 export function evaluateStableSecSecurityIdentity(
   beforeRows: readonly VerifiedSecCoverObservation[], afterRows: readonly VerifiedSecCoverObservation[],
+  selection?: { beforeObservationKey: string; afterObservationKey: string },
 ): { identity: Row | null; reason: string } {
-  if (beforeRows.length !== 1 || afterRows.length !== 1)
+  const bs = selection ? selectExactStableCoverRow(beforeRows, selection.beforeObservationKey) : beforeRows;
+  const as = selection ? selectExactStableCoverRow(afterRows, selection.afterObservationKey) : afterRows;
+  if (bs.length !== 1 || as.length !== 1)
     return { identity: null, reason: "stable_cover_multiple_or_missing_securities" };
-  const [before] = beforeRows; const [after] = afterRows;
+  const [before] = bs; const [after] = as;
   if (usableCoverObservations([before, after]).length !== 2
     || !before.sourceSha256 || !after.sourceSha256 || !before.sourceRawId || !after.sourceRawId
     || !before.acceptedAt || !after.acceptedAt || !Number.isFinite(Date.parse(before.acceptedAt))
@@ -366,9 +369,22 @@ export function evaluateStableSecSecurityIdentity(
     || stableStringify(before.dimensions) !== stableStringify(after.dimensions))
     return { identity: null, reason: "stable_identity_transition_or_conflict_requires_change_evidence" };
   const security = classifySecurity(before.securityTitle!);
-  if (!security || security.type !== "common_stock")
+  if (!security || security.type !== "common_stock" || /\b(rights?|warrants?|units?)\b/i.test(before.securityTitle!))
     return { identity: null, reason: "stable_security_scope_unsupported" };
   return { identity: buildIdentity(before.issuerCik, before, after, security), reason: "stable_exact_sec_cover_identity" };
+}
+
+/** A supplied key selects a row, never removes its siblings from the evidence.
+ * Competing rows for this title or ticker (including incomplete ones) block it. */
+export function selectExactStableCoverRow(rows: readonly VerifiedSecCoverObservation[], key: string) {
+  const selected = rows.filter(o => o.observationKey === key);
+  if (selected.length !== 1) return [];
+  const row = selected[0];
+  const normalized = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (rows.some(o => o !== row && (!o.securityTitle || !o.tradingSymbol
+    || normalized(o.securityTitle) === normalized(row.securityTitle)
+    || normalized(o.tradingSymbol) === normalized(row.tradingSymbol)))) return [];
+  return selected;
 }
 
 function buildIdentity(

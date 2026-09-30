@@ -16,6 +16,7 @@ export type Attachment = {
   status: "attached" | "unresolved" | "conflict";
   securityIdentityId: string | null; decisionId: string | null;
   knownAt: string | null; proofHash: string | null; reason: string;
+  coverRow?: { resultId: string; observationKey: string; sourceHash: string; securityTitle: string; ticker: string; exchange: string };
 };
 export const unattached = (reason: string, status: "unresolved" | "conflict" = "unresolved"): Attachment =>
   ({ status, securityIdentityId: null, decisionId: null, knownAt: null, proofHash: null, reason });
@@ -96,7 +97,9 @@ export function buildObservation(input: {
 }
 
 export type HistoryItem = { id: string; observation: ListingObservation; usable: boolean; reason: string | null;
-  resolvedAttachment?: Attachment };
+  resolvedAttachment?: Attachment;
+  revalidationFailure?: { reason: "observation_facts_changed"; sourceHash: string;
+    storedReported: ListingObservation["reported"]; revalidatedReported: ListingObservation["reported"] } };
 /** Query-time projection over selected, persisted SEC evidence. Not a live market status.
  * Unknown/contradictory evidence is never silently discarded in favor of a newer row. */
 export function projectListingStatus(input: {
@@ -107,13 +110,26 @@ export function projectListingStatus(input: {
     listing: "unresolved" as ListingState, trading: "unresolved" as TradingStatus,
     removalDate: null as string | null, suspensionDate: null as string | null,
     withdrawalNoticeDate: null as string | null, resumptionDate: null as string | null,
-    reasons: [] as string[], observationIds: [] as string[] };
+    reasons: [] as string[], observationIds: [] as string[],
+    excludedObservations: [] as { id: string; reason: string; sourceHash: string }[],
+    closedObservations: [] as { id: string; targetId: string; followUpId: string }[] };
   if (!validDate(input.asOf) || !validScope(input.scope) || input.securityIdentityId !== null && !uuid(input.securityIdentityId)) {
     result.reasons.push("invalid_request"); return result;
   }
-  const selected = input.observations.filter(({ observation: o }) => o.filingDate <= input.asOf
+  const scoped = input.observations.filter(({ observation: o }) => o.filingDate <= input.asOf
     && (o.scope === null || sameScope(o.scope, input.scope)));
-  result.observationIds = selected.map(item => item.id);
+  result.observationIds = scoped.map(item => item.id);
+  const selected = scoped.filter(item => {
+    const f = item.revalidationFailure;
+    if (!item.usable && item.observation.sourceEvent && item.reason === "observation_facts_changed"
+      && f?.reason === item.reason && f.sourceHash === item.observation.sourceHash
+      && stable(f.storedReported) === stable(item.observation.reported)
+      && stable(f.storedReported) !== stable(f.revalidatedReported)) {
+      result.excludedObservations.push({ id: item.id, reason: f.reason, sourceHash: f.sourceHash });
+      return false;
+    }
+    return true;
+  });
   if (!selected.length) { result.reasons.push("no_status_evidence"); return result; }
   if (!input.securityIdentityId) { result.reasons.push("canonical_identity_unresolved"); return result; }
   for (const item of selected) {
@@ -135,7 +151,15 @@ export function projectListingStatus(input: {
         || previous.observation.filingDate === item.observation.filingDate && previous.observation.rawItemId !== item.observation.rawItemId
         || !previous.observation.scope || !item.observation.scope || !sameScope(previous.observation.scope,item.observation.scope)) throw Error("invalid_target");
       validateEventLink(e,previous.observation.sourceEvent);
-      links.set(previous.id,[...(links.get(previous.id) ?? []),item]);
+      // Attaching a formerly unresolved immutable observation can create a new
+      // stored version, not a new removal decision. Close only exact source-event
+      // repetitions; all IDs remain visible. Different evidence/issues stay open.
+      const eventFacts = (o: ListingObservation) => ({ rawItemId:o.rawItemId, sourceHash:o.sourceHash,
+        scope:o.scope, sourceEvent:o.sourceEvent, reported:o.reported, eventId:o.eventId, listingRisk:o.listingRisk });
+      for (const target of selected.filter(p => stable(eventFacts(p.observation)) === stable(eventFacts(previous.observation)))) {
+        links.set(target.id,[...(links.get(target.id) ?? []),item]);
+        result.closedObservations.push({id:target.id,targetId:previous.id,followUpId:item.id});
+      }
     } catch { result.reasons.push("unvalidated_follow_up_link"); }
   }
   if (result.reasons.length) return result;

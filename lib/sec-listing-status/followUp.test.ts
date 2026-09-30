@@ -73,7 +73,7 @@ test("wrong target, independent issue, stale evidence and unresolved observation
     if(change==="date")e.resolves!.eventDate="2024-06-15";
     assert.equal(project([a,bad]).listing,"unresolved");
   }
-  const other=structuredClone(a);other.id=uid(5);
+  const other=structuredClone(a);other.id=uid(5);other.observation.sourceEvent!.issue="low selling price";
   assert.equal(project([a,b,other]).listing,"unresolved");
   const stale=structuredClone(a);stale.usable=false;stale.reason="stale_or_missing_sec_source";
   assert.equal(project([stale,b]).listing,"unresolved");
@@ -138,4 +138,45 @@ test("source-only writer and official reader reject missing/stale targets withou
   assert.ok(read.every(x=>!x.usable));
   await assert.rejects(persistSecListingObservation(request),/target_stale/);
   assert.equal(writes,1);
+});
+
+test("official revalidation preserves an invalid summary and excludes only that summary from projection",async()=>{
+  const a=initial(),b=follow(a),s=item(3,event("trading_suspension","scpx-before","2024-06-14","June 14, 2024"),"2024-06-17");
+  const invalid=structuredClone(s); invalid.id=uid(4); invalid.observation.reported.suspensionDate="2024-06-14";
+  const saved=structuredClone(invalid.observation);
+  const rows=[a,b,s,invalid].map(x=>({id:x.id,raw_item_id:x.observation.rawItemId,observation:x.observation}));
+  // Use unresolved saved attachments; the immutable facts are validated independently.
+  for(const row of rows) row.observation.attachment={...attachment,status:"unresolved",reason:"fixture_identity",securityIdentityId:null};
+  saved.attachment=structuredClone(invalid.observation.attachment);
+  const raws=[a,b,s].map(x=>x.observation.sourceSnapshot);
+  const repository:SecTickerResolutionRepository={select:async(table,q)=>({ok:true,status:200,data:
+    (table==="raw_items"?raws:table==="sec_listing_status_observations"?rows:[]).filter(x=>!q.id||x.id===q.id.slice(3))}),
+    rpc:async()=>{throw Error("no writes");}};
+  const history=await readSecListingHistory({scope,repository});
+  const bad=history.find(x=>x.id===invalid.id)!;
+  assert.equal(bad.reason,"observation_facts_changed");
+  assert.equal(bad.revalidationFailure?.storedReported.suspensionDate,"2024-06-14");
+  assert.equal(bad.revalidationFailure?.revalidatedReported.suspensionDate,null);
+  assert.deepEqual(bad.observation,saved);
+  // Identity is synthetic only in this unit projection; runtime verifies actual cover proofs.
+  for(const h of history) h.resolvedAttachment=attachment;
+  const result=project(history);
+  assert.equal(result.listing,"removal_decision_withdrawn"); assert.equal(result.trading,"unresolved");
+  assert.deepEqual(result.excludedObservations.map(x=>x.id),[invalid.id]);
+  assert.ok(result.observationIds.includes(invalid.id));
+  delete bad.revalidationFailure;
+  assert.equal(project(history).listing,"unresolved","a bare unavailable flag is not permission to ignore a record");
+  const independent=initial(); independent.id=uid(77); independent.observation.sourceEvent!.issue="low selling price";
+  assert.equal(project([...history.filter(x=>x.id!==invalid.id),independent]).listing,"unresolved");
+});
+
+test("attachment revisions of the exact same source event close together and retain every ID",()=>{
+  const a=initial(),b=follow(a),revision=structuredClone(a);revision.id=uid(98);
+  revision.observation.attachment={...attachment,reason:"another_validated_proof"};
+  const r=project([a,b,revision]);
+  assert.equal(r.listing,"removal_decision_withdrawn");
+  assert.deepEqual(r.closedObservations.map(x=>x.id).sort(),[a.id,revision.id].sort());
+  assert.equal(r.observationIds.length,3);
+  revision.observation.sourceHash="f".repeat(64);
+  assert.equal(project([a,b,revision]).listing,"unresolved","different source revision is not implicitly closed");
 });

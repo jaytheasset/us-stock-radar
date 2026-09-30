@@ -6,8 +6,9 @@ import { readCurrentListingRiskFacts, validateCurrentListingRiskReadResult } fro
 import { record, validDate, validScope, SEC_DELISTING_STATE_VERSION, type DelistingScope } from "../sec-delisting-state/state.ts";
 import type { SecTickerResolutionRepository } from "../sec-ticker-resolution/persistence.ts";
 import { resolveListingAttachment } from "./identity.ts";
+import { selectListingCoverRow } from "./coverAttachment.ts";
 import { LISTING_OBSERVATION_VERSION, buildObservation, listingSourceSnapshot, evaluateObservation, summarize,
-  projectListingStatus, hash, stable, uuid, type Row, type ListingObservation, type HistoryItem } from "./observation.ts";
+  projectListingStatus, hash, stable, uuid, unattached, type Row, type ListingObservation, type HistoryItem } from "./observation.ts";
 
 /** One existing stored filing -> immutable observation. Explicit invocation; no
  * Primary, child execution, Monitor evaluation or delivery is started here. */
@@ -56,7 +57,7 @@ export async function persistSecListingObservation(input: {
         securityTitle: matches[0].securityTitle.parsedTextValue!, exchange: matches[0].exchange.parsedTextValue! };
     }
   }
-  const attachment = await resolveListingAttachment(scope, repository, String(raw.published_at).slice(0, 10));
+  const attachment = await observationAttachment(raw, scope, input.sourceEvent, repository);
   const observation = buildObservation({ raw, scope, asOf: input.asOf, attachment, eventId: input.eventId, listingRisk, sourceEvent: input.sourceEvent });
   const response = await repository.rpc("persist_sec_listing_status_observation", { p_observation: observation });
   if (!response.ok) throw Error(`listing_observation_persistence_failed: ${response.error || response.status}`);
@@ -103,19 +104,27 @@ export async function readSecListingHistory(input: {
         item.reason = "observation_facts_changed";
       if (!item.reason && o.sourceEvent) {
         try {
-          if (stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported)) item.reason = "observation_facts_changed";
+          const current = summarize(evaluateObservation(o,o.evaluatedAsOf));
+          if (stable(current) !== stable(o.reported)) {
+            item.reason = "observation_facts_changed";
+            item.revalidationFailure = { reason: "observation_facts_changed", sourceHash: o.sourceHash,
+              storedReported: o.reported, revalidatedReported: current };
+          }
           if (o.sourceEvent?.resolves) await checkSourceLink(raw!,o.scope!,o.sourceEvent,repository);
-        } catch { item.reason = "invalid_source_event_or_link"; }
+        } catch (e) {
+          if (e instanceof Error && /(?:read_failed|unavailable)/.test(e.message)) throw e;
+          item.reason = "invalid_source_event_or_link"; delete item.revalidationFailure;
+        }
       }
       if (!item.reason && o.attachment.status === "attached") {
-        const proof = await resolveListingAttachment(o.scope, repository, o.filingDate);
+        const proof = await observationAttachment(raw!, o.scope, o.sourceEvent, repository);
         if (stable(proof) !== stable(o.attachment)) item.reason = "identity_evidence_changed";
       }
       // Retain the original unresolved record. Re-resolve only a missing identity,
       // never a conflict or source failure, against evidence available to its filing.
       if (!item.reason && o.attachment.status === "unresolved"
-        && o.attachment.reason === "no_exact_canonical_security_exchange") {
-        const proof = await resolveListingAttachment(o.scope, repository, o.filingDate);
+        && ["no_exact_canonical_security_exchange", "identity_observation_time_missing"].includes(o.attachment.reason)) {
+        const proof = await observationAttachment(raw!, o.scope, o.sourceEvent, repository);
         if (proof.status === "attached" && proof.reason === "validated_stable_sec_security_exchange")
           item.resolvedAttachment = proof;
       }
@@ -124,6 +133,22 @@ export async function readSecListingHistory(input: {
     history.push(item);
   }
   return history;
+}
+
+async function observationAttachment(raw: Row, scope: DelistingScope | null, event: ListingSourceEvent | undefined,
+  repository: SecTickerResolutionRepository) {
+  if (!event || !scope) return resolveListingAttachment(scope,repository,String(raw.published_at).slice(0,10));
+  const coverRow = selectListingCoverRow(raw,scope);
+  if (!coverRow) return unattached("no_exact_canonical_security_exchange");
+  const attachment = await resolveListingAttachment({ issuerCik: scope.issuerCik,
+    securityTitle: coverRow.securityTitle, exchange: coverRow.exchange },repository,String(raw.published_at).slice(0,10));
+  if (attachment.status !== "attached") return attachment;
+  // An exact title/venue alone cannot authorize a ticker transition.
+  const identity = await readOne(repository,"sec_ticker_security_identities",attachment.securityIdentityId!);
+  if (record(record(identity?.identity_payload).after).tradingSymbol !== coverRow.ticker)
+    return { ...attachment, status: "unresolved" as const, securityIdentityId: null, decisionId: null,
+      proofHash: null, knownAt: null, reason: "cover_ticker_requires_change_evidence" };
+  return { ...attachment, coverRow };
 }
 
 export async function readSecListingStatusAsOf(input: {

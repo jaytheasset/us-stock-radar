@@ -52,3 +52,18 @@ test("reader failure is unresolved, never interpreted as absence or identity pro
     afterAccession: after.accessionNumber, beforeSourceHash: before.sourceSha256!, afterSourceHash: after.sourceSha256! }, repository)).status, "unresolved");
   assert.equal((await readStoredStableIdentity(evaluate().identity!, repository)).status, "unresolved");
 });
+
+test("explicit cover keys preserve siblings and select only a unique unchanged security", () => {
+  const rights = { ...before, observationKey:"rights", securityTitle:"Common Stock Purchase Rights", tradingSymbol:"None" };
+  const selection = {beforeObservationKey:before.observationKey,afterObservationKey:after.observationKey};
+  const rows=[rights,before]; const snapshot=structuredClone(rows);
+  assert.ok(evaluateStableSecSecurityIdentity(rows,[after,rights],selection).identity);
+  assert.deepEqual(rows,snapshot);
+  for(const sibling of [{...rights,securityTitle:before.securityTitle}, {...rights,tradingSymbol:before.tradingSymbol},
+    {...rights,securityTitle:null}, {...rights,observationKey:before.observationKey}])
+    assert.equal(evaluateStableSecSecurityIdentity([before,sibling],[after],selection).identity,null);
+  assert.equal(evaluateStableSecSecurityIdentity(rows,[{...after,tradingSymbol:"NEW"},rights],selection).identity,null);
+  assert.equal(evaluateStableSecSecurityIdentity(rows,[after,rights],{...selection,beforeObservationKey:"missing"}).identity,null);
+  assert.equal(evaluateStableSecSecurityIdentity([rights],[{...rights,accessionNumber:after.accessionNumber,acceptedAt:after.acceptedAt}],
+    {beforeObservationKey:"rights",afterObservationKey:"rights"}).identity,null);
+});

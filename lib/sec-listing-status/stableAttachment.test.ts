@@ -6,6 +6,7 @@ import { resolveListingAttachment } from "./identity.ts";
 import { buildObservation, unattached, type Row } from "./observation.ts";
 import { readSecListingHistory } from "./persistence.ts";
 import type { SecTickerResolutionRepository } from "../sec-ticker-resolution/persistence.ts";
+import { selectListingCoverRow } from "./coverAttachment.ts";
 
 const scope = { issuerCik: "0001321655", securityTitle: "Class A Common Stock", exchange: "New York Stock Exchange" };
 // Synthetic inline cover documents exercise the actual parser and validating reader.
@@ -84,4 +85,41 @@ test("official history keeps old missing-identity record intact and exposes a se
   assert.deepEqual(read[0].observation, original); assert.deepEqual(o, original);
   o.attachment = unattached("multiple_security_identities", "conflict");
   assert.equal((await readSecListingHistory({ rawItemId: raw.id, repository: f.repository }))[0].resolvedAttachment, undefined);
+});
+
+test("status subject selects its exact cover row; rights remain and ambiguity/wrong class/venue block",()=>{
+  const raw=structuredClone(cover(6,"2024-06-17","SCPX","8-K").raw);
+  const body=raw.raw_payload.primary_document_html;
+  const context=body.match(/<xbrli:context[\s\S]*?<\/xbrli:context>/)![0].replace('id="c"','id="rights"');
+  const fields=body.match(/<ix:nonNumeric[\s\S]*<\/ix:nonNumeric>/)![0].replaceAll('contextRef="c"','contextRef="rights"')
+    .replace(scope.securityTitle,"Common Stock Purchase Rights").replace('>SCPX<','>None<');
+  raw.raw_payload.primary_document_html=body.replace('</html>',context+fields+'</html>')
+    .replace(scope.securityTitle,"Common Stock, $0.0002 par value per share")
+    .replaceAll(scope.exchange,"NYSE American LLC");
+  raw.raw_payload.primary_document_html_char_count=raw.raw_payload.primary_document_html.length;
+  const sc={issuerCik:scope.issuerCik,securityTitle:"common stock",exchange:"NYSE American"};
+  const snapshot=structuredClone(raw);
+  const selected=selectListingCoverRow(raw,sc);
+  assert.equal(selected?.ticker,"SCPX"); assert.equal(selected?.exchange,"NYSE American LLC");
+  assert.equal(buildSecCoverObservationPayload(raw.id,raw)?.observations.length,2);
+  assert.deepEqual(raw,snapshot);
+  for(const patch of [{securityTitle:"Class A Common Stock"},{securityTitle:"Common Stock, $0.01 par value per share"},
+    {exchange:"NYSE"},{exchange:"Nasdaq"},{issuerCik:"0000000001"}])
+    assert.equal(selectListingCoverRow(raw,{...sc,...patch}),null);
+  raw.raw_payload.primary_document_html=raw.raw_payload.primary_document_html.replace("Common Stock Purchase Rights","Common Stock");
+  raw.raw_payload.primary_document_html_char_count=raw.raw_payload.primary_document_html.length;
+  assert.equal(selectListingCoverRow(raw,sc),null);
+});
+
+test("missing cover receipt fields use the retained filing date only to bound the scan",async()=>{
+  const f=await fixture(),c=cover(3,"2024-11-20");
+  c.raw.raw_payload.accepted_at="";c.raw.raw_payload.filing_date="";
+  const rebuilt=buildSecCoverObservationPayload(c.raw.id,c.raw);assert.ok(rebuilt);
+  f.add({...c,...rebuilt});
+  const original=structuredClone(c.raw);
+  const read=await resolveListingAttachment(scope,f.repository,"2024-11-25");
+  assert.equal(read.status,"attached");assert.equal(Date.parse(read.knownAt!),Date.parse(f.a.raw.raw_payload.accepted_at));
+  assert.deepEqual(c.raw,original);
+  f.tables.raw_items.find(x=>x.id===c.raw.id)!.published_at=null;
+  assert.equal((await resolveListingAttachment(scope,f.repository,"2024-11-25")).reason,"identity_observation_time_missing");
 });

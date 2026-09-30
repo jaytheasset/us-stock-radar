@@ -6,6 +6,7 @@ import { readExactCover, coverObservations, selectedSourceHasNoConflictingRevisi
 type Row = Record<string, unknown>;
 export type StableIdentityInput = {
   beforeAccession: string; beforeSourceHash: string; afterAccession: string; afterSourceHash: string;
+  beforeObservationKey?: string; afterObservationKey?: string;
 };
 /** Reuses the source-validating cover reader; no AUTO/change decision is manufactured. */
 export async function readStableIdentityEvidence(input: StableIdentityInput, repository: SecTickerResolutionRepository) {
@@ -16,9 +17,14 @@ export async function readStableIdentityEvidence(input: StableIdentityInput, rep
     || !await selectedSourceHasNoConflictingRevision(after.value, repository))
     return { status: "conflict" as const, reason: "stable_cover_source_revision_conflict" };
   const beforeRows = coverObservations(before.value), afterRows = coverObservations(after.value);
-  const evaluated = evaluateStableSecSecurityIdentity(beforeRows, afterRows);
+  if (Boolean(input.beforeObservationKey) !== Boolean(input.afterObservationKey))
+    return { status: "unresolved" as const, reason: "stable_cover_selection_incomplete" };
+  const evaluated = evaluateStableSecSecurityIdentity(beforeRows, afterRows, input.beforeObservationKey
+    ? { beforeObservationKey: input.beforeObservationKey, afterObservationKey: input.afterObservationKey! } : undefined);
   if (!evaluated.identity) return { status: "unresolved" as const, reason: evaluated.reason };
-  return { status: "available" as const, identity: evaluated.identity, before: beforeRows[0], after: afterRows[0] };
+  return { status: "available" as const, identity: evaluated.identity,
+    before: beforeRows.find(o => o.observationKey === evaluated.identity!.before_observation_key)!,
+    after: afterRows.find(o => o.observationKey === evaluated.identity!.after_observation_key)! };
 }
 
 export async function persistStableSecSecurityIdentity(input: StableIdentityInput & { repository: SecTickerResolutionRepository }) {
@@ -41,7 +47,8 @@ export async function readStoredStableIdentity(identity: Row, repository: SecTic
   }
   const read = await readStableIdentityEvidence({ beforeAccession: String(covers[0].accession_number),
     beforeSourceHash: String(covers[0].source_sha256), afterAccession: String(covers[1].accession_number),
-    afterSourceHash: String(covers[1].source_sha256) }, repository);
+    afterSourceHash: String(covers[1].source_sha256), beforeObservationKey: String(identity.before_observation_key),
+    afterObservationKey: String(identity.after_observation_key) }, repository);
   if (read.status !== "available") return read;
   // The persisted identity is derived from the exact source, not trusted by its ID alone.
   if (Object.entries(read.identity).some(([key, value]) => canonical(value) !== canonical(identity[key])))
