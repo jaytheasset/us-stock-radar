@@ -129,7 +129,7 @@ export async function processGenericMonitorChildWithDependencies<
   }
   if (persistence.status === "stale") {
     await repository.recordTerminal(identity, "stale");
-    return { status: "stale" as const, jobId: identity.executionId, providerCalls: 1 };
+    return { status: "stale" as const, jobId: identity.executionId, providerCalls: identity.sourceFamily === "sec_form25" ? 0 : 1 };
   }
   let shareCountPersistence: { inserted: number; deduped: number } | undefined;
   const shareCountObservation = "shareCountObservation" in analyzerRun
@@ -183,7 +183,7 @@ export async function processGenericMonitorChildWithDependencies<
   return {
     status: terminalState,
     jobId: identity.executionId,
-    providerCalls: 1,
+    providerCalls: identity.sourceFamily === "sec_form25" ? 0 : 1,
     persistence: persistence.status,
     ...(postPersistence !== undefined ? { postPersistence } : {}),
     ...(shareCountPersistence ? { shareCountPersistence } : {}),
@@ -195,7 +195,7 @@ function retryableFailure(identity: GenericMonitorChildIdentity, error: unknown)
   return {
     status: "retryable_failure" as const,
     jobId: identity.executionId,
-    providerCalls: 1,
+    providerCalls: identity.sourceFamily === "sec_form25" ? 0 : 1,
     error: errorMessage(error),
   };
 }

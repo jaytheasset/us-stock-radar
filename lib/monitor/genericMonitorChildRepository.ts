@@ -13,6 +13,7 @@ import {
 } from "./genericMonitorChildExecution.ts";
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
 import { PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY } from "./periodicFinancialMonitor.ts";
+import { FORM25_LISTING_CONTRACT_VERSION, FORM25_LISTING_FORMS } from "./form25ListingRisk.ts";
 
 type StoreResult = {
   ok: boolean;
@@ -192,7 +193,7 @@ export async function reserveGenericMonitorChild(
     raw_item_id: identity.rawItemId,
     prompt_key: GENERIC_MONITOR_CHILD_PROMPT_KEY,
     prompt_version: identity.analyzerContractVersion,
-    model: "not_started",
+    model: identity.sourceFamily === "sec_form25" ? "deterministic" : "not_started",
     status: "pending",
     started_at: null,
     finished_at: null,
@@ -311,7 +312,12 @@ export async function loadGenericMonitorExactParent(
   const routing = readMonitorRoutingResultFromPrimaryOutput(analysis);
   const isDeterministicPeriodicFinancial = identity.sourceFamily === "sec_periodic_reports"
     && identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY;
-  if (!isDeterministicPeriodicFinancial
+  const isDeterministicForm25 = identity.sourceFamily === "sec_form25"
+    && identity.monitorAnalyzerKey === "listing_risk"
+    && identity.analyzerContractVersion === FORM25_LISTING_CONTRACT_VERSION
+    && (FORM25_LISTING_FORMS as readonly string[]).includes(String(record(rawItem.raw_payload)?.form_type));
+  if (identity.sourceFamily === "sec_form25" && !isDeterministicForm25) throw new Error("Invalid Form25 execution/source contract");
+  if (!isDeterministicPeriodicFinancial && !isDeterministicForm25
     && !routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)
     && !isSourceProvenSecAmendmentAuthorization(identity, analysis)) {
     throw new Error("Generic Monitor exact parent output does not contain the reserved analyzer route");
@@ -413,7 +419,7 @@ function isSourceProvenSecAmendmentAuthorization(
 }
 
 export function expectedGenericMonitorPrimaryOutputType(identity: GenericMonitorChildIdentity) {
-  return identity.sourceFamily === "sec_8k_6k" || identity.sourceFamily === "sec_periodic_reports"
+  return identity.sourceFamily === "sec_8k_6k" || identity.sourceFamily === "sec_periodic_reports" || identity.sourceFamily === "sec_form25"
     ? identity.parentPromptKey
     : "news_event_analysis";
 }

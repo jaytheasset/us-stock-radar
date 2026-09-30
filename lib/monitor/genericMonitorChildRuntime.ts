@@ -109,6 +109,12 @@ export async function processGenericMonitorChild(
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
+  if (identity.sourceFamily === "sec_form25") {
+    return (await import("./form25ListingRuntime.ts")).processForm25ListingChild(identity, {
+      repository,
+      consumeAlerts: dependencies.consumeListingMonitorAlerts || consumeListingMonitorAlertsForEvent,
+    });
+  }
   if (identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY) {
     return processPeriodicFinancialMonitorChild(identity, {
       repository,

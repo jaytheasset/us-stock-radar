@@ -13,6 +13,7 @@ import type {
   GenericMonitorChildTerminalState,
 } from "./genericMonitorChildExecution.ts";
 import { readForm25AnalysisReviewForConsumer, type Form25AnalysisReviewRead } from "../sec-form25-analysis-review/consumer.ts";
+import { FORM25_LISTING_CONTRACT_VERSION } from "./form25ListingRisk.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -39,7 +40,7 @@ export type CurrentListingRiskReadResult = (
   | ({ status: "available"; factSchemaVersion: string; facts: ListingRiskEventFacts } & CurrentListingRiskLineage)
   | ({ status: "not_applicable" } & CurrentListingRiskLineage)
   | { status: "not_ready"; reason: string }
-) & { form25HumanReview?: Form25AnalysisReviewRead };
+) & { form25HumanReview?: Form25AnalysisReviewRead; form25State?: Record<string, unknown> };
 
 export type ListingRiskPersistenceDependencies = {
   readForm25Review?(eventId: string): Promise<Form25AnalysisReviewRead>;
@@ -147,7 +148,9 @@ export function validateCurrentListingRiskReadResult(value: unknown): CurrentLis
 
   const lineage = readLineage(row);
   if (!lineage) return { status: "not_ready", reason: "reader_lineage_validation_failed" };
-  if (row.status === "not_applicable") return { status: "not_applicable", ...lineage };
+  const form25State = lineage.analyzerContractVersion === FORM25_LISTING_CONTRACT_VERSION && record(row.form25_state)
+    ? {form25State: record(row.form25_state)!} : {};
+  if (row.status === "not_applicable") return { status: "not_applicable", ...lineage, ...form25State };
 
   const facts = readListingRiskEventFacts(row.facts);
   if (row.fact_schema_version !== LISTING_RISK_EVENT_FACTS_VERSION || !facts) {
@@ -156,6 +159,7 @@ export function validateCurrentListingRiskReadResult(value: unknown): CurrentLis
   return {
     status: "available",
     ...lineage,
+    ...form25State,
     factSchemaVersion: LISTING_RISK_EVENT_FACTS_VERSION,
     facts,
   };
@@ -173,7 +177,7 @@ function validatePersistenceIdentity(identity: GenericMonitorChildIdentity) {
   }
   if (identity.jobId !== identity.executionId) return "job_execution_identity_mismatch";
   if (identity.monitorAnalyzerKey !== "listing_risk") return "unexpected_monitor_analyzer_key";
-  if (identity.analyzerContractVersion !== LISTING_RISK_ANALYZER_PROMPT_VERSION) {
+  if (identity.analyzerContractVersion !== (identity.sourceFamily === "sec_form25" ? FORM25_LISTING_CONTRACT_VERSION : LISTING_RISK_ANALYZER_PROMPT_VERSION)) {
     return "unsupported_analyzer_contract_version";
   }
   return null;
@@ -222,7 +226,7 @@ function readLineage(row: Record<string, unknown>): CurrentListingRiskLineage | 
     || !UUID_PATTERN.test(parentPrimaryAiRunId)
     || !UUID_PATTERN.test(sourceExecutionId)
     || row.monitor_analyzer_key !== "listing_risk"
-    || analyzerContractVersion !== LISTING_RISK_ANALYZER_PROMPT_VERSION
+    || ![LISTING_RISK_ANALYZER_PROMPT_VERSION, FORM25_LISTING_CONTRACT_VERSION].includes(analyzerContractVersion)
     || !Number.isFinite(Date.parse(persistedAt))
   ) {
     return null;

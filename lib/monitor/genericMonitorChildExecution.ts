@@ -5,6 +5,7 @@ import {
   type SupportedMonitorAnalyzerKey,
 } from "./monitorRouting.ts";
 import { LISTING_RISK_ANALYZER_PROMPT_VERSION } from "./listingRiskAnalyzer.ts";
+import { FORM25_LISTING_CONTRACT_VERSION } from "./form25ListingRisk.ts";
 import { CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION } from "./corporateActionCanonicalFacts.ts";
 import {
   PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY,
@@ -44,6 +45,7 @@ export const GENERIC_MONITOR_PRIMARY_PROMPT_KEYS = {
     "sec_periodic_reports_analysis",
     "sec_periodic_reports_amendment_analysis",
   ],
+  sec_form25: ["sec_form25_analysis_draft"],
 } as const;
 
 export type GenericMonitorSourceFamily = keyof typeof GENERIC_MONITOR_PRIMARY_PROMPT_KEYS;
@@ -120,13 +122,17 @@ export function buildGenericMonitorChildIdentities(input: {
   if (!isAuthorizedGenericMonitorPrimary(primary)) {
     throw new Error("Generic Monitor child source family is not mechanically authorized");
   }
+  if (primary.sourceFamily === "sec_form25" && routing.monitor_routes.some(route => route.monitor_analyzer_key !== "listing_risk")) {
+    throw new Error("Form25 only authorizes its deterministic Listing Risk child");
+  }
 
   const attempt = normalizeAttempt(input.attempt);
   const reservedAt = normalizeTimestamp(input.now);
   return routing.monitor_routes.map((route) => {
     const analyzerContractVersion = normalizeIdentityText(
       input.analyzerContractVersions?.[route.monitor_analyzer_key]
-        || GENERIC_MONITOR_ANALYZER_CONTRACTS[route.monitor_analyzer_key],
+        || (primary.sourceFamily === "sec_form25" && route.monitor_analyzer_key === "listing_risk"
+          ? FORM25_LISTING_CONTRACT_VERSION : GENERIC_MONITOR_ANALYZER_CONTRACTS[route.monitor_analyzer_key]),
       "analyzer contract version",
     );
     const logicalJobId = deterministicGenericMonitorLogicalJobId({

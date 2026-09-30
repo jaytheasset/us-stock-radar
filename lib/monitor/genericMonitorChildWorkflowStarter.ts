@@ -6,6 +6,7 @@ import {
   type GenericMonitorSourceFamily,
 } from "./genericMonitorChildExecution.ts";
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
+import { FORM25_LISTING_FORMS } from "./form25ListingRisk.ts";
 
 const SEC_8K_6K_FORM_TYPES = new Set(["8-K", "6-K"]);
 const SEC_8K_6K_AMENDMENT_FORM_TYPES = new Set(["8-K/A", "6-K/A"]);
@@ -95,6 +96,9 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
   if (!input.primary) return { status: "out_of_scope", childCount: 0 };
   const identities = input.primary.sourceFamily === "sec_periodic_reports"
     ? [buildPeriodicFinancialMonitorChildIdentity({ primary: input.primary })]
+    : input.primary.sourceFamily === "sec_form25"
+    ? buildGenericMonitorChildIdentities({ primary: input.primary,
+      monitorRouting: { monitor_routes: [{monitor_analyzer_key:"listing_risk"}] } })
     : buildRoutedIdentities(input.primary, input.primaryAnalysis);
   if (identities.length === 0) return { status: "not_routed", childCount: 0 };
   const repository = input.dependencies?.repository || await defaultRepository();
@@ -197,6 +201,7 @@ function sourceFamilyForProductionSource(
     return sourceCode === "nasdaq_corporate_actions" ? "nasdaq_corporate_actions" : "news";
   }
   const normalizedForm = normalizeSecFormType(secFormType);
+  if (sourceCode === "sec_edgar" && (FORM25_LISTING_FORMS as readonly string[]).includes(normalizedForm)) return "sec_form25";
   const currentReportAllowed = SEC_8K_6K_FORM_TYPES.has(normalizedForm)
     || (amendmentAuthorized && SEC_8K_6K_AMENDMENT_FORM_TYPES.has(normalizedForm));
   if (sourceCode !== "sec_edgar" || !currentReportAllowed) {

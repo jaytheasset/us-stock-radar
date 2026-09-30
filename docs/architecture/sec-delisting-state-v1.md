@@ -1,8 +1,117 @@
 # SEC delisting state, phase 1
 
-This is a read-only, derived evidence reader. It does not change the security
-catalog or any filing, analysis, Monitor, Watchlist, or Alert row. No migration,
-automatic collection, state persistence, API route, or UI is added.
+The state reader itself remains read-only. The following connection now lets
+the existing Listing Risk child workflow persist its source-backed result;
+the older sections retain the scope and evidence of their respective stages.
+
+## Deterministic Listing Risk connection (2026-10-01)
+
+After a successful existing Form 25 Primary run, the existing SEC analysis
+ingest hook now reserves one `sec_form25` / `listing_risk` child. Form 25,
+25-NSE and their amendments use `listing_risk_form25_state_v1`. The child uses
+`readStoredForm25Source` and `evaluateStoredForm25`, not a provider. Primary
+analysis, the deterministic parser/state rules and all other families remain
+unchanged. No LLM call, prompt, provider fallback or new Monitor is introduced.
+
+`form25ListingRisk.ts` projects an established removal into the existing
+`listing_removal` fact, and an established/scheduled suspension into the existing
+`trading_suspension` fact. The latter's Registry meaning already includes a
+scheduled action; its date remains `scheduled`, never `occurred`. Pending
+removal alone cannot mean completed `listing_removal`. Pending-only/unresolved
+cases therefore store `not_applicable` in the existing eligible-facts contract,
+while retaining their actual pending/unresolved state and reasons separately.
+An unavailable adverse/procedural outcome, ticker or date stays unavailable;
+neither Primary prose nor catalog status supplies a replacement.
+
+The normal child reservation, exact-parent checks, terminal lifecycle, typed
+writer, official reader, Matcher and alert consumer are reused. No changes to
+Monitor conditions, identity/Human-review gates, activation or dedupe policies.
+The `form25_listing_state` AI output preserves the input source snapshot,
+as-of date, state, reasons and parser/source hashes. Existing
+`event_listing_risk_results` and `event_listing_risk_facts` hold the unchanged V2
+fact contract. The official reader also returns `form25State` for both eligible
+and ineligible results. Original raw evidence is not rewritten.
+
+Migration `20260930163226_form25_listing_monitor_connection.sql` extends only
+the existing writer/reader functions. It accepts this source/contract/parent
+combination and actual retained document URLs; it requires the trace, result
+and current raw snapshot to agree. Current-parent checks and immutable replay
+remain enforced. There are no new tables or grants. The two predecessor
+function bodies were checked against the ordered repository migrations before
+replacement. Only the authorized isolated DB was migrated; function ACLs are
+unchanged. Other databases still require this migration before using the route.
+
+### Verified cases and limits
+
+| Retained real SEC source | Official result | Existing condition and alert path |
+| --- | --- | --- |
+| TTOO 25-NSE/A, `0001354457-25-000637` | Available; confirmed removal 2025-07-21, suspended 2025-02-12 | `listing.event_kind = listing_removal` matches the typed facts. Actual consumer blocks on the existing unresolved subject identity (`subject_not_in_sec_catalog`); zero alerts. |
+| FTCH 25-NSE, `0000876661-23-001010` | Not applicable; `removal_pending` and original reasons retained | No eligible completed-removal fact; zero alerts. Existing identity is also unresolved. |
+| PLTR 25, `0001321655-24-000231` | Not applicable; `unresolved` because source dates/status are insufficient | Identity is available, but no eligible fact; zero alerts. |
+
+`scripts/verify-form25-listing-isolated.mjs` uses those retained raw records,
+the production child starter/runtime, typed persistence, official reader,
+Matcher and alert consumer. It requires an explicit isolated connection at
+`127.0.0.1:57322` / REST `57321` and verifies system identifier
+`7689949482832261158`. Credentials come from the authorized local environment
+and are never recorded. No external request is needed.
+
+This DB had no real Primary records for these cases: parent/event fixtures are
+explicitly labelled `fixture-no-provider`, not presented as new Primary model
+results. The starter invokes the actual worker synchronously in this test;
+live Workflow scheduling and fresh Primary execution were not exercised.
+Earlier source-ingest evidence below establishes the retained raw inputs.
+Positive real alert insertion is **not** claimed because the identity gate
+legitimately blocked TTOO; existing alert creation/dedupe regressions passed.
+No identity override, dates, policies or accounts were changed to obtain alerts.
+
+Repeated execution kept one typed result per child and one TTOO fact row,
+without new alerts or source changes. Same-payload SQL replay was idempotent.
+Changed raw evidence, changed trace, forged document URL and stale parent were
+rejected in transactions that were rolled back. The original reader result
+remained identical. A validation-harness RPC arity error was corrected; it was
+not a product failure or a successful database guard test.
+
+Final regression: **142/143 passed**, none skipped. The remaining failure is
+the pre-existing `listingMonitorMatcher.test.ts:518` blanket source-string
+assertion: unchanged Matcher imports/types already contain `Evidence`.
+Both source and test are identical to task base `874d4ca9` after newline
+normalization, and the exact assertion fails there too. It was not weakened.
+Full `tsc --noEmit --incremental false` passed after typing the new fixture
+mutations. No product type error remains.
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/10/01/form25-monitor-connection/`.
+`e2e.log` records the initial runtime outcomes; per-case JSON and timestamped
+`repeat-*` directories record official readback and repeated runs.
+`database-guards.json` inside the successful repeat records rollback checks.
+`migration-predecessor-check.json`, `migration-applied.json`,
+`baseline-static-failure.json`, `regression-final.log` and
+`typecheck-corrected.log` record the remaining checks.
+
+Execution/source history uses existing AI run/output storage. Existing admin
+Form25 identity/analysis review is unchanged; its human-decision history and
+the Form4-specific evaluation-history screen are not repurposed as Form25
+evaluation UI. No browser/UI verification is claimed in this connection task.
+There is no new timed state refresh, amendment-chain reconciliation or
+market-wide source/identity coverage. Unsupported templates and uncertain
+source facts still fail closed.
+
+### Candidate handoff
+
+- Worktree: `C:/Users/PC/.codex/worktrees/form35-history-validation/US-Stock Radar`,
+  detached candidate based on `874d4ca9d5669df88dae57ff450fa8db7e7504d7`.
+- Local main ref: `0b75ffcf573b64fcf030fde432d594bfa9f487ae`, unchanged.
+- Cached `origin/main`: `9c13aee7ef41b38bac0637e53e579633745effda`;
+  live GitHub main and Vercel deployment were not queried. Equality/deployment
+  is not claimed. No merge, push or deployment was performed/authorized.
+- Only the isolated DB received the new migration and labelled test data.
+  Main/shared-local, remote migration state, cron and external services were
+  unchanged. No environment/credential, Docker or server lifecycle change.
+- No PC/mobile screen verification this task. Reuse the prior source-reader
+  evidence only within its stated scope; it is not fresh automatic Monitor E2E.
+- Before an integration, independently review this candidate and apply its
+  migration to the explicitly authorized target. Do not resolve the isolated
+  identity gap by guessing a ticker or bypassing existing gates.
 
 ## HTML scope and cover-sidecar investigation (2026-09-30)
 
