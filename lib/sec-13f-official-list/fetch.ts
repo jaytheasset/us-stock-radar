@@ -9,6 +9,9 @@ export async function fetchSec13fOfficialList(input: {
   userAgent: string;
   requestPolicy?: SecRequestPolicy;
 }) {
+  if (input.expectedQuarter === "2025Q3") {
+    throw new Error("SEC-linked 2025 Q3 TXT duplicates Q1; use the official Q3 PDF fallback");
+  }
   if (officialListQuarterFromUrl(input.sourceUrl) !== input.expectedQuarter) {
     throw new Error("SEC Official List URL does not match the requested quarter");
   }
