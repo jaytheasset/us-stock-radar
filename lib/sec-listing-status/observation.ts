@@ -73,7 +73,8 @@ export function buildObservation(input: {
   return { ...base, reported: summarize(evaluateObservation(base, input.asOf)) };
 }
 
-export type HistoryItem = { id: string; observation: ListingObservation; usable: boolean; reason: string | null };
+export type HistoryItem = { id: string; observation: ListingObservation; usable: boolean; reason: string | null;
+  resolvedAttachment?: Attachment };
 /** Query-time projection over selected, persisted SEC evidence. Not a live market status.
  * Unknown/contradictory evidence is never silently discarded in favor of a newer row. */
 export function projectListingStatus(input: {
@@ -93,7 +94,7 @@ export function projectListingStatus(input: {
   if (!selected.length) { result.reasons.push("no_status_evidence"); return result; }
   if (!input.securityIdentityId) { result.reasons.push("canonical_identity_unresolved"); return result; }
   for (const item of selected) {
-    const o = item.observation; const a = o.attachment;
+    const o = item.observation; const a = item.resolvedAttachment ?? o.attachment;
     if (!item.usable) result.reasons.push(item.reason || "observation_unavailable");
     if (a.status !== "attached" || a.securityIdentityId !== input.securityIdentityId)
       result.reasons.push(a.status === "conflict" ? "identity_conflict" : "canonical_identity_unresolved");

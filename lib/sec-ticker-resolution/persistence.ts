@@ -333,7 +333,7 @@ async function loadEvaluation(
   };
 }
 
-async function selectedSourceHasNoConflictingRevision(
+export async function selectedSourceHasNoConflictingRevision(
   selected: AvailableCoverResult,
   repository: SecTickerResolutionRepository,
 ) {
@@ -354,7 +354,7 @@ async function selectedSourceHasNoConflictingRevision(
     || stringValue(row.source_sha256) === stringValue(selectedResult.source_sha256));
 }
 
-async function readExactCover(
+export async function readExactCover(
   accessionNumber: string,
   sourceSha256: string,
   repository: SecTickerResolutionRepository,
@@ -372,7 +372,7 @@ async function readExactCover(
 
 type AvailableCoverResult = Extract<SecCoverObservationReadResult, { status: "available" }>["results"][number];
 
-function coverObservations(value: AvailableCoverResult): VerifiedSecCoverObservation[] {
+export function coverObservations(value: AvailableCoverResult): VerifiedSecCoverObservation[] {
   return value.payload.observations.map((observation) => ({
     resultId: stringValue(value.result.id),
     observationKey: observation.observationKey,

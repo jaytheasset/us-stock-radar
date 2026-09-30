@@ -37,19 +37,36 @@ this table, indexes, permissions and its writer; no existing data is rewritten.
 
 ## Identity and projection boundaries
 
-The first version reuses the existing **validated AUTO SEC ticker-continuity
-security identities**, through `readSecTickerResolutionByDecisionId`. Both cover
-observations must establish the same exact CIK, security title and exchange as
-the filing. This is intentionally narrow; a ticker catalog entry, CIK alone,
-issuer name or human override does not fill the gap. Multiple matching identity
-IDs are conflict. Incomplete/read-failed identity evidence does not authorize a
-match. No new identity registry or backfill is introduced.
+Attachment distinguishes two evidence paths using the existing identity table:
 
-Attachment is an observation-time proof, not an automatic future relinking job.
-Unattached observations remain auditable and unprojected. New identity evidence
-does not silently rewrite historical attachments. A future relinking/reconciliation
-step needs explicit treatment of older unresolved or conflicting observations;
-the current reducer conservatively retains them as blockers.
+- Actual ticker changes still require the existing validated AUTO decision and
+  explicit change-continuity evidence, through `readSecTickerResolutionByDecisionId`.
+- Unchanged securities can use `persistStableSecSecurityIdentity`: two distinct,
+  chronological, source-validated SEC cover filings, each with exactly one complete
+  common-stock observation and matching CIK, exact title/class, ticker, exchange
+  and dimensions. This writes an identity, **not a ticker-change decision**.
+
+Both paths require the filing's exact CIK/security title/exchange scope. Stable
+attachment additionally checks stored cover observations between the first proof
+and the filing date. A changed ticker/class/exchange, incomplete competing cover,
+multiple securities, conflicting source revision or ambiguous identity blocks the
+stable path. Source-less Form 25 XBRL cover results are not competing identities:
+the separate Form 25 source reader still validates their filing scope. Missing
+10-Q cover facts do not receive that exception. Future covers cannot establish or
+change an earlier filing's attachment. CIK/name/catalog matching is insufficient.
+
+These are observed identity facts, not proof of continuous trading or an unbounded
+historical/current ticker timeline. The latest supporting cover must already be
+available at the filing date. Known-at remains the latest supporting SEC acceptance
+time; the reader does not backdate it or infer a status from identity alone.
+
+Stored observations remain immutable. The official reader may expose a separate
+`resolvedAttachment` only for an otherwise valid old observation whose sole identity
+reason was `no_exact_canonical_security_exchange`, using stable evidence available
+to that filing. Its original JSON is returned unchanged. Conflicts and source
+failures are never overwritten. Projection uses this verified binding; status
+evaluation, dates and conflict rules are unchanged. New persistence stores the
+verified attachment directly, preserving any earlier unresolved observation.
 
 As-of uses filings available by the requested date and the validated identity's
 source date, then reevaluates the original evidence at that date. This is an
@@ -71,7 +88,7 @@ Reads are bounded (100 identity decisions, 1,000 observation rows); exceeded
 bounds fail closed. This is not an amendment-chain resolver, security master,
 full-market listing history, or guarantee of absence of other SEC evidence.
 
-## Verification, 2026-10-01
+## Initial verification at 8369448c, 2026-10-01
 
 Authorized pre-existing isolated target: PostgreSQL `127.0.0.1:57322`, API
 `127.0.0.1:57321`, system identifier `7689949482832261158`. No main/shared-local
@@ -132,3 +149,79 @@ file/function/ACL correspondence is recorded separately; no DB rebuild is claime
 - Merge/push/deploy not performed. Next work should address verified exact-security
   coverage and a real 8-K/6-K case before claiming production-wide status coverage;
   no automatic ingestion wiring or UI is included in this task.
+
+
+## Stable identity validation after 8369448c, 2026-10-01
+
+The original AUTO-only attachment rejected unchanged PLTR with
+`SUPPORTED_CHANGE_EVIDENCE_MISSING`. The ticker-change evaluator was correct;
+using it as the sole identity prerequisite was not. No ticker-change evaluator,
+Monitor, status evaluator, Primary/LLM or other filing-family rule was changed.
+
+Reused original SEC PLTR 10-Qs already persisted in the same authorized isolated DB:
+
+| Accession | Accepted at (UTC) | Source |
+| --- | --- | --- |
+| 0001321655-24-000135 | 2024-08-05 22:19:46 | https://www.sec.gov/Archives/edgar/data/1321655/000132165524000135/pltr-20240630.htm |
+| 0001321655-24-000209 | 2024-11-04 23:08:49 | https://www.sec.gov/Archives/edgar/data/1321655/000132165524000209/pltr-20240930.htm |
+
+Both establish CIK 0001321655, Class A Common Stock, par value $0.001 per share,
+PLTR, New York Stock Exchange, and no competing cover security. Original hashes:
+`219eafb7a3d8af2822ed6250ecd9041afd9206ad065a112ce77c8366cf02e373` and
+`6d3137eaaa81d222777c0d4a59791e38c0588d4a74945511f5233e379ecab5fc`.
+
+- Canonical stable identity: `816ec549-767d-5da6-9966-28d2b3c20118`.
+- PLTR Form 25 `0001321655-24-000231` new attached observation:
+  `70282488-f1e1-4cc7-923f-a5ea83b6625d`; decisionId is null by design.
+- Official history validates the attached observation and preserves original
+  unresolved observation `92f7b385-03e5-4a3b-bf9f-f02955ca0719` unchanged, with a
+  separately validated read-time binding.
+- As-of 2026-09-30 no longer reports `canonical_identity_unresolved` for PLTR.
+  Listing and trading both remain unresolved: the preserved source does not
+  establish the needed operative dates. This is successful identity attachment,
+  not evidence of effective removal or suspension.
+- Identity and observation reruns return `replayed` and unchanged IDs. Pre-existing
+  source/analysis/Monitor/alert rows and the ticker-change writer are unchanged.
+- A request before the second cover remains unattached. Forged symbol and scope
+  requests are rejected. Regressions retain changed-symbol explicit evidence,
+  multi-security/Class A-B ambiguity, source revision, intervening transition,
+  future-evidence and original-history protections. Existing change examples are
+  offline contract regressions, not new real filing ingestion runs.
+
+Migration `20260930191430_sec_stable_security_attachment.sql` adds the stable
+identity evidence check/writer and a narrow stable branch to listing persistence;
+no table is added, and the change-evidence/AUTO contracts are untouched. Applied
+only to 127.0.0.1:57322, system identifier 7689949482832261158. Supabase CLI 2.110.0
+`db query --file` rejected multi-statement SQL before execution; the unchanged
+migration was then applied in one transaction on the verified connection and its
+history recorded with explicit-target CLI migration repair. New functions are
+SECURITY INVOKER with empty search_path and service-role-only execution. Targeted
+permission checks and CLI security advisors passed. No DB rebuild is claimed.
+
+Final checks: 45/45 focused regressions, full `tsc --noEmit --incremental false`,
+and `git diff --check` passed. The existing three-real-case runner also passed:
+TTOO/FTCH retain unresolved attachments; PLTR is attached with unresolved status.
+Sequential/concurrent replay inserted zero new rows (four observations before/after);
+all protected table digests and access restrictions were unchanged.
+
+Validation evidence: `C:/Users/PC/.codex/visualizations/2026/10/01/sec-stable-identity-validation/`.
+The previous source/cover evidence remains in `../sec-listing-status-real-attachment/`.
+These directories contain no committed credentials and are outside Git. The
+`apply-and-verify.mjs` run records actual writes; its timestamped rerun directory
+contains successful identity/observation/readback/projection and immutable-row checks.
+For the existing three-case runner, explicitly set
+`LISTING_HISTORY_EXPECT_STABLE_PLTR_ID=816ec549-767d-5da6-9966-28d2b3c20118` in this
+seeded DB; omit it only when validating the original pre-identity dataset.
+
+Remaining limits: automatic stable-identity collection and listing-observation
+persistence are not wired in this task; no real 8-K/6-K was added. Stable support
+is intentionally narrow (two complete, single-common-security covers). Missing,
+multiple or changed security evidence remains unresolved/conflicted. No positive
+confirmed-status real case is claimed merely from PLTR identity success.
+
+Current task base: detached 8369448c82b23a53d3a42f75e534f85b810834b0 in the same
+candidate. Local main ref remains 0b75ffcf573b64fcf030fde432d594bfa9f487ae; cached
+origin/main remains 9c13aee7ef41b38bac0637e53e579633745effda. Live GitHub/Vercel
+were not queried; parity/deployment is not claimed. No configuration, accounts,
+servers, cron, Docker services or shared-local/main data were changed. No UI was
+changed or required for this identity-only check; merge/push/deploy not authorized.

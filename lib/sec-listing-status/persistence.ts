@@ -44,7 +44,7 @@ export async function persistSecListingObservation(input: {
         securityTitle: matches[0].securityTitle.parsedTextValue!, exchange: matches[0].exchange.parsedTextValue! };
     }
   }
-  const attachment = await resolveListingAttachment(scope, repository);
+  const attachment = await resolveListingAttachment(scope, repository, String(raw.published_at).slice(0, 10));
   const observation = buildObservation({ raw, scope, asOf: input.asOf, attachment, eventId: input.eventId, listingRisk });
   const response = await repository.rpc("persist_sec_listing_status_observation", { p_observation: observation });
   if (!response.ok) throw Error(`listing_observation_persistence_failed: ${response.error || response.status}`);
@@ -90,8 +90,16 @@ export async function readSecListingHistory(input: {
       if (!item.reason && stable(summarize(evaluateObservation(o, o.evaluatedAsOf))) !== stable(o.reported))
         item.reason = "observation_facts_changed";
       if (!item.reason && o.attachment.status === "attached") {
-        const proof = await resolveListingAttachment(o.scope, repository);
+        const proof = await resolveListingAttachment(o.scope, repository, o.filingDate);
         if (stable(proof) !== stable(o.attachment)) item.reason = "identity_evidence_changed";
+      }
+      // Retain the original unresolved record. Re-resolve only a missing identity,
+      // never a conflict or source failure, against evidence available to its filing.
+      if (!item.reason && o.attachment.status === "unresolved"
+        && o.attachment.reason === "no_exact_canonical_security_exchange") {
+        const proof = await resolveListingAttachment(o.scope, repository, o.filingDate);
+        if (proof.status === "attached" && proof.reason === "validated_stable_sec_security_exchange")
+          item.resolvedAttachment = proof;
       }
     }
     item.usable = item.reason === null;

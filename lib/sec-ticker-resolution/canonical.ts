@@ -345,6 +345,32 @@ function extractTickerChanges(text: string, coverOldTicker: string | null): Extr
   return dedupeExtracted(candidates);
 }
 
+/** Observed stable identity, not an AUTO ticker-change decision or proof of
+ * uninterrupted trading. Never bridges a changed symbol, class or exchange. */
+export function evaluateStableSecSecurityIdentity(
+  beforeRows: readonly VerifiedSecCoverObservation[], afterRows: readonly VerifiedSecCoverObservation[],
+): { identity: Row | null; reason: string } {
+  if (beforeRows.length !== 1 || afterRows.length !== 1)
+    return { identity: null, reason: "stable_cover_multiple_or_missing_securities" };
+  const [before] = beforeRows; const [after] = afterRows;
+  if (usableCoverObservations([before, after]).length !== 2
+    || !before.sourceSha256 || !after.sourceSha256 || !before.sourceRawId || !after.sourceRawId
+    || !before.acceptedAt || !after.acceptedAt || !Number.isFinite(Date.parse(before.acceptedAt))
+    || !Number.isFinite(Date.parse(after.acceptedAt)) || Date.parse(before.acceptedAt) >= Date.parse(after.acceptedAt)
+    || before.accessionNumber === after.accessionNumber)
+    return { identity: null, reason: "stable_cover_incomplete_or_invalid_sequence" };
+  const exact = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (before.issuerCik !== after.issuerCik || !normalizeCik(before.issuerCik)
+    || exact(before.securityTitle) !== exact(after.securityTitle)
+    || before.tradingSymbol !== after.tradingSymbol || exact(before.exchange) !== exact(after.exchange)
+    || stableStringify(before.dimensions) !== stableStringify(after.dimensions))
+    return { identity: null, reason: "stable_identity_transition_or_conflict_requires_change_evidence" };
+  const security = classifySecurity(before.securityTitle!);
+  if (!security || security.type !== "common_stock")
+    return { identity: null, reason: "stable_security_scope_unsupported" };
+  return { identity: buildIdentity(before.issuerCik, before, after, security), reason: "stable_exact_sec_cover_identity" };
+}
+
 function buildIdentity(
   issuerCik: string,
   before: VerifiedSecCoverObservation,

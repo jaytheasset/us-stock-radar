@@ -24,6 +24,9 @@ const cases=[
   {name:'PLTR',accession:'0001321655-24-000231',listing:'unresolved',trading:'unresolved',removal:null,suspension:null},
 ];
 const asOf='2026-09-30';
+// Explicit expected identity from the separate stable-cover validation. Omit for
+// the original pre-identity fixture state; never derive expectations from output.
+const stablePltrId=process.env.LISTING_HISTORY_EXPECT_STABLE_PLTR_ID || null;
 await pg.connect();
 try {
   assert.equal((await pg.query('select system_identifier::text from pg_control_system()')).rows[0].system_identifier,'7689949482832261158');
@@ -43,10 +46,15 @@ try {
     assert.equal(o.reported.listing,fixture.listing);assert.equal(o.reported.trading,fixture.trading);
     assert.equal(o.reported.removalDate,fixture.removal);assert.equal(o.reported.suspensionDate,fixture.suspension);
     assert.deepEqual(o.sourceSnapshot.raw_payload,raw.raw_payload);assert.ok(o.reported.sources.length>0);
-    assert.ok(o.scope);assert.equal(o.attachment.status,'unresolved','real DB has no verified canonical security identities');
+    assert.ok(o.scope);
+    const expectAttached=fixture.name==='PLTR' && stablePltrId;
+    assert.equal(o.attachment.status,expectAttached?'attached':'unresolved');
+    if(expectAttached){assert.equal(o.attachment.securityIdentityId,stablePltrId);
+      assert.equal(o.attachment.reason,'validated_stable_sec_security_exchange');assert.equal(o.attachment.decisionId,null);}
     const projection=await readSecListingStatusAsOf({scope:o.scope,securityIdentityId:o.attachment.securityIdentityId,asOf});
     assert.equal(projection.listing,'unresolved');assert.equal(projection.trading,'unresolved');
-    assert.ok(projection.reasons.includes('canonical_identity_unresolved'));
+    assert.equal(projection.reasons.includes('canonical_identity_unresolved'),!expectAttached);
+    if(expectAttached)assert.ok(projection.reasons.includes('listing_evidence_unresolved_or_conflicting'));
     save(`${fixture.name}-history.json`,history);save(`${fixture.name}-projection.json`,projection);
     const report={case:fixture.name,accession:fixture.accession,rawItemId:raw.id,observationId:first.id,
       sourceUrl:raw.source_url,sourceHash:o.sourceHash,sourceDocuments:o.reported.sources,reported:o.reported,
