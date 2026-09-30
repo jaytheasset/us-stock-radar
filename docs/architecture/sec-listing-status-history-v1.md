@@ -33,6 +33,31 @@ The writer checks raw snapshot identity, event linkage and stored identity/facts
 the official application reader supplies semantic/source/proof revalidation.
 Direct table contents must not bypass that reader.
 
+### Typed Listing Risk persistence boundary
+
+Migration `20260930221106_sec_listing_validated_persistence_boundary.sql` keeps
+the canonical writer `SECURITY INVOKER` and replaces its direct private-table
+lookup with `read_current_event_listing_risk_facts`. The submitted context must
+match that official reader's current execution, parent, raw/event IDs, contract,
+timestamp and facts. No SELECT grant on `event_listing_risk_facts` is added.
+
+For 8-K/6-K typed facts, canonical effective dates also require a recognized
+explicit operative-date clause in the cited SEC evidence. A notice received on
+a date saying trading **had** been suspended does not establish the suspension
+date. The canonical evaluator and SQL writer reject that promotion; the original
+typed/model facts, claimed date and source snapshot are retained unchanged.
+Unrecognized or conditional wording remains an unknown canonical date. Existing
+identity/source checks still apply. This is not a change to Listing Risk facts,
+Monitor conditions, Form 25 parsing, or model prompts.
+
+The preserved live Scorpius 8-K `0001079973-24-000891` now writes and officially
+reads back an unresolved observation without a suspension date, and repeated
+writes return the same ID. The typed reader continues to expose its original
+model claim; the canonical record explicitly records
+`trading_suspension_date_not_source_supported`. No model response is repaired.
+Exact cover/identity attachment and stale historical source versions remain
+separate unresolved limitations; this replay is not a fresh provider E2E.
+
 Migration: `20260930182700_sec_listing_status_observations.sql`. It creates only
 this table, indexes, permissions and its writer; no existing data is rewritten.
 

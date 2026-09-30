@@ -5,6 +5,7 @@ import { evaluateStoredForm25, evaluateStoredListingRiskFiling, applyCurrentList
 import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersistence.ts";
 
 import { validateSourceEvent, validateEventLink, sourceEventAxis, closingEvent, type ListingSourceEvent } from "./sourceEvent.ts";
+import { hasSupportedEffectiveDate } from "./effectiveDate.ts";
 
 export type ListingState = DelistingEvidence["listing"] | "removal_decision_withdrawn";
 export type TradingStatus = DelistingEvidence["trading"] | "resumed";
@@ -68,6 +69,20 @@ export function evaluateObservation(observation: Pick<ListingObservation,
   if (observation.listingRisk) evaluated = applyCurrentListingRiskEvidence(evaluated, observation.listingRisk, scope, asOf);
   // A recovery/appeal label is not proof that a security resumed trading or was relisted.
   const current = observation.listingRisk;
+  // Canonical dates need operative-date evidence, not merely an accepted model
+  // value and a quoted notice date. Retain current.facts unchanged for provenance.
+  if (current?.status === "available" && current.facts.dates) {
+    for (const [key, dateKey, axis] of [
+      ["removal_effective_date", "removalDate", "listing"],
+      ["trading_suspension_date", "suspensionDate", "trading"],
+    ] as const) {
+      if (current.facts.dates[key].value && !hasSupportedEffectiveDate(observation, key)) {
+        evaluated = { ...evaluated, [dateKey]: null,
+          [axis]: axis === "listing" && evaluated.listing === "removal_pending" ? "removal_pending" : "unresolved",
+          reasons: [...evaluated.reasons, `${key}_not_source_supported`] };
+      }
+    }
+  }
   if (current?.status === "available" && !["listing_removal", "trading_suspension",
     "delisting_determination", "voluntary_withdrawal"].includes(current.facts.classification.event_kind)) {
     evaluated = { ...evaluated, listing: "unresolved", trading: "unresolved",
