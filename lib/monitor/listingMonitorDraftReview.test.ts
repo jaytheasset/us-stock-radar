@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { getReadyMonitorConditions } from "./conditionRegistry.ts";
 import { getListingMonitorConfirmationCatalog } from "./listingMonitorConfirmation.ts";
@@ -17,6 +18,21 @@ import {
 } from "./listingMonitorDraftReview.ts";
 
 const NASDAQ = Object.freeze({ key: "listing.exchange", operator: "eq" as const, value: "Nasdaq" });
+
+test("browser draft review loads without transitive Node or server-only imports", () => {
+  const entry = new URL("./listingMonitorDraftReview.ts", import.meta.url).href;
+  execFileSync(process.execPath, ["--no-warnings", "--experimental-strip-types", "--input-type=module", "-e", `
+    import { isBuiltin, registerHooks } from "node:module";
+    registerHooks({ resolve(specifier, context, nextResolve) {
+      if (isBuiltin(specifier) || specifier === "server-only") {
+        throw new Error("Browser dependency reached " + specifier + " from " + context.parentURL);
+      }
+      return nextResolve(specifier, context);
+    }});
+    const review = await import(${JSON.stringify(entry)});
+    if (!review.getListingMonitorConditionEditorCatalog().length) throw new Error("Empty condition catalog");
+  `], { stdio: "pipe" });
+});
 const DEFICIENCY = Object.freeze({ key: "listing.event_kind", operator: "eq" as const, value: "deficiency_notice" });
 const ADVERSE = Object.freeze({ key: "listing.event_outcome", operator: "eq" as const, value: "adverse" });
 const DEADLINE = Object.freeze({ key: "listing.compliance_deadline", operator: "within_days" as const, value: 30 });

@@ -8,7 +8,7 @@ import {
   CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
   CORPORATE_ACTION_STAGE_VOCABULARY,
   type CorporateActionCanonicalVocabularyEntry,
-} from "./corporateActionCanonicalFacts.ts";
+} from "./corporateActionVocabulary.ts";
 
 export const MONITOR_CONDITION_REGISTRY_VERSION = "monitor_conditions_v1";
 
