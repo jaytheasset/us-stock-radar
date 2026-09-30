@@ -129,3 +129,62 @@ test("existing validated SC13/cover shapes retain source, locator, and timing th
     assert.equal(result.evidence[2].evidence.observedAt, "2026-09-30");
   }
 });
+
+test("real 2026 Q2 micro-backfill evidence stays trusted only with all three source links", () => {
+  const sc13 = {
+    status: "available", filing: {
+      issuer_cik: "0001831097", cusips_raw: ["00857U206"],
+      security_class_raw: "Common stock, $0.01 par value",
+      accession_number: "0001167557-26-000123", filed_at_raw: "2026-08-12",
+      source_url: "https://www.sec.gov/Archives/edgar/data/1167557/000116755726000123/primary_doc.xml",
+      source_sha256: "64897cfc6f529832841d7f55140e1f62883211d72d525bb5c00bcabe39b5b9b1",
+    }, reporters: [], structural: {},
+  } as unknown as Sc13CanonicalReadResult;
+  const cover = { status: "available", results: [{ result: {}, observations: [], payload: {
+    source: {
+      url: "https://www.sec.gov/Archives/edgar/data/1831097/000162828026053355/agl-20260630.htm",
+      sha256: "bd2cb26616249ae859884c23364c99906bb3ec02b674c2e0d4178d3c0c8b268e",
+    },
+    identity: { accessionNumber: "0001628280-26-053355", acceptedAt: "2026-08-05" },
+    observations: [{ issuerCik: "0001831097", contextRef: "c-1",
+      securityTitle: { status: "observed", parsedTextValue: "Common stock, $0.01 par value" },
+      tradingSymbol: { status: "observed", parsedTextValue: "AGL" } }],
+  } }] } as unknown as SecCoverObservationReadResult;
+  const sc13Rows = secCusipClassObservationsFromSc13(sc13);
+  const coverRows = secClassTickerObservationsFromCover(cover);
+  const currentRows = secCurrentTickerObservations([{ cik_str: 1831097, ticker: "AGL" }], "2026-09-30");
+  assert.deepEqual(resolve({ cusip: "00857U206", observations: [...sc13Rows, ...coverRows] }),
+    { status: "unmapped", reason: "not_in_current_sec_ticker_catalog" });
+  const trusted = resolve({ cusip: "00857U206", observations: [...sc13Rows, ...coverRows, ...currentRows] });
+  assert.equal(trusted.status, "trusted");
+  if (trusted.status === "trusted") {
+    assert.equal(trusted.ticker, "AGL");
+    assert.deepEqual(trusted.evidence.map((row) => row.kind), ["cusip_class", "class_ticker", "current_ticker"]);
+    assert.equal(trusted.evidence[0].evidence.sourceSha256,
+      "64897cfc6f529832841d7f55140e1f62883211d72d525bb5c00bcabe39b5b9b1");
+  }
+  // Replaying the same accession is not a second class claim or a conflict.
+  assert.equal(resolve({ cusip: "00857U206", observations: [...sc13Rows, ...sc13Rows, ...coverRows, ...currentRows] }).status, "trusted");
+});
+
+test("real same-CUSIP class ambiguity remains a conflict and unsupported ETF class remains unmapped", () => {
+  const officialSource = (accessionNumber: string, archiveCik: string): SecIdentifierObservation["evidence"] => ({
+    accessionNumber,
+    sourceUrl: `https://www.sec.gov/Archives/edgar/data/${archiveCik}/${accessionNumber.replaceAll("-", "")}/primary_doc.xml`,
+    observedAt: "2026-09-01",
+  });
+  const claims: SecIdentifierObservation[] = [
+    { kind: "cusip_class", issuerCik: "0001639825", cusip: "70614W100",
+      securityTitle: "Class A Common Stock, $0.000025 par value per share",
+      evidence: officialSource("0000912282-26-001063", "1456670") },
+    { kind: "cusip_class", issuerCik: "0001639825", cusip: "70614W100",
+      securityTitle: "Common Stock", evidence: officialSource("0000102909-26-002038", "102909") },
+    { kind: "cusip_class", issuerCik: "0001479026", cusip: "38149W382",
+      securityTitle: "Shares of beneficial interest (Goldman Sachs Data Enhanced International Equity ETF)",
+      evidence: officialSource("0001085146-26-000765", "1479026") },
+  ];
+  assert.deepEqual(resolve({ cusip: "70614W100", observations: claims }),
+    { status: "conflict", reason: "cusip_issuer_or_class_conflict" });
+  assert.deepEqual(resolve({ cusip: "38149W382", observations: claims }),
+    { status: "unmapped", reason: "incomplete_cusip_class_evidence" });
+});
