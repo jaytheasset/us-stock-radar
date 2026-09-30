@@ -2,7 +2,8 @@
 
 This is a small source-backed history layer, separate from filing/event records,
 Listing Risk results, and Monitor decisions. It does not claim complete current
-market status. No UI, ingest trigger, model, alert, or timed refresh is added.
+market status. Form 25-family raw ingestion now persists observations automatically.
+No UI, model, alert, or timed refresh is added.
 
 ## APIs and stored meaning
 
@@ -225,3 +226,88 @@ origin/main remains 9c13aee7ef41b38bac0637e53e579633745effda. Live GitHub/Vercel
 were not queried; parity/deployment is not claimed. No configuration, accounts,
 servers, cron, Docker services or shared-local/main data were changed. No UI was
 changed or required for this identity-only check; merge/push/deploy not authorized.
+
+## Automatic Form 25 persistence after cf1a5746, 2026-10-01
+
+`runSecRawIngest` now invokes `persistForm25ListingStatusAutomatically` after
+existing source/identity/cover sidecars on both saved-raw and existing-raw paths.
+Only Form 25, 25-NSE and their amendments are eligible. Dry-run, excluded forms
+and failed raw writes do not reach this hook. No Primary/LLM or Monitor dependency
+is introduced, and 8-K/6-K automatic persistence remains out of scope.
+
+The hook rereads the exact stored original source and calls the unchanged canonical
+writer. Missing/invalid source returns unavailable without a write. Missing identity
+is different: preserve the observation and evidence, with an unresolved attachment.
+The existing identity rules alone decide whether an exact security can be attached.
+
+Automatic observations are evaluated at the preserved filing's UTC calendar date
+so rerunning an unchanged stored source on another day remains idempotent. This is
+an observation-time parameter, never an effective date. The unchanged as-of reader
+reevaluates explicit source dates at the requested date. Pending does not become
+confirmed merely because a proposed date passed; listing and trading stay separate.
+
+Results are returned per item and recorded in `source_runs.metadata.form25_listing_status`,
+with inserted/replayed/unavailable/failed counters. A canonical sidecar failure
+preserves a successful raw write, records the failure and allows a normal rerun.
+No new table, RPC, migration, runtime configuration or permissions are required.
+The earlier candidate migrations remain prerequisites in other databases.
+
+### Bounded real persisted-source verification
+
+Target: existing isolated API 127.0.0.1:57321 / DB 127.0.0.1:57322, verified system
+identifier 7689949482832261158. `verify-form25-listing-status-ingest-isolated.mjs`
+feeds retained exact real sources into the normal `runSecRawIngest` fetch boundary;
+all production writers and sidecars remain enabled. This is not a new SEC download,
+Primary execution or direct manual observation-writer test. The fresh-raw branch
+is covered separately by a focused ingest regression.
+
+| Filing | Saved source-time observation | Attachment / as-of readback |
+| --- | --- | --- |
+| PLTR 0001321655-24-000231 | Listing/trading unresolved; effective dates absent | Exact stable Class A/NYSE identity attached; canonical status remains unresolved |
+| TTOO 0001354457-25-000637 | Removal pending at filing; suspended; removal 2025-07-21 / suspension 2025-02-12 preserved | Source-only state at 2026-09-30 confirms removal/suspension; identity unresolved, so canonical projection unresolved |
+| FTCH 0000876661-23-001010 | Removal pending; trading unresolved; proposed 2024-01-02 retained | Still pending at 2026-09-30; identity unresolved, canonical projection unresolved |
+
+Each official history read validated the automatically stored observation. Three
+initial runs inserted three observations (4 -> 7); two additional runs per filing
+returned the same IDs and inserted zero observations. Existing four observations
+and original filing payloads/dates were preserved. No model calls or alerts ran.
+Analysis, event, Monitor, alert and canonical identity table digests were unchanged.
+
+Existing sidecars are not all healthy and are separate from this new hook:
+- TTOO's aggregate delisting reader returns `event_read_failed_or_ambiguous`;
+  two pre-existing event rows for that raw item were confirmed read-only.
+- TTOO/FTCH cover persistence returns `persistence_failed` (HTTP 400). The underlying
+  SQL failure was not investigated or fixed here. Original Form 25 source remains
+  available, and the new canonical observation does not depend on that cover write.
+- The retained cover ticker sidecar appended one PLTR UNRESOLVED change decision
+  with no identity and no AUTO continuity claim. Existing decisions were unchanged.
+  Stable canonical identity attachment succeeds independently under the existing rule.
+
+The initial harness incorrectly protected the entire change-decision table as
+immutable and failed its final assertion after all case/readback/replay checks.
+Read-only reconciliation confirmed the legitimate unresolved sidecar append and
+preserved the original failure. The runner now protects pre-existing decisions
+and separately records allowed unresolved appends. Product code was not changed
+or rerun to conceal this finding. This is canonical-hook verification, not a claim
+that every legacy sidecar or the live collector passed.
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/10/01/form25-listing-status-automatic/`.
+Includes pre-call expected facts, raw/source snapshots, nine ingest outputs,
+source-run records, official history/projections, unchanged-data hashes, sanitized
+request ledger, original harness failure/reconciliation and final result.
+Focused regressions: 58/58 passed. Full TypeScript check
+`tsc --noEmit --incremental false` passed. No UI verification is required or claimed.
+
+### Handoff / remaining scope
+
+- Detached candidate base cf1a5746ac415462d5a931efff941161d70a116a in
+  `C:/Users/PC/.codex/worktrees/listing-status-audit/US-Stock Radar`.
+- Local main remains 0b75ffcf573b64fcf030fde432d594bfa9f487ae; cached origin/main
+  9c13aee7ef41b38bac0637e53e579633745effda. Live GitHub main and deployed Vercel
+  commit/status were not queried; parity or deployment is not claimed.
+- Main/shared-local, credentials, servers, Docker services and unrelated projects
+  were unchanged. Existing isolated test data/evidence are retained. No push/deploy.
+- Automatic canonical persistence is now wired for Form 25-family only. Missing
+  exact identities, missing operative dates and legacy sidecar errors remain
+  explicit limitations. Broader source collection, other forms and UI remain out
+  of scope; no Listing Risk or Monitor-policy change is included.
