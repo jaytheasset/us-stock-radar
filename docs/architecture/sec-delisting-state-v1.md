@@ -4,6 +4,75 @@ This is a read-only, derived evidence reader. It does not change the security
 catalog or any filing, analysis, Monitor, Watchlist, or Alert row. No migration,
 automatic collection, state persistence, API route, or UI is added.
 
+## Original-source connection correction (2026-09-30)
+
+This section supersedes the older source-selection description below; state
+classification policy remains unchanged. The collector was already fetching the
+canonical XML alongside the SEC XSL-rendered primary, but only retained stripped
+attachment text. The reader searched `primary_document_html` for XML and could
+therefore return `xml_scope_unavailable` despite successful collection.
+
+Form 25/25-NSE (including amendments) now preserve each fetched document's
+original response text in `raw_payload.form25_source`, with version, URL,
+document type/description, primary flag, SHA-256, character count and truncation
+flag. Existing Primary text fields and attachment projections are unchanged.
+No table, migration, prompt, parser rules, or Monitor policy changed.
+
+`readStoredForm25Source` selects a unique retained `notificationOfRemoval` XML
+document and supplies it plus neutral notice text to the existing parser.
+Original markup remains separately available in state-reader evidence. It
+checks accession-scoped SEC URLs, hashes, lengths, primary consistency and
+attachment completeness. Truncated, altered or ambiguous sources fail closed.
+Previously stored primary XML remains readable through the legacy path. Legacy
+records that already lost XML structure are **not** repaired by an ordinary
+existing-row replay; collecting/restoring their original sources requires a
+separately authorized source refresh. This change does not invent XML from HTML.
+
+The existing automatic ingest adapter and selected-evidence reader now use this
+shared source selector (versions `form25_delisting_ingest_v2` and
+`sec_delisting_state_v2`). Original source storage is capped at 2,000,000
+characters per document; any truncation is explicit and ineligible for state
+confirmation. This is not an unlimited document archive.
+
+### Real source / persistence verification
+
+Fresh SEC retrieval, `runSecRawIngest`, raw persistence, the existing automatic
+adapter and official `readStoredDelistingState` ran against the existing
+authorized isolated DB at `127.0.0.1:57322` (system identifier
+`7689949482832261158`). Main/shared-local were not targets.
+
+| Filing | Direct read-back | Existing state result as of 2026-09-30 |
+| --- | --- | --- |
+| TTOO 25-NSE/A, `0001354457-25-000637` | Issuer 1492674; Common Stock; Nasdaq; rule 12d2-2(b); filed 2025-07-10; removal 2025-07-21; suspension 2025-02-12 | Confirmed exchange delisting / suspended. Before removal date: pending. |
+| FTCH 25-NSE, `0000876661-23-001010` | Issuer 1740915; Class A ordinary shares; NYSE; rule 12d2-2(b); filed 2023-12-20; intended removal 2024-01-02 | Removal pending / trading unresolved. Intention is not completion. |
+| PLTR 25, `0001321655-24-000231` | Original HTML/submission text retained; issuer 1321655; Class A common stock; rule 12d2-2(c); filed 2024-11-25 | Unresolved. Existing parser does not extract the combined issuer/exchange HTML label; XML-only scope remains unavailable. |
+
+Each accession has one raw row after rerunning. Source content, hashes and
+reader facts remained equal; execution history gets a new source-run record.
+Existing cover-observation sidecar execution metadata changes on replay. Its
+TTOO/FTCH `persistence_failed` and PLTR zero-observation result are recorded as a
+separate limitation, not repaired or counted as successful cover persistence.
+Primary/event/AI/Monitor/Alert, Section 16 and SC13 table counts/hashes and related
+DB function definitions were unchanged. No LLM or notification call ran.
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/09/30/form25-source-reader/`.
+`final-e2e-check.json` summarizes the DB checks; `validated-*-stored-raw.json`,
+`validated-*-source-readback.json`, `validated-*-state-readback.json` and
+`validated-*-source-run.json` retain complete results. The initial harness
+timestamp-serialization and cover-execution-metadata comparison failures remain
+preserved; subsequent comparisons distinguish those from source/fact changes.
+
+Public SEC response fixtures, URLs/hashes and pre-call expectations live under
+`lib/sources/sec/forms/form25/fixtures/source-connection/`. Focused regressions
+cover original-source acquisition, read-back, wrong accession, hash tampering,
+truncation, missing originals, duplicate XML, withdrawal and conflicting dates.
+Combined collector/Form25/state/identity/review regressions: **102 passed**;
+`tsc --noEmit --incremental false`: passed. Node tests use the repository's
+`scripts/resolve-server-only.mjs` and `scripts/resolve-ts-paths.mjs` loaders.
+
+This validates source-to-reader connection, not a new Listing Risk/Monitor route,
+HTML-only identity support, amendment lineage resolution or user-screen E2E.
+
 ## Form 25 ingest connection (2026-09-14)
 
 The reader and its phase-1 rules below remain unchanged. `runSecRawIngest` now

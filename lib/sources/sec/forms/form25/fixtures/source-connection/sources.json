@@ -1,0 +1,102 @@
+[
+  {
+    "sources": [
+      {
+        "sha256": "26eb06f62e2a3044b2ea94902ca91d4585baa764e90b1a99d4d2739411c3a966",
+        "file": "TTOO-1.json",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445725000637/index.json"
+      },
+      {
+        "sha256": "66008cd6f8a51f94b9819021133731bfd22bd1b6e2f6c11e7495706e0b2c0837",
+        "file": "TTOO-2.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445725000637/0001354457-25-000637-index.html"
+      },
+      {
+        "sha256": "5518349ccc03fdecd33c62f68a0c307ce1cd557a9c94b442ca17ea555edbcde8",
+        "file": "TTOO-3.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445725000637/xslF25X02/primary_doc.xml"
+      },
+      {
+        "sha256": "56f1da8ad9b48a991da639191aa99022ff82ab006f029641d1e308687d009646",
+        "file": "TTOO-4.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445725000637/primary_doc.xml"
+      },
+      {
+        "sha256": "22820818d3812bf1336ab1536bb4aac85095d5506cdf7278fc42fe1c0c1535ba",
+        "file": "TTOO-5.txt",
+        "url": "https://www.sec.gov/Archives/edgar/data/1354457/000135445725000637/ttoodelistreason.txt"
+      }
+    ],
+    "name": "TTOO",
+    "accession": "0001354457-25-000637",
+    "publishedAt": "2025-07-10T20:51:22Z",
+    "cik": "1354457",
+    "form": "25-NSE/A",
+    "filingDate": "2025-07-10"
+  },
+  {
+    "sources": [
+      {
+        "sha256": "dc989c342d79de17bdd0e38eb7660e1512d2380d07743d27db23b532b8612d41",
+        "file": "FTCH-1.json",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666123001010/index.json"
+      },
+      {
+        "sha256": "aa4245388baeb9cf2cc3b0c04c1d7bc4230362f798dabd921f5fd86ce790bd51",
+        "file": "FTCH-2.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666123001010/0000876661-23-001010-index.html"
+      },
+      {
+        "sha256": "1e9d68b5db7f13c600fd74cf594b2ca1bcdd92156d3f35509a88bb002b8b829b",
+        "file": "FTCH-3.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666123001010/xslF25X02/primary_doc.xml"
+      },
+      {
+        "sha256": "ca8ae8d176f734e97a958c373a1af57f74ba01e27874ad86e8c680d4dff5d555",
+        "file": "FTCH-4.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666123001010/primary_doc.xml"
+      },
+      {
+        "sha256": "636dd275c64ca25800b63eed321b1c772a0da17695c48dec48a9bdc9ec613cb4",
+        "file": "FTCH-5.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/876661/000087666123001010/ruleprovisionnotice.htm"
+      }
+    ],
+    "name": "FTCH",
+    "accession": "0000876661-23-001010",
+    "publishedAt": "2023-12-20T15:16:20Z",
+    "cik": "876661",
+    "form": "25-NSE",
+    "filingDate": "2023-12-20"
+  },
+  {
+    "sources": [
+      {
+        "sha256": "4b76edef348d241130c5487dd21ea23935554e7b5f471b0605a83611da4f0146",
+        "file": "PLTR-1.json",
+        "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000231/index.json"
+      },
+      {
+        "sha256": "ccc386ef42c4309d7c1dce021f8b6d9dfc55cf30a72398f6c61b8c3cae877f15",
+        "file": "PLTR-2.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000231/0001321655-24-000231-index.html"
+      },
+      {
+        "sha256": "858749ff643ee4693ef4c607b2cf098ef16903e9c835c1aafea447cf6d3df89c",
+        "file": "PLTR-3.html",
+        "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000231/a20241125form25.htm"
+      },
+      {
+        "sha256": "cbbe7d253f51093703145ff0e166f215a070298416549b01888b9de2331d9e68",
+        "file": "PLTR-4.txt",
+        "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000231/0001321655-24-000231.txt"
+      }
+    ],
+    "name": "PLTR",
+    "accession": "0001321655-24-000231",
+    "publishedAt": "2024-11-25T21:07:47Z",
+    "cik": "1321655",
+    "form": "25",
+    "filingDate": "2024-11-25"
+  }
+]

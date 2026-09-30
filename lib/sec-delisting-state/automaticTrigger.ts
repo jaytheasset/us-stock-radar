@@ -1,8 +1,8 @@
-import { parseSecForm25Filing } from "../sources/sec/forms/form25/parser.ts";
+import { readStoredForm25Source } from "../sources/sec/forms/form25/storedSource.ts";
 import { readStoredDelistingState, type DelistingRepository, type StoredDelistingState } from "./reader.ts";
 import { record, validScope } from "./state.ts";
 
-export const FORM25_DELISTING_TRIGGER_VERSION = "form25_delisting_ingest_v1";
+export const FORM25_DELISTING_TRIGGER_VERSION = "form25_delisting_ingest_v2";
 export type Form25DelistingRunRecord = {
   version: typeof FORM25_DELISTING_TRIGGER_VERSION;
   rawItemId: string; accession: string; asOf: string;
@@ -38,17 +38,14 @@ export async function runForm25DelistingAutomaticTrigger(input: {
       return form25DelistingFailure(request, "stored_raw_missing_or_read_failed");
     }
     const raw = record(stored.data[0]);
-    const payload = record(raw.raw_payload);
     if (raw.id !== input.rawItemId || raw.source_unique_id !== input.accession || raw.source_code !== "sec_edgar") {
       return { ...base, status: "unavailable", reasons: ["stored_raw_identity_mismatch"] };
     }
     // Deliberately exclude raw_payload.cik/ticker and catalog metadata: Form 25
     // is often filed by the exchange rather than the issuer of the security.
-    const identity = parseSecForm25Filing({
-      rawItemId: input.rawItemId, sourceUniqueId: input.accession,
-      sourceUrl: text(payload.primary_document_url), publishedAt: text(raw.published_at),
-      bodyText: text(payload.primary_document_html), rawPayload: { form_type: payload.form_type },
-    });
+    const source = readStoredForm25Source(raw);
+    if (source.status !== "available") return { ...base, status: "unavailable", reasons: [source.reason] };
+    const identity = source.identity;
     const facts = identity.facts;
     const scope = {
       issuerCik: facts.subject_company_cik?.value ?? "",
@@ -83,5 +80,3 @@ async function defaultRepository(): Promise<DelistingRepository> {
   const { supabaseSelect, supabaseRpc } = await import("../supabase.ts");
   return { select: supabaseSelect, rpc: supabaseRpc };
 }
-
-function text(value: unknown): string { return typeof value === "string" ? value : ""; }
