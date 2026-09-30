@@ -4,6 +4,12 @@ import { evaluateStoredForm25, evaluateStoredListingRiskFiling, applyCurrentList
   type DelistingEvidence, type DelistingScope } from "../sec-delisting-state/state.ts";
 import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersistence.ts";
 
+import { validateSourceEvent, validateEventLink, sourceEventAxis, closingEvent, type ListingSourceEvent } from "./sourceEvent.ts";
+
+export type ListingState = DelistingEvidence["listing"] | "removal_decision_withdrawn";
+export type TradingStatus = DelistingEvidence["trading"] | "resumed";
+export type ObservationEvidence = Omit<DelistingEvidence, "listing" | "trading"> & {listing: ListingState; trading: TradingStatus};
+
 export const LISTING_OBSERVATION_VERSION = "sec_listing_observation_v1";
 export type Row = Record<string, unknown>;
 export type Attachment = {
@@ -27,17 +33,32 @@ export type ListingObservation = {
   sourceSnapshot: Row; sourceHash: string; scope: DelistingScope | null;
   eventId: string | null; listingRisk: CurrentListingRiskReadResult | null;
   evaluatedAsOf: string; attachment: Attachment;
+  sourceEvent?: ListingSourceEvent;
   reported: ReturnType<typeof summarize>;
 };
 
-export function summarize(evidence: DelistingEvidence) {
+export function summarize(evidence: ObservationEvidence) {
   return { listing: evidence.listing, trading: evidence.trading, removalDate: evidence.removalDate,
     suspensionDate: evidence.suspensionDate, reasons: evidence.reasons,
     parserVersion: evidence.parserVersion,
     sources: evidence.sourceDocuments.map(({ url, sha256 }) => ({ url, sha256 })) };
 }
 export function evaluateObservation(observation: Pick<ListingObservation,
-  "sourceSnapshot" | "scope" | "eventId" | "listingRisk" | "form">, asOf: string) {
+  "sourceSnapshot" | "scope" | "eventId" | "listingRisk" | "form" | "sourceEvent">, asOf: string): ObservationEvidence {
+  if (observation.sourceEvent) {
+    const e = observation.sourceEvent;
+    validateSourceEvent(observation.sourceSnapshot, observation.scope, e);
+    return { rawItemId: String(observation.sourceSnapshot.id), eventId: observation.eventId,
+      accession: String(observation.sourceSnapshot.source_unique_id), sourceUrl: e.documentUrl,
+      sourceSha256: e.documentHash, parserVersion: e.version, issuerCik: observation.scope!.issuerCik,
+      securityTitle: observation.scope!.securityTitle, exchange: observation.scope!.exchange, filedByCik: null,
+      listing: e.kind === "removal_decision" ? "removal_pending" : e.kind === "removal_decision_withdrawn" ? "removal_decision_withdrawn" : "unresolved",
+      trading: e.kind === "trading_suspension" ? "suspended" : e.kind === "trading_resumed" ? "resumed" : "unresolved",
+      removalDate: null, suspensionDate: e.kind === "trading_suspension"
+        && e.quote.match(/was suspended (?:beginning|on) ([^.]+)/i)?.[1]?.startsWith(e.dateText) ? e.date : null,
+      reasons: ["explicit_source_event"], parser: null, analysis: null, listingRisk: null,
+      sourceDocuments: [{url:e.documentUrl,sha256:e.documentHash,text:e.quote}] };
+  }
   const scope = observation.scope ?? { issuerCik: "", securityTitle: "", exchange: "" };
   const input = { raw: observation.sourceSnapshot, scope, asOf };
   if (/^(25|25-NSE)(\/A)?$/.test(observation.form)) return evaluateStoredForm25(input);
@@ -56,7 +77,7 @@ export function evaluateObservation(observation: Pick<ListingObservation,
 
 export function buildObservation(input: {
   raw: Row; scope: DelistingScope | null; asOf: string; attachment: Attachment;
-  eventId?: string; listingRisk?: CurrentListingRiskReadResult | null;
+  eventId?: string; listingRisk?: CurrentListingRiskReadResult | null; sourceEvent?: ListingSourceEvent;
 }): ListingObservation {
   const form = String(record(input.raw.raw_payload).form_type ?? "").toUpperCase();
   const filingDate = String(input.raw.published_at ?? "").slice(0, 10);
@@ -69,7 +90,8 @@ export function buildObservation(input: {
     sourceSnapshot, sourceHash: hash(sourceSnapshot), scope: input.scope,
     eventId: isForm25 ? null : input.eventId ?? null,
     listingRisk: isForm25 ? null : input.listingRisk ?? null,
-    evaluatedAsOf: input.asOf, attachment: input.attachment };
+    evaluatedAsOf: input.asOf, attachment: input.attachment,
+    ...(input.sourceEvent ? {sourceEvent: input.sourceEvent} : {}) };
   return { ...base, reported: summarize(evaluateObservation(base, input.asOf)) };
 }
 
@@ -82,8 +104,9 @@ export function projectListingStatus(input: {
 }) {
   const result = { asOf: input.asOf, scope: input.scope, securityIdentityId: input.securityIdentityId,
     coverage: "stored_sec_observations_only" as const,
-    listing: "unresolved" as DelistingEvidence["listing"], trading: "unresolved" as DelistingEvidence["trading"],
+    listing: "unresolved" as ListingState, trading: "unresolved" as TradingStatus,
     removalDate: null as string | null, suspensionDate: null as string | null,
+    withdrawalNoticeDate: null as string | null, resumptionDate: null as string | null,
     reasons: [] as string[], observationIds: [] as string[] };
   if (!validDate(input.asOf) || !validScope(input.scope) || input.securityIdentityId !== null && !uuid(input.securityIdentityId)) {
     result.reasons.push("invalid_request"); return result;
@@ -101,11 +124,46 @@ export function projectListingStatus(input: {
     if (!a.knownAt || a.knownAt.slice(0, 10) > input.asOf) result.reasons.push("identity_not_established_as_of");
   }
   if (result.reasons.length) { result.reasons = [...new Set(result.reasons)]; return result; }
+  const links = new Map<string, HistoryItem[]>();
+  for (const item of selected) {
+    const e = item.observation.sourceEvent;
+    if (!e?.resolves) continue;
+    const previous = selected.find(p => p.id === e.resolves!.observationId);
+    try {
+      if (!previous?.observation.sourceEvent || previous.observation.sourceHash !== e.resolves.sourceHash
+        || previous.observation.filingDate > item.observation.filingDate
+        || previous.observation.filingDate === item.observation.filingDate && previous.observation.rawItemId !== item.observation.rawItemId
+        || !previous.observation.scope || !item.observation.scope || !sameScope(previous.observation.scope,item.observation.scope)) throw Error("invalid_target");
+      validateEventLink(e,previous.observation.sourceEvent);
+      links.set(previous.id,[...(links.get(previous.id) ?? []),item]);
+    } catch { result.reasons.push("unvalidated_follow_up_link"); }
+  }
+  if (result.reasons.length) return result;
   const evaluated = selected.map(item => evaluateObservation(item.observation, input.asOf));
   const axis = (kind: "listing" | "trading", dateKey: "removalDate" | "suspensionDate",
     completed: "confirmed_exchange_delisting" | "suspended", pending: "removal_pending" | "suspension_scheduled") => {
-    const states = new Set(evaluated.map(e => e[kind]));
-    const dates = new Set(evaluated.map(e => e[dateKey]).filter(Boolean));
+    if (selected.some(x => x.observation.sourceEvent)) {
+      const relevant = selected.filter(x => !x.observation.sourceEvent || sourceEventAxis(x.observation.sourceEvent) === kind);
+      const closed = new Set([...links.keys()].filter(id => relevant.some(x => x.id === id)));
+      const active = relevant.filter(x => !closed.has(x.id));
+      const closing = active.filter(x => x.observation.sourceEvent && closingEvent(x.observation.sourceEvent));
+      if (closing.length) {
+        const values = new Set(closing.map(x => x.observation.sourceEvent!.kind + ":" + x.observation.sourceEvent!.date));
+        // An unrelated issue or unresolved legacy evidence is never silently removed.
+        if (values.size !== 1 || active.length !== closing.length) {
+          result.reasons.push(kind + "_unresolved_or_independent_event"); return;
+        }
+        if (kind === "listing") result.listing = "removal_decision_withdrawn";
+        else result.trading = "resumed";
+        result[kind === "listing" ? "withdrawalNoticeDate" : "resumptionDate"] = closing[0].observation.sourceEvent!.date;
+        result.reasons.push(kind + "_explicit_follow_up:" + [...closed].sort().join(",")); return;
+      }
+      if (!active.length) { result.reasons.push(kind + "_no_status_evidence"); return; }
+    }
+    const axisEvidence = evaluated.filter((_,i) => !selected[i].observation.sourceEvent || sourceEventAxis(selected[i].observation.sourceEvent!) === kind);
+    if (!axisEvidence.length) { result.reasons.push(kind + "_no_status_evidence"); return; }
+    const states = new Set(axisEvidence.map(e => e[kind]));
+    const dates = new Set(axisEvidence.map(e => e[dateKey]).filter(Boolean));
     if (states.has("unresolved") || dates.size > 1 || dates.size === 0 && states.has(completed)) {
       result.reasons.push(`${kind}_evidence_unresolved_or_conflicting`); return;
     }

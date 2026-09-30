@@ -311,3 +311,122 @@ Focused regressions: 58/58 passed. Full TypeScript check
   exact identities, missing operative dates and legacy sidecar errors remain
   explicit limitations. Broader source collection, other forms and UI remain out
   of scope; no Listing Risk or Monitor-policy change is included.
+
+## Explicit follow-up observations (2026-10-01)
+
+This candidate adds only two reported values: listing
+`removal_decision_withdrawn` and trading `resumed`. Neither means ACTIVE or
+relisting. Existing Form 25 parsing/automatic persistence, Listing Risk, Primary,
+Monitor policies, and identity rules are unchanged. There is no automatic 8-K/6-K
+collection or model call.
+
+`persistSecListingObservation` accepts an optional, explicitly selected
+`sourceEvent` with a document URL/hash, exact normalized quote, source date and
+literal date text, exact security/exchange scope, and issue reference. Initial
+removal decisions and suspensions reuse the existing pending/suspended values.
+This is a bounded manual evidence-selection API, not a general prose classifier.
+Unsupported wording is rejected. The app verifies retained source membership,
+SEC accession/CIK, document integrity, dates, explicit operative wording and
+conditional/negated statements; it does not independently establish legal facts.
+The service-only SQL guard validates structural state/source/link integrity; the
+official reader repeats the app's source validation. SQL is not a second prose
+parser. Use the official writer/reader rather than treating a table row alone as
+validated status.
+
+Each closing event has `resolves: {observationId, sourceHash, eventDate}`. It must
+refer to the same security/exchange, issue and axis, and to the appropriate
+initial event. A prior source date or precise regulation reference must recur in
+the follow-up evidence. References to absent, changed, wrong-scope or different
+issue observations are rejected. Existing rows are never updated/deleted. The
+projection closes only that observation on that axis; unrelated or unresolved
+observations still block a positive projection. An already completed delisting
+cannot be closed as a pending decision or silently become a relisting.
+
+As-of selection uses filing dates as knowledge boundaries, never operative dates.
+A single later filing can report both an earlier suspension and its subsequent
+resumption: both become known only at that filing, with distinct original event
+dates. Separate filings on the same calendar date are conservatively not ordered.
+The projector exposes the withdrawal notice date and confirmed resumption date alongside original evidence and
+linked observation IDs. It still requires an existing validated exact canonical
+security identity. No ticker/name/CIK-only attachment is added.
+
+First-version boundaries: links currently target explicit `sourceEvent` initial
+observations. Legacy Form 25/typed Listing Risk observations lacking an explicit
+issue reference are NOT silently upgraded or closed. A manually selected source
+excerpt must be reviewed for subject/scope and other surrounding disclosures;
+this API is not suitable for unattended broad extraction. Repeated independent
+issues and conflicting histories remain unresolved rather than taking latest-wins.
+
+### Real isolated persistence validation
+
+Database: existing 127.0.0.1:57322, system identifier 7689949482832261158.
+Evidence directory:
+`C:/Users/PC/.codex/visualizations/2026/10/01/listing-status-follow-up/`.
+Full SEC HTML, URL/hash manifests, selected excerpts, pre-run expectations,
+migration before/after, immutable observation IDs, official readback, projection
+results and protected-table hashes are preserved outside Git.
+
+- Scorpius 8-Ks 0001079973-24-000891 (June 17) and
+  0001079973-24-001121 (July 30): June 14 removal decision and suspension;
+  July 29 withdrawal of that removal decision under Section 1003(f)(v).
+  Three currently valid observations saved. Withdrawal points to the removal decision only.
+  Expected August 2 trading resumption is NOT confirmed trading resumption.
+- Apollomics 6-K 0001193125-25-328822 (December 22), exhibit 99.2:
+  expressly reports September 18 suspension and October 14 resumption for
+  Class A Ordinary Shares (and separately warrants). Two Class A observations
+  saved and linked from this single retrospective disclosure. Before December 22
+  this source provides no known status. This is NOT verification of a separate
+  earlier suspension filing followed by a later resumption filing.
+- The September 25 Apollomics 6-K instead describes a conditional September 29
+  suspension and an appeal. It was NOT rewritten into September 18 suspension,
+  linked as if those dates agreed, or treated as proof of restored trading.
+
+All five current observations passed the official reader. Immediate reruns returned the
+same five IDs with no extra observations. SQL rejected an altered predecessor
+date. Previous observations and eight protected product/analysis/Monitor/identity
+table digests remained unchanged. No Primary/event/alert records were fabricated.
+
+**Real canonical projection remains unresolved for both issuers**: the isolated
+DB lacks their exact validated security/exchange identities. Source-backed event
+persistence/link/readback is verified; positive before/after canonical projection
+is covered only by unit fixtures with explicitly synthetic identities. Tests show
+Scorpius pending -> withdrawal while trading remains unresolved without an explicit
+suspension effective date, and retrospective
+Apollomics unknown -> resumed at its knowledge date. Do not report these unit
+projections as real attached-security E2E success. Identity was not weakened or
+backfilled in this task.
+
+The initial isolated validation incorrectly copied Scorpius's June 14 notice
+date into suspensionDate. The final source adapter preserves the notice date but
+only supplies suspensionDate when the source explicitly says suspended
+beginning/on that date. A corrected observation was appended; the first attempt
+was not overwritten or deleted. Its old summary fails official revalidation and
+remains in the isolated history as unusable evidence. Both runtime result versions
+are retained. This additional unusable test record also prevents a positive
+projection if that history later gains an identity; it is not silently ignored.
+
+Migration `20260930195938_sec_listing_status_follow_up.sql` widens only reported
+state CHECKs and the existing writer's optional source-event contract; no new
+table/column. Applied only to the isolated DB. SQL applied in a transaction;
+Supabase CLI repair then encountered a local DB connection error, so the verified
+new version alone was recorded through the same verified PostgreSQL connection.
+Migration SQL was not rerun. Existing migration records and observation data were
+preserved. Main/shared-local migration application is not claimed.
+
+### Handoff
+
+Detached base 37b87b4fd73b210d464f6c0012bc0f99f748b90d, worktree
+`C:/Users/PC/.codex/worktrees/listing-status-audit/US-Stock Radar`.
+Local main ref: 0b75ffcf573b64fcf030fde432d594bfa9f487ae. Cached origin/main:
+9c13aee7ef41b38bac0637e53e579633745effda. Live GitHub main and Vercel commit/status
+not queried; code/deployment equality not claimed. No runtime configuration,
+credentials, permissions, servers, cron, Docker services, external delivery or
+main/shared-local data were changed. No UI change or browser verification is
+needed/claimed. No push/deploy. Remaining blocker for real positive canonical
+projection: exact identity evidence; legacy observation linkage and automatic
+8-K/6-K extraction remain outside the implemented explicit-source path.
+
+Final focused regression suite: 63/63 PASS (listing-status, delisting-state,
+stable identity, Form 25 source connection). Full TypeScript:
+`tsc --noEmit --incremental false` PASS. `git diff --check` PASS.
+Tests and typecheck logs are in the evidence directory above. No model calls.

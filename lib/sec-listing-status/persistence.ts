@@ -1,4 +1,5 @@
 import "server-only";
+import { validateSourceEvent, validateEventLink, type ListingSourceEvent } from "./sourceEvent.ts";
 import { readStoredForm25Source } from "../sources/sec/forms/form25/storedSource.ts";
 import { buildSecCoverObservationPayload } from "../sec-cover-observations/canonical.ts";
 import { readCurrentListingRiskFacts, validateCurrentListingRiskReadResult } from "../monitor/listingRiskPersistence.ts";
@@ -12,6 +13,7 @@ import { LISTING_OBSERVATION_VERSION, buildObservation, listingSourceSnapshot, e
  * Primary, child execution, Monitor evaluation or delivery is started here. */
 export async function persistSecListingObservation(input: {
   rawItemId: string; eventId?: string; asOf: string; repository?: SecTickerResolutionRepository;
+  sourceEvent?: ListingSourceEvent; scope?: DelistingScope;
 }) {
   if (!uuid(input.rawItemId) || !validDate(input.asOf) || input.eventId && !uuid(input.eventId)) throw Error("invalid_listing_observation_request");
   const repository = input.repository ?? await defaultRepository();
@@ -21,7 +23,17 @@ export async function persistSecListingObservation(input: {
   const isForm25 = /^(25|25-NSE)(\/A)?$/.test(form);
   let scope: DelistingScope | null = null;
   let listingRisk = null;
-  if (isForm25) {
+  if (input.sourceEvent) {
+    if (isForm25) throw Error("form25_source_event_override_forbidden");
+    scope = input.scope ?? null;
+    validateSourceEvent(raw,scope,input.sourceEvent);
+    // Explicit source-only history does not require creating a Primary/feed event.
+    if (input.eventId) {
+      const event = await readOne(repository,"events",input.eventId);
+      if (!event || event.raw_item_id !== raw.id || event.source_code !== "sec_edgar") throw Error("listing_event_raw_mismatch");
+    }
+    if (input.sourceEvent.resolves) await checkSourceLink(raw,scope!,input.sourceEvent,repository);
+  } else if (isForm25) {
     const source = readStoredForm25Source(raw);
     if (source.status === "available" && source.scopeVerified) scope = {
       issuerCik: source.identity.facts.subject_company_cik!.value.padStart(10, "0"),
@@ -45,7 +57,7 @@ export async function persistSecListingObservation(input: {
     }
   }
   const attachment = await resolveListingAttachment(scope, repository, String(raw.published_at).slice(0, 10));
-  const observation = buildObservation({ raw, scope, asOf: input.asOf, attachment, eventId: input.eventId, listingRisk });
+  const observation = buildObservation({ raw, scope, asOf: input.asOf, attachment, eventId: input.eventId, listingRisk, sourceEvent: input.sourceEvent });
   const response = await repository.rpc("persist_sec_listing_status_observation", { p_observation: observation });
   if (!response.ok) throw Error(`listing_observation_persistence_failed: ${response.error || response.status}`);
   const result = record(response.data);
@@ -87,8 +99,14 @@ export async function readSecListingHistory(input: {
           if (stable(live) !== stable(o.listingRisk)) item.reason = "listing_evidence_changed";
         }
       }
-      if (!item.reason && stable(summarize(evaluateObservation(o, o.evaluatedAsOf))) !== stable(o.reported))
+      if (!item.reason && !o.sourceEvent && stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported))
         item.reason = "observation_facts_changed";
+      if (!item.reason && o.sourceEvent) {
+        try {
+          if (stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported)) item.reason = "observation_facts_changed";
+          if (o.sourceEvent?.resolves) await checkSourceLink(raw!,o.scope!,o.sourceEvent,repository);
+        } catch { item.reason = "invalid_source_event_or_link"; }
+      }
       if (!item.reason && o.attachment.status === "attached") {
         const proof = await resolveListingAttachment(o.scope, repository, o.filingDate);
         if (stable(proof) !== stable(o.attachment)) item.reason = "identity_evidence_changed";
@@ -129,4 +147,19 @@ async function readOne(repository: SecTickerResolutionRepository, table: string,
 async function defaultRepository(): Promise<SecTickerResolutionRepository> {
   const { supabaseSelect, supabaseRpc } = await import("../supabase.ts");
   return { select: supabaseSelect, rpc: supabaseRpc };
+}
+
+async function checkSourceLink(raw: Row, scope: DelistingScope, event: ListingSourceEvent, repository: SecTickerResolutionRepository) {
+  const target = await readOne(repository,"sec_listing_status_observations",event.resolves!.observationId);
+  const o = target?.observation as ListingObservation | undefined;
+  if (!o?.sourceEvent || o.sourceEvent.resolves || !o.scope || o.sourceHash !== event.resolves!.sourceHash
+    || o.scope.issuerCik !== scope.issuerCik || o.scope.securityTitle !== scope.securityTitle || o.scope.exchange !== scope.exchange
+    || o.filingDate > String(raw.published_at).slice(0,10)
+    || o.filingDate === String(raw.published_at).slice(0,10) && o.rawItemId !== raw.id)
+    throw Error("listing_follow_up_target_mismatch");
+  const original = await readOne(repository,"raw_items",o.rawItemId);
+  if (!original || stable(listingSourceSnapshot(original)) !== stable(o.sourceSnapshot)
+    || o.sourceHash !== hash(o.sourceSnapshot) || stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported))
+    throw Error("listing_follow_up_target_stale");
+  validateEventLink(event,o.sourceEvent);
 }
