@@ -373,7 +373,7 @@ export async function fetchFmpDailyBars(symbol: string, days = 20) {
   };
 }
 
-export async function fetchSecCompanyTickers(query: string) {
+export async function fetchSecCompanyTickers(query: string, options: { exactTicker?: boolean } = {}) {
   const env = getServerEnv();
   if (!env.secUserAgent) {
     return {
@@ -402,8 +402,10 @@ export async function fetchSecCompanyTickers(query: string) {
     const filtered = normalizedQuery
       ? rows.filter(
           (row) =>
-            row.ticker?.toUpperCase().includes(normalizedQuery) ||
-            row.title?.toUpperCase().includes(normalizedQuery),
+            options.exactTicker
+              ? row.ticker?.toUpperCase() === normalizedQuery
+              : row.ticker?.toUpperCase().includes(normalizedQuery) ||
+                row.title?.toUpperCase().includes(normalizedQuery),
         )
       : rows;
 

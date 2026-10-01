@@ -91,6 +91,7 @@ import type { StockFundamentalsSnapshot } from "@/lib/watchlist/stockFundamental
 import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
 import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
 import type { StockForm4Transaction } from "@/lib/watchlist/stockForm4Transactions";
+import type { StockHeaderSecIdentity } from "@/lib/watchlist/stockHeaderSecIdentity";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
@@ -108,6 +109,7 @@ type StockRadarWatchlistV2Props = {
   initialSelectedTicker: string | null;
   initialWatchlist: WatchlistViewModel;
   selectionMode?: StockOverviewSelectionMode;
+  stockHeaderIdentity?: StockHeaderSecIdentity;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "unavailable";
@@ -163,6 +165,7 @@ export function StockRadarWatchlistV2({
   initialSelectedTicker,
   initialWatchlist,
   selectionMode = "watchlist",
+  stockHeaderIdentity,
 }: StockRadarWatchlistV2Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -264,6 +267,15 @@ export function StockRadarWatchlistV2({
     sourceFilingsState: secSourceFilingsState,
   });
   const stockDetailUnavailable = overviewState === "unavailable";
+  const headerCompanyName = selectionMode === "stock" && stockHeaderIdentity?.companyName
+    ? stockHeaderIdentity.companyName
+    : stockDetailUnavailable
+      ? "Ticker unavailable"
+      : profile.companyName ||
+        selectedWatchlistItem?.companyName ||
+        (overviewState === "loading" || overviewState === "idle"
+          ? "Loading company profile…"
+          : "Company profile unavailable");
   const tickerSearchFlowReadout = useMemo(() => {
     const routeHref = selectedTicker
       ? getStockRouteHref(selectedTicker) ?? ""
@@ -1078,16 +1090,8 @@ export function StockRadarWatchlistV2({
                 : "Security verification is unavailable."} Showing saved tickers only; adding is paused.
             </p> : null}
             <StockHeader
-              companyName={
-                stockDetailUnavailable
-                  ? "Ticker unavailable"
-                  : profile.companyName ||
-                    selectedWatchlistItem?.companyName ||
-                    (overviewState === "loading" || overviewState === "idle"
-                      ? "Loading company profile…"
-                      : "Company profile unavailable")
-              }
-              exchange={profile.exchange}
+              companyName={headerCompanyName}
+              exchange={selectionMode === "stock" ? stockHeaderIdentity?.exchange || "" : profile.exchange}
               isSaved={Boolean(selectedWatchlistItem)}
               watchlistActionLabel={selectedWatchlistItem
                 ? selectionMode === "stock" && selectedWatchlistItem.projectionConflict?.length
