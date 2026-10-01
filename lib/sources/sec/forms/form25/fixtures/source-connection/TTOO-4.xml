@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<notificationOfRemoval>
+
+    <schemaVersion>X0203</schemaVersion>
+
+    <exchange>
+        <cik>0001354457</cik>
+        <entityName>Nasdaq Stock Market LLC</entityName>
+    </exchange>
+
+    <issuer>
+        <cik>0001492674</cik>
+        <entityName>T2 Biosystems, Inc.</entityName>
+        <fileNumber>001-36571</fileNumber>
+        <address>
+            <street1>101 Hartwell Avenue</street1>
+            <street2></street2>
+            <city>Lexington</city>
+            <stateOrCountryCode>MA</stateOrCountryCode>
+            <stateOrCountry>MASSACHUSETTS</stateOrCountry>
+            <zipCode>02421</zipCode>
+        </address>
+        <telephoneNumber>781-457-1230</telephoneNumber>
+    </issuer>
+
+    <descriptionClassSecurity>Common Stock</descriptionClassSecurity>
+
+    <ruleProvision>17 CFR 240.12d2-2(b)</ruleProvision>
+
+    <signatureData>
+        <signatureName>Aravind Menon</signatureName>
+        <signatureTitle>Hearings Advisor</signatureTitle>
+        <signatureDate>2025-07-10</signatureDate>
+    </signatureData>
+</notificationOfRemoval>

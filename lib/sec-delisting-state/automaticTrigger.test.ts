@@ -41,7 +41,7 @@ test("stored XML issuer scope invokes unchanged reader and records compact sourc
 
 test("missing XML cannot borrow issuer from filer/catalog, and source identity mismatch stays closed", async () => {
   const raw = fixture(); raw.raw_payload.primary_document_html = "";
-  assert.deepEqual((await trigger({ ...request, repository: repository(raw) })).reasons, ["xml_scope_unavailable"]);
+  assert.deepEqual((await trigger({ ...request, repository: repository(raw) })).reasons, ["verified_form25_xml_unavailable"]);
   const wrong = { ...fixture(), source_unique_id: "0001354457-25-999999" };
   assert.equal((await trigger({ ...request, repository: repository(wrong) })).status, "unavailable");
   const unofficial = fixture(); unofficial.source_url = "https://example.test/unverified";

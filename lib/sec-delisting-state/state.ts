@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { parseSecForm25Filing, type SecForm25Field, type SecForm25ParserOutput } from "../sources/sec/forms/form25/parser.ts";
+import { officialForm25Source, readStoredForm25Source } from "../sources/sec/forms/form25/storedSource.ts";
 import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersistence.ts";
 import { buildSecCoverObservationPayload } from "../sec-cover-observations/canonical.ts";
 
-export const SEC_DELISTING_STATE_VERSION = "sec_delisting_state_v1";
+export const SEC_DELISTING_STATE_VERSION = "sec_delisting_state_v3";
 export type DelistingScope = { issuerCik: string; securityTitle: string; exchange: string };
 export type DelistingState = "confirmed_exchange_delisting" | "removal_pending" | "unresolved";
 export type TradingState = "suspended" | "suspension_scheduled" | "unresolved";
@@ -41,36 +42,31 @@ export function evaluateStoredForm25(input: {
   if (raw.source_code !== "sec_edgar" || !officialSource(result.sourceUrl, accession)) return fail("unverified_sec_source");
   if (string(payload.accession_number) && string(payload.accession_number) !== accession) return fail("accession_mismatch");
   if (event && (event.raw_item_id !== raw.id || event.source_code !== "sec_edgar")) return fail("event_raw_mismatch");
-  const xml = rawString(payload.primary_document_html);
-  const primaryUrl = string(payload.primary_document_url);
-  if (!xml || !officialSource(primaryUrl, accession) || payload.primary_document_html_truncated === true
-    || typeof payload.primary_document_html_char_count === "number" && payload.primary_document_html_char_count !== xml.length
-    || (xml.match(/<notificationOfRemoval\b/gi) || []).length !== 1
-    || (xml.match(/<issuer>/gi) || []).length !== 1
-    || (xml.match(/<descriptionClassSecurity>/gi) || []).length !== 1) return fail("verified_form25_xml_unavailable");
-  const attachments = records(payload.attachment_texts);
+  const source = readStoredForm25Source(raw);
+  if (source.status !== "available") return fail(source.reason);
+  if (!source.parser.isSupported) return fail("verified_form25_xml_unavailable");
+  const xml = source.primaryText;
+  const primaryUrl = source.primary.url;
+  const attachments = source.attachments;
+  result.parser = source.parser;
+  result.parserVersion = source.parser.parserVersion;
+  result.sourceDocuments = source.documents.map(doc => ({ url: doc.url, sha256: doc.sha256, text: doc.text }));
+  result.sourceSha256 = sha(JSON.stringify(result.sourceDocuments));
   if (records(payload.documents).some((row) => row.textTruncated === true || row.rawHtmlTruncated === true
     || row.rawTextTruncated === true || Boolean(row.fetchError) || typeof row.fetchStatus === "number" && row.fetchStatus >= 400)) return fail("document_inventory_incomplete_or_truncated");
-  if (payload.text_truncated === true || attachments.some((row) => row.textTruncated === true)) return fail("source_truncated");
-  if (attachments.some((row) => !officialSource(string(row.url), accession) || !string(row.text))) return fail("unverified_attachment_source");
-  // Reuse the existing parser twice: authoritative XML identities independently
-  // of legacy catalog metadata, then the same parser with the stored notices.
+  if (payload.text_truncated === true || attachments.some((row) => row.truncated === true)) return fail("source_truncated");
+  if (attachments.some((row) => !(source.original ? officialForm25Source : officialSource)(string(row.url), accession) || !string(row.text))) return fail("unverified_attachment_source");
+  // Verified direct source identity, independent of ticker/catalog metadata.
   const base = { rawItemId: result.rawItemId, sourceUniqueId: accession, sourceUrl: primaryUrl,
     publishedAt: string(raw.published_at), bodyText: xml, rawPayload: { form_type: payload.form_type } };
-  const identity = parseSecForm25Filing(base);
-  if (!identity.isSupported || !identity.facts.subject_company_cik?.source.endsWith(".xml.issuer.cik")
-    || !identity.facts.removed_security?.source.endsWith(".xml.description_class_security")
-    || !identity.facts.exchange?.source.endsWith(".xml.exchange.entity_name")) return fail("xml_identity_unavailable");
-  const parsed = parseSecForm25Filing({ ...base, rawPayload: { form_type: payload.form_type,
-    attachment_texts: attachments.map((row, index) => ({ ...row, source: `notice_${index}` })) } });
+  const identity = source.identity;
+  if (!source.scopeVerified || !identity.isSupported) return fail(source.isXml ? "xml_identity_unavailable" : "html_identity_unavailable");
+  const parsed = source.parser;
   result.parser = parsed; result.parserVersion = parsed.parserVersion;
-  result.issuerCik = cik(identity.facts.subject_company_cik.value);
-  result.securityTitle = identity.facts.removed_security.value;
-  result.exchange = identity.facts.exchange.value;
+  result.issuerCik = cik(identity.facts.subject_company_cik!.value);
+  result.securityTitle = identity.facts.removed_security!.value;
+  result.exchange = identity.facts.exchange!.value;
   result.filedByCik = identity.facts.filed_by_cik?.value || null;
-  result.sourceDocuments = [{ url: primaryUrl, sha256: sha(xml), text: xml },
-    ...attachments.map((row) => ({ url: string(row.url), sha256: sha(rawString(row.text)), text: rawString(row.text) }))];
-  result.sourceSha256 = sha(JSON.stringify(result.sourceDocuments));
   if (result.issuerCik !== cik(scope.issuerCik) || exact(result.securityTitle) !== exact(scope.securityTitle)
     || exact(result.exchange) !== exact(scope.exchange)) return fail("issuer_security_or_exchange_mismatch");
   if (/;|\b(?:and|plus)\b|\bclass\s+[ab]\b.*\bclass\s+[ab]\b/i.test(result.securityTitle)) return fail("multiple_or_ambiguous_security_classes");

@@ -7,6 +7,9 @@ import {
 import { getAllowedDevHostnames } from "./lib/devAllowedOrigins.ts";
 
 const nextConfig: NextConfig = {
+  // Workflow's CLI-config dependency reads require.main.filename at import time.
+  // Keep Node's module metadata; Webpack's entry module has no filename.
+  serverExternalPackages: ["xdg-app-paths"],
   allowedDevOrigins: getAllowedDevHostnames({
     nodeEnv: process.env.NODE_ENV,
     value: process.env.DEV_ALLOWED_ORIGINS,

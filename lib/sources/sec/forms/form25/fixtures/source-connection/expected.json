@@ -1,0 +1,5 @@
+[
+  {"name":"TTOO","issuerCik":"0001492674","issuerName":"T2 Biosystems, Inc.","security":"Common Stock","exchange":"Nasdaq Stock Market LLC","rule":"17 CFR 240.12d2-2(b)","filed":"2025-07-10","removalDate":"2025-07-21","suspensionDate":"2025-02-12","listing":"confirmed_exchange_delisting","trading":"suspended","xmlScope":true},
+  {"name":"FTCH","issuerCik":"0001740915","issuerName":"Farfetch Ltd","security":"Class A ordinary shares","exchange":"NEW YORK STOCK EXCHANGE LLC","rule":"17 CFR 240.12d2-2(b)","filed":"2023-12-20","removalDate":"2024-01-02","suspensionDate":null,"listing":"removal_pending","trading":"unresolved","xmlScope":true},
+  {"name":"PLTR","issuerCik":"0001321655","issuerName":"Palantir Technologies Inc.","security":"Class A common stock, par value $0.001 per share","exchange":"New York Stock Exchange","rule":"17 CFR 240.12d2-2(c)","filed":"2024-11-25","removalDate":null,"suspensionDate":null,"listing":"unresolved","trading":"unresolved","xmlScope":false}
+]

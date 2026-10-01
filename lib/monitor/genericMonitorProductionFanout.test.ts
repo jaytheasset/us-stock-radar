@@ -120,16 +120,17 @@ test("SEC production integration guard separates routed 8-K/6-K from determinist
   for (const form of ["8-K", "6-K", " 8-k "]) {
     assert.equal(secPrimary(form)?.sourceFamily, "sec_8k_6k");
   }
-  for (const form of ["8-K/A", "6-K/A", "25", "25-NSE", "S-3", ""] ) {
+  for (const form of ["8-K/A", "6-K/A", "S-3", ""] ) {
     assert.equal(secPrimary(form), null, `${form || "empty"} must stay outside production fan-out scope`);
   }
+  for (const form of ["25", "25-NSE"]) assert.equal(secPrimary(form)?.sourceFamily, "sec_form25");
   for (const form of ["10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"]) {
     assert.equal(periodicPrimary(form)?.sourceFamily, "sec_periodic_reports", form);
   }
 });
 
-test("non-periodic amendments, Form 25, and other SEC forms stay reservation/workflow/provider zero even with listing route", async () => {
-  for (const form of ["8-K/A", "6-K/A", "25", "S-3"]) {
+test("non-periodic amendments and unrelated SEC forms stay reservation/workflow/provider zero even with listing route", async () => {
+  for (const form of ["8-K/A", "6-K/A", "S-3"]) {
     const harness = starterHarness();
     const result = await enqueueGenericMonitorChildrenAfterPrimary({
       primary: secPrimary(form),

@@ -1,0 +1,32 @@
+{
+  "scpx-before": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1476963/000107997324000891/scpx_8k.htm",
+    "sha256": "574a009360ec15ec02606855aa634a50b8f3aac2217bc590bed6e7edc90b5579",
+    "fetchedAt": "2026-09-30T19:59:58.145Z",
+    "quote": "On June 14, 2024, Scorpius Holdings, Inc. (the “Company”) received notice from the NYSE Regulation that it had suspended trading of the Company’s common stock and determined to commence proceedings to delist the Company’s common stock from the NYSE American as a result of its determination that the Company is no longer suitable for listing pursuant to Section 1003(f)(v) of the NYSE American Company Guide due to the low selling price of the Company’s common stock."
+  },
+  "scpx-after": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1476963/000107997324001121/scpx_8k.htm",
+    "sha256": "fd414d5b641ae21f65fb26b27e6991de6ce9c6b7a9ac6034a8be5e3c86a873be",
+    "fetchedAt": "2026-09-30T19:59:58.177Z",
+    "quote": "On July 29, 2024, the NYSE American LLC (the “Exchange”) notified Scorpius Holdings, Inc. (the “Company”) that the Exchange has withdrawn its delisting determination and will be lifting the trading suspension of the Company's common stock on the NYSE American. The NYSE Regulation staff determined that the Company's common stock was now trading above the threshold of low selling price issues as further defined by Section 1003(f)(v) of the NYSE American Company Guide. The Company’s common stock is expected to resume trading on the NYSE American on Friday, August 2, 2024, under the symbol “SCPX.”"
+  },
+  "aplm-after": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1944885/000119312525328822/aplm-ex99_2.htm",
+    "sha256": "401aa836932dcefc46f5e13cd3d86973b5423a0bc56b533a347b0cd0f943279f",
+    "fetchedAt": "2026-09-30T19:59:58.645Z",
+    "quote": "The Company’s Class A Ordinary Shares and warrants are listed on Nasdaq under the trading symbols “APLM” and “APLMW,” respectively. As a result of the August 28, 2025 announcement, trading in the Class A Ordinary Shares and Public Warrants was suspended beginning September 18, 2025, when the Company received a delisting determination letter from Nasdaq asserting that Nasdaq intended to delist the Company’s Class A Ordinary Shares and warrants based on the Nasdaq staff’s then-belief that the Company was a “public shell.” The Company appealed this determination, and based on materials submitted as part of the appeal process, Nasdaq staff determined that the Company was in compliance with Nasdaq’s continued listing requirements. The trading halt was therefore lifted and trading resumed on October 14, 2025."
+  },
+  "aplm-before-ex1": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1944885/000119312525217820/d58766dex991.htm",
+    "sha256": "7bc91952d4d88e589d65ed481f8676d1f3b11fa794c9dc99d4b0612aa59736c3",
+    "fetchedAt": "2026-09-30T20:00:56.471Z",
+    "quote": "Unless the Company requests an appeal, trading in the Company’s securities will be suspended at the opening of business on September 29, 2025, and a Form 25-NSE will be filed with the Securities and Exchange Commission to remove the Company’s securities from listing and registration on The Nasdaq Stock Market."
+  },
+  "aplm-before-ex2": {
+    "url": "https://www.sec.gov/Archives/edgar/data/1944885/000119312525217820/d58766dex992.htm",
+    "sha256": "ed262a00c7ce210b7bc92d9d1d405feb8b12a89495e64abe98093cdace080dd0",
+    "fetchedAt": "2026-09-30T20:00:56.691Z",
+    "quote": "Apollomics Inc. (Nasdaq: APLM) (“Apollomics” or the “Company”), a California based late-stage clinical biopharmaceutical company developing multiple oncology drug candidates to address difficult-to-treat and treatment-resistant cancers, announced that on September 23, 2025 the Company has completed the filing of its application to appeal the delisting notification previously received from the Listing Qualifications Staff (the “Staff”) of The Nasdaq Stock Market, LLC (“Nasdaq”) and request a hearing before a Nasdaq Hearings Panel to review the Staff’s determination. Although the Company believes that it will prevail in its appeal, there is no guarantee that the Company will be able to win, or will regain or maintain its Nasdaq listing."
+  }
+}

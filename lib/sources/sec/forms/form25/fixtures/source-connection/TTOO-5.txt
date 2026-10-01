@@ -1,0 +1,25 @@
+<DOCUMENT>
+<TYPE>EX-99.25
+<SEQUENCE>2
+<FILENAME>ttoodelistreason.txt
+<TEXT>
+Delisting Determination, The Nasdaq Stock Market, LLC, July 2, 2025,
+T2 Biosystems, Inc.
+The Nasdaq Stock Market LLC (the Exchange) has determined to remove
+from listing the security of T2 Biosystems, Inc. effective at the opening
+of the trading session on July 21, 2025.
+Based on review of information provided by the Company, Nasdaq Staff
+determined that the Company no longer qualified for listing on the
+Exchange pursuant to Listing Rule 5550(b)(2).
+The Company was notified of the Staff determination on November 7, 2024.
+On November 14, 2024, the Company exercised its right to appeal the Staff
+determination to the Listing Qualifications Hearings Panel (Panel) pursuant
+to Listing Rule 5815.
+On January 9, 2025, the hearing was held. On December 12, 2024, Staff
+issued an Additional Staff Delist Determination Letter.
+On February 10 ,2025, the Panel reached a decision and decided to
+suspend the Company from the Exchange. The Company security was suspended
+on February 12, 2025. The Staff determination to delist the Company
+security became final on February 12, 2025.
+</TEXT>
+</DOCUMENT>

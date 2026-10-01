@@ -64,6 +64,7 @@ import {
   type PeriodicFinancialMonitorAnalysis,
 } from "./periodicFinancialMonitor.ts";
 import { persistSecAmendmentMonitorReplacement, verifySecAmendmentExecutionAuthorization } from "../sec-amendments/secAmendmentMonitorBridge.ts";
+import { persistListingRiskStatusAutomatically } from "../sec-listing-status/listingRiskAutomaticPersistence.ts";
 
 type RuntimeRepository = Pick<
   typeof genericMonitorChildRepository,
@@ -83,6 +84,7 @@ export async function processGenericMonitorChild(
     }) => Promise<ListingRiskPersistenceResult>;
     consumeListingMonitorAlerts?: (input: Readonly<{ eventId: string }>) =>
       Promise<ListingMonitorAlertConsumerResult>;
+    persistListingStatus?: typeof persistListingRiskStatusAutomatically;
     runCorporateActionAnalyzer?: (
       input: CorporateActionAnalyzerInput,
     ) => Promise<CorporateActionCanonicalAnalyzerPreviewResult>;
@@ -109,6 +111,12 @@ export async function processGenericMonitorChild(
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
+  if (identity.sourceFamily === "sec_form25") {
+    return (await import("./form25ListingRuntime.ts")).processForm25ListingChild(identity, {
+      repository,
+      consumeAlerts: dependencies.consumeListingMonitorAlerts || consumeListingMonitorAlertsForEvent,
+    });
+  }
   if (identity.monitorAnalyzerKey === PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY) {
     return processPeriodicFinancialMonitorChild(identity, {
       repository,
@@ -175,7 +183,7 @@ export async function processGenericMonitorChild(
         : {}),
     });
   }
-  return processGenericMonitorChildWithDependencies(identity, {
+  const processed = await processGenericMonitorChildWithDependencies(identity, {
     repository,
     buildAnalyzerInput,
     runAnalyzer: dependencies.runListingRiskAnalyzer || runListingRiskDomainAnalyzerPreview,
@@ -199,6 +207,9 @@ export async function processGenericMonitorChild(
     persistShareCountObservation: dependencies.persistShareCountObservation
       || persistGenericMonitorShareCountObservation,
     terminalStateAfterPersistence: listingRiskTerminalStateAfterPersistence,
+    ...(identity.sourceFamily === "sec_8k_6k" ? {
+      afterSuccessfulPersistence: () => (dependencies.persistListingStatus || persistListingRiskStatusAutomatically)(identity),
+    } : {}),
     consumeListingMonitorAlerts: dependencies.consumeListingMonitorAlerts
       || ((input) => consumeListingMonitorAlertsForEvent({
         ...input,
@@ -208,6 +219,11 @@ export async function processGenericMonitorChild(
       ? { authorizeBeforeProvider: verifySecAmendmentExecutionAuthorization }
       : {}),
   });
+  // Retry only this idempotent history sidecar on a completed child replay;
+  // never rerun its analyzer or change Monitor terminal/alert behavior.
+  if (processed.status === "duplicate" && identity.sourceFamily === "sec_8k_6k")
+    return {...processed,postPersistence:await (dependencies.persistListingStatus || persistListingRiskStatusAutomatically)(identity)};
+  return processed;
 }
 
 export async function processPeriodicFinancialMonitorChild(

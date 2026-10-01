@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readSecLineageFilingDate, secLineageParentDateFilter } from "./secFilingDate.ts";
 import { readMonitorRoutingResultFromPrimaryOutput } from "../monitor/monitorRouting.ts";
 import { readListingRiskAnalyzerResult } from "../monitor/listingRiskAnalyzer.ts";
 import { readCorporateActionAnalyzerResult } from "../monitor/corporateActionCanonicalFacts.ts";
@@ -555,7 +556,7 @@ function identityFromRaw(row: Row): SecFilingIdentity | null {
   const accessionNumber = text(payload?.accession_number) || text(row.source_unique_id);
   const formType = text(payload?.form_type).toUpperCase().replace(/\s+/g, "");
   const issuerCik = text(payload?.cik);
-  const filedDate = (text(payload?.filed_date) || text(payload?.filing_date) || text(row.published_at)).slice(0, 10);
+  const filedDate = readSecLineageFilingDate(payload);
   const primaryDocumentUrl = text(payload?.primary_document_url);
   const indexUrl = text(row.source_url);
   return sourceCode === "sec_edgar"
@@ -564,7 +565,7 @@ function identityFromRaw(row: Row): SecFilingIdentity | null {
     && text(row.source_unique_id) === accessionNumber
     && /^(?:8-K|6-K)(?:\/A)?$/.test(formType)
     && /^\d{1,10}$/.test(issuerCik)
-    && /^\d{4}-\d{2}-\d{2}$/.test(filedDate)
+    && filedDate !== null
     && filingUrlMatchesIdentity(primaryDocumentUrl, issuerCik, accessionNumber)
     && filingUrlMatchesIdentity(indexUrl, issuerCik, accessionNumber)
     ? { rawItemId, sourceCode: "sec_edgar", issuerCik, accessionNumber, formType, filedDate, primaryDocumentUrl, indexUrl }
@@ -651,7 +652,7 @@ function defaultDependencies(): SecAmendmentMonitorBridgeDependencies {
         "raw_payload->>form_type": `eq.${amendment.formType.replace(/\/A$/, "")}`,
         ...(target.accessionNumber
           ? { source_unique_id: `eq.${target.accessionNumber}` }
-          : { "raw_payload->>filed_date": `eq.${target.filedDate}` }),
+          : secLineageParentDateFilter(target.filedDate)),
         limit: "3",
       });
       if (!response.ok) throw new Error("SEC amendment exact parent candidate read failed");

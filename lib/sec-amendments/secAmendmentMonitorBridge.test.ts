@@ -293,6 +293,41 @@ test("execution authorization rejects missing ledger, issuer mismatch, and root-
   assert.equal((await verifySecAmendmentExecutionAuthorization(child, exact)).authorized, false);
 });
 
+test("normal ingestion dates and legacy dates pass empty lineage; receipt timestamps cannot rescue missing/conflicting dates", async () => {
+  for (const fixture of cases) for (const kind of ["current", "legacy", "both", "missing", "conflict", "invalid"]) {
+    const deps=dependencies(fixture.original,[]);
+    const row=raw(fixture.original,fixture.cik,"Original filing");
+    const payload=row.raw_payload as Record<string,unknown>;
+    delete payload.filed_date;
+    if(kind!=="missing") payload.filing_date=fixture.original.filedDate;
+    if(kind==="legacy") {delete payload.filing_date;payload.filed_date=fixture.original.filedDate;}
+    if(kind==="both") payload.filed_date=fixture.original.filedDate;
+    if(kind==="conflict") payload.filed_date="2024-01-01";
+    if(kind==="invalid") payload.filing_date="2024-02-30";
+    deps.loadRawItem=async()=>row;
+    deps.persistence={rpc:async()=>({ok:true,status:200,data:{status:"available",root:fixture.original,observations:[],facts:[]}})};
+    const result=await readSecAmendmentMonitorCurrentState(ROOT_EVENT_ID,deps);
+    assert.equal(result.status,["current","legacy","both"].includes(kind)?"not_applicable":"blocked",`${fixture.name}/${kind}`);
+  }
+});
+
+test("8-K/A and 6-K/A corrections accept ingestion-only dates for both amendment and parent", async () => {
+  for (const fixture of cases) {
+    const currentRaw=(item:SecFilingIdentity,excerpt:string)=>{
+      const row=raw(item,fixture.cik,excerpt), p=row.raw_payload as Record<string,unknown>;
+      p.filing_date=p.filed_date;delete p.filed_date;return row;
+    };
+    const deps=dependencies(fixture.original,[]);
+    deps.findExactParentCandidates=async()=>[{rawItem:currentRaw(fixture.original,"Original SEC filing"),eventId:ROOT_EVENT_ID}];
+    const result=await prepareSecAmendmentMonitorFanout({
+      rawItem:currentRaw(fixture.amendment,fixture.excerpt),filingInput:filingInput(fixture.original),
+      primaryAnalysis:primary(fixture.changed),dependencies:deps,
+    });
+    assert.equal(result.status,"authorized",JSON.stringify(result));
+    assert.equal(result.status==="authorized" && result.observation.operation,"REPLACE");
+  }
+});
+
 function dependencies(
   root: SecFilingIdentity,
   calls: string[],

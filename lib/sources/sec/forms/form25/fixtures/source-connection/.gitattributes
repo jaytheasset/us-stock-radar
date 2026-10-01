@@ -1,0 +1,4 @@
+# These are exact public SEC HTTP response fixtures. Preserve original bytes.
+TTOO-* -text
+FTCH-* -text
+PLTR-* -text

@@ -3,6 +3,7 @@ import styles from "@/components/admin/AdminSection.module.css";
 import { requireAdminPermission } from "@/lib/admin/server";
 
 const tools = [
+  ["Listing Status date review", "/admin/data/listing-status", "Review retained SEC evidence and append auditable notice / suspension date decisions."],
   [
     "SEC ticker resolution",
     "/admin/data/ticker-resolution",

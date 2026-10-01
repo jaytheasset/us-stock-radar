@@ -33,6 +33,7 @@ import {
 import { runSecTickerResolutionAutomaticTrigger } from "@/lib/sec-ticker-resolution/automaticTrigger";
 import { form25DelistingFailure, runForm25DelistingAutomaticTrigger, type Form25DelistingRunRecord } from "@/lib/sec-delisting-state/automaticTrigger";
 import { SEC_FORM25_FORMS } from "@/lib/sources/sec/forms/common/forms";
+import { persistForm25ListingStatusAutomatically, type Form25ListingPersistenceRecord } from "@/lib/sec-listing-status/automaticPersistence";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -59,6 +60,7 @@ type SecRawIngestDependencies = {
   resolveCoverTickerChange?: typeof runSecTickerResolutionAutomaticTrigger;
   evaluateForm25Delisting?: typeof runForm25DelistingAutomaticTrigger;
   evaluateForm25Identity?: typeof ensureSecForm25Identity;
+  persistForm25ListingStatus?: typeof persistForm25ListingStatusAutomatically;
 };
 
 export async function runSecRawIngest(
@@ -76,6 +78,7 @@ export async function runSecRawIngest(
     resolveCoverTickerChange: dependencies.resolveCoverTickerChange ?? runSecTickerResolutionAutomaticTrigger,
     evaluateForm25Delisting: dependencies.evaluateForm25Delisting ?? runForm25DelistingAutomaticTrigger,
     evaluateForm25Identity: dependencies.evaluateForm25Identity ?? ensureSecForm25Identity,
+    persistForm25ListingStatus: dependencies.persistForm25ListingStatus ?? persistForm25ListingStatusAutomatically,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -84,6 +87,7 @@ export async function runSecRawIngest(
   const sourceRunMetadata = workflowSourceRunMetadata(options.sourceRun);
   const form25DelistingRecords: Form25DelistingRunRecord[] = [];
   const form25IdentityRecords: Array<Record<string, unknown>> = [];
+  const form25ListingStatusRecords: Form25ListingPersistenceRecord[] = [];
   const items: Array<Record<string, unknown>> = [];
   const stats = {
     checked_count: 0,
@@ -112,7 +116,26 @@ export async function runSecRawIngest(
     form25_delisting_completed_count: 0,
     form25_delisting_unavailable_count: 0,
     form25_delisting_failed_count: 0,
+    form25_listing_observation_inserted_count: 0,
+    form25_listing_observation_replayed_count: 0,
+    form25_listing_observation_unavailable_count: 0,
+    form25_listing_observation_failed_count: 0,
   };
+
+  async function persistForm25AfterSidecars(rawItem: SecParsedRawItem, rawItemId: string) {
+    const form = stringValue(readNested(rawItem.raw_payload, "form_type")).toUpperCase().replace(/\s+/g, "");
+    if (!(SEC_FORM25_FORMS as readonly string[]).includes(form)) return { status: "not_applicable" as const };
+    const request = { rawItemId, accession: stringValue(rawItem.source_unique_id) };
+    let outcome: Form25ListingPersistenceRecord;
+    try { outcome = await runtime.persistForm25ListingStatus(request); }
+    catch { outcome = { ...request, status: "failed", reason: "listing_observation_trigger_exception" }; }
+    form25ListingStatusRecords.push(outcome);
+    if (outcome.status === "inserted") stats.form25_listing_observation_inserted_count++;
+    else if (outcome.status === "replayed") stats.form25_listing_observation_replayed_count++;
+    else if (outcome.status === "failed") stats.form25_listing_observation_failed_count++;
+    else if (outcome.status === "unavailable") stats.form25_listing_observation_unavailable_count++;
+    return outcome;
+  }
 
   async function evaluateForm25AfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     const formType = stringValue(readNested(rawItem.raw_payload, "form_type")).toUpperCase().replace(/\s+/g, "");
@@ -140,6 +163,7 @@ export async function runSecRawIngest(
   const completedRunMetadata = () => ({ ...sourceRunMetadata,
     ...(form25DelistingRecords.length ? { form25_delisting: form25DelistingRecords } : {}),
     ...(form25IdentityRecords.length ? { form25_ticker_identity: form25IdentityRecords } : {}),
+    ...(form25ListingStatusRecords.length ? { form25_listing_status: form25ListingStatusRecords } : {}),
   });
 
   if (!dryRun) {
@@ -274,6 +298,7 @@ export async function runSecRawIngest(
             section16_xml_persistence: section16XmlPersistence,
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
+            form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(existing.id)),
           });
           continue;
         }
@@ -312,6 +337,7 @@ export async function runSecRawIngest(
           section16_xml_persistence: section16XmlPersistence,
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,
+          form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(persisted.id)),
         });
       } catch (error) {
         stats.failed_count += 1;

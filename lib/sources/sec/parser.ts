@@ -22,6 +22,7 @@ import {
 } from "@/lib/sources/sec/sourceTickerSelection";
 import { secFetch } from "./secFetch";
 import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form25-identity/canonical";
+import { captureForm25Document, FORM25_SOURCE_VERSION, type Form25OriginalDocument } from "./forms/form25/storedSource";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -62,6 +63,7 @@ export type SecDocument = {
   rawTextCharCount?: number;
   rawTextTruncated?: boolean;
   rawSourceFormat?: string | null;
+  form25OriginalSource?: Form25OriginalDocument;
   sc13RawText?: string | null;
   sc13RawTextCharCount?: number;
   sc13RawTextTruncated?: boolean;
@@ -388,6 +390,10 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           primary_document_html: primary?.rawHtml || null,
           primary_document_html_char_count: primary?.rawHtmlCharCount || 0,
           primary_document_html_truncated: Boolean(primary?.rawHtmlTruncated),
+          ...(/^(25|25-NSE)(\/A)?$/.test(formType || "") ? {
+            form25_source: { version: FORM25_SOURCE_VERSION,
+              documents: detail.documents.flatMap(document => document.form25OriginalSource ? [document.form25OriginalSource] : []) },
+          } : {}),
           periodic_report_core_xbrl_facts: detail.documents.flatMap(
             (document) => document.periodicReportCoreXbrlFacts || [],
           ),
@@ -939,6 +945,7 @@ async function fetchFilingDetail({
         rawTextCharCount: rawOwnershipSource?.charCount || 0,
         rawTextTruncated: Boolean(rawOwnershipSource?.truncated),
         rawSourceFormat: rawOwnershipSource?.format || null,
+        form25OriginalSource: captureForm25Document(effectiveFormType, document, text),
         sc13RawText: rawSc13Source ? rawSc13Source.text : null,
         sc13RawTextCharCount: rawSc13Source?.charCount || 0,
         sc13RawTextTruncated: Boolean(rawSc13Source?.truncated),
