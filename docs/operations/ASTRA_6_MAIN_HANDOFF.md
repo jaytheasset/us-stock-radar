@@ -6,6 +6,28 @@
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
+## Listing Status v1 freeze — 2026-10-01 KST
+
+Current Listing Status handoff: [Listing Status v1 freeze](LISTING_STATUS_V1_FREEZE_HANDOFF.md).
+This supersedes older candidate-only/current-backlog statements for Listing
+Status/Form 25, without rewriting historical evidence for unrelated features.
+
+- Product main baseline: `c506647f8f01aa0e3f5c41016c0b82b108299e65`.
+- Backend integrated by `c048ab4053eda2196a524ba045e5944c58a8fe5d`; shared stock/JSON
+  surface by `a3bd03d4ee7116f78ab718a163a3499e07c92d99`; final presentation and
+  safe exchange fallback by `c506647f8f01aa0e3f5c41016c0b82b108299e65`.
+- Frozen unless a concrete future product requirement or demonstrated defect
+  requires reopening. Do not restart implementation, provider runs or broad audits.
+- Next plan-supported family: **NT 10-K / NT 10-Q / NT 20-F**, read-only audit
+  first. The old roadmap is explicitly historical, so this is not authorization
+  to start. CUSIP/13F remains frozen at `0b75ffcf573b64fcf030fde432d594bfa9f487ae`;
+  its old Priority 5 entry is not a current instruction.
+- The freeze document records architecture, source/identity/date safety, human
+  review, migrations, main versus candidate evidence, the unrelated preset-test
+  failure, and the required local/GitHub/Vercel/environment checklist.
+- Only documentation changed for this freeze; no new tests, DB writes or runtime
+  execution. Current GitHub and Vercel state remain unverified; no push/deploy.
+
 ## Ownership one-call main runtime check — 2026-09-30 KST
 
 - Local `main` checked at `19c93a6cb336deb5f93ed4e870fe0843ce86fbd8` on the existing 3110 server. One fresh Gemini 3.5 Flash call for historical ONTF Form 4 produced both Primary and Structured outputs; persistence, official readback, Monitor evaluation, and authenticated user/admin screens worked. The 33,407-share row matched the ONTF/director/minimum-1,000 condition; no alert was created because the 2025 filing predates monitor activation.

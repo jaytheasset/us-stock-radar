@@ -5,6 +5,7 @@ Use this index to choose the existing reference for a feature-specific investiga
 - **Live Room initial entry** — company Live Room initial-entry investigation: [`LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md`](LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md)
 
 - **SEC diagnostics** — SEC debugging and analysis-state investigation: [`SEC_DIAGNOSTICS.md`](SEC_DIAGNOSTICS.md)
+- **Listing Status v1 frozen handoff** — current main architecture, UI/JSON behavior, evidence, limitations and next-family resume point: [`operations/LISTING_STATUS_V1_FREEZE_HANDOFF.md`](operations/LISTING_STATUS_V1_FREEZE_HANDOFF.md)
 - **SEC listing-status history** — source observations, exact-security attachment and as-of projection: [`architecture/sec-listing-status-history-v1.md`](architecture/sec-listing-status-history-v1.md)
 - **Listing Status date review** — separate human date decisions, source/revision checks and admin workflow: [`architecture/sec-listing-status-date-review-v1.md`](architecture/sec-listing-status-date-review-v1.md)
 - **Live Feed** — Live Feed user-flow investigation: [`LIVE_FEED_FLOW_DIAGNOSTICS.md`](LIVE_FEED_FLOW_DIAGNOSTICS.md)
