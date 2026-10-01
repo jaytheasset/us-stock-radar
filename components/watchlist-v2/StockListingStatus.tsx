@@ -1,8 +1,9 @@
-import { listingStatusLabels, tradingStatusLabels, listingStatusReasonLabels,
+import { hasCurrentListingRisk, listingStatusLabels, tradingStatusLabels, listingStatusReasonLabels,
   type StockListingStatus as Status } from "@/lib/watchlist/stockListingStatus";
 import styles from "./StockListingStatus.module.css";
 
 export function StockListingStatus({ data }: { data: Status }) {
+  if (!hasCurrentListingRisk(data)) return null;
   const facts = data.automatic;
   const dates = [
     [facts.listing === "removal_pending" ? "Scheduled removal" : "Removal effective", facts.removalDate],
@@ -11,7 +12,7 @@ export function StockListingStatus({ data }: { data: Status }) {
   ];
   return <section className={styles.panel} aria-labelledby="sec-listing-status-title" data-testid="sec-listing-status">
     <div className={styles.heading}>
-      <h2 id="sec-listing-status-title">SEC-reported listing status</h2>
+      <h2 id="sec-listing-status-title">Listing Risk</h2>
       <a href={`/api/stocks/${encodeURIComponent(data.ticker)}/listing-status`}>View JSON</a>
     </div>
     {data.availability === "unavailable" ? <p role="status">{listingStatusReasonLabels.reader_unavailable}</p> : <>

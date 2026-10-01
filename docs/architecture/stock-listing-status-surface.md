@@ -28,7 +28,13 @@ An unknown result is HTTP 200. An incomplete/failed reader is HTTP 503, not empt
 evidence. Invalid ticker syntax/case is HTTP 400. Responses use `no-store`.
 No mutation endpoint, bulk access or new schema-version system is introduced.
 
-The stock page shows this result below the company/ticker header. Dates retain
+The stock page shows a compact Listing Risk panel below the company/ticker header
+only for an available, exact-attached canonical result with removal pending,
+confirmed delisting, suspension scheduled or suspended trading. Each axis is
+checked independently: withdrawal/resumption on one axis does not hide an open
+risk on the other. Unresolved-only, absent and resolved-only results have no card;
+hidden does not mean ACTIVE. The JSON contract and historical sources remain
+available unchanged. Dates retain
 their roles (scheduled, effective, withdrawal notice, resumption). Query as-of
 is not an effective date or assurance of live exchange status. No ACTIVE state is
 inferred. Primary prose, scores and Monitor matches are not status sources.
@@ -72,3 +78,29 @@ are never serialized into this public model.
 Limitations: current projection is bounded by stored SEC evidence, not market-wide
 coverage or live listing status. This adds no collection, state, identity, review,
 Monitor, migration, or provider behavior. No push or deployment is part of it.
+
+## Header exchange fallback and presentation follow-up (2026-10-01)
+
+The header still requires a unique current SEC catalog ticker/issuer association.
+Its latest main-submissions ticker/exchange pair remains preferred. If that
+source or exchange is absent, `readStockHeaderCanonicalExchange` discovers a
+unique exact-ticker canonical stable identity and revalidates its cover evidence
+through the existing `resolveListingAttachment` as of today. The existing reader
+checks intervening cover observations; ambiguity, wrong issuer, class/exchange
+changes, stale evidence, future identity and incomplete reads remain unavailable.
+This fallback does not bridge changed symbols; those still require the existing
+change-continuity/current projection path. Conflicting submissions or catalog
+values are not bypassed. Listing Status history never supplies a header exchange.
+
+SCPX's retained 2024 identity establishes NYSE American historically, but the live
+SEC company-tickers response in this check was HTTP 200 with no exact SCPX row.
+The current header therefore remains Exchange unavailable; an old exchange was
+not promoted to a current one. Its withdrawn removal card is hidden, while JSON
+retains the withdrawal date and both SEC source references. PLTR/TTOO unresolved
+results and the normal AAPL page also have no risk card. Desktop, 768px and 390px
+checks showed no horizontal overflow. No data was added or modified.
+
+126 focused regressions, full TypeScript and diff checks passed. Positive
+fallback and open-risk combinations were regression-tested, not demonstrated
+with new real DB data. Browser checks covered the existing hidden-card cases.
+Evidence: `C:/Users/PC/.codex/visualizations/2026/10/01/stock-listing-risk-presentation/`.

@@ -19,6 +19,16 @@ export type StockListingStatus = {
     availability: "available" | "unknown"; value: string | null; sourceUrl: string }>;
 };
 
+/** Presentation only: a resolved axis cannot hide an open risk on the other axis. */
+export function hasCurrentListingRisk(data: StockListingStatus): boolean {
+  return data.availability === "available" && data.security !== null && (
+    data.automatic.listing === "removal_pending" ||
+    data.automatic.listing === "confirmed_exchange_delisting" ||
+    data.automatic.trading === "suspension_scheduled" ||
+    data.automatic.trading === "suspended"
+  );
+}
+
 export const listingStatusLabels: Record<ListingState, string> = {
   unresolved: "Unknown — insufficient SEC evidence",
   removal_pending: "Removal pending",

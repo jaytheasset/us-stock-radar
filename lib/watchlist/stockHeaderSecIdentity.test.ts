@@ -15,6 +15,7 @@ function fixture(options: {
   const queries: Array<{ table: string; search: Record<string, string> }> = [];
   return {
     queries,
+    readCanonicalExchange: async () => "",
     readCatalog: async (_ticker: string, search: { exactTicker: true }) => {
       assert.equal(search.exactTicker, true);
       return { ok: true, data: options.catalog ?? [{ cik_str: 1840317, ticker: "VEEAW" }] };
@@ -48,6 +49,28 @@ test("uses the latest main submissions source and the exact current ticker/excha
   assert.equal(dependencies.queries[1]?.search.source_raw_id, `eq.${sourceId}`);
   assert.equal(dependencies.queries[2]?.search.source_raw_id, `eq.${sourceId}`);
   assert.equal(dependencies.queries[2]?.search.ticker, "eq.VEEAW");
+});
+
+test("missing submissions/exchange can use revalidated canonical identity for the current catalog pair", async () => {
+  for (const options of [{ sources: [] }, { listings: [] }, { listings: [{ ticker: "VEEAW", exchange: "" }] }]) {
+    const dependencies = fixture(options);
+    let calls = 0;
+    dependencies.readCanonicalExchange = async (...args: unknown[]) => {
+      assert.deepEqual(args, ["VEEAW", cik]); calls++; return "Nasdaq";
+    };
+    assert.equal((await readStockHeaderSecIdentity("VEEAW", dependencies)).exchange, "Nasdaq");
+    assert.equal(calls, 1);
+  }
+});
+
+test("fallback cannot bypass absent current ticker, conflicting catalog or submissions pairs", async () => {
+  for (const options of [{ catalog: [] }, { catalog: [{ cik_str: 1, ticker: "VEEAW" }, { cik_str: 2, ticker: "VEEAW" }] },
+    { listings: [{ ticker: "VEEAW", exchange: "NYSE" }, { ticker: "VEEAW", exchange: "Nasdaq" }] },
+    { listings: [{ ticker: "VEEA", exchange: "NYSE" }] }]) {
+    const dependencies = fixture(options);
+    dependencies.readCanonicalExchange = async () => { assert.fail("must not bypass current identity ambiguity"); };
+    assert.equal((await readStockHeaderSecIdentity("VEEAW", dependencies)).exchange, "");
+  }
 });
 
 test("a missing or mismatched ticker pair cannot borrow another class's exchange", async () => {

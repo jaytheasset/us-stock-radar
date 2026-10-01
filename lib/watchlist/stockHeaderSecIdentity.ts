@@ -14,6 +14,7 @@ type SelectRows = (table: string, search: Record<string, string>) => Promise<{
   ok: boolean;
   data: unknown;
 }>;
+type ReadCanonicalExchange = (ticker: string, issuerCik: string) => Promise<string>;
 
 const EMPTY_IDENTITY: StockHeaderSecIdentity = { companyName: "", exchange: "" };
 const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,11}$/;
@@ -21,7 +22,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 export async function readStockHeaderSecIdentity(
   tickerValue: string,
-  dependencies: { readCatalog?: ReadCatalog; selectRows?: SelectRows } = {},
+  dependencies: { readCatalog?: ReadCatalog; selectRows?: SelectRows; readCanonicalExchange?: ReadCanonicalExchange } = {},
 ): Promise<StockHeaderSecIdentity> {
   const ticker = tickerValue.trim().toUpperCase();
   if (!TICKER_PATTERN.test(ticker)) return EMPTY_IDENTITY;
@@ -39,6 +40,7 @@ export async function readStockHeaderSecIdentity(
   });
   if (matches.length !== 1) return EMPTY_IDENTITY;
   const issuerCik = normalizeCik(record(matches[0]).cik_str)!;
+  const canonicalExchange = () => (dependencies.readCanonicalExchange ?? readCanonicalExchange)(ticker, issuerCik);
 
   // Use only the newest main submissions document. Historical submissions files
   // and older ticker/exchange observations cannot establish a current listing.
@@ -53,10 +55,12 @@ export async function readStockHeaderSecIdentity(
   });
   const sourceRows = rows(sources);
   const sourceId = stringValue(record(sourceRows[0]).id);
-  if (!UUID_PATTERN.test(sourceId) ||
+  if (!sources.ok || !Array.isArray(sources.data) ||
       (sourceRows.length > 1 && record(sourceRows[0]).fetched_at === record(sourceRows[1]).fetched_at)) {
     return EMPTY_IDENTITY;
   }
+  if (!sourceRows.length) return { companyName: "", exchange: await canonicalExchange() };
+  if (!UUID_PATTERN.test(sourceId)) return EMPTY_IDENTITY;
 
   const [names, listings] = await Promise.all([
     selectRows("sec_issuer_source_observations", {
@@ -81,9 +85,15 @@ export async function readStockHeaderSecIdentity(
       : "",
     exchange: listingRows.length === 1 &&
       stringValue(record(listingRows[0]).ticker).toUpperCase() === ticker
-      ? stringValue(record(listingRows[0]).exchange)
-      : "",
+      ? stringValue(record(listingRows[0]).exchange) || await canonicalExchange()
+      : listings.ok && Array.isArray(listings.data) && listingRows.length === 0
+        ? await canonicalExchange() : "",
   };
+}
+
+async function readCanonicalExchange(ticker: string, issuerCik: string): Promise<string> {
+  const { readStockHeaderCanonicalExchange } = await import("./stockHeaderCanonicalExchange.ts");
+  return readStockHeaderCanonicalExchange(ticker, issuerCik);
 }
 
 function rows(result: { ok: boolean; data: unknown }): unknown[] {
