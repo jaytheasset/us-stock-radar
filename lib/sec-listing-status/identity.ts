@@ -81,7 +81,9 @@ async function resolveStableAttachment(scope: DelistingScope, repository: SecTic
       }
       if (!validDate(day)) return unattached("identity_observation_time_missing");
       if (day < read.before.acceptedAt!.slice(0,10) || day > filingDate) continue;
-      const cover = await readExactCover(result.accession_number, result.source_sha256, repository);
+      // Validate every retained observation separately, including repeated
+      // collections of identical bytes. Do not pick one revision or skip any.
+      const cover = await readExactCover(result.accession_number, result.source_sha256, repository, String(result.id));
       if (!cover.ok) return unattached("identity_evidence_unavailable");
       if (!await selectedSourceHasNoConflictingRevision(cover.value, repository))
         return unattached("identity_source_revision_conflict", "conflict");

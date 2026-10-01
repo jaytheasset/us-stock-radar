@@ -50,11 +50,11 @@ export async function persistSecListingObservation(input: {
     try { cover = buildSecCoverObservationPayload(input.rawItemId, raw); } catch { /* unresolved scope */ }
     if (listingRisk.status === "available" && cover && ["available", "partial"].includes(cover.payload.extractionStatus)) {
       const f = listingRisk.facts;
-      const matches = cover.payload.observations.filter(o => o.securityTitle.parsedTextValue === f.affected_security.title.value
-        && o.exchange.parsedTextValue === f.exchange.value && ["observed", "duplicate_equal"].includes(o.securityTitle.status)
-        && ["observed", "duplicate_equal"].includes(o.exchange.status));
-      if (matches.length === 1) scope = { issuerCik: cover.payload.identity.issuerCik,
-        securityTitle: matches[0].securityTitle.parsedTextValue!, exchange: matches[0].exchange.parsedTextValue! };
+      const subject = { issuerCik: cover.payload.identity.issuerCik,
+        securityTitle: f.affected_security.title.value ?? "", exchange: f.exchange.value ?? "" };
+      // Keep the reported subject unchanged; record the exact cover row as
+      // separate identity evidence using the existing class/venue binding.
+      if (validScope(subject) && selectListingCoverRow(raw, subject)) scope = subject;
     }
   }
   const attachment = await observationAttachment(raw, scope, input.sourceEvent, repository);
@@ -123,7 +123,7 @@ export async function readSecListingHistory(input: {
       // Retain the original unresolved record. Re-resolve only a missing identity,
       // never a conflict or source failure, against evidence available to its filing.
       if (!item.reason && o.attachment.status === "unresolved"
-        && ["no_exact_canonical_security_exchange", "identity_observation_time_missing"].includes(o.attachment.reason)) {
+        && ["no_exact_canonical_security_exchange", "identity_observation_time_missing", "identity_evidence_unavailable"].includes(o.attachment.reason)) {
         const proof = await observationAttachment(raw!, o.scope, o.sourceEvent, repository);
         if (proof.status === "attached" && proof.reason === "validated_stable_sec_security_exchange")
           item.resolvedAttachment = proof;
@@ -137,7 +137,8 @@ export async function readSecListingHistory(input: {
 
 async function observationAttachment(raw: Row, scope: DelistingScope | null, event: ListingSourceEvent | undefined,
   repository: SecTickerResolutionRepository) {
-  if (!event || !scope) return resolveListingAttachment(scope,repository,String(raw.published_at).slice(0,10));
+  if (!scope || !/^(8-K|6-K)(\/A)?$/.test(String(record(raw.raw_payload).form_type)))
+    return resolveListingAttachment(scope,repository,String(raw.published_at).slice(0,10));
   const coverRow = selectListingCoverRow(raw,scope);
   if (!coverRow) return unattached("no_exact_canonical_security_exchange");
   const attachment = await resolveListingAttachment({ issuerCik: scope.issuerCik,

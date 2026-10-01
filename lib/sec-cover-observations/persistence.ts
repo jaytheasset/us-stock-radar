@@ -184,6 +184,7 @@ export async function recordSecCoverObservationPersistenceState(input: {
 
 export async function readSecCoverObservations(input: {
   accessionNumber: string;
+  resultId?: string;
   sourceSha256?: string;
   contextRef?: string;
   limit?: number;
@@ -192,6 +193,8 @@ export async function readSecCoverObservations(input: {
   if (!/^\d{10}-\d{2}-\d{6}$/.test(input.accessionNumber)) {
     return { status: "unavailable", reason: "invalid_accession" };
   }
+  if (input.resultId !== undefined && !/^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(input.resultId))
+    return { status: "unavailable", reason: "invalid_result_id" };
   if (input.sourceSha256 && !/^[0-9a-f]{64}$/.test(input.sourceSha256)) {
     return { status: "unavailable", reason: "invalid_source_sha256" };
   }
@@ -207,6 +210,7 @@ export async function readSecCoverObservations(input: {
     limit: String(limit),
   };
   if (input.sourceSha256) query.source_sha256 = `eq.${input.sourceSha256}`;
+  if (input.resultId) query.id = `eq.${input.resultId}`;
   const resultRead = await repository.select("sec_cover_observation_results", query);
   if (!resultRead.ok) return { status: "unavailable", reason: "result_read_failed" };
   const resultRows = rows(resultRead.data);

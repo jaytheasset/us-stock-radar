@@ -4,7 +4,8 @@ import { buildSecCoverObservationPayload } from "../sec-cover-observations/canon
 import { readStableIdentityEvidence } from "../sec-ticker-resolution/stableIdentity.ts";
 import { resolveListingAttachment } from "./identity.ts";
 import { buildObservation, unattached, type Row } from "./observation.ts";
-import { readSecListingHistory } from "./persistence.ts";
+import { readSecListingHistory, persistSecListingObservation } from "./persistence.ts";
+import { scpxListingRiskReplay } from "./fixtures/listingRiskReplay.ts";
 import type { SecTickerResolutionRepository } from "../sec-ticker-resolution/persistence.ts";
 import { selectListingCoverRow } from "./coverAttachment.ts";
 
@@ -74,6 +75,23 @@ test("conflicting revisions and tampered original source cannot establish identi
   const g = await fixture(); g.tables.sec_structured_raw_sources[0].raw_content = "changed";
   assert.notEqual((await resolveListingAttachment(scope, g.repository, "2024-11-25")).status, "attached");
 });
+
+test("same-source cover collections are individually revalidated without choosing or deleting a version", async () => {
+  const f = await fixture(), c = cover(3, "2024-11-20"); f.add(c);
+  const repeated = structuredClone(c.raw); repeated.raw_payload.accepted_at = "";
+  const rebuilt = buildSecCoverObservationPayload(repeated.id, repeated); assert.ok(rebuilt);
+  assert.notEqual(rebuilt.result.id, c.result.id);
+  assert.equal(rebuilt.payload.source.sha256, c.payload.source.sha256);
+  f.tables.sec_cover_observation_results.push(rebuilt.result);
+  f.tables.sec_cover_security_observations.push(...rebuilt.observations);
+  if (rebuilt.sourceRaw) f.tables.sec_structured_raw_sources.push(rebuilt.sourceRaw);
+  const original = structuredClone(f.tables);
+  assert.equal((await resolveListingAttachment(scope, f.repository, "2024-11-25")).status, "attached");
+  assert.deepEqual(f.tables, original);
+  // Selecting by result ID must still verify that version's stored rows.
+  f.tables.sec_cover_security_observations.find(o => o.result_id === rebuilt.result.id)!.security_title_raw = "tampered";
+  assert.notEqual((await resolveListingAttachment(scope, f.repository, "2024-11-25")).status, "attached");
+});
 test("official history keeps old missing-identity record intact and exposes a separate validated attachment", async () => {
   const f = await fixture(); const raw = cover(3, "2024-11-25", "", "25", true).raw;
   f.tables.raw_items.push(raw);
@@ -122,4 +140,42 @@ test("missing cover receipt fields use the retained filing date only to bound th
   assert.deepEqual(c.raw,original);
   f.tables.raw_items.find(x=>x.id===c.raw.id)!.published_at=null;
   assert.equal((await resolveListingAttachment(scope,f.repository,"2024-11-25")).reason,"identity_observation_time_missing");
+});
+
+test("live typed Listing Risk uses the same exact cover binding and official read-back", async () => {
+  for (const variant of ["exact", "wrong-class", "wrong-exchange", "changed-ticker", "ambiguous"] as const) {
+    const f = await fixture(), c = cover(3, "2024-11-25", variant === "changed-ticker" ? "CHANGED" : "SAME", "8-K");
+    if (variant === "ambiguous") {
+      c.raw.raw_payload.primary_document_html = c.raw.raw_payload.primary_document_html.replace("</html>",
+        c.raw.raw_payload.primary_document_html.match(/<ix:nonNumeric[\s\S]*<\/ix:nonNumeric>/)![0].replace(">SAME<", ">OTHER<") + "</html>");
+      c.raw.raw_payload.primary_document_html_char_count = c.raw.raw_payload.primary_document_html.length;
+    }
+    const rebuilt = buildSecCoverObservationPayload(c.raw.id, c.raw); assert.ok(rebuilt);
+    f.add({ ...c, ...rebuilt });
+    const facts = scpxListingRiskReplay(false);
+    facts.affected_security.title.value = variant === "wrong-class" ? "Class B Common Stock" : scope.securityTitle.toLowerCase();
+    facts.exchange.value = variant === "wrong-exchange" ? "Nasdaq" : scope.exchange;
+    const original = structuredClone(facts), eventId = "26000000-0000-4000-8000-000000000088";
+    f.tables.events = [{ id: eventId, raw_item_id: c.raw.id, source_code: "sec_edgar" }];
+    const rpcResult = { status: "available", event_id: eventId, raw_item_id: c.raw.id,
+      parent_primary_ai_run_id: eventId, source_execution_id: eventId, persisted_at: "2026-10-01T00:00:00Z",
+      monitor_analyzer_key: "listing_risk", analyzer_contract_version: "listing_risk_domain_analyzer_v11",
+      fact_schema_version: "listing_risk_event_facts_v2", facts };
+    const repository: SecTickerResolutionRepository = { ...f.repository, rpc: async (name, args) => {
+      if (name === "read_current_event_listing_risk_facts") return { ok: true, status: 200, data: structuredClone(rpcResult) };
+      assert.equal(name, "persist_sec_listing_status_observation");
+      f.tables.sec_listing_status_observations = [{ id: eventId, raw_item_id: c.raw.id, observation: args.p_observation }];
+      return { ok: true, status: 200, data: { id: eventId, status: "inserted" } };
+    } };
+    const saved = await persistSecListingObservation({ rawItemId: c.raw.id, eventId, asOf: "2024-11-25", repository });
+    assert.deepEqual(saved.observation.listingRisk?.status === "available" && saved.observation.listingRisk.facts, original);
+    const read = await readSecListingHistory({ rawItemId: c.raw.id, repository });
+    assert.equal(read[0].usable, true, JSON.stringify(read[0]));
+    if (variant === "exact") {
+      assert.equal(saved.observation.attachment.status, "attached");
+      assert.equal(saved.observation.attachment.coverRow?.ticker, "SAME");
+      assert.equal(saved.observation.scope?.securityTitle, scope.securityTitle.toLowerCase());
+      assert.equal(saved.observation.reported.listing, "removal_pending");
+    } else assert.notEqual(saved.observation.attachment.status, "attached", variant);
+  }
 });

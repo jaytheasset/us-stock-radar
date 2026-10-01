@@ -6,6 +6,7 @@ import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersist
 
 import { validateSourceEvent, validateEventLink, sourceEventAxis, closingEvent, type ListingSourceEvent } from "./sourceEvent.ts";
 import { hasSupportedEffectiveDate } from "./effectiveDate.ts";
+import { selectListingCoverRow } from "./coverAttachment.ts";
 
 export type ListingState = DelistingEvidence["listing"] | "removal_decision_withdrawn";
 export type TradingStatus = DelistingEvidence["trading"] | "resumed";
@@ -65,7 +66,11 @@ export function evaluateObservation(observation: Pick<ListingObservation,
   const input = { raw: observation.sourceSnapshot, scope, asOf };
   if (/^(25|25-NSE)(\/A)?$/.test(observation.form)) return evaluateStoredForm25(input);
   const event = { id: observation.eventId, raw_item_id: observation.sourceSnapshot.id, source_code: "sec_edgar" };
-  let evaluated = evaluateStoredListingRiskFiling({ ...input, event });
+  const cover = observation.scope && selectListingCoverRow(observation.sourceSnapshot, scope);
+  // The source reader verifies the full SEC cover title/venue. Typed facts keep
+  // their original subject wording; the unique cover binding connects the two.
+  let evaluated = evaluateStoredListingRiskFiling({ ...input, event,
+    scope: cover ? { issuerCik: scope.issuerCik, securityTitle: cover.securityTitle, exchange: cover.exchange } : scope });
   if (observation.listingRisk) evaluated = applyCurrentListingRiskEvidence(evaluated, observation.listingRisk, scope, asOf);
   // A recovery/appeal label is not proof that a security resumed trading or was relisted.
   const current = observation.listingRisk;

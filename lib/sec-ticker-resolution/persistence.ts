@@ -358,11 +358,12 @@ export async function readExactCover(
   accessionNumber: string,
   sourceSha256: string,
   repository: SecTickerResolutionRepository,
+  resultId?: string,
 ): Promise<
   | { ok: true; value: AvailableCoverResult }
   | { ok: false; reason: string }
 > {
-  const read = await readSecCoverObservations({ accessionNumber, sourceSha256, repository });
+  const read = await readSecCoverObservations({ accessionNumber, sourceSha256, resultId, repository });
   if (read.status !== "available") {
     return { ok: false, reason: read.status === "not_found" ? "cover_result_not_found" : read.reason };
   }
