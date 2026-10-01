@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **S-8 direct-registration v1 frozen handoff** — separate registration history, evidence/reader, deferred Registry/Monitor integration and next-audit boundary: [`architecture/sec-s8-direct-registration-v1.md`](architecture/sec-s8-direct-registration-v1.md)
+
 - **NT secondary Monitor** — deterministic notice/follow-up facts, official reader, matching safety and local evidence: [`architecture/nt-secondary-monitor-v1.md`](architecture/nt-secondary-monitor-v1.md)
 
 - **Live Room initial entry** — company Live Room initial-entry investigation: [`LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md`](LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md)

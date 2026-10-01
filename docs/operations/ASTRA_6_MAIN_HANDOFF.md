@@ -6,6 +6,34 @@
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
+## S-8 direct-registration v1 freeze — 2026-10-01 KST
+
+Final architecture, real-filing evidence, Registry decision and resume points:
+[S-8 direct-registration history v1](../architecture/sec-s8-direct-registration-v1.md).
+This update supersedes the earlier selection of S-8 as the next audit family.
+
+- Frozen product commit: `2a7784efab3a7e8874ee054ca3743f7c0605c041`.
+- S-8 / S-8/A / S-8 POS remain separate canonical registration history for
+  source-backed research/future AI use. Registered quantity is not issuance,
+  sale, exercise, current plan reserve or realized dilution; heuristics remain
+  non-canonical. Exact class/plan and related-registration links may be unresolved.
+- Dilution Registry and S-8 secondary Monitor/alerts are intentionally deferred:
+  existing Registry types do not represent these registration facts safely.
+  Preserve the Firefly, SentinelOne and Lottery.com verification evidence;
+  no new product or DB work is authorized by this handoff.
+- Next practical **audit only** candidate: **Proxy**. Existing collection,
+  parser, source-linked proposal/meeting data, Primary and real SEC test cases
+  can be reused; automatic generic child eligibility has no Proxy connection.
+  Decide first whether a narrow proposal/meeting Monitor is justified or the
+  information should mainly feed capital-structure/corporate-action/transaction
+  domains. Do not equate a proposal with approval or completed execution.
+- The historical queue is advisory; Merger/Tender also have implementation
+  foundations. Proxy is a scoped recommendation, not a dedicated-Monitor decision.
+- Documentation task-entry local main is the S-8 freeze commit; cached
+  `origin/main` is `9c13aee7ef41b38bac0637e53e579633745effda` (not refreshed).
+  Vercel and remote DB state remain unverified. No push/deploy/equality claim.
+  The linked S-8 handoff records the full environment and verification boundary.
+
 ## NT secondary Monitor v1 freeze — 2026-10-01 KST
 
 Current NT architecture, evidence and resume boundary:

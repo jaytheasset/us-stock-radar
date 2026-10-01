@@ -4,6 +4,50 @@ Implemented on local main from `67e84cbdefd23d98d506580b3af2cde6ea6aeded`,
 as explicitly requested. This is structured filing-history support, not an S-8
 secondary Monitor, issuance ledger, or current dilution calculation.
 
+## Final product decision / freeze — 2026-10-01 KST
+
+S-8 direct-registration v1 is frozen at
+`2a7784efab3a7e8874ee054ca3743f7c0605c041`. Subsequent documentation does not
+reopen the implementation. S-8 / S-8/A / S-8 POS remain a **separate canonical
+registration-history dataset** for source-backed research and future AI
+consumption; this does not claim a new public API or AI consumer is connected.
+
+- Registered shares are not issued shares, sold shares, exercised awards,
+  current plan reserve, or realized dilution. Parser estimates/heuristics are
+  not canonical facts. Neither filing date nor a registration fee establishes
+  an issuance date or dilution percentage.
+- **Dilution Registry integration is intentionally deferred.** Its conversion,
+  warrant, financing-capacity, option, award and reserve types have no existing
+  contract meaning simply "shares registered in this S-8". `share_reserve` is
+  not a registration balance; `registered_resale_shares` is not a generic plan
+  registration field. Registry snapshots can distinguish potential quantities
+  from actual issuance, but that does not establish S-8 compatibility.
+- Registry's current stock reader is issuer-wide and its UI shows current
+  instruments, remaining units and potential shares. Copying a registration
+  amount there could misstate an outstanding balance. Registration withdrawal
+  must not become award cancellation; an additional registration must not
+  become an inferred incremental issuance or reserve increase.
+- **S-8 secondary Monitor / alerts are intentionally deferred.** Registration
+  alone has not established a reliable, user-actionable alert condition. No
+  existing policy or Primary behavior is changed by this decision.
+- Exact plan/security and parent/additional-registration relationships may
+  remain unresolved. Preserve each filing, row and source independently.
+
+The read-only Registry audit confirmed three stored S-8 filings with three
+direct registration rows in total; all rows had `canonicalSecurityId: null`
+and `planRelationships: "unresolved"`. Literal plan-name entries were empty;
+the original plan disclosures remain preserved. These are dated local sample
+observations, not a claim about complete SEC coverage. The real examples,
+evidence location and validation limitations below remain the resume baseline.
+
+Resume only for a concrete later product requirement: first establish exact
+issuer/security class, plan/instrument and registration-scope links from SEC
+evidence, including carryover/amendment relationships. A read-only evidence
+link may then be considered; do not populate Registry quantity/status fields
+from registration alone. Keep a registration-specific contract separate from
+reserve/award/issuance semantics if a later capital-structure consumer needs it.
+Do not create a duplicate registration dataset merely to fit Registry types.
+
 ## Product path
 
 1. `lib/sources/sec/parser.ts` keeps the existing cleaned Primary inputs intact.
@@ -114,16 +158,71 @@ check passed. Earlier attempts omitted the alias loader / used a relative
 loader path; their module-resolution errors are preserved separately from the
 successful absolute-loader run. No assertions were removed or weakened.
 
-Next work, only if requested: broaden direct table-format support or resolve
-source-supported registration/plan linkage. Do not add a Monitor or count
-registration as actual dilution merely to consume this dataset.
+Deferred work, only if explicitly requested: broaden direct table-format
+support or resolve source-supported registration/plan linkage. These are not
+prerequisites for closing v1. Do not add a Monitor or count registration as
+actual dilution merely to consume this dataset.
+
+## Next audit candidate: Proxy, not an implementation commitment
+
+The historical [main roadmap](../operations/ASTRA_6_MAIN_HANDOFF.md#later-monitor-families)
+lists Proxy before Merger and Tender. Its position alone is not the reason to
+select it. The current code at the frozen S-8 commit provides a useful bounded
+audit starting point:
+
+- Collection already includes Proxy in `transaction_updates` through
+  `lib/sources/sec/forms/common/forms.ts`. `fetchPlanRegistry.ts` registers
+  `proxy/fetchPlan.ts`, including supplemental material; `formWorkerRegistry.ts`
+  registers the Proxy parser/adapter. Forms include preliminary, definitive,
+  supplemental and contested materials; use `SEC_PROXY_FORMS` for the exact set.
+- `proxy/parser.ts` already represents document classes, meeting/record dates,
+  proposals, sponsors, recommendations, plan/governance/transaction signals and
+  source references. Extraction or a signal is not proof of approval/execution.
+- `proxy/adapter.ts` is `analysis_only`; `proxy/analysisPrompt.ts` provides
+  `sec_proxy_analysis`. Existing display validation/repair is in
+  `lib/ai/secProxyAnalysisAdapter.ts`. Primary support is not secondary support.
+- `genericMonitorChildWorkflowStarter.ts` does not admit Proxy sources;
+  `genericMonitorChildExecution.ts` has no Proxy source/Primary authorization
+  or dedicated Proxy analyzer contract. This confirms an automatic generic
+  child gap, not the absence of every possible indirect consumer.
+- Existing parser/analysis fixtures and `proxy/parser.real-sec.test.ts` cover
+  real preliminary, supplemental and contested examples. They are inventory,
+  not a new passing test or live secondary-E2E claim in this documentation task.
+
+Proxy is therefore the next practical **read-only audit** candidate: there is
+substantial reusable input/Primary infrastructure and a concrete automatic
+secondary gap. The audit must decide whether narrow meeting/proposal lifecycle
+facts merit a dedicated Monitor, or whether plan, capital-structure, corporate
+action and merger facts should mainly feed their own structured domains.
+Proposal, board recommendation, shareholder approval and completed execution
+must remain distinct. Routine proxy publication is not automatically an alert.
+Merger/Tender also have existing parsers/Primary code; no comparative benefit
+or effort measurement establishes Proxy as an absolute priority. The historical
+queue remains advisory. Do not reopen frozen Listing Status, NT, Ownership or
+CUSIP/13F to implement this recommendation.
 
 ## Handoff environment
 
 - Permanent root: `C:/Users/PC/Documents/Codex/US-Stock Radar`, branch `main`.
-- Local base above; final implementation commit is recorded in Git history.
-- GitHub main and deployed Vercel commit: not re-verified in this local-only
-  task; no push/deployment or code-equality claim.
+- Local main product/freeze and documentation task-entry HEAD:
+  `2a7784efab3a7e8874ee054ca3743f7c0605c041`. The later freeze/handoff commit is
+  documentation-only and identifiable in Git history. Task entry was clean;
+  only the requested architecture/handoff/index documentation is committed.
+- GitHub main: cached `origin/main` is
+  `9c13aee7ef41b38bac0637e53e579633745effda`, not fetched/reverified here.
+  Deployed Vercel commit/status: unverified. No push/deployment approval,
+  execution, or local/remote/deployed code-equality claim.
+- Local migration application and prior tests are recorded above; remote DB
+  state is unverified. This documentation task made no DB, account, environment,
+  runtime, cron or external-service changes. No secrets are recorded here.
+  Other task branches/worktrees and unmerged commits were not re-audited;
+  do not assume they are absent. Existing servers/evidence are retained.
+- This task checks documentation references, scope and `git diff --check` only;
+  prior tests/typecheck/read-back evidence are reused, not rerun. No UI change
+  or new browser/provider/product execution. The known unrelated Matcher
+  static-test issue recorded in the NT handoff was not retested or relabeled
+  as an S-8 failure. No S-8 integration blocker is claimed: Registry and Monitor
+  connections are deliberate scope deferrals, not promised completed features.
 - Existing runtime, credentials, other filing families and previous evidence
   are preserved. Only local test DB schema and the three scoped S-8 ingests
   were added; no data deletion, model run, Monitor or external notification.
