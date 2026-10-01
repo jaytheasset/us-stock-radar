@@ -1,6 +1,7 @@
 import {
   buildGenericMonitorChildIdentities,
   buildPeriodicFinancialMonitorChildIdentity,
+  buildNtLifecycleChildIdentity,
   type GenericMonitorChildIdentity,
   type GenericMonitorPrimaryExecutionContext,
   type GenericMonitorSourceFamily,
@@ -79,6 +80,7 @@ export function buildGenericMonitorPrimaryExecutionContext(input: {
     parentPrimaryAiRunId: input.parentPrimaryAiRunId,
     parentPromptKey: input.parentPromptKey,
     parentPromptVersion: input.parentPromptVersion,
+    ...(input.secFormType ? { secFormType: input.secFormType } : {}),
     ...(input.secAmendmentLineage
       ? { secAmendmentLineage: input.secAmendmentLineage }
       : {}),
@@ -95,7 +97,11 @@ export async function enqueueGenericMonitorChildrenAfterPrimary(input: {
 }): Promise<GenericMonitorChildEnqueueResult> {
   if (!input.primary) return { status: "out_of_scope", childCount: 0 };
   const identities = input.primary.sourceFamily === "sec_periodic_reports"
-    ? [buildPeriodicFinancialMonitorChildIdentity({ primary: input.primary })]
+    ? [buildPeriodicFinancialMonitorChildIdentity({ primary: input.primary }),
+      ...(/^(?:10-K|10-Q|20-F)(?:\/A)?$/.test(normalizeSecFormType(input.primary.secFormType))
+        ? [buildNtLifecycleChildIdentity({ primary: input.primary })] : [])]
+    : input.primary.sourceFamily === "sec_nt"
+    ? [buildNtLifecycleChildIdentity({ primary: input.primary })]
     : input.primary.sourceFamily === "sec_form25"
     ? buildGenericMonitorChildIdentities({ primary: input.primary,
       monitorRouting: { monitor_routes: [{monitor_analyzer_key:"listing_risk"}] } })
@@ -201,6 +207,7 @@ function sourceFamilyForProductionSource(
     return sourceCode === "nasdaq_corporate_actions" ? "nasdaq_corporate_actions" : "news";
   }
   const normalizedForm = normalizeSecFormType(secFormType);
+  if (sourceCode === "sec_edgar" && /^NT(?:10-K|10-Q|20-F)(?:\/A)?$/.test(normalizedForm)) return "sec_nt";
   if (sourceCode === "sec_edgar" && (FORM25_LISTING_FORMS as readonly string[]).includes(normalizedForm)) return "sec_form25";
   const currentReportAllowed = SEC_8K_6K_FORM_TYPES.has(normalizedForm)
     || (amendmentAuthorized && SEC_8K_6K_AMENDMENT_FORM_TYPES.has(normalizedForm));

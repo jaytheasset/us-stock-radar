@@ -14,6 +14,7 @@ import {
 import { readMonitorRoutingResultFromPrimaryOutput } from "./monitorRouting.ts";
 import { PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY } from "./periodicFinancialMonitor.ts";
 import { FORM25_LISTING_CONTRACT_VERSION, FORM25_LISTING_FORMS } from "./form25ListingRisk.ts";
+import { NT_LIFECYCLE_VERSION, NT_FORMS, NT_REPORT_FORMS } from "./ntLifecycle.ts";
 
 type StoreResult = {
   ok: boolean;
@@ -193,7 +194,7 @@ export async function reserveGenericMonitorChild(
     raw_item_id: identity.rawItemId,
     prompt_key: GENERIC_MONITOR_CHILD_PROMPT_KEY,
     prompt_version: identity.analyzerContractVersion,
-    model: identity.sourceFamily === "sec_form25" ? "deterministic" : "not_started",
+    model: identity.sourceFamily === "sec_form25" || identity.monitorAnalyzerKey === "nt_lifecycle" ? "deterministic" : "not_started",
     status: "pending",
     started_at: null,
     finished_at: null,
@@ -317,7 +318,12 @@ export async function loadGenericMonitorExactParent(
     && identity.analyzerContractVersion === FORM25_LISTING_CONTRACT_VERSION
     && (FORM25_LISTING_FORMS as readonly string[]).includes(String(record(rawItem.raw_payload)?.form_type));
   if (identity.sourceFamily === "sec_form25" && !isDeterministicForm25) throw new Error("Invalid Form25 execution/source contract");
-  if (!isDeterministicPeriodicFinancial && !isDeterministicForm25
+  const isDeterministicNt = identity.monitorAnalyzerKey === "nt_lifecycle"
+    && identity.analyzerContractVersion === NT_LIFECYCLE_VERSION
+    && ((identity.sourceFamily === "sec_nt" && NT_FORMS.includes(String(record(rawItem.raw_payload)?.form_type)))
+      || (identity.sourceFamily === "sec_periodic_reports" && NT_REPORT_FORMS.includes(String(record(rawItem.raw_payload)?.form_type))));
+  if ((identity.sourceFamily === "sec_nt" || identity.monitorAnalyzerKey === "nt_lifecycle") && !isDeterministicNt) throw new Error("Invalid NT execution/source contract");
+  if (!isDeterministicPeriodicFinancial && !isDeterministicForm25 && !isDeterministicNt
     && !routing?.monitor_routes.some((route) => route.monitor_analyzer_key === identity.monitorAnalyzerKey)
     && !isSourceProvenSecAmendmentAuthorization(identity, analysis)) {
     throw new Error("Generic Monitor exact parent output does not contain the reserved analyzer route");
@@ -419,7 +425,7 @@ function isSourceProvenSecAmendmentAuthorization(
 }
 
 export function expectedGenericMonitorPrimaryOutputType(identity: GenericMonitorChildIdentity) {
-  return identity.sourceFamily === "sec_8k_6k" || identity.sourceFamily === "sec_periodic_reports" || identity.sourceFamily === "sec_form25"
+  return identity.sourceFamily === "sec_8k_6k" || identity.sourceFamily === "sec_periodic_reports" || identity.sourceFamily === "sec_form25" || identity.sourceFamily === "sec_nt"
     ? identity.parentPromptKey
     : "news_event_analysis";
 }

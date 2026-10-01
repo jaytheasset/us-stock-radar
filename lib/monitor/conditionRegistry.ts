@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -109,6 +109,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_corporate_action_facts"
       | "read_current_event_ownership_facts"
       | "read_current_event_periodic_financial"
+      | "read_current_event_nt_lifecycle"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -150,6 +151,7 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  ...ntLifecycleConditions(),
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
   condition("event.score", "number", numericOperators, "event", "classification", "events", "score", "event", ["exact"]),
   condition("event.delivery_level", "text", textOperators, "event", "classification", "events", "delivery_level", "event", ["exact"]),
@@ -484,6 +486,21 @@ const registry = [
     display: { label: "Form 144 exchange" },
   }),
 ] satisfies readonly MonitorConditionDefinition[];
+
+function ntLifecycleConditions(): readonly MonitorConditionDefinition[] {
+  return [
+    ["notice_filed", "NT notice filed", "The current SEC filing is a source-validated NT notice, including an independently readable amendment.", ["noticeFiled"], "boolean"],
+    ["report_filed", "Delayed report filed", "The current original periodic report uniquely follows an NT notice by exact SEC issuer, report kind, reporting period and filing order. Unknown is never false; the notice event does not repeat the report notification.", ["reportFiled"], "boolean"],
+    ["issuer_cik", "SEC issuer CIK", "Exact SEC issuer CIK, padded to ten digits; never inferred from a company name or ticker.", ["source", "issuerCik"], "text"],
+  ].map(([key, label, description, path, valueType]) => ({
+    key: `nt.${key}`, valueType: valueType as "boolean" | "text", allowedOperators: ["eq"],
+    family: "nt", domain: "nt_lifecycle", monitorDomains: ["listing"],
+    description: description as string, display: { label: label as string,
+      ...(valueType === "boolean" ? { booleanValueLabels: { true: "Confirmed", false: "Not confirmed" } } : {}) },
+    source: { subject: "issuer", reader: "read_current_event_nt_lifecycle", jsonPath: path as string[] },
+    qualityCapability: ["exact"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  }));
+}
 
 validateRegistry(registry);
 

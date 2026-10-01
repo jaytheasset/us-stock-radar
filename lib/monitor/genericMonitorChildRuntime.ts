@@ -111,6 +111,9 @@ export async function processGenericMonitorChild(
   } = {},
 ) {
   const repository = dependencies.repository || genericMonitorChildRepository;
+  if (identity.monitorAnalyzerKey === "nt_lifecycle") {
+    return (await import("./ntLifecycleRuntime.ts")).processNtLifecycleChild(identity);
+  }
   if (identity.sourceFamily === "sec_form25") {
     return (await import("./form25ListingRuntime.ts")).processForm25ListingChild(identity, {
       repository,

@@ -1,4 +1,5 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
+import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
 import {
@@ -99,6 +100,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readNtFacts?(eventId: string): Promise<NtLifecycleReadResult>;
   readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
@@ -110,6 +112,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  nt?: NtLifecycleReadResult;
   listing: CurrentListingRiskReadResult;
   corporateAction: CurrentCorporateActionReadResult;
   ownership: CurrentOwnershipReadResult;
@@ -269,6 +272,9 @@ export async function evaluateListingMonitorEvent(
     "read_current_event_ownership_facts",
   ));
   const readers: MonitorFactReaders = {
+    nt: conditions.some(condition => conditionUsesReader(condition, "read_current_event_nt_lifecycle"))
+      ? await safeReadFacts(input.eventId, dependencies.readNtFacts ?? (await import("./monitor/ntLifecycleRuntime.ts")).readCurrentNtLifecycle)
+      : { status: "not_ready", reason: "reader_not_requested" },
     listing: listingRequested
       ? await safeReadFacts(
           input.eventId,
@@ -358,12 +364,14 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.family !== "listing" && definition.family !== "corporate_action")
+    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
-  const current = definition.family === "corporate_action"
+  const current = definition.family === "nt"
+    ? readers.nt ?? { status: "not_ready" as const, reason: "reader_not_requested" }
+    : definition.family === "corporate_action"
     ? readers.corporateAction
     : readers.listing;
   const humanField = definition.family === "listing"
@@ -392,6 +400,9 @@ function evaluateCondition(
     return conditionResult(key, "ineligible", "reader_not_applicable");
   }
   const facts = current.facts;
+  if (definition.family === "nt" && valueAtPath(facts, definition.source.jsonPath) === null) {
+    return conditionResult(key, "ineligible", "fact_unavailable");
+  }
   const eligibilityError = factEligibilityError(facts, definition);
   if (eligibilityError) return conditionResult(key, "ineligible", eligibilityError);
 

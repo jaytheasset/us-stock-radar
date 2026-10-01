@@ -1,4 +1,5 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./currentPrice.ts";
+import type { NtLifecycleReadResult } from "./ntLifecycleRuntime.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "../sec-form25-identity/consumption.ts";
 import {
   currentListingTicker,
@@ -54,6 +55,8 @@ export type ListingMonitorAlertWriteResult =
   | Readonly<{ status: "failed"; monitorId: string; error: string }>;
 
 export type ListingMonitorAlertConsumerResult = Readonly<{
+  ntReaderStatus?: NtLifecycleReadResult["status"];
+  ntReaderReason?: string;
   version: typeof LISTING_MONITOR_ALERT_CONSUMER_VERSION;
   status: "completed" | "partial_failure";
   eventId: string;
@@ -80,6 +83,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
+  readNtFacts?(eventId: string): Promise<NtLifecycleReadResult>;
   readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
   readCorporateActionFacts?(eventId: string): Promise<CurrentCorporateActionReadResult>;
@@ -100,6 +104,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     userId: string;
     createdAt: string;
     matchEvidence?: Form4PurchaseMatchEvidence;
+    ntAlert?: "notice" | "report";
   }>): Promise<ListingMonitorAlertWriteResult>;
   now(): Date;
 }>;
@@ -141,6 +146,7 @@ export async function consumeListingMonitorAlertsForEvent(
     ? await safeReadSecAmendmentCurrentState(currentEventId, dependencies.readSecAmendmentCurrentState)
     : { status: "not_applicable" as const };
   const allConditions = listingMonitors.monitors.flatMap((monitor) => monitor.conditions);
+  const ntRequested = allConditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "nt");
   const listingRequested = allConditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_listing_risk_facts"
   ));
@@ -155,6 +161,9 @@ export async function consumeListingMonitorAlertsForEvent(
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
+    nt: ntRequested ? await safeReadFacts(currentEventId, dependencies.readNtFacts
+      ?? (await import("./ntLifecycleRuntime.ts")).readCurrentNtLifecycle)
+      : { status: "not_ready", reason: "reader_not_requested" },
     listing: amendmentBlocked
       ? { status: "not_ready", reason: amendmentBlockReason }
       : amendmentState.status === "available" && amendmentState.listing
@@ -242,14 +251,17 @@ export async function consumeListingMonitorAlertsForEvent(
         },
       };
     }
-    return {
-      monitor,
-      result: evaluateMonitorConditions(readers, monitor.conditions, {
+    const evaluated = evaluateMonitorConditions(readers, monitor.conditions, {
         evaluationDate,
         evaluatedAt: evaluationTime.toISOString(),
         ...(currentPrice ? { currentPrice } : {}),
-      }),
-    };
+      });
+    const usesNt = monitor.conditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "nt");
+    // Conservative filing-day activation: same-day order is not known from a date-only SEC field.
+    const ntActive = readers.nt?.status === "available" && Number.isFinite(Date.parse(monitor.createdAt))
+      && Date.parse(monitor.createdAt) <= Date.parse(readers.nt.filedAt);
+    return { monitor, result: usesNt && !ntActive && evaluated.status === "match"
+      ? { ...evaluated, status: "no_match" as const, reasonCode: "monitor_activation_not_met" as const } : evaluated };
   }));
   const writes: ListingMonitorAlertWriteResult[] = [];
   const evaluationHistoryWrites: Form4MonitorEvaluationRecordWriteResult[] = [];
@@ -266,6 +278,8 @@ export async function consumeListingMonitorAlertsForEvent(
           monitorId: evaluation.monitor.id,
           userId: evaluation.monitor.userId,
           createdAt: lineage.persistedAt,
+          ...(evaluation.monitor.conditions.some(c => getReadyMonitorCondition(c.key)?.family === "nt")
+            ? { ntAlert: evaluation.monitor.conditions.some(c => c.key === "nt.report_filed") ? "report" as const : "notice" as const } : {}),
         }));
       } catch (error) {
         writes.push({ status: "failed", monitorId: evaluation.monitor.id, error: errorMessage(error) });
@@ -324,6 +338,7 @@ export async function consumeListingMonitorAlertsForEvent(
     version: LISTING_MONITOR_ALERT_CONSUMER_VERSION,
     status: failedCount > 0 ? "partial_failure" : "completed",
     eventId: input.eventId,
+    ...(ntRequested ? { ntReaderStatus: readers.nt?.status, ntReaderReason: readers.nt?.status === "not_ready" ? readers.nt.reason : undefined } : {}),
     ...sourceExecutionSummary(readers, corporateActionRequested, ownershipRequested),
     readerStatus: readers.listing.status,
     ...(readers.listing.status === "not_ready" ? { readerReason: readers.listing.reason } : {}),
@@ -385,6 +400,9 @@ function matchingLineage(
   readers: MonitorFactReaders,
   conditions: readonly Readonly<{ key: string }>[],
 ) {
+  if (conditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "nt")) {
+    return readers.nt?.status === "available" ? readers.nt : null;
+  }
   const usesCorporateAction = conditions.some((condition) => (
     getReadyMonitorCondition(condition.key)?.source.reader === "read_current_event_corporate_action_facts"
   ));
@@ -428,16 +446,18 @@ export async function createListingMonitorAlert(input: Readonly<{
   userId: string;
   createdAt: string;
   matchEvidence?: Form4PurchaseMatchEvidence;
+  ntAlert?: "notice" | "report";
 }>): Promise<ListingMonitorAlertWriteResult> {
   const repository = await import("../supabase.ts");
   const result = await repository.supabaseUpsert("user_alert_deliveries", {
     user_id: input.userId,
     alert_event_id: input.eventId,
     ticker: input.matchEvidence?.ticker ?? null,
-    title: input.matchEvidence ? `${input.matchEvidence.ticker} Form 4 purchase` : "Listing monitor matched",
-    category: input.matchEvidence ? "insider_ownership" : "listing_risk",
+    title: input.ntAlert ? input.ntAlert === "report" ? "Delayed periodic report filed" : "SEC late-filing notice filed"
+      : input.matchEvidence ? `${input.matchEvidence.ticker} Form 4 purchase` : "Listing monitor matched",
+    category: input.ntAlert ? "financial_risk" : input.matchEvidence ? "insider_ownership" : "listing_risk",
     source_type: "other",
-    source_label: input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
+    source_label: input.ntAlert ? "SEC Filing Monitor" : input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
     alert_lane: "listing_monitor",
     severity: null,
     delivered_channels: [],

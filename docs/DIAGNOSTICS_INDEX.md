@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **NT secondary Monitor** — deterministic notice/follow-up facts, official reader, matching safety and local evidence: [`architecture/nt-secondary-monitor-v1.md`](architecture/nt-secondary-monitor-v1.md)
+
 - **Live Room initial entry** — company Live Room initial-entry investigation: [`LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md`](LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md)
 
 - **SEC diagnostics** — SEC debugging and analysis-state investigation: [`SEC_DIAGNOSTICS.md`](SEC_DIAGNOSTICS.md)

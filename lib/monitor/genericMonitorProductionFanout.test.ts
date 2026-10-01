@@ -142,7 +142,7 @@ test("non-periodic amendments and unrelated SEC forms stay reservation/workflow/
   }
 });
 
-test("periodic SEC Primary always starts one deterministic financial child without reading GPT routes", async () => {
+test("periodic SEC Primary starts financial and NT lifecycle children without reading GPT routes", async () => {
   const harness = starterHarness();
   const result = await enqueueGenericMonitorChildrenAfterPrimary({
     primary: periodicPrimary("10-K"),
@@ -150,8 +150,9 @@ test("periodic SEC Primary always starts one deterministic financial child witho
     dependencies: harness.dependencies,
   });
   assert.equal(result.status, "enqueued");
-  assert.equal(result.childCount, 1);
-  assert.deepEqual(harness.calls(), { reserve: 1, claimStart: 1, start: 1, provider: 0 });
+  assert.equal(result.childCount, 2);
+  assert.deepEqual(harness.calls(), { reserve: 2, claimStart: 2, start: 2, provider: 0 });
+  assert.deepEqual("children" in result ? result.children?.map(child => child.monitorAnalyzerKey) : [], ["periodic_financial", "nt_lifecycle"]);
 });
 
 test("stale preflight blocks provider and records stale", async () => {

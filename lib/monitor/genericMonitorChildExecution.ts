@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { NT_LIFECYCLE_VERSION, NT_LIFECYCLE_ANALYZER } from "./ntLifecycle.ts";
 import {
   readMonitorRoutingResult,
   type MonitorRoutingResult,
@@ -24,6 +25,7 @@ export const GENERIC_MONITOR_CHILD_OUTPUT_SCHEMA_VERSION = "generic_monitor_chil
 export const GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY = "automatic";
 
 export const GENERIC_MONITOR_ANALYZER_CONTRACTS = {
+  [NT_LIFECYCLE_ANALYZER]: NT_LIFECYCLE_VERSION,
   listing_risk: LISTING_RISK_ANALYZER_PROMPT_VERSION,
   corporate_action: CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION,
   [PERIODIC_FINANCIAL_MONITOR_ANALYZER_KEY]: PERIODIC_FINANCIAL_MONITOR_CONTRACT_VERSION,
@@ -32,6 +34,7 @@ export const GENERIC_MONITOR_ANALYZER_CONTRACTS = {
 export type GenericMonitorAnalyzerKey = keyof typeof GENERIC_MONITOR_ANALYZER_CONTRACTS;
 
 export const GENERIC_MONITOR_PRIMARY_PROMPT_KEYS = {
+  sec_nt: ["sec_nt_analysis"],
   news: ["news_event_analysis"],
   nasdaq_corporate_actions: ["nasdaq_corporate_action_analysis"],
   sec_8k_6k: [
@@ -61,6 +64,7 @@ export type GenericMonitorPrimaryExecutionContext = {
   parentPrimaryAiRunId: string;
   parentPromptKey: string;
   parentPromptVersion: string;
+  secFormType?: string;
   secAmendmentLineage?: {
     operation: "REPLACE" | "SUPPLEMENT";
     observation: Extract<SecAmendmentLineageResolution, { status: "linked" }>;
@@ -205,6 +209,22 @@ export function buildPeriodicFinancialMonitorChildIdentity(input: {
     attempt,
     reservedAt: normalizeTimestamp(input.now),
   };
+}
+
+/** Mechanical NT eligibility; does not modify the LLM routing contract. */
+export function buildNtLifecycleChildIdentity(input: { primary: GenericMonitorPrimaryExecutionContext; now?: string }): GenericMonitorChildIdentity {
+  const primary = normalizePrimaryContext(input.primary);
+  if (!["sec_nt", "sec_periodic_reports"].includes(primary.sourceFamily) || !isAuthorizedGenericMonitorPrimary(primary)) {
+    throw new Error("NT lifecycle requires an authorized SEC Primary");
+  }
+  const analyzerContractVersion = NT_LIFECYCLE_VERSION;
+  const logicalJobId = deterministicGenericMonitorLogicalJobId({ ...primary,
+    monitorAnalyzerKey: NT_LIFECYCLE_ANALYZER, analyzerContractVersion });
+  const attempt = { kind: "automatic", key: GENERIC_MONITOR_AUTOMATIC_ATTEMPT_KEY } as const;
+  const executionId = deterministicGenericMonitorExecutionId({ logicalJobId, attempt });
+  return { ...primary, schemaVersion: GENERIC_MONITOR_CHILD_SCHEMA_VERSION, purpose: GENERIC_MONITOR_CHILD_PURPOSE,
+    monitorAnalyzerKey: NT_LIFECYCLE_ANALYZER, analyzerContractVersion, logicalJobId, executionId,
+    jobId: executionId, attempt, reservedAt: normalizeTimestamp(input.now) };
 }
 
 export function deterministicGenericMonitorLogicalJobId(input: GenericMonitorPrimaryExecutionContext & {
