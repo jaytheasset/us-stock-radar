@@ -6,6 +6,37 @@
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
+## NT secondary Monitor v1 freeze — 2026-10-01 KST
+
+Current NT architecture, evidence and resume boundary:
+[NT secondary Monitor v1](../architecture/nt-secondary-monitor-v1.md).
+This dated update supersedes the earlier selection of NT as the next family.
+
+- Frozen product commit: `d531571294eeb282be948b0f9a3dffe56f82cf9d`.
+- Reuses deterministic NT/parser and periodic DEI facts, generic durable child
+  persistence, official revalidation, saved Monitor conditions and alert dedupe.
+  Unique issuer/form/period/filing-order evidence links a later report; no deadline
+  is inferred from the notice date, and local absence never proves non-filing.
+- Real Karbon-X NT 10-K: fresh Primary (1 Gemini call), automatic durable NT
+  child (0 model calls), persistence/readback and follow-up linkage verified.
+  Notice matched; historical activation correctly blocked alerts. Same-child
+  replay created no duplicate result/alert. Authenticated filing/user/admin
+  surfaces were checked; there is no NT-specific admin evaluation detail page.
+- Limitations retained: real NT 10-Q/20-F/amendment E2Es and positive live alerts
+  unverified; separate cover `caller_stored_identity_mismatch`; unrelated Matcher
+  static assertion failure (149/150 regression, full typecheck passed).
+- Next plan-supported **audit** candidate: **S-8 / S-8/A**. Current fetch/parser/
+  Primary structures exist; generic secondary and automatic Offering eligibility
+  do not include S-8. Inspect existing stored facts/readers before deciding what
+  to add. No S-8 implementation or provider run was started.
+- The priority list below remains historical, not a binding queue. This is a
+  recommendation for the next scoped audit. Listing Status v1 and CUSIP/13F
+  remain frozen; their earlier plans do not authorize reopening.
+- Documentation-only handoff: local main task-entry HEAD is the freeze commit;
+  cached `origin/main` remains `9c13aee7ef41b38bac0637e53e579633745effda` (not
+  fetched), Vercel/remote DB state unverified. No push/deploy or equality claim.
+  Full environment checklist and evidence paths are in the linked NT handoff.
+
 ## Listing Status v1 freeze — 2026-10-01 KST
 
 Current Listing Status handoff: [Listing Status v1 freeze](LISTING_STATUS_V1_FREEZE_HANDOFF.md).
