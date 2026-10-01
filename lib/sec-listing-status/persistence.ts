@@ -7,6 +7,7 @@ import { record, validDate, validScope, SEC_DELISTING_STATE_VERSION, type Delist
 import type { SecTickerResolutionRepository } from "../sec-ticker-resolution/persistence.ts";
 import { resolveListingAttachment } from "./identity.ts";
 import { selectListingCoverRow } from "./coverAttachment.ts";
+import { sameRetainedListingEvidence, sameCanonicalListingClaim } from "./provenance.ts";
 import { LISTING_OBSERVATION_VERSION, buildObservation, listingSourceSnapshot, evaluateObservation, summarize,
   projectListingStatus, hash, stable, uuid, unattached, type Row, type ListingObservation, type HistoryItem } from "./observation.ts";
 
@@ -88,16 +89,26 @@ export async function readSecListingHistory(input: {
       || !validDate(o.evaluatedAsOf) || !uuid(o.rawItemId) || row.raw_item_id !== o.rawItemId)
       throw Error("invalid_stored_listing_observation");
     const raw = await readOne(repository, "raw_items", o.rawItemId);
-    if (!raw || stable(listingSourceSnapshot(raw)) !== stable(o.sourceSnapshot) || hash(o.sourceSnapshot) !== o.sourceHash)
+    const exactEnvelope = raw && stable(listingSourceSnapshot(raw)) === stable(o.sourceSnapshot);
+    if (!raw || hash(o.sourceSnapshot) !== o.sourceHash
+      || !exactEnvelope && !sameRetainedListingEvidence(o,raw))
       item.reason = "stale_or_missing_sec_source";
     else if (o.readerVersion !== SEC_DELISTING_STATE_VERSION) item.reason = "reader_version_changed";
     else {
+      item.provenance = { source: exactEnvelope ? "unchanged" : "wrapper_refreshed", analysis: "unchanged" };
       if (o.listingRisk) {
         const current = validateCurrentListingRiskReadResult(toRpcShape(o.listingRisk));
         if (current.status !== o.listingRisk.status) item.reason = "invalid_saved_listing_evidence";
         else {
           const live = await readCurrentListingRiskFacts(o.eventId!, { rpc: repository.rpc.bind(repository) });
-          if (stable(live) !== stable(o.listingRisk)) item.reason = "listing_evidence_changed";
+          if (stable(live) !== stable(o.listingRisk)) {
+            const semantic = (v: typeof live) => v.status === "available" ? {
+              status:v.status,eventId:v.eventId,rawItemId:v.rawItemId,monitorAnalyzerKey:v.monitorAnalyzerKey,
+              analyzerContractVersion:v.analyzerContractVersion,factSchemaVersion:v.factSchemaVersion,facts:v.facts,
+            } : v;
+            if (stable(semantic(live)) === stable(semantic(o.listingRisk))) item.provenance.analysis = "lineage_refreshed";
+            else item.reason = "listing_evidence_changed";
+          }
         }
       }
       if (!item.reason && !o.sourceEvent && stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported))
@@ -117,20 +128,41 @@ export async function readSecListingHistory(input: {
         }
       }
       if (!item.reason && o.attachment.status === "attached") {
-        const proof = await observationAttachment(raw!, o.scope, o.sourceEvent, repository);
+        const proof = await observationAttachment(o.sourceSnapshot, o.scope, o.sourceEvent, repository);
         if (stable(proof) !== stable(o.attachment)) item.reason = "identity_evidence_changed";
       }
       // Retain the original unresolved record. Re-resolve only a missing identity,
       // never a conflict or source failure, against evidence available to its filing.
       if (!item.reason && o.attachment.status === "unresolved"
         && ["no_exact_canonical_security_exchange", "identity_observation_time_missing", "identity_evidence_unavailable"].includes(o.attachment.reason)) {
-        const proof = await observationAttachment(raw!, o.scope, o.sourceEvent, repository);
+        const proof = await observationAttachment(o.sourceSnapshot, o.scope, o.sourceEvent, repository);
         if (proof.status === "attached" && proof.reason === "validated_stable_sec_security_exchange")
           item.resolvedAttachment = proof;
       }
     }
     item.usable = item.reason === null;
     history.push(item);
+  }
+  // A stale analysis is not itself a new/open SEC event. Exclusion requires a
+  // usable independently validated replacement of the *same* canonical claim.
+  // Missing source, conflicting claims and unrelated issues remain blocking.
+  for (const item of history) {
+    const o=item.observation;
+    if (item.reason!=="listing_evidence_changed" || o.listingRisk?.status!=="available") continue;
+    let revalidated: ListingObservation["reported"];
+    try { revalidated=summarize(evaluateObservation(o,o.evaluatedAsOf)); } catch { continue; }
+    if (stable(revalidated)!==stable(o.reported)) continue;
+    const replacements=history.filter(next=>next.usable && next.id!==item.id
+      && next.observation.listingRisk?.status==="available"
+      && Date.parse(next.observation.listingRisk.persistedAt)>Date.parse(o.listingRisk!.status==="available" ? o.listingRisk!.persistedAt : "")
+      && (next.resolvedAttachment ?? next.observation.attachment).status==="attached"
+      && (o.attachment.status!=="attached" || o.attachment.securityIdentityId===(next.resolvedAttachment ?? next.observation.attachment).securityIdentityId)
+      && sameCanonicalListingClaim(o,next.observation));
+    replacements.sort((a,b)=>a.id.localeCompare(b.id));
+    const next=replacements[0];
+    if (next) item.revalidationFailure={reason:"listing_evidence_changed",sourceHash:o.sourceHash,
+      storedReported:o.reported,revalidatedReported:revalidated,
+      replacement:{observationId:next.id,sourceHash:next.observation.sourceHash}};
   }
   return history;
 }
@@ -184,7 +216,7 @@ async function checkSourceLink(raw: Row, scope: DelistingScope, event: ListingSo
     || o.filingDate === String(raw.published_at).slice(0,10) && o.rawItemId !== raw.id)
     throw Error("listing_follow_up_target_mismatch");
   const original = await readOne(repository,"raw_items",o.rawItemId);
-  if (!original || stable(listingSourceSnapshot(original)) !== stable(o.sourceSnapshot)
+  if (!original || stable(listingSourceSnapshot(original)) !== stable(o.sourceSnapshot) && !sameRetainedListingEvidence(o,original)
     || o.sourceHash !== hash(o.sourceSnapshot) || stable(summarize(evaluateObservation(o,o.evaluatedAsOf))) !== stable(o.reported))
     throw Error("listing_follow_up_target_stale");
   validateEventLink(event,o.sourceEvent);

@@ -7,6 +7,7 @@ import type { CurrentListingRiskReadResult } from "../monitor/listingRiskPersist
 import { validateSourceEvent, validateEventLink, sourceEventAxis, closingEvent, type ListingSourceEvent } from "./sourceEvent.ts";
 import { hasSupportedEffectiveDate } from "./effectiveDate.ts";
 import { selectListingCoverRow } from "./coverAttachment.ts";
+import { sameCanonicalListingClaim } from "./provenance.ts";
 
 export type ListingState = DelistingEvidence["listing"] | "removal_decision_withdrawn";
 export type TradingStatus = DelistingEvidence["trading"] | "resumed";
@@ -118,8 +119,10 @@ export function buildObservation(input: {
 
 export type HistoryItem = { id: string; observation: ListingObservation; usable: boolean; reason: string | null;
   resolvedAttachment?: Attachment;
-  revalidationFailure?: { reason: "observation_facts_changed"; sourceHash: string;
-    storedReported: ListingObservation["reported"]; revalidatedReported: ListingObservation["reported"] } };
+  provenance?: { source: "unchanged" | "wrapper_refreshed"; analysis: "unchanged" | "lineage_refreshed" };
+  revalidationFailure?: { reason: "observation_facts_changed" | "listing_evidence_changed"; sourceHash: string;
+    storedReported: ListingObservation["reported"]; revalidatedReported: ListingObservation["reported"];
+    replacement?: { observationId: string; sourceHash: string } } };
 /** Query-time projection over selected, persisted SEC evidence. Not a live market status.
  * Unknown/contradictory evidence is never silently discarded in favor of a newer row. */
 export function projectListingStatus(input: {
@@ -141,6 +144,16 @@ export function projectListingStatus(input: {
   result.observationIds = scoped.map(item => item.id);
   const selected = scoped.filter(item => {
     const f = item.revalidationFailure;
+    const replacement = f?.replacement && scoped.find(x=>x.id===f.replacement!.observationId);
+    if (!item.usable && item.reason==="listing_evidence_changed" && f?.reason===item.reason
+      && f.sourceHash===item.observation.sourceHash && replacement?.usable
+      && replacement.observation.sourceHash===f.replacement!.sourceHash
+      && stable(f.storedReported)===stable(item.observation.reported)
+      && stable(f.revalidatedReported)===stable(item.observation.reported)
+      && sameCanonicalListingClaim(item.observation,replacement.observation)) {
+      result.excludedObservations.push({id:item.id,reason:"revalidated_duplicate_analysis:"+replacement.id,sourceHash:f.sourceHash});
+      return false;
+    }
     if (!item.usable && item.observation.sourceEvent && item.reason === "observation_facts_changed"
       && f?.reason === item.reason && f.sourceHash === item.observation.sourceHash
       && stable(f.storedReported) === stable(item.observation.reported)

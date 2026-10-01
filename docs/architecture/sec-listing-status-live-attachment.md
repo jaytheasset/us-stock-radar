@@ -73,6 +73,11 @@ as-of result and unconditional Listing Status v1 freeze are **not** claimed.
 Handling stale analysis history remains a separate limitation to resolve before
 claiming that broader result.
 
+Subsequent narrow resolution: see
+[provenance revalidation](sec-listing-status-provenance-revalidation.md).
+The history blocker is resolved there without changing this live execution or
+claiming that its unknown operative dates became established.
+
 The existing Monitor completed safely with zero alert writes. It reported
 `sec_amendment_current_state_invalid_root_identity` / reader-not-ready and
 unavailable targets. Monitor's separate event/ticker readiness was not changed by

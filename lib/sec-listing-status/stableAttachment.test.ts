@@ -4,7 +4,7 @@ import { buildSecCoverObservationPayload } from "../sec-cover-observations/canon
 import { readStableIdentityEvidence } from "../sec-ticker-resolution/stableIdentity.ts";
 import { resolveListingAttachment } from "./identity.ts";
 import { buildObservation, unattached, type Row } from "./observation.ts";
-import { readSecListingHistory, persistSecListingObservation } from "./persistence.ts";
+import { readSecListingHistory, persistSecListingObservation, readSecListingStatusAsOf } from "./persistence.ts";
 import { scpxListingRiskReplay } from "./fixtures/listingRiskReplay.ts";
 import type { SecTickerResolutionRepository } from "../sec-ticker-resolution/persistence.ts";
 import { selectListingCoverRow } from "./coverAttachment.ts";
@@ -177,5 +177,46 @@ test("live typed Listing Risk uses the same exact cover binding and official rea
       assert.equal(saved.observation.scope?.securityTitle, scope.securityTitle.toLowerCase());
       assert.equal(saved.observation.reported.listing, "removal_pending");
     } else assert.notEqual(saved.observation.attachment.status, "attached", variant);
+  }
+});
+
+test("historical analysis is excluded only with a revalidated same-event replacement; reads preserve every row", async () => {
+  const f=await fixture(), c=cover(3,"2024-11-25","SAME","8-K"); f.add(c);
+  const eventId="26000000-0000-4000-8000-000000000081", oldId="26000000-0000-4000-8000-000000000082";
+  const facts=scpxListingRiskReplay(false); facts.affected_security.title.value=scope.securityTitle; facts.exchange.value=scope.exchange;
+  const current={status:"available",event_id:eventId,raw_item_id:c.raw.id,parent_primary_ai_run_id:eventId,
+    source_execution_id:eventId,persisted_at:"2026-10-01T00:00:00Z",monitor_analyzer_key:"listing_risk",
+    analyzer_contract_version:"listing_risk_domain_analyzer_v11",fact_schema_version:"listing_risk_event_facts_v2",facts};
+  f.tables.events=[{id:eventId,raw_item_id:c.raw.id,source_code:"sec_edgar"}];
+  const repo:SecTickerResolutionRepository={...f.repository,rpc:async(name,args)=>{
+    if(name==="read_current_event_listing_risk_facts") return {ok:true,status:200,data:structuredClone(current)};
+    assert.equal(name,"persist_sec_listing_status_observation");
+    f.tables.sec_listing_status_observations.push({id:eventId,raw_item_id:c.raw.id,observation:args.p_observation});
+    return {ok:true,status:200,data:{id:eventId,status:"inserted"}};
+  }};
+  const saved=await persistSecListingObservation({rawItemId:c.raw.id,eventId,asOf:"2024-11-25",repository:repo});
+  const base=structuredClone(saved.observation); assert.equal(base.listingRisk?.status,"available");
+  if(base.listingRisk?.status!=="available") throw Error("missing typed fixture");
+  base.listingRisk.sourceExecutionId=oldId; base.listingRisk.parentPrimaryAiRunId=oldId; base.listingRisk.persistedAt="2026-09-30T00:00:00Z";
+  const request={scope,securityIdentityId:saved.observation.attachment.securityIdentityId,asOf:"2024-11-25",repository:repo};
+  for(const variant of ["lineage-only","duplicate-analysis","different-issue","forged-date","changed-document","missing-replacement"] as const) {
+    const old=structuredClone(base);
+    if(old.listingRisk?.status!=="available") throw Error("missing fixture");
+    if(variant!=="lineage-only") old.listingRisk.facts.fact_provenance[0].confidence="medium";
+    if(variant==="different-issue") old.listingRisk.facts.listing_rule.value="Section 1007";
+    if(variant==="forged-date") old.reported.removalDate="2024-11-24";
+    if(variant==="changed-document") (old.sourceSnapshot.raw_payload as Row).primary_document_html="altered";
+    const rows=[{id:oldId,raw_item_id:c.raw.id,issuer_cik:scope.issuerCik,observation:old},
+      ...(variant==="missing-replacement"?[]:[{id:eventId,raw_item_id:c.raw.id,issuer_cik:scope.issuerCik,observation:saved.observation}])];
+    f.tables.sec_listing_status_observations=rows;
+    const original=structuredClone(rows);
+    const history=await readSecListingHistory({rawItemId:c.raw.id,repository:repo});
+    const result=await readSecListingStatusAsOf(request);
+    const again=await readSecListingStatusAsOf(request); assert.deepEqual(again,result); assert.deepEqual(rows,original);
+    if(variant==="lineage-only") {assert.equal(history[0].usable,true);assert.equal(history[0].provenance?.analysis,"lineage_refreshed");}
+    if(variant==="duplicate-analysis") {assert.equal(history[0].reason,"listing_evidence_changed");assert.equal(history[0].revalidationFailure?.replacement?.observationId,eventId);}
+    if(["lineage-only","duplicate-analysis"].includes(variant)) {
+      assert.equal(result.listing,"removal_pending");assert.equal(result.excludedObservations.length,variant==="duplicate-analysis"?1:0);
+    } else {assert.equal(result.listing,"unresolved",variant);assert.equal(result.excludedObservations.length,0,variant);}
   }
 });
