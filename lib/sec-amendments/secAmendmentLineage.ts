@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isSecLineageFilingDate } from "./secFilingDate.ts";
 
 export const SEC_AMENDMENT_LINEAGE_VERSION =
   "sec_amendment_lineage_v1" as const;
@@ -535,7 +536,7 @@ function validateIdentity(
   if (!CIK_PATTERN.test(identity.issuerCik)) return "issuer_cik";
   if (!ACCESSION_PATTERN.test(identity.accessionNumber))
     return "accession_number";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(identity.filedDate)) return "filed_date";
+  if (!isSecLineageFilingDate(identity.filedDate)) return "filed_date";
   if (!baseForm(identity.formType)) return "form_type";
   if (
     amendment !== null &&
