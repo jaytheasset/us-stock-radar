@@ -34,6 +34,8 @@ import { runSecTickerResolutionAutomaticTrigger } from "@/lib/sec-ticker-resolut
 import { form25DelistingFailure, runForm25DelistingAutomaticTrigger, type Form25DelistingRunRecord } from "@/lib/sec-delisting-state/automaticTrigger";
 import { SEC_FORM25_FORMS } from "@/lib/sources/sec/forms/common/forms";
 import { persistForm25ListingStatusAutomatically, type Form25ListingPersistenceRecord } from "@/lib/sec-listing-status/automaticPersistence";
+import { isS8Form } from "@/lib/sec-s8/directFacts";
+import { persistS8Registration } from "@/lib/sec-s8/persistence";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -61,6 +63,7 @@ type SecRawIngestDependencies = {
   evaluateForm25Delisting?: typeof runForm25DelistingAutomaticTrigger;
   evaluateForm25Identity?: typeof ensureSecForm25Identity;
   persistForm25ListingStatus?: typeof persistForm25ListingStatusAutomatically;
+  persistS8Registration?: typeof persistS8Registration;
 };
 
 export async function runSecRawIngest(
@@ -79,6 +82,7 @@ export async function runSecRawIngest(
     evaluateForm25Delisting: dependencies.evaluateForm25Delisting ?? runForm25DelistingAutomaticTrigger,
     evaluateForm25Identity: dependencies.evaluateForm25Identity ?? ensureSecForm25Identity,
     persistForm25ListingStatus: dependencies.persistForm25ListingStatus ?? persistForm25ListingStatusAutomatically,
+    persistS8Registration: dependencies.persistS8Registration ?? persistS8Registration,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -88,7 +92,16 @@ export async function runSecRawIngest(
   const form25DelistingRecords: Form25DelistingRunRecord[] = [];
   const form25IdentityRecords: Array<Record<string, unknown>> = [];
   const form25ListingStatusRecords: Form25ListingPersistenceRecord[] = [];
+  const s8RegistrationRecords: Array<Record<string, unknown>> = [];
   const items: Array<Record<string, unknown>> = [];
+  async function persistS8AfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    if (!isS8Form(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
+    let outcome;
+    try { outcome = await runtime.persistS8Registration({ rawItemId }); }
+    catch (error) { outcome = { status: "failed", reason: error instanceof Error ? error.message : "s8_persistence_failed" }; }
+    s8RegistrationRecords.push({ rawItemId, ...outcome });
+    return outcome;
+  }
   const stats = {
     checked_count: 0,
     raw_upserted_count: 0,
@@ -161,6 +174,7 @@ export async function runSecRawIngest(
   }
 
   const completedRunMetadata = () => ({ ...sourceRunMetadata,
+    ...(s8RegistrationRecords.length ? { s8_registration: s8RegistrationRecords } : {}),
     ...(form25DelistingRecords.length ? { form25_delisting: form25DelistingRecords } : {}),
     ...(form25IdentityRecords.length ? { form25_ticker_identity: form25IdentityRecords } : {}),
     ...(form25ListingStatusRecords.length ? { form25_listing_status: form25ListingStatusRecords } : {}),
@@ -296,6 +310,7 @@ export async function runSecRawIngest(
             cik: readNested(rawItem.raw_payload, "cik"),
             sc13_xml_persistence: sc13XmlPersistence,
             section16_xml_persistence: section16XmlPersistence,
+            s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
             form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(existing.id)),
@@ -335,6 +350,7 @@ export async function runSecRawIngest(
           body_chars: stringValue(rawItem.body_text).length,
           sc13_xml_persistence: sc13XmlPersistence,
           section16_xml_persistence: section16XmlPersistence,
+          s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,
           form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(persisted.id)),
