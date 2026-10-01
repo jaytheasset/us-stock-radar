@@ -1,5 +1,8 @@
 "use client";
 
+import { StockListingStatus } from "./StockListingStatus";
+import type { StockListingStatus as StockListingStatusData } from "@/lib/watchlist/stockListingStatus";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -110,6 +113,7 @@ type StockRadarWatchlistV2Props = {
   initialWatchlist: WatchlistViewModel;
   selectionMode?: StockOverviewSelectionMode;
   stockHeaderIdentity?: StockHeaderSecIdentity;
+  stockListingStatus?: StockListingStatusData;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "unavailable";
@@ -166,6 +170,7 @@ export function StockRadarWatchlistV2({
   initialWatchlist,
   selectionMode = "watchlist",
   stockHeaderIdentity,
+  stockListingStatus,
 }: StockRadarWatchlistV2Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1142,6 +1147,8 @@ export function StockRadarWatchlistV2({
                 Saved as {selectedWatchlistItem.ticker} · Current {selectedTicker} · Historical {selectedWatchlistItem.projection.historicalTickers.join(", ")}
               </p>
             ) : null}
+            {selectionMode === "stock" && stockListingStatus?.ticker === selectedTicker
+              ? <StockListingStatus data={stockListingStatus} /> : null}
             <div className={styles.overviewLayout}>
               <aside className={styles.desktopLeftRail}>{watchlistRail}</aside>
 

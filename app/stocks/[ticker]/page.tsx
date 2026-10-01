@@ -4,6 +4,7 @@ import { StockRadarWatchlistV2 } from "@/components/watchlist-v2/StockRadarWatch
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { getProjectedWatchlistViewModel } from "@/lib/watchlist/tickerProjection";
 import { readStockHeaderSecIdentity } from "@/lib/watchlist/stockHeaderSecIdentity";
+import { readStockListingStatus } from "@/lib/watchlist/stockListingStatusServer";
 import {
   getStockRouteHref,
   normalizeStockTicker,
@@ -49,7 +50,9 @@ export default async function StockPage({ params }: StockPageProps) {
   const currentTicker = initialWatchlist.selection?.requestedTicker === ticker
     ? initialWatchlist.selection.currentTicker
     : ticker;
-  const stockHeaderIdentity = await readStockHeaderSecIdentity(currentTicker);
+  const [stockHeaderIdentity, stockListingStatus] = await Promise.all([
+    readStockHeaderSecIdentity(currentTicker), readStockListingStatus(currentTicker),
+  ]);
 
   return (
     <StockRadarWatchlistV2
@@ -57,6 +60,7 @@ export default async function StockPage({ params }: StockPageProps) {
       initialWatchlist={initialWatchlist}
       selectionMode="stock"
       stockHeaderIdentity={stockHeaderIdentity}
+      stockListingStatus={stockListingStatus}
     />
   );
 }
