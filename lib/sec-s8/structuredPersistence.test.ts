@@ -39,13 +39,21 @@ function setup() {
         return { ok: true, data: { inserted: !old } };
       }
       const run = runs.find(r => r.id === args.p_id)!;
-      if (name === "claim_sec_s8_structured") {
-        const claimed = run?.status === "pending"; if (claimed) run.status = "running";
-        return { ok: true, data: { claimed, binding: run?.metadata.binding } };
+      const action = name === "claim_sec_s8_structured" ? "claim" : args.p_action;
+      if (["succeeded","failed","stale"].includes(run?.status)) return {ok:true,data:{status:"duplicate",claimed:false,executionStatus:run.status}};
+      if (action === "schedule") {
+        if (run.metadata.scheduled) return {ok:true,data:{claimed:false,status:"busy"}};
+        run.metadata.scheduled=true; return {ok:true,data:{claimed:true,token:"scheduler"}};
       }
-      if (name === "finish_sec_s8_structured") {
-        run.status = args.p_status;
-        outputs.push({ id: "output", ai_run_id: run.id, output_type: S8_STRUCTURED_PURPOSE, payload: args.p_payload });
+      if (action === "claim") {
+        const claimed = run?.status === "pending"; if (claimed) run.status = "running";
+        return { ok: true, data: { claimed, status:claimed?"claimed":"busy", token:"owner", binding: run?.metadata.binding,
+          checkpoint:run.metadata.s8Checkpoint ?? null } };
+      }
+      if (action === "checkpoint") {run.metadata.s8Checkpoint=args.p_value;return {ok:true,data:{status:"checkpoint"}};}
+      if (action === "finish") {
+        run.status = (args.p_value as any)?.stale ? "stale" : run.metadata.s8Checkpoint.status;
+        outputs.push({ id: "output", ai_run_id: run.id, output_type: S8_STRUCTURED_PURPOSE, payload: run.metadata.s8Checkpoint.payload });
         return { ok: true, data: { status: run.status } };
       }
       return { ok: true, data: { linked: true } };
@@ -215,4 +223,32 @@ test("source changed after checkpoint is not read as current output", async () =
   f.raw.raw_payload.filing_date="2026-01-03";
   assert.equal((await readS8Structured(id,f.repo)).status,"unavailable");
   assert.equal(f.outputs.length,1);
+});
+
+test("reclaimed job prefers persisted checkpoint and does not call analyzer", async () => {
+  const {analyzeS8StructuredJob}=await import("./structuredRuntime.ts");const f=setup();
+  const queued=await enqueueS8Structured(id,{repository:f.repo,start:async()=>({runId:"test"})});
+  const job={executionId:queued.executionId,rawItemId:id};
+  await analyzeS8StructuredJob(job,{repository:f.repo,analyze:f.analyze});
+  f.runs[0].status="pending"; // Mock expired lease; real SQL expiry/race is covered by verify-s8-lease-recovery.
+  let calls=0;const result=await processS8Structured(job,{repository:f.repo,analyze:async()=>{calls++;return f.analyze()}});
+  assert.equal(result.status,"succeeded");assert.equal(calls,0);assert.equal(f.outputs.length,1);
+});
+
+test("recovered checkpoint binding tampering is rejected before any provider call", async () => {
+  const {analyzeS8StructuredJob}=await import("./structuredRuntime.ts");const f=setup();
+  const queued=await enqueueS8Structured(id,{repository:f.repo,start:async()=>({runId:"test"})});const job={executionId:queued.executionId,rawItemId:id};
+  await analyzeS8StructuredJob(job,{repository:f.repo,analyze:f.analyze});f.runs[0].status="pending";
+  f.runs[0].metadata.s8Checkpoint.payload.outputSha256="0".repeat(64);
+  await assert.rejects(processS8Structured(job,{repository:f.repo,analyze:async()=>{throw Error("must not call")}}),/checkpoint_binding_invalid/);
+  assert.equal(f.outputs.length,0);
+});
+
+test("failed validation checkpoint resumes storage without semantic retry", async () => {
+  const {analyzeS8StructuredJob}=await import("./structuredRuntime.ts");const f=setup();const queued=await enqueueS8Structured(id,{repository:f.repo,start:async()=>({runId:"test"})});const job={executionId:queued.executionId,rawItemId:id};
+  const original=await f.analyze();original.run.outputText='{"invalid":';
+  await analyzeS8StructuredJob(job,{repository:f.repo,analyze:async()=>({stage:"validation_error",result:null,run:original.run,error:"bad JSON",validation_errors:["bad JSON"]})});
+  f.runs[0].status="pending";
+  assert.equal((await processS8Structured(job,{repository:f.repo,analyze:async()=>{throw Error("must not retry")}})).status,"failed");
+  assert.equal(f.outputs[0].payload.outputText,'{"invalid":');assert.equal((await readS8Structured(id,f.repo)).status,"unavailable");
 });

@@ -74,3 +74,7 @@ Next work is narrow failure recovery, if authorized: explicit ambiguous-start/re
 - Candidate server used SUPABASE_URL / SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / GEMINI_API_KEY / WORKFLOW_LOCAL_BASE_URL / NODE_OPTIONS in process memory. No env file, account, cron or external delivery changes.
 - No UI changes/checks in this task. Main/shared resources and all historical data are preserved. Generated next-env.d.ts is local development output, excluded from product commit.
 `3113` was a task-owned verification server; it was stopped after all eight real workflow deliveries completed. Its Workflow store was archived outside the repository. Main/other servers were not operated.
+
+## Lease recovery completion
+
+The subsequent [lease-recovery handoff](sec-s8-structured-v6-lease-recovery.md) supersedes this document's outstanding lease/recovery blocker. It records atomic expiry/reclaim, cross-workflow DB checkpoints, crash/concurrency validation and the remaining uncheckpointed-provider uncertainty. All evidence in this document remains preserved as the earlier verification stage.

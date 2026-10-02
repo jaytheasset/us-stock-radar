@@ -7,7 +7,7 @@ import {execFileSync} from "node:child_process";
 import {registerHooks} from "node:module";
 import pg from "pg";
 registerHooks({resolve(s,c,next){return s==='server-only'?{shortCircuit:true,url:'data:text/javascript,export{}'}:next(s,c)}});
-const [mode,outDir,frozenDir]=process.argv.slice(2);assert.ok(['stub','canary'].includes(mode));
+const [mode,outDir,frozenDir,verificationPrefix="durable-20261002"]=process.argv.slice(2);assert.ok(['stub','canary'].includes(mode));
 const out=resolve(outDir);assert.ok(!out.startsWith(process.cwd()));
 const save=(n,v)=>writeFileSync(resolve(out,n),JSON.stringify(v,null,2));
 const json=p=>JSON.parse(readFileSync(p,'utf8'));
@@ -32,7 +32,7 @@ const descriptor=manifest.workflows['workflows/s8-structured.ts'].s8StructuredWo
 assert.ok(descriptor.workflowId);
 const repo=await s8Repository();const cases=[['Microsoft','0001193125-25-337056'],['Nautilus','0001808805-26-000013'],['Lottery','0001641172-25-017852']];
 for(const [name,accession] of mode==='canary'?cases.slice(0,1):cases){
- const verificationKey='durable-20261002-'+mode;
+ const verificationKey=verificationPrefix+'-'+mode;
  const rawId=(await db.query('select raw_item_id from sec_s8_registration_filings where accession_number=$1',[accession])).rows[0].raw_item_id;
  const input=await loadS8StructuredInput(rawId,repo,verificationKey);
  assert.deepEqual(input.source,json(resolve(frozenDir,name+'-source-package.json')));
