@@ -66,15 +66,39 @@ export const PROXY_STRUCTURED_V1_RESPONSE_SCHEMA = {
   },
 } as const;
 
-const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties", "uniqueItems"]);
+const GEMINI_RESPONSE_FORMAT_SCHEMA_KEYS = new Set([
+  "$ref",
+  "additionalProperties",
+  "anyOf",
+  "description",
+  "enum",
+  "format",
+  "items",
+  "maximum",
+  "maxItems",
+  "minimum",
+  "minItems",
+  "prefixItems",
+  "properties",
+  "required",
+  "title",
+  "type",
+]);
 
 export function projectProxyStructuredV1SchemaForGemini(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(projectProxyStructuredV1SchemaForGemini);
+  return projectGeminiResponseFormatSchema(value, false);
+}
+
+function projectGeminiResponseFormatSchema(value: unknown, isPropertiesMap: boolean): unknown {
+  if (Array.isArray(value)) return value.map((child) => projectGeminiResponseFormatSchema(child, false));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => !GEMINI_UNSUPPORTED_SCHEMA_KEYS.has(key))
-      .map(([key, child]) => [key, projectProxyStructuredV1SchemaForGemini(child)]),
+      .filter(([key]) => isPropertiesMap || GEMINI_RESPONSE_FORMAT_SCHEMA_KEYS.has(key))
+      .map(([key, child]) => [
+        key,
+        projectGeminiResponseFormatSchema(child, !isPropertiesMap && key === "properties"),
+      ]),
   );
 }
 
@@ -151,6 +175,135 @@ export type ProxyStructuredV1Validation = {
   value: ProxyStructuredV1Result | null;
   errors: string[];
 };
+
+export type ProxyStructuredV1GeminiResponseBody = {
+  responseId?: string;
+  modelVersion?: string;
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+    [key: string]: unknown;
+  };
+  error?: { message?: string };
+};
+
+export function buildProxyStructuredV1GeminiRequest(
+  sourcePackage: ProxyStructuredV1SourcePackage,
+  maxOutputTokens: number,
+) {
+  if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 1) {
+    throw new Error("Proxy Structured v1 maxOutputTokens must be a positive integer");
+  }
+  const prompt = buildProxyStructuredV1Prompt(sourcePackage);
+  return {
+    systemInstruction: {
+      parts: [{ text: prompt.system }],
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt.user }],
+      },
+    ],
+    generationConfig: {
+      responseFormat: {
+        text: {
+          mimeType: "APPLICATION_JSON",
+          schema: prompt.providerResponseSchema,
+        },
+      },
+      maxOutputTokens,
+      temperature: 0,
+    },
+  };
+}
+
+export async function runProxyStructuredV1Gemini({
+  apiKey,
+  model,
+  sourcePackage,
+  maxOutputTokens,
+  fetchImpl = fetch,
+}: {
+  apiKey: string;
+  model: string;
+  sourcePackage: ProxyStructuredV1SourcePackage;
+  maxOutputTokens: number;
+  fetchImpl?: typeof fetch;
+}) {
+  const normalizedModel = model.startsWith("models/") ? model : `models/${model}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/${normalizedModel}:generateContent`;
+  const request = buildProxyStructuredV1GeminiRequest(sourcePackage, maxOutputTokens);
+  const startedAt = Date.now();
+  try {
+    const response = await fetchImpl(endpoint, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify(request),
+    });
+    const latencyMs = Date.now() - startedAt;
+    const body = (await response.json().catch(() => null)) as ProxyStructuredV1GeminiResponseBody | null;
+    const outputText = (body?.candidates || [])
+      .flatMap((candidate) => candidate.content?.parts || [])
+      .map((part) => part.text || "")
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    const finishReason = body?.candidates?.map((candidate) => candidate.finishReason).find(Boolean) || null;
+    const error = response.ok
+      ? finishReason === "STOP" && outputText
+        ? undefined
+        : finishReason && finishReason !== "STOP"
+          ? `Gemini generation stopped: ${finishReason}`
+          : "Gemini response did not contain output text"
+      : body?.error?.message || response.statusText || `<HTTP ${response.status}>`;
+    return {
+      ok: response.ok && finishReason === "STOP" && Boolean(outputText),
+      responseOk: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      endpoint,
+      model,
+      request,
+      responseId: body?.responseId || null,
+      modelVersion: body?.modelVersion || null,
+      finishReason,
+      outputText,
+      usage: body?.usageMetadata || null,
+      latencyMs,
+      error,
+      body,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      responseOk: false,
+      status: 0,
+      statusText: "",
+      endpoint,
+      model,
+      request,
+      responseId: null,
+      modelVersion: null,
+      finishReason: null,
+      outputText: "",
+      usage: null,
+      latencyMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+      body: null,
+    };
+  }
+}
 
 export function buildProxyStructuredV1SourcePackage(
   sourceDocuments: readonly ProxyStructuredV1SourceDocument[],

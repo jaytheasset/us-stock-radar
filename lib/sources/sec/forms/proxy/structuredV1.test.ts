@@ -3,10 +3,12 @@ import test from "node:test";
 import {
   PROXY_STRUCTURED_V1_PROVIDER_SCHEMA,
   PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
+  buildProxyStructuredV1GeminiRequest,
   buildProxyStructuredV1Prompt,
   buildProxyStructuredV1SourcePackage,
   parseAndValidateProxyStructuredV1,
   projectProxyStructuredV1SchemaForGemini,
+  runProxyStructuredV1Gemini,
   type ProxyStructuredV1Result,
 } from "./structuredV1.ts";
 
@@ -102,7 +104,7 @@ test("provider boundary keeps the canonical contract in the prompt without expos
   assert.deepEqual(user.contract.response_schema, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
 });
 
-test("Gemini provider schema projection removes only unsupported keywords without mutating canonical shape", () => {
+test("Gemini responseFormat projection keeps only documented keywords without mutating canonical shape", () => {
   const canonicalBefore = JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
   const projected = projectProxyStructuredV1SchemaForGemini(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA) as any;
   const canonical = PROXY_STRUCTURED_V1_RESPONSE_SCHEMA as any;
@@ -110,9 +112,12 @@ test("Gemini provider schema projection removes only unsupported keywords withou
   assert.equal(JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA), canonicalBefore);
   assert.notEqual(projected, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
   assert.equal(canonical.additionalProperties, false);
+  assert.equal(projected.additionalProperties, false);
   assert.equal(canonical.properties.meeting.additionalProperties, false);
+  assert.equal(projected.properties.meeting.additionalProperties, false);
   assert.equal(canonical.properties.meeting.properties.evidence.uniqueItems, true);
   assert.equal(canonical.properties.proposals.items.additionalProperties, false);
+  assert.equal(projected.properties.proposals.items.additionalProperties, false);
   assert.equal(canonical.properties.proposals.items.properties.evidence.uniqueItems, true);
   assertNoUnsupportedProviderKeywords(projected);
 
@@ -137,6 +142,50 @@ test("Gemini provider schema projection removes only unsupported keywords withou
     projected.properties.proposals.items.properties.action.enum,
     canonical.properties.proposals.items.properties.action.enum,
   );
+  assert.deepEqual(
+    projected.properties.meeting.properties.date.anyOf,
+    canonical.properties.meeting.properties.date.anyOf,
+  );
+});
+
+test("Gemini generateContent request uses only the latest responseFormat transport", () => {
+  const request = buildProxyStructuredV1GeminiRequest(sourcePackage, 4096) as any;
+
+  assert.equal(request.generationConfig.responseFormat.text.mimeType, "APPLICATION_JSON");
+  assert.deepEqual(request.generationConfig.responseFormat.text.schema, PROXY_STRUCTURED_V1_PROVIDER_SCHEMA);
+  assert.equal(request.generationConfig.maxOutputTokens, 4096);
+  assert.equal(request.generationConfig.temperature, 0);
+  assert.equal("responseSchema" in request.generationConfig, false);
+  assert.equal("responseJsonSchema" in request.generationConfig, false);
+  assert.equal("responseMimeType" in request.generationConfig, false);
+});
+
+test("Proxy Gemini runner sends the exact responseFormat request without changing the shared helper", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const run = await runProxyStructuredV1Gemini({
+    apiKey: "test-key",
+    model: "gemini-3.5-flash",
+    sourcePackage,
+    maxOutputTokens: 4096,
+    fetchImpl: (async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return new Response(JSON.stringify({
+        responseId: "response-1",
+        modelVersion: "gemini-3.5-flash",
+        candidates: [{ content: { parts: [{ text: JSON.stringify(validResult()) }] }, finishReason: "STOP" }],
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 5, totalTokenCount: 35 },
+      }), { status: 200, statusText: "OK", headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch,
+  });
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent");
+  assert.equal((requests[0]?.init?.headers as Record<string, string>)["x-goog-api-key"], "test-key");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), buildProxyStructuredV1GeminiRequest(sourcePackage, 4096));
+  assert.equal(run.ok, true);
+  assert.equal(run.finishReason, "STOP");
+  assert.equal(run.outputText, JSON.stringify(validResult()));
+  assert.equal(run.usage?.thoughtsTokenCount, 5);
 });
 
 test("source package preserves document order and produces deterministic evidence and hashes", () => {
@@ -194,7 +243,20 @@ function assertNoUnsupportedProviderKeywords(value: unknown) {
   }
   if (!value || typeof value !== "object") return;
   const record = value as Record<string, unknown>;
-  assert.equal("additionalProperties" in record, false);
   assert.equal("uniqueItems" in record, false);
-  Object.values(record).forEach(assertNoUnsupportedProviderKeywords);
+  assert.equal("pattern" in record, false);
+  assert.equal("minLength" in record, false);
+  assert.equal("maxLength" in record, false);
+  Object.entries(record).forEach(([key, child]) => {
+    if (key === "properties" && child && typeof child === "object" && !Array.isArray(child)) {
+      Object.values(child).forEach(assertNoUnsupportedProviderKeywords);
+      return;
+    }
+    assert.ok([
+      "$ref", "additionalProperties", "anyOf", "description", "enum", "format", "items",
+      "maximum", "maxItems", "minimum", "minItems", "prefixItems", "properties", "required",
+      "title", "type",
+    ].includes(key), `unsupported provider schema keyword: ${key}`);
+    assertNoUnsupportedProviderKeywords(child);
+  });
 }
