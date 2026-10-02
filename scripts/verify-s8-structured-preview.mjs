@@ -13,6 +13,8 @@ registerHooks({ resolve(specifier, context, next) {
 const [evidenceDir, outputDir, credentials] = process.argv.slice(2);
 assert.ok(evidenceDir && outputDir, "Supply existing S8 factual evidence directory and external output directory");
 const out = resolve(outputDir), live = process.argv.includes("--live");
+// Experiment-only model, not a product/global model-setting change.
+const model = "gemini-3.5-flash";
 assert.ok(relative(process.cwd(), out).startsWith("..") || isAbsolute(relative(process.cwd(), out)));
 mkdirSync(out, { recursive: true });
 const read = path => JSON.parse(readFileSync(path, "utf8"));
@@ -83,20 +85,24 @@ if (!live) {
     const match = line.match(/^(GEMINI_API_KEY|GEMINI_MODEL)=(.*)$/);
     return match ? [[match[1], match[2].replace(/^["']|["']$/g, "")]] : [];
   }));
-  // This frozen validation follows the currently configured generic secondary model.
-  assert.equal(env.GEMINI_MODEL, "gemini-2.5-flash"); assert.ok(env.GEMINI_API_KEY);
-  save("live-start.json", { at: new Date().toISOString(), model: env.GEMINI_MODEL, codeHashes: frozen,
+  assert.ok(env.GEMINI_API_KEY);
+  save("live-start.json", { at: new Date().toISOString(), model, codeHashes: frozen,
     groundTruthHash: sha(readFileSync(resolve(out, "ground-truth.md"))), maximumCalls: 3 });
   for (const p of prepared) {
     assert.deepEqual(hashes(), frozen);
     let calls = 0; const start = performance.now(), startedAt = new Date().toISOString();
     const result = await runS8StructuredAnalyzerPreview(p.raw, {
-      apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL,
+      apiKey: env.GEMINI_API_KEY, model,
       fetchImpl: async (url, init) => {
         assert.equal(++calls, 1);
-        assert.deepEqual(JSON.parse(init.body), p.request);
-        writeFileSync(resolve(out, p.name + "-actual-request.json"), init.body);
-        const response = await fetch(url, { ...init, signal: AbortSignal.timeout(60000) });
+        const generated = JSON.parse(init.body);
+        // Preserve the v3 comparison's generation settings, including budget 0.
+        // The unchanged generic provider omits this setting for 3.5 by default.
+        generated.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        assert.deepEqual(generated, p.request);
+        const body = JSON.stringify(generated);
+        writeFileSync(resolve(out, p.name + "-actual-request.json"), body);
+        const response = await fetch(url, { ...init, body, signal: AbortSignal.timeout(60000) });
         writeFileSync(resolve(out, p.name + "-raw-response.json"), await response.clone().text());
         return response;
       },
