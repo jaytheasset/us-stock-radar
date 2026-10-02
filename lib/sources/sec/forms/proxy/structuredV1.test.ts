@@ -1,15 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  PROXY_STRUCTURED_V1_FUNCTION_NAME,
-  PROXY_STRUCTURED_V1_FUNCTION_PARAMETERS,
   PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
   buildProxyStructuredV1GeminiRequest,
   buildProxyStructuredV1Prompt,
   buildProxyStructuredV1SourcePackage,
   parseAndValidateProxyStructuredV1,
-  parseProxyStructuredV1GeminiFunctionResponse,
-  projectProxyStructuredV1SchemaForGeminiFunction,
   runProxyStructuredV1Gemini,
   type ProxyStructuredV1Result,
 } from "./structuredV1.ts";
@@ -96,145 +92,42 @@ test("source fingerprint mismatch fails", () => {
   assert.match(result.errors.join("; "), /source_fingerprint must match/i);
 });
 
-test("function prompt keeps the semantic source payload without embedding a JSON output schema", () => {
+test("JSON mode prompt embeds the canonical response schema in the source-neutral contract", () => {
   const prompt = buildProxyStructuredV1Prompt(sourcePackage);
   const user = JSON.parse(prompt.user);
 
-  assert.match(prompt.system, new RegExp(`call ${PROXY_STRUCTURED_V1_FUNCTION_NAME} exactly once`));
+  assert.deepEqual(Object.keys(prompt), ["system", "user"]);
+  assert.match(prompt.system, /Return one direct JSON object matching the closed schema/);
+  assert.match(prompt.system, /do not add prose or markdown/);
   assert.deepEqual(Object.keys(user), ["contract", "source_manifest", "evidence_blocks"]);
   assert.deepEqual(user.contract, {
     version: "proxy_structured_v1",
     source_fingerprint: sourcePackage.sourceFingerprint,
+    response_schema: PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
   });
   assert.deepEqual(user.source_manifest, sourcePackage.documents);
   assert.deepEqual(user.evidence_blocks, sourcePackage.evidenceBlocks);
-  assert.doesNotMatch(JSON.stringify(prompt), /responseSchema|responseJsonSchema|responseFormat|responseMimeType|response_schema/);
+  assert.doesNotMatch(JSON.stringify(prompt), /responseSchema|responseJsonSchema|responseFormat/);
 });
 
-test("Gemini function parameter projection preserves nested shape and enums without mutating the canonical schema", () => {
-  const canonicalBefore = JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
-  const projected = projectProxyStructuredV1SchemaForGeminiFunction(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA) as any;
-  const canonical = PROXY_STRUCTURED_V1_RESPONSE_SCHEMA as any;
-
-  assert.equal(JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA), canonicalBefore);
-  assert.notEqual(projected, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
-  assert.equal(canonical.additionalProperties, false);
-  assert.equal(projected.additionalProperties, undefined);
-  assert.equal(canonical.properties.meeting.additionalProperties, false);
-  assert.equal(projected.properties.meeting.additionalProperties, undefined);
-  assert.equal(canonical.properties.meeting.properties.evidence.uniqueItems, true);
-  assert.equal(canonical.properties.proposals.items.additionalProperties, false);
-  assert.equal(projected.properties.proposals.items.additionalProperties, undefined);
-  assert.equal(canonical.properties.proposals.items.properties.evidence.uniqueItems, true);
-  assertNoUnsupportedFunctionKeywords(projected);
-
-  assert.deepEqual(Object.keys(projected.properties), Object.keys(canonical.properties));
-  assert.deepEqual(projected.required, canonical.required);
-  assert.deepEqual(projected.properties.meeting.required, canonical.properties.meeting.required);
-  assert.deepEqual(
-    Object.keys(projected.properties.meeting.properties),
-    Object.keys(canonical.properties.meeting.properties),
-  );
-  assert.deepEqual(projected.properties.meeting.properties.type.enum, canonical.properties.meeting.properties.type.enum);
-  assert.deepEqual(projected.properties.proposals.items.required, canonical.properties.proposals.items.required);
-  assert.deepEqual(
-    Object.keys(projected.properties.proposals.items.properties),
-    Object.keys(canonical.properties.proposals.items.properties),
-  );
-  assert.deepEqual(
-    projected.properties.proposals.items.properties.kind.enum,
-    canonical.properties.proposals.items.properties.kind.enum,
-  );
-  assert.deepEqual(
-    projected.properties.proposals.items.properties.action.enum,
-    canonical.properties.proposals.items.properties.action.enum,
-  );
-  assert.deepEqual(projected.properties.meeting.properties.date, {
-    type: "string",
-    format: "date",
-    nullable: true,
-  });
-});
-
-test("Gemini generateContent request uses only one forced function-calling transport", () => {
+test("Gemini generateContent request uses JSON mode without provider schema or tools", () => {
   const request = buildProxyStructuredV1GeminiRequest(sourcePackage, 4096) as any;
 
-  assert.equal(request.tools.length, 1);
-  assert.equal(request.tools[0].functionDeclarations.length, 1);
-  assert.equal(request.tools[0].functionDeclarations[0].name, PROXY_STRUCTURED_V1_FUNCTION_NAME);
-  assert.deepEqual(request.tools[0].functionDeclarations[0].parameters, PROXY_STRUCTURED_V1_FUNCTION_PARAMETERS);
-  assert.deepEqual(request.toolConfig, {
-    functionCallingConfig: {
-      mode: "ANY",
-      allowedFunctionNames: [PROXY_STRUCTURED_V1_FUNCTION_NAME],
-    },
+  assert.deepEqual(Object.keys(request), ["systemInstruction", "contents", "generationConfig"]);
+  assert.deepEqual(request.generationConfig, {
+    responseMimeType: "application/json",
+    maxOutputTokens: 4096,
+    temperature: 0,
   });
-  assert.equal(request.generationConfig.maxOutputTokens, 4096);
-  assert.equal(request.generationConfig.temperature, 0);
   assert.doesNotMatch(
     JSON.stringify(request),
-    /responseSchema|responseJsonSchema|responseFormat|responseMimeType|APPLICATION_JSON/,
+    /responseSchema|responseJsonSchema|responseFormat|"tools"|toolConfig|functionDeclarations/,
   );
 });
 
-test("function response parser accepts exactly one named call and uses raw args as the candidate", () => {
-  const raw = JSON.stringify(functionResponse([{ functionCall: {
-    name: PROXY_STRUCTURED_V1_FUNCTION_NAME,
-    args: validResult(),
-  } }]));
-  const parsed = parseProxyStructuredV1GeminiFunctionResponse(raw);
-
-  assert.equal(parsed.ok, true, parsed.errors.join("; "));
-  assert.equal(parsed.functionCallCount, 1);
-  assert.equal(parsed.functionCallName, PROXY_STRUCTURED_V1_FUNCTION_NAME);
-  assert.deepEqual(JSON.parse(JSON.stringify(parsed.candidate)), validResult());
-});
-
-test("function response parser rejects zero, multiple, wrong-name, and missing-args calls", () => {
-  const cases = [
-    {
-      raw: JSON.stringify(functionResponse([{ text: JSON.stringify(validResult()) }])),
-      error: /exactly one functionCall; received 0/,
-    },
-    {
-      raw: JSON.stringify(functionResponse([
-        { functionCall: { name: PROXY_STRUCTURED_V1_FUNCTION_NAME, args: validResult() } },
-        { functionCall: { name: PROXY_STRUCTURED_V1_FUNCTION_NAME, args: validResult() } },
-      ])),
-      error: /exactly one functionCall; received 2/,
-    },
-    {
-      raw: JSON.stringify(functionResponse([{ functionCall: { name: "other_function", args: validResult() } }])),
-      error: /functionCall\.name must be submit_proxy_structured/,
-    },
-    {
-      raw: JSON.stringify(functionResponse([{ functionCall: { name: PROXY_STRUCTURED_V1_FUNCTION_NAME } }])),
-      error: /functionCall\.args is missing/,
-    },
-  ];
-
-  for (const candidate of cases) {
-    const parsed = parseProxyStructuredV1GeminiFunctionResponse(candidate.raw);
-    assert.equal(parsed.ok, false);
-    assert.match(parsed.errors.join("; "), candidate.error);
-    assert.equal(parsed.candidate, null);
-  }
-});
-
-test("function response parser rejects duplicate keys in raw provider args", () => {
-  const args = JSON.stringify(validResult()).replace(
-    '"version":"proxy_structured_v1"',
-    '"version":"proxy_structured_v1","version":"proxy_structured_v1"',
-  );
-  const raw = `{"candidates":[{"content":{"parts":[{"functionCall":{"name":"${PROXY_STRUCTURED_V1_FUNCTION_NAME}","args":${args}}}]},"finishReason":"STOP"}]}`;
-  const parsed = parseProxyStructuredV1GeminiFunctionResponse(raw);
-
-  assert.equal(parsed.ok, false);
-  assert.match(parsed.errors.join("; "), /duplicate key "version"/);
-});
-
-test("Proxy Gemini runner sends the exact function request and validates unmodified args", async () => {
+test("Proxy Gemini runner sends one JSON mode request and validates the exact direct text", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const outputText = `\n${JSON.stringify(validResult())}\n`;
   const run = await runProxyStructuredV1Gemini({
     apiKey: "test-key",
     model: "gemini-3.5-flash",
@@ -245,10 +138,7 @@ test("Proxy Gemini runner sends the exact function request and validates unmodif
       return new Response(JSON.stringify({
         responseId: "response-1",
         modelVersion: "gemini-3.5-flash",
-        candidates: [{ content: { parts: [{ functionCall: {
-          name: PROXY_STRUCTURED_V1_FUNCTION_NAME,
-          args: validResult(),
-        } }] }, finishReason: "STOP" }],
+        candidates: [{ content: { parts: [{ text: outputText }] }, finishReason: "STOP" }],
         usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 5, totalTokenCount: 35 },
       }), { status: 200, statusText: "OK", headers: { "Content-Type": "application/json" } });
     }) as typeof fetch,
@@ -261,29 +151,71 @@ test("Proxy Gemini runner sends the exact function request and validates unmodif
   assert.equal(run.ok, true);
   assert.equal(run.transportOk, true);
   assert.equal(run.finishReason, "STOP");
-  assert.equal(run.functionCallCount, 1);
-  assert.equal(run.functionCallName, PROXY_STRUCTURED_V1_FUNCTION_NAME);
-  assert.deepEqual(JSON.parse(JSON.stringify(run.candidate)), validResult());
+  assert.equal(run.outputTextCount, 1);
+  assert.equal(run.outputText, outputText);
   assert.equal(run.validation.ok, true, run.validation.errors.join("; "));
+  assert.deepEqual(JSON.parse(JSON.stringify(run.validation.value)), validResult());
   assert.equal(run.usage?.thoughtsTokenCount, 5);
 });
 
-test("wrapper args remain a strict canonical failure without unwrapping", async () => {
+test("wrapper text remains a strict canonical failure without unwrapping", async () => {
+  const outputText = JSON.stringify({ contract: validResult() });
   const run = await runProxyStructuredV1Gemini({
     apiKey: "test-key",
     model: "gemini-3.5-flash",
     sourcePackage,
     maxOutputTokens: 4096,
-    fetchImpl: (async () => new Response(JSON.stringify(functionResponse([{ functionCall: {
-      name: PROXY_STRUCTURED_V1_FUNCTION_NAME,
-      args: { contract: validResult() },
-    } }])), { status: 200, statusText: "OK" })) as typeof fetch,
+    fetchImpl: (async () => new Response(JSON.stringify(textResponse([outputText])), {
+      status: 200,
+      statusText: "OK",
+    })) as typeof fetch,
   });
 
   assert.equal(run.transportOk, true);
-  assert.deepEqual(JSON.parse(JSON.stringify(run.candidate)), { contract: validResult() });
+  assert.equal(run.outputText, outputText);
   assert.equal(run.validation.ok, false);
   assert.match(run.validation.errors.join("; "), /must contain exactly/);
+});
+
+test("runner preserves duplicate keys in direct text for strict parser rejection", async () => {
+  const outputText = JSON.stringify(validResult()).replace(
+    '"version":"proxy_structured_v1"',
+    '"version":"proxy_structured_v1","version":"proxy_structured_v1"',
+  );
+  const run = await runProxyStructuredV1Gemini({
+    apiKey: "test-key",
+    model: "gemini-3.5-flash",
+    sourcePackage,
+    maxOutputTokens: 4096,
+    fetchImpl: (async () => new Response(JSON.stringify(textResponse([outputText])), {
+      status: 200,
+      statusText: "OK",
+    })) as typeof fetch,
+  });
+
+  assert.equal(run.transportOk, true);
+  assert.equal(run.outputText, outputText);
+  assert.equal(run.validation.ok, false);
+  assert.match(run.validation.errors.join("; "), /duplicate key "version"/);
+});
+
+test("runner rejects multiple non-empty text outputs at the transport boundary", async () => {
+  const run = await runProxyStructuredV1Gemini({
+    apiKey: "test-key",
+    model: "gemini-3.5-flash",
+    sourcePackage,
+    maxOutputTokens: 4096,
+    fetchImpl: (async () => new Response(JSON.stringify(textResponse([
+      JSON.stringify(validResult()),
+      JSON.stringify(validResult()),
+    ], "MAX_TOKENS")), { status: 200, statusText: "OK" })) as typeof fetch,
+  });
+
+  assert.equal(run.transportOk, false);
+  assert.equal(run.finishReason, "MAX_TOKENS");
+  assert.equal(run.outputTextCount, 2);
+  assert.equal(run.outputText, null);
+  assert.match(run.error || "", /generation stopped: MAX_TOKENS/);
 });
 
 test("source package preserves document order and produces deterministic evidence and hashes", () => {
@@ -334,29 +266,11 @@ test("source package preserves document order and produces deterministic evidenc
   assert.match(first.packageFingerprint, /^[a-f0-9]{64}$/);
 });
 
-function functionResponse(parts: unknown[]) {
-  return { candidates: [{ content: { parts }, finishReason: "STOP" }] };
-}
-
-function assertNoUnsupportedFunctionKeywords(value: unknown) {
-  if (Array.isArray(value)) {
-    value.forEach(assertNoUnsupportedFunctionKeywords);
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  const record = value as Record<string, unknown>;
-  assert.equal("uniqueItems" in record, false);
-  assert.equal("pattern" in record, false);
-  assert.equal("minLength" in record, false);
-  assert.equal("maxLength" in record, false);
-  Object.entries(record).forEach(([key, child]) => {
-    if (key === "properties" && child && typeof child === "object" && !Array.isArray(child)) {
-      Object.values(child).forEach(assertNoUnsupportedFunctionKeywords);
-      return;
-    }
-    assert.ok([
-      "enum", "format", "items", "nullable", "properties", "required", "type",
-    ].includes(key), `unsupported function parameter schema keyword: ${key}`);
-    assertNoUnsupportedFunctionKeywords(child);
-  });
+function textResponse(outputs: string[], finishReason = "STOP") {
+  return {
+    candidates: [{
+      content: { parts: outputs.map((text) => ({ text })) },
+      finishReason,
+    }],
+  };
 }
