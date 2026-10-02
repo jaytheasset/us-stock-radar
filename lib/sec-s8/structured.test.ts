@@ -22,17 +22,15 @@ function raw(text = additional, withRow = true, form = "S-8") {
 }
 function setup(text = additional, withRow = true, form = "S-8") {
   const input = raw(text, withRow, form), source = buildS8StructuredSource(input);
-  const wire = (): S8StructuredWire => ({ version: S8_STRUCTURED_VERSION,
-    filing_kind: "unclear", summary: "The supplied filing's purpose is unresolved.",
-    current_plans: [], prior_filings: [], semantic_notes: [], unresolved: ["Plan relationship is unclear."] });
+  const wire = (): S8StructuredWire => ({ version: S8_STRUCTURED_VERSION, filing_kind: "unclear",
+    current_plans: [], prior_filings: [], unresolved: ["plan_relationship"] });
   return { input, source, wire };
 }
-test("v5 snapshot preserves prose, evidence and server-owned direct values unchanged", () => {
+test("v6 valid snapshot preserves relations, evidence and server-owned direct values unchanged", () => {
   const { input, source, wire } = setup(), before = stable(input), v = wire();
-  v.filing_kind = "registration"; v.summary = "The filing registers additional securities under an equity plan.";
+  v.filing_kind = "registration";
   v.current_plans = [{ name: "2026 Equity Incentive Plan", evidence: ["E1"] }];
   v.prior_filings = [{ reference: "Registration No. 333-12345", relationship: "prior_filing", evidence: ["E1"] }];
-  v.semantic_notes = [{ note: "This is an additional registration.", evidence: ["E1"] }];
   const result = validateS8Structured(v, source);
   assert.equal(result.ok, true); if (!result.ok) return;
   assert.deepEqual(result.result.semantic, v);
@@ -41,46 +39,46 @@ test("v5 snapshot preserves prose, evidence and server-owned direct values uncha
   assert.equal(stable(input), before);
   assert.equal(result.result.sourceFingerprint, source.fingerprint);
   assert.equal(result.result.evidence[0].documentUrl, sourceUrl);
-  assert.equal(result.result.evidence[0].documentId, "D1");
 });
 test("invalid JSON, duplicate keys and fenced JSON fail without repair", () => {
   const { source, wire } = setup(), fence = String.fromCharCode(96).repeat(3);
-  for (const text of ['{"version":', '{"version":"a","version":"b"}', "not JSON", fence + "json\n" + JSON.stringify(wire()) + "\n" + fence])
+  for (const text of ['{"version":', '{"version":"a","version":"b"}', "not JSON", fence + JSON.stringify(wire()) + fence])
     assert.equal(parseS8Structured(text, source).ok, false);
 });
-test("unknown E refs fail in every evidence-bearing field", () => {
+test("unknown E refs fail in both evidence-bearing fields", () => {
   const { source, wire } = setup();
   for (const extra of [{ current_plans: [{ name: "Plan", evidence: ["E999"] }] },
-    { prior_filings: [{ reference: "Filing", relationship: "unclear", evidence: ["E999"] }] },
-    { semantic_notes: [{ note: "Fact", evidence: ["E999"] }] }])
+    { prior_filings: [{ reference: "Filing", relationship: "unclear", evidence: ["E999"] }] }])
     assert.equal(validateS8Structured({ ...wire(), ...extra }, source).ok, false);
 });
-test("removed v3 graph and historical entities are not accepted fields", () => {
+test("removed graph, historical entities and arbitrary fields are rejected", () => {
   const { source, wire } = setup();
-  for (const key of ["filing", "plans", "registrations", "references", "amendment", "historical_plans"])
+  for (const key of ["filing", "plans", "registrations", "references", "amendment", "historical_plans", "description"])
     assert.equal(validateS8Structured({ ...wire(), [key]: [] }, source).ok, false);
   assert.equal(validateS8Structured({ ...wire(), current_plans: [{ name: "Plan", scope: "historical_reference", evidence: [] }] }, source).ok, false);
 });
-test("v5 rejects old key_facts but does not filter numeric semantic notes", () => {
-  const { source, wire } = setup();
-  assert.equal(validateS8Structured({ ...wire(), key_facts: [] }, source).ok, false);
-  const value = { ...wire(), semantic_notes: [{ note: "900 shares at $4.25.", evidence: ["E1"] }] };
-  const result = validateS8Structured(value, source);
-  assert.equal(result.ok, true);
-  if (result.ok) assert.deepEqual(result.result.semantic, value);
-});
-test("required fields, enum and types are enforced", () => {
+for (const key of ["summary", "semantic_notes", "key_facts"])
+  test("removed prose field rejected at root and nested object: " + key, () => {
+    const { source, wire } = setup();
+    assert.equal(validateS8Structured({ ...wire(), [key]: "A sentence." }, source).ok, false);
+    assert.equal(validateS8Structured({ ...wire(), current_plans: [{ name: "Plan", evidence: [], [key]: "A sentence." }] }, source).ok, false);
+  });
+test("all required fields enforced", () => {
   const { source, wire } = setup();
   for (const key of Object.keys(wire())) {
     const v: Record<string, unknown> = { ...wire() }; delete v[key];
     assert.equal(validateS8Structured(v, source).ok, false);
   }
-  for (const extra of [{ filing_kind: "additional_registration" }, { summary: 42 }, { current_plans: {} },
-    { prior_filings: [{ reference: "File", relationship: "amendment_target", evidence: [] }] }, { unresolved: [1] }])
+});
+test("types and enums enforced without correcting values", () => {
+  const { source, wire } = setup();
+  for (const extra of [{ version: "s8_structured_v5" }, { filing_kind: "additional_registration" },
+    { current_plans: {} }, { prior_filings: [{ reference: "File", relationship: "amendment_target", evidence: [] }] },
+    { unresolved: [1] }, { unresolved: ["source_incomplete"] }])
     assert.equal(validateS8Structured({ ...wire(), ...extra }, source).ok, false);
 });
-for (const key of ["score", "signal", "bullish_points", "bearish_points", "delivery_level", "display_payload", "registered_shares"])
-  test("Primary/quantity field forbidden: " + key, () => {
+for (const key of ["score", "signal", "display_payload", "registered_shares", "security_title", "unit"])
+  test("Primary/direct-value field forbidden: " + key, () => {
     const { source, wire } = setup();
     assert.equal(validateS8Structured({ ...wire(), [key]: 1 }, source).ok, false);
     assert.equal(validateS8Structured({ ...wire(), current_plans: [{ name: "Plan", evidence: [], [key]: 1 }] }, source).ok, false);
@@ -88,54 +86,56 @@ for (const key of ["score", "signal", "bullish_points", "bearish_points", "deliv
 test("model quote and fingerprint echo are not accepted", () => {
   const { source, wire } = setup();
   assert.equal(validateS8Structured({ ...wire(), source_fingerprint: source.fingerprint }, source).ok, false);
-  assert.equal(validateS8Structured({ ...wire(), semantic_notes: [{ note: "Fact", evidence: ["E1"], quote: additional }] }, source).ok, false);
+  assert.equal(validateS8Structured({ ...wire(), current_plans: [{ name: "Plan", evidence: ["E1"], quote: additional }] }, source).ok, false);
 });
-test("false plans, summaries and relationships pass unchanged: no semantic validator", () => {
+test("false plans and relations pass unchanged: no semantic validator", () => {
   const { source, wire } = setup("There is no Example 2023 Plan. This filing is a correction."), v = wire();
-  v.filing_kind = "registration"; v.summary = "An unsupported assertion with an invented quantity of 900 shares.";
+  v.filing_kind = "registration";
   v.current_plans = [{ name: "Example 2023 Plan", evidence: ["E1"] }];
   v.prior_filings = [{ reference: "Invented parent", relationship: "current_target", evidence: ["E1"] }];
-  v.semantic_notes = [{ note: "Unsupported semantic claim.", evidence: ["E1"] }];
   const result = validateS8Structured(v, source);
   assert.equal(result.ok, true);
   if (result.ok) assert.deepEqual(result.result.semantic, v);
 });
-test("date meaning is not inferred or vetoed by validator", () => {
-  const { source, wire } = setup("March 2, 2026 is a price observation date.", false), v = wire();
+test("identifier text is not semantically filtered for prose or numbers", () => {
+  const { source, wire } = setup(), v = wire();
+  v.current_plans = [{ name: "A sentence about 900 shares at $4.25.", evidence: ["E1"] }];
+  assert.equal(validateS8Structured(v, source).ok, true);
+});
+test("date roles are not inferred or vetoed by validator", () => {
+  const { source, wire } = setup("March 2, 2026 is a price date.", false), v = wire();
   v.prior_filings = [{ reference: "Filing of March 2, 2026", relationship: "current_target", evidence: ["E1"] }];
   assert.equal(validateS8Structured(v, source).ok, true);
 });
-test("free-text uncertainty and empty arrays remain unchanged; no sentence-count repair", () => {
-  const { source, wire } = setup(), v = wire();
-  v.summary = "One. Two. Three. Four.";
-  v.unresolved = ["The source does not establish a relationship."];
-  assert.equal(validateS8Structured(v, source).ok, true);
-  v.unresolved = [];
-  assert.equal(validateS8Structured(v, source).ok, true);
+test("unresolved is a closed unique enum array, never a free explanation", () => {
+  const { source, wire } = setup();
+  for (const unresolved of [[], ["plan_relationship"], ["plan_relationship", "prior_filing_relationship", "filing_kind"]])
+    assert.equal(validateS8Structured({ ...wire(), unresolved }, source).ok, true);
+  for (const unresolved of [["The source is unclear."], ["plan_relationship", "plan_relationship"], Array(4).fill("filing_kind")])
+    assert.equal(validateS8Structured({ ...wire(), unresolved }, source).ok, false);
 });
-test("no direct rows remains unavailable; model cannot supply a new row", () => {
-  const { source, wire } = setup("The filing corrects a plan name.", false, "S-8 POS"), v = wire();
-  const result = validateS8Structured(v, source);
+test("missing direct rows stay empty; model cannot supply a new row", () => {
+  const { source, wire } = setup("This corrects a plan name.", false, "S-8 POS");
+  const result = validateS8Structured(wire(), source);
   assert.equal(result.ok, true);
   if (result.ok) assert.deepEqual(result.result.directRegistrationRows, []);
-  assert.equal(validateS8Structured({ ...v, directRegistrationRows: [{ row: "R1" }] }, source).ok, false);
+  assert.equal(validateS8Structured({ ...wire(), directRegistrationRows: [{ row: "R1" }] }, source).ok, false);
 });
-test("bounded strings, arrays and E refs are structural constraints", () => {
+test("string/array/ref length boundaries remain structural", () => {
   const { source, wire } = setup(), v = wire();
-  v.summary = "S".repeat(1000);
+  v.current_plans = [{ name: "N".repeat(1000), evidence: ["E1"] }];
   assert.equal(validateS8Structured(v, source).ok, true);
-  assert.equal(validateS8Structured({ ...v, summary: v.summary + "S" }, source).ok, false);
-  for (const extra of [{ summary: "" }, { semantic_notes: Array(4).fill({ note: "F", evidence: [] }) },
-    { unresolved: Array(6).fill("Unknown") }, { current_plans: [{ name: "N".repeat(1001), evidence: [] }] },
+  for (const extra of [{ current_plans: [{ name: "", evidence: [] }] },
+    { current_plans: [{ name: "N".repeat(1001), evidence: [] }] },
     { current_plans: Array(21).fill({ name: "N", evidence: [] }) },
     { prior_filings: Array(21).fill({ reference: "F", relationship: "prior_filing", evidence: [] }) },
-    { semantic_notes: [{ note: "F", evidence: Array(9).fill("E1") }] }])
+    { current_plans: [{ name: "N", evidence: Array(9).fill("E1") }] }])
     assert.equal(validateS8Structured({ ...wire(), ...extra }, source).ok, false);
 });
-test("block order/spans and selected evidence remain source-backed", () => {
-  const { source, wire } = setup(("ordinary source text ".repeat(400)) + "Final fact."), v = wire();
+test("block spans and selected evidence remain source-backed", () => {
+  const { source, wire } = setup("ordinary source text ".repeat(400) + "Final fact."), v = wire();
   assert.ok(source.evidence.length > 1);
-  v.semantic_notes = [{ note: "A model claim.", evidence: [source.evidence.at(-1)!.ref] }];
+  v.current_plans = [{ name: "Model selection", evidence: [source.evidence.at(-1)!.ref] }];
   const result = validateS8Structured(v, source);
   assert.equal(result.ok, true);
   if (result.ok) assert.deepEqual(result.result.evidence[0], source.evidence.at(-1));
