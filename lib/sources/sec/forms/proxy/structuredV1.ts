@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const PROXY_STRUCTURED_V1_VERSION = "proxy_structured_v1" as const;
+export const PROXY_STRUCTURED_V1_FUNCTION_NAME = "submit_proxy_structured" as const;
 
 export const PROXY_STRUCTURED_V1_RESPONSE_SCHEMA = {
   type: "object",
@@ -66,43 +67,45 @@ export const PROXY_STRUCTURED_V1_RESPONSE_SCHEMA = {
   },
 } as const;
 
-const GEMINI_RESPONSE_FORMAT_SCHEMA_KEYS = new Set([
-  "$ref",
-  "additionalProperties",
-  "anyOf",
-  "description",
+const GEMINI_FUNCTION_PARAMETER_SCHEMA_KEYS = new Set([
   "enum",
   "format",
   "items",
-  "maximum",
-  "maxItems",
-  "minimum",
-  "minItems",
-  "prefixItems",
+  "nullable",
   "properties",
   "required",
-  "title",
   "type",
 ]);
 
-export function projectProxyStructuredV1SchemaForGemini(value: unknown): unknown {
-  return projectGeminiResponseFormatSchema(value, false);
+export function projectProxyStructuredV1SchemaForGeminiFunction(value: unknown): unknown {
+  return projectGeminiFunctionParameterSchema(value, false);
 }
 
-function projectGeminiResponseFormatSchema(value: unknown, isPropertiesMap: boolean): unknown {
-  if (Array.isArray(value)) return value.map((child) => projectGeminiResponseFormatSchema(child, false));
+function projectGeminiFunctionParameterSchema(value: unknown, isPropertiesMap: boolean): unknown {
+  if (Array.isArray(value)) return value.map((child) => projectGeminiFunctionParameterSchema(child, false));
   if (!value || typeof value !== "object") return value;
+  const source = value as Record<string, unknown>;
+  if (!isPropertiesMap && Array.isArray(source.anyOf)) {
+    const nonNull = source.anyOf.filter((candidate) => record(candidate)?.type !== "null");
+    const hasNull = source.anyOf.some((candidate) => record(candidate)?.type === "null");
+    if (hasNull && nonNull.length === 1) {
+      const projected = projectGeminiFunctionParameterSchema(nonNull[0], false);
+      if (projected && typeof projected === "object" && !Array.isArray(projected)) {
+        return { ...projected, nullable: true };
+      }
+    }
+  }
   return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => isPropertiesMap || GEMINI_RESPONSE_FORMAT_SCHEMA_KEYS.has(key))
+    Object.entries(source)
+      .filter(([key]) => isPropertiesMap || GEMINI_FUNCTION_PARAMETER_SCHEMA_KEYS.has(key))
       .map(([key, child]) => [
         key,
-        projectGeminiResponseFormatSchema(child, !isPropertiesMap && key === "properties"),
+        projectGeminiFunctionParameterSchema(child, !isPropertiesMap && key === "properties"),
       ]),
   );
 }
 
-export const PROXY_STRUCTURED_V1_PROVIDER_SCHEMA = projectProxyStructuredV1SchemaForGemini(
+export const PROXY_STRUCTURED_V1_FUNCTION_PARAMETERS = projectProxyStructuredV1SchemaForGeminiFunction(
   PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
 ) as Record<string, unknown>;
 
@@ -180,7 +183,16 @@ export type ProxyStructuredV1GeminiResponseBody = {
   responseId?: string;
   modelVersion?: string;
   candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
+    content?: {
+      parts?: Array<{
+        text?: string;
+        functionCall?: {
+          id?: string;
+          name?: string;
+          args?: unknown;
+        };
+      }>;
+    };
     finishReason?: string;
   }>;
   usageMetadata?: {
@@ -191,6 +203,16 @@ export type ProxyStructuredV1GeminiResponseBody = {
     [key: string]: unknown;
   };
   error?: { message?: string };
+};
+
+export type ProxyStructuredV1GeminiFunctionResponse = {
+  ok: boolean;
+  body: ProxyStructuredV1GeminiResponseBody | null;
+  functionCallCount: number;
+  functionCallName: string | null;
+  functionCallArgs: unknown;
+  candidate: Record<string, unknown> | null;
+  errors: string[];
 };
 
 export function buildProxyStructuredV1GeminiRequest(
@@ -211,16 +233,79 @@ export function buildProxyStructuredV1GeminiRequest(
         parts: [{ text: prompt.user }],
       },
     ],
-    generationConfig: {
-      responseFormat: {
-        text: {
-          mimeType: "APPLICATION_JSON",
-          schema: prompt.providerResponseSchema,
-        },
+    tools: [{
+      functionDeclarations: [{
+        name: PROXY_STRUCTURED_V1_FUNCTION_NAME,
+        description: "Submit the source-grounded Proxy Structured v1 result.",
+        parameters: PROXY_STRUCTURED_V1_FUNCTION_PARAMETERS,
+      }],
+    }],
+    toolConfig: {
+      functionCallingConfig: {
+        mode: "ANY",
+        allowedFunctionNames: [PROXY_STRUCTURED_V1_FUNCTION_NAME],
       },
+    },
+    generationConfig: {
       maxOutputTokens,
       temperature: 0,
     },
+  };
+}
+
+export function parseProxyStructuredV1GeminiFunctionResponse(
+  rawResponseText: string,
+): ProxyStructuredV1GeminiFunctionResponse {
+  let body: ProxyStructuredV1GeminiResponseBody | null = null;
+  try {
+    const parsed = parseJsonWithoutDuplicateKeys(rawResponseText);
+    const parsedBody = record(parsed);
+    if (!parsedBody) throw new Error("Gemini response body must be a JSON object");
+    body = parsedBody as ProxyStructuredV1GeminiResponseBody;
+  } catch (error) {
+    return {
+      ok: false,
+      body: null,
+      functionCallCount: 0,
+      functionCallName: null,
+      functionCallArgs: null,
+      candidate: null,
+      errors: [error instanceof Error ? error.message : String(error)],
+    };
+  }
+
+  const calls: Array<Record<string, unknown> | null> = [];
+  for (const candidate of body.candidates || []) {
+    for (const part of candidate.content?.parts || []) {
+      if (Object.prototype.hasOwnProperty.call(part, "functionCall")) {
+        calls.push(record(part.functionCall));
+      }
+    }
+  }
+
+  const errors: string[] = [];
+  if (calls.length !== 1) {
+    errors.push(`Gemini response must contain exactly one functionCall; received ${calls.length}`);
+  }
+  const call = calls.length === 1 ? calls[0] : null;
+  const functionCallName = typeof call?.name === "string" ? call.name : null;
+  const hasArgs = Boolean(call && Object.prototype.hasOwnProperty.call(call, "args"));
+  const functionCallArgs = hasArgs ? call?.args : null;
+  const candidate = record(functionCallArgs);
+  if (call && functionCallName !== PROXY_STRUCTURED_V1_FUNCTION_NAME) {
+    errors.push(`Gemini functionCall.name must be ${PROXY_STRUCTURED_V1_FUNCTION_NAME}`);
+  }
+  if (call && !hasArgs) errors.push("Gemini functionCall.args is missing");
+  else if (call && !candidate) errors.push("Gemini functionCall.args must be a JSON object");
+
+  return {
+    ok: errors.length === 0,
+    body,
+    functionCallCount: calls.length,
+    functionCallName,
+    functionCallArgs,
+    candidate: errors.length === 0 ? candidate : null,
+    errors,
   };
 }
 
@@ -252,23 +337,24 @@ export async function runProxyStructuredV1Gemini({
       body: JSON.stringify(request),
     });
     const latencyMs = Date.now() - startedAt;
-    const body = (await response.json().catch(() => null)) as ProxyStructuredV1GeminiResponseBody | null;
-    const outputText = (body?.candidates || [])
-      .flatMap((candidate) => candidate.content?.parts || [])
-      .map((part) => part.text || "")
-      .filter(Boolean)
-      .join("\n")
-      .trim();
+    const rawResponseText = await response.text();
+    const parsedResponse = parseProxyStructuredV1GeminiFunctionResponse(rawResponseText);
+    const body = parsedResponse.body;
     const finishReason = body?.candidates?.map((candidate) => candidate.finishReason).find(Boolean) || null;
+    const transportOk = response.ok && finishReason === "STOP" && parsedResponse.ok;
+    const validation = parsedResponse.candidate
+      ? validateProxyStructuredV1(parsedResponse.candidate, sourcePackage)
+      : { ok: false, value: null, errors: [...parsedResponse.errors] };
     const error = response.ok
-      ? finishReason === "STOP" && outputText
+      ? transportOk
         ? undefined
         : finishReason && finishReason !== "STOP"
           ? `Gemini generation stopped: ${finishReason}`
-          : "Gemini response did not contain output text"
+          : parsedResponse.errors.join("; ") || "Gemini response did not contain a valid function call"
       : body?.error?.message || response.statusText || `<HTTP ${response.status}>`;
     return {
-      ok: response.ok && finishReason === "STOP" && Boolean(outputText),
+      ok: transportOk,
+      transportOk,
       responseOk: response.ok,
       status: response.status,
       statusText: response.statusText,
@@ -278,15 +364,21 @@ export async function runProxyStructuredV1Gemini({
       responseId: body?.responseId || null,
       modelVersion: body?.modelVersion || null,
       finishReason,
-      outputText,
+      functionCallCount: parsedResponse.functionCallCount,
+      functionCallName: parsedResponse.functionCallName,
+      functionCallArgs: parsedResponse.functionCallArgs,
+      candidate: parsedResponse.candidate,
+      validation,
       usage: body?.usageMetadata || null,
       latencyMs,
       error,
       body,
+      rawResponseText,
     };
   } catch (error) {
     return {
       ok: false,
+      transportOk: false,
       responseOk: false,
       status: 0,
       statusText: "",
@@ -296,11 +388,16 @@ export async function runProxyStructuredV1Gemini({
       responseId: null,
       modelVersion: null,
       finishReason: null,
-      outputText: "",
+      functionCallCount: 0,
+      functionCallName: null,
+      functionCallArgs: null,
+      candidate: null,
+      validation: { ok: false, value: null, errors: [] },
       usage: null,
       latencyMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message : String(error),
       body: null,
+      rawResponseText: "",
     };
   }
 }
@@ -398,7 +495,7 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
     system: [
       "Extract source-grounded FACTs from the supplied SEC proxy documents.",
       "Use only the supplied evidence blocks. Never infer, calculate, repair, or import outside facts.",
-      "Return one direct JSON object matching the closed schema; do not add prose or markdown.",
+      `Analyze the supplied SEC source and call ${PROXY_STRUCTURED_V1_FUNCTION_NAME} exactly once with the structured result.`,
       "Meeting evidence may be empty only when the meeting is unclear and date is null.",
       "Include only material capital-structure or transaction proposals: equity plans, reverse splits, authorized shares, transactions, and related charter amendments.",
       "Exclude routine director elections, auditor ratification, and say-on-pay proposals.",
@@ -409,13 +506,10 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
       contract: {
         version: PROXY_STRUCTURED_V1_VERSION,
         source_fingerprint: sourcePackage.sourceFingerprint,
-        response_schema: PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
       },
       source_manifest: sourcePackage.documents,
       evidence_blocks: sourcePackage.evidenceBlocks,
     }),
-    responseFormat: { json_schema: PROXY_STRUCTURED_V1_RESPONSE_SCHEMA },
-    providerResponseSchema: PROXY_STRUCTURED_V1_PROVIDER_SCHEMA,
   };
 }
 
