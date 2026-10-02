@@ -11,12 +11,19 @@ export async function s8Repository(): Promise<S8Repository> {
   const { supabaseSelect, supabaseRpc } = await import("../supabase.ts");
   return { select: supabaseSelect, rpc: supabaseRpc };
 }
-export function s8ExecutionId(rawItemId: string, fingerprint: string, version = S8_STRUCTURED_VERSION) {
-  const h = hash(stable([S8_STRUCTURED_PURPOSE, rawItemId, fingerprint, version, "automatic"]));
+export function s8ExecutionId(rawItemId: string, fingerprint: string, version = S8_STRUCTURED_VERSION, attempt = "automatic") {
+  const h = hash(stable([S8_STRUCTURED_PURPOSE, rawItemId, fingerprint, version, attempt]));
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 /** Reconstruct only stored raw and independently validated direct history. No event/Primary dependency. */
-export async function loadS8StructuredInput(rawItemId: string, repo: S8Repository) {
+/** Verification executions are explicit service-side history; automatic readers never select them. */
+export function s8Attempt(verificationKey?: string) {
+  if (verificationKey === undefined) return "automatic";
+  if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(verificationKey)) throw new Error("s8_invalid_verification_key");
+  return `verification:${verificationKey}`;
+}
+export async function loadS8StructuredInput(rawItemId: string, repo: S8Repository, verificationKey?: string) {
+  const attempt = s8Attempt(verificationKey);
   if (!uuid.test(rawItemId)) throw new Error("s8_invalid_raw_item_id");
   const result = await repo.select("raw_items", { select: "*", id: `eq.${rawItemId}`, limit: "1" });
   if (!result.ok) throw new Error("s8_raw_read_failed");
@@ -31,8 +38,8 @@ export async function loadS8StructuredInput(rawItemId: string, repo: S8Repositor
   const binding = { rawItemId, accession: source.identity.accession, issuerCik: source.identity.issuerCik,
     formType: source.identity.form, sourceFingerprint: source.fingerprint, sourceSha256: source.sourceSha256,
     directFactsSha256: source.directFactsSha256, contractVersion: S8_STRUCTURED_VERSION,
-    attempt: "automatic", model: S8_STRUCTURED_MODEL, acceptedAt: direct.facts.acceptedAt, source, original };
-  return { raw, source, direct, binding, executionId: s8ExecutionId(rawItemId, source.fingerprint) };
+    attempt, model: S8_STRUCTURED_MODEL, acceptedAt: direct.facts.acceptedAt, source, original };
+  return { raw, source, direct, binding, executionId: s8ExecutionId(rawItemId, source.fingerprint, S8_STRUCTURED_VERSION, attempt) };
 }
 export type S8StructuredInput = Awaited<ReturnType<typeof loadS8StructuredInput>>;
 export async function s8Rpc(repo: S8Repository, name: string, payload: Record<string, unknown>) {
@@ -40,16 +47,16 @@ export async function s8Rpc(repo: S8Repository, name: string, payload: Record<st
   if (!result.ok) throw new Error(`${name}:${result.error || "failed"}`);
   return record(result.data);
 }
-export async function reserveS8Structured(rawItemId: string, repo: S8Repository) {
-  const input = await loadS8StructuredInput(rawItemId, repo);
+export async function reserveS8Structured(rawItemId: string, repo: S8Repository, verificationKey?: string) {
+  const input = await loadS8StructuredInput(rawItemId, repo, verificationKey);
   const reserved = await s8Rpc(repo, "reserve_sec_s8_structured", { p_id: input.executionId, p_binding: input.binding });
   return { ...input, reserved: reserved.inserted === true };
 }
 /** Current-source reader. Old runs/outputs remain auditable, never silently reused after a refresh. */
-export async function readS8Structured(rawItemId: string, supplied?: S8Repository) {
+export async function readS8Structured(rawItemId: string, supplied?: S8Repository, verificationKey?: string) {
   const repo = supplied ?? await s8Repository();
   try {
-    const input = await loadS8StructuredInput(rawItemId, repo);
+    const input = await loadS8StructuredInput(rawItemId, repo, verificationKey);
     const result = await repo.select("ai_runs", { select: "*", id: `eq.${input.executionId}`, limit: "1" });
     if (!result.ok) throw new Error("s8_run_read_failed");
     const run = rows(result.data)[0];

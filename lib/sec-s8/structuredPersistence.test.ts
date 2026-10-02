@@ -183,3 +183,36 @@ test("existing Matcher eq/in, unavailable/unclear and unresolved semantics", asy
   f.outputs.length = 0; assert.equal((await compare("eq", "registration")).status, "ineligible");
   assert.equal(stable(f.direct.facts.registrationRows), "[]");
 });
+
+test("explicit verification history does not replace automatic success", async () => {
+  const f = setup(); await f.stored(); const automatic = await readS8Structured(id, f.repo);
+  const key = "durable-fixture";
+  const queued = await enqueueS8Structured(id, {repository:f.repo,verificationKey:key,start:async()=>({runId:"verification"})});
+  assert.notEqual(queued.executionId, f.runs[0].id);
+  assert.equal((await processS8Structured({executionId:queued.executionId,rawItemId:id,verificationKey:key}, {repository:f.repo,analyze:f.analyze})).status,"succeeded");
+  assert.deepEqual(await readS8Structured(id,f.repo),automatic);
+  assert.equal((await readS8Structured(id,f.repo,key)).status,"available");
+  assert.equal(f.outputs.length,2);
+  await assert.rejects(loadS8StructuredInput(id,f.repo,"../unsafe"),/verification_key/);
+});
+
+test("persistence-only retry reuses checkpoint and never recalls provider", async () => {
+  const {analyzeS8StructuredJob,persistS8StructuredJob}=await import("./structuredRuntime.ts");
+  const f=setup();const queued=await enqueueS8Structured(id,{repository:f.repo,start:async()=>({runId:"test"})});let calls=0;
+  const prepared=await analyzeS8StructuredJob({executionId:queued.executionId,rawItemId:id},{repository:f.repo,analyze:async()=>{calls++;return f.analyze()}});
+  assert.equal(prepared.status,"prepared");assert.equal(f.outputs.length,0);
+  const offline:S8Repository={...f.repo,rpc:async()=>({ok:false,data:null,error:"db unavailable"})};
+  await assert.rejects(persistS8StructuredJob(prepared,offline),/db unavailable/);
+  assert.equal((await persistS8StructuredJob(prepared,f.repo)).status,"succeeded");
+  assert.equal(calls,1);assert.equal(f.outputs.length,1);
+});
+
+test("source changed after checkpoint is not read as current output", async () => {
+  const {analyzeS8StructuredJob,persistS8StructuredJob}=await import("./structuredRuntime.ts");
+  const f=setup();const queued=await enqueueS8Structured(id,{repository:f.repo,start:async()=>({runId:"test"})});
+  const prepared=await analyzeS8StructuredJob({executionId:queued.executionId,rawItemId:id},{repository:f.repo,analyze:f.analyze});
+  await persistS8StructuredJob(prepared,f.repo);
+  f.raw.raw_payload.filing_date="2026-01-03";
+  assert.equal((await readS8Structured(id,f.repo)).status,"unavailable");
+  assert.equal(f.outputs.length,1);
+});

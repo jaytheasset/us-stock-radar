@@ -1,11 +1,20 @@
-import { processS8Structured } from "@/lib/sec-s8/structuredRuntime";
+import { analyzeS8StructuredJob, persistS8StructuredJob,
+  type S8PreparedResult, type S8StructuredJob } from "@/lib/sec-s8/structuredRuntime";
 
-export async function s8StructuredWorkflow(job: { executionId: string; rawItemId: string }) {
+export async function s8StructuredWorkflow(job: S8StructuredJob) {
   "use workflow";
-  return runS8StructuredStep(job);
+  const result = await analyzeS8StructuredStep(job);
+  return persistS8StructuredStep(result);
 }
-async function runS8StructuredStep(job: { executionId: string; rawItemId: string }) {
+async function analyzeS8StructuredStep(job: S8StructuredJob) {
   "use step";
-  return processS8Structured(job);
+  return analyzeS8StructuredJob(job);
 }
-runS8StructuredStep.maxRetries = 0;
+// No model retry or semantic repair. A failed/uncertain provider attempt is never silently repeated.
+analyzeS8StructuredStep.maxRetries = 0;
+async function persistS8StructuredStep(result: S8PreparedResult) {
+  "use step";
+  return persistS8StructuredJob(result);
+}
+// Match the generic child's bounded infrastructure recovery count, without repeating analysis.
+persistS8StructuredStep.maxRetries = 3;

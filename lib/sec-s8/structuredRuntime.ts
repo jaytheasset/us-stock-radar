@@ -4,13 +4,14 @@ import { loadS8StructuredInput, reserveS8Structured, s8Repository, s8Rpc, S8_STR
   type S8StructuredInput } from "./structuredPersistence.ts";
 import type { S8Repository } from "./persistence.ts";
 
-type Job = { executionId: string; rawItemId: string };
+export type S8StructuredJob = { executionId: string; rawItemId: string; verificationKey?: string };
+type Job = S8StructuredJob;
 /** Dedicated raw-bound job on the existing durable workflow platform. Generic Primary-child lineage is not reused. */
 export async function enqueueS8Structured(rawItemId: string, options: {
-  repository?: S8Repository; start?: (job: Job) => Promise<{ runId: string }>;
+  verificationKey?: string; repository?: S8Repository; start?: (job: Job) => Promise<{ runId: string }>;
 } = {}) {
   const repo = options.repository ?? await s8Repository();
-  const input = await reserveS8Structured(rawItemId, repo);
+  const input = await reserveS8Structured(rawItemId, repo, options.verificationKey);
   if (!input.reserved) return { status: "duplicate" as const, executionId: input.executionId };
   try {
     const start = options.start ?? (async (job: Job) => {
@@ -18,7 +19,7 @@ export async function enqueueS8Structured(rawItemId: string, options: {
       const { s8StructuredWorkflow } = await import("../../workflows/s8-structured.ts");
       return start(s8StructuredWorkflow, [job]);
     });
-    const run = await start({ executionId: input.executionId, rawItemId });
+    const run = await start({ executionId: input.executionId, rawItemId, ...(options.verificationKey ? {verificationKey: options.verificationKey} : {}) });
     await s8Rpc(repo, "link_sec_s8_structured_workflow", { p_id: input.executionId, p_workflow_id: run.runId });
     return { status: "enqueued" as const, executionId: input.executionId, workflowRunId: run.runId };
   } catch (error) {
@@ -28,7 +29,7 @@ export async function enqueueS8Structured(rawItemId: string, options: {
   }
 }
 
-export async function processS8Structured(job: Job, options: {
+export async function analyzeS8StructuredJob(job: Job, options: {
   repository?: S8Repository; analyze?: typeof runS8StructuredAnalyzerPreview;
 } = {}) {
   const repo = options.repository ?? await s8Repository();
@@ -37,11 +38,10 @@ export async function processS8Structured(job: Job, options: {
   const binding = record(claimed.binding);
   let input: S8StructuredInput;
   try {
-    input = await loadS8StructuredInput(job.rawItemId, repo);
+    input = await loadS8StructuredInput(job.rawItemId, repo, job.verificationKey);
     if (input.executionId !== job.executionId || stable(binding) !== stable(input.binding)) throw new Error("s8_source_changed");
   } catch (error) {
-    await finish("stale", { error: String(error), outputText: "", provider: null });
-    return { status: "stale" as const };
+    return prepared("stale", { error: String(error), outputText: "", provider: null, validationStage: "stale_source" });
   }
   let analysis;
   try {
@@ -55,17 +55,30 @@ export async function processS8Structured(job: Job, options: {
       },
     });
   } catch (error) {
-    await finish("failed", { error: String(error), outputText: "", provider: null });
-    return { status: "failed" as const };
+    return prepared("failed", { error: String(error), outputText: "", provider: null, validationStage: "provider_error" });
   }
   const status = analysis.stage === "complete" ? "succeeded" : "failed";
-  const saved = await finish(status, { outputText: analysis.run?.outputText ?? "", provider: analysis.run,
+  return prepared(status, { outputText: analysis.run?.outputText ?? "", provider: analysis.run,
     error: "error" in analysis ? analysis.error : null, validationStage: analysis.stage });
-  return { status: String(saved.status), executionId: job.executionId };
 
-  async function finish(status: string, result: Record<string, unknown>) {
-    return s8Rpc(repo, "finish_sec_s8_structured", { p_id: job.executionId, p_status: status,
-      p_payload: { ...result, binding, executionMode: options.analyze ? "injected_analyzer_replay" : "provider",
-        outputSha256: hash(String(result.outputText)) } });
+  function prepared(status: string, result: Record<string, unknown>) {
+    return { status: "prepared" as const, terminalStatus: status, job, payload: { ...result, binding, executionMode: options.analyze ? "injected_analyzer_replay" : "provider",
+        outputSha256: hash(String(result.outputText)) } };
   }
+}
+
+export type S8PreparedResult = Awaited<ReturnType<typeof analyzeS8StructuredJob>>;
+/** Separate durable step: DB retries reuse the checkpointed provider response, never call Gemini. */
+export async function persistS8StructuredJob(result: S8PreparedResult, supplied?: S8Repository) {
+  if (result.status !== "prepared") return result;
+  const saved = await s8Rpc(supplied ?? await s8Repository(), "finish_sec_s8_structured", {
+    p_id: result.job.executionId, p_status: result.terminalStatus, p_payload: result.payload,
+  });
+  return {status: String(saved.status), executionId: result.job.executionId};
+}
+/** Direct harness compatibility. Product workflows use the two checkpointed steps. */
+export async function processS8Structured(job: Job, options: {
+  repository?: S8Repository; analyze?: typeof runS8StructuredAnalyzerPreview;
+} = {}) {
+  return persistS8StructuredJob(await analyzeS8StructuredJob(job, options), options.repository);
 }

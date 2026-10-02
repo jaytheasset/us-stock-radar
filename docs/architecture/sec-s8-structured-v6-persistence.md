@@ -86,3 +86,7 @@ db-before.json; migration.txt; persistence-report.json; CASE-stored.json / CASE-
 Reproduce replay using scripts/verify-s8-structured-persistence.mjs with frozen evidence and an outside-repository result directory. It refuses other DB host/port/system identity, restricts HTTP to local Supabase and cannot call Gemini.
 
 Operational handoff: permanent main is C:/Users/PC/Documents/Codex/US-Stock Radar, branch main only. Local main shared ref last checked 9e5afda70b5b7314bcb747aaaef26462ce21888b. Cached origin/main 9c13aee7ef41b38bac0637e53e579633745effda; live GitHub main and Vercel deployment are unverified, no equality claim. Candidate only; no main code changes, merge, push or deploy. Local DB addition explicitly authorized above; remote DB/migration unverified. No environment files, account permissions, services, Docker, cron or external notifications changed. Credentials never committed or saved to evidence. Completed changes are the commit containing this document; check completion.json for exact HEAD and clean status.
+
+## 2026-10-02 durable follow-up
+
+Actual queue/worker verification and the one-call provider canary are now recorded in [sec-s8-structured-v6-durable.md](sec-s8-structured-v6-durable.md). It supersedes the earlier "durable unverified" limitation for the normal execution path only, and explicitly retains the outstanding ambiguous-start/process-loss recovery limitation. The replay evidence above remains historical evidence and was not overwritten.
