@@ -66,6 +66,22 @@ export const PROXY_STRUCTURED_V1_RESPONSE_SCHEMA = {
   },
 } as const;
 
+const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties", "uniqueItems"]);
+
+export function projectProxyStructuredV1SchemaForGemini(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(projectProxyStructuredV1SchemaForGemini);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !GEMINI_UNSUPPORTED_SCHEMA_KEYS.has(key))
+      .map(([key, child]) => [key, projectProxyStructuredV1SchemaForGemini(child)]),
+  );
+}
+
+export const PROXY_STRUCTURED_V1_PROVIDER_SCHEMA = projectProxyStructuredV1SchemaForGemini(
+  PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
+) as Record<string, unknown>;
+
 const MEETING_TYPES = ["annual", "special", "other", "unclear"] as const;
 const PROPOSAL_KINDS = [
   "equity_plan",
@@ -246,6 +262,7 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
       evidence_blocks: sourcePackage.evidenceBlocks,
     }),
     responseFormat: { json_schema: PROXY_STRUCTURED_V1_RESPONSE_SCHEMA },
+    providerResponseSchema: PROXY_STRUCTURED_V1_PROVIDER_SCHEMA,
   };
 }
 

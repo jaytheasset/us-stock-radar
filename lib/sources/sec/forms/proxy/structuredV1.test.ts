@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  PROXY_STRUCTURED_V1_PROVIDER_SCHEMA,
   PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
   buildProxyStructuredV1Prompt,
   buildProxyStructuredV1SourcePackage,
   parseAndValidateProxyStructuredV1,
+  projectProxyStructuredV1SchemaForGemini,
   type ProxyStructuredV1Result,
 } from "./structuredV1.ts";
 
@@ -96,7 +98,45 @@ test("provider boundary keeps the canonical contract in the prompt without expos
 
   assert.equal("responseSchema" in prompt, false);
   assert.deepEqual(prompt.responseFormat.json_schema, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
+  assert.deepEqual(prompt.providerResponseSchema, PROXY_STRUCTURED_V1_PROVIDER_SCHEMA);
   assert.deepEqual(user.contract.response_schema, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
+});
+
+test("Gemini provider schema projection removes only unsupported keywords without mutating canonical shape", () => {
+  const canonicalBefore = JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
+  const projected = projectProxyStructuredV1SchemaForGemini(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA) as any;
+  const canonical = PROXY_STRUCTURED_V1_RESPONSE_SCHEMA as any;
+
+  assert.equal(JSON.stringify(PROXY_STRUCTURED_V1_RESPONSE_SCHEMA), canonicalBefore);
+  assert.notEqual(projected, PROXY_STRUCTURED_V1_RESPONSE_SCHEMA);
+  assert.equal(canonical.additionalProperties, false);
+  assert.equal(canonical.properties.meeting.additionalProperties, false);
+  assert.equal(canonical.properties.meeting.properties.evidence.uniqueItems, true);
+  assert.equal(canonical.properties.proposals.items.additionalProperties, false);
+  assert.equal(canonical.properties.proposals.items.properties.evidence.uniqueItems, true);
+  assertNoUnsupportedProviderKeywords(projected);
+
+  assert.deepEqual(Object.keys(projected.properties), Object.keys(canonical.properties));
+  assert.deepEqual(projected.required, canonical.required);
+  assert.deepEqual(projected.properties.meeting.required, canonical.properties.meeting.required);
+  assert.deepEqual(
+    Object.keys(projected.properties.meeting.properties),
+    Object.keys(canonical.properties.meeting.properties),
+  );
+  assert.deepEqual(projected.properties.meeting.properties.type.enum, canonical.properties.meeting.properties.type.enum);
+  assert.deepEqual(projected.properties.proposals.items.required, canonical.properties.proposals.items.required);
+  assert.deepEqual(
+    Object.keys(projected.properties.proposals.items.properties),
+    Object.keys(canonical.properties.proposals.items.properties),
+  );
+  assert.deepEqual(
+    projected.properties.proposals.items.properties.kind.enum,
+    canonical.properties.proposals.items.properties.kind.enum,
+  );
+  assert.deepEqual(
+    projected.properties.proposals.items.properties.action.enum,
+    canonical.properties.proposals.items.properties.action.enum,
+  );
 });
 
 test("source package preserves document order and produces deterministic evidence and hashes", () => {
@@ -146,3 +186,15 @@ test("source package preserves document order and produces deterministic evidenc
   assert.match(first.sourceFingerprint, /^[a-f0-9]{64}$/);
   assert.match(first.packageFingerprint, /^[a-f0-9]{64}$/);
 });
+
+function assertNoUnsupportedProviderKeywords(value: unknown) {
+  if (Array.isArray(value)) {
+    value.forEach(assertNoUnsupportedProviderKeywords);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  assert.equal("additionalProperties" in record, false);
+  assert.equal("uniqueItems" in record, false);
+  Object.values(record).forEach(assertNoUnsupportedProviderKeywords);
+}
