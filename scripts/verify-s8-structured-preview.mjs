@@ -22,7 +22,7 @@ const { buildS8StructuredSource } = await import("../lib/sec-s8/structuredSource
 const { runS8StructuredAnalyzerPreview, buildS8StructuredPrompt } = await import("../lib/ai/s8StructuredAnalyzerPreview.ts");
 const { readS8Registration } = await import("../lib/sec-s8/persistence.ts");
 const codePaths = [
-  "lib/sec-s8/structuredCandidates.ts", "lib/sec-s8/structuredSource.ts", "lib/sec-s8/structuredContract.ts", "lib/ai/s8StructuredAnalyzerPreview.ts",
+  "lib/sec-s8/structuredSource.ts", "lib/sec-s8/structuredContract.ts", "lib/ai/s8StructuredAnalyzerPreview.ts",
   "scripts/verify-s8-structured-preview.mjs", "lib/sec-s8/directFacts.ts", "lib/sec-s8/persistence.ts",
   "lib/ai/geminiStructuredJson.ts", "lib/env.ts", "lib/minimalOfferingMonitor.ts",
   "lib/sources/sec/forms/s8/parser.ts", "lib/sources/sec/forms/s8/analysisPrompt.ts", "lib/ai/secS8AnalysisAdapter.ts",
