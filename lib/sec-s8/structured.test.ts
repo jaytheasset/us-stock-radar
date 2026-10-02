@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { captureS8Document, S8_SOURCE_VERSION, hash, stable } from "./directFacts.ts";
+import { buildS8Candidates, MAX_CANDIDATES } from "./structuredCandidates.ts";
 import { buildS8StructuredSource } from "./structuredSource.ts";
 import { validateS8Structured, parseS8Structured, S8_STRUCTURED_VERSION, type S8StructuredWire } from "./structuredContract.ts";
 import { runS8StructuredAnalyzerPreview, buildS8StructuredPrompt } from "../ai/s8StructuredAnalyzerPreview.ts";
@@ -22,19 +23,19 @@ function raw(text = additional, withRow = true, form = "S-8") {
 }
 function setup(text = additional, withRow = true, form = "S-8") {
   const r = raw(text, withRow, form), source = buildS8StructuredSource(r);
-  const quote = (value: string) => [{ ref: source.evidence.find(e => e.text.includes(value))!.ref, quote: value }];
+  const quote = (value: string) => [source.evidence.find(e => e.text.includes(value))!.ref];
   const empty = (): S8StructuredWire => ({ version: S8_STRUCTURED_VERSION, source_fingerprint: source.fingerprint,
     filing: { kind: "ambiguous", evidence: [] }, plans: [],
-    registrations: source.directRows.map(r => ({ row: r.ref, relation: "unresolved", plan_names: [], evidence: [] })),
+    registrations: source.directRows.map(r => ({ row: r.ref, relation: "unresolved", plans: [], evidence: [] })),
     references: [], amendment: { effect: "unresolved", evidence: [] }, unresolved: ["plan_relationship"] });
   return { r, source, quote, empty };
 }
 test("additional registration snapshot binds existing direct values, never model quantities", () => {
   const { r, source, quote, empty } = setup(); const before = stable(r), value = empty();
   value.filing = { kind: "additional_registration", evidence: quote(additional) };
-  value.plans = [{ name: "2026 Equity Incentive Plan", scope: "current_filing", evidence: quote(additional) }];
-  value.registrations[0] = { row: "R1", relation: "source_linked", plan_names: ["2026 Equity Incentive Plan"], evidence: quote(additional) };
-  value.references = [{ reference: "333-12345", role: "additional_registration_to", evidence: quote(additional) }];
+  value.plans = [{ plan: source.candidates.plans.find(p => p.label === "2026 Equity Incentive Plan")!.ref, scope: "current_filing", evidence: quote(additional) }];
+  value.registrations[0] = { row: "R1", relation: "source_linked", plans: [source.candidates.plans.find(p => p.label === "2026 Equity Incentive Plan")!.ref], evidence: quote(additional) };
+  value.references = [{ reference: source.candidates.references.find(r => r.label === "333-12345")!.ref, role: "additional_registration_to", evidence: quote(additional) }];
   const result = validateS8Structured(value, source);
   assert.equal(result.ok, true); if (!result.ok) return;
   assert.equal(result.result.directRegistrationRows[0].amountRegistered!.value, "1234");
@@ -43,11 +44,11 @@ test("additional registration snapshot binds existing direct values, never model
   assert.equal(result.result.evidence[0].documentUrl, sourceUrl);
 });
 test("historical reference stays separate; correction cannot promote it to additional registration", () => {
-  const text = "This amendment corrects the name of the 2021 Plan. That plan was registered on April 6, 2022.";
+  const text = "This amendment corrects the name of the 2021 Plan. That plan was registered on Form S-8 on April 6, 2022.";
   const { source, quote, empty } = setup(text, false, "S-8 POS"); const value = empty();
   value.filing = { kind: "correction", evidence: quote(text) };
   value.amendment = { effect: "corrects_prior", evidence: quote(text) };
-  value.references = [{ reference: "April 6, 2022", role: "historical_reference", evidence: quote(text) }];
+  value.references = [{ reference: source.candidates.references.find(r => r.label === "April 6, 2022")!.ref, role: "historical_reference", evidence: quote(text) }];
   assert.equal(validateS8Structured(value, source).ok, true);
   value.references[0].role = "additional_registration_to";
   const result = validateS8Structured(value, source);
@@ -61,13 +62,13 @@ for (const [form, kind, effect, text] of [
   const { source, quote, empty } = setup(text, false, form); const value = empty();
   value.filing = { kind, evidence: quote(text) }; value.amendment = { effect, evidence: quote(text) };
   const good = validateS8Structured(value, source); assert.equal(good.ok, true);
-  value.registrations.push({ row: "R1", relation: "unresolved", plan_names: [], evidence: [] });
+  value.registrations.push({ row: "R1", relation: "unresolved", plans: [], evidence: [] });
   assert.equal(validateS8Structured(value, source).ok, false);
 });
 test("ambiguous plan relationship remains unresolved; incomplete row coverage is rejected", () => {
   const { source, empty } = setup("Two plans are mentioned; no allocation is specified.");
   const value = empty(); assert.equal(validateS8Structured(value, source).ok, true);
-  value.registrations[0].plan_names = ["Guessed Plan"];
+  value.registrations[0].plans = ["Guessed Plan"];
   assert.equal(validateS8Structured(value, source).ok, false);
   value.registrations = []; assert.equal(validateS8Structured(value, source).ok, false);
 });
@@ -75,8 +76,8 @@ test("forged refs, wrong-file fingerprint and fabricated quotes fail closed", ()
   const { source, empty, quote } = setup();
   for (const mutate of [
     (v: S8StructuredWire) => { v.source_fingerprint = "another-filing"; },
-    (v: S8StructuredWire) => { v.filing = { kind: "additional_registration", evidence: [{ ref: "E999", quote: additional }] }; },
-    (v: S8StructuredWire) => { v.filing = { kind: "additional_registration", evidence: [{ ...quote(additional)[0], quote: "invented" }] }; },
+    (v: S8StructuredWire) => { v.filing = { kind: "additional_registration", evidence: ["E999"] }; },
+    (v: S8StructuredWire) => { v.filing = { kind: "additional_registration", evidence: [{ ref: quote(additional)[0], quote: "invented" } as unknown as string] }; },
     (v: S8StructuredWire) => { v.filing = { kind: "additional_registration", evidence: [] }; },
   ]) { const v = empty(); mutate(v); assert.equal(validateS8Structured(v, source).ok, false); }
 });
@@ -137,8 +138,111 @@ test("MAX_TOKENS is a provider failure even if a JSON fragment happens to parse"
 test("direct security title prevents cross-plan substitution when it names the plan", () => {
   const { source, empty, quote } = setup(additional + " The Other Plan is mentioned historically.");
   const value = empty();
-  value.plans = [{ name: "2026 Equity Incentive Plan", scope: "current_filing", evidence: quote(additional) },
-    { name: "Other Plan", scope: "current_filing", evidence: quote("The Other Plan is mentioned historically.") }];
-  value.registrations[0] = { row: "R1", relation: "source_linked", plan_names: ["Other Plan"], evidence: quote("The Other Plan is mentioned historically.") };
+  value.plans = [{ plan: source.candidates.plans.find(p => p.label === "2026 Equity Incentive Plan")!.ref, scope: "current_filing", evidence: quote(additional) },
+    { plan: source.candidates.plans.find(p => p.label === "Other Plan")!.ref, scope: "current_filing", evidence: quote("The Other Plan is mentioned historically.") }];
+  value.registrations[0] = { row: "R1", relation: "source_linked", plans: [source.candidates.plans.find(p => p.label === "Other Plan")!.ref], evidence: quote("The Other Plan is mentioned historically.") };
   assert.equal(validateS8Structured(value, source).ok, false);
+});
+test("invented plan and historical-reference identities fail the closed schema", () => {
+  const { source, empty, quote } = setup(); const v = empty();
+  v.plans = [{ plan: "Invented Plan", scope: "current_filing", evidence: quote(additional) }];
+  assert.equal(validateS8Structured(v, source).ok, false);
+  v.plans = [];
+  v.references = [{ reference: "333-999999", role: "historical_reference", evidence: quote(additional) }];
+  assert.equal(validateS8Structured(v, source).ok, false);
+});
+test("denied existence is rejected even when selected as historical", () => {
+  const text = "There is no Example 2023 Incentive Award Plan. The only plan is the Example 2021 Incentive Award Plan.";
+  const { source, empty, quote } = setup(text, false);
+  const denied = source.candidates.plans.find(p => p.label === "Example 2023 Incentive Award Plan")!;
+  assert.ok(denied.occurrences.some(o => o.guards.includes("denied_existence")));
+  for (const scope of ["current_filing", "historical_reference", "unresolved"] as const) {
+    const v = empty(); v.plans = [{ plan: denied.ref, scope, evidence: quote(text) }];
+    const result = validateS8Structured(v, source);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.ok(result.errors.includes("plan:denied_existence"));
+  }
+  const v = empty();
+  v.plans = [{ plan: source.candidates.plans.find(p => p.label === "Example 2021 Incentive Award Plan")!.ref,
+    scope: "current_filing", evidence: quote(text) }];
+  assert.equal(validateS8Structured(v, source).ok, true);
+});
+for (const text of [
+  "No shares under the 2021 Equity Incentive Plan are registered here.",
+  "This filing does not relate to the 2021 Equity Incentive Plan.",
+  "Shares are not registered under the 2021 Equity Incentive Plan.",
+  "No additional securities under the 2021 Equity Incentive Plan are registered.",
+  "This filing does not amend the 2021 Equity Incentive Plan.",
+  "This filing supersedes the 2021 Equity Incentive Plan.",
+  "This filing replaces the 2021 Equity Incentive Plan.",
+]) test("negative relationship cannot supply current plan: " + text, () => {
+  const { source, empty, quote } = setup(text, false);
+  const v = empty(); v.plans = [{ plan: source.candidates.plans[0].ref, scope: "current_filing", evidence: quote(text) }];
+  const result = validateS8Structured(v, source); assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.errors.includes("plan:current_scope_not_supported"));
+  v.plans[0].scope = "unresolved";
+  assert.equal(validateS8Structured(v, source).ok, true);
+});
+test("historical-only plan is allowed historically but cannot become current", () => {
+  const text = "The 2020 Equity Incentive Plan was previously registered on Form S-8 on April 6, 2020.";
+  const { source, empty, quote } = setup(text, false);
+  const v = empty(); v.plans = [{ plan: source.candidates.plans[0].ref, scope: "historical_reference", evidence: quote(text) }];
+  assert.equal(validateS8Structured(v, source).ok, true);
+  v.plans[0].scope = "current_filing";
+  assert.equal(validateS8Structured(v, source).ok, false);
+});
+test("closed refs span block boundaries without regenerating or truncating quotes", () => {
+  const text = ("ordinary source text ".repeat(195)).slice(0, 3985) + "Example 2026 Equity Incentive Plan is the current registration plan.";
+  const { source, empty } = setup(text, false);
+  const p = source.candidates.plans.find(p => p.label.includes("2026 Equity Incentive Plan"))!;
+  const occurrence = p.occurrences[0];
+  assert.ok(occurrence.evidence.length >= 2);
+  const v = empty(); v.plans = [{ plan: p.ref, scope: "current_filing", evidence: occurrence.evidence }];
+  const result = validateS8Structured(v, source); assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(result.result.plans[0].candidate.occurrences[0], occurrence);
+    assert.equal(result.result.evidence.map(e => e.text).join(" ").includes("Example 2026"), true);
+  }
+  v.plans[0].evidence = occurrence.evidence.slice(1);
+  assert.equal(validateS8Structured(v, source).ok, false);
+});
+test("a source-backed name over old string limit is selectable without free strings", () => {
+  const name = "Abc".repeat(130) + " 2026 Equity Incentive Plan";
+  assert.ok(name.length > 400);
+  const { source, empty } = setup("Registration under " + name + ".", false);
+  const v = empty(); v.plans = [{ plan: source.candidates.plans[0].ref, scope: "current_filing", evidence: ["E1"] }];
+  const result = validateS8Structured(v, source); assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.result.plans[0].candidate.label, name);
+});
+test("evidence selection limits remain enforced (8 accepted, 9 refused)", () => {
+  const { source, empty } = setup(Array.from({ length: 10 }, (_, i) => ("section " + i + " ").repeat(400)).join("\n\n"), false);
+  assert.ok(source.evidence.length >= 9);
+  const v = empty(); v.filing = { kind: "initial_registration", evidence: source.evidence.slice(0, 8).map(e => e.ref) };
+  assert.equal(validateS8Structured(v, source).ok, true);
+  v.filing.evidence = source.evidence.slice(0, 9).map(e => e.ref);
+  assert.equal(validateS8Structured(v, source).ok, false);
+});
+test("candidate limit fails input, never silently truncates a closed candidate set", () => {
+  const text = Array.from({ length: MAX_CANDIDATES }, (_, i) => "The 2026 Unique" + i + " Plan.").join(" ");
+  const doc = { documentUrl: sourceUrl, text }, block = { ref: "E1", documentUrl: sourceUrl,
+    documentSha256: hash(text), normalizedSha256: hash(text), start: 0, end: text.length, text };
+  assert.equal(buildS8Candidates([doc], [block]).plans.length, MAX_CANDIDATES);
+  const extra = text + " The 2027 Overflow Plan.";
+  assert.throws(() => buildS8Candidates([{ ...doc, text: extra }], [{ ...block, end: extra.length, text: extra }]), /candidate_limit/);
+});
+test("unknown refs and another valid filing package cannot be substituted", () => {
+  const { source, empty } = setup(); const v = empty();
+  v.filing = { kind: "initial_registration", evidence: ["E0"] };
+  assert.equal(validateS8Structured(v, source).ok, false);
+  v.filing.evidence = ["E1"];
+  const other = setup("Other filing evidence.", false).source;
+  assert.equal(validateS8Structured(v, other).ok, false);
+});
+test("two adjacent named plans remain separate lexical candidates", () => {
+  const { source } = setup("2021 Equity Incentive Plan\n2021 Employee Stock Purchase Plan", false);
+  assert.deepEqual(source.candidates.plans.map(p => p.label), ["2021 Equity Incentive Plan", "2021 Employee Stock Purchase Plan"]);
+});
+test("telephone suffix is not a registration reference candidate", () => {
+  const { source } = setup("Call (206) 333-2001. Registration No. 333-12345 is incorporated.", false);
+  assert.deepEqual(source.candidates.references.map(r => r.label), ["333-12345"]);
 });

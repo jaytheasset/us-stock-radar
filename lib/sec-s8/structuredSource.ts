@@ -2,7 +2,8 @@ import { buildS8DirectFacts, hash, stable, type S8Document } from "./directFacts
 import { decodeSecHtmlEntities } from "../sources/sec/htmlEntities.ts";
 import { contextPreservingChunks } from "../sources/sec/forms/common/contextPreservingChunks.ts";
 
-export const S8_STRUCTURED_SOURCE_VERSION = "s8_structured_source_v1";
+import { buildS8Candidates, type NeutralDocument } from "./structuredCandidates.ts";
+export const S8_STRUCTURED_SOURCE_VERSION = "s8_structured_source_v2";
 /** Presentation-only normalization. Original documents and hashes remain authoritative. */
 export function s8NeutralText(html: string) {
   return decodeSecHtmlEntities(html
@@ -20,9 +21,11 @@ export function buildS8StructuredSource(rawItem: Record<string, unknown>) {
   if (documents.some(d => d.truncated)) throw new Error("s8_structured_truncated_source");
   const evidence: Array<{ ref: string; documentUrl: string; documentSha256: string;
     normalizedSha256: string; start: number; end: number; text: string }> = [];
+  const neutralDocuments: NeutralDocument[] = [];
   let total = 0;
   for (const doc of documents) {
     const text = s8NeutralText(doc.text);
+    neutralDocuments.push({ documentUrl: doc.url, text });
     total += text.length;
     if (total > 120_000) throw new Error("s8_structured_source_limit");
     let cursor = 0;
@@ -43,7 +46,7 @@ export function buildS8StructuredSource(rawItem: Record<string, unknown>) {
     identity: { accession: direct.facts.accessionNumber, issuerCik: direct.facts.issuerCik,
       form: String(direct.facts.formType), filingDate: direct.facts.filingDate },
     sourceSha256: direct.sourceSha256, directFactsSha256: direct.factsSha256,
-    directRows, evidence, limitations: direct.facts.limitations };
+    directRows, evidence, candidates: buildS8Candidates(neutralDocuments, evidence), limitations: direct.facts.limitations };
   return { ...content, fingerprint: hash(stable(content)) };
 }
 export type S8StructuredSource = ReturnType<typeof buildS8StructuredSource>;
