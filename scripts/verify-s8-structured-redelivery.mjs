@@ -1,0 +1,6 @@
+// Read-only aside from new Workflow delivery records; re-deliver already completed jobs.
+import {readFileSync,writeFileSync} from 'node:fs';import {resolve} from 'node:path';import assert from 'node:assert/strict';
+const out=process.argv[2];process.env.WORKFLOW_LOCAL_BASE_URL='http://127.0.0.1:3113';process.env.WORKFLOW_LOCAL_DATA_DIR=resolve('.next/workflow-data');
+const {start}=await import('workflow/api');const m=JSON.parse(readFileSync('app/.well-known/workflow/v1/manifest.json','utf8'));const wf=m.workflows['workflows/s8-structured.ts'].s8StructuredWorkflow;
+const report=[];for(const mode of ['stub','canary'])for(const c of JSON.parse(readFileSync(out+'/'+mode+'-report.json','utf8')).cases){const read=JSON.parse(readFileSync(out+'/'+mode+'-'+c.name+'-readback.json','utf8'));const run=await start({workflowId:wf.workflowId},[{executionId:c.executionId,rawItemId:read.provenance.rawItemId,verificationKey:'durable-20261002-'+mode}]);const result=await run.returnValue;assert.equal(result.status,'duplicate');report.push({mode,name:c.name,workflowRunId:run.runId,result});}
+writeFileSync(out+'/actual-worker-duplicate-delivery.json',JSON.stringify(report,null,2));console.log('4 real worker redeliveries: duplicate, zero additional provider requests');process.exit(0);

@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -110,6 +110,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_ownership_facts"
       | "read_current_event_periodic_financial"
       | "read_current_event_nt_lifecycle"
+      | "read_s8_structured"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -151,6 +152,15 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  {
+    key: "s8.filing_kind", valueType: "text", allowedOperators: ["eq", "in"],
+    enumValues: ["registration", "amendment", "deregistration", "reoffer", "other", "unclear"],
+    family: "s8", domain: "s8_registration", monitorDomains: [],
+    description: "Model-reported S-8 filing classification; registration is not issuance, sale or realized dilution. No automatic alert consumer.",
+    source: { subject: "issuer", reader: "read_s8_structured", jsonPath: ["filing_kind"] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available", ineligibleValues: ["unclear"] },
+    status: "READY",
+  },
   ...ntLifecycleConditions(),
   condition("event.event_type", "text", textOperators, "event", "classification", "events", "event_type", "event", ["exact"]),
   condition("event.score", "number", numericOperators, "event", "classification", "events", "score", "event", ["exact"]),

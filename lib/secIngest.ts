@@ -36,6 +36,7 @@ import { SEC_FORM25_FORMS } from "@/lib/sources/sec/forms/common/forms";
 import { persistForm25ListingStatusAutomatically, type Form25ListingPersistenceRecord } from "@/lib/sec-listing-status/automaticPersistence";
 import { isS8Form } from "@/lib/sec-s8/directFacts";
 import { persistS8Registration } from "@/lib/sec-s8/persistence";
+import { enqueueS8Structured } from "@/lib/sec-s8/structuredRuntime";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -64,6 +65,7 @@ type SecRawIngestDependencies = {
   evaluateForm25Identity?: typeof ensureSecForm25Identity;
   persistForm25ListingStatus?: typeof persistForm25ListingStatusAutomatically;
   persistS8Registration?: typeof persistS8Registration;
+  enqueueS8Structured?: typeof enqueueS8Structured;
 };
 
 export async function runSecRawIngest(
@@ -83,6 +85,7 @@ export async function runSecRawIngest(
     evaluateForm25Identity: dependencies.evaluateForm25Identity ?? ensureSecForm25Identity,
     persistForm25ListingStatus: dependencies.persistForm25ListingStatus ?? persistForm25ListingStatusAutomatically,
     persistS8Registration: dependencies.persistS8Registration ?? persistS8Registration,
+    enqueueS8Structured: dependencies.enqueueS8Structured ?? enqueueS8Structured,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -100,6 +103,10 @@ export async function runSecRawIngest(
     try { outcome = await runtime.persistS8Registration({ rawItemId }); }
     catch (error) { outcome = { status: "failed", reason: error instanceof Error ? error.message : "s8_persistence_failed" }; }
     s8RegistrationRecords.push({ rawItemId, ...outcome });
+    if (outcome.status === "available") {
+      try { return { ...outcome, structured: await runtime.enqueueS8Structured(rawItemId) }; }
+      catch (error) { return { ...outcome, structured: { status: "failed", reason: String(error) } }; }
+    }
     return outcome;
   }
   const stats = {

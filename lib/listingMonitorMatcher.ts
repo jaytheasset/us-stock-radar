@@ -1,5 +1,6 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
+import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
 import {
@@ -112,6 +113,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  s8?: S8MonitorFacts;
   nt?: NtLifecycleReadResult;
   listing: CurrentListingRiskReadResult;
   corporateAction: CurrentCorporateActionReadResult;
@@ -348,7 +350,8 @@ function evaluateCondition(
   if (validationError) return conditionResult(key, "ineligible", validationError);
 
   const definition = getReadyMonitorCondition(key);
-  if (!definition || !definition.monitorDomains?.includes("listing")) {
+  // S-8 is explicitly supplied for isolated fact evaluation only. Event/alert consumers do not load it.
+  if (!definition || (!definition.monitorDomains?.includes("listing") && !(definition.family === "s8" && readers.s8))) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
 
@@ -364,12 +367,14 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt")
+    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
-  const current = definition.family === "nt"
+  const current = definition.family === "s8"
+    ? readers.s8 ?? { status: "not_ready" as const, reason: "reader_not_requested" }
+    : definition.family === "nt"
     ? readers.nt ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "corporate_action"
     ? readers.corporateAction
