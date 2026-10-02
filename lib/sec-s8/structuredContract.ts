@@ -2,7 +2,7 @@ import Ajv from "ajv";
 import { parseJsonWithoutDuplicateKeys } from "../minimalOfferingMonitor.ts";
 import { assertS8StructuredSource, type S8StructuredSource } from "./structuredSource.ts";
 
-export const S8_STRUCTURED_VERSION = "s8_structured_v4";
+export const S8_STRUCTURED_VERSION = "s8_structured_v5";
 export const FILING_KINDS = ["registration", "amendment", "deregistration", "reoffer", "other", "unclear"] as const;
 export const PRIOR_FILING_RELATIONSHIPS = ["prior_filing", "current_target", "unclear"] as const;
 export type S8StructuredWire = {
@@ -11,7 +11,7 @@ export type S8StructuredWire = {
   summary: string;
   current_plans: Array<{ name: string; evidence: string[] }>;
   prior_filings: Array<{ reference: string; relationship: typeof PRIOR_FILING_RELATIONSHIPS[number]; evidence: string[] }>;
-  key_facts: Array<{ fact: string; evidence: string[] }>;
+  semantic_notes: Array<{ note: string; evidence: string[] }>;
   unresolved: string[];
 };
 type Schema = Record<string, unknown>;
@@ -25,10 +25,10 @@ export function s8StructuredSchema(source: S8StructuredSource) {
   return obj({
     version: choice([S8_STRUCTURED_VERSION]),
     filing_kind: choice(FILING_KINDS),
-    summary: { ...text, maxLength: 2000 },
+    summary: { ...text, maxLength: 1000 },
     current_plans: arr(obj({ name: text, evidence }), 20),
     prior_filings: arr(obj({ reference: text, relationship: choice(PRIOR_FILING_RELATIONSHIPS), evidence }), 20),
-    key_facts: arr(obj({ fact: text, evidence }), 6),
+    semantic_notes: arr(obj({ note: text, evidence }), 3),
     unresolved: arr(text, 5),
   });
 }
@@ -40,7 +40,7 @@ export function validateS8Structured(candidate: unknown, source: S8StructuredSou
   if (!validate(candidate)) return { ok: false as const, errors: (validate.errors ?? []).map(e => String(e.instancePath) + ":" + e.message) };
   const wire = candidate as S8StructuredWire;
   const selected = [...new Set([...wire.current_plans.flatMap(p => p.evidence),
-    ...wire.prior_filings.flatMap(r => r.evidence), ...wire.key_facts.flatMap(f => f.evidence)])];
+    ...wire.prior_filings.flatMap(r => r.evidence), ...wire.semantic_notes.flatMap(f => f.evidence)])];
   // Preserve every model claim. Bind evidence and direct rows without semantic repairs.
   const snapshot = { version: S8_STRUCTURED_VERSION, identity: source.identity,
     sourceFingerprint: source.fingerprint, sourceSha256: source.sourceSha256,
