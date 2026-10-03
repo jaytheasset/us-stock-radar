@@ -1,6 +1,10 @@
-import type { ProxyProposalDiscoveryResult } from "./proposalDiscovery.ts";
+import type {
+  ProxyProposalDiscoveryResult,
+  ProxyProposalDiscoverySourcePackage,
+} from "./proposalDiscovery.ts";
 
 export const PROXY_PROPOSAL_CLASSIFICATION_VERSION = "proxy_proposal_classification_v1" as const;
+export const PROXY_PROPOSAL_CLASSIFICATION_EVIDENCE_EXCERPT_MAX_CHARS = 2_500;
 
 export const PROXY_PROPOSAL_CATEGORIES = [
   "capital_structure",
@@ -49,6 +53,7 @@ export type ProxyProposalClassificationInputItem = {
   proposal_id: string;
   title: string;
   action_summary: string;
+  evidence_excerpt: string;
 };
 
 export type ProxyProposalClassificationInput = {
@@ -101,17 +106,42 @@ type ProxyProposalClassificationGeminiTextResponse = {
 
 export function buildProxyProposalClassificationInput(
   stage1: ProxyProposalDiscoveryResult,
+  sourcePackage: Pick<ProxyProposalDiscoverySourcePackage, "evidenceBlocks">,
 ): ProxyProposalClassificationInput {
   if (stage1.version !== "proxy_proposal_discovery_v1") {
     throw new Error("Proxy Proposal Classification requires proxy_proposal_discovery_v1 input");
   }
 
+  const evidenceById = new Map<string, string>();
+  for (const block of sourcePackage.evidenceBlocks) {
+    if (!/^E[1-9][0-9]*$/.test(block.id)) {
+      throw new Error(`Invalid Stage 1 evidence ID: ${block.id}`);
+    }
+    if (evidenceById.has(block.id)) {
+      throw new Error(`Duplicate Stage 1 evidence ID: ${block.id}`);
+    }
+    if (!block.text.trim()) {
+      throw new Error(`Stage 1 evidence ${block.id} has empty source text`);
+    }
+    evidenceById.set(block.id, block.text);
+  }
+
   return {
-    items: stage1.proposals.map((proposal, index) => ({
-      proposal_id: `P${index + 1}`,
-      title: proposal.title,
-      action_summary: proposal.action_summary,
-    })),
+    items: stage1.proposals.map((proposal, index) => {
+      const evidenceTexts = proposal.evidence.map((evidenceId) => {
+        const text = evidenceById.get(evidenceId);
+        if (text === undefined) {
+          throw new Error(`Stage 1 proposal P${index + 1} references unknown evidence ${evidenceId}`);
+        }
+        return text;
+      });
+      return {
+        proposal_id: `P${index + 1}`,
+        title: proposal.title,
+        action_summary: proposal.action_summary,
+        evidence_excerpt: buildBoundedEvidenceExcerpt(evidenceTexts),
+      };
+    }),
   };
 }
 
@@ -122,8 +152,11 @@ export function buildProxyProposalClassificationPrompt(
     system: [
       "Classify every supplied Stage 1 proxy proposal item exactly once.",
       "The server assigned each proposal_id. Preserve every proposal_id exactly; do not omit, duplicate, reorder, rename, or invent IDs.",
-      "Use only the supplied title and action_summary. SEC evidence text and evidence references are intentionally not model input.",
+      "Use only the supplied title, action_summary, and evidence_excerpt. Each evidence_excerpt is a bounded excerpt resolved only from source-backed SEC blocks cited by that Stage 1 item.",
       "First decide whether the item is an actual stockholder proposal. If it is not, set is_proposal=false and category=null.",
+      "Set is_proposal=true only when the supplied text shows a matter actually submitted to stockholders for approval, election, ratification, a vote, or another stockholder decision.",
+      "An already completed meeting adjournment, a quorum status or quorum explanation, generic other-business boilerplate, or a notice that merely describes meeting logistics is not an actual proposal: set is_proposal=false and category=null.",
+      "An adjournment or other procedural matter explicitly submitted for a stockholder vote is an actual proposal: set is_proposal=true and classify it as procedural.",
       "If it is an actual stockholder proposal, set is_proposal=true and assign exactly one category from the enum below.",
       "Categories:",
       "capital_structure: reverse or forward splits, authorized-share changes, recapitalizations, or other changes to the issuer's share or capital structure.",
@@ -149,6 +182,23 @@ export function buildProxyProposalClassificationPrompt(
       proposals: input.items,
     }),
   };
+}
+
+function buildBoundedEvidenceExcerpt(evidenceTexts: string[]) {
+  const separator = "\n\n";
+  const separatorCharacters = separator.length * Math.max(0, evidenceTexts.length - 1);
+  let remainingCharacters = Math.max(
+    0,
+    PROXY_PROPOSAL_CLASSIFICATION_EVIDENCE_EXCERPT_MAX_CHARS - separatorCharacters,
+  );
+  const excerpts = evidenceTexts.map((text, index) => {
+    const remainingBlocks = evidenceTexts.length - index;
+    const allocation = Math.floor(remainingCharacters / remainingBlocks);
+    const excerpt = text.slice(0, allocation);
+    remainingCharacters -= excerpt.length;
+    return excerpt;
+  });
+  return excerpts.join(separator).slice(0, PROXY_PROPOSAL_CLASSIFICATION_EVIDENCE_EXCERPT_MAX_CHARS);
 }
 
 export function buildProxyProposalClassificationGeminiRequest(

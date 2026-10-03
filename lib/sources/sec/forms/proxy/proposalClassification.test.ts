@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PROXY_PROPOSAL_CATEGORIES,
+  PROXY_PROPOSAL_CLASSIFICATION_EVIDENCE_EXCERPT_MAX_CHARS,
   PROXY_PROPOSAL_CLASSIFICATION_RESPONSE_SCHEMA,
   PROXY_PROPOSAL_CLASSIFICATION_VERSION,
   buildProxyProposalClassificationGeminiRequest,
@@ -14,6 +15,7 @@ import {
 } from "./proposalClassification.ts";
 import type {
   ProxyProposalDiscoveryResult,
+  ProxyProposalDiscoverySourcePackage,
 } from "./proposalDiscovery.ts";
 
 const stage1: ProxyProposalDiscoveryResult = {
@@ -37,7 +39,36 @@ const stage1: ProxyProposalDiscoveryResult = {
   ],
 };
 
-const input = buildProxyProposalClassificationInput(stage1);
+const sourcePackage: ProxyProposalDiscoverySourcePackage = {
+  evidenceBlocks: [
+    {
+      id: "E1",
+      blockType: "source_document",
+      blockSequence: 0,
+      text: "The annual meeting will be held on June 17, 2026.",
+    },
+    {
+      id: "E2",
+      blockType: "source_proposal",
+      blockSequence: 1,
+      text: "Proposal 1. Election of Directors.",
+    },
+    {
+      id: "E3",
+      blockType: "source_document",
+      blockSequence: 2,
+      text: "Transact such other business as may properly come before the meeting.",
+    },
+    {
+      id: "E4",
+      blockType: "source_document",
+      blockSequence: 3,
+      text: "This uncited source text must not enter the classification input.",
+    },
+  ],
+};
+
+const input = buildProxyProposalClassificationInput(stage1, sourcePackage);
 
 function validResult(): ProxyProposalClassificationResult {
   return {
@@ -49,23 +80,54 @@ function validResult(): ProxyProposalClassificationResult {
   };
 }
 
-test("server assigns stable P IDs while excluding Stage 1 evidence refs and source text", () => {
+test("server assigns stable P IDs and resolves only cited source-backed evidence excerpts", () => {
   assert.deepEqual(input, {
     items: [
       {
         proposal_id: "P1",
         title: "ELECTION OF DIRECTORS",
         action_summary: "Elect eight directors.",
+        evidence_excerpt: "Proposal 1. Election of Directors.",
       },
       {
         proposal_id: "P2",
         title: "Transact such other business as may properly come before the meeting",
         action_summary: "Transact such other business as may properly come before the meeting.",
+        evidence_excerpt: "Transact such other business as may properly come before the meeting.",
       },
     ],
   });
   assert.deepEqual(stage1.proposals.map((proposal) => proposal.evidence), [["E2"], ["E3"]]);
-  assert.doesNotMatch(JSON.stringify(input), /"evidence"|E2|E3|Proposal 1\. Election/);
+  assert.doesNotMatch(JSON.stringify(input), /"evidence"\s*:|E2|E3|uncited source text/);
+});
+
+test("evidence excerpts are bounded to 2,500 characters while retaining cited source blocks", () => {
+  const boundedStage1 = structuredClone(stage1);
+  boundedStage1.proposals = [{
+    title: "Bounded evidence",
+    action_summary: "Classify from bounded cited source.",
+    evidence: ["E2", "E3"],
+  }];
+  const boundedSourcePackage: ProxyProposalDiscoverySourcePackage = {
+    evidenceBlocks: [
+      { id: "E2", blockType: "source_document", blockSequence: 0, text: `SOURCE_A_${"A".repeat(3_000)}` },
+      { id: "E3", blockType: "source_document", blockSequence: 1, text: `SOURCE_B_${"B".repeat(3_000)}` },
+    ],
+  };
+  const bounded = buildProxyProposalClassificationInput(boundedStage1, boundedSourcePackage);
+  const excerpt = bounded.items[0]?.evidence_excerpt || "";
+  assert.equal(excerpt.length, PROXY_PROPOSAL_CLASSIFICATION_EVIDENCE_EXCERPT_MAX_CHARS);
+  assert.match(excerpt, /^SOURCE_A_/);
+  assert.match(excerpt, /\n\nSOURCE_B_/);
+});
+
+test("unknown Stage 1 evidence cannot enter Stage 2", () => {
+  const invalid = structuredClone(stage1);
+  invalid.proposals[0].evidence = ["E99"];
+  assert.throws(
+    () => buildProxyProposalClassificationInput(invalid, sourcePackage),
+    /references unknown evidence E99/,
+  );
 });
 
 test("valid classification covers each input item exactly once", () => {
@@ -135,10 +197,14 @@ test("prompt contains the complete enum and keeps classification separate from e
     "other",
   ]);
   assert.match(prompt.system, /generic other-business boilerplate/i);
+  assert.match(prompt.system, /already completed meeting adjournment/i);
+  assert.match(prompt.system, /quorum status or quorum explanation/i);
+  assert.match(prompt.system, /explicitly submitted for a stockholder vote/i);
   assert.match(prompt.system, /actual stockholder proposal that does not accurately fit another category/);
   assert.match(prompt.system, /is_proposal=false and category=null/);
   assert.match(prompt.system, /Do not extract terms, decide lifecycle or completion, create unresolved output/);
-  assert.doesNotMatch(prompt.user, /"evidence"|E2|E3|Proposal 1\. Election/);
+  assert.match(prompt.user, /"evidence_excerpt"/);
+  assert.doesNotMatch(prompt.user, /"evidence"\s*:|E2|E3|uncited source text/);
 });
 
 test("Gemini request uses JSON Mode only", () => {
@@ -201,7 +267,10 @@ test("runner makes one direct request and validates one direct JSON output", asy
 test("empty Stage 1 proposal lists produce an empty complete classification input", () => {
   const emptyStage1 = structuredClone(stage1);
   emptyStage1.proposals = [];
-  const emptyInput: ProxyProposalClassificationInput = buildProxyProposalClassificationInput(emptyStage1);
+  const emptyInput: ProxyProposalClassificationInput = buildProxyProposalClassificationInput(
+    emptyStage1,
+    sourcePackage,
+  );
   assert.deepEqual(emptyInput, { items: [] });
   assert.equal(parseAndValidateProxyProposalClassification(JSON.stringify({
     version: PROXY_PROPOSAL_CLASSIFICATION_VERSION,
