@@ -1,7 +1,4 @@
-import type {
-  ProxyProposalDiscoveryResult,
-  ProxyProposalDiscoverySourcePackage,
-} from "./proposalDiscovery.ts";
+import type { ProxyProposalDiscoveryResult } from "./proposalDiscovery.ts";
 
 export const PROXY_PROPOSAL_CLASSIFICATION_VERSION = "proxy_proposal_classification_v1" as const;
 
@@ -17,7 +14,6 @@ export const PROXY_PROPOSAL_CATEGORIES = [
   "executive_compensation",
   "procedural",
   "other",
-  "not_proposal",
 ] as const;
 
 export const PROXY_PROPOSAL_CLASSIFICATION_RESPONSE_SCHEMA = {
@@ -31,10 +27,16 @@ export const PROXY_PROPOSAL_CLASSIFICATION_RESPONSE_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["proposal_id", "category"],
+        required: ["proposal_id", "is_proposal", "category"],
         properties: {
           proposal_id: { type: "string", pattern: "^P[1-9][0-9]*$" },
-          category: { type: "string", enum: PROXY_PROPOSAL_CATEGORIES },
+          is_proposal: { type: "boolean" },
+          category: {
+            anyOf: [
+              { type: "string", enum: PROXY_PROPOSAL_CATEGORIES },
+              { type: "null" },
+            ],
+          },
         },
       },
     },
@@ -47,10 +49,6 @@ export type ProxyProposalClassificationInputItem = {
   proposal_id: string;
   title: string;
   action_summary: string;
-  evidence: Array<{
-    evidence_id: string;
-    text: string;
-  }>;
 };
 
 export type ProxyProposalClassificationInput = {
@@ -61,7 +59,8 @@ export type ProxyProposalClassificationResult = {
   version: typeof PROXY_PROPOSAL_CLASSIFICATION_VERSION;
   items: Array<{
     proposal_id: string;
-    category: ProxyProposalCategory;
+    is_proposal: boolean;
+    category: ProxyProposalCategory | null;
   }>;
 };
 
@@ -102,24 +101,9 @@ type ProxyProposalClassificationGeminiTextResponse = {
 
 export function buildProxyProposalClassificationInput(
   stage1: ProxyProposalDiscoveryResult,
-  sourcePackage: Pick<ProxyProposalDiscoverySourcePackage, "evidenceBlocks">,
 ): ProxyProposalClassificationInput {
   if (stage1.version !== "proxy_proposal_discovery_v1") {
     throw new Error("Proxy Proposal Classification requires proxy_proposal_discovery_v1 input");
-  }
-
-  const evidenceById = new Map<string, string>();
-  for (const block of sourcePackage.evidenceBlocks) {
-    if (!/^E[1-9][0-9]*$/.test(block.id)) {
-      throw new Error(`Invalid Stage 1 evidence ID: ${block.id}`);
-    }
-    if (evidenceById.has(block.id)) {
-      throw new Error(`Duplicate Stage 1 evidence ID: ${block.id}`);
-    }
-    if (!block.text.trim()) {
-      throw new Error(`Stage 1 evidence ${block.id} has empty source text`);
-    }
-    evidenceById.set(block.id, block.text);
   }
 
   return {
@@ -127,16 +111,6 @@ export function buildProxyProposalClassificationInput(
       proposal_id: `P${index + 1}`,
       title: proposal.title,
       action_summary: proposal.action_summary,
-      evidence: proposal.evidence.map((evidenceId) => {
-        const text = evidenceById.get(evidenceId);
-        if (text === undefined) {
-          throw new Error(`Stage 1 proposal P${index + 1} references unknown evidence ${evidenceId}`);
-        }
-        return {
-          evidence_id: evidenceId,
-          text,
-        };
-      }),
     })),
   };
 }
@@ -148,7 +122,9 @@ export function buildProxyProposalClassificationPrompt(
     system: [
       "Classify every supplied Stage 1 proxy proposal item exactly once.",
       "The server assigned each proposal_id. Preserve every proposal_id exactly; do not omit, duplicate, reorder, rename, or invent IDs.",
-      "Use only the supplied title, action_summary, and source evidence text. Return classification only.",
+      "Use only the supplied title and action_summary. SEC evidence text and evidence references are intentionally not model input.",
+      "First decide whether the item is an actual stockholder proposal. If it is not, set is_proposal=false and category=null.",
+      "If it is an actual stockholder proposal, set is_proposal=true and assign exactly one category from the enum below.",
       "Categories:",
       "capital_structure: reverse or forward splits, authorized-share changes, recapitalizations, or other changes to the issuer's share or capital structure.",
       "equity_compensation: equity incentive, stock option, employee stock purchase, or other equity compensation plans and amendments.",
@@ -161,7 +137,7 @@ export function buildProxyProposalClassificationPrompt(
       "executive_compensation: say-on-pay or another stockholder vote on executive compensation, excluding approval of an equity compensation plan.",
       "procedural: adjournment, postponement, quorum, or another meeting-procedure proposal.",
       "other: an actual stockholder proposal that does not accurately fit another category.",
-      "not_proposal: text that is not an actual proposal, including generic other-business boilerplate, future proposal-submission instructions, narrative discussion, or a historical action mistakenly preserved by Stage 1.",
+      "Generic other-business boilerplate, future proposal-submission instructions, narrative discussion, and historical actions are not actual proposals: use is_proposal=false and category=null.",
       "Do not extract terms, decide lifecycle or completion, create unresolved output, add explanations, or modify Stage 1 content.",
       "Return one direct JSON object matching the closed response schema, with exactly version and items.",
     ].join("\n"),
@@ -333,7 +309,7 @@ export function validateProxyProposalClassification(
         errors.push(`${path} must be an object`);
         return;
       }
-      exactKeys(item, ["proposal_id", "category"], path, errors);
+      exactKeys(item, ["proposal_id", "is_proposal", "category"], path, errors);
       if (typeof item.proposal_id !== "string" || !/^P[1-9][0-9]*$/.test(item.proposal_id)) {
         errors.push(`${path}.proposal_id must be an ID like P1`);
       } else {
@@ -345,8 +321,14 @@ export function validateProxyProposalClassification(
         }
         seenIds.add(item.proposal_id);
       }
-      if (!oneOf(item.category, PROXY_PROPOSAL_CATEGORIES)) {
-        errors.push(`${path}.category must be one of: ${PROXY_PROPOSAL_CATEGORIES.join(", ")}`);
+      if (typeof item.is_proposal !== "boolean") {
+        errors.push(`${path}.is_proposal must be a boolean`);
+      } else if (item.is_proposal) {
+        if (!oneOf(item.category, PROXY_PROPOSAL_CATEGORIES)) {
+          errors.push(`${path}.category must be one of: ${PROXY_PROPOSAL_CATEGORIES.join(", ")} when is_proposal is true`);
+        }
+      } else if (item.category !== null) {
+        errors.push(`${path}.category must be null when is_proposal is false`);
       }
     });
   }

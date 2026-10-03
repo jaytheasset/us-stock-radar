@@ -14,7 +14,6 @@ import {
 } from "./proposalClassification.ts";
 import type {
   ProxyProposalDiscoveryResult,
-  ProxyProposalDiscoverySourcePackage,
 } from "./proposalDiscovery.ts";
 
 const stage1: ProxyProposalDiscoveryResult = {
@@ -38,70 +37,35 @@ const stage1: ProxyProposalDiscoveryResult = {
   ],
 };
 
-const sourcePackage: ProxyProposalDiscoverySourcePackage = {
-  evidenceBlocks: [
-    {
-      id: "E1",
-      blockType: "source_document",
-      blockSequence: 0,
-      text: "The annual meeting will be held on June 17, 2026.",
-    },
-    {
-      id: "E2",
-      blockType: "source_proposal",
-      blockSequence: 1,
-      text: "Proposal 1. Election of Directors.",
-    },
-    {
-      id: "E3",
-      blockType: "source_document",
-      blockSequence: 2,
-      text: "Transact such other business as may properly come before the meeting.",
-    },
-  ],
-};
-
-const input = buildProxyProposalClassificationInput(stage1, sourcePackage);
+const input = buildProxyProposalClassificationInput(stage1);
 
 function validResult(): ProxyProposalClassificationResult {
   return {
     version: PROXY_PROPOSAL_CLASSIFICATION_VERSION,
     items: [
-      { proposal_id: "P1", category: "director_election" },
-      { proposal_id: "P2", category: "not_proposal" },
+      { proposal_id: "P1", is_proposal: true, category: "director_election" },
+      { proposal_id: "P2", is_proposal: false, category: null },
     ],
   };
 }
 
-test("server assigns stable P IDs and resolves each cited evidence block to original text", () => {
+test("server assigns stable P IDs while excluding Stage 1 evidence refs and source text", () => {
   assert.deepEqual(input, {
     items: [
       {
         proposal_id: "P1",
         title: "ELECTION OF DIRECTORS",
         action_summary: "Elect eight directors.",
-        evidence: [{ evidence_id: "E2", text: "Proposal 1. Election of Directors." }],
       },
       {
         proposal_id: "P2",
         title: "Transact such other business as may properly come before the meeting",
         action_summary: "Transact such other business as may properly come before the meeting.",
-        evidence: [{
-          evidence_id: "E3",
-          text: "Transact such other business as may properly come before the meeting.",
-        }],
       },
     ],
   });
-});
-
-test("unknown Stage 1 evidence cannot enter Stage 2", () => {
-  const invalid = structuredClone(stage1);
-  invalid.proposals[0].evidence = ["E99"];
-  assert.throws(
-    () => buildProxyProposalClassificationInput(invalid, sourcePackage),
-    /references unknown evidence E99/,
-  );
+  assert.deepEqual(stage1.proposals.map((proposal) => proposal.evidence), [["E2"], ["E3"]]);
+  assert.doesNotMatch(JSON.stringify(input), /"evidence"|E2|E3|Proposal 1\. Election/);
 });
 
 test("valid classification covers each input item exactly once", () => {
@@ -114,9 +78,9 @@ test("missing, duplicate, and unknown proposal IDs fail strict validation", () =
   const result = parseAndValidateProxyProposalClassification(JSON.stringify({
     version: PROXY_PROPOSAL_CLASSIFICATION_VERSION,
     items: [
-      { proposal_id: "P1", category: "director_election" },
-      { proposal_id: "P1", category: "not_proposal" },
-      { proposal_id: "P99", category: "other" },
+      { proposal_id: "P1", is_proposal: true, category: "director_election" },
+      { proposal_id: "P1", is_proposal: false, category: null },
+      { proposal_id: "P99", is_proposal: true, category: "other" },
     ],
   }), input);
   assert.equal(result.ok, false);
@@ -129,8 +93,8 @@ test("invalid categories and detail, lifecycle, or unresolved fields are rejecte
   const result = parseAndValidateProxyProposalClassification(JSON.stringify({
     version: PROXY_PROPOSAL_CLASSIFICATION_VERSION,
     items: [
-      { proposal_id: "P1", category: "reverse_split", terms: [] },
-      { proposal_id: "P2", category: "not_proposal", lifecycle: "pending" },
+      { proposal_id: "P1", is_proposal: true, category: "reverse_split", terms: [] },
+      { proposal_id: "P2", is_proposal: false, category: "procedural", lifecycle: "pending" },
     ],
     unresolved: [],
   }), input);
@@ -139,6 +103,7 @@ test("invalid categories and detail, lifecycle, or unresolved fields are rejecte
   assert.ok(result.errors.some((error) => error.includes("$.items[0].terms is not allowed")));
   assert.ok(result.errors.some((error) => error.includes("$.items[1].lifecycle is not allowed")));
   assert.ok(result.errors.some((error) => error.includes("category must be one of")));
+  assert.ok(result.errors.some((error) => error.includes("category must be null when is_proposal is false")));
 });
 
 test("duplicate keys and wrapper text are not repaired or unwrapped", () => {
@@ -168,11 +133,12 @@ test("prompt contains the complete enum and keeps classification separate from e
     "executive_compensation",
     "procedural",
     "other",
-    "not_proposal",
   ]);
-  assert.match(prompt.system, /generic other-business boilerplate/);
+  assert.match(prompt.system, /generic other-business boilerplate/i);
   assert.match(prompt.system, /actual stockholder proposal that does not accurately fit another category/);
+  assert.match(prompt.system, /is_proposal=false and category=null/);
   assert.match(prompt.system, /Do not extract terms, decide lifecycle or completion, create unresolved output/);
+  assert.doesNotMatch(prompt.user, /"evidence"|E2|E3|Proposal 1\. Election/);
 });
 
 test("Gemini request uses JSON Mode only", () => {
@@ -235,10 +201,7 @@ test("runner makes one direct request and validates one direct JSON output", asy
 test("empty Stage 1 proposal lists produce an empty complete classification input", () => {
   const emptyStage1 = structuredClone(stage1);
   emptyStage1.proposals = [];
-  const emptyInput: ProxyProposalClassificationInput = buildProxyProposalClassificationInput(
-    emptyStage1,
-    sourcePackage,
-  );
+  const emptyInput: ProxyProposalClassificationInput = buildProxyProposalClassificationInput(emptyStage1);
   assert.deepEqual(emptyInput, { items: [] });
   assert.equal(parseAndValidateProxyProposalClassification(JSON.stringify({
     version: PROXY_PROPOSAL_CLASSIFICATION_VERSION,
