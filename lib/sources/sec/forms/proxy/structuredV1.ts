@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
+import type { ProxyParserOutput } from "./parser.ts";
+import { buildProxySourceBlockPromptInput } from "./sourceInput.ts";
 
 export const PROXY_STRUCTURED_V1_VERSION = "proxy_structured_v1" as const;
 
 export const PROXY_STRUCTURED_V1_RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["version", "source_fingerprint", "meeting", "proposals", "unresolved"],
+  required: ["version", "meeting", "proposals", "unresolved"],
   properties: {
     version: { type: "string", enum: [PROXY_STRUCTURED_V1_VERSION] },
-    source_fingerprint: { type: "string", pattern: "^[a-f0-9]{64}$" },
     meeting: {
       type: "object",
       additionalProperties: false,
@@ -77,44 +78,44 @@ const PROPOSAL_KINDS = [
 ] as const;
 const PROPOSAL_ACTIONS = ["approve", "amend", "authorize", "other", "unclear"] as const;
 
-export type ProxyStructuredV1SourceDocument = {
-  documentId: string;
-  sequence: number;
-  documentType: string;
-  filename: string;
-  url: string;
-  html?: string;
-  text?: string;
-};
-
 export type ProxyStructuredV1EvidenceBlock = {
   id: string;
-  documentId: string;
-  documentSequence: number;
+  blockType: string;
   blockSequence: number;
   text: string;
 };
 
+export type ProxyStructuredV1ServerContext = {
+  cik?: string | null;
+  filingDate?: string | null;
+  sourceUrl?: string | null;
+  primaryDocumentUrl?: string | null;
+};
+
+export type ProxyStructuredV1Provenance = {
+  source_fingerprint: string;
+  package_fingerprint: string;
+  accession_number: string | null;
+  sec_form_type: string | null;
+  issuer_identity: {
+    cik: string | null;
+    company_name: string | null;
+    ticker: string | null;
+    exchange: string | null;
+  };
+  filing_date: string | null;
+  source_url: string | null;
+  primary_document_url: string | null;
+};
+
 export type ProxyStructuredV1SourcePackage = {
   version: typeof PROXY_STRUCTURED_V1_VERSION;
-  sourceFingerprint: string;
-  packageFingerprint: string;
-  documents: Array<{
-    documentId: string;
-    sequence: number;
-    documentType: string;
-    filename: string;
-    url: string;
-    sourceSha256: string;
-    normalizedTextSha256: string;
-    normalizedTextChars: number;
-  }>;
+  provenance: ProxyStructuredV1Provenance;
   evidenceBlocks: ProxyStructuredV1EvidenceBlock[];
 };
 
 export type ProxyStructuredV1Result = {
   version: typeof PROXY_STRUCTURED_V1_VERSION;
-  source_fingerprint: string;
   meeting: {
     date: string | null;
     type: typeof MEETING_TYPES[number];
@@ -128,6 +129,12 @@ export type ProxyStructuredV1Result = {
     evidence: string[];
   }>;
   unresolved: string[];
+};
+
+export type ProxyStructuredV1Snapshot = {
+  version: typeof PROXY_STRUCTURED_V1_VERSION;
+  provenance: ProxyStructuredV1Provenance;
+  facts: ProxyStructuredV1Result;
 };
 
 export type ProxyStructuredV1Validation = {
@@ -327,89 +334,69 @@ export async function runProxyStructuredV1Gemini({
 }
 
 export function buildProxyStructuredV1SourcePackage(
-  sourceDocuments: readonly ProxyStructuredV1SourceDocument[],
-  options: { chunkChars?: number } = {},
+  parserOutput: ProxyParserOutput,
+  serverContext: ProxyStructuredV1ServerContext = {},
 ): ProxyStructuredV1SourcePackage {
-  const chunkChars = options.chunkChars ?? 8_000;
-  if (!Number.isInteger(chunkChars) || chunkChars < 500) {
-    throw new Error("Proxy Structured v1 chunkChars must be an integer of at least 500");
+  if (parserOutput.raw.importantBlocks.some((block) => block.kind === "preliminary_placeholder")) {
+    throw new Error(
+      "Proxy Structured v1 cannot use parser-generated preliminary_placeholder text as source evidence",
+    );
   }
-  if (sourceDocuments.length === 0) {
-    throw new Error("Proxy Structured v1 requires at least one source document");
-  }
-
-  const sorted = [...sourceDocuments].sort((left, right) => left.sequence - right.sequence);
-  const documentIds = new Set<string>();
-  const sequences = new Set<number>();
-  const documents: ProxyStructuredV1SourcePackage["documents"] = [];
-  const evidenceBlocks: ProxyStructuredV1EvidenceBlock[] = [];
-
-  for (const source of sorted) {
-    if (!nonEmptyText(source.documentId) || documentIds.has(source.documentId)) {
-      throw new Error(`Proxy Structured v1 documentId must be non-empty and unique: ${source.documentId}`);
+  const primaryInput = buildProxySourceBlockPromptInput(parserOutput);
+  const cleanedBlocks = Array.isArray(primaryInput.cleaned_source_blocks)
+    ? primaryInput.cleaned_source_blocks
+    : [];
+  const currentFiling = record(primaryInput.current_filing) || {};
+  const retainedBlocks = cleanedBlocks.flatMap((candidate, originalIndex) => {
+    const block = record(candidate);
+    if (!block || block.block_type === "current_filing") return [];
+    if (!nonEmptyText(block.block_type) || !nonEmptyText(block.text)) {
+      throw new Error(`Proxy Structured v1 source block ${originalIndex} is incomplete`);
     }
-    if (!Number.isInteger(source.sequence) || source.sequence < 0 || sequences.has(source.sequence)) {
-      throw new Error(`Proxy Structured v1 sequence must be a unique non-negative integer: ${source.sequence}`);
-    }
-    if (!nonEmptyText(source.documentType) || !nonEmptyText(source.filename) || !validHttpUrl(source.url)) {
-      throw new Error(`Proxy Structured v1 document identity is incomplete: ${source.documentId}`);
-    }
-    const hasHtml = typeof source.html === "string";
-    const hasText = typeof source.text === "string";
-    if (hasHtml === hasText) {
-      throw new Error(`Proxy Structured v1 document must provide exactly one of html or text: ${source.documentId}`);
-    }
+    return [{
+      blockType: block.block_type,
+      text: block.text,
+    }];
+  });
+  const evidenceBlocks = retainedBlocks.map((block, index) => ({
+    id: `E${index + 1}`,
+    blockType: block.blockType,
+    blockSequence: index,
+    text: block.text,
+  }));
 
-    documentIds.add(source.documentId);
-    sequences.add(source.sequence);
-    const rawSource = hasHtml ? source.html! : source.text!;
-    const normalizedText = hasHtml ? normalizeProxyStructuredV1Html(source.html!) : normalizePlainText(source.text!);
-    if (!normalizedText) {
-      throw new Error(`Proxy Structured v1 document produced no normalized text: ${source.documentId}`);
-    }
-    documents.push({
-      documentId: source.documentId,
-      sequence: source.sequence,
-      documentType: source.documentType,
-      filename: source.filename,
-      url: source.url,
-      sourceSha256: sha256(rawSource),
-      normalizedTextSha256: sha256(normalizedText),
-      normalizedTextChars: normalizedText.length,
-    });
-
-    const chunks = chunkNeutralText(normalizedText, chunkChars);
-    chunks.forEach((text, blockSequence) => {
-      evidenceBlocks.push({
-        id: `E${evidenceBlocks.length + 1}`,
-        documentId: source.documentId,
-        documentSequence: source.sequence,
-        blockSequence,
-        text,
-      });
-    });
-  }
-
-  const sourceFingerprint = sha256(stableJson(documents.map((document) => ({
-    documentId: document.documentId,
-    sequence: document.sequence,
-    documentType: document.documentType,
-    filename: document.filename,
-    url: document.url,
-    sourceSha256: document.sourceSha256,
+  const identity = {
+    accession_number: nullableText(currentFiling.accession_number) || nullableText(parserOutput.accessionNumber),
+    sec_form_type: nullableText(currentFiling.form_type) || nullableText(parserOutput.raw.secFormType),
+    issuer_identity: {
+      cik: nullableText(serverContext.cik) || nullableText(currentFiling.cik),
+      company_name: nullableText(currentFiling.company_name) || nullableText(parserOutput.facts.companyName),
+      ticker: nullableText(currentFiling.ticker) || nullableText(parserOutput.facts.primaryTicker.ticker),
+      exchange: nullableText(currentFiling.exchange) || nullableText(parserOutput.facts.primaryTicker.exchange),
+    },
+    filing_date: nullableText(serverContext.filingDate) || nullableText(currentFiling.filed_at),
+    source_url: nullableText(serverContext.sourceUrl) || nullableText(currentFiling.source_url),
+    primary_document_url:
+      nullableText(serverContext.primaryDocumentUrl) || nullableText(currentFiling.primary_document_url),
+  };
+  const sourceFingerprint = sha256(stableJson(evidenceBlocks.map((block) => ({
+    blockType: block.blockType,
+    text: block.text,
   }))));
   const packageFingerprint = sha256(stableJson({
     version: PROXY_STRUCTURED_V1_VERSION,
     sourceFingerprint,
-    documents,
+    identity,
     evidenceBlocks,
   }));
 
   return {
     version: PROXY_STRUCTURED_V1_VERSION,
-    sourceFingerprint,
-    packageFingerprint,
-    documents,
+    provenance: {
+      source_fingerprint: sourceFingerprint,
+      package_fingerprint: packageFingerprint,
+      ...identity,
+    },
     evidenceBlocks,
   };
 }
@@ -419,6 +406,7 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
     system: [
       "Extract source-grounded FACTs from the supplied SEC proxy documents.",
       "Use only the supplied evidence blocks. Never infer, calculate, repair, or import outside facts.",
+      "blockType is mechanical provenance, not a semantic classification. Table warnings are extraction-quality notices, not filing facts.",
       "Return one direct JSON object matching the closed schema; do not add prose or markdown.",
       "Meeting evidence may be empty only when the meeting is unclear and date is null.",
       "Include only material capital-structure or transaction proposals: equity plans, reverse splits, authorized shares, transactions, and related charter amendments.",
@@ -429,10 +417,8 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
     user: JSON.stringify({
       contract: {
         version: PROXY_STRUCTURED_V1_VERSION,
-        source_fingerprint: sourcePackage.sourceFingerprint,
         response_schema: PROXY_STRUCTURED_V1_RESPONSE_SCHEMA,
       },
-      source_manifest: sourcePackage.documents,
       evidence_blocks: sourcePackage.evidenceBlocks,
     }),
   };
@@ -440,7 +426,7 @@ export function buildProxyStructuredV1Prompt(sourcePackage: ProxyStructuredV1Sou
 
 export function parseAndValidateProxyStructuredV1(
   outputText: string,
-  sourcePackage: Pick<ProxyStructuredV1SourcePackage, "sourceFingerprint" | "evidenceBlocks">,
+  sourcePackage: Pick<ProxyStructuredV1SourcePackage, "evidenceBlocks">,
 ): ProxyStructuredV1Validation {
   let parsed: unknown;
   try {
@@ -457,18 +443,15 @@ export function parseAndValidateProxyStructuredV1(
 
 export function validateProxyStructuredV1(
   value: unknown,
-  sourcePackage: Pick<ProxyStructuredV1SourcePackage, "sourceFingerprint" | "evidenceBlocks">,
+  sourcePackage: Pick<ProxyStructuredV1SourcePackage, "evidenceBlocks">,
 ): ProxyStructuredV1Validation {
   const errors: string[] = [];
   const root = record(value);
   if (!root) return { ok: false, value: null, errors: ["$ must be an object"] };
-  exactKeys(root, ["version", "source_fingerprint", "meeting", "proposals", "unresolved"], "$", errors);
+  exactKeys(root, ["version", "meeting", "proposals", "unresolved"], "$", errors);
 
   if (root.version !== PROXY_STRUCTURED_V1_VERSION) {
     errors.push(`$.version must equal ${PROXY_STRUCTURED_V1_VERSION}`);
-  }
-  if (root.source_fingerprint !== sourcePackage.sourceFingerprint) {
-    errors.push("$.source_fingerprint must match the supplied source package");
   }
 
   const knownEvidence = new Set(sourcePackage.evidenceBlocks.map((block) => block.id));
@@ -522,15 +505,19 @@ export function validateProxyStructuredV1(
   };
 }
 
-export function normalizeProxyStructuredV1Html(html: string) {
-  return normalizePlainText(decodeHtmlEntities(
-    html
-      .replace(/<!--[\s\S]*?-->/g, " ")
-      .replace(/<(script|style|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-      .replace(/<(br|hr)\b[^>]*\/?\s*>/gi, "\n")
-      .replace(/<\/(?:address|article|aside|blockquote|caption|dd|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)\s*>/gi, "\n")
-      .replace(/<[^>]+>/g, " "),
-  ));
+export function bindProxyStructuredV1Snapshot(
+  sourcePackage: ProxyStructuredV1SourcePackage,
+  facts: ProxyStructuredV1Result,
+): ProxyStructuredV1Snapshot {
+  const validation = validateProxyStructuredV1(facts, sourcePackage);
+  if (!validation.ok || !validation.value) {
+    throw new Error(`Cannot bind invalid Proxy Structured v1 facts: ${validation.errors.join("; ")}`);
+  }
+  return {
+    version: PROXY_STRUCTURED_V1_VERSION,
+    provenance: structuredClone(sourcePackage.provenance),
+    facts: structuredClone(validation.value),
+  };
 }
 
 export function parseJsonWithoutDuplicateKeys(text: string): unknown {
@@ -630,59 +617,6 @@ export function parseJsonWithoutDuplicateKeys(text: string): unknown {
   return result;
 }
 
-function chunkNeutralText(text: string, maxChars: number) {
-  const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  const chunks: string[] = [];
-  let current = "";
-  const flush = () => {
-    if (current) chunks.push(current);
-    current = "";
-  };
-  for (const paragraph of paragraphs) {
-    if (paragraph.length > maxChars) {
-      flush();
-      for (let offset = 0; offset < paragraph.length; offset += maxChars) {
-        chunks.push(paragraph.slice(offset, offset + maxChars));
-      }
-      continue;
-    }
-    const next = current ? `${current}\n\n${paragraph}` : paragraph;
-    if (next.length > maxChars) flush();
-    current = current ? `${current}\n\n${paragraph}` : paragraph;
-  }
-  flush();
-  return chunks;
-}
-
-function normalizePlainText(text: string) {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .replace(/[\t\f\v ]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function decodeHtmlEntities(value: string) {
-  const named: Record<string, string> = {
-    amp: "&", apos: "'", gt: ">", lt: "<", nbsp: " ", quot: '"',
-    ndash: "–", mdash: "—", rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“",
-  };
-  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
-    if (entity[0] === "#") {
-      const hexadecimal = entity[1]?.toLowerCase() === "x";
-      const code = Number.parseInt(entity.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10);
-      if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) return match;
-      try {
-        return String.fromCodePoint(code);
-      } catch {
-        return match;
-      }
-    }
-    return named[entity.toLowerCase()] ?? match;
-  });
-}
-
 function validateEvidence(
   value: unknown,
   path: string,
@@ -740,14 +674,8 @@ function nonEmptyText(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function validHttpUrl(value: unknown) {
-  if (!nonEmptyText(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
+function nullableText(value: unknown): string | null {
+  return nonEmptyText(value) ? value.trim() : null;
 }
 
 function validDate(value: unknown) {
