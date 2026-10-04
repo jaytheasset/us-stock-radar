@@ -455,6 +455,19 @@ export interface ProxyRawImportantBlock {
   text: string;
 }
 
+export interface ProxyRawDiscoveryBlock {
+  id: string;
+  sourceDocumentIndex: number;
+  documentClass: ProxyDocumentClass;
+  documentType: string | null;
+  filename: string | null;
+  isPrimary: boolean;
+  startChar: number;
+  endChar: number;
+  text: string;
+  cues: string[];
+}
+
 export interface ProxyRawNoiseBlock {
   kind:
     | "sec_submission_wrapper"
@@ -544,6 +557,7 @@ export interface ProxyParserOutput {
     keyTableExtraction: ProxyKeyTableExtractionSummary;
     textCoverage: ProxyTextCoverageSummary;
     supplementalAnalysis: ProxySupplementalAnalysisSummary;
+    discoveryBlocks: ProxyRawDiscoveryBlock[];
     importantBlocks: ProxyRawImportantBlock[];
     noiseBlocks: ProxyRawNoiseBlock[];
     market_context: Record<string, unknown> | null;
@@ -578,6 +592,7 @@ export function parseProxyFiling(input: ProxyParserInput): ProxyParserOutput {
   const secFormType = cleanString(input.formType);
   const documents = extractProxyDocuments(input, secFormType);
   const documentInventory = buildDocumentInventory(documents, secFormType);
+  const discoveryBlocks = buildProxyDiscoverySourceBlocks(documents, documentInventory);
   const primaryText = normalizeFilingText(documents.find((document) => document.isPrimary)?.body ?? input.filingText ?? "");
   const text = normalizeFilingText(buildFilingText(documents));
   const rawInputText = buildRawInputText(input);
@@ -704,6 +719,7 @@ export function parseProxyFiling(input: ProxyParserInput): ProxyParserOutput {
       keyTableExtraction,
       textCoverage,
       supplementalAnalysis,
+      discoveryBlocks,
       importantBlocks: buildImportantBlocks(text, {
         meetingDate,
         recordDate,
@@ -975,6 +991,418 @@ function buildDocumentInventory(
       administrativeOnlyCandidate: isAdministrativeOnlyDocumentCandidate(proxyClass, highRiskSignals),
     };
   });
+}
+
+type ProxyDiscoveryRange = {
+  start: number;
+  end: number;
+  cues: Set<string>;
+};
+
+function buildProxyDiscoverySourceBlocks(
+  documents: ProxySourceDocument[],
+  documentInventory: ProxyDocumentInventoryItem[],
+): ProxyRawDiscoveryBlock[] {
+  const blocks: ProxyRawDiscoveryBlock[] = [];
+
+  documents.forEach((document, sourceDocumentIndex) => {
+    if (!isTextLikeProxyDocument(document)) return;
+
+    const text = normalizeFilingText(document.body);
+    if (!text) return;
+
+    const ranges: ProxyDiscoveryRange[] = [];
+    const sectionBoundaries = new Set<number>();
+    const isSupplementLike =
+      /\bDEFA14A\b/i.test(document.type ?? "")
+      || /^SUPPLEMENT(?:\s+NO\.?\s*\d+)?\s+TO\s+(?:THE\s+)?PROXY\s+STATEMENT\b/im.test(text.slice(0, 4_000));
+    const paragraphs = [...text.matchAll(/\S[\s\S]*?(?=\n[ \t]*\n|$)/g)]
+      .flatMap(match => {
+        // Plain-text inputs can use a single newline around headings. Treat
+        // that structural line as a boundary without splitting wrapped prose.
+        const pieces: Array<{ start: number; end: number; text: string }> = [];
+        let start = match.index!;
+        const end = start + match[0].length;
+        for (const line of match[0].matchAll(/^[^\n]+/gm)) {
+          if (!isProxyDiscoveryContextHeading(line[0])) continue;
+          const at = match.index! + line.index!;
+          if (at > start) pieces.push({ start, end: at, text: text.slice(start, at).trimEnd() });
+          pieces.push({ start: at, end: at + line[0].length, text: line[0] });
+          start = at + line[0].length + 1;
+        }
+        if (start < end) pieces.push({ start, end, text: text.slice(start, end) });
+        return pieces;
+      });
+    const auxiliaryText = new Set<string>();
+    const addRange = (start: number, end: number, cue: string) => {
+      const boundedStart = Math.max(0, start);
+      const boundedEnd = Math.min(text.length, end);
+      if (boundedEnd <= boundedStart) return;
+      ranges.push({
+        start: boundedStart,
+        end: boundedEnd,
+        cues: new Set([cue]),
+      });
+    };
+    const collectMatches = (pattern: RegExp) => [...text.matchAll(pattern)];
+    const addMatchList = (
+      matches: RegExpMatchArray[],
+      cue: string,
+      beforeChars: number,
+      afterChars: number,
+      maxMatches = 60,
+    ) => {
+      for (const match of matches.slice(0, maxMatches)) {
+        if (match.index === undefined) continue;
+        if (!isSupplementLike) {
+          const first = paragraphs.findIndex(p => p.end > match.index!);
+          if (first < 0) continue;
+          let last = first;
+          while (last + 1 < paragraphs.length && paragraphs[last].end < match.index + match[0].length) last++;
+          const heading = paragraphs[first];
+          const subsection = /^(?:notice_|voting_subsection|supporting_voting_area|voting_area_fallback)/.test(cue)
+            && isProxyDiscoveryContextHeading(heading.text);
+          if (subsection) {
+            while (last + 1 < paragraphs.length && !isProxyDiscoveryContextHeading(paragraphs[last + 1].text)) last++;
+          } else if (isProxyDiscoveryContextHeading(heading.text) && last + 1 < paragraphs.length
+            && !isProxyDiscoveryContextHeading(paragraphs[last + 1].text)) {
+            last++;
+          }
+          // An introductory paragraph ending in ':' can lead into an agenda
+          // table/list. Preserve complete adjacent rows, not a fixed window.
+          if (/:\s*$/.test(paragraphs[last].text) || /voting_area/.test(cue)) {
+            while (last + 1 < paragraphs.length
+              && /^(?:\||[•●]|\(?\d+[.)])/.test(paragraphs[last + 1].text.trim())) last++;
+          }
+          const start = heading.start;
+          const end = paragraphs[last].end;
+          const key = text.slice(start, end).replace(/\s+/g, " ").trim();
+          if (!auxiliaryText.has(`${cue}:${key}`)) {
+            addRange(start, end, cue);
+            auxiliaryText.add(`${cue}:${key}`);
+          }
+          continue;
+        }
+        addRange(
+          match.index - beforeChars,
+          match.index + match[0].length + afterChars,
+          cue,
+        );
+      }
+    };
+    const addMatches = (
+      pattern: RegExp,
+      cue: string,
+      beforeChars: number,
+      afterChars: number,
+      maxMatches = 20,
+    ) => addMatchList(collectMatches(pattern), cue, beforeChars, afterChars, maxMatches);
+
+    const numberedProposalPattern =
+      /^P\s*RO\s*POSAL\s+(?:(?:NUMBER|NO\.?)\s*)?(?:\d{1,2}|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE)\b[^\n]{0,500}/gim;
+    const numberedItemOrMatterPattern =
+      /^(?:ITEM|Item|MATTER|Matter)\s+(?:(?:NUMBER|NO\.?)\s*)?(?:\d{1,2}|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE)\b[^\n]{0,500}/gim;
+
+    // Meeting identity is useful to Call 1, but it does not justify sending
+    // the document opening or a whole short filing.
+    addMatches(
+      /\b(?:annual|special)\s+meeting(?:\s+of\s+(?:stockholders|shareholders))?[^.\n]{0,180}?(?:to\s+be\s+held|will\s+be\s+held|held\s+on|adjourned\s+to)[^.\n]{0,180}/gi,
+      "meeting_context",
+      120,
+      300,
+      4,
+    );
+    addMatches(
+      /NOTICE OF (?:ANNUAL|SPECIAL) MEETING(?: OF (?:STOCKHOLDERS|SHAREHOLDERS))?[^\n]{0,220}/gi,
+      "meeting_context",
+      80,
+      320,
+      4,
+    );
+
+    const proposalHeadings = collectMatches(numberedProposalPattern);
+    const itemOrMatterHeadings = proposalHeadings.length === 0
+      ? collectMatches(numberedItemOrMatterPattern)
+      : [];
+    if (proposalHeadings.length > 0) {
+      // Keep every source occurrence (TOC, summary, Q&A, body). A later
+      // occurrence often contains the complete wording. This only locates
+      // source; it does not assert that the located text is a proposal.
+      addMatchList(proposalHeadings, "numbered_proposal_heading", 150, 750, Number.POSITIVE_INFINITY);
+    } else if (itemOrMatterHeadings.length > 0) {
+      addMatchList(itemOrMatterHeadings, "numbered_item_or_matter_heading", 150, 750, Number.POSITIVE_INFINITY);
+    }
+
+    // Routing source selection must not inherit the semantic inventory class:
+    // a full proxy can discuss amendments without being a supplement.
+    if (isSupplementLike) {
+      // A supplement may contain zero current proposal details. Preserve only
+      // proposal references stated by this document plus small parent/no-change
+      // context; never widen to the whole short document.
+      if (proposalHeadings.length === 0) {
+        addMatches(
+          /\b(?:an|the)\s+(?:important|key|principal)\s+proposal\b[^.\n]{0,900}/gi,
+          "supplement_explicit_proposal_reference",
+          350,
+          1_400,
+          12,
+        );
+        addMatches(
+          /\bproposal\s+(?:no\.?\s*)?\d{1,2}\b[^.\n]{0,900}/gi,
+          "supplement_explicit_proposal_reference",
+          300,
+          1_200,
+          20,
+        );
+        addMatches(
+          /\bproposal\s+(?:to|for)\s+(?:approve|adopt|increase|decrease|amend|elect|ratify|authorize|issue|adjourn)[^.\n]{0,900}/gi,
+          "supplement_explicit_proposal_reference",
+          300,
+          1_200,
+          12,
+        );
+      }
+      addMatches(
+        /\b(?:does not|do not)\s+(?:modify|change|amend|supplement)[^.\n]{0,500}(?:proxy statement|proxy card|proposals?)[^.\n]{0,500}/gi,
+        "supplement_parent_context",
+        250,
+        700,
+        6,
+      );
+      addMatches(
+        /\b(?:filed|mailed)\s+(?:a\s+)?(?:definitive\s+)?proxy statement[^.\n]{0,500}/gi,
+        "supplement_parent_reference",
+        150,
+        450,
+        6,
+      );
+    } else {
+      // Locate source structure, not proposal types or FACT values. Short list
+      // occurrences remain discovery windows; continuous body occurrences are
+      // retained in full and chunked below, including repeated proposal numbers.
+      const headings = [...proposalHeadings, ...collectMatches(numberedItemOrMatterPattern)]
+        .sort((a, b) => a.index! - b.index!);
+      const boundaries = [
+        ...collectMatches(/^(?:SECURITY OWNERSHIP|SECURITIES OWNERSHIP|BENEFICIAL OWNERSHIP|ADDITIONAL INFORMATION|OTHER MATTERS|OTHER BUSINESS|HOUSEHOLDING|WHERE YOU CAN FIND|INCORPORATION BY REFERENCE|STOCKHOLDER PROPOSALS|SHAREHOLDER PROPOSALS|APPENDIX\s+[A-Z]|ANNEX\s+[A-Z]|EXHIBIT\s+[A-Z])\b[^\n]*/gim),
+        // All-caps standalone chapter titles, not title-case benefit-table
+        // rows such as "Executive Officers" inside a plan/repricing proposal.
+        ...collectMatches(/^(?:EXECUTIVE OFFICERS(?: AND COMPENSATION)?|REPORT OF THE AUDIT COMMITTEE)[ \t]*$/gm),
+      ].sort((a, b) => a.index! - b.index!);
+      for (const [index, heading] of headings.entries()) {
+        const start = heading.index!;
+        const next = headings[index + 1]?.index ?? text.length;
+        const end = Math.min(next, boundaries.find(match => match.index! > start)?.index ?? text.length);
+        const afterHeading = text.slice(start + heading[0].length, end);
+        // Adjacent short entries / page-number columns identify a listing run.
+        // Do not expand its final entry across the following unrelated chapters.
+        const prior = headings[index - 1];
+        const numberLabel = (value: string) => value.match(/^(?:P\s*RO\s*POSAL|ITEM|MATTER)\s+(?:(?:NUMBER|NO\.?)\s*)?(\d{1,2}|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE)\b/i)?.[1].toUpperCase();
+        const repeatedLabel = prior && numberLabel(prior[0]) === numberLabel(heading[0]);
+        const listing = (prior && start - prior.index! < 500
+          && !repeatedLabel
+          && /^[\s|.\d]*$/.test(text.slice(prior.index! + prior[0].length, start)))
+          || /^\s*(?:\|\s*)*\d{1,3}\s*(?:\||\n)/.test(afterHeading)
+          || /\.{3,}\s*\d+\s*$/.test(heading[0]);
+        // A sentence beginning "Proposal 2 requires ..." or a proxy-card
+        // instruction is a cross-reference, not a new section boundary.
+        const headingSuffix = heading[0].replace(/^(?:P\s*RO\s*POSAL|ITEM|MATTER)\s+(?:(?:NUMBER|NO\.?)\s*)?(?:\d{1,2}|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE)\b/i, "");
+        const headingShape = !headingSuffix.trim() || /^\s*[.:\-–—\x97]/.test(headingSuffix);
+        if (!listing && headingShape && end - start >= 900) {
+          addRange(start, end, "proposal_body_section");
+          sectionBoundaries.add(start);
+          sectionBoundaries.add(end);
+        }
+      }
+
+      // Numbered cross-references in Notice, Q&A, recommendations and proxy
+      // cards are source locators too. Keep competing wording without deciding
+      // which account is correct. These are never asserted to be ballot items.
+      addMatches(
+        /\b(?:proposal|item|matter)\s+(?:(?:no\.?|number)\s*)?(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,
+        "numbered_proposal_reference", 750, 750, Number.POSITIVE_INFINITY,
+      );
+      addMatches(
+        /\b(?:vote[s]?\s+(?:required|necessary)|voting\s+(?:requirement|standard)|what\s+vote\s+is\s+required|board(?:\s+of\s+directors)?\s+(?:unanimously\s+)?recommends?)\b/gi,
+        "voting_context", 350, 1_500, Number.POSITIVE_INFINITY,
+      );
+      addMatches(
+        /^(?:votes? required|required vote|voting requirements?|voting standards?|board recommendation)\b[^\n]{0,150}/gim,
+        "voting_subsection_context", 0, 4_000, Number.POSITIVE_INFINITY,
+      );
+      addMatches(
+        /NOTICE OF (?:ANNUAL|SPECIAL) MEETING(?: OF (?:STOCKHOLDERS|SHAREHOLDERS))?[^\n]{0,220}/gi,
+        "notice_voting_context", 0, 4_500, 4,
+      );
+
+      // Bounded voting areas supplement body sections; without numbered
+      // headings they also serve as discovery fallback, never semantic truth.
+      const votingAreaCue = headings.length ? "supporting_voting_area" : "voting_area_fallback";
+      addMatches(
+        /\b(?:matters?|items?)\s+(?:to\s+be\s+voted\s+on|of\s+business)\b[^\n]{0,300}/gi,
+        votingAreaCue,
+        250,
+        4_500,
+        8,
+      );
+      addMatches(
+        /\b(?:will\s+be\s+asked\s+to\s+(?:consider\s+and\s+)?vote\s+on|for\s+the\s+following\s+purposes)\b[^\n]{0,500}/gi,
+        votingAreaCue,
+        300,
+        4_500,
+        8,
+      );
+      addMatches(
+        /\bhow\s+does\s+(?:the\s+)?board(?:\s+of\s+directors)?\s+recommend[^\n]{0,250}/gi,
+        votingAreaCue,
+        250,
+        4_500,
+        6,
+      );
+      addMatches(
+        /\bwhat\s+is\s+the\s+voting\s+requirement\s+to\s+approve\s+each[^\n]{0,250}/gi,
+        votingAreaCue,
+        250,
+        5_000,
+        6,
+      );
+      addMatches(
+        /\b(?:this proxy card|voting instruction form)\b[^\n]{0,400}/gi,
+        "proxy_card_fallback",
+        250,
+        4_000,
+        6,
+      );
+
+      // Follow only explicit local appendix/annex/exhibit references present in
+      // selected source. A heading alone (including a TOC entry) is not a link.
+      // Do not recursively pull material referenced by an appendix.
+      const references = new Map<string, Set<string>>();
+      for (const range of ranges) {
+        const selected = text.slice(range.start, range.end);
+        for (const match of selected.matchAll(/\b(appendix|annex|exhibit)\s+([A-Z])\b/gi)) {
+          const lineStart = selected.lastIndexOf("\n", match.index!) + 1;
+          const lineEnd = selected.indexOf("\n", match.index! + match[0].length);
+          const line = selected.slice(lineStart, lineEnd < 0 ? selected.length : lineEnd).trim();
+          if (line.replace(/[|\s]/g, "").toLowerCase() !== match[0].replace(/\s/g, "").toLowerCase()) {
+            const key = `${match[1].toLowerCase()}:${match[2].toUpperCase()}`;
+            const sections = references.get(key) ?? new Set<string>();
+            const paragraphStart = selected.lastIndexOf("\n\n", match.index!) + 2;
+            const paragraphEnd = selected.indexOf("\n\n", match.index! + match[0].length);
+            for (const ref of selected.slice(Math.max(0, paragraphStart), paragraphEnd < 0 ? selected.length : paragraphEnd)
+              .matchAll(/\b(?:section|article)\s+(\d+(?:\.\d+)*|[IVX]+)\b/gi)) sections.add(ref[1].toUpperCase());
+            references.set(key, sections);
+          }
+        }
+      }
+      const appendices = collectMatches(/^(APPENDIX|ANNEX|EXHIBIT)[ \t]+([A-Z])[ \t]*(?:\n|$)/gim);
+      for (const [index, appendix] of appendices.entries()) {
+        const sections = references.get(`${appendix[1].toLowerCase()}:${appendix[2].toUpperCase()}`);
+        if (!sections) continue;
+        const start = appendix.index!;
+        const end = appendices[index + 1]?.index ?? text.length;
+        if (end - start >= 900) {
+          // A short single instrument remains intact. A long plan/agreement
+          // reference is not permission to import all its chapters or exhibits.
+          // Preserve its identity/preamble and only explicitly addressed sections.
+          const attachmentText = text.slice(start, end);
+          const parts = [...attachmentText.matchAll(/^(?:(?:ARTICLE|SECTION)\s+)?(\d{1,3}(?:\.\d{1,3})*|[IVX]+)[.) \t]+[^\n]+/gim)];
+          const hasChapters = parts.filter(part => /^(?:ARTICLE|SECTION)\s+/i.test(part[0])).length > 1;
+          if (end - start <= 12_000 && !hasChapters) {
+            addRange(start, end, "explicitly_referenced_attachment_section");
+          } else {
+            const openingEnd = parts[0]?.index;
+            const intro = paragraphs.find(p => p.start > start && p.text.replace(/\s/g, "").length > 160);
+            addRange(start, start + (openingEnd ?? ((intro?.end ?? (start + appendix[0].length)) - start)), "explicitly_referenced_attachment_section");
+            for (const [partIndex, part] of parts.entries()) {
+              if (!sections.has(part[1].toUpperCase())) continue;
+              const nextPeer = parts.slice(partIndex + 1).find(next => next[1].split(".").length <= part[1].split(".").length);
+              addRange(start + part.index!, start + (nextPeer?.index ?? attachmentText.length), "explicitly_referenced_attachment_section");
+            }
+          }
+          sectionBoundaries.add(start);
+          sectionBoundaries.add(end);
+        }
+      }
+    }
+
+    const merged = mergeProxyDiscoveryRanges(ranges, isSupplementLike);
+    const orderedBoundaries = [...sectionBoundaries].sort((a, b) => a - b);
+    const maxBlockChars = 6_000;
+    let blockOrdinal = 0;
+
+    for (const range of merged) {
+      let cursor = range.start;
+      while (cursor < range.end) {
+        const nextBoundary = orderedBoundaries.find(boundary => boundary > cursor) ?? range.end;
+        const end = Math.min(range.end, nextBoundary, cursor + maxBlockChars);
+        const slice = text.slice(cursor, end).trim();
+        if (slice) {
+          blockOrdinal += 1;
+          const trimLeft = text.slice(cursor, end).length - text.slice(cursor, end).trimStart().length;
+          const actualStart = cursor + trimLeft;
+          const actualEnd = actualStart + slice.length;
+          blocks.push({
+            id: `D${sourceDocumentIndex + 1}-B${blockOrdinal}`,
+            sourceDocumentIndex,
+            documentClass: documentInventory[sourceDocumentIndex]?.proxyClass ?? "unknown_proxy_related_material",
+            documentType: document.type,
+            filename: document.filename,
+            isPrimary: document.isPrimary,
+            startChar: actualStart,
+            endChar: actualEnd,
+            text: slice,
+            cues: [...range.cues].sort(),
+          });
+        }
+        if (end >= range.end) break;
+        cursor = !isSupplementLike || end === nextBoundary ? end : Math.max(cursor + 1, end - 300);
+      }
+    }
+  });
+
+  return blocks;
+}
+
+function isProxyDiscoveryContextHeading(text: string): boolean {
+  const value = text.replace(/\s+/g, " ").trim();
+  if (!value || value.length > 220 || /^[\s|\d.]+$/.test(value)) return false;
+  if (/^table of contents$/i.test(value)) return false;
+  return /\?$/.test(value) || /^[A-Z][A-Z\s\d&.,'():;\-/]+$/.test(value)
+    || value.split(/\s+/).every(word => /^[A-Z][\w'-]*[:;]?$/.test(word) || /^(?:of|the|and|to|for|on|at|in|a|an)$/.test(word));
+}
+
+function mergeProxyDiscoveryRanges(ranges: ProxyDiscoveryRange[], preserveLegacyWindows = false): ProxyDiscoveryRange[] {
+  if (!preserveLegacyWindows) {
+    // Partition the union at actual range boundaries. Each character appears
+    // once and carries only cues that cover that coordinate. Never bridge gaps
+    // or propagate an auxiliary cue along a body/attachment merge chain.
+    const boundaries = [...new Set(ranges.flatMap(r => [r.start, r.end]))].sort((a, b) => a - b);
+    const selected: ProxyDiscoveryRange[] = [];
+    for (let i = 0; i + 1 < boundaries.length; i++) {
+      const start = boundaries[i], end = boundaries[i + 1];
+      const cues = [...new Set(ranges.filter(r => r.start <= start && r.end >= end).flatMap(r => [...r.cues]))].sort();
+      if (!cues.length) continue;
+      const prior = selected.at(-1);
+      if (prior?.end === start && [...prior.cues].join("|") === cues.join("|")) prior.end = end;
+      else selected.push({ start, end, cues: new Set(cues) });
+    }
+    return selected;
+  }
+  const merged: ProxyDiscoveryRange[] = [];
+  for (const range of [...ranges].sort((a, b) => a.start - b.start || a.end - b.end)) {
+    const previous = merged.at(-1);
+    if (previous && range.start <= previous.end + 120) {
+      previous.end = Math.max(previous.end, range.end);
+      for (const cue of range.cues) previous.cues.add(cue);
+    } else {
+      merged.push({
+        start: range.start,
+        end: range.end,
+        cues: new Set(range.cues),
+      });
+    }
+  }
+  return merged;
 }
 
 function classifyProxyDocument(
