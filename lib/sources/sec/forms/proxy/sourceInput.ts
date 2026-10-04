@@ -72,6 +72,15 @@ const PRIMARY_SOURCE_CUES = new Set([
 
 const normalized = (text: string) => text.replace(/\s+/g, " ").trim();
 
+function hasStandaloneNumberedReference(text: string): boolean {
+  // Use the same label forms for all three source locators. An Item/Matter
+  // subsection or decimal suffix is a hierarchical citation;
+  // do not accept a partial match such as "Item 2" inside "Item 25(b)".
+  return [...text.matchAll(/\b(proposal|item|matter)\s+(?:(?:no\.?|number)\s*)?(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi)]
+    .some(match => match[1].toLowerCase() === "proposal"
+      || !/^\s*(?:\(\s*(?:[a-z]|\d+|[ivx]+)\s*\)|\.\d)/i.test(text.slice(match.index! + match[0].length)));
+}
+
 function buildPrimarySourceBlocks(parserOutput: ProxyParserOutput): Array<Record<string, unknown>> {
   const raw = parserOutput.raw;
   const legacyTexts = [
@@ -80,18 +89,18 @@ function buildPrimarySourceBlocks(parserOutput: ProxyParserOutput): Array<Record
     ...raw.supplementalAnalysis.changeSignals.map(signal => signal.sourceText),
   ].map(normalized).filter(Boolean);
   // Cues locate source structure, never establish proposal identity or meaning.
-  // In particular, generic Item cross-references (e.g. SEC fee instructions)
-  // alone do not justify adding a new source region to Primary.
+  // Hierarchical citations (e.g. Item 25(b) in SEC fee instructions) alone
+  // do not justify adding a new source region to Primary.
   const selected = [...(raw.discoveryBlocks ?? [])].filter(block =>
     block.cues.some(cue => PRIMARY_SOURCE_CUES.has(cue))
     || (block.cues.includes("numbered_proposal_reference")
-      && /\bproposal\s+(?:(?:no\.?|number)\s*)?(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b)/i.test(block.text))
+      && hasStandaloneNumberedReference(block.text))
     || legacyTexts.some(text => normalized(block.text).includes(text)),
   ).sort((a, b) => a.sourceDocumentIndex - b.sourceDocumentIndex
     || a.startChar - b.startChar || a.endChar - b.endChar);
 
-  // Coalesce overlapping/adjacent coordinates only. Never bridge an unknown
-  // gap or deduplicate equal wording across different documents/locations.
+  // Preserve each parser chunk, including overlaps. Merging adjacent chunks
+  // hides late text from consumers that clip each block (such as repair).
   const ranges: Array<{ documentIndex: number; start: number; end: number; text: string; ids: string[] }> = [];
   for (const block of selected) {
     const document = raw.documentInventory[block.sourceDocumentIndex];
@@ -101,20 +110,8 @@ function buildPrimarySourceBlocks(parserOutput: ProxyParserOutput): Array<Record
       || block.endChar <= block.startChar || block.endChar - block.startChar !== block.text.length) {
       throw new Error(`Invalid Proxy Primary source coordinates: ${block.id}`);
     }
-    const previous = ranges.at(-1);
-    if (previous && previous.documentIndex === block.sourceDocumentIndex && block.startChar <= previous.end) {
-      const overlap = Math.min(previous.end, block.endChar) - block.startChar;
-      if (previous.text.slice(block.startChar - previous.start, block.startChar - previous.start + overlap)
-        !== block.text.slice(0, overlap)) {
-        throw new Error(`Conflicting Proxy Primary source coordinates: ${block.id}`);
-      }
-      if (block.endChar > previous.end) previous.text += block.text.slice(overlap);
-      previous.end = Math.max(previous.end, block.endChar);
-      previous.ids.push(block.id);
-    } else {
-      ranges.push({ documentIndex: block.sourceDocumentIndex, start: block.startChar,
-        end: block.endChar, text: block.text, ids: [block.id] });
-    }
+    ranges.push({ documentIndex: block.sourceDocumentIndex, start: block.startChar,
+      end: block.endChar, text: block.text, ids: [block.id] });
   }
   const blocks: Array<Record<string, unknown>> = ranges.map(range => {
     const document = raw.documentInventory[range.documentIndex];

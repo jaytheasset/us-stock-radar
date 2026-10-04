@@ -58,7 +58,9 @@ function compare(name, input, fullEvidence) {
   const market = { verification: "offline preserved context" };
   const before = oldSource.module.buildProxySourceBlockPromptInput(parsed, market);
   const after = buildProxySourceBlockPromptInput(parsed, market);
-  assert.deepEqual(buildProxyLegacySourceBlockPromptInput(parsed, market), before, name + " legacy input drift");
+  const oldLegacyBuilder = oldSource.module.buildProxyLegacySourceBlockPromptInput
+    ?? oldSource.module.buildProxySourceBlockPromptInput;
+  assert.deepEqual(buildProxyLegacySourceBlockPromptInput(parsed, market), oldLegacyBuilder(parsed, market), name + " legacy input drift");
   const beforePrompt = oldPrompt.module.buildProxyAnalysisPrompt({ parserOutput: parsed, marketContext: market });
   const afterPrompt = buildProxyAnalysisPrompt({ parserOutput: parsed, marketContext: market });
   assert.equal(afterPrompt.replace(JSON.stringify(after, null, 2), "SOURCE_INPUT"),
@@ -93,9 +95,25 @@ function compare(name, input, fullEvidence) {
     before: contains(oldTexts, block.text), after: contains(newTexts, block.text),
   }));
   const documents = diagnostics.extractProxyDocuments(input, parsed.raw.secFormType);
-  for (const block of after.cleaned_source_blocks.filter(block => block.source?.startChar !== undefined)) {
+  const located = obj => obj.cleaned_source_blocks.filter(block => block.source?.startChar !== undefined);
+  const deliveredIds = new Set();
+  for (const block of located(after)) {
     const documentText = diagnostics.normalizeFilingText(documents[block.source.documentIndex].body);
     assert.equal(block.text, documentText.slice(block.source.startChar, block.source.endChar), name + " source slice mismatch");
+    assert.equal(block.source.discoveryBlockIds.length, 1, name + " merged parser blocks");
+    const [id] = block.source.discoveryBlockIds;
+    const original = parsed.raw.discoveryBlocks.find(item => item.id === id);
+    assert.ok(original, name + " missing parser block");
+    assert.equal(block.source.documentIndex, original.sourceDocumentIndex);
+    assert.equal(block.source.startChar, original.startChar);
+    assert.equal(block.source.endChar, original.endChar);
+    assert.equal(block.text, original.text, name + " changed parser block boundary");
+    deliveredIds.add(id);
+  }
+  for (const block of located(before)) {
+    for (const id of block.source.discoveryBlockIds) {
+      assert.ok(deliveredIds.has(id), name + " lost previously delivered source: " + id);
+    }
   }
   const rowText = text => norm(text.replaceAll("|", " "));
   const lateTableRows = parsed.raw.keyTableExtraction.tables.flatMap(table => {
@@ -124,6 +142,9 @@ function compare(name, input, fullEvidence) {
       totalChars: coverage.reduce((sum, b) => sum + b.chars, 0),
       beforeFullBlockChars: coverage.filter(b => b.before).reduce((sum, b) => sum + b.chars, 0),
       afterFullBlockChars: coverage.filter(b => b.after).reduce((sum, b) => sum + b.chars, 0) },
+    discoveryBoundaries: { exactParserBlocks: true, priorSelectedBlocksPreserved: true,
+      maxBeforeChars: Math.max(0, ...located(before).map(block => block.text.length)),
+      maxAfterChars: Math.max(0, ...located(after).map(block => block.text.length)) },
     coverage, lateTableRows };
   if (fullEvidence) {
     save(`${name}.before.json`, before); save(`${name}.after.json`, after);
@@ -151,4 +172,4 @@ save("comparison.json", { baseline, fixtureCount, liveExternalCalls: 0,
   units: "Exact JS UTF-16 code units and UTF-8 bytes of pretty JSON / full local Primary prompt; no token estimate or provider token count.",
   coverageMeaning: "Full discovery-block containment after whitespace normalization; NOT complete filing coverage or partial-character recall.",
   unchanged, rows });
-console.log(JSON.stringify({ fixtureCount, cases: rows.slice(fixtureCount).map(({ name, before, after, discoveryCoverage }) => ({ name, before, after, discoveryCoverage })), passed: true }, null, 2));
+console.log(JSON.stringify({ fixtureCount, cases: rows.slice(fixtureCount).map(({ name, before, after, discoveryCoverage, discoveryBoundaries }) => ({ name, before, after, discoveryCoverage, discoveryBoundaries })), passed: true }, null, 2));

@@ -1,5 +1,29 @@
 # Proxy Primary source input candidate — 2026-10-05
 
+## Follow-up revision on the existing candidate
+
+Revision base: detached `c3b843f8018366efa89c6463e05f2480a88e5310`, clean, in the same assigned `f6e4` worktree. No new chat/worktree, main operation, external call or deployment.
+
+- Primary now accepts standalone `Proposal`, `Item` and `Matter` numbered references using the same numeric/spelled-number/No./Number forms. Item/Matter references with a parenthesized subclause or decimal suffix (e.g. `Item 25(b)`, `Item 25 (b)`, `Item 7.01`) do not independently select a block. Explanatory parentheses remain eligible. Existing Proposal reference behavior is preserved. This is source-label syntax, not classification of an agenda item or a financial fact. When a paragraph also has a selected standalone reference, its complete context is retained, including any citation in that paragraph.
+- Every selected discovery block is emitted with its original text, start/end coordinates and a single original block ID. Adjacent and overlapping chunks are no longer combined. Existing uncovered Primary evidence and table samples remain. This supersedes the original coalescing implementation described below.
+- No changes to shared parser, Structured v1, frozen Call 1/2, schemas, prompts, validators, Primary output/scoring/meaning rules or repair code in this follow-up.
+
+Final comparison evidence: `C:/Users/PC/.codex/visualizations/2026/10/04/01a108b4-1f5b-7382-9535-3e0883cfe784/proxy-primary-boundary-verified` (complete before/after inputs and prompts, `comparison.json`, `tests.log`).
+
+| Saved source | Maximum located block chars before → after | Previously covered discovery blocks retained | Input UTF-16 units before → after | Input UTF-8 bytes before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Alternus | 23,998 → 6,000 | 102/102 | 264,320 → 270,518 | 264,506 → 270,704 |
+| ENDRA | 20,938 → 6,000 | 21/21 | 77,579 → 79,935 | 77,605 → 79,961 |
+| BigBear | 1,016 → 1,016 | 2/2 | 5,746 → 5,746 | 5,766 → 5,766 |
+
+85 fixture inputs and three saved HTML inputs pass exact parser-boundary and source-slice checks, previous source-ID retention, existing Primary evidence/inventory/context retention, unchanged prompt contract and legacy Structured v1 package/fingerprint comparisons. The generic Item fee-reference blocks in Alternus and ENDRA remain excluded. Full offline regressions: 121/121 passed, including nine focused Primary source tests. Frozen preserved-response replay remains Alternus 8 / BigBear 0; no provider calls. Full configured TypeScript check: 1,643 files, 0 diagnostics; git diff --check passed. Replay/typecheck logs use the sibling `proxy-primary-offline/boundary-revision-*` prefix.
+
+Boundary preservation removes builder-induced 20–24k blocks. The existing repair path still clips each selected block at 5,000 chars; this change does not promise that all 6,000 chars of a parser chunk are visible during repair. A regression verifies that later chunk openings are independently available to that per-block clip. All earlier parser coverage limitations remain.
+
+Reproduce the follow-up comparison using the command below with baseline `c3b843f8018366efa89c6463e05f2480a88e5310` and a fresh evidence directory. The operations checklist at the end remains applicable; local/GitHub/Vercel states were not re-audited in this offline candidate revision.
+
+## Original candidate checkpoint (historical measurements)
+
 ## Scope and acceptance
 
 - Assigned workspace: `C:/Users/PC/.codex/worktrees/f6e4/US-Stock Radar`.

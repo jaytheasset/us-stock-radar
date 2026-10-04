@@ -59,7 +59,7 @@ test("uncovered Primary evidence, inventories, context and table samples survive
     "Table sample (not complete table)");
 });
 
-test("covered snippets and overlapping source windows are replaced without losing distinct document occurrences", () => {
+test("covered snippets are replaced while overlapping windows and distinct document occurrences keep their boundaries", () => {
   const parsed = parseProxyFiling({ formType: "DEF 14A", filingText: "PROPOSAL 1\n" + "Body prose. ".repeat(100) });
   const original = parsed.raw.discoveryBlocks.find(block => block.text.length > 30)!;
   parsed.raw.discoveryBlocks = [original, { ...original, id: "overlap", startChar: original.startChar + 10,
@@ -68,20 +68,74 @@ test("covered snippets and overlapping source windows are replaced without losin
   parsed.raw.discoveryBlocks.push({ ...original, id: "D2-B1", sourceDocumentIndex: 1 });
   parsed.raw.importantBlocks = [{ kind: "proposal", label: "Invented interpretation", text: original.text.slice(20, 35) }];
   const result = blocks(parsed).filter(block => block.block_type !== "current_filing");
-  assert.equal(result.length, 2);
+  assert.equal(result.length, 3);
   assert.equal(result[0].text, original.text);
-  assert.equal(result[1].text, original.text);
-  assert.equal(result[1].source.origin, "attachment");
+  assert.equal(result[1].text, original.text.slice(10));
+  assert.equal(result[2].text, original.text);
+  assert.equal(result[2].source.origin, "attachment");
 });
 
 test("generic regulatory references are not blindly appended and malformed coordinates fail explicitly", () => {
   const parsed = parseProxyFiling({ formType: "DEF 14A", filingText: "PROPOSAL 1\n" + "Body prose. ".repeat(100) });
-  const unrelated = { ...parsed.raw.discoveryBlocks[0], id: "fee", startChar: 0, endChar: 7,
-    text: "Item 25", cues: ["numbered_proposal_reference"] };
+  const unrelated = { ...parsed.raw.discoveryBlocks[0], id: "fee", startChar: 0, endChar: 10,
+    text: "Item 25(b)", cues: ["numbered_proposal_reference"] };
   parsed.raw.discoveryBlocks.push(unrelated);
   assert.ok(!text(parsed).includes("Item 25"));
   parsed.raw.discoveryBlocks[0].endChar++;
   assert.throws(() => blocks(parsed), /Invalid Proxy Primary source coordinates/);
+});
+
+test("Proposal, Item and Matter standalone references survive without semantic cues or legacy excerpt matches", () => {
+  for (const label of ["Proposal", "Item", "Matter"]) {
+    for (const number of ["1", "12", "25", "No. 2", "Number THREE", "2 (the accompanying amendment)"]) {
+      const marker = `Refer to ${label} ${number} for the accompanying text.`;
+      const parsed = parseProxyFiling({ formType: "DEF 14A", filingText: marker });
+      assert.ok(parsed.raw.discoveryBlocks.some(block => block.cues.includes("numbered_proposal_reference")), marker);
+      parsed.raw.importantBlocks = [];
+      parsed.raw.supplementalAnalysis.parentReferences = [];
+      parsed.raw.supplementalAnalysis.changeSignals = [];
+      assert.ok(text(parsed).includes(marker), marker);
+    }
+  }
+  const qualified = parseProxyFiling({ formType: "DEF 14A", filingText: "See Proposal 2(a) for the accompanying text." });
+  qualified.raw.importantBlocks = [];
+  assert.ok(text(qualified).includes("Proposal 2(a)"), "preserve existing Proposal reference behavior");
+});
+
+test("hierarchical fee/rule citations alone are excluded without suppressing a standalone reference in the same paragraph", () => {
+  for (const citation of ["Item 25(b)", "Item 25 (b)", "Item 7.01", "Item 12(a)(2)"]) {
+    const filingText = `Fee computed on the table in the exhibit required by ${citation} per Exchange Act Rules.`;
+    const parsed = parseProxyFiling({ formType: "DEF 14A", filingText });
+    assert.ok(parsed.raw.discoveryBlocks.length > 0);
+    parsed.raw.importantBlocks = [];
+    assert.ok(!text(parsed).includes(filingText), citation);
+    for (const label of ["Proposal", "Item", "Matter"]) {
+      const mixed = parseProxyFiling({ formType: "DEF 14A", filingText: `${filingText} See ${label} 2 for the accompanying text.` });
+      mixed.raw.importantBlocks = [];
+      assert.ok(text(mixed).includes(filingText), "retain whole context of a selected paragraph");
+    }
+  }
+});
+
+test("long adjacent body chunks remain exact parser blocks and later chunk openings reach a per-block repair clip", () => {
+  const parsed = parseProxyFiling({ formType: "DEF 14A", filingText: ["PROPOSAL 1",
+    Array.from({ length: 1250 }, (_, index) => `Paragraph ${index}: neutral body wording.`).join(" "), "OTHER MATTERS"].join("\n") });
+  const body = parsed.raw.discoveryBlocks.filter(block => block.cues.includes("proposal_body_section"));
+  assert.ok(body.length >= 5);
+  const located = blocks(parsed).filter(block => block.source?.startChar !== undefined);
+  const laterOpening = body[4].text.slice(0, 80);
+  assert.ok(!body.map(block => block.text).join("").slice(0, 5000).includes(laterOpening));
+  assert.ok(located.some(block => block.text.slice(0, 5000).includes(laterOpening)));
+  for (const original of body) {
+    const delivered = located.find(block => block.source.discoveryBlockIds.includes(original.id));
+    assert.ok(delivered, original.id);
+    assert.deepEqual(delivered.source.discoveryBlockIds, [original.id]);
+    assert.equal(delivered.source.startChar, original.startChar);
+    assert.equal(delivered.source.endChar, original.endChar);
+    assert.equal(delivered.text, original.text);
+    assert.ok(delivered.text.length <= 6000);
+    assert.equal(delivered.text.slice(0, 5000), original.text.slice(0, 5000));
+  }
 });
 
 test("missing discovery inventory keeps older stored parser inputs usable without mutating parser or Structured input", () => {
