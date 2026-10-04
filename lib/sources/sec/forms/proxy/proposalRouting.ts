@@ -1,54 +1,56 @@
 import {
-  buildProxyProposalClassificationInput,
-  runProxyProposalClassificationGemini,
+  buildProxyFinalStructuredInput,
+  runProxyFinalStructuredGemini,
+  type ProxyCapitalFacts,
+  type ProxyFinalStructuredConflict,
+  type ProxyFinalStructuredFact,
   type ProxyProposalCategory,
-} from "./proposalClassification.ts";
+} from "./finalStructured.ts";
 import {
+  PROXY_ANALYSIS_HANDOFF_MAX_OUTPUT_TOKENS,
   runProxyProposalDiscoveryGemini,
+  type ProxyAnalysisHandoffResult,
   type ProxyProposalDiscoverySourcePackage,
 } from "./proposalDiscovery.ts";
-import {
-  buildProxyProceduralBallotInputs,
-  runProxyProceduralBallotGemini,
-} from "./proceduralBallotVerification.ts";
 
 export const PROXY_PROPOSAL_ROUTING_MODELS = {
-  stage1: "gemini-2.5-flash-lite",
-  stage2: "gemini-2.5-flash-lite",
-  stage2b: "gemini-3.5-flash",
+  call1: "gemini-2.5-flash-lite",
+  call2: "gemini-3.5-flash",
 } as const;
 
 export const PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS = {
-  stage1: 4_096,
-  stage2: 2_048,
-  stage2b: 1_024,
+  call1: PROXY_ANALYSIS_HANDOFF_MAX_OUTPUT_TOKENS,
+  call2: 16_384,
 } as const;
+
+export const PROXY_PROPOSAL_ROUTING_MAX_LLM_CALLS = 2 as const;
 
 export type ProxyProposalRoutingFinalProposal = {
   proposal_id: string;
   title: string;
-  action_summary: string;
+  claims: ProxyAnalysisHandoffResult["candidates"][number]["claims"];
   evidence: string[];
-  category: ProxyProposalCategory;
-};
+} & ({
+  category: "capital_structure";
+  capital_facts: ProxyCapitalFacts;
+} | {
+  category: Exclude<ProxyProposalCategory, "capital_structure">;
+  facts: ProxyFinalStructuredFact[];
+  source_conflicts: ProxyFinalStructuredConflict[];
+});
 
-type Stage1Run = Awaited<ReturnType<typeof runProxyProposalDiscoveryGemini>>;
-type Stage2Run = Awaited<ReturnType<typeof runProxyProposalClassificationGemini>>;
-type Stage2BRun = Awaited<ReturnType<typeof runProxyProceduralBallotGemini>>;
+type Call1Run = Awaited<ReturnType<typeof runProxyProposalDiscoveryGemini>>;
+type Call2Run = Awaited<ReturnType<typeof runProxyFinalStructuredGemini>>;
 
 export type ProxyProposalRoutingResult = {
   ok: boolean;
-  error: { stage: "stage1" | "stage2" | "stage2b"; message: string } | null;
-  stage1: { model: typeof PROXY_PROPOSAL_ROUTING_MODELS.stage1; run: Stage1Run };
-  stage2: {
-    model: typeof PROXY_PROPOSAL_ROUTING_MODELS.stage2;
-    run: Stage2Run;
+  error: { stage: "call1" | "call2"; message: string } | null;
+  llmCallCount: number;
+  call1: { model: typeof PROXY_PROPOSAL_ROUTING_MODELS.call1; run: Call1Run };
+  call2: {
+    model: typeof PROXY_PROPOSAL_ROUTING_MODELS.call2;
+    run: Call2Run;
   } | null;
-  stage2b: Array<{
-    proposal_id: string;
-    model: typeof PROXY_PROPOSAL_ROUTING_MODELS.stage2b;
-    run: Stage2BRun;
-  }>;
   finalProposals: ProxyProposalRoutingFinalProposal[] | null;
 };
 
@@ -63,129 +65,135 @@ export async function runProxyProposalRouting({
   formType: string;
   fetchImpl?: typeof fetch;
 }): Promise<ProxyProposalRoutingResult> {
-  const stage1Run = await runProxyProposalDiscoveryGemini({
+  let llmCallCount = 0;
+  const guardedFetch = (stage: "call1" | "call2"): typeof fetch => {
+    let called = false;
+    return async (input, init) => {
+      if (called || llmCallCount >= PROXY_PROPOSAL_ROUTING_MAX_LLM_CALLS) {
+        throw new Error(`Proxy proposal routing allows one request per stage; ${stage} cannot call again`);
+      }
+      called = true;
+      llmCallCount += 1;
+      return fetchImpl(input, init);
+    };
+  };
+
+  const call1Run = await runProxyProposalDiscoveryGemini({
     apiKey,
-    model: PROXY_PROPOSAL_ROUTING_MODELS.stage1,
+    model: PROXY_PROPOSAL_ROUTING_MODELS.call1,
     sourcePackage,
-    maxOutputTokens: PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS.stage1,
-    fetchImpl,
+    maxOutputTokens: PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS.call1,
+    fetchImpl: guardedFetch("call1"),
   });
-  const stage1 = {
-    model: PROXY_PROPOSAL_ROUTING_MODELS.stage1,
-    run: stage1Run,
+  const call1 = {
+    model: PROXY_PROPOSAL_ROUTING_MODELS.call1,
+    run: call1Run,
   } as const;
-  if (!stage1Run.transportOk || !stage1Run.validation.ok || !stage1Run.validation.value) {
+  if (!call1Run.transportOk || !call1Run.validation.ok || !call1Run.validation.value) {
     return {
       ok: false,
-      error: { stage: "stage1", message: runFailureMessage(stage1Run) },
-      stage1,
-      stage2: null,
-      stage2b: [],
+      error: { stage: "call1", message: runFailureMessage(call1Run) },
+      llmCallCount,
+      call1,
+      call2: null,
       finalProposals: null,
     };
   }
 
-  const stage2Input = buildProxyProposalClassificationInput(stage1Run.validation.value);
-  const stage2Run = await runProxyProposalClassificationGemini({
-    apiKey,
-    model: PROXY_PROPOSAL_ROUTING_MODELS.stage2,
-    input: stage2Input,
-    maxOutputTokens: PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS.stage2,
-    fetchImpl,
-  });
-  const stage2 = {
-    model: PROXY_PROPOSAL_ROUTING_MODELS.stage2,
-    run: stage2Run,
-  } as const;
-  if (!stage2Run.transportOk || !stage2Run.validation.ok || !stage2Run.validation.value) {
-    return {
-      ok: false,
-      error: { stage: "stage2", message: runFailureMessage(stage2Run) },
-      stage1,
-      stage2,
-      stage2b: [],
-      finalProposals: null,
-    };
-  }
-
-  const stage2bInputs = buildProxyProceduralBallotInputs({
-    stage1: stage1Run.validation.value,
-    stage2: stage2Run.validation.value,
-    sourcePackage,
-    formType,
-  });
-  const stage2b: ProxyProposalRoutingResult["stage2b"] = [];
-  for (const input of stage2bInputs) {
-    const run = await runProxyProceduralBallotGemini({
-      apiKey,
-      model: PROXY_PROPOSAL_ROUTING_MODELS.stage2b,
-      input,
-      maxOutputTokens: PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS.stage2b,
-      fetchImpl,
+  let call2Input;
+  try {
+    // Project identity here; the Call 2 builder never receives the source package.
+    const provenance = sourcePackage.provenance || {};
+    const issuer = provenance.issuer_identity;
+    const companyName = issuer && typeof issuer === "object" && !Array.isArray(issuer)
+      ? (issuer as Record<string, unknown>).company_name : null;
+    call2Input = buildProxyFinalStructuredInput({
+      stage1: call1Run.validation.value,
+      filing: {
+        form_type: formType,
+        accession_number: identityText(provenance.accession_number),
+        filing_date: identityText(provenance.filing_date),
+        company_name: identityText(companyName),
+        source_url: identityText(provenance.source_url) || identityText(provenance.primary_document_url),
+      },
     });
-    stage2b.push({
-      proposal_id: input.proposal_id,
-      model: PROXY_PROPOSAL_ROUTING_MODELS.stage2b,
-      run,
-    });
-  }
-
-  const failedStage2B = stage2b.find(({ run }) => (
-    !run.transportOk || !run.validation.ok || !run.validation.value
-  ));
-  if (failedStage2B) {
+  } catch (error) {
     return {
       ok: false,
       error: {
-        stage: "stage2b",
-        message: `${failedStage2B.proposal_id}: ${runFailureMessage(failedStage2B.run)}`,
+        stage: "call2",
+        message: error instanceof Error ? error.message : String(error),
       },
-      stage1,
-      stage2,
-      stage2b,
+      llmCallCount,
+      call1,
+      call2: null,
       finalProposals: null,
     };
   }
 
-  const proceduralDecisions = new Map(
-    stage2b.map(({ proposal_id, run }) => [
-      proposal_id,
-      run.validation.value?.is_ballot_proposal === true,
-    ]),
-  );
-  const finalProposals = stage2Run.validation.value.items.flatMap((classification) => {
-    if (!classification.is_proposal || classification.category === null) return [];
-    if (classification.category === "procedural"
-      && proceduralDecisions.get(classification.proposal_id) !== true) {
-      return [];
-    }
-    const proposalIndex = Number(classification.proposal_id.slice(1)) - 1;
-    const proposal = stage1Run.validation.value?.proposals[proposalIndex];
+  const call2Run = await runProxyFinalStructuredGemini({
+    apiKey,
+    model: PROXY_PROPOSAL_ROUTING_MODELS.call2,
+    input: call2Input,
+    maxOutputTokens: PROXY_PROPOSAL_ROUTING_MAX_OUTPUT_TOKENS.call2,
+    fetchImpl: guardedFetch("call2"),
+  });
+  const call2 = {
+    model: PROXY_PROPOSAL_ROUTING_MODELS.call2,
+    run: call2Run,
+  } as const;
+  if (!call2Run.transportOk || !call2Run.validation.ok || !call2Run.validation.value) {
+    return {
+      ok: false,
+      error: { stage: "call2", message: runFailureMessage(call2Run) },
+      llmCallCount,
+      call1,
+      call2,
+      finalProposals: null,
+    };
+  }
+
+  const finalProposals = call2Run.validation.value.items.flatMap<ProxyProposalRoutingFinalProposal>((item) => {
+    if (!item.is_proposal || item.category === null) return [];
+    const proposalIndex = Number(item.proposal_id.slice(1)) - 1;
+    const proposal = call2Input.handoff.candidates[proposalIndex];
     if (!proposal) {
-      throw new Error(`Validated Stage 2 references missing Stage 1 proposal ${classification.proposal_id}`);
+      throw new Error(`Validated Call 2 references missing Call 1 proposal ${item.proposal_id}`);
+    }
+    const identity = {
+      proposal_id: item.proposal_id,
+      title: proposal.title,
+      claims: structuredClone(proposal.claims),
+      evidence: [...new Set(proposal.claims.flatMap((claim) => claim.evidence))],
+    };
+    if (item.category === "capital_structure") {
+      return [{ ...identity, category: item.category, capital_facts: structuredClone(item.capital_facts) }];
     }
     return [{
-      proposal_id: classification.proposal_id,
-      title: proposal.title,
-      action_summary: proposal.action_summary,
-      evidence: [...proposal.evidence],
-      category: classification.category,
+      ...identity,
+      category: item.category,
+      facts: structuredClone(item.facts),
+      source_conflicts: structuredClone(item.source_conflicts),
     }];
   });
 
   return {
     ok: true,
     error: null,
-    stage1,
-    stage2,
-    stage2b,
+    llmCallCount,
+    call1,
+    call2,
     finalProposals,
   };
+}
+
+function identityText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function runFailureMessage(run: {
   error?: string;
   validation: { errors: string[] };
 }) {
-  return run.error || run.validation.errors.join("; ") || "Proxy proposal stage failed";
+  return run.error || run.validation.errors.join("; ") || "Proxy proposal call failed";
 }

@@ -1,39 +1,50 @@
+import type { ProxyParserOutput } from "./parser.ts";
+
+/** Frozen v1 input identity for the unchanged Call 2; never emitted by the current Call 1. */
 export const PROXY_PROPOSAL_DISCOVERY_VERSION = "proxy_proposal_discovery_v1" as const;
+export const PROXY_ANALYSIS_HANDOFF_VERSION = "proxy_analysis_handoff_v3" as const;
+export const PROXY_ANALYSIS_HANDOFF_MAX_OUTPUT_TOKENS = 8_192;
+
+const PROXY_ANALYSIS_CLAIM_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["text", "evidence"],
+  properties: {
+    text: { type: "string", minLength: 1, maxLength: 600 },
+    evidence: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: { type: "string", pattern: "^E[1-9][0-9]*$" },
+      uniqueItems: true,
+    },
+  },
+} as const;
 
 export const PROXY_PROPOSAL_DISCOVERY_RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["version", "meeting", "proposals"],
+  required: ["version", "document_notes", "candidates"],
   properties: {
-    version: { type: "string", enum: [PROXY_PROPOSAL_DISCOVERY_VERSION] },
-    meeting: {
-      type: "object",
-      additionalProperties: false,
-      required: ["type", "date", "evidence"],
-      properties: {
-        type: { type: "string", enum: ["annual", "special", "other", "unclear"] },
-        date: { anyOf: [{ type: "string", format: "date" }, { type: "null" }] },
-        evidence: {
-          type: "array",
-          items: { type: "string", pattern: "^E[1-9][0-9]*$" },
-          uniqueItems: true,
-        },
-      },
+    version: { type: "string", enum: [PROXY_ANALYSIS_HANDOFF_VERSION] },
+    document_notes: {
+      type: "array",
+      maxItems: 5,
+      items: PROXY_ANALYSIS_CLAIM_SCHEMA,
     },
-    proposals: {
+    candidates: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "action_summary", "evidence"],
+        required: ["title", "claims"],
         properties: {
-          title: { type: "string", minLength: 1, maxLength: 500 },
-          action_summary: { type: "string", minLength: 1, maxLength: 500 },
-          evidence: {
+          title: { type: "string", minLength: 1, maxLength: 200 },
+          claims: {
             type: "array",
             minItems: 1,
-            items: { type: "string", pattern: "^E[1-9][0-9]*$" },
-            uniqueItems: true,
+            maxItems: 10,
+            items: PROXY_ANALYSIS_CLAIM_SCHEMA,
           },
         },
       },
@@ -48,6 +59,8 @@ export type ProxyProposalDiscoveryEvidenceBlock = {
   blockType: string;
   blockSequence: number;
   text: string;
+  discoveryBlockId?: string;
+  documentId?: string;
   source?: Record<string, unknown>;
 };
 
@@ -56,6 +69,70 @@ export type ProxyProposalDiscoverySourcePackage = {
   evidenceBlocks: ProxyProposalDiscoveryEvidenceBlock[];
 };
 
+type ProxyProposalDiscoveryParserSource = Pick<ProxyParserOutput, "accessionNumber"> & {
+  raw: Pick<ProxyParserOutput["raw"], "secFormType" | "discoveryBlocks" | "documentInventory">;
+};
+
+/** Build Call 1 evidence exclusively from the parser's source-location blocks. */
+export function buildProxyProposalDiscoverySourcePackage(
+  parserOutput: ProxyProposalDiscoveryParserSource,
+): ProxyProposalDiscoverySourcePackage {
+  if (!Array.isArray(parserOutput.raw.discoveryBlocks)) {
+    throw new Error("Proxy Proposal Discovery requires raw.discoveryBlocks; no whole-source fallback is allowed");
+  }
+  const seen = new Set<string>();
+  const blocks = [...parserOutput.raw.discoveryBlocks].sort((a, b) =>
+    a.sourceDocumentIndex - b.sourceDocumentIndex || a.startChar - b.startChar
+      || a.endChar - b.endChar || a.id.localeCompare(b.id),
+  );
+  const evidenceBlocks = blocks.map((block, index) => {
+    const document = parserOutput.raw.documentInventory[block.sourceDocumentIndex];
+    if (!block.id || seen.has(block.id) || !document
+      || !Number.isInteger(block.sourceDocumentIndex) || block.sourceDocumentIndex < 0
+      || !Number.isInteger(block.startChar) || !Number.isInteger(block.endChar)
+      || block.startChar < 0 || block.endChar > document.textChars
+      || typeof block.text !== "string" || !block.text.trim()
+      || block.endChar - block.startChar !== block.text.length
+      || !Array.isArray(block.cues) || !block.cues.every(cue => typeof cue === "string")) {
+      throw new Error(`Invalid Proxy discovery source block: ${block.id}`);
+    }
+    seen.add(block.id);
+    return {
+      // The existing E-ID contract stays unchanged. Ordering is deterministic;
+      // retain the parser's own stable ID and document coordinates for resolution.
+      id: `E${index + 1}`,
+      discoveryBlockId: block.id,
+      documentId: `${parserOutput.accessionNumber ?? "filing"}:D${block.sourceDocumentIndex + 1}`,
+      blockType: "proxy_discovery_source_block",
+      blockSequence: index,
+      text: block.text,
+      source: {
+        discoveryBlockId: block.id,
+        documentIndex: block.sourceDocumentIndex,
+        documentSequence: document.sequence,
+        documentType: block.documentType,
+        documentFilename: block.filename,
+        documentDescription: document.description,
+        origin: document.source,
+        isPrimary: block.isPrimary,
+        startChar: block.startChar,
+        endChar: block.endChar,
+        offsetCoordinate: "normalized_document_text",
+        cues: [...block.cues],
+      },
+    };
+  });
+  return {
+    provenance: {
+      source_input: "parserOutput.raw.discoveryBlocks",
+      accession_number: parserOutput.accessionNumber,
+      sec_form_type: parserOutput.raw.secFormType,
+    },
+    evidenceBlocks,
+  };
+}
+
+/** Legacy shape retained solely for saved v1 inputs consumed by the unchanged Call 2. */
 export type ProxyProposalDiscoveryResult = {
   version: typeof PROXY_PROPOSAL_DISCOVERY_VERSION;
   meeting: {
@@ -77,9 +154,20 @@ export type ProxyProposalDiscoveryResult = {
  */
 export type ProxyProposalDiscoveryStage2Input = Readonly<ProxyProposalDiscoveryResult>;
 
+export type ProxyAnalysisHandoffClaim = {
+  text: string;
+  evidence: string[];
+};
+
+export type ProxyAnalysisHandoffResult = {
+  version: typeof PROXY_ANALYSIS_HANDOFF_VERSION;
+  document_notes: ProxyAnalysisHandoffClaim[];
+  candidates: Array<{ title: string; claims: ProxyAnalysisHandoffClaim[] }>;
+};
+
 export type ProxyProposalDiscoveryValidation = {
   ok: boolean;
-  value: ProxyProposalDiscoveryResult | null;
+  value: ProxyAnalysisHandoffResult | null;
   errors: string[];
 };
 
@@ -117,31 +205,44 @@ export function buildProxyProposalDiscoveryPrompt(
 ) {
   return {
     system: [
-      "Discover every stockholder proposal explicitly present in the supplied SEC proxy source blocks.",
-      "Stage 1 is recall-only. Preserve all actual proposals, including director elections, auditor ratification, say-on-pay, shareholder proposals, adjournment proposals, and any other matter submitted for a stockholder vote.",
+      "Discover every actual stockholder proposal explicitly supported by the supplied SEC proxy candidate source blocks.",
+      "The blocks were selected mechanically to preserve recall. Their presence does NOT mean they contain a proposal, and block selection is not a semantic judgment.",
+      "Call 1 is a bounded free-analysis handoff, not a final FACT schema. Preserve all actual proposals, including director elections, auditor ratification, say-on-pay, shareholder proposals, adjournment proposals, and any other matter actually submitted for a stockholder vote.",
       "Use only the supplied source-backed SEC text and evidence IDs. Never use Primary analysis, parser facts, signals, event types, outside knowledge, or a full-document fallback.",
-      "Do not classify proposal type, create a kind or enum, structure terms, decide unresolved status, or provide investment interpretation.",
-      "Keep each title close to the source wording and summarize only what stockholders are asked to approve, adopt, elect, ratify, authorize, or otherwise decide.",
+      "Do not classify proposal type or emit fixed FACT fields, a kind, category, terms, or unresolved schema. Call 2 performs final normalization. Do not provide investment interpretation.",
+      "Emit an item only when the source text itself supports that stockholders are being asked to vote on or decide that matter. A mention of a proposal, Board action, historical action, parent filing, or generic voting authority is not enough by itself.",
+      "Explicit numbered proposal/item/matter headings, proposal-specific voting tables, Board voting recommendations, and proposal-specific vote requirements are strong evidence when the text actually presents a stockholder vote.",
+      "Never emit generic 'other business' language as a candidate unless the source separately identifies a specific action or subject as a distinct ballot matter. A clause that merely authorizes unspecified other business is not a candidate, even if it is numbered or listed in a meeting notice.",
+      "Use a short identifying title. Do not copy a full meeting-notice sentence when a concise source-faithful title identifies the matter.",
+      "For each candidate, choose enough high-information source-backed claims for Call 2 to understand the material substance of the matter without seeing the source. Concise does not mean minimal. Use your own judgment about what matters.",
+      "Prefer information that is specific to this matter over routine proxy mechanics that could appear in many unrelated proposals. Routine voting procedures, Board recommendations, and generic meeting mechanics should consume claim space only when they materially affect the meaning, status, conditions, or consequences of this particular matter.",
+      "Do not follow a filing-type-specific checklist, fixed FACT list, or preselected priority list. Do not favor or omit a detail merely because it resembles a familiar field.",
+      "Each claim is generic free analysis, not a FACT field. Keep one distinct factual point per claim, keep it concise, and attach the source evidence IDs that directly support that claim.",
+      "Use document_notes only for context shared across the document, not for details that belong to one candidate. An empty document_notes array is valid.",
+      "Do not spend limited claim space on routine or repetitive procedural information unless it materially changes the meaning, status, conditions, or consequences of the matter.",
+      "Before finalizing each candidate, check whether Call 2 could understand the material substance of the matter using only the selected claims. If omitting a source-stated detail would materially weaken that understanding, preserve it and remove a lower-information or repetitive claim instead.",
+      "Return no more than 10 claims per candidate and no more than 5 shared document notes. Remove repetition, generic boilerplate, and low-information prose first.",
+      "Reference only the supplied evidence IDs. When source passages materially conflict, preserve the conflict rather than resolving it. Never calculate or infer missing information or present uncertainty as settled.",
       "The blocks may overlap or repeat the same agenda item. Return each actual proposal once, with all useful supporting evidence IDs rather than duplicate proposals.",
-      "Do not turn discussion, historical actions, future-stockholder-submission instructions, or generic other-business boilerplate into proposals.",
-      "For supplemental materials, include only proposals that the supplied supplement itself explicitly identifies. Do not reconstruct or import an omitted parent proposal list.",
-      "If a source-backed item may be a proposal, preserve it instead of dropping it merely because its type or importance is unclear.",
-      "A bracket, bullet, blank, or other placeholder is not an actual meeting date; use null.",
+      "For supplemental materials, zero proposals is a valid result: use candidates: []. Include only proposals that the supplied supplement itself explicitly identifies; do not reconstruct or import an omitted parent proposal list.",
+      "If an actual source-explicit stockholder vote is clear but its type or importance is unclear, preserve the vote rather than dropping it.",
+      "A bracket, bullet, blank, or other placeholder is not an actual meeting date; preserve its uncertainty in text without inventing a date.",
       "Return one direct JSON object matching the closed response schema. Do not add prose, markdown, wrappers, or extra fields.",
     ].join("\n"),
     user: JSON.stringify({
       contract: {
-        version: PROXY_PROPOSAL_DISCOVERY_VERSION,
+        version: PROXY_ANALYSIS_HANDOFF_VERSION,
         response_schema: PROXY_PROPOSAL_DISCOVERY_RESPONSE_SCHEMA,
       },
-      evidence_blocks: sourcePackage.evidenceBlocks,
+      source_selection_note: "candidate windows selected mechanically for recall; inclusion does not imply that a proposal exists in the block",
+      candidate_source_blocks: sourcePackage.evidenceBlocks.map(({ id, text }) => ({ id, text })),
     }),
   };
 }
 
 export function buildProxyProposalDiscoveryGeminiRequest(
   sourcePackage: ProxyProposalDiscoverySourcePackage,
-  maxOutputTokens: number,
+  maxOutputTokens: number = PROXY_ANALYSIS_HANDOFF_MAX_OUTPUT_TOKENS,
 ) {
   if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 1) {
     throw new Error("Proxy Proposal Discovery maxOutputTokens must be a positive integer");
@@ -169,13 +270,13 @@ export async function runProxyProposalDiscoveryGemini({
   apiKey,
   model,
   sourcePackage,
-  maxOutputTokens,
+  maxOutputTokens = PROXY_ANALYSIS_HANDOFF_MAX_OUTPUT_TOKENS,
   fetchImpl = fetch,
 }: {
   apiKey: string;
   model: string;
   sourcePackage: ProxyProposalDiscoverySourcePackage;
-  maxOutputTokens: number;
+  maxOutputTokens?: number;
   fetchImpl?: typeof fetch;
 }) {
   const normalizedModel = model.startsWith("models/") ? model : `models/${model}`;
@@ -278,51 +379,34 @@ export function validateProxyProposalDiscovery(
   const errors: string[] = [];
   const root = record(value);
   if (!root) return { ok: false, value: null, errors: ["$ must be an object"] };
-  exactKeys(root, ["version", "meeting", "proposals"], "$", errors);
+  exactKeys(root, ["version", "document_notes", "candidates"], "$", errors);
 
-  if (root.version !== PROXY_PROPOSAL_DISCOVERY_VERSION) {
-    errors.push(`$.version must equal ${PROXY_PROPOSAL_DISCOVERY_VERSION}`);
+  if (root.version !== PROXY_ANALYSIS_HANDOFF_VERSION) {
+    errors.push(`$.version must equal ${PROXY_ANALYSIS_HANDOFF_VERSION}`);
   }
 
   const knownEvidence = new Set(sourcePackage.evidenceBlocks.map((block) => block.id));
-  const meeting = record(root.meeting);
-  if (!meeting) {
-    errors.push("$.meeting must be an object");
-  } else {
-    exactKeys(meeting, ["type", "date", "evidence"], "$.meeting", errors);
-    if (!oneOf(meeting.type, MEETING_TYPES)) {
-      errors.push(`$.meeting.type must be one of: ${MEETING_TYPES.join(", ")}`);
-    }
-    if (meeting.date !== null && !validDate(meeting.date)) {
-      errors.push("$.meeting.date must be a real YYYY-MM-DD date or null");
-    }
-    validateEvidence(meeting.evidence, "$.meeting.evidence", knownEvidence, errors, false);
-    if ((meeting.date !== null || meeting.type !== "unclear")
-      && Array.isArray(meeting.evidence) && meeting.evidence.length === 0) {
-      errors.push("$.meeting.evidence must support a stated meeting fact");
-    }
-  }
+  validateClaims(root.document_notes, "$.document_notes", knownEvidence, errors, 0, 5);
 
-  if (!Array.isArray(root.proposals)) {
-    errors.push("$.proposals must be an array");
+  if (!Array.isArray(root.candidates)) {
+    errors.push("$.candidates must be an array");
   } else {
-    root.proposals.forEach((candidate, index) => {
-      const path = `$.proposals[${index}]`;
+    root.candidates.forEach((candidate, index) => {
+      const path = `$.candidates[${index}]`;
       const proposal = record(candidate);
       if (!proposal) {
         errors.push(`${path} must be an object`);
         return;
       }
-      exactKeys(proposal, ["title", "action_summary", "evidence"], path, errors);
-      validateBoundedString(proposal.title, `${path}.title`, 500, errors);
-      validateBoundedString(proposal.action_summary, `${path}.action_summary`, 500, errors);
-      validateEvidence(proposal.evidence, `${path}.evidence`, knownEvidence, errors, true);
+      exactKeys(proposal, ["title", "claims"], path, errors);
+      validateBoundedString(proposal.title, `${path}.title`, 200, errors);
+      validateClaims(proposal.claims, `${path}.claims`, knownEvidence, errors, 1, 10);
     });
   }
 
   return {
     ok: errors.length === 0,
-    value: errors.length === 0 ? value as ProxyProposalDiscoveryResult : null,
+    value: errors.length === 0 ? value as ProxyAnalysisHandoffResult : null,
     errors,
   };
 }
@@ -491,14 +575,42 @@ function exactKeys(
   }
 }
 
-function oneOf<const T extends readonly string[]>(value: unknown, values: T): value is T[number] {
-  return typeof value === "string" && (values as readonly string[]).includes(value);
+function validateBoundedString(value: unknown, path: string, maxLength: number, errors: string[], minLength = 1) {
+  // JSON Schema string length counts Unicode code points, not UTF-16 code units.
+  if (typeof value !== "string" || [...value].length < minLength || [...value].length > maxLength) {
+    errors.push(`${path} must be a string of ${minLength} to ${maxLength} characters`);
+  }
 }
 
-function validateBoundedString(value: unknown, path: string, maxLength: number, errors: string[]) {
-  if (typeof value !== "string" || value.length < 1 || value.length > maxLength) {
-    errors.push(`${path} must be a non-empty string of at most ${maxLength} characters`);
+function validateClaims(
+  value: unknown,
+  path: string,
+  knownEvidence: Set<string>,
+  errors: string[],
+  minItems: number,
+  maxItems: number,
+) {
+  if (!Array.isArray(value)) {
+    errors.push(`${path} must be an array`);
+    return;
   }
+  if (value.length < minItems || value.length > maxItems) {
+    errors.push(`${path} must contain ${minItems} to ${maxItems} claims`);
+  }
+  value.forEach((candidate, index) => {
+    const claimPath = `${path}[${index}]`;
+    const claim = record(candidate);
+    if (!claim) {
+      errors.push(`${claimPath} must be an object`);
+      return;
+    }
+    exactKeys(claim, ["text", "evidence"], claimPath, errors);
+    validateBoundedString(claim.text, `${claimPath}.text`, 600, errors);
+    validateEvidence(claim.evidence, `${claimPath}.evidence`, knownEvidence, errors);
+    if (Array.isArray(claim.evidence) && (claim.evidence.length < 1 || claim.evidence.length > 4)) {
+      errors.push(`${claimPath}.evidence must contain 1 to 4 IDs`);
+    }
+  });
 }
 
 function validateEvidence(
@@ -506,13 +618,11 @@ function validateEvidence(
   path: string,
   knownEvidence: Set<string>,
   errors: string[],
-  requireOne: boolean,
 ) {
   if (!Array.isArray(value)) {
     errors.push(`${path} must be an array`);
     return;
   }
-  if (requireOne && value.length === 0) errors.push(`${path} must contain at least one evidence ID`);
   const seen = new Set<string>();
   value.forEach((candidate, index) => {
     if (typeof candidate !== "string" || !/^E[1-9][0-9]*$/.test(candidate)) {
@@ -525,13 +635,4 @@ function validateEvidence(
     }
     if (typeof candidate === "string") seen.add(candidate);
   });
-}
-
-function validDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year
-    && date.getUTCMonth() === month - 1
-    && date.getUTCDate() === day;
 }
