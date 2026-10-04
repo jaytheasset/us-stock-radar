@@ -5,6 +5,22 @@ export function buildProxySourceBlockPromptInput(
   parserOutput: ProxyParserOutput,
   marketContext?: Record<string, unknown> | null,
 ): Record<string, unknown> {
+  return buildSourceInput(parserOutput, marketContext, buildPrimarySourceBlocks(parserOutput));
+}
+
+/** Keep the legacy Structured v1 source/fingerprint contract isolated from Primary. */
+export function buildProxyLegacySourceBlockPromptInput(
+  parserOutput: ProxyParserOutput,
+  marketContext?: Record<string, unknown> | null,
+): Record<string, unknown> {
+  return buildSourceInput(parserOutput, marketContext, buildProxyCleanedSourceBlocks(parserOutput));
+}
+
+function buildSourceInput(
+  parserOutput: ProxyParserOutput,
+  marketContext: Record<string, unknown> | null | undefined,
+  sourceBlocks: Array<Record<string, unknown>>,
+): Record<string, unknown> {
   const currentFiling = buildCurrentFilingIdentity({
     parserOutput: parserOutput as unknown as Record<string, unknown>,
     formFamily: "Proxy",
@@ -29,7 +45,7 @@ export function buildProxySourceBlockPromptInput(
         label: "Current SEC filing identity",
         text: currentFilingIdentityText(currentFiling),
       },
-      ...buildProxyCleanedSourceBlocks(parserOutput),
+      ...sourceBlocks,
     ],
     parser_warnings: parserOutput.warnings,
   };
@@ -43,6 +59,109 @@ export function buildProxySourceBlockPromptInput(
   }
 
   return input;
+}
+
+const PRIMARY_SOURCE_CUES = new Set([
+  "proposal_body_section", "explicitly_referenced_attachment_section",
+  "numbered_proposal_heading", "numbered_item_or_matter_heading",
+  "meeting_context", "voting_context", "voting_subsection_context",
+  "notice_voting_context", "supporting_voting_area", "voting_area_fallback",
+  "proxy_card_fallback", "supplement_explicit_proposal_reference",
+  "supplement_parent_context", "supplement_parent_reference",
+]);
+
+const normalized = (text: string) => text.replace(/\s+/g, " ").trim();
+
+function buildPrimarySourceBlocks(parserOutput: ProxyParserOutput): Array<Record<string, unknown>> {
+  const raw = parserOutput.raw;
+  const legacyTexts = [
+    ...raw.importantBlocks.map(block => block.text),
+    ...raw.supplementalAnalysis.parentReferences.map(reference => reference.evidence),
+    ...raw.supplementalAnalysis.changeSignals.map(signal => signal.sourceText),
+  ].map(normalized).filter(Boolean);
+  // Cues locate source structure, never establish proposal identity or meaning.
+  // In particular, generic Item cross-references (e.g. SEC fee instructions)
+  // alone do not justify adding a new source region to Primary.
+  const selected = [...(raw.discoveryBlocks ?? [])].filter(block =>
+    block.cues.some(cue => PRIMARY_SOURCE_CUES.has(cue))
+    || (block.cues.includes("numbered_proposal_reference")
+      && /\bproposal\s+(?:(?:no\.?|number)\s*)?(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b)/i.test(block.text))
+    || legacyTexts.some(text => normalized(block.text).includes(text)),
+  ).sort((a, b) => a.sourceDocumentIndex - b.sourceDocumentIndex
+    || a.startChar - b.startChar || a.endChar - b.endChar);
+
+  // Coalesce overlapping/adjacent coordinates only. Never bridge an unknown
+  // gap or deduplicate equal wording across different documents/locations.
+  const ranges: Array<{ documentIndex: number; start: number; end: number; text: string; ids: string[] }> = [];
+  for (const block of selected) {
+    const document = raw.documentInventory[block.sourceDocumentIndex];
+    if (!document || !Number.isInteger(block.sourceDocumentIndex)
+      || !Number.isInteger(block.startChar) || !Number.isInteger(block.endChar)
+      || block.startChar < 0 || block.endChar > document.textChars
+      || block.endChar <= block.startChar || block.endChar - block.startChar !== block.text.length) {
+      throw new Error(`Invalid Proxy Primary source coordinates: ${block.id}`);
+    }
+    const previous = ranges.at(-1);
+    if (previous && previous.documentIndex === block.sourceDocumentIndex && block.startChar <= previous.end) {
+      const overlap = Math.min(previous.end, block.endChar) - block.startChar;
+      if (previous.text.slice(block.startChar - previous.start, block.startChar - previous.start + overlap)
+        !== block.text.slice(0, overlap)) {
+        throw new Error(`Conflicting Proxy Primary source coordinates: ${block.id}`);
+      }
+      if (block.endChar > previous.end) previous.text += block.text.slice(overlap);
+      previous.end = Math.max(previous.end, block.endChar);
+      previous.ids.push(block.id);
+    } else {
+      ranges.push({ documentIndex: block.sourceDocumentIndex, start: block.startChar,
+        end: block.endChar, text: block.text, ids: [block.id] });
+    }
+  }
+  const blocks: Array<Record<string, unknown>> = ranges.map(range => {
+    const document = raw.documentInventory[range.documentIndex];
+    return {
+      block_type: "proxy_source_block",
+      label: `Document ${range.documentIndex + 1}, source chars ${range.start}-${range.end}`,
+      text: range.text,
+      source: {
+        accession_number: parserOutput.accessionNumber,
+        documentIndex: range.documentIndex, documentSequence: document.sequence,
+        documentType: document.type, documentFilename: document.filename,
+        documentDescription: document.description, origin: document.source,
+        isPrimary: document.isPrimary, startChar: range.start, endChar: range.end,
+        offsetCoordinate: "normalized_document_text", discoveryBlockIds: range.ids,
+      },
+    };
+  });
+  const covered = ranges.map(range => normalized(range.text));
+  const retained = new Set<string>();
+  const addUncovered = (blockType: string, text: string, origin: string, index: number, label = "Additional source excerpt") => {
+    const key = normalized(text);
+    if (!key || covered.some(source => source.includes(key)) || retained.has(key)) return;
+    retained.add(key);
+    blocks.push({ block_type: blockType, label, text,
+      source: { origin, index, offsetCoordinate: null } });
+  };
+  raw.importantBlocks.forEach((block, index) =>
+    addUncovered("proxy_source_block", block.text, "importantBlocks", index,
+      block.kind === "preliminary_placeholder" ? "Parser placeholder inventory" : "Additional source excerpt"));
+
+  // These remain explicitly partial table extracts. Full rows/footnotes inside
+  // selected body/appendix ranges are sent verbatim above, without a row cap.
+  raw.keyTableExtraction.tables.forEach(table => {
+    blocks.push({
+      block_type: "table_source_block", label: "Table sample (not complete table)",
+      source: { documentIndex: table.sourceDocumentIndex, tableId: table.id },
+      text: JSON.stringify({ caption: table.caption, heading: table.heading,
+        headers: table.headers, sampleRows: table.sampleRows, rowCount: table.rowCount,
+        warnings: table.warnings }, null, 2),
+    });
+  });
+  raw.supplementalAnalysis.parentReferences.forEach((reference, index) =>
+    addUncovered("proxy_parent_reference_source", reference.evidence, "supplementalAnalysis.parentReferences", index));
+  raw.supplementalAnalysis.changeSignals.forEach((signal, index) =>
+    addUncovered("proxy_supplement_source_block", signal.sourceText, "supplementalAnalysis.changeSignals", index));
+  // No global block-count slice: it could remove a late appendix or supplement.
+  return blocks;
 }
 
 function buildProxyCleanedSourceBlocks(parserOutput: ProxyParserOutput) {
