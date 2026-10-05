@@ -1,6 +1,7 @@
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
+import type { ProxyMonitorFacts } from "./monitor/proxyStructuredFacts.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
 import {
@@ -101,6 +102,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readProxyFacts?(eventId: string): Promise<ProxyMonitorFacts>;
   readNtFacts?(eventId: string): Promise<NtLifecycleReadResult>;
   readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
   readFacts?(eventId: string): Promise<CurrentListingRiskReadResult>;
@@ -113,6 +115,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  proxy?: ProxyMonitorFacts;
   s8?: S8MonitorFacts;
   nt?: NtLifecycleReadResult;
   listing: CurrentListingRiskReadResult;
@@ -274,6 +277,9 @@ export async function evaluateListingMonitorEvent(
     "read_current_event_ownership_facts",
   ));
   const readers: MonitorFactReaders = {
+    proxy: conditions.some(condition => conditionUsesReader(condition, "read_current_proxy_structured"))
+      ? await safeReadFacts(input.eventId, dependencies.readProxyFacts ?? (await import("./monitor/proxyStructuredFacts.ts")).readCurrentProxyFacts)
+      : { status: "not_ready", reason: "reader_not_requested" },
     nt: conditions.some(condition => conditionUsesReader(condition, "read_current_event_nt_lifecycle"))
       ? await safeReadFacts(input.eventId, dependencies.readNtFacts ?? (await import("./monitor/ntLifecycleRuntime.ts")).readCurrentNtLifecycle)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -367,12 +373,14 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8")
+    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
-  const current = definition.family === "s8"
+  const current = definition.family === "proxy"
+    ? readers.proxy ?? { status: "not_ready" as const, reason: "reader_not_requested" }
+    : definition.family === "s8"
     ? readers.s8 ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "nt"
     ? readers.nt ?? { status: "not_ready" as const, reason: "reader_not_requested" }

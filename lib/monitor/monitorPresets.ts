@@ -16,14 +16,14 @@ export type MonitorPreset = Readonly<{
 
 export type MonitorAddConditionOption = Readonly<{
   id: string;
-  category: "common" | "corporate-actions" | "listing-risk";
+  category: "common" | "corporate-actions" | "listing-risk" | "proxy";
   title: string;
   condition: CanonicalListingMonitorCondition;
 }>;
 
 export type MonitorAddConditionGroup = Readonly<{
   id: MonitorAddConditionOption["category"];
-  title: "Common" | "Corporate Actions" | "Listing Risk";
+  title: "Common" | "Corporate Actions" | "Listing Risk" | "Proxy";
   options: readonly MonitorAddConditionOption[];
 }>;
 
@@ -60,6 +60,12 @@ const PRESET_DEFINITIONS = Object.freeze([
       Object.freeze({ key: "listing.event_kind", operator: "eq" as const, value: "deficiency_notice" }),
       Object.freeze({ key: "listing.compliance_deadline", operator: "within_days" as const, value: 30 }),
     ]),
+  }),
+  Object.freeze({
+    id: "proxy-capital-proposal", title: "Proxy capital structure proposal",
+    description: "Watch filings that contain a capital structure proposal. A proposal does not mean approval or execution.",
+    category: "Proxy", priority: 4,
+    conditions: Object.freeze([Object.freeze({ key: "proxy.has_capital_structure_proposal", operator: "eq" as const, value: true })]),
   }),
 ] satisfies readonly MonitorPreset[]);
 
@@ -100,6 +106,10 @@ const ADD_CONDITION_DEFINITIONS = Object.freeze([
     title: "Trading suspension",
     condition: Object.freeze({ key: "listing.event_kind", operator: "eq" as const, value: "trading_suspension" }),
   }),
+  Object.freeze({id:"proxy-proposal",category:"proxy" as const,title:"Proxy proposal present",
+    condition:Object.freeze({key:"proxy.has_proposal",operator:"eq" as const,value:true})}),
+  Object.freeze({id:"proxy-capital-proposal",category:"proxy" as const,title:"Proxy capital structure proposal",
+    condition:Object.freeze({key:"proxy.has_capital_structure_proposal",operator:"eq" as const,value:true})}),
 ] satisfies readonly MonitorAddConditionOption[]);
 
 export function getMonitorPresetCatalog() {
@@ -145,6 +155,7 @@ export function validateMonitorAddConditionCatalog(value: unknown): readonly Mon
     "common",
     "corporate-actions",
     "listing-risk",
+    "proxy",
   ]);
   const ids = new Set<string>();
   const options = value.map((candidate, index): MonitorAddConditionOption => {
@@ -169,6 +180,7 @@ export function validateMonitorAddConditionCatalog(value: unknown): readonly Mon
     { id: "common", title: "Common" },
     { id: "corporate-actions", title: "Corporate Actions" },
     { id: "listing-risk", title: "Listing Risk" },
+    ...(options.some(option => option.category === "proxy") ? [{id:"proxy" as const,title:"Proxy" as const}] : []),
   ];
   return Object.freeze(groups.map((group) => {
     const groupOptions = options.filter((option) => option.category === group.id);

@@ -46,21 +46,24 @@ const EXPECTED = [
       { key: "listing.compliance_deadline", operator: "within_days", value: 30 },
     ],
   },
+  { id: "proxy-capital-proposal", conditions: [{key:"proxy.has_capital_structure_proposal",operator:"eq",value:true}] },
 ] as const;
 
-test("Monitor recommendations expose exactly three Registry-valid domain presets", () => {
+test("Monitor recommendations preserve existing presets and add the typed Proxy preset", () => {
   const catalog = getMonitorPresetCatalog();
-  assert.equal(catalog.length, 3);
+  assert.equal(catalog.length, 4);
   assert.deepEqual(catalog.map(({ id, conditions }) => ({ id, conditions })), EXPECTED);
   assert.deepEqual(catalog.map((preset) => preset.title), [
     "Low-price reverse split",
     "Low-price listing risk",
     "Listing deadline risk",
+    "Proxy capital structure proposal",
   ]);
   assert.deepEqual(catalog.map(({ category, priority }) => ({ category, priority })), [
     { category: "Corporate Actions", priority: 1 },
     { category: "Listing Risk", priority: 2 },
     { category: "Listing Risk", priority: 3 },
+    { category: "Proxy", priority: 4 },
   ]);
   assert.equal(catalog.some((preset) => preset.id === "reverse-split-listing-risk"), false);
   assert.ok(catalog.every((preset) => preset.description.length > 0 && preset.category.length > 0));
@@ -75,6 +78,7 @@ test("each preset creates the exact direct Draft, Registry preview, and ready Re
     ["Price — Below $1", "Corporate action — Reverse stock split"],
     ["Price — Below $1", "Listing event — Listing deficiency notice"],
     ["Listing event — Listing deficiency notice", "Compliance deadline — Within 30 days"],
+    ["Proxy capital structure proposal present — Yes"],
   ];
   catalog.forEach((preset, index) => {
     const draft = createMonitorPresetDraft(preset.id);
@@ -100,6 +104,7 @@ test("Add condition catalog exposes only the curated Common and domain choices",
     { title: "Common", count: 1 },
     { title: "Corporate Actions", count: 1 },
     { title: "Listing Risk", count: 4 },
+    { title: "Proxy", count: 2 },
   ]);
   assert.deepEqual(groups.flatMap((group) => group.options.map(({ title, condition }) => ({ title, condition }))), [
     { title: "Price", condition: { key: "market.price", operator: "lte", value: 1 } },
@@ -108,6 +113,8 @@ test("Add condition catalog exposes only the curated Common and domain choices",
     { title: "Compliance deadline", condition: { key: "listing.compliance_deadline", operator: "within_days", value: 30 } },
     { title: "Delisting determination", condition: { key: "listing.event_kind", operator: "eq", value: "delisting_determination" } },
     { title: "Trading suspension", condition: { key: "listing.event_kind", operator: "eq", value: "trading_suspension" } },
+    { title: "Proxy proposal present", condition: {key:"proxy.has_proposal",operator:"eq",value:true} },
+    { title: "Proxy capital structure proposal", condition: {key:"proxy.has_capital_structure_proposal",operator:"eq",value:true} },
   ]);
   assert.throws(() => validateMonitorAddConditionCatalog([]), /add_condition_catalog_empty/);
   assert.throws(() => validateMonitorAddConditionCatalog([{

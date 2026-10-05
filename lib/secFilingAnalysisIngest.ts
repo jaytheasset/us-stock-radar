@@ -29,6 +29,9 @@ import {
 import { prepareSecAmendmentMonitorFanout } from "@/lib/sec-amendments/secAmendmentMonitorBridge";
 import { persistOwnershipOneCallContext } from "@/lib/monitor/ownershipStructuredContextAnalyzer";
 import { OWNERSHIP_ONE_CALL_PROMPT_KEY } from "@/lib/ai/ownershipOneCall";
+import { consumeProxyAlertsForRaw } from "@/lib/sec-proxy/runtime";
+import { enqueueProxyStructured } from "@/lib/sec-proxy/starter";
+import { isProxyForm, record as proxyRecord } from "@/lib/sec-proxy/source";
 
 export {
   buildSecFilingGroupDedupe,
@@ -347,6 +350,15 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       })
     : null;
 
+  const proxyStructuredExecution = isProxyForm(proxyRecord(rawResult.rawItem.raw_payload).form_type)
+    ? await (async () => {
+        const rawItemId = stringValue(rawResult.rawItem?.id);
+        const execution = await enqueueProxyStructured(rawItemId);
+        const alerts = options.suppressAlerts ? [] : await consumeProxyAlertsForRaw(rawItemId);
+        return { execution, alerts };
+      })().catch(error => ({ status: "failed", reason: String(error) }))
+    : null;
+
   return {
     ok: true,
     stage: "complete",
@@ -367,6 +379,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     ownershipStructuredContext,
     ownershipMonitorConditionExecution,
     offeringMonitorRegistryExecution,
+    proxyStructuredExecution,
     validationRepairTrace,
   };
 }

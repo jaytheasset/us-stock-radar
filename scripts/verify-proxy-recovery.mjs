@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {registerHooks} from 'node:module';
+import pg from 'pg';
+registerHooks({resolve(s,c,next){return s==='server-only'?{shortCircuit:true,url:'data:text/javascript,export{}'}:next(s,c)}});
+const out=resolve(process.argv[2]);
+const cli=JSON.parse(execFileSync(process.execPath,['node_modules/supabase/dist/supabase.js','status','-o','json'],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));
+assert.equal(new URL(cli.DB_URL).hostname,'127.0.0.1');assert.equal(new URL(cli.DB_URL).port,'56322');
+process.env.SUPABASE_URL=cli.API_URL;process.env.SUPABASE_SECRET_KEY=cli.SECRET_KEY||cli.SERVICE_ROLE_KEY;
+const {loadInput,proxyRepository,rpc,readProxyStructured}=await import('../lib/sec-proxy/persistence.ts');
+const {processProxyStructured}=await import('../lib/sec-proxy/runtime.ts');
+const {hash}=await import('../lib/sec-proxy/source.ts');
+const {buildProxyProposalDiscoveryGeminiRequest}=await import('../lib/sources/sec/forms/proxy/proposalDiscovery.ts');
+const db=new pg.Client({connectionString:cli.DB_URL});await db.connect();
+try{
+ assert.equal((await db.query('select system_identifier::text id from pg_control_system()')).rows[0].id,'7678429483712069671');
+ const c=JSON.parse(readFileSync(resolve(out,'seed.json'))).find(c=>c.name==='BigBear'),repo=await proxyRepository();
+ const verificationKey='product-checkpoint-recovery-20261005',input=await loadInput(c.rawItemId,repo,verificationKey);
+ await rpc(repo,'reserve_sec_proxy_structured',{p_id:input.executionId,p_binding:input.binding});
+ const request=buildProxyProposalDiscoveryGeminiRequest(input.source),body=JSON.stringify(request),claimInput={p_id:input.executionId,p_action:'begin',p_value:{stage:'call1',request,requestHash:hash(body),mode:'injected_response_replay'}};
+ const claims=await Promise.all([rpc(repo,'sec_proxy_transition',claimInput),rpc(repo,'sec_proxy_transition',claimInput)]);
+ assert.equal(claims.filter(c=>c.claimed===true).length,1);assert.equal(claims.filter(c=>c.status==='busy').length,1);
+ const original=readFileSync(resolve(out,'replay-BigBear-call1-response.json'),'utf8');
+ await rpc(repo,'sec_proxy_transition',{p_id:input.executionId,p_action:'checkpoint',p_value:{stage:'call1',token:claims.find(c=>c.claimed).token,response:{status:200,body:original,bodyHash:hash(original),latencyMs:0}}});
+ let fail=true,transportReplays=0;
+ const failing={...repo,rpc:async(name,p)=>{if(name==='finish_sec_proxy_structured'&&fail){fail=false;return {ok:false,error:'injected_finish_outage',data:null}}return repo.rpc(name,p)}};
+ const job={rawItemId:c.rawItemId,executionId:input.executionId,verificationKey};
+ const fetchImpl=async url=>{transportReplays++;assert.ok(String(url).includes('gemini-3.5-flash'));return new Response(readFileSync(resolve(out,'replay-BigBear-call2-response.json'),'utf8'),{status:200})};
+ await assert.rejects(processProxyStructured(job,{repository:failing,apiKey:'replay',fetchImpl}),/injected_finish_outage/);
+ const recovered=await processProxyStructured(job,{repository:repo,apiKey:'replay',fetchImpl});assert.equal(recovered.status,'succeeded');assert.equal(transportReplays,1);
+ assert.equal((await readProxyStructured(c.rawItemId,repo,verificationKey)).status,'available');
+ const outputs=await db.query("select count(*)::int n from ai_outputs where ai_run_id=$1",[input.executionId]);assert.equal(outputs.rows[0].n,1);
+ // Rejected mutations are rolled back; no historical record is rewritten.
+ await db.query('begin');await db.query('savepoint immutable');
+ await assert.rejects(db.query("update ai_outputs set payload='{}' where ai_run_id=$1",[input.executionId]),/proxy_output_immutable/);
+ await db.query('rollback to savepoint immutable');await db.query('rollback');
+ const grants=(await db.query("select p.proname,has_function_privilege('anon',p.oid,'execute') anon,has_function_privilege('authenticated',p.oid,'execute') authenticated,has_function_privilege('service_role',p.oid,'execute') service from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('reserve_sec_proxy_structured','sec_proxy_transition','finish_sec_proxy_structured')")).rows;
+ assert.equal(grants.length,3);assert.ok(grants.every(r=>!r.anon&&!r.authenticated&&r.service));
+ const report={passed:true,executionId:input.executionId,atomicClaimWinners:1,concurrentBusy:1,checkpointReplay:true,finishFailureRecovered:true,outputs:1,transportReplays,actualProviderCalls:0,grants};
+ writeFileSync(resolve(out,'recovery-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+}finally{await db.end()}

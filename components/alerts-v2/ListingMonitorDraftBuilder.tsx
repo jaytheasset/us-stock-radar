@@ -619,13 +619,14 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
     market: "Market",
     "corporate-actions": "Corporate Actions",
     "listing-risk": "Listing Risk",
+    "proxy": "Proxy",
   } as const;
 
   return (
@@ -1026,7 +1027,8 @@ function readMonitorAddConditionGroups() {
         return usableEditor && preview.label !== "Condition" && preview.value.trim().length > 0;
       }),
     })).filter((group) => group.options.length > 0);
-    return groups.reduce((count, group) => count + group.options.length, 0) === 6 ? groups : [];
+    const expectedCount = getMonitorAddConditionCatalog().reduce((count, group) => count + group.options.length, 0);
+    return groups.reduce((count, group) => count + group.options.length, 0) === expectedCount ? groups : [];
   } catch {
     return [];
   }

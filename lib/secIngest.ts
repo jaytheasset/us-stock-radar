@@ -37,6 +37,8 @@ import { persistForm25ListingStatusAutomatically, type Form25ListingPersistenceR
 import { isS8Form } from "@/lib/sec-s8/directFacts";
 import { persistS8Registration } from "@/lib/sec-s8/persistence";
 import { enqueueS8Structured } from "@/lib/sec-s8/structuredRuntime";
+import { enqueueProxyStructured } from "@/lib/sec-proxy/starter";
+import { isProxyForm } from "@/lib/sec-proxy/source";
 
 type SecRawIngestOptions = {
   formTypes?: string[];
@@ -66,6 +68,7 @@ type SecRawIngestDependencies = {
   persistForm25ListingStatus?: typeof persistForm25ListingStatusAutomatically;
   persistS8Registration?: typeof persistS8Registration;
   enqueueS8Structured?: typeof enqueueS8Structured;
+  enqueueProxyStructured?: typeof enqueueProxyStructured;
 };
 
 export async function runSecRawIngest(
@@ -86,6 +89,7 @@ export async function runSecRawIngest(
     persistForm25ListingStatus: dependencies.persistForm25ListingStatus ?? persistForm25ListingStatusAutomatically,
     persistS8Registration: dependencies.persistS8Registration ?? persistS8Registration,
     enqueueS8Structured: dependencies.enqueueS8Structured ?? enqueueS8Structured,
+    enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -97,6 +101,11 @@ export async function runSecRawIngest(
   const form25ListingStatusRecords: Form25ListingPersistenceRecord[] = [];
   const s8RegistrationRecords: Array<Record<string, unknown>> = [];
   const items: Array<Record<string, unknown>> = [];
+  async function proxyAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    if (!isProxyForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
+    try { return await runtime.enqueueProxyStructured(rawItemId); }
+    catch (error) { return { status: "failed", reason: String(error) }; }
+  }
   async function persistS8AfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     if (!isS8Form(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
     let outcome;
@@ -318,6 +327,7 @@ export async function runSecRawIngest(
             sc13_xml_persistence: sc13XmlPersistence,
             section16_xml_persistence: section16XmlPersistence,
             s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(existing.id)),
+            proxy_structured: await proxyAfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
             form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(existing.id)),
@@ -358,6 +368,7 @@ export async function runSecRawIngest(
           sc13_xml_persistence: sc13XmlPersistence,
           section16_xml_persistence: section16XmlPersistence,
           s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(persisted.id)),
+          proxy_structured: await proxyAfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,
           form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(persisted.id)),
