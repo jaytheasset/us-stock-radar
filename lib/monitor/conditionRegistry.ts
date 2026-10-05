@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -111,6 +111,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_periodic_financial"
       | "read_current_event_nt_lifecycle"
       | "read_s8_structured"
+      | "read_current_proxy_structured"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -152,6 +153,16 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  ...(["has_proposal", "has_capital_structure_proposal"] as const).map<MonitorConditionDefinition>(field => ({
+    key: `proxy.${field}`, valueType: "boolean", allowedOperators: ["eq"],
+    family: "proxy", domain: "proxy", monitorDomains: ["listing"],
+    description: field === "has_proposal" ? "Validated Proxy Call2 identifies at least one proposal."
+      : "Validated Proxy Call2 identifies at least one capital structure proposal; this does not mean approval or execution.",
+    display: { label: field === "has_proposal" ? "Proxy proposal present" : "Proxy capital structure proposal present",
+      booleanValueLabels: { true: "Yes", false: "No" } },
+    source: { subject: "event", reader: "read_current_proxy_structured", jsonPath: [field] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  } as const)),
   {
     key: "s8.filing_kind", valueType: "text", allowedOperators: ["eq", "in"],
     enumValues: ["registration", "amendment", "deregistration", "reoffer", "other", "unclear"],

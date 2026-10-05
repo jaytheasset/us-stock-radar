@@ -203,11 +203,12 @@ export function formatListingMonitorConditionPreview(
 export type ListingMonitorConditionDomain =
   | "market"
   | "corporate-actions"
-  | "listing-risk";
+  | "listing-risk"
+  | "proxy";
 
 export type ListingMonitorConditionDomainGroup = Readonly<{
   id: ListingMonitorConditionDomain;
-  title: "Market" | "Corporate Actions" | "Listing Risk";
+  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy";
   items: readonly Readonly<{
     condition: CanonicalListingMonitorCondition;
     index: number;
@@ -234,6 +235,7 @@ const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
     title: "Listing Risk",
     matches: (condition) => condition.key.startsWith("listing."),
   },
+  { id: "proxy", title: "Proxy", matches: condition => condition.key.startsWith("proxy.") },
 ];
 
 export function groupListingMonitorConditionsByDomain(
