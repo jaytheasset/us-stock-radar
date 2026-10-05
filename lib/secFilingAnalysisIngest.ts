@@ -344,6 +344,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   const ownershipMonitorConditionExecution = primaryPromptKey === OWNERSHIP_ONE_CALL_PROMPT_KEY
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
     : null;
+  const effectMonitorExecution = primaryPromptKey === "sec_effect_deterministic" && !options.suppressAlerts
+    ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id)) : null;
   const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
     ? await runOfferingMonitorSiteAnalysisExecution({
         eventId: stringValue(persistedEvent.id),
@@ -378,6 +380,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     amendmentMonitorLineage,
     ownershipStructuredContext,
     ownershipMonitorConditionExecution,
+    effectMonitorExecution,
     offeringMonitorRegistryExecution,
     proxyStructuredExecution,
     validationRepairTrace,

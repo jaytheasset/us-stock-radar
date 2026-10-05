@@ -87,6 +87,7 @@ export function buildNaturalLanguageConditionCompilerPrompt(text: string) {
     "within_days uses a nonnegative integer day count evaluated at Matcher runtime. in uses a nonempty array. Other operators use one Registry-compatible scalar.",
     "Generate only the minimum sufficient conditions for each requested meaning. Do not add a condition merely because it is related to or normally co-occurs with another condition.",
     "Do not return suggested or fallback conditions that the user did not request.",
+    "For an EFFECT registration alert, map the intent to effect.observed=true, effect.target_query containing the user's company/ticker/accession/file-number selector, and effect.registration_form if specified. Preserve any dates or other constraints as separate requirements; never silently discard them. The server resolves candidates and the user confirms the exact registration. Do not emit issuer_cik, file_number or registration_accession as guessed identity. Multiple amendments alone do not imply multiple registrations. Negative effectiveness cannot be inferred from missing EFFECT.",
     "Do not generate IDs, references, or condition_refs. Application code assigns deterministic requirement and condition identities after validation.",
     "Do not output status, message, unsupported, explanations, markdown, or any top-level key outside the output contract. Application code derives presentation and status.",
     "Do not analyze companies, filings, news, prices, or market facts. Do not run a Matcher and do not create or update a Monitor.",

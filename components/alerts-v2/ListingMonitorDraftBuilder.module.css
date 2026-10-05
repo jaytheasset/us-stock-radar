@@ -445,6 +445,13 @@
   font-size: var(--sr-font-size-lg);
 }
 
+.generatedAlerts li.effectAlert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sr-space-2);
+  overflow-wrap: anywhere;
+}
+
 .conditionDomainGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

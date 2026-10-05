@@ -1,3 +1,4 @@
+import { effectConditionErrors, hasEffect } from "../sec-effect/conditions.ts";
 import {
   getReadyMonitorCondition,
   getReadyMonitorConditions,
@@ -25,6 +26,7 @@ export type ListingMonitorDraftReviewIssue = Readonly<{
 }>;
 
 export type ListingMonitorDraftReview = Readonly<{
+  effectTargetRequired?: boolean;
   version: typeof LISTING_MONITOR_DRAFT_REVIEW_VERSION;
   conditions: readonly CanonicalListingMonitorCondition[];
   issues: readonly ListingMonitorDraftReviewIssue[];
@@ -116,6 +118,7 @@ export function createListingMonitorDraftReview(value: unknown): ListingMonitorD
 
   return Object.freeze({
     version: LISTING_MONITOR_DRAFT_REVIEW_VERSION,
+    ...(hasEffect(conditions) ? { effectTargetRequired: true } : {}),
     conditions,
     issues,
     proposals,
@@ -175,6 +178,8 @@ export function getListingMonitorDraftCreateGate(
   const unresolved = review.issues.filter((issue) => !issue.abandoned);
   const errors = [
     ...validation.errors,
+    ...effectConditionErrors(review.conditions),
+    ...(review.effectTargetRequired && !hasEffect(review.conditions) ? ["effect_registration_target_confirmation_required"] : []),
     ...(unresolved.length > 0 ? ["requirements_unresolved"] : []),
     ...(review.proposals.length > 0 ? ["confirmations_unresolved"] : []),
   ];
@@ -201,6 +206,7 @@ export function formatListingMonitorConditionPreview(
 }
 
 export type ListingMonitorConditionDomain =
+  | "effect"
   | "market"
   | "corporate-actions"
   | "listing-risk"
@@ -208,7 +214,7 @@ export type ListingMonitorConditionDomain =
 
 export type ListingMonitorConditionDomainGroup = Readonly<{
   id: ListingMonitorConditionDomain;
-  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy";
+  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT";
   items: readonly Readonly<{
     condition: CanonicalListingMonitorCondition;
     index: number;
@@ -236,6 +242,7 @@ const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
     matches: (condition) => condition.key.startsWith("listing."),
   },
   { id: "proxy", title: "Proxy", matches: condition => condition.key.startsWith("proxy.") },
+  { id: "effect", title: "Registration EFFECT", matches: condition => condition.key.startsWith("effect.") },
 ];
 
 export function groupListingMonitorConditionsByDomain(

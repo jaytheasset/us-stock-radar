@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { captureEffectSource, type EffectSource } from "../../sec-effect/source";
 import { getServerEnv } from "@/lib/env";
 import {
   getSecFormFetchPlan,
@@ -50,6 +51,7 @@ type FetchOptions = {
 };
 
 export type SecDocument = {
+  effectOriginalSource?: EffectSource;
   sequence: string | null;
   description: string | null;
   document: string | null;
@@ -421,6 +423,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           sc13_index_filed_by_ciks: detail.sc13IndexProvenance?.filedByCiks || [],
           sc13_index_canonical_xml_url: detail.sc13IndexProvenance?.canonicalXmlUrl || null,
           documents: detail.documents.map((document) => ({
+            ...(document.effectOriginalSource ? { effectOriginalSource: document.effectOriginalSource } : {}),
             sequence: document.sequence,
             description: document.description,
             document: document.document,
@@ -946,6 +949,7 @@ async function fetchFilingDetail({
         textCharCount: cleaned.length,
         textTruncated: truncated,
         rawText: rawOwnershipSource?.text || null,
+        effectOriginalSource: captureEffectSource(effectiveFormType, document, text),
         rawTextCharCount: rawOwnershipSource?.charCount || 0,
         rawTextTruncated: Boolean(rawOwnershipSource?.truncated),
         rawSourceFormat: rawOwnershipSource?.format || null,

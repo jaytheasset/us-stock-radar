@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server.js";
+import { confirmEffectDraft } from "../../../../../lib/sec-effect/draft.ts";
 import { rejectCrossOriginMutationRequest } from "../../../../../lib/auth/mutationOrigin.ts";
 import {
   applyNaturalLanguageMonitorConfirmation,
@@ -30,6 +31,13 @@ export async function handleListingMonitorConfirmationPost(
     );
   }
   try {
+    if (body && typeof body === "object" && "registrationAccession" in body) {
+      try {
+        return NextResponse.json({ ok: true, data: await confirmEffectDraft(body) }, { headers: MONITOR_API_NO_STORE_HEADERS });
+      } catch (error) {
+        return NextResponse.json({ ok: false, error: "REGISTRATION_UNRESOLVED", message: error instanceof Error ? error.message : "Registration could not be verified." }, { status: 422, headers: MONITOR_API_NO_STORE_HEADERS });
+      }
+    }
     const parsed = parseNaturalLanguageMonitorConfirmationRequest(body);
     return NextResponse.json(
       { ok: true, data: applyNaturalLanguageMonitorConfirmation(parsed) },

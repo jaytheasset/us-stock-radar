@@ -17,6 +17,8 @@ import {
   type CurrentPrice,
 } from "../market-data/marketDataProvider.ts";
 import { getReadyMonitorCondition } from "./conditionRegistry.ts";
+import { hasEffect } from "../sec-effect/conditions.ts";
+import { readEffectFacts, effectEvidence, type EffectEvidence, type EffectFacts } from "../sec-effect/reader.ts";
 import {
   FORM4_INSIDER_PURCHASE_MONITOR_KIND,
   type Form4PurchaseMatchEvidence,
@@ -84,6 +86,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
+  readEffectFacts?(eventId: string): Promise<EffectFacts>;
   readProxyFacts?(eventId: string): Promise<ProxyMonitorFacts>;
   readNtFacts?(eventId: string): Promise<NtLifecycleReadResult>;
   readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
@@ -108,6 +111,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     matchEvidence?: Form4PurchaseMatchEvidence;
     ntAlert?: "notice" | "report";
     proxyAlert?: boolean;
+    effectEvidence?: EffectEvidence;
   }>): Promise<ListingMonitorAlertWriteResult>;
   now(): Date;
 }>;
@@ -166,6 +170,9 @@ export async function consumeListingMonitorAlertsForEvent(
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
+    effect: allConditions.some(c => c.key.startsWith("effect."))
+      ? await (dependencies.readEffectFacts ?? readEffectFacts)(currentEventId)
+      : { status: "not_ready", reason: "reader_not_requested" },
     proxy: allConditions.some(c => getReadyMonitorCondition(c.key)?.family === "proxy")
       ? amendmentBlocked ? { status: "not_ready", reason: amendmentBlockReason }
         : await safeReadFacts(currentEventId, dependencies.readProxyFacts ?? (await import("./proxyStructuredFacts.ts")).readCurrentProxyFacts)
@@ -290,6 +297,8 @@ export async function consumeListingMonitorAlertsForEvent(
           monitorId: evaluation.monitor.id,
           userId: evaluation.monitor.userId,
           createdAt: lineage.persistedAt,
+          ...(readers.effect && hasEffect(evaluation.monitor.conditions)
+            ? { effectEvidence: effectEvidence(readers.effect, evaluation.monitor.conditions) ?? undefined } : {}),
           ...(evaluation.monitor.conditions.some(c => getReadyMonitorCondition(c.key)?.family === "proxy") ? { proxyAlert: true } : {}),
           ...(evaluation.monitor.conditions.some(c => getReadyMonitorCondition(c.key)?.family === "nt")
             ? { ntAlert: evaluation.monitor.conditions.some(c => c.key === "nt.report_filed") ? "report" as const : "notice" as const } : {}),
@@ -413,6 +422,7 @@ function matchingLineage(
   readers: MonitorFactReaders,
   conditions: readonly Readonly<{ key: string }>[],
 ) {
+  if (hasEffect(conditions)) return readers.effect?.status === "available" ? readers.effect : null;
   if (conditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "proxy")) {
     return readers.proxy?.status === "available" ? readers.proxy : null;
   }
@@ -464,8 +474,18 @@ export async function createListingMonitorAlert(input: Readonly<{
   matchEvidence?: Form4PurchaseMatchEvidence;
   ntAlert?: "notice" | "report";
   proxyAlert?: boolean;
+  effectEvidence?: EffectEvidence;
 }>): Promise<ListingMonitorAlertWriteResult> {
   const repository = await import("../supabase.ts");
+  if (input.effectEvidence) {
+    const saved = await repository.supabaseRpc("create_effect_monitor_alert", {
+      p_monitor_id: input.monitorId, p_event_id: input.eventId, p_evidence: input.effectEvidence,
+    });
+    if (!saved.ok) return { status: "failed", monitorId: input.monitorId, error: saved.error || "EFFECT alert write failed" };
+    const row = Array.isArray(saved.data) ? saved.data[0] : saved.data;
+    if (!row || typeof row !== "object" || !("alert_id" in row)) return { status: "failed", monitorId: input.monitorId, error: "EFFECT alert write did not confirm a record" };
+    return { status: "created_new" in row && row.created_new ? "created" : "existing", monitorId: input.monitorId, alertId: String(row.alert_id) };
+  }
   const result = await repository.supabaseUpsert("user_alert_deliveries", {
     user_id: input.userId,
     alert_event_id: input.eventId,

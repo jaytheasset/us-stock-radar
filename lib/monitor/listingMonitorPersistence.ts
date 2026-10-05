@@ -1,3 +1,4 @@
+import { hasEffect, effectConditionErrors } from "../sec-effect/conditions.ts";
 import {
   getReadyMonitorCondition,
   validateMonitorConditionInput,
@@ -101,6 +102,7 @@ export async function createListingMonitor(
 ): Promise<ListingMonitor> {
   const ownerId = requireUuid(input.ownerId, "ownerId");
   const conditions = requireCanonicalListingConditions(input.conditions);
+  if (hasEffect(conditions)) await requireEffectTarget(conditions);
   const kind = input.kind ?? "condition_set";
   const form4PurchaseSettings = requireMonitorKindSettings(kind, input.form4PurchaseSettings, conditions);
   if (input.isActive !== undefined && typeof input.isActive !== "boolean") {
@@ -210,6 +212,14 @@ export async function updateListingMonitor(
   const storedKind = stored.monitor_kind === FORM4_INSIDER_PURCHASE_MONITOR_KIND
     ? FORM4_INSIDER_PURCHASE_MONITOR_KIND
     : "condition_set";
+  if (hasEffect(stored.conditions as CanonicalListingMonitorCondition[]) && input.conditions !== undefined
+    && !hasEffect(input.conditions as CanonicalListingMonitorCondition[])) {
+    throw invalidMonitor("An EFFECT monitor must retain its registration target. Delete the monitor to stop watching it.", ["effect_target_removal_forbidden"]);
+  }
+  if (input.conditions !== undefined) {
+    const nextConditions = requireCanonicalListingConditions(input.conditions);
+    if (hasEffect(nextConditions)) await requireEffectTarget(nextConditions);
+  }
   if (storedKind === FORM4_INSIDER_PURCHASE_MONITOR_KIND && input.conditions !== undefined) {
     throw invalidMonitor("Form 4 purchase settings must be updated through their typed settings", ["form4_purchase_conditions_immutable"]);
   }
@@ -264,7 +274,7 @@ export async function deleteListingMonitor(
   return readRows(result.data).some((row) => row.user_id === ownerId && row.id === monitorId);
 }
 
-export function validateCanonicalListingConditions(value: unknown): Readonly<{
+export function validateCanonicalListingConditions(value: unknown, stage: "stored" | "draft" = "stored"): Readonly<{
   ok: boolean;
   conditions: readonly CanonicalListingMonitorCondition[];
   errors: readonly string[];
@@ -301,11 +311,17 @@ export function validateCanonicalListingConditions(value: unknown): Readonly<{
       value: cloneCanonicalValue(candidate.value),
     }));
   });
+  if (stage === "stored") errors.push(...effectConditionErrors(conditions));
   return {
     ok: errors.length === 0,
     conditions: errors.length === 0 ? Object.freeze(conditions) : [],
     errors: Object.freeze(errors),
   };
+}
+
+async function requireEffectTarget(conditions: readonly CanonicalListingMonitorCondition[]) {
+  try { await (await import("../sec-effect/registration.ts")).verifyRegistrationTarget(conditions); }
+  catch { throw invalidMonitor("Registration evidence is unavailable or conflicts with the selected target.", ["effect_target_unverified"]); }
 }
 
 async function listOwnedMonitors(
