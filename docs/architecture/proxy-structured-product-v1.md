@@ -4,6 +4,11 @@ This candidate connects the frozen Proxy two-call analyzer to saved SEC raw data
 durable execution, validated history, Generic Monitor conditions and internal alerts.
 It is not a production deployment or a completed merge acceptance.
 
+Update: the outstanding candidate gates described below were subsequently closed
+by the authorized [merge-gate verification](../operations/PROXY_STRUCTURED_MERGE_GATES.md).
+That report supersedes the initial pending migration-history and unverified E2E/UI
+status. It does not authorize a main merge or deployment.
+
 ## Source, execution and official read
 
 - `lib/sec-proxy/source.ts` binds the exact SEC raw identity, original payload,

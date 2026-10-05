@@ -15,6 +15,10 @@
 
 ## Candidate verification disposition
 
+The initial disposition below is historical. The later, explicitly authorized
+[merge-gate verification](PROXY_STRUCTURED_MERGE_GATES.md) closes the positive
+automatic alert, browser Create/logged-out and local migration-history gaps.
+
 - Implemented raw/event hooks, durable stage checkpoints, source-bound current readers, two typed boolean Matcher conditions, existing Generic Monitor alerts and Proxy preset/editor entries. Frozen parser/Call1/Call2 and Primary source/prompt/schema/scoring/repair files have no changes; Primary ingest only gains the orchestration hook.
 - Genuine Workflow replay and four bounded fresh requests completed on Alternus/BigBear. Exact stored Call2 results revalidate through the official verification reader. Recovery/concurrency passed with the real DB; details distinguish queue execution from in-process fault injection.
 - Final focused run: 226/228 pass with two base-reproduced failures; additional S8/SC13/UI subset: 74/74; new product/ingest checks: 7/7. Whole typecheck and diff check pass. Local security advisors: no warning/error issues.
