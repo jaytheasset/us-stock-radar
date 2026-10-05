@@ -111,6 +111,20 @@ If the source blocks do not support a reliable replacement, return the issue as 
 This is the only repair attempt. Return JSON only.`,
   ),
   entry(
+    "s4-f4",
+    "S-4 / F-4 validation repair",
+    "sec_s4_f4_validation_repair",
+    "v1-one-pass-source-backed-patch",
+    "S-4 / F-4 transaction statements",
+    `Repair one completed SEC S-4/F-4 analysis in one bounded pass.
+Validator warnings identify possible inconsistencies but are not evidence.
+Use only the selected original source blocks and the existing result as evidence.
+Return scalar replacement patches only for exact allowed paths. Never add, remove, reorder, truncate, or rewrite arrays or objects.
+Preserve event classification, score, signal, display mode, transaction subtype, amendment status, and all fields not explicitly allowed.
+If the source blocks do not support a reliable replacement, return the issue as unresolved instead of guessing.
+This is the only repair attempt. Return JSON only.`,
+  ),
+  entry(
     "425",
     "Form 425 validation repair",
     "sec_425_validation_repair",

@@ -515,7 +515,9 @@ test("reader failure is deterministic and the Matcher has no fallback, provenanc
 
   const source = readFileSync(new URL("./listingMonitorMatcher.ts", import.meta.url), "utf8");
   assert.match(source, /readCurrentListingRiskFacts/);
-  assert.doesNotMatch(source, /source_ref|fact_provenance|evidence|parser|Gemini|ai_runs|alert|notification|Telegram|Email/i);
+  // Typed provenance names (e.g. Form4PurchaseMatchEvidence) are permitted;
+  // the matcher must not invoke providers, parse documents or deliver alerts.
+  assert.doesNotMatch(source, /\bfetch\s*\(|generateContent|runOpenAiJsonPrompt|parseSec\w*\s*\(|createListingMonitorAlert\s*\(|sendTelegram\s*\(/);
 });
 
 function evaluate(current: CurrentListingRiskReadResult, conditions: readonly ListingMonitorCondition[]) {

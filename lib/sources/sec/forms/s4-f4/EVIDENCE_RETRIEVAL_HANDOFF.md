@@ -1,6 +1,6 @@
 # S-4/F-4 evidence retrieval candidate — 2026-10-06
 
-Historical offline audit retained. The later [local MCP evidence handoff](MCP_EVIDENCE_HANDOFF.md) supersedes this document's future-MCP boundary and freezes the separate one-attempt Primary / original-evidence architecture. Selector and core retrieval remain unchanged.
+Historical offline audit retained. The later [local MCP evidence handoff](MCP_EVIDENCE_HANDOFF.md) supersedes this document's future-MCP boundary. Primary's pre-MCP retry/fallback/repair policy has been restored; it remains separate from original-evidence MCP. Selector and core retrieval remain unchanged.
 
 Practical PASS for 15 source-term queries over the existing five selected current filings. Stop at this offline boundary. This replaces the old recommendation to normalize complex transaction terms into Monitor FACTs. No provider calls in this task. No selector changes, DB/schema changes, deployed MCP tools, product routes, Monitor/Matcher/Alert, 425, merge, push or deploy.
 

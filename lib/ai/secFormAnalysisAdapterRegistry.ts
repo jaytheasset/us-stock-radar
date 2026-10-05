@@ -84,8 +84,12 @@ import {
 import {
   SEC_S4_F4_ANALYSIS_PROMPT_KEY,
   SEC_S4_F4_ANALYSIS_PROMPT_VERSION,
+  SEC_S4_F4_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S4_F4_VALIDATION_REPAIR_PROMPT_VERSION,
+  applySecS4F4ValidationRepairPatches,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
   buildSecS4F4AnalysisPromptForInput,
+  buildSecS4F4ValidationRepairPlan,
   isS4F4FilingInput,
 } from "@/lib/ai/secS4F4AnalysisAdapter";
 import {
@@ -187,6 +191,8 @@ export {
   SEC_SC13_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_S4_F4_ANALYSIS_PROMPT_KEY,
   SEC_S4_F4_ANALYSIS_PROMPT_VERSION,
+  SEC_S4_F4_VALIDATION_REPAIR_PROMPT_KEY,
+  SEC_S4_F4_VALIDATION_REPAIR_PROMPT_VERSION,
   SEC_S8_ANALYSIS_PROMPT_KEY,
   SEC_S8_ANALYSIS_PROMPT_VERSION,
   SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
@@ -230,6 +236,7 @@ export {
   adaptSecSc13AnalysisPromptResultForAnalysis,
   applySecSc13ValidationRepairPatches,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
+  applySecS4F4ValidationRepairPatches,
   adaptSecS8AnalysisPromptResultForAnalysis,
   applySecS8ValidationRepairPatches,
   adaptSecS3AnalysisPromptResultForAnalysis,
@@ -269,6 +276,7 @@ export {
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,
   buildSecS4F4AnalysisPromptForInput,
+  buildSecS4F4ValidationRepairPlan,
   buildSecS8AnalysisPromptForInput,
   buildSecS8ValidationRepairPlan,
   is424bFilingInput,
