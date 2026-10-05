@@ -1,4 +1,44 @@
-# EFFECT registration Monitor — local Practical PASS
+# EFFECT registration Monitor — local Practical PASS and live-input E2E
+
+## Live-input E2E follow-up (2026-10-06)
+
+**PASS in candidate 5f1c, starting from detached `2ce3aa72a96a3afa87af52aafc22a89d619f86a2`.** This extends, and does not reclassify, the replay/synthetic Practical PASS below. No main integration or operational activation.
+
+Reused preserved Supabase project `effect-5f1c-isolated`, API 59421 / DB 59422, database system identifier `7693255112623656999`, candidate server 3117, and existing ordinary Free test accounts A/B. Before collection there were no PureCycle raw rows. Shared databases and port 3110 were not operated. The approved local Gemini and SEC contact settings were read into the isolated process only; no environment file was changed. The process guard blocks external delivery and other providers.
+
+| Actual SEC input | Accession | Identity / purpose |
+| --- | --- | --- |
+| PureCycle S-3 | `0001193125-24-262591` | CIK `0001830033`, file `333-283364`, selected original registration |
+| Same-registration S-3/A | `0001193125-25-003567` | Same CIK/file; grouped with original rather than treated as ambiguity |
+| Different PureCycle S-3 | `0001104659-22-053550` | File `333-264581`, negative control |
+| Matching EFFECT | `9999999995-25-000112` | S-3, file `333-283364`, effective `2025-01-15`, no explicit reference accession in this notice |
+
+Official evidence: [S-3 index](https://www.sec.gov/Archives/edgar/data/1830033/000119312524262591/0001193125-24-262591-index.html), [S-3 document](https://www.sec.gov/Archives/edgar/data/1830033/000119312524262591/d849012ds3.htm), [EFFECT index](https://www.sec.gov/Archives/edgar/data/1830033/999999999525000112/9999999995-25-000112-index.html), [EFFECT original XML](https://www.sec.gov/Archives/edgar/data/1830033/999999999525000112/primary_doc.xml).
+
+| Stage | Actual execution / replay status | Result |
+| --- | --- | --- |
+| Registration collection/storage | Live SEC requests via unmodified `runSecRawIngest`, no HTTP replay or direct raw insertion | All three registration rows stored, no document failures |
+| Natural language | Browser `/monitor`, ordinary user A: `PureCycle Technologies의 S-3 등록 건에 EFFECT가 나오면 알려줘` → existing compiler → live Gemini `gemini-2.5-flash-lite` | Exactly **1 physical provider request**, HTTP 200; no provider replay; two registration candidates, selected target has filingCount 2 |
+| Review/create/readback | Browser selects original S-3, reviews canonical target, creates through existing API; authenticated GET compares all five saved conditions | PASS; original positive Monitor `1273268c-fe65-48cc-99da-edcf80642fcd` |
+| Controls | Reuse the actual returned draft with existing confirm/create APIs; no second compiler call | A's other registration and B's same registration stored; no facts/events/alerts inserted by harness |
+| EFFECT collection | Only after Monitor creation, live SEC requests via `runSecRawIngest` | Real index exposes XSL display link and direct XML link; collector fetches both. Direct XML identity/hash survives storage; display text is not match evidence |
+| Evaluation/notification | Existing `runSecFilingAnalysisIngest` invoked in isolated process, as used by the existing analysis workflow step | Deterministic Primary persists event `630f415b-5276-4209-a770-0acabd6c33a1`, its automatic EFFECT hook invokes Reader/Matcher/outbox: created 2 (A/B one each), failed 0; no direct consumer call, no EFFECT LLM |
+| Existing `/alerts` | Real authenticated page and alert API | Your monitors shows selected registration/accession; Monitor alerts shows one real notice per owner, correct date and direct XML link. Foreign-owner Monitor GET 404 and alert list empty. Other registration: 0 alerts |
+| Reprocessing | Second live EFFECT recollection, then 6 concurrent existing analysis entrypoint calls over stored real input | Each returns created 0 / existing 2 / failed 0; DB and owner APIs still show one per Monitor. No HTTP/provider replay; stored real input reused for analysis |
+
+Original XML block SHA-256: `0c90947110facbd1dd7d5ef3fb72ad99e86fe5bae3ee2c8eaf6dc7a22ffbdab6`. Guarded live run logged 32 SEC responses, all HTTP 200, plus one Gemini request/response. Preliminary SEC submissions/index discovery requests were also live. Prior Ibotta synthetic/replay rows remain in the reused DB, but assertions use the new Monitor IDs and exact PureCycle identity; those old rows are not counted as this E2E.
+
+**Issue found and fixed:** Webpack `/monitor` initially failed because the shared persistence/preset import graph reached `source.ts` and `node:crypto`. Extracted unchanged identity syntax helpers into `lib/sec-effect/identity.ts`; registration lookup now imports that module. Server XML parsing/hash checks are unchanged. Browser then completed the live journey without an error overlay. No collector, compiler semantics, Matcher, migration, S-1/S-3 Registry/snapshot or S-4/F-4 logic changed in this follow-up.
+
+Validation: EFFECT tests 12/12, TypeScript PASS, rendered alerts at 1440 / 820 / 390 px with no horizontal overflow. During concurrent forced Primary reprocessing, two existing optional `market_snapshots` writes reported `event_market_snapshots_pkey` conflicts. All six Primary calls and EFFECT alert executions completed; this common snapshot concurrency warning was left unchanged per task scope and is not a claim that the whole Primary pipeline is race-free.
+
+Reproduction helpers: `scripts/effect-live-runtime.mjs` (isolated endpoints, actual SEC and compiler only, one provider request per evidence log) and `scripts/verify-effect-live.ts` (`inspect`, `collect <accession> <cik> <form>`, `controls`, `analyze <accession>`, `concurrent <accession>`, `check`). Set `EFFECT_ISOLATED_STATUS`, `EFFECT_LIVE_CREDENTIALS` (approved existing settings file), `EFFECT_LIVE_OUT` and `EFFECT_LIVE_HTTP_LOG` to private local paths. Start candidate Next with the runtime as an absolute file-URL preload. Use the existing absolute TS-path loader/server-only preload for the CLI. Browser capture of the actual compile/confirm/create responses supplies `live-monitor-responses.json`; the helper never fabricates compiler output. Do not use the older replay runtime for this procedure.
+
+Private logs, readback evidence and screenshots are retained outside Git in `%TEMP%/stockradar-effect-5f1c-isolated` (`live-*`). Candidate server and isolated stack stopped after verification; database volumes preserved.
+
+**Remaining activation boundary:** raw collection and analysis entrypoints were explicitly invoked in isolation; automatic post-Primary fanout was verified. Cron, workflow scheduling/durable dispatch, production migration/configuration and production availability were not activated or verified. No main merge, push, deployment or external notification. Live-input E2E has no remaining access blocker; main integration remains a separate decision. The earlier operational status references below are historical, not freshly verified production equality.
+
+## Earlier Practical PASS (preserved)
 
 Verified 2026-10-06 in the existing candidate `C:\Users\PC\.codex\worktrees\5f1c\US-Stock Radar`, detached from base `ee740278083bd08abc4d05d8bd0d1a3155614049`. No new chat/worktree, main integration, push, deployment, production database change, cron change, or external delivery.
 

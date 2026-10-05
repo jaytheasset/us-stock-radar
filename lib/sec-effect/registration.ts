@@ -1,4 +1,4 @@
-import { accessionPattern, cik, fileNumberPattern, record, secDocumentUrl } from "./source.ts";
+import { accessionPattern, cik, fileNumberPattern, record, secDocumentUrl } from "./identity.ts";
 import { effectTarget, REGISTRATION_FORMS, type EffectCondition, type RegistrationTarget } from "./conditions.ts";
 
 export type Select = (table: string, query: Record<string, string>) => Promise<{ ok: boolean; data: unknown; error?: string }>;

@@ -2,7 +2,7 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
-- **EFFECT registration Monitor — candidate local Practical PASS** — original XML identity, explicit registration confirmation, existing Monitor alerts and atomic dedupe, isolated checks and activation limits: [`architecture/effect-registration-monitor-v1.md`](architecture/effect-registration-monitor-v1.md)
+- **EFFECT registration Monitor — candidate live-input E2E PASS and earlier Practical PASS** — live S-3/EFFECT and compiler, original XML identity, explicit registration confirmation, existing Monitor alerts and atomic dedupe, isolated checks and activation limits: [`architecture/effect-registration-monitor-v1.md`](architecture/effect-registration-monitor-v1.md)
 
 - **S-8 direct-registration v1 frozen handoff** — separate registration history, evidence/reader, deferred Registry/Monitor integration and next-audit boundary: [`architecture/sec-s8-direct-registration-v1.md`](architecture/sec-s8-direct-registration-v1.md)
 
