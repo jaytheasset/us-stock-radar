@@ -37,7 +37,7 @@ Freenome original ownership table and all six numbered footnotes are retained. K
 
 All four transaction meeting dates and STORE expiry remain source placeholders; Freenome June 10 is the extension meeting, and June 13 2027 is proposed. A numeric STORE minimum aggregate exchange/consent threshold remains unverified; minimum note denominations and indenture action thresholds must not be substituted for it. Unselected, unprovided and unavailable do not mean absent in the entire filing.
 
-Next step recommendation only: one bounded current-source LLM validation, preferably Kodiak with approximately 300k heuristic input-token planning allowance (Freenome about 500k). Actual provider window/tokenizer suitability is unverified. No provider call performed. Stop here; no new cases or reference-graph expansion.
+Historical next-step recommendation (superseded): one bounded current-source LLM validation. After the subsequent Kodiak semantic failure, the user changed direction to source evidence retrieval. Follow [EVIDENCE_RETRIEVAL_HANDOFF.md](EVIDENCE_RETRIEVAL_HANDOFF.md); do not rerun the old validation or resume complex Monitor FACT normalization. The selector remains accepted and unchanged.
 
 Verification: eight focused tests + three existing regression modules passed; full typecheck and diffcheck passed. All five primary and four optional archive SHA-256 hashes matched; every selected section exactly reproduces from its source coordinates. UI/API/accounts/plans/viewports unaffected; browser checks not applicable.
 

@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **S-4/F-4 evidence retrieval candidate** — existing selector packet → metadata map → source-only search/read, five-case offline scope and unresolved references: [`EVIDENCE_RETRIEVAL_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/EVIDENCE_RETRIEVAL_HANDOFF.md).
+
 - **S-8 direct-registration v1 frozen handoff** — separate registration history, evidence/reader, deferred Registry/Monitor integration and next-audit boundary: [`architecture/sec-s8-direct-registration-v1.md`](architecture/sec-s8-direct-registration-v1.md)
 
 - **NT secondary Monitor** — deterministic notice/follow-up facts, official reader, matching safety and local evidence: [`architecture/nt-secondary-monitor-v1.md`](architecture/nt-secondary-monitor-v1.md)
