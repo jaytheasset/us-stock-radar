@@ -33,6 +33,7 @@ export type NaturalLanguageMonitorDraftConditionPreview = Readonly<{
 }>;
 
 export type NaturalLanguageMonitorDraft = Readonly<{
+  effectResolution?: import("../sec-effect/draft.ts").EffectResolution;
   version: typeof NATURAL_LANGUAGE_MONITOR_DRAFT_VERSION;
   draftStatus: NaturalLanguageMonitorDraftStatus;
   compilerStatus: NaturalLanguageConditionCompilerResult["status"];

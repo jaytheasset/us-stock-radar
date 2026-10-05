@@ -6,6 +6,7 @@ import {
   parseNaturalLanguageConditionCompilerRequest,
 } from "../../../../../lib/monitor/naturalLanguageConditionCompiler.ts";
 import { buildNaturalLanguageMonitorDraft } from "../../../../../lib/monitor/naturalLanguageMonitorDraft.ts";
+import { resolveEffectDraft } from "../../../../../lib/sec-effect/draft.ts";
 import {
   MONITOR_API_NO_STORE_HEADERS,
   monitorAuthRequiredResponse,
@@ -41,7 +42,7 @@ export async function handleListingConditionCompilerPost(
 
   try {
     const run = await dependencies.compile({ text: parsed.text });
-    const draft = buildNaturalLanguageMonitorDraft(run.result, parsed.text);
+    const draft = await resolveEffectDraft(buildNaturalLanguageMonitorDraft(run.result, parsed.text));
     return NextResponse.json(
       { ok: true, data: draft },
       { headers: MONITOR_API_NO_STORE_HEADERS },

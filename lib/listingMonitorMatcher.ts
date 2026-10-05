@@ -5,6 +5,8 @@ import type { ProxyMonitorFacts } from "./monitor/proxyStructuredFacts.ts";
 import { readEventFilingMetadata, type EventFilingMetadata } from "./monitor/eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
+import { hasEffect, type EffectCondition } from "./sec-effect/conditions.ts";
+import { matchEffect, type EffectFacts } from "./sec-effect/reader.ts";
 import {
   readCurrentListingRiskFacts,
   type CurrentListingRiskReadResult,
@@ -118,6 +120,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 
 export type MonitorFactReaders = Readonly<{
   filing?: EventFilingMetadata;
+  effect?: EffectFacts;
   proxy?: ProxyMonitorFacts;
   s8?: S8MonitorFacts;
   nt?: NtLifecycleReadResult;
@@ -165,6 +168,11 @@ export function evaluateMonitorConditions(
     currentPrice?: CurrentPrice;
   }>,
 ): ListingMonitorMatchResult {
+  if (hasEffect(conditions)) {
+    const status = matchEffect(readers.effect, conditions as readonly EffectCondition[]);
+    const reason = status === "match" ? "all_conditions_match" : status === "no_match" ? "condition_not_met" : "fact_unavailable";
+    return result(status, reason, conditions.map(c => conditionResult(String(c.key), status, reason)));
+  }
   if (!Array.isArray(conditions) || conditions.length === 0) {
     return result("ineligible", "condition_set_empty", []);
   }

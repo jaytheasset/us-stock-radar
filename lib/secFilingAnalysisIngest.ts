@@ -349,6 +349,8 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     ? await consumeListingMonitorAlertsForEvent({ eventId: stringValue(persistedEvent.id), conditionFamily: "filing" })
       .catch(error => ({ status: "failed", reason: String(error) }))
     : null;
+  const effectMonitorExecution = primaryPromptKey === "sec_effect_deterministic" && !options.suppressAlerts
+    ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id)) : null;
   const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
     ? await runOfferingMonitorSiteAnalysisExecution({
         eventId: stringValue(persistedEvent.id),
@@ -383,6 +385,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     amendmentMonitorLineage,
     ownershipStructuredContext,
     ownershipMonitorConditionExecution,
+    effectMonitorExecution,
     offeringMonitorRegistryExecution,
     filingMonitorExecution,
     proxyStructuredExecution,

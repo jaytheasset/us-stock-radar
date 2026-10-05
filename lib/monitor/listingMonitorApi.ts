@@ -37,6 +37,7 @@ export type ListingMonitorUpdateInput = Readonly<{
 }>;
 
 export type ListingMonitorAlertItem = Readonly<{
+  effectEvidence?: import("../sec-effect/reader.ts").EffectEvidence | null;
   id: string;
   monitorId: string | null;
   eventId: string | null;
@@ -213,7 +214,7 @@ async function resolveAlertRepository(): Promise<ListingMonitorAlertRepository> 
     list: ({ ownerId, monitorId, limit, offset }) => supabase.supabaseSelect(
       "user_alert_deliveries",
       {
-        select: "id,alert_event_id,listing_monitor_id,created_at,listing_match_evidence",
+        select: "id,alert_event_id,listing_monitor_id,created_at,listing_match_evidence,effect_match_evidence",
         user_id: `eq.${ownerId}`,
         alert_domain: "eq.listing",
         alert_lane: "eq.listing_monitor",
@@ -286,7 +287,16 @@ function mapAlertRow(row: Record<string, unknown>): ListingMonitorAlertItem[] {
     eventId: typeof row.alert_event_id === "string" ? row.alert_event_id : null,
     createdAt: row.created_at,
     matchEvidence: parseStoredForm4PurchaseMatchEvidence(row.listing_match_evidence),
+    ...(validEffectEvidence(row.effect_match_evidence) ? { effectEvidence: row.effect_match_evidence } : {}),
   }];
+}
+
+function validEffectEvidence(value: unknown): value is import("../sec-effect/reader.ts").EffectEvidence {
+  if (!record(value) || value.kind !== "effect_registration_v1"
+    || !["registrationForm", "fileNumber", "cik", "effectiveDate", "effectAccession", "sourceUrl"].every(k => typeof value[k] === "string")) return false;
+  try { const url = new URL(value.sourceUrl as string);
+    return url.protocol === "https:" && url.hostname === "www.sec.gov" && url.pathname.startsWith("/Archives/edgar/data/");
+  } catch { return false; }
 }
 
 function readRows(value: unknown) {

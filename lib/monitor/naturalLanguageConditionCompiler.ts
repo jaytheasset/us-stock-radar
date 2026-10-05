@@ -417,7 +417,7 @@ function readCanonicalConditions(
   requirementIndex?: number,
 ): readonly CanonicalListingMonitorCondition[] {
   if (!Array.isArray(value) || value.length === 0) return Object.freeze([]);
-  const validation = validateCanonicalListingConditions(value);
+  const validation = validateCanonicalListingConditions(value, "draft");
   if (!validation.ok) {
     throw invalidOutput(validation.errors.map((error) => (
       requirementIndex === undefined ? error : `requirements[${requirementIndex}].${error}`

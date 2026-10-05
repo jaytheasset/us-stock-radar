@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "effect";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -113,6 +113,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_s8_structured"
       | "read_current_proxy_structured"
       | "read_event_filing_metadata"
+      | "read_effect_registration"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -171,6 +172,21 @@ const registry = [
     source: { subject: "event", reader: "read_event_filing_metadata", jsonPath: ["form"] },
     qualityCapability: ["exact"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
   } as const,
+  ...([
+    ["observed", "EFFECT notice", "Notify once when SEC EFFECT confirms the selected registration. Absence is unknown, never not effective.", "boolean"],
+    ["target_query", "Find registration", "Unresolved registration selector: company name, ticker, exact accession, CIK or full file number supplied by the user. For 'this/current registration', use the company selector and registration_form; never guess latest. Server searches and user must select a registration before creation.", "text"],
+    ["registration_form", "Registration form", "Requested registration family: S-1, S-3, F-1 or F-3. Amendments belong to the same file number.", "text"],
+    ["issuer_cik", "Registrant CIK", "Exact source-verified registrant CIK. Resolved by server confirmation; never invent from company name.", "text"],
+    ["file_number", "SEC registration number", "Exact source-verified Securities Act file number, including every suffix. Resolved by server confirmation.", "text"],
+    ["registration_accession", "Registration evidence accession", "Exact registration filing accession chosen during server confirmation. It is evidence for the registration, not the EFFECT notice accession.", "text"],
+  ] as const).map<MonitorConditionDefinition>(([field, label, description, valueType]) => ({
+    key: `effect.${field}`, valueType, allowedOperators: ["eq"], family: "effect", domain: "registration",
+    monitorDomains: ["listing"], description,
+    ...(field === "registration_form" ? { enumValues: ["S-1", "S-3", "F-1", "F-3"], enumValueDescriptions: { "S-1": "S-1 registration family", "S-3": "S-3 registration family", "F-1": "F-1 registration family", "F-3": "F-3 registration family" } } : {}),
+    display: { label, ...(valueType === "boolean" ? { booleanValueLabels: { true: "Notify on confirmed EFFECT", false: "Unsupported: absence is unknown" } } : {}),
+      ...(field === "registration_form" ? { enumValueLabels: { "S-1": "S-1", "S-3": "S-3", "F-1": "F-1", "F-3": "F-3" } } : {}) },
+    source: { subject: "event", reader: "read_effect_registration" }, qualityCapability: ["exact"], status: "READY",
+  })),
   ...(["has_proposal", "has_capital_structure_proposal"] as const).map<MonitorConditionDefinition>(field => ({
     key: `proxy.${field}`, valueType: "boolean", allowedOperators: ["eq"],
     family: "proxy", domain: "proxy", monitorDomains: ["listing"],

@@ -124,14 +124,10 @@ export function ListingMonitorDraftBuilder() {
     setMessage("");
     setCreatedMonitor(null);
     try {
-      const response = await fetch("/api/monitors/listing/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await requestDraftConfirmation({
           draft: { ...draft, conditions: review.conditions },
           proposalId,
           choiceId,
-        }),
       });
       const payload = await readApiPayload(response);
       if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not apply this choice.");
@@ -183,6 +179,20 @@ export function ListingMonitorDraftBuilder() {
     } finally {
       setAction("idle");
     }
+  }
+
+  async function confirmRegistration(registrationAccession: string) {
+    if (!draft || !review || action !== "idle") return;
+    setAction("confirming");
+    try {
+      const response = await requestDraftConfirmation({ draft: { ...draft, conditions: review.conditions }, registrationAccession });
+      const payload = await readApiPayload(response);
+      if (!response.ok || !payload?.data) throw apiError(response, payload, "Registration could not be confirmed.");
+      setDraft(payload.data as NaturalLanguageMonitorDraft);
+      setReview(createListingMonitorDraftReview(payload.data));
+      setMessage("Registration confirmed. Review the exact target before creating the monitor.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Registration could not be confirmed. Build the monitor again."); }
+    finally { setAction("idle"); }
   }
 
   function updateCondition(index: number, condition: CanonicalListingMonitorCondition) {
@@ -297,6 +307,23 @@ export function ListingMonitorDraftBuilder() {
       {message ? <p className={styles.message} aria-live="polite">{message}</p> : null}
 
       {createdMonitor ? <CreatedMonitorSummary monitor={createdMonitor} /> : null}
+      {review && draft?.effectResolution ? (
+        <section className={styles.createdSummary} aria-label="Registration target review">
+          <h2>Confirm the registration</h2>
+          <p>{draft.effectResolution.message}</p>
+          {draft.effectResolution.candidates.map(target => (
+            <article key={`${target.cik}:${target.fileNumber}`}>
+              <strong>{target.company} · {target.form} · {target.fileNumber}</strong>
+              <p>CIK {target.cik} · {target.filingCount} filing{target.filingCount === 1 ? "" : "s"} in this registration</p>
+              <p>Evidence: <a href={target.sourceUrl} target="_blank" rel="noreferrer">{target.accession}</a></p>
+              {draft.effectResolution?.status !== "confirmed" ? <button type="button" disabled={action !== "idle"}
+                onClick={() => void confirmRegistration(target.accession)}>Use this registration</button> : null}
+            </article>
+          ))}
+          <p>One alert for this registration when a matching SEC EFFECT is confirmed. Missing EFFECT means unknown.</p>
+          <p>To change the registration, edit your request and build the monitor again.</p>
+        </section>
+      ) : null}
 
       {review ? (
         <div className={styles.review}>
@@ -577,8 +604,15 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
-                  {alert.matchEvidence ? (
+                <li className={alert.effectEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                  {alert.effectEvidence ? (
+                    <>
+                      <strong>Registration EFFECT confirmed</strong>
+                      <span>{alert.effectEvidence.registrationForm} · {alert.effectEvidence.fileNumber} · CIK {alert.effectEvidence.cik}</span>
+                      <span>Effective date: {alert.effectEvidence.effectiveDate}</span>
+                      <a href={alert.effectEvidence.sourceUrl} target="_blank" rel="noreferrer">SEC EFFECT {alert.effectEvidence.effectAccession}</a>
+                    </>
+                  ) : alert.matchEvidence ? (
                     <Form4PurchaseAlertDetails
                       alert={alert}
                       settings={alert.monitorId ? monitorById.get(alert.monitorId)?.form4PurchaseSettings ?? null : null}
@@ -597,6 +631,12 @@ export function ListingMonitorManagement() {
       ) : null}
     </section>
   );
+}
+
+function requestDraftConfirmation(body: unknown) {
+  return fetch("/api/monitors/listing/confirm", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
 }
 
 function ConditionDomainCards({
@@ -619,7 +659,7 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
@@ -627,6 +667,7 @@ function ConditionDomainCards({
     "corporate-actions": "Corporate Actions",
     "listing-risk": "Listing Risk",
     "proxy": "Proxy",
+    "effect": "Registration EFFECT",
   } as const;
 
   return (
@@ -639,7 +680,7 @@ function ConditionDomainCards({
             {group?.items.length ? (
               <div className={styles.domainConditions}>
                 {group.items.map(({ condition, index }) => (
-                  onChange && onRemove ? (
+                  onChange && onRemove && domainId !== "effect" ? (
                     <ConditionEditor
                       condition={condition}
                       index={index}
