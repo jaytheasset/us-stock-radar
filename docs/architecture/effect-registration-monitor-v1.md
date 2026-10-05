@@ -1,4 +1,16 @@
-# EFFECT registration Monitor — local Practical PASS and live-input E2E
+# EFFECT registration Monitor — integrated local main
+
+## Main integration checkpoint — 2026-10-06 KST
+
+Current product baseline: `def887903bb4fedf2bfa8d9d2f6a7af04b69d8e3`. Main fast-forwarded from `3e15836c8f682d3e51e6ee10cdc850ba42f1ed8b` only after combined candidate verification and the explicitly approved local migration. This section supersedes the historical candidate-only integration status below; it does not claim production deployment.
+
+- Combined verification: 243 focused tests, full TypeScript, 15/15 retained real S-4/F-4 MCP queries, authenticated/logged-out Monitor journeys and 1440/820/390px browser checks passed. Retained real SEC inputs and the saved compiler result were replayed; no fresh paid call was made for integration. Both candidate commits are included, alongside main's unchanged S-4/F-4 Primary and exact `event.sec_form` conditions.
+- Main DB: only `20261005183052_effect_registration_monitor.sql` was applied through the existing Supabase migration CLI to local `127.0.0.1:56322/postgres`. Full DB/role backups were verified first. Two nullable alert columns, registration dedupe constraint, three function bodies, trigger, grants and migration history were checked. Existing seven Monitors and two alerts retained identical content hashes.
+- Main verification: 94/94 focused EFFECT/Monitor/S-4/F-4/Proxy regressions, full TypeScript and diff checks passed. Existing authenticated `/monitor` and `/alerts` rendered at 1440/820/390px without browser errors or overflow; existing Monitor/alert APIs returned 200, logged-out requests returned 401. No Monitor or alert was created/deleted. Existing unavailable market indices are unrelated.
+- Evidence: `%TEMP%/stockradar-effect-main-integration-20261006` and `%TEMP%/stockradar-effect-main-approved-20261006`; recoverable backup: `%LOCALAPPDATA%/StockRadar/backups/effect-main-20261006`. Private credentials, database dumps and browser evidence are not committed.
+- Scope remains registration-specific, not issuer-wide EFFECT detection. No notice found is not proof of ineffectiveness. S-1/S-3 JSON → Registry/snapshots are unchanged. Production migration, deployment, cron activation and external delivery remain separate operations; local integration is not operational activation.
+
+The single flow diagram remains in [SEC Primary map](map/01-primary-analysis.md); current publication/deployment boundaries are recorded in the [main handoff](../operations/ASTRA_6_MAIN_HANDOFF.md).
 
 ## Live-input E2E follow-up (2026-10-06)
 

@@ -23,6 +23,17 @@ provider checkpoint/uncertain은 불확실한 호출의 자동 재호출을 막�
 
 Local automatic filing → internal Alert E2E 및 재실행 dedupe/멱등성 PASS. 양성 자동 E2E는 합성 filing + 보존 응답 replay이고, 실제 Alternus/BigBear fresh 분석 검증은 별도다. main reader/인증 UI smoke와 migration `20261005043414` 객체/history 정합 확인 완료. **push/deploy 및 외부 email/Telegram 완료 아님.** 세부 근거·한계는 [Proxy 제품 문서](../proxy-structured-product-v1.md)를 참조한다. 전체 연결 Mermaid는 [SEC Primary 지도](01-primary-analysis.md)의 기존 도식 한 곳에서 관리한다.
 
+### S-4/F-4 evidence 및 EFFECT — 2026-10-06 local main
+
+통합 기준 `def887903bb4fedf2bfa8d9d2f6a7af04b69d8e3`. S-4/F-4는 새로운 merger FACT schema가 아니다. 독립 Core Selector/Evidence Index/MCP가 저장 원문의 선택 근거를 제공하고, Monitor는 완료된 Primary event의 정확한 제출 form만 읽는다. EFFECT도 새 Structured LLM 도메인이 아니라 원본 XML과 선택한 등록 근거의 deterministic reader/Matcher 연결이다. 두 경로 모두 Primary prose/score를 FACT 근거로 쓰지 않는다.
+
+| 경로 | 저장·reader | Consumer와 검증 범위 |
+| --- | --- | --- |
+| S-4/F-4 | 기존 raw 및 Primary event/run; `readEventFilingMetadata`; source-only MCP search/read | `event.sec_form` eq/in 네 form의 제출/정정 발생만. 기존 5건/15 MCP query PASS; event 없는 raw 제외 |
+| EFFECT | `raw_items.documents[].effectOriginalSource` XML/URL/hash; `readEffectFacts`; 기존 `user_alert_deliveries`의 match evidence/registration key | 명시적으로 확인한 CIK/file number/form/accession 대상만. RPC가 원본/대상 재검증 및 등록별 중복 방지; `/monitor`·`/alerts` 재사용 |
+
+Local migration `20261005183052` 적용 및 main 기존 데이터 보존 확인. 합본 회귀 243건, main 집중 회귀 94건·typecheck·인증 화면 검증 PASS. [EFFECT 기록](../effect-registration-monitor-v1.md)은 fresh 후보 E2E와 합본 replay/main read-only smoke를 구분한다. 기존 inventory의 다른 UNKNOWN은 유지한다. 전체 연결 도식은 [SEC Primary 지도](01-primary-analysis.md)의 기존 Mermaid가 단일 원본이다. 생산 환경 활성화는 별도다.
+
 ## 도메인 지도 / Domain Inventory
 
 ```mermaid

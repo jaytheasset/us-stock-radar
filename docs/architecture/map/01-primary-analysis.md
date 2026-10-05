@@ -5,7 +5,16 @@
 - 기준 코드 commit: `8cb52893a84c8de73051ae2b87427a054b9897cf` (`main`).
 - 근거: 앞선 감사의 현재 코드 호출 추적과 shared-local 기존 SEC 공시 3건의 읽기 전용 DB 대조.
 - 이번 3단계-A2는 그 결과의 문서화만 수행한다. 새 코드·DB 조사, ingest, LLM, 제품 실행은 하지 않았다.
-- 위 항목은 원래 3단계-A 감사의 범위다. **그 감사에서는 새 Product E2E를 수행하지 않았다.** 아래 Proxy 업데이트만 별도 확인 시점·local 검증 범위를 갖는다. 다른 family의 과거 실행을 현재 제품 E2E로 승격하지 않는다.
+- 위 항목은 원래 3단계-A 감사의 범위다. **그 감사에서는 새 Product E2E를 수행하지 않았다.** 아래 날짜별 Proxy / S-4/F-4 / EFFECT 업데이트는 각각 별도 local 검증 범위를 갖는다. 다른 family의 과거 실행을 현재 제품 E2E로 승격하지 않는다.
+
+### S-4/F-4 및 EFFECT local main 업데이트 — 2026-10-06
+
+현재 통합 기준은 `def887903bb4fedf2bfa8d9d2f6a7af04b69d8e3`다. 아래 추가 연결만 이 날짜의 검증 범위를 적용하며 원래 감사의 다른 미확인 항목을 자동 승격하지 않는다.
+
+- S-4/F-4: 기존 Primary의 prompt/provider/repair/fallback 정책을 유지한다. 독립 Core Selector → Evidence Index → MCP search/read는 source evidence만 제공하며 내부 LLM 호출·전체 SEC 원문 중복 저장이 없다. 기존 5건/15 query PASS. Monitor는 완료된 Primary event/raw/run identity를 읽어 정확한 `S-4`, `S-4/A`, `F-4`, `F-4/A`의 제출/정정 발생만 평가한다. 거래 완료·조건 변화 FACT가 아니며 event가 생성되지 않은 raw는 범위 밖이다.
+- EFFECT: 기존 자연어 compiler → 등록 후보 검토·명시적 선택 → 5개 exact 조건 저장. 원본 EFFECT XML/hash와 등록 근거를 reader가 검증하고, deterministic Primary event 저장 후 기존 Matcher → 등록별 dedupe RPC → internal Monitor Alert로 연결한다. EFFECT 원문 분석의 추가 LLM은 0회다. 회사 전체의 아무 EFFECT를 감시하지 않는다.
+- 코드: `lib/secFilingAnalysisIngest.ts`, `lib/monitor/eventFilingMetadata.ts`, `lib/sec-effect/*`, `lib/monitor/listingMonitorAlertConsumer.ts`. Local main migration `20261005183052` 적용·기존 7 Monitor/2 alert 보존, main 회귀 94/94·typecheck 및 `/monitor`·`/alerts` PC/820/390px 확인 완료. 새 유료 호출·사용자 Monitor/alert 생성/삭제는 없다. [EFFECT 검증 기록](../effect-registration-monitor-v1.md), [S-4/F-4 MCP handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md).
+- 운영 DB migration·배포·cron·외부 발송은 local 검증과 별개다. 원래 EFFECT 실행 UNKNOWN은 이 한정된 local 검증 범위에서만 해소되며 production 운영은 미확인이다.
 
 ### Proxy local main 업데이트 — 2026-10-05
 
@@ -33,7 +42,7 @@ SEC Primary Analysis는 공시를 가져와 투자자가 읽을 수 있는 설�
 
 ## 2. SEC Primary As-Is 도식
 
-일반 Primary 노드·화살표는 원래 감사의 `VERIFIED CODE` 수준이다. Proxy 분기는 위 2026-10-05 local 업데이트의 코드·저장·실행 근거를 사용하며 다른 family로 확대하지 않는다. 9절의 세 표본은 원래 감사의 별도 DB 근거다. `Primary runner → source preparation → family`는 runner 내부 처리를 펼친 것이다. Fetch에서 Raw Ingest로 향하는 선은 가져온 데이터의 전달이며, 실제 fetch 호출자는 Raw Ingest다.
+일반 Primary 노드·화살표는 원래 감사의 `VERIFIED CODE` 수준이다. Proxy 분기는 2026-10-05, S-4/F-4 및 EFFECT 분기는 2026-10-06 local 업데이트의 한정된 근거를 사용한다. 9절의 세 표본은 원래 감사의 별도 DB 근거다. `Primary runner → source preparation → family`는 runner 내부 처리를 펼친 것이다. Fetch에서 Raw Ingest로 향하는 선은 가져온 데이터의 전달이며, 실제 fetch 호출자는 Raw Ingest다.
 
 ```mermaid
 flowchart TB
@@ -65,6 +74,17 @@ flowchart TB
   proxy_reader["Official reader / source fingerprint + contract version + stored validation"]
   proxy_match["Deterministic Monitor Matcher / two typed booleans"]
   proxy_alert["Internal Alert / activation + dedupe; no external delivery claim"]
+  s4_source["S-4/F-4 Core Selector / independent source evidence"]
+  s4_mcp["Evidence Index / MCP search and read / no LLM"]
+  filing_reader["S-4/F-4 event/raw/completed-run identity reader"]
+  filing_match["Generic Matcher / exact event.sec_form eq or in"]
+  filing_alert["Internal Alert / submission only / monitor-event dedupe"]
+  effect_target["AI Monitor / existing compiler then explicit registration selection"]
+  effect_saved["Saved target / CIK + file number + form + accession"]
+  effect_reader["EFFECT official reader / original XML + URL + hash + target"]
+  effect_match["Existing deterministic Matcher / registration-specific"]
+  effect_writer["RPC source and target recheck / monitor-registration dedupe"]
+  effect_alert["Internal Monitor Alert / existing alerts UI"]
   sec -->|"원문 수집 / fetch"| fetch
   fetch -->|"수집한 공시 / fetched items"| ingest
   ingest -->|"원문 보존 / save"| raw
@@ -95,6 +115,19 @@ flowchart TB
   proxy_store --> proxy_reader
   proxy_reader -->|"Stored typed FACT / no provider call"| proxy_match
   proxy_match -->|"Eligible match / same-event dedupe"| proxy_alert
+  raw -->|"Independent of Primary / selected source only"| s4_source
+  s4_source --> s4_mcp
+  store -->|"S-4/F-4 event persisted; alerts not suppressed"| filing_reader
+  raw -->|"Exact filing identity / not Primary prose"| filing_reader
+  filing_reader --> filing_match
+  filing_match --> filing_alert
+  effect_target -->|"Review and confirm / no latest-registration guess"| effect_saved
+  raw -->|"Original EFFECT XML and saved registration evidence"| effect_reader
+  store -->|"Deterministic EFFECT event persisted; alerts not suppressed"| effect_reader
+  effect_saved --> effect_match
+  effect_reader --> effect_match
+  effect_match -->|"Eligible exact target"| effect_writer
+  effect_writer --> effect_alert
 ```
 
 **그림 읽는 법**
@@ -112,7 +145,7 @@ flowchart TB
 - Router의 archive 분기에서는 본 분석을 생략할 수 있다. router LLM까지 실행하지 않는다는 뜻은 아니다. 다른 skip·실패·dry-run 분기는 이 개요도에서 생략했다.
 - Primary Storage는 사용자용 저장과 AI trace 저장의 묶음이다. 단일 테이블·원자적 트랜잭션·모든 실패의 trace 보존을 뜻하지 않는다.
 - Score Alert는 조건에 맞고 억제되지 않은 결과만 평가한다. 큐에서 scheduler로 향하는 선은 scheduler가 큐를 읽는 코드 연결이다. 즉시 전송이나 실제 Telegram/email 발송 성공을 뜻하지 않는다.
-- Monitor Alert는 Score Alert와 별도 시스템이다. 아래 도식의 Proxy 분기만 확인된 Structured → internal Monitor Alert 연결을 표시한다. 다른 Monitor family의 내부 구조는 생략한다.
+- Monitor Alert는 Score Alert와 별도 시스템이다. 도식에는 Proxy Structured, S-4/F-4 제출 event, EFFECT 등록별 통지 경로를 구분한다. S-4/F-4 및 EFFECT 화살표는 event 저장 뒤이며 Primary 실패/미생성 raw를 지원한다고 해석하지 않는다. 다른 Monitor family의 내부 구조는 생략한다.
 
 ### 큰 연결의 코드 근거
 
@@ -150,7 +183,7 @@ flowchart TB
 | SC13 | Source-block direct analysis | `:1656`. deterministic result builder는 현재 `null` 반환; helper 존재만으로 parser-only 또는 router 경로라고 하지 않음 |
 | S-8 | Direct analysis | `:1904`. deterministic result builder는 현재 `null` 반환. 결정적 분류와 router LLM은 다른 개념 |
 | Tender | Family-specific direct analysis | `:1532` |
-| S-4 / F-4 | Existing family-specific Primary with original retry/fallback and conditional repair; independent source-only MCP evidence | eeb4 candidate restores pre-MCP Primary behavior: [MCP evidence handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md); `secFilingAnalysisPreview.ts` S-4/F-4 branch |
+| S-4 / F-4 | Existing family-specific Primary with original retry/fallback and conditional repair; independent source-only MCP evidence | Integrated in main `3e15836c`, preserved in `def88790`: [MCP evidence handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md); `secFilingAnalysisPreview.ts` S-4/F-4 branch |
 | NT | Family-specific direct analysis | `:2248`; CXJ 저장 표본 대조 |
 | Form 25 | Parser/관련 공시 context 기반 direct analysis | `:2402`; T2 Biosystems 저장 표본 대조 |
 | Periodic reports | 10-K/Q, 20-F, 40-F 및 지원 정정본의 family-specific direct analysis | `:2559`; Gulf Resources 10-Q 저장 표본 대조 |
@@ -258,7 +291,7 @@ Form 25 Human correction 표시와 Score Alert 사용 가능 여부는 동일하
 
 ### 코드 기준
 
-원래 3단계-A 감사의 verified commit은 `8cb52893a84c8de73051ae2b87427a054b9897cf`다. 아래 저장 표본과 일반 코드 행 번호는 그 감사 기록이며 현재 전체 main 검증으로 승격하지 않는다. Proxy만 상단의 `53e1f790…` 업데이트와 독립 merge-review 근거를 따른다.
+원래 3단계-A 감사의 verified commit은 `8cb52893a84c8de73051ae2b87427a054b9897cf`다. 아래 저장 표본과 일반 코드 행 번호는 그 감사 기록이며 현재 전체 main 검증으로 승격하지 않는다. Proxy 및 S-4/F-4/EFFECT 추가 검증은 상단의 날짜별 업데이트와 독립 merge-review 근거를 따른다.
 
 ### 기존 shared-local 저장 표본 — VERIFIED STORAGE
 
@@ -286,12 +319,12 @@ Gulf Resources와 CXJ raw에는 workflow completed metadata도 있었다. 이는
 
 - 배포된 SEC 수집 scheduler, 외부 scheduler, enabled lane·환경 설정의 실제 활성 상태.
 - 현재 commit의 source → 분석 → 화면 → 외부 전달 Product E2E. 이번에 새 실행·브라우저 확인을 하지 않음.
-- 세 표본 외 family, EFFECT deterministic 경로, router/archive/skip/fallback 경로의 실제 저장·운영 실행 범위.
+- 위 날짜별 local 검증 외 family, EFFECT production 및 router/archive/skip/fallback 경로의 실제 저장·운영 실행 범위.
 - 과거 DB 표본을 생성한 정확한 코드 commit과 현재 코드의 실행 동일성.
 - 모든 family의 LLM 직전 전체 입력·최초 prompt·router output 보존 여부. Repair trace의 일부 입력 보존과 구분.
 - 모든 실패 단계의 AI trace 보존과 부분 저장 이후 상태. 실패 trace가 보편적으로 저장된다고 주장하지 않음.
 - SEC 모든 원문 문서의 바이트 단위 완전 보존. 수집·선택·truncation이 있는 raw 저장을 전체 원문 archive로 간주하지 않음.
 - 현재 production provider 설정, credential/channel/plan 운영 상태, Telegram/email 실제 전달 성공 및 결제 이후 전체 흐름.
-- Proxy 업데이트 외 Structured Data Pipeline, 도메인 facts, identity/lifecycle, Monitor Matcher/Alert 내부. 확인된 Proxy local slice를 다른 family나 production 완료로 확대하지 않음.
+- 위 날짜별 업데이트 외 Structured Data Pipeline, 도메인 facts, identity/lifecycle, Monitor Matcher/Alert 내부. 확인된 local slice를 다른 family나 production 완료로 확대하지 않음.
 
 이 문서는 새 설계안(PROPOSED)을 추가하지 않는다. 뉴스·외부 공급원 조사, 도메인 구조 추정, 모든 재분석 append-only 주장, 모든 family 공통 router/repair 주장도 포함하지 않는다.

@@ -57,6 +57,8 @@ Architecture Map은 합의한 서비스 모델과 앞으로 확인할 실제 구
 - [03c Ownership — SC13](03c-ownership-sc13.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. 신고인별 저장·current projection·종목 상세·내부 Monitor Alert; 실제 저장·제품 E2E는 UNKNOWN.
 - [03d Ownership — Overview](03d-ownership-overview.md) — 세 family의 독립 저장·reader·consumer 상위 지도. 개념적 공통점과 CODE/WIRED·NOT WIRED·UNKNOWN 구분.
 - [Proxy Structured product v1](../proxy-structured-product-v1.md) — local main merge `53e1f790…` 완료, migration 정합·internal Alert/dedupe·브라우저 검증. push/deploy·외부 발송은 별도이며 중복 Mermaid를 만들지 않음.
+- [EFFECT registration Monitor](../effect-registration-monitor-v1.md) — `def88790` local main 통합, migration `20261005183052` 적용·main smoke 완료. 등록 대상 명시적 선택/원본 XML 검증/등록별 internal Alert dedupe. 배포·cron·외부 발송 완료 아님.
+- [S-4/F-4 MCP handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md) — `3e15836c` main 통합 및 `def88790` 합본 보존. 독립 source-only MCP, 기존 Primary 유지, 정확한 제출 form Monitor; merger semantic FACT 없음. 위 두 경로의 최신 연결은 01/02의 2026-10-06 절에 명시한다.
 
 향후 조사 placeholder는 **목록만** 예약한다. 아래 파일은 아직 생성하지 않았으며 내용과 실제 연결은 모두 `UNKNOWN / TO AUDIT`이다. 번호는 인덱스 순서이며 구현·의존 순서가 아니다.
 
