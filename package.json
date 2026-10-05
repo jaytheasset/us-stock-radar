@@ -152,6 +152,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@supabase/supabase-js": "2.109.0",
     "fast-xml-parser": "^5.8.0",
     "htmlparser2": "^10.1.0",
@@ -166,7 +167,8 @@
     "sanitize-html": "2.17.0",
     "sharp": "0.34.5",
     "snaptrade-typescript-sdk": "11.0.3",
-    "workflow": "^4.6.1"
+    "workflow": "^4.6.1",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

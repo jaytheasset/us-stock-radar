@@ -112,6 +112,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_nt_lifecycle"
       | "read_s8_structured"
       | "read_current_proxy_structured"
+      | "read_event_filing_metadata"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -153,6 +154,23 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  {
+    key: "event.sec_form", valueType: "text", allowedOperators: ["eq", "in"],
+    enumValues: ["S-4", "S-4/A", "F-4", "F-4/A"],
+    enumValueDescriptions: {
+      "S-4": "A new S-4 registration filing, not a first merger announcement.",
+      "S-4/A": "An S-4 registration amendment, not an assertion of changed transaction terms.",
+      "F-4": "A new F-4 registration filing, not transaction completion.",
+      "F-4/A": "An F-4 registration amendment, not an assertion of changed transaction terms.",
+    },
+    family: "event", domain: "source", monitorDomains: ["listing"],
+    description: "Exact SEC registration form filed. Original is not a first merger announcement; amendment does not establish changed terms; neither means completion.",
+    display: { label: "SEC registration form filed", enumValueLabels: {
+      "S-4": "S-4 filed", "S-4/A": "S-4/A amendment filed", "F-4": "F-4 filed", "F-4/A": "F-4/A amendment filed",
+    } },
+    source: { subject: "event", reader: "read_event_filing_metadata", jsonPath: ["form"] },
+    qualityCapability: ["exact"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  } as const,
   ...(["has_proposal", "has_capital_structure_proposal"] as const).map<MonitorConditionDefinition>(field => ({
     key: `proxy.${field}`, valueType: "boolean", allowedOperators: ["eq"],
     family: "proxy", domain: "proxy", monitorDomains: ["listing"],

@@ -2,6 +2,7 @@ import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } fr
 import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
 import type { ProxyMonitorFacts } from "./monitor/proxyStructuredFacts.ts";
+import { readEventFilingMetadata, type EventFilingMetadata } from "./monitor/eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
 import {
@@ -102,6 +103,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readFilingMetadata?(eventId: string): Promise<EventFilingMetadata>;
   readProxyFacts?(eventId: string): Promise<ProxyMonitorFacts>;
   readNtFacts?(eventId: string): Promise<NtLifecycleReadResult>;
   readEventIdentity?(eventId: string): Promise<Form25IdentityGate>;
@@ -115,6 +117,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  filing?: EventFilingMetadata;
   proxy?: ProxyMonitorFacts;
   s8?: S8MonitorFacts;
   nt?: NtLifecycleReadResult;
@@ -277,6 +280,9 @@ export async function evaluateListingMonitorEvent(
     "read_current_event_ownership_facts",
   ));
   const readers: MonitorFactReaders = {
+    filing: conditions.some(condition => conditionUsesReader(condition, "read_event_filing_metadata"))
+      ? await safeReadFacts(input.eventId, dependencies.readFilingMetadata ?? readEventFilingMetadata)
+      : { status: "not_ready", reason: "reader_not_requested" },
     proxy: conditions.some(condition => conditionUsesReader(condition, "read_current_proxy_structured"))
       ? await safeReadFacts(input.eventId, dependencies.readProxyFacts ?? (await import("./monitor/proxyStructuredFacts.ts")).readCurrentProxyFacts)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -373,12 +379,14 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy")
+    (definition.source.reader !== "read_event_filing_metadata" && definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
-  const current = definition.family === "proxy"
+  const current = definition.source.reader === "read_event_filing_metadata"
+    ? readers.filing ?? { status: "not_ready" as const, reason: "reader_not_requested" }
+    : definition.family === "proxy"
     ? readers.proxy ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "s8"
     ? readers.s8 ?? { status: "not_ready" as const, reason: "reader_not_requested" }

@@ -149,7 +149,8 @@ flowchart TB
 | S-3 / F-3 | 본 분석은 direct. amendment triage 및 skip_analysis 분기 존재 | `:2174`, triage `:880`; skip 결과는 일반 성공 event 저장과 다를 수 있음 |
 | SC13 | Source-block direct analysis | `:1656`. deterministic result builder는 현재 `null` 반환; helper 존재만으로 parser-only 또는 router 경로라고 하지 않음 |
 | S-8 | Direct analysis | `:1904`. deterministic result builder는 현재 `null` 반환. 결정적 분류와 router LLM은 다른 개념 |
-| Tender, S-4 / F-4 | Family-specific direct analysis | 각각 `:1532`, `:1780` |
+| Tender | Family-specific direct analysis | `:1532` |
+| S-4 / F-4 | Existing family-specific Primary with original retry/fallback and conditional repair; independent source-only MCP evidence | eeb4 candidate restores pre-MCP Primary behavior: [MCP evidence handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md); `secFilingAnalysisPreview.ts` S-4/F-4 branch |
 | NT | Family-specific direct analysis | `:2248`; CXJ 저장 표본 대조 |
 | Form 25 | Parser/관련 공시 context 기반 direct analysis | `:2402`; T2 Biosystems 저장 표본 대조 |
 | Periodic reports | 10-K/Q, 20-F, 40-F 및 지원 정정본의 family-specific direct analysis | `:2559`; Gulf Resources 10-Q 저장 표본 대조 |

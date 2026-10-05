@@ -200,6 +200,8 @@ test("explicit Create API and persistence round-trip the exact edited preset con
   assert.deepEqual(repository.createdRows, [{
     user_id: OWNER_ID,
     domain: "listing",
+    monitor_kind: "condition_set",
+    form4_purchase_settings: null,
     conditions: created.conditions,
     is_active: true,
   }]);

@@ -19,6 +19,7 @@ import {
   enqueueGenericMonitorChildrenAfterPrimary,
 } from "@/lib/monitor/genericMonitorChildWorkflowStarter";
 import { consumeListingMonitorAlertsForEvent } from "@/lib/monitor/listingMonitorAlertConsumer";
+import { isRegistrationFilingForm } from "@/lib/monitor/eventFilingMetadata";
 import { runOfferingMonitorSiteAnalysisExecution } from "@/lib/monitor/offeringMonitorSiteAnalysisIsolation";
 import {
   beginSecAnalysisSpan,
@@ -344,6 +345,10 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
   const ownershipMonitorConditionExecution = primaryPromptKey === OWNERSHIP_ONE_CALL_PROMPT_KEY
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id))
     : null;
+  const filingMonitorExecution = !options.suppressAlerts && isRegistrationFilingForm(proxyRecord(rawResult.rawItem.raw_payload).form_type)
+    ? await consumeListingMonitorAlertsForEvent({ eventId: stringValue(persistedEvent.id), conditionFamily: "filing" })
+      .catch(error => ({ status: "failed", reason: String(error) }))
+    : null;
   const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
     ? await runOfferingMonitorSiteAnalysisExecution({
         eventId: stringValue(persistedEvent.id),
@@ -379,6 +384,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     ownershipStructuredContext,
     ownershipMonitorConditionExecution,
     offeringMonitorRegistryExecution,
+    filingMonitorExecution,
     proxyStructuredExecution,
     validationRepairTrace,
   };
