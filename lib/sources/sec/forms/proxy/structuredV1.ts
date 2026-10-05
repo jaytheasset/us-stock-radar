@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ProxyParserOutput } from "./parser.ts";
-import { buildProxySourceBlockPromptInput } from "./sourceInput.ts";
+import { buildProxyLegacySourceBlockPromptInput as buildProxySourceBlockPromptInput } from "./sourceInput.ts";
 
 export const PROXY_STRUCTURED_V1_VERSION = "proxy_structured_v1" as const;
 
