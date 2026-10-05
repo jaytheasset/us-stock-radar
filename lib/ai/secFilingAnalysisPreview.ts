@@ -35,7 +35,6 @@ import {
   SEC_SC13_ANALYSIS_PROMPT_KEY,
   SEC_SC13_ANALYSIS_PROMPT_VERSION,
   SEC_SC13_VALIDATION_REPAIR_PROMPT_KEY,
-  SEC_S4_F4_VALIDATION_REPAIR_PROMPT_KEY,
   SEC_S8_ANALYSIS_PROMPT_KEY,
   SEC_S8_ANALYSIS_PROMPT_VERSION,
   SEC_S8_VALIDATION_REPAIR_PROMPT_KEY,
@@ -55,7 +54,6 @@ import {
   adaptSecSc13AnalysisPromptResultForAnalysis,
   applySecSc13ValidationRepairPatches,
   adaptSecS4F4AnalysisPromptResultForAnalysis,
-  applySecS4F4ValidationRepairPatches,
   adaptSecS8AnalysisPromptResultForAnalysis,
   applySecS8ValidationRepairPatches,
   adaptSecS3AnalysisPromptResultForAnalysis,
@@ -81,7 +79,6 @@ import {
   buildSecSc13AnalysisPromptForInput,
   buildSecSc13ValidationRepairPlan,
   buildSecS4F4AnalysisPromptForInput,
-  buildSecS4F4ValidationRepairPlan,
   buildSecS8AnalysisPromptForInput,
   buildSecS8ValidationRepairPlan,
   buildSecS3AnalysisPrompt,
@@ -1737,8 +1734,12 @@ export async function runSecFilingAnalysisForRawRow(
   }
 
   if (isS4F4FilingInput(input)) {
+    // Human-facing Primary only. Original evidence retrieval is independent; no second call.
     const prompt = buildSecS4F4AnalysisPromptForInput(input);
-    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig);
+    const analysisRun = await runOpenAiJsonPrompt(env, prompt, llmConfig, {
+      maxAttempts: 1,
+      disableFallback: true,
+    });
     if (!analysisRun.ok || !analysisRun.parsed) {
       return {
         ok: false,
@@ -1757,47 +1758,7 @@ export async function runSecFilingAnalysisForRawRow(
       };
     }
 
-    const repairPlan = buildSecS4F4ValidationRepairPlan({
-      analysisResult: analysisRun.parsed,
-      input,
-    });
-    let repairedValue = analysisRun.parsed;
-    let repairRun: OpenAiPromptRun | null = null;
-    let repairAppliedPaths: string[] = [];
-    let repairIgnoredPaths: string[] = [];
-    let repairUnresolved: unknown[] = [];
-    if (repairPlan) {
-      repairRun = await runOpenAiJsonPrompt(env, repairPlan.prompt, llmConfig, {
-        maxAttempts: 1,
-        disableFallback: true,
-      });
-      if (repairRun.ok && repairRun.parsed) {
-        const repairApplication = applySecS4F4ValidationRepairPatches({
-          analysisResult: analysisRun.parsed,
-          repairResult: repairRun.parsed,
-          allowedPatchPaths: repairPlan.allowedPatchPaths,
-        });
-        repairedValue = repairApplication.value;
-        repairAppliedPaths = repairApplication.appliedPaths;
-        repairIgnoredPaths = repairApplication.ignoredPaths;
-        repairUnresolved = repairApplication.unresolved;
-      }
-    }
-    const usage = combineUsage(analysisRun.usage, repairRun?.usage);
-    const validationRepair = repairPlan
-      ? {
-          attempted: true,
-          succeeded: Boolean(repairRun?.ok && repairRun.parsed),
-          issue_codes: repairPlan.issues.map((issue) => issue.code),
-          source_block_ids: repairPlan.sourceBlockIds,
-          allowed_patch_paths: repairPlan.allowedPatchPaths,
-          applied_patch_paths: repairAppliedPaths,
-          ignored_patch_paths: repairIgnoredPaths,
-          unresolved: repairUnresolved,
-          error: repairRun?.error || null,
-        }
-      : { attempted: false };
-    const s4F4Analysis = adaptSecS4F4AnalysisPromptResultForAnalysis(repairedValue, input);
+    const s4F4Analysis = adaptSecS4F4AnalysisPromptResultForAnalysis(analysisRun.parsed, input);
     if (!s4F4Analysis.ok) {
       return {
         ok: false,
@@ -1807,23 +1768,11 @@ export async function runSecFilingAnalysisForRawRow(
         sourceItem: summarizeRawRow(rawItem),
         input,
         outputText: analysisRun.outputText,
-        repairOutputText: repairRun?.outputText,
-        usage,
-        repairUsage: repairRun?.usage,
+        usage: analysisRun.usage,
         rawOpenAIResponse: analysisRun.rawOpenAIResponse,
-        validationRepair,
         prompt: {
           key: prompt.key,
           version: prompt.version,
-          repair: repairPlan
-            ? {
-                key: repairPlan.prompt.key,
-                version: repairPlan.prompt.version,
-                system: repairPlan.prompt.system,
-                user: repairPlan.prompt.user,
-                responseFormat: repairPlan.prompt.responseFormat,
-              }
-            : undefined,
         },
       };
     }
@@ -1834,28 +1783,15 @@ export async function runSecFilingAnalysisForRawRow(
       status: analysisRun.status,
       model: llmConfig.model,
       openAiResponseId: analysisRun.openAiResponseId,
-      repairOpenAiResponseId: repairRun?.openAiResponseId || null,
       sourceItem: summarizeRawRow(rawItem),
       input,
       analysis: s4F4Analysis.analysis,
       outputText: analysisRun.outputText,
-      repairOutputText: repairRun?.outputText,
-      usage,
-      repairUsage: repairRun?.usage,
-      costEstimate: estimateCost(llmConfig.model, usage),
-      validationRepair,
+      usage: analysisRun.usage,
+      costEstimate: estimateCost(llmConfig.model, analysisRun.usage),
       prompt: {
         key: prompt.key,
         version: prompt.version,
-        repair: repairPlan
-          ? {
-              key: repairPlan.prompt.key,
-              version: repairPlan.prompt.version,
-              system: repairPlan.prompt.system,
-              user: repairPlan.prompt.user,
-              responseFormat: repairPlan.prompt.responseFormat,
-            }
-          : undefined,
       },
     };
   }
@@ -4035,7 +3971,6 @@ function readMaxOutputTokens(promptKey: string) {
   if (promptKey === SEC_S1_F1_ANALYSIS_PROMPT_KEY) return 8000;
   if (promptKey === SEC_PROXY_ANALYSIS_PROMPT_KEY) return 3500;
   if (promptKey === SEC_PROXY_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
-  if (promptKey === SEC_S4_F4_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_S8_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_OWNERSHIP_VALIDATION_REPAIR_PROMPT_KEY) return 1800;
   if (promptKey === SEC_SC13_VALIDATION_REPAIR_PROMPT_KEY) return 1800;

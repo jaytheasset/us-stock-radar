@@ -149,7 +149,8 @@ flowchart TB
 | S-3 / F-3 | 본 분석은 direct. amendment triage 및 skip_analysis 분기 존재 | `:2174`, triage `:880`; skip 결과는 일반 성공 event 저장과 다를 수 있음 |
 | SC13 | Source-block direct analysis | `:1656`. deterministic result builder는 현재 `null` 반환; helper 존재만으로 parser-only 또는 router 경로라고 하지 않음 |
 | S-8 | Direct analysis | `:1904`. deterministic result builder는 현재 `null` 반환. 결정적 분류와 router LLM은 다른 개념 |
-| Tender, S-4 / F-4 | Family-specific direct analysis | 각각 `:1532`, `:1780` |
+| Tender | Family-specific direct analysis | `:1532` |
+| S-4 / F-4 | Family-specific direct Primary, 1 provider attempt, no repair/fallback; independent source-only MCP evidence | eeb4 candidate update, not deployed: [MCP evidence handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md); `secFilingAnalysisPreview.ts` S-4/F-4 branch |
 | NT | Family-specific direct analysis | `:2248`; CXJ 저장 표본 대조 |
 | Form 25 | Parser/관련 공시 context 기반 direct analysis | `:2402`; T2 Biosystems 저장 표본 대조 |
 | Periodic reports | 10-K/Q, 20-F, 40-F 및 지원 정정본의 family-specific direct analysis | `:2559`; Gulf Resources 10-Q 저장 표본 대조 |
@@ -180,7 +181,7 @@ LLM 직전의 전체 최초 입력 객체·system/user prompt·router output이 
 | --- | --- | --- |
 | Transport / 응답·JSON 재시도 | 공통 요청 최대 시도 설정은 3. provider·요청 옵션에 따라 다른 실행 계획 사용 | `secFilingAnalysisPreview.ts:308,3457`. Gemini 경로의 primary/primary/fallback 순서는 `:4629` |
 | Semantic diagnostic-only | 8-K/6-K, S-1/F-1, S-3/F-3, 424B는 분석 결과와 diagnostics를 반환. 이 경로의 semantic 오류가 곧 repair LLM 호출을 뜻하지 않음 | `lib/ai/secPrimaryValidationDisposition.ts:115` 및 각 실제 runner 분기 |
-| 조건부 semantic repair | Ownership, SC13, S-8, Tender, S-4/F-4, NT, Form 25, Periodic, Proxy와 425의 repair plan 분기. plan이 있을 때 허용 필드 patch·적용/무시 내역을 추적 | 해당 family runner의 repair 호출은 `maxAttempts:1`, `disableFallback:true`. 모든 성공 결과에 repair가 필요한 것은 아님 |
+| 조건부 semantic repair | Ownership, SC13, S-8, Tender, NT, Form 25, Periodic, Proxy와 425의 repair plan 분기. plan이 있을 때 허용 필드 patch·적용/무시 내역을 추적. S-4/F-4는 eeb4 candidate에서 repair 제거 | 해당 family runner의 repair 호출은 `maxAttempts:1`, `disableFallback:true`. 모든 성공 결과에 repair가 필요한 것은 아님 |
 | Router-specific / 응답 특수 재시도 | 8-K/6-K router 저품질 응답의 추가 시도, 425 runaway 응답의 별도 추가 시도 | `secFilingAnalysisPreview.ts:3403,3464–3482`; 일반 semantic repair와 별개 |
 | Workflow retry | raw/analysis step의 `maxRetries=3`; 이미 완료된 분석을 피하는 disposition/pending 선택과 함께 사용 | `workflows/source-ingest.ts:440,548,658` |
 

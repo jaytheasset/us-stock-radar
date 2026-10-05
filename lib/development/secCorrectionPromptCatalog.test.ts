@@ -12,7 +12,6 @@ const runtimePromptDefinitions = [
   definition("8k-6k", "lib/ai/sec8k6kAnalysisAdapter.ts", "buildSec8k6kValidationRepairPlan"),
   definition("s1-f1", "lib/ai/secS1F1AnalysisAdapter.ts", "buildS1F1ValidationRepairPrompt"),
   definition("s3-f3", "lib/ai/secS3AnalysisAdapter.ts", "buildS3ValidationRepairPrompt"),
-  definition("s4-f4", "lib/ai/secS4F4AnalysisAdapter.ts", "buildS4F4ValidationRepairPrompt"),
   definition("425", "lib/ai/secFilingAnalysisPreview.ts", "buildSec425ValidationRepairPrompt"),
   definition("424b", "lib/ai/sec424bAnalysisAdapter.ts", "build424bValidationRepairPrompt"),
   definition("tender", "lib/ai/secTenderAnalysisAdapter.ts", "buildTenderValidationRepairPrompt"),
