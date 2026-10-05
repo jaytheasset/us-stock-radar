@@ -1,5 +1,17 @@
 # Proxy Primary source input candidate — 2026-10-05
 
+## Current revision: direct parser discovery delivery
+
+Base: `e3d5b3c9e84fa0406f94d9530118af5aedd82d88`. The assigned `f6e4` directory was empty and its Git worktree registration absent at this turn's start. The saved commit was restored at the same path, detached and clean, before editing; no new chat, branch, main merge, push or deployment.
+
+Primary's `PRIMARY_SOURCE_CUES` and `hasStandaloneNumberedReference` selection layer and sorting are removed. Every parser discovery block is passed through in its existing array order, with exact text, original ID, document coordinates and boundary. This includes parser-selected `Item 25(b)` noise, unfamiliar cues and empty cue arrays. Blocks are neither filtered nor merged. Existing coordinate validation detects malformed payloads without rewriting source. Existing uncovered important excerpts, table samples, parent references and supplement changes are retained as before; the legacy Structured v1 builder is unchanged.
+
+Verification: 85 fixture inputs plus saved Alternus/ENDRA/BigBear HTML pass exact ordered 1:1 block comparisons, raw normalized-source slices, auxiliary evidence retention, immutable prompt checks and Structured v1 package/fingerprint comparisons. All 122 offline regressions pass, including ten focused source-input tests. Full TypeScript check: 1,643 files, 0 diagnostics; git diff --check passes. Frozen saved-response replay remains Alternus 8 / BigBear 0. Shared parser, Call 1/2, schemas/prompts/validators, Primary analysis contracts/scoring and repair logic are unchanged. No external calls.
+
+Real-source block coverage is now Alternus 103/103, ENDRA 22/22, BigBear 2/2. Maximum discovery block sizes remain 6,000 / 6,000 / 1,016 chars. Source-input UTF-16 units / UTF-8 bytes are 271,255 / 271,443; 80,645 / 80,673; and 5,746 / 5,766 respectively. Counts are exact, not token estimates. Existing parser coverage and repair's 5,000-character clip limitations remain unchanged.
+
+Evidence: `C:/Users/PC/.codex/visualizations/2026/10/04/01a108b4-1f5b-7382-9535-3e0883cfe784/proxy-primary-direct-discovery` contains full comparisons and tests. Replay/typecheck logs use sibling `proxy-primary-offline/direct-discovery-*`. Reproduce with the existing offline comparison script, this revision's base SHA and a fresh output directory. The earlier revision sections below are historical; their Primary filtering rules do not describe the current implementation.
+
 ## Follow-up revision on the existing candidate
 
 Revision base: detached `c3b843f8018366efa89c6463e05f2480a88e5310`, clean, in the same assigned `f6e4` worktree. No new chat/worktree, main operation, external call or deployment.

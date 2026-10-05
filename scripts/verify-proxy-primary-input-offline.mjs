@@ -96,6 +96,8 @@ function compare(name, input, fullEvidence) {
   }));
   const documents = diagnostics.extractProxyDocuments(input, parsed.raw.secFormType);
   const located = obj => obj.cleaned_source_blocks.filter(block => block.source?.startChar !== undefined);
+  assert.deepEqual(located(after).map(block => block.source.discoveryBlockIds),
+    parsed.raw.discoveryBlocks.map(block => [block.id]), name + " parser block count/order/IDs changed");
   const deliveredIds = new Set();
   for (const block of located(after)) {
     const documentText = diagnostics.normalizeFilingText(documents[block.source.documentIndex].body);
@@ -142,7 +144,7 @@ function compare(name, input, fullEvidence) {
       totalChars: coverage.reduce((sum, b) => sum + b.chars, 0),
       beforeFullBlockChars: coverage.filter(b => b.before).reduce((sum, b) => sum + b.chars, 0),
       afterFullBlockChars: coverage.filter(b => b.after).reduce((sum, b) => sum + b.chars, 0) },
-    discoveryBoundaries: { exactParserBlocks: true, priorSelectedBlocksPreserved: true,
+    discoveryBoundaries: { exactParserBlocks: true, parserOrderAndCountPreserved: true, priorSelectedBlocksPreserved: true,
       maxBeforeChars: Math.max(0, ...located(before).map(block => block.text.length)),
       maxAfterChars: Math.max(0, ...located(after).map(block => block.text.length)) },
     coverage, lateTableRows };

@@ -61,48 +61,15 @@ function buildSourceInput(
   return input;
 }
 
-const PRIMARY_SOURCE_CUES = new Set([
-  "proposal_body_section", "explicitly_referenced_attachment_section",
-  "numbered_proposal_heading", "numbered_item_or_matter_heading",
-  "meeting_context", "voting_context", "voting_subsection_context",
-  "notice_voting_context", "supporting_voting_area", "voting_area_fallback",
-  "proxy_card_fallback", "supplement_explicit_proposal_reference",
-  "supplement_parent_context", "supplement_parent_reference",
-]);
-
 const normalized = (text: string) => text.replace(/\s+/g, " ").trim();
-
-function hasStandaloneNumberedReference(text: string): boolean {
-  // Use the same label forms for all three source locators. An Item/Matter
-  // subsection or decimal suffix is a hierarchical citation;
-  // do not accept a partial match such as "Item 2" inside "Item 25(b)".
-  return [...text.matchAll(/\b(proposal|item|matter)\s+(?:(?:no\.?|number)\s*)?(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi)]
-    .some(match => match[1].toLowerCase() === "proposal"
-      || !/^\s*(?:\(\s*(?:[a-z]|\d+|[ivx]+)\s*\)|\.\d)/i.test(text.slice(match.index! + match[0].length)));
-}
 
 function buildPrimarySourceBlocks(parserOutput: ProxyParserOutput): Array<Record<string, unknown>> {
   const raw = parserOutput.raw;
-  const legacyTexts = [
-    ...raw.importantBlocks.map(block => block.text),
-    ...raw.supplementalAnalysis.parentReferences.map(reference => reference.evidence),
-    ...raw.supplementalAnalysis.changeSignals.map(signal => signal.sourceText),
-  ].map(normalized).filter(Boolean);
-  // Cues locate source structure, never establish proposal identity or meaning.
-  // Hierarchical citations (e.g. Item 25(b) in SEC fee instructions) alone
-  // do not justify adding a new source region to Primary.
-  const selected = [...(raw.discoveryBlocks ?? [])].filter(block =>
-    block.cues.some(cue => PRIMARY_SOURCE_CUES.has(cue))
-    || (block.cues.includes("numbered_proposal_reference")
-      && hasStandaloneNumberedReference(block.text))
-    || legacyTexts.some(text => normalized(block.text).includes(text)),
-  ).sort((a, b) => a.sourceDocumentIndex - b.sourceDocumentIndex
-    || a.startChar - b.startChar || a.endChar - b.endChar);
-
-  // Preserve each parser chunk, including overlaps. Merging adjacent chunks
-  // hides late text from consumers that clip each block (such as repair).
+  // The parser owns source selection. Preserve its order and every chunk,
+  // including overlaps and noise, without reselecting, sorting or merging.
+  // Merging hides late text from consumers that clip each block (such as repair).
   const ranges: Array<{ documentIndex: number; start: number; end: number; text: string; ids: string[] }> = [];
-  for (const block of selected) {
+  for (const block of raw.discoveryBlocks ?? []) {
     const document = raw.documentInventory[block.sourceDocumentIndex];
     if (!document || !Number.isInteger(block.sourceDocumentIndex)
       || !Number.isInteger(block.startChar) || !Number.isInteger(block.endChar)
