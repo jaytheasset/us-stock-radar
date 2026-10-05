@@ -6,7 +6,30 @@
 
 This document follows the handoff checklist in `PRODUCTION_SOURCE_OF_TRUTH.md`. If a past chat, old task report, detached worktree, or older architecture note conflicts with the current local `main`, inspect the current code and use it as the development baseline. This does not change the production rule that a deployment is complete only when local `main`, GitHub `main`, and the deployed Vercel commit have been deliberately aligned and verified.
 
-## S-8 direct-registration v1 freeze — 2026-10-01 KST
+## Proxy Structured product v1 — local main completion — 2026-10-05 KST
+
+Current architecture: [Proxy product v1](../architecture/proxy-structured-product-v1.md).
+Single Mermaid flow source: [SEC Primary map](../architecture/map/01-primary-analysis.md).
+This update supersedes the historical “Proxy audit next / not connected” plan.
+
+- Local product merge: `53e1f79098563a0ac6e761d900ada2fbf623c0ae`, normal non-fast-forward merge of complete candidate `d9368157dcadd9a46c95b6f36af3d91664fb733e` from main `b1e80ca68e2b702849286091b3b0a7de4a190101`, no conflicts. This closeout commit changes documentation only; its HEAD is recorded in Git history/final closeout report.
+- SEC raw → Proxy Parser/discoveryBlocks forks into independent Primary and Structured. Both use the same parser-selected discovery source; Primary preserves order/text/IDs/coordinates/boundaries 1:1 and retains supporting inputs. Neither analysis supplies the other's answers.
+- Structured frozen Call1 → Call2 → Validator → durable persistence → official reader → deterministic Matcher → internal Alert. Only validated Call2 FACT is canonical; Call1 handoff/trace/source evidence remain separate.
+- Provider stage claims/checkpoints are immutable: uncertain outcomes cannot be automatically re-called. Infrastructure replay reuses saved responses; no new provider retry/repair/fallback. Official reader validates source fingerprint, contract version, checkpoint/output integrity and frozen validators. Missing/stale/failed/uncertain remains unavailable.
+- Only `proxy.has_proposal` and `proxy.has_capital_structure_proposal`, boolean `eq`, are connected to Generic Monitor. Existing activation, lineage and `(listing_monitor_id, alert_event_id)` dedupe remain. Proposal is not approval or execution.
+- Local automatic filing → internal Alert E2E PASS and repeat dedupe/idempotence PASS: explicitly synthetic filing `9999999999-26-000001` with exact retained response replay. This is distinct from the four earlier fresh Alternus/BigBear model calls. No fresh real eligible positive-alert or external-delivery success is claimed.
+- Independent main review/readback: Alternus 8 proposals, BigBear negative, uncertain automatic real-fixture attempts remain unavailable. Existing canonical/alert state unchanged; 215/217 regressions pass with the same two baseline failures; full TypeScript/diff checks pass. Main 3110 `/monitor` and `/alerts` authenticated/logged-out, PC/900/390px screens verified. No extra Gemini calls or DB writes during main integration/closeout.
+- Migration `20261005043414`: local `127.0.0.1:56322` objects/history aligned (four functions, two indexes, two triggers, service-only RPC execution). Authorized candidate history alignment is historical; no reapplication/repair in main integration/closeout. Remote migrations are not verified/applied.
+- Baseline failures retained: Matcher static regex catches existing `Form4PurchaseMatchEvidence`; preset roundtrip expectation omits existing `monitor_kind`/`form4_purchase_settings`. No tests weakened; minor omissions do not reopen the development loop.
+- Evidence remains outside Git: `C:/Users/PC/.codex/visualizations/proxy-structured-product-20261005`, `proxy-merge-gates-20261005`, `proxy-product-main-integration-20261005`. The existing Proxy chat and branch/commit history are preserved. Completed candidate checkout is approved for retirement after this document commit and final clean/no-unique-work check; cleanup result is recorded with closeout evidence.
+
+### Operating handoff boundary
+
+- Permanent root `C:/Users/PC/Documents/Codex/US-Stock Radar`, branch `main`. Product merge above is the code baseline; this later docs-only commit does not change product behavior. Main's generated `next-env.d.ts` path-only difference is restored to tracked state for closeout, not committed as product logic.
+- Cached `origin/main`: `9c13aee7ef41b38bac0637e53e579633745effda`, not refreshed/current GitHub verification. Vercel last recorded `bf586ed559c7f4bea6a171790ab7b563cabc7161` READY; current deployment is unverified. Local/GitHub/deployed equality is not claimed.
+- **Push/deploy not performed or authorized.** External email/Telegram completion is not claimed. No DB writes, new API/Gemini calls, replay/backfill, migration/history/permissions/env/credential/cron edits in closeout. Main 3110 remains running; stop only retired candidate 3115. No new room/worktree is created; no next feature is started.
+
+## S-8 direct-registration v1 freeze — historical 2026-10-01 KST
 
 Final architecture, real-filing evidence, Registry decision and resume points:
 [S-8 direct-registration history v1](../architecture/sec-s8-direct-registration-v1.md).
@@ -21,14 +44,12 @@ This update supersedes the earlier selection of S-8 as the next audit family.
   existing Registry types do not represent these registration facts safely.
   Preserve the Firefly, SentinelOne and Lottery.com verification evidence;
   no new product or DB work is authorized by this handoff.
-- Next practical **audit only** candidate: **Proxy**. Existing collection,
-  parser, source-linked proposal/meeting data, Primary and real SEC test cases
-  can be reused; automatic generic child eligibility has no Proxy connection.
-  Decide first whether a narrow proposal/meeting Monitor is justified or the
-  information should mainly feed capital-structure/corporate-action/transaction
-  domains. Do not equate a proposal with approval or completed execution.
+- Historical next-audit recommendation was **Proxy**; it is now superseded by
+  the completed local product slice above. Reuse its actual raw-trigger/durable
+  path; do not create another generic child or restart the initial audit.
+  A proposal still does not mean approval or completed execution.
 - The historical queue is advisory; Merger/Tender also have implementation
-  foundations. Proxy is a scoped recommendation, not a dedicated-Monitor decision.
+  foundations. This earlier recommendation is not a current implementation queue.
 - Documentation task-entry local main is the S-8 freeze commit; cached
   `origin/main` is `9c13aee7ef41b38bac0637e53e579633745effda` (not refreshed).
   Vercel and remote DB state remain unverified. No push/deploy/equality claim.
@@ -339,7 +360,7 @@ Build deterministic structured holdings ingestion, amendment handling, manager/i
 - Form 25 / 25-NSE
 - NT 10-K / NT 10-Q / NT 20-F
 - S-8 / S-8/A
-- Proxy
+- Proxy — completed local main product v1; see the dated completion update above
 - Merger / S-4 / F-4 / 425
 - Tender / SC TO / SC 13E-3
 

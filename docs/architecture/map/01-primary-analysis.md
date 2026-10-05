@@ -5,7 +5,17 @@
 - 기준 코드 commit: `8cb52893a84c8de73051ae2b87427a054b9897cf` (`main`).
 - 근거: 앞선 감사의 현재 코드 호출 추적과 shared-local 기존 SEC 공시 3건의 읽기 전용 DB 대조.
 - 이번 3단계-A2는 그 결과의 문서화만 수행한다. 새 코드·DB 조사, ingest, LLM, 제품 실행은 하지 않았다.
-- **새 Product E2E를 수행하지 않았다. 이 문서에는 E2E VERIFIED 항목이 없다.** 저장된 과거 실행 결과를 현재 commit의 제품 E2E로 승격하지 않는다.
+- 위 항목은 원래 3단계-A 감사의 범위다. **그 감사에서는 새 Product E2E를 수행하지 않았다.** 아래 Proxy 업데이트만 별도 확인 시점·local 검증 범위를 갖는다. 다른 family의 과거 실행을 현재 제품 E2E로 승격하지 않는다.
+
+### Proxy local main 업데이트 — 2026-10-05
+
+제품 기준: `53e1f79098563a0ac6e761d900ada2fbf623c0ae` (candidate `d9368157dcadd9a46c95b6f36af3d91664fb733e` 전체 이력 병합). Primary와 Structured는 **같은 parser-selected discovery source 계약을 쓰는 별도 분석 경로**다. Structured 결과를 Primary 정답으로 전달하지 않는다.
+
+- `lib/sources/sec/forms/proxy/sourceInput.ts`의 `buildPrimarySourceBlocks`는 `discoveryBlocks`의 순서·원문·ID·좌표·block 경계를 1:1 유지한다. 재필터·정렬·합치기 없이 전달하고 기존 Primary 보조자료도 유지한다.
+- Structured는 `lib/sec-proxy/source.ts` → `starter.ts` / `workflows/proxy-structured.ts` → frozen `Call 1 → Call 2 → Validator` → durable persistence → official reader → deterministic Monitor Matcher → internal Alert로 연결됐다. canonical은 검증된 Call2 FACT만이며 Call1 handoff/trace/source evidence는 별도다.
+- provider stage checkpoint, 불확실 결과의 자동 재호출 방지, source fingerprint / contract version / 저장 결과 재검증, typed boolean 조건 2개, activation/dedupe는 [제품 문서](../proxy-structured-product-v1.md)에 명시한다. Primary의 기존 점수·의미 규칙·repair와 별개다.
+- **Local automatic filing → internal Alert E2E PASS / 재실행 dedupe·멱등성 PASS**: 명시적 합성 filing + 보존 응답 replay로 자동 durable 경로를 검증했다. 실제 Alternus/BigBear fresh 분석·저장 검증과 구분한다. main 병합 후 reader/브라우저 smoke 확인 완료; production 활성화·push/deploy·외부 email/Telegram 완료를 뜻하지 않는다.
+- 근거: [후보 merge gates](../../operations/PROXY_STRUCTURED_MERGE_GATES.md), 저장소 밖 `C:/Users/PC/.codex/visualizations/proxy-product-main-integration-20261005/acceptance-review.md`. 이번 문서 동기화에는 새 모델 호출·DB 쓰기·E2E 재실행이 없다.
 
 | 상태 | 의미 |
 | --- | --- |
@@ -23,7 +33,7 @@ SEC Primary Analysis는 공시를 가져와 투자자가 읽을 수 있는 설�
 
 ## 2. SEC Primary As-Is 도식
 
-아래 노드·화살표는 모두 `VERIFIED CODE` 수준이다. DB 확인은 9절의 세 표본에만 별도로 부여한다. `Primary runner → source preparation → family`는 runner 내부 처리를 펼친 것이다. Fetch에서 Raw Ingest로 향하는 선은 가져온 데이터의 전달이며, 실제 fetch 호출자는 Raw Ingest다.
+일반 Primary 노드·화살표는 원래 감사의 `VERIFIED CODE` 수준이다. Proxy 분기는 위 2026-10-05 local 업데이트의 코드·저장·실행 근거를 사용하며 다른 family로 확대하지 않는다. 9절의 세 표본은 원래 감사의 별도 DB 근거다. `Primary runner → source preparation → family`는 runner 내부 처리를 펼친 것이다. Fetch에서 Raw Ingest로 향하는 선은 가져온 데이터의 전달이며, 실제 fetch 호출자는 Raw Ingest다.
 
 ```mermaid
 flowchart TB
@@ -47,6 +57,14 @@ flowchart TB
   queue["사용자 알림 대기열 / Delivery Queue"]
   scheduler["알림 보내기 / Delivery Processing"]
   unknown["운영 스케줄러 활성화·외부 발송 성공 미확인 / UNKNOWN · TO AUDIT"]
+  proxy_source["Proxy Parser / discoveryBlocks — shared source"]
+  proxy_call1["Structured Call 1 / source-grounded handoff + checkpoint"]
+  proxy_call2["Structured Call 2 / final FACT + checkpoint"]
+  proxy_validate["Frozen Validator / accepted Call2 only"]
+  proxy_store["Durable persistence / Call2 canonical; separate trace & evidence"]
+  proxy_reader["Official reader / source fingerprint + contract version + stored validation"]
+  proxy_match["Deterministic Monitor Matcher / two typed booleans"]
+  proxy_alert["Internal Alert / activation + dedupe; no external delivery claim"]
   sec -->|"원문 수집 / fetch"| fetch
   fetch -->|"수집한 공시 / fetched items"| ingest
   ingest -->|"원문 보존 / save"| raw
@@ -68,6 +86,15 @@ flowchart TB
   store -->|"score >= 75 → alert / 억제·gate 통과"| score
   score -->|"사용자·공시 조건 충족 / eligible"| queue
   queue -->|"대기 알림 조회 / queued delivery"| scheduler
+  raw -->|"Proxy saved raw / separate orchestration"| proxy_source
+  proxy_source -->|"Primary discovery input 1:1 + existing supporting inputs"| direct
+  proxy_source -->|"Independent Structured source"| proxy_call1
+  proxy_call1 -->|"Handoff, not canonical FACT"| proxy_call2
+  proxy_call2 --> proxy_validate
+  proxy_validate -->|"Validated Call2 FACT only"| proxy_store
+  proxy_store --> proxy_reader
+  proxy_reader -->|"Stored typed FACT / no provider call"| proxy_match
+  proxy_match -->|"Eligible match / same-event dedupe"| proxy_alert
 ```
 
 **그림 읽는 법**
@@ -85,7 +112,7 @@ flowchart TB
 - Router의 archive 분기에서는 본 분석을 생략할 수 있다. router LLM까지 실행하지 않는다는 뜻은 아니다. 다른 skip·실패·dry-run 분기는 이 개요도에서 생략했다.
 - Primary Storage는 사용자용 저장과 AI trace 저장의 묶음이다. 단일 테이블·원자적 트랜잭션·모든 실패의 trace 보존을 뜻하지 않는다.
 - Score Alert는 조건에 맞고 억제되지 않은 결과만 평가한다. 큐에서 scheduler로 향하는 선은 scheduler가 큐를 읽는 코드 연결이다. 즉시 전송이나 실제 Telegram/email 발송 성공을 뜻하지 않는다.
-- Monitor Alert는 별도 시스템이며 내부 구조를 이 그림에 포함하지 않는다.
+- Monitor Alert는 Score Alert와 별도 시스템이다. 아래 도식의 Proxy 분기만 확인된 Structured → internal Monitor Alert 연결을 표시한다. 다른 Monitor family의 내부 구조는 생략한다.
 
 ### 큰 연결의 코드 근거
 
@@ -126,7 +153,7 @@ flowchart TB
 | NT | Family-specific direct analysis | `:2248`; CXJ 저장 표본 대조 |
 | Form 25 | Parser/관련 공시 context 기반 direct analysis | `:2402`; T2 Biosystems 저장 표본 대조 |
 | Periodic reports | 10-K/Q, 20-F, 40-F 및 지원 정정본의 family-specific direct analysis | `:2559`; Gulf Resources 10-Q 저장 표본 대조 |
-| Proxy | Family-specific direct analysis | `:2688` |
+| Proxy | Family-specific direct Primary analysis; shared discovery source의 별도 Structured 제품 경로 | `lib/sources/sec/forms/proxy/sourceInput.ts`; `lib/sec-proxy/*`; `workflows/proxy-structured.ts`. Primary 출력/점수와 Structured FACT를 섞지 않음 |
 | EFFECT | `buildDeterministicEffectAnalysis` → `analyzeEffectFiling`, LLM 없는 결과 생성 | `:787,4449`; 이번 DB 표본으로 실행 확인하지 않음 |
 | Form 3 / 5 | 일반 Primary 지원 manifest에 포함되지 않음 | `lib/sources/sec/forms/common/forms.ts:9` Ownership 목록은 4/144. 별도 XML 경로의 존재를 Primary 연결로 확장하지 않음 |
 | Generic fallback | 공통 runner에 코드 존재 | `:2815`; 실제 unsupported family의 운영 사용은 UNKNOWN |
@@ -230,7 +257,7 @@ Form 25 Human correction 표시와 Score Alert 사용 가능 여부는 동일하
 
 ### 코드 기준
 
-Verified commit은 `8cb52893a84c8de73051ae2b87427a054b9897cf`다. 이 문서의 코드 근거는 앞선 3단계-A 감사에서 확인한 호출 위치를 사용했다. 이번 문서 작성 중 새 코드 조사는 하지 않았다.
+원래 3단계-A 감사의 verified commit은 `8cb52893a84c8de73051ae2b87427a054b9897cf`다. 아래 저장 표본과 일반 코드 행 번호는 그 감사 기록이며 현재 전체 main 검증으로 승격하지 않는다. Proxy만 상단의 `53e1f790…` 업데이트와 독립 merge-review 근거를 따른다.
 
 ### 기존 shared-local 저장 표본 — VERIFIED STORAGE
 
@@ -264,6 +291,6 @@ Gulf Resources와 CXJ raw에는 workflow completed metadata도 있었다. 이는
 - 모든 실패 단계의 AI trace 보존과 부분 저장 이후 상태. 실패 trace가 보편적으로 저장된다고 주장하지 않음.
 - SEC 모든 원문 문서의 바이트 단위 완전 보존. 수집·선택·truncation이 있는 raw 저장을 전체 원문 archive로 간주하지 않음.
 - 현재 production provider 설정, credential/channel/plan 운영 상태, Telegram/email 실제 전달 성공 및 결제 이후 전체 흐름.
-- Structured Data Pipeline, 도메인 facts, identity/lifecycle, Monitor Matcher/Alert 내부. 호출 발견만으로 내부 완료를 확정하지 않음.
+- Proxy 업데이트 외 Structured Data Pipeline, 도메인 facts, identity/lifecycle, Monitor Matcher/Alert 내부. 확인된 Proxy local slice를 다른 family나 production 완료로 확대하지 않음.
 
 이 문서는 새 설계안(PROPOSED)을 추가하지 않는다. 뉴스·외부 공급원 조사, 도메인 구조 추정, 모든 재분석 append-only 주장, 모든 family 공통 router/repair 주장도 포함하지 않는다.

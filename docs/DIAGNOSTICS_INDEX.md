@@ -6,7 +6,7 @@ Use this index to choose the existing reference for a feature-specific investiga
 
 - **NT secondary Monitor** — deterministic notice/follow-up facts, official reader, matching safety and local evidence: [`architecture/nt-secondary-monitor-v1.md`](architecture/nt-secondary-monitor-v1.md)
 
-- **Proxy Structured product candidate** — raw-bound durable stages, validated official readers, typed Monitor conditions, local verification and merge gaps: [`architecture/proxy-structured-product-v1.md`](architecture/proxy-structured-product-v1.md)
+- **Proxy Structured product v1 — local main integrated** — shared discovery source, separate Primary/Structured paths, durable Call1/Call2 checkpoints, Call2-only canonical/official reader, two typed Monitor conditions and internal Alert; local E2E/replay limits and no push/deploy: [`architecture/proxy-structured-product-v1.md`](architecture/proxy-structured-product-v1.md). Single Markdown flow source: [`architecture/map/01-primary-analysis.md`](architecture/map/01-primary-analysis.md); historical candidate gates: [`operations/PROXY_STRUCTURED_MERGE_GATES.md`](operations/PROXY_STRUCTURED_MERGE_GATES.md).
 
 - **Live Room initial entry** — company Live Room initial-entry investigation: [`LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md`](LIVE_ROOM_ENTRY_FLOW_DIAGNOSTICS.md)
 

@@ -48,14 +48,15 @@ Architecture Map은 합의한 서비스 모델과 앞으로 확인할 실제 구
 현재 존재하는 문서:
 
 - [00 Service Model](00-service-model.md) — `SERVICE MODEL`: 네 서비스 축과 용어집, 개념도 1개.
-- [01 Primary Analysis — SEC](01-primary-analysis.md) — `VERIFIED AS-IS`: 3단계-A의 VERIFIED CODE / VERIFIED STORAGE. production 활성화·새 Product E2E는 UNKNOWN.
+- [01 Primary Analysis — SEC](01-primary-analysis.md) — 기존 3단계-A 기록 + 2026-10-05 Proxy local main 업데이트. Proxy shared discovery source의 Primary/Structured 분기와 internal Monitor Alert 연결을 기존 Mermaid 한 곳에서 관리; 다른 family 및 production 미검증 범위는 유지.
 - [01b Primary Analysis — News](01b-news-primary.md) — `VERIFIED AS-IS`: 3단계-B의 VERIFIED CODE. 뉴스 저장 표본·production 활성화·E2E는 UNKNOWN.
 - [01c Primary Analysis — Overview](01c-primary-overview.md) — SEC·News 상위 지도: 별도 처리 경로와 확인된 공유 계층, 검증 범위 구분.
-- [02 Structured Data — Domain Inventory](02-structured-data-overview.md) — 코드에서 확인한 도메인 목록과 감사 경계. 전체 production 연결·DB/E2E는 UNKNOWN.
+- [02 Structured Data — Domain Inventory](02-structured-data-overview.md) — 기존 도메인 inventory + Proxy Call2 canonical/durable reader/typed Monitor의 local 저장·E2E 범위. 전체 production 완료를 뜻하지 않음.
 - [03 Ownership — Form 4/144](03-ownership-form4-144.md) — `VERIFIED AS-IS`: CODE/WIRED + DB 구조 확인. 실제 저장 표본·제품 경로·E2E는 UNKNOWN.
 - [03b Ownership — Form 3/5](03b-ownership-form3-5.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. accession 이력·lineage와 수동 Matcher; 실제 저장·제품 E2E는 UNKNOWN.
 - [03c Ownership — SC13](03c-ownership-sc13.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. 신고인별 저장·current projection·종목 상세·내부 Monitor Alert; 실제 저장·제품 E2E는 UNKNOWN.
 - [03d Ownership — Overview](03d-ownership-overview.md) — 세 family의 독립 저장·reader·consumer 상위 지도. 개념적 공통점과 CODE/WIRED·NOT WIRED·UNKNOWN 구분.
+- [Proxy Structured product v1](../proxy-structured-product-v1.md) — local main merge `53e1f790…` 완료, migration 정합·internal Alert/dedupe·브라우저 검증. push/deploy·외부 발송은 별도이며 중복 Mermaid를 만들지 않음.
 
 향후 조사 placeholder는 **목록만** 예약한다. 아래 파일은 아직 생성하지 않았으며 내용과 실제 연결은 모두 `UNKNOWN / TO AUDIT`이다. 번호는 인덱스 순서이며 구현·의존 순서가 아니다.
 

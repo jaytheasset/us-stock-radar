@@ -1,13 +1,30 @@
-# Proxy Structured product v1 candidate
+# Proxy Structured product v1 — local main integrated
 
-This candidate connects the frozen Proxy two-call analyzer to saved SEC raw data,
-durable execution, validated history, Generic Monitor conditions and internal alerts.
-It is not a production deployment or a completed merge acceptance.
+Product baseline: local main merge `53e1f79098563a0ac6e761d900ada2fbf623c0ae`,
+integrating the complete candidate `d9368157dcadd9a46c95b6f36af3d91664fb733e`
+from base `b1e80ca68e2b702849286091b3b0a7de4a190101`, without conflicts.
+Independent review and main regressions/readback/browser checks are complete.
+This is local integration, **not push/deployment or external email/Telegram completion**.
 
-Update: the outstanding candidate gates described below were subsequently closed
-by the authorized [merge-gate verification](../operations/PROXY_STRUCTURED_MERGE_GATES.md).
-That report supersedes the initial pending migration-history and unverified E2E/UI
-status. It does not authorize a main merge or deployment.
+The [candidate merge gates](../operations/PROXY_STRUCTURED_MERGE_GATES.md) and
+[acceptance record](../operations/PROXY_STRUCTURED_PRODUCT_ACCEPTANCE.md) are
+dated evidence, superseded for current merge status by this document and
+[main handoff](../operations/ASTRA_6_MAIN_HANDOFF.md). Local completion is closed;
+do not restart analyzer tuning, provider experiments or another E2E loop without
+a new concrete requirement. Known minor omissions remain non-blocking notes.
+
+## Shared source, separate analyses
+
+SEC raw → Proxy Parser / discoveryBlocks branches to Primary and Structured.
+They share the parser-selected discovery source contract, not analysis outputs.
+`buildPrimarySourceBlocks` in `lib/sources/sec/forms/proxy/sourceInput.ts` preserves
+discoveryBlocks order, original text, IDs, coordinates and block boundaries 1:1,
+without a second filter/sort/merge. Existing Primary supporting material remains.
+Structured does not supply Primary's answers; Primary prose/scoring does not
+supply canonical FACT. Primary schema, analysis/scoring and repair are unchanged.
+
+The existing [SEC Primary Markdown diagram](map/01-primary-analysis.md) is the
+single flow-diagram source. Do not maintain another exported/remote diagram copy.
 
 ## Source, execution and official read
 
@@ -70,24 +87,50 @@ source bindings, terminal runs and outputs are protected from rewriting. Existin
 families retain their existing contracts and permissions. Both tables already
 have RLS enabled; anon/authenticated cannot execute the three RPCs.
 
-Applied only to existing local Supabase `127.0.0.1:56322`, system identifier
-`7678429483712069671`, using direct SQL. No migration-history entries were created
-or repaired. The migration list consequently shows this file as locally pending
-even though its objects exist. Integration must account for that state before
-running a migration command; do not blindly rerun its CREATE statements or repair
-history as part of this candidate. Remote database state was not changed/audited.
-Local security advisors returned no issues at warning/error level.
+Local Supabase `127.0.0.1:56322`, system identifier `7678429483712069671`:
+**migration `20261005043414` applied; object/history state aligned**. Initially
+objects were applied by direct SQL without a history entry. The separately
+authorized candidate gate subsequently compared every object/grant and recorded
+only this applied history row, without rerunning CREATE statements. Main integration
+independently confirmed four functions, two indexes, two triggers and RPC grants
+against repository SQL. No history repair/reapplication occurred in the main
+integration or this closeout. Remote DB remains unaudited/unchanged. Do not blindly
+apply or repair this migration again. Initial local advisors reported no warning/error.
 
-Bounded persisted verification data: two raw filings, two source-only events, one
-new monitor, seven Proxy executions (five succeeded, two uncertain), five outputs,
-and zero retained internal alerts. Original historical filing dates and existing
-account data were preserved. The monitor ID is
-`0a496005-7d82-464d-8d21-3ed99198cdac`; raw/event IDs are in the evidence manifest.
+Initial candidate data (historical): two real raw filings/two source-only events,
+monitor `0a496005-7d82-464d-8d21-3ed99198cdac`, seven Proxy executions/five outputs,
+zero retained alerts. Later merge gates added one explicitly synthetic raw/event,
+one new two-condition monitor, one automatic execution/output and two internal
+alerts (one for each matching monitor). Main read-only verification found eight
+runs (six succeeded/two uncertain), six outputs and the same two alerts. Historical
+SEC dates/raw data stayed intact; no reset/delete/backfill occurred. Normal browser
+session refresh changed auth-session storage, not credentials/permissions or plans;
+see the candidate session audit. No byte-identical auth-row claim is made.
 
 ## Verification evidence and limits
 
-Evidence root: `C:/Users/PC/.codex/visualizations/proxy-structured-product-20261005`.
+Current local disposition: automatic filing → persistence → official reader →
+Matcher → internal Alert **E2E PASS**, repeat enqueue/replay dedupe and idempotence
+**PASS**. The positive automatic case is explicitly synthetic accession
+`9999999999-26-000001` with exact saved-response transport, not a fresh model
+analysis of an eligible real SEC filing. Actual Alternus/BigBear fresh calls are
+separate evidence below. Main integration made **0 additional Gemini calls**,
+created no alerts or facts, and reused the completed E2E rather than rerunning it.
+
+Candidate browser Create returned 201; logged-out UI/API were verified. Main
+independently confirmed `/monitor` and `/alerts`, both saved conditions, seven
+monitors/two Monitor alerts, login/logout gates, 1440/900/390px views and no console
+errors. Main regressions: 215/217 pass with the same two base failures; full
+TypeScript and diff checks passed. Official reads and stored runs/outputs/alerts
+were identical before/after integration. Evidence:
+`C:/Users/PC/.codex/visualizations/proxy-product-main-integration-20261005`.
+
+Initial candidate evidence root: `C:/Users/PC/.codex/visualizations/proxy-structured-product-20261005`.
 Large source/response files and credentials are not committed.
+
+The following table/usage records are the initial candidate's bounded verification,
+not current pending gates. Later automatic positive/UI/migration evidence is in
+`C:/Users/PC/.codex/visualizations/proxy-merge-gates-20261005`.
 
 | Check | Result |
 | --- | --- |
@@ -126,26 +169,26 @@ test was weakened. A separate old SC13 loader error was resolved with the
 server-only test shim; that suite passes. The online SEC parser test is excluded
 from offline verification.
 
-Logged-in browser checks on candidate port 3115 covered `/monitor` (preset, Proxy
-condition card, Yes/No editor, add-condition menu) and `/alerts` (saved monitor).
-1440, 900 and 390px views were inspected without horizontal overflow, Next error
-overlay or console errors. Unauthenticated `/api/monitors/listing` returned 401.
-The existing user's session/account was not changed. Browser Create POST and the
-logged-out UI journey remain unverified. A real eligible positive automatic
-filing-to-alert flow is also unverified: the historical fixtures cannot prove it
-without changing their dates. These are merge acceptance gaps, not passing E2E
-claims. Synthetic unit tests cover positive activation/create/dedupe separately.
+Initial browser evidence on candidate 3115 covered preset/editor/add-condition
+and saved monitors at 1440/900/390px, plus unauthenticated API 401. At that time
+Create, logged-out UI and positive automatic alerts were pending. The later
+merge gates closed those gaps through a real browser submission and durable
+synthetic/saved-response automatic case; main then independently smoke-checked
+the merged UI/readers. A fresh eligible real-source positive alert and external
+delivery remain untested; neither is implied by the completed local integration.
 
 ## Reproduction and handoff
 
-Use this candidate directory explicitly:
-`C:/Users/PC/.codex/worktrees/proxy-structured-product-v1/US-Stock Radar`.
-Branch: `codex/proxy-structured-product-v1`; base/local main:
-`b1e80ca68e2b702849286091b3b0a7de4a190101`.
+Use the permanent main directory `C:/Users/PC/Documents/Codex/US-Stock Radar`.
+Keep branch `main`; do not switch it. Completed candidate branch
+`codex/proxy-structured-product-v1` / `d9368157…` is fully merged and its checkout
+is approved for retirement after this documentation commit, subject to the final
+clean/no-unique-work check. Keep Git history, existing Proxy chat and external
+evidence archives. Cleanup result is recorded in the closeout evidence.
 On Windows, use the absolute file URL for the TypeScript loader in test workers:
 
 ```powershell
-node --no-warnings --experimental-loader 'file:///C:/Users/PC/.codex/worktrees/proxy-structured-product-v1/US-Stock%20Radar/scripts/resolve-ts-paths.mjs' --test --experimental-strip-types lib/sec-proxy/product.test.ts lib/sec-proxy/ingest.test.ts
+node --no-warnings --experimental-loader 'file:///C:/Users/PC/Documents/Codex/US-Stock%20Radar/scripts/resolve-ts-paths.mjs' --test --experimental-strip-types lib/sec-proxy/product.test.ts lib/sec-proxy/ingest.test.ts
 node node_modules/typescript/bin/tsc --noEmit --incremental false
 git diff --check
 ```
@@ -156,14 +199,18 @@ claim files intentionally prevent duplicate calls. The alert-storage script is
 rollback-only and does not validate activation. Earlier full logs and final test
 logs are preserved under the evidence root.
 
-Candidate server 3115 and its temporary browser tab were closed after verification;
-port 3110 and other servers were not operated. The ignored dependency junction,
-generated Workflow artifacts and local logs are not committed. No new environment
-secrets were saved; existing Gemini credentials were read only into process memory
-for the authorized four calls. No cron or external delivery configuration changed.
+The candidate 3115 server was reopened for independent merge review only. Cleanup
+stops only that candidate-owned server and removes its completed checkout; 3110
+main and unrelated services/shared dependencies remain. The ignored dependency
+junction, build/Workflow artifacts and logs are not product dependencies. Main
+3110 was absent before integration and was started using the existing main/local
+DB configuration; no env file edits. No new secrets, cron or external-delivery
+configuration changes. Documentation closeout does not start/restart any server.
 
 GitHub main was last observed as `9c13aee7ef41b38bac0637e53e579633745effda`;
 Vercel production was last observed as `bf586ed559c7f4bea6a171790ab7b563cabc7161`
 READY. Neither was freshly audited or synchronized here. Code equality across
-local main/GitHub/deployment is not established. No main merge, push or deployment
-was performed. Candidate commit and final clean status are reported separately.
+local main/GitHub/deployment is not established. **Local main merge is complete**
+at `53e1f790…`; this documentation-only closeout follows that merge. Push/deploy
+were not performed. Current GitHub/Vercel/remote DB were not queried during
+closeout. Final documentation commit and cleanup/clean status are reported separately.

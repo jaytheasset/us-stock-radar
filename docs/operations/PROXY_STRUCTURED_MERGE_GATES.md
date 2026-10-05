@@ -1,5 +1,21 @@
 # Proxy product merge gates — 2026-10-05
 
+## Current disposition — local main integrated
+
+Candidate `d9368157dcadd9a46c95b6f36af3d91664fb733e` was independently reviewed and
+merged in full by `53e1f79098563a0ac6e761d900ada2fbf623c0ae`, without conflicts.
+Main readback and authenticated/logged-out PC/900/390px UI smoke agree with the
+candidate; 215/217 regressions (same two baseline failures), full typecheck and
+diff checks pass. Local migration objects/history align. No additional provider
+calls, DB writes, replay or migration repair occurred in main review/closeout.
+Current architecture/cleanup boundary: [Proxy product v1](../architecture/proxy-structured-product-v1.md)
+and [main handoff](ASTRA_6_MAIN_HANDOFF.md). **No push/deploy/external delivery.**
+
+## Historical candidate gate record
+
+The remainder records the pre-merge candidate verification. Its “no main merge”
+and server status are historical, not current instructions or pending blockers.
+
 Verified on existing `codex/proxy-structured-product-v1`, starting at
 `ee6d574218b025524c686d38a686a48e5ad171ec`. No product implementation or frozen
 parser/Call1/Call2/schema/prompt/validator/Primary contract changed. Changes in this
@@ -113,7 +129,9 @@ Use `verify-proxy-automatic-alert.mjs check <evidence> <prior-evidence>` and
 Do not rerun `before`/`seed` or issue fresh model calls. The new synthetic rows,
 monitor and internal alerts are retained as evidence; they were not cleaned up.
 
-All requested candidate gates now pass. This does not authorize main integration.
+At this candidate checkpoint all requested gates passed; main integration was
+not yet authorized. The later explicit authorization and independent main review
+completed the merge recorded above.
 Local main remains `b1e80ca68e2b702849286091b3b0a7de4a190101`; GitHub main and Vercel
 remain last-observed values from the prior handoff, not newly audited. No main
 merge, push or deployment. Candidate server 3115 is stopped after verification;

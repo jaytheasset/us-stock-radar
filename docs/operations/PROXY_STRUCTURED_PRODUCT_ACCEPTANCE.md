@@ -1,5 +1,23 @@
 # Proxy Structured product v1 acceptance — 2026-10-05
 
+## Final disposition
+
+Complete candidate `d9368157…` is integrated by local main merge `53e1f790…`.
+Independent review/main tests, official readback and authenticated/logged-out
+PC/900/390px UI checks are complete; local migration `20261005043414` history and
+objects match. Automatic synthetic/saved-response E2E, actual browser Create 201
+and dedupe/idempotence gates passed. Actual fresh Alternus/BigBear analyzer runs
+remain separate evidence; a new real eligible positive alert is not claimed.
+No extra Gemini calls, DB writes or replay in integration/closeout; no push/deploy
+or external email/Telegram completion. Current code/limits:
+[Proxy product v1](../architecture/proxy-structured-product-v1.md).
+
+## Historical task acceptance and initial disposition
+
+The bullets below preserve the original candidate scope and initial findings.
+Pending UI/E2E/migration statements are historical and were resolved by the later
+merge gates; they are not current blockers or authorization to rerun them.
+
 - Workspace: `C:/Users/PC/.codex/worktrees/proxy-structured-product-v1/US-Stock Radar`; branch `codex/proxy-structured-product-v1`; base `b1e80ca68e2b702849286091b3b0a7de4a190101`; clean at start.
 - Existing chat reused. App creation failed because its default cwd still points to removed f6e4. Explicitly authorized Git worktree creation succeeded; app attachment refused unmanaged checkout. All commands must explicitly use the new candidate workdir. No restoration of f6e4 or app internal-state edits.
 - Freeze shared Proxy parser, Call1/Call2 routing/models/schema/prompts/validators, Primary source and output contracts, scores and repair. No new provider retry/repair/fallback.

@@ -1,6 +1,6 @@
 # Structured Data — 도메인 inventory
 
-> **No inference.** 이 문서는 이전 1단계에서 확인한 도메인 목록이다. 전체 처리 흐름, 도메인 간 의존관계, 권위 source 우선순위 또는 production wiring을 확정하는 지도가 아니다.
+> **No inference.** 이전 1단계 도메인 inventory에 2026-10-05 Proxy local main 확인 범위를 추가했다. 전체 도메인의 처리 흐름·권위 source 우선순위·production 활성화를 확정하는 지도가 아니다.
 
 ## 쉽게 읽기
 
@@ -12,8 +12,16 @@ Structured Data Pipeline은 공시를 설명하는 글을 만드는 Primary Anal
 
 - 기준 코드: `8cb52893a84c8de73051ae2b87427a054b9897cf`. Inventory 확인 당시 main: `7a53848a43436aceb591b12eebeaa6c64111708a` — Architecture Map 문서 기준점.
 - 근거 수준: **CODE EXISTS**, 그리고 직접 호출을 확인한 일부 **WIRED — CODE**. 저장 구조는 코드·migration 선언의 존재를 뜻한다.
-- **STORAGE VERIFIED / PRODUCT E2E VERIFIED 아님.** 당시 실제 DB schema 적용·row 조회나 새 ingest/LLM/E2E를 실행하지 않았다. 과거 PASS 기록을 이 inventory의 검증으로 승격하지 않는다.
-- 이번 문서화에서는 새 코드·DB 조사와 도메인 상세 연결 추적을 하지 않았다.
+- 위 inventory 감사 당시 **STORAGE VERIFIED / PRODUCT E2E VERIFIED가 아니었다.** 아래 Proxy 행만 별도의 local 코드·저장·실행·브라우저 근거를 가진다. 다른 도메인은 기존 범위를 유지한다.
+- Proxy 기준: main merge `53e1f79098563a0ac6e761d900ada2fbf623c0ae`. 이번 동기화는 현재 코드와 보존 검증 자료만 사용하며 새 DB/모델/제품 실행을 하지 않는다.
+
+### Proxy Structured product v1 — local main 통합 완료
+
+Primary와 Structured는 같은 Proxy Parser/discoveryBlocks source 선택 계약을 사용하지만 별도 분석이다. Primary는 discoveryBlocks 순서·원문·ID·좌표·경계를 1:1 전달하며 기존 보조자료를 유지한다. Structured는 `Call 1 → Call 2 → Validator → durable persistence → official reader → deterministic Monitor Matcher → internal Alert`다. canonical은 검증된 Call2 FACT만; Call1 handoff/trace/source evidence는 분리한다.
+
+provider checkpoint/uncertain은 불확실한 호출의 자동 재호출을 막는다. official reader는 source fingerprint·contract version·저장 hash와 두 frozen validator를 재검증하며, 미완료·실패·stale·uncertain은 unavailable이다. Monitor에는 typed boolean `proxy.has_proposal`, `proxy.has_capital_structure_proposal` 두 개만 연결한다. 안건 존재를 승인·실행·발행으로 승격하지 않는다.
+
+Local automatic filing → internal Alert E2E 및 재실행 dedupe/멱등성 PASS. 양성 자동 E2E는 합성 filing + 보존 응답 replay이고, 실제 Alternus/BigBear fresh 분석 검증은 별도다. main reader/인증 UI smoke와 migration `20261005043414` 객체/history 정합 확인 완료. **push/deploy 및 외부 email/Telegram 완료 아님.** 세부 근거·한계는 [Proxy 제품 문서](../proxy-structured-product-v1.md)를 참조한다. 전체 연결 Mermaid는 [SEC Primary 지도](01-primary-analysis.md)의 기존 도식 한 곳에서 관리한다.
 
 ## 도메인 지도 / Domain Inventory
 
@@ -55,23 +63,27 @@ Stored Form 25 / related evidence
 Derived reader / PARTIAL"]
     end
 
+    proxy["Proxy Structured product v1 / local main integrated
+SEC raw + parser discovery source
+Call1 / Call2 / Validator + durable reader / Monitor"]
+
     end
 
     classDef scope fill:#edf2ff,stroke:#5271b8,color:#17223b
     classDef readyBox fill:#edf8f3,stroke:#4c8870,color:#173b2d
     classDef partialBox fill:#fff6e6,stroke:#b3863b,color:#523b14
     class structured scope
-    class ownership,financials,dilution,listing,identity,actions readyBox
+    class ownership,financials,dilution,listing,identity,actions,proxy readyBox
     class shares,offering,delisting partialBox
 ```
 
 **아직 전체 lifecycle로 확대 금지 / TO AUDIT:** 신규상장, 일반 merger, 전체 delisting lifecycle. 이 세 번째 상태 그룹은 조사 경계이며 도메인 박스로 추가하지 않는다.
 
-박스는 도메인, 그룹은 상세 감사 준비 수준이다. `상세 감사 가능`은 구현 완료나 제품 E2E PASS를 뜻하지 않는다. 한국어는 빠른 이해용 설명, 영어는 기술 용어 대응이다. 화살표는 **0개**이며, 박스의 위치도 의존관계·권위·처리 순서가 아니다.
+박스는 도메인, 기존 그룹은 원래 상세 감사 준비 수준이다. `상세 감사 가능`은 구현 완료나 제품 E2E PASS를 뜻하지 않는다. Proxy는 별도의 dated local 완료 근거를 갖는다. 한국어는 빠른 이해용 설명, 영어는 기술 용어 대응이다. 화살표는 **0개**이며, 박스의 위치도 의존관계·권위·처리 순서가 아니다.
 
 ## 확인된 도메인
 
-아래 consumer는 이전 감사에서 직접 확인한 호출자만 적었다. consumer의 코드 참조가 source부터 해당 화면까지 전체 production 경로를 검증한 것은 아니다.
+Proxy 외 consumer는 이전 감사에서 직접 확인한 호출자만 적었다. Proxy의 local 검증은 해당 행에 명시한다. 코드 참조나 local E2E가 배포 환경의 전체 production 경로를 검증한 것은 아니다.
 
 | 도메인 | 목적 | 주요 Source | 현재 확인된 처리 방식 | 저장 구조 존재 여부 | Reader 존재 여부 | 확인된 Consumer | 현재 검증 수준 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -81,6 +93,7 @@ Derived reader / PARTIAL"]
 | Dilution Registry | 증권별 발행 조건·잔여량·활동 snapshot | SEC 근거를 참조하는 Registry JSON | GPT/Human-assisted 입력 계약 + 검증·적용. GPT 생성 실행 자체는 미검증 | 있음: `dilution_instruments`, snapshots, activity, totals 및 조정 관련 선언 | `fetchStockDilution`, Registry-backed Offering reader | 종목 Dilution API, Registry-backed Offering Monitor 입력 | CODE EXISTS; 일부 WIRED — CODE. DB/E2E UNKNOWN |
 | Offering Facts | 공시 accession별 공모·발행 조건 | 구조화 event 후보, 같은 accession의 Registry snapshot | 후보 검증·canonical promotion 경로와 Registry adapter가 각각 존재 | 있음: `event_offering_monitor_canonical`, Registry snapshot 선언 | `readOfferingMonitorCanonical`, `readRegistryBackedOfferingFacts` | Offering Matcher/production wiring 및 Offering Alert 소비 코드가 각각 존재 | PARTIAL; 일부 WIRED — CODE. 두 경로의 역할·권위 관계 UNKNOWN |
 | Listing Risk | 상장 위험의 사건·상태·거래소·증권·날짜 | SEC/News에서 준비한 근거 | Structured LLM 분석 + validation + typed facts | 있음: `event_listing_risk_results`, `event_listing_risk_facts` 선언 | `readCurrentListingRiskFacts` | Listing Monitor Matcher/Alert | CODE EXISTS; analyzer·persistence 호출과 reader 소비 일부 WIRED — CODE. DB/E2E UNKNOWN |
+| Proxy Structured | 공시별 제안 FACT와 source/evidence history | 저장 SEC raw → Proxy Parser / discoveryBlocks | 별도 Call1 → Call2 → Validator; Primary와 독립 | `ai_runs` stage checkpoint / `ai_outputs`: canonical은 검증된 Call2만 | `readProxyStructured`, `readProxyAccession`, `readCurrentProxyFacts` | typed boolean 2개 → Generic Matcher/internal Alert; `/monitor`, `/alerts` | Local main CODE/STORAGE/automatic E2E PASS (합성 source + 보존 응답 replay); 실제 Alternus/BigBear fresh 분석 별도 검증. Production 미검증 |
 | Delisting State | 특정 증권·거래소의 상장제거와 거래정지 구분 | 선택된 저장 Form 25, 관련 공시·Listing Risk 근거 | Deterministic 파생 reader; 자동 실행 결과/실패 기록 | 독립 current-state 테이블은 확인되지 않음. 실행 기록은 `source_runs.metadata.form25_delisting` | `readStoredDelistingState` | ingest/replay 자동 trigger 호출 확인; 상태 UI 소비는 미확인 | PARTIAL; 일부 WIRED — CODE. 전체 상폐 lifecycle·DB/E2E UNKNOWN |
 | Issuer / Security / Ticker Identity | 관측된 identity 근거, ticker 관계와 Human 판정을 분리 | SEC cover XML/XBRL, 공식 변경 근거, Human decision | Observation, deterministic resolution, Human-effective reader, projection 구성요소 | 있음: cover observations, ticker security/evidence/resolution/human decisions, Form 25 identity evidence/decisions 선언 | cover reader, effective ticker-resolution reader, product projection, effective Form 25 identity reader | Admin, 검색·상세, Watchlist, 종목별 Alert adapter 등에서 코드 참조 확인 | CODE EXISTS; 일부 WIRED — CODE. Human decision을 읽는 Effective Value 확인. DB/E2E UNKNOWN |
 | Corporate Actions — Split / Reverse Split | 분할·역분할 조건과 실행 근거 | SEC/Nasdaq/News 근거를 받는 계약 | Structured LLM + 검증된 typed facts + deterministic 실행 판정 | 있음: `event_corporate_action_results`, `event_corporate_action_facts` 선언 | `readCurrentCorporateActionFacts`, `readStockSplitExecutions` | Listing Matcher/Alert, 주식수 기준 정규화·Dilution projection 코드 참조 | CODE EXISTS; 일부 WIRED — CODE. DB/E2E UNKNOWN. 일반 merger로 확대 불가 |
@@ -97,6 +110,7 @@ Derived reader / PARTIAL"]
 | Dilution Registry | `lib/dilution-registry/applyContract.ts`, `applyServer.ts`, `stockDilutionServer.ts` |
 | Offering Facts | `offeringMonitorCanonicalPersistence.ts`, `offeringMonitorMatcher.ts`; `lib/monitor/registryBackedOfferingFacts.ts`, `offeringMonitorAlertConsumer.ts` |
 | Listing Risk | `lib/ai/listingRiskDomainAnalyzerPreview.ts`; `lib/monitor/genericMonitorChildRuntime.ts`, `listingRiskPersistence.ts` |
+| Proxy Structured | `lib/sec-proxy/{source,starter,runtime,persistence}.ts`; `workflows/proxy-structured.ts`; `lib/monitor/proxyStructuredFacts.ts`, `listingMonitorAlertConsumer.ts` |
 | Delisting State | `lib/sec-delisting-state/reader.ts`, `automaticTrigger.ts`; `lib/secIngest.ts` |
 | Identity | `lib/sec-cover-observations/persistence.ts`; `lib/sec-ticker-resolution/persistence.ts`, `humanReview.ts`, `productProjection.ts`; `lib/sec-form25-identity/persistence.ts` |
 | Corporate Actions | `lib/ai/corporateActionCanonicalAnalyzerPreview.ts`; `lib/monitor/corporateActionPersistence.ts`, `reverseSplitExecution.ts` |
@@ -117,11 +131,11 @@ Ownership → Monitor, Financials → Stock Detail, Dilution → Offering, Listi
 
 ## UNKNOWN / TO AUDIT
 
-- 실제 DB schema 적용 여부와 저장 row 상태.
+- Proxy local 확인 범위 외 실제 DB schema 적용 여부와 저장 row 상태.
 - source → persistence → reader의 전체 production 연결 및 운영 활성화.
 - 도메인 간 권위 source 우선순위, 동일 필드의 충돌 처리.
 - Human override의 각 consumer·다른 도메인 전파.
-- Stock Detail / Monitor의 실제 제품 E2E.
+- Proxy의 명시된 local slice 외 Stock Detail / Monitor 실제 제품 E2E; production 활성화·외부 전달.
 - Shares/O/S의 여러 source 품질·권위 경계, Offering의 두 저장/소비 경로 관계.
 - **신규상장 / 일반 merger / 전체 delisting lifecycle.** Prospectus 주식수 근거, 분할 판정 또는 특정 Form 25 reader의 존재로 전체 lifecycle 구현을 주장하지 않는다.
 
