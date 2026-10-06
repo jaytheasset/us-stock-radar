@@ -21,6 +21,7 @@ import {
   type SecTickerSelectionRow,
 } from "@/lib/sources/sec/sourceTickerSelection";
 import { secFetch } from "./secFetch";
+import { createTickerCatalogCache } from "./tickerCatalogCache.ts";
 import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form25-identity/canonical";
 import { captureForm25Document, FORM25_SOURCE_VERSION, type Form25OriginalDocument } from "./forms/form25/storedSource";
 import { captureS8Document, isS8Form, S8_SOURCE_VERSION, type S8Document } from "../../sec-s8/directFacts";
@@ -115,6 +116,7 @@ export type SecRawFetchResult = {
     dateFrom?: string | null;
     dateTo?: string | null;
     afterDateFilter?: number;
+    tickerCatalog?: { status: "available" | "unavailable"; error?: string };
   };
   error?: string;
 };
@@ -152,7 +154,7 @@ type TickerResolution = {
   cusip: string | null;
 };
 
-let tickerLookupPromise: Promise<Map<string, TickerRow[]>> | null = null;
+const tickerCatalogCache = createTickerCatalogCache(fetchTickerLookupInner);
 const fmpCusipLookupCache = new Map<string, Promise<TickerRow[]>>();
 
 export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise<SecRawFetchResult> {
@@ -166,7 +168,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
   const limit = requestedAccessionNumber ? 1 : clampInt(options.limit ?? formTypes.length * countPerForm, 1, 100);
   const includeDocuments = options.includeDocuments ?? true;
   const attachmentLimit = clampInt(options.attachmentLimit ?? 6, 0, 20);
-  const diagnostics = {
+  const diagnostics: SecRawFetchResult["diagnostics"] = {
     parserVersion: PARSER_VERSION,
     textVersion: TEXT_VERSION,
     requestedFormTypes: formTypes,
@@ -235,7 +237,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
     const dedupedEntries = dateFilteredEntries.slice(0, limit);
     diagnostics.parsedFromFeeds = feedEntries.length;
     diagnostics.afterDateFilter = dateFilteredEntries.length;
-    const tickerLookup = await fetchTickerLookup();
+    // Catalog outages must not abort independent SEC document collection. This
+    // empty local lookup is unavailable input, never a successful cached catalog.
+    let tickerLookup = new Map<string, TickerRow[]>();
+    let tickerCatalogAvailable = false;
+    try {
+      tickerLookup = await fetchTickerLookup();
+      tickerCatalogAvailable = true;
+      diagnostics.tickerCatalog = { status: "available" };
+    } catch (error) {
+      diagnostics.tickerCatalog = { status: "unavailable", error: error instanceof Error ? error.message : "SEC ticker catalog unavailable" };
+    }
     const items: SecParsedRawItem[] = [];
 
     for (const entry of dedupedEntries) {
@@ -312,7 +324,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
               form25_index_subject_cik_count: detail.sc13IndexProvenance?.subjectCikCount,
               attachment_texts: detail.documents.filter(document => !document.isPrimary && document.text)
                 .map(document => ({ type: document.type, text: document.text })) } },
-            { rows: Array.from(tickerLookup.values()).flat().map(row => ({ ...row, source: SEC_TICKER_CATALOG })), available: tickerLookup.size > 0 })
+            { rows: Array.from(tickerLookup.values()).flat().map(row => ({ ...row, source: SEC_TICKER_CATALOG })), available: tickerCatalogAvailable })
         : null;
       const tickerResolution: TickerResolution = form25Identity
         ? { rows: form25Identity.status === "AUTO" ? form25Identity.candidates.map(row => ({ ...row, name: form25Identity.issuerName })) : [],
@@ -328,6 +340,9 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             issuer: tickerIssuer,
             cusips: issuerCusips,
           });
+      if (!tickerCatalogAvailable && !form25Identity && tickerResolution.source === "unresolved") {
+        tickerResolution.reason = "SEC ticker catalog unavailable; no current catalog match could be verified.";
+      }
       const tickerRows = tickerResolution.rows;
       const tickerRow = tickerResolution.primary;
       const companyName = form25Identity?.issuerName || ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
@@ -1859,32 +1874,37 @@ function firstXmlValue(text: string, tagName: string) {
 }
 
 export async function fetchTickerLookup(fresh = false): Promise<Map<string, TickerRow[]>> {
-  if (fresh) return fetchTickerLookupInner();
-  if (!tickerLookupPromise) {
-    tickerLookupPromise = fetchTickerLookupInner().catch(() => new Map<string, TickerRow[]>());
-  }
-  const lookup = await tickerLookupPromise;
-  return lookup;
+  return tickerCatalogCache.get(fresh);
 }
 
 async function fetchTickerLookupInner() {
   const response = await secFetch(SEC_COMPANY_TICKERS_EXCHANGE_URL);
   if (!response.ok) throw new Error(`SEC ticker catalog HTTP ${response.status}`);
-  const data = await response.json().catch(() => null);
-  const fields = Array.isArray(data?.fields) ? data.fields.map((field: unknown) => stringValue(field)) : [];
-  const rows = Array.isArray(data?.data) ? data.data : [];
+  const data = await response.json();
+  if (!data || !Array.isArray(data.fields) || !data.fields.every((field: unknown) => typeof field === "string" && field.trim()) ||
+      !Array.isArray(data.data) || !data.data.length) throw new Error("SEC ticker catalog invalid schema");
+  const fields: string[] = data.fields.map((field: string) => stringValue(field));
+  const rows: unknown[] = data.data;
   const cikIndex = fields.indexOf("cik");
   const nameIndex = fields.indexOf("name");
   const tickerIndex = fields.indexOf("ticker");
   const exchangeIndex = fields.indexOf("exchange");
-  if (cikIndex < 0 || tickerIndex < 0 || !rows.length) throw new Error("SEC ticker catalog unavailable");
+  if ([cikIndex, nameIndex, tickerIndex, exchangeIndex].some((index) => index < 0) || new Set(fields).size !== fields.length) {
+    throw new Error("SEC ticker catalog invalid fields");
+  }
   const lookup = new Map<string, TickerRow[]>();
 
   for (const row of rows) {
-    if (!Array.isArray(row)) continue;
+    if (!Array.isArray(row) || row.length !== fields.length ||
+        !((typeof row[cikIndex] === "number" && Number.isSafeInteger(row[cikIndex]) && row[cikIndex] > 0 && row[cikIndex] <= 9_999_999_999) ||
+          (typeof row[cikIndex] === "string" && /^\d{1,10}$/.test(row[cikIndex].trim()) && Number(row[cikIndex]) > 0)) ||
+        typeof row[tickerIndex] !== "string" || !row[tickerIndex].trim() ||
+        ![nameIndex, exchangeIndex].every((index) => row[index] === null || typeof row[index] === "string")) {
+      throw new Error("SEC ticker catalog invalid row");
+    }
     const cik = normalizeCik(row[cikIndex]);
     const ticker = stringValue(row[tickerIndex]).toUpperCase();
-    if (!cik || !ticker) continue;
+    if (!cik || !ticker) throw new Error("SEC ticker catalog invalid identity");
     const tickerRow = {
       cik,
       ticker,
