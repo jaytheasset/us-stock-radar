@@ -1,0 +1,47 @@
+{
+  "startedAt": "2026-10-06T02:53:49.747Z",
+  "model": "gemini-2.5-flash",
+  "maxPhysicalCalls": 8,
+  "frozenHashes": {
+    "PLAN.md": "d3bec590f41f3b7897369cea84070052fcfe20a69f6a1a5fcdad62779d8ed6d7",
+    "contract.ts": "ed1b4e993fdfb4b628166bcebb4c8aaf26158759b2f9443624ded3a1cd3e60df",
+    "run.mjs": "10232fc124e7fabf3fb7f479a4a75a603834af667037affe48ec005ca968e431",
+    "run.test.mjs": "68050311158f5c1f223b2c6e5251e38079f0315cccf66f8fe4e8a4414fd14b74",
+    "prepare.mjs": "156bf0621d39aae2d85075337e42af5700fa2ff6fbd5cafdf2629c9c2af69230",
+    "fixtures/inputs.json": "2be597c475af1a71f3c235d6c5e5508bf10e635532abe94f6c8c1758568a41e4"
+  },
+  "requests": [
+    {
+      "accession": "0001213900-25-000757",
+      "sha256": "3f85714a344285fbfbedbd041032f750fa1a910541f589f382b73d882fc0a6d6"
+    },
+    {
+      "accession": "0001193125-26-026154",
+      "sha256": "e37402314e0bbff2aa99321cf734b64ad86c76d530c9a17a2727a3cc24eb8101"
+    },
+    {
+      "accession": "0001213900-23-055698",
+      "sha256": "60b3578c898ae054be91a921cd0f2c134b49c7915ecae511e817ef16f5d83292"
+    },
+    {
+      "accession": "0001104659-25-006713",
+      "sha256": "862a9b234b9d8bf65d3842b339a920fb4837bc674f48c9f59925c3a225643da2"
+    },
+    {
+      "accession": "0001702510-26-000009",
+      "sha256": "396b176d9865f5d53b79e864b60ee1dface7338ba49d542ad91d1bdb64eb49fd"
+    },
+    {
+      "accession": "0001062993-17-000336",
+      "sha256": "5a8f49218f89dece1a8fafad60013600493f0dfeccc38c653cbe464ea687747d"
+    },
+    {
+      "accession": "0001193125-25-335440",
+      "sha256": "ab5ae79e07c341b1c94086ab602316459e435cdc7d1533f3e091e4cdeb4a8152"
+    },
+    {
+      "accession": "0001193125-25-281502",
+      "sha256": "7dd21596f135461f7192412c3eb91d1747d65104f8599feb724b75f6e03af452"
+    }
+  ]
+}

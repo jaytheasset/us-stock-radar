@@ -1,0 +1,2 @@
+# Preserve frozen request/source bytes and hashes across Windows checkouts.
+* -text

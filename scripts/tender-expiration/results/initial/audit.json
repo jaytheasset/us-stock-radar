@@ -1,0 +1,29 @@
+{
+  "accession": "0001213900-25-000757",
+  "model": "gemini-2.5-flash",
+  "modelVersion": "gemini-2.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 3506,
+  "usage": {
+    "promptTokenCount": 8664,
+    "candidatesTokenCount": 524,
+    "totalTokenCount": 9188,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 8664
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "valid": false,
+    "errors": [
+      "version: Invalid input: expected \"tender-monitor-facts-draft-v1\"",
+      "facts.0.type: Invalid input: expected \"expiration\""
+    ]
+  },
+  "completed": false
+}
