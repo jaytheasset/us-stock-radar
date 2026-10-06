@@ -3,6 +3,7 @@
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
 - **SEC Submissions explicit current confirmation** — immutable raw/current separation, explicit refresh, snapshot reader and isolated PostgreSQL verification: [`operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md`](operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md). Candidate stock-header connection: [`operations/SEC_CURRENT_STOCK_HEADER.md`](operations/SEC_CURRENT_STOCK_HEADER.md). Actual three-issuer browser verification, visual finding and login gate: [`operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md`](operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md).
+- **SEC Submissions bounded refresh runner** — explicit CIK dry-run/apply, 24h confirmedAt policy, owned session advisory lock and synthetic HTTP/owned PostgreSQL checks: [`operations/SEC_SUBMISSIONS_REFRESH_RUNNER.md`](operations/SEC_SUBMISSIONS_REFRESH_RUNNER.md). No automatic scheduling or site initial load.
 
 - **S-4/F-4 local MCP evidence candidate** — existing selector/index → MCP search/read, five-case 15-query stdio E2E, restored pre-MCP Primary retry/repair policy and metadata-only registration filing Monitor condition: [`MCP_EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md). Earlier offline audit: [`EVIDENCE_RETRIEVAL_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/EVIDENCE_RETRIEVAL_HANDOFF.md).
 

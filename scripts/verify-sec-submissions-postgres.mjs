@@ -15,6 +15,7 @@ import { verifySubmissionsCurrent } from './sec-submissions-current-cases.mjs';
 import { verifyCurrentHeader } from './sec-current-header-verification.mjs';
 import { verifyLiveCurrentHeader } from './sec-current-header-live-verification.mjs';
 import { rawRaces, rawGuards } from './sec-submissions-conflict-cases.mjs';
+import { verifySubmissionsRunner } from './sec-submissions-runner-cases.mjs';
 
 assert.ok(process.argv.includes('--run'), 'Explicit --run is required');
 const expectedSystem = process.argv.find(arg => arg.startsWith('--system-id='))?.slice(12);
@@ -26,7 +27,9 @@ assert.equal(adminUrl.hostname, '127.0.0.1'); assert.equal(adminUrl.port, '56322
 assert.equal(adminUrl.pathname, '/postgres');
 const headerOnly = process.argv.includes('--header-only');
 const headerLive = process.argv.includes('--header-live');
-const currentOnly = process.argv.includes('--current-only') || headerOnly || headerLive;
+const runnerOnly = process.argv.includes('--runner-only');
+assert.ok(!runnerOnly || !process.argv.some(arg => ['--current-only','--header-only','--header-live','--pause-for-repair'].includes(arg)), 'Runner mode cannot combine with other modes');
+const currentOnly = process.argv.includes('--current-only') || headerOnly || headerLive || runnerOnly;
 if (!currentOnly) assert.ok(process.env.SEC_USER_AGENT, 'Existing SEC_USER_AGENT required; never invent a contact');
 const runId = randomUUID();
 const database = `sec_submissions_eeb4_${runId.replaceAll('-', '')}`;
@@ -216,7 +219,14 @@ try {
   await close(schemaClient);
 
   const conflictContext={connect,close,repository,snapshot,report};
-  if (headerLive) {
+  if (runnerOnly) {
+    const currentSchema=await connect('postgres');
+    const migration='supabase/migrations/20261006140457_sec_submissions_current.sql';
+    const ddl=await readFile(migration,'utf8');
+    await currentSchema.query(ddl); report.currentSchema={migration,sha256:hash(ddl)};
+    await close(currentSchema);
+    await verifySubmissionsRunner(conflictContext,{connectionString:tempUrl.href,database,databaseOid,marker});
+  } else if (headerLive) {
     const currentSchema=await connect('postgres');
     const migration='supabase/migrations/20261006140457_sec_submissions_current.sql';
     const ddl=await readFile(migration,'utf8');
