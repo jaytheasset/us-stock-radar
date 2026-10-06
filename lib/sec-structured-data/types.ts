@@ -141,6 +141,16 @@ export type SecSourceUpdateCounts = {
   unchanged: number;
 };
 
+// CompanyFacts is intentionally absent: this operation never requests it.
+export type SecIssuerSubmissionsIngestResult = SecRepositoryWriteCounts & {
+  cik: string;
+  mode: "incremental";
+  sourceUpdates: { submissions: SecSourceUpdateCounts };
+  sourceDocuments: 1;
+  normalizedFacts: 0;
+  rejected: 0;
+};
+
 export interface SecStructuredSourceClient {
   fetchSubmissions(cik: string, mode: SecRefreshMode): Promise<SecStructuredSourceDocument[]>;
   fetchCompanyFacts(cik: string, mode: SecRefreshMode): Promise<SecStructuredSourceDocument>;
