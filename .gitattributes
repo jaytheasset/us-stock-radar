@@ -1,0 +1,13 @@
+# Immutable Tender source/experiment evidence.
+# Preserve historical bytes; exclude only Git whitespace diagnostics.
+scripts/tender-board-transition-supplement/beacon-sec-index.html -whitespace
+scripts/tender-board-transition-supplement/cream-sec-index.html -whitespace
+scripts/tender-expiration/v5_applied_35/PLAN.md -whitespace
+scripts/tender-expiration/v5_applied_35/run.mjs -whitespace
+scripts/tender-expiration/v5_applied_35/run.test.mjs -whitespace
+scripts/tender-expiration/v6_nano_unchanged_35/PLAN.md -whitespace
+scripts/tender-expiration/v6_nano_unchanged_35/run.mjs -whitespace
+scripts/tender-expiration/v6_nano_unchanged_35/run.test.mjs -whitespace
+scripts/tender-expiration/v6b_nano_unchanged_35/PLAN.md -whitespace
+scripts/tender-expiration/v6b_nano_unchanged_35/run.mjs -whitespace
+scripts/tender-expiration/v6b_nano_unchanged_35/run.test.mjs -whitespace
