@@ -1,0 +1,21 @@
+{
+  "reviewer":"Codex direct frozen SEC source reading, not independent human signoff",
+  "semanticPass":true,
+  "evidenceSupportPass":true,
+  "failureClass":null,
+  "current":{"value":"accept","directRefs":["E3","E10","E11"],"reason":"Explicit Board accept/tender recommendation for Second Amended Offer"},
+  "previous":{"value":"reject","directRefs":["E1","E2","E5"],"reason":"Explicit Board reject/not-tender Initial Offer in E1/E2 and most recent First Amended Offer in E5"},
+  "sameTenderLineage":true,
+  "lineageReason":"E2 Initial Offer, E5 First Amended Offer and E3 Second Amended Offer use the same defined Offeror. E5 ties that offer to MW, with Men's Wearhouse named in litigation caption. No outside filing or Parser result used.",
+  "refs":{
+    "E1":{"strength":"direct","supports":["previous"],"nonconflicting":true,"reason":"January17 Board reject/not tender; advisor disclaimer in same slice is a different speaker"},
+    "E2":{"strength":"direct","supports":["previous"],"nonconflicting":true,"reason":"Explicit Board reject/not tender Initial Offer from Offeror"},
+    "E3":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"March11 Board explicit accept/tender Second Amended Offer to Offeror"},
+    "E5":{"strength":"direct","supports":["previous"],"nonconflicting":true,"reason":"February27 Board reject/not tender First Amended Offer; Everest/Company Tender Offer only in surrounding assumptions/background"},
+    "E10":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Explicit accept/tender Second Amended Offer"},
+    "E11":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Board current accept/tender recommendation after discussion of risks"}
+  },
+  "unrelatedTransactionsExcluded":true,
+  "exclusionReason":"E5 includes other transactions but the recommendation clause expressly targets First Amended Offer. Model did not import Everest termination, Company Tender Offer, advisor opinions or appraisal instructions as previous/current.",
+  "postprocessing":"None. Exact provider values/refs preserved; no previous insertion, normalization or semantic repair."
+}

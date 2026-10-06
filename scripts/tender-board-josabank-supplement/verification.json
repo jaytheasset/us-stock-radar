@@ -1,0 +1,17 @@
+{
+  "audit": "PASS",
+  "case": "josabank",
+  "physicalCalls": 1,
+  "schema": "PASS",
+  "local": "PASS",
+  "provenance": "PASS",
+  "authoredSemanticReview": "PASS",
+  "priorArtifacts": "UNCHANGED",
+  "contract": "UNCHANGED",
+  "queries": "UNCHANGED",
+  "tests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "typecheck": "PASS"
+}

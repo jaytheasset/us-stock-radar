@@ -1,0 +1,17 @@
+{
+  "name": "josabank",
+  "cik": "920033",
+  "accession": "0001047469-14-002675",
+  "form": "SC 14D9/A",
+  "role": "primary",
+  "document": "a2219129zsc14d9a.htm",
+  "url": "https://www.sec.gov/Archives/edgar/data/920033/000104746914002675/a2219129zsc14d9a.htm",
+  "indexUrl": "https://www.sec.gov/Archives/edgar/data/920033/000104746914002675/0001047469-14-002675-index.html",
+  "indexHttpStatus": 200,
+  "indexHash": "ac3652d8f5d9b5a8fb9a47de30dcecc86da57f2085108f18118b3fd8b47810df",
+  "filingDate": "2014-03-20",
+  "accepted": "2014-03-20 06:07:24",
+  "documentSequence": 1,
+  "documentType": "SC 14D9/A",
+  "indexReview": "Direct SEC index read confirms form/accession/CIK/primary document; amendment17 to be checked in source"
+}

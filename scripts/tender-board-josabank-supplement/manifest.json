@@ -1,0 +1,11 @@
+{
+  "base":"6f96b33b24c11ee486399420600005fa7cf2dc10",
+  "runId":"tender-board-josabank-previous-gemini35-20261006",
+  "model":"gemini-3.5-flash",
+  "maxPhysicalCalls":1,
+  "accession":"0001047469-14-002675",
+  "sourceFile":"sources/josabank.json",
+  "purpose":"Same Offeror Initial/First Amended rejected, Second Amended accepted; exclude unrelated Everest and Company Tender Offer",
+  "expected":{"type":"board_recommendation","current":"accept","previous":"reject","unresolved":[]},
+  "coveragePass":true
+}

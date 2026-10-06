@@ -1,0 +1,19 @@
+{
+  "reviewer":"Codex direct selected SEC source reading; not independent human signoff",
+  "coveragePass":true,
+  "selectedEvidenceCount":11,
+  "partialDocuments":[],
+  "currentDirectRefs":["E3","E4","E10","E11"],
+  "previousDirectRefs":["E1","E2","E5"],
+  "previousMostRecentRef":"E5",
+  "currentQuote":"Accordingly, the Board unanimously recommends that the holders of the Shares accept the Second Amended Offer and tender their Shares pursuant to the Second Amended Offer.",
+  "previousQuote":"recommended that the Company's stockholders reject the First Amended Offer and not tender their Shares into the First Amended Offer",
+  "sameTenderLineage":{
+    "selectedSourceBasis":"E2 describes Initial Offer consideration by Offeror. E5 describes First Amended Offer consideration by the same defined Offeror and the Company's transaction discussions with MW; its litigation caption names The Men's Wearhouse. E3 states current Second Amended Offer tender to Offeror. These are the same Offeror's initial/amended tender stages, explicitly distinguished from Company Tender Offer/Everest Transaction in E5.",
+    "refs":["E2","E5","E3"],
+    "identityOnlyAdditionalRead":"SEC primary opening identifies Amendment17, Java Corp as Offeror and Men's Wearhouse as MW. It was read for document identity, not added to selected Evidence/provider input. Semantic gate is supported by selected E2/E5/E3 themselves."
+  },
+  "distractors":{"E1_E2":"Advisor disclaimer is not Board no_recommendation; same passages directly state Board reject","E4":"Everest Purchase Agreement termination is a separate transaction, not previous tender recommendation","E5":"Everest Transaction and Company Tender Offer appear as assumptions/background; Board recommendation explicitly concerns First Amended Offer","E6_E8_E9":"Advisor opinion disclaimers are not board recommendation","E7":"Appraisal not-tender instruction is not Board reject"},
+  "failureClass":null,
+  "providerCallsAtReview":0
+}

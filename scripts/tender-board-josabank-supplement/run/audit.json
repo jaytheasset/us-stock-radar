@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-josabank-previous-gemini35-20261006",
+  "fact": "board_recommendation",
+  "accession": "0001047469-14-002675",
+  "name": "josabank",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2489,
+  "usage": {
+    "promptTokenCount": 3655,
+    "candidatesTokenCount": 102,
+    "totalTokenCount": 3757,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3655
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

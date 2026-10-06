@@ -1,0 +1,20 @@
+{
+  "runId":"tender-board-josabank-previous-gemini35-20261006",
+  "base":"6f96b33b24c11ee486399420600005fa7cf2dc10",
+  "model":"gemini-3.5-flash",
+  "physicalCalls":1,
+  "casePass":true,
+  "current":"accept",
+  "previous":"reject",
+  "failureClass":null,
+  "boardCurrentStatePassed":5,
+  "boardSameTenderTransitionPassed":2,
+  "boardRepresentativePassed":7,
+  "boardPracticalPass":true,
+  "threeFactPracticalPassCount":3,
+  "threeFactStatus":{"expiration":"ACCEPTED_PASS","offer_price":"ACCEPTED_SCOPED_PASS","board_recommendation":"REPRESENTATIVE_PRACTICAL_PASS"},
+  "decisionBasis":"User's latest acceptance criteria: current-state5 + Beacon + Jos.A.Bank transitions, without exhaustive enum-position coverage requirement",
+  "limitations":["Cream remains6-K SOURCE_COVERAGE and0 calls; previous no_recommendation to current accept untested","Both live transitions are reject to accept; reverse direction not tested","No union extraction, production consumer, independent human signoff or general accuracy claim"],
+  "historicalRecords":"Earlier batch and Beacon/Cream supplement reports/results remain unchanged. This supplement records final judgment under the latest user gate.",
+  "nextAction":"STOP; no fourth/fifth FACT or downstream implementation"
+}

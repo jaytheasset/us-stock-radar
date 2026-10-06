@@ -1,0 +1,43 @@
+{
+  "valid": true,
+  "errors": [],
+  "mappingHash": "4c81d89c125748c14dfcd973e8c14903ebe6070e60892b585fc8e06ad6568415",
+  "resolved": [
+    {
+      "fact_index": 0,
+      "ref": "E1",
+      "evidence_id": "tender:e7240f4efb526cdeca1343e2684e408d2d069e7fbc490bb3c9234607d9954d9b",
+      "accession": "0001047469-14-002675"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E2",
+      "evidence_id": "tender:a1f5033b1fc48e3d155eef634a6c09fd998dae8183754479090a6b5c9d913e2d",
+      "accession": "0001047469-14-002675"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E3",
+      "evidence_id": "tender:b21897ae0d6a918122aa1b45ba2a388e04db2922db81d74504c15d9ff79c45c3",
+      "accession": "0001047469-14-002675"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E5",
+      "evidence_id": "tender:5fbf9a1fe72d2e3c865de35eb179cdfc57986c1e93687404885754ad81d66a9c",
+      "accession": "0001047469-14-002675"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E10",
+      "evidence_id": "tender:994d7626a9069addb3b2d54cafc35e05f6ba29e0e96dea515542958a01f00c76",
+      "accession": "0001047469-14-002675"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E11",
+      "evidence_id": "tender:700dd58fd6dd803babd54089a2f980d523188d01e27f8a25a44ba9502f1579a6",
+      "accession": "0001047469-14-002675"
+    }
+  ]
+}

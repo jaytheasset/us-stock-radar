@@ -1,0 +1,15 @@
+{
+  "runId": "tender-board-josabank-previous-gemini35-20261006",
+  "fact": "board_recommendation",
+  "accession": "0001047469-14-002675",
+  "model": "gemini-3.5-flash",
+  "frozenAt": "2026-10-06T11:03:14.746Z",
+  "files": {
+    "evidence-map.json": "4c81d89c125748c14dfcd973e8c14903ebe6070e60892b585fc8e06ad6568415",
+    "prompt.txt": "1b075cf3a41765800583466bed8a31482fcec99b7f1d335dfac9ec2fc72c47b5",
+    "provider-schema.json": "9e528208e678ebb6813d202772a8f2328d2055a6ef9f981e6b7c02c9b43f240d",
+    "provider-source.json": "a8bc703066bcf57967f45fa92ae1d86ba73b0ab2a994d69c7b38d7c008387de8",
+    "request.json": "4a08524300c46bde4937451ac18929d7da1844d6d7efb2ade18713192ed5db0b",
+    "source.json": "1a569938e6320c0d026d2ee12cf083568a8b029ed2d72c5fae14f8a8f771e0b5"
+  }
+}

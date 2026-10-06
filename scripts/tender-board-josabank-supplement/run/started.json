@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-josabank-previous-gemini35-20261006",
+  "fact": "board_recommendation",
+  "accession": "0001047469-14-002675",
+  "name": "josabank",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:03:36.631Z",
+  "physicalCallLimit": 1,
+  "requestHash": "4a08524300c46bde4937451ac18929d7da1844d6d7efb2ade18713192ed5db0b",
+  "mappingHash": "4c81d89c125748c14dfcd973e8c14903ebe6070e60892b585fc8e06ad6568415"
+}
