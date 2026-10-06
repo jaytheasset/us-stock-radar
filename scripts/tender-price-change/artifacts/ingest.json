@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "partial": false,
+  "stage": "complete",
+  "runId": "07927450-fc92-4e3e-ba50-2760f21f4ee8",
+  "stats": {
+    "checked_count": 1,
+    "raw_upserted_count": 1,
+    "skipped_count": 1,
+    "excluded_count": 1,
+    "failed_count": 0,
+    "documents_requested": 0,
+    "documents_fetched": 0,
+    "documents_failed": 0,
+    "sc13_xml_available_count": 0,
+    "sc13_xml_replayed_count": 0,
+    "sc13_xml_failed_count": 0,
+    "sc13_xml_state_recording_failed_count": 0,
+    "section16_xml_available_count": 0,
+    "section16_xml_replayed_count": 0,
+    "section16_xml_failed_count": 0,
+    "section16_xml_state_recording_failed_count": 0,
+    "sec_cover_observation_available_count": 0,
+    "sec_cover_observation_replayed_count": 0,
+    "sec_cover_observation_failed_count": 0,
+    "sec_cover_observation_state_recording_failed_count": 0,
+    "sc13_monitor_completed_count": 0,
+    "sc13_monitor_failed_count": 0,
+    "sc13_monitor_state_recording_failed_count": 0,
+    "form25_delisting_completed_count": 0,
+    "form25_delisting_unavailable_count": 0,
+    "form25_delisting_failed_count": 0,
+    "form25_listing_observation_inserted_count": 0,
+    "form25_listing_observation_replayed_count": 0,
+    "form25_listing_observation_unavailable_count": 0,
+    "form25_listing_observation_failed_count": 0
+  },
+  "items": [
+    {
+      "ok": true,
+      "skipped": true,
+      "is_excluded": true,
+      "reason": "excluded_from_primary_tender_source_retained",
+      "skip_gate": "sec_investable_universe",
+      "skip_reason": "No tradable ticker was identified for this SEC filing, so it is excluded from user-facing filing events.",
+      "skip_evidence": [
+        "Form SC 14D9/A has no resolved tradable ticker in raw/parser output.",
+        "SEC title: Destination XL Group, Inc. — SC 14D9/A.",
+        "No usable ticker candidate was present in ticker, primary_ticker, or tickers."
+      ],
+      "source_unique_id": "0001193125-26-298540",
+      "title": "Destination XL Group, Inc. — SC 14D9/A",
+      "form_type": "SC 14D9/A",
+      "ticker": null,
+      "raw_item_id": "95142e2d-8a3e-474d-aa27-fb0d456d07a2",
+      "tender_structured": {
+        "status": "enqueued",
+        "executionId": "e42919b5-6837-5992-a9b7-dc89272c1a20",
+        "workflowRunId": "wrun_01M48YJH77BSGDVWWFA4QCF543"
+      }
+    }
+  ],
+  "diagnostics": {
+    "documentsRequested": 0,
+    "documentsFetched": 0,
+    "documentsFailed": 0
+  }
+}

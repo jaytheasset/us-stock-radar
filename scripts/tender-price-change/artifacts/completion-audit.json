@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "preCallTests": 174,
+  "finalEditorTests": 20,
+  "typecheck": "PASS",
+  "workflowValidation": "PASS",
+  "noMigration": true,
+  "physicalCalls": 1,
+  "additionalProviderCalls": 0,
+  "secondRequestGuard": "EEXIST before native fetch",
+  "guardNativeCalls": 0,
+  "checkpointMatchesTransport": true,
+  "nlLiveCalls": 0
+}

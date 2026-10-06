@@ -1,0 +1,28 @@
+✔ browser draft review loads without transitive Node or server-only imports (296.0139ms)
+✔ Listing editor catalog is complete and derives all visible labels from Registry metadata (2.2353ms)
+✔ A draft exposes every mapped condition and adverse removal produces the exact final three (2.3336ms)
+✔ Price draft is supported, editable, removable, and positive-number gated (22.4649ms)
+✔ Price, reverse-split, and lifecycle-stage conditions edit, delete, revalidate, and round-trip canonically (1.6093ms)
+✔ mapped edit uses Registry key/operator/value choices and delete of the final condition blocks create (1.3373ms)
+✔ invalid edits, malformed drafts, empty ready drafts, and contradictions fail closed (1.6192ms)
+✔ ambiguous requirements remain visible and require explicit abandonment (0.7997ms)
+✔ AI Draft proposals are Registry-derived and block Create until confirmed or omitted (1.0745ms)
+✔ human presentation covers price operators and Listing values without raw literals (8.4203ms)
+✔ Listing monitor review groups only present conditions into stable human domains (1.8594ms)
+✔ AI Monitor UI invokes Compiler only from submit and creates only from explicit confirmation (8.2371ms)
+✔ positive-only exact comparison: increase/decrease, equality, missing, mismatched currencies and units (1.2596ms)
+✔ registry/UI metadata and matcher only eq changed; null never MATCH; invalid/false rejected (4.9763ms)
+✔ provider prompt/schema/analyzer/source remain byte-identical to prior product candidate (265.7422ms)
+✔ product contract rejects invalid price and absent previous; null/composite cannot create change (500.1954ms)
+✔ Carlyle saved canonical: price change unavailable, final results still MATCH; no re-call (1.4436ms)
+✔ NL compiler/draft contract stub: Tender 제안 가격이 바뀌면 알려줘 (10.899ms)
+✔ NL compiler/draft contract stub: 공개매수 가격이 변경되면 알려줘 (1.7679ms)
+✔ NL compiler/draft contract stub: Notify me when a tender offer price changes. (3.1176ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1986.4366

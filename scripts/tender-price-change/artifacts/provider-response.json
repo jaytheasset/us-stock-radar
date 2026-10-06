@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"offer_price\": {\n    \"current\": {\n      \"amount\": 0.84,\n      \"currency_text\": \"$\"\n    },\n    \"previous\": {\n      \"amount\": 0.82,\n      \"currency_text\": \"$\"\n    },\n    \"current_evidence_refs\": [\n      \"E1\",\n      \"E2\",\n      \"E3\",\n      \"E4\",\n      \"E5\",\n      \"E6\",\n      \"E10\",\n      \"E13\",\n      \"E15\"\n    ],\n    \"previous_evidence_refs\": [\n      \"E10\",\n      \"E15\"\n    ]\n  },\n  \"board_recommendation\": {\n    \"current\": \"reject\",\n    \"previous\": null,\n    \"current_evidence_refs\": [\n      \"E4\",\n      \"E7\",\n      \"E10\"\n    ],\n    \"previous_evidence_refs\": []\n  },\n  \"offer_status\": null,\n  \"final_results_observed\": null\n}",
+            "thoughtSignature": "EmgKZgFpFH0T4K4UfPBRPtAkraSER15XjSK0FAGrihBMtURV0vt2TmLV0eFvBw2KN/4QHq5uwnyFcl/nmA0RUcEF1amsvfgrE8hoSrYT//DSLNDDg2JygZxLpyoDcWisUjhAhTYtByDhiA=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 4722,
+    "candidatesTokenCount": 255,
+    "totalTokenCount": 4977,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 4722
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "5xjFapinN5SM0-kPx6eHCA"
+}

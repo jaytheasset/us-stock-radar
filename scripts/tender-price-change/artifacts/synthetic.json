@@ -1,0 +1,14 @@
+{
+  "raw": "95142e2d-8a3e-474d-aa27-fb0d456d07a2",
+  "user": "fc20f31d-60c1-40a8-bbaa-4a39bbd3a715",
+  "monitor": "4bc79b0e-405d-4755-baee-c2648325e28c",
+  "event": "437c38a2-2bbf-40dc-89ad-2ca21eec1da3",
+  "namespace": "tender-price-change-dxl-20261007",
+  "condition": {
+    "key": "tender.offer_price_change",
+    "operator": "eq",
+    "value": "changed"
+  },
+  "monitorCreatedAt": "2026-01-01T00:00:00Z",
+  "filedAt": "2026-07-08T00:00:00Z"
+}

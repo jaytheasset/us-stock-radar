@@ -1,0 +1,34 @@
+{
+  "raw_items": {
+    "n": 55,
+    "digest": "4f0bacf36b2598a5bdc1dd90be1ebc6e"
+  },
+  "events": {
+    "n": 28,
+    "digest": "378ec9ab059069a906f0126035ffbbbf"
+  },
+  "auth.users": {
+    "n": 9,
+    "digest": "3b296ddb4b5164068bd161e5b0a92ed6"
+  },
+  "user_profiles": {
+    "n": 11,
+    "digest": "2110bd9f5a4dfc14991f9a453b673915"
+  },
+  "listing_monitors": {
+    "n": 8,
+    "digest": "0722412588a5b4eddca93635cc37620f"
+  },
+  "ai_runs": {
+    "n": 71,
+    "digest": "60e864359b769df3170477cabe2d9fc4"
+  },
+  "ai_outputs": {
+    "n": 69,
+    "digest": "0742d3056571c52064700565f995b180"
+  },
+  "user_alert_deliveries": {
+    "n": 3,
+    "digest": "d614f5005f5aa31959c98cf15e8936bd"
+  }
+}

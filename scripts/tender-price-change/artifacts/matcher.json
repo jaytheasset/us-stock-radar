@@ -1,0 +1,22 @@
+{
+  "version": "listing_monitor_matcher_v1",
+  "eventId": "437c38a2-2bbf-40dc-89ad-2ca21eec1da3",
+  "evaluationDate": "2026-10-07",
+  "evaluations": [
+    {
+      "id": "4bc79b0e-405d-4755-baee-c2648325e28c",
+      "result": {
+        "version": "listing_monitor_matcher_v1",
+        "status": "match",
+        "reasonCode": "all_conditions_match",
+        "conditions": [
+          {
+            "key": "tender.offer_price_change",
+            "status": "match",
+            "reasonCode": "all_conditions_match"
+          }
+        ]
+      }
+    }
+  ]
+}

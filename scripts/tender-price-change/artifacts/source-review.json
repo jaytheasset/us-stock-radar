@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "reviewer": "Codex direct SEC-source comparison (not independent human signoff)",
+  "sourceHashMatchesFrozen": true,
+  "currentCashPriceRefs": [
+    "E5",
+    "E6"
+  ],
+  "sameTenderPricePairRefs": [
+    "E10",
+    "E15"
+  ],
+  "boardRejectRefs": [
+    "E7",
+    "E10"
+  ],
+  "distractors": {
+    "E3": "Different January acquisition proposal $1.25",
+    "E8": "Merger recommendation withdrawn, not this tender",
+    "E10": "June22 as-of/interim tender count, not actual final results"
+  },
+  "sourceExpansion": false,
+  "priorAiOutputUsed": false
+}

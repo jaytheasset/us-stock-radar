@@ -1,0 +1,14 @@
+{
+  "status": "available",
+  "eventId": "437c38a2-2bbf-40dc-89ad-2ca21eec1da3",
+  "rawItemId": "95142e2d-8a3e-474d-aa27-fb0d456d07a2",
+  "sourceExecutionId": "e42919b5-6837-5992-a9b7-dc89272c1a20",
+  "persistedAt": "2026-10-06T15:51:05.601945+00:00",
+  "filedAt": "2026-07-08T00:00:00+00:00",
+  "facts": {
+    "offer_price_change": "changed",
+    "board_recommendation": "reject",
+    "offer_status": null,
+    "final_results_observed": null
+  }
+}

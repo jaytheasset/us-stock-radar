@@ -1,0 +1,132 @@
+{
+  "workflowId": "workflow//./workflows/tender-structured//tenderStructuredWorkflow",
+  "graph": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "workflowStart",
+        "data": {
+          "label": "Start: tenderStructuredWorkflow",
+          "nodeKind": "workflow_start"
+        }
+      },
+      {
+        "id": "node_0",
+        "type": "step",
+        "data": {
+          "label": "analyze",
+          "nodeKind": "step",
+          "stepId": "step//./workflows/tender-structured//analyze"
+        }
+      },
+      {
+        "id": "cond_0_node",
+        "type": "conditional",
+        "data": {
+          "label": "result.status === \"busy\"",
+          "nodeKind": "conditional"
+        }
+      },
+      {
+        "id": "node_1",
+        "type": "primitive",
+        "data": {
+          "label": "sleep",
+          "nodeKind": "primitive"
+        },
+        "metadata": {
+          "conditionalId": "cond_0",
+          "conditionalBranch": "Then"
+        }
+      },
+      {
+        "id": "node_2",
+        "type": "step",
+        "data": {
+          "label": "analyze",
+          "nodeKind": "step",
+          "stepId": "step//./workflows/tender-structured//analyze"
+        },
+        "metadata": {
+          "conditionalId": "cond_0",
+          "conditionalBranch": "Then"
+        }
+      },
+      {
+        "id": "cond_1_node",
+        "type": "conditional",
+        "data": {
+          "label": "result.status === \"succeeded\"",
+          "nodeKind": "conditional"
+        }
+      },
+      {
+        "id": "node_3",
+        "type": "step",
+        "data": {
+          "label": "alerts",
+          "nodeKind": "step",
+          "stepId": "step//./workflows/tender-structured//alerts"
+        },
+        "metadata": {
+          "conditionalId": "cond_1",
+          "conditionalBranch": "Then"
+        }
+      },
+      {
+        "id": "end",
+        "type": "workflowEnd",
+        "data": {
+          "label": "Return",
+          "nodeKind": "workflow_end"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_start_node_0",
+        "source": "start",
+        "target": "node_0",
+        "type": "default"
+      },
+      {
+        "id": "e_node_1_node_2",
+        "source": "node_1",
+        "target": "node_2",
+        "type": "default"
+      },
+      {
+        "id": "e_cond_0_node_node_1_true",
+        "source": "cond_0_node",
+        "target": "node_1",
+        "type": "conditional",
+        "label": "true"
+      },
+      {
+        "id": "e_node_0_cond_0_node",
+        "source": "node_0",
+        "target": "cond_0_node",
+        "type": "default"
+      },
+      {
+        "id": "e_cond_1_node_node_3_true",
+        "source": "cond_1_node",
+        "target": "node_3",
+        "type": "conditional",
+        "label": "true"
+      },
+      {
+        "id": "e_node_2_cond_1_node",
+        "source": "node_2",
+        "target": "cond_1_node",
+        "type": "default"
+      },
+      {
+        "id": "e_node_3_end",
+        "source": "node_3",
+        "target": "end",
+        "type": "default"
+      }
+    ]
+  }
+}

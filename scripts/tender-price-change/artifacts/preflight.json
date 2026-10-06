@@ -1,0 +1,20 @@
+{
+  "pass": true,
+  "offlineTests": 174,
+  "typecheck": "PASS",
+  "workflowValidation": "PASS",
+  "workflowRoutes": [
+    {
+      "path": "/.well-known/workflow/v1/flow",
+      "status": 400
+    },
+    {
+      "path": "/.well-known/workflow/v1/step",
+      "status": 405
+    }
+  ],
+  "requestHash": "0d2de6edc749491b0935492d6fd3e555d723f0e96b46ae389a244e07b072868f",
+  "physicalCalls": 0,
+  "paidPurpose": "DXL product 4-slot source analysis -> price change Monitor -> one internal Alert",
+  "stop": "MODEL_ERROR stops; downstream recovery uses checkpoint only; maximum one physical provider call"
+}

@@ -16,6 +16,7 @@ export type TenderMonitorFacts =
       persistedAt: string;
       filedAt: string;
       facts: Readonly<{
+        offer_price_change: "changed" | null;
         board_recommendation: "accept" | "reject" | "no_recommendation" | null;
         offer_status: "withdrawn" | "terminated" | null;
         final_results_observed: true | null;
@@ -27,6 +28,17 @@ export function tenderMonitorFacts(read: TenderReadResult, eventId: string): Ten
   const board = read.canonical.facts.find((fact) => fact.type === "board_recommendation");
   const offerStatus = read.canonical.facts.find((fact) => fact.type === "offer_status");
   const finalResults = read.canonical.facts.find((fact) => fact.type === "final_results_observed");
+  const price = read.canonical.facts.find((fact) => fact.type === "offer_price");
+  const current = price?.current;
+  const previous = price?.previous;
+  // Compare only explicit canonical prices; abstention is never an unchanged fact.
+  const priceChanged = current && previous
+    && typeof current.amount === "number" && Number.isFinite(current.amount)
+    && typeof previous.amount === "number" && Number.isFinite(previous.amount)
+    && typeof current.currency_text === "string" && current.currency_text.length > 0
+    && current.currency_text === previous.currency_text
+    && current.unit === "cash_per_share" && previous.unit === "cash_per_share"
+    && current.amount !== previous.amount;
   return {
     status: "available",
     eventId,
@@ -35,6 +47,7 @@ export function tenderMonitorFacts(read: TenderReadResult, eventId: string): Ten
     persistedAt: read.persistedAt,
     filedAt: read.filedAt,
     facts: {
+      offer_price_change: priceChanged ? "changed" : null,
       board_recommendation: board?.type === "board_recommendation" ? board.current : null,
       offer_status: offerStatus?.type === "offer_status" ? offerStatus.current : null,
       final_results_observed: finalResults?.type === "final_results_observed" ? true : null,

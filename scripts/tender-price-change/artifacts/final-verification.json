@@ -1,0 +1,21 @@
+{
+  "pass": true,
+  "productFiles": [
+    "lib/monitor/conditionRegistry.ts",
+    "lib/monitor/tenderStructuredFacts.ts"
+  ],
+  "providerProductFilesUnchanged": true,
+  "preCallTests": 174,
+  "finalEditorTests": 20,
+  "typecheckExitCode": 0,
+  "workflowValidationExitCode": 0,
+  "stagedDiffCheck": "PASS",
+  "secretPatternScan": {
+    "files": 47,
+    "matches": 0
+  },
+  "sourceBytesPreserved": true,
+  "sourceHtmlDiff": "binary attribute preserves original byte hash",
+  "candidateServer3117": "stopped",
+  "nextEnvRestored": true
+}

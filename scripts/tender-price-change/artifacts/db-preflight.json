@@ -1,0 +1,22 @@
+{
+  "pass": true,
+  "local": true,
+  "migrationNeeded": false,
+  "functions": [
+    {
+      "proname": "finish_sec_tender_structured",
+      "prosecdef": false
+    },
+    {
+      "proname": "reserve_sec_tender_structured",
+      "prosecdef": false
+    },
+    {
+      "proname": "sec_tender_transition",
+      "prosecdef": false
+    }
+  ],
+  "uniqueIndexes": 3,
+  "existingDxlProductExecutions": 0,
+  "actualProviderCalls": 0
+}

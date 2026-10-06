@@ -199,6 +199,16 @@ const registry = [
     qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
   } as const)),
   {
+    key: "tender.offer_price_change", valueType: "text", allowedOperators: ["eq"],
+    enumValues: ["changed"],
+    enumValueDescriptions: { changed: "Explicit same-tender current and previous fixed cash per-share prices use identical literal currency notation and have different amounts." },
+    family: "tender", domain: "tender", monitorDomains: ["listing"],
+    description: "Same-tender explicit fixed all-cash per-share current and previous prices use the same literal currency notation and have different amounts. Missing, equal, or incomparable prices are unavailable; they do not establish unchanged prices.",
+    display: { label: "Tender offer price changed", enumValueLabels: { changed: "Changed" } },
+    source: { subject: "event", reader: "read_current_tender_structured", jsonPath: ["offer_price_change"] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  },
+  {
     key: "tender.board_recommendation", valueType: "text", allowedOperators: ["eq", "in"],
     enumValues: ["accept", "reject", "no_recommendation"],
     enumValueDescriptions: {accept:"Board explicitly recommends tendering.",reject:"Board explicitly recommends not tendering.",no_recommendation:"Board explicitly declines to recommend either choice."},

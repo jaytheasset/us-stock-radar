@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "physicalCalls": 1,
+  "additionalCalls": 0,
+  "aiRuns": 1,
+  "aiOutputs": 1,
+  "alertRows": 1,
+  "reader": "available",
+  "matcher": "match",
+  "priceChange": "changed",
+  "canonicalHash": "b40176aa2b9695d950abd52c50aef30c0efcfe853d79fc38c4d50a6032df7675",
+  "replay": "completed",
+  "existingDataDigestsUnchanged": true
+}

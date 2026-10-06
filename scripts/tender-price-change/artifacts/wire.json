@@ -1,0 +1,39 @@
+{
+  "offer_price": {
+    "current": {
+      "amount": 0.84,
+      "currency_text": "$"
+    },
+    "previous": {
+      "amount": 0.82,
+      "currency_text": "$"
+    },
+    "current_evidence_refs": [
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E10",
+      "E13",
+      "E15"
+    ],
+    "previous_evidence_refs": [
+      "E10",
+      "E15"
+    ]
+  },
+  "board_recommendation": {
+    "current": "reject",
+    "previous": null,
+    "current_evidence_refs": [
+      "E4",
+      "E7",
+      "E10"
+    ],
+    "previous_evidence_refs": []
+  },
+  "offer_status": null,
+  "final_results_observed": null
+}

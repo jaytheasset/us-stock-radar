@@ -1,0 +1,38 @@
+{
+  "version": "tender_structured_v1",
+  "facts": [
+    {
+      "type": "offer_price",
+      "current": {
+        "amount": 0.84,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "previous": {
+        "amount": 0.82,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "evidence_refs": [
+        "E1",
+        "E2",
+        "E3",
+        "E4",
+        "E5",
+        "E6",
+        "E10",
+        "E13",
+        "E15"
+      ]
+    },
+    {
+      "type": "board_recommendation",
+      "current": "reject",
+      "evidence_refs": [
+        "E4",
+        "E7",
+        "E10"
+      ]
+    }
+  ]
+}

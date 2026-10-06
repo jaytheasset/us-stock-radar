@@ -1,0 +1,142 @@
+{
+  "actualProviderCalls": 0,
+  "outputs": [
+    {
+      "text": "Tender 제안 가격이 바뀌면 알려줘",
+      "mode": "stub; not live semantic compiler evaluation",
+      "conditions": [
+        {
+          "key": "tender.offer_price_change",
+          "operator": "eq",
+          "value": "changed"
+        }
+      ],
+      "draft": {
+        "version": "natural_language_monitor_draft_v1",
+        "draftStatus": "READY_FOR_REVIEW",
+        "compilerStatus": "VALID",
+        "conditions": [
+          {
+            "key": "tender.offer_price_change",
+            "operator": "eq",
+            "value": "changed"
+          }
+        ],
+        "mapped": [
+          {
+            "sourceText": "Tender 제안 가격이 바뀌면 알려줘",
+            "conditions": [
+              {
+                "label": "Tender offer price changed",
+                "value": "Changed",
+                "text": "Tender offer price changed — Changed"
+              }
+            ]
+          }
+        ],
+        "unsupported": [],
+        "ambiguous": [],
+        "proposed": [],
+        "unresolvedCount": 0,
+        "message": "Review this draft before creating a monitor."
+      }
+    },
+    {
+      "text": "공개매수 가격이 변경되면 알려줘",
+      "mode": "stub; not live semantic compiler evaluation",
+      "conditions": [
+        {
+          "key": "tender.offer_price_change",
+          "operator": "eq",
+          "value": "changed"
+        }
+      ],
+      "draft": {
+        "version": "natural_language_monitor_draft_v1",
+        "draftStatus": "READY_FOR_REVIEW",
+        "compilerStatus": "VALID",
+        "conditions": [
+          {
+            "key": "tender.offer_price_change",
+            "operator": "eq",
+            "value": "changed"
+          }
+        ],
+        "mapped": [
+          {
+            "sourceText": "공개매수 가격이 변경되면 알려줘",
+            "conditions": [
+              {
+                "label": "Tender offer price changed",
+                "value": "Changed",
+                "text": "Tender offer price changed — Changed"
+              }
+            ]
+          }
+        ],
+        "unsupported": [],
+        "ambiguous": [],
+        "proposed": [],
+        "unresolvedCount": 0,
+        "message": "Review this draft before creating a monitor."
+      }
+    },
+    {
+      "text": "Notify me when a tender offer price changes.",
+      "mode": "stub; not live semantic compiler evaluation",
+      "conditions": [
+        {
+          "key": "tender.offer_price_change",
+          "operator": "eq",
+          "value": "changed"
+        }
+      ],
+      "draft": {
+        "version": "natural_language_monitor_draft_v1",
+        "draftStatus": "READY_FOR_REVIEW",
+        "compilerStatus": "VALID",
+        "conditions": [
+          {
+            "key": "tender.offer_price_change",
+            "operator": "eq",
+            "value": "changed"
+          }
+        ],
+        "mapped": [
+          {
+            "sourceText": "Notify me when a tender offer price changes.",
+            "conditions": [
+              {
+                "label": "Tender offer price changed",
+                "value": "Changed",
+                "text": "Tender offer price changed — Changed"
+              }
+            ]
+          }
+        ],
+        "unsupported": [],
+        "ambiguous": [],
+        "proposed": [],
+        "unresolvedCount": 0,
+        "message": "Review this draft before creating a monitor."
+      }
+    }
+  ],
+  "editor": {
+    "key": "tender.offer_price_change",
+    "label": "Tender offer price changed",
+    "valueType": "text",
+    "operators": [
+      {
+        "value": "eq",
+        "label": "Equals"
+      }
+    ],
+    "values": [
+      {
+        "value": "changed",
+        "label": "Changed"
+      }
+    ]
+  }
+}

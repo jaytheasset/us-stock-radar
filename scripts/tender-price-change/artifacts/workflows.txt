@@ -1,0 +1,7 @@
+
+> us-stock-radar@0.1.0 verify:workflows
+> workflow validate --strict --dir workflows
+
+Scanned 7 files, 7 with workflow patterns
+
+No serde issues found.

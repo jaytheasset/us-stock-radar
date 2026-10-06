@@ -1,0 +1,5 @@
+{
+  "maxCalls": 1,
+  "purpose": "DXL unchanged four-slot product analyzer through real Workflow; deterministic price-change Monitor E2E",
+  "stop": "Semantic error => MODEL_ERROR and STOP. Downstream errors replay durable response; no second provider call."
+}
