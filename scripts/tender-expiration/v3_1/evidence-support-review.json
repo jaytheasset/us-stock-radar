@@ -1,0 +1,59 @@
+{
+  "review_version": "tender-expiration-evidence-support-review-v1",
+  "source_run": "tender-expiration-v3-rumble-canary-20261006",
+  "source_commit": "58542f30d799d8b02e80a2b9c9c2cb9c564c9656",
+  "accession": "0001213900-25-000757",
+  "fact_type": "expiration",
+  "claims": {
+    "current": {
+      "value": "2025-02-04"
+    },
+    "previous": {
+      "present": false
+    }
+  },
+  "refs": {
+    "E1": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Explicitly states the Offer will expire February 4, 2025 at 5:00 p.m. New York City time."
+    },
+    "E2": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Explicitly states the current February 4 expiration and separately mentions the April 30 extension ceiling."
+    },
+    "E4": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Cover table explicitly states offer expiration on February 4, 2025 at 5:00 p.m. New York City time."
+    },
+    "E5": {
+      "supports": [
+        "current"
+      ],
+      "strength": "corroborating",
+      "note": "Withdrawal-rights passage uses February 4 as the operative deadline and points to expiration if extended; not a standalone expiration definition."
+    },
+    "E8": {
+      "supports": [
+        "current"
+      ],
+      "strength": "corroborating",
+      "note": "Withdrawal-rights clause ties rights to Expiration Time and February 4; not a standalone expiration definition."
+    },
+    "E12": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Defines Expiration Time as February 4, 2025 at 5:00 p.m. New York City time."
+    }
+  }
+}
