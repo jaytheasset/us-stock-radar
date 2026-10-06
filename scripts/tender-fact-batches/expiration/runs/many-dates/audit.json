@@ -1,0 +1,37 @@
+{
+  "runId": "tender-expiration-remaining-gemini35-20261006-many-dates",
+  "fact": "expiration",
+  "accession": "0001104659-25-006713",
+  "name": "many-dates",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1906,
+  "usage": {
+    "promptTokenCount": 4242,
+    "candidatesTokenCount": 73,
+    "totalTokenCount": 4315,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 4242
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

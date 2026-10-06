@@ -1,0 +1,14 @@
+{
+  "facts": [
+    {
+      "type": "board_recommendation",
+      "current": "no_recommendation",
+      "evidence_refs": [
+        "E1",
+        "E2",
+        "E3"
+      ]
+    }
+  ],
+  "unresolved": []
+}

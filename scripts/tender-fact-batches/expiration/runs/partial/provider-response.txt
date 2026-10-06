@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [],\n  \"unresolved\": [\n    \"No scheduled expiration date is stated in the provided source text (E1, E2, E3, E4).\"\n  ]\n}",
+            "thoughtSignature": "EmgKZgFpFH0TGnzINJOF114hpM2g+f9a1+PP5TNsarN2WES6p57cNjdiWpfu5Vj5o0gvnCBe/kGbin72jrVxdjzJYcAyHnP9fKx+OWihAzdO3qN6FCxKJq5amAhSHLT6bVcqPaZzcEhDSA=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1722,
+    "candidatesTokenCount": 46,
+    "totalTokenCount": 1768,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1722
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "IorEaoK4OLSj9tMPs5Hr-Ag"
+}

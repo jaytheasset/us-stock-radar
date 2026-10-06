@@ -1,0 +1,15 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-southwest-increase",
+  "fact": "offer_price",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-22-074629",
+  "frozenAt": "2026-10-06T05:49:07.820Z",
+  "files": {
+    "evidence-map.json": "96f56cfbbb6d5554fe8699a3dba6d4bfcc0ea39c799fb2f4238c1eea01c63e0a",
+    "prompt.txt": "8315d6bc1c4ba5f705f6c6a79e1935ef5adb16ae4fa1777def34e1b9fec767fd",
+    "provider-schema.json": "e6ebb156976cbbc841c2b5e6d2fd09eaaa904cacbc01664f3306bdc673552bdc",
+    "provider-source.json": "6fc2dd9662c917dff2d0c1f564b2db5daa87ea05f82808db753a43ff2a5a2d3e",
+    "request.json": "28f1883331a4c20690ed7d2ece5f1f9018a3503ab740ee88f56f9042c2d53d81",
+    "source.json": "f089b4aed7c2f4b31e6675eb8ebe6f2c0fc92f5ccc97b5052ddfde531da40ff5"
+  }
+}

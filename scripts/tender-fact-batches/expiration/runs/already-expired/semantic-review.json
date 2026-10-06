@@ -1,0 +1,18 @@
+{
+  "name": "already-expired",
+  "factsEmpty": true,
+  "refs": {
+    "E2": {
+      "strength": "direct",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Final results state offer expired Jan 21, 2026"
+    }
+  },
+  "note": "Historical expiration stays in explanation only.",
+  "reviewer": "Codex direct SEC-text review, not independent human signoff",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null
+}

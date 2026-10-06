@@ -1,0 +1,562 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+  "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+  "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+  "renderedChars": 213899,
+  "queries": [
+    "What is the offer price cash per share purchase consideration and currency?",
+    "Was the offer price increased decreased reduced from a previous price or is it unchanged?",
+    "What dollars currency per share purchase price applies and what other aggregate or market prices are distinguished?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoi_ex99a1arumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 131,
+      "hits": [
+        {
+          "id": "tender:7af2ba00a7a5c567027c147bb63107730a99239e29c67049589bdd0dd532f472",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "30e038cfc67ea48509f6136c0b6f8be0f3a96e24e566016427f8cb233e509179",
+          "location": {
+            "start": 23587,
+            "end": 24136,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 549,
+          "score": 16.609095970747994,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:a6834f7fdaf5443bc81b18978f91db04f08fea48dad7886d40c0fec69c3e6a6b",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "9cb374307df6f99553ae6957bd3d756019bb1d129bf3fb24f6905ee2f4faaa1c",
+          "location": {
+            "start": 61747,
+            "end": 62036,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 289,
+          "score": 13.707293980099818,
+          "matchedTerms": [
+            "price",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:7e1c357a7e9d76910d69f844b18daf86437416cbaf61c14b964f7e18434548e0",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "978116ff1217c3b456f0bbd9e89269b55d24ed32bbf997a1cd659ad6360fc1b6",
+          "location": {
+            "start": 6468,
+            "end": 7904,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1436,
+          "score": 13.445852909056287,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:59c84a677b9849c84bc28974a796197f80c1a810fdc9735c65f5db2dd0c63cd7",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "3419ad6b25ce2ad6e924592d3b78420f406002a5512dac07a28703291cbe9741",
+          "location": {
+            "start": 21785,
+            "end": 23585,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1800,
+          "score": 12.712834523274562,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:f13eb3c2fb48a33d8d5a39e98163d5c04d67540df130a05d1a0ac6152df07840",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "ba8f1cc7d581daba035d4e34c0838007dcd1daf00001459f69b6322bdaa37aa4",
+          "location": {
+            "start": 3456,
+            "end": 4296,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 840,
+          "score": 12.09486313629527,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoi_ex99a1arumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 113,
+      "hits": [
+        {
+          "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "8700dae822c3c729e73bf3aae55584421b8754fe0e15fe0e58e59eeaa7907700",
+          "location": {
+            "start": 246,
+            "end": 1189,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 943,
+          "score": 8.565967322978997,
+          "matchedTerms": [
+            "price",
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:431c8a5649508c6a5f11d5533c53dd91270c698ef3a574ed08342bc67d8f0334",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "38fc4b5fdca4735aed33e51ab667cedaa4cd7e932f6b17f19f3e1623f0fe3e07",
+          "location": {
+            "start": 198876,
+            "end": 201594,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2718,
+          "score": 7.89115139065715,
+          "matchedTerms": [
+            "price",
+            "reduced",
+            "from"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:002c954652ad17ef911bb3de53e8c3e003b464a1dbda343a719b0d056937187d",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "ff3e2493a78bd8b451601e41a89f46127776f6d7ab33fb8a89a2ea34a88fcee8",
+          "location": {
+            "start": 74226,
+            "end": 75761,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1535,
+          "score": 7.869910029407435,
+          "matchedTerms": [
+            "price",
+            "reduced",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:b4657bf277c9cf887ee378abbeb145728d7bbc54304da458f7bd50ac400d2ab5",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "3a7460382f8c958cbad661c8a25dad1975ae689c4c642114b16d97223915d012",
+          "location": {
+            "start": 191447,
+            "end": 193473,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2026,
+          "score": 7.8279368766413056,
+          "matchedTerms": [
+            "reduced",
+            "from",
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e9a3c14456c6e54c890ca527352dfd015c1e408ad9aee50acbc4e8bf1ffce8fe",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "aeab0f43926d724459b27eae5ddd9661340aa5a5a29165a4e0b0797e4acd8e06",
+          "location": {
+            "start": 178689,
+            "end": 180812,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2123,
+          "score": 7.551801306330631,
+          "matchedTerms": [
+            "reduced",
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoi_ex99a1arumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 169,
+      "hits": [
+        {
+          "id": "tender:7e1c357a7e9d76910d69f844b18daf86437416cbaf61c14b964f7e18434548e0",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "978116ff1217c3b456f0bbd9e89269b55d24ed32bbf997a1cd659ad6360fc1b6",
+          "location": {
+            "start": 6468,
+            "end": 7904,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1436,
+          "score": 18.8241940726788,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price",
+            "other",
+            "market",
+            "prices"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:fab73bfd7839df22fc0e93adddf23ccf7c3a76b1f53fad539823dc44f07418fe",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "dc6025b0988bf0b534c6434a511ec3f2991a26d662dbb5f40bf67112773c976b",
+          "location": {
+            "start": 46699,
+            "end": 47124,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 425,
+          "score": 16.68115312456598,
+          "matchedTerms": [
+            "per",
+            "share",
+            "price",
+            "market",
+            "prices"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:1f79b1d63994f17677858ac7190aae6ded352e796d6d001871fb9351dd31116b",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "80a57a73b1538d60070912d43afcaeaa61c44e546026bd5c95be3c65c3267b4b",
+          "location": {
+            "start": 4646,
+            "end": 7337,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2691,
+          "score": 16.336879047764192,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price",
+            "other",
+            "market",
+            "prices"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:208d88e1d94d873f0250071ca7eac30dad000beeb3b2c9c103af44ed58ae8910",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "d83447c58c6dfd1d49a10781a645a012532c8575dcca0cb5f67582a99353180b",
+          "location": {
+            "start": 1938,
+            "end": 3454,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1516,
+          "score": 16.089636555695783,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price",
+            "other",
+            "aggregate"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:1670e161457e40ec968026fdf318426aeec7eb9d0fc650ff43814f0c56d9a094",
+          "accession": "0001213900-25-000757",
+          "form": "SC TO-I",
+          "document": {
+            "accession": "0001213900-25-000757",
+            "form": "SC TO-I",
+            "documentId": "sctoi_ex99a1arumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+            "role": "attachment",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+          "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+          "textHash": "2994be4b402bbc0c789cac4d64ef7996311cfb8fbeab6ab79601b76d4682d958",
+          "location": {
+            "start": 1232,
+            "end": 3130,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1898,
+          "score": 15.7823027813143,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price",
+            "other",
+            "aggregate"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

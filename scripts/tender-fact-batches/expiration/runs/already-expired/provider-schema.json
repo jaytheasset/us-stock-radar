@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "properties": {
+    "facts": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "expiration"
+            ]
+          },
+          "current": {
+            "type": "string"
+          },
+          "previous": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "E1",
+                "E2",
+                "E3",
+                "E4",
+                "E5",
+                "E6"
+              ]
+            }
+          }
+        },
+        "required": [
+          "type",
+          "current",
+          "evidence_refs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "facts",
+    "unresolved"
+  ],
+  "additionalProperties": false
+}

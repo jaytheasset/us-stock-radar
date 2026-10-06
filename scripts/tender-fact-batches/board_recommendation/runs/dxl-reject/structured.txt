@@ -1,0 +1,12 @@
+{
+  "facts": [
+    {
+      "type": "board_recommendation",
+      "current": "reject",
+      "evidence_refs": [
+        "E3"
+      ]
+    }
+  ],
+  "unresolved": []
+}

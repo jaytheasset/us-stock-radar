@@ -1,0 +1,362 @@
+{
+  "accession": "0001213900-25-000757",
+  "form": "SC TO-I",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:7af2ba00a7a5c567027c147bb63107730a99239e29c67049589bdd0dd532f472",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "30e038cfc67ea48509f6136c0b6f8be0f3a96e24e566016427f8cb233e509179",
+      "location": {
+        "start": 23587,
+        "end": 24136,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "What will the Purchase Price for the Shares be and what will be the form of payment?\n\nThe purchase price for the Shares will be $7.50 per Share (the “Purchase Price”). If your Shares are purchased in the Offer, we will pay you the Purchase Price, in cash, less any applicable withholding taxes and without interest, promptly after the expiration of the Offer. See Sections 1 and 5. Under no circumstances will we pay interest on the Purchase Price, even if there is a delay in making payment.\n\nHow many Shares will the Company purchase in the Offer?"
+    },
+    {
+      "id": "tender:a6834f7fdaf5443bc81b18978f91db04f08fea48dad7886d40c0fec69c3e6a6b",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "9cb374307df6f99553ae6957bd3d756019bb1d129bf3fb24f6905ee2f4faaa1c",
+      "location": {
+        "start": 61747,
+        "end": 62036,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "THE OFFER\n\n1. Number of Shares; Purchase Price; Proration\n\nGeneral. Upon the terms and subject to the conditions of the Offer, we will purchase up to 70,000,000 Shares at a price of $7.50 per Share, less any applicable withholding taxes and without interest, which represents $525 million."
+    },
+    {
+      "id": "tender:7e1c357a7e9d76910d69f844b18daf86437416cbaf61c14b964f7e18434548e0",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "978116ff1217c3b456f0bbd9e89269b55d24ed32bbf997a1cd659ad6360fc1b6",
+      "location": {
+        "start": 6468,
+        "end": 7904,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "We expect to fund the purchase of Shares in the Offer with the proceeds of the Strategic Investment and to pay the fees and expenses in connection with the Offer with available cash. The Offer is not conditioned on any minimum number of Shares being tendered. The Offer is, however, subject to other conditions, including the Strategic Investment Condition (as defined herein). See Sections 2, 6 and 8.\n\nOur shares of Class A Common Stock are listed and traded on the NASDAQ Stock Market LLC (the “NASDAQ”) under the symbol “RUM.” On January 2, 2025, the last trading day before the announcement of the commencement of the Offer, the closing price of our shares of Class A Common Stock on the NASDAQ was $12.40 per Share. Stockholders are urged to obtain current trading prices for the Class A Common Stock before deciding whether to tender their Shares. See Section 7.\n\nYou may direct questions and requests for assistance to Georgeson LLC, which is acting as the Information Agent for the Offer (the “Information Agent”), or to Cantor Fitzgerald & Co., which is acting as the Dealer Manager for the Offer (the “Dealer Manager”). The Information Agent’s and the Dealer Manager’s respective addresses and telephone numbers appear on the back cover of this Offer to Purchase. You may direct requests for additional copies of this Offer to Purchase, the Letter of Transmittal or the Notice of Guaranteed Delivery to the Information Agent."
+    },
+    {
+      "id": "tender:59c84a677b9849c84bc28974a796197f80c1a810fdc9735c65f5db2dd0c63cd7",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "3419ad6b25ce2ad6e924592d3b78420f406002a5512dac07a28703291cbe9741",
+      "location": {
+        "start": 21785,
+        "end": 23585,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "What is the purpose of the Offer?\n\nOn December 20, 2024, we entered into an agreement (the “Transaction Agreement”) between the Company and Tether Investments Limited (“Tether”), pursuant to which, subject to the terms and conditions of the Transaction Agreement, Tether will make a strategic investment in the Company of $775 million, consisting of 103,333,333 newly issued shares of the Company’s Class A Common Stock, at a price of $7.50 per Share (the “Strategic Investment”). The terms of the Strategic Investment were privately negotiated between Rumble and Tether and unanimously approved by the Company’s Board of Directors, and, as part of the transaction, Rumble and Tether intend to explore potential relationships related to advertising, cloud, and crypto payment solutions. The Company will use $250 million of the proceeds of the Strategic Investment to support growth initiatives and, subject to the terms and conditions of the Transaction Agreement, use the remaining proceeds to fund the Offer described herein. The Company will pay the fees and expenses in connection with the Offer with available cash. See Sections 2 and 8. The Company also entered into Tender and Support Agreements with the Supporting Stockholders, pursuant to which the Supporting Stockholders have agreed to tender or cause to be tendered (and to refrain from subsequently withdrawing) in the Offer a minimum of 70,000,000 Shares in the aggregate.\n\nThe Offer will provide our stockholders with an opportunity to obtain liquidity with respect to all or a portion of their Shares (at the same price per Share being paid by Tether in the Strategic Investment) and thereby receive a return of capital (subject to the “odd lot” priority and proration provisions described in this Offer to Purchase). See Section 2."
+    },
+    {
+      "id": "tender:f13eb3c2fb48a33d8d5a39e98163d5c04d67540df130a05d1a0ac6152df07840",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "ba8f1cc7d581daba035d4e34c0838007dcd1daf00001459f69b6322bdaa37aa4",
+      "location": {
+        "start": 3456,
+        "end": 4296,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Terms of Offer\n\nPromptly following the Expiration Time, we will, upon the terms and subject to the conditions of the Offer, pay for Shares validly tendered and not validly withdrawn in the Offer at a price of $7.50 per Share in cash, less any applicable withholding taxes and without interest. The Offer is for 70,000,000 Shares and will be fully subscribed as a result of the Supporting Stockholder Commitment described above. If stockholders other than the Supporting Stockholders elect to tender their Shares in the Offer and/or any of the Supporting Stockholders elect to tender more than their respective minimum tender amounts under the Tender and Support Agreements described above, there will be an over-subscription of the Offer. In the event of an over-subscription of the Offer, Shares validly tendered and not\n\nTable of Contents"
+    },
+    {
+      "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "8700dae822c3c729e73bf3aae55584421b8754fe0e15fe0e58e59eeaa7907700",
+      "location": {
+        "start": 246,
+        "end": 1189,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Representing an Aggregate Purchase Price of Up to $525,000,000\n\n[TABLE]\n\n|\nTHE OFFER, PRORATION PERIOD AND WITHDRAWAL RIGHTS WILL EXPIRE AT 5:00 P.M., NEW YORK CITY TIME, ON FEBRUARY 4, 2025, UNLESS THE OFFER IS EXTENDED OR TERMINATED (SUCH TIME AND DATE, AS IT MAY BE EXTENDED OR TERMINATED, THE “EXPIRATION TIME”).\n|\n\n[/TABLE]\n\nRumble Inc., a Delaware corporation (the “Company”, “Rumble”, “we”, “our” or “us”), invites stockholders to tender shares of our Class A common stock, par value $0.0001 per share (the “Class A Common Stock” or the “Shares”), at a price of $7.50 per Share (the “Purchase Price”), less any applicable withholding taxes and without interest, upon the terms and subject to the conditions set forth in this Offer to Purchase and in the related Letter of Transmittal (which, as they may be amended or supplemented from time to time, together constitute the “Offer”). We are offering to purchase up to 70,000,000 Shares."
+    },
+    {
+      "id": "tender:431c8a5649508c6a5f11d5533c53dd91270c698ef3a574ed08342bc67d8f0334",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "38fc4b5fdca4735aed33e51ab667cedaa4cd7e932f6b17f19f3e1623f0fe3e07",
+      "location": {
+        "start": 198876,
+        "end": 201594,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "tax treaty. To obtain a reduced rate of withholding under an income tax treaty, a Non-U.S. Holder must provide a properly executed IRS Form W-8BEN or W-8BEN-E, as applicable (or a suitable substitute form) certifying, under penalties of perjury, that the Non-U.S. Holder is a non-U.S. person and the dividends are subject to a reduced rate of withholding under an applicable income tax treaty and that the Non-U.S. Holder is not subject to withholding under FATCA. Non-U.S. Holders should consult their tax advisors regarding their entitlement to, and the procedure for obtaining, benefits under an applicable income tax treaty.\n\nAmounts treated as dividends that are effectively connected with the conduct of a trade or business by the Non-U.S. Holder within the United States are not subject to U.S. federal withholding tax but instead, unless an applicable tax treaty provides otherwise, generally are subject to U.S. federal income tax in the manner applicable to U.S. Holders, as described above. To claim exemption from U.S. federal withholding tax with respect to the Purchase Price of Shares treated as dividends that are effectively connected with the conduct of a trade or business by the Non-U.S. Holder within the United States, the Non-U.S. Holder must comply with applicable certification and disclosure requirements by providing a properly executed IRS Form W-8ECI (or a suitable substitute form) certifying, under penalties of perjury, that the Non-U.S. Holder is a non-U.S. person and the dividends are effectively connected with the conduct of a trade or business by the Non-U.S. Holder within the United States and includible in that holder’s gross income. In addition, a Non-U.S. Holder that is a foreign corporation may be subject to a branch profits tax at a 30% rate, or a lower rate specified in an applicable income tax treaty, on dividends effectively connected with the conduct of a trade or business within the United States, subject to certain adjustments.\n\nWithholding. The Depositary (or other applicable withholding agent) generally will withhold at a 30% rate on the gross proceeds of the Offer paid to a Non-U.S. Holder, unless the Non-U.S. Holder provides the Depositary (or other applicable withholding agent) with (i) an IRS Form W-8ECI (or suitable substitute form), claiming that the Offer proceeds are effectively connected with a U.S. trade or business carried on by the Non-U.S. Holder or (ii) an IRS Form W-8BEN or W-8BEN-E, as appropriate (or a suitable substitute form) establishing that a reduced rate of or exemption from withholding is available under an applicable income tax treaty and that the Non-U.S. Holder is not subject to withholding under FATCA. See Section 3."
+    },
+    {
+      "id": "tender:002c954652ad17ef911bb3de53e8c3e003b464a1dbda343a719b0d056937187d",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "ff3e2493a78bd8b451601e41a89f46127776f6d7ab33fb8a89a2ea34a88fcee8",
+      "location": {
+        "start": 74226,
+        "end": 75761,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Potential Risks and Disadvantages of the Offer. The Offer also presents some potential risks and disadvantages to the Company and stockholders who choose not to tender their Shares, including the following:\n\n• We expect to consummate the Strategic Investment and use $525 million of the $775 total proceeds as the source of funds to purchase Shares in the Offer. We expect to use available cash to pay the fees and expenses incurred in connection with the Offer. As of September 30, 2024, we had cash and cash equivalents in the amount of $130.8 million.\n\n• To the extent of participation in the Offer by persons who are not affiliates of Rumble (including those Supporting Stockholders who have committed to tender 251,000 Shares in the Offer who are employees of Rumble but are not our directors or executive officers), the Offer will reduce our “public float,” which is the number of Shares owned by non-affiliate stockholders and available for trading in the securities markets, and may reduce the number of our stockholders. These reductions may reduce the volume of trading in our Shares and may result in lower stock prices and reduced liquidity in the trading of our Shares following completion of the Offer, which will depend on whether Tether seeks to sell any of the Shares it acquires in the Strategic Investment into the public markets. Significant sales of our Class A Common Stock by Tether, or the perception that significant sales of such shares could occur, may cause the price of our Class A Common Stock to decline."
+    },
+    {
+      "id": "tender:b4657bf277c9cf887ee378abbeb145728d7bbc54304da458f7bd50ac400d2ab5",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "3a7460382f8c958cbad661c8a25dad1975ae689c4c642114b16d97223915d012",
+      "location": {
+        "start": 191447,
+        "end": 193473,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Sale or Exchange Treatment. If any of the above three Section 302 Tests is satisfied, and the sale of the Shares is therefore treated as a “sale or exchange” for U.S. federal income tax purposes, the tendering U.S. Holder will recognize gain or loss equal to the difference, if any, between the amount of cash received by the U.S. Holder and such holder’s tax basis in the Shares sold pursuant to the Offer. Generally, a U.S. Holder’s tax basis in the Shares will be equal to the cost of the Shares to the U.S. Holder, reduced by any previous returns of capital. Any gain or loss will be capital gain or loss, and generally will be long-term capital gain or loss if the U.S. Holder’s holding period for the Shares that were sold exceeds one year as of the date of the purchase by us pursuant to the Offer. Certain individual and other non-corporate U.S. Holders are eligible for reduced rates of U.S. federal income tax in respect of long-term capital gain. A U.S. Holder’s ability to deduct capital losses may be limited. A U.S. Holder must calculate gain or loss separately for each block of Shares (generally, Shares acquired at the same cost in a single transaction) we purchase from the U.S. Holder under the Offer.\n\nDistribution Treatment. If none of the Section 302 Tests is satisfied, the tendering U.S. Holder will be treated as having received a distribution by us with respect to the U.S. Holder’s Shares in an amount equal to the cash received by such holder pursuant to the Offer. The distribution would be treated as a dividend to the extent that we have current or accumulated earnings and profits, as determined under U.S. federal income tax principles. Such a dividend would be includible in the U.S. Holder’s gross income without a reduction for the U.S. Holder’s tax basis of the Shares exchanged, and the tax basis of such exchanged Shares would be added to the tax basis of the U.S. Holder’s remaining Shares, if any. Provided that minimum holding period and other requirements are met, and subject to\n\n36"
+    },
+    {
+      "id": "tender:e9a3c14456c6e54c890ca527352dfd015c1e408ad9aee50acbc4e8bf1ffce8fe",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "aeab0f43926d724459b27eae5ddd9661340aa5a5a29165a4e0b0797e4acd8e06",
+      "location": {
+        "start": 178689,
+        "end": 180812,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "To the extent of participation in the Offer by persons who are not affiliates of Rumble (including those Supporting Stockholders who have committed to tender 251,000 Shares in the Offer who are employees of Rumble but are not our directors or executive officers), the Offer will reduce our “public float,” which is the number of Shares owned by non-affiliate stockholders and available for trading in the securities markets, and may reduce the number of our stockholders. These reductions may reduce the volume of trading in our Shares and may result in lower stock prices and reduced liquidity in the trading of our Shares following completion of the Offer, which will depend on whether Tether seeks to sell any of the Shares it acquires in the Strategic Investment into the public markets. As a result, trading of a relatively smaller volume of shares of Class A Common Stock after consummation of the Offer may have a greater impact on trading prices than would be the case prior to consummation of the Strategic Investment and the Offer.\n\nWe believe that there will be a sufficient number of shares of Class A Common Stock outstanding and publicly traded following completion of the Offer to ensure a continued trading market for the shares of Class A Common Stock. Based upon published guidelines of the NASDAQ, we do not believe that our purchase of Shares under the Offer will cause the remaining outstanding shares of Class A Common Stock to be delisted from the NASDAQ. The Offer is conditioned upon our determination that the consummation of the Offer and the purchase of Shares will not cause the shares of Class A Common Stock to be delisted from the NASDAQ. See Section 6.\n\nOur shares of Class A Common Stock are currently “margin securities” under the rules of the Federal Reserve Board. This has the effect, among other things, of allowing brokers to extend credit to their customers using such Shares as collateral. We believe that, following the purchase of Shares under the Offer, the Shares will continue to be “margin securities” for purposes of the Federal Reserve Board’s margin rules and regulations."
+    },
+    {
+      "id": "tender:fab73bfd7839df22fc0e93adddf23ccf7c3a76b1f53fad539823dc44f07418fe",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "dc6025b0988bf0b534c6434a511ec3f2991a26d662dbb5f40bf67112773c976b",
+      "location": {
+        "start": 46699,
+        "end": 47124,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "What is the recent market price of my Shares?\n\nOn January 2, 2025, the last trading day before the announcement of the Offer, the closing price of our shares of Class A Common Stock on the NASDAQ was $12.40 per Share. Stockholders are urged to obtain current trading prices for the Class A Common Stock before deciding whether to tender their Shares. See Section 7.\n\nWhen and how will the Company pay for the Shares I tender?"
+    },
+    {
+      "id": "tender:1f79b1d63994f17677858ac7190aae6ded352e796d6d001871fb9351dd31116b",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "80a57a73b1538d60070912d43afcaeaa61c44e546026bd5c95be3c65c3267b4b",
+      "location": {
+        "start": 4646,
+        "end": 7337,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "As of December 27, 2024, prior to giving effect to the Strategic Investment and the Offer, we had 283,987,373 issued and outstanding shares of Class A Common Stock, assuming the exchange of all issued and outstanding exchangeable shares of the Company’s subsidiary 1000045728 Ontario Inc. (“ExchangeCo Shares”), which are exchangeable on a one-for-one basis for shares of Class A Common Stock, and including all issued and outstanding shares subject to an escrow restriction (as defined herein) under our Business Combination Agreement (as defined herein). Upon the consummation of the Strategic Investment (the completion of which is a condition to the consummation of this Offer), we will issue 103,333,333 new shares of Class A Common Stock to Tether, meaning, after giving effect to our purchase of 70,000,000 shares of Class A Common Stock in the Offer, the number of issued and outstanding shares of Class A Common Stock will increase on a net basis by at least 33,333,333 shares, representing an approximate 11.7% increase relative to our issued and outstanding shares of Class A Common Stock as of December 27, 2024 as reported above. Such increase will be higher in the event that holders of our issued and outstanding Company stock options (“Company Stock Options”), Company warrants (“Company Warrants”) or Company restricted stock units (“Company RSUs”) exercise, convert or settle, as applicable, their respective securities in order to participate in the Offer, to the extent that such underlying Shares (which are not counted in our issued and outstanding Shares until the relevant securities are exercised, converted or settled) are tendered in lieu of outstanding Shares. As a result, the proportional holdings of stockholders who choose not to tender their Shares will be diluted. See Sections 1 and 2.\n\nWe expect to fund the purchase of Shares in the Offer with the proceeds of the Strategic Investment and to pay the fees and expenses in connection with the Offer with available cash. The Offer is not conditioned on any minimum number of Shares being tendered. The Offer is, however, subject to other conditions, including the Strategic Investment Condition (as defined herein). See Sections 2, 6 and 8.\n\nOur shares of Class A Common Stock are listed and traded on the NASDAQ Stock Market LLC (the “NASDAQ”) under the symbol “RUM.” On January 2, 2025, the last trading day before the announcement of the commencement of the Offer, the closing price of our shares of Class A Common Stock on the NASDAQ was $12.40 per Share. Stockholders are urged to obtain current trading prices for the Class A Common Stock before deciding whether to tender their Shares. See Section 7."
+    },
+    {
+      "id": "tender:208d88e1d94d873f0250071ca7eac30dad000beeb3b2c9c103af44ed58ae8910",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "d83447c58c6dfd1d49a10781a645a012532c8575dcca0cb5f67582a99353180b",
+      "location": {
+        "start": 1938,
+        "end": 3454,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Rumble will use $250 million of the proceeds of the Strategic Investment to support growth initiatives and, subject to the terms and conditions of the Transaction Agreement, use the remaining proceeds to fund the Offer described herein. The transactions contemplated by the Transaction Agreement, including the Strategic Investment and the Offer, are collectively referred to as the “Transaction.”\n\nSimultaneously with the execution of the Transaction Agreement, certain existing stockholders of Rumble (the “Supporting Stockholders”), including certain executive officers and directors of Rumble (or affiliates thereof), entered into separate tender and support agreements (the “Tender and Support Agreements”) with the Company pursuant to which such Supporting Stockholders agreed, among other things, to tender a minimum of 70,000,000 Shares (in the aggregate) in the Offer on the same terms and conditions as the other stockholders of the Company, including with respect to the Purchase Price of $7.50 per Share and the proration provisions that will apply in the event that the Offer is oversubscribed, as further described herein (collectively, the “Supporting Stockholder Commitment”).\n\nFollowing the closing of the Transaction, Rumble’s existing Board and governance structure, including Christopher Pavlovski’s super-majority voting control, will remain unchanged. After closing, Tether will not have the right to designate any members of our Board nor have any shareholder veto rights over Company actions."
+    },
+    {
+      "id": "tender:1670e161457e40ec968026fdf318426aeec7eb9d0fc650ff43814f0c56d9a094",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "2994be4b402bbc0c789cac4d64ef7996311cfb8fbeab6ab79601b76d4682d958",
+      "location": {
+        "start": 1232,
+        "end": 3130,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On December 20, 2024, Rumble entered into a Transaction Agreement (the “Transaction Agreement”) with Tether Investments Limited (“Tether”) pursuant to which, and subject to the terms and conditions thereof, Tether will make a strategic investment in Rumble of $775 million, consisting of 103,333,333 newly issued shares of Class A Common Stock at a price of $7.50 per Share (the “Strategic Investment”). The terms of the Strategic Investment were privately negotiated between Rumble and Tether and unanimously approved by Rumble’s Board of Directors, and, as part of the transaction, Rumble and Tether intend to explore potential relationships related to advertising, cloud, and crypto payment solutions.\n\nRumble will use $250 million of the proceeds of the Strategic Investment to support growth initiatives and, subject to the terms and conditions of the Transaction Agreement, use the remaining proceeds to fund the Offer described herein. The transactions contemplated by the Transaction Agreement, including the Strategic Investment and the Offer, are collectively referred to as the “Transaction.”\n\nSimultaneously with the execution of the Transaction Agreement, certain existing stockholders of Rumble (the “Supporting Stockholders”), including certain executive officers and directors of Rumble (or affiliates thereof), entered into separate tender and support agreements (the “Tender and Support Agreements”) with the Company pursuant to which such Supporting Stockholders agreed, among other things, to tender a minimum of 70,000,000 Shares (in the aggregate) in the Offer on the same terms and conditions as the other stockholders of the Company, including with respect to the Purchase Price of $7.50 per Share and the proration provisions that will apply in the event that the Offer is oversubscribed, as further described herein (collectively, the “Supporting Stockholder Commitment”)."
+    }
+  ]
+}

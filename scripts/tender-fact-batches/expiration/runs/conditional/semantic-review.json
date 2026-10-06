@@ -1,0 +1,33 @@
+{
+  "name": "conditional",
+  "current": "2017-02-27",
+  "previousAbsent": true,
+  "refs": {
+    "E2": {
+      "strength": "direct",
+      "supports": [
+        "current"
+      ],
+      "reason": "Open for acceptance until Feb 27"
+    },
+    "E10": {
+      "strength": "direct",
+      "supports": [
+        "current"
+      ],
+      "reason": "Expiry Time currently Feb 27"
+    },
+    "E12": {
+      "strength": "direct",
+      "supports": [
+        "current"
+      ],
+      "reason": "Feb 27 deadline and conditional future extension"
+    }
+  },
+  "note": "Conditional extension not treated as already occurred.",
+  "reviewer": "Codex direct SEC-text review, not independent human signoff",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null
+}

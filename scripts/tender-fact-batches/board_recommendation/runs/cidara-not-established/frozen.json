@@ -1,0 +1,15 @@
+{
+  "runId": "tender-board-gemini35-20261006-cidara-not-established",
+  "fact": "board_recommendation",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-25-281502",
+  "frozenAt": "2026-10-06T05:52:10.592Z",
+  "files": {
+    "evidence-map.json": "b24655d13f5c5c9b340b9870ac2812397a3841714c3bedf61a4e1e52970c1d82",
+    "prompt.txt": "1b075cf3a41765800583466bed8a31482fcec99b7f1d335dfac9ec2fc72c47b5",
+    "provider-schema.json": "033ac045880a8ad4b4d89c19be0accd2a4a05df189e771c484fc50be8bc671bc",
+    "provider-source.json": "205a4f9d4cf19d04fdb039c39607705f862ae278c0d202d64f9ce1b814e5afba",
+    "request.json": "a6df58e8788bd84156685da96027efc7a8249b0e6d025261b0ed2d20db021617",
+    "source.json": "017c69682ffd9b4fc1285514c7403e9238d8efc1eb1a78678289978f8fc1f18b"
+  }
+}

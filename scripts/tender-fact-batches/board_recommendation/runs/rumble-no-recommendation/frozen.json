@@ -1,0 +1,15 @@
+{
+  "runId": "tender-board-gemini35-20261006-rumble-no-recommendation",
+  "fact": "board_recommendation",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-000757",
+  "frozenAt": "2026-10-06T05:52:10.584Z",
+  "files": {
+    "evidence-map.json": "8848ee8374c88db90873291e6211b6ccdac11466bd3142beebb4ccdbfbbbcb7c",
+    "prompt.txt": "1b075cf3a41765800583466bed8a31482fcec99b7f1d335dfac9ec2fc72c47b5",
+    "provider-schema.json": "06bcca33bd2bb84ea559bf0b715de482d38c6d1195fafdceba4776bb7b2c6c8d",
+    "provider-source.json": "19483035efdbc4b04605bf4b47df6ac12a386cb0b11c132990bc4e45cfc43f57",
+    "request.json": "f15f85c61621dffc4d37d6c2161f88c5df49002177f81f424376ba7cc005abfe",
+    "source.json": "57be36f6494ecc0c2924dfb13f890e55dfa314bb579446c0a09aecc45dfc1bb6"
+  }
+}

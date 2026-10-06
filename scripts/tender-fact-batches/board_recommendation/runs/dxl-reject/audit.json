@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-gemini35-20261006-dxl-reject",
+  "fact": "board_recommendation",
+  "accession": "0001193125-26-239365",
+  "name": "dxl-reject",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1821,
+  "usage": {
+    "promptTokenCount": 2855,
+    "candidatesTokenCount": 61,
+    "totalTokenCount": 2916,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2855
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

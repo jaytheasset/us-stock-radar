@@ -1,0 +1,19 @@
+{
+  "facts": [
+    {
+      "type": "offer_price",
+      "current": {
+        "amount": 7.5,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "evidence_refs": [
+        "E1",
+        "E2",
+        "E5",
+        "E6"
+      ]
+    }
+  ],
+  "unresolved": []
+}

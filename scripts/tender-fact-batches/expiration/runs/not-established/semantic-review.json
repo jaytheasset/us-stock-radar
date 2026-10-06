@@ -1,0 +1,39 @@
+{
+  "name": "not-established",
+  "factsEmpty": true,
+  "refs": {
+    "E1": {
+      "strength": "direct",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Tender not yet commenced"
+    },
+    "E4": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Precommencement filing-fee statement"
+    },
+    "E5": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Same precommencement statement"
+    },
+    "E6": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Checked precommencement box"
+    }
+  },
+  "note": "No reporting or exhibit date fabricated as expiration.",
+  "reviewer": "Codex direct SEC-text review, not independent human signoff",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null
+}

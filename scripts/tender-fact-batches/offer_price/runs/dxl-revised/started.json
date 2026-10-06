@@ -1,0 +1,11 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-dxl-revised",
+  "fact": "offer_price",
+  "accession": "0001193125-26-298540",
+  "name": "dxl-revised",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:49:23.589Z",
+  "physicalCallLimit": 1,
+  "requestHash": "c4576e10041d599e76a2b2ca6c1f73c722baddd246744ad924ded47dc55d7ceb",
+  "mappingHash": "202344cafd38c136ea3b92fd0bd292ba10678605b3dbba83af309609536d4b87"
+}

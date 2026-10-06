@@ -1,0 +1,12 @@
+{
+  "fact":"offer_price","runId":"tender-cash-price-gemini35-20261006","model":"gemini-3.5-flash",
+  "scope":"Fixed all-cash per-share tender consideration. currency_text retains source notation, not ISO currency resolution. No composite/exchange/range schema.",
+  "stop":"One physical call per case. No retry/repair/fallback. Review entire batch; do not advance on semantic/structural failure.",
+  "cases":[
+    {"name":"initial-competing","sourceFile":"sources/initial-competing.json","purpose":"Initial price among market/private placement/aggregate amounts","expected":{"current":7.5,"currency_text":"$","unit":"cash_per_share","previous":"absent"},"directSource":"E1/E2/E5/E6 state tender cash price7.50;12.40 market and775m investment are distractors"},
+    {"name":"southwest-increase","sourceFile":"sources/southwest-increase.json","purpose":"Explicit increase supersedes old introductory price","expected":{"current":82.5,"previous":75,"currency_text":"$","unit":"cash_per_share"},"directSource":"E1/E2/E3 replace75 with82.50 per share cash"},
+    {"name":"dxl-revised","sourceFile":"sources/dxl-revised.json","purpose":"Revised tender versus separate earlier1.25 proposal","expected":{"current":0.84,"previous":0.82,"currency_text":"$","unit":"cash_per_share"},"directSource":"E1/E2 cash per share current; E6/E7 explicit0.82 to0.84 tender increase; E9 separate proposal"},
+    {"name":"unchanged-amendment","sourceFile":"sources/unchanged-amendment.json","purpose":"Amendment without explicit prior price","expected":{"current":7.5,"previous":"absent","currency_text":"$","unit":"cash_per_share"},"directSource":"E1/E2 current7.50 cash; no explicit price change"},
+    {"name":"epicor-decrease","sourceFile":"sources/epicor-decrease.json","purpose":"Explicit decrease among historical price and aggregate funding","expected":{"current":7.5,"previous":9.5,"currency_text":"$","unit":"cash_per_share"},"directSource":"E1 expressly decreased9.50 to7.50 cash per share; E2 corroborates;18.10 conversion and417m funding excluded"}
+  ]
+}

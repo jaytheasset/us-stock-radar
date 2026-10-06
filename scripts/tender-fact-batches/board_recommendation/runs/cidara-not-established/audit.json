@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-gemini35-20261006-cidara-not-established",
+  "fact": "board_recommendation",
+  "accession": "0001193125-25-281502",
+  "name": "cidara-not-established",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1727,
+  "usage": {
+    "promptTokenCount": 3003,
+    "candidatesTokenCount": 127,
+    "totalTokenCount": 3130,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3003
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

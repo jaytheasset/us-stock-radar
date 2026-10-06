@@ -1,0 +1,39 @@
+{
+  "name": "partial",
+  "factsEmpty": true,
+  "refs": {
+    "E1": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Securities inventory contains no expiration"
+    },
+    "E2": {
+      "strength": "direct",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Tender offer description ends mid-sentence; no deadline"
+    },
+    "E3": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Cover identity only"
+    },
+    "E4": {
+      "strength": "corroborating",
+      "supports": [
+        "unresolved"
+      ],
+      "reason": "Table of contents only"
+    }
+  },
+  "note": "Correctly withholds current. Explanation says no date in provided text; does not explicitly repeat partial flag, a wording limitation without false certainty.",
+  "reviewer": "Codex direct SEC-text review, not independent human signoff",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null
+}

@@ -1,0 +1,15 @@
+{
+  "runId": "tender-board-gemini35-20261006-dxl-reject",
+  "fact": "board_recommendation",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-26-239365",
+  "frozenAt": "2026-10-06T05:52:10.567Z",
+  "files": {
+    "evidence-map.json": "3e9bffd868cb1c679e558252768c21cebfc0695ce8e6a2367e59c0ead9ff044b",
+    "prompt.txt": "1b075cf3a41765800583466bed8a31482fcec99b7f1d335dfac9ec2fc72c47b5",
+    "provider-schema.json": "cfe19d7657dbc004c7be221207ab76c01093588ba73c4941aee3dc7fe8e1c513",
+    "provider-source.json": "1bcf928746cd35a5f7e8e08d2445bd2a57f8c10e2cc5a186214434f29fcb0de2",
+    "request.json": "0d67e7ef8a47f61909b25093decc9036a39208874d6a9597ddd1231f11065aa4",
+    "source.json": "39a474f78a4d9969d064d70823b09c4c385a5b3c94d82ebdda954b2ef6832b1a"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-unchanged-amendment",
+  "fact": "offer_price",
+  "accession": "0001213900-25-003454",
+  "name": "unchanged-amendment",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:49:25.295Z",
+  "physicalCallLimit": 1,
+  "requestHash": "8761c0cbf8156a3ead481752721f0199d0650ad11bc47a24f9a1c20528652691",
+  "mappingHash": "015a2065ab2ed9ca2cb8ed3dbf5071cab4fa5b111ed2a7a5d94441d7db5ca140"
+}

@@ -1,0 +1,6 @@
+{
+  "facts": [],
+  "unresolved": [
+    "The source only reports an already expired historical offer that expired on January 21, 2026, as noted in E2, so an active scheduled expiration is not established."
+  ]
+}

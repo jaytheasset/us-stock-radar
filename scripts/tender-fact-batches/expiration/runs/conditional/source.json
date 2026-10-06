@@ -1,0 +1,337 @@
+{
+  "accession": "0001062993-17-000336",
+  "form": "CB",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:785c1d422a23a9596d9c3dd371b4f02bfe09c50cb45e357b5c7ae5a61f214e6c",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "98e8aaa32eb0ca8c31da0ffb89250360d040cac835980ef3b43a29540933ddce",
+      "location": {
+        "start": 39941,
+        "end": 40588,
+        "heading": "QUESTIONS AND ANSWERS ABOUT THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Can the Expiry Time for the Offer be extended?\n\nYes. Royal Road may, in its sole discretion, elect to extend the Expiry Time for the Offer from the time referenced in the answer to the previous question. Under certain circumstances, Royal Road may be required to extend the Expiry Time for the Offer under Canadian and U.S. Securities Laws. If Royal Road elects to extend, or is required to extend, the Expiry Time for the Offer, it will publicly announce the variation and, if required by applicable law, it will mail you a copy of the notice of variation. See Section 5 of the Offer to Purchase, “Extension, Variation or Change in the Offer”.\n\n3"
+    },
+    {
+      "id": "tender:83faf5e228e11701401b3871055439d013b81d6cd09f94a8bb8540a82deea4ce",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "b3b9c23a2b3bf4e15f4e142805f89e0b05433a51fa7df1f68456c93b12e04d6a",
+      "location": {
+        "start": 39558,
+        "end": 39987,
+        "heading": "QUESTIONS AND ANSWERS ABOUT THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "How long do I have to decide whether to tender to the Offer?\n\nThe Offer is open for acceptance until 11:59 p.m. (Pacific Time), on February 27, 2017, or until such other time and date as set out in a notice of variation of the Offer as Royal Road determines, issued at any time and from time to time at its discretion. See Section 2 of the Offer to Purchase, “Time for Acceptance”.\n\nCan the Expiry Time for the Offer be extended?"
+    },
+    {
+      "id": "tender:9bf3b97683b75f219f25d74c7d8f6caf401f4881e5c042471f07be811bb7a783",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "5a0af9b5c95c574a8493c385408bacbb24d402b31ef2645756f3bff772f9d3e8",
+      "location": {
+        "start": 243075,
+        "end": 243838,
+        "heading": "CIRCULAR",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|16. | |\nRegulatory Matters\n|\n\n[/TABLE]\n\nExcept as discussed below, to the knowledge of Royal Road, no authorization, consent or approval of, or filing with, any public body, court or authority is necessary on the part of Royal Road for the consummation of the transactions contemplated by the Offer, except for such authorizations, consents, approvals and filings the failure to obtain or make which would not, individually or in the aggregate, prevent or materially delay consummation of the transactions contemplated by the Offer. In the event that Royal Road becomes aware of other requirements, it will make reasonable commercial efforts to obtain such approval at or prior to the Expiry Time, as such time may be extended.\n\nCanadian Securities Laws"
+    },
+    {
+      "id": "tender:2900a62e577a36209e345c9fe3311759c14a9dd39f1a3d5808f79d255bb02629",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "8da8e2be01b2c02a3352526b6ef0c11d1cb69e7809fe7de828f8e1764f55eecf",
+      "location": {
+        "start": 193955,
+        "end": 195142,
+        "heading": "CIRCULAR",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Other than the Caza Options and Caza Warrants, it is the Offeror’s understanding that there are no outstanding Convertible Securities. If any holder of Convertible Securities does not exercise, convert, exchange or settle his/her/its Convertible Securities and deposit any resulting Caza Shares under the Offer prior to the Expiry Time, such Convertible Securities may be replaced with similar convertible securities of the Offeror or may expire or be terminated following the Expiry Time.\n\nThe tax consequences to holders of Convertible Securities of converting, exchanging or exercising such Convertible Securities, as applicable, are not described in Section 18 of this Circular, “Certain Canadian Federal Income Tax Considerations” or Section 19 of this Circular, “Certain United States Federal Income Tax Considerations”. Holders of Convertible Securities are urged to consult their tax advisors regarding the potential tax consequences to them in connection with the decision whether to convert, exchange or exercise such Convertible Securities, as applicable.\n\n[TABLE]\n\n|7. | |\nCertain Information Concerning Royal Road and its Authorized and Outstanding Share Capital\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:7a99a7c2ca5a436924f8a3a118a12717b9ce512b429ba2fcacebd48da9323495",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "cbcef500d9670061750b320bd074e397f1b2a5e2f4f68158f9b0acf5ed71c363",
+      "location": {
+        "start": 148545,
+        "end": 149794,
+        "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Except as otherwise noted in this Section 8 or as otherwise required by applicable Law, all Caza Shares tendered under the Offer will be irrevocable. Unless otherwise required or permitted by applicable Law, any Caza Shares tendered in acceptance of the Offer may only be withdrawn by or on behalf of the depositing Caza Shareholder:\n\n[TABLE]\n\n| | |(a) | |\nat any time before the deposited Caza Shares have been taken up by the Offeror under the Offer;\n|\n\n| | | | | |\n\n| | |(b) | |\nat any time before the expiration of ten (10) calendar days from the date upon which either:\n|\n\n[/TABLE]\n\n[TABLE]\n\n| | |(i) | |\na notice of change relating to a change which has occurred in the information contained in the Offer or the Circular, or any notice of change or notice of variation, in either case, that would reasonably be expected to affect the decision of a Caza Shareholder to accept or reject the Offer (other than a change that is not within the control of the Offeror or an Affiliate of the Offeror unless it is a change in a material fact relating to the Royal Road Shares) in the event that such change occurs before the Expiry Time or after the Expiry Time but before the expiry of all rights of withdrawal in respect of the Offer; or\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:15943bca34113ec9c4cbdd3d86a5b66f2932468733228a98047e9ac15d42ab3e",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "d5f274e801a54fbb7cfe0ffe1e63bdbf91315a710ef714ebfddf7a270ce16f1e",
+      "location": {
+        "start": 140541,
+        "end": 142098,
+        "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "28\n\nA Mandatory Extension Period will constitute an extension of the Offer under Canadian Securities Laws. The Offeror’s news release (with respect to the Mandatory Extension Period), will include disclosure that the Minimum Tender Condition has been satisfied, the number of Caza Shares deposited and not withdrawn as of the expiry of the initial deposit period and the period during which the Offer will be open for acceptance; such news release will be provided to the Depositary and the Offeror will cause the Depositary to provide, as soon as practicable thereafter, a copy of such news release in the manner set out in Section 9 of the Offer, “Notice and Delivery” to all Caza Shareholders that have not had their Caza Shares taken up pursuant to the Offer at the date of the extension. The same form and amount of consideration will be paid to Caza Shareholders depositing Caza Shares during the Mandatory Extension Period as was paid prior to the commencement of such period. The Offeror will permit the withdrawal of Caza Shares deposited during the Mandatory Extension Period, at any time prior to the expiration of such Mandatory Extension Period; provided, however, that this right of withdrawal will not apply in respect of Caza Shares which have been taken up and paid for by the Offeror. Subject to the foregoing sentence, the expiration time with respect to a subsequent Offer shall be 11:59 p.m. (Pacific Time) on the last day of the Mandatory Extension Period.\n\n[TABLE]\n\n|6. | |\nTake-Up of and Payment for Deposited Caza Shares\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:b124549555b49b94d1cd8ac7d5303a1602bd837811c797b9e9a85153ece82de9",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "e45c27dc4ae28fa60e483a706819186ce6b8b303fa6c1f5d4390aaac1beec6a4",
+      "location": {
+        "start": 133376,
+        "end": 134768,
+        "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The Offer is open for acceptance from the date of the Offer until the Expiry Time (as extended, if applicable), subject to variation in the Offeror’s sole discretion or as set out below, unless the Offer is withdrawn by the Offeror. In addition, if the Offeror takes up any Caza Shares under the Offer, the Offer will be extended and remain open for the deposit of Caza Shares for not less than ten (10) days from the date on which the Caza Shares are first taken up.\n\nSubject to the limitations set out below, the Offeror reserves the right, in its sole discretion, at any time and from time to time while the Offer is open for acceptance (or at any other time if permitted by applicable Law) to vary the terms of the Offer (including, without limitation, by extending the period during which Caza Shares may be deposited under the Offer, where permitted by Law).\n\nCaza has issued a deposit period news release in respect of the Offer, which provided for an initial deposit period of at least 35 days beginning on the day following the date of this Offer and on which this document is being sent to all holders of Caza Shares and Convertible Securities. As a result, the Offeror is permitted to shorten the initial deposit period of at least 105 days that would otherwise have been be required under applicable Law, to a minimum deposit period of at least 35 days from the date of the Offer."
+    },
+    {
+      "id": "tender:1cfc5f789d4084ce8e4dee50de1c79b1efe7f8a57de827c2a334b56e07bf1235",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "f368cde433e8c3053013c8b1fcaecc7f249e767da6e14822cd8bb3409fbfe467",
+      "location": {
+        "start": 228898,
+        "end": 230502,
+        "heading": "CIRCULAR",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Alternative Transaction\n\nThe Support Agreement provides that, after the Offeror takes up and pays for the Caza Shares under the Offer, it shall, subject to the terms and conditions of the Support Agreement, as soon as reasonably practicable (and in any event not more than 120 days after the date of completion of the Offer), use its commercially reasonable efforts to pursue and consummate Subsequent Acquisition Transaction for share consideration per Caza Share that is not less than the consideration paid pursuant to the Offer; provided, however, that if as of the final expiration of the Offer, the Offer has been accepted by holders of Caza Shares holding not fewer than 90% of the outstanding Caza Shares as at the Expiry Time, excluding Caza Shares held prior to the commencement of the Offer by the Offeror or any affiliate thereof, the Offeror shall, subject to the terms and conditions the Support Agreement, use its commercially reasonable efforts to complete as soon as reasonably practicable (and in any event, to initiate and complete within the time periods set forth in the Act) a Compulsory Acquisition with respect to the Caza Shares. If the Offeror takes up and pays for Caza Shares pursuant to the Offer, and thereby acquires at least two-thirds of the outstanding Caza Shares (on a diluted basis), Caza agreed to use all commercially reasonable efforts to assist the Offeror in effecting a Subsequent Acquisition Transaction carried out for share consideration per Caza Share that is not less than the consideration paid pursuant to the Offer.\n\nTermination of the Support Agreement"
+    },
+    {
+      "id": "tender:7ab14f4cb82e7eaa9dc3c9885116fb4b3619d6da59035f678dbcc6ee907889e4",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "5fa3f4fb516f0130f31450a588e90c4c1b51fcea7cac033560abb5b04018c70f",
+      "location": {
+        "start": 21000,
+        "end": 21676,
+        "heading": "NOTICE TO CAZA SHAREHOLDERS IN THE UNITED STATES",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "THESE SECURITIES HAVE NOT BEEN APPROVED OR DISAPPROVED BY THE SEC OR ANY U.S. STATE SECURITIES COMMISSION NOR HAS THE SEC OR ANY U.S. STATE SECURITIES COMMISSION PASSED UPON THE ACCURACY OR ADEQUACY OF THE OFFER AND CIRCULAR. ANY REPRESENTATION TO THE CONTRARY IS A CRIMINAL OFFENSE.\n\nIn accordance with Rule 802, the Offer is not required to be extended to security holders in those states that require registration or qualification.\n\nTHESE SECURITIES HAVE NOT BEEN REGISTERED OR OTHERWISE QUALIFIED FOR OFFER AND SALE IN CERTAIN U.S. STATES WHERE CAZA SHAREHOLDERS RESIDE AND NO SUCH OFFER TO SELL OR SALE, OR SOLICITATION OF AN OFFER TO BUY MAY BE MADE IN SUCH U.S. STATES."
+    },
+    {
+      "id": "tender:75038dd3cd581266d7d3b043c197ff70b99dc8fb87ae9a9c1b2ebd473594c0fd",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "c7b0c8ab17a85e9dbe0c37fb6bcc64fe14c59e0f973fc88e5aaf4ea5c4b1da8e",
+      "location": {
+        "start": 81831,
+        "end": 82206,
+        "heading": "SUMMARY",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Time for Acceptance\n\nThe Offer is open for acceptance commencing on this date until the Expiry Time, unless extended or withdrawn by Royal Road. The Expiry Time is currently 11:59 p.m. (Pacific Time) on February 27, 2017. See Section 2 of the Offer to Purchase, “Time for Acceptance”, and Section 5 of the Offer to Purchase, “Extension, Variation or Change in the Offer”.\n\n15"
+    },
+    {
+      "id": "tender:17b6066515173bce54deda77d9eda7db5668360d5733763e7fd235c85ce67c39",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "c678932e33d84e855e5ecea4f5cae3308557a4b3b50fc089f243f70724d555e5",
+      "location": {
+        "start": 133302,
+        "end": 134240,
+        "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|5. | |\nExtension, Variation or Change in the Offer\n|\n\n[/TABLE]\n\nThe Offer is open for acceptance from the date of the Offer until the Expiry Time (as extended, if applicable), subject to variation in the Offeror’s sole discretion or as set out below, unless the Offer is withdrawn by the Offeror. In addition, if the Offeror takes up any Caza Shares under the Offer, the Offer will be extended and remain open for the deposit of Caza Shares for not less than ten (10) days from the date on which the Caza Shares are first taken up.\n\nSubject to the limitations set out below, the Offeror reserves the right, in its sole discretion, at any time and from time to time while the Offer is open for acceptance (or at any other time if permitted by applicable Law) to vary the terms of the Offer (including, without limitation, by extending the period during which Caza Shares may be deposited under the Offer, where permitted by Law)."
+    },
+    {
+      "id": "tender:8803b3a078cd57c0e5fc457f61455989efe891f7f1abe2ea1c06e330a42243e4",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "eb7794029aeb5086bfb7d1e0cbe6469bc6f12904f6e4b7458bf8b86b9c79e539",
+      "location": {
+        "start": 100456,
+        "end": 101572,
+        "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|2. | |\nTime for Acceptance\n|\n\n[/TABLE]\n\nThe Offer is open for acceptance from the date hereof until 11:59 p.m. (Pacific Time) on February 27, 2017, unless the Offer is extended by the Offeror (the “Expiry Time”) or withdrawn by the Offeror pursuant to Section 5 of this Offer, “Extension, Variation or Change in the Offer”. The Offeror will not amend the Offer to cause the Expiry Time to occur earlier than 35 days following the date of the Offer. If the Statutory Minimum Condition is satisfied and the other conditions to the Offer are satisfied or waived by the Offeror at the expiry of the initial deposit period under the Offer and the Offeror takes up the Caza Shares deposited under the Offer, the Offeror will make a public announcement confirming those matters and extend the period during which Caza Shares may be deposited and tendered to the Offer for a period of not less than ten (10) Business Days after the date of such announcement. See Section 5 of this Offer, “Extension, Variation or Change in the Offer – Mandatory Extension Period”.\n\n[TABLE]\n\n|3. | |\nManner of Acceptance\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:c466b8db7860e6696fcc8f17e75426bfab8f8bc6955529a2d835eda953ad4e11",
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "document": {
+        "accession": "0001062993-17-000336",
+        "form": "CB",
+        "documentId": "exhibit1-1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+      "textHash": "0161e364839ff188bbd05e01736762e45bc29d52cab978372eb69205ae3cba1f",
+      "location": {
+        "start": 69625,
+        "end": 70790,
+        "heading": "SUMMARY",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The following is a summary only and is qualified by the detailed provisions contained elsewhere in the Offer Documents. Caza Shareholders are urged to read the Offer Documents in their entirety. Capitalized terms used in this summary are defined in “Definitions”.\n\nThe Offer\n\nRoyal Road hereby offers to purchase, on the basis of 0.16 of a Royal Road Share for each Caza Share, subject to adjustment for fractional shares, on the terms and subject to the conditions set forth herein and in the Letter of Acceptance and Transmittal (including, if the Offer is extended or amended, the terms and conditions of any extension or amendment), all of the outstanding Caza Shares, other than Caza Shares beneficially owned by Royal Road and its Affiliates, and including any Caza Shares that may become issued and outstanding after the date of the Offer but prior to the Expiry Time upon the exercise, exchange or conversion of any Caza Options, Caza Warrants or other Convertible Securities. The Offer will be open for acceptance until the Expiry Time, unless the Offer is extended or withdrawn by Royal Road. See Section 2 of the Offer to Purchase, “Time for Acceptance”."
+    }
+  ]
+}

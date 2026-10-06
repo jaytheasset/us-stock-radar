@@ -1,0 +1,26 @@
+{
+  "name": "many-dates",
+  "current": "2025-02-25",
+  "previousAbsent": true,
+  "refs": {
+    "E4": {
+      "strength": "direct",
+      "supports": [
+        "current"
+      ],
+      "reason": "Q&A explicitly gives February 25 expiration"
+    },
+    "E5": {
+      "strength": "direct",
+      "supports": [
+        "current"
+      ],
+      "reason": "Cover explicitly gives February 25 expiration"
+    }
+  },
+  "note": "May 13 termination and Feb 24 cutoff correctly excluded.",
+  "reviewer": "Codex direct SEC-text review, not independent human signoff",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null
+}

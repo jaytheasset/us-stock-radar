@@ -1,0 +1,31 @@
+{
+  "fact": "expiration",
+  "practicalPass": true,
+  "scope": "Representative source-named calendar-date extraction, not production readiness",
+  "newCases": 5,
+  "newCalls": 5,
+  "reused": [
+    {
+      "name": "Rumble",
+      "path": "../../tender-expiration/v3_1/result.json",
+      "model": "gemini-2.5-flash"
+    },
+    {
+      "name": "Applied extension",
+      "path": "../../tender-expiration/v5_applied_35/result.json",
+      "model": "gemini-3.5-flash"
+    },
+    {
+      "name": "Nano unchanged",
+      "path": "../../tender-expiration/v6b_nano_unchanged_35/result.json",
+      "model": "gemini-3.5-flash"
+    }
+  ],
+  "semanticFailures": 0,
+  "risks": [
+    "Rumble uses prior 2.5 frozen result per user; not rerun on 3.5",
+    "Time-only changes and conflicting multiple offers untested",
+    "Independent human review and collector E2E not performed",
+    "Unresolved uses strings; no production consumer"
+  ]
+}

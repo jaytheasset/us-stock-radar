@@ -1,0 +1,530 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+  "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+  "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+  "renderedChars": 19494,
+  "queries": [
+    "What is the offer price cash per share purchase consideration and currency?",
+    "Was the offer price increased decreased reduced from a previous price or is it unchanged?",
+    "What dollars currency per share purchase price applies and what other aggregate or market prices are distinguished?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoia0125_rumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 10,
+      "hits": [
+        {
+          "id": "tender:1546cfbbc945556b54fa423b906023272199cc568ba32957bc12a8baf962e578",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "8901eeac72f20e3212996f7664587e5a2a7aedea5f664b82bb0419ce690f513d",
+          "location": {
+            "start": 1903,
+            "end": 3184,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1281,
+          "score": 13.926212476455827,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:acfd8575a2656ef2266a750af529696a1012b9ca1c21f344ff8c3afd5ee5bf45",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "9047fe4c698e455c69ca75d9bacd6128ee8b9a4ba7278d462b223997db9852d9",
+          "location": {
+            "start": 2183,
+            "end": 3653,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1470,
+          "score": 13.483997249264842,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:a5496260262cc564fa95b7e33b97b6a1d06c6568b0634ecfc3653964e97f9cc2",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "9aa2680070f1710f00f97614b63dc72654a3981ebede98243dc7c31f29d9f744",
+          "location": {
+            "start": 11264,
+            "end": 15171,
+            "heading": "Item 12. Exhibits",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 3907,
+          "score": 5.034534204220421,
+          "matchedTerms": [
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:30846baed33d6b11295fac6585b020f8ece6009d615f611b108c42f6c194aac0",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "86c84dd418e7e0ee4a609272478ff76c9cc0856bbd815fb45dd93459072b6037",
+          "location": {
+            "start": 9331,
+            "end": 9615,
+            "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 284,
+          "score": 3.5252211939138536,
+          "matchedTerms": [
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:feb4500384ffa781bef950b6c69f165591f1ade0772482abedbd980c97078813",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "5904951bb5dfae6b5f9ef3ebb840a302a75e0a9991ad93a7055fd6195a6a516d",
+          "location": {
+            "start": 4599,
+            "end": 5070,
+            "heading": "Item 1, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 471,
+          "score": 3.187276291558383,
+          "matchedTerms": [
+            "purchase"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoia0125_rumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 3,
+      "hits": [
+        {
+          "id": "tender:acfd8575a2656ef2266a750af529696a1012b9ca1c21f344ff8c3afd5ee5bf45",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "9047fe4c698e455c69ca75d9bacd6128ee8b9a4ba7278d462b223997db9852d9",
+          "location": {
+            "start": 2183,
+            "end": 3653,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1470,
+          "score": 10.787197799411873,
+          "matchedTerms": [
+            "price",
+            "from",
+            "it",
+            "unchanged"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:1546cfbbc945556b54fa423b906023272199cc568ba32957bc12a8baf962e578",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "8901eeac72f20e3212996f7664587e5a2a7aedea5f664b82bb0419ce690f513d",
+          "location": {
+            "start": 1903,
+            "end": 3184,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1281,
+          "score": 8.355727485873496,
+          "matchedTerms": [
+            "price",
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:30846baed33d6b11295fac6585b020f8ece6009d615f611b108c42f6c194aac0",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "86c84dd418e7e0ee4a609272478ff76c9cc0856bbd815fb45dd93459072b6037",
+          "location": {
+            "start": 9331,
+            "end": 9615,
+            "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 284,
+          "score": 3.5252211939138536,
+          "matchedTerms": [
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:cd2350dce74c605bec03a9da3b03ba41d1ec819ab8b3079b15c53dc766e62392",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "3e58bdd952e6ace434f77b737217ecf8ce1e692b4b253ed8aa7e0e40b7dec9b4",
+          "location": {
+            "start": 10891,
+            "end": 11281,
+            "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 390,
+          "score": 3.3218191941495987,
+          "matchedTerms": [
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:aafe9a2b6936066ed773ed344e0f4692e83a97a2bc2952b9b93faf396eb72344",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "664e27d9a23aa093802c14221acbf1e9b458e71f309b92720cd23214baef9781",
+          "location": {
+            "start": 3186,
+            "end": 3798,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 612,
+          "score": 3.162277660168379,
+          "matchedTerms": [
+            "unchanged"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sctoia0125_rumble.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 11,
+      "hits": [
+        {
+          "id": "tender:1546cfbbc945556b54fa423b906023272199cc568ba32957bc12a8baf962e578",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "8901eeac72f20e3212996f7664587e5a2a7aedea5f664b82bb0419ce690f513d",
+          "location": {
+            "start": 1903,
+            "end": 3184,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1281,
+          "score": 11.140969981164663,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:acfd8575a2656ef2266a750af529696a1012b9ca1c21f344ff8c3afd5ee5bf45",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "9047fe4c698e455c69ca75d9bacd6128ee8b9a4ba7278d462b223997db9852d9",
+          "location": {
+            "start": 2183,
+            "end": 3653,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1470,
+          "score": 10.787197799411873,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:a5496260262cc564fa95b7e33b97b6a1d06c6568b0634ecfc3653964e97f9cc2",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "9aa2680070f1710f00f97614b63dc72654a3981ebede98243dc7c31f29d9f744",
+          "location": {
+            "start": 11264,
+            "end": 15171,
+            "heading": "Item 12. Exhibits",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 3907,
+          "score": 7.551801306330631,
+          "matchedTerms": [
+            "share",
+            "purchase",
+            "other"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:30846baed33d6b11295fac6585b020f8ece6009d615f611b108c42f6c194aac0",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "86c84dd418e7e0ee4a609272478ff76c9cc0856bbd815fb45dd93459072b6037",
+          "location": {
+            "start": 9331,
+            "end": 9615,
+            "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 284,
+          "score": 3.5252211939138536,
+          "matchedTerms": [
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:feb4500384ffa781bef950b6c69f165591f1ade0772482abedbd980c97078813",
+          "accession": "0001213900-25-003454",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001213900-25-003454",
+            "form": "SC TO-I/A",
+            "documentId": "sctoia0125_rumble.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+          "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+          "textHash": "5904951bb5dfae6b5f9ef3ebb840a302a75e0a9991ad93a7055fd6195a6a516d",
+          "location": {
+            "start": 4599,
+            "end": 5070,
+            "heading": "Item 1, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 471,
+          "score": 3.187276291558383,
+          "matchedTerms": [
+            "purchase"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

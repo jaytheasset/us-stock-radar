@@ -1,0 +1,14 @@
+{
+  "fact": "offer_price",
+  "practicalPass": true,
+  "scope": "Fixed cash per share with literal source currency notation",
+  "newCases": 5,
+  "newCalls": 5,
+  "semanticFailures": 0,
+  "risks": [
+    "Bare dollar symbol is not ISO currency resolution; cross-currency comparisons unsupported",
+    "Exchange/composite/range/multi-security and unresolved price paths not live tested",
+    "Independent human review and collector E2E not performed"
+  ],
+  "decision": "Maintain minimal contract within tested scope; allow board batch"
+}

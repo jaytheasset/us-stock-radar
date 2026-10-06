@@ -1,0 +1,607 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+  "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+  "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+  "renderedChars": 75132,
+  "queries": [
+    "What does the board of directors explicitly recommend to stockholders about accepting rejecting or tendering shares in the offer?",
+    "Has the board changed withdrawn reaffirmed its recommendation on this tender offer and what was the previous recommendation?",
+    "Does the board make no recommendation remain neutral or advise take no action while evaluating the offer?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001193125-26-239365",
+      "form": "SC 14D9",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_may_26_2026f.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 61,
+      "hits": [
+        {
+          "id": "tender:d4ace394d91a7acc786109333d0fe1bd35ff67f287df6d7456056802e139fcfe",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "d25b01d68f6890051ffc35945ca6cd57462c4eee7e000e1d103c6662502344a0",
+          "location": {
+            "start": 38692,
+            "end": 38907,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 215,
+          "score": 18.35325870964494,
+          "matchedTerms": [
+            "board",
+            "stockholders",
+            "shares"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:4787200aa72173da707dfd1a5c06855e4911507d7c19a40e30491dfad468df5f",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "3be1cf5be0501efde7adff5fc50a72068b61d0cc155de694a530bf322d1c7e90",
+          "location": {
+            "start": 12531,
+            "end": 13073,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 542,
+          "score": 16.398401233815754,
+          "matchedTerms": [
+            "board",
+            "stockholders",
+            "shares"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:e9e7eab6daadc126e5b75aec158c0b50528fc2e570c7f06366adb21d05cd912f",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "32217eac94c23cd0b72973e3007176f8b53a9f110e511659760b03b1c149722c",
+          "location": {
+            "start": 12146,
+            "end": 12793,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 647,
+          "score": 16.262312563634836,
+          "matchedTerms": [
+            "board",
+            "stockholders",
+            "shares"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:caf22ae268bea5cebac07dafd5ad324850b0d0e03fdf58604ef202604cc779cc",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "1ce58718b567352b71970c29fb2b3729b656e01ea833e1781a2deeefe7c85b6b",
+          "location": {
+            "start": 38218,
+            "end": 38839,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 621,
+          "score": 16.19552660357832,
+          "matchedTerms": [
+            "board",
+            "stockholders",
+            "shares"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:4fd0b867d5b83ce978d6a97ff57edc5b7c0bc368fe38117e5d1d9621687440c0",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "b2778cbb431b429fc026a5c3901b9972e4d42c77f7beb459e061fb1ca6ec6a5e",
+          "location": {
+            "start": 13164,
+            "end": 13467,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 303,
+          "score": 16.130101679164337,
+          "matchedTerms": [
+            "board",
+            "stockholders",
+            "shares"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "reject",
+            "not tender"
+          ]
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-26-239365",
+      "form": "SC 14D9",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_may_26_2026f.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 60,
+      "hits": [
+        {
+          "id": "tender:4c12c30b57ff9ac48a730425e7eaa04b943bcb2deae6beec4d826ae118f61820",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "2699254ad7a4e36d1b0450b2f6a72bb1ed875a9f72bac3ae0559728f5fefe67b",
+          "location": {
+            "start": 12222,
+            "end": 13047,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 825,
+          "score": 18.273287703045142,
+          "matchedTerms": [
+            "has",
+            "board",
+            "its",
+            "recommendation"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender",
+            "withdraw"
+          ]
+        },
+        {
+          "id": "tender:f4c75eca30c661c554b5f7fcc947c15b3bda5ed213ef91c5b0d8849b21b97c7a",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "99e4af191591b46f256bb96aba84b3dae9f893bd9b0899c86348f34715d7b034",
+          "location": {
+            "start": 19329,
+            "end": 19818,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 489,
+          "score": 15.513435037626795,
+          "matchedTerms": [
+            "board",
+            "its",
+            "recommendation",
+            "this"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:5e2e1fe230352cc6ae9f4f50fcd96e0f90067de2b1e52d8adebc50d311e46f46",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "06bdb783a47b65819832011dcc97680cc379e05337b52edb1b249b0f04670eaf",
+          "location": {
+            "start": 12059,
+            "end": 12529,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 470,
+          "score": 14.631270419005796,
+          "matchedTerms": [
+            "has",
+            "board",
+            "its",
+            "recommendation"
+          ],
+          "expandedTerms": [
+            "recommend"
+          ]
+        },
+        {
+          "id": "tender:e4fde74088afca41acb8071512230d721966eecce2d8611736c8ce981b150a1e",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "dad0fe7f9e92fa2b5d157e9e7563fb435ed0b1de654b6fd117d92e44d9a7d7b0",
+          "location": {
+            "start": 11681,
+            "end": 12220,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 539,
+          "score": 13.938641048743392,
+          "matchedTerms": [
+            "has",
+            "board",
+            "its",
+            "recommendation"
+          ],
+          "expandedTerms": [
+            "recommend"
+          ]
+        },
+        {
+          "id": "tender:b70e4bcf3e610acda4fc6b4aa2e172a3c7b8c9a86edadeda7d1ab47bce00923a",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "e85769e4723dfc53c50acd5f24ddd5d1eb26a9b09d7e405365d41d376669e6be",
+          "location": {
+            "start": 3926,
+            "end": 5357,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1431,
+          "score": 13.662601021279464,
+          "matchedTerms": [
+            "has",
+            "board",
+            "its",
+            "recommendation",
+            "this"
+          ],
+          "expandedTerms": [
+            "recommend"
+          ]
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-26-239365",
+      "form": "SC 14D9",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_may_26_2026f.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 45,
+      "hits": [
+        {
+          "id": "tender:d8717dfe6077b2161123302fa01dc75390885208b01fa5e89759a1d1313dd9bb",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "f8e53f0c259e1514a9da215d5acd81a1dcfe5726d305f45edbce826dd33c4a7a",
+          "location": {
+            "start": 17371,
+            "end": 19545,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2174,
+          "score": 17.66464834054233,
+          "matchedTerms": [
+            "board",
+            "no",
+            "recommendation",
+            "take",
+            "action",
+            "evaluating"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommended",
+            "reject",
+            "not tender",
+            "take no action"
+          ]
+        },
+        {
+          "id": "tender:fda9ed10593a0ffbb590c3a58f6a1690ce96f2dcdad09774bbdcb3fbe7a99ef3",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "2dcc363ef7f29188afabbf8ba3fae8f7293cc7d849f60afd5c3977ac891bb429",
+          "location": {
+            "start": 56584,
+            "end": 57699,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1115,
+          "score": 12.688332783304345,
+          "matchedTerms": [
+            "board",
+            "recommendation",
+            "action",
+            "while"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "accept"
+          ]
+        },
+        {
+          "id": "tender:ef4b9afc8547664076ccdde2e815e52c6946b0d6ac8671b6a1e6af82e93b60f7",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "2b03d5e3d7d2ff47a913e864f12d72a1c78b293fb1531b4487034a8e346c7fc5",
+          "location": {
+            "start": 48493,
+            "end": 49100,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 607,
+          "score": 10.4,
+          "matchedTerms": [
+            "board",
+            "recommendation",
+            "evaluating"
+          ],
+          "expandedTerms": [
+            "recommend"
+          ]
+        },
+        {
+          "id": "tender:4787200aa72173da707dfd1a5c06855e4911507d7c19a40e30491dfad468df5f",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "3be1cf5be0501efde7adff5fc50a72068b61d0cc155de694a530bf322d1c7e90",
+          "location": {
+            "start": 12531,
+            "end": 13073,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 542,
+          "score": 9.839040740289454,
+          "matchedTerms": [
+            "board",
+            "recommendation"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        },
+        {
+          "id": "tender:e9e7eab6daadc126e5b75aec158c0b50528fc2e570c7f06366adb21d05cd912f",
+          "accession": "0001193125-26-239365",
+          "form": "SC 14D9",
+          "document": {
+            "accession": "0001193125-26-239365",
+            "form": "SC 14D9",
+            "documentId": "sch14d9_may_26_2026f.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "b60b44b4bdb9458199ee9b0c3a3197ddcfdf26bda58e69a68aa5db6cadd1fae8",
+          "renderedHash": "451c567a6f0c589f1ff93e8668f929bbe4b619980b96a96753223a6be8f99093",
+          "textHash": "32217eac94c23cd0b72973e3007176f8b53a9f110e511659760b03b1c149722c",
+          "location": {
+            "start": 12146,
+            "end": 12793,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 647,
+          "score": 9.7573875381809,
+          "matchedTerms": [
+            "board",
+            "recommendation"
+          ],
+          "expandedTerms": [
+            "recommend",
+            "recommends",
+            "reject",
+            "not tender"
+          ]
+        }
+      ]
+    }
+  ]
+}

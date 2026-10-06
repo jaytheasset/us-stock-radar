@@ -1,0 +1,187 @@
+{
+  "accession": "0001213900-25-003454",
+  "form": "SC TO-I/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:1546cfbbc945556b54fa423b906023272199cc568ba32957bc12a8baf962e578",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "8901eeac72f20e3212996f7664587e5a2a7aedea5f664b82bb0419ce690f513d",
+      "location": {
+        "start": 1903,
+        "end": 3184,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "If applicable, check the appropriate box(es) below to designate the appropriate rule provision(s) relied upon:\n\n[TABLE]\n\n| | | | |\n☐\n| | | |\nRule 13e-4(i) (Cross-Border Issuer Tender Offer)\n|\n\n| | | | |\n☐\n| | | |\nRule 14d-1(d) (Cross-Border Third-Party Tender Offer)\n|\n\n[/TABLE]\n\nThis Amendment No. 1 (“Amendment No. 1”) amends and supplements the Tender Offer Statement on Schedule TO (as it may be further amended or supplemented from time to time, the “Schedule TO”), initially filed by Rumble Inc., a Delaware corporation (“Rumble” or the “Company”), on January 3, 2025, pursuant to Rule 13e-4 under the Securities Exchange Act of 1934, as amended (the “Exchange Act”), in connection with the Company’s offer to purchase for cash up to 70,000,000 shares of Class A common stock, par value $0.0001 per share (the “Class A Common Stock” or the “Shares”) at a price of $7.50 per share (the “Purchase Price”), less any applicable withholding taxes and without interest, upon the terms and subject to the conditions set forth in the Offer to Purchase, dated January 3, 2025 (the “Offer to Purchase”), and the related Letter of Transmittal (the “Letter of Transmittal” and, together with the Offer to Purchase, as they may be amended and supplemented from time to time, the “Offer”)."
+    },
+    {
+      "id": "tender:acfd8575a2656ef2266a750af529696a1012b9ca1c21f344ff8c3afd5ee5bf45",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "9047fe4c698e455c69ca75d9bacd6128ee8b9a4ba7278d462b223997db9852d9",
+      "location": {
+        "start": 2183,
+        "end": 3653,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "This Amendment No. 1 (“Amendment No. 1”) amends and supplements the Tender Offer Statement on Schedule TO (as it may be further amended or supplemented from time to time, the “Schedule TO”), initially filed by Rumble Inc., a Delaware corporation (“Rumble” or the “Company”), on January 3, 2025, pursuant to Rule 13e-4 under the Securities Exchange Act of 1934, as amended (the “Exchange Act”), in connection with the Company’s offer to purchase for cash up to 70,000,000 shares of Class A common stock, par value $0.0001 per share (the “Class A Common Stock” or the “Shares”) at a price of $7.50 per share (the “Purchase Price”), less any applicable withholding taxes and without interest, upon the terms and subject to the conditions set forth in the Offer to Purchase, dated January 3, 2025 (the “Offer to Purchase”), and the related Letter of Transmittal (the “Letter of Transmittal” and, together with the Offer to Purchase, as they may be amended and supplemented from time to time, the “Offer”).\n\nThis Amendment No. 1 is intended to satisfy the reporting requirements of Rule 13e-4(c)(3) promulgated under the Exchange Act. Except as otherwise set forth below in this Amendment No. 1, the information set forth in the Schedule TO, including all exhibits thereto that were previously filed with the Schedule TO, remains unchanged and is incorporated by reference as relevant to the items in this Amendment No. 1.\n\nForward-Looking Statements in the Offer to Purchase"
+    },
+    {
+      "id": "tender:a5496260262cc564fa95b7e33b97b6a1d06c6568b0634ecfc3653964e97f9cc2",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "9aa2680070f1710f00f97614b63dc72654a3981ebede98243dc7c31f29d9f744",
+      "location": {
+        "start": 11264,
+        "end": 15171,
+        "heading": "Item 12. Exhibits",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 12. Exhibits\n\n[TABLE]\n\n|\n(a)(1)(A)\n| | | |\nOffer to Purchase, dated January 3, 2025.*\n|\n\n|\n(a)(1)(B)\n| | | |\nLetter of Transmittal, dated January 3, 2025.*\n|\n\n|\n(a)(1)(C)\n| | | |\nNotice of Guaranteed Delivery.*\n|\n\n|\n(a)(1)(D)\n| | | |\nLetter to Brokers, Dealers, Commercial Banks, Trust Companies and Other Nominees, dated January 3, 2025.*\n|\n\n|\n(a)(1)(E)\n| | | |\nLetter to Clients for use by Brokers, Dealers, Commercial Banks, Trust Companies and Other Nominees, dated January 3, 2025.*\n|\n\n|\n(a)(1)(F)\n| | | |\nNotice to Certain Holders of Stock Options, dated January 3, 2025.*\n|\n\n|\n(a)(2)\n| | | |\nNot Applicable.\n|\n\n|\n(a)(3)\n| | | |\nNot Applicable.\n|\n\n|\n(a)(4)\n| | | |\nNot Applicable.\n|\n\n|\n(a)(5)(A)\n| | | |\nPress Release, dated December 20, 2024 (incorporated herein and filed as Exhibit 99.1 of the Company’s Current Report on Form 8-K filed on December 20, 2024).\n|\n\n|\n(b)\n| | | |\nNot applicable.\n|\n\n|\n(d)(1)\n| | | |\nLetter Agreement, dated November 4, 2021, by and between Rumble USA Inc. and Michael Ellis (incorporated by reference to Exhibit 10.11 to CF Acquisition Corp. VI’s Amendment No. 2 to Registration Statement on Form S-4 filed on June 17, 2022).\n|\n\n|\n(d)(2)\n| | | |\nLetter Agreement, dated July 26, 2021, by and between Rumble USA Inc. and Tyler Hughes (incorporated by reference to Exhibit 10.12 to CF Acquisition Corp. VI’s Amendment No. 2 to Registration Statement on Form S-4 filed on June 17, 2022).\n|\n\n|\n(d)(3)\n| | | |\nForm of Restricted Class Common Share Ownership Agreement (incorporated by reference to Exhibit 10.13 to CF Acquisition Corp. VI’s Amendment No. 2 to Registration Statement on Form S-4 filed on June 17, 2022).\n|\n\n|\n(d)(4)\n| | | |\nAmended and Restated Registration Rights Agreement, dated September 16, 2022, by and among the Company, Sponsor and the other parties named therein (incorporated by reference to Exhibit 10.9 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(5)\n| | | |\nWarrant Assignment, Assumption and Amendment Agreement, dated September 16, 2022, by and among the Company, Computershare Inc., Computershare Trust Company, N.A., and Continental Stock Transfer & Trust Company (incorporated by reference to Exhibit 4.3 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(6)\n| | | |\nSponsor Support Agreement dated December 1, 2021, by and among CF Acquisition Corp. VI, CFAC Holdings VI, LLC and Rumble Inc. (incorporated by reference to Annex E to the Proxy Statement/Prospectus filed on August 12, 2022).\n|\n\n|\n(d)(7)\n| | | |\nExchange and Support Agreement, dated September 16, 2022, by and among the Company, ExchangeCo, 1000045707 Ontario Inc. and the shareholders of ExchangeCo who hold ExchangeCo Shares (incorporated by reference to Exhibit 10.1 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(8)\n| | | |\nEmployment Agreement by and between Rumble Inc. and Christopher Pavlovski, effective as of September 16, 2022 (incorporated by reference to Exhibit 10.17 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(9)\n| | | |\nLetter Agreement, dated as of September 16, 2022 by and between Christopher Pavlovski and Rumble Inc. amending Mr. Pavlovski’s employment agreement with Rumble Inc. (incorporated by reference to Exhibit 10.19 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(10)\n| | | |\nRestricted Stock Unit Grant Notice and Agreement by and between Rumble Inc. and Christopher Pavlovski, dated as of September 16, 2022 (incorporated by reference to Exhibit 10.20 to the Company’s Current Report on Form 8-K filed on September 22, 2022).\n|\n\n|\n(d)(11)\n| | | |\nEmployment Agreement, dated November 16, 2022, by and between Rumble Inc. and Michael Ellis (incorporated by reference to Exhibit 10.1 to Current Report on Form 8-K filed on November 21, 2022).\n|\n\n[/TABLE]\n\n3"
+    },
+    {
+      "id": "tender:30846baed33d6b11295fac6585b020f8ece6009d615f611b108c42f6c194aac0",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "86c84dd418e7e0ee4a609272478ff76c9cc0856bbd815fb45dd93459072b6037",
+      "location": {
+        "start": 9331,
+        "end": 9615,
+        "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 4. Terms of the Transaction\n\nItem 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:\n\n(1) The changes described above in Item 1 of this Amendment No. 1 are hereby incorporated into this Item 4 by reference."
+    },
+    {
+      "id": "tender:feb4500384ffa781bef950b6c69f165591f1ade0772482abedbd980c97078813",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "5904951bb5dfae6b5f9ef3ebb840a302a75e0a9991ad93a7055fd6195a6a516d",
+      "location": {
+        "start": 4599,
+        "end": 5070,
+        "heading": "Item 1, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "If we have not accepted for payment the Shares you have tendered by 11:59 p.m., New York City time, on March 4, 2025, you may also withdraw such Shares at any time thereafter.\n\n(2) The subsection under the caption “How will the Company pay for the Shares?” in the section entitled “Summary Term Sheet” of the Offer to Purchase is hereby amended as follows:\n\n(a) The third and fourth sentences of the first paragraph of such subsection are amended and restated as follows:"
+    },
+    {
+      "id": "tender:cd2350dce74c605bec03a9da3b03ba41d1ec819ab8b3079b15c53dc766e62392",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "3e58bdd952e6ace434f77b737217ecf8ce1e692b4b253ed8aa7e0e40b7dec9b4",
+      "location": {
+        "start": 10891,
+        "end": 11281,
+        "heading": "Item 4, to the extent it incorporates by reference information contained in the Offer to Purchase, is hereby amended as follows:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "2\n\nmaterial respects at or prior to the closing, (vi) no occurrence of a “material adverse effect” with respect to the Company, (vii) each Supporting Stockholder shall have tendered in the Offer the minimum number of Shares it is required to tender in the Offer pursuant to the Tender and Support Agreements, and (viii) the execution of the Registration Rights Agreement.\n\nItem 12. Exhibits"
+    },
+    {
+      "id": "tender:aafe9a2b6936066ed773ed344e0f4692e83a97a2bc2952b9b93faf396eb72344",
+      "accession": "0001213900-25-003454",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001213900-25-003454",
+        "form": "SC TO-I/A",
+        "documentId": "sctoia0125_rumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025003454/sctoia0125_rumble.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a87e0e6c61004ebe5281d27aaa46cd2eef36db248f5332ed01f0aee9d695face",
+      "renderedHash": "4cee5b2c26b6fc93cbc25e9b90b6f2aca066d23c8a1c6e641412bf264908bf6a",
+      "textHash": "664e27d9a23aa093802c14221acbf1e9b458e71f309b92720cd23214baef9781",
+      "location": {
+        "start": 3186,
+        "end": 3798,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "This Amendment No. 1 is intended to satisfy the reporting requirements of Rule 13e-4(c)(3) promulgated under the Exchange Act. Except as otherwise set forth below in this Amendment No. 1, the information set forth in the Schedule TO, including all exhibits thereto that were previously filed with the Schedule TO, remains unchanged and is incorporated by reference as relevant to the items in this Amendment No. 1.\n\nForward-Looking Statements in the Offer to Purchase\n\n(1) The first sentence of the section entitled “Forward-Looking Statements” of the Offer to Purchase is hereby amended and restated as follows:"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "reason": "Explicit7.50 per Share paid in cash"
+    },
+    "E2": {
+      "current": "corroborating",
+      "reason": "Same tender7.50 per Share; cash stated in E1/E5"
+    },
+    "E5": {
+      "current": "direct",
+      "reason": "7.50 per Share cash tender payment"
+    },
+    "E6": {
+      "current": "corroborating",
+      "reason": "Same cover tender price7.50; cash supplied by E1/E5"
+    }
+  },
+  "conclusion": "Current7.50 correct; previous absent. Market12.40, aggregate525m/775m and par0.0001 excluded."
+}

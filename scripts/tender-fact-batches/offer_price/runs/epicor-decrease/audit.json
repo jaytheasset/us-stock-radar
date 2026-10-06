@@ -1,0 +1,37 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-epicor-decrease",
+  "fact": "offer_price",
+  "accession": "0001193125-08-224348",
+  "name": "epicor-decrease",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1977,
+  "usage": {
+    "promptTokenCount": 3763,
+    "candidatesTokenCount": 140,
+    "totalTokenCount": 3903,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3763
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

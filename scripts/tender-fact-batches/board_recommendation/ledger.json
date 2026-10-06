@@ -1,0 +1,193 @@
+{
+  "fact": "board_recommendation",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 5,
+  "stoppedEarly": false,
+  "cases": [
+    {
+      "runId": "tender-board-gemini35-20261006-applied-accept",
+      "fact": "board_recommendation",
+      "accession": "0001193125-25-335440",
+      "name": "applied-accept",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1936,
+      "usage": {
+        "promptTokenCount": 4023,
+        "candidatesTokenCount": 73,
+        "totalTokenCount": 4096,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 4023
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-board-gemini35-20261006-dxl-reject",
+      "fact": "board_recommendation",
+      "accession": "0001193125-26-239365",
+      "name": "dxl-reject",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1821,
+      "usage": {
+        "promptTokenCount": 2855,
+        "candidatesTokenCount": 61,
+        "totalTokenCount": 2916,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 2855
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-board-gemini35-20261006-dxl-amendment",
+      "fact": "board_recommendation",
+      "accession": "0001193125-26-298540",
+      "name": "dxl-amendment",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1537,
+      "usage": {
+        "promptTokenCount": 2896,
+        "candidatesTokenCount": 79,
+        "totalTokenCount": 2975,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 2896
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-board-gemini35-20261006-rumble-no-recommendation",
+      "fact": "board_recommendation",
+      "accession": "0001213900-25-000757",
+      "name": "rumble-no-recommendation",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1489,
+      "usage": {
+        "promptTokenCount": 3933,
+        "candidatesTokenCount": 76,
+        "totalTokenCount": 4009,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3933
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-board-gemini35-20261006-cidara-not-established",
+      "fact": "board_recommendation",
+      "accession": "0001193125-25-281502",
+      "name": "cidara-not-established",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1727,
+      "usage": {
+        "promptTokenCount": 3003,
+        "candidatesTokenCount": 127,
+        "totalTokenCount": 3130,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3003
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    }
+  ]
+}

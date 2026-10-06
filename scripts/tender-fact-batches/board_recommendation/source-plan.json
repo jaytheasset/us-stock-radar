@@ -1,0 +1,14 @@
+{
+  "queries":[
+    "What does the board of directors explicitly recommend to stockholders about accepting rejecting or tendering shares in the offer?",
+    "Has the board changed withdrawn reaffirmed its recommendation on this tender offer and what was the previous recommendation?",
+    "Does the board make no recommendation remain neutral or advise take no action while evaluating the offer?"
+  ],
+  "cases":[
+    {"name":"applied-accept","form":"SC 14D9","role":"primary","url":"https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm"},
+    {"name":"dxl-reject","form":"SC 14D9","role":"primary","url":"https://www.sec.gov/Archives/edgar/data/813298/000119312526239365/sch14d9_may_26_2026f.htm"},
+    {"name":"dxl-amendment","form":"SC 14D9/A","role":"primary","url":"https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm"},
+    {"name":"rumble-no-recommendation","form":"SC TO-I","role":"attachment","url":"https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm"},
+    {"name":"cidara-not-established","form":"SC TO-C","role":"primary","url":"https://www.sec.gov/Archives/edgar/data/1610618/000119312525281502/d46394dsctoc.htm"}
+  ]
+}

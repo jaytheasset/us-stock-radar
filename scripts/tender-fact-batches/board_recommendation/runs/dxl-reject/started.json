@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-gemini35-20261006-dxl-reject",
+  "fact": "board_recommendation",
+  "accession": "0001193125-26-239365",
+  "name": "dxl-reject",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:52:22.711Z",
+  "physicalCallLimit": 1,
+  "requestHash": "0d67e7ef8a47f61909b25093decc9036a39208874d6a9597ddd1231f11065aa4",
+  "mappingHash": "3e9bffd868cb1c679e558252768c21cebfc0695ce8e6a2367e59c0ead9ff044b"
+}

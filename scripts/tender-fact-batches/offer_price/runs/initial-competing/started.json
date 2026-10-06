@@ -1,0 +1,11 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-initial-competing",
+  "fact": "offer_price",
+  "accession": "0001213900-25-000757",
+  "name": "initial-competing",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:49:19.759Z",
+  "physicalCallLimit": 1,
+  "requestHash": "5de18b51bafd86e7bbbf679840e3b598fbcecf02450f52724a12cbfc695abb3b",
+  "mappingHash": "75355f9e2912df076ac19905d7fb19c81255990934ac26e84d616517dda01f49"
+}

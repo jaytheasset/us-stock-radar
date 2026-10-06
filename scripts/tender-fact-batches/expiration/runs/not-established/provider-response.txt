@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [],\n  \"unresolved\": [\n    \"No scheduled expiration date is stated in the provided source because the tender offer has not yet commenced (E1, E4, E5, E6).\"\n  ]\n}",
+            "thoughtSignature": "EmgKZgFpFH0T3VYdbLRhpIO9I2Pv4X6PAjnb1dwcw8T2RAUEjwESRpXiG9swruOUA21Djbrv4vKzVjM5Bci1H8qeQB6IOGlustPlCabsJWAzOX/odXa6qTNkWrurul7osstn5VZXl4lA0Q=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 2196,
+    "candidatesTokenCount": 53,
+    "totalTokenCount": 2249,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2196
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "JIrEat7pIpvb9tMPnPXZyAs"
+}

@@ -1,0 +1,15 @@
+{
+  "fact": "board_recommendation",
+  "practicalPass": true,
+  "scope": "Explicit board tender recommendation in supplied source",
+  "newCases": 5,
+  "newCalls": 5,
+  "semanticFailures": 0,
+  "decision": "Maintain minimal contract. STOP after third FACT.",
+  "risks": [
+    "Actual accept-to-reject/reject-to-accept transition and previous enum emission not live tested",
+    "Temporary take-no-action and other states intentionally remain unresolved; no standalone live case",
+    "Missing recommendation in selected primary does not imply no recommendation in unsupplied exhibit",
+    "Independent human review and collector E2E not performed"
+  ]
+}

@@ -1,0 +1,314 @@
+{
+  "E1": {
+    "evidence_id": "tender:785c1d422a23a9596d9c3dd371b4f02bfe09c50cb45e357b5c7ae5a61f214e6c",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "98e8aaa32eb0ca8c31da0ffb89250360d040cac835980ef3b43a29540933ddce",
+    "location": {
+      "start": 39941,
+      "end": 40588,
+      "heading": "QUESTIONS AND ANSWERS ABOUT THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E2": {
+    "evidence_id": "tender:83faf5e228e11701401b3871055439d013b81d6cd09f94a8bb8540a82deea4ce",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "b3b9c23a2b3bf4e15f4e142805f89e0b05433a51fa7df1f68456c93b12e04d6a",
+    "location": {
+      "start": 39558,
+      "end": 39987,
+      "heading": "QUESTIONS AND ANSWERS ABOUT THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E3": {
+    "evidence_id": "tender:9bf3b97683b75f219f25d74c7d8f6caf401f4881e5c042471f07be811bb7a783",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "5a0af9b5c95c574a8493c385408bacbb24d402b31ef2645756f3bff772f9d3e8",
+    "location": {
+      "start": 243075,
+      "end": 243838,
+      "heading": "CIRCULAR",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E4": {
+    "evidence_id": "tender:2900a62e577a36209e345c9fe3311759c14a9dd39f1a3d5808f79d255bb02629",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "8da8e2be01b2c02a3352526b6ef0c11d1cb69e7809fe7de828f8e1764f55eecf",
+    "location": {
+      "start": 193955,
+      "end": 195142,
+      "heading": "CIRCULAR",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E5": {
+    "evidence_id": "tender:7a99a7c2ca5a436924f8a3a118a12717b9ce512b429ba2fcacebd48da9323495",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "cbcef500d9670061750b320bd074e397f1b2a5e2f4f68158f9b0acf5ed71c363",
+    "location": {
+      "start": 148545,
+      "end": 149794,
+      "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E6": {
+    "evidence_id": "tender:15943bca34113ec9c4cbdd3d86a5b66f2932468733228a98047e9ac15d42ab3e",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "d5f274e801a54fbb7cfe0ffe1e63bdbf91315a710ef714ebfddf7a270ce16f1e",
+    "location": {
+      "start": 140541,
+      "end": 142098,
+      "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E7": {
+    "evidence_id": "tender:b124549555b49b94d1cd8ac7d5303a1602bd837811c797b9e9a85153ece82de9",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "e45c27dc4ae28fa60e483a706819186ce6b8b303fa6c1f5d4390aaac1beec6a4",
+    "location": {
+      "start": 133376,
+      "end": 134768,
+      "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E8": {
+    "evidence_id": "tender:1cfc5f789d4084ce8e4dee50de1c79b1efe7f8a57de827c2a334b56e07bf1235",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "f368cde433e8c3053013c8b1fcaecc7f249e767da6e14822cd8bb3409fbfe467",
+    "location": {
+      "start": 228898,
+      "end": 230502,
+      "heading": "CIRCULAR",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E9": {
+    "evidence_id": "tender:7ab14f4cb82e7eaa9dc3c9885116fb4b3619d6da59035f678dbcc6ee907889e4",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "5fa3f4fb516f0130f31450a588e90c4c1b51fcea7cac033560abb5b04018c70f",
+    "location": {
+      "start": 21000,
+      "end": 21676,
+      "heading": "NOTICE TO CAZA SHAREHOLDERS IN THE UNITED STATES",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E10": {
+    "evidence_id": "tender:75038dd3cd581266d7d3b043c197ff70b99dc8fb87ae9a9c1b2ebd473594c0fd",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "c7b0c8ab17a85e9dbe0c37fb6bcc64fe14c59e0f973fc88e5aaf4ea5c4b1da8e",
+    "location": {
+      "start": 81831,
+      "end": 82206,
+      "heading": "SUMMARY",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E11": {
+    "evidence_id": "tender:17b6066515173bce54deda77d9eda7db5668360d5733763e7fd235c85ce67c39",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "c678932e33d84e855e5ecea4f5cae3308557a4b3b50fc089f243f70724d555e5",
+    "location": {
+      "start": 133302,
+      "end": 134240,
+      "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E12": {
+    "evidence_id": "tender:8803b3a078cd57c0e5fc457f61455989efe891f7f1abe2ea1c06e330a42243e4",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "eb7794029aeb5086bfb7d1e0cbe6469bc6f12904f6e4b7458bf8b86b9c79e539",
+    "location": {
+      "start": 100456,
+      "end": 101572,
+      "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E13": {
+    "evidence_id": "tender:c466b8db7860e6696fcc8f17e75426bfab8f8bc6955529a2d835eda953ad4e11",
+    "accession": "0001062993-17-000336",
+    "form": "CB",
+    "document": {
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "documentId": "exhibit1-1.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+    "renderedHash": "2cfead078c55a23dfed6381706bb94087af0005fefaf99a10c80154102efb955",
+    "textHash": "0161e364839ff188bbd05e01736762e45bc29d52cab978372eb69205ae3cba1f",
+    "location": {
+      "start": 69625,
+      "end": 70790,
+      "heading": "SUMMARY",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-gemini35-20261006-dxl-amendment",
+  "fact": "board_recommendation",
+  "accession": "0001193125-26-298540",
+  "name": "dxl-amendment",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1537,
+  "usage": {
+    "promptTokenCount": 2896,
+    "candidatesTokenCount": 79,
+    "totalTokenCount": 2975,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2896
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

@@ -1,0 +1,15 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-initial-competing",
+  "fact": "offer_price",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-000757",
+  "frozenAt": "2026-10-06T05:49:07.808Z",
+  "files": {
+    "evidence-map.json": "75355f9e2912df076ac19905d7fb19c81255990934ac26e84d616517dda01f49",
+    "prompt.txt": "8315d6bc1c4ba5f705f6c6a79e1935ef5adb16ae4fa1777def34e1b9fec767fd",
+    "provider-schema.json": "34fc8091d345cf8a756f7c63d3d533da2844ecab252d8fe9f4bb7e0025cf6949",
+    "provider-source.json": "d5f99e855d998042925ffc156589df8886dc00999d0bbc423d0a6b8af5c90f77",
+    "request.json": "5de18b51bafd86e7bbbf679840e3b598fbcecf02450f52724a12cbfc695abb3b",
+    "source.json": "6e44e9eb573e336558548029567a022c7ace3fbb906f36ad4994a51c5eb75329"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 15,
+  "results": [
+    {
+      "fact": "expiration",
+      "calls": 5,
+      "claims": 2,
+      "selectedClaimRefs": 5,
+      "abstentions": 3,
+      "frozen": "PASS",
+      "schema": "PASS",
+      "local": "PASS",
+      "provenance": "PASS",
+      "authoredSupportReview": "PASS"
+    },
+    {
+      "fact": "offer_price",
+      "calls": 5,
+      "claims": 8,
+      "selectedClaimRefs": 14,
+      "abstentions": 0,
+      "frozen": "PASS",
+      "schema": "PASS",
+      "local": "PASS",
+      "provenance": "PASS",
+      "authoredSupportReview": "PASS"
+    },
+    {
+      "fact": "board_recommendation",
+      "calls": 5,
+      "claims": 4,
+      "selectedClaimRefs": 11,
+      "abstentions": 1,
+      "frozen": "PASS",
+      "schema": "PASS",
+      "local": "PASS",
+      "provenance": "PASS",
+      "authoredSupportReview": "PASS"
+    }
+  ],
+  "offlineTests": {
+    "passed": 10,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "priorExperimentFiles": "byte-identical to base",
+  "reviewer": "Codex; no independent human signoff"
+}

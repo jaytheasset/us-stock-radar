@@ -1,0 +1,6 @@
+{
+  "facts": [],
+  "unresolved": [
+    "No scheduled expiration date is stated in the provided source because the tender offer has not yet commenced (E1, E4, E5, E6)."
+  ]
+}

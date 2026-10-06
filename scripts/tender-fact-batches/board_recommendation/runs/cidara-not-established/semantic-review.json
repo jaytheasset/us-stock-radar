@@ -1,0 +1,26 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "unresolved": "direct",
+      "reason": "Future14D9; no actual board recommendation in supplied source"
+    },
+    "E4": {
+      "unresolved": "corroborating",
+      "reason": "Precommencement transaction description"
+    },
+    "E7": {
+      "unresolved": "corroborating",
+      "reason": "Precommencement checkbox"
+    },
+    "E8": {
+      "unresolved": "corroborating",
+      "reason": "Same precommencement checkbox"
+    }
+  },
+  "conclusion": "Correct sparse abstention; source absence is not affirmative no_recommendation.",
+  "sourceLimitation": "SOURCE_COVERAGE: selected primary text does not supply a board recommendation; unsupplied exhibit is not inferred."
+}

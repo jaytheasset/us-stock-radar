@@ -1,0 +1,24 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Explicit75 to82.50 per Share cash"
+    },
+    "E2": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Operative replacement75 with82.50 cash per Share"
+    },
+    "E3": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Repeats operative explicit cash price amendment"
+    }
+  },
+  "conclusion": "Current82.50 previous75 correct; supersedes historical introduction."
+}

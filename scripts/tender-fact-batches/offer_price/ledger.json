@@ -1,0 +1,193 @@
+{
+  "fact": "offer_price",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 5,
+  "stoppedEarly": false,
+  "cases": [
+    {
+      "runId": "tender-cash-price-gemini35-20261006-initial-competing",
+      "fact": "offer_price",
+      "accession": "0001213900-25-000757",
+      "name": "initial-competing",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1908,
+      "usage": {
+        "promptTokenCount": 5117,
+        "candidatesTokenCount": 110,
+        "totalTokenCount": 5227,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 5117
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-cash-price-gemini35-20261006-southwest-increase",
+      "fact": "offer_price",
+      "accession": "0001193125-22-074629",
+      "name": "southwest-increase",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1917,
+      "usage": {
+        "promptTokenCount": 3665,
+        "candidatesTokenCount": 148,
+        "totalTokenCount": 3813,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3665
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-cash-price-gemini35-20261006-dxl-revised",
+      "fact": "offer_price",
+      "accession": "0001193125-26-298540",
+      "name": "dxl-revised",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1703,
+      "usage": {
+        "promptTokenCount": 4400,
+        "candidatesTokenCount": 152,
+        "totalTokenCount": 4552,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 4400
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-cash-price-gemini35-20261006-unchanged-amendment",
+      "fact": "offer_price",
+      "accession": "0001213900-25-003454",
+      "name": "unchanged-amendment",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1584,
+      "usage": {
+        "promptTokenCount": 3058,
+        "candidatesTokenCount": 93,
+        "totalTokenCount": 3151,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3058
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-cash-price-gemini35-20261006-epicor-decrease",
+      "fact": "offer_price",
+      "accession": "0001193125-08-224348",
+      "name": "epicor-decrease",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1977,
+      "usage": {
+        "promptTokenCount": 3763,
+        "candidatesTokenCount": 140,
+        "totalTokenCount": 3903,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3763
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    }
+  ]
+}

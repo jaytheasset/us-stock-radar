@@ -1,0 +1,12 @@
+{
+  "fact":"board_recommendation","runId":"tender-board-gemini35-20261006","model":"gemini-3.5-flash",
+  "scope":"Explicit subject board tender accept/reject/no_recommendation; temporary take-no-action and other states remain unresolved. No inferred transition from different merger.",
+  "stop":"One physical call per case, no retry/repair/fallback; finish review and stop after this FACT even on PASS.",
+  "cases":[
+    {"name":"applied-accept","sourceFile":"sources/applied-accept.json","purpose":"Explicit accept despite advisor opinion disclaimer and appraisal do-not-tender language","expected":{"current":"accept","previous":"absent"},"directSource":"E1/E6 recommend accept and tender; E2/E3 also explicit; E5 advisor disclaimer and E8 appraisal instructions are not board stance"},
+    {"name":"dxl-reject","sourceFile":"sources/dxl-reject.json","purpose":"Explicit reject after historical temporary company take-no-action communication","expected":{"current":"reject","previous":"absent"},"directSource":"E1/E2/E3/E4/E6/E7/E11 explicit reject; E11 prior company communication is not a previous definitive board recommendation"},
+    {"name":"dxl-amendment","sourceFile":"sources/dxl-amendment.json","purpose":"Recommendation amendment after revised tender; separate merger recommendation withdrawal must not become tender transition","expected":{"current":"reject","previous":"absent"},"directSource":"E1/E3/E6/E7/E8 direct reject; E5 withdrawal is different FBB merger; E4 interim company communication not definitive board recommendation","limitation":"Amendment context tested; does not provide a supported accept-to-reject or reject-to-accept tender transition"},
+    {"name":"rumble-no-recommendation","sourceFile":"sources/rumble-no-recommendation.json","purpose":"Approval of making offer differs from shareholder recommendation","expected":{"current":"no_recommendation","previous":"absent"},"directSource":"E1/E2/E3 explicitly board makes no recommendation although approving offer"},
+    {"name":"cidara-not-established","sourceFile":"sources/cidara-not-established.json","purpose":"No explicit board recommendation in selected primary precommencement evidence; do not infer neutral/accept","expected":{"facts":"empty","unresolved":"No explicit board recommendation in supplied source"},"directSource":"E1/E2 reference future Schedule14D9; other refs metadata and risk text; no recommendation present","limitation":"Omitted exhibits/other filings may contain recommendation; abstention is only about supplied source"}
+  ]
+}

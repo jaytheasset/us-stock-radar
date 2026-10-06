@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-gemini35-20261006-cidara-not-established",
+  "fact": "board_recommendation",
+  "accession": "0001193125-25-281502",
+  "name": "cidara-not-established",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:52:27.567Z",
+  "physicalCallLimit": 1,
+  "requestHash": "a6df58e8788bd84156685da96027efc7a8249b0e6d025261b0ed2d20db021617",
+  "mappingHash": "b24655d13f5c5c9b340b9870ac2812397a3841714c3bedf61a4e1e52970c1d82"
+}

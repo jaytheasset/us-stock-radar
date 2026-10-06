@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-gemini35-20261006-rumble-no-recommendation",
+  "fact": "board_recommendation",
+  "accession": "0001213900-25-000757",
+  "name": "rumble-no-recommendation",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:52:26.075Z",
+  "physicalCallLimit": 1,
+  "requestHash": "f15f85c61621dffc4d37d6c2161f88c5df49002177f81f424376ba7cc005abfe",
+  "mappingHash": "8848ee8374c88db90873291e6211b6ccdac11466bd3142beebb4ccdbfbbbcb7c"
+}

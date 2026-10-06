@@ -1,0 +1,25 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "reason": "Current unanimous REJECT and NOT TENDER"
+    },
+    "E3": {
+      "current": "direct",
+      "reason": "July2 Board decision and July8 announcement reject"
+    },
+    "E6": {
+      "current": "direct",
+      "reason": "Latest board reject follows interim company communication"
+    },
+    "E8": {
+      "current": "direct",
+      "reason": "Explicit July2 board reject"
+    }
+  },
+  "conclusion": "reject correct; different FBB merger recommendation withdrawal not imported; previous omitted. Actual tender recommendation direction reversal not tested."
+}

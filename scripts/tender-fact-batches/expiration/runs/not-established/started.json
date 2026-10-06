@@ -1,0 +1,11 @@
+{
+  "runId": "tender-expiration-remaining-gemini35-20261006-not-established",
+  "fact": "expiration",
+  "accession": "0001193125-25-281502",
+  "name": "not-established",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:41:56.043Z",
+  "physicalCallLimit": 1,
+  "requestHash": "d7584d02a26bd0dd27e2d59b2faf359d57b36af57512e2c1f037cddb72f43e0a",
+  "mappingHash": "73c732e15c725e31fa2dcb34dce094f32b4b931af24604a44f62334f6c283166"
+}

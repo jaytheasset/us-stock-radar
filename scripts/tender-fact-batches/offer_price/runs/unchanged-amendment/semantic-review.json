@@ -1,0 +1,13 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "reason": "Cash tender7.50 per share explicitly"
+    }
+  },
+  "conclusion": "7.50 correct, no invented previous in amendment."
+}

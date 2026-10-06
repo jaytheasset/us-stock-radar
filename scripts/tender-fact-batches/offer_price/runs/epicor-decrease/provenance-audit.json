@@ -1,0 +1,19 @@
+{
+  "valid": true,
+  "errors": [],
+  "mappingHash": "0aafe982178f73edec6a3f7a740e49de621f92e13238aa1c7246f17c896edfd0",
+  "resolved": [
+    {
+      "fact_index": 0,
+      "ref": "E1",
+      "evidence_id": "tender:ed1ba8084a807a1aad05070a2dd0852150aa818aee647dc7c3a49d2b97550bf4",
+      "accession": "0001193125-08-224348"
+    },
+    {
+      "fact_index": 0,
+      "ref": "E2",
+      "evidence_id": "tender:c867ecafebb4ad8fbbcb90ae0fe2cbd7404201932396dfa4dd652c41348b5541",
+      "accession": "0001193125-08-224348"
+    }
+  ]
+}

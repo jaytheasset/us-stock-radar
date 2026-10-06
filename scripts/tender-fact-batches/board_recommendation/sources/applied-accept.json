@@ -1,0 +1,287 @@
+{
+  "accession": "0001193125-25-335440",
+  "form": "SC 14D9",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:4558365bcd238641cd8ad83d1417542bfb808e8fb2c6d6c7ae4858c629b0aa08",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "3aa6760c36f2477bacec013c654e16b82b1335d992a7d818e64f4002d99a8cc0",
+      "location": {
+        "start": 148925,
+        "end": 149936,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Reasons for the Recommendation of the Board\n\nIn evaluating the Merger Agreement and the Transactions, including the Offer and the Merger, the Board consulted with the Company’s senior management and its legal and financial advisors. In the course of reaching its determination that the terms of the Merger Agreement, the Promissory Note, and the Transactions, including the Offer and the Merger are advisable and in the best interests of the Company and its stockholders and to recommend that holders of Shares accept the Offer and tender their Shares in the Offer, the board of directors of the Company (the “Board”) reviewed, evaluated, and considered a significant amount of information and numerous factors and benefits of the Offer, the Merger and the Promissory Note, each of which the Board believed supported its unanimous determination and recommendation. As a result, for the reasons set forth below, the Board recommends that Company’s stockholders tender their Shares in response to the Offer:\n\n-33-"
+    },
+    {
+      "id": "tender:1b6e5fd44d8eca6a7d664f35c438bfb42edaf0cddef7232e990219278e31b302",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "573a6d4125999abc8d459c26ed7aa2c0030de91657e175b8f2767c5d22db8115",
+      "location": {
+        "start": 163116,
+        "end": 164144,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n| | |•| | | |\nInterests of Insiders. The interests that certain directors and executive officers of the Company may have with respect to the Transactions that may be different from, or in addition to, their interests as stockholders of the Company or the interests of the Company’s other stockholders generally.\n|\n\n[/TABLE]\n\nThe foregoing discussion of the Board’s reasons for its recommendation that the Company’s stockholders accept the Offer and tender their Shares to Purchaser pursuant to the Offer is not meant to be exhaustive, but addresses the material information and reasons considered by the Board in connection with its recommendation. In view of the wide variety of factors considered by the Board in connection with the evaluation of the Offer and the complexity of these matters, the Board did not find it practicable to, and did not, quantify or otherwise assign relative weights to the specific reasons considered in reaching its determination and recommendation. Rather, the Company’s directors\n\n-36-"
+    },
+    {
+      "id": "tender:c1b6821f4c10e66c3166696922f1b1a31847080fd452e280e3a1240926e3d55e",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "07545254b288357445a4633eb77c1f71e553589c960e62ff51c266cb450021a3",
+      "location": {
+        "start": 46699,
+        "end": 47588,
+        "heading": "Item 3. Past Contacts, Transactions, Negotiations and Agreements.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Arrangements Between the Company and its Executive Officers, Directors and Affiliates\n\nIn considering the recommendation of the Board to holders of Shares to tender Shares in the Offer, stockholders should be aware that the Company’s executive officers, members of the Board and affiliates may be considered to have interests in the execution and delivery of the Merger Agreement and all of the Transactions, including the Offer and the Merger, that may be different from or in addition to those of the Company’s stockholders generally. The Board was aware of these interests and considered them, among other matters, in reaching its decision to approve the Merger Agreement and the Transactions, as more fully discussed below in “Item 4. The Solicitation or Recommendation—Recommendation of the Board” and “Item 4. The Solicitation or Recommendation—Reasons for the Recommendation.”\n\n-10-"
+    },
+    {
+      "id": "tender:da320076c9738b194f6daeda61d554b78392cddfc5c1986ceafe90365a817030",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "a9699ddf105148e5e8a6b197a24fab98c67f904686d8023d14b9d5aa8f7b10e0",
+      "location": {
+        "start": 157957,
+        "end": 159053,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n| | |•| | | |\nOpportunity to Accept a Superior Proposal. The fact that, in certain circumstances, the terms of the Merger Agreement permit the Company to respond to unsolicited proposals, and that the provisions of the Merger Agreement permit the Board in certain circumstances to terminate the Merger Agreement in order to enter into a definitive agreement with respect to an unsolicited superior proposal, subject to the payment of a termination fee equal to 4.5% of the upfront consideration and 4.5% of any amounts borrowed and interest accrued under the Promissory Note as of the time of termination, which amount the directors believe to be reasonable under the circumstances and unlikely to serve as a meaningful deterrent to other acquisition proposals; and\n|\n\n[/TABLE]\n\n[TABLE]\n\n| | |•| | | |\nAppraisal Rights. That stockholders who do not believe that the Offer Price represents fair consideration for their Shares will have an opportunity to pursue appraisal rights under Section 262 of the DGCL.\n|\n\n[/TABLE]\n\nConsiderations against and risks associated with the Transactions:"
+    },
+    {
+      "id": "tender:054847a4a0a87f897ac0d335349f30a1016b47855100a9aea3c1a7243c8c9772",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "68667b3f26048eb372fada16092ddb1515f396e5fc3e4cee4d5492c90c7e4bd6",
+      "location": {
+        "start": 275882,
+        "end": 277886,
+        "heading": "OPINION OF AQUILO PARTNERS, L.P.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The issuance of this opinion has been approved by a fairness opinion committee of Aquilo Partners, L.P. (“Aquilo Partners”). This opinion is for the use and benefit of the Board of Directors of the Company in connection with its evaluation of the Transaction. This opinion does not constitute a recommendation to any stockholder as to whether or not such holder should tender Shares in connection with the Tender Offer, or any other person as to how such stockholder or other person should vote with respect to any matter relating to the Transaction or otherwise act with respect to the Transaction or any other matter. Except as otherwise provided in our engagement letter with the Company, this opinion shall not be reproduced, disseminated, quoted, summarized or referred to at any time, in any manner or for any purpose, nor shall any public references to Aquilo Partners or any of its affiliates be made by the Company or any of its affiliates, without our prior written consent. If reference to Aquilo Partners or this opinion is required to be made in any statement, document or filing of the Company required to be filed under the federal securities laws, or any similar document where disclosure is required by applicable law or stock exchange requirement, we will not unreasonably withhold our consent thereto so long as we have approved in advance the text of any such disclosure and, in the case of reference to this opinion, the full text of this opinion is reproduced therein. Aquilo Partners has consented to the inclusion of this opinion, in its entirety, as an exhibit to the Schedule 14D-9 the Company is required to file with the Securities and Exchange Commission and distribute to its stockholders in connection with the Transaction.\n\nBased upon and subject to the foregoing, it is our opinion that, as of the date hereof, the Merger Consideration is fair, from a financial point of view, to the holders of Common Stock (other than the holders of Excluded Shares).\n\nVery truly yours,"
+    },
+    {
+      "id": "tender:a09e6069422adda8510cf560aa54af278f4af297eb31b7db58b83f65f446e37d",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "56dee7975fd97cee6711ea65c30f91b8f11c40bad6bed47493386eb636dfcf1a",
+      "location": {
+        "start": 148527,
+        "end": 149930,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Following the Company’s announcement of the Transactions, Party F and certain other parties have contacted Company management indicating an interest in acquiring the Company. The Company has responded to each party by referring such party to the non-solicitation provisions of the Merger Agreement. As of December 26, 2025, the Company has not received further communications from any such party.\n\nReasons for the Recommendation of the Board\n\nIn evaluating the Merger Agreement and the Transactions, including the Offer and the Merger, the Board consulted with the Company’s senior management and its legal and financial advisors. In the course of reaching its determination that the terms of the Merger Agreement, the Promissory Note, and the Transactions, including the Offer and the Merger are advisable and in the best interests of the Company and its stockholders and to recommend that holders of Shares accept the Offer and tender their Shares in the Offer, the board of directors of the Company (the “Board”) reviewed, evaluated, and considered a significant amount of information and numerous factors and benefits of the Offer, the Merger and the Promissory Note, each of which the Board believed supported its unanimous determination and recommendation. As a result, for the reasons set forth below, the Board recommends that Company’s stockholders tender their Shares in response to the Offer:"
+    },
+    {
+      "id": "tender:0d2ddf2a80feaff8a094055cfb2b75236a3fedebc44e059ebe841b486914a4a2",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "8df1127b506dd2dc14fa2428ca0e08b281560dc285561d62983f8ee212b48151",
+      "location": {
+        "start": 20496,
+        "end": 21730,
+        "heading": "Item 3. Past Contacts, Transactions, Negotiations and Agreements.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Except as set forth or incorporated by reference in this Schedule 14D-9, including in the Definitive Proxy Statement of the Company on Schedule 14A filed with the SEC on April 28, 2025 and filed as Exhibit(e)(14) to this Schedule 14D-9, which is incorporated by reference herein, to our knowledge, as of the date of this Schedule 14D-9, there are no material agreements, arrangements or understandings, nor any actual or potential conflicts of interest between the Company or any of its affiliates, on the one hand and (i) any of its executive officers, directors or affiliates, or (ii) Parent, Purchaser or any of their respective executive officers, directors or affiliates, on the other hand.\n\nThe Company’s board of directors (the “Board”) was aware of all such contacts, agreements, arrangements or understandings and any actual or potential conflicts of interest and considered them along with other matters, as set forth in Item 4 below under the heading “Reasons for the Recommendation of the Board.”\n\nAny information that is incorporated herein by reference shall be deemed modified or superseded for purposes of this Schedule 14D-9 to the extent that any information contained herein modifies or supersedes such information."
+    },
+    {
+      "id": "tender:43651c1b1b66a48ac2bdaefaa9188c617dd4c662363c49f9c17f72fd167dc273",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "3ab61e457338ba4bc19f23864f5cd78e8378eaf688bb04a971e3520c3c286940",
+      "location": {
+        "start": 248564,
+        "end": 251399,
+        "heading": "Item 8. Additional Information.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Any stockholder who has duly demanded and perfected appraisal rights in compliance with Section 262 of the DGCL will not, after the Effective Time, be entitled to vote his or her Shares for any purpose or be entitled to the payment of dividends or other distributions thereon, except dividends or other distributions payable to holders of record of Shares as of a date prior to the Effective Time.\n\nIf any stockholder who demands appraisal of Shares under Section 262 of the DGCL fails to perfect, successfully withdraws or loses such holder’s right to appraisal, such stockholder’s Shares will be deemed to have been converted at the Effective Time into the right to receive the consideration payable in connection with the Merger (which is equal to the Offer Price, without interest). A stockholder will fail to perfect, or effectively lose, the stockholder’s right to appraisal if no petition for appraisal is filed within 120 days after the Effective Time. Moreover, the Court of Chancery shall dismiss the proceedings as to all stockholders who are otherwise entitled to appraisal rights, and such stockholders will effectively lose their appraisal rights, unless either (1) the total number of Shares entitled to appraisal rights exceeds 1% of the outstanding Shares immediately prior to the Effective Time or (2) the value of the consideration provided in the Merger for such total number of Shares entitled to appraisal rights exceeds $1 million. In addition, a stockholder may withdraw his, her or its demand for appraisal in accordance with Section 262 of the DGCL and accept the consideration payable in connection with the Merger by delivering to the Surviving Corporation a written withdrawal of such stockholder’s demand for appraisal and acceptance of the merger either within 60 days after the effective date of the Merger or thereafter with the written approval of the Surviving Corporation. Notwithstanding the foregoing, no appraisal proceeding in the Court of Chancery shall be dismissed as to any stockholder without the approval of the Court, and such approval may be conditioned upon such terms as the Court deems just; provided, however, that the limitation set forth in this sentence shall not affect the right of any stockholder who has not commenced an appraisal proceeding or joined that proceeding as a named party to withdraw such stockholder’s demand for appraisal and to accept the terms offered upon the Merger within 60 days after the effective date of the Merger.\n\nIf you wish to exercise your appraisal rights, you must NOT tender your Shares in the Offer and must strictly comply with the procedures set forth in Section 262 of the DGCL. If you fail to take any required step in connection with the exercise of appraisal rights, it will result in the termination or waiver of your appraisal rights."
+    },
+    {
+      "id": "tender:0e52520fc09e36c245eaf70766b7fe30e923e05d414fcada70feddc05460e29f",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "b50388efb33839cd1f44d8a459e9e4c01f7ce1946013ab382782dc3fcfd21002",
+      "location": {
+        "start": 82629,
+        "end": 83391,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Prior to the date and time at which Purchaser accepts for payment such number of Shares validly tendered and not validly withdrawn pursuant to the Offer as satisfies the Minimum Tender Condition, the Company and the Board will take all such steps as may reasonably be necessary to cause the Transactions, including any dispositions of Shares (or any Company Stock Option, Company RSU, Common Stock Warrants, Pre-Funded Warrants, Legacy Warrants, Other Legacy Warrants or other derivative security) by each person who is or will be subject to the reporting requirements of Section 16(a) of the Exchange Act with respect to the Company, to be exempt under Rule 16b-3 under the Exchange Act.\n\nItem 4. The Solicitation or Recommendation.\n\nRecommendation of the Board"
+    },
+    {
+      "id": "tender:640f84137bc325cf81eee7e004ac56837e5935e246a822a73ce0f7177a4d3a8c",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "d0fe871ad30644122b40dc75eead6fcf7033002886d96d08c68647519ac0a024",
+      "location": {
+        "start": 131272,
+        "end": 134778,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "payable to Company shareholders. Mr. Chinoporos responded that the Company was in negotiations with another bidder and working towards an announcement as early as the week of December 7 and urged Party E to accelerate its remaining diligence on that timeline.\n\nLater on December 5, 2025, the Board held a special meeting by videoconference, which was attended by Company management and representatives of Ropes & Gray and Aquilo Partners. At this meeting, Company management presented the Party E Proposal and briefed the Board on the subsequent discussion with Party E in which Party E indicated that it could not enter into a binding agreement until it had satisfactorily completed its diligence, which would likely take six to eight weeks and that $28 million (inclusive of the working capital facility) was the maximum amount that it would pay to acquire the Company’s shares and fund ongoing operations. The Board compared the Party E Proposal to the terms of the transaction under negotiation with Cycle, including the estimated present value of the CVR payments under the Cycle proposal, as estimated by Company management (referred to as the “CVR Estimate” in the section of this Schedule 14D-9 entitled “—CVR Estimate”), and the Board determined that based on the uncertainty that Party E would ever satisfactorily complete its due diligence, its extended timeline to signing and the Company’s inability to fund operations during that time, and the Company’s need to make a decision with respect to a sale transaction or a wind-down or liquidation in the near term, that the speed and certainty of the Cycle proposal made it more favorable than the Party E Proposal and that the Company should prioritize the ongoing negotiations with Cycle but continue to urge Party E to accelerate its diligence. The Board also discussed the need, as a result of the Party E Proposal and continued interest of Party C and Party E to negotiate the Company termination fee payable to accept a topping bid in a transaction with Cycle to a lower amount. The Board also discussed the terms of the draft merger agreement, including the termination fee, treatment of indebtedness, and process to consider and accept a topping bid, and discussed the need for the working capital facility to be unsecured. The Board and Company management also discussed the need for the Company to act quickly to address the Company’s quickly dwindling cash position in the event a transaction was not reached in the near term, including discussing liquidation scenarios and certain accounts payables and receivables.\n\nAlso at the December 5 meeting of the Board, representatives of Aquilo Partners presented the Board with Aquilo Partners’ relationships disclosure with respect to the Company and Cycle, and representatives of Aquilo Partners presented its preliminary financial analyses regarding the potential transaction, highlighting that in a wind-down or liquidation scenario, based on the best then-available estimates and judgments of Company management as set forth in the liquidation analysis prepared by Company management (referred to as the “Liquidation Analysis” in the section of this Schedule 14D-9 entitled “—Liquidation Analysis”), there would be no proceeds left for payments to the Company’s stockholders in a wind down or liquidation of the Company and, as a result, a sale transaction in which the Company’s stockholders would receive any proceeds would be more favorable than a wind-down or liquidation scenario."
+    },
+    {
+      "id": "tender:bd74c8e15a0da9f8759a9765c91ba034475fa2350396d30692b2cd0024e77924",
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "document": {
+        "accession": "0001193125-25-335440",
+        "form": "SC 14D9",
+        "documentId": "d84762dsc14d9.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "renderedHash": "7f16ec95ff590dc314e69d2e3bf05450954de8028ce794f934b02c31c5224dae",
+      "textHash": "b54b03d33c5ec9a6e7e4dbb78930efd73d38d689c214c0133b3bd7afe1418857",
+      "location": {
+        "start": 197619,
+        "end": 198647,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Share Offer Price of $0.127, as described above. Aquilo Partners also noted that the upfront cash payment and the estimated probability adjusted present value of the per Share Offer Price would each exceed zero ($0.00) per Share, the per Share amount that would be payable in a Liquidation based on the Liquidation Analysis, which, in Aquilo Partners professional judgment, was the most relevant analysis.\n\nIn presenting to the Board, Aquilo Partners noted that the upfront cash payment of $0.088 per Share is a 60% discount to the $0.22 per Share closing price of the Shares on December 10, 2025 (the last trading date before the public announcement of the Transactions). In addition, while the First Milestone, Second Milestone and Third Milestone may not be achieved, Aquilo Partners noted that the $0.127 total estimated risk and probability adjusted per Share Offer Price (assuming no Closing Cash Payment is payable) is a 42% discount to the $0.22 per Share closing price of the Shares on December 10, 2025.\n\nMiscellaneous"
+    }
+  ]
+}

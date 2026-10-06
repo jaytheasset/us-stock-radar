@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [],\n  \"unresolved\": [\n    \"The source only reports an already expired historical offer that expired on January 21, 2026, as noted in E2, so an active scheduled expiration is not established.\"\n  ]\n}",
+            "thoughtSignature": "EmgKZgFpFH0T0o54NOxsG7Sx0m+LEiVNFrHM19yytX09G8c8sKKG/q/kXMO6nEPcPB/Wur8g/4WCirdacDYjhPVE3xBXOF6/KQqwRFE/wFe7bnaDOA669OrBZkPm/cxxV9nFLPoQZZzurg=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1570,
+    "candidatesTokenCount": 60,
+    "totalTokenCount": 1630,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1570
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "H4rEaqGuMOja1e8PvPib4Q0"
+}

@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-gemini35-20261006-applied-accept",
+  "fact": "board_recommendation",
+  "accession": "0001193125-25-335440",
+  "name": "applied-accept",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:52:20.774Z",
+  "physicalCallLimit": 1,
+  "requestHash": "f52f6a6c869655019e3c085414e86381390f4a9a14dfcbad4aff9f4f42ce3a0f",
+  "mappingHash": "4e2fd56e6acc1fe8c91a928e3fdb778d9359f6f4043c88e2bdbe3554abf652b7"
+}

@@ -1,0 +1,29 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "previous": "corroborating",
+      "reason": "Defines same Offer Price cash per share; current0.84"
+    },
+    "E2": {
+      "current": "direct",
+      "previous": "corroborating",
+      "reason": "Same offer identity and cash per-share definition"
+    },
+    "E6": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Explicit Offer Price increase0.82 to0.84; defined unit in E1/E2"
+    },
+    "E7": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Explicit same offer increase; cash per-share context in E1/E2"
+    }
+  },
+  "conclusion": "0.82 to0.84 correct;1.25 separate proposal not previous tender price."
+}

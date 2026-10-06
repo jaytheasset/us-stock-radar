@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-gemini35-20261006-dxl-amendment",
+  "fact": "board_recommendation",
+  "accession": "0001193125-26-298540",
+  "name": "dxl-amendment",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:52:24.535Z",
+  "physicalCallLimit": 1,
+  "requestHash": "f6f756fa357acbbf70f9389106e571b42b0e3e3bb1f3491bab4c3b9083a5c1dd",
+  "mappingHash": "a1a3d2a2a563b8cab5cb6c0698588651e3652fd1d843a2ac1d3e87a06c2f1e7c"
+}

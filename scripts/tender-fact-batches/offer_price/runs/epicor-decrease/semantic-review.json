@@ -1,0 +1,19 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Explicit decrease9.50 to7.50 per Share cash"
+    },
+    "E2": {
+      "current": "direct",
+      "previous": "direct",
+      "reason": "Old9.50 same tender; operative reduction to7.50 cash"
+    }
+  },
+  "conclusion": "9.50 to7.50 correct; aggregate417m and conversion18.10 excluded."
+}

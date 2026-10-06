@@ -1,0 +1,6 @@
+{
+  "fact": "offer_price",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:49:19.757Z",
+  "maxCalls": 5
+}

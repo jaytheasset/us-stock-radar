@@ -1,0 +1,15 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-epicor-decrease",
+  "fact": "offer_price",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-08-224348",
+  "frozenAt": "2026-10-06T05:49:07.862Z",
+  "files": {
+    "evidence-map.json": "0aafe982178f73edec6a3f7a740e49de621f92e13238aa1c7246f17c896edfd0",
+    "prompt.txt": "8315d6bc1c4ba5f705f6c6a79e1935ef5adb16ae4fa1777def34e1b9fec767fd",
+    "provider-schema.json": "e6ebb156976cbbc841c2b5e6d2fd09eaaa904cacbc01664f3306bdc673552bdc",
+    "provider-source.json": "7bda43036943146d06bed2247e1c3e684ae7ec6132726f11768671a863a7f464",
+    "request.json": "fb8a80794997266e691173671df26a1ac5f3833c8d9584ddafe5b95c2b58979a",
+    "source.json": "7cdf3f38e1a6b1543e61804e4a802fe10463f65c65473e91fcd2a64961937099"
+  }
+}

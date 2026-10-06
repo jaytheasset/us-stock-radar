@@ -1,0 +1,218 @@
+{
+  "E1": {
+    "evidence_id": "tender:82be5298af1ba05b5bc342bbe9ef630c75d2603dc2198f3cf444f38806223406",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "61f2f97a9502adc91e763457e87b42f2fa3451a5e541eb0fed26abb20c1fd537",
+    "location": {
+      "start": 25835,
+      "end": 26364,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E2": {
+    "evidence_id": "tender:0efcd4f45005645c695b9e2f7463fbf4b3a24a62e58541516164f99a33b46416",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "ce59dcf0f300f5fd5a2501fd981363389b7dcc4d884fbc8cdbac24da80644c41",
+    "location": {
+      "start": 26506,
+      "end": 27857,
+      "heading": "Item 8. Additional Information.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E3": {
+    "evidence_id": "tender:e56bbd2eb3d9c74d222c9092d929f9ad1fadd4422ad60a1be08b652b5ab704ad",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "7e05fc18b6ca8749cea6b329afc218be58366ce05e65802465805fdd59153999",
+    "location": {
+      "start": 5263,
+      "end": 6963,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E4": {
+    "evidence_id": "tender:0522dc8d9b70050a519609d0f3ca4e8666f0602a916e7b23bd960ac8718ef820",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "58b7226fe9de95607a70a67cf94e3fa09d0f5ce5f1974ccccf9a9f5e49842131",
+    "location": {
+      "start": 4363,
+      "end": 5261,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E5": {
+    "evidence_id": "tender:dff3ccc30d6ba601943a6f6efda2764baef2bbefed708c5ca04a58c834c9a32e",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "d5bf7f310f106456e0a155f0c63e94cb877084e32aeff0a3d9542c399ef9471d",
+    "location": {
+      "start": 7880,
+      "end": 8956,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E6": {
+    "evidence_id": "tender:775ff2291f95e4e5ee53a8e3654f1289857c338b81a23a51d9ed2e0d46dd5008",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "27c0166b0d48e9b2769f6924d4068166015343535f9a771c7a6ddb16a67f148a",
+    "location": {
+      "start": 4593,
+      "end": 6719,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E7": {
+    "evidence_id": "tender:f641174b55ffbd595440de56224bcdc7b8d599426dc5db1870a789b6201dec7d",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "d5b4754a8423fa43b0b163cdc4017c765f54575a36faa29d886bb0123771f6ac",
+    "location": {
+      "start": 6433,
+      "end": 7008,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E8": {
+    "evidence_id": "tender:7fdb54a317d4155ae2e0e7a32a00243eb2d7410e51f2f5f62daece545de8c95b",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "b3f8e60cad89ef347141f19899f0feea78a93d1b21202ecf60e565b2d96b5637",
+    "location": {
+      "start": 4499,
+      "end": 6431,
+      "heading": "Item 4. The Solicitation or Recommendation.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E9": {
+    "evidence_id": "tender:a6845b9573e350f87f17a484f617a1d253e06f6bd4022719e4c19ae1522e0b86",
+    "accession": "0001193125-26-298540",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "documentId": "sch14d9_amendment_3_july.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+    "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+    "textHash": "25a8309f22b65246f4b3e79746830ea7625dec441dbe061dc442ebdf89413ca7",
+    "location": {
+      "start": 169,
+      "end": 288,
+      "heading": "SOLICITATION/RECOMMENDATION STATEMENT",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  }
+}

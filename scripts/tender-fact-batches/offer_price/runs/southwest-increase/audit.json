@@ -1,0 +1,37 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-southwest-increase",
+  "fact": "offer_price",
+  "accession": "0001193125-22-074629",
+  "name": "southwest-increase",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1917,
+  "usage": {
+    "promptTokenCount": 3665,
+    "candidatesTokenCount": 148,
+    "totalTokenCount": 3813,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3665
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

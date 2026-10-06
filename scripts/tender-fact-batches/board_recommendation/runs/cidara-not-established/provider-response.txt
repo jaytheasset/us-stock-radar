@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [],\n  \"unresolved\": [\n    \"The supplied text consists of preliminary communications made before the commencement of the tender offer (E4, E7, E8). It does not contain any explicit recommendation from the board of directors of Cidara Therapeutics, Inc. to its shareholders regarding whether to accept or reject the tender offer, nor does it state that the board has made no recommendation. According to E1, a solicitation/recommendation statement on Schedule 14D-9 containing such information will be filed by Cidara when the planned tender offer is commenced.\"\n  ]\n}",
+            "thoughtSignature": "EmgKZgFpFH0Te5u9/pt0Vy2eW0PevMEM923HHBnAZ7RwP+laergJ6zw3YiNCdr8FrXu/TqQMt5T/sX4mIXpvIcrE54aK+GsEBFWf5bcaejTAmK9lrPwugbs+fJHSVcov0IzyU1vv6btpWw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 3003,
+    "candidatesTokenCount": 127,
+    "totalTokenCount": 3130,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3003
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "nIzEauGHCte40-kP7PqjgQQ"
+}

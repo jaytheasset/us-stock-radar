@@ -1,0 +1,21 @@
+{
+  "reviewer": "Codex direct reading of frozen SEC selected source; not independent human review",
+  "semanticPass": true,
+  "evidenceSupportPass": true,
+  "failureClass": null,
+  "refs": {
+    "E1": {
+      "current": "direct",
+      "reason": "Board explicitly recommends accept/tender"
+    },
+    "E2": {
+      "current": "direct",
+      "reason": "Expressly restates Board recommendation to accept/tender"
+    },
+    "E6": {
+      "current": "direct",
+      "reason": "Board explicitly recommends tender"
+    }
+  },
+  "conclusion": "accept correct; advisor disclaimer and appraisal instruction not misclassified; no previous"
+}

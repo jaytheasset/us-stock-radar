@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"offer_price\",\n      \"current\": {\n        \"amount\": 0.84,\n        \"currency_text\": \"$\",\n        \"unit\": \"cash_per_share\"\n      },\n      \"previous\": {\n        \"amount\": 0.82,\n        \"currency_text\": \"$\",\n        \"unit\": \"cash_per_share\"\n      },\n      \"evidence_refs\": [\n        \"E1\",\n        \"E2\",\n        \"E6\",\n        \"E7\"\n      ]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0Trw42m1dVZoUsW64T/ATq+5aLfrQocpXNFP2o7bBsl4eH6HHXHEU+jeM834QUphD/GaLN0xXXpJc1/I4k2QHdkFqtMt5dhBuN6GwPGUst06ys8+jdyYKkGqS4SJZRYFow6g=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 4400,
+    "candidatesTokenCount": 152,
+    "totalTokenCount": 4552,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 4400
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "5IvEapTzCrD62roPtd688AU"
+}

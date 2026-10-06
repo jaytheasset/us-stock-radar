@@ -1,0 +1,37 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-initial-competing",
+  "fact": "offer_price",
+  "accession": "0001213900-25-000757",
+  "name": "initial-competing",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1908,
+  "usage": {
+    "promptTokenCount": 5117,
+    "candidatesTokenCount": 110,
+    "totalTokenCount": 5227,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 5117
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

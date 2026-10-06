@@ -1,0 +1,551 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+  "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+  "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+  "renderedChars": 35446,
+  "queries": [
+    "What is the offer price cash per share purchase consideration and currency?",
+    "Was the offer price increased decreased reduced from a previous price or is it unchanged?",
+    "What dollars currency per share purchase price applies and what other aggregate or market prices are distinguished?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_amendment_3_july.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 15,
+      "hits": [
+        {
+          "id": "tender:f229c85470f3d2f501eb9ddbecadb0c3d3686f4bee7705ccc486ba0dfa5ee685",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "da1d6397228a74ce324cd3e4b88170d0e6905c871b90947d5901ea34f0d390b2",
+          "location": {
+            "start": 2818,
+            "end": 3743,
+            "heading": "Item 2. Identity and Background of Filing Person.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 925,
+          "score": 14.186538042638173,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:9c741db2691420e1a5edca224ce27d147074fb12aafe337ed437151770857bb5",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "f00da36714ec01123bee17f26c2c83fc1c596353d771e64a4c508112f8bbc2e1",
+          "location": {
+            "start": 1086,
+            "end": 2424,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1338,
+          "score": 13.522468075656265,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:b0ba7f30b988fdd2790152140261877b5221804426c44b0467963572e7c1a1ee",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "05514144be0233257d4ad61a78b8d92acb25875b445fd4bc22a81b985abfaf2c",
+          "location": {
+            "start": 27859,
+            "end": 30413,
+            "heading": "Item 8. Additional Information.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2554,
+          "score": 11.64445019479164,
+          "matchedTerms": [
+            "price",
+            "cash",
+            "per",
+            "share",
+            "consideration"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:8d09d4cee6284f6b1c289727400bed1687b07d5931d1fa6a1620e58690e30de1",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "02fab9b91038dd95c6b5fd9b28cf626bb16bac34227bef74582ce2f03bf203fc",
+          "location": {
+            "start": 7326,
+            "end": 8808,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1482,
+          "score": 10.437249168855075,
+          "matchedTerms": [
+            "price",
+            "per",
+            "share",
+            "consideration"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:456b6069b81e487ee2e0ef0dad964b480e14d23bfddd158f1131528fb8911d2a",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "18984a7cdee6348251f379afd73de4f47500c311469aebc8a8a59798d6ed0392",
+          "location": {
+            "start": 27314,
+            "end": 29517,
+            "heading": "Item 8. Additional Information.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2203,
+          "score": 9.899011598235935,
+          "matchedTerms": [
+            "price",
+            "per",
+            "share",
+            "consideration"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_amendment_3_july.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 14,
+      "hits": [
+        {
+          "id": "tender:0522dc8d9b70050a519609d0f3ca4e8666f0602a916e7b23bd960ac8718ef820",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "58b7226fe9de95607a70a67cf94e3fa09d0f5ce5f1974ccccf9a9f5e49842131",
+          "location": {
+            "start": 4363,
+            "end": 5261,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 898,
+          "score": 11.645992403949423,
+          "matchedTerms": [
+            "price",
+            "increased",
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:775ff2291f95e4e5ee53a8e3654f1289857c338b81a23a51d9ed2e0d46dd5008",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "27c0166b0d48e9b2769f6924d4068166015343535f9a771c7a6ddb16a67f148a",
+          "location": {
+            "start": 4593,
+            "end": 6719,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2126,
+          "score": 9.67036616344799,
+          "matchedTerms": [
+            "price",
+            "increased",
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:9c741db2691420e1a5edca224ce27d147074fb12aafe337ed437151770857bb5",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "f00da36714ec01123bee17f26c2c83fc1c596353d771e64a4c508112f8bbc2e1",
+          "location": {
+            "start": 1086,
+            "end": 2424,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1338,
+          "score": 8.11348084539376,
+          "matchedTerms": [
+            "price",
+            "from",
+            "unchanged"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:14a7bb446fad96a92cc9acd94cd7cfd6a97d1b8874ccd8691445e87923ccdfb8",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "37f88111f26c83c54f87225a608aed16c4408d477462e454d515129611c5c13e",
+          "location": {
+            "start": 24705,
+            "end": 25513,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 808,
+          "score": 5.921865681580842,
+          "matchedTerms": [
+            "from",
+            "it"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:f127109d9d8e47a89d3ebf74b12a6048820a73d5f242ec2ebbd59fa6533e26ce",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "decdc3dcc958fd7c138254fb4e5a6a53cce76d40ec6cab6c6070dac1a38c5998",
+          "location": {
+            "start": 8958,
+            "end": 9741,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 5.901688908506539,
+          "matchedTerms": [
+            "price",
+            "reduced"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "sch14d9_amendment_3_july.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 23,
+      "hits": [
+        {
+          "id": "tender:f127109d9d8e47a89d3ebf74b12a6048820a73d5f242ec2ebbd59fa6533e26ce",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "decdc3dcc958fd7c138254fb4e5a6a53cce76d40ec6cab6c6070dac1a38c5998",
+          "location": {
+            "start": 8958,
+            "end": 9741,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 11.803377817013079,
+          "matchedTerms": [
+            "per",
+            "share",
+            "price",
+            "market"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:f229c85470f3d2f501eb9ddbecadb0c3d3686f4bee7705ccc486ba0dfa5ee685",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "da1d6397228a74ce324cd3e4b88170d0e6905c871b90947d5901ea34f0d390b2",
+          "location": {
+            "start": 2818,
+            "end": 3743,
+            "heading": "Item 2. Identity and Background of Filing Person.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 925,
+          "score": 11.349230434110538,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:9c741db2691420e1a5edca224ce27d147074fb12aafe337ed437151770857bb5",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "f00da36714ec01123bee17f26c2c83fc1c596353d771e64a4c508112f8bbc2e1",
+          "location": {
+            "start": 1086,
+            "end": 2424,
+            "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1338,
+          "score": 10.817974460525011,
+          "matchedTerms": [
+            "per",
+            "share",
+            "purchase",
+            "price"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:456b6069b81e487ee2e0ef0dad964b480e14d23bfddd158f1131528fb8911d2a",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "18984a7cdee6348251f379afd73de4f47500c311469aebc8a8a59798d6ed0392",
+          "location": {
+            "start": 27314,
+            "end": 29517,
+            "heading": "Item 8. Additional Information.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2203,
+          "score": 9.899011598235935,
+          "matchedTerms": [
+            "per",
+            "share",
+            "price",
+            "other"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:b80d4c7c5ef427b9c980b508e8a18b9190ecd360bcccffd867c4bb42b2e04e1b",
+          "accession": "0001193125-26-298540",
+          "form": "SC 14D9/A",
+          "document": {
+            "accession": "0001193125-26-298540",
+            "form": "SC 14D9/A",
+            "documentId": "sch14d9_amendment_3_july.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+          "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+          "textHash": "cf43b1ad2230e2a0b6b3d7a20786bb012832d03414c76df9b173de21dfcfbe1d",
+          "location": {
+            "start": 26537,
+            "end": 29061,
+            "heading": "Item 8. Additional Information.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2524,
+          "score": 9.540556703999103,
+          "matchedTerms": [
+            "per",
+            "share",
+            "price",
+            "other"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

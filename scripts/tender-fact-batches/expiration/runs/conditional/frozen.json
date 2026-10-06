@@ -1,0 +1,15 @@
+{
+  "runId": "tender-expiration-remaining-gemini35-20261006-conditional",
+  "fact": "expiration",
+  "model": "gemini-3.5-flash",
+  "accession": "0001062993-17-000336",
+  "frozenAt": "2026-10-06T05:41:36.614Z",
+  "files": {
+    "evidence-map.json": "825cd69c271bd9fa5e0d715257cb9d5ad831558f027f1e9dd4da622d14dbdece",
+    "prompt.txt": "c172733a800f27f344d1c32969e9f7e143fa159bcaf906a5a70b6fbaf94cb0fa",
+    "provider-schema.json": "60ed7a020352e3f724d50ac24258dc9225331aab8b7b04dfc97cbc4553424fd1",
+    "provider-source.json": "0cc9844794894cc46d4e70cb6b6685721c72cbb8d941c51860182b28c5970925",
+    "request.json": "12d3d2d1f60b142f877d905aa544474f8fac4f26cd2d42ce6a3fabf8a71ef876",
+    "source.json": "c7458819990d9f5e140f1de7ea5ae85f25cb90b520d05bbf60caa8d2b6d6d105"
+  }
+}

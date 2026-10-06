@@ -1,0 +1,37 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-dxl-revised",
+  "fact": "offer_price",
+  "accession": "0001193125-26-298540",
+  "name": "dxl-revised",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1703,
+  "usage": {
+    "promptTokenCount": 4400,
+    "candidatesTokenCount": 152,
+    "totalTokenCount": 4552,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 4400
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

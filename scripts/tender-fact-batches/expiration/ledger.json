@@ -1,0 +1,193 @@
+{
+  "fact": "expiration",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 5,
+  "stoppedEarly": false,
+  "cases": [
+    {
+      "runId": "tender-expiration-remaining-gemini35-20261006-many-dates",
+      "fact": "expiration",
+      "accession": "0001104659-25-006713",
+      "name": "many-dates",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1906,
+      "usage": {
+        "promptTokenCount": 4242,
+        "candidatesTokenCount": 73,
+        "totalTokenCount": 4315,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 4242
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-expiration-remaining-gemini35-20261006-already-expired",
+      "fact": "expiration",
+      "accession": "0001702510-26-000009",
+      "name": "already-expired",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1638,
+      "usage": {
+        "promptTokenCount": 1570,
+        "candidatesTokenCount": 60,
+        "totalTokenCount": 1630,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1570
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-expiration-remaining-gemini35-20261006-conditional",
+      "fact": "expiration",
+      "accession": "0001062993-17-000336",
+      "name": "conditional",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1540,
+      "usage": {
+        "promptTokenCount": 3717,
+        "candidatesTokenCount": 81,
+        "totalTokenCount": 3798,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3717
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-expiration-remaining-gemini35-20261006-partial",
+      "fact": "expiration",
+      "accession": "0001193125-25-335440",
+      "name": "partial",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1696,
+      "usage": {
+        "promptTokenCount": 1722,
+        "candidatesTokenCount": 46,
+        "totalTokenCount": 1768,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1722
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    },
+    {
+      "runId": "tender-expiration-remaining-gemini35-20261006-not-established",
+      "fact": "expiration",
+      "accession": "0001193125-25-281502",
+      "name": "not-established",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 1578,
+      "usage": {
+        "promptTokenCount": 2196,
+        "candidatesTokenCount": 53,
+        "totalTokenCount": 2249,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 2196
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "technicalPass": true,
+      "failureClass": null
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "runId": "tender-cash-price-gemini35-20261006-unchanged-amendment",
+  "fact": "offer_price",
+  "accession": "0001213900-25-003454",
+  "name": "unchanged-amendment",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1584,
+  "usage": {
+    "promptTokenCount": 3058,
+    "candidatesTokenCount": 93,
+    "totalTokenCount": 3151,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3058
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-gemini35-20261006-rumble-no-recommendation",
+  "fact": "board_recommendation",
+  "accession": "0001213900-25-000757",
+  "name": "rumble-no-recommendation",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1489,
+  "usage": {
+    "promptTokenCount": 3933,
+    "candidatesTokenCount": 76,
+    "totalTokenCount": 4009,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3933
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

@@ -1,0 +1,12 @@
+{
+  "fact": "expiration",
+  "runId": "tender-expiration-remaining-gemini35-20261006",
+  "model": "gemini-3.5-flash",
+  "cases": [
+    {"name":"many-dates","sourceFile":"../../tender-expiration/fixtures/inputs.json","fixtureName":"many-dates","purpose":"Competing merger/termination/cutoff/guaranteed-delivery dates","expected":{"current":"2025-02-25","previous":"absent","unresolved":"empty"},"directSource":"E4/E5 explicitly state Feb 25; May 13 termination and Feb 24 acquisition cutoff are not expiration"},
+    {"name":"already-expired","sourceFile":"../../tender-expiration/fixtures/inputs.json","fixtureName":"already-expired","purpose":"Final results must not create an active scheduled deadline","expected":{"facts":"empty","unresolved":"historical expiration only"},"directSource":"E2 states offer expired January 21, 2026; other dates are NAV/payment/publication"},
+    {"name":"conditional","sourceFile":"../../tender-expiration/fixtures/inputs.json","fixtureName":"conditional","purpose":"Cross-border open-for-acceptance and conditional mandatory extension","expected":{"current":"2017-02-27","previous":"absent","unresolved":"empty"},"directSource":"E10/E12 state current February 27, 2017; future extension is conditional"},
+    {"name":"partial","sourceFile":"../../tender-expiration/fixtures/inputs.json","fixtureName":"partial","purpose":"Truncated original prefix cannot establish a deadline","expected":{"facts":"empty","unresolved":"partial source insufficient"},"directSource":"Coverage declares truncation; E2 stops mid-sentence and no selected text states expiration"},
+    {"name":"not-established","sourceFile":"../../tender-expiration/fixtures/inputs.json","fixtureName":"not-established","purpose":"Precommencement disclosure has no fixed expiration","expected":{"facts":"empty","unresolved":"offer not commenced; expiration not stated"},"directSource":"E1 expressly says tender has not yet commenced; reporting/exhibit dates are not deadline"}
+  ]
+}
